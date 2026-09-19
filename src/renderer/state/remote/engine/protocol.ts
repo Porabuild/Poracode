@@ -129,4 +129,19 @@ export type ClientEngineOverflowResponse = {
   type: "overflow";
 };
 
-export type ClientEngineResponse = ClientEngineWorkResponse | ClientEngineOverflowResponse;
+/**
+ * Typed answer to a request whose `v` this worker does not speak (V5 2.6).
+ * The worker echoes its OWN current version, so a mismatched host fails the
+ * version gate on this response and rejects its pending work typed instead of
+ * silently dropping every frame until the per-request timeout.
+ */
+export type ClientEngineProtocolMismatchResponse = {
+  v: typeof CLIENT_ENGINE_PROTOCOL_VERSION;
+  type: "protocol-mismatch";
+  receivedV: number;
+};
+
+export type ClientEngineResponse =
+  | ClientEngineWorkResponse
+  | ClientEngineOverflowResponse
+  | ClientEngineProtocolMismatchResponse;

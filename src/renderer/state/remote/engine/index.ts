@@ -11,8 +11,10 @@ export {
 export {
   ClientEngineHost,
   ClientEngineOverflowError,
+  ClientEngineProtocolMismatchError,
   decodeBackendSync,
-  getClientEngineHost,
-  isClientEngineWorkerActive,
+  getBackendStreamEngine,
+  getPersistJsonEngine,
+  getRemoteSocketEngine,
   resetClientEngineHostForTests,
 } from "./clientEngineHost";

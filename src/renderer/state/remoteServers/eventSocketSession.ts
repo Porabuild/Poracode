@@ -13,7 +13,7 @@ import {
   RemoteSocketReconnectPolicy,
 } from "@/shared/remote/socketPolicy";
 import { handleBrowserServerMessage } from "@/renderer/browser/browserMirror";
-import { getClientEngineHost, isClientEngineWorkerActive } from "@/renderer/state/remote/engine";
+import { getRemoteSocketEngine, type ClientEngineHost } from "@/renderer/state/remote/engine";
 import { releaseRemoteTerminal, remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
 import {
   applyThreadSnapshot,
@@ -96,6 +96,24 @@ const MAX_RECOVERY_QUEUED_EVENTS = 512;
 const MAX_RECOVERY_QUEUED_BYTES = 2 * 1024 * 1024;
 const recoveryTextEncoder = new TextEncoder();
 
+/**
+ * The remote-socket engine is shared by every paired-server session in this
+ * window, so exactly ONE overflow listener is registered for the module and
+ * the latest session re-points it. A stale session's sink is inert: its
+ * handler checks `isCurrent()` before touching any socket. Overflow resets
+ * the engine, so every session with an in-flight `decodeRemote` also sees a
+ * typed rejection and resyncs through the per-frame catch — the sink only
+ * covers overflow with no locally pending decode.
+ */
+let engineOverflowSink: (() => void) | null = null;
+let engineOverflowBoundTo: ClientEngineHost | null = null;
+
+function bindRemoteEngineOverflowListener(engine: ClientEngineHost): void {
+  if (engineOverflowBoundTo === engine) return;
+  engineOverflowBoundTo = engine;
+  engine.addOverflowListener(() => engineOverflowSink?.());
+}
+
 export interface StartRemoteServerEventStreamDeps {
   readonly server: RemoteServerRecord;
   readonly initialCapabilities?: TerminalConnectionCapabilities;
@@ -148,6 +166,10 @@ export async function startRemoteServerEventStream(
   } = deps;
 
   const serverKey = `${server.endpoint}\0${server.accessToken}`;
+  // This session's consumer-scoped decode engine (V5 2.2): independent of the
+  // desktop renderer-stream and persist engines, so their resets and overflows
+  // cannot reject this session's in-flight decodes.
+  const engine = getRemoteSocketEngine();
   const existing = getRemoteServerEventSocketEntry(server.desktopId);
   if (existing?.serverKey === serverKey && !options.resyncInterestedThreads) return;
 
@@ -167,6 +189,16 @@ export async function startRemoteServerEventStream(
   };
   setRemoteServerEventSocketEntry(server.desktopId, entry);
   let resyncPromise: Promise<boolean> | null = null;
+  /** Socket the in-flight {@link resyncPromise} belongs to. A recovery must
+   * never be reused across connections: a dead socket's recovery resolving
+   * `false` would force-reconnect a healthy replacement and report a false
+   * offline. */
+  let resyncPromiseSocket: RemoteSocketLike | null = null;
+  /** Set when a frame was provably dropped client-side (engine overflow/reset
+   * rejection, expected-seq gap). The next connection re-baselines interested
+   * threads from authoritative snapshots after resuming from the last APPLIED
+   * seq — the resume cursor never advances past a lost frame. */
+  let resyncRequired = false;
   let recoveryThreadIds = new Set<string>();
   let recoveryQueuedEvents: Array<{ readonly seq: number; readonly event: unknown }> = [];
   let recoveryQueuedBytes = 0;
@@ -227,6 +259,28 @@ export async function startRemoteServerEventStream(
     } catch {
       // already closed
     }
+  };
+
+  /**
+   * Client-detected frame loss (engine overflow/reset rejection, expected-seq
+   * gap). The dropped frame(s) cannot be recovered in place, so the session
+   * marks itself resync-required and reconnects: the resume cursor sent on
+   * the next connect is the last APPLIED seq (the watermark only advances
+   * after a frame is applied), so the server replays exactly the lost range,
+   * and the next connection re-baselines interested threads from
+   * authoritative snapshots in case replay retention already expired.
+   */
+  const noteClientDetectedLoss = (): void => {
+    resyncRequired = true;
+    if (!isCurrent()) return;
+    const current = entry.socket;
+    if (current) forceReconnect(current);
+  };
+
+  bindRemoteEngineOverflowListener(engine);
+  engineOverflowSink = () => {
+    if (!isCurrent()) return;
+    noteClientDetectedLoss();
   };
 
   entry.health = new RemoteSocketHealthMonitor({
@@ -378,7 +432,9 @@ export async function startRemoteServerEventStream(
         activateSocket();
       }
       const resyncOpenThread = (beforeReplay?: () => void): Promise<boolean> => {
-        if (resyncPromise) return resyncPromise;
+        // Dedupe only within the SAME connection: a stale recovery from a
+        // dead socket must not be handed to the replacement connection.
+        if (resyncPromise && resyncPromiseSocket === socket) return resyncPromise;
         const open = get().openThread;
         const interests = currentRemoteServerThreadItemInterests(server.desktopId);
         const threadIds = new Set<string>();
@@ -481,7 +537,12 @@ export async function startRemoteServerEventStream(
                         )
                       ? queued.event
                       : null;
-                if (replay !== null) dispatchForwardEvent(replay, queued.seq, true);
+                if (replay !== null) {
+                  dispatchForwardEvent(replay, queued.seq, true);
+                  // Replay is the moment a recovery-queued frame is finally
+                  // APPLIED: only here may the resume cursor pass its seq.
+                  bumpRemoteServerSnapshotSeq(server.desktopId, queued.seq);
+                }
               }
             }
           } catch {
@@ -489,13 +550,18 @@ export async function startRemoteServerEventStream(
           }
           return restored;
         })();
+        resyncPromiseSocket = socket;
         resyncPromise = promise.finally(() => {
+          // A newer connection's recovery may already own the buffers; the
+          // stale finally must not wipe them.
+          if (resyncPromiseSocket !== socket) return;
           recoveryThreadIds = new Set<string>();
           recoveryQueuedEvents = [];
           recoveryQueuedBytes = 0;
           recoveryQueueOverflowed = false;
           recoveryBaselineSeqByThread = new Map<string, number>();
           resyncPromise = null;
+          resyncPromiseSocket = null;
         });
         return resyncPromise;
       };
@@ -545,8 +611,20 @@ export async function startRemoteServerEventStream(
               return;
             }
             if (message.type === "event") {
-              const nextSeq = Math.max(remoteServerSnapshotSeq(server.desktopId), message.seq);
-              setRemoteServerSnapshotSeq(server.desktopId, nextSeq);
+              // Expected-seq gap detection (V5 2.1): the server delivers one
+              // frame per seq to every connected client, so a jump over the
+              // next expected seq means a frame was lost in transit or dropped
+              // client-side. Never apply past a gap and never advance the
+              // cursor into it — reconnect from the last applied seq instead.
+              // While a recovery holds frames in its queue the watermark lags
+              // by design, so gap checks are suppressed there.
+              if (
+                recoveryThreadIds.size === 0 &&
+                message.seq > remoteServerSnapshotSeq(server.desktopId) + 1
+              ) {
+                noteClientDetectedLoss();
+                return;
+              }
               const open = get().openThread;
               const appState = useAppStore.getState();
               const runtimeThreadIds = cachedThreadIds(
@@ -612,6 +690,11 @@ export async function startRemoteServerEventStream(
                 releaseRemoteTerminal(terminalId);
               }
               let forward = filterRemoteThreadEvents(message.event, remoteThreadIds);
+              // True when (part of) this frame was parked in the recovery
+              // queue: those seqs advance the cursor only when REPLAYED, so a
+              // failed recovery reconnects from before them instead of
+              // skipping parked frames.
+              let queuedForRecovery = false;
               if (forward !== null) {
                 // Destructive-replay guard: an authoritative history that
                 // already incorporated this truncation suppresses its
@@ -665,6 +748,7 @@ export async function startRemoteServerEventStream(
                     type: "thread-runtime-events-multi",
                     batches: recoveringBatches,
                   };
+                  queuedForRecovery = true;
                   const eventBytes = recoveryTextEncoder.encode(
                     JSON.stringify(recoveryEvent),
                   ).byteLength;
@@ -689,6 +773,7 @@ export async function startRemoteServerEventStream(
                     recoveryThreadIds.has(threadId),
                   )
                 ) {
+                  queuedForRecovery = true;
                   const eventBytes = recoveryTextEncoder.encode(JSON.stringify(forward)).byteLength;
                   if (
                     recoveryQueuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
@@ -723,6 +808,14 @@ export async function startRemoteServerEventStream(
                   includeAgentStatuses: shouldRefreshRemoteAgentStatusesAfterEvent(message.event),
                 });
               }
+              if (!queuedForRecovery) {
+                // Applied-cursor rule (V5 2.1): the resume watermark advances
+                // only after a frame is consumed — dispatched, replayed, or
+                // filtered out — never on receipt. A dropped frame therefore
+                // reconnects from the last applied seq and the server replays
+                // exactly the missing range.
+                bumpRemoteServerSnapshotSeq(server.desktopId, message.seq);
+              }
             }
             if (message.type === "resync-required") {
               // The server's in-memory event sequence restarts with the
@@ -744,8 +837,8 @@ export async function startRemoteServerEventStream(
             // HTTP snapshots remain authoritative; ignore malformed frames.
           }
         };
-        if (isClientEngineWorkerActive()) {
-          void getClientEngineHost()
+        if (engine.isWorkerActive()) {
+          void engine
             .decodeRemote(raw)
             .then((result) => {
               if (!isCurrent() || entry.socket !== socket || !result.ok) return;
@@ -753,7 +846,13 @@ export async function startRemoteServerEventStream(
                 result.message as ReturnType<RemoteDesktopClient["parseSocketMessage"]>,
               );
             })
-            .catch(() => undefined);
+            .catch(() => {
+              // The engine rejected this frame in flight (overflow/reset):
+              // it is silently lost unless the session reacts. Mark the loss
+              // and resync from the last applied seq instead of swallowing it.
+              if (!isCurrent() || entry.socket !== socket) return;
+              noteClientDetectedLoss();
+            });
           return;
         }
         try {
@@ -779,7 +878,13 @@ export async function startRemoteServerEventStream(
         }
         disconnectSocket(socket);
       };
-      if (options.resyncInterestedThreads) await recoverInterestedThreads();
+      if (options.resyncInterestedThreads || resyncRequired) {
+        // A client-detected loss (engine overflow/reset, expected-seq gap)
+        // re-baselines interested threads from authoritative snapshots on the
+        // fresh connection, in case replay retention already expired.
+        resyncRequired = false;
+        await recoverInterestedThreads();
+      }
     } catch (error) {
       if (!isCurrent()) return;
       if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {

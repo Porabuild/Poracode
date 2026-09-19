@@ -23,6 +23,16 @@ export class ClientEngineOverflowError extends Error {
   }
 }
 
+/** Typed failure when the worker and the host disagree on the engine protocol
+ * version (V5 2.6): pending consumers reject with this instead of the message
+ * being dropped silently until its timeout. */
+export class ClientEngineProtocolMismatchError extends Error {
+  constructor() {
+    super("Client engine protocol version mismatch");
+    this.name = "ClientEngineProtocolMismatchError";
+  }
+}
+
 type PendingEntry = {
   generation: number;
   resolve(value: unknown): void;
@@ -31,24 +41,45 @@ type PendingEntry = {
   fallback(): unknown;
 };
 
-let host: ClientEngineHost | null = null;
+// The engine is scoped PER CONSUMER (V5 2.2), not process-wide: each consumer
+// gets an independent generation counter, pending set, overflow handler set,
+// and worker, so resetting one consumer (for example the desktop renderer
+// stream closing its socket) can no longer reject another consumer's in-flight
+// work (remote socket decodes, Zustand persist JSON). Never reintroduce a
+// shared singleton here — that is the T2 failure mode.
+let backendStreamEngine: ClientEngineHost | null = null;
+let remoteSocketEngine: ClientEngineHost | null = null;
+let persistJsonEngine: ClientEngineHost | null = null;
 
-export function getClientEngineHost(): ClientEngineHost {
-  host ??= new ClientEngineHost();
-  return host;
+/** Engine for the desktop renderer-stream transport (`electronBackendTransport`). */
+export function getBackendStreamEngine(): ClientEngineHost {
+  backendStreamEngine ??= new ClientEngineHost();
+  return backendStreamEngine;
+}
+
+/** Engine for remote event-socket frame decoding (`eventSocketSession`). */
+export function getRemoteSocketEngine(): ClientEngineHost {
+  remoteSocketEngine ??= new ClientEngineHost();
+  return remoteSocketEngine;
+}
+
+/** Engine for large Zustand persist JSON work (`dbStorage`). */
+export function getPersistJsonEngine(): ClientEngineHost {
+  persistJsonEngine ??= new ClientEngineHost();
+  return persistJsonEngine;
 }
 
 export function decodeBackendSync(raw: string): DecodeFrameResult {
   return decodeBackendRendererFrame(raw);
 }
 
-export function isClientEngineWorkerActive(): boolean {
-  return getClientEngineHost().isWorkerActive();
-}
-
 export function resetClientEngineHostForTests(): void {
-  host?.dispose();
-  host = null;
+  backendStreamEngine?.dispose();
+  backendStreamEngine = null;
+  remoteSocketEngine?.dispose();
+  remoteSocketEngine = null;
+  persistJsonEngine?.dispose();
+  persistJsonEngine = null;
 }
 
 export class ClientEngineHost {
@@ -190,7 +221,18 @@ export class ClientEngineHost {
   }
 
   private onWorkerMessage(response: ClientEngineResponse): void {
-    if (!response || response.v !== CLIENT_ENGINE_PROTOCOL_VERSION) return;
+    // Version gate (V5 2.6): a reply from a peer that does not speak this
+    // exact protocol version — or an explicit protocol-mismatch answer — is a
+    // TYPED rejection of every pending consumer plus worker retirement, never
+    // a silent drop. Same-version stale replies stay generation-fenced below.
+    if (
+      !response ||
+      response.v !== CLIENT_ENGINE_PROTOCOL_VERSION ||
+      response.type === "protocol-mismatch"
+    ) {
+      this.handleProtocolMismatch();
+      return;
+    }
     if (response.generation !== this.generation) return;
     if (response.type === "overflow") {
       this.handleOverflow();
@@ -203,6 +245,17 @@ export class ClientEngineHost {
     clearTimeout(entry.timeout);
     this.postAck(response.id, response.generation);
     entry.resolve(resultFromResponse(response));
+  }
+
+  /** Retires the worker after a protocol mismatch: pending work rejects typed
+   * so the loss is observable, and later work takes the same-process fallback
+   * instead of feeding the mismatched worker more requests. */
+  private handleProtocolMismatch(): void {
+    this.rejectPending(new ClientEngineProtocolMismatchError());
+    this.worker?.terminate();
+    this.worker = null;
+    this.workerState = "unavailable";
+    this.generation += 1;
   }
 
   private handleOverflow(): void {
@@ -251,7 +304,7 @@ export class ClientEngineHost {
 }
 
 function resultFromResponse(
-  response: Exclude<ClientEngineResponse, { type: "overflow" }>,
+  response: Exclude<ClientEngineResponse, { type: "overflow" | "protocol-mismatch" }>,
 ): DecodeFrameResult | JsonParseResult | JsonStringifyResult {
   if (response.type === "decode-backend" || response.type === "decode-remote") {
     return response.ok ? { ok: true, message: response.message } : { ok: false, error: "invalid" };

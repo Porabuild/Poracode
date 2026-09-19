@@ -14,6 +14,10 @@ export {
 export {
   groupedIpcProcedures,
   ipcProcedureMap,
+  assertIpcProcedureMapVersion,
+  IPC_PROCEDURE_MAP_VERSION,
+  ipcProcedureMapFingerprint,
+  IpcProcedureMapVersionError,
   MAIN_LOCAL_PROCEDURE_NAMES,
   type IpcProcedureMap,
   type IpcProcedureName,

@@ -17,7 +17,17 @@ const unanswered = new Set<number>();
 
 self.onmessage = (event: MessageEvent<ClientEngineRequest>) => {
   const request = event.data;
-  if (!request || request.v !== CLIENT_ENGINE_PROTOCOL_VERSION) return;
+  if (!request || request.v !== CLIENT_ENGINE_PROTOCOL_VERSION) {
+    // Versioning rule (V5 2.6): a protocol mismatch is a typed rejection,
+    // never a silent drop. The answer carries this worker's CURRENT version
+    // so the mismatched host's version gate rejects its pending work typed.
+    post({
+      v: CLIENT_ENGINE_PROTOCOL_VERSION,
+      type: "protocol-mismatch",
+      receivedV: typeof request?.v === "number" ? request.v : 0,
+    });
+    return;
+  }
   if (request.type === "reset") {
     unanswered.clear();
     generation = request.generation;
