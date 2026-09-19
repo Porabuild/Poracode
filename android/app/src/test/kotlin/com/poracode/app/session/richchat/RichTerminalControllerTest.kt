@@ -139,8 +139,8 @@ class RichTerminalControllerTest {
         assertTrue(seeded.baselineReceived)
         assertEquals("hello!!xy", seeded.transcript)
 
-        val suffix = com.poracode.app.chat.TerminalCursorFrame(
-            kind = com.poracode.app.chat.TerminalCursorFrameKind.BASELINE,
+        val suffix = com.poracode.remote.v3.generated.TerminalCursorFrame(
+            kind = com.poracode.remote.v3.generated.TerminalCursorFrameKind.BASELINE,
             terminalId = "terminal-rich",
             watchId = "watch-b",
             generation = "generation-a",
@@ -163,8 +163,8 @@ class RichTerminalControllerTest {
             ),
         )
         controller.watch("terminal-rich", "watch-c")
-        val marker = com.poracode.app.chat.TerminalCursorFrame(
-            kind = com.poracode.app.chat.TerminalCursorFrameKind.BASELINE,
+        val marker = com.poracode.remote.v3.generated.TerminalCursorFrame(
+            kind = com.poracode.remote.v3.generated.TerminalCursorFrameKind.BASELINE,
             terminalId = "terminal-rich",
             watchId = "watch-c",
             generation = "generation-a",

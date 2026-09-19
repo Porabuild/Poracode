@@ -146,4 +146,9 @@
     <!-- Local store inconsistency after failed rollback -->
     <string name="local_store_inconsistent_title">자격 증명 저장소 오류</string>
     <string name="local_store_inconsistent_message">로컬 자격 증명 저장소가 일치하지 않습니다. 이 데스크톱을 기억에서 삭제하고 다시 페어링하세요.</string>
+    <string name="discover_hosts_title">근처 호스트</string>
+    <string name="discover_hosts_start">검색</string>
+    <string name="discover_hosts_stop">중지</string>
+    <string name="discover_hosts_searching">이 네트워크에서 Poracode 호스트를 검색하는 중…</string>
+    <string name="discover_hosts_empty">아직 Poracode 호스트를 찾지 못했습니다.</string>
 </resources>

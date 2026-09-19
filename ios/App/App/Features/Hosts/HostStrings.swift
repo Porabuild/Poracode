@@ -143,6 +143,25 @@ enum HostStrings {
     )
   }
 
+  static var nearbyHosts: String {
+    String(localized: "hosts.add.discover.title", defaultValue: "Nearby hosts")
+  }
+
+  static var discoverHosts: String {
+    String(localized: "hosts.add.discover.start", defaultValue: "Discover")
+  }
+
+  static var stopDiscovering: String {
+    String(localized: "hosts.add.discover.stop", defaultValue: "Stop")
+  }
+
+  static var discoveringHosts: String {
+    String(
+      localized: "hosts.add.discover.searching",
+      defaultValue: "Searching for Poracode hosts on this network…"
+    )
+  }
+
   /// Host part of the endpoint URL, mirroring the mobile web connection row.
   static func endpointCaption(_ baseURL: String) -> String {
     URL(string: baseURL).flatMap(\.host).flatMap { $0.isEmpty ? nil : $0 } ?? baseURL

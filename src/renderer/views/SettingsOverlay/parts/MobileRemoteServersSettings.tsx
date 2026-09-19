@@ -25,6 +25,13 @@ import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import { decodeQrImageFile } from "@/renderer/utils/qrImage";
+import {
+  beginDirectPair,
+  commitDirectPair,
+  failDirectPair,
+  resetSettledPairingIntent,
+} from "@/renderer/pairingDirect";
+import { initialPairingIntentState } from "@/shared/remote/contract/pairingMachine";
 import { BottomSheet } from "@/renderer/components/common/BottomSheet";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
@@ -194,6 +201,11 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const { busy, error, run } = useAsyncOperation();
+  // The candidate decision runs on the shared pairing machine (direct in-app
+  // path); the sheet-level ref only carries the intent state across attempts.
+  const intentState = useRef<ReturnType<typeof initialPairingIntentState>>(
+    initialPairingIntentState(),
+  );
   const canPairFromLink = pairingUrl.trim().length > 0;
   const canPairManually = endpoint.trim().length > 0 && token.trim().length > 0;
   const canPair = !busy && (canPairFromLink || canPairManually);
@@ -239,10 +251,29 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
     }
 
     setValidationError(null);
+    // A deliberate new pairing clears a settled intent first; `pairInFlight`
+    // refuses a second begin, matching the native coordinators.
+    intentState.current = resetSettledPairingIntent(
+      intentState.current,
+      pairingEndpoint,
+      pairingToken,
+    );
+    const step = beginDirectPair(intentState.current, pairingEndpoint, pairingToken);
+    if (!step.began) {
+      setValidationError(t`Enter the pairing URL shown on your desktop.`);
+      return;
+    }
+    intentState.current = step.state;
     run(async () => {
-      await pairServer({ endpoint: pairingEndpoint, token: pairingToken });
-      await connectAll();
-      props.onClose();
+      try {
+        await pairServer({ endpoint: pairingEndpoint, token: pairingToken });
+        intentState.current = commitDirectPair(intentState.current, pairingEndpoint, pairingToken);
+        await connectAll();
+        props.onClose();
+      } catch (cause) {
+        intentState.current = failDirectPair(intentState.current, pairingEndpoint, pairingToken);
+        throw cause;
+      }
     });
   };
 

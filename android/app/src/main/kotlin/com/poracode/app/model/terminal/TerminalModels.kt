@@ -1,6 +1,6 @@
 package com.poracode.app.model.terminal
 
-import com.poracode.app.chat.TerminalCursorFrame
+import com.poracode.remote.v3.generated.TerminalCursorFrame
 
 enum class TerminalProcessState { Running, Exited }
 

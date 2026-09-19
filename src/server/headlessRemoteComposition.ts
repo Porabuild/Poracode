@@ -31,12 +31,18 @@ import {
 import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
 import { ThreadNotificationPublisher } from "@/main/remote/ThreadNotificationPublisher";
 import {
+  classifyBindHostExposure,
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
   remoteForwardBaseUrl,
   resolveRemoteAccessPort,
 } from "@/main/remote/config";
+import {
+  createMdnsAdvertiser,
+  shouldAdvertiseMdns,
+  type MdnsAdvertiser,
+} from "@/main/remote/mdnsAdvertiser";
 import { isThreadTurnActive, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
@@ -118,6 +124,14 @@ export async function composeHeadlessRemoteHost(
   let control: HostControlServer | null = null;
   let portForwardingRef: ReturnType<typeof createPortForwarding> | null = null;
   let relayHandle: RelayHostHandle | null = null;
+  // V5 plan item P4: the mDNS advertiser for the TLS-configured lan/tailnet
+  // endpoint. Purely additive to serving; every failure is contained.
+  let mdnsAdvertiser: MdnsAdvertiser | null = null;
+  const stopMdnsAdvertiser = (): Promise<void> => {
+    const advertiser = mdnsAdvertiser;
+    mdnsAdvertiser = null;
+    return advertiser ? advertiser.stop() : Promise.resolve();
+  };
   // Same host-service composition the desktop uses (V5 plan 1.1): SSH
   // environments, the Chrome bridge and the computer-use ingress are all
   // Electron-free and therefore compose on the standalone server too. The
@@ -148,6 +162,8 @@ export async function composeHeadlessRemoteHost(
         relayHandle = null;
       },
       () => serverRef?.dispose(),
+      // The advertisement names this server's endpoint, so it stops with it.
+      () => stopMdnsAdvertiser(),
       () => control?.dispose(),
       () => pushCoordinator?.dispose(),
       () => {
@@ -528,6 +544,7 @@ export async function composeHeadlessRemoteHost(
       assertRunning();
       const info = await server.start();
       assertRunning();
+      maybeAdvertiseMdns(info);
       await control?.start();
       assertRunning();
       durableServices?.startBackgroundServices();
@@ -556,6 +573,42 @@ export async function composeHeadlessRemoteHost(
         });
       }
       return info;
+    }
+    /**
+     * V5 plan item P4: when the resolved bind is a TLS-configured `lan` or
+     * `tailnet` exposure, advertise the endpoint over mDNS with the leaf
+     * certificate fingerprint in the TXT record so native pairing screens can
+     * list this host and pin on first connect. Loopback stays silent by
+     * default; failures degrade to a log line, never to serving trouble.
+     */
+    function maybeAdvertiseMdns(info: RemoteAccessServerInfo): void {
+      void stopMdnsAdvertiser();
+      const fingerprint = serverRef?.tlsFingerprint();
+      if (!fingerprint) return;
+      const decision = shouldAdvertiseMdns({
+        mode: classifyBindHostExposure(host),
+        tlsConfigured: true,
+      });
+      if (!decision.advertise) return;
+      let listenPort = port;
+      try {
+        listenPort = Number(new URL(info.localHttpBaseUrl).port) || port;
+      } catch {
+        // Keep the resolved port; the URL is only the precise source.
+      }
+      mdnsAdvertiser = createMdnsAdvertiser(
+        {
+          desktopId: identity.desktopId,
+          label: identity.label,
+          host: advertisedHost,
+          port: listenPort,
+          tlsFingerprint: fingerprint,
+        },
+        {
+          onError: (error) => options.reportError?.(error),
+        },
+      );
+      mdnsAdvertiser.start();
     }
   } catch (error) {
     try {

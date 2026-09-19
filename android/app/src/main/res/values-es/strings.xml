@@ -146,4 +146,9 @@
     <!-- Local store inconsistency after failed rollback -->
     <string name="local_store_inconsistent_title">Error del almacén de credenciales</string>
     <string name="local_store_inconsistent_message">El almacén local de credenciales es inconsistente. Olvida este ordenador y vuelve a emparejar.</string>
+    <string name="discover_hosts_title">Hosts cercanos</string>
+    <string name="discover_hosts_start">Buscar</string>
+    <string name="discover_hosts_stop">Detener</string>
+    <string name="discover_hosts_searching">Buscando hosts de Poracode en esta red…</string>
+    <string name="discover_hosts_empty">Aún no se han encontrado hosts de Poracode.</string>
 </resources>

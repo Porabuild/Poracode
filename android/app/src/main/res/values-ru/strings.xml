@@ -146,4 +146,9 @@
     <!-- Local store inconsistency after failed rollback -->
     <string name="local_store_inconsistent_title">Ошибка хранилища учётных данных</string>
     <string name="local_store_inconsistent_message">Локальное хранилище учётных данных некорректно. Забудьте этот компьютер и выполните сопряжение заново.</string>
+    <string name="discover_hosts_title">Поблизости</string>
+    <string name="discover_hosts_start">Найти</string>
+    <string name="discover_hosts_stop">Остановить</string>
+    <string name="discover_hosts_searching">Поиск хостов Poracode в этой сети…</string>
+    <string name="discover_hosts_empty">Хосты Poracode пока не найдены.</string>
 </resources>

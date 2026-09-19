@@ -146,4 +146,9 @@
     <!-- Local store inconsistency after failed rollback -->
     <string name="local_store_inconsistent_title">凭据存储错误</string>
     <string name="local_store_inconsistent_message">本地凭据存储不一致。请忘记此桌面设备并重新配对。</string>
+    <string name="discover_hosts_title">附近的主机</string>
+    <string name="discover_hosts_start">扫描</string>
+    <string name="discover_hosts_stop">停止</string>
+    <string name="discover_hosts_searching">正在搜索此网络中的 Poracode 主机…</string>
+    <string name="discover_hosts_empty">尚未发现 Poracode 主机。</string>
 </resources>

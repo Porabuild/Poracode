@@ -197,4 +197,9 @@
     <string name="push_route_confirm_switch">Switch desktop</string>
     <string name="push_route_confirm_cancel">Cancel</string>
     <string name="push_route_confirm_description">Switch to desktop %1$s and open the notification</string>
+    <string name="discover_hosts_title">Nearby hosts</string>
+    <string name="discover_hosts_start">Scan</string>
+    <string name="discover_hosts_stop">Stop</string>
+    <string name="discover_hosts_searching">Searching for Poracode hosts on this network…</string>
+    <string name="discover_hosts_empty">No Poracode hosts found yet.</string>
 </resources>

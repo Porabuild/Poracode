@@ -1,9 +1,9 @@
 package com.poracode.app.session.richchat
 
-import com.poracode.app.chat.TerminalCursorAction
-import com.poracode.app.chat.TerminalCursorFrame
-import com.poracode.app.chat.TerminalCursorReconciler
-import com.poracode.app.chat.TerminalCursorState
+import com.poracode.remote.v3.generated.TerminalCursorAction
+import com.poracode.remote.v3.generated.TerminalCursorFrame
+import com.poracode.remote.v3.generated.TerminalCursorReconciler
+import com.poracode.remote.v3.generated.TerminalCursorState
 import com.poracode.app.model.terminal.TerminalConnectionPhase
 import com.poracode.app.model.terminal.TerminalConnectionStatus
 import com.poracode.app.model.terminal.TerminalProcessState
@@ -167,7 +167,7 @@ class RichTerminalController(
                 // even when the reconciler ignores its payload — the v2
                 // up-to-date resume marker has an empty range but still
                 // reports the live process state.
-                if (frame.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE &&
+                if (frame.frame.kind == com.poracode.remote.v3.generated.TerminalCursorFrameKind.BASELINE &&
                     frame.frame.terminalId == lease.terminalId
                 ) {
                     updateWatch(lease, frame.frame.watchId) { current ->

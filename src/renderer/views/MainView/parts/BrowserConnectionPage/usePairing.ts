@@ -4,12 +4,29 @@ import { useLingui } from "@lingui/react/macro";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import {
+  beginDirectPair,
+  commitDirectPair,
+  failDirectPair,
+  resetSettledPairingIntent,
+} from "@/renderer/pairingDirect";
+import {
+  initialPairingIntentState,
+  type PairingIntentState,
+} from "@/shared/remote/contract/pairingMachine";
 import { decodeQrImageFile } from "@/renderer/utils/qrImage";
 
 /**
  * Pairing transport and scanner state shared by both connection surfaces: parse a
  * pairing URL — typed, pasted, or decoded from a QR code — then register and
  * connect the server. The surfaces differ only in how they lay this out.
+ *
+ * The candidate decision (complete candidate -> pair attempt -> commit/failure)
+ * is driven by the shared pairing state machine
+ * (`shared/remote/contract/pairingMachine.ts`): this surface is the spec's
+ * direct in-app manual path, so every resolved candidate pairs without a
+ * confirmation stop, and each attempt sees a fresh guard context — manual
+ * re-pairing of the same server must always stay possible.
  */
 export function usePairing() {
   const { t } = useLingui();
@@ -20,6 +37,7 @@ export function usePairing() {
   const [scanRejection, setScanRejection] = useState<string | null>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const { busy, error, run } = useAsyncOperation();
+  const intentState = useRef<PairingIntentState>(initialPairingIntentState());
 
   const openScanner = () => {
     setScanRejection(null);
@@ -33,9 +51,26 @@ export function usePairing() {
 
   const pairWithCredentials = (endpoint: string, token: string) => {
     setValidationError(null);
+    // A deliberate new pairing clears a settled intent first; `pairInFlight`
+    // refuses a second begin, matching the native coordinators.
+    intentState.current = resetSettledPairingIntent(intentState.current, endpoint, token);
+    // Direct in-app candidate: the spec routes a complete candidate straight
+    // into the pair attempt (no confirmation stop, no duplicate burn).
+    const step = beginDirectPair(intentState.current, endpoint, token);
+    if (!step.began) {
+      setValidationError(t`Enter the pairing URL shown on your desktop.`);
+      return;
+    }
+    intentState.current = step.state;
     run(async () => {
-      await pairServer({ endpoint, token });
-      await connectAll();
+      try {
+        await pairServer({ endpoint, token });
+        intentState.current = commitDirectPair(intentState.current, endpoint, token);
+        await connectAll();
+      } catch (cause) {
+        intentState.current = failDirectPair(intentState.current, endpoint, token);
+        throw cause;
+      }
     });
   };
 

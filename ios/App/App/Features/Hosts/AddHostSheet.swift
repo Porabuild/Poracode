@@ -9,6 +9,10 @@ struct AddHostSheet: View {
   @State private var token = ""
   @State private var isSubmitting = false
   @State private var isShowingScanner = false
+  /// mDNS discovery (V5 plan item P4): an explicit affordance; manual entry
+  /// stays. Discovery only ever fills the endpoint — the one-time credential
+  /// still comes from the desktop.
+  @State private var hostBrowser: PoracodeHostBrowser?
   @FocusState private var focusedField: Field?
 
   private enum Field: Hashable {
@@ -33,6 +37,8 @@ struct AddHostSheet: View {
           .controlSize(.large)
           .accessibilityIdentifier("native-e2e.add-host.scan")
           pairingLinkSection
+          divider
+          nearbyHostsSection
           divider
           manualSection
           if looksLikeCleartextLan {
@@ -96,6 +102,68 @@ struct AddHostSheet: View {
         .poracodeGlassBackground()
         .focused($focusedField, equals: .link)
         .accessibilityLabel(HostStrings.pairingLink)
+    }
+  }
+
+  private var nearbyHostsSection: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack {
+        Text(HostStrings.nearbyHosts)
+          .font(.headline)
+        Spacer()
+        Button {
+          toggleBrowsing()
+        } label: {
+          Text(hostBrowser?.isBrowsing == true ? HostStrings.stopDiscovering : HostStrings.discoverHosts)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .accessibilityIdentifier("native-e2e.add-host.discover")
+      }
+      if let browser = hostBrowser, browser.isBrowsing {
+        if browser.hosts.isEmpty {
+          Text(HostStrings.discoveringHosts)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        } else {
+          ForEach(browser.hosts) { host in
+            Button {
+              Task {
+                if let endpoint = await browser.resolveEndpoint(host) {
+                  baseURL = endpoint
+                  focusedField = .token
+                }
+              }
+            } label: {
+              VStack(alignment: .leading, spacing: 2) {
+                Text(host.name)
+                if let endpoint = host.endpoint {
+                  Text(endpoint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+              }
+              .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+          }
+        }
+      }
+    }
+  }
+
+  private func toggleBrowsing() {
+    if let browser = hostBrowser {
+      if browser.isBrowsing {
+        browser.stop()
+      } else {
+        browser.start()
+      }
+    } else {
+      let browser = PoracodeHostBrowser()
+      hostBrowser = browser
+      browser.start()
     }
   }
 

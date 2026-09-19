@@ -1,6 +1,6 @@
 package com.poracode.app.ui.terminal
 
-import com.poracode.app.chat.TerminalCursorReconciler
+import com.poracode.remote.v3.generated.TerminalCursorReconciler
 
 data class TerminalRenderedDocument(
     val lines: List<String>,

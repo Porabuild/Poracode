@@ -147,4 +147,9 @@
     <string name="local_store_inconsistent_title">Erreur du magasin d\'identifiants</string>
     <string name="local_store_inconsistent_message">Le magasin local d\'identifiants est incohérent. Oubliez cet ordinateur et recouplez-le.</string>
 
+    <string name="discover_hosts_title">Hôtes à proximité</string>
+    <string name="discover_hosts_start">Rechercher</string>
+    <string name="discover_hosts_stop">Arrêter</string>
+    <string name="discover_hosts_searching">Recherche d’hôtes Poracode sur ce réseau…</string>
+    <string name="discover_hosts_empty">Aucun hôte Poracode trouvé pour l’instant.</string>
 </resources>

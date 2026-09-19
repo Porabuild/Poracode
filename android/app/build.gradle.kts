@@ -194,11 +194,12 @@ val verifyRemoteV3NativeBindings = tasks.register("verifyRemoteV3NativeBindings"
         // Build-time mirror of ProtocolConstants.REMOTE_PROTOCOL_VERSION: the committed
         // generated manifest is regenerated per protocol generation, so this pin must move
         // with the app constant (never disabled or loosened).
-        // formatVersion 2 adds the generated pairing state machine (V5 5.2).
+        // formatVersion 2 added the generated pairing state machine (V5 5.2);
+        // 3 adds the generated terminal-cursor machine and the stateMachines count.
         version("protocolVersion", 12)
         version("bindingFormatVersion", 2)
         version("generatorVersion", 3)
-        version("formatVersion", 2)
+        version("formatVersion", 3)
 
         val languages = manifest["languages"] as? Map<*, *>
             ?: error("native-bindings.json is missing languages")

@@ -5,13 +5,14 @@
  * `contract/native/emitPairing{Swift,Kotlin}.ts`; the contract tests pin all
  * three to identical vectors.
  *
- * The renderer pairing flow does not consume this module yet (renderer files
- * sit outside the contract tree); converging it is the documented 5.2
- * follow-up. Until then this executor is the normative interpreter the
- * generated sources are tested against.
+ * The renderer pairing flows (browser deep-link intake, the connection-page
+ * hook, and the mobile settings sheet) drive their candidate decisions and
+ * intent transitions through this executor, so it is both the normative
+ * interpreter the generated sources are tested against and the live decision
+ * engine on the web client. It must stay renderer-bundle-safe: no `node:*`
+ * imports (the digest lives in `./sha256` for exactly that reason).
  */
 
-import { createHash } from "node:crypto";
 import { isLoopbackHostname } from "../../http";
 import {
   PAIRING_MACHINE_SPEC,
@@ -20,6 +21,7 @@ import {
   type PairingIntentState,
   type PairingMachinePhase,
 } from "./pairingMachineSpec";
+import { sha256Hex } from "./sha256";
 
 // ---------------------------------------------------------------------------
 // Failure-phase recovery (first-match table walk)
@@ -44,13 +46,13 @@ export function phaseAfterPairingFailure(
 // Candidate fingerprint + duplicate policies
 // ---------------------------------------------------------------------------
 
-/** Non-secret sha256 hex digest of `endpoint \u0001 credential`. */
+/** Non-secret sha256 hex digest of `endpoint \u0001 credential`. Rendered with
+ * the browser-safe synchronous digest (`./sha256`) so the executor runs in the
+ * renderer bundle unchanged. */
 export function pairingFingerprint(endpoint: string, credential: string): string {
-  return createHash("sha256")
-    .update(
-      `${endpoint}${PAIRING_MACHINE_SPEC.duplicateDetection.fingerprint.separator}${credential}`,
-    )
-    .digest("hex");
+  return sha256Hex(
+    `${endpoint}${PAIRING_MACHINE_SPEC.duplicateDetection.fingerprint.separator}${credential}`,
+  );
 }
 
 /** iOS-style one-shot candidate tracker: in-flight + last-succeeded digests.
@@ -250,6 +252,8 @@ export interface PairingIntentStateSnapshot {
 export function initialPairingIntentState(): PairingIntentState {
   return "idle";
 }
+
+export type { PairingIntentState, PairingIntentEffect, PairingIntentEvent };
 
 interface GuardInputs {
   readonly candidateEndpoint: string | null;

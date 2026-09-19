@@ -322,6 +322,48 @@ Production app/universal links require matching association documents at
 generated JSON files are necessary but are not proof that the production origin
 is configured correctly.
 
+## mDNS discovery (V5 plan item P4)
+
+When the remote access listener runs with TLS material configured in a `lan`
+or `tailnet` bind, the host advertises one DNS-SD service record set,
+`_poracode._tcp.local`, over multicast UDP 5353 so native pairing screens can
+list nearby hosts instead of typing an endpoint. The advertiser
+(`src/main/remote/mdnsAdvertiser.ts`) is a dependency-free minimal responder:
+one record set (PTR + SRV + TXT + A), a bounded announcement/refresh cadence,
+and a bounded query responder. It is wired into both composition roots
+(`headlessRemoteComposition.ts` and `DesktopRemoteAccessController.ts`) and is
+governed by `shouldAdvertiseMdns`, the single advertise decision:
+
+- default: advertise only when TLS material is configured AND the bind mode is
+  `lan` or `tailnet`; `loopback` never advertises (a loopback endpoint is
+  unreachable from other devices);
+- `PORACODE_REMOTE_MDNS=0|false` forces off; `=1|true` forces on for
+  TLS-configured listeners only (a plaintext listener has no fingerprint and
+  never advertises);
+- every socket failure is contained to a report sink — advertising can never
+  break serving.
+
+The TXT record carries `id=<desktopId>` and `fp=sha256:<hex>` — the same leaf
+certificate fingerprint the pairing QR carries (Gate 6 item 4.2) — so a
+discoverer can pin the exact server on first connect. **Discovery only ever
+finds an endpoint; it never replaces the pairing credential.** The native
+discovery surfaces (Android `NsdManager` behind the Other-ways sheet on the
+onboarding screen, iOS `NWBrowser` behind "Nearby hosts" in the Add-host
+sheet) are explicit affordances that fill the endpoint field of the manual
+form, which stays available; both parse the TXT fingerprint and surface it
+with the host. The service type is declared in the iOS `Info.plist`
+(`NSBonjourServices`) so local-network browsing is allowed.
+
+Live mDNS traffic is a device/journey item, not a CI item: the advertiser's
+wire format is pinned in unit tests against an independently written RFC 1035
+parser and a golden byte fixture (`mdnsAdvertiser.test.ts`), and the pure TXT
+decoding has JVM tests (`PoracodeServiceRecordsTest`); the NsdManager and
+NWBrowser coordinators are thin platform bindings. Enforcement of the
+discovered fingerprint at the native TLS handshake is the recorded follow-up
+of this slice: the discovered `fp` rides with the host model on both
+platforms, and the native transports still need the pin-on-first-connect
+check the PWA client already enforces for `#fp=`-asserted pairing links.
+
 ## Web and PWA delivery
 
 The hosted React client remains a supported, separate surface.

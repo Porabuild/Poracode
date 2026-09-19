@@ -146,4 +146,9 @@
     <!-- Local store inconsistency after failed rollback -->
     <string name="local_store_inconsistent_title">Помилка сховища облікових даних</string>
     <string name="local_store_inconsistent_message">Локальне сховище облікових даних некоректне. Забудьте цей комп’ютер і виконайте спаровування заново.</string>
+    <string name="discover_hosts_title">Поруч</string>
+    <string name="discover_hosts_start">Знайти</string>
+    <string name="discover_hosts_stop">Зупинити</string>
+    <string name="discover_hosts_searching">Пошук хостів Poracode в цій мережі…</string>
+    <string name="discover_hosts_empty">Хостів Poracode поки не знайдено.</string>
 </resources>
