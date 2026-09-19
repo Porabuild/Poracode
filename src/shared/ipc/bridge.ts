@@ -68,8 +68,6 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onSupervisorEvent(
     listener: (event: SupervisorEvent, rendererSequence?: number) => void,
   ): () => void;
-  /** Local Electron renderer stream generation changed; sequence cursors reset. */
-  onBackendRendererStreamGenerationChanged?(listener: () => void): () => void;
   onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
   onBrowserEvent(listener: (event: BrowserEvent) => void): () => void;
   /** Thread-metadata mutations issued by paired browser clients. */

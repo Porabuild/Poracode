@@ -33,10 +33,8 @@ function electronHost(): ElectronHostBridge {
     platform: "darwin",
     onSupervisorEvent: () => () => {},
     onSupervisorEventGap: () => () => {},
-    onRendererStreamRecovery: () => () => {},
-    onBackendRendererStreamChanged: () => () => {},
-    getRendererStreamOwnershipGrant: async () => null,
-    getBackendRendererStreamInfo: async () => null,
+    onBackendSupervisorReset: () => () => {},
+    ipcProcedureMapVersion: 1,
     invokeProcedure: async () => undefined,
   } as unknown as ElectronHostBridge;
 }

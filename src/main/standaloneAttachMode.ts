@@ -80,8 +80,6 @@ export async function startStandaloneAttachMode(): Promise<void> {
     await desktopApp.standaloneAttachSession.reverify();
     return desktopApp.standaloneAttachInfo;
   });
-  ipcMain.handle(IPC_WINDOW_CHANNELS.backendRendererStreamInfo, () => null);
-  ipcMain.handle(IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant, () => null);
 
   // Device-owned locals with real implementations; everything server-owned
   // loud-rejects (no local backend exists to serve it). Must run before the

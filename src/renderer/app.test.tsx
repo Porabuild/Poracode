@@ -198,6 +198,7 @@ const {
           };
         },
       ),
+      onBackendSupervisorReset: vi.fn<() => () => void>(() => () => undefined),
       startShell: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitWatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitWatchWorktrees: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),

@@ -1,11 +1,6 @@
 import type { StandaloneAttachInfo } from "./standaloneAttach";
 import type { HostServiceCapabilities } from "./hostControlProtocol";
-import type {
-  BackendRendererStreamInfo,
-  RendererStreamOwnershipGrant,
-  RendererStreamRecoveryBarrier,
-  SupervisorEventGap,
-} from "./backendHostProtocol";
+import type { SupervisorEventGap } from "./backendHostProtocol";
 import type { IpcProcedureName, PoracodeBridge, PoracodeInvokeBridge } from "./ipc";
 import type {
   RemoteHttpBridgeCancelRequest,
@@ -47,7 +42,18 @@ import { REMOTE_HTTP_BRIDGE_VERSION } from "./remote/httpBridgeProtocol";
 // disagree about which db procedures exist. No persisted state, remote wire,
 // or backend-host version change; the new procedure is an additive name inside
 // the existing envelopes.
-export const PORACODE_CLIENT_RUNTIME_VERSION = 13 as const;
+// Version 14 is the renderer-stream leg deletion (V5 plan 2.5): the facade no
+// longer exposes `getBackendRendererStreamInfo`,
+// `onBackendRendererStreamChanged`, `onRendererStreamRecovery`, or
+// `getRendererStreamOwnershipGrant` — the direct renderer stream, its grants,
+// and its recovery barriers are gone, and desktop events arrive only over the
+// sequenced desktop-IPC relay (plus its gap signal, still required). The
+// facade additionally advertises `ipcProcedureMapVersion` and the
+// `onBackendSupervisorReset` signal (relay sequence space restarts with a new
+// backend child). A version-13 preload cannot deliver the reset signal and
+// still serves the deleted stream APIs, so the gate rejects that pairing
+// loudly instead of half-serving both transports. See .agents/docs/versioning.md.
+export const PORACODE_CLIENT_RUNTIME_VERSION = 14 as const;
 
 export type ClientHost = "electron" | "browser";
 export type ClientSurface = "adaptive";
@@ -91,21 +97,19 @@ export type PoracodeNativeBridge = Omit<PoracodeBridge, keyof PoracodeInvokeBrid
 export type ElectronHostBridge = PoracodeNativeBridge & {
   readonly clientRuntimeVersion: typeof PORACODE_CLIENT_RUNTIME_VERSION;
   invokeProcedure(name: IpcProcedureName, args: unknown[]): Promise<unknown>;
-  getBackendRendererStreamInfo(): Promise<BackendRendererStreamInfo | null>;
-  onBackendRendererStreamChanged(listener: (info: BackendRendererStreamInfo) => void): () => void;
   onSupervisorEventGap(listener: (gap: SupervisorEventGap) => void): () => void;
   /**
-   * Generation-fenced recovery barrier for THIS window's direct-stream loss.
-   * Required at facade version 10: a renderer that cannot honor it would
-   * trust a cursor advanced past missing bulk after socket loss.
+   * Backend reset (required at facade version 14): the desktop-IPC relay
+   * sequence space restarts with a new backend child, so the renderer drops
+   * its dedupe cursor and rebuilds subscribed state.
    */
-  onRendererStreamRecovery(listener: (barrier: RendererStreamRecoveryBarrier) => void): () => void;
+  onBackendSupervisorReset(listener: () => void): () => void;
   /**
-   * Direct-stream ownership grant for THIS window, minted by main from the
-   * authoritative `event.sender.id`. Null when the mint failed — the window
-   * then stays a fallback consumer and fences barriers by generation 0.
+   * Procedure-map version handshake (V5 plan 2.6): the preload advertises the
+   * `IPC_PROCEDURE_MAP_VERSION` its bundle dispatches; the renderer asserts it
+   * (typed rejection) before installing any Electron runtime.
    */
-  getRendererStreamOwnershipGrant(): Promise<RendererStreamOwnershipGrant | null>;
+  readonly ipcProcedureMapVersion: number;
   /**
    * Frame-set version of the off-main remote HTTP bridge. Required at facade
    * version 11: the remote transport itself is port-based, so a preload that

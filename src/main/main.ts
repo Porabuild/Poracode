@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
-import { app, dialog, ipcMain } from "electron";
+import { app, dialog } from "electron";
 import { preparePoracodeDataRoot } from "./poracodeData";
 import { registerLocalFileProtocolScheme } from "./attachments/localFiles";
 import { registerPickerProtocolScheme } from "./browser";
@@ -10,7 +10,6 @@ import { showAndFocusWindow } from "./window/showAndFocusWindow";
 import { shouldStartMinimized } from "./startupSettings";
 import { handleStartupFailure } from "./startupFailureDialog";
 import { reportSingleInstanceRefusal } from "./singleInstanceRefusal";
-import { IPC_WINDOW_CHANNELS } from "@/shared/ipc";
 import { toError } from "@/shared/errorMessage";
 import { readSharedSettingsFile } from "./sharedSettingsFile";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
@@ -267,11 +266,9 @@ if (!hasSingleInstanceLock) {
 }
 
 app.on("will-quit", () => {
-  ipcMain.removeHandler(IPC_WINDOW_CHANNELS.backendRendererStreamInfo);
   desktopApp.backendHostClient?.dispose();
   desktopApp.backendHostClient = null;
   desktopApp.backendStateStore = null;
-  desktopApp.backendRendererStreamInfo = null;
   desktopApp.desktopOwnerLease?.release();
   desktopApp.desktopOwnerLease = null;
 });

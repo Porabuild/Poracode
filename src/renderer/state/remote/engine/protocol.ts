@@ -1,22 +1,17 @@
-/** Off-thread client decode/JSON engine. Bump when the worker message shape is incompatible. */
-export const CLIENT_ENGINE_PROTOCOL_VERSION = 1 as const;
+/**
+ * Off-thread client decode/JSON engine. Bump when the worker message shape is
+ * incompatible. Version 2 (V5 plan 2.5) removes the backend renderer-stream
+ * work type with the deleted stream; worker and host ship in one bundle, so
+ * the bump only fence-sits a stale cached chunk pair into the loud
+ * protocol-mismatch path instead of half-serving a deleted request type.
+ */
+export const CLIENT_ENGINE_PROTOCOL_VERSION = 2 as const;
 export const CLIENT_ENGINE_MAX_PENDING = 256;
 export const CLIENT_ENGINE_TIMEOUT_MS = 2_000;
 
-export type ClientEngineWorkType =
-  | "decode-backend"
-  | "decode-remote"
-  | "parse-json"
-  | "stringify-json";
+export type ClientEngineWorkType = "decode-remote" | "parse-json" | "stringify-json";
 
 export type ClientEngineWorkRequest =
-  | {
-      v: typeof CLIENT_ENGINE_PROTOCOL_VERSION;
-      generation: number;
-      id: number;
-      type: "decode-backend";
-      raw: string;
-    }
   | {
       v: typeof CLIENT_ENGINE_PROTOCOL_VERSION;
       generation: number;
@@ -58,22 +53,6 @@ export type ClientEngineRequest =
   | ClientEngineResetRequest;
 
 export type ClientEngineWorkResponse =
-  | {
-      v: typeof CLIENT_ENGINE_PROTOCOL_VERSION;
-      generation: number;
-      id: number;
-      type: "decode-backend";
-      ok: true;
-      message: unknown;
-    }
-  | {
-      v: typeof CLIENT_ENGINE_PROTOCOL_VERSION;
-      generation: number;
-      id: number;
-      type: "decode-backend";
-      ok: false;
-      error: "invalid";
-    }
   | {
       v: typeof CLIENT_ENGINE_PROTOCOL_VERSION;
       generation: number;

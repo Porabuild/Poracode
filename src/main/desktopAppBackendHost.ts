@@ -23,7 +23,6 @@ import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitializ
 import { BackendStateStore } from "./backend/BackendStateStore";
 import { RendererEventInterestsWiring } from "./backend/rendererEventInterestsWiring";
 import { createRendererEventDispatcher } from "./backend/rendererEventDispatch";
-import { resolveDeliveryTargetWindow } from "./backend/rendererDeliveryTable";
 import { forwardAgentStatusEventToQuickComposer, openThreadFromTray } from "./desktopAppWindows";
 import {
   handleSharedSettingsChanged,
@@ -196,14 +195,9 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
   // identity change even when the merged union does not move.
   const rendererEventInterests = new RendererEventInterestsWiring({
     pushUnionInterests: (interests) => backendHost.setEventInterests(interests),
-    pushDeliveryTable: (windows) => backendHost.setRendererStreamOwnership(windows),
     onError: (error) => {
       captureMainException(error, { "poracode.feature_area": "live-event-routing" });
     },
-    shellRemainderWindowId: () =>
-      desktopApp.mainWindow && !desktopApp.mainWindow.isDestroyed()
-        ? desktopApp.mainWindow.webContents.id
-        : null,
   });
   let trayProjects: Project[] = [];
   let trayThreads: Thread[] = [];
@@ -219,20 +213,6 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
     },
   };
   const dispatchBackendSupervisorEvent = createRendererEventDispatcher({
-    isStaleDeliveryTarget: (target) => rendererEventInterests.isStaleDeliveryTarget(target),
-    resolveTargetWindow: (target) => {
-      const window = resolveDeliveryTargetWindow(target, [
-        desktopApp.mainWindow,
-        desktopApp.quickComposerWindow,
-        desktopApp.browserExtractWindow,
-      ]);
-      if (!window) return null;
-      return {
-        windowId: window.webContents.id,
-        send: (event, rendererSequence) =>
-          window.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event, rendererSequence),
-      };
-    },
     sendToShell: (event, rendererSequence) => {
       if (rendererSequence === undefined) {
         desktopApp.mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
@@ -246,14 +226,22 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
     },
     applyNativeState: handleSupervisorEventForSleep,
     forwardAgentStatus: forwardAgentStatusEventToQuickComposer,
-    quickComposerWindowId: () =>
-      desktopApp.quickComposerWindow && !desktopApp.quickComposerWindow.isDestroyed()
-        ? desktopApp.quickComposerWindow.webContents.id
-        : null,
   });
   const handleBackendReset = (): void => {
     desktopApp.workingThreads.clear();
     updatePowerSaveBlocker();
+    // Backend reset (V5 2.5): the relay sequence space restarts with the new
+    // child, so renderer windows must drop their dedupe cursor and rebuild
+    // subscribed state over the desktop-IPC event path.
+    for (const window of [
+      desktopApp.mainWindow,
+      desktopApp.quickComposerWindow,
+      desktopApp.browserExtractWindow,
+    ]) {
+      if (window && !window.isDestroyed()) {
+        window.webContents.send(IPC_EVENT_CHANNELS.backendSupervisorReset);
+      }
+    }
   };
   // `backendHost` is captured lazily everywhere below: the client invokes
   // these callbacks only after construction has finished.
@@ -272,8 +260,8 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
     },
     onEvent: dispatchBackendSupervisorEvent,
     onSupervisorEventGap: (gap) => {
-      // A window whose direct stream is down rebuilds from persisted
-      // state on this signal; windows with a healthy stream ignore it.
+      // Desktop events cross only this IPC channel now (V5 2.5), so every
+      // renderer window rebuilds from persisted state on this signal.
       for (const window of [
         desktopApp.mainWindow,
         desktopApp.quickComposerWindow,
@@ -284,35 +272,9 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
         }
       }
     },
-    onRendererStreamRecovery: (barrier) => {
-      // Targeted, generation-fenced loss window for one window's direct
-      // stream. Delivered to exactly that window so it can fence the dead
-      // socket and rebuild before its local onclose even fires.
-      const window = resolveDeliveryTargetWindow(barrier, [
-        desktopApp.mainWindow,
-        desktopApp.quickComposerWindow,
-        desktopApp.browserExtractWindow,
-      ]);
-      window?.webContents.send(IPC_EVENT_CHANNELS.rendererStreamRecovery, barrier);
-    },
     onReset: handleBackendReset,
     handleNativeRequest: createNativeRequestHandler(() => backendHost, deps),
     onNativeEvent: createNativeEventHandler(trayFeed),
-    onRendererStreamInfo: (info) => {
-      desktopApp.backendRendererStreamInfo = info;
-      desktopApp.mainWindow?.webContents.send(
-        IPC_EVENT_CHANNELS.backendRendererStreamChanged,
-        info,
-      );
-      desktopApp.quickComposerWindow?.webContents.send(
-        IPC_EVENT_CHANNELS.backendRendererStreamChanged,
-        info,
-      );
-      desktopApp.browserExtractWindow?.webContents.send(
-        IPC_EVENT_CHANNELS.backendRendererStreamChanged,
-        info,
-      );
-    },
   });
   desktopApp.performanceDiagnostics?.observeIpcQueue("main-to-backend", () =>
     backendHost.getQueueDiagnostics(),
@@ -328,18 +290,6 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
   // Managed-local path holds no external owner: the renderer bootstrap
   // treats absence (or a rejected invoke on older builds) as managed.
   ipcMain.handle(IPC_WINDOW_CHANNELS.standaloneAttachInfo, () => null);
-  ipcMain.handle(IPC_WINDOW_CHANNELS.backendRendererStreamInfo, () => {
-    return desktopApp.backendRendererStreamInfo;
-  });
-  ipcMain.handle(IPC_WINDOW_CHANNELS.rendererStreamOwnershipGrant, (event) => {
-    // The window identity comes from the IPC event, never from the
-    // renderer: a caller can only ever receive the binding minted for its
-    // own webContents. The wiring mints the identity, registers its
-    // release hook, and republishes the table before the reply; a bind
-    // that races the sync is rejected safely and retried once by the
-    // renderer transport.
-    return rendererEventInterests.grantFor(event.sender);
-  });
   const shellState = new BackendStateStore(backendHost);
   return {
     backendHost,
@@ -347,7 +297,6 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
     rendererEventInterests,
     trayFeed,
     preloadShellState: async () => {
-      desktopApp.backendRendererStreamInfo = await backendHost.getRendererStreamInfo();
       await shellState.preload([
         "window-bounds",
         "browser-extract-window-bounds",

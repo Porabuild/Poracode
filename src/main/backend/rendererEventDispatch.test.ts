@@ -1,19 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import { filterSupervisorEventForInterests } from "@/backend/BackendHostCore";
-import {
-  RendererStreamOwnership,
-  type RendererStreamFallbackWindow,
-} from "@/backend/RendererStreamOwnership";
-import { planDesktopRelay, type DesktopRelayPlan } from "@/backend/supervisorEventFallback";
-import type { RendererStreamDeliveryTarget } from "@/shared/backendHostProtocol";
 import { agentStatusSchema, type AgentStatus } from "@/shared/contracts";
-import type { LiveEventInterests } from "@/shared/liveEventInterests";
 import type { SupervisorEvent } from "@/shared/ipc";
-import {
-  createRendererEventDispatcher,
-  type RendererEventDispatchTarget,
-} from "./rendererEventDispatch";
-import { RendererStreamGrantAuthority } from "./rendererStreamGrantAuthority";
+import { createRendererEventDispatcher } from "./rendererEventDispatch";
+
+/**
+ * Collapsed single-path dispatcher tests (V5 plan 2.5): every event crosses
+ * the desktop-IPC channel once, untargeted and sequenced. Main applies native
+ * state once, sends the event to its window once, and keeps the quick
+ * composer overlay's agent statuses on the single shell-forward path. The
+ * former targeted-copy/stale-generation plumbing was deleted with the
+ * renderer-direct stream.
+ */
 
 const MIXED: SupervisorEvent = {
   type: "thread-runtime-events",
@@ -38,273 +35,64 @@ function statusEvent(statuses: AgentStatus[] = [STATUS_ENTRY]): SupervisorEvent 
 
 const STATUS = statusEvent();
 
-const IDS = {
-  mainShell: 1,
-  auxFallback: 2,
-  quickComposer: 7,
-  goneFallback: 9,
-};
-
-function fallbackWindow(
-  windowId: number,
-  generation: number,
-  interests: LiveEventInterests,
-  receivesShellRemainder: boolean,
-): RendererStreamFallbackWindow {
-  return { windowId, generation, interests, receivesShellRemainder };
-}
-
-function planFor(
-  event: SupervisorEvent,
-  fallbackWindows: readonly RendererStreamFallbackWindow[],
-  ownershipArmed = true,
-): DesktopRelayPlan {
-  return planDesktopRelay({
-    event,
-    ownershipArmed,
-    fallbackWindows,
-    isTerminalBootstrapRetainedFor: () => false,
-    filterEventForInterests: (entry, interests) =>
-      filterSupervisorEventForInterests(entry, interests),
-    filterShellEvent: (entry) => entry,
-  });
-}
-
-function makeDispatcher(options: { quickComposerWindowId?: number | null } = {}) {
-  const authority = new RendererStreamGrantAuthority({
-    pushDeliveryTable: async () => {},
-    onError: vi.fn<(error: unknown) => void>(),
-    shellRemainderWindowId: () => IDS.mainShell,
-    interestsByWindow: () => new Map(),
-  });
-  const sent: Array<{
-    windowId: number;
-    event: SupervisorEvent;
-    rendererSequence: number | undefined;
-  }> = [];
+function makeDispatcher() {
   const shell: Array<{ event: SupervisorEvent; rendererSequence: number | undefined }> = [];
   const native: SupervisorEvent[] = [];
   const forwarded: SupervisorEvent[] = [];
-  const resolveTargetWindow = (
-    target: RendererStreamDeliveryTarget,
-  ): RendererEventDispatchTarget | null => {
-    if (![IDS.mainShell, IDS.auxFallback, IDS.quickComposer].includes(target.windowId)) return null;
-    return {
-      windowId: target.windowId,
-      send: (event, rendererSequence) =>
-        sent.push({ windowId: target.windowId, event, rendererSequence }),
-    };
-  };
   const dispatch = createRendererEventDispatcher({
-    isStaleDeliveryTarget: (target) => authority.isStaleDeliveryTarget(target),
-    resolveTargetWindow,
     sendToShell: (event, rendererSequence) => shell.push({ event, rendererSequence }),
     applyNativeState: (event) => native.push(event),
     forwardAgentStatus: (event) => forwarded.push(event),
-    quickComposerWindowId: () => options.quickComposerWindowId ?? null,
   });
-  const deliver = (plan: DesktopRelayPlan, rendererSequence?: number) => {
-    if (plan.mode === "legacy") {
-      if (plan.shellEvent) dispatch(plan.shellEvent, rendererSequence);
-      return;
-    }
-    for (const copy of plan.copies) dispatch(copy.event, rendererSequence, copy.target);
-    if (plan.shellEvent) dispatch(plan.shellEvent, undefined);
-  };
-  return { dispatch, deliver, authority, sent, shell, native, forwarded };
+  return { dispatch, shell, native, forwarded };
 }
 
-const EMPTY_INTERESTS: LiveEventInterests = {
-  terminalThreadIds: [],
-  runtimeThreadIds: [],
-  allRuntimeEvents: false,
-};
-
-const INTERESTS: LiveEventInterests = {
-  terminalThreadIds: [],
-  runtimeThreadIds: ["t-1"],
-  allRuntimeEvents: false,
-};
-
-describe("createRendererEventDispatcher", () => {
-  it("delivers an agent status to the quick composer exactly once, through the shell forward", () => {
-    const { deliver, sent, shell, native, forwarded } = makeDispatcher({
-      quickComposerWindowId: IDS.quickComposer,
-    });
-    const plan = planFor(STATUS, [
-      fallbackWindow(IDS.mainShell, 1, EMPTY_INTERESTS, true),
-      fallbackWindow(IDS.quickComposer, 2, EMPTY_INTERESTS, false),
-    ]);
-    expect(plan.mode).toBe("targeted");
-    if (plan.mode !== "targeted") return;
-
-    deliver(plan, 4);
-
-    // The overlay's single path is the shell forward; the planned fallback
-    // copy is structurally redundant and must not be sent.
-    expect(sent.filter((entry) => entry.windowId === IDS.quickComposer)).toEqual([]);
-    expect(forwarded).toEqual([STATUS]);
-    expect(sent.length + forwarded.length).toBe(1);
-    // Native/control state still applies exactly once, on the shell path.
+describe("createRendererEventDispatcher (collapsed single path)", () => {
+  it("sends the sequenced event to the shell window, applies native state once, forwards statuses once", () => {
+    const { dispatch, shell, native, forwarded } = makeDispatcher();
+    dispatch(STATUS, 4);
+    expect(shell).toEqual([{ event: STATUS, rendererSequence: 4 }]);
     expect(native).toEqual([STATUS]);
-    expect(shell).toEqual([{ event: plan.shellEvent, rendererSequence: undefined }]);
+    expect(forwarded).toEqual([STATUS]);
+    // Exactly one overlay delivery: the shell forward.
+    expect(forwarded).toHaveLength(1);
   });
 
   it("delivers consecutive identical agent statuses independently", () => {
-    const { deliver, forwarded } = makeDispatcher({ quickComposerWindowId: IDS.quickComposer });
-    const plan = planFor(STATUS, [
-      fallbackWindow(IDS.mainShell, 1, EMPTY_INTERESTS, true),
-      fallbackWindow(IDS.quickComposer, 2, EMPTY_INTERESTS, false),
-    ]);
+    const { dispatch, forwarded } = makeDispatcher();
     const second = statusEvent();
-
-    deliver(plan, 4);
-    deliver(plan, 5);
-    deliver(planFor(second, []), undefined);
-
+    dispatch(STATUS, 4);
+    dispatch(STATUS, 5);
+    dispatch(second, 6);
     expect(forwarded).toEqual([STATUS, STATUS, second]);
   });
 
-  it("still delivers the forward when the targeted copy is for a stale grant epoch", () => {
-    const { deliver, authority, sent, native, forwarded } = makeDispatcher({
-      quickComposerWindowId: IDS.quickComposer,
-    });
-    const stale = authority.ensureGrant(IDS.quickComposer);
-    authority.dropGrant(IDS.quickComposer);
-    authority.ensureGrant(IDS.quickComposer);
-
-    const plan = planFor(STATUS, [
-      fallbackWindow(IDS.mainShell, 1, EMPTY_INTERESTS, true),
-      fallbackWindow(IDS.quickComposer, stale.generation, EMPTY_INTERESTS, false),
-    ]);
-    expect(plan.mode).toBe("targeted");
-    if (plan.mode !== "targeted") return;
-
-    deliver(plan, 3);
-
-    expect(sent).toEqual([]);
-    expect(forwarded).toEqual([STATUS]);
-    expect(native).toEqual([STATUS]);
+  it("does not forward non-agent-status events to the overlay channel", () => {
+    const { dispatch, shell, forwarded } = makeDispatcher();
+    dispatch(MIXED, 7);
+    expect(forwarded).toEqual([]);
+    expect(shell).toEqual([{ event: MIXED, rendererSequence: 7 }]);
   });
 
-  it("still delivers the forward when the targeted window no longer resolves", () => {
-    const { deliver, sent, native, forwarded } = makeDispatcher({
-      quickComposerWindowId: IDS.quickComposer,
-    });
-    const plan = planFor(STATUS, [
-      fallbackWindow(IDS.mainShell, 1, EMPTY_INTERESTS, true),
-      fallbackWindow(IDS.goneFallback, 4, EMPTY_INTERESTS, false),
-    ]);
-    expect(plan.mode).toBe("targeted");
-    if (plan.mode !== "targeted") return;
-
-    deliver(plan, 3);
-
-    expect(sent).toEqual([]);
-    expect(forwarded).toEqual([STATUS]);
-    expect(native).toEqual([STATUS]);
+  it("keeps applying unsequenced envelopes (recovery and bootstrap events)", () => {
+    const { dispatch, shell, native } = makeDispatcher();
+    const resync: SupervisorEvent = { type: "thread-scrollback-resync", threadId: "t-1" };
+    dispatch(resync);
+    expect(shell).toEqual([{ event: resync, rendererSequence: undefined }]);
+    expect(native).toEqual([resync]);
   });
 
-  it("preserves legacy/startup delivery, native handling, and forwarding", () => {
-    const { deliver, sent, native, shell, forwarded } = makeDispatcher({
-      quickComposerWindowId: IDS.quickComposer,
+  it("forwards only when the reporter reports an agent-status event", () => {
+    const forwarded: SupervisorEvent[] = [];
+    const reporter = vi.fn<(event: SupervisorEvent) => number>((event) => forwarded.push(event));
+    const dispatch = createRendererEventDispatcher({
+      sendToShell: () => {},
+      applyNativeState: () => {},
+      forwardAgentStatus: reporter,
     });
-    deliver(planFor(STATUS, [], false), 9);
-    expect(sent).toEqual([]);
-    expect(native).toEqual([STATUS]);
-    expect(shell).toEqual([{ event: STATUS, rendererSequence: 9 }]);
-    expect(forwarded).toEqual([STATUS]);
-  });
-
-  it("keeps the forward for a directly owned quick composer that is not a fallback window", () => {
-    const { deliver, sent, forwarded } = makeDispatcher({
-      quickComposerWindowId: IDS.quickComposer,
-    });
-    const ownership = new RendererStreamOwnership();
-    ownership.setWindows([
-      {
-        windowId: IDS.mainShell,
-        grant: { windowId: IDS.mainShell, generation: 1, binding: "main" },
-        interests: EMPTY_INTERESTS,
-        receivesShellRemainder: true,
-      },
-      {
-        windowId: IDS.quickComposer,
-        grant: { windowId: IDS.quickComposer, generation: 2, binding: "overlay" },
-        interests: EMPTY_INTERESTS,
-        receivesShellRemainder: false,
-      },
-    ]);
-    ownership.attach(IDS.quickComposer, { ownedWindowIds: new Set([IDS.quickComposer]) });
-
-    const plan = planFor(STATUS, ownership.fallbackWindows());
-    expect(plan.mode).toBe("targeted");
-    if (plan.mode !== "targeted") return;
-    expect(plan.copies).toEqual([]);
-
-    deliver(plan, 6);
-    expect(sent).toEqual([]);
-    expect(forwarded).toEqual([STATUS]);
-  });
-
-  it("applies native state exactly once across a mixed batch and drops no controls", () => {
-    const { deliver, authority, sent, shell, native, forwarded } = makeDispatcher();
-    authority.ensureGrant(1);
-    authority.ensureGrant(2);
-    const plan = planFor(MIXED, [
-      fallbackWindow(1, 1, INTERESTS, true),
-      fallbackWindow(2, 2, INTERESTS, false),
-    ]);
-    expect(plan.mode).toBe("targeted");
-    if (plan.mode !== "targeted") return;
-
-    deliver(plan, 7);
-
-    expect(native).toEqual([plan.shellEvent]);
-    expect(forwarded).toEqual([plan.shellEvent]);
-    expect(sent).toHaveLength(2);
-    // The shell-recipient window gets its copy without controls (the shell
-    // remainder carries them once); the aux fallback window keeps its controls.
-    expect(sent.find((entry) => entry.windowId === 1)?.event).toMatchObject({
-      events: [{ type: "item.started" }],
-    });
-    expect(sent.find((entry) => entry.windowId === 2)?.event).toMatchObject({
-      events: [{ type: "item.started" }, { type: "turn.completed" }],
-    });
-    expect(shell).toEqual([{ event: plan.shellEvent, rendererSequence: undefined }]);
-  });
-
-  it("applies nothing for a stale targeted copy and still handles the shell remainder", () => {
-    const { deliver, authority, sent, shell, native } = makeDispatcher();
-    const staleGrant = authority.ensureGrant(2);
-    authority.dropGrant(2);
-    authority.ensureGrant(2);
-
-    const plan = planFor(MIXED, [
-      fallbackWindow(1, 1, INTERESTS, true),
-      fallbackWindow(2, staleGrant.generation, INTERESTS, false),
-    ]);
-    expect(plan.mode).toBe("targeted");
-    if (plan.mode !== "targeted") return;
-
-    deliver(plan, 3);
-    expect(sent.map((entry) => entry.windowId)).toEqual([1]);
-    expect(native).toEqual([plan.shellEvent]);
-    expect(shell).toEqual([{ event: plan.shellEvent, rendererSequence: undefined }]);
-  });
-
-  it("still targets a non-agent-status control copy to the quick composer window", () => {
-    const { deliver, sent } = makeDispatcher({ quickComposerWindowId: IDS.quickComposer });
-    const navigation: SupervisorEvent = { type: "git-changed", projectId: "p-1" };
-    const plan = planFor(navigation, [
-      fallbackWindow(IDS.mainShell, 1, EMPTY_INTERESTS, true),
-      fallbackWindow(IDS.quickComposer, 2, EMPTY_INTERESTS, false),
-    ]);
-    expect(plan.mode).toBe("targeted");
-    if (plan.mode !== "targeted") return;
-
-    deliver(plan, 8);
-
-    expect(sent.filter((entry) => entry.windowId === IDS.quickComposer)).toHaveLength(1);
+    dispatch(MIXED, 1);
+    expect(reporter).not.toHaveBeenCalled();
+    dispatch(STATUS, 2);
+    expect(reporter).toHaveBeenCalledOnce();
   });
 });

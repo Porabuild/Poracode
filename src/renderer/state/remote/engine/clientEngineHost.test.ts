@@ -1,4 +1,3 @@
-import { BACKEND_RENDERER_STREAM_VERSION } from "@/shared/backendHostProtocol";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CLIENT_ENGINE_MAX_PENDING,
@@ -10,8 +9,7 @@ import {
 import {
   ClientEngineOverflowError,
   ClientEngineProtocolMismatchError,
-  decodeBackendSync,
-  getBackendStreamEngine,
+  getPersistJsonEngine,
   getRemoteSocketEngine,
   resetClientEngineHostForTests,
 } from "./clientEngineHost";
@@ -38,11 +36,16 @@ class FakeWorker {
   }
 }
 
-const helloRaw = JSON.stringify({
-  version: BACKEND_RENDERER_STREAM_VERSION,
-  type: "hello",
-  latestSeq: 4,
+/** A valid remote WS frame used as the decode workload in these tests. */
+const remoteFrameRaw = JSON.stringify({
+  type: "event",
+  seq: 1,
+  event: { type: "thread-state", threadId: "t-1" },
 });
+const remoteFrameExpected = {
+  ok: true as const,
+  message: { type: "event", seq: 1, event: { type: "thread-state", threadId: "t-1" } },
+};
 
 beforeEach(() => {
   FakeWorker.instances.length = 0;
@@ -59,56 +62,49 @@ describe("ClientEngineHost", () => {
   it("uses the sync fallback when Worker is unavailable", async () => {
     const host = getRemoteSocketEngine();
     expect(host.isWorkerActive()).toBe(false);
-    const sync = decodeBackendSync(helloRaw);
-    expect(sync).toEqual({
-      ok: true,
-      message: {
-        version: BACKEND_RENDERER_STREAM_VERSION,
-        type: "hello",
-        latestSeq: 4,
-      },
-    });
-    await expect(host.decodeBackend(helloRaw)).resolves.toEqual(sync);
-    expect(decodeBackendSync("{")).toEqual({ ok: false, error: "invalid" });
+    const sync = await host.decodeRemote(remoteFrameRaw);
+    expect(sync).toEqual(remoteFrameExpected);
+    await expect(host.decodeRemote("{")).resolves.toEqual({ ok: false, error: "invalid" });
   });
 
   it("scopes the engine per consumer: resetting one leaves another's in-flight work untouched", async () => {
-    // V5 2.2: the loopback close path resets the backend-stream engine; a
-    // remote-socket decode (or persist stringify) in flight at that moment
-    // must still resolve.
+    // V5 2.2: resetting the remote-socket engine (a loopback socket close)
+    // must never reject a persist-JSON hydration read in flight on another
+    // consumer's engine.
     vi.stubGlobal("Worker", FakeWorker);
     const remoteEngine = getRemoteSocketEngine();
-    const backendEngine = getBackendStreamEngine();
-    expect(backendEngine).not.toBe(remoteEngine);
+    const persistEngine = getPersistJsonEngine();
+    expect(persistEngine).not.toBe(remoteEngine);
 
-    const inFlight = backendEngine.decodeBackend(helloRaw);
-    const backendWorker = FakeWorker.instances.at(-1)!;
-    const request = backendWorker.posted[0];
-    if (!request || request.type !== "decode-backend") throw new Error("expected decode request");
+    const persistRaw = JSON.stringify({ kept: true });
+    const inFlight = persistEngine.parseJson(persistRaw);
+    const persistWorker = FakeWorker.instances.at(-1)!;
+    const request = persistWorker.posted[0];
+    if (!request || request.type !== "parse-json") throw new Error("expected parse request");
 
     remoteEngine.reset(new Error("remote engine reset"));
 
-    backendWorker.respond({
+    persistWorker.respond({
       v: CLIENT_ENGINE_PROTOCOL_VERSION,
       generation: request.generation,
       id: request.id,
-      type: "decode-backend",
+      type: "parse-json",
       ok: true,
-      message: JSON.parse(helloRaw),
+      value: JSON.parse(persistRaw),
     });
-    await expect(inFlight).resolves.toEqual(decodeBackendSync(helloRaw));
+    await expect(inFlight).resolves.toEqual({ kept: true });
 
     // Same-consumer reset semantics are preserved: an engine reset rejects
     // its OWN pending work.
-    const ownPending = backendEngine.decodeBackend(helloRaw);
-    backendEngine.reset();
+    const ownPending = remoteEngine.decodeRemote(remoteFrameRaw);
+    remoteEngine.reset();
     await expect(ownPending).rejects.toThrow(/reset/);
   });
 
   it("gives each consumer engine its own worker and overflow handlers", async () => {
     vi.stubGlobal("Worker", FakeWorker);
     const remoteEngine = getRemoteSocketEngine();
-    const persistEngine = getBackendStreamEngine();
+    const persistEngine = getPersistJsonEngine();
     // Materialize both workers.
     expect(remoteEngine.isWorkerActive()).toBe(true);
     expect(persistEngine.isWorkerActive()).toBe(true);
@@ -117,9 +113,9 @@ describe("ClientEngineHost", () => {
     expect(FakeWorker.instances).toHaveLength(2);
     // Overflow on one consumer's engine must not fire another's handlers nor
     // reset the other engine's worker generation.
-    const remotePending = remoteEngine.decodeBackend(helloRaw);
+    const remotePending = remoteEngine.decodeRemote(remoteFrameRaw);
     const remoteWorker = FakeWorker.instances.find((worker) =>
-      worker.posted.some((message) => message.type === "decode-backend"),
+      worker.posted.some((message) => message.type === "decode-remote"),
     )!;
     remoteWorker.respond({
       v: CLIENT_ENGINE_PROTOCOL_VERSION,
@@ -130,10 +126,8 @@ describe("ClientEngineHost", () => {
     await expect(remotePending).rejects.toBeInstanceOf(ClientEngineOverflowError);
     const persistWorker = FakeWorker.instances.find((worker) => worker !== remoteWorker)!;
     expect(persistWorker).toBeDefined();
-    const persistPending = persistEngine.decodeBackend(helloRaw);
-    const persistRequest = persistWorker.posted.find(
-      (message) => message.type === "decode-backend",
-    );
+    const persistPending = persistEngine.parseJson("{}");
+    const persistRequest = persistWorker.posted.find((message) => message.type === "parse-json");
     expect(persistRequest).toMatchObject({ generation: 0 });
     void persistPending.catch(() => undefined);
   });
@@ -146,9 +140,9 @@ describe("ClientEngineHost", () => {
     expect(host.isWorkerActive()).toBe(true);
 
     const pending = Array.from({ length: CLIENT_ENGINE_MAX_PENDING }, () =>
-      host.decodeBackend(helloRaw),
+      host.decodeRemote(remoteFrameRaw),
     );
-    const overflow = host.decodeBackend(helloRaw);
+    const overflow = host.decodeRemote(remoteFrameRaw);
     await expect(overflow).rejects.toBeInstanceOf(ClientEngineOverflowError);
     expect(onOverflow).toHaveBeenCalledOnce();
     const settled = await Promise.allSettled(pending);
@@ -167,53 +161,53 @@ describe("ClientEngineHost", () => {
   it("drops stale replies after a generation reset", async () => {
     vi.stubGlobal("Worker", FakeWorker);
     const host = getRemoteSocketEngine();
-    const promise = host.decodeBackend(helloRaw);
+    const promise = host.decodeRemote(remoteFrameRaw);
     const worker = FakeWorker.instances[0]!;
     const request = worker.posted[0];
     expect(request).toMatchObject({
-      type: "decode-backend",
+      type: "decode-remote",
       generation: 0,
-      raw: helloRaw,
+      raw: remoteFrameRaw,
     });
-    if (!request || request.type !== "decode-backend") throw new Error("expected decode request");
+    if (!request || request.type !== "decode-remote") throw new Error("expected decode request");
 
     host.reset();
     worker.respond({
       v: CLIENT_ENGINE_PROTOCOL_VERSION,
       generation: request.generation,
       id: request.id,
-      type: "decode-backend",
+      type: "decode-remote",
       ok: true,
       message: { hijacked: true },
     });
     await expect(promise).rejects.toThrow(/reset/);
 
-    const next = host.decodeBackend(helloRaw);
+    const next = host.decodeRemote(remoteFrameRaw);
     const nextRequest = worker.posted.find(
-      (message) => message.type === "decode-backend" && message.generation === 1,
+      (message) => message.type === "decode-remote" && message.generation === 1,
     );
-    expect(nextRequest).toMatchObject({ type: "decode-backend", generation: 1 });
-    if (!nextRequest || nextRequest.type !== "decode-backend") {
+    expect(nextRequest).toMatchObject({ type: "decode-remote", generation: 1 });
+    if (!nextRequest || nextRequest.type !== "decode-remote") {
       throw new Error("expected next decode request");
     }
     worker.respond({
       v: CLIENT_ENGINE_PROTOCOL_VERSION,
       generation: nextRequest.generation,
       id: nextRequest.id,
-      type: "decode-backend",
+      type: "decode-remote",
       ok: true,
-      message: JSON.parse(helloRaw),
+      message: remoteFrameExpected.message,
     });
-    await expect(next).resolves.toEqual(decodeBackendSync(helloRaw));
+    await expect(next).resolves.toEqual(remoteFrameExpected);
   });
 
   it("falls back to sync decode when the worker times out", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("Worker", FakeWorker);
     const host = getRemoteSocketEngine();
-    const promise = host.decodeBackend(helloRaw);
+    const promise = host.decodeRemote(remoteFrameRaw);
     await vi.advanceTimersByTimeAsync(CLIENT_ENGINE_TIMEOUT_MS);
-    await expect(promise).resolves.toEqual(decodeBackendSync(helloRaw));
+    await expect(promise).resolves.toEqual(remoteFrameExpected);
     const worker = FakeWorker.instances[0]!;
     expect(worker.posted.some((message) => message.type === "ack")).toBe(true);
   });
@@ -222,31 +216,31 @@ describe("ClientEngineHost", () => {
     it("rejects pending work typed when a reply carries a foreign version", async () => {
       vi.stubGlobal("Worker", FakeWorker);
       const host = getRemoteSocketEngine();
-      const promise = host.decodeBackend(helloRaw);
+      const promise = host.decodeRemote(remoteFrameRaw);
       const worker = FakeWorker.instances[0]!;
       const request = worker.posted[0];
-      if (!request || request.type !== "decode-backend") throw new Error("expected decode request");
+      if (!request || request.type !== "decode-remote") throw new Error("expected decode request");
 
       // A worker speaking a NEWER protocol answers with its own version.
       worker.respond({
         v: CLIENT_ENGINE_PROTOCOL_VERSION + 1,
         generation: request.generation,
         id: request.id,
-        type: "decode-backend",
+        type: "decode-remote",
         ok: true,
-        message: JSON.parse(helloRaw),
+        message: remoteFrameExpected.message,
       } as unknown as ClientEngineResponse);
       await expect(promise).rejects.toBeInstanceOf(ClientEngineProtocolMismatchError);
       // The mismatched worker is retired: later work takes the sync fallback
       // instead of feeding it more requests.
       expect(host.isWorkerActive()).toBe(false);
-      await expect(host.decodeBackend(helloRaw)).resolves.toEqual(decodeBackendSync(helloRaw));
+      await expect(host.decodeRemote(remoteFrameRaw)).resolves.toEqual(remoteFrameExpected);
     });
 
     it("rejects pending work typed on an explicit protocol-mismatch response", async () => {
       vi.stubGlobal("Worker", FakeWorker);
       const host = getRemoteSocketEngine();
-      const promise = host.decodeBackend(helloRaw);
+      const promise = host.decodeRemote(remoteFrameRaw);
       const worker = FakeWorker.instances[0]!;
       worker.respond({
         v: CLIENT_ENGINE_PROTOCOL_VERSION,

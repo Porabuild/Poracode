@@ -7,7 +7,6 @@ import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
-import type { BackendRendererStreamInfo } from "@/shared/backendHostProtocol";
 import type { NodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import type { HostControlServer } from "@/backend/ownership/HostControlServer";
 import type { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
@@ -115,7 +114,6 @@ export interface DesktopAppState {
   browserExtractWindow: BrowserWindow | null;
   backendHostClient: BackendHostClient | null;
   backendStateStore: BackendStateStore | null;
-  backendRendererStreamInfo: BackendRendererStreamInfo | null;
   clearRendererEventInterests: ((senderId?: number) => void) | null;
   // Retained so the native Tray icon stays reachable from GC.
   tray: TrayHandle | null;
@@ -158,7 +156,6 @@ export const desktopApp: DesktopAppState = {
   browserExtractWindow: null,
   backendHostClient: null,
   backendStateStore: null,
-  backendRendererStreamInfo: null,
   clearRendererEventInterests: null,
   tray: null,
   quickComposerShortcutManager: null,

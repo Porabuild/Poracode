@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { PoracodeBridge } from "@/shared/ipc";
+import { IpcProcedureMapVersionError, type PoracodeBridge } from "@/shared/ipc";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
   DESKTOP_MANAGED_HOST_CAPABILITIES,
@@ -27,10 +27,8 @@ function electronHost(arch: string): ElectronHostBridge {
     platform: "win32",
     onSupervisorEvent: () => () => {},
     onSupervisorEventGap: () => () => {},
-    onRendererStreamRecovery: () => () => {},
-    onBackendRendererStreamChanged: () => () => {},
-    getRendererStreamOwnershipGrant: async () => null,
-    getBackendRendererStreamInfo: async () => null,
+    onBackendSupervisorReset: () => () => {},
+    ipcProcedureMapVersion: 1,
     invokeProcedure: async () => undefined,
   } as unknown as ElectronHostBridge;
 }
@@ -42,7 +40,7 @@ describe("client runtime", () => {
     Reflect.deleteProperty(window, "poracodeHost");
   });
 
-  it.each([undefined, 6, 7, 8, 9, 10, 11, 12])(
+  it.each([undefined, 6, 7, 8, 9, 10, 11, 12, 13])(
     "refuses an old preload host version %s before creating its transport",
     (version) => {
       const host = {
@@ -55,6 +53,25 @@ describe("client runtime", () => {
       expect(() => readClientRuntime()).toThrow(/not installed/);
     },
   );
+
+  it("rejects a preload that cannot declare the procedure-map version, typed (V5 2.6)", () => {
+    const host = {
+      ...electronHost("x64"),
+      // Absent/malformed declarations count as legacy version 0 and reject
+      // typed — never guessed semantics.
+      ipcProcedureMapVersion: undefined,
+    } as unknown as ElectronHostBridge;
+    expect(() => installElectronClientRuntime(host)).toThrow(IpcProcedureMapVersionError);
+    expect(() => readClientRuntime()).toThrow(/not installed/);
+  });
+
+  it("rejects a foreign procedure-map version, typed (V5 2.6)", () => {
+    const host = {
+      ...electronHost("x64"),
+      ipcProcedureMapVersion: 99,
+    } as unknown as ElectronHostBridge;
+    expect(() => installElectronClientRuntime(host)).toThrow(/IPC procedure map version mismatch/);
+  });
 
   it("describes the Electron desktop host and its native capabilities", () => {
     const host = electronHost("x64");

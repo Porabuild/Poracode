@@ -5,12 +5,7 @@ import {
   type ClientEngineResponse,
   type ClientEngineWorkRequest,
 } from "./protocol";
-import {
-  decodeBackendRendererFrame,
-  decodeRemoteSocketFrame,
-  parseJsonValue,
-  stringifyJsonValue,
-} from "./decode";
+import { decodeRemoteSocketFrame, parseJsonValue, stringifyJsonValue } from "./decode";
 
 let generation = 0;
 const unanswered = new Set<number>();
@@ -56,12 +51,6 @@ function handleWork(request: ClientEngineWorkRequest): ClientEngineResponse {
     generation: request.generation,
     id: request.id,
   } as const;
-  if (request.type === "decode-backend") {
-    const result = decodeBackendRendererFrame(request.raw);
-    return result.ok
-      ? { ...base, type: "decode-backend", ok: true, message: result.message }
-      : { ...base, type: "decode-backend", ok: false, error: "invalid" };
-  }
   if (request.type === "decode-remote") {
     const result = decodeRemoteSocketFrame(request.raw);
     return result.ok
