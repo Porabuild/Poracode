@@ -67,7 +67,7 @@ function sessionInput(
     mode: owner.lease.kind,
     info: {
       profileNamespace: owner.profileNamespace,
-      dataRoot: owner.profileNamespace,
+      dataRoot: owner.controlPaths.dataRoot,
       endpoint: "http://127.0.0.1:9/owner/",
       ownerGeneration: owner.lease.generation,
       remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,

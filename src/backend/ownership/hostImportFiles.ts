@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { HOST_CONTROL_DISCOVERY_FILE } from "@/shared/hostControlProtocol";
+import { HOST_KEY_ADOPTION_OFFER_FILE } from "./nativeSecretKey";
 import { HOST_OPERATION_JOURNAL_FILE } from "./hostOperationJournal";
 
 const EXCLUDED_ROOT_ENTRIES = new Set([
@@ -22,6 +23,11 @@ const EXCLUDED_ROOT_ENTRIES = new Set([
   // Private owned-root operation evidence, like the other markers below; a
   // backup inventory describes migrated data, never local mutation bookkeeping.
   HOST_OPERATION_JOURNAL_FILE,
+  // Desktop owner bookkeeping: an offer published while an explicit
+  // activation cooperates with a live desktop must never mutate the staged
+  // root's verified inventory (the desktop owns this same root since the
+  // V5 data-root unification).
+  HOST_KEY_ADOPTION_OFFER_FILE,
 ]);
 
 interface ImportEntry {

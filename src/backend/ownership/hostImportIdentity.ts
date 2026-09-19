@@ -13,9 +13,20 @@ function existingIdentity(path: string): Stats | undefined {
 }
 
 /** Path canonicalization cannot distinguish bind mounts. Inspect identities
- * without opening any descriptor on a protected or SQLite-locked file. */
-export function assertDistinctHostImportSource(paths: HostRootPaths, source: string): void {
-  const roots = [paths.profileNamespace, paths.dataRoot, paths.electronUserDataRoot];
+ * without opening any descriptor on a protected or SQLite-locked file. The
+ * automatic desktop promotion (`promoteProfileNamespaceSource`) is the one
+ * caller allowed to stage its own profile namespace; the owned root, client
+ * root and lease inode stay protected in every case. */
+export function assertDistinctHostImportSource(
+  paths: HostRootPaths,
+  source: string,
+  options: { readonly promoteProfileNamespaceSource?: true } = {},
+): void {
+  const roots = [
+    ...(options.promoteProfileNamespaceSource ? [] : [paths.profileNamespace]),
+    paths.dataRoot,
+    paths.electronUserDataRoot,
+  ];
   const directory = statSync(source);
   const database = statSync(join(source, "state.sqlite"));
   const comparisons = [

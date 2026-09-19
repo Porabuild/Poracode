@@ -20,6 +20,11 @@ import { migrateLegacyDataOutOfProcess } from "./legacyMigrationClient";
 import { installProcessStdioErrorHandlers } from "./processStdio";
 import { HostDataFence, HostDataFenceInUseError } from "@/backend/ownership/hostDataFence";
 import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
+import { prepareOwnedHostRoot } from "@/backend/ownership/hostRootManifest";
+import {
+  DesktopRootPromotionRefusalError,
+  inspectDesktopRootPromotion,
+} from "@/backend/ownership/promoteDesktopRoot";
 import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import {
   resolveDesktopBaseDir,
@@ -140,7 +145,11 @@ if (hasSingleInstanceLock) {
         console.error("[poracode] failed to acquire the desktop host owner:", error);
       }
     }
-    if (!desktopApp.desktopOwnerAcquisitionError && !desktopApp.deferredStandaloneProbe) {
+    if (
+      !desktopApp.desktopOwnerAcquisitionError &&
+      !desktopApp.deferredStandaloneProbe &&
+      desktopApp.desktopOwnerLease !== null
+    ) {
       try {
         const result = migrateLegacyDataOutOfProcess({
           baseDir,
@@ -156,7 +165,32 @@ if (hasSingleInstanceLock) {
       } catch (error) {
         console.warn(`[migrate] failed to import Lightcode data into ${baseDir}:`, error);
       }
-      desktopApp.poracodePaths = preparePoracodeDataRoot(baseDir);
+      // Unified data root (V5 plan 1.3): the desktop owns the `.host-v1`
+      // sibling. The synchronous fast path finishes only the cases that need
+      // no promotion; a promotable or resumable plain root (including one the
+      // legacy import above just filled) is left to `admitDesktopStartup`,
+      // which promotes it under the held lease with OS-key cooperation after
+      // the ready event.
+      const paths = resolveDesktopHostRootPaths(baseDir);
+      const decision = inspectDesktopRootPromotion(paths);
+      if (decision.kind === "refuse") {
+        desktopApp.desktopOwnerLease.release();
+        desktopApp.desktopOwnerLease = null;
+        desktopApp.desktopOwnerAcquisitionError = new DesktopRootPromotionRefusalError(
+          decision.reason,
+        );
+        console.error(
+          "[poracode] refused to start with this profile's data roots:",
+          decision.reason,
+        );
+      } else if (decision.kind === "required" || decision.kind === "resumable") {
+        console.info(
+          `[poracode] this profile's data root will be promoted to ${paths.dataRoot} at startup`,
+        );
+      } else {
+        if (decision.kind === "fresh") prepareOwnedHostRoot(desktopApp.desktopOwnerLease);
+        desktopApp.poracodePaths = preparePoracodeDataRoot(paths.dataRoot);
+      }
     }
   }
 }
