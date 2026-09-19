@@ -10,6 +10,8 @@ import { describeAttachRefusal } from "./backend/standaloneAttachBootstrap";
 import {
   applyStartupFailureChoice,
   describeStartupFailureDialog,
+  handleStartupFailure,
+  shouldShowStartupFailureDialog,
   showStartupFailureDialog,
   type StartupFailureChoice,
 } from "./startupFailureDialog";
@@ -18,6 +20,7 @@ const electronMock = vi.hoisted(() => ({
   app: {
     relaunch: vi.fn<() => void>(),
     quit: vi.fn<() => void>(),
+    exit: vi.fn<(code?: number) => void>(),
   },
   dialog: {
     showMessageBoxSync: vi.fn<(options: unknown) => number>(),
@@ -80,6 +83,30 @@ describe("startup failure dialog", () => {
   it("keeps non-Error failures discloseable", () => {
     const spec = describeStartupFailureDialog("boom");
     expect(spec.message).toContain("boom");
+  });
+
+  it("never shows a modal for harness or CI launches (they exit non-zero instead)", () => {
+    expect(shouldShowStartupFailureDialog({})).toBe(true);
+    expect(shouldShowStartupFailureDialog({ PORACODE_CDP_PORT: "9222" })).toBe(false);
+    expect(shouldShowStartupFailureDialog({ CI: "1" })).toBe(false);
+    expect(shouldShowStartupFailureDialog({ PORACODE_STARTUP_FAILURE_MODE: "QUIET" })).toBe(false);
+    expect(shouldShowStartupFailureDialog({ PORACODE_STARTUP_FAILURE_MODE: "dialog" })).toBe(true);
+    expect(shouldShowStartupFailureDialog({ PORACODE_STARTUP_FAILURE_MODE: "" })).toBe(true);
+  });
+
+  it("handleStartupFailure exits non-zero without a dialog under a CDP harness env", () => {
+    const error = startingOwnerFailure();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubEnv("PORACODE_CDP_PORT", "9222");
+    try {
+      handleStartupFailure(error);
+    } finally {
+      vi.unstubAllEnvs();
+      errorSpy.mockRestore();
+    }
+    expect(electronMock.dialog.showMessageBoxSync).not.toHaveBeenCalled();
+    expect(electronMock.app.exit).toHaveBeenCalledWith(1);
+    expect(electronMock.app.quit).not.toHaveBeenCalled();
   });
 });
 

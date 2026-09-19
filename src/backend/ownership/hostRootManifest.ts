@@ -160,8 +160,25 @@ export function writeHostRootManifest(lease: HostOwnerLease, manifest: HostRootM
   );
 }
 
+export interface PrepareOwnedHostRootOptions {
+  /**
+   * Allow activating over a namespace that holds non-custodial state — any
+   * content without a `state.sqlite`. The desktop namespace legitimately
+   * contains the Electron `userData` directory by construction, and
+   * harnesses stage exactly such partial profiles; without a database
+   * there is no custody lineage to review, so the owned root may start
+   * empty beside it and the namespace is left untouched. The standalone
+   * server keeps the strict default: an arbitrary nonempty
+   * PORACODE_BASE_DIR still requires an explicit import.
+   */
+  readonly allowNonCustodialNamespace?: boolean;
+}
+
 /** Only a genuinely empty namespace can activate without an import review. */
-export function prepareOwnedHostRoot(lease: HostOwnerLease): HostRootManifest {
+export function prepareOwnedHostRoot(
+  lease: HostOwnerLease,
+  options: PrepareOwnedHostRootOptions = {},
+): HostRootManifest {
   lease.assertActive();
   assertHostRootDirectories(lease.paths);
   const existing = readHostRootManifest(lease.paths);
@@ -174,9 +191,11 @@ export function prepareOwnedHostRoot(lease: HostOwnerLease): HostRootManifest {
   if (existsSync(lease.paths.dataRoot) && readdirSync(lease.paths.dataRoot).length > 0) {
     throw new Error("The owned Poracode root contains state without a valid host-root manifest.");
   }
+  const namespaceHasDatabase = existsSync(join(lease.paths.profileNamespace, "state.sqlite"));
   if (
     existsSync(lease.paths.profileNamespace) &&
-    readdirSync(lease.paths.profileNamespace).length > 0
+    readdirSync(lease.paths.profileNamespace).length > 0 &&
+    !(options.allowNonCustodialNamespace && !namespaceHasDatabase)
   ) {
     throw new HostImportRequiredError(lease.paths);
   }

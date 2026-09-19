@@ -32,6 +32,18 @@ export function describeStartupFailureDialog(error: unknown): StartupFailureDial
 
 export type StartupFailureChoice = "retry" | "quit";
 
+/**
+ * Whether the failure may be shown as a modal. Harness-driven launches —
+ * smoke/CDP probes (`PORACODE_CDP_PORT`), CI, or an explicit
+ * `PORACODE_STARTUP_FAILURE_MODE=quiet` — have no user to click a dialog,
+ * and the blocking sync message box would wedge the whole run; those
+ * launches get the loud console disclosure and a non-zero exit instead.
+ */
+export function shouldShowStartupFailureDialog(env: NodeJS.ProcessEnv = process.env): boolean {
+  if ((env.PORACODE_STARTUP_FAILURE_MODE ?? "").trim().toLowerCase() === "quiet") return false;
+  return !env.CI && !env.PORACODE_CDP_PORT;
+}
+
 /** Show the modal and map the pressed button to a choice. */
 export function showStartupFailureDialog(error: unknown): StartupFailureChoice {
   const spec = describeStartupFailureDialog(error);
@@ -51,4 +63,18 @@ export function showStartupFailureDialog(error: unknown): StartupFailureChoice {
 export function applyStartupFailureChoice(choice: StartupFailureChoice): void {
   if (choice === "retry") app.relaunch();
   app.quit();
+}
+
+/**
+ * Full failure path for the main catch: log + report, then either the
+ * Retry/Quit modal (interactive launches) or a non-zero exit (harness/CI
+ * launches, where a blocking modal would wedge the run).
+ */
+export function handleStartupFailure(error: unknown): void {
+  console.error("[poracode] failed to initialize:", error);
+  if (!shouldShowStartupFailureDialog()) {
+    app.exit(1);
+    return;
+  }
+  applyStartupFailureChoice(showStartupFailureDialog(error));
 }

@@ -147,9 +147,6 @@ export function inspectDesktopRootPromotion(paths: HostRootPaths): DesktopRootPr
         `(${error instanceof Error ? error.message : String(error)}).`,
     };
   }
-  const plainEntries = existsSync(paths.profileNamespace)
-    ? readdirSync(paths.profileNamespace)
-    : [];
 
   if (manifest === undefined) {
     if (existsSync(paths.dataRoot)) {
@@ -168,17 +165,14 @@ export function inspectDesktopRootPromotion(paths: HostRootPaths): DesktopRootPr
         : { kind: "fresh" };
     }
     if (!plainRootHasDatabase(paths.profileNamespace)) {
-      // No owned root and no promotable database. Refuse a nonempty
-      // namespace exactly like the standalone host does: its state cannot be
-      // interpreted, so guessing is never an option.
-      if (plainEntries.length > 0) {
-        return {
-          kind: "refuse",
-          reason:
-            `the profile namespace ${paths.profileNamespace} contains state without a ` +
-            "database and without an owned-root manifest, so it cannot be adopted or promoted.",
-        };
-      }
+      // No owned root and no database: nothing to promote and no custody
+      // lineage to protect. The desktop namespace legitimately holds
+      // non-custodial state — the Electron userData directory lives inside
+      // it by construction, and harnesses stage partial profiles the same
+      // way — so a nonempty namespace still classifies fresh. The owned root
+      // is created empty and this namespace is left untouched. (The
+      // standalone host's stricter squatting refusal guards a different
+      // surface: an arbitrary PORACODE_BASE_DIR.)
       return { kind: "fresh" };
     }
     return { kind: "required" };
@@ -724,6 +718,11 @@ export async function ensureDesktopOwnedRoot(
   if (decision.kind === "required" || decision.kind === "resumable") {
     await promoteDesktopRootUnderLease(lease, options);
   }
-  if (decision.kind === "fresh") prepareOwnedHostRoot(lease);
+  if (decision.kind === "fresh") {
+    // The desktop namespace legitimately holds non-custodial state (the
+    // Electron userData directory lives inside it by construction), so a
+    // no-database namespace may activate beside it; see the option's doc.
+    prepareOwnedHostRoot(lease, { allowNonCustodialNamespace: true });
+  }
   return preparePoracodeDataRoot(lease.paths.dataRoot);
 }
