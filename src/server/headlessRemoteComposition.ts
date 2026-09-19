@@ -20,6 +20,7 @@ import {
   type ForwardOriginIdentity,
 } from "@/main/remote/portForward/forwardOriginIdentity";
 import { readOrCreateForwardOriginSecret } from "@/main/remote/portForward/forwardOriginSecret";
+import { createRemoteAuditLog } from "@/main/remote/server/auditLog";
 import { createPortForwarding } from "@/main/remote/portForward/portForwarding";
 import {
   createPushGateway,
@@ -426,6 +427,10 @@ export async function composeHeadlessRemoteHost(
       identity,
       isDev,
       authStore,
+      // Gate 6 item 4.7 (S7): structured audit trail of security-relevant
+      // remote events under the owned root. Write failures are contained by
+      // the sink (warn + drop), so the trail can never break serving.
+      audit: createRemoteAuditLog(runtime.lease.paths.dataRoot),
       onOversizedEventDropped: ({ type, bytes }) => {
         console.warn(
           `[remote] ${type} event of ${bytes} bytes exceeded the live stream budget; clients asked to resync`,

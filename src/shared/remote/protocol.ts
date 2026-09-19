@@ -45,6 +45,44 @@ export type RemoteAccessScope = z.infer<typeof remoteAccessScopeSchema>;
 
 export const REMOTE_STANDARD_SCOPES: readonly RemoteAccessScope[] = remoteAccessScopeSchema.options;
 
+/**
+ * Gate 6 item 4.3 (S2): named pairing-scope presets.
+ *
+ * `operator` is the pairing default and is exactly the historical full scope
+ * set — every pre-existing pairing flow keeps granting what it granted before.
+ * `viewer` is the read-only split, designed against the contract registry's
+ * per-route scopes: it carries only the scopes whose routes are read-only
+ * (`session:read` reads plus the POST read endpoints that only mint read-side
+ * artifacts, and `terminal:read` for read-only WS terminal watches). Every
+ * route whose registry scopes include `session:operate`, `terminal:operate`,
+ * `requests:resolve`, `projects:manage`, or `ports:forward` denies a viewer
+ * token at the dispatcher's central scope gate.
+ */
+export const REMOTE_OPERATOR_SCOPES: readonly RemoteAccessScope[] = REMOTE_STANDARD_SCOPES;
+export const REMOTE_VIEWER_SCOPES: readonly RemoteAccessScope[] = ["session:read", "terminal:read"];
+
+export const REMOTE_ACCESS_SCOPE_PRESETS = {
+  operator: REMOTE_OPERATOR_SCOPES,
+  viewer: REMOTE_VIEWER_SCOPES,
+} as const satisfies Record<string, readonly RemoteAccessScope[]>;
+
+export type RemoteAccessScopePreset = keyof typeof REMOTE_ACCESS_SCOPE_PRESETS;
+
+const REMOTE_ACCESS_SCOPE_PRESET_NAMES: readonly RemoteAccessScopePreset[] = Object.keys(
+  REMOTE_ACCESS_SCOPE_PRESETS,
+) as RemoteAccessScopePreset[];
+
+/** Narrow an arbitrary value to a preset name if it is one we know. */
+export function isRemoteAccessScopePreset(value: string): value is RemoteAccessScopePreset {
+  return (REMOTE_ACCESS_SCOPE_PRESET_NAMES as readonly string[]).includes(value);
+}
+
+export function remoteAccessScopesForPreset(
+  preset: RemoteAccessScopePreset,
+): readonly RemoteAccessScope[] {
+  return REMOTE_ACCESS_SCOPE_PRESETS[preset];
+}
+
 const KNOWN_REMOTE_ACCESS_SCOPES: ReadonlySet<string> = new Set(remoteAccessScopeSchema.options);
 
 /** Narrow an arbitrary string to a {@link RemoteAccessScope} if it is one we know. */

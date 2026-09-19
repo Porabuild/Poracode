@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { RemoteHttpRouteContract, RemoteHttpRouteId } from "@/shared/remote/contract";
 import { REMOTE_HTTP_ROUTES } from "@/shared/remote/contract";
-import { RemoteHttpError } from "../auth";
+import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
 import type { ForwardOriginIdentity } from "../portForward/forwardOriginIdentity";
 import {
   buildLocalPairingIconSvg,
@@ -103,6 +103,11 @@ export async function handleHttp(
 
   try {
     const url = new URL(req.url ?? "/", ctx.requireInfo().httpBaseUrl);
+    // Gate 6 item 4.7 (S7): DNS-rebinding defense — only the server's own
+    // advertised host/port forms are admitted on the API/PWA path. Runs after
+    // the OPTIONS short-circuit (preflights need no origin decision beyond
+    // CORS) and before any routing or authentication.
+    ctx.security.enforceHostHeader(req);
     if (req.method === "GET" && isLegacyClientPath(url.pathname)) {
       res.writeHead(308, { location: `/${url.search}` });
       res.end();
@@ -164,8 +169,11 @@ export async function handleHttp(
       const params: Record<string, string> = {};
       for (const name of paramNames) params[name] = match.groups?.[name] ?? "";
       let bearerToken: string | null = null;
+      let session: AuthenticatedRemoteSession | null = null;
       if (route.auth === "bearer" && route.scopeResolution !== "procedure-defined") {
-        bearerToken = ctx.security.requireBearer(req, [...route.scopes]);
+        const authenticated = ctx.security.requireBearerSession(req, [...route.scopes]);
+        bearerToken = authenticated.token;
+        session = authenticated.session;
       }
       const call: HttpRouteCall = {
         ctx,
@@ -174,6 +182,7 @@ export async function handleHttp(
         url,
         forwardOrigin,
         bearerToken,
+        session,
         params,
       };
       await handler(call);
