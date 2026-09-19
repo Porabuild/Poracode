@@ -122,7 +122,14 @@ export async function stageHostImport(
   try {
     staging = mkdtempSync(`${lease.paths.dataRoot}.import-`);
     lease.setPhase("staging-import");
-    const before = inventoryImportFiles(source);
+    // The automatic promotion's source is a live desktop root whose Electron
+    // userData holds Chromium's runtime singleton symlinks; they are process
+    // pointers, not data, so the promotion skips them (offline backups keep
+    // the strict every-symlink-refused rule).
+    const inventoryOptions = promotingOwnNamespace
+      ? { skipRuntimeSingletonSymlinks: true }
+      : undefined;
+    const before = inventoryImportFiles(source, inventoryOptions);
     const keyFiles = before.entries.filter((entry) => entry.path.startsWith("secret-key."));
     if (
       keyFiles.some(
@@ -141,8 +148,8 @@ export async function stageHostImport(
           ? "headless-file-unverified"
           : "unknown";
     await database.copyTo(join(staging, "state.sqlite"), assertOperationActive);
-    copyImportFiles(source, staging, before);
-    const after = inventoryImportFiles(source);
+    copyImportFiles(source, staging, before, inventoryOptions);
+    const after = inventoryImportFiles(source, inventoryOptions);
     const identityAfter = lstatSync(source);
     if (
       before.sha256 !== after.sha256 ||

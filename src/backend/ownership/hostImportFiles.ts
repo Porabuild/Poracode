@@ -61,8 +61,32 @@ export function hashImportFile(path: string): string {
   }
 }
 
+/**
+ * Chromium per-process singleton pointers found in the Electron `userData`
+ * directory (`SingletonCookie` / `SingletonLock` / `SingletonSocket`). They
+ * name the RUNNING process's lock/socket, so they are meaningless in a copy:
+ * the automatic desktop promotion skips them instead of refusing them, and
+ * the promoted profile mints fresh ones on next launch. Offline backups keep
+ * refusing every symlink.
+ */
+const RUNTIME_SINGLETON_SYMLINK_NAMES = new Set([
+  "SingletonCookie",
+  "SingletonLock",
+  "SingletonSocket",
+]);
+
+export interface InventoryImportFilesOptions {
+  /** Skip (do not copy) the Chromium runtime singleton symlinks instead of
+   * refusing them; declared by the automatic desktop promotion, whose source
+   * is a live desktop root that legitimately contains them. */
+  readonly skipRuntimeSingletonSymlinks?: boolean;
+}
+
 /** SQLite uses its backup API; ephemeral owner control credentials never migrate. */
-export function inventoryImportFiles(root: string): ImportFileInventory {
+export function inventoryImportFiles(
+  root: string,
+  options: InventoryImportFilesOptions = {},
+): ImportFileInventory {
   const entries: ImportEntry[] = [];
   function visit(relative: string): void {
     for (const name of readdirSync(join(root, relative)).sort()) {
@@ -70,7 +94,15 @@ export function inventoryImportFiles(root: string): ImportFileInventory {
       const path = relative ? `${relative}/${name}` : name;
       const absolute = join(root, path);
       const metadata = lstatSync(absolute);
-      if (metadata.isSymbolicLink() || (!metadata.isDirectory() && !metadata.isFile())) {
+      if (metadata.isSymbolicLink()) {
+        if (options.skipRuntimeSingletonSymlinks && RUNTIME_SINGLETON_SYMLINK_NAMES.has(name)) {
+          // Runtime pointer of the (stopped) source process: not data, never
+          // copied — the promoted profile mints its own on next launch.
+          continue;
+        }
+        throw new Error(`Offline backup contains a symbolic link or special file: ${path}`);
+      }
+      if (!metadata.isDirectory() && !metadata.isFile()) {
         throw new Error(`Offline backup contains a symbolic link or special file: ${path}`);
       }
       // A hard link could alias the original profile or a SQLite-locked inode.
@@ -101,6 +133,7 @@ export function copyImportFiles(
   source: string,
   destination: string,
   inventory: ImportFileInventory,
+  options: InventoryImportFilesOptions = {},
 ): void {
   for (const entry of inventory.entries) {
     const target = join(destination, entry.path);
@@ -111,7 +144,7 @@ export function copyImportFiles(
       chmodSync(target, entry.mode);
     }
   }
-  const copied = inventoryImportFiles(destination);
+  const copied = inventoryImportFiles(destination, options);
   if (copied.sha256 !== inventory.sha256) {
     throw new Error("Offline backup changed while its files were copied; staged data was refused.");
   }
