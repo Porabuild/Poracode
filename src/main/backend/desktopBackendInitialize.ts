@@ -6,7 +6,6 @@
 // field silently dropped here starves that wiring while everything still
 // "works" in a single-owner setup.
 
-import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import type { PoracodeChannel } from "@/shared/channel";
 import type { BackendHostInitializePayload } from "@/shared/backendHostProtocol";
 
@@ -17,6 +16,15 @@ export function buildDesktopBackendInitialize(input: {
   settingsPath: string;
   devServerUrl: string | undefined;
   supervisor: BackendHostInitializePayload["supervisor"];
+  /**
+   * The data-custody fence path from the admission lease's canonical root
+   * mapping, passed EXPLICITLY: since the data-root unification the prepared
+   * `baseDir` IS the owned `.host-v1` data root, and re-deriving the mapping
+   * from it refuses literal owned-root inputs by design (nesting guard). The
+   * child holds this fence for its lifetime across a killed main (an
+   * orphaned backend keeps excluding a successor owner).
+   */
+  dataFencePath: string;
 }): BackendHostInitializePayload {
   return {
     baseDir: input.baseDir,
@@ -24,10 +32,7 @@ export function buildDesktopBackendInitialize(input: {
     desktop: {
       channel: input.channel,
       settingsPath: input.settingsPath,
-      // Same canonical root mapping the desktop owner lease used at admission,
-      // so the child holds the data-custody fence for its lifetime across a
-      // killed main (an orphaned backend keeps excluding a successor owner).
-      dataFencePath: resolveDesktopHostRootPaths(input.baseDir).dataFencePath,
+      dataFencePath: input.dataFencePath,
       ...(input.devServerUrl ? { devServerUrl: input.devServerUrl } : {}),
     },
     supervisor: input.supervisor,

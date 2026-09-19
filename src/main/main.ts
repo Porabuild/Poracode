@@ -187,7 +187,14 @@ if (hasSingleInstanceLock) {
           `[poracode] this profile's data root will be promoted to ${paths.dataRoot} at startup`,
         );
       } else {
-        if (decision.kind === "fresh") prepareOwnedHostRoot(desktopApp.desktopOwnerLease);
+        if (decision.kind === "fresh") {
+          // The desktop namespace legitimately holds non-custodial state
+          // (the Electron userData directory lives inside it by
+          // construction); same allowance as the admission promotion path.
+          prepareOwnedHostRoot(desktopApp.desktopOwnerLease, {
+            allowNonCustodialNamespace: true,
+          });
+        }
         desktopApp.poracodePaths = preparePoracodeDataRoot(paths.dataRoot);
       }
     }
