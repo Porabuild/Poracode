@@ -1,39 +1,47 @@
 package com.poracode.app.protocol
 
+import com.poracode.remote.v3.generated.RemotePairingMachine
+import com.poracode.remote.v3.generated.RemotePairingPhase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class PairingIntentDecisionsTest {
+/**
+ * Acceptance floor for the generated pairing state machine (V5 5.2): the same
+ * assertions previously written against the hand-written
+ * `PairingIntentDecisions`, now driven through the generated
+ * [RemotePairingMachine] sources in `protocol/remote/v3/generated/native`.
+ */
+class RemotePairingMachineTest {
     @Test
     fun extractPairingDataOneShot() {
         assertEquals(
             "https://poracode.com/pair?host=https://d#token=x",
-            PairingIntentDecisions.extractPairingData(
+            RemotePairingMachine.extractPairingData(
                 "https://poracode.com/pair?host=https://d#token=x",
             ),
         )
-        assertNull(PairingIntentDecisions.extractPairingData(null))
-        assertNull(PairingIntentDecisions.extractPairingData(""))
-        assertNull(PairingIntentDecisions.extractPairingData("   "))
+        assertNull(RemotePairingMachine.extractPairingData(null))
+        assertNull(RemotePairingMachine.extractPairingData(""))
+        assertNull(RemotePairingMachine.extractPairingData("   "))
     }
 
     @Test
     fun failedStalePairDoesNotRegressReadySession() {
         assertEquals(
-            PairingIntentDecisions.SessionPhase.Ready,
-            PairingIntentDecisions.phaseAfterPairingFailure(
-                previousPhase = PairingIntentDecisions.SessionPhase.Ready,
+            RemotePairingPhase.Ready,
+            RemotePairingMachine.phaseAfterPairingFailure(
+                previousPhase = RemotePairingPhase.Ready,
                 hasRetainedCredential = true,
             ),
         )
         // Connecting that interrupted a live session restores Ready when credentials remain.
         assertEquals(
-            PairingIntentDecisions.SessionPhase.Ready,
-            PairingIntentDecisions.phaseAfterPairingFailure(
-                previousPhase = PairingIntentDecisions.SessionPhase.Connecting,
+            RemotePairingPhase.Ready,
+            RemotePairingMachine.phaseAfterPairingFailure(
+                previousPhase = RemotePairingPhase.Connecting,
                 hasRetainedCredential = true,
             ),
         )
@@ -42,16 +50,16 @@ class PairingIntentDecisionsTest {
     @Test
     fun failedPairWithoutCredentialGoesToNeedsPairing() {
         assertEquals(
-            PairingIntentDecisions.SessionPhase.NeedsPairing,
-            PairingIntentDecisions.phaseAfterPairingFailure(
-                previousPhase = PairingIntentDecisions.SessionPhase.Connecting,
+            RemotePairingPhase.NeedsPairing,
+            RemotePairingMachine.phaseAfterPairingFailure(
+                previousPhase = RemotePairingPhase.Connecting,
                 hasRetainedCredential = false,
             ),
         )
         assertEquals(
-            PairingIntentDecisions.SessionPhase.NeedsPairing,
-            PairingIntentDecisions.phaseAfterPairingFailure(
-                previousPhase = PairingIntentDecisions.SessionPhase.NeedsPairing,
+            RemotePairingPhase.NeedsPairing,
+            RemotePairingMachine.phaseAfterPairingFailure(
+                previousPhase = RemotePairingPhase.NeedsPairing,
                 hasRetainedCredential = false,
             ),
         )
@@ -60,9 +68,9 @@ class PairingIntentDecisionsTest {
     @Test
     fun sessionExpiredFailureKeepsExpiredPhase() {
         assertEquals(
-            PairingIntentDecisions.SessionPhase.SessionExpired,
-            PairingIntentDecisions.phaseAfterPairingFailure(
-                previousPhase = PairingIntentDecisions.SessionPhase.SessionExpired,
+            RemotePairingPhase.SessionExpired,
+            RemotePairingMachine.phaseAfterPairingFailure(
+                previousPhase = RemotePairingPhase.SessionExpired,
                 hasRetainedCredential = true,
             ),
         )
@@ -80,17 +88,17 @@ class PairingIntentDecisionsTest {
 
     @Test
     fun browsableRequiresConfirmation() {
-        assertTrue(PairingIntentDecisions.requiresBrowsableConfirmation(true))
-        assertFalse(PairingIntentDecisions.requiresBrowsableConfirmation(false))
+        assertTrue(RemotePairingMachine.requiresBrowsableConfirmation(true))
+        assertFalse(RemotePairingMachine.requiresBrowsableConfirmation(false))
     }
 
     @Test
     fun fingerprintDedupProcessLifetime() {
         val seen = emptySet<String>()
-        assertFalse(PairingIntentDecisions.shouldSkipDuplicateFingerprint("abc", seen))
-        val next = PairingIntentDecisions.afterFingerprintConsumed("abc", seen)
-        assertTrue(PairingIntentDecisions.shouldSkipDuplicateFingerprint("abc", next))
-        assertFalse(PairingIntentDecisions.shouldSkipDuplicateFingerprint("other", next))
+        assertFalse(RemotePairingMachine.shouldSkipDuplicateFingerprint("abc", seen))
+        val next = RemotePairingMachine.afterFingerprintConsumed("abc", seen)
+        assertTrue(RemotePairingMachine.shouldSkipDuplicateFingerprint("abc", next))
+        assertFalse(RemotePairingMachine.shouldSkipDuplicateFingerprint("other", next))
     }
 }
 

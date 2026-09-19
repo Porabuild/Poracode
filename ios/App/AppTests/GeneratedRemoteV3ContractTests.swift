@@ -42,7 +42,8 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
         withNativeBundleManifest: try manifestData()
       )
     )
-    XCTAssertEqual(manifest.formatVersion, 1)
+    // Manifest format 2 declares the generated pairing state machine (V5 5.2).
+    XCTAssertEqual(manifest.formatVersion, 2)
     XCTAssertEqual(
       manifest.formatVersion,
       GeneratedRemoteV3Contract.expectedNativeBundleManifestFormatVersion

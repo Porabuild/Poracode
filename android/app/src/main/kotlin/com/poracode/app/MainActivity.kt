@@ -14,7 +14,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import com.poracode.app.protocol.PairingIntentDecisions
+import com.poracode.remote.v3.generated.RemotePairingMachine
 import com.poracode.app.protocol.LocalNetworkAccess
 import com.poracode.app.protocol.LocalNetworkPermissionUi
 import com.poracode.app.push.PushIntentBridge
@@ -140,7 +140,7 @@ class MainActivity : ComponentActivity() {
      */
     private fun consumePairingIntent(intent: Intent?) {
         if (intent == null) return
-        val data = PairingIntentDecisions.extractPairingData(intent.dataString) ?: return
+        val data = RemotePairingMachine.extractPairingData(intent.dataString) ?: return
         // Burn the intent data immediately (one-shot) so rotation cannot re-redeem.
         intent.data = null
         setIntent(intent)

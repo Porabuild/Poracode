@@ -413,13 +413,13 @@ final class PairPersistenceCoordinatorTests: XCTestCase {
 
 // MARK: - Deep-link fingerprint / idempotency
 
-final class PairingCandidateTrackerTests: XCTestCase {
+final class RemotePairingCandidateTrackerTests: XCTestCase {
   func testFingerprintIsStableAndNonSecret() {
-    let a = PairingCandidateTracker.fingerprint(
+    let a = RemotePairingMachine.fingerprint(
       endpoint: "https://desktop.example",
       credential: "lc_pair_secret"
     )
-    let b = PairingCandidateTracker.fingerprint(
+    let b = RemotePairingMachine.fingerprint(
       endpoint: "https://desktop.example",
       credential: "lc_pair_secret"
     )
@@ -430,8 +430,8 @@ final class PairingCandidateTrackerTests: XCTestCase {
   }
 
   func testDuplicateInFlightAndSucceededIgnored() {
-    var tracker = PairingCandidateTracker()
-    let digest = PairingCandidateTracker.fingerprint(
+    var tracker = RemotePairingCandidateTracker()
+    let digest = RemotePairingMachine.fingerprint(
       endpoint: "https://h",
       credential: "tok1"
     )
@@ -444,8 +444,8 @@ final class PairingCandidateTrackerTests: XCTestCase {
   }
 
   func testFailedAllowsRetryOfSameCandidate() {
-    var tracker = PairingCandidateTracker()
-    let digest = PairingCandidateTracker.fingerprint(
+    var tracker = RemotePairingCandidateTracker()
+    let digest = RemotePairingMachine.fingerprint(
       endpoint: "https://h",
       credential: "tok1"
     )
@@ -455,12 +455,12 @@ final class PairingCandidateTrackerTests: XCTestCase {
   }
 
   func testFreshTokenSameHostStillWorks() {
-    var tracker = PairingCandidateTracker()
-    let first = PairingCandidateTracker.fingerprint(
+    var tracker = RemotePairingCandidateTracker()
+    let first = RemotePairingMachine.fingerprint(
       endpoint: "https://h",
       credential: "tok-old"
     )
-    let second = PairingCandidateTracker.fingerprint(
+    let second = RemotePairingMachine.fingerprint(
       endpoint: "https://h",
       credential: "tok-new"
     )

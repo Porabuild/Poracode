@@ -216,7 +216,7 @@ struct OnboardingView: View {
     )
   }
 
-  private func pendingPairingCard(_ pending: PendingPairingState) -> some View {
+  private func pendingPairingCard(_ pending: RemotePairingPending) -> some View {
     OnboardingPendingPairingCard(
       pending: pending,
       onCancel: { session.cancelPendingPairing() },

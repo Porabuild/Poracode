@@ -20,7 +20,7 @@ struct PairingCoordinator {
         } catch {
             return
         }
-        let decision = DeepLinkPairingPolicy.decide(
+        let decision = RemotePairingMachine.decideDeepLink(
             endpoint: resolved.endpoint,
             credential: resolved.credential,
             tracker: host.state.pairingTracker,

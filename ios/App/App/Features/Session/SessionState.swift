@@ -137,7 +137,7 @@ struct SessionRuntimeState {
     var globalError: String?
 
     /// Pending deep-link pairing (host only in UI; credential memory-only).
-    var pendingPairing: PendingPairingState?
+    var pendingPairing: RemotePairingPending?
 
     var openRuntimeRequests: [RuntimeEventReducer.OpenRuntimeRequest] = []
     /// Canonical domain fields for the open thread (open-turn, context, completed turns).
@@ -175,7 +175,7 @@ struct SessionRuntimeState {
     var interestCoordinator = InterestUpdateCoordinator()
     var liveLifecycle = LiveSessionLifecycle()
     var hydrationBuffer = ThreadHistoryHydrationBuffer()
-    var pairingTracker = PairingCandidateTracker()
+    var pairingTracker = RemotePairingCandidateTracker()
     var resyncCoordinator = ResyncCoordinator()
     /// Replayed Git/agent/lifecycle state for the *selected* host only.
     var replay = HostReplayState()

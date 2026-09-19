@@ -58,6 +58,17 @@ membership check. Stable app-owned facades keep hash-derived generated names out
 of UI and domain state while validating the HTTP and WebSocket boundaries that
 are currently implemented.
 
+Pairing is generated (V5 item 5.2): the pairing state machine — deep-link
+intent and confirmation, one-shot candidate fingerprinting and duplicate
+policies, failure-phase recovery, and the scope-request guard — is rendered
+from the single declarative spec
+(`src/shared/remote/contract/pairingMachineSpec.ts`) into
+`native/swift/PairingMachine.swift` and `native/kotlin/PairingMachine.kt` by
+the same pipeline as the wire contract, byte-stable and CI-gated. The native
+apps keep only thin facades; `native-bindings.json` formatVersion 2 declares
+the machine, and older readers refuse it. The renderer pairing flow converging
+onto the same spec executor is a recorded follow-up.
+
 The bundle contains roots for all 67 routes, 108 procedures, and 19 WebSocket
 message types, and embeds each route's registry scopes in its
 `RemoteRouteDescriptor`. The native parity ledger

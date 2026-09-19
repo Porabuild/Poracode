@@ -242,7 +242,7 @@ final class ReplayGitStateParityTapeTests: XCTestCase {
     let section = try fixtureObject(tape["sequencing"])
     let manifest = try JSONDecoding.decode(
       JSONValue.self,
-      from: try Data(contentsOf: try remoteProtocolFileURL("manifest.json"))
+      from: try Data(contentsOf: try remoteProtocolFileURL("generated/manifest.json"))
     )
     let webSocket = try fixtureObject(manifest["webSocket"])
     XCTAssertEqual(
