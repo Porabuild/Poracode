@@ -130,6 +130,9 @@ function makeClient(opts: {
       status: { type: "update-not-available" },
     }),
     parseSocketMessage: (value: string) => JSON.parse(value),
+    // The store pushes the rotating-token lifecycle onto its client at
+    // connect (V5 4.6); this mock has no refresh behavior to drive.
+    setTokenLifecycle: vi.fn<() => void>(),
   } as unknown as RemoteDesktopClient;
 }
 
@@ -251,11 +254,13 @@ describe("useRestoredRemoteThreadLifecycle", () => {
     expect(toastDanger).not.toHaveBeenCalled();
 
     // A follow-up turn streams in over that socket and lands in the transcript.
+    // The frame continues the session's dense sequence (snapshot seq 1, so the
+    // next expected frame is 2) — a gap would correctly trigger resync.
     act(() => {
       sockets[0]?.onmessage?.({
         data: JSON.stringify({
           type: "event",
-          seq: 7,
+          seq: 2,
           event: {
             type: "thread-runtime-events-multi",
             batches: [

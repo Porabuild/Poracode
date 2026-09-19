@@ -7,6 +7,8 @@ import {
   isCleartextLanUrl,
   normalizePairingEndpoint,
   parsePairingUrlParts,
+  formatCertFingerprint,
+  parsePairingCertFingerprint,
   retargetPairingUrl,
 } from "./pairingUrl";
 
@@ -178,5 +180,63 @@ describe("retargetPairingUrl", () => {
     expect(retargetPairingUrl(original, "http://192.168.1.20:49152")).toBe(
       "http://192.168.1.20:49152/#token=lc_pair_test",
     );
+  });
+});
+
+describe("pairing URL certificate fingerprint (Gate 6 item 4.2)", () => {
+  const HEX = "0123456789abcdef".repeat(4); // 64 lowercase hex chars
+
+  it("formats a fingerprint as the sha256-prefixed fragment value", () => {
+    expect(formatCertFingerprint(HEX)).toBe(`sha256:${HEX}`);
+    // Uppercase input normalizes; the wire form is lowercase hex.
+    expect(formatCertFingerprint(HEX.toUpperCase())).toBe(`sha256:${HEX}`);
+  });
+
+  it("rejects malformed fingerprints at the builder", () => {
+    expect(() => formatCertFingerprint("deadbeef")).toThrow(/64 lowercase hex/);
+    expect(() => formatCertFingerprint("z".repeat(64))).toThrow(/64 lowercase hex/);
+    expect(() => formatCertFingerprint("")).toThrow(/64 lowercase hex/);
+  });
+
+  it("parses the #fp= fragment out of a full pairing link", () => {
+    const url = buildPairingUrl({
+      httpBaseUrl: "https://192.168.1.20:49152",
+      credential: "lc_pair_test",
+      certFingerprint: `sha256:${HEX}`,
+    });
+    expect(url).toContain(`fp=sha256%3A${HEX}`);
+    expect(parsePairingCertFingerprint(url)).toBe(HEX);
+  });
+
+  it("returns null without an assertion instead of throwing", () => {
+    const plain = buildPairingUrl({
+      httpBaseUrl: "https://192.168.1.20:49152",
+      credential: "lc_pair_test",
+    });
+    expect(parsePairingCertFingerprint(plain)).toBeNull();
+    expect(parsePairingCertFingerprint("not a url")).toBeNull();
+    expect(parsePairingCertFingerprint("https://host/#fp=short")).toBeNull();
+    expect(parsePairingCertFingerprint("https://host/#fp=sha256:nothex")).toBeNull();
+    expect(parsePairingCertFingerprint(`https://host/#fp=sha256:${"g".repeat(64)}`)).toBeNull();
+  });
+
+  it("carries the fingerprint through desktop pairing URLs and retargeting", () => {
+    const desktop = buildDesktopPairingUrl({
+      httpBaseUrl: "https://desktop.tailnet.ts.net",
+      credential: "lc_pair_test",
+      certFingerprint: `sha256:${HEX}`,
+    });
+    expect(parsePairingCertFingerprint(desktop)).toBe(HEX);
+
+    const retargeted = retargetPairingUrl(desktop, "http://192.168.1.20:49152");
+    expect(parsePairingCertFingerprint(retargeted)).toBe(HEX);
+    expect(parsePairingUrlParts(retargeted)?.token).toBe("lc_pair_test");
+
+    // A link without an assertion retargets without gaining one.
+    const plain = retargetPairingUrl(
+      buildPairingUrl({ httpBaseUrl: "https://desktop.tailnet.ts.net", credential: "lc_pair_x" }),
+      "http://192.168.1.20:49152",
+    );
+    expect(parsePairingCertFingerprint(plain)).toBeNull();
   });
 });

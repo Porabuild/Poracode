@@ -89,6 +89,20 @@
       "scopes": []
     },
     {
+      "auth": "public",
+      "id": "healthz",
+      "method": "GET",
+      "path": "/healthz",
+      "scopes": []
+    },
+    {
+      "auth": "public",
+      "id": "metrics",
+      "method": "GET",
+      "path": "/metrics",
+      "scopes": []
+    },
+    {
       "auth": "bearer",
       "id": "websocket-ticket",
       "method": "POST",
@@ -191,7 +205,7 @@
       "path": "/api/files/image",
       "queryParameters": [
         "path",
-        "access_token"
+        "ticket"
       ],
       "scopes": [
         "session:read"
@@ -214,7 +228,7 @@
       "path": "/api/threads/{threadId}/items/{itemId}/image",
       "queryParameters": [
         "path",
-        "access_token"
+        "ticket"
       ],
       "scopes": [
         "session:read"

@@ -1026,18 +1026,40 @@ describe("RemoteDesktopClient", () => {
     await expect(clone).resolves.toMatchObject({ code: "timeout" });
   });
 
-  it("builds authenticated local image URLs against the endpoint", () => {
+  it("builds ticketed local image URLs against the endpoint (no bearer in any URL)", async () => {
+    const mintRequests: Array<{ url: string; authorization: string | undefined }> = [];
     const client = new RemoteDesktopClient(
       "https://relay.example.test/s/server-1/",
       "lc_access_test",
+      async (url, init) => {
+        mintRequests.push({
+          url: String(url),
+          authorization: (init?.headers as Record<string, string> | undefined)?.authorization,
+        });
+        return new Response(
+          JSON.stringify({ ticket: "lc_img_relay", expiresAt: "2099-01-01T00:00:30.000Z" }),
+          { status: 200 },
+        );
+      },
     );
 
-    const url = new URL(client.localImageUrl("C:\\Users\\me\\img one.png"));
+    // Gate 6 item 4.6 (S6): the mint is asynchronous while the render-path
+    // consumer is synchronous, so the first resolution carries NO credential
+    // at all (the caller falls back to the unrenderable original URL).
+    expect(client.localImageUrl("C:\\Users\\me\\img one.png")).toBe("");
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
+    // The mint itself rode the Authorization header, never a URL credential.
+    expect(mintRequests).toHaveLength(1);
+    expect(new URL(mintRequests[0]!.url).pathname).toBe("/s/server-1/api/files/image-ticket");
+    expect(mintRequests[0]!.authorization).toBe("Bearer lc_access_test");
+
+    const url = new URL(client.localImageUrl("C:\\Users\\me\\img one.png"));
     expect(url.origin).toBe("https://relay.example.test");
     expect(url.pathname).toBe("/s/server-1/api/files/image");
     expect(url.searchParams.get("path")).toBe("C:\\Users\\me\\img one.png");
-    expect(url.searchParams.get("access_token")).toBe("lc_access_test");
+    expect(url.searchParams.get("ticket")).toBe("lc_img_relay");
+    expect(url.toString()).not.toContain("access_token");
   });
 
   it("returns an empty local image URL without an access token", () => {
@@ -1332,10 +1354,10 @@ describe("RemoteDesktopClient image ticket flow", () => {
     });
     const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
 
-    // First resolution happens while the mint is in flight: legacy URL.
+    // First resolution happens while the mint is in flight: NO credential in
+    // the URL at all (Gate 6 item 4.6 removed the bearer-in-URL fallback).
     const first = client.localImageUrl(PATH);
-    expect(searchParamsOf(first).get("access_token")).toBe("lc_access_test");
-    expect(searchParamsOf(first).get("ticket")).toBeNull();
+    expect(first).toBe("");
     await flushMint();
     const minted = vi.mocked(fetch).mock.calls[0];
     expect(String(minted?.[0])).toContain("/api/files/image-ticket");
@@ -1347,10 +1369,11 @@ describe("RemoteDesktopClient image ticket flow", () => {
     const second = client.localImageUrl(PATH);
     expect(searchParamsOf(second).get("ticket")).toBe(TICKET);
     expect(searchParamsOf(second).get("access_token")).toBeNull();
+    expect(second).not.toContain("access_token");
     expect(mints).toHaveLength(1);
   });
 
-  it("latches off tickets when an older host has no mint route and keeps the legacy URL", async () => {
+  it("latches off tickets when an older host has no mint route and serves no image URL", async () => {
     let mintCalls = 0;
     const fetch = vi.fn<RemoteFetch>((url) => {
       if (new URL(String(url)).pathname === "/api/files/image-ticket") {
@@ -1361,15 +1384,15 @@ describe("RemoteDesktopClient image ticket flow", () => {
     });
     const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
 
-    expect(client.localImageUrl(PATH).includes("access_token=")).toBe(true);
+    expect(client.localImageUrl(PATH)).toBe("");
     await flushMint();
     expect(mintCalls).toBe(1);
 
-    // The 404 latch means no further mint attempts, legacy URL every time.
+    // The 404 latch means no further mint attempts. There is no credential an
+    // <img> tag could legally carry on such a host: every URL stays empty
+    // (callers fall back to the original, unrenderable URL).
     for (let index = 0; index < 3; index += 1) {
-      const url = client.localImageUrl(PATH);
-      expect(url.includes("access_token=")).toBe(true);
-      expect(url.includes("ticket=")).toBe(false);
+      expect(client.localImageUrl(PATH)).toBe("");
     }
     await flushMint();
     expect(mintCalls).toBe(1);
@@ -1394,19 +1417,254 @@ describe("RemoteDesktopClient image ticket flow", () => {
       });
       const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
 
-      expect(client.localImageUrl(PATH).includes("access_token=")).toBe(true);
+      expect(client.localImageUrl(PATH)).toBe("");
       await vi.advanceTimersByTimeAsync(0);
       expect(client.localImageUrl(PATH).includes("ticket=")).toBe(true);
 
       // Past the mint window: the cached ticket is no longer reused.
       vi.advanceTimersByTime(31_000);
       const expired = client.localImageUrl(PATH);
-      expect(expired.includes("access_token=")).toBe(true);
+      expect(expired).toBe("");
       await vi.advanceTimersByTimeAsync(0);
       expect(mints).toBe(2);
       expect(client.localImageUrl(PATH).includes("ticket=")).toBe(true);
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+/** `requestJson` is the unit under test but stays private; drive it through
+ * a structural cast instead of widening the public client surface. */
+function requestJsonVia(client: RemoteDesktopClient, path: string): Promise<unknown> {
+  return (client as unknown as { requestJson(path: string): Promise<unknown> }).requestJson(path);
+}
+
+describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
+  const endpoint = "http://127.0.0.1:38987/";
+
+  function jsonResponse(status: number, body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  function lifecycle(
+    refreshToken: string | undefined,
+    refreshed: (tokens: { accessToken: string; refreshToken?: string }) => void,
+  ) {
+    return {
+      refreshToken: () => refreshToken,
+      onTokensRefreshed: refreshed,
+    };
+  }
+
+  it("transparently refreshes once on a 401 and retries with the new access token", async () => {
+    const calls: Array<{ path: string; authorization: string | undefined }> = [];
+    let rotated = false;
+    const refreshBodies: Array<{ grantType: string; refreshToken: string }> = [];
+    const fetch = vi.fn<RemoteFetch>(async (url, init) => {
+      const path = new URL(String(url)).pathname;
+      const authorization = (init?.headers as Record<string, string> | undefined)?.authorization;
+      calls.push({ path, authorization });
+      if (path === "/oauth/token") {
+        const body = JSON.parse(String(init?.body)) as { grantType: string; refreshToken: string };
+        refreshBodies.push(body);
+        rotated = true;
+        return jsonResponse(200, {
+          accessToken: "lc_access_new",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-02T00:00:00.000Z",
+          scopes: ["session:read"],
+          refreshToken: "lc_refresh_new",
+          refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
+        });
+      }
+      if (!rotated) {
+        return jsonResponse(401, {
+          error: { message: "Invalid access token.", code: "invalid_access_token" },
+        });
+      }
+      return jsonResponse(200, { ok: true });
+    });
+    const onTokensRefreshed =
+      vi.fn<(tokens: { accessToken: string; refreshToken?: string }) => void>();
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: lifecycle("lc_refresh_old", onTokensRefreshed),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).resolves.toEqual({ ok: true });
+    // 401, refresh, retry — exactly once.
+    expect(calls.map((call) => call.path)).toEqual([
+      "/api/snapshot",
+      "/oauth/token",
+      "/api/snapshot",
+    ]);
+    expect(refreshBodies).toEqual([{ grantType: "refresh_token", refreshToken: "lc_refresh_old" }]);
+    expect(calls[2]?.authorization).toBe("Bearer lc_access_new");
+    expect(onTokensRefreshed).toHaveBeenCalledExactlyOnceWith({
+      accessToken: "lc_access_new",
+      refreshToken: "lc_refresh_new",
+      refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
+    });
+  });
+
+  it("does not retry again when the post-refresh retry is also unauthorized", async () => {
+    let tokenCalls = 0;
+    const fetch = vi.fn<RemoteFetch>(async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/oauth/token") {
+        tokenCalls += 1;
+        return jsonResponse(200, {
+          accessToken: `lc_access_new_${tokenCalls}`,
+          tokenType: "Bearer",
+          expiresAt: "2099-01-02T00:00:00.000Z",
+          scopes: ["session:read"],
+          refreshToken: "lc_refresh_new",
+        });
+      }
+      return jsonResponse(401, {
+        error: { message: "Invalid access token.", code: "invalid_access_token" },
+      });
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: lifecycle("lc_refresh_old", () => {}),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).rejects.toMatchObject({
+      status: 401,
+      code: "invalid_access_token",
+    });
+    expect(tokenCalls).toBe(1);
+  });
+
+  it("surfaces the original authorization error when the refresh itself fails", async () => {
+    const fetch = vi.fn<RemoteFetch>(async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/oauth/token") {
+        return jsonResponse(401, {
+          error: { message: "Invalid refresh token.", code: "invalid_refresh_token" },
+        });
+      }
+      return jsonResponse(401, {
+        error: { message: "Invalid access token.", code: "invalid_access_token" },
+      });
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: lifecycle("lc_refresh_dead", () => {}),
+    });
+
+    // The caller keeps seeing a clean 401, never a grant-endpoint failure.
+    await expect(requestJsonVia(client, "/api/snapshot")).rejects.toMatchObject({
+      status: 401,
+      code: "invalid_access_token",
+    });
+  });
+
+  it("does not attempt a refresh without a lifecycle or stored refresh token", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () =>
+      jsonResponse(401, {
+        error: { message: "Invalid access token.", code: "invalid_access_token" },
+      }),
+    );
+    const onTokensRefreshed = vi.fn<(tokens: { accessToken: string }) => void>();
+    const client = new RemoteDesktopClient(endpoint, "lc_access_stale", fetch, {
+      tokenLifecycle: lifecycle(undefined, onTokensRefreshed),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).rejects.toMatchObject({ status: 401 });
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(onTokensRefreshed).not.toHaveBeenCalled();
+  });
+});
+
+describe("RemoteDesktopClient certificate fingerprint pinning (Gate 6 item 4.2)", () => {
+  const endpoint = "https://127.0.0.1:38987/";
+  const SERVER_FINGERPRINT = "a".repeat(64);
+  const IMPOSTER_FINGERPRINT = "b".repeat(64);
+
+  function jsonResponse(status: number, body: unknown): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  it("adopts the probed certificate as the pin on first pair and notifies persistence", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () =>
+      jsonResponse(200, {
+        accessToken: "lc_access_test",
+        tokenType: "Bearer",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+        scopes: ["session:read"],
+        refreshToken: "lc_refresh_test",
+        refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
+      }),
+    );
+    const onCertFingerprintValidated = vi.fn<(fingerprint: string) => void>();
+    const client = new RemoteDesktopClient(endpoint, undefined, fetch, {
+      certFingerprintProbe: () => Promise.resolve(SERVER_FINGERPRINT),
+      onCertFingerprintValidated,
+    });
+
+    await expect(
+      client.exchangePairingCredential({ credential: "lc_pair_test", scopes: ["session:read"] }),
+    ).resolves.toMatchObject({ accessToken: "lc_access_test" });
+    expect(onCertFingerprintValidated).toHaveBeenCalledExactlyOnceWith(SERVER_FINGERPRINT);
+  });
+
+  it("refuses a pairing whose QR fingerprint contradicts the server certificate before spending the credential", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => jsonResponse(200, {}));
+    const client = new RemoteDesktopClient(endpoint, undefined, fetch, {
+      certFingerprintProbe: () => Promise.resolve(IMPOSTER_FINGERPRINT),
+    });
+
+    await expect(
+      client.exchangePairingCredential({
+        credential: "lc_pair_test",
+        scopes: ["session:read"],
+        certFingerprint: SERVER_FINGERPRINT,
+      }),
+    ).rejects.toMatchObject({ code: "certificate_fingerprint_mismatch" });
+    // The one-time credential was never sent.
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses every request once the pinned certificate stops matching", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => jsonResponse(200, { ok: true }));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      certFingerprint: SERVER_FINGERPRINT,
+      certFingerprintProbe: () => Promise.resolve(IMPOSTER_FINGERPRINT),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).rejects.toMatchObject({
+      code: "certificate_fingerprint_mismatch",
+    });
+    // Refusal happens before credentials leave the client.
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps working when the pin matches the probed certificate", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => jsonResponse(200, { ok: true }));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      certFingerprint: SERVER_FINGERPRINT,
+      certFingerprintProbe: () => Promise.resolve(SERVER_FINGERPRINT),
+    });
+
+    await expect(requestJsonVia(client, "/api/snapshot")).resolves.toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("treats an unprovable transport as pass-through (browser fetch posture)", async () => {
+    const fetch = vi.fn<RemoteFetch>(async () => jsonResponse(200, { ok: true }));
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch, {
+      certFingerprint: SERVER_FINGERPRINT,
+    });
+
+    // No probe transport: the platform's TLS chain validation owns trust, the
+    // pin rides along as data for the record.
+    await expect(requestJsonVia(client, "/api/snapshot")).resolves.toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledOnce();
   });
 });

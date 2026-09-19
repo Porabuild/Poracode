@@ -1573,8 +1573,9 @@ describe("RemoteAccessServer", () => {
     const refUrl = (path: string, threadId = "thread-1", itemId = "item-1") => {
       const url = new URL(`/api/threads/${threadId}/items/${itemId}/image`, info.httpBaseUrl);
       url.searchParams.set("path", path);
-      url.searchParams.set("access_token", token);
-      return url;
+      // Gate 6 item 4.6 (S6): no credential may ride in the URL — the direct
+      // fetch authenticates with the bearer header.
+      return { url, init: { headers: { authorization: `Bearer ${token}` } } };
     };
 
     // Unauthenticated requests are rejected before any lookup happens.
@@ -1583,12 +1584,12 @@ describe("RemoteAccessServer", () => {
     expect((await fetch(noToken)).status).toBe(401);
 
     // A malformed reference path is a client error, not a lookup.
-    expect((await fetch(refUrl("not-json"))).status).toBe(400);
-    expect((await fetch(refUrl("[]"))).status).toBe(400);
+    expect((await fetch(refUrl("not-json").url, refUrl("not-json").init)).status).toBe(400);
+    expect((await fetch(refUrl("[]").url, refUrl("[]").init)).status).toBe(400);
 
     // These tests have no DB attached, so a well-formed reference resolves to
     // nothing — which must be a clean 404 rather than a crash.
-    expect((await fetch(refUrl('["images",0]'))).status).toBe(404);
+    expect((await fetch(refUrl('["images",0]').url, refUrl('["images",0]').init)).status).toBe(404);
     const imageBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
     vi.mocked(dbGetThreadRuntimeItem).mockReturnValueOnce({
       id: "item-1",
@@ -1597,8 +1598,11 @@ describe("RemoteAccessServer", () => {
       streams: {},
       payload: { images: [`data:image/png;base64,${imageBytes.toString("base64")}`] },
     });
-    const image = await fetch(refUrl('["images",0]'), {
-      headers: { origin: "http://localhost:3100" },
+    const image = await fetch(refUrl('["images",0]').url, {
+      headers: {
+        origin: "http://localhost:3100",
+        authorization: `Bearer ${token}`,
+      },
     });
     expect(image.status).toBe(200);
     expect(image.headers.get("vary")).toBe("Origin, Authorization");
@@ -1623,15 +1627,24 @@ describe("RemoteAccessServer", () => {
     const info = await server.start();
     const token = await issueAccessToken(info, ["session:read"]);
 
-    // <img> tags can't send Authorization headers, so the token rides in the query.
-    const queryUrl = new URL("/api/files/image", info.httpBaseUrl);
-    queryUrl.searchParams.set("path", imagePath);
-    queryUrl.searchParams.set("access_token", token);
-    const queryResponse = await fetch(queryUrl);
-    expect(queryResponse.status).toBe(200);
-    expect(queryResponse.headers.get("content-type")).toBe("image/png");
-    expect(queryResponse.headers.get("cache-control")).toBe("private, max-age=300");
-    expect(Buffer.from(await queryResponse.arrayBuffer())).toEqual(pngBytes);
+    // Gate 6 item 4.6 (S6): <img> tags can't send Authorization headers, and
+    // the bearer no longer rides in the query — the credential is the one-time
+    // path-scoped image ticket.
+    const mintResponse = await fetch(new URL("/api/files/image-ticket", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ path: imagePath }),
+    });
+    expect(mintResponse.status).toBe(200);
+    const { ticket } = (await mintResponse.json()) as { ticket: string };
+    const ticketUrl = new URL("/api/files/image", info.httpBaseUrl);
+    ticketUrl.searchParams.set("path", imagePath);
+    ticketUrl.searchParams.set("ticket", ticket);
+    const ticketResponse = await fetch(ticketUrl);
+    expect(ticketResponse.status).toBe(200);
+    expect(ticketResponse.headers.get("content-type")).toBe("image/png");
+    expect(ticketResponse.headers.get("cache-control")).toBe("private, max-age=300");
+    expect(Buffer.from(await ticketResponse.arrayBuffer())).toEqual(pngBytes);
 
     // The usual bearer header works too.
     const headerUrl = new URL("/api/files/image", info.httpBaseUrl);
@@ -1663,7 +1676,11 @@ describe("RemoteAccessServer", () => {
     url.searchParams.set("path", imagePath);
     expect((await fetch(url)).status).toBe(401);
 
+    // A forged query credential of either kind is refused.
     url.searchParams.set("access_token", "lc_access_bogus");
+    expect((await fetch(url)).status).toBe(401);
+    url.searchParams.delete("access_token");
+    url.searchParams.set("ticket", "lc_img_bogus");
     expect((await fetch(url)).status).toBe(401);
   });
 
@@ -1686,8 +1703,7 @@ describe("RemoteAccessServer", () => {
     const fetchImage = (path: string) => {
       const url = new URL("/api/files/image", info.httpBaseUrl);
       url.searchParams.set("path", path);
-      url.searchParams.set("access_token", token);
-      return fetch(url);
+      return fetch(url, { headers: { authorization: `Bearer ${token}` } });
     };
 
     expect((await fetchImage(join(dir, "missing.png"))).status).toBe(404);

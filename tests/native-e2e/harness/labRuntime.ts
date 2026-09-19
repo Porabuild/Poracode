@@ -49,7 +49,7 @@ export interface LabRuntime {
     auth: string,
     scopes: readonly string[],
   ): AuthenticatedSession | null;
-  bearerToken(req: IncomingMessage, url: URL, allowQuery?: boolean): string;
+  bearerToken(req: IncomingMessage, url: URL): string;
   issuePairingCredential(scopes?: readonly RemoteScope[]): {
     credential: string;
     expiresAt: string;

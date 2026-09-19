@@ -201,11 +201,13 @@ async function validateEmptyBody(req: IncomingMessage): Promise<void> {
   }
 }
 
-export function bearerToken(req: IncomingMessage, url: URL, allowQuery = false): string {
+// Gate 6 item 4.6 (S6): the Authorization header is the only bearer
+// transport. The former `?access_token=` query acceptance is gone from the
+// real host (image routes use the one-time image ticket instead), so the
+// parity mirror never reads credentials from a URL.
+export function bearerToken(req: IncomingMessage, _url: URL): string {
   const header = headerValue(req, "authorization");
-  const fromHeader = parseBearerAuthorizationHeader(header);
-  const fromQuery = allowQuery ? url.searchParams.get("access_token") : null;
-  const token = fromHeader ?? fromQuery;
+  const token = parseBearerAuthorizationHeader(header);
   if (!token) {
     throw new LabHttpError("missing_access_token", "Missing access token.", 401);
   }

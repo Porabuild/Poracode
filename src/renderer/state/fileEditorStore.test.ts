@@ -507,7 +507,12 @@ describe("fileEditorStore remote roots", () => {
         },
       ],
       runtime: { d1: { status: "online", projects: [], threads: [] } },
-      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
+      clientFactory: () =>
+        ({
+          callRemoteProcedure,
+          // The store pushes the rotating-token lifecycle at connect (V5 4.6).
+          setTokenLifecycle: () => undefined,
+        }) as unknown as RemoteDesktopClient,
     });
     useGitStore.setState({
       statuses: {
@@ -605,7 +610,12 @@ describe("fileEditorStore remote roots", () => {
         },
       ],
       runtime: { d1: { status: "online", projects: [], threads: [] } },
-      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
+      clientFactory: () =>
+        ({
+          callRemoteProcedure,
+          // The store pushes the rotating-token lifecycle at connect (V5 4.6).
+          setTokenLifecycle: () => undefined,
+        }) as unknown as RemoteDesktopClient,
     });
     useFileEditorStore.getState().setRootContext({
       projectId: "p1",
@@ -666,7 +676,12 @@ describe("fileEditorStore remote roots", () => {
         },
       ],
       runtime: { d1: { status: "online", projects: [], threads: [] } },
-      clientFactory: () => ({ callRemoteProcedure }) as unknown as RemoteDesktopClient,
+      clientFactory: () =>
+        ({
+          callRemoteProcedure,
+          // The store pushes the rotating-token lifecycle at connect (V5 4.6).
+          setTokenLifecycle: () => undefined,
+        }) as unknown as RemoteDesktopClient,
     });
     useFileEditorStore.getState().setRootContext({
       projectId: "p1",

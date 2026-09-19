@@ -14,6 +14,8 @@ import {
   remoteAccessPort,
   resolveRemoteAccessBind,
   resolveRemoteAccessPort,
+  remoteTlsCertPaths,
+  remoteTlsConfigured,
 } from "./config";
 
 const ENV_KEYS = [
@@ -292,5 +294,85 @@ describe("remote access bind modes (Gate 6 item 4.1)", () => {
         env: { [PLAINTEXT_LAN_ACK_ENV]: "yes" },
       }),
     ).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
+  });
+});
+
+describe("remote access TLS config (Gate 6 item 4.2)", () => {
+  const CERT_ENV = "PORACODE_REMOTE_TLS_CERT";
+  const KEY_ENV = "PORACODE_REMOTE_TLS_KEY";
+  const saved: Record<string, string | undefined> = {};
+
+  afterEach(() => {
+    for (const key of [CERT_ENV, KEY_ENV]) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  });
+
+  function setTls(certPath: string | undefined, keyPath: string | undefined): void {
+    saved[CERT_ENV] = process.env[CERT_ENV];
+    saved[KEY_ENV] = process.env[KEY_ENV];
+    if (certPath === undefined) delete process.env[CERT_ENV];
+    else process.env[CERT_ENV] = certPath;
+    if (keyPath === undefined) delete process.env[KEY_ENV];
+    else process.env[KEY_ENV] = keyPath;
+  }
+
+  it("reports TLS as unconfigured when neither path is set", () => {
+    setTls(undefined, undefined);
+    expect(remoteTlsCertPaths()).toBeNull();
+    expect(remoteTlsConfigured()).toBe(false);
+  });
+
+  it("surfaces a partial configuration so the loader can refuse it loudly", () => {
+    setTls("/etc/poracode/tls/cert.pem", undefined);
+    expect(remoteTlsCertPaths()).toEqual({ certPath: "/etc/poracode/tls/cert.pem", keyPath: "" });
+    expect(remoteTlsConfigured()).toBe(false);
+
+    setTls(undefined, "/etc/poracode/tls/key.pem");
+    expect(remoteTlsCertPaths()).toEqual({ certPath: "", keyPath: "/etc/poracode/tls/key.pem" });
+    expect(remoteTlsConfigured()).toBe(false);
+  });
+
+  it("reports both paths when configured", () => {
+    setTls("/etc/poracode/tls/cert.pem", "/etc/poracode/tls/key.pem");
+    expect(remoteTlsCertPaths()).toEqual({
+      certPath: "/etc/poracode/tls/cert.pem",
+      keyPath: "/etc/poracode/tls/key.pem",
+    });
+    expect(remoteTlsConfigured()).toBe(true);
+  });
+
+  it("lets a TLS-backed wildcard bind skip the plaintext-LAN acknowledgement", () => {
+    expect(remoteAccessBindRefusal("0.0.0.0", { tlsConfigured: true })).toBeNull();
+    expect(remoteAccessBindRefusal("0.0.0.0", { tlsConfigured: false })).toMatch(
+      /Refusing to bind/,
+    );
+    // The explicit-host path behaves the same: classified lan, but encrypted.
+    const resolution = resolveRemoteAccessBind({
+      env: {
+        PORACODE_REMOTE_ACCESS_HOST: "0.0.0.0",
+        [CERT_ENV]: "/cert.pem",
+        [KEY_ENV]: "/key.pem",
+      },
+    });
+    expect(resolution.mode).toBe("lan");
+    expect(resolution.refusalReason).toBeNull();
+    expect(resolution.tlsConfigured).toBe(true);
+  });
+
+  it("passes tlsConfigured through the named lan-mode resolution", () => {
+    setTls(undefined, undefined);
+    const plaintext = resolveRemoteAccessBind({ env: { PORACODE_REMOTE_BIND_MODE: "lan" } });
+    expect(plaintext.tlsConfigured).toBe(false);
+    expect(plaintext.refusalReason).toMatch(/Refusing to bind/);
+
+    const encrypted = resolveRemoteAccessBind({
+      env: { PORACODE_REMOTE_BIND_MODE: "lan" },
+      tlsConfigured: true,
+    });
+    expect(encrypted.mode).toBe("lan");
+    expect(encrypted.refusalReason).toBeNull();
+    expect(encrypted.warnings.join(" ")).toContain("TLS material is configured");
   });
 });

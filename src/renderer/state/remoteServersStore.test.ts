@@ -276,6 +276,10 @@ function makeClient(opts?: {
   installHostUpdate?: RemoteDesktopClient["installHostUpdate"];
 }): RemoteDesktopClient {
   return {
+    // Gate 6 items 4.2/4.6: the store attaches the token-refresh lifecycle and
+    // the certificate pin to every client it builds.
+    setTokenLifecycle: () => {},
+    setCertFingerprintPin: () => {},
     exchangePairingCredential: async () => ({
       accessToken: "acc-token",
       tokenType: "Bearer" as const,
@@ -5060,5 +5064,39 @@ describe("useRemoteServersStore", () => {
       invokeRemoteRoute("interruptThread", { threadId: remoteThreadId("d1", "rt-1") }),
     ).rejects.toThrow("unreachable");
     expect(useRemoteServersStore.getState().runtime.d1?.status).toBe("online");
+  });
+
+  it("pins the QR-asserted certificate fingerprint at pairing and clears it on removal (Gate 6 item 4.2)", async () => {
+    const fingerprint = "a".repeat(64);
+    const exchanges: Array<Record<string, unknown>> = [];
+    const client = makeClient();
+    const originalExchange = client.exchangePairingCredential.bind(client);
+    client.exchangePairingCredential = (async (input: never) => {
+      exchanges.push(input as Record<string, unknown>);
+      return originalExchange(input);
+    }) as RemoteDesktopClient["exchangePairingCredential"];
+    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+
+    // The scanned value is a full pairing link whose fragment asserts the
+    // server certificate fingerprint the desktop rendered into the QR.
+    await useRemoteServersStore.getState().pairServer({
+      endpoint: "192.168.1.9:38987",
+      token: `https://192.168.1.20:49152/#token=lc_pair_test&fp=sha256%3A${fingerprint}`,
+    });
+
+    // The assertion reached the exchange so a mismatch would refuse before the
+    // one-time credential is spent.
+    expect(exchanges[0]?.certFingerprint).toBe(fingerprint);
+    // And it is pinned beside the server record for later verification.
+    const pins = JSON.parse(localStorage.getItem("poracode.remoteServerCertPins")!) as Record<
+      string,
+      string
+    >;
+    expect(pins.d1).toBe(fingerprint);
+
+    // Removing the server removes its pin — a stale pin can never attach to a
+    // future server with the same id.
+    useRemoteServersStore.getState().removeServer("d1");
+    expect(localStorage.getItem("poracode.remoteServerCertPins")).toBe("{}");
   });
 });

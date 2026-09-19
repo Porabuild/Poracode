@@ -694,6 +694,9 @@ describe("App", () => {
       scopes: ["session:read", "projects:manage"],
     };
     const remoteClient = {
+      // The store pushes the rotating-token lifecycle onto its client at
+      // connect (V5 4.6); this mock has no refresh behavior to drive.
+      setTokenLifecycle: vi.fn<() => void>(),
       environment: async () => ({
         protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
         hostMode: "desktop",

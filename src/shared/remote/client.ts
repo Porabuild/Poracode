@@ -287,7 +287,51 @@ export interface RemoteDesktopClientOptions {
   readonly maxResponseBodyBytes?: number;
   readonly onRequestSuccess?: () => void;
   readonly onRequestError?: (error: unknown) => void;
+  /**
+   * Gate 6 item 4.6 (S6): refresh-token plumbing. When present, a 401 from an
+   * expired 24-hour access token transparently refreshes (once) and retries
+   * the request; rotated tokens are handed back for persistence. Absent — the
+   * historical shape — the client simply fails authorization like before.
+   */
+  readonly tokenLifecycle?: RemoteTokenLifecycle;
+  /**
+   * Gate 6 item 4.2 (TLS): the pinned leaf-certificate fingerprint (lowercase
+   * hex). When set together with `certFingerprintProbe`, every request
+   * refuses (before sending credentials) when the probed server certificate
+   * does not match. The pin is typically adopted at first pairing from the
+   * QR's `#fp=…` fragment (see {@link exchangePairingCredential}) and
+   * persisted beside the server record.
+   */
+  readonly certFingerprint?: string;
+  /**
+   * Transport hook that observes the server's actual TLS certificate
+   * fingerprint (`sha256` over DER, lowercase hex). Only transports that can
+   * legitimately see the TLS layer (a Node/main-process fetch, tests) supply
+   * it; plain browser fetches rely on the platform chain validation and leave
+   * this unset.
+   */
+  readonly certFingerprintProbe?: RemoteCertFingerprintProbe;
+  /** Notified once when a first-pair probe validated the server certificate
+   * and the fingerprint was adopted as this client's pin. */
+  readonly onCertFingerprintValidated?: (fingerprint: string) => void;
 }
+
+/** Tokens of one session after a (re)issue; persisted by the caller. */
+export interface RemoteTokenSnapshot {
+  readonly accessToken: string;
+  readonly refreshToken?: string | undefined;
+  readonly refreshTokenExpiresAt?: string | undefined;
+}
+
+/** The caller-owned refresh-token store behind {@link RemoteDesktopClientOptions.tokenLifecycle}. */
+export interface RemoteTokenLifecycle {
+  /** The persisted refresh token for this server record, if any. */
+  refreshToken(): string | undefined;
+  /** Called after every successful refresh with the NEW token pair. */
+  onTokensRefreshed(tokens: RemoteTokenSnapshot): void;
+}
+
+export type RemoteCertFingerprintProbe = (url: URL) => Promise<string | null>;
 
 const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
@@ -331,10 +375,17 @@ export class RemoteDesktopClient {
   private readonly maxResponseBodyBytes: number;
   private readonly onRequestSuccess: (() => void) | undefined;
   private readonly onRequestError: ((error: unknown) => void) | undefined;
+  private tokenLifecycle: RemoteTokenLifecycle | undefined;
+  /** The pin this client enforces on every request (adopted at first pair). */
+  private pinnedCertFingerprint: string | undefined;
+  private readonly certFingerprintProbe: RemoteCertFingerprintProbe | undefined;
+  private readonly onCertFingerprintValidated: ((fingerprint: string) => void) | undefined;
+  /** Memoized one-shot probe, so one client instance asks the transport once. */
+  private certFingerprintVerification: Promise<string | null> | undefined;
 
   constructor(
     readonly endpoint: string,
-    private readonly accessToken?: string,
+    private accessToken?: string,
     fetchImpl?: RemoteFetch,
     options: RemoteDesktopClientOptions = {},
   ) {
@@ -351,6 +402,25 @@ export class RemoteDesktopClient {
     this.maxResponseBodyBytes = options.maxResponseBodyBytes ?? DEFAULT_REMOTE_RESPONSE_MAX_BYTES;
     this.onRequestSuccess = options.onRequestSuccess;
     this.onRequestError = options.onRequestError;
+    this.tokenLifecycle = options.tokenLifecycle;
+    this.pinnedCertFingerprint = options.certFingerprint?.toLowerCase();
+    this.certFingerprintProbe = options.certFingerprintProbe;
+    this.onCertFingerprintValidated = options.onCertFingerprintValidated;
+  }
+
+  /**
+   * Attaches (or replaces) the caller-owned refresh lifecycle after
+   * construction — for callers that build clients through an injected
+   * factory and can only bind persistence once the server record is known.
+   */
+  setTokenLifecycle(lifecycle: RemoteTokenLifecycle | undefined): void {
+    this.tokenLifecycle = lifecycle;
+  }
+
+  /** Sets (or clears) the pinned server certificate fingerprint after
+   * construction — same contract as the `certFingerprint` option. */
+  setCertFingerprintPin(fingerprint: string | undefined): void {
+    this.pinnedCertFingerprint = fingerprint?.toLowerCase();
   }
 
   /**
@@ -418,7 +488,17 @@ export class RemoteDesktopClient {
      * {@link RemoteDesktopClientOptions.clientMetadata}.
      */
     readonly client?: RemoteClientMetadata;
+    /**
+     * Gate 6 item 4.2: the leaf-certificate fingerprint the pairing QR asserts
+     * (`#fp=sha256:<hex>`). When it can be checked — against the probed
+     * server certificate, or against this client's stored pin when no probe
+     * is available — a mismatch refuses pairing BEFORE the one-time
+     * credential is sent, so the credential cannot be stolen by a MITM whose
+     * link was cloned.
+     */
+    readonly certFingerprint?: string;
   }): Promise<RemoteAccessTokenResult> {
+    await this.refuseCertFingerprintMismatch(input.certFingerprint);
     const result = parseResponse(
       remoteAccessTokenResultSchema,
       await this.requestJson("/oauth/token", {
@@ -434,7 +514,85 @@ export class RemoteDesktopClient {
     );
     // Server-echoed granted scopes are lenient on the wire; narrow to the set
     // this build can act on.
-    return { ...result, scopes: filterKnownRemoteAccessScopes(result.scopes) };
+    const narrowed = { ...result, scopes: filterKnownRemoteAccessScopes(result.scopes) };
+    // First pair over a probe-capable transport: adopt the observed
+    // certificate as this record's pin (TOFU anchored by the QR's own
+    // fingerprint assertion) and hand it to the caller for persistence.
+    const actual = await this.probeCertFingerprint();
+    if (actual && !this.pinnedCertFingerprint) {
+      this.pinnedCertFingerprint = actual;
+      this.onCertFingerprintValidated?.(actual);
+    }
+    return narrowed;
+  }
+
+  /**
+   * Gate 6 item 4.6: exchanges the persisted refresh token for a fresh
+   * 24-hour access token (the refresh value rotates server-side). Returns the
+   * new tokens or null when this client has no lifecycle to refresh with.
+   */
+  async refreshTokens(): Promise<RemoteTokenSnapshot | null> {
+    const refreshToken = this.tokenLifecycle?.refreshToken();
+    if (!refreshToken) return null;
+    const result = parseResponse(
+      remoteAccessTokenResultSchema,
+      await this.requestJson(
+        "/oauth/token",
+        { method: "POST", body: { grantType: "refresh_token", refreshToken } },
+        // Never recurse into the refresh path from the refresh call itself.
+        { isTokenRefresh: true },
+      ),
+      "token refresh",
+    );
+    const tokens: RemoteTokenSnapshot = {
+      accessToken: result.accessToken,
+      ...(result.refreshToken
+        ? {
+            refreshToken: result.refreshToken,
+            ...(result.refreshTokenExpiresAt
+              ? { refreshTokenExpiresAt: result.refreshTokenExpiresAt }
+              : {}),
+          }
+        : {}),
+    };
+    this.accessToken = tokens.accessToken;
+    this.tokenLifecycle?.onTokensRefreshed(tokens);
+    return tokens;
+  }
+
+  /**
+   * Gate 6 item 4.2: refuses a pairing whose QR-asserted fingerprint contradicts
+   * what this client can verify (probed server certificate, else the stored
+   * pin). Returns silently when there is no QR assertion or nothing to check
+   * it against.
+   */
+  private async refuseCertFingerprintMismatch(claimed: string | undefined): Promise<void> {
+    if (!claimed) return;
+    const probed = await this.probeCertFingerprint();
+    const reference = this.pinnedCertFingerprint ?? probed;
+    if (reference && reference.toLowerCase() !== claimed.toLowerCase()) {
+      throw new RemoteClientError(
+        "The pairing link's certificate fingerprint does not match the server's TLS certificate. The link may be cloned, or the server certificate changed — re-generate the pairing QR on the desktop.",
+        502,
+        "certificate_fingerprint_mismatch",
+      );
+    }
+  }
+
+  private probeCertFingerprintVerification(): Promise<string | null> {
+    this.certFingerprintVerification ??= (async () => {
+      try {
+        return await this.certFingerprintProbe!(endpointUrl(this.endpoint, "/"));
+      } catch {
+        return null;
+      }
+    })();
+    return this.certFingerprintVerification;
+  }
+
+  private probeCertFingerprint(): Promise<string | null> {
+    if (!this.certFingerprintProbe) return Promise.resolve(null);
+    return this.probeCertFingerprintVerification();
   }
 
   /**
@@ -1167,16 +1325,15 @@ export class RemoteDesktopClient {
   /**
    * Absolute URL of the authenticated image endpoint used for poracode-local
    * sources. <img> tags can't send Authorization headers, so the URL carries
-   * the one-time `lc_img_` ticket minted from `POST /api/files/image-ticket`
-   * when the host supports it (Bearer-in-query leaks into proxy/relay access
-   * logs). Minting is asynchronous while every render-path consumer of this
-   * method is synchronous, so the FIRST resolution of a path still carries the
-   * legacy `access_token` query parameter while a mint is in flight; the
-   * ticketed URL is served from cache afterwards. A 404 from the mint (older
-   * host without the route) latches off ticket use for this client instance
-   * and keeps the legacy URL — the same 404-fallback shape as the environment
-   * discovery. Returns "" without a token — callers fall back to the original
-   * (unrenderable in a browser) URL then.
+   * the one-time `lc_img_` ticket minted from `POST /api/files/image-ticket`.
+   * Gate 6 item 4.6 (S6): the former `access_token` query-param fallback is
+   * GONE — a long-lived bearer in the URL leaks into proxy/relay access logs,
+   * and no URL in this client carries a bearer token anymore. Minting is
+   * asynchronous while every render-path consumer of this method is
+   * synchronous, so the FIRST resolution of a path returns "" (callers fall
+   * back to the original, unrenderable-in-a-browser URL) and the ticketed URL
+   * is served from cache on the next resolution. A 404 from the mint (older
+   * host without the route) latches off ticket use for this client instance.
    */
   localImageUrl(absolutePath: string): string {
     if (!this.accessToken) return "";
@@ -1187,29 +1344,36 @@ export class RemoteDesktopClient {
       url.searchParams.set("ticket", cached.ticket);
       return url.toString();
     }
-    if (!this.localImageTicketsUnsupported) {
-      // Deduped per path: markdown and gallery rendering can resolve the same
-      // image several times while one mint is in flight.
-      let mint = this.localImageTicketMints.get(absolutePath);
-      if (!mint) {
-        mint = this.mintLocalImageTicket(absolutePath);
-        this.localImageTicketMints.set(absolutePath, mint);
-        void mint.finally(() => {
-          this.localImageTicketMints.delete(absolutePath);
-        });
-      }
-    }
-    url.searchParams.set("access_token", this.accessToken);
-    return url.toString();
+    this.queueImageTicketMint(absolutePath, absolutePath);
+    return "";
   }
 
-  private async mintLocalImageTicket(absolutePath: string): Promise<void> {
+  /**
+   * One shared mint: `key` dedupes concurrent resolutions, `pathValue` is the
+   * exact server-side path the ticket is bound to (the filesystem path for
+   * {@link localImageUrl}, the JSON reference path for {@link imageRefUrl}).
+   */
+  private queueImageTicketMint(key: string, pathValue: string): void {
+    if (this.localImageTicketsUnsupported) return;
+    // Deduped per key: markdown and gallery rendering can resolve the same
+    // image several times while one mint is in flight.
+    let mint = this.localImageTicketMints.get(key);
+    if (!mint) {
+      mint = this.mintImageTicket(key, pathValue);
+      this.localImageTicketMints.set(key, mint);
+      void mint.finally(() => {
+        this.localImageTicketMints.delete(key);
+      });
+    }
+  }
+
+  private async mintImageTicket(key: string, pathValue: string): Promise<void> {
     try {
       const result = parseResponse(
         remoteImageTicketResultSchema,
         await this.requestJson("/api/files/image-ticket", {
           method: "POST",
-          body: { path: absolutePath },
+          body: { path: pathValue },
         }),
         "image ticket",
       );
@@ -1218,14 +1382,15 @@ export class RemoteDesktopClient {
         if (oldest === undefined) break;
         this.localImageTickets.delete(oldest);
       }
-      this.localImageTickets.set(absolutePath, {
+      this.localImageTickets.set(key, {
         ticket: result.ticket,
         expiresAtMs: Date.now() + LOCAL_IMAGE_TICKET_TTL_MS,
       });
     } catch (error) {
       if (error instanceof RemoteClientError && error.status === 404) {
-        // Older host without the ticket route: keep the legacy query-token URL
-        // for this client's lifetime instead of re-requesting the route.
+        // Older host without the ticket route: stop re-requesting the route
+        // for this client's lifetime. There is no credential left that an
+        // <img> tag could legally carry on such a host.
         this.localImageTicketsUnsupported = true;
       }
     }
@@ -1233,16 +1398,25 @@ export class RemoteDesktopClient {
 
   /**
    * Absolute URL for a host-minted image reference. Like {@link localImageUrl}
-   * the token rides in the query string because <img> tags can't send an
-   * Authorization header — but unlike it, the location is addressed inside the
-   * host's own stored payload rather than by a filesystem path, so nothing the
-   * agent wrote can influence what gets served. Returns "" without a token.
+   * the URL authenticates with a one-time ticket minted for the exact JSON
+   * reference path — never a bearer token — because <img> tags can't send an
+   * Authorization header; and unlike a filesystem path, the location is
+   * addressed inside the host's own stored payload, so nothing the agent
+   * wrote can influence what gets served. Returns "" without a token or while
+   * the mint is in flight.
    */
   imageRefUrl(ref: RemoteImageRefValue): string {
     if (!this.accessToken) return "";
+    const pathValue = JSON.stringify(ref.path);
+    const mintKey = `${ref.threadId}/${ref.itemId}/${pathValue}`;
     const url = endpointUrl(this.endpoint, remoteImageRefPath(ref));
-    url.searchParams.set("access_token", this.accessToken);
-    return url.toString();
+    const cached = this.localImageTickets.get(mintKey);
+    if (cached && cached.expiresAtMs > Date.now() + LOCAL_IMAGE_TICKET_REUSE_MARGIN_MS) {
+      url.searchParams.set("ticket", cached.ticket);
+      return url.toString();
+    }
+    this.queueImageTicketMint(mintKey, pathValue);
+    return "";
   }
 
   parseSocketMessage(value: string): RemoteWebSocketServerMessage {
@@ -1264,7 +1438,23 @@ export class RemoteDesktopClient {
        * Long-running ops (clone, push, PR creation) pass a larger value. */
       readonly timeoutMs?: number;
     } = {},
+    // Internal refresh-loop state: the token-refresh call never refreshes
+    // (that would loop), and a post-refresh retry never retries again.
+    refreshState: { readonly isTokenRefresh?: boolean; readonly isRefreshRetry?: boolean } = {},
   ): Promise<unknown> {
+    // Gate 6 item 4.2: with a pinned fingerprint and a TLS-observable
+    // transport, refuse BEFORE credentials leave the client.
+    if (this.pinnedCertFingerprint && this.certFingerprintProbe) {
+      const actual = await this.probeCertFingerprint();
+      if (actual && actual.toLowerCase() !== this.pinnedCertFingerprint) {
+        throw new RemoteClientError(
+          "The server's TLS certificate no longer matches the fingerprint pinned at pairing. Re-pair the device from the desktop's Remote Access panel.",
+          502,
+          "certificate_fingerprint_mismatch",
+        );
+      }
+    }
+
     const headers: Record<string, string> = { ...init.headers };
     if (init.body !== undefined) {
       headers["content-type"] = "application/json";
@@ -1334,6 +1524,24 @@ export class RemoteDesktopClient {
       const text = new TextDecoder().decode(body);
       const parsed = parseJsonResponse(text, response);
       if (!response.ok) {
+        // Gate 6 item 4.6 (S6): a 401 from an expired 24-hour access token
+        // transparently refreshes once and retries the request. Any refresh
+        // failure surfaces the ORIGINAL authorization error, so callers keep
+        // seeing a clean 401 instead of a grant-endpoint failure.
+        if (
+          response.status === 401 &&
+          !refreshState.isTokenRefresh &&
+          !refreshState.isRefreshRetry &&
+          this.tokenLifecycle?.refreshToken()
+        ) {
+          try {
+            if (await this.refreshTokens()) {
+              return await this.requestJson(path, init, { isRefreshRetry: true });
+            }
+          } catch {
+            // fall through to the original error below
+          }
+        }
         const error = remoteHttpErrorSchema.safeParse(parsed);
         throw new RemoteClientError(
           error.success ? error.data.error.message : "Remote request failed.",

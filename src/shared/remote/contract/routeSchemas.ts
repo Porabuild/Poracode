@@ -85,11 +85,43 @@ export const imageTicketRequestBodySchema = z.object({
   path: z.string().min(1).max(4096),
 });
 
-/** Response of `POST /api/files/image-ticket`: the one-time path-bound ticket. */
+/**
+ * Response of `POST /api/files/image-ticket`: the one-time path-bound ticket.
+ * The field is `expiresAt`, matching the host's `ImageTicketStore.issue` mint
+ * and the TS client's parser (the schema previously said `expires`, which no
+ * producer ever wrote).
+ */
 export const imageTicketResponseSchema = z.object({
   ticket: z.string().min(1),
   /** ISO expiry so the client knows when to re-mint. */
-  expires: z.string().min(1),
+  expiresAt: z.string().min(1),
+});
+
+/**
+ * Operability routes (V5 plan item 4.9 rider): `/healthz` answers a fixed
+ * literal so the unauthenticated probe discloses nothing, and `/metrics`
+ * carries the minimal host snapshot. Kept deliberately tiny — richer
+ * operability surfaces belong to the 4.9 owner.
+ */
+export const healthzResponseSchema = z.object({
+  ok: z.literal(true),
+});
+
+export const metricsResponseSchema = z.object({
+  process: z.object({
+    /** Processor uptime in whole seconds. */
+    uptimeSeconds: z.number().int().nonnegative(),
+    rssBytes: z.number().int().nonnegative(),
+    heapUsedBytes: z.number().int().nonnegative(),
+  }),
+  remote: z.object({
+    /** Currently authenticated WebSocket clients. */
+    activeWebSocketClients: z.number().int().nonnegative(),
+    /** Entries in the replayable event buffer. */
+    eventBufferEntries: z.number().int().nonnegative(),
+    /** Sequence of the last published replayable event (0 = none yet). */
+    lastEventSeq: z.number().int().nonnegative(),
+  }),
 });
 
 export const attachmentUploadResultSchema = z.object({
