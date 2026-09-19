@@ -67,6 +67,14 @@ export function registerRemoteProcedureHost(next: RemoteProcedureHost | undefine
   host = next;
 }
 
+/** The currently registered persisted-owner host (paired servers / attach
+ * owner). Exposed so a derived host can CHAIN to it instead of replacing it —
+ * the managed loopback host (V5 plan 2.5 completion) resolves the desktop's
+ * own entities only for ids the persisted rows do not own. */
+export function readRegisteredRemoteProcedureHost(): RemoteProcedureHost | undefined {
+  return host;
+}
+
 export function remoteTerminalOwner(terminalId: string): string | undefined {
   return remoteTerminals.owner(terminalId);
 }
@@ -105,12 +113,14 @@ export function unprojectRemotePayload(payload: unknown): unknown {
 export function routeRemoteProcedure<Name extends IpcProcedureName>(
   procedure: Name,
   payload: IpcProcedurePayload<Name>,
+  hostOverride?: RemoteProcedureHost,
 ): RemoteRouteDecision<IpcProcedureResult<Name>> {
   if (!isRemoteRoutableProcedure(procedure)) return { kind: "local" };
   const spec = REMOTE_PROCEDURE_ROUTES[procedure] as RemoteProcedureRouteSpec;
+  const effectiveHost = hostOverride ?? host;
   let route: ResolvedRemoteRoute | undefined;
   try {
-    route = resolveRemoteRoute(spec.owner, payload, host);
+    route = resolveRemoteRoute(spec.owner, payload, effectiveHost);
   } catch (error) {
     return {
       kind: "remote",
@@ -118,7 +128,7 @@ export function routeRemoteProcedure<Name extends IpcProcedureName>(
     };
   }
   if (!route) return { kind: "local" };
-  const remoteHost = host;
+  const remoteHost = effectiveHost;
   if (!remoteHost) {
     return {
       kind: "remote",
@@ -442,4 +452,29 @@ function projectLocation(value: unknown): ProjectLocation | undefined {
     return undefined;
   }
   return value as ProjectLocation;
+}
+
+/**
+ * Stamps `remoteServerId` onto every location a payload carries (V5 plan 2.5
+ * completion): the managed loopback owner owns this desktop's OWN locations,
+ * so location-owned procedures route over the loopback leg through the same
+ * `resolveRemoteRoute` machinery attach mode uses for projected rows. The
+ * router's `unprojectRemotePayload` strips the stamp again before the wire,
+ * so the request the server sees is byte-identical to the local one. Shapes
+ * that are not router-recognized locations pass through untouched.
+ */
+export function stampRemoteOwnerOntoPayload(payload: unknown, remoteServerId: string): unknown {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  const input = payload as Record<string, unknown>;
+  const output = { ...input };
+  for (const key of REMOTE_LOCATION_KEYS) {
+    const location = projectLocation(output[key]);
+    if (location && !location.remoteServerId) {
+      output[key] = { ...location, remoteServerId };
+    }
+  }
+  if (Array.isArray(input.skills)) {
+    output.skills = input.skills.map((skill) => stampRemoteOwnerOntoPayload(skill, remoteServerId));
+  }
+  return output;
 }

@@ -1434,6 +1434,34 @@ export class RemoteAccessServer {
     return this.mintPairingUrl(info.httpBaseUrl, issued.credential);
   }
 
+  /**
+   * Mints the co-located managed renderer's local attach credential (V5 plan
+   * 2.5 completion): a fresh single-use operator pairing credential whose URL
+   * is built on the LOOPBACK endpoint, so the desktop renderer can always
+   * attach to its own server without that server being discoverable. Never
+   * rotates the displayed QR credential (`activePairingCredential`) and never
+   * republishes pairing info — reachable, not advertised. `null` once stopping
+   * or before the listener is ready.
+   */
+  mintLoopbackRendererCredential(): {
+    endpoint: string;
+    pairingUrl: string;
+    expiresAt: string;
+  } | null {
+    if (this.stopping || !this.info) return null;
+    const issued = this.issuePresetPairingCredential("Managed renderer");
+    const fingerprint = this.tls?.fingerprint;
+    return {
+      endpoint: this.info.localHttpBaseUrl,
+      pairingUrl: buildPairingUrl({
+        httpBaseUrl: this.info.localHttpBaseUrl,
+        credential: issued.credential,
+        ...(fingerprint ? { certFingerprint: formatCertFingerprint(fingerprint) } : {}),
+      }),
+      expiresAt: issued.expiresAt,
+    };
+  }
+
   private issuePresetPairingCredential(
     label: string | undefined,
     preset?: RemoteAccessScopePreset,

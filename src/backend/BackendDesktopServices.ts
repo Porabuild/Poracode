@@ -392,13 +392,28 @@ export class BackendDesktopServices {
           payload as never,
         ) as unknown as BackendServiceResult<Name>;
       case "getRemoteAccessPairing":
-        return getRemoteAccessPairingInfo(
-          this.remote?.getServer() ?? null,
-        ) as BackendServiceResult<Name>;
+        // User-facing pairing surface: the always-on loopback-only instance
+        // reports `disabled` so it stays undiscoverable (V5 plan 2.5).
+        return (this.remote?.getPairingInfo() ??
+          getRemoteAccessPairingInfo(null)) as BackendServiceResult<Name>;
+      case "getManagedLoopbackBootstrap":
+        return (
+          this.remote?.getManagedLoopbackBootstrap() ??
+          (Promise.resolve(null) as Promise<BackendServiceResult<Name>>)
+        );
       case "refreshRemoteAccessPairing": {
+        // Refresh mints/rotates the DISPLAYED QR credential — only meaningful
+        // when remote access is user-enabled (V5 plan 2.5 gating).
+        if (!this.remote?.isUserEnabled()) {
+          return (
+            this.remote?.getPairingInfo() ??
+            (getRemoteAccessPairingInfo(null) as BackendServiceResult<Name>)
+          );
+        }
         const server = this.remote?.getServer();
         server?.issuePairingUrl("Settings QR");
-        return getRemoteAccessPairingInfo(server ?? null) as BackendServiceResult<Name>;
+        return (this.remote?.getPairingInfo() ??
+          getRemoteAccessPairingInfo(server ?? null)) as BackendServiceResult<Name>;
       }
       case "setRemoteAccessEnabled":
         return this.requireRemote().setEnabled(

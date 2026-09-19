@@ -32,6 +32,7 @@ import type {
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
 import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
+import { watchManagedTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
@@ -990,16 +991,17 @@ export const XTermSurface = forwardRef<
       };
       subscribeOutput();
     } else {
-      unsubscribe = readBridge().onSupervisorEvent((event) => {
-        if (event.type === "thread-reset" && event.threadId === terminalId) {
-          handleReset();
-        } else if (event.type === "thread-scrollback-resync" && event.threadId === terminalId) {
-          hydrateScrollback(true);
-        } else if (event.type === "thread-output" && event.threadId === terminalId) {
-          handleOutput(event.data);
-        } else if (event.type === "thread-exited" && event.threadId === terminalId) {
-          handleExited(event.exitCode);
-        }
+      // V5 plan 2.5 completion: local terminals subscribe through the unified
+      // managed seam — loopback terminal-watch frames while that leg serves,
+      // the desktop-IPC relay's `thread-output` as the fallback, with the
+      // resync signal driving scrollback rehydration on every leg flip.
+      unsubscribe = watchManagedTerminal(terminalId, {
+        onOutput: handleOutput,
+        onReset: handleReset,
+        onExited: handleExited,
+        onSnapshot: handleSnapshot,
+        onWatchError: setWatchError,
+        onResync: () => hydrateScrollback(true),
       });
     }
 

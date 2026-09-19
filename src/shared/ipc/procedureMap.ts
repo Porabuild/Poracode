@@ -170,6 +170,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "setGlobalShortcutsSuspended",
   "setRendererEventInterests",
   "getRemoteAccessPairing",
+  "getManagedLoopbackBootstrap",
   "refreshRemoteAccessPairing",
   "setRemoteAccessEnabled",
   "revokeRemoteAccessSession",

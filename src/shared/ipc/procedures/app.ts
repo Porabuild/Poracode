@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { projectLocationSchema, type ProjectLocation } from "../../contracts";
 import {
+  managedLoopbackBootstrapSchema,
+  type ManagedLoopbackBootstrap,
+} from "../../managedLoopback";
+import {
   type KeybindingsConfig,
   type KeybindingsFile,
   keybindingsFileSchema,
@@ -202,6 +206,15 @@ export const appProcedures = {
   getRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
     "getRemoteAccessPairing",
     "main-local",
+  ),
+  // V5 plan 2.5 completion: the managed renderer's always-on loopback attach
+  // payload (endpoint + single-use credential), minted by main at readiness.
+  // Additive procedure name: peers loud-reject unknown names, so the map
+  // version stays and only the pinned fingerprint moves.
+  getManagedLoopbackBootstrap: defineNoArgProcedure<ManagedLoopbackBootstrap | null, "main-local">(
+    "getManagedLoopbackBootstrap",
+    "main-local",
+    managedLoopbackBootstrapSchema.nullable(),
   ),
   refreshRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
     "refreshRemoteAccessPairing",
