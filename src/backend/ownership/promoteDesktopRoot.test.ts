@@ -354,4 +354,28 @@ describe("desktop data-root promotion (V5 plan 1.3)", () => {
     seedPlainRoot(root);
     expect(inspectDesktopRootPromotion(paths)).toEqual({ kind: "required" });
   });
+
+  it("classifies a nonempty namespace WITHOUT a database as fresh (non-custodial state only)", async () => {
+    // The desktop namespace legitimately holds non-custodial state — the
+    // Electron userData directory lives inside it by construction, and
+    // harnesses stage exactly such partial profiles. No state.sqlite means
+    // no custody lineage: the owned root starts empty and the namespace is
+    // left untouched (regression for the g4-probe refusal + modal wedge).
+    const root = scratch();
+    const namespace = join(root, "profile");
+    mkdirSync(join(namespace, "userData", "Session Storage"), { recursive: true });
+    writeFileSync(join(namespace, "userData", "Cookies"), "junk");
+    const paths = resolveDesktopHostRootPaths(namespace);
+    expect(inspectDesktopRootPromotion(paths)).toEqual({ kind: "fresh" });
+
+    const lease = acquireDesktopLease(namespace);
+    const prepared = await ensureDesktopOwnedRoot(lease);
+    expect(prepared.baseDir).toBe(paths.dataRoot);
+    expect(readHostRootManifest(paths)?.source).toMatchObject({
+      kind: "empty",
+      activation: "ready",
+    });
+    // The staged non-custodial namespace state is untouched.
+    expect(existsSync(join(namespace, "userData", "Cookies"))).toBe(true);
+  });
 });

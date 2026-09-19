@@ -8,7 +8,7 @@ import { buildBrowserUserAgent } from "./browser/userAgent";
 import { sampleElectronAppMetrics } from "./diagnostics/appMetricsSample";
 import { showAndFocusWindow } from "./window/showAndFocusWindow";
 import { shouldStartMinimized } from "./startupSettings";
-import { applyStartupFailureChoice, showStartupFailureDialog } from "./startupFailureDialog";
+import { handleStartupFailure } from "./startupFailureDialog";
 import { reportSingleInstanceRefusal } from "./singleInstanceRefusal";
 import { IPC_WINDOW_CHANNELS } from "@/shared/ipc";
 import { toError } from "@/shared/errorMessage";
@@ -257,12 +257,12 @@ if (!hasSingleInstanceLock) {
     .whenReady()
     .then(startDesktopApp)
     .catch((error: unknown) => {
-      console.error("[poracode] failed to initialize:", error);
       captureMainException(error, { "poracode.feature_area": "main-initialization" });
       // Never-silent refusal (V5 H5): a startup failure — e.g. a standalone
       // owner that is still starting — gets the same modal disclosure as the
       // single-instance refusal, with Retry (relaunch re-runs the decision).
-      applyStartupFailureChoice(showStartupFailureDialog(error));
+      // Harness/CI launches (no user to click) log and exit non-zero instead.
+      handleStartupFailure(error);
     });
 }
 
