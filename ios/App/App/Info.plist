@@ -49,6 +49,10 @@
 	<string>Poracode uses the camera to scan pairing codes and attach photos to conversations.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Poracode connects to the Poracode desktop app on your local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_poracode._tcp</string>
+	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>

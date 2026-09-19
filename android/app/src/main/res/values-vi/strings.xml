@@ -146,4 +146,9 @@
     <!-- Local store inconsistency after failed rollback -->
     <string name="local_store_inconsistent_title">Lỗi kho thông tin xác thực</string>
     <string name="local_store_inconsistent_message">Kho thông tin xác thực cục bộ không nhất quán. Hãy quên máy tính này và ghép nối lại.</string>
+    <string name="discover_hosts_title">Máy chủ gần đây</string>
+    <string name="discover_hosts_start">Quét</string>
+    <string name="discover_hosts_stop">Dừng</string>
+    <string name="discover_hosts_searching">Đang tìm máy chủ Poracode trong mạng này…</string>
+    <string name="discover_hosts_empty">Chưa tìm thấy máy chủ Poracode nào.</string>
 </resources>

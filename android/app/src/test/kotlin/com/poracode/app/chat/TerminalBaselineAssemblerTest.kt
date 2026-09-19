@@ -1,5 +1,7 @@
 package com.poracode.app.chat
 
+import com.poracode.remote.v3.generated.TerminalCursorFrameKind
+
 import com.poracode.app.model.terminal.TerminalBaselineChunk
 import com.poracode.app.model.terminal.TerminalDimensions
 import com.poracode.app.model.terminal.TerminalProcessState

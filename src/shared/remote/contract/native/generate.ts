@@ -1,10 +1,13 @@
 import { canonicalize, sha256Prefixed } from "../canonical";
 import { PAIRING_MACHINE_SPEC } from "../pairingMachineSpec";
+import { TERMINAL_CURSOR_MACHINE_SPEC } from "../terminalCursorMachineSpec";
 import { compareUnicodeCodePoints } from "../unicodeOrder";
 import { emitKotlinBindings } from "./emitKotlin";
 import { emitKotlinPairingMachine } from "./emitPairingKotlin";
+import { emitKotlinTerminalCursorMachine } from "./emitTerminalCursorKotlin";
 import { emitSwiftBindings } from "./emitSwift";
 import { emitSwiftPairingMachine } from "./emitPairingSwift";
+import { emitSwiftTerminalCursorMachine } from "./emitTerminalCursorSwift";
 import {
   assertNativeSchemaKeywordCoverage,
   assertNativeSemanticValidatorCoverage,
@@ -13,7 +16,7 @@ import { buildNativeSchemaGraph, collectNativeSchemaRoots } from "./schemaGraph"
 import type { NativeBindingOutput } from "./types";
 import { parseNativeBindingIr } from "./validate";
 
-export const NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 2 as const;
+export const NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 3 as const;
 export const NATIVE_BINDINGS_MAX_FILE_LINES = 450 as const;
 export const NATIVE_BINDINGS_MAX_FILE_BYTES = 512_000 as const;
 export const NATIVE_BINDINGS_MAX_LINE_LENGTH = 32_768 as const;
@@ -85,23 +88,26 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
   const kotlin = emitKotlinBindings(ir, graph);
   /** V5 5.2: the native pairing state machine ships in the same bundle and
    * under the same byte-stability, hash, and size bounds as the wire bindings.
-   * The pairing spec is deliberately NOT part of the wire IR — adding a
-   * generated machine must never move sourceHash/manifestHash. */
-  const swiftWithPairing: Record<string, string> = {
+   * The pairing and terminal-cursor specs are deliberately NOT part of the
+   * wire IR — adding a generated machine must never move
+   * sourceHash/manifestHash. */
+  const swiftWithMachines: Record<string, string> = {
     ...swift,
     "PairingMachine.swift": emitSwiftPairingMachine(),
+    "TerminalCursorMachine.swift": emitSwiftTerminalCursorMachine(),
   };
-  const kotlinWithPairing: Record<string, string> = {
+  const kotlinWithMachines: Record<string, string> = {
     ...kotlin,
     "PairingMachine.kt": emitKotlinPairingMachine(),
+    "TerminalCursorMachine.kt": emitKotlinTerminalCursorMachine(),
   };
-  const swiftInventory = inventory(swiftWithPairing, "swift");
-  const kotlinInventory = inventory(kotlinWithPairing, "kotlin");
+  const swiftInventory = inventory(swiftWithMachines, "swift");
+  const kotlinInventory = inventory(kotlinWithMachines, "kotlin");
   const files: Record<string, string> = {};
-  for (const name of Object.keys(swiftWithPairing).sort(compareUnicodeCodePoints))
-    files[`swift/${name}`] = swiftWithPairing[name]!;
-  for (const name of Object.keys(kotlinWithPairing).sort(compareUnicodeCodePoints))
-    files[`kotlin/${name}`] = kotlinWithPairing[name]!;
+  for (const name of Object.keys(swiftWithMachines).sort(compareUnicodeCodePoints))
+    files[`swift/${name}`] = swiftWithMachines[name]!;
+  for (const name of Object.keys(kotlinWithMachines).sort(compareUnicodeCodePoints))
+    files[`kotlin/${name}`] = kotlinWithMachines[name]!;
 
   const outputHash = treeHash(files);
   const nativeManifest = {
@@ -127,7 +133,7 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
       portableTransforms: ir.portableTransformIds.length,
       swiftFiles: swiftInventory.length,
       kotlinFiles: kotlinInventory.length,
-      pairingStateMachines: 1,
+      stateMachines: 2,
     },
     stateMachines: [
       {
@@ -138,6 +144,20 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
         intentTransitionCount: PAIRING_MACHINE_SPEC.intent.transitions.length,
         standardScopeCount: PAIRING_MACHINE_SPEC.scopes.standardOrder.length,
         sources: { swift: "swift/PairingMachine.swift", kotlin: "kotlin/PairingMachine.kt" },
+      },
+      {
+        id: TERMINAL_CURSOR_MACHINE_SPEC.id,
+        specVersion: TERMINAL_CURSOR_MACHINE_SPEC.specVersion,
+        ruleCount: TERMINAL_CURSOR_MACHINE_SPEC.rules.length,
+        guardCount: TERMINAL_CURSOR_MACHINE_SPEC.guards.length,
+        actionCount: TERMINAL_CURSOR_MACHINE_SPEC.actions.length,
+        resyncReasonCount: TERMINAL_CURSOR_MACHINE_SPEC.resyncReasons.length,
+        maximumTranscriptUtf16Units:
+          TERMINAL_CURSOR_MACHINE_SPEC.bounds.maximumTranscriptUtf16Units,
+        sources: {
+          swift: "swift/TerminalCursorMachine.swift",
+          kotlin: "kotlin/TerminalCursorMachine.kt",
+        },
       },
     ],
     languages: {

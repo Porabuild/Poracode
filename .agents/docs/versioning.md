@@ -452,6 +452,95 @@ in-bundle non-renderer consumers (tray, attachment cleanup, headless scans):
   outside the contract tree); converging it onto the spec executor is the
   outstanding 5.2 remainder.
 
+## Generated terminal-cursor state machine + native-bindings manifest format 3 (V5 plan item 5.2, remainder)
+
+- **One spec, three consumers.**
+  `src/shared/remote/contract/terminalCursorMachineSpec.ts` declares the
+  terminal-cursor reconciliation machine: frame kinds, consumer actions (the
+  parity-fixture tokens), resync reasons (with `stale-watch` as an
+  informational, never-resyncing annotation), the UTF-16 bounds (200_000-unit
+  transcript tail; pre-baseline buffer bounded by 200_000 units AND 1024
+  frames — iOS previously lacked the frame bound), and the ordered first-match
+  rule table. `contract/native/emitTerminalCursor{Swift,Kotlin}.ts` render it
+  into `swift/TerminalCursorMachine.swift` and
+  `kotlin/TerminalCursorMachine.kt` under the same byte-stability, hash, size,
+  and 450-line gates as the wire bindings;
+  `contract/terminalCursorMachine.ts` is the executable TS reference the
+  contract tests run against the shared parity tape
+  (`protocol/remote/v3/fixtures/terminal-cursor-sequence.json`).
+- **Native-bindings manifest format 2 → 3** (`native-bindings.json`): counts
+  gained `stateMachines` (2 — the pairing machine plus the cursor machine;
+  `counts.pairingStateMachines` is retired) and the `stateMachines` array
+  gained the `terminalCursor` entry (rule/guard/action/reason counts, bound,
+  and source shards `swift/TerminalCursorMachine.swift` /
+  `kotlin/TerminalCursorMachine.kt`). Every mirrored pin moved with the bump
+  in the same change: `GeneratedRemoteV3Contract.
+expectedNativeBundleManifestFormatVersion` (iOS startup check, refuses v2
+  fail-closed), the `verifyRemoteV3NativeBindings` gradle pin,
+  `GeneratedRemoteV3ManifestTest`, and the generator's own
+  `native/generate.test.ts`. Both apps' directory-membership checks refuse
+  extra files, so a v2 app cannot half-adopt the new shard.
+- **No wire change.** The cursor spec is deliberately not part of the wire IR
+  (`buildRemoteV3IrDocument` never reads it), so `sourceHash`/`manifestHash`
+  are unchanged; only `outputHash` moved (new files).
+- **Hand-written copies deleted.** iOS `TerminalCursorReconciler.swift` and
+  Android `TerminalCursorReconciler.kt` (reconciler + state/action types) are
+  gone; consumers import the generated types
+  (`com.poracode.remote.v3.generated.TerminalCursor*` on Android, same-target
+  names on iOS). The per-platform JSON frame decoders stay hand-written
+  coordinators (iOS `TerminalCursorFrameDecoder.swift` over `RichJSON`,
+  Android `TerminalCursorFrameDecoder.kt` over `kotlinx.serialization`) —
+  `terminalCursorMachine.ts#decodeTerminalCursorFrameMessage` is the
+  normative reference they are tested against. The parity fixture tests run
+  unchanged in shape against the generated machines; the Android
+  frame-count-bound test (`TerminalCursorBufferBoundTest`) now passes on both
+  platforms.
+- **Renderer pairing convergence, recorded per 5.2** (same slice): the
+  renderer now consumes `contract/pairingMachine.ts` — which required moving
+  the fingerprint digest to the browser-safe pure-TS `contract/sha256.ts`
+  (`node:crypto` cannot enter the renderer bundle; digests are byte-identical
+  to Node's, pinned in `sha256.test.ts`). The web deep-link intake
+  (`bootstrap.ts`) applies the executor's consumed-set duplicate policy over
+  the same host+credential key material as the retired raw `host\0token` set;
+  `usePairing.ts`, `pairingDirect.ts`, and the mobile settings sheet drive the
+  executor's direct in-app path (candidate → beginPair → commit/failed). The
+  QR-scanned PWA link still pairs without the spec's external-confirmation
+  stop (treated as the direct in-app path); routing scanned links through the
+  external `pendingConfirmation` stop — as the natives already do for
+  browsable intents — is the recorded follow-up divergence. The TS renderer
+  terminal feed (`remoteTerminalFeed.ts`) keeps its own hand-written cursor
+  reconciliation this pass (renderer terminal feed files are outside this
+  lane's pairing-scoped renderer surface); converging it onto
+  `terminalCursorMachine.ts` is the recorded follow-up.
+
+## mDNS advertiser contract (V5 plan item P4)
+
+- **Discovery wire boundary.** `src/main/remote/mdnsAdvertiser.ts` speaks
+  RFC 6762/6763: service type `_poracode._tcp.local`, one record set per
+  host — PTR (shared, class IN, TTL 4500), SRV + TXT (unique, cache-flush,
+  TTL 4500), A (TTL 120, IPv4 hosts only) — announced twice ~1 s apart, then
+  every 5 minutes, with a bounded query responder (service-type PTR/ANY
+  questions only). TXT entries: `id=<desktopId>` and
+  `fp=sha256:<leaf-certificate-hex>` — the same fingerprint the pairing QR
+  carries, so discoverers can pin on first connect. The builders are pure
+  functions pinned by an independently written RFC parser and a golden byte
+  fixture (`mdnsAdvertiser.test.ts`); treat any TXT key, TTL, or class change
+  as a compatibility change for older discoverers (they ignore unknown TXT
+  keys, but `fp`/`id` consumers are versioned by this entry).
+- **Decision boundary.** `shouldAdvertiseMdns` is the single advertise
+  decision: default off in `loopback` mode, on only for TLS-configured
+  `lan`/`tailnet` binds, overridable per-process by
+  `PORACODE_REMOTE_MDNS=0|false|1|true` (forcing cannot advertise a plaintext
+  listener — there is no fingerprint). The env name is the compatibility
+  surface for deployments/scripts.
+- **Native discovery surfaces.** iOS declares `_poracode._tcp` in
+  `NSBonjourServices` (Info.plist) — required for local-network browsing and
+  part of the app's permission surface; Android uses `NsdManager` with no new
+  permission. Both parse the TXT `fp` into the discovered-host model. Native
+  TLS-handshake enforcement of that fingerprint (TOFU pin-on-first-connect,
+  matching the PWA's `#fp=` machinery) is a recorded follow-up; until it
+  lands, the native transports treat the endpoint as ordinary HTTPS.
+
 ## Remote TLS, token lifecycle, and operability routes (V5 batch 4, items 4.2/4.6 + 4.9 rider)
 
 - **TLS for direct connections (4.2).** `PORACODE_REMOTE_TLS_CERT` +

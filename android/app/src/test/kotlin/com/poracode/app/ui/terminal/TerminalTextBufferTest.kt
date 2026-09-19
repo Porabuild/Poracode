@@ -1,7 +1,7 @@
 package com.poracode.app.ui.terminal
 
 import com.poracode.app.chat.readRichFixture
-import com.poracode.app.chat.TerminalCursorReconciler
+import com.poracode.remote.v3.generated.TerminalCursorReconciler
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive

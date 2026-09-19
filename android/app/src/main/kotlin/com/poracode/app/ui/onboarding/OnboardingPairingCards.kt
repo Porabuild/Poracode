@@ -29,6 +29,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -164,7 +166,10 @@ internal fun OtherWaysButton(
     }
 }
 
-/** Paste-link and manual-entry routes shown inside the Material bottom sheet. */
+/** Paste-link, nearby-host, and manual-entry routes shown inside the Material
+ * bottom sheet. Discovery is an explicit affordance and manual entry stays:
+ * mDNS only ever finds an endpoint — the one-time credential is still required
+ * (V5 plan item P4). */
 @Composable
 internal fun OtherWaysSheetContent(
     pairingLink: String,
@@ -177,6 +182,7 @@ internal fun OtherWaysSheetContent(
     clipboardEmpty: Boolean,
     onPaste: () -> Unit,
     showsCleartextHint: Boolean,
+    discovery: PoracodeNsdDiscovery?,
     connect: @Composable () -> Unit,
 ) {
     Column(
@@ -191,6 +197,25 @@ internal fun OtherWaysSheetContent(
             onPaste = onPaste,
         )
         OrDivider()
+        if (discovery != null) {
+            val hosts by discovery.hosts.collectAsState()
+            val scanning by discovery.scanning.collectAsState()
+            NearbyHostsSection(
+                hosts = hosts,
+                scanning = scanning,
+                enabled = enabled,
+                onToggleScan = {
+                    if (scanning) discovery.stop() else discovery.start()
+                },
+                onSelect = { host ->
+                    // Fills the endpoint only; the one-time credential always
+                    // comes from the desktop, never from discovery.
+                    PoracodeServiceRecords.endpoint(host.host, host.port)
+                        ?.let(onBaseUrlChange)
+                },
+            )
+            OrDivider()
+        }
         ManualConnectionFields(
             baseUrl = baseUrl,
             onBaseUrlChange = onBaseUrlChange,

@@ -394,7 +394,7 @@ class ProductionTerminalWatchTransport(
         frame: TerminalServerFrame.Cursor,
     ) {
         observer().onFrame(host, frame)
-        if (frame.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE) {
+        if (frame.frame.kind == com.poracode.remote.v3.generated.TerminalCursorFrameKind.BASELINE) {
             synchronized(lock) {
                 if (isCurrentLocked(expected, gen)) {
                     reconnectAttempt = 0

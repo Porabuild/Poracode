@@ -1,6 +1,6 @@
 package com.poracode.app.session.richchat
 
-import com.poracode.app.chat.TerminalCursorState
+import com.poracode.remote.v3.generated.TerminalCursorState
 import com.poracode.app.model.terminal.TerminalConnectionStatus
 import com.poracode.app.model.terminal.TerminalDimensions
 import com.poracode.app.model.terminal.TerminalProcessState

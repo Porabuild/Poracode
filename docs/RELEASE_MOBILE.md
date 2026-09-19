@@ -66,8 +66,37 @@ from the single declarative spec
 `native/swift/PairingMachine.swift` and `native/kotlin/PairingMachine.kt` by
 the same pipeline as the wire contract, byte-stable and CI-gated. The native
 apps keep only thin facades; `native-bindings.json` formatVersion 2 declares
-the machine, and older readers refuse it. The renderer pairing flow converging
-onto the same spec executor is a recorded follow-up.
+the machine, and older readers refuse it. The renderer pairing flow now
+consumes the same spec executor (`shared/remote/contract/pairingMachine.ts`,
+browser-safe since the fingerprint digest moved to the shared pure-TS
+SHA-256): the web deep-link intake applies the executor's consumed-set
+duplicate policy, and the connection-page and mobile-settings sheets drive
+their direct in-app candidate decisions (candidate → begin pair →
+commit/failure) through the executor's transition table.
+
+The terminal-cursor reconciliation machine completes the 5.2 slice: the
+baseline/output arbitration rules — stale watches, range validation,
+pre-baseline buffering (units AND frame count), generation changes, gaps,
+overlaps, and the bounded transcript tail — are declared once in
+`terminalCursorMachineSpec.ts` and rendered into
+`native/swift/TerminalCursorMachine.swift` and
+`native/kotlin/TerminalCursorMachine.kt`. The hand-written iOS/Android
+reconcilers are deleted; only the per-platform JSON frame decoders stay
+hand-written. `native-bindings.json` formatVersion 3 declares both machines
+(`counts.stateMachines: 2`); all four manifest pins moved with the bump
+(iOS `GeneratedRemoteV3Contract`, the gradle `verifyRemoteV3NativeBindings`
+pin, `GeneratedRemoteV3ManifestTest`, and `generate.test.ts`), and a v2
+manifest is refused fail-closed.
+
+mDNS discovery (V5 item P4) ships on the same bundle: a TLS-configured `lan`
+or `tailnet` listener advertises `_poracode._tcp.local` with the certificate
+fingerprint in its TXT record (off in loopback mode by default,
+`PORACODE_REMOTE_MDNS` overrides). The native pairing screens list discovered
+hosts behind explicit affordances (Android: Other-ways sheet; iOS: Add-host
+"Nearby hosts") and fill the manual endpoint from a selection — discovery
+never replaces the one-time credential. See the mDNS discovery section of
+`REMOTE_ARCHITECTURE.md` for the decision table and the recorded follow-up
+(enforcing the discovered fingerprint at the native TLS handshake).
 
 The bundle contains roots for all 67 routes, 108 procedures, and 19 WebSocket
 message types, and embeds each route's registry scopes in its

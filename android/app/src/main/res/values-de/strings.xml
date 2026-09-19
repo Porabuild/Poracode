@@ -147,4 +147,9 @@
     <string name="local_store_inconsistent_title">Fehler im Anmeldedatenspeicher</string>
     <string name="local_store_inconsistent_message">Der lokale Anmeldedatenspeicher ist inkonsistent. Vergiss diesen Computer und kopple ihn neu.</string>
 
+    <string name="discover_hosts_title">Hosts in der Nähe</string>
+    <string name="discover_hosts_start">Suchen</string>
+    <string name="discover_hosts_stop">Stopp</string>
+    <string name="discover_hosts_searching">Suche nach Poracode-Hosts in diesem Netzwerk …</string>
+    <string name="discover_hosts_empty">Noch keine Poracode-Hosts gefunden.</string>
 </resources>

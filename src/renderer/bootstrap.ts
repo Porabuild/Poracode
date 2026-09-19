@@ -7,19 +7,31 @@ import {
 } from "./clientRuntime";
 import { msg } from "@lingui/core/macro";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
+import {
+  pairingFingerprint,
+  shouldSkipDuplicateFingerprint,
+} from "@/shared/remote/contract/pairingMachine";
 import { friendlyError } from "@/shared/messages";
 import { initializeAdaptiveLayout } from "./adaptiveLayout";
 
 initializeAdaptiveLayout();
 
-const handledPairingCredentials = new Set<string>();
+/**
+ * Duplicate candidate policy (spec `consumedSet`): process-lifetime set of
+ * applied pairing fingerprints over the same host+credential material the raw
+ * key used, as a non-secret digest. A failed pair releases its fingerprint so
+ * the retry action can re-pair.
+ */
+const consumedPairingFingerprints = new Set<string>();
 
 async function pairBrowserDesktopFromUrl(href: string, cleanCurrentUrl = false): Promise<unknown> {
   const pairing = parsePairingUrlParts(href);
   if (!pairing) return null;
-  const pairingKey = `${pairing.host ?? pairing.url.origin}\0${pairing.token}`;
-  if (handledPairingCredentials.has(pairingKey)) return null;
-  handledPairingCredentials.add(pairingKey);
+  const digest = pairingFingerprint(pairing.host ?? pairing.url.origin, pairing.token);
+  if (shouldSkipDuplicateFingerprint(digest, consumedPairingFingerprints)) return null;
+  // The digest is never empty, so recording it directly is exactly the spec's
+  // `afterFingerprintConsumed` bookkeeping.
+  consumedPairingFingerprints.add(digest);
 
   try {
     const [{ useRemoteServersStore }, { useAppStore }] = await Promise.all([
@@ -40,7 +52,7 @@ async function pairBrowserDesktopFromUrl(href: string, cleanCurrentUrl = false):
     }
     return record;
   } catch (error) {
-    handledPairingCredentials.delete(pairingKey);
+    consumedPairingFingerprints.delete(digest);
     throw error;
   }
 }

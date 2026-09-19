@@ -147,4 +147,9 @@
     <string name="local_store_inconsistent_title">Erro no armazenamento de credenciais</string>
     <string name="local_store_inconsistent_message">O armazenamento local de credenciais está inconsistente. Esqueça este computador e pareie novamente.</string>
 
+    <string name="discover_hosts_title">Hosts próximos</string>
+    <string name="discover_hosts_start">Buscar</string>
+    <string name="discover_hosts_stop">Parar</string>
+    <string name="discover_hosts_searching">Procurando hosts do Poracode nesta rede…</string>
+    <string name="discover_hosts_empty">Nenhum host do Poracode encontrado ainda.</string>
 </resources>

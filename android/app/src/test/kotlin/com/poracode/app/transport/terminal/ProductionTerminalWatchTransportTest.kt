@@ -184,7 +184,7 @@ class ProductionTerminalWatchTransportTest {
             override fun onFrame(host: RichChatHostKey, frame: TerminalServerFrame) {
                 frames += frame
                 if (frame is TerminalServerFrame.Cursor &&
-                    frame.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE
+                    frame.frame.kind == com.poracode.remote.v3.generated.TerminalCursorFrameKind.BASELINE
                 ) {
                     twoBaselines.countDown()
                 }
@@ -292,7 +292,7 @@ class ProductionTerminalWatchTransportTest {
 
             val baselines = frames.filterIsInstance<TerminalServerFrame.Cursor>()
                 .filter {
-                    it.frame.kind == com.poracode.app.chat.TerminalCursorFrameKind.BASELINE
+                    it.frame.kind == com.poracode.remote.v3.generated.TerminalCursorFrameKind.BASELINE
                 }
             assertEquals(1, baselines.size)
             val baseline = baselines.single()

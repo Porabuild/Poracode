@@ -1,5 +1,11 @@
 package com.poracode.app.chat
 
+import com.poracode.remote.v3.generated.TerminalCursorAction
+import com.poracode.remote.v3.generated.TerminalCursorFrame
+import com.poracode.remote.v3.generated.TerminalCursorFrameKind
+import com.poracode.remote.v3.generated.TerminalCursorReconciler
+import com.poracode.remote.v3.generated.TerminalCursorState
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

@@ -147,4 +147,9 @@
     <string name="local_store_inconsistent_title">Kimlik bilgisi deposu hatası</string>
     <string name="local_store_inconsistent_message">Yerel kimlik bilgisi deposu tutarsız. Bu masaüstü bilgisayarı unutun ve yeniden eşleştirin.</string>
 
+    <string name="discover_hosts_title">Yakındaki sunucular</string>
+    <string name="discover_hosts_start">Tara</string>
+    <string name="discover_hosts_stop">Durdur</string>
+    <string name="discover_hosts_searching">Bu ağda Poracode sunucuları aranıyor…</string>
+    <string name="discover_hosts_empty">Henüz Poracode sunucusu bulunamadı.</string>
 </resources>

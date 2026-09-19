@@ -275,6 +275,7 @@
 		A10000000000000000000047 /* HostRuntimeCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000047 /* HostRuntimeCache.swift */; };
 		A10000000000000000000048 /* HostSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000048 /* HostSwitcherView.swift */; };
 		A10000000000000000000049 /* AddHostSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000049 /* AddHostSheet.swift */; };
+		A10000000000000000000C03 /* PoracodeHostBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000C03 /* PoracodeHostBrowser.swift */; };
 		A1000000000000000000004A /* HostStrings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004A /* HostStrings.swift */; };
 		A1000000000000000000004B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004B /* Localizable.xcstrings */; };
 		E10000000000000000000001 /* Localizable.xcstrings in AppTests Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000004B /* Localizable.xcstrings */; };
@@ -339,7 +340,7 @@
 		A10000000000000000000082 /* RichRequests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000082 /* RichRequests.swift */; };
 		A10000000000000000000083 /* RichTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000083 /* RichTimeline.swift */; };
 		A10000000000000000000084 /* RichTranscriptReducer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000084 /* RichTranscriptReducer.swift */; };
-		A10000000000000000000085 /* TerminalCursorReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000085 /* TerminalCursorReconciler.swift */; };
+		A10000000000000000000085 /* TerminalCursorFrameDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000085 /* TerminalCursorFrameDecoder.swift */; };
 		A91000000000000000000001 /* TerminalBaselineAssembler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91000000000000000000001 /* TerminalBaselineAssembler.swift */; };
 		A10000000000000000000086 /* RichChatContentFixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000086 /* RichChatContentFixtureTests.swift */; };
 		A10000000000000000000087 /* RichChatFixtureSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000087 /* RichChatFixtureSupport.swift */; };
@@ -1039,6 +1040,7 @@
 		B10000000000000000000047 /* HostRuntimeCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostRuntimeCache.swift; sourceTree = "<group>"; };
 		B10000000000000000000048 /* HostSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostSwitcherView.swift; sourceTree = "<group>"; };
 		B10000000000000000000049 /* AddHostSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddHostSheet.swift; sourceTree = "<group>"; };
+		B10000000000000000000C03 /* PoracodeHostBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoracodeHostBrowser.swift; sourceTree = "<group>"; };
 		B1000000000000000000004A /* HostStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostStrings.swift; sourceTree = "<group>"; };
 		B1000000000000000000004B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B1000000000000000000004C /* HostCatalogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostCatalogTests.swift; sourceTree = "<group>"; };
@@ -1099,7 +1101,7 @@
 		B10000000000000000000082 /* RichRequests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichRequests.swift; sourceTree = "<group>"; };
 		B10000000000000000000083 /* RichTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTimeline.swift; sourceTree = "<group>"; };
 		B10000000000000000000084 /* RichTranscriptReducer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTranscriptReducer.swift; sourceTree = "<group>"; };
-		B10000000000000000000085 /* TerminalCursorReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalCursorReconciler.swift; sourceTree = "<group>"; };
+		B10000000000000000000085 /* TerminalCursorFrameDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalCursorFrameDecoder.swift; sourceTree = "<group>"; };
 		B91000000000000000000001 /* TerminalBaselineAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalBaselineAssembler.swift; sourceTree = "<group>"; };
 		B10000000000000000000086 /* RichChatContentFixtureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatContentFixtureTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000087 /* RichChatFixtureSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFixtureSupport.swift; sourceTree = "<group>"; };
@@ -2083,7 +2085,7 @@
 				B10000000000000000000082 /* RichRequests.swift */,
 				B10000000000000000000083 /* RichTimeline.swift */,
 				B10000000000000000000084 /* RichTranscriptReducer.swift */,
-				B10000000000000000000085 /* TerminalCursorReconciler.swift */,
+				B10000000000000000000085 /* TerminalCursorFrameDecoder.swift */,
 				B91000000000000000000001 /* TerminalBaselineAssembler.swift */,
 				D72000000000000000000006 /* RichChatComposerDraftStore.swift */,
 				DD1000000000000000000001 /* RichChatMessageRevert.swift */,
@@ -2366,6 +2368,7 @@
 			children = (
 				B10000000000000000000048 /* HostSwitcherView.swift */,
 				B10000000000000000000049 /* AddHostSheet.swift */,
+				B10000000000000000000C03 /* PoracodeHostBrowser.swift */,
 				DP1000000000000000000001 /* HostDestinationView.swift */,
 				DR1000000000000000000001 /* HostSelectionMenu.swift */,
 				B1000000000000000000004A /* HostStrings.swift */,
@@ -3254,6 +3257,7 @@
 				A10000000000000000000047 /* HostRuntimeCache.swift in Sources */,
 				A10000000000000000000048 /* HostSwitcherView.swift in Sources */,
 				A10000000000000000000049 /* AddHostSheet.swift in Sources */,
+				A10000000000000000000C03 /* PoracodeHostBrowser.swift in Sources */,
 				DO1000000000000000000001 /* HostDestinationView.swift in Sources */,
 				DQ1000000000000000000001 /* HostSelectionMenu.swift in Sources */,
 				A1000000000000000000004A /* HostStrings.swift in Sources */,
@@ -3301,7 +3305,7 @@
 				A10000000000000000000082 /* RichRequests.swift in Sources */,
 				A10000000000000000000083 /* RichTimeline.swift in Sources */,
 				A10000000000000000000084 /* RichTranscriptReducer.swift in Sources */,
-				A10000000000000000000085 /* TerminalCursorReconciler.swift in Sources */,
+				A10000000000000000000085 /* TerminalCursorFrameDecoder.swift in Sources */,
 				A91000000000000000000001 /* TerminalBaselineAssembler.swift in Sources */,
 				A1000000000000000000008B /* GeneratedProjectContract.swift in Sources */,
 				A1000000000000000000008C /* ProjectRemoteAPI.swift in Sources */,

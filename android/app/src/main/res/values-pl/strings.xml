@@ -146,4 +146,9 @@
     <!-- Local store inconsistency after failed rollback -->
     <string name="local_store_inconsistent_title">Błąd magazynu poświadczeń</string>
     <string name="local_store_inconsistent_message">Lokalny magazyn poświadczeń jest niespójny. Zapomnij ten komputer i sparuj ponownie.</string>
+    <string name="discover_hosts_title">Hosty w pobliżu</string>
+    <string name="discover_hosts_start">Szukaj</string>
+    <string name="discover_hosts_stop">Zatrzymaj</string>
+    <string name="discover_hosts_searching">Wyszukiwanie hostów Poracode w tej sieci…</string>
+    <string name="discover_hosts_empty">Nie znaleziono jeszcze hostów Poracode.</string>
 </resources>

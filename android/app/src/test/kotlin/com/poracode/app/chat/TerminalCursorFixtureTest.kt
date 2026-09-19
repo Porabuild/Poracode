@@ -1,5 +1,11 @@
 package com.poracode.app.chat
 
+import com.poracode.remote.v3.generated.TerminalCursorAction
+import com.poracode.remote.v3.generated.TerminalCursorFrame
+import com.poracode.remote.v3.generated.TerminalCursorFrameKind
+import com.poracode.remote.v3.generated.TerminalCursorReconciler
+import com.poracode.remote.v3.generated.TerminalCursorState
+
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject

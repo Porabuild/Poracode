@@ -146,4 +146,9 @@
     <!-- Local store inconsistency after failed rollback -->
     <string name="local_store_inconsistent_title">認証情報ストアのエラー</string>
     <string name="local_store_inconsistent_message">ローカルの認証情報ストアに不整合があります。このデスクトップを忘れて、もう一度ペアリングしてください。</string>
+    <string name="discover_hosts_title">近くのホスト</string>
+    <string name="discover_hosts_start">検索</string>
+    <string name="discover_hosts_stop">停止</string>
+    <string name="discover_hosts_searching">このネットワークでPoracodeホストを検索しています…</string>
+    <string name="discover_hosts_empty">Poracodeホストはまだ見つかりません。</string>
 </resources>

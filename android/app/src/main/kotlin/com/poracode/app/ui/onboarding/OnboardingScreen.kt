@@ -185,6 +185,7 @@ fun OnboardingScreen(
                         }
                     },
                     showsCleartextHint = cleartextEndpoint != null,
+                    discovery = rememberPoracodeDiscovery(),
                     connect = {
                         ConnectButton(
                             isPairing = state.isPairing,

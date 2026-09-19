@@ -32,6 +32,7 @@ import type { GitStateService } from "../gitState";
 import { createPersistentRemoteAuthStore } from "./auth";
 import {
   DEFAULT_REMOTE_ACCESS_HOST,
+  classifyBindHostExposure,
   remoteAccessAdvertisedHost,
   remoteAccessHost,
   remoteAccessPairingAppUrl,
@@ -72,6 +73,7 @@ import {
   probeTailscaleStatus,
   type TailscaleStatus,
 } from "./tailscale";
+import { createMdnsAdvertiser, shouldAdvertiseMdns, type MdnsAdvertiser } from "./mdnsAdvertiser";
 
 const PRODUCTION_PAIRING_APP_URL: Record<PoracodeChannel, string> = {
   stable: "https://poracode.com",
@@ -225,6 +227,15 @@ export function createDesktopRemoteAccessController(
   let runningLoopbackOnly = false;
   let disposed = false;
   let pushCoordinator: PushCoordinator | null = null;
+  // V5 plan item P4: the mDNS advertiser for the TLS-configured lan/tailnet
+  // endpoint (native pairing screens list the host; TXT carries the leaf
+  // certificate fingerprint for pin-on-first-connect). Failures are contained.
+  let mdnsAdvertiser: MdnsAdvertiser | null = null;
+  const stopMdnsAdvertiser = (): Promise<void> => {
+    const advertiser = mdnsAdvertiser;
+    mdnsAdvertiser = null;
+    return advertiser ? advertiser.stop() : Promise.resolve();
+  };
   /** The gateway/proxy pair is reused across an in-place server restart. */
   let portForwarding: PortForwarding | null = null;
   let remoteTailscaleServeActiveUrl: string | null = null;
@@ -438,6 +449,46 @@ export function createDesktopRemoteAccessController(
         serverId: identity.desktopId,
       });
       const advertisedHost = remoteAccessAdvertisedHost({ bindHost: remoteHost });
+
+      /**
+       * V5 plan item P4: when the resolved bind is a TLS-configured `lan` or
+       * `tailnet` exposure, advertise the endpoint over mDNS so the native
+       * pairing screens can discover it; the TXT record carries the
+       * leaf-certificate fingerprint for pin-on-first-connect. Loopback stays
+       * silent by default, and advertising is best effort — it can never
+       * break serving.
+       */
+      const maybeAdvertiseMdns = (listenInfo: RemoteAccessServerInfo): void => {
+        void stopMdnsAdvertiser();
+        // Optional call so minimal test fakes of the server surface stay valid.
+        const fingerprint = server.tlsFingerprint?.() ?? null;
+        if (!fingerprint) return;
+        const decision = shouldAdvertiseMdns({
+          mode: classifyBindHostExposure(remoteHost),
+          tlsConfigured: true,
+        });
+        if (!decision.advertise) return;
+        let listenPort = port;
+        try {
+          listenPort = Number(new URL(listenInfo.localHttpBaseUrl).port) || port;
+        } catch {
+          // Keep the resolved port; the URL is only the precise source.
+        }
+        mdnsAdvertiser = createMdnsAdvertiser(
+          {
+            desktopId: identity.desktopId,
+            label: identity.label,
+            host: advertisedHost,
+            port: listenPort,
+            tlsFingerprint: fingerprint,
+          },
+          {
+            onError: (error) =>
+              options.reportError(error, { "poracode.feature_area": "remote-access" }),
+          },
+        );
+        mdnsAdvertiser.start();
+      };
       // Loopback-only never advertises: no Tailscale serve, no custom URL.
       const advertisedResolution = attempt.loopbackOnly ? {} : await resolveAdvertisedBaseUrl(port);
       attempt.tailscaleServeUrl = advertisedResolution.tailscaleServeUrl ?? null;
@@ -581,10 +632,12 @@ export function createDesktopRemoteAccessController(
       runningLoopbackOnly = attempt.loopbackOnly;
       if (attempt.loopbackOnly) {
         // Reachable for the co-located renderer, never advertised: no QR line,
-        // no pairing URL in the log.
+        // no pairing URL in the log, and no mDNS record either.
+        await stopMdnsAdvertiser();
         console.log("[poracode] loopback remote server ready at %s", info.localHttpBaseUrl);
         return info;
       }
+      maybeAdvertiseMdns(info);
       console.log("[poracode] remote access enabled at %s", info.httpBaseUrl);
       // The pairing URL carries its live one-time credential in the fragment;
       // the headless CLI never prints raw tokens, and neither does the desktop.
@@ -723,6 +776,7 @@ export function createDesktopRemoteAccessController(
     await retirements.run([
       () => server?.dispose(),
       () => coordinator?.dispose(),
+      () => stopMdnsAdvertiser(),
       teardownTailscaleServe,
     ]);
     if (disposed || restartGeneration !== remoteAccessGeneration) return;
@@ -964,6 +1018,7 @@ export function createDesktopRemoteAccessController(
               : server.dispose()
             : undefined,
         () => coordinator?.dispose(),
+        () => stopMdnsAdvertiser(),
         clearEventInterests,
         () => forwarding?.dispose(),
       ]);
