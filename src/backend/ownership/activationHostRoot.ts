@@ -18,6 +18,7 @@ import {
   HOST_OPERATION_JOURNAL_FILE,
   markHostOperationPhase,
   readRunningHostOperation,
+  type HostOperationCredentialOutcome,
   type HostOperationPlanEvidence,
   type HostOperationRecord,
 } from "./hostOperationJournal";
@@ -50,10 +51,14 @@ export const HOST_ACTIVATION_RECORD_VERSION = 1;
 export const HOST_ACTIVATION_RECORD_FILE = "host-activation.json";
 export const HOST_ACTIVATION_ARCHIVE_DIR = "credential-adoption-archive";
 
-export type HostActivationCredentialOutcome =
-  | "adopted-existing-key"
-  | "adopted-os-sealed-key"
-  | "fresh-key-sign-in-again";
+/**
+ * The credential custody decision an activation (or, for the automatic
+ * desktop promotion, a promotion) froze into its journal plan and activation
+ * record. The `desktop-*` outcomes never archive the staged key: the desktop
+ * keeps its OS-sealed key file at the root, or records a session-only launch
+ * when OS-backed secret storage is unavailable.
+ */
+export type HostActivationCredentialOutcome = HostOperationCredentialOutcome;
 
 export interface HostActivationRecord {
   readonly formatVersion: typeof HOST_ACTIVATION_RECORD_VERSION;
@@ -285,7 +290,84 @@ export async function activateStagedHostRoot(
   }
 }
 
-/** Best-effort terminal journal write; the original failure still propagates. */
+/**
+ * Lease-free validated reader for the activation record, used by the
+ * promotion decision (and by tests) before any lease is taken. The
+ * authoritative read under a live lease remains `readHostActivationRecord`.
+ */
+export function readHostActivationRecordFromPaths(
+  paths: HostRootPaths,
+): HostActivationRecord | undefined {
+  const path = join(paths.dataRoot, HOST_ACTIVATION_RECORD_FILE);
+  let serialized: string;
+  try {
+    const metadata = lstatSync(path);
+    if (!metadata.isFile() || metadata.size > 16_384)
+      throw new Error("Invalid host activation record file.");
+    serialized = readFileSync(path, "utf8");
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT")
+      return undefined;
+    throw error;
+  }
+  return validateHostActivationRecord(JSON.parse(serialized) as unknown, paths);
+}
+
+function validateHostActivationRecord(
+  value: unknown,
+  paths: Pick<HostRootPaths, "profileNamespace" | "dataRoot">,
+): HostActivationRecord {
+  if (!value || typeof value !== "object") throw new Error("Invalid host activation record.");
+  const record = value as Record<string, unknown>;
+  if (
+    record.formatVersion !== HOST_ACTIVATION_RECORD_VERSION ||
+    record.profileNamespace !== paths.profileNamespace ||
+    record.dataRoot !== paths.dataRoot ||
+    typeof record.activatedAt !== "string" ||
+    !Number.isFinite(Date.parse(record.activatedAt)) ||
+    typeof record.ownerGeneration !== "string" ||
+    !record.ownerGeneration ||
+    typeof record.stagedAt !== "string" ||
+    !Number.isFinite(Date.parse(record.stagedAt)) ||
+    typeof record.sourceBackupPath !== "string" ||
+    !record.sourceBackupPath ||
+    !Number.isSafeInteger(record.databaseSchemaVersion) ||
+    !record.verified ||
+    typeof record.verified !== "object" ||
+    ![
+      "adopted-existing-key",
+      "adopted-os-sealed-key",
+      "fresh-key-sign-in-again",
+      "desktop-os-sealed-key",
+      "desktop-session-only-key",
+    ].includes(String(record.credentialOutcome)) ||
+    !Array.isArray(record.archivedKeyFiles) ||
+    !record.archivedKeyFiles.every((name) => typeof name === "string") ||
+    typeof record.keyFingerprint !== "string" ||
+    !/^[a-f0-9]{64}$/u.test(record.keyFingerprint)
+  ) {
+    throw new Error("Unsupported host activation record.");
+  }
+  if (
+    record.resumedAt !== undefined &&
+    (typeof record.resumedAt !== "string" || !Number.isFinite(Date.parse(record.resumedAt)))
+  ) {
+    throw new Error("Invalid host activation record resume evidence.");
+  }
+  const verified = record.verified as Record<string, unknown>;
+  if (
+    !["databaseSha256", "fileInventorySha256"].every(
+      (key) => typeof verified[key] === "string" && /^[a-f0-9]{64}$/u.test(String(verified[key])),
+    ) ||
+    !["files", "fileBytes"].every(
+      (key) => Number.isSafeInteger(verified[key]) && Number(verified[key]) >= 0,
+    )
+  ) {
+    throw new Error("Invalid host activation record evidence.");
+  }
+  return value as unknown as HostActivationRecord;
+}
+
 function failJournaledActivation(lease: HostOwnerLease, operationId: string, error: unknown): void {
   try {
     markHostOperationPhase(lease, {
@@ -532,8 +614,10 @@ function readPendingReceiptFromPaths(paths: HostRootPaths): HostImportReceipt {
  * exists right now, before any mutation: the database hash byte-for-byte and
  * the copied file inventory (the two owned-root markers post-date the staged
  * inventory and are excluded, mirroring the staging-time copy verification).
+ * Also reused by the automatic desktop promotion, whose redo path re-runs it
+ * while no custody side effect has landed yet.
  */
-function revalidateStagedEvidence(paths: HostRootPaths, receipt: HostImportReceipt): void {
+export function revalidateStagedEvidence(paths: HostRootPaths, receipt: HostImportReceipt): void {
   const inventory = inventoryImportFiles(paths.dataRoot);
   const stagedEntries = inventory.entries.filter(
     (entry) =>
@@ -688,7 +772,14 @@ function applyActivatedCustody(
   });
 }
 
-function writeActivationMarker(lease: HostOwnerLease, record: HostActivationRecord): void {
+/**
+ * The terminal custody evidence, shared by the explicit activation and the
+ * automatic desktop promotion: archives the staged receipt (the activated
+ * manifest form keeps its binding) and writes the versioned activation
+ * record. Idempotent on the receipt side; the record file is rewritten
+ * atomically when a resumed attempt finalizes.
+ */
+export function writeActivationMarker(lease: HostOwnerLease, record: HostActivationRecord): void {
   lease.assertActive();
   // Supersedes the staged receipt: the activated manifest form keeps the
   // receipt binding, the record carries the decision evidence.
@@ -715,54 +806,7 @@ function writeActivationMarker(lease: HostOwnerLease, record: HostActivationReco
 /** Validated reader for disclosure and for tests; never returns key material. */
 export function readHostActivationRecord(lease: HostOwnerLease): HostActivationRecord {
   lease.assertActive();
-  const path = join(lease.paths.dataRoot, HOST_ACTIVATION_RECORD_FILE);
-  const metadata = lstatSync(path);
-  if (!metadata.isFile() || metadata.size > 16_384)
-    throw new Error("Invalid host activation record file.");
-  const value: unknown = JSON.parse(readFileSync(path, "utf8"));
-  if (!value || typeof value !== "object") throw new Error("Invalid host activation record.");
-  const record = value as Record<string, unknown>;
-  if (
-    record.formatVersion !== HOST_ACTIVATION_RECORD_VERSION ||
-    record.profileNamespace !== lease.paths.profileNamespace ||
-    record.dataRoot !== lease.paths.dataRoot ||
-    typeof record.activatedAt !== "string" ||
-    !Number.isFinite(Date.parse(record.activatedAt)) ||
-    typeof record.ownerGeneration !== "string" ||
-    !record.ownerGeneration ||
-    typeof record.stagedAt !== "string" ||
-    !Number.isFinite(Date.parse(record.stagedAt)) ||
-    typeof record.sourceBackupPath !== "string" ||
-    !record.sourceBackupPath ||
-    !Number.isSafeInteger(record.databaseSchemaVersion) ||
-    !record.verified ||
-    typeof record.verified !== "object" ||
-    !["adopted-existing-key", "adopted-os-sealed-key", "fresh-key-sign-in-again"].includes(
-      String(record.credentialOutcome),
-    ) ||
-    !Array.isArray(record.archivedKeyFiles) ||
-    !record.archivedKeyFiles.every((name) => typeof name === "string") ||
-    typeof record.keyFingerprint !== "string" ||
-    !/^[a-f0-9]{64}$/u.test(record.keyFingerprint)
-  ) {
-    throw new Error("Unsupported host activation record.");
-  }
-  if (
-    record.resumedAt !== undefined &&
-    (typeof record.resumedAt !== "string" || !Number.isFinite(Date.parse(record.resumedAt)))
-  ) {
-    throw new Error("Invalid host activation record resume evidence.");
-  }
-  const verified = record.verified as Record<string, unknown>;
-  if (
-    !["databaseSha256", "fileInventorySha256"].every(
-      (key) => typeof verified[key] === "string" && /^[a-f0-9]{64}$/u.test(String(verified[key])),
-    ) ||
-    !["files", "fileBytes"].every(
-      (key) => Number.isSafeInteger(verified[key]) && Number(verified[key]) >= 0,
-    )
-  ) {
-    throw new Error("Invalid host activation record evidence.");
-  }
-  return value as unknown as HostActivationRecord;
+  const record = readHostActivationRecordFromPaths(lease.paths);
+  if (record === undefined) throw new Error("Invalid host activation record file.");
+  return record;
 }

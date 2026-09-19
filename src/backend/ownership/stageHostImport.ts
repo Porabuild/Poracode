@@ -34,6 +34,18 @@ export interface HostImportReceipt {
   readonly activation: "required";
 }
 
+/**
+ * Automatic desktop promotion (V5 plan 1.3) stages the lease's OWN profile
+ * namespace — the historical plain desktop root — into the owned sibling.
+ * The offline declaration holds by construction: the shared kernel lease
+ * and the data-custody fence exclude every other writer while the staging
+ * runs, exactly as if the operator had stopped the owner and copied the
+ * directory.
+ */
+export interface PromoteProfileNamespaceSource {
+  readonly promoteProfileNamespaceSource: true;
+}
+
 function contains(parent: string, child: string): boolean {
   const path = relative(parent, child);
   return (
@@ -45,13 +57,25 @@ function contains(parent: string, child: string): boolean {
 }
 
 /**
- * Stage an explicitly offline backup; this is not automatic live-profile
- * migration. The receipt records what was verified, and normal startup refuses
- * it until credential, path, provider-session and automation activation exists.
+ * Stage an explicitly offline backup; the one exception is the automatic
+ * desktop promotion (`promoteProfileNamespaceSource`), whose "backup" is the
+ * lease's own plain profile namespace, made offline by the shared lease and
+ * data-custody fence. The receipt records what was verified, and normal
+ * startup refuses the staged root until credential, path, provider-session
+ * and automation activation exists.
  */
 export async function stageHostImport(
   lease: HostOwnerLease,
-  request: { readonly sourceBackupPath: string; readonly sourceDeclaredOffline: true },
+  request: {
+    readonly sourceBackupPath: string;
+    readonly sourceDeclaredOffline: true;
+    /**
+     * Present only for the automatic desktop promotion, whose source is this
+     * lease's own profile namespace. Every other overlap stays refused: an
+     * explicit import still requires an independent offline backup directory.
+     */
+    readonly promoteProfileNamespaceSource?: true;
+  },
   signal?: AbortSignal,
 ): Promise<HostImportReceipt> {
   const generation = lease.generation;
@@ -64,8 +88,10 @@ export async function stageHostImport(
     throw new Error("Host import requires an explicitly offline source backup.");
   }
   const source = canonicalHostPath(request.sourceBackupPath);
+  const promotingOwnNamespace =
+    request.promoteProfileNamespaceSource === true && source === lease.paths.profileNamespace;
   for (const path of [
-    lease.paths.profileNamespace,
+    ...(promotingOwnNamespace ? [] : [lease.paths.profileNamespace]),
     lease.paths.dataRoot,
     lease.paths.electronUserDataRoot,
   ]) {
@@ -88,7 +114,9 @@ export async function stageHostImport(
   }
   const sourceIdentity = lstatSync(source);
   if (!sourceIdentity.isDirectory()) throw new Error("Offline backup must be a directory.");
-  assertDistinctHostImportSource(lease.paths, source);
+  assertDistinctHostImportSource(lease.paths, source, {
+    ...(promotingOwnNamespace ? { promoteProfileNamespaceSource: true } : {}),
+  });
   const database = OfflineImportDatabase.open(source);
   let staging: string | undefined;
   try {

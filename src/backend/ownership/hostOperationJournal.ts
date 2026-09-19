@@ -27,19 +27,36 @@ import type { HostRootPaths } from "./hostRootPaths";
 export const HOST_OPERATION_JOURNAL_VERSION = 1;
 export const HOST_OPERATION_JOURNAL_FILE = "host-operations.json";
 
-/** Kinds of mutating host operations that journal their mutation window. */
-export type HostOperationName = "activation";
+/**
+ * Kinds of mutating host operations that journal their mutation window.
+ * `promotion` is the automatic desktop data-root promotion (V5 plan 1.3);
+ * an old reader that only knows `activation` refuses a promotion record
+ * loudly instead of misreading an interrupted attempt as settled state.
+ */
+export type HostOperationName = "activation" | "promotion";
 export type HostOperationPhase = "running" | "completed" | "failed";
 
 /** Evidence of the frozen mutation plan. Fingerprints only — never key material. */
 export interface HostOperationPlanEvidence {
-  readonly credentialOutcome:
-    | "adopted-existing-key"
-    | "adopted-os-sealed-key"
-    | "fresh-key-sign-in-again";
+  readonly credentialOutcome: HostOperationCredentialOutcome;
   readonly archivedKeyFiles: readonly string[];
   readonly keyFingerprint: string;
 }
+
+/**
+ * Every credential custody outcome the journal and the activation record can
+ * describe. The `desktop-*` outcomes belong to the automatic promotion: the
+ * desktop keeps custody of its OS-sealed key file (no adoption, no archive),
+ * or honestly records a session-only launch when OS-backed storage is
+ * unavailable. An old reader refuses the new values loudly instead of
+ * misreading desktop custody as settled headless custody.
+ */
+export type HostOperationCredentialOutcome =
+  | "adopted-existing-key"
+  | "adopted-os-sealed-key"
+  | "fresh-key-sign-in-again"
+  | "desktop-os-sealed-key"
+  | "desktop-session-only-key";
 
 export interface HostOperationRecord {
   readonly formatVersion: typeof HOST_OPERATION_JOURNAL_VERSION;
@@ -112,7 +129,7 @@ export function readHostOperationJournal(
     const record = entry as Record<string, unknown>;
     if (
       record.formatVersion !== HOST_OPERATION_JOURNAL_VERSION ||
-      !["activation"].includes(String(record.operation)) ||
+      !["activation", "promotion"].includes(String(record.operation)) ||
       typeof record.operationId !== "string" ||
       !record.operationId ||
       !["running", "completed", "failed"].includes(String(record.phase)) ||
@@ -132,9 +149,13 @@ export function readHostOperationJournal(
       }
       const plan = record.plan as Record<string, unknown>;
       if (
-        !["adopted-existing-key", "adopted-os-sealed-key", "fresh-key-sign-in-again"].includes(
-          String(plan.credentialOutcome),
-        ) ||
+        ![
+          "adopted-existing-key",
+          "adopted-os-sealed-key",
+          "fresh-key-sign-in-again",
+          "desktop-os-sealed-key",
+          "desktop-session-only-key",
+        ].includes(String(plan.credentialOutcome)) ||
         !Array.isArray(plan.archivedKeyFiles) ||
         !plan.archivedKeyFiles.every((name) => typeof name === "string") ||
         typeof plan.keyFingerprint !== "string" ||

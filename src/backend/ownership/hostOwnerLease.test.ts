@@ -101,16 +101,16 @@ describe("host profile namespace", () => {
     expect(resolveHostRootPaths(alias)).toEqual(resolveHostRootPaths(profile));
   });
 
-  it("maps the legacy desktop root to the same lease as its standalone sibling", () => {
+  it("maps the desktop host onto the same owned root and lease as its standalone sibling", () => {
     const profile = namespace();
     const desktop = resolveDesktopHostRootPaths(profile);
     const headless = resolveHostRootPaths(profile);
-    expect(desktop.dataRoot).toBe(profile);
-    expect(desktop.leasePath).toBe(headless.leasePath);
-    expect(desktop.ownerRecordPath).toBe(headless.ownerRecordPath);
+    // One data lineage per profile (V5 plan 1.3): the desktop adopts the
+    // `.host-v1` sibling instead of the plain profile directory.
+    expect(desktop).toEqual(headless);
+    expect(desktop.dataRoot).toBe(`${profile}.host-v1`);
     // The data-custody fence is lease-family: one file excludes writers of
     // both mappings on the same namespace.
-    expect(desktop.dataFencePath).toBe(headless.dataFencePath);
     expect(desktop.dataFencePath).toBe(`${profile}.host-data.sqlite`);
   });
 
@@ -166,7 +166,7 @@ describe("host owner kernel lease", () => {
     });
     expect(readHostOwnerRecord(desktop.paths)).toMatchObject({
       kind: "desktop",
-      dataRoot: profile,
+      dataRoot: `${profile}.host-v1`,
     });
   });
   it("retains abandoned ownership until the process exits instead of releasing through GC", async () => {

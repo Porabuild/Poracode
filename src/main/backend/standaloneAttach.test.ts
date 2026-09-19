@@ -264,7 +264,9 @@ describe("standalone attach decision", () => {
     if (decision.kind !== "refuse") throw new Error("Expected refuse.");
     expect(decision.reason).toBe("desktop-owner-admission-disabled");
     if (!decision.controlPaths) throw new Error("Expected desktop control paths.");
-    expect(decision.controlPaths.dataRoot).toBe(owner.profileNamespace);
+    // One owned root since the data-root unification (V5 1.3): the desktop
+    // owner's dataRoot is the same `.host-v1` mapping as a headless owner's.
+    expect(decision.controlPaths.dataRoot).toBe(`${owner.profileNamespace}.host-v1`);
     expect(owner.issuePairing).not.toHaveBeenCalled();
   });
 
@@ -346,14 +348,16 @@ describe("standalone attach decision", () => {
     const decision = await decideStandaloneAttach(owner.profileNamespace);
     expect(decision.kind).toBe("deferred-managed");
     if (decision.kind !== "deferred-managed") throw new Error("Expected deferred-managed.");
-    expect(decision.controlPaths.dataRoot).toBe(decision.controlPaths.profileNamespace);
+    expect(decision.controlPaths.dataRoot).toBe(
+      `${decision.controlPaths.profileNamespace}.host-v1`,
+    );
     expect(owner.issuePairing).not.toHaveBeenCalled();
 
     // Recovery goes through the lease, never a manual delete: the freed lock
-    // re-acquires for the same desktop root, and stale discovery is still
+    // re-acquires for the same owned root, and stale discovery is still
     // present (untouched by the side-effect-free decision).
     expect(() =>
-      realpathSync.native(join(owner.root, "profile", "host-control.json")),
+      realpathSync.native(join(owner.root, "profile.host-v1", "host-control.json")),
     ).not.toThrow();
     const recovered = HostOwnerLease.acquire(
       resolveDesktopHostRootPaths(owner.profileNamespace),
@@ -368,7 +372,7 @@ describe("standalone attach decision", () => {
 
   it("still refuses when the desktop lock is held (acquire arbitrates, error never swallowed)", async () => {
     const owner = await startDesktopOwner();
-    const discoveryPath = join(owner.root, "profile", "host-control.json");
+    const discoveryPath = join(owner.root, "profile.host-v1", "host-control.json");
     const discovery = JSON.parse(readFileSync(discoveryPath, "utf8")) as {
       ownerGeneration: string;
       [key: string]: unknown;

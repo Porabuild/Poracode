@@ -7,11 +7,10 @@
 //   initDatabase/getSqlite call), never forks backendHost.cjs, and never
 //   publishes discovery/control. It only reads discovery files and runs the
 //   authenticated `describe` against an already-running owner.
-// - Probes both root mappings sharing one lease inode: the headless mapping
-//   (`resolveHostRootPaths`, dataRoot = canonical.host-v1) first, then the
-//   legacy desktop mapping (`resolveDesktopHostRootPaths`, dataRoot =
-//   canonical). Each mapping is blind to the other's owner because discovery
-//   requires exact namespace + dataRoot + generation match.
+// - Probes the one owned root mapping (`resolveHostRootPaths`, dataRoot =
+//   canonical.host-v1) shared by desktop-managed and standalone owners since
+//   the data-root unification (V5 plan 1.3). The holder's recorded kind
+//   (desktop vs headless) is the lineage signal, not the path shape.
 // - Pins the authenticated owner generation: the returned `ownerGeneration`
 //   comes from the HMAC-verified, generation-bound `callHostControl` reply,
 //   never from the discovery endpoint alone.
@@ -20,18 +19,16 @@
 //   no-owner (no readable discovery in either mapping) returns `managed`, which
 //   follows the existing managed startup (still acquiring the lease before
 //   mutations). There is no fallback flag: refusals stay refusals.
-// - Mapping-aware unreachable: the headless mapping (dataRoot =
-//   canonical.host-v1) and the desktop mapping (dataRoot = canonical) share
-//   one lease inode but hold DIFFERENT DB/settings/auth/key lineage, so a free
-//   lease proves exclusion only, never custody continuity. A connection-level
-//   describe failure on the headless mapping stays `refuse unreachable-owner`
-//   (fail-closed; never routed to the desktop DB/keys, never migrated). Only a
-//   connection-level failure on the DESKTOP mapping returns `deferred-managed`,
-//   letting the existing acquire-before-any-mutations path arbitrate (held
-//   lock still refuses via HostRootInUseError; dead desktop recovers the same
-//   root). Invalid/auth/incompatible/stale-generation responses fail closed on
-//   both mappings and never defer. A headless refusal is never masked by later
-//   desktop evidence.
+// - Kind-aware unreachable: since the data-root unification one owned root
+//   serves both owner kinds, so a free lease proves exclusion only, never
+//   custody continuity. A connection-level describe failure against a
+//   HEADLESS-kind holder (or a holder whose record cannot be read) stays
+//   `refuse unreachable-owner` (fail-closed; never migrated by inference).
+//   Only a DESKTOP-kind holder's connection-level failure returns
+//   `deferred-managed`, letting the existing acquire-before-any-mutations
+//   path arbitrate (held lock still refuses via HostRootInUseError; a dead
+//   desktop recovers the same root). Invalid/auth/incompatible/stale-
+//   generation responses fail closed for both kinds and never defer.
 // - Pairing is minted only after an attach decision, via `issue-pairing`
 //   (existing owner control), and exchanged via OAuth (`POST /oauth/token`)
 //   by the renderer through the existing RemoteDesktopClient. The discovery
@@ -47,11 +44,8 @@ import {
   type HostControlCallOptions,
 } from "@/backend/ownership/hostControlClient";
 import { readHostControlDiscovery } from "@/backend/ownership/hostControlDiscovery";
-import {
-  resolveDesktopHostRootPaths,
-  resolveHostRootPaths,
-  type HostRootPaths,
-} from "@/backend/ownership/hostRootPaths";
+import { resolveHostRootPaths, type HostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import type { HostDescription } from "@/shared/hostControlProtocol";
 
@@ -120,7 +114,9 @@ function defaultDescribeOwner(
 }
 
 function probePathsFor(profileNamespace: string): HostRootPaths[] {
-  return [resolveHostRootPaths(profileNamespace), resolveDesktopHostRootPaths(profileNamespace)];
+  // Since the data-root unification (V5 plan 1.3) both resolvers converge on
+  // the one owned root (`<namespace>.host-v1`); probe it once.
+  return [resolveHostRootPaths(profileNamespace)];
 }
 
 function refuse(
@@ -137,12 +133,15 @@ function refuse(
 }
 
 /**
- * The desktop mapping reuses the profile directory as its data root, so only
- * it shares DB/key lineage with managed startup. The headless mapping never
- * does (`dataRoot` is the `.host-v1` sibling).
+ * Since the data-root unification (V5 plan 1.3) there is ONE owned root per
+ * namespace; the holder's recorded kind is the only remaining desktop-lineage
+ * signal. A desktop-kind holder shares DB/key lineage with managed startup,
+ * so only its connection-level describe failures may defer to the
+ * lease-arbitrated managed path; a headless-kind (or unreadable) holder never
+ * defers — an unreadable record fails closed as non-desktop.
  */
 function isDesktopMapping(paths: HostRootPaths): boolean {
-  return paths.dataRoot === paths.profileNamespace;
+  return readHostOwnerRecord(paths)?.kind === "desktop";
 }
 
 /**

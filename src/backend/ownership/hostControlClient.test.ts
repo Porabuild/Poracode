@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { readBoundedNodeRequestBody } from "@/shared/http";
-import { hostControlRequestSchema } from "@/shared/hostControlProtocol";
+import {
+  hostControlRequestSchema,
+  HOST_CONTROL_PROTOCOL_VERSION,
+} from "@/shared/hostControlProtocol";
 import { HostOwnerLease } from "./hostOwnerLease";
 import { resolveHostRootPaths } from "./hostRootPaths";
 import { prepareOwnedHostRoot } from "./hostRootManifest";
@@ -69,7 +72,7 @@ async function receive(request: IncomingMessage, secret: string) {
 function replyBytes(input: { requestId: string; ownerGeneration: string }) {
   return Buffer.from(
     JSON.stringify({
-      version: 1,
+      version: HOST_CONTROL_PROTOCOL_VERSION,
       requestId: input.requestId,
       ownerGeneration: input.ownerGeneration,
       ok: true,

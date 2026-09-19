@@ -60,8 +60,12 @@ export function canonicalHostPath(input: string): string {
 }
 
 /**
- * Only entry bootstrap maps BASE_DIR to this sibling. resolvePoracodePaths
- * remains a literal-root helper for backend, supervisor, and worker callers.
+ * Map a profile namespace to its owned `.host-v1` sibling. Both entry
+ * bootstraps — the standalone server and, since the V5 data-root
+ * unification, the desktop-managed host — resolve their data root through
+ * this one mapping. `resolvePoracodePaths` remains a literal-root helper
+ * for backend, supervisor, and worker callers: it never applies the
+ * mapping again.
  */
 export function resolveHostRootPaths(profileNamespace: string): HostRootPaths {
   const canonical = canonicalHostPath(profileNamespace);
@@ -90,32 +94,20 @@ export function resolveHostRootPaths(profileNamespace: string): HostRootPaths {
 }
 
 /**
- * Resolve the legacy desktop data root while sharing the versioned ownership
- * lease with the standalone host. Desktop migration remains on the existing
- * profile directory until attach is implemented, but both host kinds now
- * contend for one kernel lock before touching that profile.
+ * The desktop-managed host mapping. Since the V5 data-root unification
+ * (plan 1.3) the desktop owns the SAME `.host-v1` sibling the standalone
+ * server owns: one data lineage per profile namespace, one lease, one
+ * fence, one root layout. The historical desktop mapping that used the
+ * plain profile directory as its writable root is promoted into the owned
+ * sibling automatically on first managed launch
+ * (`promoteDesktopRoot.ts`); the plain directory is preserved untouched as
+ * the pre-promotion copy.
+ *
+ * The function stays a separate named entry (rather than every caller
+ * switching to `resolveHostRootPaths`) so the desktop admission, attach
+ * probe and backend fork keep one explicit spelling of "the root mapping
+ * the desktop process owns".
  */
 export function resolveDesktopHostRootPaths(profileNamespace: string): HostRootPaths {
-  const canonical = canonicalHostPath(profileNamespace);
-  if (canonical === parse(canonical).root) {
-    throw new Error("A filesystem root cannot be a Poracode profile namespace.");
-  }
-  if (
-    canonical.endsWith(HOST_ROOT_SUFFIX) ||
-    existsSync(join(canonical, HOST_ROOT_MANIFEST_FILE))
-  ) {
-    throw new Error(
-      "PORACODE_BASE_DIR selects an owned .host-v1 root, not the original profile namespace.",
-    );
-  }
-  const paths: HostRootPaths = {
-    profileNamespace: canonical,
-    dataRoot: canonical,
-    electronUserDataRoot: `${canonical}.client-v1`,
-    leasePath: `${canonical}.host-owner.sqlite`,
-    ownerRecordPath: `${canonical}.host-owner.json`,
-    dataFencePath: `${canonical}.host-data.sqlite`,
-  };
-  assertHostRootDirectories(paths);
-  return paths;
+  return resolveHostRootPaths(profileNamespace);
 }
