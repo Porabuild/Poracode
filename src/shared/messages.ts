@@ -198,6 +198,8 @@ const messages = {
 
   // ── Thread runtime notices ────────────────────────────────
   "thread.compact.noop": "Nothing to compact yet — the conversation is still small.",
+  "desktop.promotion.progress.title": "Poracode",
+  "desktop.promotion.progress.body": "Promoting this profile into the owned data root…",
 } as const;
 
 // ---------------------------------------------------------------------------

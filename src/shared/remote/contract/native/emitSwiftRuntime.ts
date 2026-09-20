@@ -113,6 +113,7 @@ ${validators.join("\n")}
     case "terminal.cursor.ready-range-utf16": guard let from = int(item?["fromCursor"]), let to = int(item?["toCursor"]), let data = string(item?["data"]), from <= to && to - from == Int64(data.utf16.count) else { try fail(id, path) }
     case "terminal.cursor.baseline-chunk-utf16": guard let index = int(item?["chunkIndex"]), let count = int(item?["chunkCount"]), let from = int(item?["fromCursor"]), let to = int(item?["toCursor"]), let data = string(item?["data"]), index < count, from <= to, to - from == Int64(data.utf16.count) else { try fail(id, path) }
     case "thread.goal.objective.trim": if string(item?["action"]) == "edit" && string(item?["objective"]).map { RemoteECMAScriptTrim.trim($0).isEmpty } != false { try fail(id, path) }
+    case "thread.start.provider-switch": if item?["providerSwitch"] != nil { if item?["sessionRef"] != nil { try fail(id, path) }; if string(item?["presentationMode"]) != "gui" { try fail(id, path) } }
     case "void-envelope.omit-result", "void-result.omit-field": if item?["result"] != nil { try fail(id, path) }
     default: try fail(id, path)
   } }; return value }

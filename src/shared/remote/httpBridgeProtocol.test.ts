@@ -22,7 +22,7 @@ const REQUEST_ID = "f7cf6f5a-bc12-4e3a-8d91-c0a602c350f0";
 
 describe("remote HTTP bridge protocol", () => {
   it("pins the frame-set version and accepts a well-formed open descriptor", () => {
-    expect(REMOTE_HTTP_BRIDGE_VERSION).toBe(2);
+    expect(REMOTE_HTTP_BRIDGE_VERSION).toBe(3);
     const descriptor = {
       v: REMOTE_HTTP_BRIDGE_VERSION,
       kind: "open",
@@ -36,6 +36,12 @@ describe("remote HTTP bridge protocol", () => {
       bodyBytes: 128,
     };
     expect(isRemoteHttpBridgeOpenDescriptor(descriptor)).toBe(true);
+    expect(isRemoteHttpBridgeOpenDescriptor({ ...descriptor, certFingerprint: null })).toBe(true);
+    expect(isRemoteHttpBridgeOpenDescriptor({ ...descriptor, v: 2 })).toBe(false);
+    expect(
+      isRemoteHttpBridgeOpenDescriptor({ ...descriptor, certFingerprint: "a".repeat(64) }),
+    ).toBe(true);
+    expect(isRemoteHttpBridgeOpenDescriptor({ ...descriptor, certFingerprint: "bad" })).toBe(false);
     expect(isRemoteHttpBridgeParentMessage(descriptor)).toBe(true);
     expect(isRemoteHttpBridgeOpenDescriptor({ ...descriptor, requestId: "not-a-uuid" })).toBe(
       false,

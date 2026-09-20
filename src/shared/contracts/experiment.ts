@@ -343,3 +343,37 @@ export interface GetExperimentCandidateStatsResult {
   deletions: number;
   files: number;
 }
+
+export const experimentWorktreeBatchItemResultSchema = z.object({
+  threadId: z.string().min(1),
+  branch: z.string().min(1),
+  path: z.string().min(1).optional(),
+  error: z.string().optional(),
+});
+export const createExperimentWorktreesResultSchema = z.object({
+  candidates: z.array(experimentWorktreeBatchItemResultSchema),
+});
+export const removeExperimentWorktreesResultSchema = createExperimentWorktreesResultSchema;
+export const experimentSnapshotCandidateResultSchema = z.object({
+  threadId: z.string().min(1),
+  headCommit: z.string().min(1),
+  files: z.number().int().nonnegative(),
+  insertions: z.number().int().nonnegative(),
+  deletions: z.number().int().nonnegative(),
+  omittedFiles: z.number().int().nonnegative().optional(),
+});
+export const captureExperimentSnapshotResultSchema = z.object({
+  hash: z.string().min(1),
+  candidates: z.array(experimentSnapshotCandidateResultSchema),
+});
+export const judgeExperimentSnapshotResultSchema = z.object({
+  hash: z.string().min(1),
+  winnerThreadId: z.string().min(1),
+  rationale: z.string(),
+  assessments: z.array(experimentJudgeAssessmentSchema),
+});
+export const getExperimentCandidateStatsResultSchema = z.object({
+  insertions: z.number().int().nonnegative(),
+  deletions: z.number().int().nonnegative(),
+  files: z.number().int().nonnegative(),
+});

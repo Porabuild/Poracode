@@ -17,7 +17,7 @@ import {
 } from "./mcpServer";
 import { TOOLS as browserTools } from "@/main/browser/mcp/tools/specs";
 import { CHROME_TOOLS as chromeTools } from "@/main/browser/external/chromeTools";
-import { TOOLS as computerUseTools } from "@/main/computer-use/mcp/toolRegistry";
+import { TOOLS as computerUseTools } from "@/host/computer-use/mcp/toolRegistry";
 import { TOOLS as appControlsTools } from "@/main/app-controls/mcp/toolRegistry";
 import { TOOLS as crossagentTools } from "@/supervisor/crossagentMcp/toolRegistry";
 

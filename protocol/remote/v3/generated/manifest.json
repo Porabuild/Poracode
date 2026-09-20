@@ -190,6 +190,15 @@
     },
     {
       "auth": "bearer",
+      "id": "host-describe",
+      "method": "GET",
+      "path": "/api/host/describe",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "provider-usage",
       "method": "GET",
       "path": "/api/provider-usage",
@@ -810,7 +819,7 @@
     },
     {
       "name": "listSkillMarketplace",
-      "owner": "none",
+      "owner": "desktop",
       "scope": "session:read"
     },
     {
@@ -1270,6 +1279,161 @@
       "name": "ghDeleteWorkflowRun",
       "owner": "projectLocation",
       "scope": "session:operate"
+    },
+    {
+      "name": "gitWatchProject",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "gitWatchWorktrees",
+      "owner": "project",
+      "scope": "session:operate"
+    },
+    {
+      "name": "gitUnwatchProject",
+      "owner": "project",
+      "scope": "session:operate"
+    },
+    {
+      "name": "revealProjectEntry",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "startThread",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "ensureThreadRunning",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "createRevertAnchor",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "restoreToRevertAnchor",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "relocateProject",
+      "owner": "project",
+      "scope": "projects:manage"
+    },
+    {
+      "name": "cloneRepo",
+      "owner": "parentLocation",
+      "scope": "projects:manage"
+    },
+    {
+      "name": "extractContext",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "cancelExtractContext",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "connectThreadVoice",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "disconnectThreadVoice",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "lspStart",
+      "owner": "projectLocation",
+      "scope": "session:operate"
+    },
+    {
+      "name": "dbDeleteThread",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "dbDeleteProject",
+      "owner": "project",
+      "scope": "session:operate"
+    },
+    {
+      "name": "dbGetThreadRuntimeItems",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "dbGetLatestThreadGoalItem",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "dbGetThreadsPage",
+      "owner": "project",
+      "scope": "session:read"
+    },
+    {
+      "name": "dbReplaceThreadRuntimeItems",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "dbGetThreadCompletedTurns",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "dbReplaceThreadCompletedTurns",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "dbReplaceThreadRuntimeSnapshot",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
+      "name": "dbGetThreadContextUsage",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "readTerminalScrollback",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "readTerminalSize",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "readTerminalSnapshot",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "readThreadBackgroundTasks",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "detectProjectIcon",
+      "owner": "projectLocation",
+      "scope": "session:read"
+    },
+    {
+      "name": "listProjectIconFiles",
+      "owner": "projectLocation",
+      "scope": "session:read"
     }
   ],
   "protocolVersion": 12,

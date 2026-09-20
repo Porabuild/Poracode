@@ -56,6 +56,16 @@ export const setRemoteAccessAdvertisedUrlPayloadSchema = z.object({
   url: z.string(),
 });
 
+/** V6 A.1: Node TLS leaf-fingerprint probe. Additive main-local name. */
+export const probeTlsCertificateFingerprintPayloadSchema = z.object({
+  url: z.string().min(1),
+});
+
+/** V6 A.5: optional pairing-scope preset when minting the Settings QR. */
+export const refreshRemoteAccessPairingPayloadSchema = z.object({
+  preset: z.enum(["operator", "viewer"]).optional(),
+});
+
 export const setGlobalShortcutsSuspendedPayloadSchema = z.object({
   suspended: z.boolean(),
 });
@@ -116,12 +126,12 @@ export const appProcedures = {
     z.infer<typeof detectProjectIconPayloadSchema>,
     string | null,
     "main-local"
-  >("detectProjectIcon", "main-local", detectProjectIconPayloadSchema),
+  >("detectProjectIcon", "main-local", detectProjectIconPayloadSchema, z.string().nullable()),
   listProjectIconFiles: definePayloadProcedure<
     z.infer<typeof detectProjectIconPayloadSchema>,
     string[],
     "main-local"
-  >("listProjectIconFiles", "main-local", detectProjectIconPayloadSchema),
+  >("listProjectIconFiles", "main-local", detectProjectIconPayloadSchema, z.array(z.string())),
   saveClipboardImage: definePayloadProcedure<
     z.infer<typeof saveClipboardImagePayloadSchema>,
     string,
@@ -216,9 +226,32 @@ export const appProcedures = {
     "main-local",
     managedLoopbackBootstrapSchema.nullable(),
   ),
-  refreshRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
+  // V6 A.1: observe the leaf SHA-256 a TLS host actually presents so Electron
+  // can pin the QR/mDNS fingerprint before spending the pairing credential.
+  // Additive main-local name: peers loud-reject unknown names, so the map
+  // version stays and only the pinned fingerprint moves.
+  probeTlsCertificateFingerprint: definePayloadProcedure<
+    z.infer<typeof probeTlsCertificateFingerprintPayloadSchema>,
+    string | null,
+    "main-local"
+  >(
+    "probeTlsCertificateFingerprint",
+    "main-local",
+    probeTlsCertificateFingerprintPayloadSchema,
+    z.string().nullable(),
+  ),
+  // V6 A.5: optional viewer/operator preset. Empty args keep the historical
+  // operator mint so older renderers stay compatible without an IPC version bump.
+  refreshRemoteAccessPairing: defineIpcProcedure<
+    [payload?: z.infer<typeof refreshRemoteAccessPairingPayloadSchema>],
+    z.infer<typeof refreshRemoteAccessPairingPayloadSchema>,
+    RemoteAccessPairingInfo,
+    "main-local"
+  >(
     "refreshRemoteAccessPairing",
     "main-local",
+    refreshRemoteAccessPairingPayloadSchema,
+    (payload) => refreshRemoteAccessPairingPayloadSchema.parse(payload ?? {}),
   ),
   setRemoteAccessEnabled: definePayloadProcedure<
     z.infer<typeof setRemoteAccessEnabledPayloadSchema>,

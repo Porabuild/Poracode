@@ -11,6 +11,18 @@ const iosProject = readFileSync(
   "utf8",
 );
 
+/**
+ * The checked-in screen registry ids. A `screen:` evidence token counts as
+ * independent ui evidence only when the registry owns that id (the full
+ * registry schema and its owner-class checks are enforced further below).
+ */
+const screenRegistryIds: ReadonlySet<string> = new Set(
+  z
+    .object({ screens: z.array(z.object({ id: z.string().min(1) }).passthrough()).min(1) })
+    .parse(readJson("protocol/remote/v3/screen-registry.json"))
+    .screens.map((screen) => screen.id),
+);
+
 const BATCHES = [
   "foundation",
   "bindings",
@@ -27,8 +39,10 @@ const BATCHES = [
 const DISPOSITIONS = ["implemented", "planned", "desktop-only", "unsupported-by-wire"] as const;
 
 /**
- * The ui column adds `partial`: the operation is reachable from a native
- * surface in part only, and the precise gap is mandatory in `note`.
+ * The ui column adds `partial`: the native story is not fully evidenced —
+ * either a functional gap or no independent device evidence — and the precise
+ * reason is mandatory in `note`. `implemented` additionally requires
+ * independent device evidence (see `uiClaimHasIndependentEvidence`).
  */
 const UI_DISPOSITIONS = [
   "implemented",
@@ -39,8 +53,8 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 67,
-  procedures: 108,
+  httpRoutes: 68,
+  procedures: 139,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 11,
@@ -298,6 +312,7 @@ function expectEvidence(
     claim.evidence.length,
   );
   for (const relativePath of claim.evidence) {
+    if (relativePath.startsWith("screen:")) continue;
     const absolutePath = join(repositoryRoot, relativePath);
     expect(
       existsSync(absolutePath),
@@ -311,6 +326,7 @@ function expectEvidence(
     assertLedger(claim.evidence.length > 0, `${platform} ${entry.id} needs production evidence`);
     const sourceRoot = platform === "ios" ? "ios/" : "android/";
     for (const relativePath of claim.evidence) {
+      if (relativePath.startsWith("screen:")) continue;
       assertLedger(
         relativePath.startsWith(sourceRoot),
         `${platform} ${column} evidence must be native source`,
@@ -368,8 +384,10 @@ function validateSymmetricClaims(entry: LedgerEntry): void {
 /**
  * The ui column is an independent claim, not a projection of wire: a UI
  * surface cannot exist without its wire, a partial UI claim must name the
- * precise gap, and the desktop-only / unsupported-by-wire claims mirror the
- * wire disposition because there is nothing to surface natively.
+ * precise gap, a fully-implemented ui claim must be independently evidenced
+ * by a device journey (never by a note), and the desktop-only /
+ * unsupported-by-wire claims mirror the wire disposition because there is
+ * nothing to surface natively.
  */
 function validateUiClaim(entry: LedgerEntry, platform: Platform, ui: UiClaim): void {
   const wire = entry[platform].wire;
@@ -398,6 +416,38 @@ function validateUiClaim(entry: LedgerEntry, platform: Platform, ui: UiClaim): v
       `${platform} ${entry.id} ui partial requires a note naming the precise gap`,
     );
   }
+  if (wire.disposition === "implemented" && ui.disposition === "implemented") {
+    assertLedger(
+      uiClaimHasIndependentEvidence(ui, platform, entry.id),
+      `${platform} ${entry.id} ui implemented without independent device evidence (screen-registry entry or checked-in device test)`,
+    );
+  }
+}
+
+/**
+ * E.1: a `note` is commentary and grants nothing. A ui claim that asserts a
+ * full native story ("implemented") is independently evidenced only by a
+ * checked-in device journey: a `screen:` id the checked-in screen registry
+ * owns AND that names this very entry (`<platform>.<id>` — an entry may not
+ * borrow another entry's screen), or a device-test source file that exists in
+ * this repository.
+ */
+const DEVICE_TEST_EVIDENCE_ROOTS = [
+  "ios/App/NativeE2ETests/",
+  "android/app/src/androidTest/",
+] as const;
+
+function uiClaimHasIndependentEvidence(ui: UiClaim, platform: Platform, id: string): boolean {
+  const ownScreenId = `screen:${platform}.${id}`;
+  return ui.evidence.some((path) => {
+    if (path.startsWith("screen:")) {
+      return path === ownScreenId && screenRegistryIds.has(path.slice("screen:".length));
+    }
+    return (
+      DEVICE_TEST_EVIDENCE_ROOTS.some((root) => path.startsWith(root)) &&
+      existsSync(join(repositoryRoot, path))
+    );
+  });
 }
 
 describe("remote v3 native parity planning ledger", () => {
@@ -411,6 +461,71 @@ describe("remote v3 native parity planning ledger", () => {
     replayableEventTypes: manifest.webSocket.replayableEventTypes,
     runtimeEventTypes: manifest.webSocket.runtimeEventTypes,
   };
+
+  it("rejects a ui claim that merely mirrors wire without independent evidence", () => {
+    const entry = {
+      id: "mirror-fixture",
+      scopes: [] as string[],
+      batch: "foundation" as const,
+      ios: {
+        wire: {
+          disposition: "implemented" as const,
+          evidence: ["ios/App/App/Transport/Foo.swift"],
+        },
+        ui: {
+          disposition: "implemented" as const,
+          evidence: ["ios/App/App/Transport/Foo.swift"],
+        },
+      },
+      android: {
+        wire: {
+          disposition: "planned" as const,
+          evidence: [] as string[],
+        },
+        ui: {
+          disposition: "planned" as const,
+          evidence: [] as string[],
+        },
+      },
+    };
+    expect(() => validateUiClaim(entry, "ios", entry.ios.ui)).toThrow(
+      /ui implemented without independent device evidence/,
+    );
+  });
+
+  it("rejects a ui claim that tries to pass on a note alone (E.1)", () => {
+    // The E.1 escape hatch: any non-empty `ui.note` used to satisfy the
+    // independence check. A note is commentary; it evidences nothing.
+    const entry = {
+      id: "note-only-fixture",
+      scopes: [] as string[],
+      batch: "foundation" as const,
+      ios: {
+        wire: {
+          disposition: "implemented" as const,
+          evidence: ["ios/App/App/Transport/Foo.swift"],
+        },
+        ui: {
+          disposition: "implemented" as const,
+          evidence: ["ios/App/App/Transport/Foo.swift"],
+          note: "Reached through shared plumbing cited here.",
+        },
+      },
+      android: {
+        wire: {
+          disposition: "planned" as const,
+          evidence: [] as string[],
+        },
+        ui: {
+          disposition: "planned" as const,
+          evidence: [] as string[],
+        },
+      },
+    };
+    expect(() => validateUiClaim(entry, "ios", entry.ios.ui)).toThrow(
+      /ui implemented without independent device evidence/,
+    );
+  });
 
   it("keeps planned entries free of native implementations", () => {
     // Every planned claim must declare the tokens proving its absence.
@@ -502,6 +617,82 @@ describe("remote v3 native parity planning ledger", () => {
     }
   });
 
+  it("resolves every screen: evidence token against the checked-in screen registry", () => {
+    const registry = z
+      .object({
+        contract: z.literal("poracode.remote.screen-registry"),
+        formatVersion: z.literal(1),
+        screens: z
+          .array(
+            z
+              .object({
+                id: z.string().regex(/^(ios|android)\.[A-Za-z0-9][A-Za-z0-9._-]*$/),
+                /** The native device-test class that owns (exercises) the screen. */
+                testClass: z.string().min(1),
+                /** Repository-relative path of the checked-in test source. */
+                file: evidencePathSchema,
+              })
+              .strict(),
+          )
+          .min(1),
+      })
+      .strict()
+      .parse(readJson("protocol/remote/v3/screen-registry.json"));
+    const ids = registry.screens.map((screen) => screen.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual([...ids].sort());
+
+    // Each registry entry must reference a REAL test class: the file must live
+    // in the platform's checked-in native test directory, declare that class,
+    // and actually exercise the operation the screen id names. This is what
+    // keeps a screen: token from being free text.
+    const testDirectory: Record<Platform, string> = {
+      ios: "ios/App/NativeE2ETests/",
+      android: "android/app/src/androidTest/",
+    };
+    for (const screen of registry.screens) {
+      const platform = (screen.id.split(".", 1)[0] ?? "") as Platform;
+      assertLedger(
+        platform === "ios" || platform === "android",
+        `screen registry id must be platform-prefixed: ${screen.id}`,
+      );
+      expect(
+        screen.file.startsWith(testDirectory[platform]),
+        `screen ${screen.id} owner file must live under ${testDirectory[platform]}: ${screen.file}`,
+      ).toBe(true);
+      const source = readFileSync(join(repositoryRoot, screen.file), "utf8");
+      expect(
+        source.includes(`class ${screen.testClass}`),
+        `screen ${screen.id} owner class ${screen.testClass} is not declared in ${screen.file}`,
+      ).toBe(true);
+      const operation = screen.id.slice(platform.length + 1);
+      expect(
+        source.includes(operation),
+        `screen ${screen.id} owner ${screen.testClass} never exercises "${operation}" in ${screen.file}`,
+      ).toBe(true);
+    }
+
+    const cited = new Set<string>();
+    for (const entries of Object.values(ledger.entries)) {
+      for (const entry of entries) {
+        for (const platform of ["ios", "android"] as Platform[]) {
+          for (const column of ["wire", "ui"] as const) {
+            for (const path of entry[platform][column].evidence) {
+              if (!path.startsWith("screen:")) continue;
+              const id = path.slice("screen:".length);
+              expect(
+                id.startsWith(`${platform}.`),
+                `${platform} ${entry.id} ${column} ${path}`,
+              ).toBe(true);
+              cited.add(id);
+            }
+          }
+        }
+      }
+    }
+    expect([...cited].sort()).toEqual(ids);
+  });
+
   it("states the interactive-terminal story honestly for both platforms", () => {
     // V5 plan 5.1/5.4: the audit (P1) found the ledger calling terminal
     // presentation "implemented" while the native terminal was a read-only
@@ -537,6 +728,21 @@ describe("remote v3 native parity planning ledger", () => {
       }
     }
     expect([...seen].sort()).toEqual([...interactive].sort());
+  });
+
+  it("records at least one honest ui/wire divergence (terminal-write remains partial)", () => {
+    const divergences: string[] = [];
+    for (const category of Object.keys(ledger.entries) as Category[]) {
+      for (const entry of ledger.entries[category]) {
+        for (const platform of ["ios", "android"] as Platform[]) {
+          if (entry[platform].ui.disposition !== entry[platform].wire.disposition) {
+            divergences.push(`${platform}:${entry.id}`);
+          }
+        }
+      }
+    }
+    expect(divergences.some((row) => row.endsWith(":terminal-write"))).toBe(true);
+    expect(divergences.length).toBeGreaterThan(0);
   });
 
   it("migrates the previous released format-1 shape into valid format-2 claims", () => {

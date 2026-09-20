@@ -455,6 +455,15 @@ function syntheticRoots(): NativeSchemaRoot[] {
       required: ["action"],
       additionalProperties: false,
     }),
+    semantic("thread.start.provider-switch", {
+      type: "object",
+      properties: {
+        providerSwitch: { type: "object", additionalProperties: true },
+        sessionRef: { type: "object", additionalProperties: true },
+        presentationMode: { type: "string" },
+      },
+      additionalProperties: true,
+    }),
     semantic("void-envelope.omit-result", {
       type: "object",
       additionalProperties: true,
@@ -731,6 +740,26 @@ function mutationCases(wsFixtures: readonly string[]): HarnessCodecCase[] {
       id: "synthetic.semantic.thread.goal.objective.trim",
       positives: [{ raw: json({ action: "edit", objective: "goal" }) }],
       negatives: [json({ action: "edit", objective: "" })],
+    },
+    {
+      id: "synthetic.semantic.thread.start.provider-switch",
+      positives: [
+        { raw: json({}) },
+        {
+          raw: json({ providerSwitch: { from: "a" }, presentationMode: "gui" }),
+          // providerSwitch strips unknown inner fields (x-poracode-unknownFields
+          // defaults to strip), so the snapshot keeps the declared key only.
+          encoded: json({ providerSwitch: {}, presentationMode: "gui" }),
+        },
+      ],
+      negatives: [
+        json({ providerSwitch: { from: "a" }, presentationMode: "terminal" }),
+        json({
+          providerSwitch: { from: "a" },
+          presentationMode: "gui",
+          sessionRef: { providerSessionId: "s1" },
+        }),
+      ],
     },
     {
       id: "synthetic.semantic.void-envelope.omit-result",

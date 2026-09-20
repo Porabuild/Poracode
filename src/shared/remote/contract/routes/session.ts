@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { defineRoute } from "../helpers";
+import { auditEvent, noAudit } from "../../auditKinds";
+import { remoteHostDescribeSchema } from "../../../hostControlProtocol";
 import {
   emptyJsonObjectSchema,
   profileCoreStatsSchema,
@@ -39,6 +41,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/.well-known/poracode/environment",
     auth: "public",
     scopes: [],
+    audit: noAudit("public descriptor"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -52,6 +55,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/.well-known/lightcode/environment",
     auth: "public",
     scopes: [],
+    audit: noAudit("public descriptor"),
     legacy: true,
     request: { bodyKind: "empty" },
     response: {
@@ -66,6 +70,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/forward/{forwardId}/enter",
     auth: "forward-enter-token",
     scopes: [],
+    audit: noAudit("browser redirect with enter token"),
     queryParameters: ["fwt"],
     request: { bodyKind: "empty", querySchema: forwardEnterQuerySchema },
     response: {
@@ -81,6 +86,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/oauth/token",
     auth: "pairing-token",
     scopes: [],
+    audit: noAudit("orchestrator records token_exchange"),
     request: { bodyKind: "json", jsonSchema: remoteTokenExchangePayloadSchema },
     response: {
       wireKind: "json",
@@ -94,6 +100,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/auth/websocket-ticket",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("session ticket mint"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -107,6 +114,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/snapshot",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     // Gate 4 hazard #3 payload split: `threadLimit` bounds the thread list to
     // its first rows plus `threadsNextCursor`; clients that omit it keep the
     // historical full list and never see the cursor field.
@@ -124,6 +132,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/agent-statuses",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     // WS3-A payload split: `slashCommands=0` omits the per-agent slash-command
     // catalogs (the dominant payload bulk) so clients can fetch one agent's
     // catalog lazily from agent-slash-commands instead.
@@ -144,6 +153,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/agents/{kind}/slash-commands",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -157,6 +167,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/host-update",
     auth: "bearer",
     scopes: ["projects:manage"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -170,6 +181,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/host-update/check",
     auth: "bearer",
     scopes: ["projects:manage"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -183,6 +195,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/host-update/install",
     auth: "bearer",
     scopes: ["projects:manage"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -191,11 +204,26 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     },
   }),
   defineRoute({
+    id: "host-describe",
+    method: "GET",
+    path: "/api/host/describe",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    request: { bodyKind: "empty" },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: remoteHostDescribeSchema,
+    },
+  }),
+  defineRoute({
     id: "provider-usage",
     method: "GET",
     path: "/api/provider-usage",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -209,6 +237,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/projects/{projectId}/notes",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -222,6 +251,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/projects/{projectId}/notes",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: projectNotesWriteBodySchema },
     response: {
       wireKind: "json",
@@ -235,6 +265,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/profile/devices",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -248,6 +279,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/profile/core-stats",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "json", jsonSchema: profileStatsRequestSchema },
     response: {
       wireKind: "json",
@@ -261,6 +293,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/profile/token-stats",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "json", jsonSchema: profileStatsRequestSchema },
     response: {
       wireKind: "json",
@@ -274,6 +307,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/profile/identity",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: profileIdentitySchema },
     response: {
       wireKind: "json",
@@ -287,6 +321,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/settings",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -300,6 +335,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/settings",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remoteSettingsPatchWireSchema },
     response: {
       wireKind: "json",
@@ -313,6 +349,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/settings/mcp-servers",
     auth: "bearer",
     scopes: ["projects:manage"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -326,6 +363,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/settings/mcp-servers/command",
     auth: "bearer",
     scopes: ["projects:manage"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remoteMcpSettingsCommandSchema },
     response: {
       wireKind: "json",
@@ -339,6 +377,7 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/settings/mcp-servers/operation",
     auth: "bearer",
     scopes: ["projects:manage"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remoteMcpSettingsOperationSchema },
     response: {
       wireKind: "json",

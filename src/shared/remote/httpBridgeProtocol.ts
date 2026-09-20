@@ -29,7 +29,8 @@
  * uploads an admission/credit handshake, so a version-1 utility or renderer
  * must not be paired with a version-2 peer.
  */
-export const REMOTE_HTTP_BRIDGE_VERSION = 2 as const;
+/** Version 3 binds the optional certificate leaf pin to each request TLS connection. */
+export const REMOTE_HTTP_BRIDGE_VERSION = 3 as const;
 
 /** Bounded response body, matching the pre-F8 main-buffered transport limit. */
 export const REMOTE_HTTP_MAX_RESPONSE_BODY_BYTES = 64 * 1024 * 1024;
@@ -104,6 +105,7 @@ export const REMOTE_HTTP_BRIDGE_ERROR_CODES = [
   "network",
   "protocol",
   "overloaded",
+  "certificate_fingerprint_mismatch",
 ] as const;
 export type RemoteHttpBridgeErrorCode = (typeof REMOTE_HTTP_BRIDGE_ERROR_CODES)[number];
 
@@ -119,6 +121,7 @@ export interface RemoteHttpBridgeOpenRequest {
   readonly headers: RemoteHttpBridgeHeaders;
   readonly hasBody: boolean;
   readonly bodyBytes: number;
+  readonly certFingerprint?: string | null | undefined;
 }
 
 /** Main -> renderer admission result; pairs with the generation-tagged port. */
@@ -142,6 +145,7 @@ export interface RemoteHttpBridgeOpenDescriptor {
   readonly headers: RemoteHttpBridgeHeaders;
   readonly hasBody: boolean;
   readonly bodyBytes: number;
+  readonly certFingerprint?: string | null | undefined;
 }
 
 export interface RemoteHttpBridgeAbortWindowMessage {
@@ -425,7 +429,17 @@ export function isRemoteHttpBridgeOpenDescriptor(
   if (!isRecord(value)) return false;
   // Strict by design: an unexpected field (e.g. a body payload) invalidates the
   // descriptor instead of being silently ignored on the main/utility boundary.
-  if (!hasExactKeys(value, OPEN_DESCRIPTOR_KEYS)) return false;
+  const keys =
+    value.certFingerprint === undefined
+      ? OPEN_DESCRIPTOR_KEYS
+      : [...OPEN_DESCRIPTOR_KEYS, "certFingerprint"];
+  if (!hasExactKeys(value, keys)) return false;
+  if (
+    value.certFingerprint !== undefined &&
+    value.certFingerprint !== null &&
+    (typeof value.certFingerprint !== "string" || !/^[a-f0-9]{64}$/.test(value.certFingerprint))
+  )
+    return false;
   return (
     value.v === REMOTE_HTTP_BRIDGE_VERSION &&
     value.kind === "open" &&

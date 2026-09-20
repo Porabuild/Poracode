@@ -1,12 +1,20 @@
 import { z } from "zod";
+import { projectLocationSchema } from "../../contracts";
 import type { LspMessagePayload, LspStartPayload, LspStopPayload } from "../../lsp";
-import { definePayloadProcedure } from "../core";
+import { definePayloadProcedure, omittedResultSchema } from "../core";
+
+const lspStartPayloadSchema = z.object({
+  sessionId: z.string().min(1),
+  projectLocation: projectLocationSchema,
+  languageId: z.string().min(1),
+});
 
 export const lspProcedures = {
   lspStart: definePayloadProcedure<LspStartPayload, void, "supervisor">(
     "lspStart",
     "supervisor",
-    z.custom<LspStartPayload>(),
+    lspStartPayloadSchema,
+    omittedResultSchema,
   ),
   lspStop: definePayloadProcedure<LspStopPayload, void, "supervisor">(
     "lspStop",

@@ -2,6 +2,7 @@ import type { z } from "zod";
 import type { RemoteAccessScope } from "../protocol";
 import type { RemoteProcedureOwner } from "../procedures";
 import type { QueryParameterCodec } from "./queryCodecs";
+import type { RemoteRouteAudit } from "../auditKinds";
 
 export type RemoteHttpMethod = "GET" | "POST" | "DELETE";
 
@@ -72,6 +73,8 @@ export interface RemoteHttpRouteContract {
   readonly idempotency?: RemoteIdempotency;
   readonly request: RemoteHttpRequestContract;
   readonly response: RemoteHttpResponseContract;
+  /** Host-side only; not part of the native wire IR. */
+  readonly audit: RemoteRouteAudit;
 }
 
 export type RemoteProcedureResultKind = "json" | "omitted";

@@ -309,6 +309,15 @@ export interface ExtractContextResult {
   contentKind?: ExtractContextContentKind;
 }
 
+export const extractContextResultSchema = z.object({
+  summary: z.string(),
+  sourceProvider: z.string().min(1),
+  sourceSessionId: z.string().min(1),
+  worktreePath: z.string().min(1).optional(),
+  extractedAt: z.string().min(1),
+  contentKind: z.enum(["summary", "transcript"]).optional(),
+});
+
 export interface GitBranchInfo {
   name: string;
   current: boolean;
@@ -659,3 +668,7 @@ export interface RelocateProjectResult {
   /** Number of linked worktrees git re-pointed via `worktree repair`. */
   repairedWorktrees: number;
 }
+
+export const relocateProjectResultSchema = z.object({
+  repairedWorktrees: z.number().int().nonnegative(),
+});

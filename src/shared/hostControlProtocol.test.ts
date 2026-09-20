@@ -21,6 +21,8 @@ const capabilities = {
   computerUse: true,
   nativeSecrets: false,
   portForward: true,
+  autoUpdate: false,
+  osNotifications: false,
 };
 const description = {
   profileNamespace: "/profile",
@@ -39,7 +41,30 @@ describe("owner management contract", () => {
     expect(
       hostControlRequestSchema.parse({ ...request, operation: "issue-pairing" }).operation,
     ).toBe("issue-pairing");
+    expect(
+      hostControlRequestSchema.parse({
+        ...request,
+        operation: "issue-pairing",
+        payload: {},
+      }).payload,
+    ).toEqual({});
+    expect(
+      hostControlRequestSchema.parse({
+        ...request,
+        operation: "issue-pairing",
+        payload: { preset: "viewer" },
+      }).payload,
+    ).toEqual({ preset: "viewer" });
     expect(hostDescriptionSchema.parse(description).endpoint).toBe(description.endpoint);
+  });
+
+  it("accepts a pre-C.3 describe payload without autoUpdate/osNotifications", () => {
+    const { autoUpdate, osNotifications, ...legacy } = capabilities;
+    expect(
+      hostDescriptionSchema.parse({ ...description, capabilities: legacy }).capabilities,
+    ).toEqual(capabilities);
+    expect(autoUpdate).toBe(false);
+    expect(osNotifications).toBe(false);
   });
 
   it("describes host-declared service capabilities as a closed boolean set", () => {
@@ -54,12 +79,15 @@ describe("owner management contract", () => {
       hostDescriptionSchema.safeParse({ ...description, capabilities: { ...capabilities, ssh: 1 } })
         .success,
     ).toBe(false);
-    expect(
-      hostDescriptionSchema.safeParse({
-        ...description,
-        capabilities: { ...capabilities, portForward: undefined },
-      }).success,
-    ).toBe(false);
+    // Round-2: every flag is optional-with-default-false on the wire, so an
+    // explicitly undefined flag parses and fails closed; unknown keys and
+    // non-boolean values stay rejected.
+    const lenient = hostDescriptionSchema.safeParse({
+      ...description,
+      capabilities: { ...capabilities, portForward: undefined },
+    });
+    expect(lenient.success).toBe(true);
+    expect(lenient.success && lenient.data.capabilities.portForward).toBe(false);
   });
 
   it.each([

@@ -1,4 +1,5 @@
 import { defineRoute, remoteOkResponseSchema } from "../helpers";
+import { auditEvent, noAudit } from "../../auditKinds";
 import {
   attachmentUploadQuerySchema,
   attachmentUploadResultSchema,
@@ -50,6 +51,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     // and their bearer-header image fetches keep working unchanged.
     auth: "bearer-or-query",
     scopes: ["session:read"],
+    audit: auditEvent("file_read"),
     queryParameters: ["path", "ticket"],
     request: { bodyKind: "empty", querySchema: localImageQuerySchema },
     response: {
@@ -64,6 +66,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/files/image-ticket",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: auditEvent("file_read"),
     queryParameters: [],
     request: { bodyKind: "json", jsonSchema: imageTicketRequestBodySchema },
     response: {
@@ -81,6 +84,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     // the `?access_token=` acceptance is gone (see the sibling route).
     auth: "bearer-or-query",
     scopes: ["session:read"],
+    audit: auditEvent("file_read"),
     queryParameters: ["path", "ticket"],
     request: { bodyKind: "empty", querySchema: runtimeImageQuerySchema },
     response: {
@@ -95,6 +99,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/files/attachment",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("file_write"),
     queryParameters: ["threadId", "name"],
     request: { bodyKind: "raw-upload", querySchema: attachmentUploadQuerySchema },
     response: {
@@ -109,6 +114,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/schedules",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -122,6 +128,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/schedules/command",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remoteScheduleCommandSchema },
     response: {
       wireKind: "json",
@@ -135,6 +142,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/schedules/runs",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     queryParameters: ["id"],
     request: { bodyKind: "empty", querySchema: remoteScheduleRunsQuerySchema },
     response: {
@@ -149,6 +157,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/pr-watches",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     queryParameters: ["projectId", "prNumber"],
     request: { bodyKind: "empty", querySchema: prWatchReadQuerySchema },
     response: {
@@ -163,6 +172,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/pr-watches/check",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: prWatchKeySchema },
     response: {
       wireKind: "json",
@@ -176,6 +186,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/pr-watches/agent",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: prWatchAgentSyncSchema },
     response: {
       wireKind: "json",
@@ -189,6 +200,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/pr-watches",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: prWatchInputSchema },
     response: {
       wireKind: "json",
@@ -202,6 +214,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/pr-watches",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: prWatchKeySchema },
     response: {
       wireKind: "json",
@@ -215,6 +228,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/browser/state",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -228,6 +242,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/browser/command",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remoteBrowserCommandSchema },
     response: {
       wireKind: "json",
@@ -241,6 +256,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/ports",
     auth: "bearer",
     scopes: ["ports:forward"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -254,6 +270,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/ports/forward",
     auth: "bearer",
     scopes: ["ports:forward"],
+    audit: auditEvent("forward_open"),
     request: { bodyKind: "json", jsonSchema: remotePortForwardRequestSchema },
     response: {
       wireKind: "json",
@@ -267,6 +284,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/ports/enter",
     auth: "bearer",
     scopes: ["ports:forward"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remotePortEnterRequestSchema },
     response: {
       wireKind: "json",
@@ -280,6 +298,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/ports/unforward",
     auth: "bearer",
     scopes: ["ports:forward"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remotePortUnforwardRequestSchema },
     response: {
       wireKind: "json",
@@ -293,6 +312,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/git/call",
     auth: "bearer",
     scopes: [],
+    audit: auditEvent("procedure"),
     scopeResolution: "procedure-defined",
     request: { bodyKind: "json", jsonSchema: remoteGitCallPayloadSchema },
     response: {
@@ -306,6 +326,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/projects/command",
     auth: "bearer",
     scopes: ["projects:manage"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remoteProjectCommandSchema },
     response: {
       wireKind: "json",
@@ -319,6 +340,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/projects/{projectId}/settings",
     auth: "bearer",
     scopes: ["projects:manage"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -332,6 +354,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/push/config",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: noAudit("read"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -345,6 +368,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/push/register",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remotePushRegistrationSchema },
     response: {
       wireKind: "json",
@@ -358,6 +382,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/push/unregister",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: remotePushUnregisterSchema },
     response: {
       wireKind: "json",

@@ -1,7 +1,13 @@
 import { canonicalize, sha256Prefixed } from "../canonical";
+import { BACKGROUND_TASK_REDUCE_SPEC } from "../backgroundTaskReduceSpec";
+import { FOLLOW_UP_QUEUE_MACHINE_SPEC } from "../followUpQueueMachineSpec";
 import { PAIRING_MACHINE_SPEC } from "../pairingMachineSpec";
 import { TERMINAL_CURSOR_MACHINE_SPEC } from "../terminalCursorMachineSpec";
 import { TERMINAL_KEY_ENCODING_SPEC } from "../terminalKeyEncodingSpec";
+import { emitKotlinBackgroundTaskReduce } from "./emitBackgroundTaskReduceKotlin";
+import { emitSwiftBackgroundTaskReduce } from "./emitBackgroundTaskReduceSwift";
+import { emitKotlinFollowUpQueueMachine } from "./emitFollowUpQueueKotlin";
+import { emitSwiftFollowUpQueueMachine } from "./emitFollowUpQueueSwift";
 import { compareUnicodeCodePoints } from "../unicodeOrder";
 import { emitKotlinBindings } from "./emitKotlin";
 import { emitKotlinPairingMachine } from "./emitPairingKotlin";
@@ -19,7 +25,7 @@ import { buildNativeSchemaGraph, collectNativeSchemaRoots } from "./schemaGraph"
 import type { NativeBindingOutput } from "./types";
 import { parseNativeBindingIr } from "./validate";
 
-export const NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 4 as const;
+export const NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 5 as const;
 export const NATIVE_BINDINGS_MAX_FILE_LINES = 450 as const;
 export const NATIVE_BINDINGS_MAX_FILE_BYTES = 512_000 as const;
 export const NATIVE_BINDINGS_MAX_LINE_LENGTH = 32_768 as const;
@@ -99,12 +105,16 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
     "PairingMachine.swift": emitSwiftPairingMachine(),
     "TerminalCursorMachine.swift": emitSwiftTerminalCursorMachine(),
     "TerminalKeyEncoding.swift": emitSwiftTerminalKeyEncoding(),
+    "BackgroundTaskReduce.swift": emitSwiftBackgroundTaskReduce(),
+    "FollowUpQueueMachine.swift": emitSwiftFollowUpQueueMachine(),
   };
   const kotlinWithMachines: Record<string, string> = {
     ...kotlin,
     "PairingMachine.kt": emitKotlinPairingMachine(),
     "TerminalCursorMachine.kt": emitKotlinTerminalCursorMachine(),
     "TerminalKeyEncoding.kt": emitKotlinTerminalKeyEncoding(),
+    "BackgroundTaskReduce.kt": emitKotlinBackgroundTaskReduce(),
+    "FollowUpQueueMachine.kt": emitKotlinFollowUpQueueMachine(),
   };
   const swiftInventory = inventory(swiftWithMachines, "swift");
   const kotlinInventory = inventory(kotlinWithMachines, "kotlin");
@@ -115,6 +125,64 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
     files[`kotlin/${name}`] = kotlinWithMachines[name]!;
 
   const outputHash = treeHash(files);
+  const stateMachines = [
+    {
+      id: PAIRING_MACHINE_SPEC.id,
+      specVersion: PAIRING_MACHINE_SPEC.specVersion,
+      phaseCount: PAIRING_MACHINE_SPEC.phases.length,
+      phaseAfterFailureRuleCount: PAIRING_MACHINE_SPEC.phaseAfterFailure.length,
+      intentTransitionCount: PAIRING_MACHINE_SPEC.intent.transitions.length,
+      standardScopeCount: PAIRING_MACHINE_SPEC.scopes.standardOrder.length,
+      sources: { swift: "swift/PairingMachine.swift", kotlin: "kotlin/PairingMachine.kt" },
+    },
+    {
+      id: TERMINAL_CURSOR_MACHINE_SPEC.id,
+      specVersion: TERMINAL_CURSOR_MACHINE_SPEC.specVersion,
+      ruleCount: TERMINAL_CURSOR_MACHINE_SPEC.rules.length,
+      guardCount: TERMINAL_CURSOR_MACHINE_SPEC.guards.length,
+      actionCount: TERMINAL_CURSOR_MACHINE_SPEC.actions.length,
+      resyncReasonCount: TERMINAL_CURSOR_MACHINE_SPEC.resyncReasons.length,
+      maximumTranscriptUtf16Units: TERMINAL_CURSOR_MACHINE_SPEC.bounds.maximumTranscriptUtf16Units,
+      sources: {
+        swift: "swift/TerminalCursorMachine.swift",
+        kotlin: "kotlin/TerminalCursorMachine.kt",
+      },
+    },
+    {
+      id: TERMINAL_KEY_ENCODING_SPEC.id,
+      specVersion: TERMINAL_KEY_ENCODING_SPEC.specVersion,
+      keyCount: TERMINAL_KEY_ENCODING_SPEC.keys.length,
+      ruleCount: TERMINAL_KEY_ENCODING_SPEC.rules.length,
+      guardCount: TERMINAL_KEY_ENCODING_SPEC.guards.length,
+      effectCount: TERMINAL_KEY_ENCODING_SPEC.effects.length,
+      sources: {
+        swift: "swift/TerminalKeyEncoding.swift",
+        kotlin: "kotlin/TerminalKeyEncoding.kt",
+      },
+    },
+    {
+      id: BACKGROUND_TASK_REDUCE_SPEC.id,
+      specVersion: BACKGROUND_TASK_REDUCE_SPEC.specVersion,
+      eventCount: BACKGROUND_TASK_REDUCE_SPEC.events.length,
+      actionCount: BACKGROUND_TASK_REDUCE_SPEC.actions.length,
+      ruleCount: BACKGROUND_TASK_REDUCE_SPEC.rules.length,
+      sources: {
+        swift: "swift/BackgroundTaskReduce.swift",
+        kotlin: "kotlin/BackgroundTaskReduce.kt",
+      },
+    },
+    {
+      id: FOLLOW_UP_QUEUE_MACHINE_SPEC.id,
+      specVersion: FOLLOW_UP_QUEUE_MACHINE_SPEC.specVersion,
+      eventCount: FOLLOW_UP_QUEUE_MACHINE_SPEC.events.length,
+      actionCount: FOLLOW_UP_QUEUE_MACHINE_SPEC.actions.length,
+      ruleCount: FOLLOW_UP_QUEUE_MACHINE_SPEC.rules.length,
+      sources: {
+        swift: "swift/FollowUpQueueMachine.swift",
+        kotlin: "kotlin/FollowUpQueueMachine.kt",
+      },
+    },
+  ];
   const nativeManifest = {
     formatVersion: NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION,
     doNotEdit: "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
@@ -138,45 +206,9 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
       portableTransforms: ir.portableTransformIds.length,
       swiftFiles: swiftInventory.length,
       kotlinFiles: kotlinInventory.length,
-      stateMachines: 3,
+      stateMachines: stateMachines.length,
     },
-    stateMachines: [
-      {
-        id: PAIRING_MACHINE_SPEC.id,
-        specVersion: PAIRING_MACHINE_SPEC.specVersion,
-        phaseCount: PAIRING_MACHINE_SPEC.phases.length,
-        phaseAfterFailureRuleCount: PAIRING_MACHINE_SPEC.phaseAfterFailure.length,
-        intentTransitionCount: PAIRING_MACHINE_SPEC.intent.transitions.length,
-        standardScopeCount: PAIRING_MACHINE_SPEC.scopes.standardOrder.length,
-        sources: { swift: "swift/PairingMachine.swift", kotlin: "kotlin/PairingMachine.kt" },
-      },
-      {
-        id: TERMINAL_CURSOR_MACHINE_SPEC.id,
-        specVersion: TERMINAL_CURSOR_MACHINE_SPEC.specVersion,
-        ruleCount: TERMINAL_CURSOR_MACHINE_SPEC.rules.length,
-        guardCount: TERMINAL_CURSOR_MACHINE_SPEC.guards.length,
-        actionCount: TERMINAL_CURSOR_MACHINE_SPEC.actions.length,
-        resyncReasonCount: TERMINAL_CURSOR_MACHINE_SPEC.resyncReasons.length,
-        maximumTranscriptUtf16Units:
-          TERMINAL_CURSOR_MACHINE_SPEC.bounds.maximumTranscriptUtf16Units,
-        sources: {
-          swift: "swift/TerminalCursorMachine.swift",
-          kotlin: "kotlin/TerminalCursorMachine.kt",
-        },
-      },
-      {
-        id: TERMINAL_KEY_ENCODING_SPEC.id,
-        specVersion: TERMINAL_KEY_ENCODING_SPEC.specVersion,
-        keyCount: TERMINAL_KEY_ENCODING_SPEC.keys.length,
-        ruleCount: TERMINAL_KEY_ENCODING_SPEC.rules.length,
-        guardCount: TERMINAL_KEY_ENCODING_SPEC.guards.length,
-        effectCount: TERMINAL_KEY_ENCODING_SPEC.effects.length,
-        sources: {
-          swift: "swift/TerminalKeyEncoding.swift",
-          kotlin: "kotlin/TerminalKeyEncoding.kt",
-        },
-      },
-    ],
+    stateMachines,
     languages: {
       swift: {
         languageVersion: "6",

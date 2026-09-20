@@ -3,6 +3,7 @@ import {
   type ManageAgentPluginsPayload,
   type ManageAgentPluginsResult,
   listPluginsPayloadSchema,
+  listPluginsResultSchema,
   type ListPluginsPayload,
   type ListPluginsResult,
 } from "../../contracts";
@@ -22,12 +23,14 @@ export const pluginProcedures = {
     "listPlugins",
     "supervisor",
     listPluginsPayloadSchema,
+    listPluginsResultSchema,
   ),
   /** Rescans the plugin roots, picking up packages added since the last read. */
   refreshPlugins: definePayloadProcedure<ListPluginsPayload, ListPluginsResult, "supervisor">(
     "refreshPlugins",
     "supervisor",
     listPluginsPayloadSchema,
+    listPluginsResultSchema,
   ),
   /** Opens the writable plugin directory so the user can drop a package in. */
   openPluginsFolder: defineNoArgProcedure<void, "main-local">("openPluginsFolder", "main-local"),

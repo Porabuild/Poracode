@@ -52,31 +52,43 @@ describe("remote v3 native binding generator", () => {
       expect(first).toEqual(second);
       expect(second).toEqual(third);
       expect(first.manifest).toMatchObject({
-        formatVersion: 4,
+        formatVersion: 5,
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        sourceHash: "sha256:b011e8c09353731b3029a221037932009a5bf0b319a6eac2e8e966ba3afe314a",
-        manifestHash: "sha256:680ed19fec59987e53d1692af7ea661afebde23a8c3769f3cd280cc2417e3f24",
+        sourceHash: "sha256:361a2342cfd8b7fc2aa26c6cdaaaaef5117bfbacb9b985f32c0f8ec19ce12be4",
+        manifestHash: "sha256:ba706a09ef643fb60ba885c64b9dcc514935690606ba0ff9d3fe3364c0accbe0",
         counts: {
-          routes: 67,
-          procedures: 108,
-          voidProcedureResults: 43,
-          jsonProcedureResults: 65,
+          routes: 68,
+          procedures: 139,
+          voidProcedureResults: 56,
+          jsonProcedureResults: 83,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 327,
-          structuralTypes: 794,
-          semanticValidators: 17,
-          swiftFiles: 48,
-          kotlinFiles: 43,
-          // The pairing, terminal-cursor, and terminal-key-encoding machines.
-          stateMachines: 3,
+          schemaRoots: 377,
+          structuralTypes: 833,
+          semanticValidators: 18,
+          swiftFiles: 52,
+          kotlinFiles: 46,
+          stateMachines: 5,
         },
       });
     },
   );
+
+  it("ships the background-task reduce and follow-up queue in both native bundles", () => {
+    const { ir, manifest } = input();
+    const output = buildNativeBindingOutput(ir, manifest).files;
+    expect(output["swift/BackgroundTaskReduce.swift"]).toContain(
+      "public enum RemoteBackgroundTaskReduce",
+    );
+    expect(output["kotlin/BackgroundTaskReduce.kt"]).toContain("object RemoteBackgroundTaskReduce");
+    expect(output["swift/FollowUpQueueMachine.swift"]).toContain(
+      "public enum RemoteFollowUpQueueReduce",
+    );
+    expect(output["kotlin/FollowUpQueueMachine.kt"]).toContain("object RemoteFollowUpQueueReduce");
+  });
 
   it("ships the terminal hardware-key encoder in both native bundles", () => {
     const { ir, manifest } = input();
@@ -297,7 +309,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(327);
+        expect(adapters).toHaveLength(377);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)

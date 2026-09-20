@@ -12,10 +12,9 @@
  *
  * Scope: the pure decision machine only. Transport I/O, durable stores, task
  * ownership, and platform UI stay hand-written coordinators; they consume the
- * generated guards and transitions. The TS *renderer* pairing flow is the
- * behavioral reference for the wire steps (scan -> parse -> exchange -> record)
- * but still drives this machine hand-written; converging it is a documented
- * follow-up (renderer files sit outside the contract tree).
+ * generated guards and transitions. The TS pairing flow (renderer
+ * `usePairing` / `pairingDirect` / bootstrap) drives this machine through
+ * `pairingMachine.ts`, the executable reference generated from this spec.
  *
  * The wire protocol is unchanged: nothing here touches routes, procedures, or
  * schemas — `buildRemoteV3IrDocument()` never reads this file.

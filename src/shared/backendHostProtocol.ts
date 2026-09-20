@@ -1,4 +1,5 @@
 import type { PoracodeDiagnosticTags } from "./diagnostics/sentryPrivacy";
+import { CLIENT_HOST_HOP_VERSION } from "./clientHostHop";
 import type {
   ProfileCoreStats,
   ProfileDevicesResponse,
@@ -76,7 +77,7 @@ import type { PoracodeChannel } from "./channel";
 // sequence, and shedding recovers through `supervisor-event-gap` (unchanged).
 // A stale backend child that still speaks 13 fails the version gate in both
 // directions instead of half-serving a deleted operation.
-export const BACKEND_HOST_PROTOCOL_VERSION = 14 as const;
+export const BACKEND_HOST_PROTOCOL_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbGetProjects",
@@ -158,6 +159,11 @@ export interface BackendHostInitializePayload {
      * main and the backend child ship in one bundle, so no protocol bump.
      */
     dataFencePath?: string;
+    /**
+     * V6 C.2: host-declared service capabilities snapshot for GET
+     * `/api/host/describe`. Additive same-build field.
+     */
+    hostCapabilities?: import("./hostControlProtocol").HostServiceCapabilities;
   };
 }
 
@@ -193,7 +199,10 @@ export interface BackendServiceProcedureMap extends BackendSettingsProcedureMap 
     payload: Record<string, never>;
     result: ManagedLoopbackBootstrap | null;
   };
-  refreshRemoteAccessPairing: { payload: Record<string, never>; result: RemoteAccessPairingInfo };
+  refreshRemoteAccessPairing: {
+    payload: { preset?: "operator" | "viewer" };
+    result: RemoteAccessPairingInfo;
+  };
   setRemoteAccessEnabled: { payload: { enabled: boolean }; result: RemoteAccessPairingInfo };
   getRemoteAccessTailscaleStatus: {
     payload: Record<string, never>;

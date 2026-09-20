@@ -1,3 +1,4 @@
+import { z } from "zod";
 import {
   authenticateAcpAgentPayloadSchema,
   checkpointRevertPayloadSchema,
@@ -8,6 +9,7 @@ import {
   createRevertAnchorPayloadSchema,
   createRevertAnchorResultSchema,
   extractContextPayloadSchema,
+  extractContextResultSchema,
   agentHookPluginPayloadSchema,
   getAgentHookPluginStatusesPayloadSchema,
   getAgentStatusesPayloadSchema,
@@ -30,6 +32,10 @@ import {
   stageThreadInputPayloadSchema,
   startShellPayloadSchema,
   startThreadPayloadSchema,
+  startThreadResultSchema,
+  terminalSizeSchema,
+  terminalSnapshotSchema,
+  backgroundTaskSchema,
   resumeThreadFollowUpsPayloadSchema,
   updateAcpRegistryAgentPayloadSchema,
   updateAgentBinaryPayloadSchema,
@@ -220,12 +226,14 @@ export const threadProcedures = {
     "startThread",
     "supervisor",
     startThreadPayloadSchema,
+    startThreadResultSchema,
   ),
   /** Reopen a stored thread without replacing an already-live runtime. */
   ensureThreadRunning: definePayloadProcedure<StartThreadPayload, StartThreadResult, "supervisor">(
     "ensureThreadRunning",
     "supervisor",
     startThreadPayloadSchema,
+    startThreadResultSchema,
   ),
   sendThreadInput: definePayloadProcedure<SendThreadInputPayload, void, "supervisor">(
     "sendThreadInput",
@@ -395,21 +403,25 @@ export const threadProcedures = {
     "extractContext",
     "supervisor",
     extractContextPayloadSchema,
+    extractContextResultSchema,
   ),
   cancelExtractContext: definePayloadProcedure<{ threadId: string }, void, "supervisor">(
     "cancelExtractContext",
     "supervisor",
     readThreadPayloadSchema,
+    omittedResultSchema,
   ),
   readTerminalScrollback: definePayloadProcedure<{ threadId: string }, string, "supervisor">(
     "readTerminalScrollback",
     "supervisor",
     readThreadPayloadSchema,
+    z.string(),
   ),
   readTerminalSize: definePayloadProcedure<{ threadId: string }, TerminalSize | null, "supervisor">(
     "readTerminalSize",
     "supervisor",
     readThreadPayloadSchema,
+    terminalSizeSchema.nullable(),
   ),
   /**
    * Internal snapshot used by remote terminal cursor-sync watches. Not exposed
@@ -419,12 +431,22 @@ export const threadProcedures = {
     { threadId: string },
     TerminalSnapshot | null,
     "supervisor"
-  >("readTerminalSnapshot", "supervisor", readThreadPayloadSchema),
+  >(
+    "readTerminalSnapshot",
+    "supervisor",
+    readThreadPayloadSchema,
+    terminalSnapshotSchema.nullable(),
+  ),
   readThreadBackgroundTasks: definePayloadProcedure<
     { threadId: string },
     BackgroundTask[],
     "supervisor"
-  >("readThreadBackgroundTasks", "supervisor", readThreadPayloadSchema),
+  >(
+    "readThreadBackgroundTasks",
+    "supervisor",
+    readThreadPayloadSchema,
+    z.array(backgroundTaskSchema),
+  ),
   subagentSubscribe: definePayloadProcedure<
     SubAgentSubscribePayload,
     SubAgentSubscribeResult,

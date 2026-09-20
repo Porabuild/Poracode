@@ -11,7 +11,7 @@ import {
   mcpSseTransportSchema,
 } from "../../contracts/mcpServer";
 import { prWatchInputSchema, prWatchSchema } from "../../contracts/prWatch";
-import { threadGoalControlSchema } from "../../contracts/thread";
+import { threadGoalControlSchema, startThreadPayloadSchema } from "../../contracts/thread";
 import {
   remotePushRegistrationRoutingSchema,
   remotePushRegistrationSchema,
@@ -86,6 +86,14 @@ const REGISTERED: ReadonlyArray<{
     validator: {
       id: "thread.goal.objective.trim",
       reason: "goal objective is trimmed and must stay non-empty",
+    },
+  },
+  {
+    schema: startThreadPayloadSchema,
+    validator: {
+      id: "thread.start.provider-switch",
+      reason:
+        "an in-place provider switch requires GUI presentation and cannot resume the previous session",
     },
   },
   {

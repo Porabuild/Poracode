@@ -1,5 +1,6 @@
 import {
   cloneRepoPayloadSchema,
+  cloneRepoResultSchema,
   getGitStatusPayloadSchema,
   ghCancelWorkflowRunPayloadSchema,
   ghClosePrPayloadSchema,
@@ -272,5 +273,6 @@ export const githubProcedures = {
     "cloneRepo",
     "supervisor",
     cloneRepoPayloadSchema,
+    cloneRepoResultSchema,
   ),
 } as const;

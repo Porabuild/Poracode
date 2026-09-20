@@ -28,6 +28,7 @@ import type {
   RemoteHttpBridgeOpenRequest,
   RemoteHttpBridgeOpenResult,
 } from "../remote/httpBridgeProtocol";
+import type { EventSequenceSpace } from "../eventSequenceSpace";
 
 export {
   IPC_EVENT_CHANNELS,
@@ -66,7 +67,11 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   sentryEnabled: boolean;
   getDroppedFilePaths(files: File[]): string[];
   onSupervisorEvent(
-    listener: (event: SupervisorEvent, rendererSequence?: number) => void,
+    listener: (
+      event: SupervisorEvent,
+      rendererSequence?: number,
+      sequenceSpace?: EventSequenceSpace,
+    ) => void,
   ): () => void;
   onUpdateStatus(listener: (status: UpdateStatus) => void): () => void;
   onBrowserEvent(listener: (event: BrowserEvent) => void): () => void;

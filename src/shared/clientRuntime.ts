@@ -8,6 +8,7 @@ import type {
   RemoteHttpBridgeOpenResult,
 } from "./remote/httpBridgeProtocol";
 import { REMOTE_HTTP_BRIDGE_VERSION } from "./remote/httpBridgeProtocol";
+import { CLIENT_HOST_HOP_VERSION } from "./clientHostHop";
 
 // Version 5 added sequenced Electron supervisor-event fallback delivery.
 // Version 6 added the supervisor-event-gap signal that makes desktop windows
@@ -53,7 +54,7 @@ import { REMOTE_HTTP_BRIDGE_VERSION } from "./remote/httpBridgeProtocol";
 // backend child). A version-13 preload cannot deliver the reset signal and
 // still serves the deleted stream APIs, so the gate rejects that pairing
 // loudly instead of half-serving both transports. See .agents/docs/versioning.md.
-export const PORACODE_CLIENT_RUNTIME_VERSION = 14 as const;
+export const PORACODE_CLIENT_RUNTIME_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export type ClientHost = "electron" | "browser";
 export type ClientSurface = "adaptive";
@@ -66,6 +67,7 @@ export interface ClientCapabilities {
   readonly nativeBrowserWebContents: boolean;
   readonly nativeShell: boolean;
   readonly nativeSsh: boolean;
+  readonly osNotifications: boolean;
 }
 
 /**
@@ -94,7 +96,7 @@ export interface ClientRuntime {
 export type PoracodeNativeBridge = Omit<PoracodeBridge, keyof PoracodeInvokeBridge>;
 
 /** Minimal Electron preload surface. It owns native shell IPC, never agents or SQLite. */
-export type ElectronHostBridge = PoracodeNativeBridge & {
+export type ElectronHostBridge = Omit<PoracodeNativeBridge, "onSupervisorEvent"> & {
   readonly clientRuntimeVersion: typeof PORACODE_CLIENT_RUNTIME_VERSION;
   invokeProcedure(name: IpcProcedureName, args: unknown[]): Promise<unknown>;
   onSupervisorEventGap(listener: (gap: SupervisorEventGap) => void): () => void;
@@ -129,4 +131,9 @@ export type ElectronHostBridge = PoracodeNativeBridge & {
    * older preload means managed-local. Process-lifetime only, never persisted.
    */
   getStandaloneAttachInfo?(): Promise<StandaloneAttachInfo | null>;
+  /**
+   * V6 C.2: host-declared service capabilities from the co-located describe
+   * (managed preload). Absent or unreadable values fail closed to unknown.
+   */
+  readonly hostCapabilities?: HostServiceCapabilities;
 };
