@@ -73,8 +73,10 @@ describe("usageProviders", () => {
     expect(supportsBrowserLogin("qoder")).toBe(true);
   });
 
-  it("identifies providers whose empty local snapshot still needs browser usage auth", () => {
-    expect(needsBrowserSessionForUsage("opencode")).toBe(true);
+  it("no longer flags OpenCode as needing a browser session for usage", () => {
+    // OpenCode Go meters come from the direct /zen/go/v1/usage API-key
+    // endpoint now; the cookie session is only a fallback / Zen balance source.
+    expect(needsBrowserSessionForUsage("opencode")).toBe(false);
     expect(needsBrowserSessionForUsage("grok")).toBe(false);
   });
 
