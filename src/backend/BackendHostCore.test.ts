@@ -47,7 +47,7 @@ vi.mock("@/main/db", () => ({
   dbClearThreadTerminalScrollback: vi.fn<() => void>(),
 }));
 
-vi.mock("@/main/remote/server/runtimePersistence", () => ({
+vi.mock("@/host/remote/server/runtimePersistence", () => ({
   persistSupervisorEvent: mocks.persistSupervisorEvent,
 }));
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { BackendRemoteBrowserProxy } from "./BackendRemoteBrowserProxy";
 import type { BackendBrowserEvent, BackendNativeRequest } from "@/shared/backendHostProtocol";
-import type { RemoteBrowserWatcherSink } from "@/main/remote/RemoteBrowserGateway";
+import type { RemoteBrowserWatcherSink } from "@/host/remote/RemoteBrowserGateway";
 
 type PendingNativeCall = {
   operation: BackendNativeRequest["operation"];

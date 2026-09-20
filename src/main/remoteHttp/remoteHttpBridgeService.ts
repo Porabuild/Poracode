@@ -1,9 +1,9 @@
+import { pinnedHttpsFetch } from "./pinnedHttpsFetch";
 import {
   REMOTE_HTTP_BRIDGE_PORT_LINGER_MS,
   REMOTE_HTTP_BRIDGE_VERSION,
   REMOTE_HTTP_MAX_ACTIVE_REQUESTS,
   REMOTE_HTTP_MAX_ACTIVE_REQUESTS_PER_WINDOW,
-  REMOTE_HTTP_MAX_ERROR_MESSAGE_LENGTH,
   REMOTE_HTTP_MAX_REQUEST_BODY_BYTES,
   REMOTE_HTTP_MAX_RESPONSE_BODY_BYTES,
   REMOTE_HTTP_REQUEST_TIMEOUT_MS,
@@ -21,112 +21,24 @@ import {
   type RemoteHttpBridgeStats,
 } from "@/shared/remote/httpBridgeProtocol";
 
-/**
- * Narrow port surface the bridge engine consumes. The utility host adapts
- * `MessagePortMain` to this; tests drive it with an in-process pair.
- */
-export interface RemoteHttpBridgeWorkerPort {
-  postMessage(message: unknown): void;
-  start(): void;
-  close(): void;
-  onMessage(listener: (message: unknown) => void): void;
-  onClose(listener: () => void): void;
-}
+import {
+  type ActiveRequest,
+  type MutableCounters,
+  type RemoteHttpBridgeLogEvent,
+  type RemoteHttpBridgeServiceOptions,
+  type RemoteHttpBridgeWorkerPort,
+  boundedMessage,
+  clearTimer,
+  exactBytes,
+  unrefTimer,
+} from "./remoteHttpBridgeServiceSupport";
 
-export type RemoteHttpBridgeLogEvent = Readonly<Record<string, string | number>>;
+export type {
+  RemoteHttpBridgeLogEvent,
+  RemoteHttpBridgeServiceOptions,
+  RemoteHttpBridgeWorkerPort,
+} from "./remoteHttpBridgeServiceSupport";
 
-export interface RemoteHttpBridgeServiceOptions {
-  readonly fetchImpl?: typeof fetch;
-  readonly timeoutMs?: number;
-  readonly maxResponseBodyBytes?: number;
-  readonly maxRequestBodyBytes?: number;
-  readonly uploadRetentionBudgetBytes?: number;
-  readonly maxActiveRequests?: number;
-  readonly maxActiveRequestsPerWindow?: number;
-  readonly portLingerMs?: number;
-  readonly onSettled?: (message: RemoteHttpBridgeSettledMessage) => void;
-  /** Env-gated, payload-free counter logging. Never includes URLs or headers. */
-  readonly log?: (event: RemoteHttpBridgeLogEvent) => void;
-}
-
-type ActiveState = "collecting" | "dispatching" | "streaming" | "retired";
-
-interface ActiveRequest {
-  readonly descriptor: RemoteHttpBridgeOpenDescriptor;
-  readonly port: RemoteHttpBridgeWorkerPort;
-  readonly controller: AbortController;
-  state: ActiveState;
-  /**
-   * Single retained body buffer, allocated to the admitted declared length on
-   * the first upload chunk. It is also the fetch body (or a view of it) for
-   * 307/308 replay, so the utility holds one copy rather than a chunk list
-   * plus a concatenated duplicate.
-   */
-  body: Uint8Array | null;
-  uploadBytes: number;
-  /** Declared bytes not received yet; `reservedBytes + uploadBytes === accountedBytes`. */
-  reservedBytes: number;
-  /** Total bytes this request holds against the aggregate upload budget. */
-  accountedBytes: number;
-  credit: number;
-  creditWaiters: Array<() => void>;
-  reader: ReadableStreamDefaultReader<Uint8Array> | null;
-  deadline: ReturnType<typeof setTimeout> | null;
-  linger: ReturnType<typeof setTimeout> | null;
-  receivedBytes: number;
-  sentBytes: number;
-}
-
-interface MutableCounters {
-  openedRequests: number;
-  completedRequests: number;
-  failedRequests: number;
-  cancelledRequests: number;
-  timedOutRequests: number;
-  rejectedRequests: number;
-  protocolViolations: number;
-  uploadedBytes: number;
-  downloadedBytes: number;
-}
-
-function clearTimer(timer: ReturnType<typeof setTimeout> | null): void {
-  if (timer !== null) clearTimeout(timer);
-}
-
-function unrefTimer(timer: unknown): void {
-  (timer as { unref?: () => void } | null)?.unref?.();
-}
-
-function boundedMessage(message: string): string {
-  const clean = message.trim();
-  if (clean.length === 0) return "Remote request failed.";
-  return clean.length > REMOTE_HTTP_MAX_ERROR_MESSAGE_LENGTH
-    ? clean.slice(0, REMOTE_HTTP_MAX_ERROR_MESSAGE_LENGTH)
-    : clean;
-}
-
-/** Copy a bytes view so the posted message owns exactly the chunk it reports. */
-function exactBytes(value: Uint8Array, offset: number, length: number): Uint8Array {
-  if (
-    offset === 0 &&
-    length === value.byteLength &&
-    value.byteOffset === 0 &&
-    value.buffer instanceof ArrayBuffer &&
-    value.buffer.byteLength === value.byteLength
-  ) {
-    return value;
-  }
-  const copy = new Uint8Array(length);
-  copy.set(value.subarray(offset, offset + length));
-  return copy;
-}
-
-/**
- * Production engine for one remote HTTP request. Owns the Node fetch, the
- * replayable upload retention, the credit-gated response pump, cancellation,
- * and the 60 s / 64 MiB limits. It never touches Electron and never hands body
- * bytes to main: all frames go to the per-request renderer port.
- */
 export class RemoteHttpBridgeService {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
@@ -215,10 +127,6 @@ export class RemoteHttpBridgeService {
       this.rejectOpen(descriptor, port, "too-large", "request body too large");
       return;
     }
-    // Upload admission reserve: the declared length is charged against the
-    // aggregate account here, before the renderer may send the first byte and
-    // before any body buffer exists. A request that cannot be admitted fails
-    // with an explicit bounded error instead of growing the process.
     if (this.uploadAccountedBytes + descriptor.bodyBytes > this.uploadRetentionBudgetBytes) {
       this.rejectOpen(descriptor, port, "overloaded", "upload retention budget exceeded");
       return;
@@ -279,9 +187,6 @@ export class RemoteHttpBridgeService {
       this.dispatch(request);
       return;
     }
-    // Upload window: posted only after the reservation above succeeded, so the
-    // renderer never sends a payload the utility has not admitted. The port
-    // queues this frame until the renderer starts its end.
     this.postDownstream(port, {
       v: REMOTE_HTTP_BRIDGE_VERSION,
       kind: "upload-grant",
@@ -376,8 +281,6 @@ export class RemoteHttpBridgeService {
       return;
     }
     if (message.requestId !== request.descriptor.requestId) {
-      // A per-request port can only carry its own request id; anything else is
-      // a protocol violation and must not consume another request's credit.
       this.counters.protocolViolations += 1;
       return;
     }
@@ -388,9 +291,6 @@ export class RemoteHttpBridgeService {
           return;
         }
         const chunkBytes = message.data.byteLength;
-        // The declared length is the per-request bound enforced *after*
-        // admission too: credit should keep a conforming renderer exact, and a
-        // chunk beyond the declared body is a violation, not extra retention.
         if (request.uploadBytes + chunkBytes > request.descriptor.bodyBytes) {
           this.abortRequest(request, "too-large", "request body too large", true);
           return;
@@ -431,12 +331,6 @@ export class RemoteHttpBridgeService {
         return;
       }
       case "credit": {
-        // Credit is accepted from dispatch onward so a renderer that grants it
-        // immediately after the head frame can never race the state flip. The
-        // accumulated window is clamped to the advertised per-request ceiling:
-        // ordinary refills, a burst of valid grant frames, or a duplicate grant
-        // can never add up to a full-body response burst beyond what one
-        // consumer pull covers.
         if (request.state !== "streaming" && request.state !== "dispatching") return;
         request.credit = Math.min(
           request.credit + message.bytes,
@@ -473,7 +367,11 @@ export class RemoteHttpBridgeService {
 
   private async runFetch(request: ActiveRequest, body: Uint8Array | undefined): Promise<void> {
     try {
-      const response = await this.fetchImpl(request.descriptor.url, {
+      const fetchRequest = request.descriptor.certFingerprint
+        ? (url: string, init: RequestInit) =>
+            pinnedHttpsFetch(url, init, request.descriptor.certFingerprint!)
+        : this.fetchImpl;
+      const response = await fetchRequest(request.descriptor.url, {
         method: request.descriptor.method,
         headers: request.descriptor.headers,
         ...(body !== undefined ? { body: body as unknown as BodyInit } : {}),
@@ -489,7 +387,14 @@ export class RemoteHttpBridgeService {
           : error instanceof Error
             ? error.message
             : "Remote request failed.";
-      this.abortRequest(request, "network", message, true);
+      this.abortRequest(
+        request,
+        message === "certificate_fingerprint_mismatch"
+          ? "certificate_fingerprint_mismatch"
+          : "network",
+        message,
+        true,
+      );
     }
   }
 

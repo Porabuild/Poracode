@@ -1,6 +1,7 @@
 import {
   REMOTE_HTTP_BRIDGE_VERSION,
   isRemoteHttpBridgeParentMessage,
+  type RemoteHttpBridgeSettledMessage,
 } from "@/shared/remote/httpBridgeProtocol";
 import {
   RemoteHttpBridgeService,
@@ -20,7 +21,7 @@ const parentPort = process.parentPort;
 const debugLogging = process.env.PORACODE_REMOTE_HTTP_BRIDGE_DEBUG === "1";
 
 const service = new RemoteHttpBridgeService({
-  onSettled: (message) => {
+  onSettled: (message: RemoteHttpBridgeSettledMessage) => {
     parentPort.postMessage(message);
   },
   ...(debugLogging

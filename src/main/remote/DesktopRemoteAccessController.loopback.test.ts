@@ -7,7 +7,10 @@ import {
   managedLoopbackBootstrapSchema,
   type ManagedLoopbackBootstrap,
 } from "@/shared/managedLoopback";
-import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "./RemoteAccessServer";
+import type {
+  RemoteAccessServerInfo,
+  RemoteAccessServerOptions,
+} from "@/host/remote/RemoteAccessServer";
 
 /**
  * Managed always-on loopback guarantee (V5 plan 2.5 completion): the desktop
@@ -80,6 +83,10 @@ const h = vi.hoisted(() => {
         expiresAt: "2026-09-13T00:10:00.000Z",
       };
     }
+
+    tlsFingerprint(): string | null {
+      return "ab".repeat(32);
+    }
   }
   return {
     settings: {} as SharedSettings,
@@ -90,7 +97,7 @@ const h = vi.hoisted(() => {
   };
 });
 
-vi.mock("./RemoteAccessServer", () => ({
+vi.mock("@/host/remote/RemoteAccessServer", () => ({
   RemoteAccessServer: h.RemoteAccessServerFixture,
 }));
 
@@ -108,23 +115,23 @@ vi.mock("../sharedSettingsFile", () => ({
     return h.settings;
   },
 }));
-vi.mock("./config", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./config")>()),
+vi.mock("@/host/remote/config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/host/remote/config")>()),
   remoteAccessAdvertisedHost: () => "127.0.0.1",
   remoteAccessHost: () => "127.0.0.1",
   remoteAccessPairingAppUrl: () => undefined,
   remoteForwardBaseUrl: () => undefined,
   resolveRemoteAccessPort: async () => 43123,
 }));
-vi.mock("./identity", () => ({
+vi.mock("@/host/remote/identity", () => ({
   readOrCreateRemoteAccessIdentity: () => ({ desktopId: "fixture-host", label: "Fixture" }),
 }));
-vi.mock("./auth", () => ({ createPersistentRemoteAuthStore: () => ({}) }));
-vi.mock("./portForward/portForwarding", () => ({
+vi.mock("@/host/remote/auth", () => ({ createPersistentRemoteAuthStore: () => ({}) }));
+vi.mock("@/host/remote/portForward/portForwarding", () => ({
   createPortForwarding: () => ({ gateway: {}, proxy: {}, dispose() {} }),
 }));
-vi.mock("./RemoteBrowserGateway", () => ({ RemoteBrowserGateway: class {} }));
-vi.mock("./tailscale", () => ({
+vi.mock("@/host/remote/RemoteBrowserGateway", () => ({ RemoteBrowserGateway: class {} }));
+vi.mock("@/host/remote/tailscale", () => ({
   buildTailscaleHttpsUrl: () => "https://fixture.test",
   disableTailscaleServe: async () => {},
   enableTailscaleServe: async () => ({ ok: true }),
@@ -234,6 +241,15 @@ describe("managed always-on loopback server", () => {
     const second = await controller.getManagedLoopbackBootstrap();
     expect((second as ManagedLoopbackBootstrap).pairingUrl).toContain("#token=renderer-1-2");
     expect(h.servers[0]!.issuePairingUrlCalls).toBe(0);
+  });
+
+  it("still mints the managed loopback bootstrap when TLS is configured (V6 B.3)", async () => {
+    const controller = await fixture();
+    await controller.startIfEnabled();
+    await expect(controller.getManagedLoopbackBootstrap()).resolves.toMatchObject({
+      endpoint: expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+/),
+    });
+    expect(h.servers[0]!.tlsFingerprint()).toHaveLength(64);
   });
 
   it("keeps reporting disabled while only the loopback instance runs, then upgrades on enable", async () => {

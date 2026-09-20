@@ -194,6 +194,7 @@ async function fixture(root: string, kind: string) {
   for (const path of [
     "src/backend",
     "src/build",
+    "src/host",
     "src/main",
     "src/server",
     "src/shared",

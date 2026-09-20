@@ -149,6 +149,7 @@ describe("standalone attach device IPC", () => {
         "getKeybindings",
         "getUpdateStatus",
         "installUpdate",
+        "probeTlsCertificateFingerprint",
         "setGlobalShortcutsSuspended",
         "setKeybindings",
         "setRendererEventInterests",

@@ -82,6 +82,7 @@ export interface CreateMainWindowOptions {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
+  hostCapabilities?: import("@/shared/hostControlProtocol").HostServiceCapabilities;
   windowChromeHeight: number;
   browserUserAgent: string;
   /** Saved appearance, so the native window opens matching the theme. */
@@ -165,6 +166,7 @@ export function createMainWindow(options: CreateMainWindowOptions): BrowserWindo
         posthogHost: options.posthogHost,
         posthogKey: options.posthogKey,
         sentryEnabled: options.sentryEnabled,
+        ...(options.hostCapabilities ? { hostCapabilities: options.hostCapabilities } : {}),
       }),
     },
   });

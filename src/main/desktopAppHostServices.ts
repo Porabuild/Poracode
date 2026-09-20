@@ -11,7 +11,7 @@ import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { ShellStateStore } from "./backend/BackendStateStore";
 import type { BackendHostClient } from "./backend/BackendHostClient";
 import { BrowserPanelManager, BrowserMcpIngress } from "./browser";
-import { RemoteBrowserGateway } from "./remote/RemoteBrowserGateway";
+import { RemoteBrowserGateway } from "@/host/remote/RemoteBrowserGateway";
 import { ComputerUseDesktopOverlay } from "./computer-use";
 import { composeHostServices, type ComposedHostServices } from "./hostServices/composeHostServices";
 import type { DesktopBrowserNativeControl } from "./desktopAppBackendHost";
@@ -95,6 +95,8 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
       // The desktop remote server (backend child) composes the port-forward
       // gateway for this host (DesktopRemoteAccessController).
       portForward: true,
+      autoUpdate: true,
+      osNotifications: true,
     },
     {
       browserMcpIngress,

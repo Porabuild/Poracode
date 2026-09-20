@@ -1,4 +1,5 @@
 import { shell, systemPreferences, type WebContents, type Session } from "electron";
+import { installLoopbackCertificatePin } from "../remote/loopbackCertificatePin";
 
 const ALLOWED_PERMISSIONS = new Set<string>([
   "clipboard-read",
@@ -97,6 +98,7 @@ export async function openMicrophoneSettings(): Promise<void> {
 }
 
 export function installSessionPermissions(session: Session): void {
+  installLoopbackCertificatePin(session);
   session.setPermissionRequestHandler((webContents, permission, callback) => {
     if (!isPermissionAllowed(webContents, permission)) {
       callback(false);

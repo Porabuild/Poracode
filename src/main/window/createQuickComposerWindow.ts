@@ -38,6 +38,7 @@ export interface CreateQuickComposerWindowOptions {
   posthogHost: string;
   posthogKey: string;
   sentryEnabled: boolean;
+  hostCapabilities?: import("@/shared/hostControlProtocol").HostServiceCapabilities;
   browserUserAgent: string;
   onClosed(): void;
   onRendererProcessGone?: (
@@ -124,6 +125,7 @@ export function createQuickComposerWindow(
         posthogHost: options.posthogHost,
         posthogKey: options.posthogKey,
         sentryEnabled: options.sentryEnabled,
+        ...(options.hostCapabilities ? { hostCapabilities: options.hostCapabilities } : {}),
       }),
     },
   });

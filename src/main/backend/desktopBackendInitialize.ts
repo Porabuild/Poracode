@@ -25,6 +25,7 @@ export function buildDesktopBackendInitialize(input: {
    * orphaned backend keeps excluding a successor owner).
    */
   dataFencePath: string;
+  hostCapabilities?: import("@/shared/hostControlProtocol").HostServiceCapabilities;
 }): BackendHostInitializePayload {
   return {
     baseDir: input.baseDir,
@@ -34,6 +35,7 @@ export function buildDesktopBackendInitialize(input: {
       settingsPath: input.settingsPath,
       dataFencePath: input.dataFencePath,
       ...(input.devServerUrl ? { devServerUrl: input.devServerUrl } : {}),
+      ...(input.hostCapabilities ? { hostCapabilities: input.hostCapabilities } : {}),
     },
     supervisor: input.supervisor,
   };

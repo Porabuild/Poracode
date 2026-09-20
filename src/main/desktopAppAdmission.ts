@@ -22,6 +22,7 @@ import {
   ensureDesktopOwnedRoot,
   type DesktopOsSealedKeyCodec,
 } from "@/backend/ownership/promoteDesktopRoot";
+import { openDesktopPromotionProgress } from "./desktopPromotionProgress";
 import {
   channel,
   desktopApp,
@@ -159,10 +160,18 @@ export async function admitDesktopStartup(): Promise<DesktopStartupAdmission> {
     const lease = desktopApp.desktopOwnerLease;
     if (lease === null) throw new Error("The desktop host owner lease was not acquired.");
     const osSealedKey = desktopOsSealedKeyCodec();
-    desktopApp.poracodePaths = await ensureDesktopOwnedRoot(
-      lease,
-      osSealedKey === undefined ? {} : { osSealedKey },
-    );
+    let promotionProgress: ReturnType<typeof openDesktopPromotionProgress> | undefined;
+    try {
+      desktopApp.poracodePaths = await ensureDesktopOwnedRoot(lease, {
+        ...(osSealedKey === undefined ? {} : { osSealedKey }),
+        onSizePreflight: (bytes) => {
+          promotionProgress = openDesktopPromotionProgress(bytes);
+        },
+        onCopyProgress: (copied, total) => promotionProgress?.update(copied, total),
+      });
+    } finally {
+      promotionProgress?.close();
+    }
   }
   if (desktopApp.desktopOwnerAcquisitionError) throw desktopApp.desktopOwnerAcquisitionError;
   return { kind: "managed" };

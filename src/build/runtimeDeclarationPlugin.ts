@@ -93,6 +93,18 @@ export function runtimeDeclarationPlugin(options: RuntimeDeclarationOptions): Ts
         }
       }
       const entry = options.manifestEntry;
+      if (entry === "server") {
+        const electronImport =
+          /\b(?:require|import)\s*\(\s*["']electron["']\s*\)|\bfrom\s+["']electron["']/;
+        for (const output of Object.values(bundle)) {
+          if (output.type !== "chunk") continue;
+          if (electronImport.test(output.code)) {
+            throw new Error(
+              `Headless server bundle must not import electron (${output.fileName}).`,
+            );
+          }
+        }
+      }
       if (!entry) return;
       const files = Object.values(bundle)
         .filter((output) => output.type === "chunk")

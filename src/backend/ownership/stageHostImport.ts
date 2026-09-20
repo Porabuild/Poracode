@@ -75,6 +75,8 @@ export async function stageHostImport(
      * explicit import still requires an independent offline backup directory.
      */
     readonly promoteProfileNamespaceSource?: true;
+    readonly onSizePreflight?: (bytes: number) => void;
+    readonly onCopyProgress?: (copiedBytes: number, totalBytes: number) => void;
   },
   signal?: AbortSignal,
 ): Promise<HostImportReceipt> {
@@ -127,9 +129,18 @@ export async function stageHostImport(
     // pointers, not data, so the promotion skips them (offline backups keep
     // the strict every-symlink-refused rule).
     const inventoryOptions = promotingOwnNamespace
-      ? { skipRuntimeSingletonSymlinks: true }
-      : undefined;
+      ? {
+          skipRuntimeSingletonSymlinks: true,
+          excludeChromiumCaches: true,
+          ...(request.onCopyProgress !== undefined
+            ? { onCopyProgress: request.onCopyProgress }
+            : {}),
+        }
+      : request.onCopyProgress !== undefined
+        ? { onCopyProgress: request.onCopyProgress }
+        : undefined;
     const before = inventoryImportFiles(source, inventoryOptions);
+    request.onSizePreflight?.(before.bytes);
     const keyFiles = before.entries.filter((entry) => entry.path.startsWith("secret-key."));
     if (
       keyFiles.some(

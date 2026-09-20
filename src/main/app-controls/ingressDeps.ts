@@ -17,9 +17,9 @@ import {
   dbUpsertProject,
   dbUpsertThread,
 } from "@/main/db";
-import { discardPersistedProjectExperiments } from "@/main/remote/experimentOwnership";
-import { applyRemoteProjectCommand } from "@/main/remote/projectCommands";
-import { sortOrderForThread } from "@/main/remote/server/snapshots";
+import { discardPersistedProjectExperiments } from "@/host/remote/experimentOwnership";
+import { applyRemoteProjectCommand } from "@/host/remote/projectCommands";
+import { sortOrderForThread } from "@/host/remote/server/snapshots";
 import { ensureHomeProjectRow } from "@/main/schedules";
 import {
   createAppThread,

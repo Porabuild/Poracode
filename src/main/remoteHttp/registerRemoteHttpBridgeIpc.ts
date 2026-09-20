@@ -1,3 +1,16 @@
+import {
+  decideLoopbackCertificateTrust,
+  readManagedLoopbackCertificatePin,
+  CERTIFICATE_VERIFY_OK,
+  CERTIFICATE_VERIFY_CHROMIUM,
+} from "../remote/loopbackCertificatePin";
+import {
+  registerRemoteCertificatePin,
+  removeRemoteCertificatePin,
+  matchesRemoteCertificatePin,
+  hasRemoteCertificatePin,
+  chromiumCertificateVerdict,
+} from "../remote/remoteCertificatePins";
 import { app, ipcMain } from "electron";
 import { IPC_WINDOW_CHANNELS } from "@/shared/ipc/channels";
 import {
@@ -19,6 +32,28 @@ export interface RegisterRemoteHttpBridgeIpcOptions {
  */
 export function registerRemoteHttpBridgeIpc(options: RegisterRemoteHttpBridgeIpcOptions): void {
   const { supervisor } = options;
+  app.on("certificate-error", (event, contents, url, _error, certificate, callback) => {
+    if (!contents) {
+      callback(false);
+      return;
+    }
+    let trusted = false;
+    if (hasRemoteCertificatePin(contents.session, url)) {
+      trusted = matchesRemoteCertificatePin(contents.session, url, certificate.data);
+    } else {
+      const loopback = decideLoopbackCertificateTrust({
+        hostname: new URL(url).hostname,
+        certificatePem: certificate.data,
+        pinnedFingerprint: readManagedLoopbackCertificatePin(),
+      });
+      trusted =
+        loopback === CERTIFICATE_VERIFY_OK ||
+        (loopback === CERTIFICATE_VERIFY_CHROMIUM &&
+          chromiumCertificateVerdict(contents.session, url, certificate.data));
+    }
+    event.preventDefault();
+    callback(trusted);
+  });
   ipcMain.handle(IPC_WINDOW_CHANNELS.remoteHttpBridgeOpen, (event, payload: unknown) => {
     const frame = event.senderFrame;
     const mainFrame = event.sender.mainFrame;
@@ -26,6 +61,11 @@ export function registerRemoteHttpBridgeIpc(options: RegisterRemoteHttpBridgeIpc
       throw new Error("The remote HTTP bridge is only available to the main frame.");
     }
     const request = remoteHttpBridgeOpenRequestSchema.parse(payload);
+    if (request.certFingerprint === null) {
+      removeRemoteCertificatePin(event.sender.session, request.url);
+    } else if (request.certFingerprint) {
+      registerRemoteCertificatePin(event.sender.session, request.url, request.certFingerprint);
+    }
     return supervisor.open(event.sender, request);
   });
   ipcMain.handle(IPC_WINDOW_CHANNELS.remoteHttpBridgeCancel, (event, payload: unknown) => {

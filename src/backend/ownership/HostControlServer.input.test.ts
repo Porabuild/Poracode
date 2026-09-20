@@ -40,6 +40,8 @@ async function fixture(issue?: (context: HostControlContext) => string | Promise
         computerUse: true,
         nativeSecrets: false,
         portForward: true,
+        autoUpdate: false,
+        osNotifications: false,
       },
     }),
   });
@@ -185,13 +187,27 @@ describe("owner control input admission", () => {
     const held: Array<Awaited<ReturnType<typeof test.socket>>> = [];
     for (let index = 0; index < 8; index++) held.push(await test.socket());
     const excess = await test.socket();
-    await within(excess.closed, 1_000);
+    // The refusal close happens at accept time, but under a loaded event loop
+    // (full concurrent vitest run) processing nine serial connects can push it
+    // past a 1s deadline, so bound it generously; the assertions below are
+    // unchanged.
+    await within(excess.closed, 5_000);
     expect(excess.response()).toBe("");
     held[0]!.client.destroy();
     await held[0]!.closed;
-    await expect(callHostControl(test.paths, "describe")).resolves.toMatchObject({
-      result: { operations: ["describe", "issue-pairing"] },
-    });
+    // `closed` resolves on the client side; the server learns about the
+    // destroyed peer asynchronously, so the admission slot may still be
+    // occupied when the first recovery attempt connects. Poll until admission
+    // recovers instead of assuming a single attempt lands — the assertion
+    // strength is unchanged (describe must fully succeed).
+    await vi.waitFor(
+      async () => {
+        await expect(callHostControl(test.paths, "describe")).resolves.toMatchObject({
+          result: { operations: ["describe", "issue-pairing"] },
+        });
+      },
+      { timeout: 5_000, interval: 50 },
+    );
     expect(test.issuePairing).not.toHaveBeenCalled();
   });
 

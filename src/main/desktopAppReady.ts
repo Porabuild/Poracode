@@ -48,6 +48,8 @@ import {
   registerDesktopAppLifecycle,
 } from "./desktopAppLifecycle";
 import { captureMainException } from "./diagnostics/sentry";
+import { safeStorageHealth } from "./safeStorageHealth";
+import { hostServiceCapabilities } from "@/shared/hostControlProtocol";
 
 export async function startDesktopApp(): Promise<void> {
   // Seam 1: authority admission (attach mode returns after its own startup).
@@ -97,6 +99,16 @@ export async function startDesktopApp(): Promise<void> {
       settingsPath: shell.paths.settingsPath,
       devServerUrl: process.env.VITE_DEV_SERVER_URL,
       dataFencePath: ownerFencePath,
+      hostCapabilities: hostServiceCapabilities({
+        ssh: true,
+        browserPanel: true,
+        chromeBridge: true,
+        computerUse: process.platform === "win32" || process.platform === "darwin",
+        nativeSecrets: safeStorageHealth().kind === "healthy",
+        portForward: true,
+        autoUpdate: true,
+        osNotifications: true,
+      }),
       supervisor: {
         appVersion: app.getVersion(),
         isDev,

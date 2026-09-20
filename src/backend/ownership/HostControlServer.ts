@@ -30,6 +30,8 @@ export interface HostControlContext {
   readonly signal: AbortSignal;
   /** Check after awaits, before any operation which can mint or persist state. */
   assertActive(): void;
+  /** V6 A.5: pairing grant requested by the local control client. */
+  readonly pairingPreset?: "operator" | "viewer";
 }
 
 interface HostControlServerOptions {
@@ -305,7 +307,10 @@ export class HostControlServer {
     void this.work
       .run(async (): Promise<Outcome> => {
         context.assertActive();
-        const pairingUrl = await this.options.issuePairing(context);
+        const pairingUrl = await this.options.issuePairing({
+          ...context,
+          ...(input.payload.preset ? { pairingPreset: input.payload.preset } : {}),
+        });
         this.assertActive();
         return { ok: true, result: hostControlPairingResultSchema.parse({ pairingUrl }) };
       })

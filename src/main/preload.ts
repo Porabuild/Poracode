@@ -8,6 +8,10 @@ import type { GitStatePatch } from "@/shared/gitState";
 import type { UserNotification } from "@/shared/threadNotification";
 import { isSupervisorEventGap } from "@/shared/backendHostProtocol";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
+import {
+  hostServiceCapabilitiesSchema,
+  UNKNOWN_HOST_SERVICE_CAPABILITIES,
+} from "@/shared/hostControlProtocol";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { standaloneAttachInfoSchema } from "@/shared/standaloneAttach";
 import {
@@ -27,7 +31,6 @@ import {
   type PrWatchStatusEvent,
   type ProjectStateChangedEvent,
   type QuickComposerSubmission,
-  type SupervisorEvent,
   type ThreadOpenRequestedEvent,
   type UpdateStatus,
 } from "@/shared/ipc";
@@ -117,6 +120,17 @@ function resolveArgBoolean(prefix: string): boolean {
   return resolveArgValue(prefix) === "1";
 }
 
+function resolveHostCapabilities(): import("@/shared/hostControlProtocol").HostServiceCapabilities {
+  const raw = resolveArgValue("--lc-host-capabilities=");
+  if (!raw) return UNKNOWN_HOST_SERVICE_CAPABILITIES;
+  try {
+    const parsed = hostServiceCapabilitiesSchema.safeParse(JSON.parse(raw));
+    return parsed.success ? parsed.data : UNKNOWN_HOST_SERVICE_CAPABILITIES;
+  } catch {
+    return UNKNOWN_HOST_SERVICE_CAPABILITIES;
+  }
+}
+
 const homeDir = resolveHomeDir();
 const bridge: ElectronHostBridge = {
   clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
@@ -127,6 +141,7 @@ const bridge: ElectronHostBridge = {
   isDev: resolveIsDev(),
   windowKind: resolveWindowKind(),
   channel: resolveChannel(),
+  hostCapabilities: resolveHostCapabilities(),
   ...(homeDir ? { homeDir } : {}),
   electronVersion: process.versions.electron ?? "unknown",
   nodeVersion: process.versions.node,
@@ -182,19 +197,6 @@ const bridge: ElectronHostBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.backendSupervisorReset, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendSupervisorReset, handler);
-    };
-  },
-  onSupervisorEvent(listener) {
-    const handler = (
-      _event: Electron.IpcRendererEvent,
-      payload: SupervisorEvent,
-      rendererSequence?: number,
-    ) => {
-      listener(payload, rendererSequence);
-    };
-    ipcRenderer.on(IPC_EVENT_CHANNELS.supervisorEvent, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.supervisorEvent, handler);
     };
   },
   onUpdateStatus(listener) {

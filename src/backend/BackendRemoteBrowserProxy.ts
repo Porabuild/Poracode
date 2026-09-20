@@ -8,7 +8,7 @@ import type {
 import type {
   RemoteBrowserGatewayLike,
   RemoteBrowserWatcherSink,
-} from "@/main/remote/RemoteBrowserGateway";
+} from "@/host/remote/RemoteBrowserGateway";
 
 type PoracodeDiagnosticTags = import("@/shared/diagnostics/sentryPrivacy").PoracodeDiagnosticTags;
 

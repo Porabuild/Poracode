@@ -80,6 +80,9 @@ export interface DesktopOsSealedKeyCodec {
 
 export interface DesktopPromotionOptions {
   readonly osSealedKey?: DesktopOsSealedKeyCodec;
+  /** V6 C.4: size preflight before the copy; the desktop shows progress above threshold. */
+  readonly onSizePreflight?: (bytes: number) => void;
+  readonly onCopyProgress?: (copiedBytes: number, totalBytes: number) => void;
 }
 
 export type DesktopRootPromotionDecision =
@@ -287,6 +290,10 @@ export async function promoteDesktopRootUnderLease(
       sourceBackupPath: paths.profileNamespace,
       sourceDeclaredOffline: true,
       promoteProfileNamespaceSource: true,
+      ...(options.onSizePreflight !== undefined
+        ? { onSizePreflight: options.onSizePreflight }
+        : {}),
+      ...(options.onCopyProgress !== undefined ? { onCopyProgress: options.onCopyProgress } : {}),
     });
     receipt = readHostImportReceiptFromPaths(paths);
   } else {

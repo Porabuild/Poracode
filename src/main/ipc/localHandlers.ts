@@ -49,6 +49,7 @@ import type { SshConnectionManager } from "../ssh/SshConnectionManager";
 import { homeScopeLocation } from "@/shared/homeScopeLocation";
 import { resolvePoracodeChannel } from "@/shared/channel";
 import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
+import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
@@ -78,6 +79,10 @@ interface CreateLocalIpcHandlersOptions {
     checkpointItemId: string;
     operationKey: string;
   }): Promise<CheckpointRevertResult>;
+  /** V6 C.3: host-declared auto-update. Omitted means offered (managed tests). */
+  hostOffersAutoUpdate?(): boolean;
+  /** V6 C.3: host-declared OS notification surface. Omitted means offered. */
+  hostOffersOsNotifications?(): boolean;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -210,7 +215,10 @@ export function createLocalIpcHandlers(
       if (!win || win.isDestroyed()) return;
       showAndFocusWindow(win);
     },
-    showNotification: (payload) => showOsNotification(payload, options.getMainWindow),
+    showNotification: (payload) => {
+      if (options.hostOffersOsNotifications?.() === false) return false;
+      return showOsNotification(payload, options.getMainWindow);
+    },
     requestLegacyDataMigration: () => {
       const baseDir = options.requirePoracodePaths().baseDir;
       const channel = resolvePoracodeChannel();
@@ -248,7 +256,9 @@ export function createLocalIpcHandlers(
       options.setRendererEventInterests(interests, sender),
     getRemoteAccessPairing: () => callService("getRemoteAccessPairing", {}),
     getManagedLoopbackBootstrap: () => callService("getManagedLoopbackBootstrap", {}),
-    refreshRemoteAccessPairing: () => callService("refreshRemoteAccessPairing", {}),
+    probeTlsCertificateFingerprint: (payload) => probeTlsCertificateFingerprint(payload.url),
+    refreshRemoteAccessPairing: (payload) =>
+      callService("refreshRemoteAccessPairing", payload?.preset ? { preset: payload.preset } : {}),
     setRemoteAccessEnabled: (payload) => callService("setRemoteAccessEnabled", payload),
     sshDiscoverHosts: () => options.sshConnectionManager.discoverHosts(),
     sshConnect: (payload) => options.sshConnectionManager.connect(payload),
@@ -370,10 +380,20 @@ export function createLocalIpcHandlers(
     upsertPrWatch: (watch) => callService("upsertPrWatch", watch),
     deletePrWatch: (payload) => callService("deletePrWatch", payload),
     syncPrWatchAgent: (agent) => callService("syncPrWatchAgent", agent),
-    getUpdateStatus: () => options.autoUpdater.getStatus(),
-    checkForUpdate: () => options.autoUpdater.checkForUpdate(),
-    startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
-    installUpdate: () => options.autoUpdater.installUpdate(),
+    getUpdateStatus: () =>
+      options.hostOffersAutoUpdate?.() === false ? null : options.autoUpdater.getStatus(),
+    checkForUpdate: () => {
+      if (options.hostOffersAutoUpdate?.() === false) return Promise.resolve();
+      return options.autoUpdater.checkForUpdate();
+    },
+    startUpdateDownload: () => {
+      if (options.hostOffersAutoUpdate?.() === false) return Promise.resolve();
+      return options.autoUpdater.startUpdateDownload();
+    },
+    installUpdate: () => {
+      if (options.hostOffersAutoUpdate?.() === false) return;
+      options.autoUpdater.installUpdate();
+    },
     browserGetState: () => requireBrowserPanel(options.getBrowserPanelManager).snapshot(),
     browserCreateTab: (payload) =>
       requireBrowserPanel(options.getBrowserPanelManager).createTab({

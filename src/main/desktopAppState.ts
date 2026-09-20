@@ -18,12 +18,8 @@ import type {
   DeferredAttachProbe,
   StandaloneAttachSession,
 } from "./backend/standaloneAttachBootstrap";
-import type {
-  BrowserMcpIngress,
-  BrowserPanelManager,
-  ChromeBridgeServer,
-  ChromeMcpIngress,
-} from "./browser";
+import type { BrowserMcpIngress } from "@/host/browser/types";
+import type { BrowserPanelManager, ChromeBridgeServer, ChromeMcpIngress } from "./browser";
 import {
   ComputerUseWakeLock,
   type ComputerUseDesktopOverlay,

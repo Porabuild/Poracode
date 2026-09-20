@@ -30,6 +30,7 @@ import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import { requestTrackedRendererReload } from "../window/windowHardening";
 import type { QuickComposerLifecycle } from "../window/quickComposerLifecycle";
 import { createAutoUpdaterController, type AutoUpdaterController } from "../updates/autoUpdater";
+import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
 
 export interface StandaloneAttachIpcDeps {
   getMainWindow(): BrowserWindow | null;
@@ -147,6 +148,10 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
           return autoUpdater.startUpdateDownload();
         case "installUpdate":
           return autoUpdater.installUpdate();
+        case "probeTlsCertificateFingerprint":
+          return probeTlsCertificateFingerprint(
+            parseIpcProcedureArgs("probeTlsCertificateFingerprint", request.args).url,
+          );
         default:
           // Unreachable: the allowlist check above already rejected anything
           // else, but kept as a throw so a future list/desync can never fall

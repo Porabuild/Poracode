@@ -17,8 +17,8 @@ import {
 } from "@/main/db";
 import { SupervisorClient, type SupervisorClientOptions } from "@/main/supervisor/SupervisorClient";
 import { HostDataFence } from "@/backend/ownership/hostDataFence";
-import { persistSupervisorEvent } from "@/main/remote/server/runtimePersistence";
-import { TerminalScrollbackPersistence } from "@/main/remote/server/terminalScrollbackPersistence";
+import { persistSupervisorEvent } from "@/host/remote/server/runtimePersistence";
+import { TerminalScrollbackPersistence } from "@/host/remote/server/terminalScrollbackPersistence";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { BackendEventInterests } from "@/shared/backendHostProtocol";
 import {
