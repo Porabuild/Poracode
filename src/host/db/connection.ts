@@ -1,0 +1,348 @@
+import { existsSync } from "node:fs";
+import Database from "better-sqlite3";
+import {
+  assertRequiredDatabaseSchema,
+  repairSafeSchemaDrift,
+  runDatabaseMigrations,
+} from "./migrations";
+
+let _sqlite: InstanceType<typeof Database> | undefined;
+
+/**
+ * Monotonic counter bumped ONLY by writes the profile actually reads — the
+ * durable usage_events log (dbAppendUsageEvents) and identity edits. The profile
+ * caches key on this, so high-frequency chat persistence (runtime snapshots/
+ * turns) does NOT churn the cache during active sessions.
+ */
+let _profileDataGeneration = 0;
+export function getProfileDataGeneration(): number {
+  return _profileDataGeneration;
+}
+export function bumpProfileDataGeneration(): void {
+  _profileDataGeneration++;
+}
+
+/** How long durable usage events are retained (well beyond the 364-day heatmap). */
+const USAGE_EVENTS_RETENTION_DAYS = 730;
+const REMOTE_COMMAND_RECEIPTS_RETENTION_DAYS = 30;
+
+const BETTER_SQLITE_NATIVE_BINDING_ENV = "PORACODE_BETTER_SQLITE3_NATIVE_BINDING";
+
+export function resolveBetterSqliteNativeBindingOptions(
+  env: NodeJS.ProcessEnv = process.env,
+  bindingExists: (path: string) => boolean = existsSync,
+): ConstructorParameters<typeof Database>[1] | undefined {
+  const explicit = env[BETTER_SQLITE_NATIVE_BINDING_ENV]?.trim();
+  if (explicit) {
+    if (!bindingExists(explicit)) {
+      throw new Error(
+        `${BETTER_SQLITE_NATIVE_BINDING_ENV} points to a file that does not exist: ${explicit}. ` +
+          "Set it to a compatible better-sqlite3 13 N-API binary, or unset it.",
+      );
+    }
+    return { nativeBinding: explicit };
+  }
+  // SQLite 13 bundles N-API binaries. Never load a stale pre-13 server-native artifact.
+  return undefined;
+}
+
+function openDatabase(dbPath: string): InstanceType<typeof Database> {
+  const options = resolveBetterSqliteNativeBindingOptions();
+  return new Database(dbPath, options);
+}
+
+export function initDatabase(
+  dbPath: string,
+  options: { schemaMode?: "migrate" | "validate" } = {},
+) {
+  console.log(`[db] opening ${dbPath}`);
+  const sqlite = openDatabase(dbPath);
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("synchronous = NORMAL");
+  sqlite.pragma("foreign_keys = ON");
+  sqlite.pragma("busy_timeout = 5000");
+
+  // Read-then-write transactions use BEGIN IMMEDIATE to reserve SQLite's
+  // single writer before taking a snapshot.
+
+  _sqlite = sqlite;
+
+  if (options.schemaMode === "validate") {
+    assertRequiredDatabaseSchema(sqlite);
+    console.log("[db] validated");
+    return sqlite;
+  }
+
+  // Create tables if they don't exist.
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      location_kind TEXT NOT NULL,
+      location_path TEXT,
+      location_distro TEXT,
+      location_linux_path TEXT,
+      location_unc_path TEXT,
+      last_draft_config TEXT,
+      scripts TEXT,
+      worktree_location TEXT,
+      workspace_id TEXT,
+      mcp_servers TEXT,
+      disabled INTEGER NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS threads (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      agent_kind TEXT NOT NULL,
+      config TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attention TEXT NOT NULL,
+      can_resume_with_config INTEGER NOT NULL DEFAULT 0,
+      session_ref TEXT,
+      terminal_prompt TEXT,
+      worktree_path TEXT,
+      worktree_branch TEXT,
+      pr_number INTEGER,
+      archived INTEGER NOT NULL DEFAULT 0,
+      archived_at TEXT,
+      done INTEGER NOT NULL DEFAULT 0,
+      done_at TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      active_turn_started_at TEXT,
+      last_turn_started_at TEXT,
+      last_turn_ended_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS app_state (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS thread_runtime_items (
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      item_id TEXT NOT NULL,
+      position INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      state TEXT NOT NULL,
+      payload TEXT,
+      streams TEXT,
+      PRIMARY KEY (thread_id, item_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_runtime_items_thread_pos
+      ON thread_runtime_items (thread_id, position);
+    CREATE TABLE IF NOT EXISTS thread_terminal_scrollback (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+      transcript TEXT NOT NULL,
+      output_length INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_chunks (
+      thread_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      stream TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      chars INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      PRIMARY KEY (thread_id, item_id, stream, seq),
+      FOREIGN KEY (thread_id, item_id)
+        REFERENCES thread_runtime_items (thread_id, item_id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS thread_runtime_item_stream_state (
+      thread_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      stream TEXT NOT NULL,
+      next_seq INTEGER NOT NULL,
+      tail_chars INTEGER NOT NULL,
+      elided_chars INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (thread_id, item_id, stream),
+      FOREIGN KEY (thread_id, item_id)
+        REFERENCES thread_runtime_items (thread_id, item_id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS thread_completed_turns (
+      thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+      idx INTEGER NOT NULL,
+      started_at TEXT NOT NULL,
+      ended_at TEXT NOT NULL,
+      anchor_item_id TEXT,
+      PRIMARY KEY (thread_id, idx)
+    );
+    CREATE TABLE IF NOT EXISTS thread_context_usage (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+      usage TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS main_created_threads (
+      thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS project_notes (
+      project_id TEXT PRIMARY KEY,
+      doc TEXT,
+      todos TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS usage_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      provider TEXT,
+      model TEXT,
+      mode TEXT,
+      fast INTEGER NOT NULL DEFAULT 0,
+      effort TEXT,
+      name TEXT,
+      value INTEGER NOT NULL DEFAULT 1
+    );
+    CREATE INDEX IF NOT EXISTS idx_usage_events_kind ON usage_events (kind);
+    CREATE TABLE IF NOT EXISTS usage_token_ledger (
+      provider TEXT NOT NULL,
+      scope_id TEXT NOT NULL,
+      epoch INTEGER NOT NULL,
+      last_counter INTEGER NOT NULL,
+      PRIMARY KEY (provider, scope_id, epoch)
+    );
+    CREATE TABLE IF NOT EXISTS usage_token_samples (
+      sample_id TEXT PRIMARY KEY,
+      ts INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS scheduled_tasks (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      agent_kind TEXT NOT NULL,
+      config TEXT NOT NULL,
+      recurrence TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      project_id TEXT,
+      next_run_at TEXT,
+      last_run_at TEXT,
+      last_completed_at TEXT,
+      last_status TEXT NOT NULL DEFAULT 'never',
+      last_result TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_next_run
+      ON scheduled_tasks (enabled, next_run_at);
+    CREATE TABLE IF NOT EXISTS scheduled_task_runs (
+      id TEXT PRIMARY KEY,
+      schedule_id TEXT NOT NULL REFERENCES scheduled_tasks(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      completed_at TEXT,
+      status TEXT NOT NULL,
+      summary TEXT,
+      error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_schedule
+      ON scheduled_task_runs (schedule_id, started_at DESC);
+    CREATE TABLE IF NOT EXISTS pr_watches (
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      pr_number INTEGER NOT NULL,
+      head_branch TEXT NOT NULL,
+      worktree_path TEXT,
+      watch_enabled INTEGER NOT NULL DEFAULT 1,
+      auto_merge INTEGER NOT NULL DEFAULT 0,
+      agent_kind TEXT,
+      config TEXT,
+      last_comment_cursor TEXT,
+      last_review_comment_cursor TEXT,
+      last_review_cursor TEXT,
+      last_check_key TEXT,
+      active_thread_id TEXT,
+      last_error TEXT,
+      blocked_reason TEXT,
+      PRIMARY KEY (project_id, pr_number)
+    );
+    CREATE TABLE IF NOT EXISTS remote_command_receipts (
+      command_id TEXT PRIMARY KEY,
+      route TEXT NOT NULL,
+      state TEXT NOT NULL,
+      response TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_remote_command_receipts_updated
+      ON remote_command_receipts (updated_at);
+  `);
+
+  const storedVersion = Number(
+    (
+      sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get() as
+        | { value: string }
+        | undefined
+    )?.value ?? "0",
+  );
+
+  runDatabaseMigrations(sqlite, storedVersion);
+  repairSafeSchemaDrift(sqlite);
+  assertRequiredDatabaseSchema(sqlite);
+
+  // Bound the durable usage log: drop events older than the retention window so
+  // a long-lived install can't accumulate unboundedly (aggregation reads scan
+  // this table). Runs once per startup; cheap on a bounded table. Migration and
+  // schema validation above guarantee this table exists, so SQLite failures here
+  // must remain observable instead of being mistaken for legacy schema drift.
+  const cutoff = Date.now() - USAGE_EVENTS_RETENTION_DAYS * 86_400_000;
+  sqlite.prepare("DELETE FROM usage_events WHERE ts < ?").run(cutoff);
+
+  const receiptCutoff = Date.now() - REMOTE_COMMAND_RECEIPTS_RETENTION_DAYS * 86_400_000;
+  sqlite.prepare("DELETE FROM remote_command_receipts WHERE updated_at < ?").run(receiptCutoff);
+
+  // No command can still be executing across a process restart, so every
+  // receipt left `in_progress` on disk is stale; keeping it would 409 every
+  // deterministic client retry until the retention cutoff. `failed` rows
+  // survive so callers keep their typed failure until retention expires.
+  sqlite.prepare("DELETE FROM remote_command_receipts WHERE state = 'in_progress'").run();
+
+  // Bound the revert journal: settled operations are replay history and age
+  // out with the same retention window. `running` rows are kept regardless of
+  // age — they are the only durable record of an interrupted compound revert
+  // and the resume path needs their frozen plan.
+  sqlite
+    .prepare(
+      "DELETE FROM checkpoint_revert_operations WHERE outcome != 'running' AND updated_at < ?",
+    )
+    .run(receiptCutoff);
+
+  console.log("[db] initialized");
+  return sqlite;
+}
+
+/** better-sqlite3 handle; every DB module issues prepared statements against it. */
+export function getSqlite(): InstanceType<typeof Database> {
+  if (!_sqlite) throw new Error("Database not initialized");
+  return _sqlite;
+}
+
+/**
+ * Hooks run while the database is still open, before it closes. Registered by
+ * modules that buffer writes (see `runtimeItems.ts`) so nothing queued is lost
+ * on shutdown. Registration order is preserved; a failed hook leaves the
+ * database open so its buffered writes can be retried instead of discarded.
+ */
+const beforeCloseHooks: Array<() => void> = [];
+
+export function registerBeforeDatabaseClose(hook: () => void): void {
+  beforeCloseHooks.push(hook);
+}
+
+export function closeDatabase() {
+  const sqlite = _sqlite;
+  if (sqlite) {
+    for (const hook of beforeCloseHooks) hook();
+    // With journal_mode=WAL + synchronous=NORMAL, committed transactions live
+    // in the -wal file and only become durable across an OS crash/power loss
+    // after a checkpoint. Fold the WAL back into the main db on shutdown so the
+    // most recent writes (threads/messages the user just made) are not at risk
+    // if `close()`'s implicit checkpoint is skipped on an unclean exit.
+    try {
+      sqlite.pragma("wal_checkpoint(TRUNCATE)");
+    } catch (error) {
+      console.error("[db] wal_checkpoint on close failed:", error);
+    }
+    sqlite.close();
+  }
+  _sqlite = undefined;
+}

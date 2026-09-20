@@ -11,6 +11,7 @@ import {
 const sourceRoots = [
   "src/backend",
   "src/build",
+  "src/host",
   "src/main",
   "src/server",
   "src/shared",
@@ -23,6 +24,7 @@ const configurationFiles = [
   "package.json",
   "pnpm-lock.yaml",
   "scripts/prepare-agent-plugins.mjs",
+  "scripts/server-native-overlay.mjs",
 ];
 const MAX_RUNTIME_INPUT_BYTES = 8 * 1024 * 1024;
 

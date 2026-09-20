@@ -25,6 +25,8 @@ export interface HostControlCallOptions {
   requestId?: string;
   timeoutMs?: number;
   signal?: AbortSignal;
+  /** V6 A.5: viewer/operator grant for issue-pairing. Empty keeps operator. */
+  payload?: { readonly preset?: "operator" | "viewer" };
 }
 
 export class HostControlRefusedError extends Error {
@@ -49,7 +51,7 @@ export async function callHostControl<Name extends ControlOperation>(
     requestId: options.requestId ?? randomUUID(),
     ownerGeneration: discovery.ownerGeneration,
     operation,
-    payload: {},
+    payload: options.payload ?? {},
   });
   const body = Buffer.from(JSON.stringify(input));
   const authority = `127.0.0.1:${discovery.transport.port}`;

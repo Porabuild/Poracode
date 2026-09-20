@@ -15,8 +15,10 @@ register("./backendChildProcessRegister.mjs", import.meta.url);
 
 const repositoryRoot = resolvePath(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+const SOURCE_EXTS = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".json"]);
+
 function candidateFiles(specifier) {
-  if (extname(specifier)) return [specifier];
+  if (SOURCE_EXTS.has(extname(specifier))) return [specifier];
   return [`${specifier}.ts`, `${specifier}.tsx`, join(specifier, "index.ts")];
 }
 

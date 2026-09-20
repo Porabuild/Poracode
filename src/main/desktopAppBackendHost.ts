@@ -23,7 +23,7 @@ import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitializ
 import { BackendStateStore } from "./backend/BackendStateStore";
 import { RendererEventInterestsWiring } from "./backend/rendererEventInterestsWiring";
 import { createRendererEventDispatcher } from "./backend/rendererEventDispatch";
-import { forwardAgentStatusEventToQuickComposer, openThreadFromTray } from "./desktopAppWindows";
+import { openThreadFromTray } from "./desktopAppWindows";
 import {
   handleSharedSettingsChanged,
   handleSupervisorEventForSleep,
@@ -213,19 +213,7 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
     },
   };
   const dispatchBackendSupervisorEvent = createRendererEventDispatcher({
-    sendToShell: (event, rendererSequence) => {
-      if (rendererSequence === undefined) {
-        desktopApp.mainWindow?.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
-      } else {
-        desktopApp.mainWindow?.webContents.send(
-          IPC_EVENT_CHANNELS.supervisorEvent,
-          event,
-          rendererSequence,
-        );
-      }
-    },
     applyNativeState: handleSupervisorEventForSleep,
-    forwardAgentStatus: forwardAgentStatusEventToQuickComposer,
   });
   const handleBackendReset = (): void => {
     desktopApp.workingThreads.clear();

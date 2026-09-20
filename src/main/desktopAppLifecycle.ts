@@ -68,6 +68,8 @@ export function publishDesktopOwnerServices(): void {
       computerUse: false,
       nativeSecrets: false,
       portForward: true,
+      autoUpdate: false,
+      osNotifications: false,
     },
     reportError: (error) =>
       captureMainException(error, { "poracode.feature_area": "host-control" }),

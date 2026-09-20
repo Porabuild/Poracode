@@ -381,6 +381,56 @@ describe("desktop data-root promotion (V5 plan 1.3)", () => {
     expect(existsSync(join(namespace, "userData", "Cookies"))).toBe(true);
   });
 
+  it("excludes Chromium caches, copies a nested SingletonLock file, and reports size preflight", async () => {
+    const root = scratch();
+    const seed = seedPlainRoot(root);
+    mkdirSync(join(seed.namespace, "userData", "Cache"), { recursive: true });
+    writeFileSync(join(seed.namespace, "userData", "Cache", "data_0"), "cached");
+    mkdirSync(join(seed.namespace, "userData", "Code Cache"), { recursive: true });
+    writeFileSync(join(seed.namespace, "userData", "Code Cache", "js"), "code-cache");
+    mkdirSync(join(seed.namespace, "userData", "GPUCache"), { recursive: true });
+    writeFileSync(join(seed.namespace, "userData", "GPUCache", "data_1"), "gpu");
+    mkdirSync(join(seed.namespace, "userData", "Service Worker", "ScriptCache"), {
+      recursive: true,
+    });
+    writeFileSync(join(seed.namespace, "userData", "Service Worker", "ScriptCache", "index"), "sw");
+    mkdirSync(join(seed.namespace, "userData", "Partitions", "p1", "Cache"), { recursive: true });
+    writeFileSync(join(seed.namespace, "userData", "Partitions", "p1", "Cache", "x"), "part");
+    mkdirSync(join(seed.namespace, "notes"), { recursive: true });
+    writeFileSync(join(seed.namespace, "notes", "SingletonLock"), "user-lock-file");
+    mkdirSync(join(seed.namespace, "notes", "Cache"), { recursive: true });
+    writeFileSync(join(seed.namespace, "notes", "Cache", "keep-me"), "project-cache");
+    symlinkSync("poracode-1000.sock", join(seed.namespace, "userData", "SingletonLock"));
+    const sizes: number[] = [];
+    const progress: Array<[number, number]> = [];
+    const paths = resolveDesktopHostRootPaths(seed.namespace);
+
+    const lease = acquireDesktopLease(seed.namespace);
+    await ensureDesktopOwnedRoot(lease, {
+      osSealedKey: fixtureCodec(seed),
+      onSizePreflight: (bytes) => sizes.push(bytes),
+      onCopyProgress: (copied, total) => progress.push([copied, total]),
+    });
+
+    const record = readHostActivationRecordFromPaths(paths);
+    expect(sizes).toHaveLength(1);
+    expect(sizes[0]).toBe(record?.verified.fileBytes);
+    expect(progress.at(-1)?.[0]).toBe(record?.verified.fileBytes);
+    expect(record?.verified.fileBytes).toBeGreaterThan(0);
+    expect(existsSync(join(paths.dataRoot, "userData", "Cache"))).toBe(false);
+    expect(existsSync(join(paths.dataRoot, "userData", "Code Cache"))).toBe(false);
+    expect(existsSync(join(paths.dataRoot, "userData", "GPUCache"))).toBe(false);
+    expect(existsSync(join(paths.dataRoot, "userData", "Service Worker"))).toBe(false);
+    expect(existsSync(join(paths.dataRoot, "userData", "Partitions", "p1", "Cache"))).toBe(false);
+    expect(readFileSync(join(paths.dataRoot, "notes", "SingletonLock"), "utf8")).toBe(
+      "user-lock-file",
+    );
+    expect(readFileSync(join(paths.dataRoot, "notes", "Cache", "keep-me"), "utf8")).toBe(
+      "project-cache",
+    );
+    expect(existsSync(join(paths.dataRoot, "userData", "SingletonLock"))).toBe(false);
+  });
+
   it("skips Chromium runtime singleton symlinks when promoting a live desktop root", async () => {
     // A live desktop's Electron userData holds SingletonCookie/Lock/Socket
     // symlinks naming the RUNNING process's lock/socket. They are process

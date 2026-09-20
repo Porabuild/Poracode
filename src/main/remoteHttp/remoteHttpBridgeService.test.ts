@@ -129,7 +129,7 @@ describe("RemoteHttpBridgeService", () => {
     expect(REMOTE_HTTP_MAX_REQUEST_BODY_BYTES).toBe(64 * 1024 * 1024);
     expect(REMOTE_HTTP_UPLOAD_RETENTION_BUDGET_BYTES).toBe(96 * 1024 * 1024);
     expect(REMOTE_HTTP_UPLOAD_CREDIT_BYTES).toBe(1024 * 1024);
-    expect(REMOTE_HTTP_BRIDGE_VERSION).toBe(2);
+    expect(REMOTE_HTTP_BRIDGE_VERSION).toBe(3);
   });
 
   it("streams an 8 MiB binary response in order with byte identity", async () => {
@@ -388,7 +388,7 @@ describe("RemoteHttpBridgeService", () => {
     const service = createService({
       uploadRetentionBudgetBytes: 1024,
       maxRequestBodyBytes: 2048,
-      onSettled: (message) => settled.push(message),
+      onSettled: (message: RemoteHttpBridgeSettledMessage) => settled.push(message),
     });
     const holder = new ScriptedWorkerPort();
     const holderRequest = descriptor({
@@ -811,7 +811,9 @@ describe("RemoteHttpBridgeService", () => {
     });
     servers.push(server);
     const settled: RemoteHttpBridgeSettledMessage[] = [];
-    const service = createService({ onSettled: (message) => settled.push(message) });
+    const service = createService({
+      onSettled: (message: RemoteHttpBridgeSettledMessage) => settled.push(message),
+    });
     const accepted = new ScriptedWorkerPort();
     const request = descriptor({ url: `${server.origin}/ok` });
     service.open(request, accepted);

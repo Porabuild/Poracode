@@ -1,0 +1,402 @@
+import { getSqlite } from "./connection";
+
+export type CheckpointRevertProviderPhase =
+  | "pending"
+  | "completed"
+  | "failed"
+  | "ambiguous"
+  | "skipped_no_turns"
+  | "skipped_missing_checkpoint";
+export type CheckpointRevertFilesPhase =
+  | "pending"
+  | "completed"
+  | "failed"
+  | "skipped_no_location"
+  | "skipped_missing_checkpoint";
+export type CheckpointRevertTruncatePhase = "pending" | "completed" | "noop";
+export type CheckpointRevertOutcome =
+  | "running"
+  | "completed"
+  | "completed_local_only"
+  | "ambiguous"
+  | "failed";
+
+export interface CheckpointRevertOperationRow {
+  operationKey: string;
+  threadId: string;
+  checkpointItemId: string;
+  numTurns: number;
+  projectLocationJson: string | null;
+  configJson: string | null;
+  /** Absolute provider revert target (WS2 stage 3), journalled before the
+   * restore side effect. `null` when the provider lacks anchors or the
+   * anchor has not been created yet. */
+  providerAnchorJson: string | null;
+  providerPhase: CheckpointRevertProviderPhase;
+  filesPhase: CheckpointRevertFilesPhase;
+  truncatePhase: CheckpointRevertTruncatePhase;
+  removedAnchors: string[];
+  outcome: CheckpointRevertOutcome;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type CheckpointRevertClaim =
+  | { kind: "claimed"; row: CheckpointRevertOperationRow }
+  | { kind: "resume"; row: CheckpointRevertOperationRow }
+  | { kind: "replay"; row: CheckpointRevertOperationRow };
+
+export interface ClaimCheckpointRevertOperationInput {
+  operationKey: string;
+  threadId: string;
+  checkpointItemId: string;
+  projectLocationJson: string | null;
+  configJson: string | null;
+  /**
+   * Caller-supplied project location, when the caller explicitly provided one.
+   * `undefined` means the caller omitted it and `projectLocationJson` was
+   * resolved server-side from durable state. Only an explicit caller payload
+   * participates in same-ID conflict detection: server-derived context may
+   * legitimately change between a settled operation and its replay, and a
+   * replay must retain the frozen result rather than misclassify derived
+   * drift as a new client payload.
+   */
+  explicitProjectLocationJson?: string | null;
+}
+
+const PROVIDER_PHASES: readonly CheckpointRevertProviderPhase[] = [
+  "pending",
+  "completed",
+  "failed",
+  "ambiguous",
+  "skipped_no_turns",
+  "skipped_missing_checkpoint",
+];
+const FILES_PHASES: readonly CheckpointRevertFilesPhase[] = [
+  "pending",
+  "completed",
+  "failed",
+  "skipped_no_location",
+  "skipped_missing_checkpoint",
+];
+const TRUNCATE_PHASES: readonly CheckpointRevertTruncatePhase[] = ["pending", "completed", "noop"];
+const OUTCOMES: readonly CheckpointRevertOutcome[] = [
+  "running",
+  "completed",
+  "completed_local_only",
+  "ambiguous",
+  "failed",
+];
+
+function parseEnum<T extends string>(value: string, allowed: readonly T[]): T {
+  return (allowed as readonly string[]).includes(value) ? (value as T) : allowed[0]!;
+}
+
+function rowToOperation(row: {
+  operation_key: string;
+  thread_id: string;
+  checkpoint_item_id: string;
+  num_turns: number;
+  project_location_json: string | null;
+  config_json: string | null;
+  provider_anchor_json: string | null;
+  provider_phase: string;
+  files_phase: string;
+  truncate_phase: string;
+  removed_anchors_json: string | null;
+  outcome: string;
+  created_at: number;
+  updated_at: number;
+}): CheckpointRevertOperationRow {
+  let removedAnchors: string[] = [];
+  try {
+    const parsed: unknown =
+      row.removed_anchors_json === null ? [] : JSON.parse(row.removed_anchors_json);
+    removedAnchors = Array.isArray(parsed)
+      ? parsed.filter((v): v is string => typeof v === "string")
+      : [];
+  } catch {
+    removedAnchors = [];
+  }
+  return {
+    operationKey: row.operation_key,
+    threadId: row.thread_id,
+    checkpointItemId: row.checkpoint_item_id,
+    numTurns: row.num_turns,
+    projectLocationJson: row.project_location_json,
+    configJson: row.config_json,
+    providerAnchorJson: row.provider_anchor_json,
+    providerPhase: parseEnum(row.provider_phase, PROVIDER_PHASES),
+    filesPhase: parseEnum(row.files_phase, FILES_PHASES),
+    truncatePhase: parseEnum(row.truncate_phase, TRUNCATE_PHASES),
+    removedAnchors,
+    outcome: parseEnum(row.outcome, OUTCOMES),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+interface CheckpointPosition {
+  position: number;
+}
+
+/**
+ * Server-side equivalent of the renderer's rollback-turn count, computed from
+ * durable state instead of a mounted transcript: completed-turn anchors after
+ * the checkpoint when any completed turns exist, otherwise assistant messages
+ * after it. The count is computed once, under the claim transaction's write
+ * lock, and then frozen in the journal — a retry replays the stored number
+ * instead of recounting a transcript the first attempt already mutated.
+ */
+export function dbCountRollbackTurnsAfterCheckpoint(
+  threadId: string,
+  checkpointItemId: string,
+): number {
+  const sqlite = getSqlite();
+  const count = sqlite.transaction((): number => {
+    const checkpoint = sqlite
+      .prepare("SELECT position FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")
+      .get(threadId, checkpointItemId) as CheckpointPosition | undefined;
+    if (!checkpoint) return 0;
+    const completedTurnCount = sqlite
+      .prepare("SELECT COUNT(*) AS n FROM thread_completed_turns WHERE thread_id = ?")
+      .get(threadId) as { n: number };
+    if (completedTurnCount.n > 0) {
+      const anchored = sqlite
+        .prepare(
+          `SELECT COUNT(DISTINCT c.anchor_item_id) AS n
+           FROM thread_completed_turns c
+           JOIN thread_runtime_items i
+             ON i.thread_id = c.thread_id AND i.item_id = c.anchor_item_id
+           WHERE c.thread_id = ? AND i.position > ?`,
+        )
+        .get(threadId, checkpoint.position) as { n: number };
+      return anchored.n;
+    }
+    const assistantMessages = sqlite
+      .prepare(
+        `SELECT COUNT(*) AS n FROM thread_runtime_items
+         WHERE thread_id = ? AND position > ? AND type = 'assistant_message'`,
+      )
+      .get(threadId, checkpoint.position) as { n: number };
+    return assistantMessages.n;
+  });
+  return count.immediate() as number;
+}
+
+export function dbHasThreadRuntimeItem(threadId: string, itemId: string): boolean {
+  return (
+    getSqlite()
+      .prepare("SELECT position FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")
+      .get(threadId, itemId) !== undefined
+  );
+}
+
+/**
+ * Claims the compound revert for `operationKey` inside one immediate
+ * transaction. A fresh claim freezes the server-derived turn count; a row
+ * whose phases are mid-flight is resumed exactly as recorded; a settled row
+ * (`completed`/`completed_local_only`/`ambiguous`) always replays its stored
+ * outcome verbatim — even when later turns arrived past the checkpoint. A
+ * deliberate new action must mint a fresh ID; reusing a settled ID never
+ * starts a new destructive revert. Reusing a key for a different checkpoint
+ * (or a different explicit project location) is a hard conflict — the stored
+ * plan would not describe the requested revert.
+ *
+ * Compatibility: no storage change. Legacy `key#N` supersession rows created
+ * by the retired heuristic remain readable via exact lookup but are never
+ * created or consulted by family scan: a base-key retry replays the base row,
+ * never the latest `#N`. Retention purge and migrations v45/v46 are
+ * unchanged, so no version bump is required (see REPORT compatibility
+ * inventory).
+ */
+export function dbClaimCheckpointRevertOperation(
+  input: ClaimCheckpointRevertOperationInput,
+): CheckpointRevertClaim {
+  const sqlite = getSqlite();
+  const now = Date.now();
+  const claim = sqlite.transaction((): CheckpointRevertClaim => {
+    // Exact-key lookup only. The retired `#N` supersession family is not
+    // scanned: `#` never appears in client-minted keys (operationKey charset
+    // is `[A-Za-z0-9._:-]`), so an exact match is unambiguous and a base-key
+    // retry can never be reinterpreted as a versioned mutation.
+    const existing = sqlite
+      .prepare(`SELECT * FROM checkpoint_revert_operations WHERE operation_key = ?`)
+      .get(input.operationKey) as Record<string, unknown> | undefined;
+    if (existing) {
+      const row = rowToOperation(existing as Parameters<typeof rowToOperation>[0]);
+      if (row.threadId !== input.threadId || row.checkpointItemId !== input.checkpointItemId) {
+        throw new Error(
+          `Checkpoint revert operation key "${input.operationKey}" was already used for a different target.`,
+        );
+      }
+      // Only caller-controlled inputs conflict. An explicitly supplied project
+      // location that differs from the frozen plan is a retarget attempt and
+      // must fail before any side effect. An omitted location means the frozen
+      // plan was server-resolved: derived drift never conflicts, and resume
+      // paths keep using the frozen copy rather than silently retargeting.
+      if (
+        input.explicitProjectLocationJson !== undefined &&
+        input.explicitProjectLocationJson !== row.projectLocationJson
+      ) {
+        throw new Error(
+          `Checkpoint revert operation key "${input.operationKey}" was already used with a different project location.`,
+        );
+      }
+      // Settled outcomes replay verbatim. `running` (crash mid-operation) and
+      // `failed` (a retryable phase) resume from the recorded phases; the
+      // destructive provider phase is never re-run regardless, because it is
+      // no longer `pending`.
+      if (
+        row.outcome === "completed" ||
+        row.outcome === "completed_local_only" ||
+        row.outcome === "ambiguous"
+      ) {
+        return { kind: "replay", row };
+      }
+      return { kind: "resume", row };
+    }
+    const numTurns = dbCountRollbackTurnsAfterCheckpoint(input.threadId, input.checkpointItemId);
+    sqlite
+      .prepare(
+        `INSERT INTO checkpoint_revert_operations
+           (operation_key, thread_id, checkpoint_item_id, num_turns,
+            project_location_json, config_json, provider_phase, files_phase,
+            truncate_phase, removed_anchors_json, outcome, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', 'pending', 'pending', NULL, 'running', ?, ?)`,
+      )
+      .run(
+        input.operationKey,
+        input.threadId,
+        input.checkpointItemId,
+        numTurns,
+        input.projectLocationJson,
+        input.configJson,
+        now,
+        now,
+      );
+    const row = dbGetCheckpointRevertOperation(input.operationKey);
+    if (!row) throw new Error("Failed to read back the claimed checkpoint revert operation.");
+    return { kind: "claimed", row };
+  });
+  return claim.immediate() as CheckpointRevertClaim;
+}
+
+export function dbGetCheckpointRevertOperation(
+  operationKey: string,
+): CheckpointRevertOperationRow | null {
+  const row = getSqlite()
+    .prepare("SELECT * FROM checkpoint_revert_operations WHERE operation_key = ?")
+    .get(operationKey) as Record<string, unknown> | undefined;
+  return row ? rowToOperation(row as Parameters<typeof rowToOperation>[0]) : null;
+}
+
+/**
+ * A thread (or project) must not be deleted while a compound checkpoint revert
+ * is mid-flight: the journal row is claimed before the revert's first side
+ * effect and settled only after its last one, so a `running` row is exactly
+ * the durable claim the per-thread revert lock is held under. A crash leaves
+ * the row running on purpose — the next revert attempt resumes and settles it
+ * (a resumed attempt whose checkpoint is already gone settles as a completed
+ * noop), so the operator remedy is one retry of the revert, never manual
+ * journal edits.
+ */
+export class ThreadCheckpointRevertActiveError extends Error {
+  readonly code = "CHECKPOINT_REVERT_ACTIVE";
+
+  constructor(
+    readonly threadIds: readonly string[],
+    readonly operationKeys: readonly string[],
+  ) {
+    super(
+      `Thread deletion refused: a checkpoint revert is still running for ` +
+        `${threadIds.join(", ")} (${operationKeys.join(", ")}). Re-run the checkpoint revert ` +
+        "once so it resumes and settles, then delete; the journal is never edited behind " +
+        "the operation.",
+    );
+    this.name = "ThreadCheckpointRevertActiveError";
+  }
+}
+
+/** The delete-blocking running rows for the given threads, if any. */
+export function dbFindRunningCheckpointRevertForThreads(threadIds: readonly string[]): {
+  threadIds: string[];
+  operationKeys: string[];
+} {
+  if (threadIds.length === 0) return { threadIds: [], operationKeys: [] };
+  const rows = getSqlite()
+    .prepare(
+      `SELECT operation_key, thread_id FROM checkpoint_revert_operations
+       WHERE outcome = 'running' AND thread_id IN (${threadIds.map(() => "?").join(", ")})`,
+    )
+    .all(...threadIds) as { operation_key: string; thread_id: string }[];
+  return {
+    threadIds: [...new Set(rows.map((row) => row.thread_id))],
+    operationKeys: rows.map((row) => row.operation_key),
+  };
+}
+
+/** Refuses the delete while any of the threads has a running compound revert. */
+export function dbAssertNoRunningCheckpointRevert(threadIds: readonly string[]): void {
+  const blocked = dbFindRunningCheckpointRevertForThreads(threadIds);
+  if (blocked.threadIds.length > 0) {
+    throw new ThreadCheckpointRevertActiveError(blocked.threadIds, blocked.operationKeys);
+  }
+}
+
+export interface CheckpointRevertPhaseUpdate {
+  providerPhase?: CheckpointRevertProviderPhase;
+  /** Persists the frozen provider anchor (before the restore side effect). */
+  providerAnchorJson?: string;
+  filesPhase?: CheckpointRevertFilesPhase;
+  truncatePhase?: CheckpointRevertTruncatePhase;
+  removedAnchors?: string[];
+  outcome?: CheckpointRevertOutcome;
+}
+
+/** Phase writes happen before the matching side effect is attempted, so a
+ * crash leaves the journal describing exactly what the next attempt must not
+ * redo. */
+export function dbUpdateCheckpointRevertPhases(
+  operationKey: string,
+  update: CheckpointRevertPhaseUpdate,
+): void {
+  const sets: string[] = ["updated_at = ?"];
+  const values: unknown[] = [Date.now()];
+  if (update.providerPhase !== undefined) {
+    sets.push("provider_phase = ?");
+    values.push(update.providerPhase);
+  }
+  if (update.providerAnchorJson !== undefined) {
+    sets.push("provider_anchor_json = ?");
+    values.push(update.providerAnchorJson);
+  }
+  if (update.filesPhase !== undefined) {
+    sets.push("files_phase = ?");
+    values.push(update.filesPhase);
+  }
+  if (update.truncatePhase !== undefined) {
+    sets.push("truncate_phase = ?");
+    values.push(update.truncatePhase);
+  }
+  if (update.removedAnchors !== undefined) {
+    sets.push("removed_anchors_json = ?");
+    values.push(JSON.stringify(update.removedAnchors));
+  }
+  if (update.outcome !== undefined) {
+    sets.push("outcome = ?");
+    values.push(update.outcome);
+  }
+  values.push(operationKey);
+  const result = getSqlite()
+    .prepare(
+      `UPDATE checkpoint_revert_operations SET ${sets.join(", ")}
+       WHERE operation_key = ? AND outcome IN ('running', 'failed')`,
+    )
+    .run(...values);
+  if (result.changes === 0) {
+    throw new Error(
+      `Cannot update checkpoint revert operation "${operationKey}": missing or already settled.`,
+    );
+  }
+}

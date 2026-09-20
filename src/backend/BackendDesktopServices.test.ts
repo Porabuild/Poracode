@@ -47,7 +47,7 @@ vi.mock("@/main/remote/DesktopRemoteAccessController", () => ({
   createDesktopRemoteAccessController: mocks.createDesktopRemoteAccessController,
 }));
 
-vi.mock("@/main/remote/pairingInfo", () => ({
+vi.mock("@/host/remote/pairingInfo", () => ({
   getRemoteAccessPairingInfo: vi.fn<() => null>(() => null),
 }));
 
@@ -64,7 +64,7 @@ vi.mock("@/main/sharedSettingsFile", () => ({
   writeSharedSettingsFile: vi.fn<() => void>(() => {}),
 }));
 
-vi.mock("@/main/remote/identity", () => ({
+vi.mock("@/host/remote/identity", () => ({
   readOrCreateRemoteAccessIdentity: mocks.readOrCreateRemoteAccessIdentity,
 }));
 

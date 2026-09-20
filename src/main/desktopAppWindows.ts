@@ -4,11 +4,7 @@ import { join } from "node:path";
 import { app, BrowserWindow, nativeTheme, type RenderProcessGoneDetails } from "electron";
 import { resolveThemeMode } from "@/shared/themeMode";
 import { getAppName } from "@/shared/appName";
-import {
-  IPC_EVENT_CHANNELS,
-  isAgentStatusSupervisorEvent,
-  type SupervisorEvent,
-} from "@/shared/ipc";
+import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import type { ShellStateStore } from "./backend/BackendStateStore";
 import { showAddFilesDialog } from "./ipc/localHandlers";
 import { captureMainException } from "./diagnostics/sentry";
@@ -176,6 +172,9 @@ function commonAppWindowOptions() {
     browserUserAgent: desktopApp.browserUserAgent,
     openDevTools: process.env.PORACODE_DISABLE_DEVTOOLS !== "1",
     ...(process.env.VITE_DEV_SERVER_URL ? { devServerUrl: process.env.VITE_DEV_SERVER_URL } : {}),
+    ...(desktopApp.hostServices?.capabilities
+      ? { hostCapabilities: desktopApp.hostServices.capabilities }
+      : {}),
   };
 }
 
@@ -245,19 +244,6 @@ export function createQuickComposerLifecycleHost(
     hideOverlay: (window) => window.hide(),
     pickFiles: (owner) => showAddFilesDialog(owner),
   };
-}
-
-export function forwardAgentStatusEventToQuickComposer(event: SupervisorEvent): void {
-  if (!isAgentStatusSupervisorEvent(event)) return;
-  // The overlay refetches agent statuses on focus, so a hidden window has no use
-  // for the live stream — skip the cross-process send until it's actually shown.
-  if (
-    desktopApp.quickComposerWindow &&
-    !desktopApp.quickComposerWindow.isDestroyed() &&
-    desktopApp.quickComposerWindow.isVisible()
-  ) {
-    desktopApp.quickComposerWindow.webContents.send(IPC_EVENT_CHANNELS.supervisorEvent, event);
-  }
 }
 
 function createMainAppWindow(showOnReady = true, stateOverride?: ShellStateStore): BrowserWindow {

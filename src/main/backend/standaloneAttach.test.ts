@@ -71,6 +71,8 @@ async function startOwner(
         computerUse: true,
         nativeSecrets: false,
         portForward: true,
+        autoUpdate: false,
+        osNotifications: false,
       },
     }),
   });
@@ -105,6 +107,8 @@ async function startDesktopOwner(): Promise<OwnerFixture> {
         computerUse: true,
         nativeSecrets: true,
         portForward: true,
+        autoUpdate: false,
+        osNotifications: false,
       },
     }),
   });

@@ -29,6 +29,7 @@ function createFakeSession() {
       requestHandler = handler;
     }),
     setPermissionCheckHandler: vi.fn<() => boolean>(),
+    setCertificateVerifyProc: vi.fn<() => void>(),
   };
   installSessionPermissions(session as unknown as Parameters<typeof installSessionPermissions>[0]);
   return {
@@ -212,6 +213,11 @@ describe("openMicrophoneSettings", () => {
 
 describe("installSessionPermissions non-media permissions", () => {
   beforeEach(() => setPlatform("darwin"));
+
+  it("pins the managed loopback certificate on every renderer session (V6 B.3)", () => {
+    const { session } = createFakeSession();
+    expect(session.setCertificateVerifyProc).toHaveBeenCalledOnce();
+  });
 
   it("allows allow-listed permissions without touching the OS prompt", async () => {
     const handler = installAndCaptureRequestHandler();

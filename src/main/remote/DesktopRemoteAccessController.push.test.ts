@@ -3,9 +3,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
-import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "./RemoteAccessServer";
-import type { SendPush } from "./push/pushGateway";
-import { PushRegistrationStore, pushRegistrationsFilePath } from "./push/PushRegistrationStore";
+import type {
+  RemoteAccessServerInfo,
+  RemoteAccessServerOptions,
+} from "@/host/remote/RemoteAccessServer";
+import type { SendPush } from "@/host/remote/push/pushGateway";
+import {
+  PushRegistrationStore,
+  pushRegistrationsFilePath,
+} from "@/host/remote/push/PushRegistrationStore";
 
 const h = vi.hoisted(() => ({
   settings: {} as SharedSettings,
@@ -28,33 +34,33 @@ vi.mock("../sharedSettingsFile", () => ({
     return h.settings;
   },
 }));
-vi.mock("./config", () => ({
+vi.mock("@/host/remote/config", () => ({
   remoteAccessAdvertisedHost: () => "127.0.0.1",
   remoteAccessHost: () => "127.0.0.1",
   remoteAccessPairingAppUrl: () => undefined,
   remoteForwardBaseUrl: () => undefined,
   resolveRemoteAccessPort: async () => 43123,
 }));
-vi.mock("./identity", () => ({
+vi.mock("@/host/remote/identity", () => ({
   readOrCreateRemoteAccessIdentity: () => ({ desktopId: "fixture-host", label: "Fixture" }),
 }));
-vi.mock("./auth", () => ({ createPersistentRemoteAuthStore: () => ({}) }));
-vi.mock("./portForward/portForwarding", () => ({
+vi.mock("@/host/remote/auth", () => ({ createPersistentRemoteAuthStore: () => ({}) }));
+vi.mock("@/host/remote/portForward/portForwarding", () => ({
   createPortForwarding: () => ({ gateway: {}, proxy: {}, dispose() {} }),
 }));
-vi.mock("./RemoteBrowserGateway", () => ({ RemoteBrowserGateway: class {} }));
-vi.mock("./push", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./push")>()),
+vi.mock("@/host/remote/RemoteBrowserGateway", () => ({ RemoteBrowserGateway: class {} }));
+vi.mock("@/host/remote/push", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/host/remote/push")>()),
   createPushGateway: () => h.sendPush,
 }));
-vi.mock("./tailscale", () => ({
+vi.mock("@/host/remote/tailscale", () => ({
   buildTailscaleHttpsUrl: () => "https://fixture.test",
   disableTailscaleServe: async () => {},
   enableTailscaleServe: async () => ({ ok: true }),
   launchTailscaleApp: async () => ({ ok: true }),
   probeTailscaleStatus: async () => ({ state: "not-running" }),
 }));
-vi.mock("./RemoteAccessServer", () => ({
+vi.mock("@/host/remote/RemoteAccessServer", () => ({
   RemoteAccessServer: class {
     private info: RemoteAccessServerInfo | null = null;
     constructor(readonly options: RemoteAccessServerOptions) {

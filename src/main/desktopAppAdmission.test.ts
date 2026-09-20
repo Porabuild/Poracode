@@ -11,6 +11,16 @@ vi.mock("electron", () => ({
   ipcMain: { removeHandler: () => {}, handle: () => {} },
   Menu: { setApplicationMenu: () => {} },
   powerSaveBlocker: { start: () => 1, stop: () => {}, isStarted: () => false },
+  BrowserWindow: class {
+    isDestroyed(): boolean {
+      return true;
+    }
+    destroy(): void {}
+    loadURL(): void {}
+    get webContents() {
+      return { executeJavaScript: async () => undefined };
+    }
+  },
 }));
 
 import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";

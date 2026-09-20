@@ -30,6 +30,7 @@ async function fixture() {
   for (const path of [
     "src/backend",
     "src/build",
+    "src/host",
     "src/main",
     "src/server",
     "src/shared",
@@ -40,7 +41,12 @@ async function fixture() {
     "out",
   ])
     await mkdir(join(root, path), { recursive: true });
-  for (const path of ["tsdown.config.ts", "pnpm-lock.yaml", "scripts/prepare-agent-plugins.mjs"])
+  for (const path of [
+    "tsdown.config.ts",
+    "pnpm-lock.yaml",
+    "scripts/prepare-agent-plugins.mjs",
+    "scripts/server-native-overlay.mjs",
+  ])
     await writeFile(join(root, path), "");
   await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module" }));
   await writeFile(join(root, "tsconfig.json"), "{}");

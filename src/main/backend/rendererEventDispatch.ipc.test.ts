@@ -69,9 +69,7 @@ interface Harness {
   wiring: RendererEventInterestsWiring;
   rawEvents: SupervisorEvent[];
   rawSequences: Array<number | undefined>;
-  shell: Array<{ event: SupervisorEvent; rendererSequence: number | undefined }>;
   native: SupervisorEvent[];
-  forwarded: SupervisorEvent[];
   errors: unknown[];
   reportError: ReturnType<typeof vi.fn>;
   relay(event: SupervisorEvent): BackendHostOutboundMessage[];
@@ -96,9 +94,7 @@ async function startHarness(): Promise<Harness> {
 
   const rawEvents: SupervisorEvent[] = [];
   const rawSequences: Array<number | undefined> = [];
-  const shell: Harness["shell"] = [];
   const native: SupervisorEvent[] = [];
-  const forwarded: SupervisorEvent[] = [];
   const errors: unknown[] = [];
   const reportError = vi.fn<(error: unknown, tags?: unknown) => void>();
 
@@ -135,9 +131,7 @@ async function startHarness(): Promise<Harness> {
   });
 
   dispatch = createRendererEventDispatcher({
-    sendToShell: (event, rendererSequence) => shell.push({ event, rendererSequence }),
     applyNativeState: (event) => native.push(event),
-    forwardAgentStatus: (event) => forwarded.push(event),
   });
 
   let relaySequence = 0;
@@ -170,9 +164,7 @@ async function startHarness(): Promise<Harness> {
     wiring,
     rawEvents,
     rawSequences,
-    shell,
     native,
-    forwarded,
     errors,
     reportError,
     relay,
@@ -209,8 +201,8 @@ afterEach(async () => {
   }
 });
 
-describe("renderer event dispatch across a real backend IPC round trip (collapsed single path)", () => {
-  it("delivers one sequenced envelope, one native application, one overlay forward", async () => {
+describe("renderer event dispatch across a real backend IPC round trip (native-only)", () => {
+  it("applies native state once and does not forward onto a desktop IPC event plane", async () => {
     const harness = await startHarness();
     const event = statusEvent();
     const messages = harness.relay(event);
@@ -220,13 +212,9 @@ describe("renderer event dispatch across a real backend IPC round trip (collapse
 
     await harness.roundTrip(messages);
 
-    // Serialization proof: the envelope main receives is its own object.
     expect(harness.rawEvents).toEqual([event]);
     expect(harness.rawSequences).toEqual([1]);
-    // Exactly one overlay delivery: the shell forward.
-    expect(harness.forwarded).toEqual([event]);
     expect(harness.native).toEqual([event]);
-    expect(harness.shell).toEqual([{ event, rendererSequence: 1 }]);
     expect(harness.errors).toEqual([]);
     expect(harness.reportError).not.toHaveBeenCalled();
   });
@@ -242,11 +230,10 @@ describe("renderer event dispatch across a real backend IPC round trip (collapse
 
     expect(harness.rawEvents).toEqual([first, second]);
     expect(harness.rawSequences).toEqual([1, 2]);
-    expect(harness.forwarded).toEqual([first, second]);
     expect(harness.native).toHaveLength(2);
   });
 
-  it("crosses mixed bulk content untargeted so the window reducer gates it by sequence", async () => {
+  it("crosses mixed bulk content so the loopback session can observe it", async () => {
     const harness = await startHarness();
     const mixed: SupervisorEvent = {
       type: "thread-runtime-events",
@@ -261,8 +248,6 @@ describe("renderer event dispatch across a real backend IPC round trip (collapse
     await harness.roundTrip(messages);
 
     expect(harness.rawEvents).toEqual([mixed]);
-    expect(harness.shell).toEqual([{ event: mixed, rendererSequence: 1 }]);
-    // No control-only remainder, no targeted copies: one envelope, one send.
     expect(harness.native).toEqual([mixed]);
   });
 });

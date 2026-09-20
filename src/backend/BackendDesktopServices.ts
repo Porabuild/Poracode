@@ -8,8 +8,8 @@ import {
   createDesktopRemoteAccessController,
   type DesktopRemoteAccessController,
 } from "@/main/remote/DesktopRemoteAccessController";
-import { RemoteHttpError } from "@/main/remote/auth";
-import { getRemoteAccessPairingInfo } from "@/main/remote/pairingInfo";
+import { RemoteHttpError } from "@/host/remote/auth";
+import { getRemoteAccessPairingInfo } from "@/host/remote/pairingInfo";
 import {
   getProfileCoreStats,
   getProfileDevicesResponse,
@@ -18,7 +18,7 @@ import {
   setProfileIdentityResponse,
 } from "@/main/profile";
 import { readSharedSettingsFile } from "@/main/sharedSettingsFile";
-import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
+import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
 import { requestLegacyDataMigration } from "@/main/legacyDataMigration";
 import { isThreadTurnActive, type RemoteThreadCommand } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
@@ -218,6 +218,7 @@ export class BackendDesktopServices {
           channel: desktop.channel,
           paths: { baseDir: initialize.baseDir, settingsPath: desktop.settingsPath },
           ...(desktop.devServerUrl ? { devServerUrl: desktop.devServerUrl } : {}),
+          ...(desktop.hostCapabilities ? { hostCapabilities: desktop.hostCapabilities } : {}),
           callSupervisor: (name, payload) => supervisor.call(name, payload),
           truncateThreadRuntime: (threadId, itemId) => {
             host.truncateThreadRuntime(threadId, itemId);
@@ -411,7 +412,8 @@ export class BackendDesktopServices {
           );
         }
         const server = this.remote?.getServer();
-        server?.issuePairingUrl("Settings QR");
+        const preset = (payload as { preset?: "operator" | "viewer" }).preset;
+        server?.issuePairingUrl("Settings QR", preset ? { preset } : undefined);
         return (this.remote?.getPairingInfo() ??
           getRemoteAccessPairingInfo(server ?? null)) as BackendServiceResult<Name>;
       }

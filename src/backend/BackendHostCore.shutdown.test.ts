@@ -18,7 +18,7 @@ vi.mock("@/main/db", () => ({
   dbAppendThreadTerminalOutput: vi.fn<() => void>(),
   dbClearThreadTerminalScrollback: vi.fn<() => void>(),
 }));
-vi.mock("@/main/remote/server/runtimePersistence", () => ({
+vi.mock("@/host/remote/server/runtimePersistence", () => ({
   persistSupervisorEvent: () => {
     if (state.closed) throw new Error("write after database close");
   },

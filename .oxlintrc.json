@@ -34,6 +34,22 @@
   },
   "overrides": [
     {
+      "files": ["src/server/**/*.ts", "src/host/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/main", "@/main/**"],
+                "message": "The standalone server and host HTTP/data plane must import from @/host, not @/main (V6 F.1)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx"],
       "excludeFiles": [
         "src/renderer/**/*.test.ts",

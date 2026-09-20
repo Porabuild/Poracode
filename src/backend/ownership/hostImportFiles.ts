@@ -80,6 +80,50 @@ export interface InventoryImportFilesOptions {
    * refusing them; declared by the automatic desktop promotion, whose source
    * is a live desktop root that legitimately contains them. */
   readonly skipRuntimeSingletonSymlinks?: boolean;
+  /**
+   * V6 C.4: skip Chromium cache directories (Cache, Code Cache, GPUCache,
+   * Service Worker, and Partitions/<profile>/Cache) instead of hashing and
+   * copying them. Scoped to the root-level Electron `userData` directory of
+   * the source — same-named directories at any other depth are user data
+   * and stay. Promotion-only; offline backups keep a full inventory.
+   */
+  readonly excludeChromiumCaches?: boolean;
+  /** Called after each copied file with running totals (promotion progress). */
+  readonly onCopyProgress?: (copiedBytes: number, totalBytes: number) => void;
+}
+
+/** Chromium per-profile cache directory names. Skipped only when promotion asks. */
+const CHROMIUM_CACHE_DIRECTORY_NAMES = new Set([
+  "Cache",
+  "Code Cache",
+  "GPUCache",
+  "Service Worker",
+]);
+
+/** Bytes at or above which the desktop shows a promotion progress window. */
+export const PROMOTION_PROGRESS_THRESHOLD_BYTES = 64 * 1024 * 1024;
+
+/**
+ * The promotion's source is the desktop namespace root, and the Electron
+ * `userData` directory is a direct child of it by construction. Only that
+ * root-level directory is Chromium-owned: a nested directory that merely
+ * shares the name (`projects/demo/userData`) is user data and must survive
+ * the copy intact, caches and singleton-named files included.
+ */
+function isChromiumUserDataRoot(relative: string): boolean {
+  return relative === "userData";
+}
+
+function isExcludedChromiumCache(relative: string, name: string): boolean {
+  if (isChromiumUserDataRoot(relative) && CHROMIUM_CACHE_DIRECTORY_NAMES.has(name)) {
+    return true;
+  }
+  // Per-partition session caches live one level deeper: Partitions/<profile>/Cache.
+  return name === "Cache" && /^userData\/Partitions\/[^/]+$/u.test(relative);
+}
+
+function shouldSkipRuntimeSingleton(relative: string, name: string): boolean {
+  return isChromiumUserDataRoot(relative) && RUNTIME_SINGLETON_SYMLINK_NAMES.has(name);
 }
 
 /** SQLite uses its backup API; ephemeral owner control credentials never migrate. */
@@ -94,10 +138,19 @@ export function inventoryImportFiles(
       const path = relative ? `${relative}/${name}` : name;
       const absolute = join(root, path);
       const metadata = lstatSync(absolute);
+      if (
+        options.excludeChromiumCaches &&
+        metadata.isDirectory() &&
+        isExcludedChromiumCache(relative, name)
+      ) {
+        continue;
+      }
       if (metadata.isSymbolicLink()) {
-        if (options.skipRuntimeSingletonSymlinks && RUNTIME_SINGLETON_SYMLINK_NAMES.has(name)) {
+        if (options.skipRuntimeSingletonSymlinks && shouldSkipRuntimeSingleton(relative, name)) {
           // Runtime pointer of the (stopped) source process: not data, never
           // copied — the promoted profile mints its own on next launch.
+          // Nested files of the same name (including a user `SingletonLock`)
+          // stay in the inventory; only the Chromium userData root is skipped.
           continue;
         }
         throw new Error(`Offline backup contains a symbolic link or special file: ${path}`);
@@ -135,6 +188,8 @@ export function copyImportFiles(
   inventory: ImportFileInventory,
   options: InventoryImportFilesOptions = {},
 ): void {
+  let copiedBytes = 0;
+  const totalBytes = inventory.bytes;
   for (const entry of inventory.entries) {
     const target = join(destination, entry.path);
     if (entry.kind === "directory") {
@@ -142,6 +197,8 @@ export function copyImportFiles(
     } else {
       copyFileSync(join(source, entry.path), target);
       chmodSync(target, entry.mode);
+      copiedBytes += entry.bytes;
+      options.onCopyProgress?.(copiedBytes, totalBytes);
     }
   }
   const copied = inventoryImportFiles(destination, options);

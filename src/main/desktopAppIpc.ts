@@ -79,6 +79,9 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       database: deps.backendHost,
       backendServices: deps.backendHost,
       revertCheckpoint: (input) => deps.backendHost.revertCheckpoint(input),
+      hostOffersAutoUpdate: () => desktopApp.hostServices?.capabilities.autoUpdate === true,
+      hostOffersOsNotifications: () =>
+        desktopApp.hostServices?.capabilities.osNotifications === true,
     }),
     callSupervisor: (name, payload, originWindowId) =>
       deps.backendHost.call(name, payload, originWindowId),
