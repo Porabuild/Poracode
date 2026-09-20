@@ -4732,6 +4732,10 @@ msgstr "Drop here to attach"
 msgid "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 msgstr "Drops incoming hook envelopes on the supervisor so agents fall back to L2 (OSC 9;4 progress) without touching install or iTerm2 notifications. Takes effect on the next hook event — no restart needed."
 
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "Duplicate projects had different automation threads. Review those threads, then choose an automation mode to resume."
+msgstr "Duplicate projects had different automation threads. Review those threads, then choose an automation mode to resume."
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Duplicate server name in scan"
 msgstr "Duplicate server name in scan"
@@ -9669,6 +9673,10 @@ msgid "PR automation"
 msgstr "PR automation"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
+msgid "PR automation paused"
+msgstr "PR automation paused"
+
+#: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "PR automation paused: Auto Fix"
 msgstr "PR automation paused: Auto Fix"
 
@@ -13292,6 +13300,10 @@ msgstr "This file is too large for the built-in editor."
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "This file uses an unsupported encoding."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This folder is already registered as a project."
+msgstr "This folder is already registered as a project."
 
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx

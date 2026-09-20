@@ -15,12 +15,17 @@ export interface ComposerSeedOptions {
  * it. `nonce` makes repeated identical seeds distinct so the consuming effect
  * re-fires.
  */
-export interface PendingComposerSeed {
+export interface ComposerSeed {
   text: string;
   nonce: number;
   bindLeadingSkill?: boolean;
   leadingSkillPluginId?: string;
   enableMcpServerIds?: BuiltInMcpServerId[];
+}
+
+export interface PendingComposerSeed extends ComposerSeed {
+  /** In-memory only: preserve each insertion's metadata when project scopes are combined. */
+  queued?: ComposerSeed[];
 }
 
 export interface DraftSlice {

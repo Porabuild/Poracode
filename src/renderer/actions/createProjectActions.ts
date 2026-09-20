@@ -1,4 +1,6 @@
 import { startTransition } from "react";
+import { toast } from "@heroui/react";
+import { msg } from "@/shared/messages";
 import type { CloneRepoSource, ProjectLocation } from "@/shared/contracts";
 import {
   deriveLocationFromPath,
@@ -44,14 +46,21 @@ function registerNewProject(
   startTransition(() => {
     // New projects join the workspace the user is currently looking at,
     // otherwise they'd land unfiled and show up in every workspace.
-    const project = useAppStore
-      .getState()
-      .addProject(location, name || undefined, getActiveWorkspaceId() ?? undefined);
-    captureProductEvent("project.added", {
-      location_kind: location.kind,
-      source,
-    });
-    autoDetectSetupScript(project);
+    const store = useAppStore.getState();
+    const { project, created } = store.addProjectWithResult(
+      location,
+      name || undefined,
+      getActiveWorkspaceId() ?? undefined,
+    );
+    if (created) {
+      captureProductEvent("project.added", {
+        location_kind: location.kind,
+        source,
+      });
+      autoDetectSetupScript(project);
+    } else {
+      toast.info(msg("project.locationConflict"));
+    }
     useAppStore.getState().openDraft(project.id);
   });
 }

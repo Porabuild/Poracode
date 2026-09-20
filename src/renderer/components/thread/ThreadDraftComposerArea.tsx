@@ -77,6 +77,8 @@ import {
   type ExperimentDraftCandidate,
 } from "@/renderer/components/experiment/ExperimentDraftTargets";
 import { useAppStore } from "@/renderer/state/appStore";
+import { registerMountedProjectDraft } from "@/renderer/state/mountedProjectDrafts";
+import { composerSeedQueue } from "@/renderer/state/projectReferences";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -1047,33 +1049,35 @@ export function ThreadDraftComposerArea(props: {
   // already-open draft (where openDraft does not remount this component).
   useEffect(() => {
     if (!pendingComposerSeed) return;
-    if (pendingComposerSeed.bindLeadingSkill && !skillCommandsResolved) return;
+    const seeds = composerSeedQueue(pendingComposerSeed);
+    if (seeds.some((seed) => seed.bindLeadingSkill) && !skillCommandsResolved) return;
     const composer = mentionRef.current;
     if (!composer) return;
-    let segments: PromptSegment[] | undefined;
-    if (pendingComposerSeed.bindLeadingSkill) {
-      const match = /^\/([^\s]+)(?:\s+([\s\S]*))?$/.exec(pendingComposerSeed.text);
-      const command = pendingComposerSeed.leadingSkillPluginId
-        ? pluginMentions.find(
-            (candidate) => candidate.id === pendingComposerSeed.leadingSkillPluginId,
-          )?.command
-        : match
-          ? skillCommands.find((candidate) => candidate.id === match[1])
-          : undefined;
-      if (command) {
-        const skill = skillSegmentFromSlashCommand(command);
-        if (skill) {
-          segments = [
-            skill,
-            ...(match?.[2] ? [{ kind: "text" as const, content: ` ${match[2]}` }] : []),
-          ];
+    for (const [index, seed] of seeds.entries()) {
+      if (index > 0) composer.insertText("\n\n");
+      let segments: PromptSegment[] | undefined;
+      if (seed.bindLeadingSkill) {
+        const match = /^\/([^\s]+)(?:\s+([\s\S]*))?$/.exec(seed.text);
+        const command = seed.leadingSkillPluginId
+          ? pluginMentions.find((candidate) => candidate.id === seed.leadingSkillPluginId)?.command
+          : match
+            ? skillCommands.find((candidate) => candidate.id === match[1])
+            : undefined;
+        if (command) {
+          const skill = skillSegmentFromSlashCommand(command);
+          if (skill) {
+            segments = [
+              skill,
+              ...(match?.[2] ? [{ kind: "text" as const, content: ` ${match[2]}` }] : []),
+            ];
+          }
         }
       }
+      if (segments) composer.insertSegments(segments);
+      else composer.insertText(seed.text);
+      seed.enableMcpServerIds?.forEach((id) => onMcpMentionSelectRef.current(id));
     }
-    if (segments) composer.insertSegments(segments);
-    else composer.insertText(pendingComposerSeed.text);
     useAppStore.getState().clearComposerSeed(projectId);
-    pendingComposerSeed.enableMcpServerIds?.forEach((id) => onMcpMentionSelectRef.current(id));
   }, [pendingComposerSeed, projectId, pluginMentions, skillCommands, skillCommandsResolved]);
 
   useEffect(() => {
@@ -1107,7 +1111,28 @@ export function ThreadDraftComposerArea(props: {
 
   useEffect(() => {
     const pid = props.project.id;
+    let transferred = false;
+    const unregister = registerMountedProjectDraft(pid, {
+      read: () =>
+        submittedRef.current
+          ? null
+          : {
+              segments: latestSegmentsRef.current,
+              attachments: attachments.getAttachments().map(storableAttachment),
+            },
+      restore: (content) => {
+        mentionRef.current?.restoreFromSegments(content.segments);
+        latestSegmentsRef.current = content.segments;
+        attachments.restore(content.attachments);
+        attachmentsRef.current = content.attachments;
+      },
+      transfer: () => {
+        transferred = true;
+      },
+    });
     return () => {
+      unregister();
+      if (transferred) return;
       if (submittedRef.current) return;
       if (useAppStore.getState().consumeDraftContentDiscard(pid)) return;
       // Stash path-only attachment copies: `previewUrl` object URLs belong to

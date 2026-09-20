@@ -97,7 +97,7 @@ export const projectTools: ToolDomain = {
         path,
         ...(name ? { name } : {}),
       });
-      return { created: true, project: result.project ?? null };
+      return { created: result.created ?? true, project: result.project ?? null };
     },
     update_project: (args, ctx) => {
       const { projectId, name } = updateArgsSchema.parse(args);
