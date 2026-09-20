@@ -214,6 +214,7 @@ function normalizeCursorPreferredDraft(
     ...preferred,
     model: baseModel,
     ...(parsed.effort && !preferred.effort ? { effort: parsed.effort } : {}),
+    ...(parsed.contextSize && !preferred.contextSize ? { contextSize: parsed.contextSize } : {}),
     fast: preferred.fast ?? parsed.fast,
     thinking: preferred.thinking ?? parsed.thinking,
   };

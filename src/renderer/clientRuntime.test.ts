@@ -3,6 +3,7 @@ import { IpcProcedureMapVersionError, type PoracodeBridge } from "@/shared/ipc";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
   DESKTOP_MANAGED_HOST_CAPABILITIES,
+  desktopManagedHostCapabilities,
   UNKNOWN_HOST_CAPABILITIES,
   deriveClientCapabilities,
   hasAnyClientBridge,
@@ -159,10 +160,19 @@ describe("host-declared capabilities (V5 plan 1.2)", () => {
     Reflect.deleteProperty(window, "poracodeHost");
   });
 
+  it("builds desktop-managed computerUse from the host platform without Node process", () => {
+    expect(desktopManagedHostCapabilities("darwin").computerUse).toBe(true);
+    expect(desktopManagedHostCapabilities("win32").computerUse).toBe(true);
+    expect(desktopManagedHostCapabilities("linux").computerUse).toBe(false);
+    expect(desktopManagedHostCapabilities().computerUse).toBe(
+      process.platform === "win32" || process.platform === "darwin",
+    );
+  });
+
   it("keeps the desktop-managed flavor on local host knowledge", () => {
     installElectronClientRuntime(electronHost("x64"));
     const runtime = readClientRuntime();
-    expect(runtime.hostCapabilities).toEqual(DESKTOP_MANAGED_HOST_CAPABILITIES);
+    expect(runtime.hostCapabilities).toEqual(desktopManagedHostCapabilities("win32"));
     expect(runtime.capabilities).toEqual({
       localBackend: true,
       manageRemoteEnvironments: true,

@@ -101,7 +101,9 @@ const execFileAsync = promisify(execFile);
 // v36 re-probes Muse on Windows natively: cached statuses that reported
 // `installed: false` because detection routed through WSL must be re-probed
 // against the Windows host now that Muse ships a native Windows build.
-export const STATUS_CACHE_VERSION = 36;
+// v37 rebuilds Cursor ACP GUI capabilities: parameterized model picker
+// exposes bare model ids plus Effort / Fast / Context / Thinking controls.
+export const STATUS_CACHE_VERSION = 37;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

@@ -237,6 +237,12 @@ export interface AcpStructuredSessionOptions {
   /** Vendor capability requests sent on ACP initialize. */
   initializeMeta?: Record<string, unknown>;
   /**
+   * Extra keys merged into `initialize.clientCapabilities._meta`. Agents that
+   * gate Session Config Options on an undocumented client capability
+   * advertise them here.
+   */
+  clientCapabilitiesMeta?: Record<string, unknown>;
+  /**
    * Vendor ACP extension notifications (e.g. Cursor `cursor/task`) that are
    * not surfaced as standard `session/update` messages.
    */
@@ -319,6 +325,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
   private extensionSessionUpdateTransform?: import("../base/types").AcpExtensionSessionUpdateTransform;
 
   private readonly initializeMeta: Record<string, unknown> | undefined;
+  private readonly clientCapabilitiesMeta: Record<string, unknown> | undefined;
   private readonly behavior: AcpSessionBehavior;
   private readonly textStreamExtension: AcpTextStreamExtension | undefined;
   private readonly stderrTurnSignalParser:
@@ -535,6 +542,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.extensionSessionUpdateTransform = options.extensionSessionUpdateTransform;
     }
     this.initializeMeta = options?.initializeMeta;
+    this.clientCapabilitiesMeta = options?.clientCapabilitiesMeta;
     this.behavior = options?.behavior ?? {};
     this.textStreamExtension = options?.textStreamExtension;
     this.stderrTurnSignalParser = options?.stderrTurnSignalParser;
@@ -835,6 +843,7 @@ export class AcpStructuredSession implements StructuredSessionHandle {
         },
         elicitation: { form: {}, url: {} },
         terminal: true,
+        ...(this.clientCapabilitiesMeta ? { _meta: this.clientCapabilitiesMeta } : {}),
       },
       ...(this.initializeMeta ? { _meta: this.initializeMeta } : {}),
     });

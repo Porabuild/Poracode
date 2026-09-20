@@ -2,6 +2,12 @@ import type { ClientSideConnection, SessionUpdate } from "@agentclientprotocol/s
 import { isThreadConfigEqual, type ThreadConfig } from "@/shared/contracts";
 import { toErrorMessage } from "@/shared/errorMessage";
 import { normalizeAcpModeId } from "./probe";
+import { canonicalizeEffortId } from "@/shared/effortOrder";
+import {
+  findContextConfigOption,
+  findFastConfigOption,
+  resolveAdvertisedSelectValue,
+} from "./modelConfigOptions";
 import {
   applyAcpModeUpdateToConfig,
   findSelectConfigOption,
@@ -10,7 +16,11 @@ import {
   resolveAcpMode,
   resolveModelConfigValue,
 } from "./sessionConfig";
-import { isToggleOnlyThoughtLevelConfig, resolveThoughtLevelToggleValues } from "./thoughtLevel";
+import {
+  findThinkingToggleConfigOption,
+  isThinkingToggleConfig,
+  resolveThoughtLevelToggleValues,
+} from "./thoughtLevel";
 import { setUnstableSessionModel } from "./unstableModelCompat";
 
 const CONFIG_OPTION_UPDATE_TIMEOUT_MS = 5_000;
@@ -47,6 +57,10 @@ export class AcpSessionConfigSync {
   private thoughtLevelConfigId: string | undefined;
   private thoughtLevelToggleOnly = false;
   private thoughtLevelToggleValues: { disabled: string; enabled: string } | undefined;
+  private thinkingToggleConfigId: string | undefined;
+  private thinkingToggleValues: { disabled: string; enabled: string } | undefined;
+  private fastConfigId: string | undefined;
+  private contextConfigId: string | undefined;
   private readonly configOptionUpdateWaiters = new Set<ConfigOptionUpdateWaiter>();
 
   constructor(
@@ -119,8 +133,13 @@ export class AcpSessionConfigSync {
     this.modelConfigValue = modelConfig?.currentValue;
     const thoughtLevelConfig = findThoughtLevelConfig(configOptions);
     this.thoughtLevelConfigId = thoughtLevelConfig?.id;
-    this.thoughtLevelToggleOnly = isToggleOnlyThoughtLevelConfig(thoughtLevelConfig);
+    this.thoughtLevelToggleOnly = isThinkingToggleConfig(thoughtLevelConfig);
     this.thoughtLevelToggleValues = resolveThoughtLevelToggleValues(thoughtLevelConfig);
+    const thinkingToggle = findThinkingToggleConfigOption(configOptions);
+    this.thinkingToggleConfigId = thinkingToggle?.id;
+    this.thinkingToggleValues = resolveThoughtLevelToggleValues(thinkingToggle);
+    this.fastConfigId = findFastConfigOption(configOptions)?.id;
+    this.contextConfigId = findContextConfigOption(configOptions)?.id;
     this.resolveConfigOptionUpdateWaiters();
   }
 
@@ -205,7 +224,7 @@ export class AcpSessionConfigSync {
           ? this.thoughtLevelToggleValues.disabled
           : this.thoughtLevelToggleValues.enabled
         : undefined
-      : nextConfig.effort;
+      : this.resolveEffortConfigValue(nextConfig.effort);
     const thoughtLevelChanged = this.thoughtLevelToggleOnly
       ? nextConfig.thinking !== previousConfig?.thinking
       : nextConfig.effort !== previousConfig?.effort;
@@ -229,6 +248,33 @@ export class AcpSessionConfigSync {
       }
     }
 
+    const pending = [
+      this.applyOptionalSelect(
+        sessionId,
+        this.thinkingToggleConfigId,
+        this.resolveThinkingConfigValue(nextConfig.thinking),
+        modelChanged || nextConfig.thinking !== previousConfig?.thinking,
+        "thinking",
+      ),
+      this.applyOptionalSelect(
+        sessionId,
+        this.fastConfigId,
+        this.resolveFastConfigValue(nextConfig.fast),
+        modelChanged || nextConfig.fast !== previousConfig?.fast,
+        "fast",
+      ),
+      this.applyOptionalSelect(
+        sessionId,
+        this.contextConfigId,
+        this.resolveContextConfigValue(nextConfig.contextSize),
+        modelChanged || nextConfig.contextSize !== previousConfig?.contextSize,
+        "context",
+      ),
+    ].filter((task): task is Promise<void> => task !== undefined);
+    for (const task of pending) {
+      await task;
+    }
+
     return nextConfig;
   }
 
@@ -241,27 +287,8 @@ export class AcpSessionConfigSync {
       if (!currentConfig || !configOptions) {
         return undefined;
       }
-      const thoughtLevelConfig = findThoughtLevelConfig(configOptions);
-      if (isToggleOnlyThoughtLevelConfig(thoughtLevelConfig)) {
-        if (!thoughtLevelConfig) return undefined;
-        const toggleValues = resolveThoughtLevelToggleValues(thoughtLevelConfig);
-        if (
-          !toggleValues ||
-          (thoughtLevelConfig.currentValue !== toggleValues.disabled &&
-            thoughtLevelConfig.currentValue !== toggleValues.enabled)
-        ) {
-          return undefined;
-        }
-        const thinking = thoughtLevelConfig.currentValue === toggleValues.enabled;
-        return thinking !== currentConfig.thinking ? { ...currentConfig, thinking } : undefined;
-      }
-      if (
-        thoughtLevelConfig?.currentValue &&
-        thoughtLevelConfig.currentValue !== currentConfig.effort
-      ) {
-        return { ...currentConfig, effort: thoughtLevelConfig.currentValue };
-      }
-      return undefined;
+      const next = this.reduceConfigOptions(currentConfig, configOptions);
+      return next && !isThreadConfigEqual(currentConfig, next) ? next : undefined;
     }
 
     if (!currentConfig) {
@@ -345,6 +372,106 @@ export class AcpSessionConfigSync {
       clearTimeout(waiter.timer);
       waiter.resolve(true);
     }
+  }
+
+  private reduceConfigOptions(
+    currentConfig: ThreadConfig,
+    configOptions: unknown,
+  ): ThreadConfig | undefined {
+    const thoughtLevelConfig = findThoughtLevelConfig(configOptions);
+    let next = currentConfig;
+    if (isThinkingToggleConfig(thoughtLevelConfig) && thoughtLevelConfig) {
+      const toggleValues = resolveThoughtLevelToggleValues(thoughtLevelConfig);
+      if (
+        toggleValues &&
+        (thoughtLevelConfig.currentValue === toggleValues.disabled ||
+          thoughtLevelConfig.currentValue === toggleValues.enabled)
+      ) {
+        const thinking = thoughtLevelConfig.currentValue === toggleValues.enabled;
+        if (thinking !== next.thinking) next = { ...next, thinking };
+      }
+    } else if (thoughtLevelConfig?.currentValue) {
+      const effort = canonicalizeEffortId(thoughtLevelConfig.currentValue);
+      if (effort !== next.effort) next = { ...next, effort };
+    }
+
+    const thinkingToggle = findThinkingToggleConfigOption(configOptions);
+    const thinkingValues = resolveThoughtLevelToggleValues(thinkingToggle);
+    if (
+      thinkingToggle?.currentValue &&
+      thinkingValues &&
+      (thinkingToggle.currentValue === thinkingValues.disabled ||
+        thinkingToggle.currentValue === thinkingValues.enabled)
+    ) {
+      const thinking = thinkingToggle.currentValue === thinkingValues.enabled;
+      if (thinking !== next.thinking) next = { ...next, thinking };
+    }
+
+    const fast = findFastConfigOption(configOptions);
+    if (fast?.currentValue === "true" || fast?.currentValue === "false") {
+      const fastValue = fast.currentValue === "true";
+      if (fastValue !== next.fast) next = { ...next, fast: fastValue };
+    }
+
+    const context = findContextConfigOption(configOptions);
+    if (context?.currentValue && context.currentValue !== next.contextSize) {
+      next = { ...next, contextSize: context.currentValue };
+    }
+
+    return next;
+  }
+
+  private applyOptionalSelect(
+    sessionId: string,
+    configId: string | undefined,
+    value: string | undefined,
+    changed: boolean,
+    label: string,
+  ): Promise<void> | undefined {
+    if (!configId || !value || !changed) return undefined;
+    return this.setConfigOptionAndRefresh(sessionId, configId, value)
+      .then(() => {
+        console.log("[acp] %s set to: %s", label, value);
+      })
+      .catch((error: unknown) => {
+        console.log("[acp] live %s change rejected, continuing: %s", label, toErrorMessage(error));
+      });
+  }
+
+  private currentSelectOption(configId: string | undefined): { options?: unknown } | undefined {
+    if (!configId) return undefined;
+    return this.currentConfigOptions.find((option) => {
+      if (typeof option !== "object" || option === null) return false;
+      return (option as { id?: unknown }).id === configId;
+    }) as { options?: unknown } | undefined;
+  }
+
+  private resolveEffortConfigValue(effort: string | undefined): string | undefined {
+    return resolveAdvertisedSelectValue(
+      this.currentSelectOption(this.thoughtLevelConfigId),
+      effort,
+    );
+  }
+
+  private resolveThinkingConfigValue(thinking: boolean | undefined): string | undefined {
+    if (thinking !== true && thinking !== false) return undefined;
+    return thinking ? this.thinkingToggleValues?.enabled : this.thinkingToggleValues?.disabled;
+  }
+
+  private resolveFastConfigValue(fast: boolean | undefined): string | undefined {
+    if (fast !== true && fast !== false) return undefined;
+    return resolveAdvertisedSelectValue(
+      this.currentSelectOption(this.fastConfigId),
+      fast ? "true" : "false",
+    );
+  }
+
+  private resolveContextConfigValue(contextSize: string | undefined): string | undefined {
+    if (!contextSize || contextSize === "default") return undefined;
+    return resolveAdvertisedSelectValue(
+      this.currentSelectOption(this.contextConfigId),
+      contextSize,
+    );
   }
 
   private configOptionMatches(configId: string, value: string): boolean {

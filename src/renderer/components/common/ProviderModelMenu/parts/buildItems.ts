@@ -115,26 +115,24 @@ interface ModelEntry {
   searchText: string;
 }
 
-// Surface the model's reported context window(s) as a muted secondary hint in
-// the row. Cursor models with multiple selectable sizes show "272K / 1M";
-// OpenCode models with a single registry context show "128K". Filters out the
-// abstract "Default" id so we don't pollute rows with non-informative text.
+// Surface a fixed context window as a muted row hint when the model has
+// exactly one concrete size and no Context picker. Selectable multi-size
+// models omit the chip — the composer control is the source of truth.
+// Filters out the abstract "Default" id so we don't pollute rows with
+// non-informative text.
 function pickContextDescription(modelId: string, capability: AgentCapability): string | undefined {
   const ids = capability.modelContextSizes?.[modelId];
   if (!ids || ids.length === 0) return undefined;
-  const labels: string[] = [];
-  for (const id of ids) {
-    if (id.toLowerCase() === "default") continue;
-    // Prefer the explicit `contextSizes` label when present; otherwise fall
-    // back to the id itself uppercased so Cursor's "200k" / "1m" ids render
-    // as "200K" / "1M" without the provider having to publish a label entry
-    // (which would otherwise spawn a single-option context picker).
-    const label =
-      capability.contextSizes?.find((option) => option.id === id)?.label ?? id.toUpperCase();
-    if (!label) continue;
-    if (!labels.includes(label)) labels.push(label);
-  }
-  return labels.length > 0 ? labels.join(" / ") : undefined;
+  const concrete = ids.filter((id) => id.toLowerCase() !== "default");
+  if (concrete.length !== 1) return undefined;
+  const id = concrete[0]!;
+  // Prefer the explicit `contextSizes` label when present; otherwise fall
+  // back to the id itself uppercased so Cursor's "200k" / "1m" ids render
+  // as "200K" / "1M" without the provider having to publish a label entry
+  // (which would otherwise spawn a single-option context picker).
+  const label =
+    capability.contextSizes?.find((option) => option.id === id)?.label ?? id.toUpperCase();
+  return label || undefined;
 }
 
 function formatModelDescription(description: string | undefined): string | undefined {

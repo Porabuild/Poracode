@@ -12,6 +12,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown, Search, Star, Zap } from "lucide-react";
 import { Tooltip } from "@heroui/react";
 import { formatProviderModelDescription } from "@/renderer/components/providers/modelDescription";
+import { joinModelRowHints } from "@/shared/modelLabels";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -934,17 +935,14 @@ const WindowedProviderModelList = forwardRef<
               className={`size-3 shrink-0 transition-opacity ${isSelected ? "opacity-100" : "opacity-0"}`}
             />
             {(() => {
-              // Some providers (Cursor ACP) bake their parameter chips into
-              // the label string itself (e.g. "GPT-5.5 · 272K · Medium").
-              // Render the head as the model name and the tail as muted hint.
+              // Context size can stay as a muted chip. Effort and Fast are
+              // first-class controls, including leftover variant labels.
               const { name, hint } = splitModelLabel(item.label);
               const description = formatProviderModelDescription(
                 item.providerKind,
                 item.tooltipDescription,
               );
-              const mutedHint = [hint, item.contextDescription, description?.hint]
-                .filter(Boolean)
-                .join(" · ");
+              const mutedHint = joinModelRowHints(hint, item.contextDescription, description?.hint);
               const rowFastEnabled = modelFastEnabled(item.providerKind, item.modelId);
               const content = (
                 <span className="flex min-w-0 flex-1 items-center gap-1.5">

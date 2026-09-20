@@ -83,6 +83,33 @@ describe("resolveProviderDraftConfig fast mode", () => {
       thinking: true,
     });
   });
+
+  it("lifts context size from a Cursor ACP bracket model id", () => {
+    expect(
+      resolveProviderDraftConfig(
+        {
+          ...agentWith(),
+          kind: "cursor",
+          label: "Cursor",
+          capabilities: {
+            ...capabilities,
+            models: [{ id: "gpt-5.5", label: "GPT-5.5" }],
+            modelEfforts: { "gpt-5.5": ["medium", "high"] },
+            contextSizes: [
+              { id: "272k", label: "272K" },
+              { id: "1m", label: "1M" },
+            ],
+            modelContextSizes: { "gpt-5.5": ["272k", "1m"] },
+          },
+        },
+        { model: "gpt-5.5[context=1m,reasoning=medium]" },
+      ),
+    ).toMatchObject({
+      model: "gpt-5.5",
+      effort: "medium",
+      contextSize: "1m",
+    });
+  });
 });
 
 describe("resolveFastValue", () => {
