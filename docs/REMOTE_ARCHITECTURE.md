@@ -10,9 +10,10 @@ renderer.
  Electron desktop          Browser / installed PWA      iOS app        Android app
  React renderer            React renderer               SwiftUI        Compose
        |                           |                     URLSession       OkHttp
- direct loopback WS             HTTP + WS                HTTP + WS      HTTP + WS
- + preload/native IPC              |                        |               |
-       |                           +------------------------+---------------+
+ HostTransport                 HTTP + WS                HTTP + WS      HTTP + WS
+ (loopback HTTP/WS +               |                        |               |
+  preload local-shell IPC)         +------------------------+---------------+
+       |                                                   |
  desktop backend child                                     |
        |                                                   |
        +------------- shared backend / headless host ------+
@@ -40,13 +41,13 @@ host selection, project/thread views, composer state, normalized snapshots,
 reconnect state, and platform lifecycle. No React renderer, SwiftUI app, Compose
 app, or browser process may spawn an agent or own a PTY.
 
-The Electron renderer accesses local authority through the direct loopback
-`BackendRendererStream` transport, with preload IPC for bootstrap, native
-services, and fallback. `ClientRuntime` declares available client capabilities;
-it is not itself a wire protocol. The browser/PWA uses
-`src/renderer/browser/remoteBridge.ts`. The native apps use platform-native HTTP
-and WebSocket clients rather than implementing `ClientRuntime` or loading the
-browser bridge.
+The Electron renderer talks to the co-located host through one `HostTransport`:
+loopback HTTP/WebSocket is the data plane (TLS-pinned on 127.0.0.1), and preload
+IPC remains bootstrap plus `local-shell` (dialogs, tray, notifications,
+auto-update, native secrets). `ClientRuntime` holds exactly one active transport
+plus that bootstrap. The browser/PWA uses `src/renderer/browser/remoteBridge.ts`
+and cannot pin a self-signed LAN certificate — it is browser-trust-dependent.
+Native apps pin the QR/mDNS leaf SHA-256 before spending the pairing credential.
 
 ### Electron main and backend host
 
@@ -61,15 +62,14 @@ can begin serving HTTP and WebSocket traffic before the supervisor is forked;
 the supervisor starts lazily on the first operation that needs agent, PTY,
 provider, or Git authority and is then reused.
 
-This is the intended authority split, with remaining gaps recorded in
-`docs/V4_MERGE_READINESS_PLAN.md`. In the current implementation, interested
-desktop events still travel through Electron main as well as the direct stream;
-the renderer deduplicates them. Some shared settings writers also remain in main.
-The standalone entry now acquires the shared kernel lease and writes a separate versioned sibling root;
-Electron startup has not yet adopted owner bootstrap or attach. Existing-profile
-activation, complete settings custody and main-process isolation remain pending.
-See [Host ownership and local control](HOST_OWNERSHIP.md) for the changed
-`PORACODE_BASE_DIR` meaning and the explicit authenticated pairing command.
+This is the intended authority split. Desktop and standalone hosts share one
+owned `.host-v1` data root (automatic journaled promotion on first managed
+launch), bind modes `loopback`/`lan`/`tailnet`, optional TLS with Electron/native
+certificate pinning, rotating refresh tokens, a JSONL audit log, and a Host-header
+gate. The listener starts after owner admission; attach mode is a first-class
+renderer flavor. See [Host ownership and local control](HOST_OWNERSHIP.md) for
+`PORACODE_BASE_DIR`, the authenticated pairing command, and the host-control
+protocol.
 
 ### Supervisor
 
@@ -108,8 +108,8 @@ per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
 version is 12. The inventory describes:
 
-- 67 HTTP routes;
-- 108 supervisor procedures;
+- 68 HTTP routes;
+- 139 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
 

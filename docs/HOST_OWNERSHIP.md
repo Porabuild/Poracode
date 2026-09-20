@@ -216,7 +216,7 @@ loopback port and a fresh 32-byte MAC secret. It is a bounded regular private fi
 backup import and carries no storage key, remote access token or pairing URL.
 The Node client lives in `src/backend/ownership`, outside renderer-facing code.
 
-Protocol 1 admits only `POST /control`, exact `Host: 127.0.0.1:<port>`, JSON content
+Protocol 2 admits only `POST /control`, exact `Host: 127.0.0.1:<port>`, JSON content
 and a kernel loopback peer. Any Origin header, alternate route/Host, upgrade or
 content encoding is refused. The closed operations are `describe` and
 `issue-pairing`; attach, arbitrary RPC and root selection are not supported.
