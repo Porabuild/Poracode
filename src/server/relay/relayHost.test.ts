@@ -692,8 +692,17 @@ describe("startRelayHost", () => {
     );
     control.onmessage?.(frame({ t: "ws-open", id: "channel-2", path: "/ws", clientId: "abc123" }));
 
-    expect(seenHeaders[0]).toEqual({ "x-forwarded-for": "relay:abc123", cookie: "lc_forward=xyz" });
-    expect(seenHeaders[1]).toEqual({ "x-forwarded-for": "relay:abc123" });
+    // Every local dial carries the relay-hop marker so the host's loopback-only
+    // gates never mistake a proxied remote visitor for a local peer.
+    expect(seenHeaders[0]).toEqual({
+      "x-poracode-relay-hop": "1",
+      "x-forwarded-for": "relay:abc123",
+      cookie: "lc_forward=xyz",
+    });
+    expect(seenHeaders[1]).toEqual({
+      "x-poracode-relay-hop": "1",
+      "x-forwarded-for": "relay:abc123",
+    });
     handle.dispose();
   });
 

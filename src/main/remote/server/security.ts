@@ -1,5 +1,5 @@
 import { isIP } from "node:net";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { isLoopbackHostname } from "@/shared/http";
 import { REMOTE_COMMAND_ID_HEADER, type RemoteAccessScope } from "@/shared/remote";
 import {
@@ -40,6 +40,50 @@ function isLoopbackAddress(address: string | undefined): boolean {
   if (!address) return false;
   const normalized = address.startsWith("::ffff:") ? address.slice("::ffff:".length) : address;
   return normalized === "127.0.0.1" || normalized === "::1" || normalized.startsWith("127.");
+}
+
+/**
+ * The ONE socket-address loopback classifier for peer-gating (deep-review
+ * consolidation: httpRouteHandlers, security, and desktopInternalStream each
+ * kept a slightly divergent copy). `undefined` means no socket address was
+ * reported (never admit); an empty address is a unix-domain socket (local by
+ * construction).
+ */
+export function isLoopbackSocketAddress(address: string | undefined): boolean {
+  if (address === undefined) return false;
+  const normalized = address.trim().toLowerCase();
+  if (normalized === "") return true;
+  if (normalized === "::1" || normalized === "[::1]") return true;
+  const mapped = normalized.startsWith("::ffff:") ? normalized.slice("::ffff:".length) : normalized;
+  const host = mapped.startsWith("[") ? mapped.slice(1, mapped.indexOf("]")) : mapped;
+  return host === "127.0.0.1" || host.startsWith("127.");
+}
+
+/**
+ * Header `relayHost` stamps on every local HTTP/WS dial it makes on behalf of
+ * a remote visitor. Its presence can only make a loopback gate STRICTER (the
+ * dial is proxied, not local); it never grants anything, so a spoofed copy
+ * from a direct peer changes nothing that peer's socket address has not
+ * already decided.
+ */
+export const RELAY_LOOPBACK_HOP_HEADER = "x-poracode-relay-hop";
+
+/** Whether the request carries the relay adapter's loopback-hop marker. */
+export function hasRelayLoopbackHopMarker(req: { readonly headers: IncomingHttpHeaders }): boolean {
+  const raw = req.headers[RELAY_LOOPBACK_HOP_HEADER];
+  return (Array.isArray(raw) ? raw[0] : raw) === "1";
+}
+
+/**
+ * Whether the request is a DIRECT loopback peer: socket address loopback AND
+ * not a relay-proxied dial (the relay adapter connects from loopback, which
+ * alone would make every remote visitor 'local' to address-based gates).
+ */
+export function isDirectLoopbackPeer(req: {
+  readonly headers: IncomingHttpHeaders;
+  readonly socket: { readonly remoteAddress?: string | undefined };
+}): boolean {
+  return isLoopbackSocketAddress(req.socket.remoteAddress) && !hasRelayLoopbackHopMarker(req);
 }
 
 /**

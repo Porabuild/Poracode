@@ -108,10 +108,10 @@ per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
 version is 12. The inventory describes:
 
-- 65 HTTP routes;
+- 67 HTTP routes;
 - 108 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
-- 10 server-to-client WebSocket messages.
+- 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
 
 `pnpm run protocol:remote:v3:check` is side-effect free and rejects missing,
 extra, or stale generated artifacts, including a hand-edited manifest.

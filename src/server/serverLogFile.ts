@@ -197,10 +197,25 @@ export function startServerLogFile(options: ServerLogFileOptions): ServerLogFile
     warn: console.warn,
     error: console.error,
   };
-  console.log = hooks.log;
-  console.info = hooks.info;
-  console.warn = hooks.warn;
-  console.error = hooks.error;
+  // ADDITIVE mirror, never a replacement (deep-review fix): every hook
+  // delegates to the previous console binding first so stdout/stderr keep
+  // flowing for service managers and `docker logs`, then appends to the file.
+  console.log = (...args: unknown[]) => {
+    previous.log(...args);
+    hooks.log(...args);
+  };
+  console.info = (...args: unknown[]) => {
+    previous.info(...args);
+    hooks.info(...args);
+  };
+  console.warn = (...args: unknown[]) => {
+    previous.warn(...args);
+    hooks.warn(...args);
+  };
+  console.error = (...args: unknown[]) => {
+    previous.error(...args);
+    hooks.error(...args);
+  };
 
   return {
     level,

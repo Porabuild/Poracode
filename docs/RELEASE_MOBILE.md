@@ -31,8 +31,9 @@ device and simulator SDKs. Android compiles and targets API 37 while retaining
 `protocol/remote/v3/generated/manifest.json` is the canonical cross-client
 inventory, generated from the contract registry
 (`src/shared/remote/contract/`). It currently declares protocol version 12 with
-67 HTTP routes, 108 supervisor procedures, 9 client WebSocket messages, 10
-server WebSocket messages, and 16 replayable event types. (The `remote/v3` path
+67 HTTP routes, 108 supervisor procedures, 9 client WebSocket messages, 11
+server WebSocket messages (including the admission-gated desktop-event
+stream), and 16 replayable event types. (The `remote/v3` path
 names the contract family; the protocol version inside the manifest is
 authoritative and has moved past 3.)
 

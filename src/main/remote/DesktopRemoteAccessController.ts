@@ -932,6 +932,8 @@ export function createDesktopRemoteAccessController(
     return getRemoteAccessPairingInfo(isRemoteAccessUserEnabled() ? remoteAccessServer : null);
   };
 
+  let warnedLoopbackTlsSkip: true | undefined;
+
   const getManagedLoopbackBootstrap = async (): Promise<ManagedLoopbackBootstrap | null> => {
     if (disposed) return null;
     // Serialize behind readiness: the renderer may ask while the always-on
@@ -947,6 +949,21 @@ export function createDesktopRemoteAccessController(
     if (disposed) return null;
     const server = remoteAccessServer;
     if (!server) return null;
+    // Deep-review fix: when TLS material is configured, the loopback endpoint
+    // serves a self-signed certificate the renderer has no trust path for
+    // (fetch/WebSocket reject it), so the leg can never activate — and the
+    // intake's 30 s discovery retry would mint + audit a fresh single-use
+    // credential forever. Skip the bootstrap (one warning) and keep the IPC
+    // fallback as the data plane; a renderer-side trust pin is the follow-up.
+    if (server.tlsFingerprint?.()) {
+      if (warnedLoopbackTlsSkip === undefined) {
+        console.warn(
+          "[poracode] TLS is configured for remote access; the managed loopback leg stays on the IPC fallback (renderer trust for the self-signed loopback certificate is not wired).",
+        );
+        warnedLoopbackTlsSkip = true;
+      }
+      return null;
+    }
     const credential = server.mintLoopbackRendererCredential();
     if (!credential) return null;
     return {

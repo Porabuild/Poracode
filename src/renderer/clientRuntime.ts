@@ -333,7 +333,7 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
     ...(managedLoopbackTestSeams.retryDelayMs !== undefined
       ? { retryDelayMs: managedLoopbackTestSeams.retryDelayMs }
       : {}),
-    dispatch: (event) => {
+    dispatch: (event, seq) => {
       // Terminal lifecycle rides the feed while the leg is up: mirror
       // reset/exit into it before the desktop reducer (no-ops for ids with no
       // watchers).
@@ -346,7 +346,7 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
           typeof event.exitCode === "number" ? event.exitCode : null,
         );
       }
-      transport.dispatchLoopbackEvent(event);
+      transport.dispatchLoopbackEvent(event, seq);
     },
     requestRebuild: () => transport.rebuildSubscribedState(),
     onActiveChanged: (active) => {

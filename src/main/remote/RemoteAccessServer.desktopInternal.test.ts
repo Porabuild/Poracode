@@ -137,6 +137,8 @@ async function issueWsTicket(info: RemoteAccessServerInfo, accessToken: string):
 
 interface OpenOptions {
   readonly desktopInternal?: boolean;
+  /** Simulates the relay adapter's local dial: loopback socket + hop marker. */
+  readonly relayHop?: boolean;
   readonly lastDesktopSeq?: number;
   readonly scopes?: readonly string[];
 }
@@ -154,7 +156,9 @@ async function openSocket(
   if (options.lastDesktopSeq !== undefined) {
     wsUrl.searchParams.set("lastDesktopSeq", String(options.lastDesktopSeq));
   }
-  const ws = new WebSocket(wsUrl);
+  const ws = new WebSocket(wsUrl, {
+    ...(options.relayHop ? { headers: { "x-poracode-relay-hop": "1" } } : {}),
+  });
   const next = createWsReader(ws);
   await new Promise<void>((resolve, reject) => {
     ws.once("open", resolve);
@@ -324,5 +328,32 @@ describe("RemoteAccessServer desktop-internal sessions (V5 plan 2.5)", () => {
     expect((frame.event as { type: string }).type).toBe("remote-threads-changed");
 
     desktop.ws.close();
+  });
+
+  it("denies desktop-internal admission to a relay-proxied dial even from loopback", async () => {
+    // Deep-review fix: the relay adapter dials /ws from loopback forwarding a
+    // REMOTE visitor's query params verbatim, so a paired client asking for
+    // desktopInternal=1 through the relay would otherwise receive the
+    // desktop-only event stream. The hop marker must demote it to an ordinary
+    // session.
+    const server = buildServer();
+    const info = await server.start();
+    const proxied = await openSocket(server, info, {
+      desktopInternal: true,
+      relayHop: true,
+      scopes: ["session:read"],
+    });
+    server.publishSupervisorEvent({ type: "git-changed", projectId: "p1" });
+    server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t1"] });
+    // The ready handshake arrives first; the desktop-only family must NOT
+    // follow (it would precede the shared event on an admitted desktop
+    // session), while the shared stream still does.
+    const ready = await proxied.next();
+    expect(ready.type).toBe("ready");
+    const shared = await proxied.next();
+    expect(shared.type).toBe("event");
+    expect((shared.event as { type: string }).type).toBe("remote-threads-changed");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    proxied.ws.close();
   });
 });

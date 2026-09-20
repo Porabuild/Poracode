@@ -42,9 +42,10 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
         withNativeBundleManifest: try manifestData()
       )
     )
-    // Manifest format 3 adds the generated terminal-cursor machine and the
-    // `stateMachines` count (format 2 added the pairing machine, V5 5.2).
-    XCTAssertEqual(manifest.formatVersion, 3)
+    // Manifest format 4 adds the generated terminal hardware-key encoder
+    // (format 3 added the terminal-cursor machine + `stateMachines` count;
+    // format 2 added the pairing machine, V5 5.2).
+    XCTAssertEqual(manifest.formatVersion, 4)
     XCTAssertEqual(
       manifest.formatVersion,
       GeneratedRemoteV3Contract.expectedNativeBundleManifestFormatVersion

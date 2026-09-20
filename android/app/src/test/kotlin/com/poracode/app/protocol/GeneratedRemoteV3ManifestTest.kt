@@ -17,9 +17,10 @@ class GeneratedRemoteV3ManifestTest {
         assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, manifest.getInt("protocolVersion"))
         assertEquals(2, manifest.getInt("bindingFormatVersion"))
         assertEquals(3, manifest.getInt("generatorVersion"))
-        // Manifest format 3 adds the generated terminal-cursor machine and the
-        // stateMachines count (format 2 added the pairing machine, V5 5.2).
-        assertEquals(3, manifest.getInt("formatVersion"))
+        // Manifest format 4 adds the generated terminal hardware-key encoder
+        // (format 3 added the terminal-cursor machine + stateMachines count;
+        // format 2 added the pairing machine, V5 5.2).
+        assertEquals(4, manifest.getInt("formatVersion"))
         assertEquals(ProtocolConstants.REMOTE_PROTOCOL_VERSION, RemoteContractMetadata.protocolVersion)
         assertEquals(2, RemoteContractMetadata.bindingFormatVersion)
         assertEquals(3, RemoteContractMetadata.generatorVersion)

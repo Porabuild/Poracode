@@ -1,3 +1,5 @@
+import { replayBoundedHistory } from "./eventReplay";
+import { isLoopbackSocketAddress } from "./security";
 import { WebSocket } from "ws";
 import type { RemoteWebSocketServerMessage } from "@/shared/remote";
 import type { BufferedSupervisorEvent, RemoteServerContext } from "./context";
@@ -26,13 +28,8 @@ import type { BufferedSupervisorEvent, RemoteServerContext } from "./context";
  * IPv6 forms (`::1`, `127.x.x.x`, `::ffff:127.x.x.x`). Unix sockets report an
  * empty remote address; they are local by construction and count as loopback. */
 export function isLoopbackRemoteAddress(address: string | undefined): boolean {
-  if (address === undefined) return false;
-  const normalized = address.trim().toLowerCase();
-  if (normalized === "") return true;
-  if (normalized === "::1" || normalized === "[::1]") return true;
-  const mapped = normalized.startsWith("::ffff:") ? normalized.slice("::ffff:".length) : normalized;
-  const host = mapped.startsWith("[") ? mapped.slice(1, mapped.indexOf("]")) : mapped;
-  return host.startsWith("127.");
+  // One classifier for every loopback gate (deep-review consolidation).
+  return isLoopbackSocketAddress(address);
 }
 
 const registrySessions = new WeakMap<RemoteServerContext, WeakSet<WebSocket>>();
@@ -99,48 +96,24 @@ export function replayDesktopEvents(
   socket: WebSocket,
   lastSeenSeq: number,
 ): void {
-  let cursor = lastSeenSeq;
-  const stop = (): void => {
-    host.desktopReplayingClients.delete(socket);
-  };
-  const pump = (): void => {
-    if (!host.desktopReplayingClients.has(socket)) return;
-    if (socket.readyState !== WebSocket.OPEN) {
-      stop();
-      return;
-    }
-    if (cursor === host.desktopSeq) {
-      stop();
-      return;
-    }
-    const oldest = host.desktopEventBuffer[0];
-    const index = oldest ? cursor + 1 - oldest.seq : -1;
-    const entry = index >= 0 ? host.desktopEventBuffer[index] : undefined;
-    // Undeliverable oversized events advance `desktopSeq` without entering the
-    // buffer, so the index alone cannot prove contiguity — verify the entry
-    // really is the next one before sending it.
-    if (!entry || entry.seq !== cursor + 1) {
-      stop();
-      host.send(socket, {
-        type: "resync-required",
+  replayBoundedHistory(socket, lastSeenSeq, {
+    membership: host.desktopReplayingClients,
+    get headSeq() {
+      return host.desktopSeq;
+    },
+    get buffer() {
+      return host.desktopEventBuffer;
+    },
+    send: host.send,
+    sendRaw: host.sendRaw,
+    get resync() {
+      return {
         seq: host.seq,
         reason: "Desktop event replay window expired; request a fresh snapshot.",
-      });
-      return;
-    }
-    const data = `{"type":"desktop-event","seq":${entry.seq},"event":${entry.json}}`;
-    const sent = host.sendRaw(socket, data, (error) => {
-      if (error) {
-        stop();
-        socket.terminate();
-        return;
-      }
-      cursor = entry.seq;
-      setImmediate(pump);
-    });
-    if (!sent) stop();
-  };
-  pump();
+      };
+    },
+    frameFor: (entry) => `{"type":"desktop-event","seq":${entry.seq},"event":${entry.json}}`,
+  });
 }
 
 /** The slice of `RemoteAccessServer` state the desktop replay pump reads. */

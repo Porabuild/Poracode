@@ -20,7 +20,7 @@ type RendererInterests = IpcProcedurePayload<"setRendererEventInterests">;
  */
 export class ElectronBackendTransport {
   private lastSequence = 0;
-  private readonly listeners = new Set<(event: SupervisorEvent) => void>();
+  private readonly listeners = new Set<(event: SupervisorEvent, seq?: number) => void>();
   private interests: RendererInterests = { terminalThreadIds: [], runtimeThreadIds: [] };
   /**
    * Loopback leg state (V5 plan 2.5, completed): when the co-located remote
@@ -39,7 +39,11 @@ export class ElectronBackendTransport {
         this.lastSequence = rendererSequence;
       }
       if (this.loopbackActive) return;
-      this.dispatch(event);
+      // Forward the host-lifetime rendererSequence: the reducer's sequenced
+      // arbitration (dedupe through recovery, the read-repeat safeguard)
+      // depends on it, and an unsequenced runtime delta permanently poisons
+      // overflow recovery (hasUnsequenced refuses the snapshot).
+      this.dispatch(event, rendererSequence);
     });
     host.onSupervisorEventGap(() => {
       // Retained events inside a merged loss range must still be delivered,
@@ -52,15 +56,17 @@ export class ElectronBackendTransport {
     });
   }
 
-  subscribe(listener: (event: SupervisorEvent) => void): () => void {
+  subscribe(listener: (event: SupervisorEvent, seq?: number) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
-  /** Delivers one event that arrived over the loopback leg. The intake only
-   * dispatches while its socket is open, so these never race the IPC leg. */
-  dispatchLoopbackEvent(event: SupervisorEvent): void {
-    this.dispatch(event);
+  /** Delivers one event that arrived over the loopback leg (with the shared
+   * stream's per-session cursor). The intake only dispatches while its socket
+   * is open, so these never race the IPC leg; a leg flip rebuilds subscribed
+   * threads, so the two sequence spaces never interleave. */
+  dispatchLoopbackEvent(event: SupervisorEvent, seq?: number): void {
+    this.dispatch(event, seq);
   }
 
   /** Flips the primary event leg and rebuilds subscribed threads across the
@@ -102,7 +108,7 @@ export class ElectronBackendTransport {
     }
   }
 
-  private dispatch(event: SupervisorEvent): void {
-    for (const listener of this.listeners) listener(event);
+  private dispatch(event: SupervisorEvent, seq?: number): void {
+    for (const listener of this.listeners) listener(event, seq);
   }
 }

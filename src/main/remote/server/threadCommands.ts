@@ -1,3 +1,4 @@
+import { REMOTE_AUDIT_LOG_VERSION } from "./auditLog";
 import { mkdirSync } from "node:fs";
 import type { IncomingMessage } from "node:http";
 import {
@@ -97,6 +98,17 @@ export async function runRemoteProcedure(
     );
   }
   ctx.security.requireBearer(req, [REMOTE_PROCEDURE_SPECS[procedure].scope]);
+  // Deep-review fix (S7 coverage): the procedure passthrough is the remote
+  // surface's most powerful route (pushes, PR merges, project/file writes,
+  // deletions) and previously recorded no audit line while far weaker events
+  // did. One line per call, attributed to the authenticated session.
+  ctx.options.audit?.record({
+    v: REMOTE_AUDIT_LOG_VERSION,
+    at: new Date().toISOString(),
+    kind: "procedure",
+    sessionId: ctx.security.requireBearerSession(req, []).session.sessionId,
+    detail: { procedure },
+  });
   const name = procedure as SupervisorProcedureName;
   const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
     typeof name

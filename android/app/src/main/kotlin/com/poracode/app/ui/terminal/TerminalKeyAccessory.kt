@@ -22,6 +22,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
+import com.poracode.remote.v3.generated.TerminalHardwareKey
 
 /** A touch-accessible virtual key with no dedicated physical-keyboard equivalent on-screen. */
 enum class TerminalVirtualKey {
@@ -68,7 +69,9 @@ private fun arrowSuffix(key: TerminalVirtualKey): String? = when (key) {
     else -> null
 }
 
-/** C0 control byte for a Ctrl+letter virtual key, mirroring the iOS raw-key encoder. */
+/** C0 control byte for a Ctrl+letter virtual key, matching the shared C0 fold
+ * band declared by the generated terminal-key encoder
+ * (`com.poracode.remote.v3.generated.terminalHardwareKeySequence`). */
 private fun controlCode(key: TerminalVirtualKey): String? = when (key) {
     TerminalVirtualKey.D -> c0(0x04)
     TerminalVirtualKey.L -> c0(0x0C)
@@ -79,29 +82,10 @@ private fun controlCode(key: TerminalVirtualKey): String? = when (key) {
 internal fun c0(code: Int): String = String(byteArrayOf(code.toByte()), Charsets.ISO_8859_1)
 
 /**
- * Normalized hardware-keyboard keys the terminal passthrough understands.
- * [Character] carries its text through the separate [terminalHardwareKeySequence]
- * argument so the encoder stays JVM-testable without Android key events.
- */
-enum class TerminalHardwareKey {
-    Character,
-    Escape,
-    Tab,
-    Enter,
-    Backspace,
-    Up,
-    Down,
-    Left,
-    Right,
-    Home,
-    End,
-    PageUp,
-    PageDown,
-}
-
-/**
- * Maps a Compose [Key] onto the normalized hardware key, or null when the key has no
- * terminal meaning (the caller then lets the event propagate).
+ * Maps a Compose [Key] onto the normalized generated hardware key, or null when the key
+ * has no terminal meaning (the caller then lets the event propagate). The byte encoding
+ * itself lives in the generated
+ * [com.poracode.remote.v3.generated.terminalHardwareKeySequence].
  */
 internal fun terminalHardwareKey(key: Key): TerminalHardwareKey? = when (key) {
     Key.Escape -> TerminalHardwareKey.Escape
@@ -118,97 +102,6 @@ internal fun terminalHardwareKey(key: Key): TerminalHardwareKey? = when (key) {
     Key.PageDown -> TerminalHardwareKey.PageDown
     else -> null
 }
-
-/**
- * Encodes one hardware-keyboard press into the byte sequence the PTY expects.
- *
- * Plain characters pass through verbatim, Shift realizes case. Ctrl alone folds to the
- * classic C0 control codes (Ctrl+C -> ETX, Ctrl+D -> EOF, Ctrl+L -> clear); every other
- * modified key uses the xterm-compatible CSI forms (`\u001b[1;<modifier><arrow>` for
- * arrows, `\u001b[<code>;<modifier>u` otherwise), matching the iOS raw-key encoder.
- */
-internal fun terminalHardwareKeySequence(
-    keyCode: TerminalHardwareKey,
-    character: String,
-    isCtrl: Boolean,
-    isShift: Boolean,
-    isAlt: Boolean,
-    isMeta: Boolean,
-): String {
-    val shift = if (isShift) 1 else 0
-    val alt = if (isAlt) 2 else 0
-    val ctrl = if (isCtrl) 4 else 0
-    val meta = if (isMeta) 8 else 0
-    val onlyShift = isShift && !isCtrl && !isAlt && !isMeta
-    val bare = !isShift && !isCtrl && !isAlt && !isMeta
-
-    if (keyCode == TerminalHardwareKey.Character) {
-        if (onlyShift) return character.uppercase()
-        if (bare || (isCtrl && !isAlt && !isMeta)) {
-            if (bare) return character
-            if (character.length == 1) {
-                val code = character.single().code
-                // Some input pipelines already fold the chord to its C0 byte
-                // in the reported code point; never double-fold those.
-                if (code < 0x20) return character
-                val ascii = character.uppercase().single().code
-                if (ascii in 0x40..0x5F) return c0(ascii - 0x40)
-            }
-        }
-    } else {
-        if (bare) return keyCode.unmodifiedSequence
-        if (keyCode == TerminalHardwareKey.Tab && onlyShift) return "\u001b[Z"
-    }
-
-    val modifier = 1 + shift + alt + ctrl + meta
-    val arrowSuffix = keyCode.arrowSuffix
-    if (arrowSuffix != null) return "\u001b[1;$modifier$arrowSuffix"
-    val codePoint = if (keyCode == TerminalHardwareKey.Character) {
-        character.uppercase().firstOrNull()?.code
-    } else {
-        keyCode.csiUCodePoint
-    }
-    return "\u001b[${codePoint ?: 0x20};${modifier}u"
-}
-
-private val TerminalHardwareKey.unmodifiedSequence: String
-    get() = when (this) {
-        TerminalHardwareKey.Escape -> "\u001b"
-        TerminalHardwareKey.Tab -> "\t"
-        TerminalHardwareKey.Enter -> "\r"
-        TerminalHardwareKey.Backspace -> "\u007f"
-        TerminalHardwareKey.Up -> "\u001b[A"
-        TerminalHardwareKey.Down -> "\u001b[B"
-        TerminalHardwareKey.Left -> "\u001b[D"
-        TerminalHardwareKey.Right -> "\u001b[C"
-        TerminalHardwareKey.Home -> "\u001b[H"
-        TerminalHardwareKey.End -> "\u001b[F"
-        TerminalHardwareKey.PageUp -> "\u001b[5~"
-        TerminalHardwareKey.PageDown -> "\u001b[6~"
-        TerminalHardwareKey.Character -> ""
-    }
-
-private val TerminalHardwareKey.arrowSuffix: String?
-    get() = when (this) {
-        TerminalHardwareKey.Up -> "A"
-        TerminalHardwareKey.Down -> "B"
-        TerminalHardwareKey.Left -> "D"
-        TerminalHardwareKey.Right -> "C"
-        else -> null
-    }
-
-private val TerminalHardwareKey.csiUCodePoint: Int?
-    get() = when (this) {
-        TerminalHardwareKey.Escape -> 27
-        TerminalHardwareKey.Tab -> 9
-        TerminalHardwareKey.Enter -> 13
-        TerminalHardwareKey.Backspace -> 127
-        TerminalHardwareKey.Home -> 1
-        TerminalHardwareKey.End -> 4
-        TerminalHardwareKey.PageUp -> 5
-        TerminalHardwareKey.PageDown -> 6
-        else -> null
-    }
 
 /**
  * On-screen Esc/Enter/Backspace/arrow row plus a stateful Ctrl modifier chip, mirroring the
