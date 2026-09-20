@@ -2,353 +2,312 @@ import { describe, expect, it } from "vitest";
 import type { HttpRequest } from "../host";
 import { createFakeHost, FAKE_NOW_MS } from "../testHost";
 import { collectMuse } from "./muse";
-import {
-  museJazoest,
-  museSpendWindow,
-  parseMuseCometTokens,
-  parseMuseQuotaWindows,
-  parseMuseSpend,
-} from "./museDashboard";
+import { museSpendWindow, parseMuseQuotaWindows, parseMuseSpend } from "./museDashboard";
 
-const BOOTSTRAP = "https://dev.meta.ai/";
-const GRAPHQL = "https://dev.meta.ai/api/graphql/";
-
-/**
- * App-shell HTML in the exact shape Comet serves it: the config blocks live
- * inside JavaScript string literals, so every quote is backslash-escaped
- * (captured from a real `dev.meta.ai` response). This signed-in variant carries
- * populated tokens; values are synthetic but the serialization is not.
- */
-const SHELL = [
-  '<!DOCTYPE html><html id="facebook"><head><script>',
-  '[\\"LSD\\",[],{\\"token\\":\\"lsd-token-1\\"},323],',
-  '[\\"DTSGInitialData\\",[],{\\"token\\":\\"dtsg:abc\\"},258],',
-  '[\\"CurrentUserInitialData\\",[],{\\"ACCOUNT_ID\\":\\"61550000000001\\",\\"USER_ID\\":\\"0\\"},270],',
-  '[\\"RelayAPIConfigDefaults\\",[],{\\"accessToken\\":\\"\\",\\"actorID\\":\\"61550000000001\\"},141],',
-  '[\\"SiteData\\",[],{\\"comet_env\\":71,\\"server_revision\\":1046844533,\\"client_revision\\":1046844533,\\"hsi\\":\\"7300000000000000001\\",\\"__spin_r\\":1029384756},317]',
-  '</script><a href="/usage/?team_id=778899&project_id=112233">Usage</a></head><body></body></html>',
-].join("");
-
-/** The same shell as served to an anonymous visit: LSD exists, DTSG is empty,
- * the actor id is `"0"`. Nothing session-scoped may be invented from it. */
-const ANON_SHELL = [
-  '<!DOCTYPE html><html id="facebook"><head><script>',
-  '[\\"LSD\\",[],{\\"token\\":\\"AdTRSg37QInNd4nSDM7BcdbB6hk\\"},323],',
-  '[\\"DTSGInitialData\\",[],{},258],',
-  '[\\"CurrentUserInitialData\\",[],{\\"ACCOUNT_ID\\":\\"0\\",\\"USER_ID\\":\\"0\\"},270],',
-  '[\\"RelayAPIConfigDefaults\\",[],{\\"accessToken\\":\\"\\",\\"actorID\\":\\"0\\"},141],',
-  '[\\"SiteData\\",[],{\\"comet_env\\":71,\\"server_revision\\":1046844533,\\"client_revision\\":1046844533,\\"hsi\\":\\"7681775832330158536\\",\\"__spin_r\\":1046844533},317]',
-  "</script></head><body></body></html>",
-].join("");
-
-function money(cents: string): { amount_with_offset: string } {
-  return { amount_with_offset: cents };
-}
-
-/** Response in the observed `data.team.spend_cost_metrics` shape. */
-function usageResponse(extra: Record<string, unknown> = {}): string {
-  return `for (;;);${JSON.stringify({
-    data: {
-      team: {
-        spend_cost_metrics: [
-          {
-            identifier: "usage_billable_cost",
-            categorical_data: [
-              { key: "2026-09-03", value: money("101") },
-              { key: "2026-09-04", value: money("40") },
-            ],
-          },
-        ],
-        ...extra,
-      },
-    },
-  })}`;
-}
-
-describe("parseMuseCometTokens", () => {
-  it("scrapes the request-scoped tokens out of a signed-in app shell", () => {
-    expect(parseMuseCometTokens(SHELL)).toEqual({
-      teamId: "778899",
-      lsd: "lsd-token-1",
-      fbDtsg: "dtsg:abc",
-      actorId: "61550000000001",
-      userId: "0",
-      cometReq: "71",
-      rev: "1029384756",
-      hsi: "7300000000000000001",
-    });
-  });
-
-  it("reads the logged-out shell without inventing session state", () => {
-    expect(parseMuseCometTokens(ANON_SHELL)).toEqual({
-      lsd: "AdTRSg37QInNd4nSDM7BcdbB6hk",
-      userId: "0",
-      cometReq: "71",
-      rev: "1046844533",
-      hsi: "7681775832330158536",
-    });
-  });
-
-  it("omits tokens the page does not carry rather than inventing them", () => {
-    expect(parseMuseCometTokens("<html></html>")).toEqual({});
-  });
-});
-
-describe("museJazoest", () => {
-  it("sums the fb_dtsg char codes behind a 2 prefix", () => {
-    // "ab" → 97 + 98 = 195
-    expect(museJazoest("ab")).toBe("2195");
-  });
-});
-
-describe("museSpendWindow", () => {
-  it("covers a trailing 30 days inclusive", () => {
-    const span = museSpendWindow(Date.UTC(2026, 8, 4));
-    expect(span.end).toBe("2026-09-04");
-    expect(span.start).toBe("2026-08-06");
-  });
-});
-
-describe("parseMuseSpend", () => {
-  it("sums the billable-cost series from minor units", () => {
-    expect(parseMuseSpend(JSON.parse(usageResponse().slice("for (;;);".length)))).toBe(1.41);
-  });
-
-  it("honours an explicit currency offset", () => {
-    const payload = {
-      data: {
-        team: {
-          spend_cost_metrics: [
-            {
-              identifier: "usage_billable_cost",
-              categorical_data: [{ value: { amount_with_offset: "1410", offset: 3 } }],
-            },
-          ],
-        },
-      },
-    };
-    expect(parseMuseSpend(payload)).toBe(1.41);
-  });
-
-  it("ignores series for other identifiers", () => {
-    const payload = {
-      data: {
-        team: {
-          spend_cost_metrics: [
-            { identifier: "something_else", categorical_data: [{ value: money("999") }] },
-          ],
-        },
-      },
-    };
-    expect(parseMuseSpend(payload)).toBeUndefined();
-  });
-
-  it("returns undefined when no spend series is present", () => {
-    expect(parseMuseSpend({ data: { team: {} } })).toBeUndefined();
-  });
-});
-
-// Sanitized real response: weighted quota values are decimal strings, resets are seconds.
+const TEAM = "team-123";
+const PORTAL = "https://dev.meta.ai/api/portal";
+const QUOTA_URL = `${PORTAL}/teams/${TEAM}/subscription-quota`;
+const span = museSpendWindow(FAKE_NOW_MS);
+const SPEND_URL = `${PORTAL}/teams/${TEAM}/usage?metric=USAGE_BILLABLE_COST&start_date=${span.start}&end_date=${span.end}&timezone=UTC`;
+const SECRETS = { muse: { cookie: "llm_sess=test", teamId: TEAM } };
+// Sanitized portal response: decimal-string weights and Unix-second resets.
 const QUOTA = {
-  tier: "Muse Code Everyday Usage",
-  as_of: 1788555625,
-  window_weighted_used: "2627853460",
-  window_weighted_limit: "6000000000",
-  window_resets_at: 1788558965,
-  weekly_weighted_used: "2627853460",
-  weekly_weighted_limit: "17000000000",
-  weekly_resets_at: 1788739200,
+  subscription_quota: {
+    tier: "Muse Code Everyday Usage",
+    window_weighted_used: "2627853460",
+    window_weighted_limit: "20000000000",
+    window_duration_secs: 18000,
+    window_resets_at: 1788558965,
+    weekly_weighted_used: "5163363880",
+    weekly_weighted_limit: "60000000000",
+    weekly_resets_at: 1788739200,
+  },
 };
+const SPEND = {
+  metric: "usage_billable_cost",
+  series: [
+    {
+      type: "PER_MODEL",
+      identifier: "model-a",
+      data_points: [{ date: "2026-09-01", value: 101000000 }],
+    },
+    {
+      type: "PER_MODEL",
+      identifier: "model-b",
+      data_points: [{ date: "2026-09-01", value: 40000000 }],
+    },
+  ],
+};
+const json = (payload: unknown) => ({ status: 200, body: JSON.stringify(payload) });
 
-describe("parseMuseQuotaWindows", () => {
-  it("maps the observed weighted subscription quota and reset timestamps", () => {
-    const windows = parseMuseQuotaWindows({ data: { team: { subscription_quota_usage: QUOTA } } });
-    expect(windows).toEqual([
+describe("Muse portal parsers", () => {
+  it("uses an inclusive trailing 30-day UTC window", () => {
+    expect(museSpendWindow(Date.UTC(2026, 8, 4))).toEqual({
+      start: "2026-08-06",
+      end: "2026-09-04",
+    });
+  });
+
+  it("maps weighted quota windows and reset times", () => {
+    expect(parseMuseQuotaWindows(QUOTA)).toEqual([
       {
         id: "session-5h",
         label: "Current usage",
-        usedPercent: (2627853460 / 6000000000) * 100,
+        usedPercent: (2627853460 / 20000000000) * 100,
         unit: "percent",
         resetsAt: 1788558965000,
       },
       {
         id: "weekly",
         label: "Weekly limit",
-        usedPercent: (2627853460 / 17000000000) * 100,
+        usedPercent: (5163363880 / 60000000000) * 100,
         unit: "percent",
         resetsAt: 1788739200000,
       },
     ]);
   });
 
-  it("preserves zero usage and skips unavailable limits", () => {
+  it("preserves zero usage, skips missing limits, and does not invent a reset", () => {
     expect(
       parseMuseQuotaWindows({
-        subscription_quota_usage: {
-          ...QUOTA,
+        subscription_quota: {
           window_weighted_used: "0",
+          window_weighted_limit: "10",
+          weekly_weighted_used: "1",
           weekly_weighted_limit: "0",
         },
       }),
-    ).toMatchObject([{ id: "session-5h", usedPercent: 0 }]);
+    ).toEqual([{ id: "session-5h", label: "Current usage", usedPercent: 0, unit: "percent" }]);
   });
 
-  it("does not infer quota from unrelated usage-shaped objects", () => {
-    expect(parseMuseQuotaWindows({ weekly: { percent: 15 } })).toEqual([]);
-    expect(parseMuseQuotaWindows({ data: { team: { subscription_quota_usage: null } } })).toEqual(
-      [],
-    );
+  it("clamps usage and rejects malformed quota", () => {
+    expect(
+      parseMuseQuotaWindows({
+        subscription_quota: {
+          ...QUOTA.subscription_quota,
+          window_weighted_used: "-1",
+          weekly_weighted_used: "999999999999",
+        },
+      }).map((w) => w.usedPercent),
+    ).toEqual([0, 100]);
+    for (const value of [
+      null,
+      {},
+      { subscription_quota: [] },
+      { subscription_quota: { window_weighted_used: true, window_weighted_limit: 10 } },
+    ]) {
+      expect(parseMuseQuotaWindows(value)).toEqual([]);
+    }
+  });
+
+  it("sums billable model series in 1e-8 USD units", () => {
+    expect(parseMuseSpend(SPEND)).toBe(1.41);
+  });
+
+  it("prefers TOTAL to prevent double counting model series", () => {
+    expect(
+      parseMuseSpend({
+        ...SPEND,
+        series: [...SPEND.series, { type: "TOTAL", data_points: [{ value: 141000000 }] }],
+      }),
+    ).toBe(1.41);
+  });
+
+  it("supports the dashboard's formatted and raw money objects", () => {
+    expect(
+      parseMuseSpend({
+        ...SPEND,
+        series: [
+          {
+            type: "TOTAL",
+            data_points: [
+              { value: { formatted_amount: "$1.01" } },
+              { value: { amount: "30000000" } },
+              { value: { value: 10000000 } },
+            ],
+          },
+        ],
+      }),
+    ).toBe(1.41);
+  });
+
+  it("distinguishes empty usage from missing or invalid spend data", () => {
+    expect(parseMuseSpend({ metric: "usage_billable_cost", series: [] })).toBe(0);
+    for (const value of [
+      {},
+      null,
+      { ...SPEND, metric: "output_tokens" },
+      { ...SPEND, series: [{}] },
+      { ...SPEND, series: [{ data_points: [{ value: "bad" }] }] },
+    ]) {
+      expect(parseMuseSpend(value)).toBeUndefined();
+    }
   });
 });
 
-describe("collectMuse via the dashboard session", () => {
-  it("reports auth-missing without a captured cookie or CLI token", async () => {
-    const host = createFakeHost();
-    await expect(collectMuse(host)).resolves.toEqual({
+describe("collectMuse via the portal session", () => {
+  it("returns quota, plan and billed spend using the saved session and team", async () => {
+    const requests: HttpRequest[] = [];
+    const host = createFakeHost({
+      secrets: SECRETS,
+      onRequest: (req) => requests.push(req),
+      routes: { [QUOTA_URL]: json(QUOTA), [SPEND_URL]: json(SPEND) },
+    });
+    expect(await collectMuse(host)).toEqual({
       providerId: "muse",
-      status: "auth-missing",
-      windows: [],
+      status: "ok",
+      windows: parseMuseQuotaWindows(QUOTA),
+      plan: "Muse Code Everyday Usage",
+      cost: { currency: "USD", amount: 1.41, period: "30d", estimated: false },
       fetchedAt: FAKE_NOW_MS,
     });
+    expect(requests.map((req) => req.url)).toEqual([QUOTA_URL, SPEND_URL]);
+    for (const req of requests) {
+      expect(req.headers).toMatchObject({ Cookie: "llm_sess=test", Accept: "application/json" });
+      expect(req.method ?? "GET").toBe("GET");
+      expect(req.timeoutMs).toBe(15000);
+    }
   });
 
-  it("returns the 5h + weekly windows and billed spend", async () => {
-    const requests: HttpRequest[] = [];
-    const host = createFakeHost({
-      secrets: { muse: { cookie: "c_user=1; xs=2", teamId: "1387096610018240" } },
-      onRequest: (req) => requests.push(req),
-      routes: {
-        [BOOTSTRAP]: { status: 200, body: SHELL },
-        [GRAPHQL]: {
-          status: 200,
-          body: usageResponse({
-            subscription_quota_usage: QUOTA,
-          }),
-        },
-      },
-    });
-
-    const snapshot = await collectMuse(host);
-    expect(snapshot.status).toBe("ok");
-    expect(snapshot.windows.map((w) => [w.id, w.usedPercent])).toEqual([
-      ["session-5h", (2627853460 / 6000000000) * 100],
-      ["weekly", (2627853460 / 17000000000) * 100],
-    ]);
-    // Billed by Meta, so never flagged as an estimate.
-    expect(snapshot.cost).toEqual({
-      currency: "USD",
-      amount: 1.41,
-      period: "30d",
-      estimated: false,
-    });
-
-    const query = requests.find((req) => req.url === GRAPHQL);
-    expect(query?.method).toBe("POST");
-    expect(query?.headers?.["X-FB-LSD"]).toBe("lsd-token-1");
-    expect(query?.headers?.Referer).toBe("https://dev.meta.ai/usage");
-    const body = new URLSearchParams(query?.body ?? "");
-    expect(body.get("doc_id")).toBe("28117303444603430");
-    expect(body.get("fb_api_req_friendly_name")).toBe("LLMDCUsageQuery");
-    expect(body.get("fb_dtsg")).toBe("dtsg:abc");
-    expect(body.get("jazoest")).toBe(museJazoest("dtsg:abc"));
-    expect(body.get("av")).toBe("61550000000001");
-    expect(body.get("__user")).toBe("0");
-    expect(body.get("__comet_req")).toBe("71");
-    const variables = JSON.parse(body.get("variables") ?? "{}");
-    expect(variables.team_id).toBe("1387096610018240");
-    expect(variables.__relay_internal__pv__Usage_ShouldIncludeSubscriptionQuotarelayprovider).toBe(
-      true,
-    );
-    expect(variables.__relay_internal__pv__Usage_ShouldIncludeCostMetricsrelayprovider).toBe(true);
-  });
-
-  it("falls back to the shell team_id for a session captured before it was sealed", async () => {
-    const requests: HttpRequest[] = [];
-    const host = createFakeHost({
-      secrets: { muse: { cookie: "c_user=1" } },
-      onRequest: (req) => requests.push(req),
-      routes: {
-        [BOOTSTRAP]: { status: 200, body: SHELL },
-        [GRAPHQL]: { status: 200, body: usageResponse() },
-      },
-    });
-    await collectMuse(host);
-    const body = new URLSearchParams(requests.find((r) => r.url === GRAPHQL)?.body ?? "");
-    expect(JSON.parse(body.get("variables") ?? "{}").team_id).toBe("778899");
-  });
-
-  it("reports auth-missing when neither a sealed nor a scraped team id exists", async () => {
-    const host = createFakeHost({
-      secrets: { muse: { cookie: "c_user=1" } },
-      routes: { [BOOTSTRAP]: { status: 200, body: "<html></html>" } },
-    });
-    const snapshot = await collectMuse(host);
-    expect(snapshot.status).toBe("auth-missing");
-    expect(snapshot.windows).toEqual([]);
-  });
-
-  it("treats a rejected session as auth-missing so the card offers re-login", async () => {
-    const host = createFakeHost({
-      secrets: { muse: { cookie: "c_user=1" } },
-      routes: {
-        [BOOTSTRAP]: { status: 200, body: SHELL },
-        [GRAPHQL]: { status: 401, body: "" },
-      },
-    });
-    await expect(collectMuse(host)).resolves.toMatchObject({ status: "auth-missing" });
-  });
-
-  it("surfaces rate limiting distinctly", async () => {
-    const host = createFakeHost({
-      secrets: { muse: { cookie: "c_user=1" } },
-      routes: {
-        [BOOTSTRAP]: { status: 200, body: SHELL },
-        [GRAPHQL]: { status: 429, body: "" },
-      },
-    });
-    await expect(collectMuse(host)).resolves.toMatchObject({ status: "rate-limited" });
-  });
-
-  it("errors on a GraphQL-level rejection rather than reporting empty usage", async () => {
-    const host = createFakeHost({
-      secrets: { muse: { cookie: "c_user=1" } },
-      routes: {
-        [BOOTSTRAP]: { status: 200, body: SHELL },
-        [GRAPHQL]: {
-          status: 200,
-          body: JSON.stringify({ errors: [{ message: "Invalid doc_id" }] }),
-        },
-      },
-    });
-    await expect(collectMuse(host)).resolves.toMatchObject({ status: "error" });
-  });
-
-  it.each([
-    [{ __ar: 1, error: 1357001, errorSummary: "Log in to continue" }, "auth-missing"],
-    [{ __ar: 1, error: 12345 }, "error"],
-    [{ data: { team: {} } }, "error"],
-  ])("does not report successful empty usage for %j", async (payload, status) => {
+  it("recovers the only team for an older cookie-only session", async () => {
     const host = createFakeHost({
       secrets: { muse: { cookie: "llm_sess=test" } },
       routes: {
-        [BOOTSTRAP]: { status: 200, body: SHELL },
-        [GRAPHQL]: { status: 200, body: `for (;;);${JSON.stringify(payload)}` },
+        [`${PORTAL}/teams`]: json({ teams: [{ team_id: TEAM }] }),
+        [QUOTA_URL]: json(QUOTA),
+        [SPEND_URL]: json(SPEND),
       },
     });
-    await expect(collectMuse(host)).resolves.toMatchObject({ status, windows: [] });
+    expect((await collectMuse(host)).status).toBe("ok");
   });
 
-  it("still reports ok with spend when the quota block is absent", async () => {
+  it.each([[], [{ team_id: TEAM }, { team_id: "other" }], [{ team_id: 123 }]])(
+    "requires team selection for ambiguous or unavailable teams: %j",
+    async (...teams) => {
+      // Each table row is the teams array (Vitest spreads array rows).
+      const host = createFakeHost({
+        secrets: { muse: { cookie: "llm_sess=test" } },
+        routes: { [`${PORTAL}/teams`]: json({ teams }) },
+      });
+      expect((await collectMuse(host)).status).toBe("auth-missing");
+    },
+  );
+
+  it.each([401, 403, 429, 500])("classifies team lookup HTTP %i", async (status) => {
     const host = createFakeHost({
-      secrets: { muse: { cookie: "c_user=1" } },
+      secrets: { muse: { cookie: "llm_sess=test" } },
+      routes: { [`${PORTAL}/teams`]: { status } },
+    });
+    expect((await collectMuse(host)).status).toBe(
+      status === 429 ? "rate-limited" : status === 500 ? "error" : "auth-missing",
+    );
+  });
+
+  it.each([QUOTA_URL, SPEND_URL])(
+    "rejects an expired session even if the other endpoint succeeds: %s",
+    async (url) => {
+      for (const status of [401, 403]) {
+        const host = createFakeHost({
+          secrets: SECRETS,
+          routes: { [QUOTA_URL]: json(QUOTA), [SPEND_URL]: json(SPEND), [url]: { status } },
+        });
+        expect(await collectMuse(host)).toEqual({
+          providerId: "muse",
+          status: "auth-missing",
+          windows: [],
+          fetchedAt: FAKE_NOW_MS,
+        });
+      }
+    },
+  );
+
+  it("retains quota during spend failure without inventing a zero cost", async () => {
+    const host = createFakeHost({
+      secrets: SECRETS,
+      routes: { [QUOTA_URL]: json(QUOTA), [SPEND_URL]: { status: 500 } },
+    });
+    const result = await collectMuse(host);
+    expect(result.status).toBe("ok");
+    expect(result.windows).toHaveLength(2);
+    expect(result.cost).toBeUndefined();
+  });
+
+  it("supports pay-as-you-go accounts with spend but no subscription quota", async () => {
+    const host = createFakeHost({
+      secrets: SECRETS,
+      routes: { [QUOTA_URL]: json({ subscription_quota: null }), [SPEND_URL]: json(SPEND) },
+    });
+    expect(await collectMuse(host)).toMatchObject({
+      status: "ok",
+      windows: [],
+      cost: { amount: 1.41 },
+    });
+  });
+
+  it("preserves rate limiting and Retry-After even with partial data", async () => {
+    const host = createFakeHost({
+      secrets: SECRETS,
       routes: {
-        [BOOTSTRAP]: { status: 200, body: SHELL },
-        [GRAPHQL]: { status: 200, body: usageResponse() },
+        [QUOTA_URL]: json(QUOTA),
+        [SPEND_URL]: { status: 429, headers: { "retry-after": "300" } },
       },
     });
-    const snapshot = await collectMuse(host);
-    expect(snapshot.status).toBe("ok");
-    expect(snapshot.windows).toEqual([]);
-    expect(snapshot.cost?.amount).toBe(1.41);
+    expect(await collectMuse(host)).toMatchObject({
+      status: "rate-limited",
+      windows: parseMuseQuotaWindows(QUOTA),
+      rateLimitedUntil: FAKE_NOW_MS + 300000,
+    });
+  });
+
+  it.each(["<html>login</html>", "{}", '{"error":"unavailable"}'])(
+    "does not treat malformed/unknown responses as healthy zero usage: %s",
+    async (body) => {
+      const host = createFakeHost({
+        secrets: SECRETS,
+        routes: { [QUOTA_URL]: { body }, [SPEND_URL]: { body } },
+      });
+      expect(await collectMuse(host)).toMatchObject({ status: "error", windows: [] });
+    },
+  );
+
+  it.each(["300", undefined])(
+    "honors the longest endpoint cooldown when quota Retry-After is %s",
+    async (quotaRetry) => {
+      const host = createFakeHost({
+        secrets: SECRETS,
+        routes: {
+          [QUOTA_URL]: {
+            status: 429,
+            headers: quotaRetry === undefined ? {} : { "retry-after": quotaRetry },
+          },
+          [SPEND_URL]: { status: 429, headers: { "retry-after": "3600" } },
+        },
+      });
+      expect(await collectMuse(host)).toMatchObject({
+        status: "rate-limited",
+        rateLimitedUntil: FAKE_NOW_MS + 3600000,
+      });
+    },
+  );
+
+  it("handles network failures", async () => {
+    const host = createFakeHost({ secrets: SECRETS });
+    host.http.request = async () => {
+      throw new Error("offline");
+    };
+    expect((await collectMuse(host)).status).toBe("error");
+  });
+
+  it("encodes the saved team as one path segment", async () => {
+    const requests: HttpRequest[] = [];
+    await collectMuse(
+      createFakeHost({
+        secrets: { muse: { cookie: "llm_sess=test", teamId: "team/with?chars" } },
+        onRequest: (req) => requests.push(req),
+      }),
+    );
+    expect(
+      requests.every((req) => req.url.startsWith(`${PORTAL}/teams/team%2Fwith%3Fchars/`)),
+    ).toBe(true);
   });
 });

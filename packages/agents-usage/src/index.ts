@@ -137,9 +137,7 @@ export {
 } from "./collectors/muse";
 export {
   collectMuseDashboard,
-  museJazoest,
   museSpendWindow,
-  parseMuseCometTokens,
   parseMuseQuotaWindows,
   parseMuseSpend,
   MUSE_DASHBOARD_URL,
