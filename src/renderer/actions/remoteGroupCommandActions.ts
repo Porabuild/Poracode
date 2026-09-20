@@ -1,10 +1,7 @@
-import type { AppView, Thread } from "@/shared/contracts";
+import type { AppView } from "@/shared/contracts";
+import { canChangeThreadGroup, dissolveGroupMembership } from "@/shared/threadGroups";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useAppStore } from "@/renderer/state/appStore";
-
-function withoutGroup(thread: Thread): Thread {
-  const { groupId: _groupId, groupName: _groupName, ...rest } = thread;
-  return rest;
-}
 
 /**
  * Mirror a remote `set-group` command into the desktop store. Passing no
@@ -18,7 +15,10 @@ export function applyRemoteSetGroupCommand(
 ): void {
   useAppStore.setState((state) => {
     const target = state.threads.find((thread) => thread.id === threadId);
-    if (!target) return {};
+    if (!target) return state;
+    const experiments = useExperimentStore.getState().experiments;
+    if (!canChangeThreadGroup(target.groupId, groupId, (id) => experiments[id] !== undefined))
+      return state;
     if (groupId) {
       return {
         threads: state.threads.map((thread) =>
@@ -27,18 +27,7 @@ export function applyRemoteSetGroupCommand(
       };
     }
     const previousGroupId = target.groupId;
-    let threads = state.threads.map((thread) =>
-      thread.id === threadId ? withoutGroup(thread) : thread,
-    );
-    if (previousGroupId) {
-      const leftover = threads.filter((thread) => thread.groupId === previousGroupId);
-      if (leftover.length === 1) {
-        const leftoverId = leftover[0]!.id;
-        threads = threads.map((thread) =>
-          thread.id === leftoverId ? withoutGroup(thread) : thread,
-        );
-      }
-    }
+    const { threads } = dissolveGroupMembership(state.threads, threadId);
     let view: AppView = state.view;
     if (view.kind === "thread" && previousGroupId && view.activeGroupId === previousGroupId) {
       view = { kind: "thread", panes: [view.panes[0]] };

@@ -41,6 +41,8 @@ export interface AppControlsMcpIngressDeps {
   supervisor: AppControlsSupervisorCaller;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
   emitRemoteThreadCommand(command: RemoteThreadCommand): boolean;
+  /** Fails closed when durable experiment ownership cannot be read. */
+  isExperimentGroup(groupId: string): boolean;
   updateThreadRow(threadId: string, mutate: (thread: Thread) => Thread): void;
   openThreadInUi(threadId: string): boolean;
   notifyUser(input: { title: string; body: string; threadId: string }): AppControlsNotifyResult;

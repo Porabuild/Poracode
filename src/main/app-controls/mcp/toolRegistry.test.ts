@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AgentStatusesResponse,
   CloseThreadPayload,
@@ -48,6 +48,18 @@ import {
   type AppControlsSupervisorCaller,
   type AppControlsToolContext,
 } from "./toolRegistry";
+
+import { dbGetState } from "../../db";
+import { readPersistedExperiments } from "../../remote/experimentOwnership";
+import { persistedGroupExperiment } from "@/shared/test/threadGroups";
+
+vi.mock("../../db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../db")>()),
+  dbGetState: vi.fn<(key: string) => string | null>(() => null),
+}));
+beforeEach(() => {
+  vi.mocked(dbGetState).mockReturnValue(null);
+});
 
 type SC = AppControlsSupervisorCaller;
 
@@ -352,6 +364,8 @@ function context(
     scheduleService: service,
     getThread: (id) => threads.find((entry) => entry.id === id) ?? null,
     getThreads: () => threads,
+    isExperimentGroup: (id) =>
+      readPersistedExperiments().some((experiment) => experiment.id === id),
     getProjects: () => options.projects ?? [],
     getProject: (id) => options.projects?.find((project) => project.id === id) ?? null,
     getProjectNotes: (id) => options.projectNotes?.[id] ?? null,
@@ -728,6 +742,118 @@ describe("Poracode app control tools — threads", () => {
     });
   });
 
+  it.each([{ ungroup: true }, { ungroupAll: true }, { group: "other-group" }])(
+    "update_thread rejects experiment membership changes before any other mutation: %j",
+    async (change) => {
+      vi.mocked(dbGetState).mockReturnValue(persistedGroupExperiment());
+      const threads = [
+        makeThread({ id: "a", groupId: "experiment-1", groupName: "Experiment" }),
+        makeThread({ id: "b", groupId: "experiment-1", groupName: "Experiment" }),
+      ];
+      const before = structuredClone(threads);
+      const { ctx, emitRemoteThreadCommand, updateThreadRow } = context({ threads });
+      await expect(
+        dispatchTool(
+          "update_thread",
+          { threadId: "a", rename: "Changed", starred: true, ...change },
+          ctx,
+        ),
+      ).rejects.toThrow(/Experiment candidates/);
+      expect(updateThreadRow).not.toHaveBeenCalled();
+      expect(emitRemoteThreadCommand).not.toHaveBeenCalled();
+      expect(threads).toEqual(before);
+    },
+  );
+
+  it("update_thread rejects moving an ordinary thread into an experiment before rename", async () => {
+    vi.mocked(dbGetState).mockReturnValue(persistedGroupExperiment());
+    const { ctx, emitRemoteThreadCommand, updateThreadRow } = context({
+      threads: [makeThread({ id: "ordinary", groupId: "normal" })],
+    });
+    await expect(
+      dispatchTool(
+        "update_thread",
+        { threadId: "ordinary", rename: "Changed", group: "experiment-1" },
+        ctx,
+      ),
+    ).rejects.toThrow(/Experiment candidates/);
+    expect(updateThreadRow).not.toHaveBeenCalled();
+    expect(emitRemoteThreadCommand).not.toHaveBeenCalled();
+  });
+
+  it("update_thread fails closed when persisted experiment ownership is unreadable", async () => {
+    vi.mocked(dbGetState).mockReturnValue("invalid JSON");
+    const { ctx, emitRemoteThreadCommand, updateThreadRow } = context();
+    await expect(
+      dispatchTool(
+        "update_thread",
+        { threadId: thread.id, rename: "Changed", group: "normal" },
+        ctx,
+      ),
+    ).rejects.toThrow(/ownership could not be verified/);
+    expect(updateThreadRow).not.toHaveBeenCalled();
+    expect(emitRemoteThreadCommand).not.toHaveBeenCalled();
+  });
+
+  it("update_thread preserves rename and other fields when ungrouping", async () => {
+    const { ctx, updatedRows, emitRemoteThreadCommand } = context({
+      threads: [makeThread({ id: "a", groupId: "g1" }), makeThread({ id: "b", groupId: "g1" })],
+    });
+    await dispatchTool(
+      "update_thread",
+      { threadId: "a", rename: "Changed", ungroup: true, starred: true },
+      ctx,
+    );
+    expect(updatedRows.find((row) => row.id === "a")).toMatchObject({
+      title: "Changed",
+      starred: true,
+    });
+    expect(updatedRows.every((row) => row.groupId === undefined)).toBe(true);
+    expect(emitRemoteThreadCommand).toHaveBeenCalledTimes(4);
+  });
+
+  it("update_thread clears group fields on fresh rows without losing runtime updates", async () => {
+    const threads = [
+      makeThread({ id: "a", groupId: "g1" }),
+      makeThread({ id: "b", groupId: "g1" }),
+    ];
+    const { ctx, updateThreadRow, emitRemoteThreadCommand } = context({ threads });
+    const written: Thread[] = [];
+    updateThreadRow.mockImplementation((id, mutate) => {
+      const snapshot = threads.find((row) => row.id === id)!;
+      const fresh = {
+        ...snapshot,
+        title: "Runtime title",
+        status: "working" as const,
+        updatedAt: "2026-09-20T00:00:00.000Z",
+      };
+      written.push(mutate(fresh));
+    });
+    emitRemoteThreadCommand.mockImplementation(() => {
+      expect(written).toHaveLength(2);
+      return true;
+    });
+    await dispatchTool(
+      "update_thread",
+      { threadId: "a", rename: "Requested title", ungroup: true, starred: true },
+      ctx,
+    );
+    expect(written).toHaveLength(2);
+    expect(
+      written.every(
+        (row) =>
+          row.status === "working" &&
+          row.updatedAt === "2026-09-20T00:00:00.000Z" &&
+          row.groupId === undefined,
+      ),
+    ).toBe(true);
+    expect(written.find((row) => row.id === "a")).toMatchObject({
+      title: "Requested title",
+      starred: true,
+    });
+    expect(written.find((row) => row.id === "b")?.title).toBe("Runtime title");
+  });
+
   it("update_thread ungroups a thread and dissolves a leftover pair", async () => {
     const threads = [
       makeThread({ id: "a", groupId: "g1", groupName: "Research" }),
@@ -1037,6 +1163,23 @@ describe("Poracode app control tools — projects", () => {
     });
     expect(result.created).toBe(true);
     expect(result.project?.id).toBe("p3");
+  });
+
+  it("create_project reports when an existing location is reused", async () => {
+    const existing = projects[0]!;
+    const { ctx, applyProjectCommand } = context({ projects, directoryExists: () => true });
+    applyProjectCommand.mockResolvedValueOnce({
+      projects,
+      project: existing,
+      created: false,
+    });
+    const result = (await dispatchTool("create_project", { path: "/work/alpha" }, ctx)) as {
+      created: boolean;
+      project: Project | null;
+    };
+
+    expect(result.created).toBe(false);
+    expect(result.project?.id).toBe(existing.id);
   });
 
   it("update_project renames while preserving other fields", async () => {

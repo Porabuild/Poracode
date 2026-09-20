@@ -10,6 +10,7 @@ import type { RemoteProjectCommand, RemoteProjectCommandResult } from "@/shared/
 import { msg } from "@/shared/messages";
 import { parseProjectIcon } from "@/shared/projectIcon";
 import { parseWslUncPath } from "@/shared/wsl";
+import { findProjectLocationConflict, projectIdentityKey } from "@/shared/projectIdentity";
 import { RemoteHttpError } from "./auth";
 
 /**
@@ -182,7 +183,7 @@ export async function applyRemoteProjectCommand(
       const name = command.name?.trim() || nameFromPath(command.path);
       assertValidName(name);
       const location = deriveLocationFromPath(command.path, deps.platform);
-      return register(deps, location, name, command.workspaceId);
+      return register(deps, location, name, Boolean(command.name?.trim()), command.workspaceId);
     }
     case "create": {
       assertValidProjectPath(command.parentPath, deps.platform);
@@ -203,7 +204,7 @@ export async function applyRemoteProjectCommand(
         );
       }
       const location = deriveLocationFromPath(targetPath, deps.platform);
-      return register(deps, location, command.name);
+      return register(deps, location, command.name, true);
     }
     case "clone": {
       assertValidProjectPath(command.parentPath, deps.platform);
@@ -221,7 +222,7 @@ export async function applyRemoteProjectCommand(
         source: command.source,
       });
       const location = deriveLocationFromPath(path, deps.platform);
-      return register(deps, location, command.name);
+      return register(deps, location, command.name, true);
     }
     case "update": {
       const projects = deps.getProjects();
@@ -271,6 +272,17 @@ export async function applyRemoteProjectCommand(
         ...project,
         location: deriveLocationFromPath(command.path, deps.platform),
       };
+      if (
+        findProjectLocationConflict(projects, project, updated.location, {
+          caseInsensitivePosix: deps.platform === "darwin",
+        })
+      ) {
+        throw new RemoteHttpError(
+          "project_location_conflict",
+          msg("project.locationConflict"),
+          409,
+        );
+      }
       deps.updateProject(updated);
       return {
         projects: projects.map((candidate) => (candidate.id === updated.id ? updated : candidate)),
@@ -297,10 +309,32 @@ function register(
   deps: RemoteProjectCommandDeps,
   location: ProjectLocation,
   name: string,
+  nameOverride: boolean,
   workspaceId?: string,
 ): RemoteProjectCommandResult {
+  const identityOptions = { caseInsensitivePosix: deps.platform === "darwin" };
+  const identity = projectIdentityKey({ location }, identityOptions);
+  const existing = deps
+    .getProjects()
+    .find((candidate) => projectIdentityKey(candidate, identityOptions) === identity);
+  if (existing) {
+    const changesName = nameOverride && existing.name !== name;
+    const changesWorkspace = workspaceId !== undefined && existing.workspaceId !== workspaceId;
+    const next =
+      changesName || changesWorkspace
+        ? {
+            ...existing,
+            ...(changesName ? { name } : {}),
+            ...(changesWorkspace ? { workspaceId } : {}),
+          }
+        : existing;
+    if (next !== existing) deps.updateProject(next);
+    return { projects: deps.getProjects(), project: next, created: false };
+  }
+
   const project = makeProject(location, name, deps.now(), workspaceId);
+
   // Descending timestamp → new projects sort to the top (sortOrder is ASC).
   deps.upsertProject(project, -Date.parse(project.createdAt));
-  return { projects: deps.getProjects(), project };
+  return { projects: deps.getProjects(), project, created: true };
 }

@@ -108,7 +108,7 @@ export const projectTools: ToolDomain = {
         ...(name ? { name } : {}),
         ...(workspaceId ? { workspaceId } : {}),
       });
-      return { created: true, project: result.project ?? null };
+      return { created: result.created ?? true, project: result.project ?? null };
     },
     update_project: (args, ctx) => {
       const { projectId, name, workspaceId } = updateArgsSchema.parse(args);

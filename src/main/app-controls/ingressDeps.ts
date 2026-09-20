@@ -17,7 +17,10 @@ import {
   dbUpsertProject,
   dbUpsertThread,
 } from "@/main/db";
-import { discardPersistedProjectExperiments } from "@/main/remote/experimentOwnership";
+import {
+  discardPersistedProjectExperiments,
+  readPersistedExperiments,
+} from "@/main/remote/experimentOwnership";
 import { applyRemoteProjectCommand } from "@/main/remote/projectCommands";
 import { sortOrderForThread } from "@/main/remote/server/snapshots";
 import { ensureHomeProjectRow } from "@/main/schedules";
@@ -48,6 +51,8 @@ export interface SharedAppControlsIngressDeps {
   applyProjectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult>;
   updateProject(project: Project): void;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
+  /** Fails closed when durable experiment ownership cannot be read. */
+  isExperimentGroup(groupId: string): boolean;
   updateThreadRow(threadId: string, mutate: (thread: Thread) => Thread): void;
 }
 
@@ -63,6 +68,8 @@ export function buildSharedAppControlsIngressDeps(
 ): SharedAppControlsIngressDeps {
   const { call, sendThreadCommand, getSharedSettings, publishProjectsChanged } = params;
   return {
+    isExperimentGroup: (groupId) =>
+      readPersistedExperiments().some((experiment) => experiment.id === groupId),
     directoryExists: (path) => {
       try {
         return statSync(path).isDirectory();

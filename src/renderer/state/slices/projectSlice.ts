@@ -12,6 +12,9 @@ import type {
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { isDraftPaneId, parseDraftProjectId } from "@/shared/paneId";
 import { getProjectName } from "@/shared/wsl";
+import { findProjectLocationConflict, projectIdentityKey } from "@/shared/projectIdentity";
+import { msg } from "@/shared/messages";
+import { currentProjectIdentityOptions } from "../projectReferences";
 import { reorderIds, type ReorderPlacement } from "../reorder";
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import { removePaneFromView } from "./helpers";
@@ -39,6 +42,11 @@ function projectDraftConfigEqual(
 
 export interface ProjectSlice {
   projects: Project[];
+  addProjectWithResult: (
+    location: ProjectLocation,
+    nameOverride?: string,
+    workspaceId?: string,
+  ) => { project: Project; created: boolean };
   addProject: (
     location: ProjectLocation,
     nameOverride?: string,
@@ -79,23 +87,51 @@ export interface ProjectSlice {
   reorderProjects: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
 }
 
-export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
-  projects: [],
-  addProject: (location, nameOverride, workspaceId) => {
-    const project: Project = {
-      id: crypto.randomUUID(),
-      name: nameOverride?.trim() || getProjectName(location),
-      location,
+function addProjectWithResult(
+  set: Parameters<SliceCreator<ProjectSlice>>[0],
+  get: Parameters<SliceCreator<ProjectSlice>>[1],
+  location: ProjectLocation,
+  nameOverride?: string,
+  workspaceId?: string,
+): { project: Project; created: boolean } {
+  const identityOptions = currentProjectIdentityOptions();
+  const identity = projectIdentityKey({ location }, identityOptions);
+  const existing = get().projects.find(
+    (project) => projectIdentityKey(project, identityOptions) === identity,
+  );
+  if (existing) {
+    const name = nameOverride?.trim();
+    const next = {
+      ...existing,
+      ...(name ? { name } : {}),
       ...(workspaceId ? { workspaceId } : {}),
-      createdAt: new Date().toISOString(),
     };
-
+    if (next.name === existing.name && next.workspaceId === existing.workspaceId) {
+      return { project: existing, created: false };
+    }
     set((state) => ({
-      projects: [project, ...state.projects],
+      projects: state.projects.map((project) => (project.id === existing.id ? next : project)),
     }));
+    return { project: next, created: false };
+  }
 
-    return project;
-  },
+  const project: Project = {
+    id: crypto.randomUUID(),
+    name: nameOverride?.trim() || getProjectName(location),
+    location,
+    ...(workspaceId ? { workspaceId } : {}),
+    createdAt: new Date().toISOString(),
+  };
+  set((state) => ({ projects: [project, ...state.projects] }));
+  return { project, created: true };
+}
+
+export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
+  projects: [],
+  addProjectWithResult: (location, nameOverride, workspaceId) =>
+    addProjectWithResult(set, get, location, nameOverride, workspaceId),
+  addProject: (location, nameOverride, workspaceId) =>
+    addProjectWithResult(set, get, location, nameOverride, workspaceId).project,
   ensureHomeProject: (location) => {
     let ensured: Project | undefined;
 
@@ -268,11 +304,25 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set) => ({
       }),
     })),
   updateProjectLocation: (projectId, location) =>
-    set((state) => ({
-      projects: state.projects.map((project) =>
-        project.id === projectId ? { ...project, location } : project,
-      ),
-    })),
+    set((state) => {
+      const project = state.projects.find((item) => item.id === projectId);
+      if (
+        project &&
+        findProjectLocationConflict(
+          state.projects,
+          project,
+          location,
+          currentProjectIdentityOptions(),
+        )
+      ) {
+        throw new Error(msg("project.locationConflict"));
+      }
+      return {
+        projects: state.projects.map((candidate) =>
+          candidate.id === projectId ? { ...candidate, location } : candidate,
+        ),
+      };
+    }),
   renameProject: (projectId, name) =>
     set((state) => ({
       projects: state.projects.map((project) =>

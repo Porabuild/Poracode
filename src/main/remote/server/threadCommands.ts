@@ -22,6 +22,7 @@ import {
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap } from "@/shared/ipc";
+import { clearThreadGroupFields, dissolveGroupMembership } from "@/shared/threadGroups";
 import { msg } from "@/shared/messages";
 import {
   dbDeleteProject,
@@ -37,6 +38,7 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
 import {
   assertRemoteGitMutationExperimentSafe,
+  assertPersistedThreadGroupChangeSafe,
   discardPersistedProjectExperiments,
 } from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
@@ -203,7 +205,11 @@ export async function applyRemoteThreadCommand(
         updatedAt: new Date().toISOString(),
       }));
       return false;
-    case "set-group":
+    case "set-group": {
+      const threads = dbGetThreads();
+      const current = threads.find((thread) => thread.id === command.threadId);
+      if (!current) throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+      assertPersistedThreadGroupChangeSafe(current.groupId, command.groupId);
       if (command.groupId) {
         const groupId = command.groupId;
         const groupName = command.groupName ?? groupId;
@@ -214,18 +220,12 @@ export async function applyRemoteThreadCommand(
         }));
         return false;
       }
-      {
-        const current = dbGetThreads().find((thread) => thread.id === command.threadId);
-        updateRemoteThread(command.threadId, withoutRemoteThreadGroup);
-        const previousGroupId = current?.groupId;
-        if (previousGroupId) {
-          const leftover = dbGetThreads().filter((thread) => thread.groupId === previousGroupId);
-          if (leftover.length === 1) {
-            updateRemoteThread(leftover[0]!.id, withoutRemoteThreadGroup);
-          }
-        }
+      const result = dissolveGroupMembership(threads, command.threadId);
+      for (const clearedId of result.clearedIds) {
+        updateRemoteThread(clearedId, clearThreadGroupFields);
       }
       return false;
+    }
     case "set-workspace":
       updateRemoteThread(command.threadId, (thread) => {
         const { workspaceId: _dropped, ...rest } = thread;
@@ -484,11 +484,6 @@ export function retargetRemoteThreadForSwitch(
   };
   dbUpsertThread(switched, sortOrderForThread(threads, threadId));
   return { previous, switched };
-}
-
-function withoutRemoteThreadGroup(thread: Thread): Thread {
-  const { groupId: _groupId, groupName: _groupName, ...rest } = thread;
-  return rest;
 }
 
 function updateRemoteThread(threadId: string, update: (thread: Thread) => Thread): void {

@@ -72,6 +72,44 @@ describe("applyRemoteProjectCommand", () => {
     expect(result.project?.workspaceId).toBe("ws-work");
   });
 
+  it("reuses a registered location and reports that no row was created", async () => {
+    const { deps, upsertProject } = makeDeps();
+    const first = await applyRemoteProjectCommand(
+      { kind: "add-existing", path: "/work/my-app" },
+      deps,
+    );
+    const second = await applyRemoteProjectCommand(
+      { kind: "add-existing", path: "/work/my-app" },
+      deps,
+    );
+
+    expect(second.project?.id).toBe(first.project?.id);
+    expect(second.created).toBe(false);
+    expect(upsertProject).toHaveBeenCalledOnce();
+  });
+
+  it("reuses a project while applying explicit workspace and name without resetting sort order", async () => {
+    const { deps, upsertProject } = makeDeps();
+    const first = await applyRemoteProjectCommand(
+      { kind: "add-existing", path: "/work/app", name: "Original", workspaceId: "old" },
+      deps,
+    );
+    const next = await applyRemoteProjectCommand(
+      { kind: "add-existing", path: "/work/app", name: "Renamed", workspaceId: "new" },
+      deps,
+    );
+    expect(next).toMatchObject({
+      created: false,
+      project: { id: first.project?.id, name: "Renamed", workspaceId: "new" },
+    });
+    expect(upsertProject).toHaveBeenCalledOnce();
+    const unchanged = await applyRemoteProjectCommand(
+      { kind: "add-existing", path: "/work/app" },
+      deps,
+    );
+    expect(unchanged.project).toMatchObject({ name: "Renamed", workspaceId: "new" });
+  });
+
   it("sorts new projects to the top via a descending-timestamp sortOrder", async () => {
     const { deps, upsertProject } = makeDeps();
     await applyRemoteProjectCommand({ kind: "add-existing", path: "/work/app" }, deps);
@@ -334,6 +372,24 @@ describe("applyRemoteProjectCommand", () => {
     await expect(
       applyRemoteProjectCommand({ kind: "remove", projectId: "missing" }, deps),
     ).rejects.toMatchObject({ status: 404, code: "project_not_found" });
+  });
+
+  it("rejects relocating into another registered location without changing either project", async () => {
+    const { deps, projects, updateProject } = makeDeps();
+    const first = await applyRemoteProjectCommand({ kind: "add-existing", path: "/work/a" }, deps);
+    const second = await applyRemoteProjectCommand({ kind: "add-existing", path: "/work/b" }, deps);
+    await expect(
+      applyRemoteProjectCommand(
+        {
+          kind: "relocate",
+          projectId: second.project!.id,
+          path: "/work/a/",
+        },
+        deps,
+      ),
+    ).rejects.toMatchObject({ code: "project_location_conflict", status: 409 });
+    expect(updateProject).not.toHaveBeenCalled();
+    expect(projects).toEqual([first.project, second.project]);
   });
 
   it("removes a project's experiments before closing threads and deleting the project", async () => {

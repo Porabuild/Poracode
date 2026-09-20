@@ -309,6 +309,8 @@ export interface AppControlsToolContext {
    * falls back to writing the DB row directly via {@link updateThreadRow}.
    */
   emitRemoteThreadCommand(command: RemoteThreadCommand): boolean;
+  /** Fails closed when durable experiment ownership cannot be read. */
+  isExperimentGroup(groupId: string): boolean;
   /**
    * Headless / no-renderer fallback: read the current thread row, apply
    * `mutate`, and persist it (preserving sort order). Source of truth when no

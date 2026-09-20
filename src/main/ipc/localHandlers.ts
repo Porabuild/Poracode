@@ -77,6 +77,7 @@ import { getRemoteAccessPairingInfo } from "../remote/pairingInfo";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
+  IPC_EVENT_CHANNELS,
   type MainLocalIpcHandlerMap,
   type RemoteAccessTailscaleStatus,
   type StartTailscaleResult,
@@ -520,8 +521,16 @@ export function createLocalIpcHandlers(
       // commands send; the remote's debounced refresh reads the post-write state.
       const projectsChanged = syncedProjectsChanged(dbGetProjects(), projects);
       const { changedThreadIds, viewedThreadIds } = diffSyncedThreads(dbGetThreads(), threads);
-      dbSyncAll(projects, threads, viewJson);
-      if (projectsChanged) publishProjectsChanged(projects);
+      const repaired = dbSyncAll(projects, threads, viewJson);
+      if (repaired) {
+        // Reconcile the originating desktop too. Include unseen recovered
+        // threads so its next full-store write cannot delete their transcripts.
+        options.getMainWindow()?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, {
+          projects: dbGetProjects(),
+          recoveredThreads: dbGetThreads(),
+        });
+      }
+      if (projectsChanged) publishProjectsChanged();
       publishThreadsChanged(changedThreadIds, viewedThreadIds);
     },
     dbPersistExperimentState: async (payload) => {
