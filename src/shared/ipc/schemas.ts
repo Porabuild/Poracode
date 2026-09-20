@@ -217,6 +217,16 @@ export const persistedThreadPageSchema = z.object({
 });
 export type PersistedThreadPage = z.infer<typeof persistedThreadPageSchema>;
 
+/** Remote result codec: same page shape without the persisted-config defaulting transform. */
+export const persistedThreadPageRemoteSchema = z.object({
+  threads: z.array(
+    threadSchema.extend({
+      config: threadConfigSchema.extend({ model: z.string() }),
+    }),
+  ),
+  nextCursor: z.string().nullable(),
+});
+
 export const persistedRuntimeItemSchema = z.object({
   id: z.string().min(1),
   type: z.string().min(1),

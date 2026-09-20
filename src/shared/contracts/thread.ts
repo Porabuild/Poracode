@@ -133,6 +133,15 @@ export type TerminalSize = z.infer<typeof terminalSizeSchema>;
 /** Fallback PTY geometry used when a terminal is launched before its surface has measured. */
 export const DEFAULT_TERMINAL_SIZE: TerminalSize = { cols: 120, rows: 30 };
 
+export const terminalSnapshotSchema = z.object({
+  generation: z.string().nullable(),
+  fromCursor: z.number().int().nonnegative(),
+  toCursor: z.number().int().nonnegative(),
+  data: z.string(),
+  processState: z.enum(["running", "exited"]),
+  terminalSize: terminalSizeSchema.nullable(),
+});
+
 export const promptSegmentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), content: z.string() }),
   z.object({ kind: z.literal("file"), path: z.string() }),

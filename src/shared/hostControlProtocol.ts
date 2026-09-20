@@ -51,21 +51,59 @@ export type HostControlDiscovery = z.infer<typeof hostControlDiscoverySchema>;
  * must treat `false` (or an unreadable/older host) as "not offered" and fail
  * closed; no capability carries a degradation promise.
  */
+/**
+ * Every flag is optional-with-default-false on the wire (V6 round-2 fix): a
+ * host may omit any subset and the describe/control payloads still parse —
+ * native decoders and the TS `describeHost` lenient path both converge on
+ * fail-closed `false`. Emitting the flags explicitly remains the canonical
+ * form hosts use today.
+ */
 export const hostServiceCapabilitiesSchema = z.strictObject({
   /** SSH environment management (connect, tunnels, runtime staging). */
-  ssh: z.boolean(),
+  ssh: z.boolean().default(false),
   /** Embedded browser panel backed by WebContentsView (Electron shell only). */
-  browserPanel: z.boolean(),
+  browserPanel: z.boolean().default(false),
   /** External-Chrome bridge plus its `chrome` MCP ingress. */
-  chromeBridge: z.boolean(),
+  chromeBridge: z.boolean().default(false),
   /** Computer-use MCP ingress with a usable driver for this platform. */
-  computerUse: z.boolean(),
+  computerUse: z.boolean().default(false),
   /** OS-backed secret sealing (safeStorage); file-based custody is `false`. */
-  nativeSecrets: z.boolean(),
+  nativeSecrets: z.boolean().default(false),
   /** Raw TCP port-forward gateway exposed beside the remote server. */
-  portForward: z.boolean(),
+  portForward: z.boolean().default(false),
+  /**
+   * Host-driven auto-update (Electron updater / install-update). Defaulted so
+   * a version-2 control describe without the field still parses (V6 C.3).
+   */
+  autoUpdate: z.boolean().default(false),
+  /** OS notification surface on this host. Defaulted like `autoUpdate`. */
+  osNotifications: z.boolean().default(false),
 });
 export type HostServiceCapabilities = z.infer<typeof hostServiceCapabilitiesSchema>;
+
+/** Fail-closed set: nothing is offered. */
+export const UNKNOWN_HOST_SERVICE_CAPABILITIES: HostServiceCapabilities = {
+  ssh: false,
+  browserPanel: false,
+  chromeBridge: false,
+  computerUse: false,
+  nativeSecrets: false,
+  portForward: false,
+  autoUpdate: false,
+  osNotifications: false,
+};
+
+export function hostServiceCapabilities(
+  overrides: Partial<HostServiceCapabilities> = {},
+): HostServiceCapabilities {
+  return { ...UNKNOWN_HOST_SERVICE_CAPABILITIES, ...overrides };
+}
+
+/** Authenticated GET /api/host/describe body (V6 C.2). */
+export const remoteHostDescribeSchema = z.strictObject({
+  capabilities: hostServiceCapabilitiesSchema,
+});
+export type RemoteHostDescribe = z.infer<typeof remoteHostDescribeSchema>;
 
 export const hostDescriptionSchema = z.strictObject({
   profileNamespace: rootSchema,
@@ -85,11 +123,20 @@ const requestBase = {
   version: z.literal(HOST_CONTROL_PROTOCOL_VERSION),
   requestId: z.uuid(),
   ownerGeneration: z.uuid(),
-  payload: z.strictObject({}),
 };
 export const hostControlRequestSchema = z.discriminatedUnion("operation", [
-  z.strictObject({ ...requestBase, operation: z.literal("describe") }),
-  z.strictObject({ ...requestBase, operation: z.literal("issue-pairing") }),
+  z.strictObject({
+    ...requestBase,
+    operation: z.literal("describe"),
+    payload: z.strictObject({}),
+  }),
+  z.strictObject({
+    ...requestBase,
+    operation: z.literal("issue-pairing"),
+    payload: z.strictObject({
+      preset: z.enum(["operator", "viewer"]).optional(),
+    }),
+  }),
 ]);
 export type HostControlRequest = z.infer<typeof hostControlRequestSchema>;
 

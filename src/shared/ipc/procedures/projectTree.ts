@@ -148,6 +148,7 @@ export const projectTreeProcedures = {
     "revealProjectEntry",
     "main-local",
     revealProjectEntryPayloadSchema,
+    omittedResultSchema,
   ),
   detectSetupScript: definePayloadProcedure<
     DetectSetupScriptPayload,

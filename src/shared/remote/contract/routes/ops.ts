@@ -1,4 +1,5 @@
 import { defineRoute } from "../helpers";
+import { noAudit } from "../../auditKinds";
 import { healthzResponseSchema, metricsResponseSchema } from "../routeSchemas";
 import type { RemoteHttpRouteContract } from "../types";
 
@@ -21,6 +22,7 @@ export const opsRoutes: readonly RemoteHttpRouteContract[] = [
     // authenticated environment descriptor).
     auth: "public",
     scopes: [],
+    audit: noAudit("public liveness probe"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",
@@ -38,6 +40,7 @@ export const opsRoutes: readonly RemoteHttpRouteContract[] = [
     // token.
     auth: "public",
     scopes: [],
+    audit: noAudit("loopback-gated metrics"),
     request: { bodyKind: "empty" },
     response: {
       wireKind: "json",

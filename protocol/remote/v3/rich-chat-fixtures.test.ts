@@ -34,8 +34,8 @@ import { applyRuntimeEventsToState } from "../../../src/renderer/state/slices/ru
 import {
   canAppendTerminalCursorRange,
   isStaleTerminalWatchId,
-} from "../../../src/main/remote/server/terminalCursorSync";
-import { MAX_ATTACHMENT_BODY_BYTES } from "../../../src/main/remote/server/requestBody";
+} from "../../../src/host/remote/server/terminalCursorSync";
+import { MAX_ATTACHMENT_BODY_BYTES } from "../../../src/host/remote/server/requestBody";
 
 const fixtureDirectory = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 

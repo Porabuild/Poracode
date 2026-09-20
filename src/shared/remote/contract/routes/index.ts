@@ -19,6 +19,7 @@ const MANIFEST_ROUTE_IDS = [
   "host-update",
   "host-update-check",
   "host-update-install",
+  "host-describe",
   "provider-usage",
   "project-notes-read",
   "project-notes-write",

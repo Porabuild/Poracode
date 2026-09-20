@@ -31,6 +31,11 @@ export const remoteHttpBridgeOpenRequestSchema = z
       .refine(isHttpUrl, { message: "remote HTTP bridge only supports http(s) URLs" }),
     method: z.enum(REMOTE_HTTP_BRIDGE_METHODS),
     headers: z.record(z.string(), z.string()).default({}),
+    certFingerprint: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .nullable()
+      .optional(),
     hasBody: z.boolean(),
     bodyBytes: z.number().int().min(0).max(REMOTE_HTTP_MAX_REQUEST_BODY_BYTES),
   })

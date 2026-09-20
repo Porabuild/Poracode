@@ -239,6 +239,49 @@ describe("RemoteDesktopClient", () => {
     ]);
   });
 
+  it("reads host-declared capabilities and fails closed on a missing describe route", async () => {
+    const capabilities = {
+      ssh: true,
+      browserPanel: false,
+      chromeBridge: true,
+      computerUse: false,
+      nativeSecrets: false,
+      portForward: true,
+      autoUpdate: false,
+      osNotifications: false,
+    };
+    const client = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async (url) => {
+        if (String(url).endsWith("/api/host/describe")) {
+          return new Response(JSON.stringify({ capabilities }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({}), { status: 404 });
+      },
+    );
+    await expect(client.describeHost()).resolves.toEqual(capabilities);
+
+    const oldHost = new RemoteDesktopClient(
+      "https://relay.example.test/s/server-1/",
+      "lc_access_test",
+      async () => new Response(JSON.stringify({}), { status: 404 }),
+    );
+    await expect(oldHost.describeHost()).resolves.toEqual({
+      ssh: false,
+      browserPanel: false,
+      chromeBridge: false,
+      computerUse: false,
+      nativeSecrets: false,
+      portForward: false,
+      autoUpdate: false,
+      osNotifications: false,
+    });
+  });
+
   it("reads and writes encoded project notes paths", async () => {
     const requests: Array<{ url: string; method: string; body: unknown }> = [];
     const notes = {
@@ -1508,6 +1551,36 @@ describe("RemoteDesktopClient token lifecycle (Gate 6 item 4.6)", () => {
       refreshToken: "lc_refresh_new",
       refreshTokenExpiresAt: "2099-02-01T00:00:00.000Z",
     });
+  });
+
+  it("shares concurrent rotation across clients holding the same single-use refresh token", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let tokenCalls = 0;
+    const fetch = vi.fn<RemoteFetch>(async (url) => {
+      expect(new URL(String(url)).pathname).toBe("/oauth/token");
+      tokenCalls += 1;
+      await gate;
+      return jsonResponse(200, {
+        accessToken: "new-access",
+        tokenType: "Bearer",
+        expiresAt: "2099-01-02T00:00:00.000Z",
+        scopes: ["session:read"],
+        refreshToken: "new-refresh",
+      });
+    });
+    const options = { tokenLifecycle: lifecycle("single-use-refresh", () => {}) };
+    const first = new RemoteDesktopClient(endpoint, "old-access", fetch, options);
+    const second = new RemoteDesktopClient(endpoint, "old-access", fetch, options);
+    const pending = [first.refreshTokens(), second.refreshTokens()];
+    expect(tokenCalls).toBe(1);
+    release();
+    expect(await Promise.all(pending)).toEqual([
+      { accessToken: "new-access", refreshToken: "new-refresh" },
+      { accessToken: "new-access", refreshToken: "new-refresh" },
+    ]);
   });
 
   it("does not retry again when the post-refresh retry is also unauthorized", async () => {

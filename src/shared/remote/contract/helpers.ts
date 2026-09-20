@@ -10,6 +10,7 @@ import type {
   RemoteRouteAuth,
 } from "./types";
 import type { RemoteAccessScope } from "../protocol";
+import type { RemoteRouteAudit } from "../auditKinds";
 
 export const emptyJsonObjectSchema = z.object({});
 export const remoteOkResponseSchema = z.object({ ok: z.literal(true) });
@@ -41,6 +42,8 @@ export function defineRoute(input: {
   readonly idempotency?: RemoteIdempotency;
   readonly request: RemoteHttpRequestContract;
   readonly response: RemoteHttpResponseContract;
+  /** V6 A.9: dispatcher emits this kind, or `false` with a justification. */
+  readonly audit: RemoteRouteAudit;
 }): RemoteHttpRouteContract {
   const pathParameters = pathParamsFromTemplate(input.path);
   const inferredPathSchema =
@@ -52,6 +55,7 @@ export function defineRoute(input: {
     ...input,
     ...(pathParameters.length > 0 ? { pathParameters } : {}),
     ...(queryCodecs.length > 0 ? { queryCodecs } : {}),
+    audit: input.audit,
     request: {
       bodyKind: input.request.bodyKind,
       ...(input.request.jsonSchema ? { jsonSchema: input.request.jsonSchema } : {}),

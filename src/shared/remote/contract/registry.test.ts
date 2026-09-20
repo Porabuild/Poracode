@@ -23,18 +23,18 @@ const manifest = JSON.parse(
 };
 
 describe("remote contract registry", () => {
-  it("covers exactly the 67 routes and 108 procedures with no duplicates", () => {
-    expect(REMOTE_HTTP_ROUTES).toHaveLength(67);
-    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(108);
-    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(67);
+  it("covers exactly the 68 routes and 139 procedures with no duplicates", () => {
+    expect(REMOTE_HTTP_ROUTES).toHaveLength(68);
+    expect(REMOTE_PROCEDURE_CONTRACTS).toHaveLength(139);
+    expect(new Set(REMOTE_HTTP_ROUTES.map((route) => route.id)).size).toBe(68);
     expect(new Set(REMOTE_HTTP_ROUTES.map((route) => `${route.method} ${route.path}`)).size).toBe(
-      67,
+      68,
     );
-    expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(108);
-    expect(REMOTE_CONTRACT_INVENTORY.routes).toBe(67);
-    expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(108);
-    expect(REMOTE_CONTRACT_INVENTORY.voidProcedureResults).toBe(43);
-    expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(65);
+    expect(new Set(REMOTE_PROCEDURE_CONTRACTS.map((procedure) => procedure.name)).size).toBe(139);
+    expect(REMOTE_CONTRACT_INVENTORY.routes).toBe(68);
+    expect(REMOTE_CONTRACT_INVENTORY.procedures).toBe(139);
+    expect(REMOTE_CONTRACT_INVENTORY.voidProcedureResults).toBe(56);
+    expect(REMOTE_CONTRACT_INVENTORY.jsonProcedureResults).toBe(83);
     expect(REMOTE_CONTRACT_INVENTORY.blockedProcedureResults).toEqual([]);
     expect(BLOCKED_PROCEDURE_RESULTS).toEqual([]);
   });
@@ -82,7 +82,7 @@ describe("remote contract registry", () => {
     const voidNames = REMOTE_PROCEDURE_CONTRACTS.filter(
       (procedure) => procedure.resultKind === "omitted",
     ).map((procedure) => procedure.name);
-    expect(voidNames).toHaveLength(43);
+    expect(voidNames).toHaveLength(56);
     const omitted = REMOTE_PROCEDURE_CONTRACTS.filter(
       (procedure) => procedure.resultKind === "omitted",
     );

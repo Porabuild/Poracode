@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -35,6 +35,18 @@ function readSource(relativePath: string): string {
   return readFileSync(join(repositoryRoot, relativePath), "utf8");
 }
 
+function readProtocolSource(): string {
+  const protocolDir = join(repositoryRoot, "src/shared/remote/protocol");
+  const parts = [
+    readSource("src/shared/remote/protocol.ts"),
+    ...readdirSync(protocolDir)
+      .filter((name) => name.endsWith(".ts"))
+      .sort()
+      .map((name) => readFileSync(join(protocolDir, name), "utf8")),
+  ];
+  return parts.join("\n");
+}
+
 function sorted(values: readonly string[]): string[] {
   return [...values].sort((left, right) => left.localeCompare(right));
 }
@@ -68,12 +80,14 @@ const procedureSchema = z
       "projectLocation",
       "worktreeLocation",
       "location",
+      "parentLocation",
       "runtime",
       "optionalProjectLocation",
       "skillLocations",
       "thread",
       "project",
       "terminal",
+      "desktop",
     ]),
     timeout: z.literal("long").optional(),
   })
@@ -301,6 +315,37 @@ const EXPECTED_PROCEDURE_NAMES = [
   "ghRerunWorkflowRun",
   "ghCancelWorkflowRun",
   "ghDeleteWorkflowRun",
+  "gitWatchProject",
+  "gitWatchWorktrees",
+  "gitUnwatchProject",
+  "revealProjectEntry",
+  "startThread",
+  "ensureThreadRunning",
+  "createRevertAnchor",
+  "restoreToRevertAnchor",
+  "relocateProject",
+  "cloneRepo",
+  "extractContext",
+  "cancelExtractContext",
+  "connectThreadVoice",
+  "disconnectThreadVoice",
+  "lspStart",
+  "dbDeleteThread",
+  "dbDeleteProject",
+  "dbGetThreadRuntimeItems",
+  "dbGetLatestThreadGoalItem",
+  "dbGetThreadsPage",
+  "dbReplaceThreadRuntimeItems",
+  "dbGetThreadCompletedTurns",
+  "dbReplaceThreadCompletedTurns",
+  "dbReplaceThreadRuntimeSnapshot",
+  "dbGetThreadContextUsage",
+  "readTerminalScrollback",
+  "readTerminalSize",
+  "readTerminalSnapshot",
+  "readThreadBackgroundTasks",
+  "detectProjectIcon",
+  "listProjectIconFiles",
 ] as const;
 
 function routeKey(route: { readonly method: string; readonly path: string }): string {
@@ -329,7 +374,7 @@ describe("language-neutral remote protocol v3 contract", () => {
     expect(manifest.wireFormat.commandIdHeader).toBe(REMOTE_COMMAND_ID_HEADER);
     expect(sorted(manifest.scopes)).toEqual(sorted(REMOTE_STANDARD_SCOPES));
 
-    const protocolSource = readSource("src/shared/remote/protocol.ts");
+    const protocolSource = readProtocolSource();
     expect(sorted(manifest.webSocket.clientMessages)).toEqual(
       sorted(literalTypesInSchema(protocolSource, "remoteWebSocketClientMessageSchema")),
     );
@@ -342,7 +387,7 @@ describe("language-neutral remote protocol v3 contract", () => {
       sorted(literalTypesInSchema(runtimeEventSource, "runtimeEventSchema")),
     );
 
-    const serverSource = readSource("src/main/remote/RemoteAccessServer.ts");
+    const serverSource = readSource("src/host/remote/RemoteAccessServer.ts");
     const replayableStart = serverSource.indexOf(
       "new Set([",
       serverSource.indexOf("const REMOTELY_CONSUMED_EVENT_TYPES"),
@@ -365,7 +410,7 @@ describe("language-neutral remote protocol v3 contract", () => {
   it("keeps the complete generic procedure inventory and metadata aligned", () => {
     const manifestNames = manifest.procedures.map((procedure) => procedure.name);
     const authoritativeNames = Object.keys(REMOTE_PROCEDURE_SPECS);
-    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(108);
+    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(139);
     expect(new Set(EXPECTED_PROCEDURE_NAMES).size).toBe(EXPECTED_PROCEDURE_NAMES.length);
     expect(new Set(manifestNames).size).toBe(manifestNames.length);
     expect(manifestNames).toEqual([...EXPECTED_PROCEDURE_NAMES]);
@@ -674,7 +719,7 @@ describe("language-neutral remote protocol v3 contract", () => {
       TERMINAL_CURSOR_SYNC_VERSION,
     ]);
 
-    const cursorSyncSource = readSource("src/main/remote/server/terminalCursorSync.ts");
+    const cursorSyncSource = readSource("src/host/remote/server/terminalCursorSync.ts");
     expect(cursorSyncSource).toMatch(
       /export const TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS = \[\s*TERMINAL_CURSOR_SYNC_VERSION,\s*TERMINAL_CURSOR_SYNC_V2_VERSION,?\s*\]/,
     );
@@ -683,7 +728,7 @@ describe("language-neutral remote protocol v3 contract", () => {
     // Null generations are never append-compatible.
     expect(cursorSyncSource).toContain("previous.generation === null || next.generation === null");
 
-    const protocolSource = readSource("src/shared/remote/protocol.ts");
+    const protocolSource = readProtocolSource();
     expect(protocolSource).toContain(
       `export const TERMINAL_CURSOR_SYNC_VERSION = ${TERMINAL_CURSOR_SYNC_VERSION} as const`,
     );
@@ -696,7 +741,7 @@ describe("language-neutral remote protocol v3 contract", () => {
       /remoteTerminalCursorSyncRequestSchema = z\.object\(\{[\s\S]*?version:\s*z\.number\(\)\.int\(\)\.positive\(\)/,
     );
 
-    const snapshotsSource = readSource("src/main/remote/server/snapshots.ts");
+    const snapshotsSource = readSource("src/host/remote/server/snapshots.ts");
     expect(snapshotsSource).toContain("TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS");
     expect(snapshotsSource).toContain("terminalCursorSync");
 
@@ -741,7 +786,15 @@ describe("language-neutral remote protocol v3 contract", () => {
     resolvedSocket.searchParams.set("lastSeenSeq", String(prefixedEndpoint.lastSeenSeq));
     expect(resolvedSocket.toString()).toBe(prefixedEndpoint.expectedWebSocketUrl);
 
-    const clientSource = readSource("src/shared/remote/client.ts");
+    const clientSource = [
+      readSource("src/shared/remote/client.ts"),
+      ...readdirSync(join(repositoryRoot, "src/shared/remote"))
+        .filter(
+          (name) => name.startsWith("client") && name.endsWith(".ts") && name !== "client.test.ts",
+        )
+        .sort()
+        .map((name) => readSource(`src/shared/remote/${name}`)),
+    ].join("\n");
     expect(clientSource).toContain('if (!base.pathname.endsWith("/"))');
     expect(clientSource).toContain('path.replace(/^\\/+/, "")');
 

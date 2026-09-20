@@ -19,6 +19,7 @@ import { sshProcedures } from "./procedures/ssh";
 import { threadProcedures } from "./procedures/thread";
 import { updatesProcedures } from "./procedures/updates";
 import { usageProcedures } from "./procedures/usage";
+import { CLIENT_HOST_HOP_VERSION } from "../clientHostHop";
 
 export const groupedIpcProcedures = {
   app: appProcedures,
@@ -83,12 +84,14 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * must also refresh the pinned fingerprint in `procedureMapVersion.test.ts`,
  * which forces the compat review even when the version itself stays.
  *
- * Version 1 is the map as first versioned. Peers that cannot declare a
+ * Version 1 was the map as first versioned. V6 B.5 collapsed the renderer→host
+ * hop so this constant aliases `CLIENT_HOST_HOP_VERSION` (14). Previously
+ * published map version 1 is an old reader. Peers that cannot declare a
  * version (legacy attach handshakes) count as version 0 and are rejected
  * typed by {@link assertIpcProcedureMapVersion} — a mismatch must surface as
  * a typed rejection, never as guessed semantics or a silent drop.
  */
-export const IPC_PROCEDURE_MAP_VERSION = 1 as const;
+export const IPC_PROCEDURE_MAP_VERSION = CLIENT_HOST_HOP_VERSION;
 
 /**
  * Deterministic fingerprint of the map's wire-visible shape: sorted
@@ -171,6 +174,7 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "setRendererEventInterests",
   "getRemoteAccessPairing",
   "getManagedLoopbackBootstrap",
+  "probeTlsCertificateFingerprint",
   "refreshRemoteAccessPairing",
   "setRemoteAccessEnabled",
   "revokeRemoteAccessSession",

@@ -4,7 +4,6 @@ export const PORACODE_WINDOW_KINDS = ["main", "browserExtract", "quickComposer"]
 export type PoracodeWindowKind = (typeof PORACODE_WINDOW_KINDS)[number];
 
 export const IPC_EVENT_CHANNELS = {
-  supervisorEvent: createChannel("supervisorEvent"),
   updateStatus: createChannel("updateStatus"),
   browserEvent: createChannel("browserEvent"),
   remoteThreadCommand: createChannel("remoteThreadCommand"),

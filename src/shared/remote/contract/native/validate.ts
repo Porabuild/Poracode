@@ -27,6 +27,7 @@ const PORTABLE_VALIDATORS = new Set([
   "terminal.cursor.output-range",
   "terminal.cursor.ready-range-utf16",
   "thread.goal.objective.trim",
+  "thread.start.provider-switch",
   "void-envelope.omit-result",
   "void-result.omit-field",
 ]);

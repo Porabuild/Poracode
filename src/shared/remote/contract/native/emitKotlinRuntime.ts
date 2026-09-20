@@ -103,6 +103,7 @@ ${validators.join("\n")}
         "terminal.cursor.ready-range-utf16" -> { val from = long(item?.get("fromCursor")); val to = long(item?.get("toCursor")); val data = str(item?.get("data")); if (from == null || to == null || data == null || from > to || to - from != data.length.toLong()) fail(id, path) }
         "terminal.cursor.baseline-chunk-utf16" -> { val index = long(item?.get("chunkIndex")); val count = long(item?.get("chunkCount")); val from = long(item?.get("fromCursor")); val to = long(item?.get("toCursor")); val data = str(item?.get("data")); if (index == null || count == null || from == null || to == null || data == null || index >= count || from > to || to - from != data.length.toLong()) fail(id, path) }
         "thread.goal.objective.trim" -> if (str(item?.get("action")) == "edit" && str(item?.get("objective"))?.let(RemoteECMAScriptTrim::trim).isNullOrEmpty()) fail(id, path)
+        "thread.start.provider-switch" -> if (has("providerSwitch") && (has("sessionRef") || str(item?.get("presentationMode")) != "gui")) fail(id, path)
         "void-envelope.omit-result", "void-result.omit-field" -> if (has("result")) fail(id, path)
         else -> fail(id, path)
     } }; return value }

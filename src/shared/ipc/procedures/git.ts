@@ -66,6 +66,7 @@ import {
   gitWorktreeListResultSchema,
   gitWorktreeStatusBatchResultSchema,
   listFileCheckpointsResultSchema,
+  relocateProjectResultSchema,
 } from "../../contracts";
 import type {
   CreateFileCheckpointPayload,
@@ -426,20 +427,23 @@ export const gitProcedures = {
     "gitWatchProject",
     "supervisor",
     gitWatchProjectPayloadSchema,
+    omittedResultSchema,
   ),
   gitWatchWorktrees: definePayloadProcedure<GitWatchWorktreesPayload, void, "supervisor">(
     "gitWatchWorktrees",
     "supervisor",
     gitWatchWorktreesPayloadSchema,
+    omittedResultSchema,
   ),
   gitUnwatchProject: definePayloadProcedure<GitUnwatchProjectPayload, void, "supervisor">(
     "gitUnwatchProject",
     "supervisor",
     gitUnwatchProjectPayloadSchema,
+    omittedResultSchema,
   ),
   relocateProject: definePayloadProcedure<
     RelocateProjectPayload,
     RelocateProjectResult,
     "supervisor"
-  >("relocateProject", "supervisor", relocateProjectPayloadSchema),
+  >("relocateProject", "supervisor", relocateProjectPayloadSchema, relocateProjectResultSchema),
 } as const;

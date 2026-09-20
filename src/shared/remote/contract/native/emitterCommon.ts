@@ -19,6 +19,7 @@ export const NATIVE_SEMANTIC_VALIDATOR_IDS = [
   "terminal.cursor.output-range",
   "terminal.cursor.ready-range-utf16",
   "thread.goal.objective.trim",
+  "thread.start.provider-switch",
   "void-envelope.omit-result",
   "void-result.omit-field",
 ] as const;

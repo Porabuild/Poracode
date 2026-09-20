@@ -1,4 +1,5 @@
 import { defineRoute, remoteOkResponseSchema } from "../helpers";
+import { auditEvent, noAudit } from "../../auditKinds";
 import {
   checkpointRevertBodySchema,
   pathScopedEmptyBodySchema,
@@ -32,6 +33,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     // Gate 4 hazard #3: continuation pages for a threadLimit-bounded shell
     // snapshot. Clients only reach this route after the snapshot returned a
     // threadsNextCursor, so hosts without it are never called.
@@ -49,6 +51,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/history/items",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     queryParameters: ["beforePosition", "limit", "targetTimelineEntryCount"],
     request: { bodyKind: "empty", querySchema: threadHistoryItemsQuerySchema },
     response: {
@@ -63,6 +66,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/history",
     auth: "bearer",
     scopes: ["session:read"],
+    audit: noAudit("read"),
     queryParameters: ["runtimePage", "targetTimelineEntryCount", "omitScrollback"],
     request: { bodyKind: "empty", querySchema: threadHistoryQuerySchema },
     response: {
@@ -77,6 +81,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/start",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("thread_create"),
     idempotency: "command-id-header-unless-ensure-running",
     request: { bodyKind: "json", jsonSchema: startExistingThreadBodySchema },
     response: {
@@ -91,6 +96,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/terminal/start",
     auth: "bearer",
     scopes: ["terminal:operate"],
+    audit: auditEvent("thread_create"),
     request: { bodyKind: "json", jsonSchema: startShellPayloadSchema },
     response: {
       wireKind: "json",
@@ -104,6 +110,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/runtime/truncate",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: threadRuntimeTruncateBodySchema },
     response: {
       wireKind: "json",
@@ -117,6 +124,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/checkpoint-revert",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     idempotency: "command-id-header",
     request: { bodyKind: "json", jsonSchema: checkpointRevertBodySchema },
     response: {
@@ -131,6 +139,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/command",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     idempotency: "command-id-header-for-start-kind",
     request: { bodyKind: "json", jsonSchema: threadCommandBodySchema },
     response: {
@@ -145,6 +154,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/send",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("thread_send"),
     idempotency: "command-id-header",
     request: { bodyKind: "json", jsonSchema: threadSendBodySchema },
     response: {
@@ -159,6 +169,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/interrupt",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("thread_stop"),
     request: { bodyKind: "json", jsonSchema: pathScopedEmptyBodySchema },
     response: {
       wireKind: "json",
@@ -172,6 +183,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/goal",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: threadGoalHttpBodySchema },
     response: {
       wireKind: "json",
@@ -185,6 +197,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/close",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("thread_stop"),
     request: { bodyKind: "json", jsonSchema: pathScopedEmptyBodySchema },
     response: {
       wireKind: "json",
@@ -198,6 +211,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/steer/set",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: threadSteerSetBodySchema },
     response: {
       wireKind: "json",
@@ -211,6 +225,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/steer/clear",
     auth: "bearer",
     scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: pathScopedEmptyBodySchema },
     response: {
       wireKind: "json",
@@ -224,6 +239,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/terminal/write",
     auth: "bearer",
     scopes: ["terminal:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: terminalWriteBodySchema },
     response: {
       wireKind: "json",
@@ -237,6 +253,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/terminal/resize",
     auth: "bearer",
     scopes: ["terminal:operate"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: terminalResizeBodySchema },
     response: {
       wireKind: "json",
@@ -250,6 +267,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/terminal/close",
     auth: "bearer",
     scopes: ["terminal:operate"],
+    audit: auditEvent("thread_stop"),
     request: { bodyKind: "json", jsonSchema: pathScopedEmptyBodySchema },
     response: {
       wireKind: "json",
@@ -263,6 +281,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/threads/{threadId}/requests/resolve",
     auth: "bearer",
     scopes: ["requests:resolve"],
+    audit: auditEvent("mutate"),
     request: { bodyKind: "json", jsonSchema: requestResolveBodySchema },
     response: {
       wireKind: "json",

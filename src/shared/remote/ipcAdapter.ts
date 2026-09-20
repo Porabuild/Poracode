@@ -6,6 +6,7 @@ import type {
   PrWatchKey,
   ResizeTerminalPayload,
   ResolveThreadServerRequestPayload,
+  ScheduledTaskInput,
   SendThreadInputPayload,
   SetPendingSteerPayload,
   WriteTerminalPayload,
@@ -33,6 +34,16 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   resolveThreadServerRequest: "thread",
   writeTerminal: "terminal",
   resizeTerminal: "terminal",
+  // V6 B.2: schedules already have HTTP; the renderer procedure is the same
+  // registry call the PWA remote bridge uses. Owner `desktop` routes the
+  // device-local rows to the host this runtime is attached to (managed
+  // loopback, attach desktop, or paired browser host) — one data plane.
+  getSchedules: "desktop",
+  createSchedule: "desktop",
+  updateSchedule: "desktop",
+  deleteSchedule: "desktop",
+  runScheduleNow: "desktop",
+  getScheduleRuns: "desktop",
 } as const satisfies Record<string, RemoteProcedureOwner>;
 
 export type RemoteIpcAdapterProcedureName = keyof typeof REMOTE_IPC_ADAPTER_SPECS;
@@ -63,6 +74,12 @@ type RemoteIpcAdapterClient = Pick<
   | "resolveRequest"
   | "writeTerminal"
   | "resizeTerminal"
+  | "schedules"
+  | "createSchedule"
+  | "updateSchedule"
+  | "deleteSchedule"
+  | "runScheduleNow"
+  | "scheduleRuns"
 >;
 
 /** Shared translation from Electron IPC semantics to remote domain calls. */
@@ -118,5 +135,19 @@ export function invokeRemoteIpcProcedure(
       return client.writeTerminal(payload as WriteTerminalPayload);
     case "resizeTerminal":
       return client.resizeTerminal(payload as ResizeTerminalPayload);
+    case "getSchedules":
+      return client.schedules();
+    case "createSchedule":
+      return client.createSchedule(payload as ScheduledTaskInput);
+    case "updateSchedule": {
+      const input = payload as IpcProcedurePayload<"updateSchedule">;
+      return client.updateSchedule(input.id, input.task);
+    }
+    case "deleteSchedule":
+      return client.deleteSchedule((payload as IpcProcedurePayload<"deleteSchedule">).id);
+    case "runScheduleNow":
+      return client.runScheduleNow((payload as IpcProcedurePayload<"runScheduleNow">).id);
+    case "getScheduleRuns":
+      return client.scheduleRuns((payload as IpcProcedurePayload<"getScheduleRuns">).id);
   }
 }
