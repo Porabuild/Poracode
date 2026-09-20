@@ -42,9 +42,10 @@ import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
  * discarded. v3 relabeled Cursor's first-party window; v4 reselects the main
  * Cursor account when an SDK key is configured; v5 removes the desktop-app
  * credential fallback from the CLI-backed main tile; v6 sources OpenCode Go
- * meters from the direct API-key usage endpoint.
+ * meters from the direct API-key usage endpoint; v7 refreshes Muse snapshots
+ * through the portal JSON API after the dashboard retired its Relay endpoint.
  */
-const USAGE_CACHE_VERSION = 6;
+const USAGE_CACHE_VERSION = 7;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;

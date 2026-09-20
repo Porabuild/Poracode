@@ -83,11 +83,11 @@ describe("collectMuse", () => {
     const host = createFakeHost({
       secrets: { muse: { cookie: "llm_sess=abc" } },
       tokens: { muse: { accessToken: "dca:probe" } },
-      routes: { "https://dev.meta.ai/": { status: 200, body: "<html></html>" } },
+      routes: { "https://dev.meta.ai/api/portal/teams": { status: 200, body: '{"teams":[]}' } },
       onRequest: (req) => urls.push(req.url),
     });
     await collectMuse(host);
-    expect(urls).toContain("https://dev.meta.ai/");
+    expect(urls).toContain("https://dev.meta.ai/api/portal/teams");
     expect(urls).not.toContain(MUSE_KEY_ENDPOINT);
   });
 
