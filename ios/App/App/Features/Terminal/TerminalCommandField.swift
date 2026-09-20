@@ -41,6 +41,7 @@ struct TerminalCommandField: UIViewRepresentable {
   func makeUIView(context: Context) -> TerminalCommandTextView {
     let view = TerminalCommandTextView()
     view.accessibilityLabel = accessibilityLabel
+    view.accessibilityIdentifier = "native-e2e.terminal.input"
     view.font = TerminalTextAttributes.font(pointSize: pointSize)
     view.isEditable = !isDisabled
     view.alpha = isDisabled ? 0.55 : 1

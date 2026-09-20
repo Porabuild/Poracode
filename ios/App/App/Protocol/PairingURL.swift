@@ -10,6 +10,7 @@ enum PairingURL {
         let token: String
         let host: String?
         let url: URL
+        let certFingerprint: String?
     }
 
     /// Returns `nil` when the URL has no usable token credential
@@ -28,16 +29,41 @@ enum PairingURL {
             .first(where: { $0.name == "token" })?
             .value,
             !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return Parts(token: token, host: host, url: url)
+            return Parts(
+                token: token,
+                host: host,
+                url: url,
+                certFingerprint: parseCertFingerprint(fromFragment: fragment)
+            )
         }
 
         // Query credential — used by `poracode://pair?host=…&token=…`.
         if let token = components?.queryItems?.first(where: { $0.name == "token" })?.value,
            !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return Parts(token: token, host: host, url: url)
+            return Parts(
+                token: token,
+                host: host,
+                url: url,
+                certFingerprint: parseCertFingerprint(fromFragment: url.fragment ?? "")
+            )
         }
 
         return nil
+    }
+
+    /// SHA-256 leaf digest from `#fp=sha256:<hex>`. Nil when absent or malformed.
+    static func parseCertFingerprint(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed) else { return nil }
+        return parseCertFingerprint(fromFragment: url.fragment ?? "")
+    }
+
+    private static func parseCertFingerprint(fromFragment fragment: String) -> String? {
+        let raw = URLComponents(string: "?\(fragment)")?
+            .queryItems?
+            .first(where: { $0.name == "fp" })?
+            .value
+        return TlsCertPin.normalize(raw ?? "")
     }
 
     /// Normalize an endpoint or pairing URL to the desktop HTTP API base.
@@ -180,6 +206,7 @@ enum PairingError: LocalizedError, Equatable {
     case protocolVersionMismatch(found: Int?)
     case emptyCredential
     case noMatchingScopes
+    case certificateMismatch
 
     var errorDescription: String? {
         switch self {
@@ -193,6 +220,8 @@ enum PairingError: LocalizedError, Equatable {
             return "Pairing token cannot be empty."
         case .noMatchingScopes:
             return "The server does not advertise any scopes this app understands."
+        case .certificateMismatch:
+            return TlsCertPin.mismatchMessage
         }
     }
 }

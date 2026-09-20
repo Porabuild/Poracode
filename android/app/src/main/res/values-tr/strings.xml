@@ -152,4 +152,6 @@
     <string name="discover_hosts_stop">Durdur</string>
     <string name="discover_hosts_searching">Bu ağda Poracode sunucuları aranıyor…</string>
     <string name="discover_hosts_empty">Henüz Poracode sunucusu bulunamadı.</string>
+    <string name="discover_hosts_unverified">Doğrulanmamış</string>
+    <string name="tls_pin_mismatch">Sunucunun TLS sertifikası eşleme kodundaki parmak iziyle eşleşmiyor. Masaüstündeki Uzaktan Erişim panelinden yeniden eşleyin.</string>
 </resources>

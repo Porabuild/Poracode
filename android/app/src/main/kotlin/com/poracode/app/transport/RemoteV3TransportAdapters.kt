@@ -3,6 +3,8 @@ package com.poracode.app.transport
 import com.poracode.app.model.RemoteAccessTokenResult
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteEnvironmentDescriptor
+import com.poracode.app.model.HostDescribeResponse
+import com.poracode.app.model.HostServiceCapabilities
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteShellSnapshot
@@ -68,6 +70,12 @@ internal object RemoteV3TransportAdapters {
         RemoteWebSocketTicketResult.serializer(),
         "websocket ticket",
     )
+
+    fun hostDescribe(raw: String): HostServiceCapabilities = project(
+        GeneratedRemoteV3Contract.hostDescribeResponse(raw),
+        HostDescribeResponse.serializer(),
+        "host describe",
+    ).capabilities
 
     private fun <T> project(raw: String, serializer: KSerializer<T>, boundary: String): T = try {
         RemoteJson.decodeFromString(serializer, raw)

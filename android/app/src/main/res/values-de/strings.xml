@@ -152,4 +152,6 @@
     <string name="discover_hosts_stop">Stopp</string>
     <string name="discover_hosts_searching">Suche nach Poracode-Hosts in diesem Netzwerk …</string>
     <string name="discover_hosts_empty">Noch keine Poracode-Hosts gefunden.</string>
+    <string name="discover_hosts_unverified">Unbestätigt</string>
+    <string name="tls_pin_mismatch">Das TLS-Zertifikat des Servers stimmt nicht mit dem Fingerabdruck aus dem Pairing-Code überein. Koppeln Sie erneut über das Remote-Access-Panel auf dem Desktop.</string>
 </resources>

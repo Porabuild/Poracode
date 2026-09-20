@@ -38,7 +38,7 @@ enum class SettingsIntegrationProcedure(
     val longRunning: Boolean = false,
 ) {
     ScanSkills("scanSkills", "session:read", "optionalProjectLocation", false),
-    ListSkillMarketplace("listSkillMarketplace", "session:read", "none", false),
+    ListSkillMarketplace("listSkillMarketplace", "session:read", "desktop", false),
     SetSkillEnabled("setSkillEnabled", "session:operate", "optionalProjectLocation", true),
     DeleteSkill("deleteSkill", "session:operate", "optionalProjectLocation", true),
     ImportSkills("importSkills", "session:operate", "skillLocations", true),

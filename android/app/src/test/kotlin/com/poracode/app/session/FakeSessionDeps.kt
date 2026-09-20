@@ -1,6 +1,7 @@
 package com.poracode.app.session
 
 import com.poracode.app.model.ConnectionProfile
+import com.poracode.app.model.HostServiceCapabilities
 import com.poracode.app.model.PersistedRuntimeItem
 import com.poracode.app.model.RemoteAccessTokenResult
 import com.poracode.app.model.RemoteClientException
@@ -130,6 +131,9 @@ class FakeApiGateway(
     var interruptCalls = AtomicInteger(0)
     var ticketCalls = AtomicInteger(0)
     var environmentCalls = AtomicInteger(0)
+    var describeHostCalls = AtomicInteger(0)
+    var describeHostResponse: HostServiceCapabilities = HostServiceCapabilities.UNKNOWN
+    var describeHostError: Exception? = null
 
     var snapshotError: Exception? = null
     var historyError: Exception? = null
@@ -192,6 +196,12 @@ class FakeApiGateway(
         }
         environmentError?.let { throw it }
         return environmentResponse
+    }
+
+    override suspend fun describeHost(): HostServiceCapabilities {
+        describeHostCalls.incrementAndGet()
+        describeHostError?.let { throw it }
+        return describeHostResponse
     }
 
     override suspend fun exchangePairingCredential(

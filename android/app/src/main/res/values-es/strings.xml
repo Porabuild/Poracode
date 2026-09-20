@@ -151,4 +151,6 @@
     <string name="discover_hosts_stop">Detener</string>
     <string name="discover_hosts_searching">Buscando hosts de Poracode en esta red…</string>
     <string name="discover_hosts_empty">Aún no se han encontrado hosts de Poracode.</string>
+    <string name="discover_hosts_unverified">Sin verificar</string>
+    <string name="tls_pin_mismatch">El certificado TLS del servidor no coincide con la huella del código de emparejamiento. Vuelva a emparejar desde el panel de acceso remoto del escritorio.</string>
 </resources>

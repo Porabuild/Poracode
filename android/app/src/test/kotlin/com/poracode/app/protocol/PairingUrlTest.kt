@@ -34,6 +34,21 @@ class PairingUrlTest {
     }
 
     @Test
+    fun parseCertFingerprintFromPairingFragment() {
+        val hex = "ab".repeat(32)
+        val parts = PairingUrl.parseParts(
+            "https://192.168.1.20:49152/#token=lc_pair_test&fp=sha256:$hex",
+        )
+        assertNotNull(parts)
+        assertEquals(hex, parts!!.certFingerprint)
+        assertEquals(
+            hex,
+            PairingUrl.parseCertFingerprint("https://192.168.1.20:49152/#token=x&fp=sha256:$hex"),
+        )
+        assertNull(PairingUrl.parseCertFingerprint("https://192.168.1.20:49152/#token=x"))
+    }
+
+    @Test
     fun parseTokenFromQueryAsFallback() {
         val parts = PairingUrl.parseParts(
             "https://poracode.com/pair?host=https://desktop.example&token=lc_pair_query",

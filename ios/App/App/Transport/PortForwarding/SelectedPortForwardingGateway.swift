@@ -119,6 +119,7 @@ actor SelectedPortForwardingGateway: PortForwardingGateway {
     case .invalidRequest: .invalidRequest
     case .invalidResponse: .invalidResponse
     case .transport: .transport
+    case .certificateMismatch: .certificateMismatch
     case .ambiguousMutation: .ambiguousMutation
     case .unsafeEntry: .unsafeEntry
     case .browserUnavailable: .browserUnavailable

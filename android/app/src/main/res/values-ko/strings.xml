@@ -151,4 +151,6 @@
     <string name="discover_hosts_stop">중지</string>
     <string name="discover_hosts_searching">이 네트워크에서 Poracode 호스트를 검색하는 중…</string>
     <string name="discover_hosts_empty">아직 Poracode 호스트를 찾지 못했습니다.</string>
+    <string name="discover_hosts_unverified">미확인</string>
+    <string name="tls_pin_mismatch">서버의 TLS 인증서가 페어링 코드의 지문과 일치하지 않습니다. 데스크톱 원격 액세스 패널에서 다시 페어링하세요.</string>
 </resources>

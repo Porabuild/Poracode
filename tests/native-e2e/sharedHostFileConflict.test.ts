@@ -1,7 +1,7 @@
 import { utimesSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { readRemoteAccessAuthFile } from "../../src/main/remote/auth.ts";
+import { readRemoteAccessAuthFile } from "../../src/host/remote/auth.ts";
 import { findRepoRoot } from "./harness/paths.ts";
 import { ProcessCleanup } from "./harness/processCleanup.ts";
 import { startRealHost, type RealHostHandle } from "./harness/realHost.ts";

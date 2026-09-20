@@ -14,6 +14,10 @@ enum PortForwardingHTTPError: Error, Equatable, Sendable {
   case rejected(statusCode: Int, code: String?)
   case invalidResponse
   case responseTooLarge
+  /// The pinned host presented a certificate that failed the shared trust
+  /// evaluation, so the handshake was cancelled before any bytes were sent.
+  /// Never folded into `transport`: it is a pairing-level refusal.
+  case certificateMismatch
   case transport
 }
 
@@ -29,6 +33,8 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
   let endpoint: String
   private let token: String
   private let session: URLSession
+  /// URLSession keeps a weak delegate reference; retain the pin evaluator.
+  private let sessionDelegate: RedirectDenyingURLSessionDelegate?
   private let timeout: TimeInterval
   private let maximumResponseBytes: Int
 
@@ -48,6 +54,7 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
     self.timeout = timeout
     self.maximumResponseBytes = maximumResponseBytes
     if let session {
+      self.sessionDelegate = nil
       self.session = session
     } else {
       let configuration = URLSessionConfiguration.ephemeral
@@ -56,7 +63,9 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
       configuration.httpShouldSetCookies = false
       configuration.httpCookieAcceptPolicy = .never
       configuration.waitsForConnectivity = false
-      self.session = URLSession(configuration: configuration)
+      let delegate = RedirectDenyingURLSessionDelegate()
+      self.sessionDelegate = delegate
+      self.session = URLSession(configuration: configuration, delegate: delegate, delegateQueue: nil)
     }
   }
 
@@ -91,6 +100,12 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
       throw PortForwardingHTTPError.responseTooLarge
     } catch {
       if Task.isCancelled { throw CancellationError() }
+      // A pin-refused handshake surfaces as URLError.cancelled from the
+      // streaming task; only an actual failed trust evaluation for this
+      // endpoint upgrades it — timeout/reset stay plain transport errors.
+      if TlsCertPinStore.lastDecisionMismatched(endpoint: endpoint) {
+        throw PortForwardingHTTPError.certificateMismatch
+      }
       throw PortForwardingHTTPError.transport
     }
 
@@ -202,6 +217,23 @@ private final class PortForwardingStreamingTask: NSObject, URLSessionDataDelegat
   ) { completionHandler(nil) }
 
   func urlSession(
+    _ session: URLSession,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+    TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+    TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+  }
+
+  func urlSession(
     _: URLSession, dataTask _: URLSessionDataTask, didReceive response: URLResponse,
     completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
   ) {
@@ -233,7 +265,14 @@ private final class PortForwardingStreamingTask: NSObject, URLSessionDataDelegat
     lock.withLock {
       guard !finished else { return }
       if let error {
-        if (error as? URLError)?.code == .cancelled {
+        // Pin mismatch and task cancel both surface as URLError.cancelled, and
+        // Task.isCancelled is always false inside a delegate callback. Keep
+        // the URLError on this path so the execute-level catch can consult the
+        // trust verdict (a real cancel is CancellationError there; a pin miss
+        // upgrades to .certificateMismatch) — mirrors BoundedHTTPBody.
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+          finish(error: Task.isCancelled ? CancellationError() : urlError)
+        } else if Task.isCancelled {
           finish(error: CancellationError())
         } else {
           finish(error: error)

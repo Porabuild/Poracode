@@ -202,4 +202,6 @@
     <string name="discover_hosts_stop">Stop</string>
     <string name="discover_hosts_searching">Searching for Poracode hosts on this network…</string>
     <string name="discover_hosts_empty">No Poracode hosts found yet.</string>
+    <string name="discover_hosts_unverified">Unverified</string>
+    <string name="tls_pin_mismatch">The server’s TLS certificate does not match the fingerprint from the pairing code. Re-pair from the desktop Remote Access panel.</string>
 </resources>

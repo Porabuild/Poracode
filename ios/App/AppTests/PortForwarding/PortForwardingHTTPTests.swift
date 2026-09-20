@@ -18,6 +18,13 @@ final class PortForwardingHTTPTests: XCTestCase {
     PortForwardingURLProtocol.reset()
   }
 
+  override func tearDown() {
+    #if !canImport(App)
+    TlsCertPinStore.setLastDecisionMismatchedForTests(false)
+    #endif
+    super.tearDown()
+  }
+
   func testAllFiveRoutesAreReachableWithExactMethodPathStatusAndAuth() async throws {
     PortForwardingURLProtocol.handler = { request in
       let path = request.url?.path ?? ""
@@ -194,6 +201,61 @@ final class PortForwardingHTTPTests: XCTestCase {
     }
     XCTAssertGreaterThanOrEqual(PortForwardingURLProtocol.stopCount, 1)
   }
+
+  func testCancelledURLErrorStaysTransportWithoutPinVerdict() async throws {
+    // A cancelled URLError surfaces in didCompleteWithError on the delegate
+    // queue, where Task.isCancelled is always false. The restored URLError
+    // branch keeps the error intact so the execute-level catch classifies it:
+    // with no pin verdict for the endpoint this stays a transport failure and
+    // must never surface as CancellationError (mirrors BoundedHTTPBody).
+    PortForwardingURLProtocol.handler = { _ in throw URLError(.cancelled) }
+    let api = try makeAPI(browser: PortForwardingBrowserRecorder())
+    do {
+      _ = try await api.remoteScan()
+      XCTFail("Expected transport failure")
+    } catch let error as PortForwardingTransportError {
+      XCTAssertEqual(error, .transport)
+    } catch is CancellationError {
+      XCTFail("a cancelled URLError must not surface as CancellationError here")
+    }
+  }
+
+  #if !canImport(App)
+  // App-side coverage of the same refusal runs against the real pin store in
+  // TlsPinPairingTests; here the harness shim flips the last trust decision.
+  func testPinRefusedHandshakeIsCertificateMismatchAndNeverAmbiguous() async throws {
+    TlsCertPinStore.setLastDecisionMismatchedForTests(true)
+    // A refused server-trust evaluation surfaces as URLError.cancelled.
+    PortForwardingURLProtocol.handler = { _ in throw URLError(.cancelled) }
+    let api = try makeAPI(browser: PortForwardingBrowserRecorder())
+    do {
+      _ = try await api.remoteScan()
+      XCTFail("Expected the pin refusal")
+    } catch let error as PortForwardingTransportError {
+      XCTAssertEqual(error, .certificateMismatch)
+    }
+    do {
+      _ = try await api.remoteStart(port: 5173)
+      XCTFail("Expected the pin refusal")
+    } catch let error as PortForwardingTransportError {
+      // The handshake died before the mutation was sent: definite non-commit,
+      // never the ambiguous-mutation path.
+      XCTAssertEqual(error, .certificateMismatch)
+    }
+  }
+
+  func testCancelledRequestWithoutPinMismatchStaysTransport() async throws {
+    TlsCertPinStore.setLastDecisionMismatchedForTests(false)
+    PortForwardingURLProtocol.handler = { _ in throw URLError(.cancelled) }
+    let api = try makeAPI(browser: PortForwardingBrowserRecorder())
+    do {
+      _ = try await api.remoteScan()
+      XCTFail("Expected transport failure")
+    } catch let error as PortForwardingTransportError {
+      XCTAssertEqual(error, .transport)
+    }
+  }
+  #endif
 
   private func makeAPI(
     browser: PortForwardingBrowserRecorder,

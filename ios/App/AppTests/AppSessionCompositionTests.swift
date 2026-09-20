@@ -46,9 +46,15 @@ final class FakeRemoteAPI: SessionRemoteAPI {
     RemoteClientError.invalidResponse("unset")
   )
   var agentStatusesGate: AsyncGate?
+  var describeHostResult: Result<HostServiceCapabilities, Error> = .success(.unknown)
+  /// When set, `describeHost()` decodes this raw payload through the
+  /// production generated-contract path instead of returning
+  /// `describeHostResult` — exercises omitted-flag wire payloads end to end.
+  var rawDescribePayload: Data?
 
   private(set) var snapshotCalls = 0
   private(set) var agentStatusesCalls = 0
+  private(set) var describeHostCalls = 0
   private(set) var historyCalls: [String] = []
   private(set) var sendCalls = 0
   private(set) var interruptCalls = 0
@@ -113,6 +119,15 @@ final class FakeRemoteAPI: SessionRemoteAPI {
     agentStatusesCalls += 1
     if let agentStatusesGate { await agentStatusesGate.wait() }
     return try agentStatusesResult.get()
+  }
+
+  func describeHost() async throws -> HostServiceCapabilities {
+    describeHostCalls += 1
+    if let rawDescribePayload {
+      let canonical = try GeneratedRemoteV3Contract.hostDescribeResponse(rawDescribePayload)
+      return try JSONDecoding.decode(HostDescribeResponse.self, from: canonical).capabilities
+    }
+    return try describeHostResult.get()
   }
 
   func threadHistory(
@@ -1339,12 +1354,47 @@ final class AppSessionCompositionTests: XCTestCase {
 
     await session.pair(with: .init(manualBaseURL: "https://a.test", manualToken: "pair-a"))
     XCTAssertEqual(session.profile?.desktopId, "desk-a")
-    XCTAssertEqual(session.profile?.desktopId, "desk-a")
+    XCTAssertEqual(session.profile?.hostCapabilities, .unknown)
     let durable = try await session.deps.hostCatalog.snapshot()
     XCTAssertEqual(durable.selected?.desktopId, "desk-a")
-    assertEqual(
-      try await session.deps.hostCatalog.token(for: durable.selected!.connectionId),
-      "token-desk-a")
+    XCTAssertEqual(durable.selected?.hostCapabilities, .unknown)
+      assertEqual(
+        try await session.deps.hostCatalog.token(for: durable.selected!.connectionId),
+        "token-desk-a")
+  }
+
+  func testPairStoresHostDescribeCapabilities() async throws {
+    let caps = HostServiceCapabilities(
+      ssh: true,
+      browserPanel: true,
+      chromeBridge: true,
+      computerUse: true,
+      nativeSecrets: true,
+      portForward: true,
+      autoUpdate: true,
+      osNotifications: true
+    )
+    let (session, repo, _) = try await makeSession { endpoint, token in
+      let api = FakeRemoteAPI(endpoint: endpoint, accessToken: token)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a", label: "A"))
+      api.tokenResult = .success(
+        RemoteAccessTokenResult(
+          accessToken: "token-desk-a",
+          tokenType: "Bearer",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          scopes: ["session:read", "session:operate"]
+        )
+      )
+      api.describeHostResult = .success(caps)
+      api.snapshotResult = .success(makeShell(seq: 1))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+
+    await session.pair(with: .init(manualBaseURL: "https://a.test", manualToken: "pair-a"))
+    XCTAssertEqual(session.profile?.hostCapabilities, caps)
+    XCTAssertEqual(session.profile?.hostCapabilities?.autoUpdate, true)
+    XCTAssertEqual(session.profile?.hostCapabilities?.osNotifications, true)
   }
 
   func testDeepLinkBecomesPendingNotPair() async throws {
@@ -2746,6 +2796,7 @@ final class GatedHistoryAPI: SessionRemoteAPI {
   }
   func snapshot() async throws -> RemoteShellSnapshot { try await inner.snapshot() }
   func agentStatuses() async throws -> SessionAgentStatuses { try await inner.agentStatuses() }
+  func describeHost() async throws -> HostServiceCapabilities { try await inner.describeHost() }
   func threadHistory(threadId: String, targetTimelineEntryCount: Int?) async throws
     -> RemoteThreadSnapshot
   {
@@ -2791,6 +2842,7 @@ final class GatedPageAPI: SessionRemoteAPI {
   }
   func snapshot() async throws -> RemoteShellSnapshot { try await inner.snapshot() }
   func agentStatuses() async throws -> SessionAgentStatuses { try await inner.agentStatuses() }
+  func describeHost() async throws -> HostServiceCapabilities { try await inner.describeHost() }
   func threadHistory(threadId: String, targetTimelineEntryCount: Int?) async throws
     -> RemoteThreadSnapshot
   {
@@ -2836,6 +2888,7 @@ final class GatedSnapshotAPI: SessionRemoteAPI {
     return try await inner.snapshot()
   }
   func agentStatuses() async throws -> SessionAgentStatuses { try await inner.agentStatuses() }
+  func describeHost() async throws -> HostServiceCapabilities { try await inner.describeHost() }
   func threadHistory(threadId: String, targetTimelineEntryCount: Int?) async throws
     -> RemoteThreadSnapshot
   {

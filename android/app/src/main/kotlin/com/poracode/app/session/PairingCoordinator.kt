@@ -1,8 +1,8 @@
 package com.poracode.app.session
 
 import com.poracode.app.model.ConnectionProfile
+import com.poracode.app.model.HostServiceCapabilities
 import com.poracode.app.model.RemoteClientException
-import com.poracode.app.protocol.PairingException
 import com.poracode.app.protocol.PairingUrl
 import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.protocol.RemoteAccessScopes
@@ -11,6 +11,7 @@ import com.poracode.app.storage.DurableOperationToken
 import com.poracode.app.storage.SessionCredentialLoadOutcome
 import com.poracode.app.storage.SessionCredentialRepository
 import com.poracode.app.transport.RemoteApiGatewayFactory
+import com.poracode.app.transport.TlsCertPinStore
 import com.poracode.remote.v3.generated.RemotePairingMachine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -75,6 +76,7 @@ class PairingCoordinator(
                 credential = credential,
                 fingerprint = fingerprint,
                 sanitizedHost = RemotePairingMachine.sanitizedHostLabel(endpoint),
+                certFingerprint = PairingUrl.parseCertFingerprint(raw),
             )
             updateState {
                 it.copy(
@@ -96,6 +98,7 @@ class PairingCoordinator(
                 manualToken = credential,
             ),
             fingerprint = fingerprint,
+            certFingerprint = PairingUrl.parseCertFingerprint(raw),
         )
     }
 
@@ -110,6 +113,7 @@ class PairingCoordinator(
                 manualToken = secret.credential,
             ),
             fingerprint = secret.fingerprint,
+            certFingerprint = secret.certFingerprint,
         )
     }
 
@@ -125,7 +129,11 @@ class PairingCoordinator(
         }
     }
 
-    fun pair(input: PairingInput, fingerprint: String? = null) {
+    fun pair(
+        input: PairingInput,
+        fingerprint: String? = null,
+        certFingerprint: String? = null,
+    ) {
         // Exclusive UI owner + durable intent at public receipt (sync, ordered).
         val sessionToken = owner.begin(SessionOperationOwner.Kind.Pair)
         val durable = credentials.beginDurableOperation(DurableOperationToken.Kind.Pair)
@@ -144,7 +152,10 @@ class PairingCoordinator(
             }
             pendingPairSecret = null
             try {
-                val (endpoint, credential) = resolvePairing(input)
+                val resolved = resolvePairing(input)
+                val endpoint = resolved.endpoint
+                val credential = resolved.credential
+                val pin = certFingerprint ?: resolved.certFingerprint
                 val fp = fingerprint ?: RemotePairingMachine.fingerprint(endpoint, credential)
                 if (RemotePairingMachine.shouldSkipDuplicateFingerprint(
                         fp,
@@ -161,6 +172,11 @@ class PairingCoordinator(
                     return@launch
                 }
 
+                if (pin != null) {
+                    TlsCertPinStore.register(endpoint, pin)
+                } else {
+                    TlsCertPinStore.remove(endpoint)
+                }
                 val client = apiFactory.create(endpoint, null)
                 val environment = withContext(ioDispatcher) { client.environment() }
                 if (!owner.isCurrent(sessionToken)) return@launch
@@ -174,6 +190,21 @@ class PairingCoordinator(
                 }
                 val tokenResult = withContext(ioDispatcher) {
                     client.exchangePairingCredential(credential, scopes = requestedScopes)
+                }
+                if (!owner.isCurrent(sessionToken)) return@launch
+
+                client.setAccessToken(tokenResult.accessToken)
+                val hostCapabilities = withContext(ioDispatcher) {
+                    try {
+                        client.describeHost()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // Describe is best-effort: server errors, transport failures,
+                        // and undecodable payloads all degrade to UNKNOWN and pairing
+                        // still proceeds to Ready.
+                        HostServiceCapabilities.UNKNOWN
+                    }
                 }
                 if (!owner.isCurrent(sessionToken)) return@launch
 
@@ -193,6 +224,8 @@ class PairingCoordinator(
                     // Authoritative absence (older host) downgrades to no browser entry.
                     browserForwardVersions =
                         environment.capabilities?.browserForward?.versions.orEmpty(),
+                    certFingerprint = pin,
+                    hostCapabilities = hostCapabilities,
                 )
 
                 if (!owner.isCurrent(sessionToken)) return@launch
@@ -266,15 +299,20 @@ class PairingCoordinator(
         // Claim durable generation before tear-down so delayed Pair A cannot commit after.
         val durable = credentials.beginDurableOperation(DurableOperationToken.Kind.Unpair)
         owner.bumpSessionGeneration()
+        val unpairedEndpoint = state().profile?.httpBaseUrl
         val job = scope.launch {
             clearPendingPairSecret()
+            // Unpair clears only the selected host's credentials, so drop only that
+            // endpoint's pin; other catalog hosts keep theirs (mirrors
+            // HostSessionController.remove addressing pins by profile.httpBaseUrl).
+            resolveUnpairedEndpoint(unpairedEndpoint)?.let { TlsCertPinStore.remove(it) }
             onUnpairComplete()
             val (outcome, loaded) = withContext(NonCancellable + ioDispatcher) {
                 val cleared = credentials.clear(owning = durable)
                 cleared to credentials.loadOutcome()
             }
             if (!owner.isCurrent(sessionToken)) return@launch
-            publishUnpairResult(outcome, loaded)
+            publishUnpairResult(outcome, loaded, credentials, updateState, setAccessToken)
             onCatalogChanged()
         }
         jobs.replace(SessionLifecycleJobs.UNPAIR, job)
@@ -389,57 +427,6 @@ class PairingCoordinator(
         val ignored = previousPhase to retainedProfile to retainedToken
     }
 
-    private fun publishUnpairResult(
-        outcome: CredentialMutationOutcome,
-        loaded: SessionCredentialLoadOutcome,
-    ) {
-        val leftover = credentials.hasPendingClearMarker() || credentials.hasV2DocumentForTests()
-        if (outcome is CredentialMutationOutcome.Failed && leftover) {
-            updateState {
-                it.copy(
-                    phase = AppSession.Phase.LocalStoreInconsistent,
-                    globalError = "Could not clear stored credentials.",
-                    isPairing = false,
-                )
-            }
-            return
-        }
-        when (loaded) {
-            SessionCredentialLoadOutcome.Empty -> {
-                setAccessToken(null)
-                updateState { AppSession.UiState(phase = AppSession.Phase.NeedsPairing) }
-            }
-            is SessionCredentialLoadOutcome.Loaded -> {
-                setAccessToken(loaded.credentials.accessToken)
-                updateState {
-                    it.copy(
-                        profile = loaded.credentials.profile,
-                        isPairing = false,
-                        phase = AppSession.Phase.Ready,
-                    )
-                }
-            }
-            is SessionCredentialLoadOutcome.Rejected.ProtocolMismatch -> {
-                updateState {
-                    it.copy(
-                        profile = loaded.credentials.profile,
-                        phase = AppSession.Phase.ProtocolIncompatible,
-                        isPairing = false,
-                    )
-                }
-            }
-            is SessionCredentialLoadOutcome.Rejected -> {
-                updateState {
-                    it.copy(
-                        phase = AppSession.Phase.LocalStoreInconsistent,
-                        globalError = "Could not clear stored credentials.",
-                        isPairing = false,
-                    )
-                }
-            }
-        }
-    }
-
     private fun clearPairingUiIfCurrent(
         sessionToken: SessionOperationOwner.Token,
         previousPhase: AppSession.Phase,
@@ -450,7 +437,7 @@ class PairingCoordinator(
         if (!owner.isCurrent(sessionToken)) return
         val hasCredential = (retainedProfile != null && !retainedToken.isNullOrBlank()) ||
             (state().profile != null && !accessToken().isNullOrBlank())
-        val nextPhase = mapPairingFailurePhase(previousPhase, hasCredential)
+        val nextPhase = PairingFailurePhaseMapper.mapPairingFailurePhase(previousPhase, hasCredential)
         updateState {
             it.copy(
                 isPairing = false,
@@ -463,25 +450,18 @@ class PairingCoordinator(
         }
     }
 
-    private fun resolvePairing(input: PairingInput): Pair<String, String> {
-        val pasted = input.pairingUrlOrEmpty.trim()
-        if (pasted.isNotEmpty()) {
-            val deep = PairingUrl.parseDeepLink(pasted)
-            if (deep != null) return deep.endpoint to deep.token
-            val parts = PairingUrl.parseParts(pasted)
-            if (parts != null) {
-                return PairingUrl.normalizeEndpoint(pasted) to parts.token
-            }
-            if (input.manualToken.trim().isNotEmpty()) {
-                return PairingUrl.normalizeEndpoint(pasted) to input.manualToken.trim()
-            }
-            throw PairingException.MissingToken
-        }
-        val base = input.manualBaseUrl.trim()
-        val token = input.manualToken.trim()
-        if (base.isEmpty()) throw PairingException.InvalidUrl
-        if (token.isEmpty()) throw PairingException.MissingToken
-        return PairingUrl.normalizeEndpoint(base) to token
+    /**
+     * Endpoint whose pin [unpair] drops: the installed profile first, then the durable
+     * store for a selected host whose profile was never installed. Both removal sites
+     * address pins by `profile.httpBaseUrl`; [TlsCertPinStore] normalizes each to the
+     * shared `host:port` key.
+     */
+    private suspend fun resolveUnpairedEndpoint(fromState: String?): String? {
+        if (fromState != null) return fromState
+        return runCatching {
+            (credentials.loadOutcome() as? SessionCredentialLoadOutcome.Loaded)
+                ?.credentials?.profile?.httpBaseUrl
+        }.getOrNull()
     }
 
     companion object {

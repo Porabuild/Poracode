@@ -127,6 +127,25 @@ final class BrowserMirrorHTTPTests: XCTestCase {
     }
   }
 
+  func testCancelledURLErrorStaysTransportFailureWithoutPinVerdict() async throws {
+    // A cancelled URLError surfaces in didCompleteWithError on the delegate
+    // queue, where Task.isCancelled is always false. The restored URLError
+    // branch keeps the error intact so the execute-level catch classifies it:
+    // a cancelled URLError that is not a task cancel stays a transport
+    // failure and must never surface as CancellationError (mirrors
+    // BoundedHTTPBody).
+    BrowserMirrorURLProtocol.prepare([.failure(.cancelled)])
+    let api = GeneratedBrowserMirrorRemoteAPI(http: makeHTTPClient())
+    do {
+      _ = try await api.fetchState()
+      XCTFail("Expected transport failure")
+    } catch let error as BrowserMirrorFailure {
+      XCTAssertEqual(error, .transport)
+    } catch is CancellationError {
+      XCTFail("a cancelled URLError must not surface as CancellationError here")
+    }
+  }
+
   private func makeHTTPClient() -> BrowserMirrorHTTPClient {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [BrowserMirrorURLProtocol.self]

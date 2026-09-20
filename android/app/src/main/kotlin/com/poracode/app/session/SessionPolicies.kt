@@ -83,4 +83,5 @@ data class PendingPairSecret(
     val credential: String,
     val fingerprint: String,
     val sanitizedHost: String,
+    val certFingerprint: String? = null,
 )

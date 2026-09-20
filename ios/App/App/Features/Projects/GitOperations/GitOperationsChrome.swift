@@ -56,6 +56,7 @@ struct GitOperationsCompactChrome: View {
     }
     .disabled(isBusy)
     .accessibilityLabel(descriptor.accessibilityLabel)
+    .accessibilityIdentifier("native-e2e.git.\(procedure.rawValue)")
     if #available(iOS 26.0, *), glass {
       button.buttonStyle(.glass)
     } else {
@@ -69,5 +70,6 @@ struct GitOperationsCompactChrome: View {
   ) -> some View {
     let descriptor = GitOperationsPresentation.descriptor(for: procedure)
     return Button(descriptor.accessibilityLabel, systemImage: descriptor.symbol, action: handler)
+      .accessibilityIdentifier("native-e2e.git.\(procedure.rawValue)")
   }
 }

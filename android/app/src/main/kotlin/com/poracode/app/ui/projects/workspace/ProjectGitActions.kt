@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.model.GitMutationOutcome
@@ -369,5 +370,11 @@ private fun ActionSection(title: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun GitActionButton(label: Int, enabled: Boolean, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, enabled = enabled) { Text(stringResource(label)) }
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.testTag(
+            if (label == R.string.git_stage_all) "git_stage_all" else "git_action",
+        ),
+    ) { Text(stringResource(label)) }
 }

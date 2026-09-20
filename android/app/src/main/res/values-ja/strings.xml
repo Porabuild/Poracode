@@ -151,4 +151,6 @@
     <string name="discover_hosts_stop">停止</string>
     <string name="discover_hosts_searching">このネットワークでPoracodeホストを検索しています…</string>
     <string name="discover_hosts_empty">Poracodeホストはまだ見つかりません。</string>
+    <string name="discover_hosts_unverified">未確認</string>
+    <string name="tls_pin_mismatch">サーバーの TLS 証明書がペアリングコードのフィンガープリントと一致しません。デスクトップのリモートアクセスパネルから再ペアリングしてください。</string>
 </resources>

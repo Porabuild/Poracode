@@ -124,6 +124,23 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
         completionHandler(nil)
     }
 
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+    }
+
     func cancel() {
         lock.lock()
         task?.cancel()
@@ -178,7 +195,12 @@ private final class StreamingBodyBox: NSObject, URLSessionDataDelegate, @uncheck
         lock.lock()
         defer { lock.unlock() }
         if let error {
-            if (error as? URLError)?.code == .cancelled || Task.isCancelled {
+            // Pin mismatch and task cancel both surface as URLError.cancelled.
+            // Restore that branch so the API client can consult lastTrustDecision
+            // (a real cancel is CancellationError; a pin miss is still cancelled).
+            if let urlError = error as? URLError, urlError.code == .cancelled {
+                finishLocked(error: Task.isCancelled ? CancellationError() : urlError)
+            } else if Task.isCancelled {
                 finishLocked(error: CancellationError())
             } else {
                 finishLocked(error: error)

@@ -257,9 +257,7 @@ final class RichChatTranscriptController {
     _ envelope: RichPendingSteerEnvelope,
     target: RichChatThreadTarget
   ) {
-    guard !isBackgrounded, target == state.target, envelope.threadID == target.threadID else {
-      return
-    }
+    guard !isBackgrounded, target == state.target else { return }
     var pending = RichPendingSteerState(threadID: target.threadID, pending: state.pendingSteer)
     pending.apply(envelope)
     state.pendingSteer = pending.pending
@@ -273,15 +271,22 @@ final class RichChatTranscriptController {
     sequence: Int,
     target: RichChatThreadTarget
   ) {
-    guard !isBackgrounded, target == state.target, envelope.threadID == target.threadID else {
+    guard !isBackgrounded, target == state.target else { return }
+    switch RemoteFollowUpQueueReduce.action(
+      sameThread: envelope.threadID == target.threadID,
+      queueKeyPresent: true,
+      queueIsNull: envelope.queue == nil
+    ) {
+    case .ignore:
       return
+    case .clear, .replace:
+      if state.loadState == .loading {
+        bufferedFollowUpQueues.append(
+          RichChatBufferedFollowUpQueue(sequence: sequence, envelope: envelope))
+        return
+      }
+      state.followUpQueue = envelope.queue
     }
-    if state.loadState == .loading {
-      bufferedFollowUpQueues.append(
-        RichChatBufferedFollowUpQueue(sequence: sequence, envelope: envelope))
-      return
-    }
-    state.followUpQueue = envelope.queue
   }
 
   private func performHistoryLoad(

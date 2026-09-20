@@ -151,4 +151,6 @@
     <string name="discover_hosts_stop">停止</string>
     <string name="discover_hosts_searching">正在搜索此网络中的 Poracode 主机…</string>
     <string name="discover_hosts_empty">尚未发现 Poracode 主机。</string>
+    <string name="discover_hosts_unverified">未验证</string>
+    <string name="tls_pin_mismatch">服务器的 TLS 证书与配对码中的指纹不匹配。请从桌面“远程访问”面板重新配对。</string>
 </resources>

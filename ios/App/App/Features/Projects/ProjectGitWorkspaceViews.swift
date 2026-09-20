@@ -80,6 +80,7 @@ struct ProjectGitSidebarView: View {
           Label(ProjectWorkspaceStrings.git, systemImage: "ellipsis.circle")
         }
         .accessibilityLabel(ProjectWorkspaceStrings.git)
+        .accessibilityIdentifier("native-e2e.git.panel-menu")
       }
     }
   }
@@ -398,6 +399,7 @@ struct ProjectGitSidebarView: View {
     ) {
       submitFileAction(procedure, change: change)
     }
+    .accessibilityIdentifier("native-e2e.git.\(procedure.rawValue)")
     .disabled(isMutationUnavailable)
   }
 
@@ -410,6 +412,7 @@ struct ProjectGitSidebarView: View {
     ) {
       submitGroupAction(procedure)
     }
+    .accessibilityIdentifier("native-e2e.git.\(procedure.rawValue)")
   }
 
   private var isMutationUnavailable: Bool {

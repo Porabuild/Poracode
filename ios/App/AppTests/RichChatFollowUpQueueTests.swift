@@ -40,7 +40,7 @@ final class RichChatFollowUpQueueTests: XCTestCase {
     let requests = try richFixtureObject(try XCTUnwrap(root["procedureRequests"]))
     let fixtureItems = try richFixtureArray(
       try XCTUnwrap(try richFixtureObject(try XCTUnwrap(root["snapshotField"]))["items"]))
-    let segments = try fixtureItems[1].objectValue?["segments"].arrayValue
+    let segments = fixtureItems[1].objectValue?["segments"]?.arrayValue
 
     func assertRoundTrip(
       _ data: Data,
@@ -78,7 +78,7 @@ final class RichChatFollowUpQueueTests: XCTestCase {
       GeneratedRemoteV3Contract.richQueueFollowUpRequest(
         threadID: "thread-rich", input: setWithSegments),
       procedure: "queueThreadFollowUp",
-      expected: queueRequest + ["segments": .array(try XCTUnwrap(segments))]
+      expected: queueRequest.merging(["segments": .array(try XCTUnwrap(segments))]) { _, value in value }
     )
 
     let itemProcedures: [(String, String)] = [
@@ -186,7 +186,7 @@ final class RichChatFollowUpQueueTests: XCTestCase {
     await gateway.configureHistory(
       .value(
         RichChatControllerTestValues.history(
-          sequence: 30, followUpQueue: .null, followUpQueuePresent: true)))
+          sequence: 30, followUpQueue: nil, followUpQueuePresent: true)))
     await controller.loadHistory()
     XCTAssertNil(controller.state.followUpQueue)
 

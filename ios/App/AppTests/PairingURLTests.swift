@@ -249,6 +249,28 @@ final class PairingURLTests: XCTestCase {
         }
     }
 
+    func testParseCertFingerprintFromPairingFragment() {
+        let hex = String(repeating: "ab", count: 32)
+        let parts = PairingURL.parseParts("https://192.168.1.20:49152/#token=lc_pair_test&fp=sha256:\(hex)")
+        XCTAssertEqual(parts?.certFingerprint, hex)
+        XCTAssertEqual(
+            PairingURL.parseCertFingerprint("https://192.168.1.20:49152/#token=x&fp=sha256:\(hex)"),
+            hex
+        )
+        XCTAssertNil(PairingURL.parseCertFingerprint("https://192.168.1.20:49152/#token=x"))
+    }
+
+    func testTlsPinAcceptsMatchingLeafAndRefusesSwappedCert() {
+        let leaf = Data("poracode-leaf".utf8)
+        let imposter = Data("imposter-leaf".utf8)
+        let pin = TlsCertPin.sha256Hex(der: leaf)
+        XCTAssertTrue(TlsCertPin.matches(der: leaf, expectedHex: pin))
+        XCTAssertTrue(TlsCertPin.matches(der: leaf, expectedHex: "sha256:\(pin)"))
+        XCTAssertFalse(TlsCertPin.matches(der: imposter, expectedHex: pin))
+        XCTAssertNil(TlsCertPin.normalize("short"))
+        XCTAssertEqual(TlsCertPin.normalize("SHA256:\(pin.uppercased())"), pin)
+    }
+
     private var repoRoot: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

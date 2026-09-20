@@ -23,7 +23,13 @@ class WsConnectionLoop(
     private val api: RemoteApiGateway,
     private val state: WsClientState,
     private val scope: CoroutineScope,
-    private val httpClient: OkHttpClient,
+    /**
+     * Resolved fresh on **every** connect attempt, never captured at construction:
+     * a TLS pin published after the first attempt binds the next one, and an unpair
+     * that drops the pin is honored — the per-use resolution discipline
+     * [com.poracode.app.transport.RemoteApiClient] uses for requests.
+     */
+    private val resolveHttpClient: () -> OkHttpClient,
     private val frameRouter: WsFrameRouter,
     private val handleSessionExpired: (String) -> Unit,
     private val networkGate: ForegroundNetworkGate = ForegroundNetworkGate.shared,
@@ -228,7 +234,9 @@ class WsConnectionLoop(
                 }
             }
 
-            val socket = httpClient.newWebSocket(request, listener)
+            // Per attempt, not per loop: this is what lets a late-published pin bind
+            // the next reconnect and an unpair drop it.
+            val socket = resolveHttpClient().newWebSocket(request, listener)
             if (!placeholder.installOrCancel(socket)) {
                 return
             }

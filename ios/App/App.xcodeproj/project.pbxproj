@@ -10,6 +10,7 @@
 		C90000000000000000000001 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000000000000001 /* AppTheme.swift */; };
 		C90000000000000000000002 /* AppearanceSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80000000000000000000002 /* AppearanceSettingsView.swift */; };
 		C72000000000000000000001 /* NativeJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000001 /* NativeJourneyUITests.swift */; };
+		C72000000000000000000002 /* NativeFamilyJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */; };
 		A1000000000000000000011B /* RemoteMutationClassification.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011B /* RemoteMutationClassification.swift */; };
 		A1000000000000000000011C /* ThreadControllerMutations.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011C /* ThreadControllerMutations.swift */; };
 		A1000000000000000000011D /* RemoteMutationClassificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011D /* RemoteMutationClassificationTests.swift */; };
@@ -218,6 +219,9 @@
 		A10000000000000000000014 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		A10000000000000000000015 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
 		A10000000000000000000016 /* PairingURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* PairingURLTests.swift */; };
+		TP1000000000000000000002 /* TlsPinPairingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = TP1000000000000000000001 /* TlsPinPairingTests.swift */; };
+		PD1000000000000000000002 /* PairingDescribeFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PD1000000000000000000001 /* PairingDescribeFailureTests.swift */; };
+		RA1000000000000000000002 /* RemoteAPIClientPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RA1000000000000000000001 /* RemoteAPIClientPolicyTests.swift */; };
 		A10000000000000000000017 /* ProtocolDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* ProtocolDecodingTests.swift */; };
 		A10000000000000000000019 /* EventStreamCursor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* EventStreamCursor.swift */; };
 		A1000000000000000000001A /* RuntimeEventReducer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001A /* RuntimeEventReducer.swift */; };
@@ -267,6 +271,7 @@
 		A1000000000000000000003F /* HostRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000003F /* HostRecord.swift */; };
 		A10000000000000000000040 /* AtomicFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000040 /* AtomicFileStore.swift */; };
 		A10000000000000000000041 /* HostRegistryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000041 /* HostRegistryStore.swift */; };
+		A1000000000000000000182 /* NativeE2EStateReset.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000182 /* NativeE2EStateReset.swift */; };
 		A10000000000000000000042 /* HostVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000042 /* HostVault.swift */; };
 		A10000000000000000000043 /* HostTransactionJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000043 /* HostTransactionJournal.swift */; };
 		A10000000000000000000044 /* LegacyHostImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000044 /* LegacyHostImport.swift */; };
@@ -553,6 +558,7 @@
 		A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000008 /* RichChatTerminalTransportTests.swift */; };
 		A91000000000000000000002 /* TerminalBaselineAssemblerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */; };
 		A91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift */; };
+		AF6900000000000000000001 /* RichChatFollowUpQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF6900000000000000000001 /* RichChatFollowUpQueueTests.swift */; };
 		FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE2000000005 /* TerminalStartReachabilityTests.swift */; };
 		PU4000000000000000000001 /* PullRequestReviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = PU3000000000000000000001 /* PullRequestReviewTests.swift */; };
 		A20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */; };
@@ -768,6 +774,7 @@
 		C80000000000000000000001 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		C80000000000000000000002 /* AppearanceSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsView.swift; sourceTree = "<group>"; };
 		C71000000000000000000001 /* NativeJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeJourneyUITests.swift; sourceTree = "<group>"; };
+		C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFamilyJourneyUITests.swift; sourceTree = "<group>"; };
 		C71000000000000000000002 /* NativeE2ETests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativeE2ETests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000116 /* GitStateInterestFlush.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStateInterestFlush.swift; sourceTree = "<group>"; };
 		B1000000000000000000011B /* RemoteMutationClassification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteMutationClassification.swift; sourceTree = "<group>"; };
@@ -979,6 +986,9 @@
 		HF2000000000000000000005 /* HomeProjectMenuDestinationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pages/HomeProjectMenuDestinationView.swift; sourceTree = "<group>"; };
 		B10000000000000000000128 /* ProjectSyncPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectSyncPreferences.swift; sourceTree = "<group>"; };
 		B10000000000000000000016 /* PairingURLTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingURLTests.swift; sourceTree = "<group>"; };
+		TP1000000000000000000001 /* TlsPinPairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TlsPinPairingTests.swift; sourceTree = "<group>"; };
+		PD1000000000000000000001 /* PairingDescribeFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingDescribeFailureTests.swift; sourceTree = "<group>"; };
+		RA1000000000000000000001 /* RemoteAPIClientPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteAPIClientPolicyTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000017 /* ProtocolDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolDecodingTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000019 /* EventStreamCursor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventStreamCursor.swift; sourceTree = "<group>"; };
 		B1000000000000000000001A /* RuntimeEventReducer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEventReducer.swift; sourceTree = "<group>"; };
@@ -1032,6 +1042,7 @@
 		B1000000000000000000003F /* HostRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostRecord.swift; sourceTree = "<group>"; };
 		B10000000000000000000040 /* AtomicFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AtomicFileStore.swift; sourceTree = "<group>"; };
 		B10000000000000000000041 /* HostRegistryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostRegistryStore.swift; sourceTree = "<group>"; };
+		B1000000000000000000182 /* NativeE2EStateReset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeE2EStateReset.swift; sourceTree = "<group>"; };
 		B10000000000000000000042 /* HostVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostVault.swift; sourceTree = "<group>"; };
 		B10000000000000000000043 /* HostTransactionJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostTransactionJournal.swift; sourceTree = "<group>"; };
 		B10000000000000000000044 /* LegacyHostImport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyHostImport.swift; sourceTree = "<group>"; };
@@ -1314,6 +1325,7 @@
 		B20000000000000000000008 /* RichChatTerminalTransportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalTransportTests.swift; sourceTree = "<group>"; };
 		B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalBaselineAssemblerTests.swift; sourceTree = "<group>"; };
 		B91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeBackgroundTasksReduceTests.swift; sourceTree = "<group>"; };
+		BF6900000000000000000001 /* RichChatFollowUpQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatFollowUpQueueTests.swift; sourceTree = "<group>"; };
 		FE2000000005 /* TerminalStartReachabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalStartReachabilityTests.swift; sourceTree = "<group>"; };
 		PU3000000000000000000001 /* PullRequestReviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullRequestReviewTests.swift; sourceTree = "<group>"; };
 		B20000000000000000000009 /* RichChatTerminalLocalWebSocketTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichChatTerminalLocalWebSocketTests.swift; sourceTree = "<group>"; };
@@ -1924,6 +1936,7 @@
 				B10000000000000000000043 /* HostTransactionJournal.swift */,
 				B10000000000000000000044 /* LegacyHostImport.swift */,
 				B10000000000000000000045 /* HostCatalog.swift */,
+				B1000000000000000000182 /* NativeE2EStateReset.swift */,
 				B10000000000000000000128 /* ProjectSyncPreferences.swift */,
 			);
 			path = Storage;
@@ -2464,6 +2477,9 @@
 				6899355824104B1AA3633F24 /* RemoteIntegrationsTransportTests.swift */,
 				50011F70A9404941AF17AF92 /* RemoteIntegrationsUILogicTests.swift */,
 				B10000000000000000000016 /* PairingURLTests.swift */,
+				TP1000000000000000000001 /* TlsPinPairingTests.swift */,
+				PD1000000000000000000001 /* PairingDescribeFailureTests.swift */,
+				RA1000000000000000000001 /* RemoteAPIClientPolicyTests.swift */,
 				B10000000000000000000017 /* ProtocolDecodingTests.swift */,
 				B1000000000000000000001D /* EventStreamCursorTests.swift */,
 				B1000000000000000000001E /* RuntimeEventReducerTests.swift */,
@@ -2535,6 +2551,7 @@
 				B20000000000000000000008 /* RichChatTerminalTransportTests.swift */,
 				B91000000000000000000002 /* TerminalBaselineAssemblerTests.swift */,
 				B91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift */,
+				BF6900000000000000000001 /* RichChatFollowUpQueueTests.swift */,
 				CE2000000000000000000002 /* TerminalCommandFieldTests.swift */,
 				B2000000000000000000000B /* TerminalRawKeyInputTests.swift */,
 				FE2000000005 /* TerminalStartReachabilityTests.swift */,
@@ -2559,6 +2576,7 @@
 			isa = PBXGroup;
 			children = (
 				C71000000000000000000001 /* NativeJourneyUITests.swift */,
+				C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */,
 			);
 			path = NativeE2ETests;
 			sourceTree = "<group>";
@@ -2979,6 +2997,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C72000000000000000000001 /* NativeJourneyUITests.swift in Sources */,
+				C72000000000000000000002 /* NativeFamilyJourneyUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3248,6 +3267,7 @@
 				A1000000000000000000003F /* HostRecord.swift in Sources */,
 				A10000000000000000000040 /* AtomicFileStore.swift in Sources */,
 				A10000000000000000000041 /* HostRegistryStore.swift in Sources */,
+				A1000000000000000000182 /* NativeE2EStateReset.swift in Sources */,
 				A10000000000000000000042 /* HostVault.swift in Sources */,
 				A10000000000000000000043 /* HostTransactionJournal.swift in Sources */,
 				A10000000000000000000044 /* LegacyHostImport.swift in Sources */,
@@ -3610,6 +3630,9 @@
 				45B5D34AAFE749438929129B /* RemoteIntegrationsTransportTests.swift in Sources */,
 				433529F270594305BD983053 /* RemoteIntegrationsUILogicTests.swift in Sources */,
 				A10000000000000000000016 /* PairingURLTests.swift in Sources */,
+				TP1000000000000000000002 /* TlsPinPairingTests.swift in Sources */,
+				PD1000000000000000000002 /* PairingDescribeFailureTests.swift in Sources */,
+				RA1000000000000000000002 /* RemoteAPIClientPolicyTests.swift in Sources */,
 				A10000000000000000000017 /* ProtocolDecodingTests.swift in Sources */,
 				A1000000000000000000001D /* EventStreamCursorTests.swift in Sources */,
 				A1000000000000000000001E /* RuntimeEventReducerTests.swift in Sources */,
@@ -3681,6 +3704,7 @@
 				A20000000000000000000008 /* RichChatTerminalTransportTests.swift in Sources */,
 				A91000000000000000000002 /* TerminalBaselineAssemblerTests.swift in Sources */,
 				A91000000000000000000003 /* RuntimeBackgroundTasksReduceTests.swift in Sources */,
+				AF6900000000000000000001 /* RichChatFollowUpQueueTests.swift in Sources */,
 				CE1000000000000000000002 /* TerminalCommandFieldTests.swift in Sources */,
 				A2000000000000000000000B /* TerminalRawKeyInputTests.swift in Sources */,
 				FE1000000005 /* TerminalStartReachabilityTests.swift in Sources */,

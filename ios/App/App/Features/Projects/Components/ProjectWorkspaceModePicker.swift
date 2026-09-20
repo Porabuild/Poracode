@@ -12,6 +12,7 @@ struct ProjectWorkspaceModePicker: View {
         .tag(ProjectWorkspaceMode.files)
       Label(ProjectWorkspaceStrings.git, systemImage: "arrow.triangle.branch")
         .tag(ProjectWorkspaceMode.git)
+        .accessibilityIdentifier("native-e2e.workspace.git")
     }
     .pickerStyle(.segmented)
     .controlSize(.large)

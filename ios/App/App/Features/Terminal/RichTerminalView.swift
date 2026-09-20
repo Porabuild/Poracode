@@ -153,6 +153,7 @@ struct RichTerminalView: View {
         .labelStyle(.iconOnly)
         .font(.title2)
         .accessibilityHint(TerminalStrings.sendHint)
+        .accessibilityIdentifier("native-e2e.terminal.send")
         .disabled(!canSend)
       }
       TerminalKeyAccessory(

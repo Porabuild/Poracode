@@ -120,6 +120,7 @@ class WsInterestFlushIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scope,
+            endpoint = null,
             httpClient = OkHttpClient.Builder().connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS).build(),
             networkGate = gate,
@@ -147,6 +148,7 @@ class WsInterestFlushIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scope,
+            endpoint = null,
             httpClient = OkHttpClient.Builder().connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS).build(),
             networkGate = gate,
@@ -169,6 +171,7 @@ class WsInterestFlushIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scope,
+            endpoint = null,
             httpClient = OkHttpClient.Builder().connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS).build(),
             networkGate = gate,

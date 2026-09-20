@@ -15,6 +15,7 @@ import com.poracode.app.session.richchat.RichTerminalWatchResume
 import com.poracode.app.session.richchat.RichTerminalWatchTransport
 import com.poracode.app.transport.ForegroundNetworkGate
 import com.poracode.app.transport.RemoteApiClient
+import com.poracode.app.transport.TlsCertPin
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -191,7 +192,7 @@ class ProductionTerminalWatchTransport(
                 placeholder = gatePlaceholder
             }
             val listener = listener(expected, gen, gatePlaceholder)
-            val created = client.newWebSocket(request, listener)
+            val created = clientForSocket().newWebSocket(request, listener)
             if (!gatePlaceholder.installOrCancel(created)) return
             synchronized(lock) {
                 if (isCurrentLocked(expected, gen)) {
@@ -479,6 +480,10 @@ class ProductionTerminalWatchTransport(
     }
 
     private fun status(phase: TerminalConnectionPhase) = TerminalConnectionStatus(phase)
+
+    /** Pin resolved at socket creation, not construction (same per-use discipline
+     * as [RemoteApiClient]): late-published pins bind, unpair drops are honored. */
+    private fun clientForSocket() = TlsCertPin.clientForEndpoint(http.httpEndpoint, client)
 
     private data class WatchTarget(
         val terminalId: String,

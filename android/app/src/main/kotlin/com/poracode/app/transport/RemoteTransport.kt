@@ -2,6 +2,7 @@ package com.poracode.app.transport
 
 import com.poracode.app.model.RemoteAccessTokenResult
 import com.poracode.app.model.RemoteEnvironmentDescriptor
+import com.poracode.app.model.HostServiceCapabilities
 import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteShellSnapshot
 import com.poracode.app.model.RemoteThreadSnapshot
@@ -38,6 +39,9 @@ interface RemoteApiGateway {
     suspend fun snapshot(): RemoteShellSnapshot
 
     suspend fun agentStatuses(): RemoteAgentStatuses
+
+    /** V6 C.2: host-declared service capabilities. A missing route fails closed. */
+    suspend fun describeHost(): HostServiceCapabilities = HostServiceCapabilities.UNKNOWN
 
     suspend fun threadHistory(
         threadId: String,

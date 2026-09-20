@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.chat.RichOpenRequest
@@ -148,9 +149,17 @@ private fun RichRequestCard(
                             )
                         }
                         if (index == 0) {
-                            Button(onClick = action, enabled = !resolving) { Text(option.label) }
+                            Button(
+                                onClick = action,
+                                enabled = !resolving,
+                                modifier = Modifier.testTag("request_option_${option.optionId}"),
+                            ) { Text(option.label) }
                         } else {
-                            OutlinedButton(onClick = action, enabled = !resolving) {
+                            OutlinedButton(
+                                onClick = action,
+                                enabled = !resolving,
+                                modifier = Modifier.testTag("request_option_${option.optionId}"),
+                            ) {
                                 Text(option.label)
                             }
                         }

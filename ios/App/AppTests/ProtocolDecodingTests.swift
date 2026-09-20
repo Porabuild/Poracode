@@ -2,6 +2,18 @@ import XCTest
 @testable import App
 
 final class ProtocolDecodingTests: XCTestCase {
+    func testHostServiceCapabilitiesPartialPayloadDecodesWithDefaults() throws {
+        // The app-owned capability model decodes every flag with the
+        // documented fail-closed default (`false`), so a document or payload
+        // missing keys still decodes instead of failing pairing.
+        let partial = Data(#"{"ssh":true}"#.utf8)
+        let caps = try JSONDecoding.decode(HostServiceCapabilities.self, from: partial)
+        XCTAssertEqual(caps.ssh, true)
+        XCTAssertEqual(caps, HostServiceCapabilities(ssh: true))
+        let empty = try JSONDecoding.decode(HostServiceCapabilities.self, from: Data("{}".utf8))
+        XCTAssertEqual(empty, .unknown)
+    }
+
     func testDecodeReadyEnvelope() throws {
         let json = #"{"type":"ready","seq":12}"#
         let message = try RemoteWebSocketServerMessage.decode(from: Data(json.utf8))

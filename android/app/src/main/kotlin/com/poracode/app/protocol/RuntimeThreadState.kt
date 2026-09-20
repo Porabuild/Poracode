@@ -134,13 +134,11 @@ object RuntimeDomainReducer {
                 return state
             }
             "session.exited" -> {
-                // Background work dies with the agent process; drop the list.
-                if (next.backgroundTasks == null) return state
-                next = next.copy(backgroundTasks = null)
+                next = applyGeneratedBackgroundTasks(next, "session.exited", emptyList())
             }
             "background_tasks.changed" -> {
                 val tasks = event.tasks ?: return state
-                next = replaceBackgroundTasks(next, tasks)
+                next = applyGeneratedBackgroundTasks(next, event.type, tasks)
             }
             "item.started", "item.updated", "item.completed", "error" -> {
                 structuralBump = true
@@ -155,21 +153,33 @@ object RuntimeDomainReducer {
 
     fun reset(): ThreadRuntimeDomainState = ThreadRuntimeDomainState()
 
-    /**
-     * REPLACE the thread's live background task list: an empty list drops the
-     * key and an unchanged list is a no-op. Never bumps structural version:
-     * the list is not a transcript grouping input.
-     */
-    private fun replaceBackgroundTasks(
+    /** Generated V6 E.3 reduce: replace / drain / noop from the shared spec. */
+    private fun applyGeneratedBackgroundTasks(
         state: ThreadRuntimeDomainState,
-        tasks: List<BackgroundTask>,
+        eventType: String,
+        incoming: List<BackgroundTask>,
     ): ThreadRuntimeDomainState {
-        val prev = state.backgroundTasks
-        if (tasks.isEmpty()) {
-            return if (prev == null) state else state.copy(backgroundTasks = null)
+        val mappedIncoming = incoming.map {
+            com.poracode.remote.v3.generated.RemoteBackgroundTaskIdentity(
+                it.taskId,
+                it.kind,
+                it.description,
+            )
         }
-        if (prev == tasks) return state
-        return state.copy(backgroundTasks = tasks.toList())
+        val mappedPrevious = state.backgroundTasks?.map {
+            com.poracode.remote.v3.generated.RemoteBackgroundTaskIdentity(
+                it.taskId,
+                it.kind,
+                it.description,
+            )
+        }
+        val next = com.poracode.remote.v3.generated.RemoteBackgroundTaskReduce.apply(
+            eventType,
+            mappedIncoming,
+            mappedPrevious,
+        )
+        val mappedNext = next?.map { BackgroundTask(it.taskId, it.kind, it.description) }
+        return if (mappedNext == state.backgroundTasks) state else state.copy(backgroundTasks = mappedNext)
     }
 
     fun mergeContextUsage(

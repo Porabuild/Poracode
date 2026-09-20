@@ -72,6 +72,10 @@ enum PortForwardingFailure: Error, Equatable, Sendable {
   case invalidRequest
   case unavailable(PortForwardingUnavailableReason)
   case protocolIncompatible
+  /// The pinned host failed the shared TLS trust evaluation, so every
+  /// port-forward request is refused before it is sent. Re-pairing refreshes
+  /// the fingerprint from the desktop QR.
+  case certificateMismatch
   case missingScope
   case authenticationExpired
   case authorizationDenied

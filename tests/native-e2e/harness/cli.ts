@@ -14,7 +14,9 @@ import {
   inventorySourceHash,
 } from "./operationMap.ts";
 import { ProcessCleanup } from "./processCleanup.ts";
+import { redactLogLine } from "./secrets.ts";
 import { writeReadinessDescriptor } from "./readiness.ts";
+import { writeRealPeerPairing } from "./pairingSecrets.ts";
 import { missingServerArtifactBlocker, startRealHost, type RealHostHandle } from "./realHost.ts";
 import {
   assertPortsFree,
@@ -167,6 +169,23 @@ export async function runHarnessCli(options: CliOptions): Promise<void> {
     baseDirRoot: runDir.path,
   });
   cleanup.add(() => real.stop());
+  // E.2 real-peer journeys: mint one extra one-time pairing credential for an
+  // OUT-OF-PROCESS peer (the simulator/emulator app pairs with its own app
+  // storage, so it cannot reuse the harness's in-process exchange). The
+  // credential is written 0600 into the run dir secrets and deleted with the
+  // run dir; the readiness descriptor stays secret-free. A failure here is
+  // non-fatal for the harness itself but the device legs treat a missing
+  // credential file as fatal.
+  try {
+    const pairing = await real.pair();
+    writeRealPeerPairing(runDir.secretsDir, pairing.pairingUrl);
+  } catch (error) {
+    process.stderr.write(
+      `native-e2e: real-peer pairing credential unavailable: ${redactLogLine(
+        error instanceof Error ? error.message : String(error),
+      )}\n`,
+    );
+  }
   const plane = createRealControlPlane(real, options.slot.control);
   const control = new ControlServer(plane, {
     host: LOOPBACK_HOST,

@@ -22,6 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -69,7 +70,9 @@ internal fun HomeProjectUtilityPicker(
                     leadingContent = {
                         Icon(utilityIcon(utility), contentDescription = null)
                     },
-                    modifier = Modifier.clickable(role = Role.Button) { onSelect(option) },
+                    modifier = Modifier
+                        .clickable(role = Role.Button) { onSelect(option) }
+                        .testTag("home_utility_project_${option.project.id}"),
                 )
             }
             if (projects.isEmpty()) {

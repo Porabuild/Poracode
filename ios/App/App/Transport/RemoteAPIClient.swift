@@ -115,6 +115,25 @@ actor RemoteAPIClient: PushRemoteAPI {
         return try SessionAgentStatuses(canonicalData: canonical)
     }
 
+    /// GET `/api/host/describe` — host-declared service capabilities
+    /// (`session:read`). Describe is best-effort: a missing route (404/403), a
+    /// server error, a timeout, or an unreadable payload all fail closed to
+    /// the unknown capability set — pairing must never die on it. Only a
+    /// refused pin and real cancellation propagate.
+    func describeHost() async throws -> HostServiceCapabilities {
+        do {
+            let data = try await requestData(path: GeneratedRemoteV3Contract.hostDescribeRoutePath)
+            let canonical = try GeneratedRemoteV3Contract.hostDescribeResponse(data)
+            return try JSONDecoding.decode(HostDescribeResponse.self, from: canonical).capabilities
+        } catch let error as RemoteClientError where error.code == TlsCertPin.mismatchCode {
+            throw error
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return .unknown
+        }
+    }
+
     func threadHistory(
         threadId: String,
         targetTimelineEntryCount: Int? = nil
@@ -327,28 +346,11 @@ actor RemoteAPIClient: PushRemoteAPI {
         do {
             (data, response) = try await performBoundedRequest(request)
         } catch is CancellationError {
-            throw CancellationError()
+            try Self.rethrowTransportFailure(error: CancellationError(), endpoint: endpoint)
         } catch let error as RemoteClientError {
             throw error
-        } catch let error as URLError where error.code == .cancelled {
-            // Treat URL cancellation as Task cancellation when the task is cancelled.
-            if Task.isCancelled {
-                throw CancellationError()
-            }
-            throw RemoteClientError(
-                message: "Network request failed.",
-                status: 0,
-                code: "network"
-            )
         } catch {
-            if Task.isCancelled {
-                throw CancellationError()
-            }
-            throw RemoteClientError(
-                message: "Network request failed.",
-                status: 0,
-                code: "network"
-            )
+            try Self.rethrowTransportFailure(error: error, endpoint: endpoint)
         }
 
         guard let http = response as? HTTPURLResponse else {
@@ -447,5 +449,27 @@ actor RemoteAPIClient: PushRemoteAPI {
 
     private static func encodeToJSONData<T: Encodable>(_ value: T) throws -> Data {
         try JSONDecoding.encoder.encode(value)
+    }
+
+    /// Pin mismatch is only reported when the last trust evaluation for this
+    /// host actually failed the fingerprint. Any other error on a pinned host
+    /// (timeout, reset, cancel) stays a transport failure — not a pairing dead-end.
+    private static func rethrowTransportFailure(error: Error, endpoint: String) throws -> Never {
+        if Task.isCancelled { throw CancellationError() }
+        if isCertificatePinMismatch(for: endpoint) {
+            throw RemoteClientError.certificateMismatch
+        }
+        if error is CancellationError {
+            throw CancellationError()
+        }
+        throw RemoteClientError(
+            message: "Network request failed.",
+            status: 0,
+            code: "network"
+        )
+    }
+
+    private static func isCertificatePinMismatch(for endpoint: String) -> Bool {
+        TlsCertPinStore.lastDecisionMismatched(endpoint: endpoint)
     }
 }

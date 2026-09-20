@@ -59,6 +59,8 @@ extension AppSession {
             }
             await NotificationIngress.shared.liveActivities.endActivities(for: connectionId)
         }
+        let removedEndpoint = state.hosts.first(where: { $0.connectionId == connectionId })?
+            .httpBaseURL
         let wasSelected = state.selectedConnectionId == connectionId
         let began = state.operationOwner.begin(.removeHost)
         do {
@@ -84,6 +86,10 @@ extension AppSession {
         }
         await cancelStaleSessionWork(invalidateSocket: false)
         await sessionPool.forget(.host(connectionId))
+        // Only this endpoint's pin goes: other paired hosts keep theirs.
+        if let removedEndpoint {
+            TlsCertPinStore.remove(endpoint: removedEndpoint)
+        }
         richChatComposerDrafts.clear(connectionID: connectionId)
         let snapshot: HostCatalogSnapshot
         do {
@@ -169,6 +175,9 @@ extension AppSession {
         let retained = Set(snapshot.hosts.map(\.connectionId))
         state.hostSnapshots = state.hostSnapshots.filter { retained.contains($0.key) }
         state.hostSocketStates = state.hostSocketStates.filter { retained.contains($0.key) }
+        for record in snapshot.hosts {
+            TlsCertPinStore.register(endpoint: record.httpBaseURL, fingerprint: record.certFingerprint)
+        }
     }
 
     /// Refreshes the selected live host and fetches lightweight shell snapshots

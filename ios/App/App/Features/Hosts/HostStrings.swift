@@ -162,6 +162,10 @@ enum HostStrings {
     )
   }
 
+  static var unverifiedDiscovery: String {
+    String(localized: "hosts.add.discover.unverified", defaultValue: "Unverified")
+  }
+
   /// Host part of the endpoint URL, mirroring the mobile web connection row.
   static func endpointCaption(_ baseURL: String) -> String {
     URL(string: baseURL).flatMap(\.host).flatMap { $0.isEmpty ? nil : $0 } ?? baseURL

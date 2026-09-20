@@ -151,4 +151,6 @@
     <string name="discover_hosts_stop">Zatrzymaj</string>
     <string name="discover_hosts_searching">Wyszukiwanie hostów Poracode w tej sieci…</string>
     <string name="discover_hosts_empty">Nie znaleziono jeszcze hostów Poracode.</string>
+    <string name="discover_hosts_unverified">Niezweryfikowany</string>
+    <string name="tls_pin_mismatch">Certyfikat TLS serwera nie zgadza się z odciskiem z kodu parowania. Sparuj ponownie z panelu zdalnego dostępu na pulpicie.</string>
 </resources>

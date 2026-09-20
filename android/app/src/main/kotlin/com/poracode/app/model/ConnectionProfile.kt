@@ -29,12 +29,38 @@ data class ConnectionProfile(
      * hosts or app versions: browser entry unsupported, raw forwarding unaffected.
      */
     val browserForwardVersions: List<Int> = emptyList(),
+    /** QR `#fp=` SHA-256 of the TLS leaf DER. Absent on records paired before V6 A.2. */
+    val certFingerprint: String? = null,
+    /** Host-declared services from `GET /api/host/describe`. Absent on records paired before V6 C.2. */
+    val hostCapabilities: HostServiceCapabilities? = null,
 ) {
     companion object {
         /** Bump + migrate or invalidate when the persisted shape becomes incompatible. */
         const val STORE_VERSION = 1
     }
 }
+
+/** Host-declared service capabilities from `GET /api/host/describe` (V6 C.2). */
+@Serializable
+data class HostServiceCapabilities(
+    val ssh: Boolean = false,
+    val browserPanel: Boolean = false,
+    val chromeBridge: Boolean = false,
+    val computerUse: Boolean = false,
+    val nativeSecrets: Boolean = false,
+    val portForward: Boolean = false,
+    val autoUpdate: Boolean = false,
+    val osNotifications: Boolean = false,
+) {
+    companion object {
+        val UNKNOWN = HostServiceCapabilities()
+    }
+}
+
+@Serializable
+data class HostDescribeResponse(
+    val capabilities: HostServiceCapabilities,
+)
 
 @Serializable
 data class ConnectionStoreDocument(

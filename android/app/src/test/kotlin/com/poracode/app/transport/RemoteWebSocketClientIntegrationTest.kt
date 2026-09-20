@@ -116,6 +116,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -152,6 +153,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(ticketHold = ticketHold, ticketReached = ticketReached),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -199,6 +201,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -256,6 +259,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -308,6 +312,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -353,6 +358,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -416,6 +422,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -460,6 +467,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -512,6 +520,7 @@ class RemoteWebSocketClientIntegrationTest {
         val client = RemoteWebSocketClient(
             api = api(),
             scope = scopes,
+            endpoint = null,
             httpClient = OkHttpClient.Builder()
                 .connectTimeout(2, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)

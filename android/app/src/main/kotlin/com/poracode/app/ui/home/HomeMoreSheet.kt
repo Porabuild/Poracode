@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.push.PushAvailability
@@ -171,6 +172,14 @@ private fun HomeMoreRow(
     ListItem(
         headlineContent = { Text(stringResource(labelRes), color = color) },
         leadingContent = { Icon(icon, contentDescription = null, tint = color) },
-        modifier = Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        modifier = Modifier
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .testTag(
+                when (labelRes) {
+                    R.string.terminal_title -> "home_more_terminal"
+                    R.string.projects_manage_title -> "home_more_projects"
+                    else -> "home_more_row"
+                },
+            ),
     )
 }

@@ -116,10 +116,18 @@ object RichReducer {
     fun applyFollowUpQueue(
         state: RichThreadState,
         envelope: RichFollowUpQueueEnvelope,
-    ): RichThreadState = if (state.key == envelope.threadKey) {
-        state.copy(followUpQueue = envelope.queue)
-    } else {
-        state
+    ): RichThreadState = when (
+        com.poracode.remote.v3.generated.RemoteFollowUpQueueReduce.action(
+            sameThread = state.key == envelope.threadKey,
+            queueKeyPresent = true,
+            queueIsNull = envelope.queue == null,
+        )
+    ) {
+        com.poracode.remote.v3.generated.RemoteFollowUpQueueReduceAction.Ignore -> state
+        com.poracode.remote.v3.generated.RemoteFollowUpQueueReduceAction.Clear ->
+            state.copy(followUpQueue = null)
+        com.poracode.remote.v3.generated.RemoteFollowUpQueueReduceAction.Replace ->
+            state.copy(followUpQueue = envelope.queue)
     }
 
     fun replaceCompletedTurns(

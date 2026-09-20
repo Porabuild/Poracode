@@ -83,10 +83,12 @@ private struct RichChatRequestCard: View {
         Button(option.label) { resolve([option.optionID]) }
           .buttonStyle(.borderedProminent)
           .disabled(!canResolve || isResolving)
+          .accessibilityIdentifier("native-e2e.request.option.\(option.optionID)")
       } else {
         Button(option.label) { resolve([option.optionID]) }
           .buttonStyle(.bordered)
           .disabled(!canResolve || isResolving)
+          .accessibilityIdentifier("native-e2e.request.option.\(option.optionID)")
       }
     }
   }
