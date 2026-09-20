@@ -178,11 +178,20 @@ export function patchConfigForModelChange(
   const nextReasoning = modelSelectionFor(capabilities, model).reasoning;
   const effortValid = current.effort ? nextReasoning.values.includes(current.effort) : true;
   const nextContextIds = capabilities.modelContextSizes?.[model];
-  const nextContextDefault = nextContextIds?.[0] ?? capabilities.defaultContextSize;
+  const inheritedContext =
+    current.contextSize && nextContextIds?.includes(current.contextSize)
+      ? current.contextSize
+      : undefined;
+  // Always write contextSize so a model with no window does not keep the
+  // previous model's size through `{ ...thread.config, ...patch }`.
+  const nextContextSize =
+    inheritedContext ??
+    nextContextIds?.[0] ??
+    (nextContextIds ? "" : (capabilities.defaultContextSize ?? ""));
   return {
     model,
     effort: effortValid && current.effort ? current.effort : (nextReasoning.default ?? ""),
-    ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
+    contextSize: nextContextSize,
     fast: supportsUsableFastMode(capabilities, model) ? (current.fast ?? true) : false,
     thinking: capabilities.thinkingModels?.includes(model) ?? false,
   };
@@ -357,6 +366,7 @@ function normalizeCursorComposerConfig(
     ...config,
     model: baseModel,
     ...(parsed.effort && !config.effort ? { effort: parsed.effort } : {}),
+    ...(parsed.contextSize && !config.contextSize ? { contextSize: parsed.contextSize } : {}),
     fast: config.fast ?? parsed.fast,
     thinking: config.thinking ?? parsed.thinking,
   };

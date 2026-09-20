@@ -28,6 +28,26 @@ function makeProvider(
   };
 }
 
+function makeCapability(
+  models: ReadonlyArray<{ id: string; label: string }>,
+  extra: Partial<ProviderModelMenuProvider["capabilities"]> = {},
+): ProviderModelMenuProvider["capabilities"] {
+  return {
+    models: [...models],
+    efforts: [],
+    modelEfforts: {},
+    modes: ["agent"],
+    approvalPolicies: [],
+    sandboxModes: [],
+    supportsResume: true,
+    supportsDirectInput: true,
+    liveInputMode: "server",
+    presentationMode: "gui",
+    settingDefs: [],
+    ...extra,
+  };
+}
+
 describe("buildProviderModelItems", () => {
   it("decorates searched rows with the provider label when several providers offer the same model", () => {
     const shared = [{ id: "go/shared-model", label: "Shared Model" }];
@@ -93,5 +113,53 @@ describe("buildProviderModelItems", () => {
     const byKind = new Map(favRows.map((item) => [item.providerKind, item]));
     expect(byKind.get("alpha")?.subProviderLabel).toBe("Go · Alpha");
     expect(byKind.get("beta")?.subProviderLabel).toBe("Go · Beta");
+  });
+
+  it("omits selectable or Default context from parameterized ACP model rows", () => {
+    const items = buildProviderModelItems({
+      providers: [
+        {
+          kind: "cursor",
+          label: "Cursor",
+          presentationMode: "gui",
+          capabilities: makeCapability(
+            [
+              { id: "gpt-5.5", label: "GPT-5.5" },
+              { id: "composer-2.5", label: "Composer 2.5" },
+              { id: "gpt-5.2", label: "GPT-5.2" },
+            ],
+            {
+              efforts: ["low", "medium", "high"],
+              modelEfforts: { "gpt-5.5": ["low", "medium", "high"] },
+              fastModels: ["gpt-5.5", "composer-2.5"],
+              contextSizes: [
+                { id: "default", label: "Default" },
+                { id: "272k", label: "272K" },
+                { id: "1m", label: "1M" },
+              ],
+              modelContextSizes: {
+                "gpt-5.5": ["default", "272k", "1m"],
+                "composer-2.5": ["default"],
+                "gpt-5.2": ["272k"],
+              },
+            },
+          ),
+        },
+      ],
+      search: "",
+      currentAgentKind: "cursor",
+      currentModel: "gpt-5.5",
+      lockedAgentKind: "cursor",
+    });
+
+    const rows = items.filter((item) => item.type === "model");
+    const gpt = rows.find((item) => item.modelId === "gpt-5.5");
+    const composer = rows.find((item) => item.modelId === "composer-2.5");
+    const gpt52 = rows.find((item) => item.modelId === "gpt-5.2");
+    expect(gpt?.label).toBe("GPT-5.5");
+    expect(gpt?.contextDescription).toBeUndefined();
+    expect(composer?.label).toBe("Composer 2.5");
+    expect(composer?.contextDescription).toBeUndefined();
+    expect(gpt52?.contextDescription).toBe("272K");
   });
 });

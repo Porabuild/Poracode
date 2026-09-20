@@ -129,6 +129,19 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
     });
   });
 
+  it("forwards client capability metadata to the ACP session", () => {
+    const createSpy = spyOnCreate();
+
+    createAcpStructuredSession(
+      { command: "agent", args: ["acp"] },
+      makeInput({ acpClientCapabilitiesMeta: { parameterizedModelPicker: true } }),
+    );
+
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
+      clientCapabilitiesMeta: { parameterizedModelPicker: true },
+    });
+  });
+
   it("forwards provider-specific session behavior", () => {
     const createSpy = spyOnCreate();
 

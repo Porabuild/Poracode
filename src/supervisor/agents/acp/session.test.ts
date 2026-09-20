@@ -89,6 +89,7 @@ function makeConfigSyncSession(
     }>;
     fsTextCapability?: boolean;
     initializeMeta?: Record<string, unknown>;
+    clientCapabilitiesMeta?: Record<string, unknown>;
     agentPromptCapabilities?: PromptCapabilities;
     behavior?: AcpSessionBehavior;
     textStreamExtension?: AcpTextStreamExtension;
@@ -207,6 +208,7 @@ function makeConfigSyncSession(
   session["agentPromptCapabilities"] = overrides.agentPromptCapabilities;
   session["agentSessionCapabilities"] = undefined;
   session["initializeMeta"] = overrides.initializeMeta;
+  session["clientCapabilitiesMeta"] = overrides.clientCapabilitiesMeta;
   session["behavior"] = overrides.behavior ?? {};
   session["textStreamExtension"] = overrides.textStreamExtension;
   session["stderrTurnSignalParser"] = overrides.stderrTurnSignalParser;
@@ -1019,6 +1021,16 @@ describe("ACP client protocol helpers", () => {
     await (session as unknown as { activate(): Promise<void> }).activate();
     expect(connection.initialize.mock.calls[0]?.[0]).toMatchObject({
       _meta: { "vendor.heartbeat": { v: 1 } },
+    });
+  });
+
+  it("merges client capability metadata into initialize.clientCapabilities._meta", async () => {
+    const { connection, session } = makeConfigSyncSession({
+      clientCapabilitiesMeta: { parameterizedModelPicker: true },
+    });
+    await (session as unknown as { activate(): Promise<void> }).activate();
+    expect(connection.initialize.mock.calls[0]?.[0]).toMatchObject({
+      clientCapabilities: { _meta: { parameterizedModelPicker: true } },
     });
   });
 
@@ -3104,6 +3116,105 @@ describe("ACP turn config sync", () => {
       configId: "thought-replayed",
       value: "high",
     });
+  });
+
+  it("applies model, effort, and fast changes on a subsequent startTurn", async () => {
+    const { connection, session } = makeConfigSyncSession({
+      currentConfig: {
+        model: "grok-4.6",
+        effort: "high",
+        fast: true,
+        mode: "agent",
+        approvalPolicy: "default",
+      },
+    });
+    session.handleSessionUpdate({
+      update: {
+        sessionUpdate: "config_option_update",
+        configOptions: [
+          {
+            id: "model",
+            category: "model",
+            type: "select",
+            currentValue: "grok-4.6",
+            options: [
+              { value: "grok-4.6", name: "Grok 4.6" },
+              { value: "gpt-5.5", name: "GPT-5.5" },
+            ],
+          },
+          {
+            id: "effort",
+            category: "thought_level",
+            type: "select",
+            currentValue: "high",
+            options: [
+              { value: "low", name: "Low" },
+              { value: "high", name: "High" },
+            ],
+          },
+          {
+            id: "fast",
+            category: "model_config",
+            type: "select",
+            currentValue: "true",
+            options: [
+              { value: "false", name: "Off" },
+              { value: "true", name: "Fast" },
+            ],
+          },
+        ],
+      },
+    });
+    connection.setSessionConfigOption.mockResolvedValue({
+      configOptions: [
+        {
+          id: "model",
+          category: "model",
+          type: "select",
+          currentValue: "gpt-5.5",
+          options: [
+            { value: "grok-4.6", name: "Grok 4.6" },
+            { value: "gpt-5.5", name: "GPT-5.5" },
+          ],
+        },
+        {
+          id: "effort",
+          category: "thought_level",
+          type: "select",
+          currentValue: "high",
+          options: [
+            { value: "low", name: "Low" },
+            { value: "high", name: "High" },
+          ],
+        },
+        {
+          id: "fast",
+          category: "model_config",
+          type: "select",
+          currentValue: "true",
+          options: [
+            { value: "false", name: "Off" },
+            { value: "true", name: "Fast" },
+          ],
+        },
+      ],
+    });
+
+    await session.startTurn("steer replacement", {
+      model: "gpt-5.5",
+      effort: "low",
+      fast: false,
+      mode: "agent",
+      approvalPolicy: "default",
+    });
+
+    expect(
+      connection.setSessionConfigOption.mock.calls.map(([call]) => [call.configId, call.value]),
+    ).toEqual([
+      ["model", "gpt-5.5"],
+      ["effort", "low"],
+      ["fast", "false"],
+    ]);
   });
 
   it("does not mark restored session replay as working", () => {

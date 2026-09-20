@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
-  it.each([32, 33, 34])("invalidates pre-integration v%i status snapshots", (version) => {
+  it.each([32, 33, 34, 35, 36])("invalidates pre-integration v%i status snapshots", (version) => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -246,7 +246,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(37);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -290,7 +290,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(37);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -367,7 +367,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(37);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -414,7 +414,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(37);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -465,7 +465,46 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(37);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v36 Cursor ACP statuses cached before parameterized picker", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 36,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {
+              models: [{ id: "gpt-5.5[context=272k,reasoning=medium]", label: "GPT-5.5" }],
+              presentationModes: ["terminal", "gui"],
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(37);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -494,7 +533,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(37);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -527,7 +566,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(37);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -567,7 +606,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses([]);
-    expect(STATUS_CACHE_VERSION).toBe(36);
+    expect(STATUS_CACHE_VERSION).toBe(37);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

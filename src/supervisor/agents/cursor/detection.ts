@@ -25,11 +25,19 @@ import {
   type CommandSpec,
   type DetectionSpec,
 } from "../base";
-import { dedupeAcpAuthMethods, probeAcpCapabilities } from "../acp";
+import { dedupeAcpAuthMethods, probeAcpCapabilities, type AcpProbeResult } from "../acp";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
 import { cursorDefaultHiddenModels } from "./defaultModelVisibility";
 import { cursorModelGrouping } from "./modelGrouping";
 import { buildCursorAgentCommand, readCursorAgentCommandOutput } from "./windowsExecutable";
+
+/**
+ * Cursor ACP only advertises per-model Effort / Fast / Context / Thinking
+ * selectors when the client opts into this undocumented capability.
+ */
+export const CURSOR_ACP_CLIENT_CAPABILITIES_META = {
+  parameterizedModelPicker: true,
+} as const;
 
 export const cursorDefaultCapabilities: AgentCapability = {
   models: [],
@@ -371,34 +379,163 @@ export function buildCursorModelPickerCapabilities(
 
 function formatCursorAcpModelLabel(model: LabeledOption): string {
   const baseLabel = formatCursorBaseModelLabel(stripBracketParams(model.id), model.label);
-  const hints = formatBracketParamHints(model.id);
+  // Effort and Fast are first-class picker controls. Keep only a concrete
+  // context-size chip on leftover variant ids; parameterized ids are bare.
+  const hints = formatBracketParamHints(model.id, { includeEffort: false, includeFast: false });
   return hints ? `${baseLabel} · ${hints}` : baseLabel;
 }
 
-export function buildCursorAcpModelPickerCapabilities(
-  models: LabeledOption[],
-): Pick<
+function concreteContextIds(ids: readonly string[]): string[] {
+  return ids.filter((id) => id.toLowerCase() !== "default");
+}
+
+type CursorAcpPickerCapabilities = Pick<
   AgentCapability,
   | "models"
   | "defaultHiddenModels"
   | "efforts"
+  | "defaultEffort"
   | "modelEfforts"
+  | "modelDefaultEfforts"
   | "subProviders"
   | "modelSubProvider"
-> {
+  | "contextSizes"
+  | "modelContextSizes"
+  | "defaultContextSize"
+  | "fastModels"
+  | "thinkingModels"
+>;
+
+export function buildCursorAcpModelPickerCapabilities(
+  models: LabeledOption[],
+  extras?: Pick<
+    AcpProbeResult,
+    | "efforts"
+    | "defaultEffort"
+    | "modelEfforts"
+    | "modelDefaultEfforts"
+    | "thinkingModels"
+    | "fastModels"
+    | "contextSizes"
+    | "modelContextSizes"
+  >,
+): CursorAcpPickerCapabilities {
   const displayModels = models.map((model) => ({
     id: model.id,
     label: formatCursorAcpModelLabel(model),
   }));
   const sortedModels = sortCursorModels(displayModels);
   const defaultHiddenModels = cursorDefaultHiddenModels(sortedModels);
+  const parameterized = sortedModels.every((model) => !model.id.includes("["));
+  const emptyEfforts = Object.fromEntries(sortedModels.map((model) => [model.id, [] as string[]]));
 
+  if (!parameterized) {
+    return {
+      models: sortedModels,
+      ...(defaultHiddenModels.length > 0 ? { defaultHiddenModels } : {}),
+      ...cursorModelGrouping(sortedModels),
+      efforts: [],
+      modelEfforts: emptyEfforts,
+    };
+  }
+
+  // Only record models the ACP probe actually inspected. Prefilling every id
+  // with `[]` made unprobed models indistinguishable from "no Effort selector",
+  // so CLI fallback could never fill a timeout hole without also inventing a
+  // ladder for Composer-style confirmed empties.
+  const probedEfforts = extras?.modelEfforts;
+  const modelEfforts = probedEfforts
+    ? Object.fromEntries(
+        sortedModels.flatMap((model) =>
+          Object.hasOwn(probedEfforts, model.id) ? [[model.id, probedEfforts[model.id] ?? []]] : [],
+        ),
+      )
+    : emptyEfforts;
+  const modelContextSizes = extras?.modelContextSizes
+    ? Object.fromEntries(
+        Object.entries(extras.modelContextSizes).flatMap(([id, sizes]) => {
+          const concrete = concreteContextIds(sizes);
+          return concrete.length > 0 ? [[id, concrete] as const] : [];
+        }),
+      )
+    : undefined;
+  const contextSizes = (extras?.contextSizes ?? []).filter(
+    (size) => size.id.toLowerCase() !== "default",
+  );
   return {
     models: sortedModels,
     ...(defaultHiddenModels.length > 0 ? { defaultHiddenModels } : {}),
     ...cursorModelGrouping(sortedModels),
-    efforts: [],
-    modelEfforts: Object.fromEntries(sortedModels.map((model) => [model.id, []])),
+    efforts: extras?.efforts ?? [],
+    ...(extras?.defaultEffort ? { defaultEffort: extras.defaultEffort } : {}),
+    modelEfforts,
+    ...(extras?.modelDefaultEfforts ? { modelDefaultEfforts: extras.modelDefaultEfforts } : {}),
+    ...(extras?.thinkingModels?.length ? { thinkingModels: extras.thinkingModels } : {}),
+    ...(extras?.fastModels?.length ? { fastModels: extras.fastModels } : {}),
+    ...(contextSizes.length > 1 ? { contextSizes } : {}),
+    ...(modelContextSizes && Object.keys(modelContextSizes).length > 0
+      ? { modelContextSizes }
+      : {}),
+  };
+}
+
+export function mergeCursorAcpPickerControlsFromCli(
+  acp: CursorAcpPickerCapabilities,
+  cli: ReturnType<typeof buildCursorModelPickerCapabilities>,
+): CursorAcpPickerCapabilities {
+  if (acp.models.some((model) => model.id.includes("["))) {
+    return acp;
+  }
+
+  const modelEfforts = { ...acp.modelEfforts };
+  const fastModels = new Set(acp.fastModels ?? []);
+  const thinkingModels = new Set(acp.thinkingModels ?? []);
+  const modelContextSizes = { ...acp.modelContextSizes };
+  const effortIds = new Set(acp.efforts);
+
+  for (const model of acp.models) {
+    const cliId = model.id === "default" ? "auto" : model.id;
+    const cliEfforts = cli.modelEfforts[cliId] ?? [];
+    // ACP writes `[]` when a model has no Effort selector. Treat that as
+    // confirmed, not missing — only fill models the probe never recorded.
+    if (modelEfforts[model.id] === undefined && cliEfforts.length > 0) {
+      modelEfforts[model.id] = cliEfforts;
+    }
+    for (const effort of modelEfforts[model.id] ?? []) effortIds.add(effort);
+    if (cli.fastModels?.includes(cliId)) fastModels.add(model.id);
+    if (cli.thinkingModels?.includes(cliId)) thinkingModels.add(model.id);
+    const cliContexts = concreteContextIds(cli.modelContextSizes?.[cliId] ?? []);
+    if (modelContextSizes[model.id] === undefined && cliContexts.length > 0) {
+      modelContextSizes[model.id] = cliContexts;
+    } else if (modelContextSizes[model.id]?.length) {
+      const filtered = concreteContextIds(modelContextSizes[model.id] ?? []);
+      if (filtered.length > 0) modelContextSizes[model.id] = filtered;
+      else delete modelContextSizes[model.id];
+    }
+  }
+
+  const contextIds = concreteContextIds([
+    ...new Set([
+      ...(acp.contextSizes ?? []).map((size) => size.id),
+      ...Object.values(modelContextSizes).flat(),
+    ]),
+  ]);
+
+  return {
+    ...acp,
+    efforts: sortCursorEffortIds([...effortIds]),
+    modelEfforts,
+    ...(fastModels.size > 0 ? { fastModels: [...fastModels] } : {}),
+    ...(thinkingModels.size > 0 ? { thinkingModels: [...thinkingModels] } : {}),
+    ...(Object.keys(modelContextSizes).length > 0 ? { modelContextSizes } : {}),
+    ...(contextIds.length > 1
+      ? {
+          contextSizes: contextIds.map((id) => ({
+            id,
+            label: id.toUpperCase(),
+          })),
+        }
+      : {}),
   };
 }
 
@@ -413,7 +550,9 @@ async function probeCursorAcpCapabilities(
   const processCwd = resolveProbeSpawnCwd(ctx.location, spec.cwd);
   const result = await probeAcpCapabilities(spec.command, spec.args, probeCwd, {
     ...(processCwd ? { processCwd } : {}),
-    timeoutMs: 15_000,
+    timeoutMs: 30_000,
+    modelThoughtLevelProbeTimeoutMs: 2_500,
+    clientCapabilitiesMeta: CURSOR_ACP_CLIENT_CAPABILITIES_META,
     // `ctx.probeEnv` carries the detection spec's `baseSpawnEnv` (the Cursor
     // profile's own API key), so identity probes must not run under ambient
     // credentials — the status has to describe the key that sessions will use.
@@ -426,7 +565,7 @@ async function probeCursorAcpCapabilities(
   });
   if (!result) return undefined;
   const capabilities = result.models?.length
-    ? buildCursorAcpModelPickerCapabilities(result.models)
+    ? buildCursorAcpModelPickerCapabilities(result.models, result)
     : undefined;
   const dedupedAuthMethods = result.authMethods?.length
     ? dedupeAcpAuthMethods(result.authMethods)
@@ -741,8 +880,15 @@ export const cursorDetectionSpec: DetectionSpec = {
       authState: acpAuthState,
       ...acpGuiCapabilities
     } = acpProbeResult ?? {};
+    const mergedGuiCapabilities =
+      terminalCapabilities && Object.keys(acpGuiCapabilities).length > 0
+        ? mergeCursorAcpPickerControlsFromCli(
+            acpGuiCapabilities as CursorAcpPickerCapabilities,
+            terminalCapabilities,
+          )
+        : acpGuiCapabilities;
     const authMethods = cursorAuthMethods(ctx.location, acpAuthMethods);
-    const hasGuiCapabilities = Object.keys(acpGuiCapabilities).length > 0;
+    const hasGuiCapabilities = Object.keys(mergedGuiCapabilities).length > 0;
     if (
       !terminalCapabilities &&
       !hasGuiCapabilities &&
@@ -755,7 +901,7 @@ export const cursorDetectionSpec: DetectionSpec = {
     }
     return {
       ...(terminalCapabilities ?? {}),
-      ...(hasGuiCapabilities ? { presentationCapabilities: { gui: acpGuiCapabilities } } : {}),
+      ...(hasGuiCapabilities ? { presentationCapabilities: { gui: mergedGuiCapabilities } } : {}),
       authMethods,
       ...(acpAuthLogoutSupported || logoutSupported ? { authLogoutSupported: true } : {}),
       ...(acpAuthState ? { authState: acpAuthState } : {}),

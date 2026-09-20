@@ -263,6 +263,12 @@ export interface CreateStructuredSessionInput {
   /** Vendor metadata added to the ACP `initialize` request. */
   acpInitializeMeta?: Record<string, unknown>;
   /**
+   * Extra keys merged into `initialize.clientCapabilities._meta`. Agents that
+   * gate Session Config Options on an undocumented client capability
+   * advertise them here.
+   */
+  acpClientCapabilitiesMeta?: Record<string, unknown>;
+  /**
    * Handle vendor ACP extension notifications (e.g. Cursor's `cursor/task`)
    * that carry metadata absent from the standard `session/update` stream.
    */

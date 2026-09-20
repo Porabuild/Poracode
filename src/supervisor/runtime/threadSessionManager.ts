@@ -677,6 +677,10 @@ export class ThreadSessionManager {
     session: SessionRuntime,
     turn: QueuedStructuredTurn,
   ): Promise<void | StructuredTurnResult> | undefined {
+    // Same snapshot rule as queued dispatch: steer/follow-up startTurn reads
+    // `turn.config`, and later thread-state echoes must not revive the old
+    // model / effort / Fast from `session.config`.
+    session.config = turn.config;
     this.followUpQueue.noteDirectTurnSubmitted(session);
     const start = this.structuredTurnQueue.start(session, turn);
     if (start) {

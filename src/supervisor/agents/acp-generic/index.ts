@@ -321,6 +321,9 @@ function mergeAcpProbeCapabilities(
       ? { modelDefaultEfforts: probeResult.modelDefaultEfforts }
       : {}),
     ...(probeResult.thinkingModels ? { thinkingModels: probeResult.thinkingModels } : {}),
+    ...(probeResult.fastModels ? { fastModels: probeResult.fastModels } : {}),
+    ...(probeResult.contextSizes ? { contextSizes: probeResult.contextSizes } : {}),
+    ...(probeResult.modelContextSizes ? { modelContextSizes: probeResult.modelContextSizes } : {}),
     ...(probeResult.modes ? { modes: probeResult.modes } : {}),
     ...(probeResult.approvalPolicies ? { approvalPolicies: probeResult.approvalPolicies } : {}),
     ...(probeResult.slashCommands ? { slashCommands: probeResult.slashCommands } : {}),

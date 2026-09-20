@@ -19,6 +19,7 @@ import { transformCursorAcpSessionUpdate } from "./acpTransform";
 import { handleCursorAcpExtensionNotification } from "./acpExtension";
 import { buildCursorArgs } from "./argv";
 import {
+  CURSOR_ACP_CLIENT_CAPABILITIES_META,
   cursorDefaultCapabilities,
   cursorDetectionSpec,
   isCursorVersionSupportedForHooks,
@@ -44,6 +45,7 @@ export {
   buildCursorAcpModelPickerCapabilities,
   buildCursorModelPickerCapabilities,
   buildCursorProbeSpec,
+  CURSOR_ACP_CLIENT_CAPABILITIES_META,
   parseCursorModels,
   sortCursorModels,
 } from "./detection";
@@ -263,6 +265,7 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         loadSessionErrorRewriter: rewriteCursorLoadSessionError,
         acpSessionUpdateTransform: transformCursorAcpSessionUpdate,
         acpExtensionNotificationHandler: handleCursorAcpExtensionNotification,
+        acpClientCapabilitiesMeta: CURSOR_ACP_CLIENT_CAPABILITIES_META,
       });
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {

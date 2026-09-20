@@ -986,6 +986,58 @@ describe("ProviderModelMenu", () => {
     expect(within(trigger).queryByText("Medium")).not.toBeInTheDocument();
   });
 
+  it("does not mute Effort or Fast on Cursor ACP model rows", async () => {
+    render(
+      <ProviderModelMenu
+        providers={[
+          {
+            kind: "cursor",
+            label: "Cursor",
+            capabilities: {
+              models: [
+                {
+                  id: "gpt-5.5[context=272k,reasoning=medium,fast=false]",
+                  label: "GPT-5.5 · 272K · Medium",
+                },
+                {
+                  id: "composer-2.5[fast=true]",
+                  label: "Composer 2.5 · Fast",
+                },
+              ],
+              efforts: ["low", "medium", "high"],
+              modelEfforts: {
+                "gpt-5.5[context=272k,reasoning=medium,fast=false]": ["low", "medium", "high"],
+              },
+              fastModels: ["composer-2.5[fast=true]"],
+              modes: ["agent"],
+              approvalPolicies: [],
+              sandboxModes: [],
+              supportsResume: true,
+              supportsDirectInput: true,
+              liveInputMode: "server",
+              presentationMode: "gui",
+              settingDefs: [],
+            },
+          },
+        ]}
+        currentAgentKind="cursor"
+        currentModel="gpt-5.5[context=272k,reasoning=medium,fast=false]"
+        lockedAgentKind="cursor"
+        onChange={vi.fn<(next: { agentKind: string; model: string }) => void>()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select model" }));
+    const listbox = await screen.findByRole("listbox", { name: "Models" });
+    const gpt = within(listbox).getByRole("option", { name: /GPT-5\.5/ });
+    const composer = within(listbox).getByRole("option", { name: /Composer 2\.5/ });
+    expect(within(gpt).getByText("GPT-5.5")).toBeInTheDocument();
+    expect(within(gpt).getByText("· 272K")).toBeInTheDocument();
+    expect(within(gpt).queryByText(/Medium/)).not.toBeInTheDocument();
+    expect(within(composer).getByText("Composer 2.5")).toBeInTheDocument();
+    expect(within(composer).queryByText(/^· Fast$/)).not.toBeInTheDocument();
+  });
+
   it("uses Cursor base model rows even when other providers are present", async () => {
     render(
       <ProviderModelMenu

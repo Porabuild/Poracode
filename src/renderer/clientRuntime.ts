@@ -73,23 +73,40 @@ export const UNKNOWN_HOST_CAPABILITIES: HostServiceCapabilities = {
   portForward: false,
 };
 
+function nodeProcessPlatform(): string | undefined {
+  return typeof process !== "undefined" && typeof process.platform === "string"
+    ? process.platform
+    : undefined;
+}
+
 /**
  * Desktop-managed local knowledge: the co-located desktop host composes the
  * full host-service set this build ships. Main's authenticated describe on
  * the control surface reports the authoritative values for other readers;
- * these constants only back the managed runtime, which owns that same host
+ * these values only back the managed runtime, which owns that same host
  * process. `computerUse` mirrors the composition's legacy-driver rule
  * (Windows/macOS keep the in-process driver; on Linux only a staged helper
  * qualifies, which main describes authoritatively).
+ *
+ * Do not read `process.platform` at module scope — the sandboxed renderer
+ * has no Node `process`, and that ReferenceError blanks the window before
+ * React mounts.
  */
-export const DESKTOP_MANAGED_HOST_CAPABILITIES: HostServiceCapabilities = {
-  ssh: true,
-  browserPanel: true,
-  chromeBridge: true,
-  computerUse: process.platform === "win32" || process.platform === "darwin",
-  nativeSecrets: true,
-  portForward: true,
-};
+export function desktopManagedHostCapabilities(
+  platform = nodeProcessPlatform(),
+): HostServiceCapabilities {
+  return {
+    ssh: true,
+    browserPanel: true,
+    chromeBridge: true,
+    computerUse: platform === "win32" || platform === "darwin",
+    nativeSecrets: true,
+    portForward: true,
+  };
+}
+
+export const DESKTOP_MANAGED_HOST_CAPABILITIES: HostServiceCapabilities =
+  desktopManagedHostCapabilities();
 
 /**
  * Derive the client capability set from HOST-DECLARED capabilities plus the
@@ -162,12 +179,12 @@ export function installElectronClientRuntime(host: ElectronHostBridge): void {
     surface: "adaptive",
     transport: "electron-backend-host",
     capabilities: deriveClientCapabilities({
-      host: DESKTOP_MANAGED_HOST_CAPABILITIES,
+      host: desktopManagedHostCapabilities(host.platform),
       nativeShell: true,
       localBackend: true,
       nativeAppUpdates: true,
     }),
-    hostCapabilities: DESKTOP_MANAGED_HOST_CAPABILITIES,
+    hostCapabilities: desktopManagedHostCapabilities(host.platform),
     procedures,
     native,
   });
@@ -639,7 +656,9 @@ export function hasAnyClientBridge(): boolean {
 
 function inferClientRuntime(bridge: PoracodeBridge): ClientRuntime {
   const browser = bridge.arch === "web" || bridge.appVersion === "remote";
-  const hostCapabilities = browser ? UNKNOWN_HOST_CAPABILITIES : DESKTOP_MANAGED_HOST_CAPABILITIES;
+  const hostCapabilities = browser
+    ? UNKNOWN_HOST_CAPABILITIES
+    : desktopManagedHostCapabilities(bridge.platform);
   return {
     version: PORACODE_CLIENT_RUNTIME_VERSION,
     host: browser ? "browser" : "electron",

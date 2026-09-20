@@ -81,6 +81,9 @@ export function createAcpStructuredSession(
       ? { extensionSessionUpdateTransform: input.acpExtensionSessionUpdateTransform }
       : {}),
     ...(input.acpInitializeMeta ? { initializeMeta: input.acpInitializeMeta } : {}),
+    ...(input.acpClientCapabilitiesMeta
+      ? { clientCapabilitiesMeta: input.acpClientCapabilitiesMeta }
+      : {}),
     ...(input.acpExtensionNotificationHandler
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),

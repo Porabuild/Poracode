@@ -27,12 +27,18 @@ import type {
   AuthState,
   ThreadMode,
 } from "@/shared/contracts";
-import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
+import { canonicalizeEffortId, sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import {
+  findContextConfigOption,
+  findFastConfigOption,
+  flattenSelectOptionValues,
+} from "./modelConfigOptions";
+import {
+  findThinkingToggleConfigOption,
   findThoughtLevelConfigOption,
-  isToggleOnlyThoughtLevelConfig,
+  isThinkingToggleConfig,
   resolveThoughtLevelToggleValues,
 } from "./thoughtLevel";
 import { filterAcpStdoutNonJsonLines } from "./sessionStreamFilter";
@@ -99,6 +105,10 @@ export interface AcpProbeResult {
   modelDefaultEfforts?: Record<string, string>;
   /** Models whose ACP thought-level selector is a thinking on/off toggle. */
   thinkingModels?: string[];
+  /** Models that advertise a boolean fast / speed-quality model_config option. */
+  fastModels?: string[];
+  contextSizes?: Array<{ id: string; label: string }>;
+  modelContextSizes?: Record<string, string[]>;
   modes?: ThreadMode[];
   approvalPolicies?: Array<{ id: string; label: string }>;
   slashCommands?: AgentSlashCommand[];
@@ -342,36 +352,59 @@ export function mapAcpThoughtLevels(configOptions: unknown): {
 
   // Agents advertise the levels in their own order (qodercli reports
   // `xhigh, low, medium, none`); present them weakest → strongest instead.
-  const efforts = sortEffortsByCanonicalOrder(
-    flattenSelectOptions(option.options)
-      .map((entry) => entry.value)
-      .filter((value): value is string => typeof value === "string" && value.length > 0),
-  );
+  const efforts = sortEffortsByCanonicalOrder([
+    ...new Set(
+      flattenSelectOptions(option.options)
+        .map((entry) => entry.value)
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+        .map(canonicalizeEffortId),
+    ),
+  ]);
 
   const defaultEffort =
     typeof option.currentValue === "string" && option.currentValue.length > 0
-      ? option.currentValue
+      ? canonicalizeEffortId(option.currentValue)
       : undefined;
 
   return {
     efforts,
     ...(defaultEffort ? { defaultEffort } : {}),
-    ...(isToggleOnlyThoughtLevelConfig(option) ? { toggleOnly: true } : {}),
+    ...(isThinkingToggleConfig(option) ? { toggleOnly: true } : {}),
   };
 }
 
-function sameStringList(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
+function rememberModelConfigControls(
+  modelId: string,
+  configOptions: unknown,
+  fastModels: string[],
+  modelContextSizes: Record<string, string[]>,
+): void {
+  if (findFastConfigOption(configOptions) && !fastModels.includes(modelId)) {
+    fastModels.push(modelId);
+  }
+  const context = findContextConfigOption(configOptions);
+  if (!context) return;
+  const values = flattenSelectOptionValues(context.options);
+  if (values.length === 0) return;
+  modelContextSizes[modelId] = values;
 }
 
 function rememberModelThoughtLevels(
   modelId: string,
   configOptions: unknown,
-  fallbackEfforts: string[],
   modelEfforts: Record<string, string[]>,
   modelDefaultEfforts: Record<string, string>,
   thinkingModels: string[],
 ): void {
+  const thinkingToggle = findThinkingToggleConfigOption(configOptions);
+  if (
+    thinkingToggle &&
+    resolveThoughtLevelToggleValues(thinkingToggle) &&
+    !thinkingModels.includes(modelId)
+  ) {
+    thinkingModels.push(modelId);
+  }
+
   const thoughtLevels = mapAcpThoughtLevels(configOptions);
   if (thoughtLevels.toggleOnly) {
     const thoughtLevelConfig = findThoughtLevelConfigOption(configOptions);
@@ -384,17 +417,14 @@ function rememberModelThoughtLevels(
     }
     return;
   }
-  // The selector's currentValue while this model is active is its default —
-  // record it even when the effort list matches the provider baseline, since
-  // models sharing one list can still default to different levels (Kimi's
-  // highspeed defaults to low while K3 defaults higher).
+  // Always record the ladder, even when it matches the provider baseline.
+  // Callers that prefill `modelEfforts[id] = []` (so "no selector" stays
+  // distinct from "use the shared list") otherwise keep that empty array
+  // and hide the Effort picker for the first discovered model.
   if (thoughtLevels.defaultEffort) {
     modelDefaultEfforts[modelId] = thoughtLevels.defaultEffort;
   }
-  if (
-    thoughtLevels.efforts.length === 0 ||
-    sameStringList(thoughtLevels.efforts, fallbackEfforts)
-  ) {
+  if (thoughtLevels.efforts.length === 0) {
     return;
   }
   modelEfforts[modelId] = thoughtLevels.efforts;
@@ -408,16 +438,31 @@ function readConfigOptions(value: unknown): unknown[] | undefined {
   return Array.isArray(configOptions) ? configOptions : undefined;
 }
 
+/** True when a config-option snapshot is for `modelId`, not a stale prior model. */
+export function configOptionsDescribeModel(
+  configOptions: unknown[] | undefined,
+  modelId: string,
+): boolean {
+  if (!configOptions) return false;
+  const modelConfig = findSelectConfigOption(configOptions, "model");
+  return typeof modelConfig?.currentValue === "string" && modelConfig.currentValue === modelId;
+}
+
+type ConfigOptionsWaiter = (configOptions: unknown[]) => boolean;
+
 function nextConfigOptionsUpdate(
-  waiters: Array<(configOptions: unknown[] | undefined) => void>,
+  waiters: ConfigOptionsWaiter[],
   timeoutMs: number,
+  match: (configOptions: unknown[]) => boolean,
 ): { promise: Promise<unknown[] | undefined>; cancel: () => void } {
-  let waiter: ((configOptions: unknown[] | undefined) => void) | undefined;
+  let waiter: ConfigOptionsWaiter | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const promise = new Promise<unknown[] | undefined>((resolve) => {
-    waiter = (configOptions: unknown[] | undefined) => {
+    waiter = (configOptions: unknown[]) => {
+      if (!match(configOptions)) return false;
       if (timer) clearTimeout(timer);
       resolve(configOptions);
+      return true;
     };
     timer = setTimeout(() => {
       const index = waiter ? waiters.indexOf(waiter) : -1;
@@ -467,6 +512,17 @@ export async function probeAcpCapabilities(
      */
     authenticateMethodIds?: readonly string[];
     /**
+     * Extra keys merged into `initialize.clientCapabilities._meta`. Agents that
+     * gate Session Config Options on an undocumented client capability
+     * advertise them here.
+     */
+    clientCapabilitiesMeta?: Record<string, unknown>;
+    /**
+     * Per-model thought-level / model_config sweep budget. Defaults to the
+     * shared 300ms cap so a wedged `set_config_option` cannot stall detection.
+     */
+    modelThoughtLevelProbeTimeoutMs?: number;
+    /**
      * Receives why the probe produced no usable result (spawn failure,
      * timeout, protocol error, agent exit). Diagnostics only: a probe with a
      * partial result still returns that result and never fires this. Lets
@@ -491,7 +547,7 @@ export async function probeAcpCapabilities(
   if (options?.signal?.aborted) return undefined;
 
   try {
-    const configOptionsWaiters: Array<(configOptions: unknown[] | undefined) => void> = [];
+    const configOptionsWaiters: ConfigOptionsWaiter[] = [];
     let latestSlashCommands: AgentSlashCommand[] | undefined;
     let initializeModels: UnstableSessionModelState | undefined;
     const rememberSlashCommands = (commands: AgentSlashCommand[] | undefined) => {
@@ -601,8 +657,11 @@ export async function probeAcpCapabilities(
             params.update.sessionUpdate === "config_option_update" &&
             Array.isArray(params.update.configOptions)
           ) {
-            const waiters = configOptionsWaiters.splice(0);
-            for (const waiter of waiters) waiter(params.update.configOptions);
+            const remaining: ConfigOptionsWaiter[] = [];
+            for (const waiter of configOptionsWaiters.splice(0)) {
+              if (!waiter(params.update.configOptions)) remaining.push(waiter);
+            }
+            configOptionsWaiters.push(...remaining);
           }
           return Promise.resolve();
         },
@@ -615,7 +674,10 @@ export async function probeAcpCapabilities(
       connection.initialize({
         protocolVersion: PROTOCOL_VERSION,
         clientInfo: { name: "poracode-probe", version: "0.1.0" },
-        clientCapabilities: { auth: { terminal: true } },
+        clientCapabilities: {
+          auth: { terminal: true },
+          ...(options?.clientCapabilitiesMeta ? { _meta: options.clientCapabilitiesMeta } : {}),
+        },
       }),
     );
     if (initResult.authMethods?.length) {
@@ -731,6 +793,8 @@ export async function probeAcpCapabilities(
         probeResult.defaultEffort = thoughtLevels.defaultEffort;
       }
       const modelConfig = findSelectConfigOption(result.configOptions, "model");
+      const perModelTimeoutMs =
+        options?.modelThoughtLevelProbeTimeoutMs ?? MODEL_THOUGHT_LEVEL_PROBE_TIMEOUT_MS;
       // Probe per-model thought levels even when the default model exposes
       // none — some agents (qoder) only advertise a reasoning-effort selector
       // after switching to a reasoning-capable model.
@@ -740,14 +804,21 @@ export async function probeAcpCapabilities(
         const modelEfforts: Record<string, string[]> = {};
         const modelDefaultEfforts: Record<string, string> = {};
         const thinkingModels: string[] = [];
+        const fastModels: string[] = [];
+        const modelContextSizes: Record<string, string[]> = {};
         if (currentModel) {
           rememberModelThoughtLevels(
             currentModel,
             result.configOptions,
-            probeResult.efforts ?? [],
             modelEfforts,
             modelDefaultEfforts,
             thinkingModels,
+          );
+          rememberModelConfigControls(
+            currentModel,
+            result.configOptions,
+            fastModels,
+            modelContextSizes,
           );
         }
         const modelIds = probeResult.models
@@ -758,7 +829,8 @@ export async function probeAcpCapabilities(
           if (remainingBudgetMs() <= 0 || childExited) break;
           const configOptionsUpdate = nextConfigOptionsUpdate(
             configOptionsWaiters,
-            Math.min(MODEL_THOUGHT_LEVEL_PROBE_TIMEOUT_MS, remainingBudgetMs()),
+            Math.min(perModelTimeoutMs, remainingBudgetMs()),
+            (configOptions) => configOptionsDescribeModel(configOptions, modelId),
           );
           let returnedConfigOptions: unknown[] | undefined;
           try {
@@ -768,7 +840,7 @@ export async function probeAcpCapabilities(
                 configId: modelConfig.id,
                 value: modelId,
               }),
-              MODEL_THOUGHT_LEVEL_PROBE_TIMEOUT_MS,
+              perModelTimeoutMs,
             );
             returnedConfigOptions = readConfigOptions(setResult);
           } catch {
@@ -787,8 +859,21 @@ export async function probeAcpCapabilities(
             }
             if (!returnedConfigOptions) continue;
           }
-          const configOptions = returnedConfigOptions ?? (await configOptionsUpdate.promise);
-          configOptionsUpdate.cancel();
+          let configOptions = returnedConfigOptions;
+          if (!configOptionsDescribeModel(configOptions, modelId)) {
+            const notifiedConfigOptions = await configOptionsUpdate.promise;
+            if (configOptionsDescribeModel(notifiedConfigOptions, modelId)) {
+              configOptions = notifiedConfigOptions;
+            } else {
+              configOptionsUpdate.cancel();
+              if (!configOptions && !probeResult.efforts?.length) {
+                break;
+              }
+              continue;
+            }
+          } else {
+            configOptionsUpdate.cancel();
+          }
           if (!configOptions) {
             break;
           }
@@ -805,11 +890,11 @@ export async function probeAcpCapabilities(
           rememberModelThoughtLevels(
             modelId,
             configOptions,
-            probeResult.efforts ?? [],
             modelEfforts,
             modelDefaultEfforts,
             thinkingModels,
           );
+          rememberModelConfigControls(modelId, configOptions, fastModels, modelContextSizes);
         }
         if (Object.keys(modelEfforts).length > 0) {
           probeResult.modelEfforts = modelEfforts;
@@ -819,6 +904,21 @@ export async function probeAcpCapabilities(
         }
         if (thinkingModels.length > 0) {
           probeResult.thinkingModels = thinkingModels;
+        }
+        if (fastModels.length > 0) {
+          probeResult.fastModels = fastModels;
+        }
+        if (Object.keys(modelContextSizes).length > 0) {
+          probeResult.modelContextSizes = modelContextSizes;
+          const contextIds = [...new Set(Object.values(modelContextSizes).flat())].filter(
+            (id) => id.toLowerCase() !== "default",
+          );
+          if (contextIds.length > 0) {
+            probeResult.contextSizes = contextIds.map((id) => ({
+              id,
+              label: id.toUpperCase(),
+            }));
+          }
         }
       }
     }

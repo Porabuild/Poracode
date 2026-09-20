@@ -40,7 +40,7 @@ export interface ProviderModelRow {
   label: string;
   /** Tail hint shown to the right of the model label. */
   subProviderLabel?: string;
-  /** Context-window hint (e.g. "200K", "272K / 1M"). Rendered muted next to the label. */
+  /** Fixed context-window hint (e.g. "200K") when the model has no Context picker. */
   contextDescription?: string;
   /** Full provider-provided model description. Rendered in a delayed tooltip. */
   tooltipDescription?: string;

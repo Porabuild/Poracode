@@ -9,6 +9,7 @@ import {
   mapAcpSlashCommands,
   mapAcpThoughtLevels,
   normalizeAcpModeId,
+  configOptionsDescribeModel,
   type AcpProbeResult,
 } from "./probe";
 import { dedupeAcpAuthMethods } from "./authMethods";
@@ -517,6 +518,27 @@ describe("mapAcpThoughtLevels", () => {
         },
       ]),
     ).toEqual({ efforts: [] });
+  });
+});
+
+describe("configOptionsDescribeModel", () => {
+  const optionsFor = (modelId: string) => [
+    {
+      id: "model",
+      category: "model",
+      type: "select" as const,
+      currentValue: modelId,
+      options: [{ value: modelId, name: modelId }],
+    },
+  ];
+
+  it("accepts a snapshot whose model selector matches the requested id", () => {
+    expect(configOptionsDescribeModel(optionsFor("model-b"), "model-b")).toBe(true);
+  });
+
+  it("rejects a leftover snapshot from the previous model", () => {
+    expect(configOptionsDescribeModel(optionsFor("model-a"), "model-b")).toBe(false);
+    expect(configOptionsDescribeModel(undefined, "model-b")).toBe(false);
   });
 });
 

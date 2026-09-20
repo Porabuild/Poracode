@@ -100,6 +100,35 @@ describe("patchConfigForModelChange", () => {
     });
   });
 
+  it("clears inherited context when the next model has no window and no default", () => {
+    const { defaultContextSize: _defaultContextSize, ...withoutDefault } = capabilities;
+    const noWindow = {
+      ...withoutDefault,
+      modelContextSizes: { a: ["128k", "256k"] },
+    } as AgentCapability;
+    expect(
+      patchConfigForModelChange(noWindow, "b", {
+        effort: "high",
+        contextSize: "256k",
+      }),
+    ).toMatchObject({
+      model: "b",
+      contextSize: "",
+    });
+  });
+
+  it("keeps a shared context size when the next model still advertises it", () => {
+    expect(
+      patchConfigForModelChange(capabilities, "a", {
+        effort: "high",
+        contextSize: "256k",
+      }),
+    ).toMatchObject({
+      model: "a",
+      contextSize: "256k",
+    });
+  });
+
   it("forces fast off when the account can't use fast mode", () => {
     const gated = { ...capabilities, fastDisabledReason: "disabled" } as AgentCapability;
     expect(patchConfigForModelChange(gated, "a", { fast: true })).toMatchObject({

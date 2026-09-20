@@ -38,7 +38,9 @@ export function formatShortcutFallbackLabel(agentKind: string, modelId: string):
           .map((part) => capitalizeSegment(part))
           .join(" ");
 
-  const hints = modelId.includes("[") ? formatBracketParamHints(modelId) : undefined;
+  const hints = modelId.includes("[")
+    ? formatBracketParamHints(modelId, { includeEffort: false, includeFast: false })
+    : undefined;
   return hints ? `${baseLabel} · ${hints}` : baseLabel;
 }
 
@@ -55,7 +57,7 @@ export function formatShortcutModelLabel(
   let next = agentKind === "codex" ? formatCodexShortcutLabel(modelId, label) : label;
 
   if (baseAgentKind(agentKind) === "cursor" && modelId.includes("[")) {
-    const hints = formatBracketParamHints(modelId);
+    const hints = formatBracketParamHints(modelId, { includeEffort: false, includeFast: false });
     if (hints && !next.includes(hints)) {
       next = `${next} · ${hints}`;
     }

@@ -20,23 +20,59 @@ export type ThoughtLevelConfigOptionLike = {
   _meta?: unknown;
 };
 
-export function findThoughtLevelConfigOption(
-  configOptions: unknown,
-): ThoughtLevelConfigOptionLike | undefined {
+function listSelectableConfigOptions(configOptions: unknown): ThoughtLevelConfigOptionLike[] {
   if (!Array.isArray(configOptions)) {
-    return undefined;
+    return [];
   }
-  const selectable = configOptions.filter(
+  return configOptions.filter(
     (candidate): candidate is ThoughtLevelConfigOptionLike =>
       typeof candidate === "object" &&
       candidate !== null &&
       (candidate as ThoughtLevelConfigOptionLike).type === "select",
   );
+}
+
+function isThoughtLevelCandidate(option: ThoughtLevelConfigOptionLike): boolean {
   return (
-    selectable.find((option) => option.category === "thought_level") ??
-    selectable.find((option) =>
-      (THOUGHT_LEVEL_CONFIG_OPTION_IDS as readonly string[]).includes(option.id ?? ""),
-    )
+    option.category === "thought_level" ||
+    (THOUGHT_LEVEL_CONFIG_OPTION_IDS as readonly string[]).includes(option.id ?? "")
+  );
+}
+
+export function listThoughtLevelConfigOptions(
+  configOptions: unknown,
+): ThoughtLevelConfigOptionLike[] {
+  return listSelectableConfigOptions(configOptions).filter(isThoughtLevelCandidate);
+}
+
+/**
+ * Locate the graded reasoning-effort selector.
+ *
+ * A session can advertise more than one `thought_level` option — a boolean
+ * thinking toggle plus a multi-value effort ladder. Prefer the ladder so the
+ * effort picker is not collapsed to `true`/`false`.
+ */
+export function findThoughtLevelConfigOption(
+  configOptions: unknown,
+): ThoughtLevelConfigOptionLike | undefined {
+  const candidates = listThoughtLevelConfigOptions(configOptions);
+  return (
+    candidates.find(
+      (option) => option.category === "thought_level" && !isThinkingToggleConfig(option),
+    ) ??
+    candidates.find((option) => !isThinkingToggleConfig(option)) ??
+    candidates.find((option) => option.category === "thought_level") ??
+    candidates[0]
+  );
+}
+
+/** Locate a thinking on/off selector when it is distinct from the effort ladder. */
+export function findThinkingToggleConfigOption(
+  configOptions: unknown,
+): ThoughtLevelConfigOptionLike | undefined {
+  const effort = findThoughtLevelConfigOption(configOptions);
+  return listThoughtLevelConfigOptions(configOptions).find(
+    (option) => isThinkingToggleConfig(option) && option.id !== effort?.id,
   );
 }
 
@@ -59,6 +95,23 @@ export function isToggleOnlyThoughtLevelConfig(
   option: ThoughtLevelConfigOptionLike | undefined,
 ): boolean {
   return containsToggleOnlyMarker(option?._meta);
+}
+
+function isBooleanSelectPair(option: ThoughtLevelConfigOptionLike | undefined): boolean {
+  if (!option) return false;
+  const values = new Set(
+    flattenToggleChoices(option.options).map((choice) => choice.value.toLowerCase()),
+  );
+  return values.size === 2 && values.has("true") && values.has("false");
+}
+
+/**
+ * True when this selector is a thinking on/off control — either the agent
+ * marked it `toggleOnly`, or it is a plain `true`/`false` pair sitting beside
+ * a graded effort ladder.
+ */
+export function isThinkingToggleConfig(option: ThoughtLevelConfigOptionLike | undefined): boolean {
+  return isToggleOnlyThoughtLevelConfig(option) || isBooleanSelectPair(option);
 }
 
 type ThoughtLevelToggleChoice = {
@@ -105,7 +158,7 @@ function hasToggleWord(choice: ThoughtLevelToggleChoice, words: ReadonlySet<stri
 export function resolveThoughtLevelToggleValues(
   option: ThoughtLevelConfigOptionLike | undefined,
 ): { disabled: string; enabled: string } | undefined {
-  if (!isToggleOnlyThoughtLevelConfig(option)) {
+  if (!isThinkingToggleConfig(option)) {
     return undefined;
   }
   const choices = flattenToggleChoices(option?.options);
