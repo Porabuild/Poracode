@@ -41,9 +41,10 @@ import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
  * Bump when the cached snapshot source or shape changes so stale caches are
  * discarded. v3 relabeled Cursor's first-party window; v4 reselects the main
  * Cursor account when an SDK key is configured; v5 removes the desktop-app
- * credential fallback from the CLI-backed main tile.
+ * credential fallback from the CLI-backed main tile; v6 sources OpenCode Go
+ * meters from the direct API-key usage endpoint.
  */
-const USAGE_CACHE_VERSION = 5;
+const USAGE_CACHE_VERSION = 6;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
