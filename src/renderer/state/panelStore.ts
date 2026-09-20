@@ -2,6 +2,12 @@ import { create } from "zustand";
 import type { ThreadDockKind } from "@/shared/settings";
 import type { ProjectLocation } from "@/shared/contracts";
 import { persistStoreSlice, readPersistedSlice } from "@/renderer/utils/persistStoreSlice";
+import {
+  commitPanelPersistMigration,
+  PANEL_PERSIST_KEY,
+  PANEL_PERSIST_VERSION,
+  type PersistedPanelSlice,
+} from "./panelPersist";
 import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
 import type {
   ThreadListLayout,
@@ -138,7 +144,9 @@ interface PanelState {
   /**
    * When true, the open right-panel tools re-scope to whichever thread is
    * focused instead of staying on the project/worktree they were opened from.
-   * Persisted — single-thread users leave it on permanently.
+   * Persisted. Defaults to on so Changes / files / terminal follow the focused
+   * checkout; unlock the header lock to pin the panel to one worktree. Unversioned
+   * 1.8.x slices are flipped to locked once (`PANEL_PERSIST_VERSION` v1).
    */
   rightPanelFollowsThread: boolean;
   /** Vertical offset (px from the pane's top) of the per-thread tool rail. */
@@ -230,7 +238,7 @@ interface PanelState {
  */
 const LEGACY_GIT_CONTEXT_KEY = "poracode-git-panel-context";
 const LEGACY_DRAWER_WIDTH_KEY = "poracode-browser-drawer-width";
-const PERSIST_KEY = "poracode-panel";
+const PERSIST_KEY = PANEL_PERSIST_KEY;
 const DEFAULT_DRAWER_WIDTH = 640;
 const MIN_DRAWER_WIDTH = 420;
 const MAX_DRAWER_WIDTH = 1400;
@@ -272,14 +280,8 @@ function loadInitialDrawerWidth(): number {
   }
 }
 
-const initialPersisted = readPersistedSlice<{
-  gitReviewContext: GitReviewContext | null;
-  browserOverlayDrawerWidth: number;
-  rightPanelFollowsThread?: boolean;
-  threadToolRailOffset?: number;
-  threadSortMode?: ThreadSortMode;
-  threadListLayout?: ThreadListLayout;
-}>(PERSIST_KEY);
+const initialPersisted = readPersistedSlice<PersistedPanelSlice>(PERSIST_KEY);
+const initialFollowsThread = commitPanelPersistMigration(initialPersisted).followsThread;
 
 // Kept in sync with `ThreadSortMode`/`ThreadListLayout` manually — importing
 // the option tables would pull the icon module (lucide) into the store.
@@ -336,7 +338,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   rightPanelTab: "git",
   rightPanelSplit: null,
   bottomPanelDocks: EMPTY_BOTTOM_PANEL_DOCKS,
-  rightPanelFollowsThread: initialPersisted?.rightPanelFollowsThread ?? false,
+  rightPanelFollowsThread: initialFollowsThread,
   threadToolRailOffset: sanitizeRailOffset(
     initialPersisted?.threadToolRailOffset ?? DEFAULT_THREAD_TOOL_RAIL_OFFSET,
   ),
@@ -743,6 +745,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
 // synchronous, seeded above from readPersistedSlice so the restored git panel
 // and drawer width are present before first paint.
 persistStoreSlice(usePanelStore, PERSIST_KEY, (state) => ({
+  version: PANEL_PERSIST_VERSION,
   gitReviewContext: state.gitReviewContext
     ? {
         projectId: state.gitReviewContext.projectId,

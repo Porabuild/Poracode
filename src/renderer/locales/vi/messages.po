@@ -13046,6 +13046,14 @@ msgstr "Đã chuyển sang {targetLabel}"
 msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
 msgstr "Chuyển đổi sẽ bắt đầu một luồng mới với cùng tiêu đề, vì cuộc trò chuyện chỉ có thể tiếp tục tại chỗ giữa hai nhà cung cấp chat."
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads keeps this panel on the current project and worktree."
+msgstr "Khi chuyển luồng, bảng này vẫn ở dự án và cây làm việc hiện tại."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads updates this panel to the focused thread's project and worktree."
+msgstr "Khi chuyển luồng, bảng này cập nhật sang dự án và cây làm việc của luồng đang được chọn."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Switching to a terminal provider starts a new thread with the same title."
 #~ msgstr "Chuyển sang nhà cung cấp terminal sẽ bắt đầu một luồng mới với cùng tiêu đề."

@@ -13046,6 +13046,14 @@ msgstr "Alternado para {targetLabel}"
 msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
 msgstr "Alternar inicia um novo tópico com o mesmo título, porque o chat só pode continuar no mesmo lugar entre dois provedores de chat."
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads keeps this panel on the current project and worktree."
+msgstr "Ao trocar de tópico, este painel permanece no projeto e na árvore de trabalho atuais."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads updates this panel to the focused thread's project and worktree."
+msgstr "Ao trocar de tópico, este painel é atualizado para o projeto e a árvore de trabalho do tópico em foco."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Switching to a terminal provider starts a new thread with the same title."
 #~ msgstr "Alternar para um provedor de terminal inicia um novo tópico com o mesmo título."

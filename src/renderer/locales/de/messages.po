@@ -13046,6 +13046,14 @@ msgstr "Zu {targetLabel} gewechselt"
 msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
 msgstr "Beim Wechseln wird ein neuer Thread mit demselben Titel gestartet, denn der Chat kann nur zwischen zwei Chat-Anbietern an Ort und Stelle fortgesetzt werden."
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads keeps this panel on the current project and worktree."
+msgstr "Beim Wechseln der Threads bleibt dieses Panel beim aktuellen Projekt und Worktree."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads updates this panel to the focused thread's project and worktree."
+msgstr "Beim Wechseln der Threads aktualisiert sich dieses Panel auf das Projekt und den Worktree des fokussierten Threads."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Switching to a terminal provider starts a new thread with the same title."
 #~ msgstr "Beim Wechsel zu einem Terminal-Anbieter wird ein neuer Thread mit demselben Titel gestartet."

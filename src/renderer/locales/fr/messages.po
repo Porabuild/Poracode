@@ -13045,6 +13045,14 @@ msgstr "Basculé vers {targetLabel}"
 msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
 msgstr "Basculer démarre un nouveau fil de discussion avec le même titre, car la conversation ne peut se poursuivre sur place qu'entre deux fournisseurs de chat."
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads keeps this panel on the current project and worktree."
+msgstr "Changer de fil de discussion conserve ce panneau sur le projet et l'arbre de travail actuels."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads updates this panel to the focused thread's project and worktree."
+msgstr "Changer de fil de discussion met ce panneau à jour sur le projet et l'arbre de travail du fil de discussion actif."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Switching to a terminal provider starts a new thread with the same title."
 #~ msgstr "Basculer vers un fournisseur de terminal démarre un nouveau fil de discussion avec le même titre."

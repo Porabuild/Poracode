@@ -13045,6 +13045,14 @@ msgstr "已切换到 {targetLabel}"
 msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
 msgstr "聊天只能在两个聊天提供商之间原地继续，因此切换会以相同标题开始一个新线程。"
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads keeps this panel on the current project and worktree."
+msgstr "切换线程时，此面板会停留在当前项目和工作树。"
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads updates this panel to the focused thread's project and worktree."
+msgstr "切换线程时，此面板会更新为当前焦点线程的项目和工作树。"
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Switching to a terminal provider starts a new thread with the same title."
 #~ msgstr "切换到终端提供商会以相同标题开始一个新线程。"
