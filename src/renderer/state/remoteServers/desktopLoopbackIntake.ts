@@ -1,5 +1,6 @@
 import type { SupervisorEvent } from "@/shared/ipc";
 import { REMOTE_OPERATOR_SCOPES } from "@/shared/remote";
+import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 
 /**
  * Desktop loopback event intake (V5 plan 2.5): the managed desktop renderer's
@@ -16,18 +17,14 @@ import { REMOTE_OPERATOR_SCOPES } from "@/shared/remote";
  * PTY bytes never ride either stream: since the 2.5 completion the terminal
  * surface consumes them through the `terminal-watch` machinery ON THIS SOCKET
  * (the server already admits desktop sessions to terminal watches, v1/v2
- * cursor sync included) — the relay-delivered `thread-output` path remains
- * only as the fallback while this leg is down.
+ * cursor sync included). V6 B.6 deleted the IPC `thread-output` fallback;
+ * while this leg is down the window has no live PTY until reconnect.
  *
- * Fallback contract: while the loopback socket is down, the desktop-IPC relay
- * remains the delivery path (the transport stops dropping it), and every
- * activation re-baselines subscribed threads through the transport's rebuild
- * dispatch — the same recovery primitive the relay's shed/gap signals use.
- * Discovery is driven by main's always-on guarantee: the managed bootstrap
- * payload (`getManagedLoopbackBootstrap`) resolves the loopback endpoint and
- * this launch's single-use credential once the server is serving. Every
- * failure stays non-fatal: the intake retries in the background and the
- * desktop keeps working over IPC.
+ * Activation re-baselines subscribed threads through the transport's rebuild
+ * dispatch. Discovery is driven by main's always-on guarantee: the managed
+ * bootstrap payload (`getManagedLoopbackBootstrap`) resolves the loopback
+ * endpoint and this launch's single-use credential once the server is serving.
+ * Failures retry in the background.
  */
 
 export interface DesktopLoopbackSocket {
@@ -48,7 +45,7 @@ export interface DesktopLoopbackIntakeDeps {
    * per-session cursor when the frame carried one (runtime deltas ride that
    * stream, so the reducer's sequenced arbitration stays armed on this leg).
    */
-  readonly dispatch: (event: SupervisorEvent, seq?: number) => void;
+  readonly dispatch: (event: SupervisorEvent, seq?: number, space?: EventSequenceSpace) => void;
   /** Asks the transport to rebuild subscribed threads (leg handoff/loss). */
   readonly requestRebuild: () => void;
   /** Notified when the loopback leg becomes (in)active for event delivery. */
@@ -329,7 +326,7 @@ export class DesktopLoopbackIntake {
   }
 
   private handleMessage(data: unknown): void {
-    let frame: { type?: unknown; seq?: unknown; event?: unknown };
+    let frame: { type?: unknown; seq?: unknown; event?: unknown; space?: unknown };
     try {
       frame = JSON.parse(String(data)) as typeof frame;
     } catch {
@@ -338,14 +335,14 @@ export class DesktopLoopbackIntake {
     if (frame.type === "event" || frame.type === "desktop-event") {
       const event = frame.event;
       if (!event || typeof event !== "object") return;
-      // Wire frames validated by shape here; the desktop reducer owns the
-      // SupervisorEvent contract and tolerates the shared union. Only the
-      // SHARED stream's seq reaches the reducer: the desktop-event stream
-      // counts its own separate space, and its families never enter the
-      // runtime-event queue the sequence arbitrates.
-      const sharedSeq =
-        frame.type === "event" && typeof frame.seq === "number" ? frame.seq : undefined;
-      this.deps.dispatch(event as SupervisorEvent, sharedSeq);
+      const space: EventSequenceSpace =
+        frame.space === "ipc" || frame.space === "loopback"
+          ? frame.space
+          : frame.type === "desktop-event"
+            ? "ipc"
+            : "loopback";
+      const seq = typeof frame.seq === "number" ? frame.seq : undefined;
+      this.deps.dispatch(event as SupervisorEvent, seq, space);
       return;
     }
     // Terminal frames (2.5 completion): `terminal-output`,

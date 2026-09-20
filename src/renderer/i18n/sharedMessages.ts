@@ -296,6 +296,10 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "thread.compact.noop": msg({
     message: "Nothing to compact yet — the conversation is still small.",
   }),
+  "desktop.promotion.progress.title": msg({ message: "Poracode" }),
+  "desktop.promotion.progress.body": msg({
+    message: "Promoting this profile into the owned data root…",
+  }),
 };
 
 /**

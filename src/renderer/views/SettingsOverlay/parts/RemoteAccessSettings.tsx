@@ -270,6 +270,8 @@ function PairingReady(props: {
   info: Extract<RemoteAccessPairingInfo, { status: "ready" }>;
   isRefreshing: boolean;
   revokingSessionId: string | null;
+  pairingPreset: "operator" | "viewer";
+  onPairingPresetChange: (preset: "operator" | "viewer") => void;
   onRefresh: () => void;
   onRevoke: (sessionId: string) => void;
 }) {
@@ -391,6 +393,33 @@ function PairingReady(props: {
           </div>
           <p className="text-xs text-muted">
             {remainingMs > 0 ? t`This code expires in ${countdown}` : t`This code has expired.`}
+          </p>
+          <ToggleButtonGroup
+            aria-label={t`Pairing access`}
+            className="h-8 [&_button]:h-8 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-3"
+            selectionMode="single"
+            disallowEmptySelection
+            size="sm"
+            selectedKeys={[props.pairingPreset]}
+            onSelectionChange={(keys) => {
+              const next = [...keys][0];
+              if (next === "operator" || next === "viewer") props.onPairingPresetChange(next);
+            }}
+          >
+            <ToggleButton id="operator">
+              <Trans>Operator</Trans>
+            </ToggleButton>
+            <ToggleButton id="viewer">
+              <ToggleButtonGroup.Separator />
+              <Trans>Viewer</Trans>
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <p className="text-xs text-muted">
+            {props.pairingPreset === "viewer" ? (
+              <Trans>This QR grants read-only viewer access.</Trans>
+            ) : (
+              <Trans>This QR grants full operator access.</Trans>
+            )}
           </p>
         </div>
 
@@ -739,6 +768,7 @@ export function RemoteAccessSettings() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+  const [pairingPreset, setPairingPreset] = useState<"operator" | "viewer">("operator");
   const isLoading = state.info === null && state.error === null;
 
   useEffect(() => {
@@ -782,7 +812,9 @@ export function RemoteAccessSettings() {
     let cancelled = false;
     const rotate = async () => {
       try {
-        const info = await readBridge().refreshRemoteAccessPairing();
+        const info = await readBridge().refreshRemoteAccessPairing({
+          preset: pairingPreset,
+        });
         if (!cancelled) setState(pairingViewStateFromInfo(info));
       } catch {
         // Keep the current code on a transient failure; "New code" still works.
@@ -797,12 +829,12 @@ export function RemoteAccessSettings() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [pairingExpiresAt]);
+  }, [pairingExpiresAt, pairingPreset]);
 
-  const refresh = async () => {
+  const refresh = async (preset: "operator" | "viewer" = pairingPreset) => {
     setIsRefreshing(true);
     try {
-      const info = await readBridge().refreshRemoteAccessPairing();
+      const info = await readBridge().refreshRemoteAccessPairing({ preset });
       setState(pairingViewStateFromInfo(info));
     } catch (error) {
       const message = friendlyError(error, t`Unable to load remote access pairing.`);
@@ -896,6 +928,11 @@ export function RemoteAccessSettings() {
             info={state.info}
             isRefreshing={isRefreshing}
             revokingSessionId={revokingSessionId}
+            pairingPreset={pairingPreset}
+            onPairingPresetChange={(preset) => {
+              setPairingPreset(preset);
+              void refresh(preset);
+            }}
             onRefresh={() => void refresh()}
             onRevoke={(sessionId) => void revokeSession(sessionId)}
           />

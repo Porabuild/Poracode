@@ -49,7 +49,7 @@ export function usePairing() {
     setScanRejection(null);
   };
 
-  const pairWithCredentials = (endpoint: string, token: string) => {
+  const pairWithCredentials = (endpoint: string, token: string, pairingSource = token) => {
     setValidationError(null);
     // A deliberate new pairing clears a settled intent first; `pairInFlight`
     // refuses a second begin, matching the native coordinators.
@@ -64,7 +64,7 @@ export function usePairing() {
     intentState.current = step.state;
     run(async () => {
       try {
-        await pairServer({ endpoint, token });
+        await pairServer({ endpoint, token: pairingSource });
         intentState.current = commitDirectPair(intentState.current, endpoint, token);
         await connectAll();
       } catch (cause) {
@@ -81,7 +81,7 @@ export function usePairing() {
       return;
     }
     const endpoint = normalizePairingEndpoint(parsed.host ?? parsed.url.toString());
-    pairWithCredentials(endpoint, parsed.token);
+    pairWithCredentials(endpoint, parsed.token, value);
   };
 
   const pairFromCredentials = (endpointValue: string, tokenValue: string) => {

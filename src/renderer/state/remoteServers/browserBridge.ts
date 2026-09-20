@@ -1,7 +1,12 @@
 import { setRemoteBridgeClient } from "@/renderer/browser/remoteBridge";
 import { setBrowserSocketSender } from "@/renderer/browser/browserMirror";
 import { applyDesktopSettings, resetDesktopSettings } from "@/renderer/browser/remoteSettingsSync";
-import { hasAnyClientBridge, readClientRuntime } from "@/renderer/clientRuntime";
+import {
+  applyNegotiatedHostCapabilities,
+  UNKNOWN_HOST_CAPABILITIES,
+  hasAnyClientBridge,
+  readClientRuntime,
+} from "@/renderer/clientRuntime";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { getRemoteServerEventSocketEntry } from "./eventSocketRegistry";
@@ -58,7 +63,7 @@ export function selectBrowserPanelAvailable(state: RemoteServersState): boolean 
   const runtime = readClientRuntime();
   if (runtime.host === "electron") return runtime.capabilities.nativeBrowserWebContents;
   const selected = selectBrowserBridgeServer(state);
-  return selected !== undefined && selected.hostMode !== "helper";
+  return selected?.hostCapabilities?.browserPanel === true;
 }
 
 export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void {
@@ -70,6 +75,7 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
   if (runtime.transport !== "remote-http-websocket") return;
 
   const server = selectBrowserBridgeClientServer(state);
+  applyNegotiatedHostCapabilities(server?.hostCapabilities ?? UNKNOWN_HOST_CAPABILITIES);
   const socket = server
     ? (getRemoteServerEventSocketEntry(server.desktopId)?.socket ?? null)
     : null;

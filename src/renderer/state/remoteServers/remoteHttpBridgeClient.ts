@@ -1,3 +1,4 @@
+import { remoteCertificateMismatchError } from "@/shared/remote/clientPin";
 import { msg as sharedMsg } from "@/shared/messages";
 import { RemoteClientError } from "@/shared/remote/client";
 import {
@@ -49,6 +50,7 @@ export interface RemoteHttpBridgeFetchInit {
   readonly headers?: Record<string, string>;
   readonly body?: string | Uint8Array;
   readonly signal?: AbortSignal;
+  readonly certFingerprint?: string | null;
 }
 
 export type RemoteHttpBridgePortListener = (
@@ -297,6 +299,7 @@ export class RemoteHttpBridgeClient {
           headers,
           hasBody: body !== undefined,
           bodyBytes: body?.byteLength ?? 0,
+          ...(init?.certFingerprint !== undefined ? { certFingerprint: init.certFingerprint } : {}),
         }),
         aborted.promise,
       ]);
@@ -446,6 +449,8 @@ export class RemoteHttpBridgeClient {
   private mapBridgeError(message: RemoteHttpBridgePortDownstreamMessage): Error {
     if (message.kind !== "error") return unreachableError(new Error("Remote request failed."));
     if (message.code === "cancelled") return cancelledError();
+    if (message.code === "certificate_fingerprint_mismatch")
+      return remoteCertificateMismatchError();
     return unreachableError(new Error(message.message));
   }
 

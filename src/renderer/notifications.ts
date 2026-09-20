@@ -6,6 +6,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import {
   isBrowserWebPushActive,
   requestBrowserNotificationPermission,
@@ -178,6 +179,7 @@ function showElectronNotification(
   category: NotificationCategory,
   status: ThreadStatus,
 ): void {
+  if (!hasClientCapability("osNotifications")) return;
   const detail = getStatusDetail(category, status);
   const body = `${threadTitle}\n${detail}`;
 

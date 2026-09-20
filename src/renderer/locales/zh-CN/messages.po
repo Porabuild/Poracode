@@ -3391,7 +3391,7 @@ msgstr "连接错误"
 #~ msgstr "连接错误。"
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "连接失败。"
 
@@ -5410,7 +5410,7 @@ msgstr "加载资料统计失败。"
 msgid "Failed to merge pull request: {detail}"
 msgstr "无法合并拉取请求：{detail}"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Failed to open remote thread."
 msgstr "无法打开远程线程。"
 
@@ -9235,6 +9235,10 @@ msgstr "已为候选打开拉取请求 #{0}。"
 msgid "Operate desktop apps through Poracode's desktop-control tools."
 msgstr "通过 Poracode 的桌面控制工具操作桌面应用。"
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Operator"
+msgstr "操作员"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Optional"
 msgstr "可选"
@@ -9386,6 +9390,10 @@ msgstr "已配对设备"
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pairing"
 #~ msgstr "正在配对"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing access"
+msgstr "配对权限"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
@@ -9750,6 +9758,7 @@ msgstr "流行的编辑器主题适应 Poracode。每个都遵循上面的浅色
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode"
 msgstr "Poracode"
 
@@ -10146,6 +10155,10 @@ msgstr "{0} 中的项目将移动到 {1}。不会删除任何项目。"
 #: src/mobile/setupEmptyState.tsx
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "项目位于已连接的桌面端。开始线程前请先添加一个项目。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Promoting this profile into the owned data root…"
+msgstr "正在将此个人资料迁移到专属数据根目录…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -10687,7 +10700,7 @@ msgstr "远程名称"
 #~ msgid "Remote project"
 #~ msgstr "远程项目"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "未找到远程项目。"
 
@@ -10695,7 +10708,8 @@ msgstr "未找到远程项目。"
 #~ msgid "Remote server"
 #~ msgstr "远程服务器"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
+#: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "未找到远程服务器。"
 
@@ -12573,7 +12587,7 @@ msgstr "SSE（旧版）"
 msgid "SSH config / agent"
 msgstr "SSH 配置 / 代理"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/sessionReconnect.ts
 msgid "SSH connection failed."
 msgstr "SSH 连接失败。"
 
@@ -13397,7 +13411,7 @@ msgstr "正常的应用程序外壳无法呈现。以下诊断信息在重新加
 #~ msgid "The remote Poracode server returned no pairing credential."
 #~ msgstr "远程 Poracode 服务器未返回配对凭据。"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/pairing.ts
 msgid "The remote server returned no pairing credential."
 msgstr "远程服务器未返回配对凭据。"
 
@@ -13703,6 +13717,14 @@ msgstr "此项目"
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "该项目的远程服务器处于离线状态。请重新连接后再开始线程。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This QR grants full operator access."
+msgstr "此二维码授予完整操作员权限。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This QR grants read-only viewer access."
+msgstr "此二维码授予只读查看权限。"
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -14345,7 +14367,7 @@ msgstr "无法启动 Tailscale。"
 #~ msgid "Unable to start terminal"
 #~ msgstr "无法启动终端"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Unable to start the remote thread."
 msgstr "无法启动远程线程。"
 
@@ -14994,6 +15016,10 @@ msgstr "只读 — 此连接无法更改主机设置。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "仅查看 — 此连接无法管理项目。"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Viewer"
+msgstr "查看者"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Violet"

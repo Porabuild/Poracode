@@ -1,4 +1,4 @@
-import { applyRuntimeTruncation } from "./runtimeTruncation";
+import { applyBackgroundTaskReduce } from "@/shared/remote/contract/backgroundTaskReduce";
 import type {
   BackgroundTask,
   RuntimeEvent,
@@ -9,6 +9,7 @@ import { coalesceRuntimeEvents } from "@/shared/coalesce";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { recordRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import type { AppStoreState } from "./shared";
+import { applyRuntimeTruncation } from "./runtimeTruncation";
 import {
   type CompletedTurnRecord,
   type OpenRuntimeRequest,
@@ -521,10 +522,10 @@ function applyRuntimeEventToRuntimeState(
     case "session.exited":
       // Background work dies with the agent process; nothing will ever report
       // it drained, so the list must not outlive the session.
-      return replaceBackgroundTasks(state, threadId, []);
+      return replaceBackgroundTasks(state, threadId, "session.exited", []);
 
     case "background_tasks.changed":
-      return replaceBackgroundTasks(state, threadId, event.tasks);
+      return replaceBackgroundTasks(state, threadId, event.type, event.tasks);
 
     case "usage.spent":
       // Token consumption is persisted by the main-process usage ledger; the
@@ -626,30 +627,25 @@ function applyRuntimeEventToRuntimeState(
 function replaceBackgroundTasks(
   state: RuntimeEventState,
   threadId: string,
+  eventType: string,
   tasks: readonly BackgroundTask[],
 ): Partial<RuntimeEventState> {
   const prev = state.runtimeBackgroundTasksByThread[threadId];
-  if (tasks.length === 0) {
+  const next = applyBackgroundTaskReduce({
+    eventType,
+    incoming: tasks,
+    previous: prev ?? null,
+  });
+  if (next === null) {
     if (!prev) return {};
     const { [threadId]: _dropped, ...rest } = state.runtimeBackgroundTasksByThread;
     return { runtimeBackgroundTasksByThread: rest };
   }
-  if (
-    prev &&
-    prev.length === tasks.length &&
-    prev.every(
-      (task, index) =>
-        task.taskId === tasks[index]!.taskId &&
-        task.kind === tasks[index]!.kind &&
-        task.description === tasks[index]!.description,
-    )
-  ) {
-    return {};
-  }
+  if (next === prev) return {};
   return {
     runtimeBackgroundTasksByThread: {
       ...state.runtimeBackgroundTasksByThread,
-      [threadId]: tasks.map((task) => ({ ...task })),
+      [threadId]: next.map((task) => ({ ...task })),
     },
   };
 }

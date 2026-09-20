@@ -142,11 +142,27 @@ describe("remote bridge", () => {
       (payload: unknown) => Promise<unknown>
     >;
 
-    for (const procedure of Object.keys(REMOTE_PROCEDURE_SPECS)) {
+    // V6 B.2 made the db* mirrors remote-routable, but the BROWSER bridge
+    // deliberately serves runtime/thread hydration from the local sync cache
+    // (the selected thread's tail arrives with its snapshot) and browser app
+    // state from createDbStorage — those overrides are asserted by their own
+    // tests, so the generic-route sweep skips them.
+    const locallyServiced = new Set([
+      "dbGetThreadRuntimeItems",
+      "dbGetLatestThreadGoalItem",
+      "dbGetThreadCompletedTurns",
+      "dbGetThreadContextUsage",
+      "dbGetThreadsPage",
+      "readTerminalScrollback",
+    ]);
+    const forwarded = Object.keys(REMOTE_PROCEDURE_SPECS).filter(
+      (procedure) => !locallyServiced.has(procedure),
+    );
+    for (const procedure of forwarded) {
       await expect(bridge[procedure]?.({ procedure })).resolves.toBe(procedure);
     }
     expect(callRemoteProcedure.mock.calls).toEqual(
-      Object.keys(REMOTE_PROCEDURE_SPECS).map((procedure) => [procedure, { procedure }]),
+      forwarded.map((procedure) => [procedure, { procedure }]),
     );
   });
 

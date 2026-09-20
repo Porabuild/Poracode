@@ -17,7 +17,6 @@ import {
 import {
   invokeRemoteIpcProcedure,
   isRemoteIpcAdapterProcedure,
-  isRemoteNoopProcedure,
   isRemoteProcedure,
   RemoteTerminalOwnership,
   type RemoteBrowserCommand,
@@ -206,8 +205,11 @@ const remoteBridgeOverrides = {
   posthogKey: "",
   sentryEnabled: false,
 
-  // Thread/session mutations with PWA-specific lifecycle handling.
-  startThread: (payload: StartThreadPayload) => withClient((client) => client.startThread(payload)),
+  // Thread/session mutations with PWA-specific lifecycle handling. V6 B.2:
+  // `startThread` is a registry passthrough procedure — the generic
+  // procedure-call route is its client transport (no dedicated client method).
+  startThread: (payload: StartThreadPayload) =>
+    withClient((client) => client.callRemoteProcedure("startThread", payload)),
   startShell: (payload: StartShellPayload) =>
     remoteTerminals.start(payload.shellId, true, () =>
       withClient((client) => client.startShell(payload)),
@@ -460,7 +462,6 @@ const remoteBridge = Object.defineProperties(
       const client = await waitForClient();
       return client.callRemoteProcedure(procedure, args[0]);
     }
-    if (isRemoteNoopProcedure(procedure)) return Promise.resolve();
     return Promise.reject(new Error(`"${procedure}" is not available in a remote session.`));
   }),
   Object.getOwnPropertyDescriptors(remoteBridgeOverrides),

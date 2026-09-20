@@ -9,6 +9,7 @@ import {
   type SupervisorEvent,
 } from "@/shared/ipc";
 import type { RuntimeEvent, Thread } from "@/shared/contracts";
+import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 
 /**
  * THE one `SupervisorEvent` reducer (V5 plan 2.3 / T3).
@@ -72,7 +73,11 @@ export interface RuntimeEventRecoveryStrategy {
 /** Queue operations a recovery strategy may use to arbitrate against live deltas. */
 export interface RuntimeQueueArbitration {
   readonly hasUnsequenced: (threadId: string) => boolean;
-  readonly discardThroughSequence: (threadId: string, sequence: number) => void;
+  readonly discardThroughSequence: (
+    threadId: string,
+    sequence: number,
+    space?: EventSequenceSpace,
+  ) => void;
 }
 
 /**
@@ -95,10 +100,12 @@ export interface SupervisorEventSideEffects {
 
 export interface SupervisorEventDispatchOptions {
   readonly sideEffects?: SupervisorEventSideEffects;
+  readonly sequenceSpace?: EventSequenceSpace;
 }
 
 export interface RuntimeBatchDispatchOptions {
   readonly rendererSequence?: number;
+  readonly sequenceSpace?: EventSequenceSpace;
   readonly deliverRuntimeEventsImmediately?: boolean;
 }
 
@@ -118,7 +125,11 @@ export interface SupervisorEventReducerConfig {
     readonly maxThreadBytes?: number;
   };
   /** Electron: tracks the latest sequenced event per thread for recovery arbitration. */
-  readonly onSequencedEvent?: (event: SupervisorEvent, rendererSequence: number) => void;
+  readonly onSequencedEvent?: (
+    event: SupervisorEvent,
+    rendererSequence: number,
+    space: EventSequenceSpace,
+  ) => void;
   /**
    * Electron: dev-shell gate. Called for events whose `threadId` starts with
    * `shell:`; the event is fully consumed afterwards (dev shells never touch
@@ -353,7 +364,12 @@ export function createSupervisorEventReducer(
     }
     const overflowed: string[] = [];
     for (const batch of batches) {
-      const result = queue.enqueue(batch.threadId, batch.events, options?.rendererSequence);
+      const result = queue.enqueue(
+        batch.threadId,
+        batch.events,
+        options?.rendererSequence,
+        options?.sequenceSpace ?? "ipc",
+      );
       if (!result.overflowed) continue;
       if (runtimeRecoveryInFlight.has(batch.threadId)) {
         // The bounded post-baseline tail also overflowed while a recovery
@@ -393,7 +409,7 @@ export function createSupervisorEventReducer(
     options?: SupervisorEventDispatchOptions,
   ): void => {
     if (rendererSequence !== undefined) {
-      config.onSequencedEvent?.(event, rendererSequence);
+      config.onSequencedEvent?.(event, rendererSequence, options?.sequenceSpace ?? "ipc");
     }
 
     // Dev shells (action terminals) never touch the thread stores; the
@@ -420,6 +436,7 @@ export function createSupervisorEventReducer(
     if (RUNTIME_ENVELOPE_TYPES.has(event.type)) {
       enqueueRuntimeBatches(runtimeBatchesFromSupervisorEvent(event), {
         ...(rendererSequence !== undefined ? { rendererSequence } : {}),
+        ...(options?.sequenceSpace !== undefined ? { sequenceSpace: options.sequenceSpace } : {}),
       });
       return;
     }
@@ -531,8 +548,8 @@ export function createSupervisorEventReducer(
   return {
     arbitration: {
       hasUnsequenced: (threadId) => queue.hasUnsequenced(threadId),
-      discardThroughSequence: (threadId, sequence) =>
-        queue.discardThroughSequence(threadId, sequence),
+      discardThroughSequence: (threadId, sequence, space) =>
+        queue.discardThroughSequence(threadId, sequence, space),
     },
     dispatch,
     enqueueRuntimeBatches,

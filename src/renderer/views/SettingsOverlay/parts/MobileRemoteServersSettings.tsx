@@ -232,6 +232,7 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
 
     let pairingEndpoint: string;
     let pairingToken: string;
+    let pairingSource: string;
     if (canPairFromLink) {
       const parsed = parsePairingUrlParts(pairingUrl);
       if (!parsed) {
@@ -240,6 +241,7 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
       }
       pairingEndpoint = normalizePairingEndpoint(parsed.host ?? parsed.url.toString());
       pairingToken = parsed.token;
+      pairingSource = pairingUrl;
     } else {
       try {
         pairingEndpoint = normalizePairingEndpoint(endpoint);
@@ -248,6 +250,7 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
         return;
       }
       pairingToken = token.trim();
+      pairingSource = pairingToken;
     }
 
     setValidationError(null);
@@ -266,7 +269,7 @@ function MobilePairingSheet(props: { readonly onClose: () => void }) {
     intentState.current = step.state;
     run(async () => {
       try {
-        await pairServer({ endpoint: pairingEndpoint, token: pairingToken });
+        await pairServer({ endpoint: pairingEndpoint, token: pairingSource });
         intentState.current = commitDirectPair(intentState.current, pairingEndpoint, pairingToken);
         await connectAll();
         props.onClose();

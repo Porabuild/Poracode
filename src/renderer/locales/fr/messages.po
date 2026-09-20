@@ -3391,7 +3391,7 @@ msgstr "Erreur de connexion"
 #~ msgstr "Erreur de connexion."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "Échec de la connexion."
 
@@ -5410,7 +5410,7 @@ msgstr "Échec du chargement des statistiques de profil."
 msgid "Failed to merge pull request: {detail}"
 msgstr "Échec de la fusion de la pull request : {detail}"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Failed to open remote thread."
 msgstr "Impossible d'ouvrir le fil de discussion distant."
 
@@ -9235,6 +9235,10 @@ msgstr "Pull request #{0} ouverte pour le candidat."
 msgid "Operate desktop apps through Poracode's desktop-control tools."
 msgstr "Pilotez les applications de bureau via les outils de contrôle de Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Operator"
+msgstr "Opérateur"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Optional"
 msgstr "Facultatif"
@@ -9386,6 +9390,10 @@ msgstr "Appareils associés"
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pairing"
 #~ msgstr "Association"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing access"
+msgstr "Accès de couplage"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
@@ -9750,6 +9758,7 @@ msgstr "Thèmes d'éditeur populaires adaptés à Poracode. Chacun suit le mode 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode"
 msgstr "Poracode"
 
@@ -10146,6 +10155,10 @@ msgstr "Les projets de {0} sont déplacés vers {1}. Aucun projet n'est supprim�
 #: src/mobile/setupEmptyState.tsx
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "Les projets se trouvent sur le bureau connecté. Ajoutez-en un avant de démarrer un fil."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Promoting this profile into the owned data root…"
+msgstr "Transfert de ce profil vers la racine de données dédiée…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -10687,7 +10700,7 @@ msgstr "Nom distant"
 #~ msgid "Remote project"
 #~ msgstr "Projet distant"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Projet distant introuvable."
 
@@ -10695,7 +10708,8 @@ msgstr "Projet distant introuvable."
 #~ msgid "Remote server"
 #~ msgstr "Serveur distant"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
+#: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "Serveur distant introuvable."
 
@@ -12573,7 +12587,7 @@ msgstr "SSE (hérité)"
 msgid "SSH config / agent"
 msgstr "Configuration SSH / agent"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/sessionReconnect.ts
 msgid "SSH connection failed."
 msgstr "Échec de la connexion SSH."
 
@@ -13397,7 +13411,7 @@ msgstr "Le shell d'application normal n'a pas pu être rendu. Les diagnostics ci
 #~ msgid "The remote Poracode server returned no pairing credential."
 #~ msgstr "Le serveur Poracode distant n’a renvoyé aucun identifiant de jumelage."
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/pairing.ts
 msgid "The remote server returned no pairing credential."
 msgstr "Le serveur distant n’a renvoyé aucun identifiant d’association."
 
@@ -13703,6 +13717,14 @@ msgstr "ce projet"
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Le serveur distant de ce projet est hors ligne. Reconnectez-le pour démarrer un fil."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This QR grants full operator access."
+msgstr "Ce QR code accorde un accès opérateur complet."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This QR grants read-only viewer access."
+msgstr "Ce QR code accorde un accès lecteur en lecture seule."
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -14345,7 +14367,7 @@ msgstr "Impossible de démarrer Tailscale."
 #~ msgid "Unable to start terminal"
 #~ msgstr "Impossible de démarrer le terminal"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Unable to start the remote thread."
 msgstr "Impossible de démarrer le fil distant."
 
@@ -14994,6 +15016,10 @@ msgstr "Lecture seule — cette connexion ne peut pas modifier les paramètres d
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Lecture seule — cette connexion ne peut pas gérer les projets."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Viewer"
+msgstr "Lecteur"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Violet"

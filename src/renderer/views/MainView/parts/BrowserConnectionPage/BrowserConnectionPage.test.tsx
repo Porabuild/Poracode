@@ -198,7 +198,7 @@ describe("BrowserConnectionPage", () => {
 
     expect(state.pairServer).toHaveBeenCalledWith({
       endpoint: "http://127.0.0.1:49152",
-      token: "lc_pair_test",
+      token: PAIRING_URL,
     });
     await waitFor(() => expect(state.connectAll).toHaveBeenCalled());
   });
@@ -287,7 +287,7 @@ describe("BrowserConnectionPage", () => {
     await waitFor(() =>
       expect(state.pairServer).toHaveBeenCalledWith({
         endpoint: "http://127.0.0.1:49152",
-        token: "lc_pair_test",
+        token: PAIRING_URL,
       }),
     );
     expect(state.connectAll).toHaveBeenCalled();
@@ -303,7 +303,7 @@ describe("BrowserConnectionPage", () => {
       await waitFor(() =>
         expect(state.pairServer).toHaveBeenCalledWith({
           endpoint: "http://127.0.0.1:49152",
-          token: "lc_pair_test",
+          token: PAIRING_URL,
         }),
       );
       // A successful decode closes the scanner and hands off to the handshake.
@@ -428,7 +428,7 @@ describe("BrowserConnectionPage", () => {
 
       expect(state.pairServer).toHaveBeenCalledWith({
         endpoint: "http://127.0.0.1:49152",
-        token: "lc_pair_test",
+        token: PAIRING_URL,
       });
       await waitFor(() => expect(state.connectAll).toHaveBeenCalled());
     });

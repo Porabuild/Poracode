@@ -249,8 +249,10 @@ export function installUpdateStatusSync(
 // so only the main window wires these up (and tears them down on HMR dispose).
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
-      readBridge().onSupervisorEvent((event, rendererSequence) =>
-        supervisorReducer.dispatch(event, rendererSequence),
+      readBridge().onSupervisorEvent((event, rendererSequence, sequenceSpace) =>
+        supervisorReducer.dispatch(event, rendererSequence, {
+          ...(sequenceSpace !== undefined ? { sequenceSpace } : {}),
+        }),
       ),
       // Backend reset (V5 2.5): the relay sequence space restarts with a new
       // backend child. The transport drops its dedupe cursor and rebuilds;

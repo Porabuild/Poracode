@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { IpcProcedureMapVersionError, type PoracodeBridge } from "@/shared/ipc";
+import {
+  IpcProcedureMapVersionError,
+  IPC_PROCEDURE_MAP_VERSION,
+  type PoracodeBridge,
+} from "@/shared/ipc";
+import { hostServiceCapabilities } from "@/shared/hostControlProtocol";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
-  DESKTOP_MANAGED_HOST_CAPABILITIES,
-  desktopManagedHostCapabilities,
   UNKNOWN_HOST_CAPABILITIES,
+  applyNegotiatedHostCapabilities,
   deriveClientCapabilities,
   hasAnyClientBridge,
   hasClientCapability,
@@ -21,15 +25,27 @@ function bridge(arch: string): PoracodeBridge {
   return { arch } as unknown as PoracodeBridge;
 }
 
+const DESKTOP_HOST_CAPABILITIES = hostServiceCapabilities({
+  ssh: true,
+  browserPanel: true,
+  chromeBridge: true,
+  computerUse: true,
+  nativeSecrets: true,
+  portForward: true,
+  autoUpdate: true,
+  osNotifications: true,
+});
+
 function electronHost(arch: string): ElectronHostBridge {
   return {
     clientRuntimeVersion: PORACODE_CLIENT_RUNTIME_VERSION,
     arch,
     platform: "win32",
+    hostCapabilities: DESKTOP_HOST_CAPABILITIES,
     onSupervisorEvent: () => () => {},
     onSupervisorEventGap: () => () => {},
     onBackendSupervisorReset: () => () => {},
-    ipcProcedureMapVersion: 1,
+    ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
     invokeProcedure: async () => undefined,
   } as unknown as ElectronHostBridge;
 }
@@ -90,6 +106,7 @@ describe("client runtime", () => {
         nativeBrowserWebContents: true,
         nativeShell: true,
         nativeSsh: true,
+        osNotifications: true,
       },
       native: { arch: "x64" },
     });
@@ -127,6 +144,7 @@ describe("client runtime", () => {
         nativeBrowserWebContents: false,
         nativeShell: false,
         nativeSsh: false,
+        osNotifications: false,
       },
     });
     expect(isRemoteSession()).toBe(true);
@@ -153,43 +171,42 @@ describe("client runtime", () => {
   });
 });
 
-describe("host-declared capabilities (V5 plan 1.2)", () => {
+describe("host-declared capabilities (V6 C.2)", () => {
   beforeEach(() => {
     resetClientRuntimeForTest();
     Reflect.deleteProperty(window, "poracode");
     Reflect.deleteProperty(window, "poracodeHost");
   });
 
-  it("builds desktop-managed computerUse from the host platform without Node process", () => {
-    expect(desktopManagedHostCapabilities("darwin").computerUse).toBe(true);
-    expect(desktopManagedHostCapabilities("win32").computerUse).toBe(true);
-    expect(desktopManagedHostCapabilities("linux").computerUse).toBe(false);
-    expect(desktopManagedHostCapabilities().computerUse).toBe(
-      process.platform === "win32" || process.platform === "darwin",
-    );
-  });
-
-  it("keeps the desktop-managed flavor on local host knowledge", () => {
+  it("uses preload hostCapabilities instead of a renderer-side host mirror", () => {
     installElectronClientRuntime(electronHost("x64"));
     const runtime = readClientRuntime();
-    expect(runtime.hostCapabilities).toEqual(desktopManagedHostCapabilities("win32"));
+    expect(runtime.hostCapabilities).toEqual(DESKTOP_HOST_CAPABILITIES);
     expect(runtime.capabilities).toEqual({
       localBackend: true,
       manageRemoteEnvironments: true,
       nativeAppUpdates: true,
       nativeShell: true,
-      nativeSsh: DESKTOP_MANAGED_HOST_CAPABILITIES.ssh,
-      nativeBrowserWebContents: DESKTOP_MANAGED_HOST_CAPABILITIES.browserPanel,
+      nativeSsh: true,
+      osNotifications: true,
+      nativeBrowserWebContents: true,
     });
   });
 
+  it("fails closed when the preload omits hostCapabilities", () => {
+    const host = {
+      ...electronHost("x64"),
+      hostCapabilities: undefined,
+    } as unknown as ElectronHostBridge;
+    installElectronClientRuntime(host);
+    expect(readClientRuntime().hostCapabilities).toEqual(UNKNOWN_HOST_CAPABILITIES);
+    expect(hasClientCapability("nativeSsh")).toBe(false);
+  });
+
   it("derives the desktop-managed flavor from declared host capabilities, not the host field", () => {
-    // A desktop-managed client whose host somehow stops composing a service
-    // loses the client capability with it — the conjunction, never an
-    // inference from `host === "electron"`.
     expect(
       deriveClientCapabilities({
-        host: { ...DESKTOP_MANAGED_HOST_CAPABILITIES, ssh: false },
+        host: { ...DESKTOP_HOST_CAPABILITIES, ssh: false },
         nativeShell: true,
         localBackend: true,
         nativeAppUpdates: true,
@@ -208,6 +225,8 @@ describe("host-declared capabilities (V5 plan 1.2)", () => {
       computerUse: true,
       nativeSecrets: false,
       portForward: true,
+      autoUpdate: false,
+      osNotifications: false,
     };
     expect(
       deriveClientCapabilities({
@@ -222,11 +241,12 @@ describe("host-declared capabilities (V5 plan 1.2)", () => {
       nativeAppUpdates: true,
       nativeShell: true,
       nativeSsh: false,
+      osNotifications: false,
       nativeBrowserWebContents: false,
     });
   });
 
-  it("fails the browser flavor closed to unknown host capabilities", () => {
+  it("fails the browser flavor closed to unknown host capabilities until describe", () => {
     installBrowserClientRuntime(bridge("web"));
     const runtime = readClientRuntime();
     expect(runtime.hostCapabilities).toEqual(UNKNOWN_HOST_CAPABILITIES);
@@ -234,9 +254,48 @@ describe("host-declared capabilities (V5 plan 1.2)", () => {
       localBackend: false,
       nativeShell: false,
       nativeSsh: false,
+      osNotifications: false,
       nativeBrowserWebContents: false,
     });
     expect(hasClientCapability("nativeSsh")).toBe(false);
+    applyNegotiatedHostCapabilities(DESKTOP_HOST_CAPABILITIES);
+    expect(readClientRuntime().hostCapabilities).toEqual(DESKTOP_HOST_CAPABILITIES);
+    expect(hasClientCapability("nativeSsh")).toBe(false);
+    expect(hasClientCapability("nativeBrowserWebContents")).toBe(false);
+  });
+
+  it("keeps managed capabilities when a secondary host negotiates fewer services", () => {
+    installElectronClientRuntime(electronHost("x64"));
+    applyNegotiatedHostCapabilities(UNKNOWN_HOST_CAPABILITIES);
+    expect(readClientRuntime().hostCapabilities).toEqual(DESKTOP_HOST_CAPABILITIES);
+    expect(hasClientCapability("nativeSsh")).toBe(true);
+    expect(hasClientCapability("nativeBrowserWebContents")).toBe(true);
+    expect(hasClientCapability("osNotifications")).toBe(true);
+  });
+
+  it("reads autoUpdate and osNotifications from each flavor's describe (V6 C.3)", () => {
+    installElectronClientRuntime(electronHost("x64"));
+    expect(readClientRuntime().hostCapabilities).toMatchObject({
+      autoUpdate: true,
+      osNotifications: true,
+    });
+    expect(hasClientCapability("osNotifications")).toBe(true);
+    resetClientRuntimeForTest();
+    installBrowserClientRuntime(bridge("web"));
+    expect(readClientRuntime().hostCapabilities).toMatchObject({
+      autoUpdate: false,
+      osNotifications: false,
+    });
+    expect(hasClientCapability("osNotifications")).toBe(false);
+    applyNegotiatedHostCapabilities({
+      ...UNKNOWN_HOST_CAPABILITIES,
+      autoUpdate: true,
+      osNotifications: true,
+    });
+    expect(readClientRuntime().hostCapabilities).toMatchObject({
+      autoUpdate: true,
+      osNotifications: true,
+    });
   });
 });
 

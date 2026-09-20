@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
+import { IPC_PROCEDURE_MAP_VERSION } from "@/shared/ipc";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { resolveElectronAttachBootstrap } from "./clientRuntime";
@@ -18,7 +19,7 @@ function managedHost(): ElectronHostBridge {
     onSupervisorEvent: () => () => {},
     onSupervisorEventGap: () => () => {},
     onBackendSupervisorReset: () => () => {},
-    ipcProcedureMapVersion: 1,
+    ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
     invokeProcedure: async () => undefined,
   } as unknown as ElectronHostBridge;
 }

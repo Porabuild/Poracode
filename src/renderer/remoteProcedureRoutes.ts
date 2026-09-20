@@ -1,16 +1,13 @@
 import type { IpcProcedureName } from "@/shared/ipc";
 import { REMOTE_IPC_ADAPTER_SPECS } from "@/shared/remote";
 import {
-  REMOTE_NOOP_PROCEDURES,
   REMOTE_PROCEDURE_SPECS,
-  type RemoteNoopProcedureName,
   type RemoteProcedureName,
   type RemoteProcedureOwner,
 } from "@/shared/remote/procedures";
 
 export type RemoteRouteHandler =
   | "passthrough"
-  | "noop"
   | "adapter"
   | "thread-clipboard-image"
   | "thread-handoff-context"
@@ -29,13 +26,6 @@ const passthroughRoutes = Object.fromEntries(
   ]),
 ) as Record<RemoteProcedureName, RemoteProcedureRouteSpec>;
 
-const noopRoutes = Object.fromEntries(
-  Object.entries(REMOTE_NOOP_PROCEDURES).map(([procedure, owner]) => [
-    procedure,
-    { owner, handler: "noop" },
-  ]),
-) as Record<RemoteNoopProcedureName, RemoteProcedureRouteSpec>;
-
 const adapterRoutes = Object.fromEntries(
   Object.entries(REMOTE_IPC_ADAPTER_SPECS).map(([procedure, owner]) => [
     procedure,
@@ -46,7 +36,6 @@ const adapterRoutes = Object.fromEntries(
 /** Single policy table for choosing the host and transport for project-aware IPC. */
 export const REMOTE_PROCEDURE_ROUTES = {
   ...passthroughRoutes,
-  ...noopRoutes,
   ...adapterRoutes,
   saveClipboardImage: { owner: "thread", handler: "thread-clipboard-image" },
   saveHandoffContext: { owner: "thread", handler: "thread-handoff-context" },
@@ -54,68 +43,243 @@ export const REMOTE_PROCEDURE_ROUTES = {
   closeThread: { owner: "terminal", handler: "shell-close" },
 } as const satisfies Partial<Record<IpcProcedureName, RemoteProcedureRouteSpec>>;
 
-/** Project-aware procedures intentionally dispatched or disabled outside the bridge router. */
+/**
+ * Every procedure dispatched OUTSIDE the router, with the reason it can never
+ * leave the local shell (V6 B.2). A name must be classified in exactly one of
+ * {@link REMOTE_PROCEDURE_ROUTES} (router-owned; refused over preload IPC) or
+ * this table (executes over preload IPC on every leg; never expected to work
+ * remotely). A classification test enumerates `IpcProcedureName` and fails on
+ * any unclassified fall-through or missing justification.
+ */
 export const NON_ROUTER_PROJECT_PROCEDURES = {
-  startThread: "explicit-remote-thread-launch",
-  // The remote reopen endpoint resolves persisted launch state on the host.
-  ensureThreadRunning: "remote-server-internal",
-  // WS2 stage 3: revert anchors run inside the backend-owned compound revert
-  // (`POST /api/threads/{id}/checkpoint-revert`); renderers never invoke them.
-  createRevertAnchor: "backend-owned-compound-revert",
-  restoreToRevertAnchor: "backend-owned-compound-revert",
-  cloneRepo: "remote-projects-use-project-command",
-  relocateProject: "explicit-remote-project-command",
-  extractContext: "remote-control-hidden",
-  cancelExtractContext: "remote-control-hidden",
-  // Voice signaling and media ownership are limited to the local desktop.
-  connectThreadVoice: "remote-control-hidden",
-  disconnectThreadVoice: "remote-control-hidden",
-  createExperimentWorktrees: "remote-control-hidden",
-  removeExperimentWorktrees: "remote-control-hidden",
-  captureExperimentSnapshot: "remote-control-hidden",
-  judgeExperimentSnapshot: "remote-control-hidden",
-  getExperimentCandidateStats: "remote-control-hidden",
-  cancelJudgeExperiment: "remote-control-hidden",
-  lspStart: "remote-control-disabled",
-  lspStop: "remote-control-disabled",
-  lspSendMessage: "remote-control-disabled",
-  getSchedules: "device-owned-control",
-  createSchedule: "remote-projects-excluded",
-  updateSchedule: "remote-projects-excluded",
-  deleteSchedule: "remote-projects-excluded",
-  runScheduleNow: "remote-projects-excluded",
-  getScheduleRuns: "remote-projects-excluded",
-  dbUpsertProject: "remote-mirrors-not-persisted",
-  dbDeleteProject: "remote-mirrors-not-persisted",
-  dbUpsertThread: "remote-mirrors-not-persisted",
-  dbDeleteThread: "remote-mirrors-not-persisted",
-  dbSyncAll: "remote-mirrors-not-persisted",
-  dbSyncChanges: "remote-mirrors-not-persisted",
-  dbGetThreadRuntimeItems: "remote-runtime-mirror-local",
-  dbGetLatestThreadGoalItem: "remote-runtime-snapshot-provided",
-  // Paginated local hydration (facade 13); remote clients page via the HTTP
-  // snapshot/thread-list surfaces, never this procedure.
-  dbGetThreadsPage: "local-paginated-hydration",
-  dbReplaceThreadRuntimeItems: "remote-runtime-mirror-local",
-  dbGetThreadCompletedTurns: "remote-runtime-mirror-local",
-  dbReplaceThreadCompletedTurns: "remote-runtime-mirror-local",
-  dbReplaceThreadRuntimeSnapshot: "remote-runtime-mirror-local",
-  dbGetThreadContextUsage: "remote-runtime-mirror-local",
-  readTerminalScrollback: "remote-thread-snapshot-provided",
-  readTerminalSize: "remote-server-internal",
-  // Desktop-only IPC for remote terminal cursor-sync; never exposed as HTTP.
-  readTerminalSnapshot: "remote-server-internal",
-  readThreadBackgroundTasks: "remote-thread-snapshot-provided",
-  dbPersistExperimentState: "remote-experiments-excluded",
-  browserStartPicker: "device-owned-browser-control",
-  showNotification: "device-owned-notification",
-  detectProjectIcon: "remote-mirrors-skip-file-icons",
-  listProjectIconFiles: "remote-mirrors-skip-file-icons",
-  // Plugin packages are read from the host filesystem the supervisor runs on.
-  // A remote project's own `.poracode/plugins` therefore stays with its server;
-  // the local scan just falls back to the app-global roots.
-  listPlugins: "remote-projects-scan-locally",
-  refreshPlugins: "remote-projects-scan-locally",
+  // Native dialogs, clipboard, and local files
+  pickFolder: "local-shell: native folder dialog on this machine",
+  pickFiles: "local-shell: native file dialog on this machine",
+  browserStartPicker: "local-shell: native in-page picker dialog",
+  saveImageFile: "local-shell: native save dialog writes this machine's disk",
+  copyImageToClipboard: "local-shell: OS clipboard of this machine",
+  copyShareImage: "local-shell: OS clipboard share handoff of this machine",
+  readLocalImageFile: "local-shell: reads a file from this machine's disk for inline preview",
+  openPluginsFolder: "local-shell: reveals a folder in this machine's file manager",
+
+  // Window, OS, and app lifecycle
+  focusWindow: "local-shell: focuses this desktop's own window",
+  setWindowChrome: "local-shell: restyles this desktop window's native chrome",
+  relaunchApp: "local-shell: restarts this desktop's app process",
+  openExternal: "local-shell: opens a URL in this machine's default browser",
+  openExternalNative: "local-shell: opens a URL via this machine's OS shell",
+  openMicrophoneSettings: "local-shell: opens this machine's OS settings app",
+  showNotification: "local-shell: OS notification",
+  requestLegacyDataMigration: "local-shell: one-time migration of this machine's legacy data",
+  getHomeScopeLocation: "local-shell: this machine's home directory as the default project parent",
+  listWslDistros: "local-shell: enumerates this machine's WSL distros for location picking",
+  getAvailableWindowsShells: "local-shell: this machine's terminal shell inventory",
+
+  // Keybindings and global shortcuts (accelerators registered by this main process)
+  getKeybindings: "local-shell: keybindings consumed by this desktop's main-process accelerators",
+  setKeybindings: "local-shell: keybinding writes consumed by this desktop's accelerators",
+  setGlobalShortcutsSuspended: "local-shell: OS-global shortcuts registered by this desktop",
+
+  // Transport bootstrap (must run before any other data plane exists)
+  setRendererEventInterests:
+    "local-shell: this window's event-interest registration with its own main process",
+  getManagedLoopbackBootstrap:
+    "local-shell: mints the loopback credential itself, so it precedes the loopback leg on IPC",
+
+  // Remote-access server control — the host's own trust surface
+  getRemoteAccessPairing:
+    "local-shell: this host's pairing surface; a remote operator must never reconfigure the trust boundary",
+  refreshRemoteAccessPairing:
+    "local-shell: re-mints this host's pairing credential; trust-surface control stays with the physical host",
+  setRemoteAccessEnabled:
+    "local-shell: toggles this host's remote-access server; trust-surface control stays with the physical host",
+  revokeRemoteAccessSession:
+    "local-shell: revokes sessions on this host's server; trust-surface control stays with the physical host",
+  getRemoteAccessTailscaleStatus:
+    "local-shell: this host's Tailscale status; trust-surface control stays with the physical host",
+  setRemoteAccessTailscaleHttps:
+    "local-shell: reconfigures this host's Tailscale HTTPS; trust-surface control stays with the physical host",
+  startTailscale:
+    "local-shell: launches this host's Tailscale GUI; trust-surface control stays with the physical host",
+  setRemoteAccessAdvertisedUrl:
+    "local-shell: overrides this host's advertised URL; trust-surface control stays with the physical host",
+  probeTlsCertificateFingerprint:
+    "local-shell: probes a TLS host from this machine's network stack for pairing pinning",
+
+  // Renderer-to-main push that feeds THIS host's server
+  publishRemoteGitSummaries:
+    "local-shell: renderer-to-main push of live git state feeding this host's server; the server, not a client, serves the summaries",
+
+  // This install's auto-updater
+  getUpdateStatus:
+    "local-shell: this app install's updater state; remote clients read host update state via the host-update registry routes",
+  checkForUpdate:
+    "local-shell: runs this app install's updater; remote clients use the host-update-check registry route",
+  startUpdateDownload:
+    "local-shell: downloads into this app install; remote clients use the host-update registry route",
+  installUpdate:
+    "local-shell: quits and replaces this app install; remote clients use the host-update-install registry route",
+
+  // Window catalog mirrors — this window's SQLite, not host truth
+  dbGetProjects: "local-shell: this window's project catalog rows; host truth is the describe API",
+  dbGetThreads:
+    "local-shell: this window's thread catalog rows; host truth is the thread-list registry route",
+  dbUpsertProject: "local-shell: this window's catalog write; host truth is the snapshot/API",
+  dbUpsertThread: "local-shell: this window's catalog write; host truth is the snapshot/API",
+  dbSyncAll: "local-shell: this window's catalog sync; host truth is the snapshot/API",
+  dbSyncChanges: "local-shell: this window's catalog sync; host truth is the snapshot/API",
+  dbGetState: "local-shell: this window's persisted UI state blob",
+  dbSetState: "local-shell: this window's persisted UI state blob",
+
+  // Shared settings — desktop store; remote legs use the settings registry routes
+  getSharedSettings:
+    "local-shell: this desktop's settings store; remote clients read via the settings-read registry route",
+  setSharedSettings:
+    "local-shell: this desktop's settings store; remote clients write via the settings-write registry route",
+  settingsTransactionMutate:
+    "local-shell: atomic multi-write over this desktop's settings store; remote legs write per-key via settings-write",
+  settingsTransactionSnapshot: "local-shell: snapshot phase of this desktop's settings transaction",
+
+  // Profile — device reads plus local CLI profile files
+  getProfileIdentity:
+    "local-shell: this device's profile identity read; remote clients use the profile-identity registry route",
+  setProfileIdentity:
+    "local-shell: this device's profile identity write; remote clients use the profile-identity registry route",
+  getProfileCoreStats:
+    "local-shell: this device's profile stats; remote clients use the profile-core-stats registry route",
+  getProfileDevices:
+    "local-shell: this device's paired devices; remote clients use the profile-devices registry route",
+  getProfileTokenStats:
+    "local-shell: this device's token stats; remote clients use the profile-token-stats registry route",
+  setProfileEnvironment: "local-shell: writes this machine's CLI profile environment files",
+  createProfile: "local-shell: creates a CLI profile on this machine's disk",
+
+  // Usage capture and device login
+  appendUsageEvents: "local-shell: this device's usage capture into its own catalog",
+  getUsageLoginState: "local-shell: this device's provider login flow state",
+  startUsageLogin: "local-shell: device login flow (local OAuth window plus secret storage)",
+  cancelUsageLogin: "local-shell: device login flow (local OAuth window plus secret storage)",
+  clearUsageLogin: "local-shell: clears this device's stored provider login",
+  submitUsageApiKey: "local-shell: stores an API key in this device's secret storage",
+  resolveUsageLoginConfirmation: "local-shell: resolves this device's login confirmation dialog",
+  getProviderUsage:
+    "local-shell: reads this device's provider accounts; remote clients use the provider-usage registry route",
+  refreshProviderUsage:
+    "local-shell: re-probes this device's provider accounts; remote clients use the provider-usage registry route",
+
+  // Device agent + CLI management — installs, binaries, auth, secrets
+  getAgentStatuses:
+    "local-shell: this machine's CLI agent inventory; remote clients read via the agent-statuses registry route",
+  refreshAgentStatuses: "local-shell: re-probes this machine's CLI agent installs",
+  getAgentHookPluginStatuses: "local-shell: this machine's agent hook plugin inventory",
+  installAgentHookPlugin: "local-shell: installs into this machine's CLI hook plugins",
+  uninstallAgentHookPlugin: "local-shell: uninstalls from this machine's CLI hook plugins",
+  listAcpRegistry: "local-shell: this machine's ACP registry catalog",
+  installAcpRegistryAgent: "local-shell: installs a CLI agent on this machine",
+  updateAcpRegistryAgent: "local-shell: updates a CLI agent install on this machine",
+  removeAcpRegistryAgent: "local-shell: removes a CLI agent install from this machine",
+  setAcpRegistryAgentAuth: "local-shell: stores agent auth on this machine",
+  authenticateAcpAgent: "local-shell: runs this machine's agent OAuth window and secret store",
+  logoutAcpAgent: "local-shell: clears agent auth on this machine",
+  resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",
+  updateAgentBinary: "local-shell: downloads and swaps this machine's agent binaries",
+  getLatestAgentVersion: "local-shell: version probe for this machine's agent installs",
+  manageAgentPlugins: "local-shell: manages this machine's agent plugin packages",
+  manageAgentCredentials: "local-shell: this machine's keychain-stored agent credentials",
+  setAgentSecretSetting: "local-shell: writes a secret into this machine's keychain",
+  getNativeMcpSetup: "local-shell: reads this machine's CLI MCP config files",
+  applyNativeMcpSetup: "local-shell: rewrites this machine's CLI MCP config files",
+  reloadAgentMcpServers: "local-shell: reloads CLI servers registered on this machine",
+
+  // Cross-agent routing and memory — this device's config
+  getCrossagentRouting: "local-shell: this device's cross-agent routing config",
+  confirmCrossagentRoutingOverride: "local-shell: this device's routing override decision",
+  removeCrossagentRoutingOverride: "local-shell: this device's routing override decision",
+  updateCrossagentMemoryEntryTags: "local-shell: this device's memory catalog",
+  removeCrossagentMemoryEntry: "local-shell: this device's memory catalog",
+
+  // Desktop browser panel — the WebContentsView tab strip of this window
+  browserGetState: "local-shell: this desktop window's browser tab strip",
+  browserCreateTab:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserCloseTab:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserActivateTab:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserMoveTab:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserSetGroupCollapsed:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserUngroupGroup:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserCloseGroup:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserNewTabInGroup:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserRenameGroup:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserSetGroupColor:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserNavigate:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserBack:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserForward:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserReload:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserHardReload:
+    "local-shell: drives this desktop window's in-app browser; remote page control is the browser-state/browser-command registry routes",
+  browserToggleDevTools: "local-shell: devtools of this desktop window's in-app browser view",
+  browserClearHistory: "local-shell: this desktop window's browser profile data",
+  browserClearCookies: "local-shell: this desktop window's browser profile data",
+  browserClearCache: "local-shell: this desktop window's browser profile data",
+  browserCopyScreenshot: "local-shell: copies a shot of this window's browser view",
+  browserCapturePreview: "local-shell: captures this window's browser view preview",
+  browserAttachWebContents: "local-shell: hosts a view inside this desktop window",
+  browserCancelPicker: "local-shell: cancels this window's native picker dialog",
+  browserSuggest: "local-shell: this window's address-bar suggestions",
+  browserAddBookmark: "local-shell: this window's browser bookmarks",
+  browserRemoveBookmark: "local-shell: this window's browser bookmarks",
+  browserSetBookmarkBarVisible: "local-shell: this window's bookmark bar visibility",
+  browserRecentHistory: "local-shell: this window's browser history",
+  browserExtractToWindow: "local-shell: reparents a view inside this desktop window",
+  browserInjectToMain: "local-shell: injects scripts into this window's browser views",
+
+  // SSH dials out from this device; no registry surface by design
+  sshDiscoverHosts: "local-shell: SSH discovery runs from this device's network",
+  sshConnect: "local-shell: SSH dials out from this device; no registry surface by design",
+  sshDisconnect: "local-shell: SSH dials out from this device; no registry surface by design",
+
+  // Snapshot hydration reads for this window
+  getThreadSnapshots:
+    "local-shell: this window's hydration read of the backend snapshot stores; remote clients page snapshots through the server surfaces",
+  getTerminalShellSnapshots:
+    "local-shell: this window's hydration read of the backend snapshot stores; remote clients page snapshots through the server surfaces",
+
+  // Local language clients and plugins
+  lspStop: "local-shell: language-client lifetime is bound to this renderer window",
+  lspSendMessage: "local-shell: LSP JSON-RPC is a per-window language client",
+  listPlugins: "local-shell: plugin package scan is this window's disk catalog",
+  refreshPlugins: "local-shell: plugin package rescan is this window's disk catalog",
+
+  // New-project local prep
+  createProjectDirectory:
+    "local-shell: preps a directory on this machine's disk; creating projects on a remote host is the project-command registry route",
+
+  // Experiments — this window's git catalog
+  dbPersistExperimentState:
+    "local-shell: experiment UI state is this window's catalog, not a host supervisor procedure",
+  createExperimentWorktrees:
+    "local-shell: experiment worktrees are this window's git catalog; unique-candidate refinements are not portable wire validators",
+  removeExperimentWorktrees:
+    "local-shell: experiment worktrees are this window's git catalog; unique-candidate refinements are not portable wire validators",
+  captureExperimentSnapshot:
+    "local-shell: experiment snapshots are this window's git catalog; unique-candidate refinements are not portable wire validators",
+  judgeExperimentSnapshot:
+    "local-shell: experiment judging is this window's catalog; response-match refinements are not portable wire validators",
+  getExperimentCandidateStats: "local-shell: experiment diff stats are this window's git catalog",
+  cancelJudgeExperiment: "local-shell: experiment judge cancellation is this window's catalog",
 } as const satisfies Partial<Record<IpcProcedureName, string>>;
 
 export type RemoteRoutableProcedureName = keyof typeof REMOTE_PROCEDURE_ROUTES;

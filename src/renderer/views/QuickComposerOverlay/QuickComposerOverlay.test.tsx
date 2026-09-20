@@ -291,4 +291,30 @@ describe("QuickComposerOverlay", () => {
       }),
     ).toEqual(otherProject);
   });
+
+  it("applies live agent status from the loopback-backed supervisor subscription", () => {
+    let listener: ((event: unknown) => void) | undefined;
+    bridge.onSupervisorEvent.mockImplementation((cb) => {
+      listener = cb;
+      return () => undefined;
+    });
+    render(<QuickComposerOverlay />);
+    act(() => {
+      listener?.({
+        type: "windows-agent-statuses",
+        statuses: [
+          {
+            kind: "claude",
+            label: "Claude",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {},
+          },
+        ],
+      });
+    });
+    expect(
+      useAgentStatusesStore.getState().agentStatuses.some((status) => status.kind === "claude"),
+    ).toBe(true);
+  });
 });

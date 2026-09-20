@@ -4,8 +4,8 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import {
   RemoteAccessServer,
   type RemoteAccessServerOptions,
-} from "@/main/remote/RemoteAccessServer";
-import { ElectronBackendTransport } from "@/renderer/electronBackendTransport";
+} from "@/host/remote/RemoteAccessServer";
+import { ElectronBackendTransport, PreloadIpcTransport } from "@/renderer/hostTransport";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import {
   DesktopLoopbackIntake,
@@ -131,32 +131,27 @@ describe("ElectronBackendTransport loopback leg", () => {
     terminalInstanceId: "gen-1",
   });
 
-  it("drops every relay event while the loopback leg is active (terminal watches included)", async () => {
+  it("never delivers live IPC relay events (V6 B.6)", async () => {
     const { transport, emit } = makeTransport();
     const received: SupervisorEvent[] = [];
     transport.subscribe((event) => received.push(event));
     await transport.setEventInterests({ terminalThreadIds: ["t1"], runtimeThreadIds: ["t1"] });
 
-    // Leg activation rebuilds every subscribed thread (the handoff primitive):
-    // the terminal interest earns a scrollback resync, the runtime interest a
-    // reset.
     transport.setLoopbackActive(true);
     expect(received).toEqual([
       expect.objectContaining({ type: "thread-scrollback-resync", threadId: "t1" }),
       expect.objectContaining({ type: "thread-reset", threadId: "t1" }),
     ]);
 
-    // Relay events while active: everything is dropped — the loopback leg
-    // delivers shared + desktop-only events, and since the 2.5 completion the
-    // terminal surface consumes PTY bytes via `terminal-watch` on that leg.
     emit({ type: "thread-reset", threadId: "t1" }, 1);
     emit(outputEvent("t1"), 2);
     expect(received).toHaveLength(2);
 
-    // Fallback: the relay delivers everything again.
     transport.setLoopbackActive(false);
     emit({ type: "thread-reset", threadId: "t2" }, 3);
-    expect(received.at(-1)).toEqual({ type: "thread-reset", threadId: "t2" });
+    emit(outputEvent("t1"), 4);
+    expect(received.filter((event) => event.type === "thread-output")).toEqual([]);
+    expect(received.at(-1)).not.toEqual({ type: "thread-reset", threadId: "t2" });
   });
 
   it("delivers loopback events through the same listener surface", () => {
@@ -193,7 +188,7 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     return server;
   }
 
-  function wsSocketFactory(url: string) {
+  function wsSocketFactory(url: string, capture?: (frame: string) => void) {
     const socket = new NodeWebSocket(url);
     socket.on("error", () => {
       // Swallow transport errors: the intake models them as close.
@@ -202,7 +197,11 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     let onmessage: ((event: { readonly data: unknown }) => void) | null = null;
     let onclose: (() => void) | null = null;
     socket.on("open", () => onopen?.());
-    socket.on("message", (data) => onmessage?.({ data: data.toString() }));
+    socket.on("message", (data) => {
+      const text = data.toString();
+      capture?.(text);
+      onmessage?.({ data: text });
+    });
     socket.on("close", () => onclose?.());
     return {
       close: () => socket.close(),
@@ -236,17 +235,21 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     const dispatched: SupervisorEvent[] = [];
     // Deep-review regression: the shared stream's per-session seq must reach
     // the reducer — an unsequenced runtime delta permanently poisons
-    // overflow recovery (hasUnsequenced refuses the snapshot), and the
-    // desktop-event stream's separate counter must NOT leak into that slot.
+    // overflow recovery (hasUnsequenced refuses the snapshot). V6 B.4: the
+    // sequence space rides the WIRE frame, so both streams' counters reach
+    // dispatch and arbitration keys on (space, seq) — the desktop counter in
+    // the "ipc" space never collides with the shared "loopback" counter.
     const dispatchedSeqs: Array<number | undefined> = [];
+    const dispatchedSpaces: Array<string | undefined> = [];
     let rebuilds = 0;
     let activations = 0;
     const intake = new DesktopLoopbackIntake({
       endpoint: info.localHttpBaseUrl,
       pairingToken: pairingToken!,
-      dispatch: (event, seq) => {
+      dispatch: (event, seq, space) => {
         dispatched.push(event);
         dispatchedSeqs.push(seq);
+        dispatchedSpaces.push(space);
       },
       requestRebuild: () => {
         rebuilds += 1;
@@ -276,9 +279,11 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
         "remote-threads-changed",
       ]);
     });
-    // desktop-event frames carry their own counter and never enter the
-    // runtime queue; only the SHARED stream's seq is forwarded.
-    expect(dispatchedSeqs).toEqual([undefined, 1]);
+    // Each frame names its own space on the wire: desktop-event frames carry
+    // the desktop counter as ("ipc", 1), shared frames ("loopback", 1) — the
+    // same seq number in two spaces, both delivered.
+    expect(dispatchedSeqs).toEqual([1, 1]);
+    expect(dispatchedSpaces).toEqual(["ipc", "loopback"]);
 
     intake.dispose();
     expect(intake.isActive()).toBe(false);
@@ -326,5 +331,104 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     // FIFO over one socket: the desktop-only family never reached it.
     expect(frames.some((frame) => frame.type === "desktop-event")).toBe(false);
     external.close();
+  });
+
+  it("delivers interleaved (space, seq) streams across a mid-stream leg flip (V6 B.4)", async () => {
+    const info = await buildServer().start();
+    const pairingToken = new URLSearchParams(new URL(info.pairingUrl).hash.slice(1)).get("token");
+    expect(pairingToken).toBeTruthy();
+
+    // Real wire capture: every raw server frame, and every live socket, so the
+    // test can sever the leg mid-stream.
+    const rawFrames: string[] = [];
+    const opened: ReturnType<typeof wsSocketFactory>[] = [];
+    const capturingSocketFactory = (url: string) => {
+      const socket = wsSocketFactory(url, (frame) => rawFrames.push(frame));
+      opened.push(socket);
+      return socket;
+    };
+
+    // Arbitration rides the transport's per-space cursor exactly like the
+    // managed wiring does (dispatch -> dispatchSequencedEvent).
+    const resetListeners = new Set<() => void>();
+    const transport = new PreloadIpcTransport({
+      onBackendSupervisorReset: () => {
+        const handler = (): void => {
+          for (const listener of [...resetListeners]) listener();
+        };
+        resetListeners.add(handler);
+        return () => resetListeners.delete(handler);
+      },
+      invokeProcedure: async () => null,
+    } as unknown as ElectronHostBridge);
+    const delivered: Array<{ type: string; seq: number | undefined; space: string | undefined }> =
+      [];
+    let activations = 0;
+    let deactivations = 0;
+    const intake = new DesktopLoopbackIntake({
+      endpoint: info.localHttpBaseUrl,
+      pairingToken: pairingToken!,
+      retryDelayMs: 40,
+      dispatch: (event, seq, space) => {
+        transport.dispatchSequencedEvent(event, seq, space ?? "loopback");
+      },
+      requestRebuild: () => {},
+      onActiveChanged: (active) => {
+        if (active) activations += 1;
+        else deactivations += 1;
+        transport.setLoopbackActive(active);
+      },
+      socketFactory: capturingSocketFactory,
+    });
+    intakes.push(intake);
+    transport.subscribeEvents((event, seq, space) => {
+      delivered.push({ type: String(event.type), seq, space });
+    });
+
+    await expect(intake.activate()).resolves.toBe(true);
+
+    const server = servers[0]!;
+    // Interleave the two spaces: the desktop counter and the shared counter
+    // advance independently. With a single-space dedupe cursor the shared
+    // events (1, then 2) would be eaten by the desktop events (1, then 2).
+    server.publishSupervisorEvent({ type: "git-changed", projectId: "p1" });
+    server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t1"] });
+    server.publishSupervisorEvent({ type: "git-changed", projectId: "p2" });
+    server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t2"] });
+    await vi.waitFor(() => expect(delivered).toHaveLength(4));
+    expect(delivered.map((entry) => [entry.space, entry.seq])).toEqual([
+      ["ipc", 1],
+      ["loopback", 1],
+      ["ipc", 2],
+      ["loopback", 2],
+    ]);
+    // The space is ON THE WIRE FRAME — raw server bytes carry it, and the
+    // intake read it from there, not from an in-process argument.
+    expect(
+      rawFrames.some((frame) => frame.startsWith('{"type":"desktop-event","seq":1,"space":"ipc"')),
+    ).toBe(true);
+    expect(
+      rawFrames.some((frame) => frame.startsWith('{"type":"event","seq":1,"space":"loopback"')),
+    ).toBe(true);
+
+    // Flip the leg mid-stream: sever the socket; the intake reconnects on the
+    // retained bearer and both spaces resume without dropping a frame. The
+    // inactive window is shorter than a poll interval, so count the flip.
+    for (const socket of opened.splice(0)) socket.close();
+    await vi.waitFor(() => expect(deactivations).toBeGreaterThanOrEqual(1));
+    await vi.waitFor(() => {
+      expect(activations).toBeGreaterThanOrEqual(2);
+      expect(intake.isActive()).toBe(true);
+    });
+
+    server.publishSupervisorEvent({ type: "git-changed", projectId: "p3" });
+    server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t3"] });
+    await vi.waitFor(() => expect(delivered).toHaveLength(6));
+    // Post-flip: the server-side counters continue (ipc 3, loopback 3) and
+    // neither space's cursor swallowed them.
+    expect(delivered.slice(4).map((entry) => [entry.space, entry.seq])).toEqual([
+      ["ipc", 3],
+      ["loopback", 3],
+    ]);
   });
 });

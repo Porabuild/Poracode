@@ -15,6 +15,7 @@ import type {
   RemoteProjectCommand,
   RemoteShellSnapshot,
 } from "@/shared/remote";
+import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import type { SshConnectionConfig } from "@/shared/ssh";
 
 /** Transport reachability is offline; reachable protocol or action failures are errors. */
@@ -34,6 +35,8 @@ export interface RemoteServerRecord {
   readonly platform?: "win32" | "darwin" | "linux";
   /** Absent on records paired before standalone helpers advertised their host mode. */
   readonly hostMode?: RemoteHostMode;
+  /** V6 C.2: last GET /api/host/describe. Absent records fail closed. */
+  readonly hostCapabilities?: HostServiceCapabilities;
   /**
    * Browser-origin port entry support from the last environment descriptor.
    * `false` is authoritative once a descriptor loaded; absent means unknown

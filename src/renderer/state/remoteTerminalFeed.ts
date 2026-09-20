@@ -8,7 +8,6 @@ import type { RemoteWebSocketServerMessage } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
 import { remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
 import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
-import { MANAGED_LOOPBACK_DESKTOP_ID } from "@/renderer/state/remoteServers/managedLoopbackOwner";
 
 /**
  * Renderer instance of the shared terminal feed, used by remote thread views.
@@ -24,6 +23,13 @@ import { MANAGED_LOOPBACK_DESKTOP_ID } from "@/renderer/state/remoteServers/mana
 export type RemoteTerminalListener = TerminalFeedListener;
 
 const feeds = new Map<string, ReturnType<typeof createTerminalFeed>>();
+
+/** Feed-map key for the managed desktop's own PTY bytes. Not a paired-server id. */
+const MANAGED_FEED_ID = "managed";
+
+export function managedTerminalFeedId(): string {
+  return MANAGED_FEED_ID;
+}
 
 function feedFor(desktopId: string) {
   const current = feeds.get(desktopId);
@@ -103,9 +109,9 @@ export function resetRemoteTerminalFeed(desktopId?: string): void {
  * Managed loopback terminal leg (V5 plan 2.5 completion). While the leg is
  * active, local (managed) terminal surfaces consume PTY bytes through the
  * loopback feed's `terminal-watch` machinery — v1/v2 cursor sync and chunked
- * baselines included — exactly like remote terminals. While it is down, the
- * desktop-IPC relay's `thread-output` is the fallback, with the existing
- * scrollback-recovery semantics (`thread-scrollback-resync` rehydration).
+ * baselines included — exactly like remote terminals. While it is down there
+ * is no IPC `thread-output` data plane (V6 B.6); `thread-scrollback-resync`
+ * rehydration waits for the loopback leg to resume.
  */
 
 const managedLegListeners = new Set<(active: boolean) => void>();
@@ -128,7 +134,7 @@ export function setManagedLoopbackTerminalLeg(active: boolean): void {
   if (!active) {
     // Watches detached by their owners below; drop the (dead) sender and all
     // feed state for the loopback identity.
-    resetRemoteTerminalFeed(MANAGED_LOOPBACK_DESKTOP_ID);
+    resetRemoteTerminalFeed(MANAGED_FEED_ID);
   }
   for (const listener of [...managedLegListeners]) listener(active);
 }
@@ -148,8 +154,8 @@ export type ManagedTerminalListener = TerminalFeedListener & {
  *
  * - loopback active: feeds through the loopback terminal feed (watches,
  *   baselines, cursor sync);
- * - loopback down: feeds through the desktop-IPC relay (`thread-output`),
- *   forwarding the resync signal for scrollback recovery.
+ * - loopback down: no live PTY until the intake reconnects (V6 B.6); the
+ *   resync signal still drives scrollback recovery on the next rebuild.
  *
  * The renderer interest lease stays held in BOTH modes: it keeps the
  * backend's retention and the transport's rebuild scope intact, and mirrors
@@ -168,7 +174,7 @@ export function watchManagedTerminal(
 
   const enterFeed = (): void => {
     if (feedUnsubscribe) return;
-    feedUnsubscribe = watchRemoteTerminal(MANAGED_LOOPBACK_DESKTOP_ID, id, listener);
+    feedUnsubscribe = watchRemoteTerminal(MANAGED_FEED_ID, id, listener);
   };
   const enterRelay = (): void => {
     // Clear the handle FIRST: a leg loss that reset the whole feed turns the

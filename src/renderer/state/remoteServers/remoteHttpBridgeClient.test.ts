@@ -192,6 +192,29 @@ describe("RemoteHttpBridgeClient", () => {
     });
   });
 
+  it("preserves the certificate mismatch code instead of reporting offline", async () => {
+    const harness = createHarness();
+    const pending = harness.client.fetch("https://host.test/api", {
+      certFingerprint: "a".repeat(64),
+    });
+    const requestId = await firstRequestId(harness);
+    expect(harness.opens[0]?.certFingerprint).toBe("a".repeat(64));
+    const pair = createInMemoryBridgePortPair();
+    harness.deliver(envelope(requestId), pair.client);
+    pair.worker.postMessage({
+      v: V,
+      kind: "error",
+      requestId,
+      generation: 5,
+      code: "certificate_fingerprint_mismatch",
+      message: "certificate_fingerprint_mismatch",
+    });
+    await expect(pending).rejects.toMatchObject({
+      status: 502,
+      code: "certificate_fingerprint_mismatch",
+    });
+  });
+
   it("aborts while opening, cancels by id, and drops a late port", async () => {
     const harness = createHarness();
     const deferred = Promise.withResolvers<RemoteHttpBridgeOpenResult>();

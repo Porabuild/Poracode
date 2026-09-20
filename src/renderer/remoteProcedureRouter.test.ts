@@ -3,10 +3,11 @@ import { z } from "zod";
 import { ipcProcedureMap, type IpcProcedureName } from "@/shared/ipc";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import {
-  REMOTE_NOOP_PROCEDURES,
+  isRemoteProcedure,
   REMOTE_PROCEDURE_SPECS,
   type RemoteProcedureOwner,
 } from "@/shared/remote/procedures";
+import { isRemoteIpcAdapterProcedure } from "@/shared/remote/ipcAdapter";
 import {
   registerRemoteProcedureHost,
   resetRemoteProcedureRouterForTest,
@@ -30,6 +31,7 @@ function payloadForOwner(owner: RemoteProcedureOwner, remote: boolean): Record<s
   }
   if (owner === "worktreeLocation") return { worktreeLocation: location };
   if (owner === "location") return { location };
+  if (owner === "parentLocation") return { parentLocation: location };
   if (owner === "runtime") return { runtime: location };
   if (owner === "skillLocations") {
     return {
@@ -116,6 +118,7 @@ describe("remote procedure routing registry", () => {
   const startShell = vi.fn<RemoteDesktopClient["startShell"]>(async () => {});
   const closeShell = vi.fn<RemoteDesktopClient["closeShell"]>(async () => {});
   const closeThread = vi.fn<RemoteDesktopClient["closeThread"]>(async () => {});
+  const schedules = vi.fn<RemoteDesktopClient["schedules"]>(async () => []);
   const client = {
     callRemoteProcedure,
     projectNotes,
@@ -134,6 +137,7 @@ describe("remote procedure routing registry", () => {
     startShell,
     closeShell,
     closeThread,
+    schedules,
   } as unknown as RemoteDesktopClient;
   const host: RemoteProcedureHost = {
     resolveThreadOwner: (threadId) =>
@@ -142,6 +146,7 @@ describe("remote procedure routing registry", () => {
       projectId === "projected-project"
         ? { desktopId: "d1", remoteId: "remote-project" }
         : undefined,
+    resolveDesktopOwner: () => ({ desktopId: "d1" }),
     withClient: async (desktopId, invoke) => {
       expect(desktopId).toBe("d1");
       return invoke(client);
@@ -445,7 +450,7 @@ describe("remote procedure routing registry", () => {
     },
   );
 
-  it.each(Object.entries(REMOTE_PROCEDURE_SPECS))(
+  it.each(Object.entries(REMOTE_PROCEDURE_SPECS).filter(([, spec]) => spec.owner !== "desktop"))(
     "keeps shared procedure %s local without a remote owner",
     (procedure, spec) => {
       expect(decide(procedure as IpcProcedureName, payloadForOwner(spec.owner, false))).toEqual({
@@ -455,24 +460,77 @@ describe("remote procedure routing registry", () => {
     },
   );
 
-  it.each(Object.entries(REMOTE_NOOP_PROCEDURES))(
-    "resolves remote no-op %s without invoking the client",
-    async (procedure, owner) => {
-      const decision = decide(procedure as IpcProcedureName, payloadForOwner(owner, true));
-      expect(decision.kind).toBe("remote");
-      await remoteResult(decision);
-      expect(callRemoteProcedure).not.toHaveBeenCalled();
-    },
-  );
+  it("routes former no-op names over the passthrough (V6 B.2)", async () => {
+    const decision = decide("startThread", payloadForOwner("projectLocation", true));
+    expect(decision.kind).toBe("remote");
+    await remoteResult(decision);
+    expect(callRemoteProcedure).toHaveBeenCalledWith("startThread", expect.any(Object));
+    expect(REMOTE_PROCEDURE_ROUTES.startThread.handler).toBe("passthrough");
+    expect(REMOTE_PROCEDURE_ROUTES.readTerminalSnapshot.handler).toBe("passthrough");
+    expect(REMOTE_PROCEDURE_ROUTES.dbGetThreadsPage.handler).toBe("passthrough");
+  });
 
-  it("keeps terminal snapshot reads on the remote host", () => {
-    expect(REMOTE_PROCEDURE_ROUTES).not.toHaveProperty("readTerminalScrollback");
-    expect(REMOTE_PROCEDURE_ROUTES).not.toHaveProperty("readTerminalSize");
-    expect(REMOTE_PROCEDURE_ROUTES).not.toHaveProperty("readTerminalSnapshot");
+  it("routes desktop-scoped adapter procedures to the attached host's desktop (V6 B.2)", async () => {
+    const decision = decide("getSchedules", {});
+    expect(decision.kind).toBe("remote");
+    await remoteResult(decision);
+    expect(schedules).toHaveBeenCalledTimes(1);
+    expect(callRemoteProcedure).not.toHaveBeenCalled();
+    expect(REMOTE_PROCEDURE_ROUTES.getSchedules.owner).toBe("desktop");
+  });
+
+  it("forwards desktop-scoped passthrough payloads untouched (V6 B.2)", async () => {
+    const decision = decide("listSkillMarketplace", { marketplace: "official", sort: "rank" });
+    expect(decision.kind).toBe("remote");
+    await remoteResult(decision);
+    expect(callRemoteProcedure).toHaveBeenCalledWith("listSkillMarketplace", {
+      marketplace: "official",
+      sort: "rank",
+    });
+  });
+
+  it("keeps desktop-scoped procedures local when no desktop owner is attached", () => {
+    registerRemoteProcedureHost({ ...host, resolveDesktopOwner: () => undefined });
+    expect(decide("getSchedules", {}).kind).toBe("local");
+    expect(decide("listSkillMarketplace", { marketplace: "official" }).kind).toBe("local");
+  });
+
+  it("classifies every IPC procedure as routable or justified local-shell (V6 B.2)", () => {
+    const all = Object.keys(ipcProcedureMap);
+    // No fall-through: every procedure name must be classified in exactly one
+    // of the two tables. Anything outside ROUTES executes over preload IPC,
+    // and anything inside ROUTES is refused there ("IPC data plane removed").
+    const unclassified = all.filter(
+      (name) => !(name in REMOTE_PROCEDURE_ROUTES) && !(name in NON_ROUTER_PROJECT_PROCEDURES),
+    );
+    expect(unclassified).toEqual([]);
+    const overlapping = all.filter(
+      (name) => name in REMOTE_PROCEDURE_ROUTES && name in NON_ROUTER_PROJECT_PROCEDURES,
+    );
+    expect(overlapping).toEqual([]);
+    // A justification must say WHY the name can never leave the local shell
+    // — not a bare prefix and not a legacy one-word tag.
+    const unjustified = Object.entries(NON_ROUTER_PROJECT_PROCEDURES)
+      .filter((entry) => {
+        const reason = entry[1].replace(/^local-shell: /, "");
+        return !entry[1].startsWith("local-shell: ") || reason.length < 15;
+      })
+      .map(([name, justification]) => `${name}: "${justification}"`);
+    expect(unjustified).toEqual([]);
+    // Nothing classified local-shell may be expected to work remotely: the
+    // server allowlist and the adapter surface must not list it.
+    const remotelyListed = Object.keys(NON_ROUTER_PROJECT_PROCEDURES).filter(
+      (name) => isRemoteProcedure(name) || isRemoteIpcAdapterProcedure(name),
+    );
+    expect(remotelyListed).toEqual([]);
     expect(NON_ROUTER_PROJECT_PROCEDURES).toMatchObject({
-      readTerminalScrollback: "remote-thread-snapshot-provided",
-      readTerminalSize: "remote-server-internal",
-      readTerminalSnapshot: "remote-server-internal",
+      pickFolder: expect.stringMatching(/^local-shell: /),
+      relaunchApp: expect.stringMatching(/^local-shell: /),
+      setRemoteAccessEnabled: expect.stringMatching(/^local-shell: /),
+      getSharedSettings: expect.stringMatching(/^local-shell: /),
+      browserNavigate: expect.stringMatching(/^local-shell: /),
+      sshConnect: expect.stringMatching(/^local-shell: /),
+      dbGetProjects: expect.stringMatching(/^local-shell: /),
     });
   });
 

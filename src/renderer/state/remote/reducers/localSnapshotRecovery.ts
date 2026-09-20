@@ -1,3 +1,4 @@
+import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { useAppStore } from "@/renderer/state/appStore";
 import { rehydrateThreadRuntimeItemsAfterReset } from "@/renderer/state/chatRuntimePersister";
@@ -18,7 +19,11 @@ import type {
 export interface LocalSnapshotRecovery {
   readonly strategy: RuntimeEventRecoveryStrategy;
   /** Records the transport sequence of every sequenced event, per thread. */
-  readonly noteSequencedSupervisorEvent: (event: SupervisorEvent, rendererSequence: number) => void;
+  readonly noteSequencedSupervisorEvent: (
+    event: SupervisorEvent,
+    rendererSequence: number,
+    space?: EventSequenceSpace,
+  ) => void;
   /** A new backend renderer-stream generation invalidates prior reads. */
   readonly onTransportGenerationChanged: () => void;
   readonly clearSequenceTracking: () => void;
@@ -28,7 +33,10 @@ export function createLocalSnapshotRecovery(deps: {
   readonly getArbitration: () => RuntimeQueueArbitration;
 }): LocalSnapshotRecovery {
   let rendererTransportGeneration = 0;
-  const latestRendererSequenceByThread = new Map<string, number>();
+  const latestRendererSequenceByThread = new Map<
+    string,
+    Partial<Record<EventSequenceSpace, number>>
+  >();
 
   /**
    * A local DB snapshot has no event cursor of its own. Repeat the read when
@@ -39,17 +47,20 @@ export function createLocalSnapshotRecovery(deps: {
   async function recoverRuntimeThread(threadId: string): Promise<boolean> {
     const generation = rendererTransportGeneration;
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const before = latestRendererSequenceByThread.get(threadId) ?? 0;
+      const before = { ...latestRendererSequenceByThread.get(threadId) };
       useAppStore.getState().clearThreadRuntimeEvents(threadId);
       clearRuntimeItemStoreSelectorCacheForThread(threadId);
       const recovered = await rehydrateThreadRuntimeItemsAfterReset(threadId);
       if (!recovered) return false;
       if (rendererTransportGeneration !== generation) return false;
       const after = latestRendererSequenceByThread.get(threadId) ?? before;
-      if (after !== before) continue;
+      if (after.ipc !== before.ipc || after.loopback !== before.loopback) continue;
       const arbitration = deps.getArbitration();
       if (arbitration.hasUnsequenced(threadId)) return false;
-      arbitration.discardThroughSequence(threadId, after);
+      for (const space of ["ipc", "loopback"] as const) {
+        const sequence = after[space];
+        if (sequence !== undefined) arbitration.discardThroughSequence(threadId, sequence, space);
+      }
       return true;
     }
     return false;
@@ -70,19 +81,18 @@ export function createLocalSnapshotRecovery(deps: {
 
   return {
     strategy,
-    noteSequencedSupervisorEvent: (event, rendererSequence) => {
+    noteSequencedSupervisorEvent: (event, rendererSequence, space = "ipc") => {
+      const note = (threadId: string): void => {
+        const previous = latestRendererSequenceByThread.get(threadId) ?? {};
+        latestRendererSequenceByThread.set(threadId, {
+          ...previous,
+          [space]: rendererSequence,
+        });
+      };
       if (event.type === "thread-runtime-events-multi") {
-        for (const batch of event.batches) {
-          latestRendererSequenceByThread.set(
-            batch.threadId,
-            Math.max(latestRendererSequenceByThread.get(batch.threadId) ?? 0, rendererSequence),
-          );
-        }
+        for (const batch of event.batches) note(batch.threadId);
       } else if ("threadId" in event) {
-        latestRendererSequenceByThread.set(
-          event.threadId,
-          Math.max(latestRendererSequenceByThread.get(event.threadId) ?? 0, rendererSequence),
-        );
+        note(event.threadId);
       }
     },
     onTransportGenerationChanged: () => {

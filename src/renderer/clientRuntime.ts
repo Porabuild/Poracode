@@ -9,104 +9,53 @@ import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import { standaloneAttachInfoSchema } from "@/shared/standaloneAttach";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import {
-  PORACODE_REMOTE_PROTOCOL_VERSION,
-  TERMINAL_CURSOR_SYNC_V2_VERSION,
-} from "@/shared/remote/protocol";
-import {
-  REMOTE_OPERATOR_SCOPES,
-  type RemoteWebSocketClientMessage,
-  type RemoteWebSocketServerMessage,
-} from "@/shared/remote";
+  hostServiceCapabilitiesSchema,
+  UNKNOWN_HOST_SERVICE_CAPABILITIES,
+} from "@/shared/hostControlProtocol";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import {
   assertIpcProcedureMapVersion,
   createProcedureBridge,
   parseIpcProcedureArgs,
-  type IpcProcedureName,
   type PoracodeBridge,
 } from "@/shared/ipc";
-import { msg } from "@/shared/messages";
-import { ElectronBackendTransport } from "./electronBackendTransport";
 import { isCompactLayoutViewport } from "./adaptiveLayout";
 import { isRemoteRoutableProcedure } from "./remoteProcedureRoutes";
+import { routeRemoteProcedure } from "./remoteProcedureRouter";
 import {
-  readRegisteredRemoteProcedureHost,
-  routeRemoteProcedure,
-  stampRemoteOwnerOntoPayload,
-  type RemoteProcedureHost,
-} from "./remoteProcedureRouter";
-import { isRemoteTransportFailure, RemoteDesktopClient } from "@/shared/remote/client";
-import type { ManagedLoopbackBootstrap } from "@/shared/managedLoopback";
-import {
-  DesktopLoopbackIntake,
-  isLoopbackEndpoint,
-  parsePairingCredential,
-  type DesktopLoopbackSocket,
-} from "./state/remoteServers/desktopLoopbackIntake";
-import {
-  MANAGED_LOOPBACK_DESKTOP_ID,
-  clearManagedLoopbackOwnerRow,
-  isManagedLoopbackRequestRoutingActive,
-  setManagedLoopbackOwnerRow,
-} from "./state/remoteServers/managedLoopbackOwner";
-import {
-  emitRemoteTerminalExited,
-  emitRemoteTerminalReset,
-  handleRemoteTerminalServerMessage,
-  setManagedLoopbackTerminalLeg,
-  setRemoteTerminalSocketSender,
-} from "./state/remoteTerminalFeed";
+  activateHostTransport,
+  attachManagedLoopbackPreload,
+  bindManagedLoopbackRuntime,
+  ManagedElectronHostTransport,
+  PreloadIpcTransport,
+  RemoteHttpWsTransport,
+  requestActiveHost,
+  resetActiveHostTransportForTest,
+} from "./hostTransport";
+
+export {
+  startDesktopLoopbackEventIntake,
+  resetDesktopLoopbackIntakeForTest,
+  isDesktopLoopbackIntakeActive,
+  __setDesktopLoopbackIntakeTestSeamsForTest,
+} from "./hostTransport";
 
 let installedRuntime: ClientRuntime | null = null;
 
+bindManagedLoopbackRuntime(() => installedRuntime);
+
 /**
  * Fail-closed host capabilities: nothing is offered. Used when no host
- * capability data has been negotiated (browser clients — the remote wire
- * does not carry a describe yet) or when an attach payload predates the
- * capability field. Never derived from the host kind.
+ * capability data has been negotiated (browser clients before GET
+ * `/api/host/describe`, or an attach payload that omits capabilities).
+ * Never derived from the host kind.
  */
-export const UNKNOWN_HOST_CAPABILITIES: HostServiceCapabilities = {
-  ssh: false,
-  browserPanel: false,
-  chromeBridge: false,
-  computerUse: false,
-  nativeSecrets: false,
-  portForward: false,
-};
+export const UNKNOWN_HOST_CAPABILITIES: HostServiceCapabilities = UNKNOWN_HOST_SERVICE_CAPABILITIES;
 
-function nodeProcessPlatform(): string | undefined {
-  return typeof process !== "undefined" && typeof process.platform === "string"
-    ? process.platform
-    : undefined;
+function negotiatedHostCapabilities(value: unknown): HostServiceCapabilities {
+  const parsed = hostServiceCapabilitiesSchema.safeParse(value);
+  return parsed.success ? parsed.data : UNKNOWN_HOST_CAPABILITIES;
 }
-
-/**
- * Desktop-managed local knowledge: the co-located desktop host composes the
- * full host-service set this build ships. Main's authenticated describe on
- * the control surface reports the authoritative values for other readers;
- * these values only back the managed runtime, which owns that same host
- * process. `computerUse` mirrors the composition's legacy-driver rule
- * (Windows/macOS keep the in-process driver; on Linux only a staged helper
- * qualifies, which main describes authoritatively).
- *
- * Do not read `process.platform` at module scope — the sandboxed renderer
- * has no Node `process`, and that ReferenceError blanks the window before
- * React mounts.
- */
-export function desktopManagedHostCapabilities(
-  platform = nodeProcessPlatform(),
-): HostServiceCapabilities {
-  return {
-    ssh: true,
-    browserPanel: true,
-    chromeBridge: true,
-    computerUse: platform === "win32" || platform === "darwin",
-    nativeSecrets: true,
-    portForward: true,
-  };
-}
-
-export const DESKTOP_MANAGED_HOST_CAPABILITIES: HostServiceCapabilities =
-  desktopManagedHostCapabilities();
 
 /**
  * Derive the client capability set from HOST-DECLARED capabilities plus the
@@ -132,6 +81,7 @@ export function deriveClientCapabilities(input: {
     // browser) has neither surface, whatever the host declares.
     nativeSsh: input.localBackend && input.host.ssh,
     nativeBrowserWebContents: input.localBackend && input.host.browserPanel,
+    osNotifications: input.host.osNotifications,
   };
 }
 
@@ -149,29 +99,16 @@ function assertClientRuntimeVersion(version: unknown): void {
 export function installElectronClientRuntime(host: ElectronHostBridge): void {
   assertClientRuntimeVersion(host.clientRuntimeVersion);
   assertIpcProcedureMapVersion(host.ipcProcedureMapVersion);
-  const transport = new ElectronBackendTransport(host);
-  managedLoopback.transport = transport;
-  const procedures = createProcedureBridge((name, args) => {
-    if (name === "setRendererEventInterests") {
-      return transport.setEventInterests(parseIpcProcedureArgs(name, args));
-    }
-    // V5 plan 2.5: every procedure crosses the preload invoke boundary
-    // (main → backend-host call-* operations); the direct renderer stream
-    // that used to shortcut requests is deleted.
-    //
-    // 2.5 completion: while the loopback HTTP leg is active, remote-routable
-    // requests route over it first and fall back to the preload invoke on
-    // transport failure (leg severed mid-request) — never on a server verdict,
-    // which the same backend would answer identically over IPC.
-    if (isRemoteRoutableProcedure(name) && isManagedLoopbackRequestRoutingActive()) {
-      const routed = routeManagedLoopbackRequest(name, args, host);
-      if (routed !== undefined) return routed;
-    }
-    return host.invokeProcedure(name, args);
-  });
+  const hostCapabilities = negotiatedHostCapabilities(host.hostCapabilities);
+  const preload = new PreloadIpcTransport(host, hostCapabilities);
+  attachManagedLoopbackPreload(preload);
+  const transport = activateHostTransport(
+    new ManagedElectronHostTransport(preload, hostCapabilities),
+  );
+  const procedures = createProcedureBridge(requestActiveHost);
   const native: PoracodeNativeBridge = {
     ...host,
-    onSupervisorEvent: (listener) => transport.subscribe(listener),
+    onSupervisorEvent: (listener) => transport.subscribeEvents(listener),
   };
   installClientRuntime({
     version: PORACODE_CLIENT_RUNTIME_VERSION,
@@ -179,302 +116,26 @@ export function installElectronClientRuntime(host: ElectronHostBridge): void {
     surface: "adaptive",
     transport: "electron-backend-host",
     capabilities: deriveClientCapabilities({
-      host: desktopManagedHostCapabilities(host.platform),
+      host: hostCapabilities,
       nativeShell: true,
       localBackend: true,
       nativeAppUpdates: true,
     }),
-    hostCapabilities: desktopManagedHostCapabilities(host.platform),
+    hostCapabilities,
     procedures,
     native,
   });
 }
 
-/**
- * The managed window's event transports (V5 plan 2.5): the loopback intake is
- * the preferred leg once the co-located remote server is reachable, and the
- * desktop-IPC relay stays the fallback. Held so
- * {@link startDesktopLoopbackEventIntake} can wire them after install.
- */
-const managedLoopback: {
-  transport: ElectronBackendTransport | null;
-  intake: DesktopLoopbackIntake | null;
-  discoveryTimer: ReturnType<typeof setTimeout> | null;
-} = { transport: null, intake: null, discoveryTimer: null };
-
-/** Test seams for the wiring-created intake (real-server loopback tests drive
- * the socket with the `ws` package instead of the DOM WebSocket). */
-const managedLoopbackTestSeams: {
-  socketFactory?: (url: string) => DesktopLoopbackSocket;
-  retryDelayMs?: number;
-  discoveryRetryMs?: number;
-} = {};
-
-/** Test seam: inject the intake's socket factory / retry cadence. */
-export function __setDesktopLoopbackIntakeTestSeamsForTest(seams: {
-  readonly socketFactory?: (url: string) => DesktopLoopbackSocket;
-  readonly retryDelayMs?: number;
-  readonly discoveryRetryMs?: number;
-}): void {
-  if (seams.socketFactory !== undefined)
-    managedLoopbackTestSeams.socketFactory = seams.socketFactory;
-  if (seams.retryDelayMs !== undefined) managedLoopbackTestSeams.retryDelayMs = seams.retryDelayMs;
-  if (seams.discoveryRetryMs !== undefined) {
-    managedLoopbackTestSeams.discoveryRetryMs = seams.discoveryRetryMs;
-  }
-}
-
-/** Test seam: whether the managed loopback intake is currently serving. */
-export function isDesktopLoopbackIntakeActive(): boolean {
-  return managedLoopback.intake?.isActive() ?? false;
-}
-
-/** Re-discovery cadence while the loopback server is starting or its
- * credential was consumed by a server restart (cheap one-procedure check per
- * tick; the always-on guarantee makes the first ask succeed in practice). */
-const LOOPBACK_DISCOVERY_RETRY_MS = 30_000;
-
-/**
- * The managed loopback routing host (V5 plan 2.5 completion). Mirrors attach
- * mode's owner row for the DESKTOP'S OWN entities: while the loopback leg is
- * active, local threads/projects/locations resolve to the loopback identity
- * (id-preserving — managed rows are not projected), and requests execute
- * through a lean loopback `RemoteDesktopClient`. Persisted paired owners keep
- * resolving through the registered host first, so desktop-as-client routing
- * is unchanged.
- */
-function createManagedLoopbackProcedureHost(
-  endpoint: string,
-  accessToken: string,
-): RemoteProcedureHost {
-  const persisted = readRegisteredRemoteProcedureHost();
-  const client = new RemoteDesktopClient(endpoint, accessToken);
-  return {
-    resolveThreadOwner: (threadId) => {
-      const persistedOwner = persisted?.resolveThreadOwner(threadId);
-      if (persistedOwner) return persistedOwner;
-      return { desktopId: MANAGED_LOOPBACK_DESKTOP_ID, remoteId: threadId };
-    },
-    resolveProjectOwner: (projectId) => {
-      const persistedOwner = persisted?.resolveProjectOwner(projectId);
-      if (persistedOwner) return persistedOwner;
-      return { desktopId: MANAGED_LOOPBACK_DESKTOP_ID, remoteId: projectId };
-    },
-    withClient: (desktopId, invoke) => {
-      if (desktopId !== MANAGED_LOOPBACK_DESKTOP_ID) {
-        if (!persisted) throw new Error(msg("remote.server.unreachable"));
-        return persisted.withClient(desktopId, invoke);
-      }
-      // Lean path: no runtime-row bookkeeping and no failure wrapping — raw
-      // transport failures reach the caller, which is exactly what the IPC
-      // fallback in {@link routeManagedLoopbackRequest} keys on.
-      return invoke(client);
-    },
-  };
-}
-
-let managedLoopbackHost: RemoteProcedureHost | null = null;
-
-/**
- * Routes one remote-routable managed request over the loopback HTTP leg.
- * Returns `undefined` when the router resolves the request locally (owner
- * `none` payloads and procedures whose owner lives on a persisted paired
- * desktop), so the caller falls through to the preload invoke. Transport
- * failures on the loopback leg retry over preload IPC — leg severing mid
- * request degrades, never loses the call.
- */
-function routeManagedLoopbackRequest(
-  name: IpcProcedureName,
-  args: unknown[],
-  host: ElectronHostBridge,
-): Promise<unknown> | undefined {
-  const loopbackHost = managedLoopbackHost;
-  if (!loopbackHost) return undefined;
-  const payload = parseIpcProcedureArgs(name, args);
-  const stamped = stampRemoteOwnerOntoPayload(
-    payload,
-    MANAGED_LOOPBACK_DESKTOP_ID,
-  ) as typeof payload;
-  const decision = routeRemoteProcedure(name, stamped, loopbackHost);
-  if (decision.kind !== "remote") return undefined;
-  return decision.result.catch((error: unknown) => {
-    if (!isRemoteTransportFailure(error)) throw error;
-    // The leg went down between the activation check and this request (or the
-    // row has not been cleared yet). Preload IPC is the durable fallback: the
-    // same backend answers, so semantics are identical.
-    return host.invokeProcedure(name, [payload]);
-  });
-}
-
-/**
- * Starts the managed window's loopback intake (V5 plan 2.5, completed by the
- * always-on guarantee). Fire-and-forget: main mints this launch's attach
- * payload at readiness (`getManagedLoopbackBootstrap`), so the first ask
- * normally succeeds; until then (backend still starting) discovery retries in
- * the background. Every failure is non-fatal — the window keeps working over
- * the desktop-IPC relay (the fallback leg) for events, terminals, and
- * requests alike.
- *
- * No-op unless the managed Electron runtime is installed (attached and browser
- * flavors already run their own remote stacks).
- */
-export async function startDesktopLoopbackEventIntake(): Promise<void> {
-  const { transport } = managedLoopback;
-  if (!transport || !installedRuntime) return;
-  if (
-    installedRuntime.host !== "electron" ||
-    installedRuntime.transport !== "electron-backend-host"
-  ) {
-    return;
-  }
-  if (managedLoopback.intake) return;
-  let bootstrap: ManagedLoopbackBootstrap | null = null;
-  try {
-    bootstrap =
-      (await installedRuntime.procedures.getManagedLoopbackBootstrap()) as ManagedLoopbackBootstrap | null;
-  } catch {
-    bootstrap = null;
-  }
-  const pairingToken = bootstrap ? parsePairingCredential(bootstrap.pairingUrl) : null;
-  if (!bootstrap || !pairingToken || !isLoopbackEndpoint(bootstrap.endpoint)) {
-    scheduleLoopbackDiscoveryRetry();
-    return;
-  }
-  const endpoint = bootstrap.endpoint;
-  const intake = new DesktopLoopbackIntake({
-    endpoint,
-    pairingToken,
-    ...(managedLoopbackTestSeams.socketFactory
-      ? { socketFactory: managedLoopbackTestSeams.socketFactory }
-      : {}),
-    ...(managedLoopbackTestSeams.retryDelayMs !== undefined
-      ? { retryDelayMs: managedLoopbackTestSeams.retryDelayMs }
-      : {}),
-    dispatch: (event, seq) => {
-      // Terminal lifecycle rides the feed while the leg is up: mirror
-      // reset/exit into it before the desktop reducer (no-ops for ids with no
-      // watchers).
-      if (event.type === "thread-reset") {
-        emitRemoteTerminalReset(MANAGED_LOOPBACK_DESKTOP_ID, event.threadId);
-      } else if (event.type === "thread-exited") {
-        emitRemoteTerminalExited(
-          MANAGED_LOOPBACK_DESKTOP_ID,
-          event.threadId,
-          typeof event.exitCode === "number" ? event.exitCode : null,
-        );
-      }
-      transport.dispatchLoopbackEvent(event, seq);
-    },
-    requestRebuild: () => transport.rebuildSubscribedState(),
-    onActiveChanged: (active) => {
-      if (active) {
-        cancelLoopbackRediscovery();
-        // Terminal leg first: watchers switch to the feed before the
-        // transport's rebuild dispatch runs (the baseline supersedes the
-        // resync on activation).
-        setManagedLoopbackTerminalLeg(true);
-        transport.setLoopbackActive(true);
-        const accessToken = intake.getAccessToken();
-        if (accessToken) {
-          managedLoopbackHost = createManagedLoopbackProcedureHost(endpoint, accessToken);
-          setManagedLoopbackOwnerRow({
-            endpoint,
-            accessToken,
-            scopes: [...REMOTE_OPERATOR_SCOPES],
-          });
-        }
-      } else {
-        setManagedLoopbackTerminalLeg(false);
-        transport.setLoopbackActive(false);
-        managedLoopbackHost = null;
-        clearManagedLoopbackOwnerRow();
-        // The retained token may recover a same-endpoint drop via the
-        // intake's own retries; a moved/consumed credential needs a fresh
-        // bootstrap ask.
-        scheduleLoopbackRediscovery();
-      }
-    },
-    onTerminalReady: (send) => {
-      setRemoteTerminalSocketSender(
-        MANAGED_LOOPBACK_DESKTOP_ID,
-        send as (message: RemoteWebSocketClientMessage) => boolean,
-        { cursorSyncVersion: TERMINAL_CURSOR_SYNC_V2_VERSION },
-      );
-    },
-    onTerminalLost: () => {
-      setRemoteTerminalSocketSender(MANAGED_LOOPBACK_DESKTOP_ID, null);
-    },
-    onServerFrame: (message) =>
-      handleRemoteTerminalServerMessage(
-        MANAGED_LOOPBACK_DESKTOP_ID,
-        message as RemoteWebSocketServerMessage,
-      ),
-  });
-  managedLoopback.intake = intake;
-  const activated = await intake.activate();
-  if (!activated && managedLoopback.intake === intake) {
-    // The bootstrap target is unusable (server moved its port, credential
-    // consumed): drop the intake and re-ask main after the retry interval —
-    // the always-on guarantee guarantees a fresh answer, not a still-valid
-    // endpoint.
-    intake.dispose();
-    managedLoopback.intake = null;
-    scheduleLoopbackDiscoveryRetry();
-  }
-}
-
-function scheduleLoopbackDiscoveryRetry(): void {
-  if (managedLoopback.discoveryTimer || managedLoopback.intake) return;
-  managedLoopback.discoveryTimer = setTimeout(() => {
-    managedLoopback.discoveryTimer = null;
-    void startDesktopLoopbackEventIntake();
-  }, managedLoopbackTestSeams.discoveryRetryMs ?? LOOPBACK_DISCOVERY_RETRY_MS);
-  managedLoopback.discoveryTimer.unref?.();
-}
-
-function cancelLoopbackRediscovery(): void {
-  if (!managedLoopback.discoveryTimer) return;
-  clearTimeout(managedLoopback.discoveryTimer);
-  managedLoopback.discoveryTimer = null;
-}
-
-/**
- * Leg-loss rediscovery (V5 plan 2.5 completion): when the loopback socket
- * dies for good — a server restart may have moved the port or consumed the
- * pairing credential — the intake is replaced through a FRESH bootstrap ask
- * rather than retrying a spent credential forever. The desktop-IPC relay and
- * preload IPC carry the surface meanwhile; if the intake's own retained-token
- * retry recovers first, the pending rediscovery is cancelled on re-activation.
- */
-function scheduleLoopbackRediscovery(): void {
-  cancelLoopbackRediscovery();
-  managedLoopback.discoveryTimer = setTimeout(() => {
-    managedLoopback.discoveryTimer = null;
-    managedLoopback.intake?.dispose();
-    managedLoopback.intake = null;
-    void startDesktopLoopbackEventIntake();
-  }, managedLoopbackTestSeams.discoveryRetryMs ?? LOOPBACK_DISCOVERY_RETRY_MS);
-  managedLoopback.discoveryTimer.unref?.();
-}
-
-/** Test seam: forget the managed loopback wiring. */
-export function resetDesktopLoopbackIntakeForTest(): void {
-  if (managedLoopback.discoveryTimer) {
-    clearTimeout(managedLoopback.discoveryTimer);
-    managedLoopback.discoveryTimer = null;
-  }
-  managedLoopback.intake?.dispose();
-  managedLoopback.intake = null;
-  managedLoopback.transport = null;
-  managedLoopbackHost = null;
-  clearManagedLoopbackOwnerRow();
-  setManagedLoopbackTerminalLeg(false);
-}
-
 export function installBrowserClientRuntime(bridge: PoracodeBridge): void {
-  // Browser clients negotiate host data over the remote wire, which does not
-  // carry a describe yet — so the host capabilities stay fail-closed unknown
-  // instead of being inferred from the paired host's mode.
+  // Browser clients start fail-closed unknown and apply GET /api/host/describe
+  // after pairing (V6 C.2) — never inferred from the paired host's mode.
+  activateHostTransport(
+    new RemoteHttpWsTransport(async (name, args) => {
+      const invoke = bridge[name] as (...invokeArgs: unknown[]) => Promise<unknown>;
+      return invoke(...args);
+    }, UNKNOWN_HOST_CAPABILITIES),
+  );
   installClientRuntime({
     version: PORACODE_CLIENT_RUNTIME_VERSION,
     host: "browser",
@@ -571,27 +232,33 @@ export function installAttachedElectronClientRuntime(
   assertIpcProcedureMapVersion(host.ipcProcedureMapVersion);
   const parsed = parseStandaloneAttachInfo(attach);
   if (!parsed) throw new Error("Invalid standalone attach configuration.");
-  const hostCapabilities = parsed.capabilities ?? UNKNOWN_HOST_CAPABILITIES;
-  const procedures = createProcedureBridge((name, args) => {
-    if (isRemoteRoutableProcedure(name)) {
-      const decision = routeRemoteProcedure(name, parseIpcProcedureArgs(name, args));
-      if (decision.kind === "remote") return decision.result;
-    }
-    // Settings are owner-authoritative in attach: persist through the existing
-    // remote pull/push sync instead of a local handler (which loud-rejects).
-    // Dynamic imports keep this module cycle-free (the sync imports the store).
-    if (name === "setSharedSettings") {
-      const settings = parseIpcProcedureArgs("setSharedSettings", args);
-      return (async () => {
+  const hostCapabilities = negotiatedHostCapabilities(parsed.capabilities);
+  const transport = activateHostTransport(
+    new RemoteHttpWsTransport(async (name, args) => {
+      if (isRemoteRoutableProcedure(name)) {
+        const decision = routeRemoteProcedure(name, parseIpcProcedureArgs(name, args));
+        if (decision.kind === "remote") return decision.result;
+      }
+      // Settings are owner-authoritative in attach: persist through the existing
+      // remote pull/push sync instead of a local handler (which loud-rejects).
+      // Dynamic imports keep this module cycle-free (the sync imports the store).
+      if (name === "setSharedSettings") {
+        const settings = parseIpcProcedureArgs("setSharedSettings", args);
         const [{ getRemoteBridgeClient }, { pushDesktopSettingsDiff }] = await Promise.all([
           import("./browser/remoteBridge"),
           import("./browser/remoteSettingsSync"),
         ]);
         pushDesktopSettingsDiff(getRemoteBridgeClient(), settings);
-      })();
-    }
-    return host.invokeProcedure(name, args);
-  });
+        return;
+      }
+      return host.invokeProcedure(name, args);
+    }, hostCapabilities),
+  );
+  const procedures = createProcedureBridge(requestActiveHost);
+  const native: PoracodeNativeBridge = {
+    ...host,
+    onSupervisorEvent: (listener) => transport.subscribeEvents(listener),
+  };
   installClientRuntime({
     version: PORACODE_CLIENT_RUNTIME_VERSION,
     host: "electron",
@@ -605,7 +272,7 @@ export function installAttachedElectronClientRuntime(
     }),
     hostCapabilities,
     procedures,
-    native: host,
+    native,
   });
 }
 
@@ -658,7 +325,9 @@ function inferClientRuntime(bridge: PoracodeBridge): ClientRuntime {
   const browser = bridge.arch === "web" || bridge.appVersion === "remote";
   const hostCapabilities = browser
     ? UNKNOWN_HOST_CAPABILITIES
-    : desktopManagedHostCapabilities(bridge.platform);
+    : negotiatedHostCapabilities(
+        (bridge as unknown as { readonly hostCapabilities?: unknown }).hostCapabilities,
+      );
   return {
     version: PORACODE_CLIENT_RUNTIME_VERSION,
     host: browser ? "browser" : "electron",
@@ -704,4 +373,25 @@ export function isCompactClientRuntimeSurface(): boolean {
 
 export function resetClientRuntimeForTest(): void {
   installedRuntime = null;
+  resetActiveHostTransportForTest();
+}
+
+/**
+ * V6 C.2: apply GET /api/host/describe (or an attach describe) onto the
+ * installed runtime so browser/native/attached clients derive availability
+ * from the host instead of `hostMode`.
+ */
+export function applyNegotiatedHostCapabilities(host: HostServiceCapabilities): void {
+  if (!installedRuntime || installedRuntime.transport !== "remote-http-websocket") return;
+  const hostCapabilities = negotiatedHostCapabilities(host);
+  installedRuntime = {
+    ...installedRuntime,
+    hostCapabilities,
+    capabilities: deriveClientCapabilities({
+      host: hostCapabilities,
+      nativeShell: installedRuntime.capabilities.nativeShell,
+      localBackend: installedRuntime.capabilities.localBackend,
+      nativeAppUpdates: installedRuntime.capabilities.nativeAppUpdates,
+    }),
+  };
 }
