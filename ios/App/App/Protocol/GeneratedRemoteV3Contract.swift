@@ -12,9 +12,9 @@ enum GeneratedRemoteV3Contract {
   static let expectedGeneratorVersion = 3
   /// 2 added the generated pairing state machine to the native bundle
   /// (V5 5.2); 3 adds the generated terminal-cursor machine and the
-  /// `stateMachines` count. A v2 manifest predates the cursor machine and is
-  /// refused.
-  static let expectedNativeBundleManifestFormatVersion = 3
+  /// `stateMachines` count; 4 adds the generated terminal hardware-key
+  /// encoder. A v3 manifest predates the encoder and is refused.
+  static let expectedNativeBundleManifestFormatVersion = 4
 
   static var isCompatible: Bool {
     RemoteContractMetadata.protocolVersion == expectedProtocolVersion

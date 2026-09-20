@@ -52,7 +52,7 @@ describe("remote v3 native binding generator", () => {
       expect(first).toEqual(second);
       expect(second).toEqual(third);
       expect(first.manifest).toMatchObject({
-        formatVersion: 3,
+        formatVersion: 4,
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
@@ -69,14 +69,42 @@ describe("remote v3 native binding generator", () => {
           schemaRoots: 327,
           structuralTypes: 794,
           semanticValidators: 17,
-          swiftFiles: 47,
-          kotlinFiles: 42,
-          // The pairing and terminal-cursor machines (V5 5.2).
-          stateMachines: 2,
+          swiftFiles: 48,
+          kotlinFiles: 43,
+          // The pairing, terminal-cursor, and terminal-key-encoding machines.
+          stateMachines: 3,
         },
       });
     },
   );
+
+  it("ships the terminal hardware-key encoder in both native bundles", () => {
+    const { ir, manifest } = input();
+    const output = buildNativeBindingOutput(ir, manifest).files;
+    const swift = output["swift/TerminalKeyEncoding.swift"];
+    const kotlin = output["kotlin/TerminalKeyEncoding.kt"];
+    expect(swift).toContain("public enum TerminalRawKeyEncoder");
+    expect(swift).toContain("static func encode(_ event: TerminalHardwareKeyEvent) -> String");
+    expect(swift).toContain('TerminalKeyRule(id: "character-c0-fold"');
+    expect(kotlin).toContain("fun terminalHardwareKeySequence(");
+    expect(kotlin).toContain("enum class TerminalHardwareKey");
+    expect(kotlin).toContain('TerminalKeyRule("character-c0-fold"');
+    // No raw control bytes ever reach generated source.
+    for (const [language, contents] of [
+      ["swift", swift],
+      ["kotlin", kotlin],
+    ] as const) {
+      // Control-character scan over UTF-16 units — a lone high/low surrogate
+      // still reports its unit code, which is all this check needs.
+      const text = contents as string;
+      const stray: string[] = [];
+      for (let index = 0; index < text.length; index += 1) {
+        const code = text.charCodeAt(index);
+        if ((code < 0x20 && code !== 0x0a) || code === 0x7f) stray.push(text[index]!);
+      }
+      expect(`${language} control bytes: ${stray.length}`).toBe(`${language} control bytes: 0`);
+    }
+  });
 
   it("rejects version and hash drift before emitting source", () => {
     const { ir, manifest } = input();

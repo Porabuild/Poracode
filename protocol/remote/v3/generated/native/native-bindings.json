@@ -3,21 +3,21 @@
   "contract": "poracode.remote",
   "counts": {
     "jsonProcedureResults": 65,
-    "kotlinFiles": 42,
+    "kotlinFiles": 43,
     "portableTransforms": 3,
     "procedures": 108,
     "routes": 67,
     "schemaRoots": 327,
     "semanticValidators": 17,
-    "stateMachines": 2,
+    "stateMachines": 3,
     "structuralTypes": 794,
-    "swiftFiles": 47,
+    "swiftFiles": 48,
     "voidProcedureResults": 43,
     "webSocketClientVariants": 9,
     "webSocketServerVariants": 11
   },
   "doNotEdit": "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
-  "formatVersion": 3,
+  "formatVersion": 4,
   "generatorVersion": 3,
   "languages": {
     "kotlin": {
@@ -221,6 +221,12 @@
           "sha256": "sha256:58ae4c8134b71b63f74ba4e464ae3833f8afc9a50d38a339dbbc13cdeea9568b"
         },
         {
+          "bytes": 9790,
+          "lines": 228,
+          "path": "kotlin/TerminalKeyEncoding.kt",
+          "sha256": "sha256:2ff524de85f9235242b763b6d47dee69b6c7494823af71ae512158b1cbcdd52b"
+        },
+        {
           "bytes": 34869,
           "lines": 450,
           "path": "kotlin/Validation001.kt",
@@ -276,7 +282,7 @@
         }
       ],
       "languageVersion": "2.4",
-      "lines": 16938,
+      "lines": 17166,
       "treeHash": "sha256:95a730b07bf95a8ca78f87835281893198d165a8898b65aeb8b8e9750232ffc5"
     },
     "swift": {
@@ -510,6 +516,12 @@
           "sha256": "sha256:8581cd583592cf9d10ebaf61e20e9874642bbfa9e6556f589de6b3af81934c80"
         },
         {
+          "bytes": 9256,
+          "lines": 265,
+          "path": "swift/TerminalKeyEncoding.swift",
+          "sha256": "sha256:3efa8b239f3ed86d0f14c507d994ebf4e0f37d9030b5ad4bc731db12bba1027f"
+        },
+        {
           "bytes": 35214,
           "lines": 449,
           "path": "swift/Validation001.swift",
@@ -565,12 +577,12 @@
         }
       ],
       "languageVersion": "6",
-      "lines": 19127,
+      "lines": 19392,
       "treeHash": "sha256:9a4e0c13f0d660a2730109b9799f9dead30e6ca738537f7f7ec777fc8bf0b688"
     }
   },
   "manifestHash": "sha256:680ed19fec59987e53d1692af7ea661afebde23a8c3769f3cd280cc2417e3f24",
-  "outputHash": "sha256:7f48200f84ba2cc0be91398706df5fa820b6625e3a6d555c5e2ff45d56c8cb8b",
+  "outputHash": "sha256:fda9e620e71111b364afcf8780bae7dd442f930288ac4f12711401cf3515aab7",
   "protocolVersion": 12,
   "sourceHash": "sha256:b011e8c09353731b3029a221037932009a5bf0b319a6eac2e8e966ba3afe314a",
   "stateMachines": [
@@ -596,6 +608,18 @@
       "sources": {
         "kotlin": "kotlin/TerminalCursorMachine.kt",
         "swift": "swift/TerminalCursorMachine.swift"
+      },
+      "specVersion": 1
+    },
+    {
+      "effectCount": 8,
+      "guardCount": 9,
+      "id": "terminalKeyEncoding",
+      "keyCount": 13,
+      "ruleCount": 9,
+      "sources": {
+        "kotlin": "kotlin/TerminalKeyEncoding.kt",
+        "swift": "swift/TerminalKeyEncoding.swift"
       },
       "specVersion": 1
     }

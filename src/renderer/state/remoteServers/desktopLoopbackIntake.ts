@@ -44,7 +44,11 @@ export interface DesktopLoopbackIntakeDeps {
   /** Pairing credential for this launch (the `pairingUrl` fragment token). */
   readonly pairingToken: string;
   /** Delivers one supervisor event to the desktop UI's listener surface. */
-  readonly dispatch: (event: SupervisorEvent) => void;
+  /** Dispatches one supervisor event; `seq` is the shared event stream's
+   * per-session cursor when the frame carried one (runtime deltas ride that
+   * stream, so the reducer's sequenced arbitration stays armed on this leg).
+   */
+  readonly dispatch: (event: SupervisorEvent, seq?: number) => void;
   /** Asks the transport to rebuild subscribed threads (leg handoff/loss). */
   readonly requestRebuild: () => void;
   /** Notified when the loopback leg becomes (in)active for event delivery. */
@@ -335,8 +339,13 @@ export class DesktopLoopbackIntake {
       const event = frame.event;
       if (!event || typeof event !== "object") return;
       // Wire frames validated by shape here; the desktop reducer owns the
-      // SupervisorEvent contract and tolerates the shared union.
-      this.deps.dispatch(event as SupervisorEvent);
+      // SupervisorEvent contract and tolerates the shared union. Only the
+      // SHARED stream's seq reaches the reducer: the desktop-event stream
+      // counts its own separate space, and its families never enter the
+      // runtime-event queue the sequence arbitrates.
+      const sharedSeq =
+        frame.type === "event" && typeof frame.seq === "number" ? frame.seq : undefined;
+      this.deps.dispatch(event as SupervisorEvent, sharedSeq);
       return;
     }
     // Terminal frames (2.5 completion): `terminal-output`,

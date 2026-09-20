@@ -1,4 +1,5 @@
-import { appendFileSync, mkdirSync } from "node:fs";
+import { rotateServerLogFiles } from "@/server/serverLogFile";
+import { appendFileSync, mkdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 /**
@@ -23,7 +24,8 @@ export type RemoteAuditEventKind =
   | "thread_stop"
   | "file_read"
   | "file_write"
-  | "forward_open";
+  | "forward_open"
+  | "procedure";
 
 /**
  * Bounded string/number/boolean/null detail values only — the audit file is
@@ -70,7 +72,16 @@ export function remoteAuditLogPath(hostRoot: string): string {
 export class RemoteAuditLog implements RemoteAuditSink {
   private ensuredDir = false;
 
-  constructor(private readonly path: string) {}
+  constructor(
+    private readonly path: string,
+    private readonly rotation: { readonly maxBytes: number; readonly maxFiles: number } = {
+      // Deep-review fix: image reads audit per request, so the trail is
+      // high-volume — the same size-capped shape the server log rotates by
+      // (rotateServerLogFiles was exported for exactly this adoption).
+      maxBytes: 10 * 1024 * 1024,
+      maxFiles: 5,
+    },
+  ) {}
 
   record(event: RemoteAuditEvent): void {
     try {
@@ -79,13 +90,23 @@ export class RemoteAuditLog implements RemoteAuditSink {
         this.ensuredDir = true;
       }
       appendFileSync(this.path, `${JSON.stringify(event)}\n`, { encoding: "utf8", mode: 0o600 });
+      this.rotate();
     } catch (error) {
       console.warn("[poracode] failed to append remote audit entry:", error);
     }
   }
 
-  // Item 4.9 owns size-capped rotation; until then the file grows append-only.
-  rotate(): void {}
+  rotate(): void {
+    try {
+      if (statSync(this.path).size > this.rotation.maxBytes) {
+        rotateServerLogFiles(this.path, this.rotation.maxFiles);
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        console.warn("[poracode] failed to rotate the remote audit log:", error);
+      }
+    }
+  }
 }
 
 /** Creates the file-backed sink at the host data root. */

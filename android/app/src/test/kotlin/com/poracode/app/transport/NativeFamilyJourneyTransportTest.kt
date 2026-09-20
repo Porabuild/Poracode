@@ -9,8 +9,8 @@ import com.poracode.app.transport.richchat.GeneratedRichChatRemoteTransport
 import com.poracode.app.transport.richchat.RequestResolution
 import com.poracode.app.transport.richchat.TerminalStartInput
 import com.poracode.app.transport.richchat.ThreadSteerInput
-import com.poracode.app.ui.terminal.terminalHardwareKeySequence
-import com.poracode.app.ui.terminal.TerminalHardwareKey
+import com.poracode.remote.v3.generated.terminalHardwareKeySequence
+import com.poracode.remote.v3.generated.TerminalHardwareKey
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject

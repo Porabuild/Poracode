@@ -1,13 +1,16 @@
 import { canonicalize, sha256Prefixed } from "../canonical";
 import { PAIRING_MACHINE_SPEC } from "../pairingMachineSpec";
 import { TERMINAL_CURSOR_MACHINE_SPEC } from "../terminalCursorMachineSpec";
+import { TERMINAL_KEY_ENCODING_SPEC } from "../terminalKeyEncodingSpec";
 import { compareUnicodeCodePoints } from "../unicodeOrder";
 import { emitKotlinBindings } from "./emitKotlin";
 import { emitKotlinPairingMachine } from "./emitPairingKotlin";
 import { emitKotlinTerminalCursorMachine } from "./emitTerminalCursorKotlin";
+import { emitKotlinTerminalKeyEncoding } from "./emitTerminalKeyEncodingKotlin";
 import { emitSwiftBindings } from "./emitSwift";
 import { emitSwiftPairingMachine } from "./emitPairingSwift";
 import { emitSwiftTerminalCursorMachine } from "./emitTerminalCursorSwift";
+import { emitSwiftTerminalKeyEncoding } from "./emitTerminalKeyEncodingSwift";
 import {
   assertNativeSchemaKeywordCoverage,
   assertNativeSemanticValidatorCoverage,
@@ -16,7 +19,7 @@ import { buildNativeSchemaGraph, collectNativeSchemaRoots } from "./schemaGraph"
 import type { NativeBindingOutput } from "./types";
 import { parseNativeBindingIr } from "./validate";
 
-export const NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 3 as const;
+export const NATIVE_BINDINGS_MANIFEST_FORMAT_VERSION = 4 as const;
 export const NATIVE_BINDINGS_MAX_FILE_LINES = 450 as const;
 export const NATIVE_BINDINGS_MAX_FILE_BYTES = 512_000 as const;
 export const NATIVE_BINDINGS_MAX_LINE_LENGTH = 32_768 as const;
@@ -88,18 +91,20 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
   const kotlin = emitKotlinBindings(ir, graph);
   /** V5 5.2: the native pairing state machine ships in the same bundle and
    * under the same byte-stability, hash, and size bounds as the wire bindings.
-   * The pairing and terminal-cursor specs are deliberately NOT part of the
-   * wire IR — adding a generated machine must never move
-   * sourceHash/manifestHash. */
+   * The pairing, terminal-cursor, and terminal-key-encoding specs are
+   * deliberately NOT part of the wire IR — adding a generated machine must
+   * never move sourceHash/manifestHash. */
   const swiftWithMachines: Record<string, string> = {
     ...swift,
     "PairingMachine.swift": emitSwiftPairingMachine(),
     "TerminalCursorMachine.swift": emitSwiftTerminalCursorMachine(),
+    "TerminalKeyEncoding.swift": emitSwiftTerminalKeyEncoding(),
   };
   const kotlinWithMachines: Record<string, string> = {
     ...kotlin,
     "PairingMachine.kt": emitKotlinPairingMachine(),
     "TerminalCursorMachine.kt": emitKotlinTerminalCursorMachine(),
+    "TerminalKeyEncoding.kt": emitKotlinTerminalKeyEncoding(),
   };
   const swiftInventory = inventory(swiftWithMachines, "swift");
   const kotlinInventory = inventory(kotlinWithMachines, "kotlin");
@@ -133,7 +138,7 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
       portableTransforms: ir.portableTransformIds.length,
       swiftFiles: swiftInventory.length,
       kotlinFiles: kotlinInventory.length,
-      stateMachines: 2,
+      stateMachines: 3,
     },
     stateMachines: [
       {
@@ -157,6 +162,18 @@ export function buildNativeBindingOutput(rawIr: unknown, manifest: unknown): Nat
         sources: {
           swift: "swift/TerminalCursorMachine.swift",
           kotlin: "kotlin/TerminalCursorMachine.kt",
+        },
+      },
+      {
+        id: TERMINAL_KEY_ENCODING_SPEC.id,
+        specVersion: TERMINAL_KEY_ENCODING_SPEC.specVersion,
+        keyCount: TERMINAL_KEY_ENCODING_SPEC.keys.length,
+        ruleCount: TERMINAL_KEY_ENCODING_SPEC.rules.length,
+        guardCount: TERMINAL_KEY_ENCODING_SPEC.guards.length,
+        effectCount: TERMINAL_KEY_ENCODING_SPEC.effects.length,
+        sources: {
+          swift: "swift/TerminalKeyEncoding.swift",
+          kotlin: "kotlin/TerminalKeyEncoding.kt",
         },
       },
     ],

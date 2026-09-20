@@ -74,6 +74,8 @@ import com.poracode.app.model.terminal.TerminalProcessState
 import com.poracode.app.session.richchat.RichChatOperationResult
 import com.poracode.app.session.richchat.RichChatSessionRuntime
 import com.poracode.app.transport.richchat.TerminalStartInput
+import com.poracode.remote.v3.generated.TerminalHardwareKey
+import com.poracode.remote.v3.generated.terminalHardwareKeySequence
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 

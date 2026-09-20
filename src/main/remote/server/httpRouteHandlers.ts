@@ -108,7 +108,7 @@ import {
 } from "./imageTickets";
 import { parseImageRefPath, resolveImageRef } from "./imageRefProjection";
 import { readAttachmentBody, readJsonBody } from "./requestBody";
-import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT } from "./security";
+import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT, isDirectLoopbackPeer } from "./security";
 import {
   buildAgentStatuses,
   buildAgentSlashCommands,
@@ -201,18 +201,6 @@ export function requirePathParam(params: Readonly<Record<string, string>>, name:
     }
   }
   throw new RemoteHttpError("not_found", "Remote endpoint not found.", 404);
-}
-
-/**
- * Whether the request arrived from a loopback peer (IPv4 127/8, IPv6 ::1, or
- * an IPv4-mapped IPv6 loopback). Mirrors the rate-limiter's loopback rule in
- * `security.ts`; kept local so the metrics gate does not widen that module's
- * surface.
- */
-function isLoopbackPeer(req: IncomingMessage): boolean {
-  const raw = req.socket.remoteAddress ?? "";
-  const normalized = raw.startsWith("::ffff:") ? raw.slice("::ffff:".length) : raw;
-  return normalized === "127.0.0.1" || normalized === "::1" || normalized.startsWith("127.");
 }
 
 function remoteCommandId(req: IncomingMessage): string | null {
@@ -380,7 +368,7 @@ export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
   // remote-address check). Anything non-loopback is a flat 403 before any
   // metric value is computed.
   metrics: ({ ctx, req, res }) => {
-    if (!isLoopbackPeer(req)) {
+    if (!isDirectLoopbackPeer(req)) {
       throw new RemoteHttpError(
         "metrics_loopback_only",
         "Metrics are only served to loopback clients.",

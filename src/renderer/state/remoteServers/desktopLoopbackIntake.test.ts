@@ -234,12 +234,20 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     expect(pairingToken).toBeTruthy();
 
     const dispatched: SupervisorEvent[] = [];
+    // Deep-review regression: the shared stream's per-session seq must reach
+    // the reducer — an unsequenced runtime delta permanently poisons
+    // overflow recovery (hasUnsequenced refuses the snapshot), and the
+    // desktop-event stream's separate counter must NOT leak into that slot.
+    const dispatchedSeqs: Array<number | undefined> = [];
     let rebuilds = 0;
     let activations = 0;
     const intake = new DesktopLoopbackIntake({
       endpoint: info.localHttpBaseUrl,
       pairingToken: pairingToken!,
-      dispatch: (event) => dispatched.push(event),
+      dispatch: (event, seq) => {
+        dispatched.push(event);
+        dispatchedSeqs.push(seq);
+      },
       requestRebuild: () => {
         rebuilds += 1;
       },
@@ -268,6 +276,9 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
         "remote-threads-changed",
       ]);
     });
+    // desktop-event frames carry their own counter and never enter the
+    // runtime queue; only the SHARED stream's seq is forwarded.
+    expect(dispatchedSeqs).toEqual([undefined, 1]);
 
     intake.dispose();
     expect(intake.isActive()).toBe(false);

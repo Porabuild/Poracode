@@ -170,32 +170,42 @@ if (hasSingleInstanceLock) {
       // legacy import above just filled) is left to `admitDesktopStartup`,
       // which promotes it under the held lease with OS-key cooperation after
       // the ready event.
-      const paths = resolveDesktopHostRootPaths(baseDir);
-      const decision = inspectDesktopRootPromotion(paths);
-      if (decision.kind === "refuse") {
-        desktopApp.desktopOwnerLease.release();
-        desktopApp.desktopOwnerLease = null;
-        desktopApp.desktopOwnerAcquisitionError = new DesktopRootPromotionRefusalError(
-          decision.reason,
-        );
-        console.error(
-          "[poracode] refused to start with this profile's data roots:",
-          decision.reason,
-        );
-      } else if (decision.kind === "required" || decision.kind === "resumable") {
-        console.info(
-          `[poracode] this profile's data root will be promoted to ${paths.dataRoot} at startup`,
-        );
-      } else {
-        if (decision.kind === "fresh") {
-          // The desktop namespace legitimately holds non-custodial state
-          // (the Electron userData directory lives inside it by
-          // construction); same allowance as the admission promotion path.
-          prepareOwnedHostRoot(desktopApp.desktopOwnerLease, {
-            allowNonCustodialNamespace: true,
-          });
+      // Deep-review guard: an unreadable operation journal (or any other
+      // promotion-inspection throw) must reach the ready-time failure dialog,
+      // not crash the module scope before that path exists.
+      try {
+        const paths = resolveDesktopHostRootPaths(baseDir);
+        const decision = inspectDesktopRootPromotion(paths);
+        if (decision.kind === "refuse") {
+          desktopApp.desktopOwnerLease?.release();
+          desktopApp.desktopOwnerLease = null;
+          desktopApp.desktopOwnerAcquisitionError = new DesktopRootPromotionRefusalError(
+            decision.reason,
+          );
+          console.error(
+            "[poracode] refused to start with this profile's data roots:",
+            decision.reason,
+          );
+        } else if (decision.kind === "required" || decision.kind === "resumable") {
+          console.info(
+            `[poracode] this profile's data root will be promoted to ${paths.dataRoot} at startup`,
+          );
+        } else {
+          if (decision.kind === "fresh") {
+            // The desktop namespace legitimately holds non-custodial state
+            // (the Electron userData directory lives inside it by
+            // construction); same allowance as the admission promotion path.
+            prepareOwnedHostRoot(desktopApp.desktopOwnerLease, {
+              allowNonCustodialNamespace: true,
+            });
+          }
+          desktopApp.poracodePaths = preparePoracodeDataRoot(paths.dataRoot);
         }
-        desktopApp.poracodePaths = preparePoracodeDataRoot(paths.dataRoot);
+      } catch (error) {
+        desktopApp.desktopOwnerLease?.release();
+        desktopApp.desktopOwnerLease = null;
+        desktopApp.desktopOwnerAcquisitionError = toError(error);
+        console.error("[poracode] failed to prepare this profile's data root:", error);
       }
     }
   }

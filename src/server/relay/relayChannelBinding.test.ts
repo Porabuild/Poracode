@@ -117,14 +117,14 @@ describe("relay channel binding end-to-end", () => {
   async function exchangeCredential(
     endpoint: string,
     credential: string,
-  ): Promise<{ readonly accessToken: string }> {
+  ): Promise<{ readonly accessToken: string; readonly refreshToken?: string }> {
     const response = await fetch(`${endpoint.replace(/\/+$/, "")}/oauth/token`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ grantType: "pairing-token", credential, scopes: ["session:read"] }),
     });
     expect(response.status).toBe(200);
-    return (await response.json()) as { accessToken: string };
+    return (await response.json()) as { accessToken: string; refreshToken?: string };
   }
 
   /** POST /api/auth/websocket-ticket: a bearer-authed route the stubbed
@@ -176,6 +176,25 @@ describe("relay channel binding end-to-end", () => {
     // binding happens only at relay-mediated issuance.
     expect((await ticketRequest(stack.relayBase, directIssued.accessToken)).status).toBe(200);
   });
+
+  it("binds the rotating refresh token symmetrically and unwraps refresh requests", async () => {
+    // Deep-review fix: the refresh half is a 30-day credential; leaving it
+    // raw in exchange responses would keep a relay-log capture replayable
+    // off-relay via the refresh grant.
+    const stack = await startStack("refresh-binding");
+    const relayIssued = await exchangeCredential(stack.relayBase, stack.pairing.credential);
+    expect(relayIssued.refreshToken).toBeDefined();
+    expect(relayIssued.refreshToken!.startsWith(RELAY_BOUND_TOKEN_PREFIX)).toBe(true);
+    expect(relayIssued.accessToken.startsWith(RELAY_BOUND_TOKEN_PREFIX)).toBe(true);
+    // Off-relay replay with the bound refresh credential fails the direct
+    // path's bearer check.
+    const directReplay = await fetch(`${stack.directBase.replace(/\/+$/, "")}/oauth/token`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ grantType: "refresh-token", refreshToken: relayIssued.refreshToken }),
+    });
+    expect(directReplay.status).toBeGreaterThanOrEqual(400);
+  });
 });
 
 /**
@@ -184,6 +203,7 @@ describe("relay channel binding end-to-end", () => {
  * and the image-route `access_token` query parameter), and the exchange
  * response is rewritten to the bound form before it is framed to the relay.
  */
+
 describe("relay channel binding adapter rewrite", () => {
   const cleanups: Array<() => void | Promise<void>> = [];
   afterEach(async () => {

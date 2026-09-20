@@ -101,4 +101,17 @@ describe("RemoteAccessServer operability routes (item 4.9 rider)", () => {
     const health = await fetch(new URL("/healthz", info.httpBaseUrl));
     expect(health.status).toBe(200);
   });
+
+  it("refuses /metrics to a relay-proxied loopback dial (the hop marker)", async () => {
+    const server = createServer();
+    const info = await server.start();
+    // A direct loopback fetch whose request carries the relay adapter's hop
+    // marker — the shape relayHost's local dial produces for a REMOTE visitor.
+    // The socket address alone would pass the old gate.
+    const response = await fetch(new URL("/metrics", info.httpBaseUrl), {
+      headers: { "x-poracode-relay-hop": "1" },
+    });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: "metrics_loopback_only" } });
+  });
 });

@@ -14,7 +14,7 @@
  * pairing exactly as before.
  */
 
-import { isLoopbackHostname } from "../http";
+import { isCleartextLanEndpoint } from "./contract/pairingMachine";
 
 /** Prefix of the certificate fingerprint carried by the pairing fragment. */
 export const PAIRING_CERT_FINGERPRINT_PREFIX = "sha256:";
@@ -60,12 +60,10 @@ export function parsePairingCertFingerprint(value: string): string | null {
  * talk to it.
  */
 export function isCleartextLanUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" && !isLoopbackHostname(url.hostname);
-  } catch {
-    return false;
-  }
+  // Deep-review dedup: the pairing machine spec executor owns this
+  // classification; this alias keeps the historical export for any external
+  // caller without a second copy of the rule.
+  return isCleartextLanEndpoint(value);
 }
 
 export function buildPairingUrl(input: {

@@ -1,5 +1,7 @@
 package com.poracode.app.ui.terminal
 
+import com.poracode.remote.v3.generated.terminalHardwareKeySequence
+import com.poracode.remote.v3.generated.TerminalHardwareKey
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -129,5 +131,72 @@ class TerminalKeyAccessoryTest {
         assertEquals("\u001b[A", seq(TerminalHardwareKey.Up))
         assertEquals("\u001b[H", seq(TerminalHardwareKey.Home))
         assertEquals("\u001b[5~", seq(TerminalHardwareKey.PageUp))
+    }
+
+    // Reconciled divergences from the hand-written encoder (spec
+    // terminalKeyEncodingSpec.ts): the generated encoder now also covers the
+    // edges the old Android copy got wrong, byte-identically to iOS.
+
+    @Test
+    fun hardwareCtrlFoldMissesUseCsiU() {
+        // Android already sent CSI-u here; iOS used to pass the character
+        // through unmodified. The spec keeps CSI-u.
+        fun chord(character: String, shift: Boolean = false) = terminalHardwareKeySequence(
+            TerminalHardwareKey.Character,
+            character = character,
+            isCtrl = true, isShift = shift, isAlt = false, isMeta = false,
+        )
+        assertEquals("\u001b[49;5u", chord("1"))
+        assertEquals("\u001b[49;6u", chord("1", shift = true))
+        assertEquals("\u001b[32;5u", chord(" "))
+        // DEL is outside the fold band, so it is a fold miss too.
+        assertEquals("\u001b[127;5u", chord("\u007f"))
+    }
+
+    @Test
+    fun hardwareUnmappableCharactersFallBackToBareSequences() {
+        // Android used to emit CSI-u with the first UTF-16 unit, putting a
+        // lone surrogate into the PTY stream. The spec keeps iOS's fallback.
+        assertEquals(
+            "👍🏻",
+            terminalHardwareKeySequence(
+                TerminalHardwareKey.Character,
+                character = "👍🏻",
+                isCtrl = false, isShift = false, isAlt = true, isMeta = false,
+            ),
+        )
+        // A single supplementary scalar maps by code point, not by UTF-16 unit.
+        assertEquals(
+            "\u001b[128077;3u",
+            terminalHardwareKeySequence(
+                TerminalHardwareKey.Character,
+                character = "👍",
+                isCtrl = false, isShift = false, isAlt = true, isMeta = false,
+            ),
+        )
+    }
+
+    @Test
+    fun hardwareC0FoldMeasuresUnicodeScalars() {
+        // 'ß' uppercases to the two-scalar "SS": no fold (Android used to
+        // throw on `.single()` here), and no scalar CSI-u code point either,
+        // so the keystroke passes through.
+        assertEquals(
+            "ß",
+            terminalHardwareKeySequence(
+                TerminalHardwareKey.Character,
+                character = "ß",
+                isCtrl = true, isShift = false, isAlt = false, isMeta = false,
+            ),
+        )
+        // A single non-ASCII scalar whose uppercase lands in the band folds.
+        assertEquals(
+            "\u0013",
+            terminalHardwareKeySequence(
+                TerminalHardwareKey.Character,
+                character = "ſ",
+                isCtrl = true, isShift = false, isAlt = false, isMeta = false,
+            ),
+        )
     }
 }

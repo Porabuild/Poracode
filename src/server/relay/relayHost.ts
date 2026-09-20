@@ -1,3 +1,4 @@
+import { RELAY_LOOPBACK_HOP_HEADER } from "@/main/remote/server/security";
 import { WebSocket } from "ws";
 import { createRelayControlSocket } from "./relayControlSocket";
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
@@ -281,6 +282,29 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
    * the rewritten bytes unchanged. Any response that is not a 200 JSON token
    * result — errors, foreign shapes, oversized bodies — is returned as-is.
    */
+  /** Unwraps a bound `refreshToken` field from a token-exchange JSON body.
+   * Anything else (raw tokens, malformed JSON, non-object bodies) passes
+   * through untouched and the server's own validation answers it. */
+  const unwrapBoundRefreshToken = (body: Buffer): Buffer => {
+    const text = body.toString("utf8");
+    if (body.byteLength > TOKEN_EXCHANGE_REWRITE_MAX_BYTES) return body;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text) as unknown;
+    } catch {
+      return body;
+    }
+    if (!parsed || typeof parsed !== "object") return body;
+    const record = parsed as Record<string, unknown>;
+    if (typeof record.refreshToken !== "string" || !isRelayBoundCredential(record.refreshToken)) {
+      return body;
+    }
+    const unwrapped = channelBinding.unbind(record.refreshToken);
+    if (unwrapped === null) return body;
+    record.refreshToken = unwrapped;
+    return Buffer.from(JSON.stringify(record), "utf8");
+  };
+
   const bindTokenExchangeResponse = async (
     response: Awaited<ReturnType<typeof fetchImpl>>,
   ): Promise<Awaited<ReturnType<typeof fetchImpl>>> => {
@@ -306,6 +330,16 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     }
     const result = parsed as Record<string, unknown>;
     result.accessToken = channelBinding.bind(result.accessToken as string);
+    // Deep-review fix: the rotating refresh token is a 30-day credential —
+    // binding only the access half left a relay-log capture replayable
+    // OFF-relay via the refresh grant. Bind it symmetrically when present.
+    if (
+      typeof result.refreshToken === "string" &&
+      result.refreshToken.length > 0 &&
+      !isRelayBoundCredential(result.refreshToken)
+    ) {
+      result.refreshToken = channelBinding.bind(result.refreshToken);
+    }
     // The exchange response is a plain JSON document (no cookies, no content
     // encoding — the fetch layer already decoded it), so rebuilding it from
     // the same status/headers preserves everything the visitor expects.
@@ -523,7 +557,16 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
       entry.timeout.unref?.();
     };
     try {
-      const body = frame.body === undefined ? undefined : Buffer.from(frame.body, "base64");
+      // Refresh-grant requests carry the (bound) refresh token in the JSON
+      // body, not the Authorization header; unwrap it for the loopback hop
+      // exactly like the header credential (deep-review fix — the response
+      // side binds it symmetrically).
+      const body =
+        frame.body === undefined
+          ? undefined
+          : isTokenExchangeRequest(frame)
+            ? unwrapBoundRefreshToken(Buffer.from(frame.body, "base64"))
+            : Buffer.from(frame.body, "base64");
       // Channel binding first: unwrap relay-bound visitor credentials for the
       // loopback hop (see `unwrapBoundCredentials`), THEN strip hop-by-hop /
       // relay-specific headers; the local fetch sets its own host and
@@ -552,6 +595,11 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
       requestHeaders["x-forwarded-for"] = forwardedForIdentity(frame.clientId);
       Object.assign(
         requestHeaders,
+        // Marks this as a PROXIED loopback dial (deep-review fix): the host's
+        // loopback-only gates (metrics, desktop-internal admission) must not
+        // treat relayed remote visitors as local. Assigned after the visitor
+        // headers were copied, so a client-supplied copy cannot survive.
+        { [RELAY_LOOPBACK_HOP_HEADER]: "1" },
         frame.forward ? forwardHeaders(frame.forward) : apiDispatchHeaders(),
       );
       let response = await Promise.race([
@@ -567,7 +615,7 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
           // status/Location/Set-Cookie back, which is exactly what needs to
           // tunnel to the visitor unfollowed.
           redirect: "manual",
-          ...(body !== undefined ? { body } : {}),
+          ...(body !== undefined ? { body: body as BodyInit } : {}),
         }),
         timedOut,
       ]);
@@ -748,6 +796,7 @@ export function startRelayHost(options: RelayHostOptions): RelayHostHandle {
     let local: RelaySocket;
     try {
       const localHeaders: Record<string, string> = {
+        [RELAY_LOOPBACK_HOP_HEADER]: "1",
         "x-forwarded-for": forwardedForIdentity(frame.clientId),
         ...(frame.cookie ? { cookie: frame.cookie } : {}),
         ...forwardHeaders(frame.forward),

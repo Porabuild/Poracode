@@ -104,6 +104,41 @@ final class TerminalRawKeyInputTests: XCTestCase {
     XCTAssertEqual(encode(.tab, .control), "\u{1B}[9;5u")
   }
 
+  // MARK: reconciled divergences (spec terminalKeyEncodingSpec.ts)
+  //
+  // The generated encoder now also covers the edges the hand-written iOS
+  // copy got wrong, byte-identically to Android.
+
+  func testControlFoldMissesUseCsiU() {
+    // iOS used to pass the character through with the control modifier
+    // silently dropped; every mappable key uses the xterm CSI-u form.
+    XCTAssertEqual(encode(.character("1"), .control), "\u{1B}[49;5u")
+    XCTAssertEqual(encode(.character("1"), [.control, .shift]), "\u{1B}[49;6u")
+    XCTAssertEqual(encode(.character(" "), .control), "\u{1B}[32;5u")
+    // DEL sits outside the fold band, so it is a fold miss too.
+    XCTAssertEqual(encode(.character("\u{7F}"), .control), "\u{1B}[127;5u")
+  }
+
+  func testCharacterCsiUMapsByUnicodeScalar() {
+    // A single supplementary scalar maps by code point.
+    XCTAssertEqual(encode(.character("👍"), .alternate), "\u{1B}[128077;3u")
+    // A multi-scalar character is unmappable and falls back to the bare
+    // sequence rather than emitting a malformed escape.
+    XCTAssertEqual(encode(.character("👍🏻"), .alternate), "👍🏻")
+    XCTAssertEqual(encode(.character("👍🏻"), []), "👍🏻")
+  }
+
+  func testC0FoldMeasuresUnicodeScalars() {
+    // 'ß' uppercases to the two-scalar "SS": no fold, and no scalar CSI-u
+    // code point either, so the keystroke passes through (Android's
+    // hand-written copy crashed on this input).
+    XCTAssertEqual(encode(.character("ß"), .control), "ß")
+    // A single non-ASCII scalar whose uppercase lands in the band folds.
+    XCTAssertEqual(encode(.character("ſ"), .control), "\u{13}")
+    // A single scalar that uppercases outside the band is a fold miss.
+    XCTAssertEqual(encode(.character("ⅴ"), .control), "\u{1B}[8548;5u")
+  }
+
   // MARK: UIKit mapping
 
   func testUIKitKeyCodeMappingProducesNormalizedEvents() {

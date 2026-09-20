@@ -1,3 +1,4 @@
+import { hasRelayLoopbackHopMarker } from "./security";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
@@ -142,7 +143,11 @@ function parseLastDesktopSeq(searchParams: URLSearchParams): number | null {
  */
 function desktopInternalRequested(req: IncomingMessage, searchParams: URLSearchParams): boolean {
   if (searchParams.get(REMOTE_DESKTOP_INTERNAL_WS_PARAM) !== "1") return false;
-  return isLoopbackRemoteAddress(req.socket.remoteAddress);
+  // Deep-review fix: the relay adapter also dials from loopback on behalf of
+  // REMOTE visitors (forwarding their query params verbatim), so the socket
+  // address alone would admit any paired client to the desktop-only stream.
+  // A marked dial is proxied, never direct.
+  return isLoopbackRemoteAddress(req.socket.remoteAddress) && !hasRelayLoopbackHopMarker(req);
 }
 
 export function rejectUpgrade(socket: Duplex, status: number, reason: string): void {
