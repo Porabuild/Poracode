@@ -151,6 +151,22 @@ fails loudly).
 
 ---
 
+### 2.4 Container image
+
+The Linux tarball includes `Dockerfile`, `native-overlay/`, and the shared overlay
+installer at `scripts/server-native-overlay.mjs`. Extract it into an empty build
+context, then run `docker build -t poracode-server .` there. The build installs
+runtime JavaScript dependencies with lifecycle scripts disabled and applies the
+shipped native bindings; it requires no compiler. Use a Linux tarball matching
+the image architecture; a macOS tarball cannot supply Linux helpers or bindings.
+
+The image runs as the `node` user and initializes `/var/lib/poracode` with that
+user's ownership. Bind-mounted data directories must also be writable by that
+user. The default listener remains loopback-only: use host networking on Linux
+for local access, or explicitly configure TLS and a LAN bind address before
+publishing a container port. Merely publishing port 49152 does not expose the
+default loopback listener.
+
 ## 3. Running
 
 | Variable                                | Meaning                                                                                                                               |
@@ -327,18 +343,27 @@ prefer `backup`.
 
 ## 7. Upgrade / rollback
 
-In-place upgrade of a prefix is **unsupported** (recorded G2.6 gap). The
-supported shape: assemble/install the new release into a **new prefix**
-(`/opt/poracode/<version>`), SIGTERM the old server, repoint the
-`poracode` symlink (or the service unit path), start again. The owned data
-root is untouched by an upgrade. Rollback = repoint the symlink back; note
-that once a newer release has migrated the data (schema/custody), an older
-release refuses future formats instead of degrading them — downgrade across a
-data migration is unsupported.
+`poracode-server upgrade --from <tarball> [--prefix <path>]` (V6 D.4) stages the
+new release under `<prefix>/releases/<id>`, applies the native overlay, runs
+`doctor`, swaps `<prefix>/current`, and rolls the symlink back when the health
+check fails. The owned data root is untouched. Once a newer release has migrated
+the data (schema/custody), an older release refuses future formats — downgrade
+across a data migration is unsupported.
+
+Service units should `ExecStart` `…/current/lib/server.cjs` so a symlink swap is
+the restart boundary (SIGTERM remains the stop path).
 
 ---
 
-## 8. DECISION RECORD — node-pty on Linux (no prebuild ships today)
+## 8. DECISION RECORD — node-pty on Linux (no upstream prebuild; tarball carries one)
+
+> **Update 2026-09-20 (V6 D.2):** Option A below is now implemented. The
+> qualification CI cross-builds the arm64 binding in an emulated container
+> (`Cross-build the linux-arm64 node-pty binding` step), `prepare-server-native.mjs`
+> stages linux-x64/arm64 bindings from it into the shipped `native-overlay`
+> (`--require-target` fails the build when one is missing), and install applies
+> the overlay before `npm install` — so a Linux install needs no python3/make.
+> The upstream facts recorded here remain true as of node-pty 1.1.0.
 
 Verified 2026-09-16 against `node_modules/node-pty` 1.1.0:
 `prebuilds/` contains only `darwin-arm64`, `darwin-x64`, `win32-arm64`,
