@@ -1809,6 +1809,7 @@ msgid "Awaiting review"
 msgstr "Revisión pendiente"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/HomeFileView.tsx
 #: src/mobile/views/NotesView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -1921,7 +1922,7 @@ msgstr "Archivo binario — vista previa no disponible."
 msgid "Binary file or no diff available"
 msgstr "Archivo binario o diff no disponible"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Binary files can't be edited here."
 msgstr "Los archivos binarios no se pueden editar aquí."
@@ -5416,7 +5417,7 @@ msgstr "Los cambios de archivos aparecerán aquí."
 msgid "File is too large to preview."
 msgstr "El archivo es demasiado grande para previsualizar."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "El archivo ya no existe en el disco."
@@ -6998,6 +6999,7 @@ msgstr "Cargando ejecuciones de flujos de trabajo"
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8278,6 +8280,10 @@ msgstr "No se encontraron skills externos en este ámbito."
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "No hay punto de control de archivos guardado para este mensaje."
+
+#: src/mobile/views/MobileFileEditor.tsx
+msgid "No file selected."
+msgstr "No hay ningún archivo seleccionado."
 
 #. placeholder {0}: query.trim()
 #. placeholder {0}: tree.searchQuery
@@ -11236,7 +11242,7 @@ msgstr "Mismo orden de proveedores en todas las máquinas"
 msgid "Saturation and brightness"
 msgstr "Saturación y brillo"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -13280,12 +13286,12 @@ msgstr "Este dispositivo no tiene una cámara utilizable. Introduce el endpoint 
 msgid "this environment"
 msgstr "este entorno"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "Este archivo es demasiado grande para el editor integrado."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Este archivo usa una codificación no compatible."

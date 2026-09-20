@@ -1809,6 +1809,7 @@ msgid "Awaiting review"
 msgstr "等待审查"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/HomeFileView.tsx
 #: src/mobile/views/NotesView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -1921,7 +1922,7 @@ msgstr "二进制文件 - 预览不可用。"
 msgid "Binary file or no diff available"
 msgstr "二进制文件或没有可用的差异"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Binary files can't be edited here."
 msgstr "此处无法编辑二进制文件。"
@@ -5416,7 +5417,7 @@ msgstr "文件更改将显示在此处。"
 msgid "File is too large to preview."
 msgstr "文件太大，无法预览。"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "文件不再存在于磁盘上。"
@@ -6998,6 +6999,7 @@ msgstr "正在加载工作流运行记录"
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8277,6 +8279,10 @@ msgstr "在此范围内未找到外部技能。"
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "没有为此消息存储文件检查点。"
+
+#: src/mobile/views/MobileFileEditor.tsx
+msgid "No file selected."
+msgstr "未选择文件。"
 
 #. placeholder {0}: query.trim()
 #. placeholder {0}: tree.searchQuery
@@ -11235,7 +11241,7 @@ msgstr "所有设备使用相同的提供方顺序"
 msgid "Saturation and brightness"
 msgstr "饱和度与亮度"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -13279,12 +13285,12 @@ msgstr "此设备没有可用摄像头。请改为在下方输入端点和令牌
 msgid "this environment"
 msgstr "这个环境"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "该文件过大，内置编辑器无法打开。"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "此文件使用不受支持的编码。"

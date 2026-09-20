@@ -1809,6 +1809,7 @@ msgid "Awaiting review"
 msgstr "검토 대기 중"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/HomeFileView.tsx
 #: src/mobile/views/NotesView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -1921,7 +1922,7 @@ msgstr "바이너리 파일 — 미리보기를 사용할 수 없습니다."
 msgid "Binary file or no diff available"
 msgstr "바이너리 파일이거나 diff를 사용할 수 없음"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Binary files can't be edited here."
 msgstr "여기서는 바이너리 파일을 편집할 수 없습니다."
@@ -5416,7 +5417,7 @@ msgstr "파일 변경사항이 여기에 표시됩니다."
 msgid "File is too large to preview."
 msgstr "파일이 너무 커서 미리 볼 수 없습니다."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "파일이 더 이상 디스크에 존재하지 않습니다."
@@ -6998,6 +6999,7 @@ msgstr "워크플로 실행 불러오는 중"
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8278,6 +8280,10 @@ msgstr "이 범위에서 외부 스킬을 찾지 못했습니다."
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "이 메시지에 대해 저장된 파일 체크포인트가 없습니다."
+
+#: src/mobile/views/MobileFileEditor.tsx
+msgid "No file selected."
+msgstr "선택된 파일이 없습니다."
 
 #. placeholder {0}: query.trim()
 #. placeholder {0}: tree.searchQuery
@@ -11236,7 +11242,7 @@ msgstr "모든 기기에서 동일한 프로바이더 순서"
 msgid "Saturation and brightness"
 msgstr "채도와 밝기"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -13280,12 +13286,12 @@ msgstr "이 기기에는 사용할 수 있는 카메라가 없습니다. 대신 
 msgid "this environment"
 msgstr "이 환경"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "이 파일은 내장 편집기에 비해 너무 큽니다."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "이 파일은 지원되지 않는 인코딩을 사용합니다."

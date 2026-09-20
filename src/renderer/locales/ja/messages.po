@@ -1808,6 +1808,7 @@ msgid "Awaiting review"
 msgstr "レビュー保留中"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/HomeFileView.tsx
 #: src/mobile/views/NotesView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -1920,7 +1921,7 @@ msgstr "バイナリ ファイル — プレビューは利用できません。
 msgid "Binary file or no diff available"
 msgstr "バイナリ ファイルまたは利用可能な差分がありません"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Binary files can't be edited here."
 msgstr "ここではバイナリ ファイルを編集できません。"
@@ -5415,7 +5416,7 @@ msgstr "ファイルの変更がここに表示されます。"
 msgid "File is too large to preview."
 msgstr "ファイルが大きすぎてプレビューできません。"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "ファイルはディスク上に存在しません。"
@@ -6997,6 +6998,7 @@ msgstr "ワークフロー実行を読み込み中"
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8276,6 +8278,10 @@ msgstr "このスコープには外部スキルが見つかりませんでした
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "このメッセージにはファイル チェックポイントは保存されません。"
+
+#: src/mobile/views/MobileFileEditor.tsx
+msgid "No file selected."
+msgstr "ファイルが選択されていません。"
 
 #. placeholder {0}: query.trim()
 #. placeholder {0}: tree.searchQuery
@@ -11234,7 +11240,7 @@ msgstr "すべてのマシンで同じプロバイダー順序"
 msgid "Saturation and brightness"
 msgstr "彩度と明度"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -13278,12 +13284,12 @@ msgstr "このデバイスには使用できるカメラがありません。代
 msgid "this environment"
 msgstr "この環境"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "このファイルは組み込みエディタには大きすぎます。"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "このファイルはサポートされていないエンコーディングを使用しています。"

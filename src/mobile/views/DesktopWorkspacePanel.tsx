@@ -92,7 +92,7 @@ export function DesktopWorkspacePanel(props: {
   const { remote, currentThreadId } = props;
   const { t } = useLingui();
   const navigate = useNavigate();
-  const open = useDesktopPanelStore((state) => state.open);
+  const requestedOpen = useDesktopPanelStore((state) => state.open);
   const activeTab = useDesktopPanelStore((state) => state.activeTab);
   const storedThreadId = useDesktopPanelStore((state) => state.threadId);
   const initialFilePath = useDesktopPanelStore((state) => state.initialFilePath);
@@ -145,6 +145,9 @@ export function DesktopWorkspacePanel(props: {
         ? "files"
         : activeTab;
   const projectId = filesTarget?.project.id ?? null;
+  // Home file requests open the editor overlay, never an empty project panel.
+  const canShowPanel = visibleTab !== "files" || canBrowseProject;
+  const open = requestedOpen && canShowPanel;
   const worktreePath = filesTarget?.worktreePath;
   const worktreeBranch = thread?.worktreeBranch;
   const [panelWidth, setPanelWidth] = useState(readPanelWidth);
@@ -204,16 +207,15 @@ export function DesktopWorkspacePanel(props: {
   }, [open, projectId, visibleTab, worktreePath]);
 
   useEffect(() => {
-    if (!open || visibleTab !== "files" || openRequestKey === 0 || !project) {
+    if (!requestedOpen || visibleTab !== "files" || !project) {
       return;
     }
+    if (isHomeProjectId(project.id)) useDesktopPanelStore.getState().close();
+    if (openRequestKey === 0) return;
     if (handledOpenRequestRef.current === openRequestKey) return;
     handledOpenRequestRef.current = openRequestKey;
 
     if (initialFilePath) {
-      // Home opens one file in the shared viewer, without leaving a project
-      // browser behind it when the viewer closes.
-      if (isHomeProjectId(project.id)) useDesktopPanelStore.getState().close();
       void openFileInEditor(
         project,
         worktreePath,
@@ -233,7 +235,7 @@ export function DesktopWorkspacePanel(props: {
     initialFilePath,
     initialFolderPath,
     initialLineNumber,
-    open,
+    requestedOpen,
     openRequestKey,
     project,
     visibleTab,
@@ -366,7 +368,7 @@ export function DesktopWorkspacePanel(props: {
 
   return (
     <div ref={toolsRef} className="m-desktop-tools">
-      {panelRendered ? (
+      {panelRendered && canShowPanel ? (
         <>
           {panelVisible ? (
             <div
@@ -496,7 +498,7 @@ export function DesktopWorkspacePanel(props: {
       ) : null}
       <nav
         className="m-desktop-tool-rail"
-        data-hidden={open || panelRendered || undefined}
+        data-hidden={open || (panelRendered && canShowPanel) || undefined}
         aria-label={t`Tools`}
       >
         <span className="m-desktop-tool-rail__collapsed" aria-hidden="true">

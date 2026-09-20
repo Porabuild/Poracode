@@ -59,7 +59,7 @@ export interface FilesViewProps {
 
 export function FilesView(props: FilesViewProps) {
   return isHomeProjectId(props.target.project.id) ? (
-    <HomeFileView {...props} />
+    <HomeFileView key={props.initialFilePath ?? ""} {...props} />
   ) : (
     <ProjectFilesView {...props} />
   );

@@ -55,7 +55,11 @@ export function MobileFileEditor(props: {
         />
       ) : openFile ? (
         <div className="m-files-status">{fileStatusMessage(openFile.status)}</div>
-      ) : null}
+      ) : (
+        <div className="m-files-status">
+          <Trans>No file selected.</Trans>
+        </div>
+      )}
       {openFile && !openFile.readOnly && openFile.status === "ready" && !openFile.isLoading ? (
         <Fab
           label={t`Save`}
