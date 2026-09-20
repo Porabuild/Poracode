@@ -1,4 +1,4 @@
-import { dbGetThreads, dbSetThreadsDone } from "@/main/db";
+import { dbGetThreads, dbSetThreadsDone } from "@/host/db";
 import { isThreadTurnActive, type PrWatch } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
 import { reportSettingsError } from "@/backend/BackendSettingsNotifications";

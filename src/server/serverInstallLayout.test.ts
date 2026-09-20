@@ -3,8 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  AGENT_PLUGINS_DIR_ENV,
   BUNDLED_PLUGINS_DIR_ENV,
   BUNDLED_SKILLS_DIR_ENV,
+  COMPUTER_USE_HELPER_ROOT_ENV,
   ServerLayoutError,
   WSL_HELPERS_DIR_ENV,
   resolveOptionalServerInstallLayout,
@@ -85,6 +87,17 @@ describe("resolveServerResourceDirs", () => {
     expect(dirs.wslHelpersDir).toBe(join(libDir, "..", "resources", "wsl-helpers"));
     expect(dirs.bundledSkillsDir).toBe(join(libDir, "..", "resources", "skills"));
     expect(dirs.bundledPluginsDir).toBe(join(libDir, "..", "resources", "plugins"));
+    expect(dirs.agentPluginsDir).toBeUndefined();
+    expect(dirs.computerUseHelperRoot).toBeUndefined();
+  });
+
+  it("resolves staged SSH and computer-use dirs from the prefix layout", () => {
+    const { libDir } = makePrefixShape({ withSkills: true, withPlugins: true });
+    mkdirSync(join(libDir, "..", "resources", "agent-plugins"));
+    mkdirSync(join(libDir, "..", "resources", "computer-use-helper"));
+    const dirs = resolveServerResourceDirs({ layout: resolveServerInstallLayout({ libDir }) });
+    expect(dirs.agentPluginsDir).toBe(join(libDir, "..", "resources", "agent-plugins"));
+    expect(dirs.computerUseHelperRoot).toBe(join(libDir, "..", "resources", "computer-use-helper"));
   });
 
   it("reports optional assets as absent when the layout omits them", () => {
@@ -114,6 +127,8 @@ describe("resolveServerResourceDirs", () => {
         [WSL_HELPERS_DIR_ENV]: declared,
         [BUNDLED_SKILLS_DIR_ENV]: declared,
         [BUNDLED_PLUGINS_DIR_ENV]: declared,
+        [AGENT_PLUGINS_DIR_ENV]: declared,
+        [COMPUTER_USE_HELPER_ROOT_ENV]: declared,
       },
       layout: resolveServerInstallLayout({ libDir }),
     });
@@ -121,6 +136,8 @@ describe("resolveServerResourceDirs", () => {
       wslHelpersDir: declared,
       bundledSkillsDir: declared,
       bundledPluginsDir: declared,
+      agentPluginsDir: declared,
+      computerUseHelperRoot: declared,
     });
     expect(() =>
       resolveServerResourceDirs({

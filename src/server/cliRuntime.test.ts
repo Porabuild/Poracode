@@ -86,11 +86,13 @@ describe("fatal error handlers", () => {
   it("reports an uncaught exception with onFatal and force-exits 1", () => {
     const { listeners, exit } = handlerFixture();
     const onFatal = vi.fn<(level: "error", message: string, error: unknown) => void>();
-    installFatalErrorHandlers("[synthetic-server]", { onFatal });
+    const flushSync = vi.fn<() => void>();
+    installFatalErrorHandlers("[synthetic-server]", { onFatal, flushSync });
     expect(listeners.has("unhandledRejection")).toBe(true);
     const error = new Error("synthetic uncaught");
     listeners.get("uncaughtException")!(error);
     expect(onFatal).toHaveBeenCalledWith("error", expect.stringContaining("uncaught"), error);
+    expect(flushSync).toHaveBeenCalledOnce();
     expect(exit).toHaveBeenCalledExactlyOnceWith(1);
   });
 

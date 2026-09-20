@@ -21,7 +21,7 @@ describe("parseServeCliOptions", () => {
     expect(parseServeCliOptions(["serve"])).toEqual({});
   });
 
-  it("parses host, port, and config flags", () => {
+  it("parses host, port, config, and trusted-proxies flags", () => {
     expect(parseServeCliOptions(["--host", "0.0.0.0", "--port", "49200"])).toEqual({
       host: "0.0.0.0",
       port: 49200,
@@ -29,6 +29,9 @@ describe("parseServeCliOptions", () => {
     expect(parseServeCliOptions(["serve", "--config", "/tmp/p.json", "--port", "1"])).toEqual({
       config: "/tmp/p.json",
       port: 1,
+    });
+    expect(parseServeCliOptions(["--trusted-proxies", "10.0.0.0/8,127.0.0.1"])).toEqual({
+      trustedProxies: "10.0.0.0/8,127.0.0.1",
     });
   });
 

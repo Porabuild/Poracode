@@ -1,7 +1,8 @@
-import { deriveForwardOwner, ForwardOriginPolicy } from "@/main/remote/portForward/forwardOrigin";
+import { deriveForwardOwner, ForwardOriginPolicy } from "@/host/remote/portForward/forwardOrigin";
 import { PORACODE_RELAY_PROTOCOL_VERSION } from "@/shared/remote/relayProtocol";
 import { describe, expect, it, vi } from "vitest";
 import { startRelayHost, type RelaySocket } from "./relayHost";
+import { relayLoopbackHopSecret } from "@/host/remote/server/relayHopSecret";
 
 interface FakeRelaySocket extends RelaySocket {
   readonly sent: string[];
@@ -695,12 +696,12 @@ describe("startRelayHost", () => {
     // Every local dial carries the relay-hop marker so the host's loopback-only
     // gates never mistake a proxied remote visitor for a local peer.
     expect(seenHeaders[0]).toEqual({
-      "x-poracode-relay-hop": "1",
+      "x-poracode-relay-hop": relayLoopbackHopSecret(),
       "x-forwarded-for": "relay:abc123",
       cookie: "lc_forward=xyz",
     });
     expect(seenHeaders[1]).toEqual({
-      "x-poracode-relay-hop": "1",
+      "x-poracode-relay-hop": relayLoopbackHopSecret(),
       "x-forwarded-for": "relay:abc123",
     });
     handle.dispose();

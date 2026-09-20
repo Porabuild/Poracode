@@ -90,6 +90,8 @@ export interface FatalErrorHandlersOptions {
   /** Called before the forced exit so a log sink can mirror the entry
    * (synchronous implementations only — the process exits right after). */
   readonly onFatal?: (level: "error", message: string, error: unknown) => void;
+  /** Sync drain (audit log, etc.) immediately before `process.exit`. */
+  readonly flushSync?: () => void;
   /** Install `unhandledRejection` handling too (default true). Node's default
    * already turns unhandled rejections into crashes; handling them here keeps
    * one structured report + stderr line as the single exit path. */
@@ -118,10 +120,20 @@ export function installFatalErrorHandlers(
   };
   const uncaughtException = (error: unknown): void => {
     report("uncaught exception", error);
+    try {
+      options.flushSync?.();
+    } catch {
+      // last-resort drain must never mask the fatal exit
+    }
     process.exit(1);
   };
   const unhandledRejection = (reason: unknown): void => {
     report("unhandled rejection", reason);
+    try {
+      options.flushSync?.();
+    } catch {
+      // last-resort drain must never mask the fatal exit
+    }
     process.exit(1);
   };
   process.on("uncaughtException", uncaughtException);

@@ -6,21 +6,21 @@ import { WebSocket, WebSocketServer } from "ws";
 import {
   createForwardOriginIdentity,
   type ForwardOriginIdentity,
-} from "@/main/remote/portForward/forwardOriginIdentity";
+} from "@/host/remote/portForward/forwardOriginIdentity";
 import {
   FORWARD_ORIGIN_EXCHANGE_PATH,
   FORWARD_ORIGIN_SESSION_COOKIE_NAME,
-} from "@/main/remote/portForward/portProxy";
-import { createPortForwarding } from "@/main/remote/portForward/portForwarding";
+} from "@/host/remote/portForward/portProxy";
+import { createPortForwarding } from "@/host/remote/portForward/portForwarding";
 import {
   rawRequestWithAuthority,
   type CleanupRegistry,
-} from "@/main/remote/portForward/testFixtures";
+} from "@/host/remote/portForward/testFixtures";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
   type RemoteAccessServerOptions,
-} from "@/main/remote/RemoteAccessServer";
+} from "@/host/remote/RemoteAccessServer";
 import { startRelayHost } from "./relayHost";
 import { RelayServer } from "./relayServer";
 

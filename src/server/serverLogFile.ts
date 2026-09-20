@@ -7,6 +7,7 @@ import {
   statSync,
   writeSync,
 } from "node:fs";
+import { rename } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   DEFAULT_LOG_MAX_BYTES,
@@ -140,6 +141,25 @@ export function rotateServerLogFiles(path: string, maxFiles: number): void {
     if (existsSync(from)) renameSync(from, `${path}.${generation + 1}`);
   }
   if (existsSync(path)) renameSync(path, `${path}.1`);
+}
+
+/** Async rotation for the remote audit writer (V6 A.8): same generations as
+ * {@link rotateServerLogFiles}, without `existsSync`/`renameSync` on the
+ * request path. */
+export async function rotateServerLogFilesAsync(path: string, maxFiles: number): Promise<void> {
+  for (let generation = maxFiles - 1; generation >= 1; generation -= 1) {
+    const from = `${path}.${generation}`;
+    try {
+      await rename(from, `${path}.${generation + 1}`);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  try {
+    await rename(path, `${path}.1`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
 }
 
 /** Installs the console-mirroring sink. Returns a handle whose `stop()`

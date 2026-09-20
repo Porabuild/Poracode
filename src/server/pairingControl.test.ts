@@ -33,6 +33,8 @@ async function fixture() {
         computerUse: true,
         nativeSecrets: false,
         portForward: true,
+        autoUpdate: false,
+        osNotifications: false,
       },
     }),
     issuePairing,
@@ -64,6 +66,15 @@ describe("pairing CLI owner adapter", () => {
     }
     expect(replies[0]!.requestId).not.toBe(replies[1]!.requestId);
     expect(test.issuePairing).toHaveBeenCalledTimes(2);
+  });
+
+  it("forwards a viewer scope preset to the owner", async () => {
+    const test = await fixture();
+    await test.control.start();
+    await requestPairingFromRunningServer(test.profile, { preset: "viewer" });
+    expect(test.issuePairing).toHaveBeenCalledWith(
+      expect.objectContaining({ pairingPreset: "viewer" }),
+    );
   });
 
   it("reads owner status without rotating or minting a pairing credential", async () => {

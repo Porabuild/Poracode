@@ -166,6 +166,10 @@ describe("collectServerDoctorReport", () => {
     expect(serialized).not.toContain(fixture.secretKeyValue);
     const statuses = Object.fromEntries(report.checks.map((check) => [check.name, check.status]));
     expect(statuses["install-layout"]).toBe("ok");
+    expect(statuses["ssh-capability"]).toBe("warn");
+    expect(statuses["computer-use-capability"]).toBe("warn");
+    expect(report.hostServices.ssh.enabled).toBe(false);
+    expect(report.hostServices.computerUse.enabled).toBe(false);
     expect(statuses["owned-root"]).toBe("ok");
     expect(statuses["owner-lease"]).toBe("warn");
     expect(statuses["credentials"]).toBe("ok");
@@ -238,6 +242,20 @@ describe("collectServerDoctorReport", () => {
       source: "explicit-host",
       refusal: null,
     });
+
+    const explicitLan = await collectServerDoctorReport({
+      ...base,
+      env: { PORACODE_REMOTE_ACCESS_HOST: "192.168.1.5" },
+    });
+    expect(explicitLan.remoteAccess.bind).toMatchObject({
+      mode: "lan",
+      effectiveHost: "192.168.1.5",
+      source: "explicit-host",
+    });
+    expect(explicitLan.remoteAccess.bind.refusal).toContain("PORACODE_ALLOW_PLAINTEXT_LAN=1");
+    expect(
+      Object.fromEntries(explicitLan.checks.map((c) => [c.name, c.status]))["bind-exposure"],
+    ).toBe("error");
   });
 
   it("includes a redacted log tail when a log file is passed", async () => {

@@ -59,6 +59,8 @@ export class ServerLayoutError extends Error {
 export const WSL_HELPERS_DIR_ENV = "PORACODE_WSL_HELPERS_DIR";
 export const BUNDLED_SKILLS_DIR_ENV = "PORACODE_BUNDLED_SKILLS_DIR";
 export const BUNDLED_PLUGINS_DIR_ENV = "PORACODE_BUNDLED_PLUGINS_DIR";
+export const AGENT_PLUGINS_DIR_ENV = "PORACODE_AGENT_PLUGINS_DIR";
+export const COMPUTER_USE_HELPER_ROOT_ENV = "PORACODE_COMPUTER_USE_HELPER_ROOT";
 
 export interface ServerResourceDirs {
   /** Required asset: WSL helper scripts forwarded to supervisors. */
@@ -67,6 +69,10 @@ export interface ServerResourceDirs {
   readonly bundledSkillsDir: string | undefined;
   /** Optional app-bundled plugins; absent from layouts that do not ship them. */
   readonly bundledPluginsDir: string | undefined;
+  /** Staged SSH agent-plugins; absence declares ssh: false. */
+  readonly agentPluginsDir: string | undefined;
+  /** Computer-use helper binaries; absence declares computerUse: false. */
+  readonly computerUseHelperRoot: string | undefined;
 }
 
 function isDirectory(path: string): boolean {
@@ -100,8 +106,8 @@ function describeSupportedLayouts(libDir: string): string {
     "`<repo>/dist/main/server.cjs` with `<repo>/resources/`. " +
     `The running bundle directory is ${libDir}. ` +
     "Reinstall per docs/STANDALONE_SERVER.md, or declare the asset directories " +
-    `explicitly with ${WSL_HELPERS_DIR_ENV}, ${BUNDLED_SKILLS_DIR_ENV} and ` +
-    `${BUNDLED_PLUGINS_DIR_ENV}.`
+    `explicitly with ${WSL_HELPERS_DIR_ENV}, ${BUNDLED_SKILLS_DIR_ENV}, ` +
+    `${BUNDLED_PLUGINS_DIR_ENV}, ${AGENT_PLUGINS_DIR_ENV} and ${COMPUTER_USE_HELPER_ROOT_ENV}.`
   );
 }
 
@@ -203,7 +209,19 @@ export function resolveServerResourceDirs(input: {
     declaredDirectory(input.env, BUNDLED_SKILLS_DIR_ENV) ?? optionalLayoutDir(input, "skills");
   const bundledPluginsDir =
     declaredDirectory(input.env, BUNDLED_PLUGINS_DIR_ENV) ?? optionalLayoutDir(input, "plugins");
-  return { wslHelpersDir, bundledSkillsDir, bundledPluginsDir };
+  const agentPluginsDir =
+    declaredDirectory(input.env, AGENT_PLUGINS_DIR_ENV) ??
+    optionalLayoutDir(input, "agent-plugins");
+  const computerUseHelperRoot =
+    declaredDirectory(input.env, COMPUTER_USE_HELPER_ROOT_ENV) ??
+    optionalLayoutDir(input, "computer-use-helper");
+  return {
+    wslHelpersDir,
+    bundledSkillsDir,
+    bundledPluginsDir,
+    agentPluginsDir,
+    computerUseHelperRoot,
+  };
 }
 
 function requireWslHelpersDir(layout: ServerInstallLayout | undefined): string {
@@ -225,7 +243,7 @@ function requireWslHelpersDir(layout: ServerInstallLayout | undefined): string {
 
 function optionalLayoutDir(
   input: { readonly layout?: ServerInstallLayout },
-  name: "skills" | "plugins",
+  name: "skills" | "plugins" | "agent-plugins" | "computer-use-helper",
 ): string | undefined {
   const layout = input.layout;
   if (layout === undefined) return undefined;

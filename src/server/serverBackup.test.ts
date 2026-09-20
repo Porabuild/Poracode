@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterAll, describe, expect, it } from "vitest";
-import { LATEST_SCHEMA_VERSION } from "@/main/db/migrations";
+import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import {
   SERVER_BACKUP_RECEIPT_FILE,
