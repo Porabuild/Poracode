@@ -2,8 +2,8 @@ import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { ComposedHostServices } from "@/main/hostServices/composeHostServices";
-import type { RemoteAccessServer, RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
+import type { ComposedHostServices } from "@/host/hostServices/composeHostServices";
+import type { RemoteAccessServer, RemoteAccessServerInfo } from "@/host/remote/RemoteAccessServer";
 import {
   composeHeadlessRemoteHost,
   HeadlessCompositionShutdownError,

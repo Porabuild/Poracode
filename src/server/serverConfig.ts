@@ -17,6 +17,7 @@ import { z } from "zod";
  * | `relayUrl`               | `PORACODE_REMOTE_RELAY_URL`              |
  * | `tlsCert`                | `PORACODE_REMOTE_TLS_CERT`               |
  * | `tlsKey`                 | `PORACODE_REMOTE_TLS_KEY`                |
+ * | `trustedProxies`         | `PORACODE_REMOTE_TRUSTED_PROXIES`        |
  *
  * Precedence per field: `--host`/`--port` CLI flags (the invocation's explicit
  * intent) win over an already-set environment variable, which wins over the
@@ -80,6 +81,8 @@ export const serverConfigFileSchema = z
      * startup loudly on a partial or unloadable pair. */
     tlsCert: z.string().trim().min(1).optional(),
     tlsKey: z.string().trim().min(1).optional(),
+    /** Exact addresses or CIDRs whose X-Forwarded-For the rate limiter may honor. */
+    trustedProxies: z.array(z.string().trim().min(1)).min(1).optional(),
     /** File log level (PORACODE_LOG_LEVEL). */
     logLevel: serverLogLevelSchema.optional(),
     /** Per-file rotation threshold in bytes. */
@@ -111,10 +114,12 @@ export interface ServeCliOptions {
   readonly host?: string;
   /** `--port <port>`: bind port override. */
   readonly port?: number;
+  /** `--trusted-proxies <list>`: comma-separated addresses or CIDRs. */
+  readonly trustedProxies?: string;
 }
 
 export const SERVE_USAGE =
-  "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>]]";
+  "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>]]";
 
 /** Parses `[serve] --config/--host/--port` options; anything else is a usage
  * error. `serve` itself is optional (bare `poracode-server` still serves). */
@@ -122,6 +127,7 @@ export function parseServeCliOptions(args: readonly string[]): ServeCliOptions {
   let config: string | undefined;
   let host: string | undefined;
   let port: number | undefined;
+  let trustedProxies: string | undefined;
   const positional = args[0] === "serve";
   for (let index = positional ? 1 : 0; index < args.length; index += 1) {
     const argument = args[index]!;
@@ -139,12 +145,14 @@ export function parseServeCliOptions(args: readonly string[]): ServeCliOptions {
         throw new Error(SERVE_USAGE);
       }
       port = parsed;
-    } else throw new Error(SERVE_USAGE);
+    } else if (argument === "--trusted-proxies") trustedProxies = value();
+    else throw new Error(SERVE_USAGE);
   }
   return {
     ...(config !== undefined ? { config } : {}),
     ...(host !== undefined ? { host } : {}),
     ...(port !== undefined ? { port } : {}),
+    ...(trustedProxies !== undefined ? { trustedProxies } : {}),
   };
 }
 
@@ -203,6 +211,7 @@ export interface ResolvedServeSettings {
   readonly relayUrl?: string;
   readonly tlsCert?: string;
   readonly tlsKey?: string;
+  readonly trustedProxies?: string;
   readonly logLevel: ServerLogLevel;
   readonly logMaxBytes: number;
   readonly logMaxFiles: number;
@@ -315,6 +324,14 @@ export function resolveServeSettings(input: ResolveServeSettingsInput): Resolved
     file?.tlsKey,
   );
   if (tlsKey.warning) warnings.push(tlsKey.warning);
+  const trustedProxies = pick(
+    "trustedProxies",
+    input.flags.trustedProxies,
+    "PORACODE_REMOTE_TRUSTED_PROXIES",
+    input.env.PORACODE_REMOTE_TRUSTED_PROXIES,
+    file?.trustedProxies?.join(","),
+  );
+  if (trustedProxies.warning) warnings.push(trustedProxies.warning);
   if ((tlsCert.value !== undefined) !== (tlsKey.value !== undefined)) {
     warnings.push(
       "Configured TLS material is incomplete (only one of tlsCert/tlsKey set); the main-process config module will fail startup loudly.",
@@ -354,6 +371,7 @@ export function resolveServeSettings(input: ResolveServeSettingsInput): Resolved
     ...(relayUrl.value !== undefined ? { relayUrl: relayUrl.value } : {}),
     ...(tlsCert.value !== undefined ? { tlsCert: tlsCert.value } : {}),
     ...(tlsKey.value !== undefined ? { tlsKey: tlsKey.value } : {}),
+    ...(trustedProxies.value !== undefined ? { trustedProxies: trustedProxies.value } : {}),
     logLevel,
     logMaxBytes: file?.logMaxBytes ?? DEFAULT_LOG_MAX_BYTES,
     logMaxFiles: file?.logMaxFiles ?? DEFAULT_LOG_MAX_FILES,
@@ -377,6 +395,9 @@ export function applyServeSettingsToEnv(
   }
   if (settings.remoteAccessPort !== undefined) {
     setFromFlags.push([REMOTE_ACCESS_PORT_ENV, String(settings.remoteAccessPort)]);
+  }
+  if (settings.trustedProxies !== undefined) {
+    setFromFlags.push(["PORACODE_REMOTE_TRUSTED_PROXIES", settings.trustedProxies]);
   }
   for (const [name, value] of setFromFlags) {
     env[name] = value;

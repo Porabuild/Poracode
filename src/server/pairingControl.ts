@@ -10,6 +10,10 @@ export interface PairingControlResponse {
   readonly pairingUrl: string;
 }
 
+export interface RequestPairingOptions extends HostControlCallOptions {
+  readonly preset?: "operator" | "viewer";
+}
+
 export interface HostStatusResponse {
   readonly requestId: string;
   readonly ownerGeneration: string;
@@ -19,13 +23,13 @@ export interface HostStatusResponse {
 /** The CLI is an authenticated client of the existing owner, never another owner. */
 export async function requestPairingFromRunningServer(
   profileNamespace: string,
-  options: HostControlCallOptions = {},
+  options: RequestPairingOptions = {},
 ): Promise<PairingControlResponse> {
-  const reply = await callHostControl(
-    resolveHostRootPaths(profileNamespace),
-    "issue-pairing",
-    options,
-  );
+  const { preset, ...callOptions } = options;
+  const reply = await callHostControl(resolveHostRootPaths(profileNamespace), "issue-pairing", {
+    ...callOptions,
+    ...(preset ? { payload: { preset } } : {}),
+  });
   return { requestId: reply.requestId, pairingUrl: reply.result.pairingUrl };
 }
 

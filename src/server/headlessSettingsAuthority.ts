@@ -10,7 +10,7 @@ import type { OwnedHostRuntime } from "@/backend/ownership/HostOwnerController";
 import {
   createRemoteMcpSettingsGateway,
   type RemoteMcpSettingsGateway,
-} from "@/main/remote/RemoteMcpSettingsGateway";
+} from "@/host/remote/RemoteMcpSettingsGateway";
 
 /**
  * Headless settings custody. The owned runtime's lease and credential

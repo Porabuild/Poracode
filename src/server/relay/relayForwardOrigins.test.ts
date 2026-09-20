@@ -2,7 +2,7 @@ import { once } from "node:events";
 import { request } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
-import { ForwardOriginPolicy } from "@/main/remote/portForward/forwardOrigin";
+import { ForwardOriginPolicy } from "@/host/remote/portForward/forwardOrigin";
 import {
   PORACODE_RELAY_PROTOCOL_VERSION,
   relayServerFrameSchema,

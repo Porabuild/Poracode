@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
-import { saveUploadedAttachmentFile } from "@/main/attachments/attachmentStorage";
+import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
 import {
   dbGetProject,
   dbGetProjects,
@@ -8,28 +8,28 @@ import {
   dbGetThreads,
   dbMarkLiveThreadsInactive,
   dbUpdateProject,
-} from "@/main/db";
+} from "@/host/db";
 import { BackendHostCore, RevertCheckpointRefusedError } from "@/backend/BackendHostCore";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
-import { readSharedSettingsFile } from "@/main/sharedSettingsFile";
-import { createPersistentRemoteAuthStore, RemoteHttpError } from "@/main/remote/auth";
-import { readOrCreateRemoteAccessIdentity } from "@/main/remote/identity";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
+import { createPersistentRemoteAuthStore, RemoteHttpError } from "@/host/remote/auth";
+import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
 import {
   createForwardOriginIdentity,
   type ForwardOriginIdentity,
-} from "@/main/remote/portForward/forwardOriginIdentity";
-import { readOrCreateForwardOriginSecret } from "@/main/remote/portForward/forwardOriginSecret";
-import { createRemoteAuditLog } from "@/main/remote/server/auditLog";
-import { createPortForwarding } from "@/main/remote/portForward/portForwarding";
+} from "@/host/remote/portForward/forwardOriginIdentity";
+import { readOrCreateForwardOriginSecret } from "@/host/remote/portForward/forwardOriginSecret";
+import { createRemoteAuditLog } from "@/host/remote/server/auditLog";
+import { createPortForwarding } from "@/host/remote/portForward/portForwarding";
 import {
   createPushGateway,
   createWebPushPublicKeyResolver,
   PushCoordinator,
   PushRegistrationStore,
-} from "@/main/remote/push";
-import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/main/remote/RemoteAccessServer";
-import { ThreadNotificationPublisher } from "@/main/remote/ThreadNotificationPublisher";
+} from "@/host/remote/push";
+import { RemoteAccessServer, type RemoteAccessServerInfo } from "@/host/remote/RemoteAccessServer";
+import { ThreadNotificationPublisher } from "@/host/remote/ThreadNotificationPublisher";
 import {
   classifyBindHostExposure,
   remoteAccessAdvertisedHost,
@@ -37,12 +37,12 @@ import {
   remoteAccessPairingAppUrl,
   remoteForwardBaseUrl,
   resolveRemoteAccessPort,
-} from "@/main/remote/config";
+} from "@/host/remote/config";
 import {
   createMdnsAdvertiser,
   shouldAdvertiseMdns,
   type MdnsAdvertiser,
-} from "@/main/remote/mdnsAdvertiser";
+} from "@/host/remote/mdnsAdvertiser";
 import { isThreadTurnActive, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
@@ -51,8 +51,7 @@ import {
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
 import type { OwnedHostRuntime } from "@/backend/ownership/HostOwnerController";
-import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
-import type { HeadlessRemoteHost, HeadlessRemoteHostOptions } from "./createHeadlessRemoteHost";
+import type { HeadlessRemoteHostOptions } from "./createHeadlessRemoteHost";
 import { resolveLocalProxyBase } from "./headlessProxyBase";
 import { readOwnedHeadlessRelaySecret } from "./headlessRelaySecret";
 import { HostControlServer } from "@/backend/ownership/HostControlServer";
@@ -61,37 +60,17 @@ import {
   type HeadlessSettingsComposition,
 } from "./headlessSettingsAuthority";
 import { createHeadlessPrMergeEffect } from "./headlessPrWatchMerge";
-import { composeHostServices } from "@/main/hostServices/composeHostServices";
-import type { SshConnectionManager } from "@/main/ssh/SshConnectionManager";
+import { composeHostServices } from "@/host/hostServices/composeHostServices";
+import type { SshConnectionManager } from "@/host/ssh/SshConnectionManager";
 
-/**
- * Describes a host whose service composition has not been constructed (or has
- * already been torn down): nothing is offered except the port-forward gateway
- * the server itself owns. Fail-closed, never "inferred from the host mode".
- */
-const UNCOMPOSED_HOST_CAPABILITIES: HostServiceCapabilities = {
-  ssh: false,
-  browserPanel: false,
-  chromeBridge: false,
-  computerUse: false,
-  nativeSecrets: false,
-  portForward: true,
-};
+import {
+  HeadlessCompositionShutdownError,
+  UNCOMPOSED_HOST_CAPABILITIES,
+  type HeadlessRemoteComposition,
+} from "./headlessRemoteCompositionSupport";
 
-export type HeadlessRemoteComposition = Pick<
-  HeadlessRemoteHost,
-  "server" | "forwardOriginSecret" | "hostServices" | "start" | "dispose"
->;
-
-/** Partial construction failed and its runtime could not confirm shutdown. */
-export class HeadlessCompositionShutdownError extends AggregateError {
-  constructor(errors: unknown[]) {
-    super(
-      errors,
-      "Headless startup failed and runtime shutdown is unconfirmed; ownership is retained.",
-    );
-  }
-}
+export { HeadlessCompositionShutdownError };
+export type { HeadlessRemoteComposition };
 
 export async function composeHeadlessRemoteHost(
   options: HeadlessRemoteHostOptions,
@@ -317,6 +296,8 @@ export async function composeHeadlessRemoteHost(
       nativeSecrets: false,
       // This composition always builds the port-forward gateway below.
       portForward: true,
+      autoUpdate: false,
+      osNotifications: false,
     });
     hostServicesRef = hostServices;
     sshRef = hostServices.sshConnectionManager;
@@ -439,6 +420,7 @@ export async function composeHeadlessRemoteHost(
     const server = new RemoteAccessServer({
       appVersion: options.appVersion,
       hostMode: "helper",
+      hostCapabilities: hostServices.capabilities,
       ownsSupervisorPersistence: false,
       identity,
       isDev,
@@ -506,7 +488,10 @@ export async function composeHeadlessRemoteHost(
       }),
       issuePairing: (context) => {
         context.assertActive();
-        return server.issueIndependentPairingUrl("Local owner control");
+        return server.issueIndependentPairingUrl(
+          "Local owner control",
+          context.pairingPreset ? { preset: context.pairingPreset } : undefined,
+        );
       },
     });
 
@@ -574,13 +559,6 @@ export async function composeHeadlessRemoteHost(
       }
       return info;
     }
-    /**
-     * V5 plan item P4: when the resolved bind is a TLS-configured `lan` or
-     * `tailnet` exposure, advertise the endpoint over mDNS with the leaf
-     * certificate fingerprint in the TXT record so native pairing screens can
-     * list this host and pin on first connect. Loopback stays silent by
-     * default; failures degrade to a log line, never to serving trouble.
-     */
     function maybeAdvertiseMdns(info: RemoteAccessServerInfo): void {
       void stopMdnsAdvertiser();
       const fingerprint = serverRef?.tlsFingerprint();

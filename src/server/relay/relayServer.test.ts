@@ -9,15 +9,16 @@ import type { AddressInfo } from "node:net";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RemoteAccessServer, RemoteAuthStore, RemotePortForwardGateway } from "@/main/remote";
-import { deriveForwardOwner, ForwardOriginPolicy } from "@/main/remote/portForward/forwardOrigin";
+import { RemoteAccessServer, RemoteAuthStore, RemotePortForwardGateway } from "@/host/remote";
+import { deriveForwardOwner, ForwardOriginPolicy } from "@/host/remote/portForward/forwardOrigin";
 import {
   FORWARD_ORIGIN_EXCHANGE_PATH,
   FORWARD_ORIGIN_SESSION_COOKIE_NAME,
   PortProxy,
-} from "@/main/remote/portForward/portProxy";
+} from "@/host/remote/portForward/portProxy";
 import { RemoteDesktopClient } from "@/shared/remote/client";
 import { RelayServer, relayVisitorClientId, type RelayServerInfo } from "./relayServer";
+import type { RelayServerRuntime } from "./relayServerTypes";
 import { startRelayHost, type RelayHostHandle } from "./relayHost";
 
 /**
@@ -29,6 +30,11 @@ import { startRelayHost, type RelayHostHandle } from "./relayHost";
  * describe's fixture-honesty note).
  */
 const FORWARD_ORIGIN_BASE_URL = "https://apps.example.test";
+
+/** F.2 split moved Maps onto the listen runtime; tests poke those internals. */
+function relayRuntime(relay: RelayServer): RelayServerRuntime {
+  return (relay as unknown as { rt: RelayServerRuntime }).rt;
+}
 
 /**
  * End-to-end relay round-trip over real localhost sockets: a RemoteAccessServer
@@ -595,7 +601,7 @@ describe("relay end-to-end", () => {
     cleanups.push(() => relay.dispose());
     await openRawHost(relayInfo.port, "srv-send-fail");
 
-    const state = relay as unknown as {
+    const state = relayRuntime(relay) as unknown as {
       hosts: Map<string, { control: WebSocket }>;
       pending: Map<string, unknown>;
     };
@@ -623,7 +629,7 @@ describe("relay end-to-end", () => {
     cleanups.push(() => relay.dispose());
     await openRawHost(relayInfo.port, "srv-slow-host");
 
-    const state = relay as unknown as {
+    const state = relayRuntime(relay) as unknown as {
       hosts: Map<string, { control: WebSocket }>;
       pending: Map<string, unknown>;
     };
@@ -718,7 +724,7 @@ describe("relay end-to-end", () => {
     expect(openB.t).toBe("ws-open");
 
     // Simulate a congested host control link (receiver not draining).
-    const state = relay as unknown as {
+    const state = relayRuntime(relay) as unknown as {
       hosts: Map<string, { control: WebSocket; channelBytes: Map<string, number> }>;
       visitors: Map<string, unknown>;
     };
@@ -768,7 +774,7 @@ describe("relay end-to-end", () => {
     let opened: { t: string; id: string } | undefined;
     await expect
       .poll(() => {
-        const state = relay as unknown as { visitors: Map<string, unknown> };
+        const state = relayRuntime(relay) as unknown as { visitors: Map<string, unknown> };
         if (state.visitors.size > 0 && !opened) {
           opened = { t: "ws-open", id: [...state.visitors.keys()][0]! };
         }
@@ -779,7 +785,9 @@ describe("relay end-to-end", () => {
     expect(opened!.t).toBe("ws-open");
 
     // The visitor socket can no longer accept writes (vanished mid-forward).
-    const state = relay as unknown as { visitors: Map<string, { socket: WebSocket }> };
+    const state = relayRuntime(relay) as unknown as {
+      visitors: Map<string, { socket: WebSocket }>;
+    };
     const entry = state.visitors.get(channelId);
     expect(entry).toBeDefined();
     entry!.socket.send = (() => {
@@ -817,7 +825,7 @@ describe("relay end-to-end", () => {
     });
     expect(response.status).toBe(413);
     await expect(response.text()).resolves.toContain("request too large for the relay link");
-    const state = relay as unknown as {
+    const state = relayRuntime(relay) as unknown as {
       hosts: Map<string, { control: WebSocket }>;
       pending: Map<string, unknown>;
     };
@@ -847,7 +855,7 @@ describe("relay end-to-end", () => {
     );
     expect(overflow.status).toBe(429);
     await expect(overflow.text()).resolves.toContain("relay admission limit");
-    const state = relay as unknown as { pending: Map<string, unknown> };
+    const state = relayRuntime(relay) as unknown as { pending: Map<string, unknown> };
     expect(state.pending.size).toBe(16);
   });
 
@@ -1014,7 +1022,7 @@ describe("relay end-to-end", () => {
     const openFrame = (await readRawHostFrame(control)) as { id: string };
     expect(openFrame).toMatchObject({ t: "ws-open", path: "/ws?ticket=t" });
 
-    const state = relay as unknown as {
+    const state = relayRuntime(relay) as unknown as {
       visitors: Map<string, { socket: WebSocket }>;
     };
     const serverSideVisitor = state.visitors.get(openFrame.id)?.socket;
@@ -1140,7 +1148,7 @@ describe("relay end-to-end", () => {
     );
 
     await expect(closed).resolves.toMatchObject({ code: 1013, reason: "relay link congestion" });
-    const state = relay as unknown as { hosts: Map<string, unknown> };
+    const state = relayRuntime(relay) as unknown as { hosts: Map<string, unknown> };
     expect(state.hosts.has("srv-congested-registration")).toBe(false);
   });
 

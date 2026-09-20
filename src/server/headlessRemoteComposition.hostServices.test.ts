@@ -10,12 +10,13 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import { HOST_CONTROL_PROTOCOL_VERSION } from "@/shared/hostControlProtocol";
-import { ChromeBridgeServer, ChromeMcpIngress } from "@/main/browser";
-import { ComputerUseMcpIngress } from "@/main/computer-use";
-import { SshConnectionManager } from "@/main/ssh/SshConnectionManager";
+import { ChromeBridgeServer, ChromeMcpIngress } from "@/host/browser";
+import { ComputerUseMcpIngress } from "@/host/computer-use";
+import { SshConnectionManager } from "@/host/ssh/SshConnectionManager";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
+import { requestPairingFromRunningServer } from "./pairingControl";
 
 // The composition test must not spawn native computer-use drivers; the
 // drivers module is the only Electron-free-but-platform-bound seam, so a
@@ -40,7 +41,7 @@ const drivers = vi.hoisted(() => {
   };
 });
 
-vi.mock("@/main/computer-use/drivers", () => ({
+vi.mock("@/host/computer-use/drivers", () => ({
   createComputerUseDriver: drivers.createComputerUseDriver,
   resolveComputerUseHelperBinaryPath: drivers.resolveComputerUseHelperBinaryPath,
 }));
@@ -104,7 +105,7 @@ vi.mock("@/main/supervisor/SupervisorClient", () => ({
   },
 }));
 
-vi.mock("@/main/sharedSettingsFile", () => ({
+vi.mock("@/host/sharedSettingsFile", () => ({
   readSharedSettingsFile: () => h.sharedSettings,
   patchSharedSettingsFile: () => ({}),
   writeSharedSettingsFile: () => undefined,
@@ -162,6 +163,8 @@ describe("standalone host service composition (V5 1.1)", () => {
         computerUse: true,
         nativeSecrets: false,
         portForward: true,
+        autoUpdate: false,
+        osNotifications: false,
       });
       // The composed services settle their starts without failing startup.
       await expect(host.start()).resolves.toMatchObject({
@@ -190,6 +193,8 @@ describe("standalone host service composition (V5 1.1)", () => {
           computerUse: true,
           nativeSecrets: false,
           portForward: true,
+          autoUpdate: false,
+          osNotifications: false,
         },
       });
       // The reply parsed under the versioned schema, so this also proves the
@@ -217,7 +222,50 @@ describe("standalone host service composition (V5 1.1)", () => {
         computerUse: false,
         nativeSecrets: false,
         portForward: true,
+        autoUpdate: false,
+        osNotifications: false,
       });
+    } finally {
+      await disposeQuietly(host);
+    }
+  });
+
+  it("C.1: standalone SSH environment() case over HTTP describe after pairing", async () => {
+    let host: Awaited<ReturnType<typeof makeHost>> | undefined;
+    try {
+      host = await makeHost({
+        agentPluginsDir: "/fixture/agent-plugins",
+        computerUseHelperRoot: "/fixture/computer-use-helper",
+      });
+      const info = await host.start();
+      const discovered = host.hostServices.sshConnectionManager!.discoverHosts();
+      expect(Array.isArray(discovered)).toBe(true);
+
+      const pairing = await requestPairingFromRunningServer(h.tmpBase);
+      const credential = new URLSearchParams(new URL(pairing.pairingUrl).hash.slice(1)).get(
+        "token",
+      );
+      expect(credential).toBeTruthy();
+      const tokenResponse = await fetch(new URL("oauth/token", info.httpBaseUrl), {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: new URL(info.httpBaseUrl).origin },
+        body: JSON.stringify({
+          grantType: "pairing-token",
+          credential,
+          scopes: ["session:read"],
+          client: { label: "c1", deviceType: "desktop" },
+        }),
+      });
+      expect(tokenResponse.status).toBe(200);
+      const { accessToken } = (await tokenResponse.json()) as { accessToken: string };
+      const describeResponse = await fetch(new URL("/api/host/describe", info.httpBaseUrl), {
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      expect(describeResponse.status).toBe(200);
+      const body = (await describeResponse.json()) as {
+        capabilities?: { ssh?: boolean; computerUse?: boolean };
+      };
+      expect(body.capabilities).toMatchObject({ ssh: true, computerUse: true });
     } finally {
       await disposeQuietly(host);
     }

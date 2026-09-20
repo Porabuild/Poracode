@@ -1,8 +1,8 @@
 import { createServer as createHttpServer } from "node:http";
 import { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { RemoteAuthStore } from "@/main/remote/auth";
-import { RemoteAccessServer } from "@/main/remote/RemoteAccessServer";
+import { RemoteAuthStore } from "@/host/remote/auth";
+import { RemoteAccessServer } from "@/host/remote/RemoteAccessServer";
 import {
   deriveRelayChannelBindingKey,
   isRelayBoundCredential,

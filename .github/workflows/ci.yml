@@ -71,7 +71,7 @@ jobs:
         run: node --test scripts/resolve-release-version.test.mjs
 
       - name: Nightly qualification regression tests
-        run: node --test scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs
+        run: node --test scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs scripts/server-gate-workflows.test.mjs scripts/prepare-server-native.test.mjs
 
   fmt:
     name: Format

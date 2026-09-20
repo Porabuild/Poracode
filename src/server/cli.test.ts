@@ -4,6 +4,7 @@ import {
   parseBackupCliOptions,
   parseDoctorCliOptions,
   parseInitTlsCliOptions,
+  parsePairCliOptions,
   parseServerCliCommand,
 } from "./cli";
 
@@ -22,6 +23,13 @@ describe("parseServerCliCommand", () => {
 
   it("recognizes the explicit machine-readable pairing command", () => {
     expect(parseServerCliCommand(["pair", "--json"])).toBe("pair-json");
+    expect(parseServerCliCommand(["pair", "--json", "--scope", "viewer"])).toBe("pair-json");
+    expect(parsePairCliOptions(["--json"])).toEqual({ json: true });
+    expect(parsePairCliOptions(["--json", "--scope", "viewer"])).toEqual({
+      json: true,
+      scope: "viewer",
+    });
+    expect(() => parsePairCliOptions(["--scope", "viewer"])).toThrow(/pair --json/u);
   });
 
   it("recognizes the authenticated owner status command", () => {
@@ -41,6 +49,11 @@ describe("parseServerCliCommand", () => {
     expect(parseServerCliCommand(["doctor", "--json", "--log-file", "/tmp/server.log"])).toBe(
       "doctor",
     );
+  });
+
+  it("recognizes the in-place upgrade command", () => {
+    expect(parseServerCliCommand(["upgrade", "--from", "/tmp/a.tar.gz"])).toBe("upgrade");
+    expect(parseServerCliCommand(["upgrade", "--from", "/tmp/a.tar.gz", "--json"])).toBe("upgrade");
   });
 
   it("recognizes the verified backup command", () => {

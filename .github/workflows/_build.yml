@@ -189,6 +189,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Assemble standalone server tarball
+        if: matrix.platform == 'linux'
+        run: |
+          pnpm run prepare:server-native
+          pnpm run assemble:server-tarball
+          mkdir -p release
+          cp dist/poracode-server-*.tar.gz release/
+          cp dist/poracode-server-*.tar.gz.sha256 release/
+        shell: bash
+
       - name: Package macOS
         if: matrix.platform == 'mac'
         run: |
@@ -304,5 +314,7 @@ jobs:
             release/latest*.yml
             release/nightly*.yml
             release/*.blockmap
+            release/poracode-server-*.tar.gz
+            release/poracode-server-*.tar.gz.sha256
           if-no-files-found: error
           retention-days: 7

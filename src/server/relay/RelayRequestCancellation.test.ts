@@ -3,7 +3,7 @@ import { connect as netConnect, type AddressInfo, type Socket } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WebSocket } from "ws";
 import { headersToRecord } from "@/shared/http";
-import { deriveForwardOwner, ForwardOriginPolicy } from "@/main/remote/portForward/forwardOrigin";
+import { deriveForwardOwner, ForwardOriginPolicy } from "@/host/remote/portForward/forwardOrigin";
 import {
   PORACODE_RELAY_PROTOCOL_VERSION,
   relayHostFrameSchema,

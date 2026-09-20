@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { AddressInfo } from "node:net";
-import { rawRequestWithAuthority } from "@/main/remote/portForward/testFixtures";
+import { rawRequestWithAuthority } from "@/host/remote/portForward/testFixtures";
 import { RelayServer } from "./relay/relayServer";
 import {
   existsSync,
@@ -19,14 +19,14 @@ import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadlessRemoteHost";
-import { RemoteAccessServer } from "@/main/remote/RemoteAccessServer";
+import { RemoteAccessServer } from "@/host/remote/RemoteAccessServer";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
 import { HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
 import { requestPairingFromRunningServer } from "./pairingControl";
-import { PushRegistrationStore, pushRegistrationsFilePath } from "@/main/remote/push";
-import type { SendPush } from "@/main/remote/push/pushGateway";
-import * as remoteConfig from "@/main/remote/config";
+import { PushRegistrationStore, pushRegistrationsFilePath } from "@/host/remote/push";
+import type { SendPush } from "@/host/remote/push/pushGateway";
+import * as remoteConfig from "@/host/remote/config";
 
 // Mutable state shared with the hoisted vi.mock factories.
 const h = vi.hoisted(() => ({
@@ -45,14 +45,55 @@ const h = vi.hoisted(() => ({
   sendPush: vi.fn<SendPush>(async () => ({ ok: true, status: 200, unregistered: false })),
 }));
 
-vi.mock("@/main/remote/push", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/main/remote/push")>();
+vi.mock("@/host/remote/push", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/host/remote/push")>();
   return { ...actual, createPushGateway: () => h.sendPush };
 });
 
-// `../db` (used by RemoteAccessServer) and `@/main/db` resolve to the same
-// file, so this mock covers both importers. The ownership lease still uses a
-// real temporary SQLite file; only the application database and supervisor are mocked.
+// V6 F.1 moved the event-persistence chain (`runtimePersistence`,
+// `threadStatePersistence`, `usageLedger`, `terminalScrollbackPersistence`)
+// onto `@/host/db`, which a `@/main/db` mock no longer intercepts. Any DB
+// function the synthetic host could reach is inert: reads see an empty world
+// (persistence no-ops on a missing thread), writes record nothing.
+vi.mock("@/host/db", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/host/db")>();
+  const overrides: Record<string, unknown> = {
+    dbGetThread: () => null,
+    dbGetThreads: () => h.threads,
+    dbGetProjects: () => h.projects,
+    dbGetProject: (projectId: string) =>
+      h.projects.find(
+        (project) =>
+          typeof project === "object" &&
+          project !== null &&
+          "id" in project &&
+          project.id === projectId,
+      ) ?? null,
+    dbGetProjectNotes: () => "",
+    dbGetThreadRuntimeItems: () => [],
+    dbGetThreadCompletedTurns: () => [],
+    dbGetThreadContextUsage: () => null,
+    dbGetLatestThreadRuntimeAnchorItemId: () => null,
+  };
+  return new Proxy(actual, {
+    get(target, property, receiver) {
+      if (typeof property === "string" && property in overrides) return overrides[property];
+      const value = Reflect.get(target, property, receiver);
+      if (
+        typeof value === "function" &&
+        typeof property === "string" &&
+        property.startsWith("db")
+      ) {
+        return () => undefined;
+      }
+      return value;
+    },
+  });
+});
+
+// BackendHostCore and RemoteAccessServer import the application database
+// through `@/main/db`. The ownership lease still uses a real temporary SQLite
+// file via `@/main/db/connection`; only the application database is mocked.
 vi.mock("@/main/db", () => ({
   initDatabase: (dbPath: string) => h.initDatabase(dbPath),
   closeDatabase: () => h.closeDatabase(),
@@ -116,8 +157,8 @@ vi.mock("@/main/supervisor/SupervisorClient", () => ({
   },
 }));
 
-vi.mock("@/main/sharedSettingsFile", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/main/sharedSettingsFile")>();
+vi.mock("@/host/sharedSettingsFile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/host/sharedSettingsFile")>();
   return {
     readSharedSettingsFile: () => h.sharedSettings,
     patchSharedSettingsFile: () => ({}),
@@ -164,6 +205,7 @@ describe("createHeadlessRemoteHost", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     rmSync(h.tmpRoot, { recursive: true, force: true });
   });
 
@@ -539,6 +581,11 @@ describe("createHeadlessRemoteHost", () => {
     "serves a relay-only browser forward through production composition bound to %s",
     async (bindHost) => {
       vi.stubEnv("PORACODE_REMOTE_FORWARD_BASE_URL", undefined);
+      if (bindHost !== "127.0.0.1") {
+        // A.4 refuses plaintext LAN binds; this case is the relay-forward
+        // composition, not TLS, so ack the bind class for the fixture.
+        vi.stubEnv("PORACODE_ALLOW_PLAINTEXT_LAN", "1");
+      }
       const relay = new RelayServer({
         host: "127.0.0.1",
         port: 0,

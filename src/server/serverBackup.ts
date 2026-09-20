@@ -2,8 +2,8 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync } from "node:f
 import { isAbsolute, join, relative } from "node:path";
 import Database from "better-sqlite3";
 import { writeFileAtomic } from "@/shared/atomicFile";
-import { resolveBetterSqliteNativeBindingOptions } from "@/main/db/connection";
-import { LATEST_SCHEMA_VERSION } from "@/main/db/migrations";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import {
   copyImportFiles,
