@@ -45,7 +45,7 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
     // Manifest format 4 adds the generated terminal hardware-key encoder
     // (format 3 added the terminal-cursor machine + `stateMachines` count;
     // format 2 added the pairing machine, V5 5.2).
-    XCTAssertEqual(manifest.formatVersion, 4)
+    XCTAssertEqual(manifest.formatVersion, 5)
     XCTAssertEqual(
       manifest.formatVersion,
       GeneratedRemoteV3Contract.expectedNativeBundleManifestFormatVersion
@@ -53,6 +53,39 @@ final class GeneratedRemoteV3ContractTests: XCTestCase {
     XCTAssertEqual(manifest.bindingFormatVersion, RemoteContractMetadata.bindingFormatVersion)
     XCTAssertEqual(manifest.generatorVersion, RemoteContractMetadata.generatorVersion)
     XCTAssertEqual(manifest.protocolVersion, RemoteContractMetadata.protocolVersion)
+  }
+
+  func testFormat4ManifestIsRefusedByFormat5Reader() throws {
+    var object = try object(manifestData())
+    object["formatVersion"] = 4
+    let data = try JSONSerialization.data(withJSONObject: object)
+    XCTAssertFalse(
+      GeneratedRemoteV3Contract.isCompatible(withNativeBundleManifest: data),
+      "format 4 must be refused by the format 5 reader"
+    )
+    XCTAssertTrue(
+      GeneratedRemoteV3Contract.isCompatible(withNativeBundleManifest: try manifestData())
+    )
+  }
+
+  func testFormat5ManifestIsRefusedByFormat4Reader() throws {
+    // Old-reader direction: a reader still expecting format 4 (built before
+    // format 5 added background-task reduce and the follow-up queue machine)
+    // must refuse the format-5 bundle instead of decoding machines it cannot
+    // know. Exact equality, never a `<=` range check.
+    XCTAssertFalse(
+      GeneratedRemoteV3Contract.isCompatible(
+        withNativeBundleManifest: try manifestData(),
+        expectedFormatVersion: 4
+      ),
+      "format-4 expectations must refuse a format-5 bundle"
+    )
+    XCTAssertTrue(
+      GeneratedRemoteV3Contract.isCompatible(
+        withNativeBundleManifest: try manifestData(),
+        expectedFormatVersion: 5
+      )
+    )
   }
 
   func testEnvironmentAndSnapshotFixturesCanonicalizeDefaultsAndUnknowns() throws {

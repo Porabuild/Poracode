@@ -138,6 +138,8 @@ struct SessionRuntimeState {
 
     /// Pending deep-link pairing (host only in UI; credential memory-only).
     var pendingPairing: RemotePairingPending?
+    /// QR `#fp=` for the pending candidate; not part of the generated pending struct.
+    var pendingCertFingerprint: String?
 
     var openRuntimeRequests: [RuntimeEventReducer.OpenRuntimeRequest] = []
     /// Canonical domain fields for the open thread (open-turn, context, completed turns).
@@ -300,6 +302,7 @@ struct SessionRuntimeState {
         gitInterestCoordinator.reset()
         explicitGitInterests = []
         pendingPairing = nil
+        pendingCertFingerprint = nil
         hydrationBuffer.discard()
         historyLoadGeneration += 1
         phase = .needsPairing

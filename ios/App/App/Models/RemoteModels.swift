@@ -391,6 +391,14 @@ struct RemoteClientError: LocalizedError, Sendable, Equatable {
         )
     }
 
+    static var certificateMismatch: RemoteClientError {
+        RemoteClientError(
+            message: TlsCertPin.mismatchMessage,
+            status: 502,
+            code: TlsCertPin.mismatchCode
+        )
+    }
+
     /// Unsupported auth policy / bootstrap / session method literals (terminal incompatible).
     static func unsupportedEnvironment(_ message: String) -> RemoteClientError {
         RemoteClientError(message: message, status: 409, code: "unsupported_environment")

@@ -329,6 +329,88 @@
         }
       }
     },
+    "port-forwarding.certificate-mismatch": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The desktop's TLS certificate does not match the pairing fingerprint. Re-pair from the desktop Remote Access panel."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das TLS-Zertifikat des Desktops stimmt nicht mit dem Pairing-Fingerabdruck überein. Koppeln Sie erneut über das Remote-Access-Panel auf dem Desktop."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El certificado TLS del escritorio no coincide con la huella del emparejamiento. Vuelva a emparejar desde el panel de acceso remoto del escritorio."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le certificat TLS du bureau ne correspond pas à l’empreinte d’appariement. Réappareillez depuis le panneau Accès distant du bureau."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "デスクトップの TLS 証明書がペアリングのフィンガープリントと一致しません。デスクトップのリモートアクセスパネルから再ペアリングしてください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "데스크톱의 TLS 인증서가 페어링 지문과 일치하지 않습니다. 데스크톱 원격 액세스 패널에서 다시 페어링하세요."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certyfikat TLS pulpitu nie zgadza się z odciskiem z parowania. Sparuj ponownie z panelu zdalnego dostępu na pulpicie."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O certificado TLS do desktop não corresponde à impressão digital do emparelhamento. Emparelhe novamente pelo painel de acesso remoto do desktop."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TLS-сертификат компьютера не совпадает с отпечатком из сопряжения. Повторите сопряжение из панели удалённого доступа на компьютере."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masaüstünün TLS sertifikası eşleme parmak iziyle eşleşmiyor. Masaüstündeki Uzaktan Erişim panelinden yeniden eşleyin."
+          }
+        },
+        "uk": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TLS-сертифікат комп’ютера не збігається з відбитком зі сполучення. Повторіть сполучення з панелі віддаленого доступу на комп’ютері."
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chứng chỉ TLS của máy tính không khớp với vân tay ghép nối. Hãy ghép nối lại từ bảng Remote Access trên máy tính."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "桌面设备的 TLS 证书与配对指纹不匹配。请从桌面“远程访问”面板重新配对。"
+          }
+        }
+      }
+    },
     "port-forwarding.browser-unavailable": {
       "localizations": {
         "en": {

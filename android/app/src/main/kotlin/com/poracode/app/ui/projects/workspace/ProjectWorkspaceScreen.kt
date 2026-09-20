@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -271,6 +272,13 @@ fun ProjectWorkspaceScreen(
                     Tab(
                         selected = section == candidate,
                         onClick = { sectionName = candidate.name },
+                        modifier = Modifier.testTag(
+                            when (candidate) {
+                                ProjectWorkspaceSection.Files -> "workspace_files"
+                                ProjectWorkspaceSection.Git -> "workspace_git"
+                                ProjectWorkspaceSection.Github -> "workspace_github"
+                            },
+                        ),
                         text = {
                             Text(
                                 stringResource(

@@ -14,7 +14,17 @@ internal fun defaultRemoteApiFactory() = RemoteApiGatewayFactory { endpoint, tok
 }
 
 internal fun defaultRemoteEventSocketFactory() = RemoteEventSocketFactory { api ->
-    RemoteWebSocketClient(api = api, networkGate = ForegroundNetworkGate.shared)
+    val remote = api as? RemoteApiClient
+    // The socket loop re-resolves the pin per connect attempt, so hand it the unpinned
+    // base client plus the endpoint — not a client snapshot pre-resolved at factory time.
+    val http = remote?.baseOkHttpClient
+        ?: RemoteWebSocketClient.defaultWsClient(remote?.httpEndpoint)
+    RemoteWebSocketClient(
+        api = api,
+        endpoint = remote?.httpEndpoint,
+        httpClient = http,
+        networkGate = ForegroundNetworkGate.shared,
+    )
 }
 
 /** Keeps foreground notification policy out of the core session orchestrator. */

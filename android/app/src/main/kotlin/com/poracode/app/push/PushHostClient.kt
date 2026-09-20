@@ -2,6 +2,7 @@ package com.poracode.app.push
 
 import com.poracode.app.protocol.CleartextPolicy
 import com.poracode.app.protocol.GeneratedRemoteV3Contract
+import com.poracode.app.transport.TlsCertPin
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -109,7 +110,7 @@ class PushHostClient(
             .method(method, body?.toRequestBody(JSON_MEDIA))
             .build()
         return suspendCancellableCoroutine { continuation ->
-            val call = client.newCall(request)
+            val call = clientForRequest().newCall(request)
             continuation.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) {
@@ -153,7 +154,7 @@ class PushHostClient(
     companion object {
         private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
         private const val MAX_RESPONSE_BYTES = 64L * 1024L
-        private val DEFAULT_CLIENT = OkHttpClient.Builder()
+        internal val DEFAULT_CLIENT = OkHttpClient.Builder()
             .connectTimeout(12, TimeUnit.SECONDS)
             .readTimeout(12, TimeUnit.SECONDS)
             .writeTimeout(12, TimeUnit.SECONDS)
@@ -162,4 +163,6 @@ class PushHostClient(
             .followSslRedirects(false)
             .build()
     }
+
+    private fun clientForRequest(): OkHttpClient = TlsCertPin.clientForEndpoint(endpoint, client)
 }

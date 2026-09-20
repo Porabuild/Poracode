@@ -14,7 +14,7 @@ struct PairingCoordinator {
             manualBaseURL: candidate.manualBaseURL,
             manualToken: candidate.manualToken
         )
-        let resolved: (endpoint: String, credential: String)
+        let resolved: (endpoint: String, credential: String, certFingerprint: String?)
         do {
             resolved = try resolvePairing(input)
         } catch {
@@ -28,10 +28,13 @@ struct PairingCoordinator {
         )
         guard case .pending(let pending) = decision else { return }
         host.state.pendingPairing = pending
+        host.state.pendingCertFingerprint = resolved.certFingerprint
+            ?? PairingURL.parseCertFingerprint(url.absoluteString)
     }
 
     func cancelPendingPairing() {
         host.state.pendingPairing = nil
+        host.state.pendingCertFingerprint = nil
     }
 
     func confirmPendingPairing() async {
@@ -40,9 +43,11 @@ struct PairingCoordinator {
         let input = AppSession.PairingInput(
             pairingURLOrEmpty: "",
             manualBaseURL: pending.endpoint,
-            manualToken: pending.credential
+            manualToken: pending.credential,
+            certFingerprint: host.state.pendingCertFingerprint
         )
         host.state.pendingPairing = nil
+        host.state.pendingCertFingerprint = nil
         host.state.pairingTracker.markInFlight(digest)
         let began = host.state.operationOwner.begin(.pair)
         await pair(
@@ -179,7 +184,7 @@ struct PairingCoordinator {
         pairingDigest: String?,
         pairInstallToken: UInt64
     ) async throws -> PairAttemptOutcome {
-        let (endpoint, credential) = try resolvePairing(input)
+        let (endpoint, credential, certFingerprint) = try resolvePairing(input)
         try Task.checkCancellation()
         guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else {
             if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
@@ -189,6 +194,14 @@ struct PairingCoordinator {
             throw CancellationError()
         }
 
+        if certFingerprint != nil {
+            TlsCertPinStore.register(endpoint: endpoint, fingerprint: certFingerprint)
+        } else {
+            // Re-pair without an `#fp=` fingerprint: the new trust root is
+            // whatever the server presents. Keeping the previous pairing's pin
+            // would brick the host after a certificate change, so drop it.
+            TlsCertPinStore.remove(endpoint: endpoint)
+        }
         let client = host.deps.makeAPI(endpoint, nil)
         let environment = try await client.environment()
         try Task.checkCancellation()
@@ -211,6 +224,26 @@ struct PairingCoordinator {
         }
 
         let grantedScopes = RemoteAccessScopes.filterKnown(tokenResult.scopes)
+        await client.setAccessToken(tokenResult.accessToken)
+        let hostCapabilities: HostServiceCapabilities
+        do {
+            hostCapabilities = try await client.describeHost()
+        } catch let error as RemoteClientError where error.code == TlsCertPin.mismatchCode {
+            throw error
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // Describe is best-effort capability discovery: every other failure
+            // (HTTP 500, timeout/network, decode error) must not kill pairing —
+            // fall back to the unknown capability set and proceed.
+            hostCapabilities = .unknown
+        }
+        try Task.checkCancellation()
+        guard isCurrent(ownerEpoch: ownerEpoch, generation: gen) else {
+            if let pairingDigest { host.state.pairingTracker.markFailed(pairingDigest) }
+            return .notApplied
+        }
+
         let wsBase = try PairingURL.toWebSocketBaseURL(httpBase: endpoint).absoluteString
         let profile = ConnectionProfile(
             desktopId: environment.desktopId,
@@ -223,7 +256,9 @@ struct PairingCoordinator {
             scopes: grantedScopes,
             tokenExpiresAt: tokenResult.expiresAt,
             pairedAt: Date(),
-            protocolVersion: ProtocolConstants.remoteProtocolVersion
+            protocolVersion: ProtocolConstants.remoteProtocolVersion,
+            certFingerprint: certFingerprint,
+            hostCapabilities: hostCapabilities
         )
         let connectionId = ClientConnectionID()
         let record = HostRecord(
@@ -311,6 +346,7 @@ struct PairingCoordinator {
     func unpair() async {
         let began = host.state.operationOwner.begin(.unpair)
         host.cancelUnauthorizedRetry()
+        let unpairingEndpoint = host.state.profile?.httpBaseURL
         // Claim both durable domains before any cancel/join await. Even with no
         // selected host, this invalidates a first pair waiting at the catalog boundary.
         let activated: Bool
@@ -338,6 +374,12 @@ struct PairingCoordinator {
             )
             return
         }
+        // The selected profile's credentials are going away: drop only its
+        // endpoint's pin, mirroring the host-removal discipline. Wait until
+        // the durable claim is held so a failed unpair keeps the pin.
+        if let unpairingEndpoint {
+            TlsCertPinStore.remove(endpoint: unpairingEndpoint)
+        }
         // Cancel foreground network but never skip the durable clear below.
         await host.cancelStaleSessionWork(invalidateSocket: true)
         host.state.resetForUnpair()
@@ -362,6 +404,10 @@ struct PairingCoordinator {
     func clearInconsistentLocalStorage() async {
         let began = host.state.operationOwner.begin(.unpair)
         host.cancelUnauthorizedRetry()
+        // Repair clears every host: drop the pins of the endpoints we know.
+        for record in host.state.hosts {
+            TlsCertPinStore.remove(endpoint: record.httpBaseURL)
+        }
 
         var failed = false
         var credentialActivated = false
@@ -409,18 +455,19 @@ struct PairingCoordinator {
 
     func resolvePairing(
         _ input: AppSession.PairingInput
-    ) throws -> (endpoint: String, credential: String) {
+    ) throws -> (endpoint: String, credential: String, certFingerprint: String?) {
         let pasted = input.pairingURLOrEmpty.trimmingCharacters(in: .whitespacesAndNewlines)
         if !pasted.isEmpty {
             if let parts = PairingURL.parseParts(pasted) {
                 let endpoint = try PairingURL.normalizeEndpoint(pasted)
-                return (endpoint, parts.token)
+                return (endpoint, parts.token, parts.certFingerprint ?? input.certFingerprint)
             }
             if !input.manualToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 let endpoint = try PairingURL.normalizeEndpoint(pasted)
                 return (
                     endpoint,
-                    input.manualToken.trimmingCharacters(in: .whitespacesAndNewlines)
+                    input.manualToken.trimmingCharacters(in: .whitespacesAndNewlines),
+                    input.certFingerprint ?? PairingURL.parseCertFingerprint(pasted)
                 )
             }
             throw PairingError.missingToken
@@ -430,7 +477,11 @@ struct PairingCoordinator {
         let token = input.manualToken.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty else { throw PairingError.invalidURL }
         guard !token.isEmpty else { throw PairingError.missingToken }
-        return (try PairingURL.normalizeEndpoint(base), token)
+        return (
+            try PairingURL.normalizeEndpoint(base),
+            token,
+            input.certFingerprint ?? PairingURL.parseCertFingerprint(base)
+        )
     }
 
     private func isCurrent(ownerEpoch: Int, generation: Int) -> Bool {

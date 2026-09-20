@@ -2,6 +2,7 @@ package com.poracode.app.transport
 
 import android.os.Build
 import com.poracode.app.model.GitStateJsonAdapter
+import com.poracode.app.model.HostServiceCapabilities
 import com.poracode.app.model.RemoteAccessTokenResult
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteEnvironmentDescriptor
@@ -22,6 +23,7 @@ import com.poracode.app.transport.settings.SettingsRemoteV3Adapters
 import java.net.URLEncoder
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -56,9 +58,16 @@ class RemoteApiClient(
     private val endpoint: String = endpoint.trimEnd('/')
     // The same client carries non-idempotent mutations. OkHttp's transparent connection retry
     // cannot distinguish those from safe reads, so all replay decisions stay in our domain layer.
-    private val client: OkHttpClient = client.newBuilder()
-        .retryOnConnectionFailure(false)
-        .build()
+    // The pin is resolved per request so a pin published after construction (pair/catalog)
+    // still binds, and an unpair that drops the pin is honored on the next call; TlsCertPin
+    // caches the built client per (host, port, fingerprint), so pooled connections survive.
+    private val baseClient: OkHttpClient = client.newBuilder().retryOnConnectionFailure(false).build()
+
+    private fun clientForRequest(): OkHttpClient = TlsCertPin.clientForEndpoint(endpoint, baseClient)
+
+    /** Unpinned base for transports that re-resolve the pin per use (event socket). */
+    internal val baseOkHttpClient: OkHttpClient get() = baseClient
+    internal val httpEndpoint: String get() = endpoint
     private val responseDecoder = RemoteResponseDecoder(maxResponseBytes)
     private val readCache = RemoteReadCache()
 
@@ -147,6 +156,20 @@ class RemoteApiClient(
             native = GitStateJsonAdapter.decodeAgentStatuses(JsonArray(snapshot.windows)),
             wsl = GitStateJsonAdapter.decodeAgentStatuses(JsonArray(snapshot.wsl)),
         )
+    }
+
+    override suspend fun describeHost(): HostServiceCapabilities {
+        // Best-effort describe: older hosts (404), missing scope (403), server errors,
+        // transport failures, and undecodable payloads all degrade to UNKNOWN.
+        return try {
+            RemoteV3TransportAdapters.hostDescribe(
+                requestText(GeneratedRemoteV3Contract.hostDescribeRoutePath),
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            HostServiceCapabilities.UNKNOWN
+        }
     }
 
     override suspend fun threadHistory(
@@ -303,7 +326,8 @@ class RemoteApiClient(
         }
         cachedRead?.entry?.let { requestBuilder.header("If-None-Match", it.etag) }
         val request = requestBuilder.build()
-        val deadlineNanos = client.callTimeoutMillis.takeIf { it > 0 }?.let {
+        val liveClient = clientForRequest()
+        val deadlineNanos = liveClient.callTimeoutMillis.takeIf { it > 0 }?.let {
             System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(it.toLong())
         }
         val decode: (Response) -> String = { response ->
@@ -311,7 +335,7 @@ class RemoteApiClient(
                 if (cachedRead != null) readCache.store(cachedRead, response, text)
             }
         }
-        val result = executeRemoteRequest(client, networkGate, request, deadlineNanos) { response ->
+        val result = executeRemoteRequest(liveClient, networkGate, request, deadlineNanos) { response ->
             if (response.code == 304 && cachedRead != null) {
                 response.close()
                 readCache.body(cachedRead)
@@ -320,7 +344,7 @@ class RemoteApiClient(
         // A body may have been invalidated while the request was in flight.
         // Retry only this safe GET, once, without its validator.
         return result ?: executeRemoteRequest(
-            client, networkGate, request.newBuilder().removeHeader("If-None-Match").build(), deadlineNanos, decode,
+            liveClient, networkGate, request.newBuilder().removeHeader("If-None-Match").build(), deadlineNanos, decode,
         )
     }
 
@@ -335,7 +359,7 @@ class RemoteApiClient(
         expectedStatus: Int? = null,
     ): String {
         val request = buildRawRequest(path, method, query, body, authorized, extraHeaders)
-        return executeRemoteRequest(client, networkGate, request) { responseDecoder.text(it, expectedStatus) }
+        return executeRemoteRequest(clientForRequest(), networkGate, request) { responseDecoder.text(it, expectedStatus) }
     }
 
     /** Fetches binary data with early Content-Length rejection and an incremental hard cap. */
@@ -358,7 +382,7 @@ class RemoteApiClient(
                 requestBuilder.header("Authorization", "Bearer $it")
             }
         }
-        return executeRemoteRequest(client, networkGate, requestBuilder.build()) { responseDecoder.binary(it, expectedStatus) }
+        return executeRemoteRequest(clientForRequest(), networkGate, requestBuilder.build()) { responseDecoder.binary(it, expectedStatus) }
     }
 
     private fun buildRawRequest(

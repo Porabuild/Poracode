@@ -152,4 +152,6 @@
     <string name="discover_hosts_stop">Arrêter</string>
     <string name="discover_hosts_searching">Recherche d’hôtes Poracode sur ce réseau…</string>
     <string name="discover_hosts_empty">Aucun hôte Poracode trouvé pour l’instant.</string>
+    <string name="discover_hosts_unverified">Non vérifié</string>
+    <string name="tls_pin_mismatch">Le certificat TLS du serveur ne correspond pas à l’empreinte du code d’appariement. Réappareillez depuis le panneau Accès distant du bureau.</string>
 </resources>

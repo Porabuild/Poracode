@@ -71,6 +71,8 @@ async function serve(): Promise<void> {
         computerUse: true,
         nativeSecrets: false,
         portForward: true,
+        autoUpdate: false,
+        osNotifications: false,
       },
     }),
     // The drill never pairs a client; the zero-client invariant needs no

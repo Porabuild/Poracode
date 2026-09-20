@@ -45,11 +45,19 @@ internal suspend fun <Value> executeRemoteRequest(
                     return
                 }
                 cont.resumeWithException(
-                    RemoteClientException(
-                        "Network request failed.",
-                        status = 0,
-                        code = "network",
-                    ),
+                    if (TlsCertPin.isMismatch(e)) {
+                        RemoteClientException(
+                            TlsCertPin.mismatchMessage(),
+                            status = 502,
+                            code = TlsCertPin.MISMATCH_CODE,
+                        )
+                    } else {
+                        RemoteClientException(
+                            "Network request failed.",
+                            status = 0,
+                            code = "network",
+                        )
+                    },
                 )
             }
 

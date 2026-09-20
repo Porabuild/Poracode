@@ -151,4 +151,6 @@
     <string name="discover_hosts_stop">Остановить</string>
     <string name="discover_hosts_searching">Поиск хостов Poracode в этой сети…</string>
     <string name="discover_hosts_empty">Хосты Poracode пока не найдены.</string>
+    <string name="discover_hosts_unverified">Не проверено</string>
+    <string name="tls_pin_mismatch">TLS-сертификат сервера не совпадает с отпечатком из кода сопряжения. Повторите сопряжение из панели удалённого доступа на компьютере.</string>
 </resources>

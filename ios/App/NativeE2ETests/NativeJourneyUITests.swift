@@ -20,7 +20,7 @@ final class NativeJourneyUITests: XCTestCase {
     }
     controlURL = url
     capability = controlCapability
-    app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+    app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-native-e2e-fresh-state"]
     if let interfaceStyle = environment["NATIVE_E2E_INTERFACE_STYLE"],
       interfaceStyle == "Dark" || interfaceStyle == "Light"
     {

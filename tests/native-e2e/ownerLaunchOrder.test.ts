@@ -103,6 +103,8 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
         computerUse: true,
         nativeSecrets: true,
         portForward: true,
+        autoUpdate: false,
+        osNotifications: false,
       },
     });
     expect(control).not.toBeNull();
@@ -226,6 +228,8 @@ describe("owner launch-order drill (Gate 2.1 freeze matrix, native seam)", () =>
           computerUse: true,
           nativeSecrets: false,
           portForward: true,
+          autoUpdate: false,
+          osNotifications: false,
         },
       }),
       issuePairing: () => "http://127.0.0.1:46511/pair#token=drill",

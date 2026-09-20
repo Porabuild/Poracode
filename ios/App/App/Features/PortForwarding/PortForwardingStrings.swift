@@ -45,6 +45,9 @@ enum PortForwardingStrings {
   static let close = localized("port-forwarding.close", "Close")
   static let unavailable = localized(
     "port-forwarding.unavailable", "Port forwarding is unavailable.")
+  static let certificateMismatch = localized(
+    "port-forwarding.certificate-mismatch",
+    "The desktop's TLS certificate does not match the pairing fingerprint. Re-pair from the desktop Remote Access panel.")
   static let ambiguous = localized(
     "port-forwarding.ambiguous",
     "The result is uncertain. Scan again before repeating the action.")
@@ -83,6 +86,7 @@ enum PortForwardingStrings {
   static func failure(_ value: PortForwardingFailure) -> String {
     switch value {
     case .ambiguousMutation: ambiguous
+    case .certificateMismatch: certificateMismatch
     case .unsafeEntry: unsafeEntry
     case .browserUnavailable: browserUnavailable
     case .forwardingUnavailable: forwardingUnavailable

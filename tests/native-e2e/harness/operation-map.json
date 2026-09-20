@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 12,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:3717a5ed5999ad206f7aa8edb43d52ec50850a98a80550c7f897f18c61a89bf6",
-  "keyCount": 227,
+  "manifestHash": "sha256:62087e45baf9b61cccc09daf6338758073d6f41cdf7ddd269426a6ddfade1e59",
+  "keyCount": 259,
   "counts": {
-    "route": 67,
-    "procedure": 108,
+    "route": 68,
+    "procedure": 139,
     "ws-client": 9,
     "ws-server": 11,
     "replay": 16,
@@ -22,9 +22,21 @@
       "kind": "procedure",
       "id": "browseHostDirectory"
     },
+    "procedure:cancelExtractContext": {
+      "kind": "procedure",
+      "id": "cancelExtractContext"
+    },
     "procedure:clearMcpServerOauth": {
       "kind": "procedure",
       "id": "clearMcpServerOauth"
+    },
+    "procedure:cloneRepo": {
+      "kind": "procedure",
+      "id": "cloneRepo"
+    },
+    "procedure:connectThreadVoice": {
+      "kind": "procedure",
+      "id": "connectThreadVoice"
     },
     "procedure:createFileCheckpoint": {
       "kind": "procedure",
@@ -34,6 +46,50 @@
       "kind": "procedure",
       "id": "createProjectEntry"
     },
+    "procedure:createRevertAnchor": {
+      "kind": "procedure",
+      "id": "createRevertAnchor"
+    },
+    "procedure:dbDeleteProject": {
+      "kind": "procedure",
+      "id": "dbDeleteProject"
+    },
+    "procedure:dbDeleteThread": {
+      "kind": "procedure",
+      "id": "dbDeleteThread"
+    },
+    "procedure:dbGetLatestThreadGoalItem": {
+      "kind": "procedure",
+      "id": "dbGetLatestThreadGoalItem"
+    },
+    "procedure:dbGetThreadCompletedTurns": {
+      "kind": "procedure",
+      "id": "dbGetThreadCompletedTurns"
+    },
+    "procedure:dbGetThreadContextUsage": {
+      "kind": "procedure",
+      "id": "dbGetThreadContextUsage"
+    },
+    "procedure:dbGetThreadRuntimeItems": {
+      "kind": "procedure",
+      "id": "dbGetThreadRuntimeItems"
+    },
+    "procedure:dbGetThreadsPage": {
+      "kind": "procedure",
+      "id": "dbGetThreadsPage"
+    },
+    "procedure:dbReplaceThreadCompletedTurns": {
+      "kind": "procedure",
+      "id": "dbReplaceThreadCompletedTurns"
+    },
+    "procedure:dbReplaceThreadRuntimeItems": {
+      "kind": "procedure",
+      "id": "dbReplaceThreadRuntimeItems"
+    },
+    "procedure:dbReplaceThreadRuntimeSnapshot": {
+      "kind": "procedure",
+      "id": "dbReplaceThreadRuntimeSnapshot"
+    },
     "procedure:deleteProjectEntry": {
       "kind": "procedure",
       "id": "deleteProjectEntry"
@@ -42,9 +98,17 @@
       "kind": "procedure",
       "id": "deleteSkill"
     },
+    "procedure:detectProjectIcon": {
+      "kind": "procedure",
+      "id": "detectProjectIcon"
+    },
     "procedure:detectSetupScript": {
       "kind": "procedure",
       "id": "detectSetupScript"
+    },
+    "procedure:disconnectThreadVoice": {
+      "kind": "procedure",
+      "id": "disconnectThreadVoice"
     },
     "procedure:discoverExternalMcpServers": {
       "kind": "procedure",
@@ -53,6 +117,14 @@
     "procedure:editQueuedThreadFollowUp": {
       "kind": "procedure",
       "id": "editQueuedThreadFollowUp"
+    },
+    "procedure:ensureThreadRunning": {
+      "kind": "procedure",
+      "id": "ensureThreadRunning"
+    },
+    "procedure:extractContext": {
+      "kind": "procedure",
+      "id": "extractContext"
     },
     "procedure:finalizeFileCheckpoint": {
       "kind": "procedure",
@@ -318,6 +390,18 @@
       "kind": "procedure",
       "id": "gitUnstageAll"
     },
+    "procedure:gitUnwatchProject": {
+      "kind": "procedure",
+      "id": "gitUnwatchProject"
+    },
+    "procedure:gitWatchProject": {
+      "kind": "procedure",
+      "id": "gitWatchProject"
+    },
+    "procedure:gitWatchWorktrees": {
+      "kind": "procedure",
+      "id": "gitWatchWorktrees"
+    },
     "procedure:gitWorktreeStatusBatch": {
       "kind": "procedure",
       "id": "gitWorktreeStatusBatch"
@@ -334,6 +418,10 @@
       "kind": "procedure",
       "id": "listFileCheckpoints"
     },
+    "procedure:listProjectIconFiles": {
+      "kind": "procedure",
+      "id": "listProjectIconFiles"
+    },
     "procedure:listProjectTree": {
       "kind": "procedure",
       "id": "listProjectTree"
@@ -341,6 +429,10 @@
     "procedure:listSkillMarketplace": {
       "kind": "procedure",
       "id": "listSkillMarketplace"
+    },
+    "procedure:lspStart": {
+      "kind": "procedure",
+      "id": "lspStart"
     },
     "procedure:moveProjectEntry": {
       "kind": "procedure",
@@ -370,6 +462,26 @@
       "kind": "procedure",
       "id": "readProjectFile"
     },
+    "procedure:readTerminalScrollback": {
+      "kind": "procedure",
+      "id": "readTerminalScrollback"
+    },
+    "procedure:readTerminalSize": {
+      "kind": "procedure",
+      "id": "readTerminalSize"
+    },
+    "procedure:readTerminalSnapshot": {
+      "kind": "procedure",
+      "id": "readTerminalSnapshot"
+    },
+    "procedure:readThreadBackgroundTasks": {
+      "kind": "procedure",
+      "id": "readThreadBackgroundTasks"
+    },
+    "procedure:relocateProject": {
+      "kind": "procedure",
+      "id": "relocateProject"
+    },
     "procedure:removeQueuedThreadFollowUp": {
       "kind": "procedure",
       "id": "removeQueuedThreadFollowUp"
@@ -386,9 +498,17 @@
       "kind": "procedure",
       "id": "restoreFileCheckpoint"
     },
+    "procedure:restoreToRevertAnchor": {
+      "kind": "procedure",
+      "id": "restoreToRevertAnchor"
+    },
     "procedure:resumeThreadFollowUps": {
       "kind": "procedure",
       "id": "resumeThreadFollowUps"
+    },
+    "procedure:revealProjectEntry": {
+      "kind": "procedure",
+      "id": "revealProjectEntry"
     },
     "procedure:rollbackThreadConversation": {
       "kind": "procedure",
@@ -413,6 +533,10 @@
     "procedure:stageThreadInput": {
       "kind": "procedure",
       "id": "stageThreadInput"
+    },
+    "procedure:startThread": {
+      "kind": "procedure",
+      "id": "startThread"
     },
     "procedure:steerQueuedThreadFollowUp": {
       "kind": "procedure",
@@ -545,6 +669,10 @@
     "route:healthz": {
       "kind": "route",
       "id": "healthz"
+    },
+    "route:host-describe": {
+      "kind": "route",
+      "id": "host-describe"
     },
     "route:host-update": {
       "kind": "route",

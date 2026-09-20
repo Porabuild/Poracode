@@ -1,5 +1,68 @@
 import Foundation
 
+/// Host-declared service capabilities from `GET /api/host/describe` (V6 C.2).
+/// Fail closed: every flag is false until a successful describe. Every flag
+/// is optional-with-default-false on the wire (round 2), so payloads that
+/// omit a flag decode to the fail-closed default — both here and through the
+/// generated describe codec that governs the canonical boundary.
+struct HostServiceCapabilities: Codable, Sendable, Equatable {
+    var ssh: Bool
+    var browserPanel: Bool
+    var chromeBridge: Bool
+    var computerUse: Bool
+    var nativeSecrets: Bool
+    var portForward: Bool
+    var autoUpdate: Bool
+    var osNotifications: Bool
+
+    static let unknown = HostServiceCapabilities(
+        ssh: false,
+        browserPanel: false,
+        chromeBridge: false,
+        computerUse: false,
+        nativeSecrets: false,
+        portForward: false,
+        autoUpdate: false,
+        osNotifications: false
+    )
+
+    init(
+        ssh: Bool = false,
+        browserPanel: Bool = false,
+        chromeBridge: Bool = false,
+        computerUse: Bool = false,
+        nativeSecrets: Bool = false,
+        portForward: Bool = false,
+        autoUpdate: Bool = false,
+        osNotifications: Bool = false
+    ) {
+        self.ssh = ssh
+        self.browserPanel = browserPanel
+        self.chromeBridge = chromeBridge
+        self.computerUse = computerUse
+        self.nativeSecrets = nativeSecrets
+        self.portForward = portForward
+        self.autoUpdate = autoUpdate
+        self.osNotifications = osNotifications
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        ssh = try container.decodeIfPresent(Bool.self, forKey: .ssh) ?? false
+        browserPanel = try container.decodeIfPresent(Bool.self, forKey: .browserPanel) ?? false
+        chromeBridge = try container.decodeIfPresent(Bool.self, forKey: .chromeBridge) ?? false
+        computerUse = try container.decodeIfPresent(Bool.self, forKey: .computerUse) ?? false
+        nativeSecrets = try container.decodeIfPresent(Bool.self, forKey: .nativeSecrets) ?? false
+        portForward = try container.decodeIfPresent(Bool.self, forKey: .portForward) ?? false
+        autoUpdate = try container.decodeIfPresent(Bool.self, forKey: .autoUpdate) ?? false
+        osNotifications = try container.decodeIfPresent(Bool.self, forKey: .osNotifications) ?? false
+    }
+}
+
+struct HostDescribeResponse: Codable, Sendable, Equatable {
+    var capabilities: HostServiceCapabilities
+}
+
 /// Connection metadata bundled with the bearer token inside the v2 credential document.
 /// Token itself never lives in UserDefaults; the whole document is Keychain-protected.
 struct ConnectionProfile: Codable, Sendable, Equatable, Identifiable {
@@ -20,6 +83,10 @@ struct ConnectionProfile: Codable, Sendable, Equatable, Identifiable {
     var pairedAt: Date
     /// Remote protocol binding. Must equal `ProtocolConstants.remoteProtocolVersion`.
     var protocolVersion: Int
+    /// QR `#fp=` SHA-256 of the TLS leaf DER. Absent on records paired before V6 A.2.
+    var certFingerprint: String?
+    /// Host-declared services from `GET /api/host/describe`. Absent on records paired before V6 C.2.
+    var hostCapabilities: HostServiceCapabilities?
 
     init(
         desktopId: String,
@@ -32,7 +99,9 @@ struct ConnectionProfile: Codable, Sendable, Equatable, Identifiable {
         scopes: [String],
         tokenExpiresAt: String? = nil,
         pairedAt: Date,
-        protocolVersion: Int = ProtocolConstants.remoteProtocolVersion
+        protocolVersion: Int = ProtocolConstants.remoteProtocolVersion,
+        certFingerprint: String? = nil,
+        hostCapabilities: HostServiceCapabilities? = nil
     ) {
         self.desktopId = desktopId
         self.label = label
@@ -45,6 +114,8 @@ struct ConnectionProfile: Codable, Sendable, Equatable, Identifiable {
         self.tokenExpiresAt = tokenExpiresAt
         self.pairedAt = pairedAt
         self.protocolVersion = protocolVersion
+        self.certFingerprint = certFingerprint
+        self.hostCapabilities = hostCapabilities
     }
 
     init(from decoder: Decoder) throws {
@@ -62,6 +133,8 @@ struct ConnectionProfile: Codable, Sendable, Equatable, Identifiable {
         // Pre-binding v1 profiles omit the field — default to current protocol for migration.
         protocolVersion = try c.decodeIfPresent(Int.self, forKey: .protocolVersion)
             ?? ProtocolConstants.remoteProtocolVersion
+        certFingerprint = try c.decodeIfPresent(String.self, forKey: .certFingerprint)
+        hostCapabilities = try c.decodeIfPresent(HostServiceCapabilities.self, forKey: .hostCapabilities)
     }
 }
 

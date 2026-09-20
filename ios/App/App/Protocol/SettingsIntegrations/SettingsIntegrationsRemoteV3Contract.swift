@@ -2,6 +2,7 @@ import Foundation
 
 enum SettingsIntegrationsOwner: String, Equatable, Sendable {
   case none
+  case desktop
   case optionalProjectLocation
   case skillLocations
 }
@@ -37,7 +38,7 @@ enum SettingsIntegrationsRemoteV3Contract {
 
   static let procedures: [SettingsIntegrationsProcedureMetadata] = [
     metadata(.scanSkills, .read, .optionalProjectLocation, "json"),
-    metadata(.listSkillMarketplace, .read, .none, "json"),
+    metadata(.listSkillMarketplace, .read, .desktop, "json"),
     metadata(.setSkillEnabled, .operate, .optionalProjectLocation, "omitted"),
     metadata(.deleteSkill, .operate, .optionalProjectLocation, "omitted"),
     metadata(.importSkills, .operate, .skillLocations, "json"),

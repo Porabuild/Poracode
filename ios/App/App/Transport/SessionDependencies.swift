@@ -15,6 +15,8 @@ protocol SessionRemoteAPI: AnyObject {
     func snapshot() async throws -> RemoteShellSnapshot
     /// Authoritative installed-agent lists for bootstrap/resync hydration.
     func agentStatuses() async throws -> SessionAgentStatuses
+    /// V6 C.2: host-declared service capabilities. A missing route fails closed.
+    func describeHost() async throws -> HostServiceCapabilities
     func threadHistory(
         threadId: String,
         targetTimelineEntryCount: Int?
@@ -90,6 +92,10 @@ final class RemoteAPIClientBox: SessionRemoteAPI {
 
     func agentStatuses() async throws -> SessionAgentStatuses {
         try await client.agentStatuses()
+    }
+
+    func describeHost() async throws -> HostServiceCapabilities {
+        try await client.describeHost()
     }
 
     func threadHistory(
@@ -323,6 +329,7 @@ extension RemoteClientError {
     /// Protocol/version/auth-literal failures that must never proceed to snapshot/WS.
     var isCompatibilityFailure: Bool {
         if code == "protocol_version_mismatch" { return true }
+        if code == "certificate_fingerprint_mismatch" { return true }
         if code == "unsupported_environment" { return true }
         if code == "invalid_response",
            message.contains("unsupported auth policy")

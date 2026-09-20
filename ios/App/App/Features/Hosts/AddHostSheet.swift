@@ -136,7 +136,12 @@ struct AddHostSheet: View {
               }
             } label: {
               VStack(alignment: .leading, spacing: 2) {
-                Text(host.name)
+                HStack(spacing: 6) {
+                  Text(host.name)
+                  Text(HostStrings.unverifiedDiscovery)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
                 if let endpoint = host.endpoint {
                   Text(endpoint)
                     .font(.caption)

@@ -214,12 +214,20 @@ struct LiveConnectionController {
             // Park — no environment/snapshot/socket while backgrounded.
             host.state.phase = .connecting
             host.state.socketState = .connecting
+            TlsCertPinStore.register(
+                endpoint: profile.httpBaseURL,
+                fingerprint: profile.certFingerprint
+            )
             host.state.api = host.deps.makeAPI(profile.httpBaseURL, accessToken)
             _ = host.state.liveLifecycle.decideSocketStart()
             return
         }
         host.state.phase = .connecting
         host.state.socketState = .connecting
+        TlsCertPinStore.register(
+            endpoint: profile.httpBaseURL,
+            fingerprint: profile.certFingerprint
+        )
         host.state.api = host.deps.makeAPI(profile.httpBaseURL, accessToken)
         var installToken: UInt64 = 0
         let task = Task { @MainActor in

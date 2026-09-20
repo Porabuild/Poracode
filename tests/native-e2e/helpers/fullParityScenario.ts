@@ -75,7 +75,7 @@ export async function exerciseAllProcedures(
   accessToken: string,
 ): Promise<void> {
   const fixtures = allConfiguredProcedureFixtures();
-  assert.equal(fixtures.length, 108);
+  assert.equal(fixtures.length, 139);
   for (const fixture of fixtures) {
     const body = await callProcedure(
       harness,

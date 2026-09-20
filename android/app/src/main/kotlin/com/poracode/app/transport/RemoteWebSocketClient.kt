@@ -29,11 +29,21 @@ import okhttp3.OkHttpClient
  * - Close 1008 / exact expiry reason → session-expired with 60s unauthorized backoff.
  * - HTTP/SSL redirects disabled.
  * - [resumeAfterResync] always clears suspended so foreground success cannot deadlock.
+ * - The TLS pin is resolved from [TlsCertPinStore] on **every** connect attempt via
+ *   [TlsCertPin.clientForEndpoint] — a pin published after the first attempt binds
+ *   the next one, and an unpair that drops it is honored. There is deliberately no
+ *   unpinned construction default: [endpoint] and [httpClient] are required.
  */
 class RemoteWebSocketClient(
     private val api: RemoteApiGateway,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-    private val httpClient: OkHttpClient = defaultWsClient(),
+    /**
+     * Pin source for every socket open ([TlsCertPinStore] lookup key). Required —
+     * pass null only when no endpoint is known, and then no pin can apply.
+     */
+    private val endpoint: String?,
+    /** Base (pin-free) client; [WsConnectionLoop] re-applies the pin on every attempt. */
+    private val httpClient: OkHttpClient,
     private val networkGate: ForegroundNetworkGate = ForegroundNetworkGate.shared,
 ) : RemoteEventSocket {
     enum class ConnectionState {
@@ -63,7 +73,7 @@ class RemoteWebSocketClient(
             api = api,
             state = state,
             scope = scope,
-            httpClient = httpClient,
+            resolveHttpClient = { TlsCertPin.clientForEndpoint(endpoint, httpClient) },
             frameRouter = frameRouter,
             handleSessionExpired = ::handleSessionExpired,
             networkGate = networkGate,
@@ -275,13 +285,16 @@ class RemoteWebSocketClient(
     }
 
     companion object {
-        fun defaultWsClient(): OkHttpClient =
-            OkHttpClient.Builder()
+        /** Pin-aware socket client for [endpoint]; the stored fingerprint is read at call time. */
+        fun defaultWsClient(endpoint: String?): OkHttpClient {
+            val base = OkHttpClient.Builder()
                 .connectTimeout(RemoteSocketPolicy.CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 .readTimeout(0, TimeUnit.MILLISECONDS)
                 .pingInterval(0, TimeUnit.MILLISECONDS)
                 .followRedirects(false)
                 .followSslRedirects(false)
                 .build()
+            return TlsCertPin.clientForEndpoint(endpoint, base)
+        }
     }
 }

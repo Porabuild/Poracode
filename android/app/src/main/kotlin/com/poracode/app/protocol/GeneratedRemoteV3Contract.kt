@@ -12,6 +12,7 @@ import com.poracode.remote.v3.generated.routeU2EPushU2DRegisterU2EResponse
 import com.poracode.remote.v3.generated.routeU2EPushU2DUnregisterU2ERequest
 import com.poracode.remote.v3.generated.routeU2EPushU2DUnregisterU2EResponse
 import com.poracode.remote.v3.generated.routeU2EShellU2DSnapshotU2EResponse
+import com.poracode.remote.v3.generated.routeU2EHostU2DDescribeU2EResponse
 import com.poracode.remote.v3.generated.routeU2EThreadU2DHistoryU2DItemsU2EPath
 import com.poracode.remote.v3.generated.routeU2EThreadU2DHistoryU2DItemsU2EQuery
 import com.poracode.remote.v3.generated.routeU2EThreadU2DHistoryU2DItemsU2EResponse
@@ -48,6 +49,7 @@ object GeneratedRemoteV3Contract {
     const val PROTOCOL_VERSION = ProtocolConstants.REMOTE_PROTOCOL_VERSION
     const val BINDING_FORMAT_VERSION = 2
     const val GENERATOR_VERSION = 3
+    const val NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION = 5
 
     private val serverMessageTypes = RemoteContractMetadata.webSocketVariants
         .asSequence()
@@ -64,6 +66,30 @@ object GeneratedRemoteV3Contract {
         check(RemoteContractMetadata.protocolVersion == PROTOCOL_VERSION)
         check(RemoteContractMetadata.bindingFormatVersion == BINDING_FORMAT_VERSION)
         check(RemoteContractMetadata.generatorVersion == GENERATOR_VERSION)
+    }
+
+    fun isCompatibleWithNativeBundleManifest(
+        protocolVersion: Int,
+        bindingFormatVersion: Int,
+        generatorVersion: Int,
+        formatVersion: Int,
+        /**
+         * Test seam for the old-reader direction (mirrors the Swift
+         * `isCompatible(withNativeBundleManifest:expectedFormatVersion:)`): a reader
+         * built against an earlier bundle format must refuse a newer manifest — exact
+         * equality with the reader's own format, never `<=`, because format bumps add
+         * machines the old reader has no codecs for. Production always uses
+         * [NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION].
+         */
+        expectedFormatVersion: Int = NATIVE_BUNDLE_MANIFEST_FORMAT_VERSION,
+    ): Boolean {
+        return RemoteContractMetadata.protocolVersion == PROTOCOL_VERSION &&
+            RemoteContractMetadata.bindingFormatVersion == BINDING_FORMAT_VERSION &&
+            RemoteContractMetadata.generatorVersion == GENERATOR_VERSION &&
+            protocolVersion == RemoteContractMetadata.protocolVersion &&
+            bindingFormatVersion == RemoteContractMetadata.bindingFormatVersion &&
+            generatorVersion == RemoteContractMetadata.generatorVersion &&
+            formatVersion == expectedFormatVersion
     }
 
     fun environmentResponse(raw: String, legacy: Boolean): String = canonical(
@@ -83,6 +109,21 @@ object GeneratedRemoteV3Contract {
 
     fun shellSnapshotResponse(raw: String): String =
         canonical(RemoteRootCodecs.routeU2EShellU2DSnapshotU2EResponse, raw)
+
+    fun hostDescribeResponse(raw: String): String =
+        canonical(RemoteRootCodecs.routeU2EHostU2DDescribeU2EResponse, raw)
+
+    val hostDescribeRoutePath: String = run {
+        val route = requireNotNull(
+            RemoteContractMetadata.routes.firstOrNull { it.id == "host-describe" },
+        ) { "Generated remote-v3 route metadata is incompatible: host-describe" }
+        check(
+            route.auth == "bearer" &&
+                route.scopes == listOf("session:read") &&
+                route.method == "GET",
+        ) { "Generated remote-v3 route metadata is incompatible: host-describe" }
+        route.path
+    }
 
     fun threadHistoryRoute(
         threadId: String,

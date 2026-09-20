@@ -10,7 +10,7 @@ final class SettingsIntegrationsContractTests: XCTestCase {
     XCTAssertEqual(values.filter { $0.scope == .read }.count, 4)
     XCTAssertEqual(values.filter { $0.scope == .operate }.count, 8)
     XCTAssertEqual(values.filter { $0.owner == .optionalProjectLocation }.count, 10)
-    XCTAssertEqual(values.filter { $0.owner == .none }.map(\.procedure), [.listSkillMarketplace])
+    XCTAssertEqual(values.filter { $0.owner == .desktop }.map(\.procedure), [.listSkillMarketplace])
     XCTAssertEqual(values.filter { $0.owner == .skillLocations }.map(\.procedure), [.importSkills])
     XCTAssertEqual(values.filter(\.isLongRunning).map(\.procedure), [.waitMcpServerOauth])
   }

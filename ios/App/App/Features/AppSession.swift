@@ -188,6 +188,11 @@ final class AppSession {
         projectSyncPreferences: ProjectSyncPreferences = .shared,
         remoteNotificationPresentations: RemoteUserNotificationPresentationCenter = .shared
     ) {
+        #if DEBUG
+          // Before the first profile read: NativeE2E launches with a fresh
+          // app state so every journey pairs from onboarding (V6 E.2).
+          NativeE2EStateReset.applyIfRequested()
+        #endif
         self.deps = dependencies
         self.projectSyncPreferences = projectSyncPreferences
         self.remoteNotificationPresentations = remoteNotificationPresentations
@@ -229,6 +234,7 @@ final class AppSession {
         var pairingURLOrEmpty: String = ""
         var manualBaseURL: String = ""
         var manualToken: String = ""
+        var certFingerprint: String? = nil
     }
 
     func pair(with input: PairingInput) async {

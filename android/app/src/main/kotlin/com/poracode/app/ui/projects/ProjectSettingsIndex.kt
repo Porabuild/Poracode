@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
@@ -71,14 +72,15 @@ internal fun ProjectSettingsIndex(
         ProjectIndexRow(
             R.string.workspace_title,
             Icons.Outlined.FolderOpen,
-            workspaceEnabled,
-            onOpenWorkspace,
+            enabled = workspaceEnabled,
+            testTag = "project_workspace",
+            onClick = onOpenWorkspace,
         )
         ProjectIndexRow(
             R.string.terminal_title,
             Icons.Outlined.Terminal,
-            terminalEnabled,
-            onOpenTerminal,
+            enabled = terminalEnabled,
+            onClick = onOpenTerminal,
         )
         ProjectIndexRow(R.string.advanced_ops_title, Icons.Outlined.Build, onClick = onOpenAdvanced)
     }
@@ -89,6 +91,7 @@ private fun ProjectIndexRow(
     title: Int,
     icon: ImageVector,
     enabled: Boolean = true,
+    testTag: String? = null,
     onClick: () -> Unit,
 ) {
     ListItem(
@@ -97,6 +100,9 @@ private fun ProjectIndexRow(
         trailingContent = {
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null)
         },
-        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
     )
 }

@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -295,6 +296,7 @@ Row(
                 }),
                 modifier = Modifier
                     .weight(1f)
+                    .testTag("terminal_input")
                     .onPreviewKeyEvent { event ->
                         if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                         val sequence = when (event.key) {
@@ -317,6 +319,7 @@ Row(
             Button(
                 enabled = writable && input.isNotEmpty(),
                 onClick = { sendInput(runtime, input, scope) { input = "" } },
+                modifier = Modifier.testTag("terminal_send"),
             ) { Text(stringResource(R.string.terminal_send)) }
         }
         TerminalKeyAccessory(

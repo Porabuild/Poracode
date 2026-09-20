@@ -152,4 +152,6 @@
     <string name="discover_hosts_stop">Parar</string>
     <string name="discover_hosts_searching">Procurando hosts do Poracode nesta rede…</string>
     <string name="discover_hosts_empty">Nenhum host do Poracode encontrado ainda.</string>
+    <string name="discover_hosts_unverified">Não verificado</string>
+    <string name="tls_pin_mismatch">O certificado TLS do servidor não corresponde à impressão digital do código de emparelhamento. Emparelhe novamente pelo painel de acesso remoto do desktop.</string>
 </resources>

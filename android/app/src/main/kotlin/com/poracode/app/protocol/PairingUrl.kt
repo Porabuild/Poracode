@@ -19,6 +19,7 @@ object PairingUrl {
         val token: String,
         val host: String?,
         val uri: URI,
+        val certFingerprint: String? = null,
     )
 
     data class DeepLinkRoute(
@@ -37,7 +38,12 @@ object PairingUrl {
 
         val token = extractToken(uri) ?: return null
         val host = parseQuery(uri.rawQuery ?: uri.query)["host"]
-        return Parts(token = token, host = host, uri = uri)
+        return Parts(
+            token = token,
+            host = host,
+            uri = uri,
+            certFingerprint = parseCertFingerprint(uri),
+        )
     }
 
     /**
@@ -106,6 +112,21 @@ object PairingUrl {
         val token = extractToken(uri) ?: return null
         val endpoint = runCatching { normalizeEndpoint(hostParam) }.getOrNull() ?: return null
         return DeepLinkRoute(endpoint = endpoint, token = token)
+    }
+
+    fun parseCertFingerprint(value: String): String? {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty()) return null
+        val uri = runCatching { URI(trimmed) }.getOrNull() ?: return null
+        return parseCertFingerprint(uri)
+    }
+
+    private fun parseCertFingerprint(uri: URI): String? {
+        val fragment = uri.rawFragment ?: uri.fragment ?: return null
+        val raw = parseQuery(fragment)["fp"] ?: return null
+        val trimmed = raw.trim().lowercase()
+        val bare = if (trimmed.startsWith("sha256:")) trimmed.substring(7) else trimmed
+        return bare.takeIf { it.matches(Regex("^[0-9a-f]{64}$")) }
     }
 
     private fun extractToken(uri: URI): String? {

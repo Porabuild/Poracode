@@ -13,6 +13,9 @@ enum PortForwardingTransportError: Error, Equatable, Sendable {
   case rejected(statusCode: Int, code: String?)
   case invalidResponse
   case transport
+  /// The pinned host refused the shared TLS trust evaluation before the
+  /// request was sent — definite non-commit, never an ambiguous mutation.
+  case certificateMismatch
   case ambiguousMutation
   case unsafeEntry
   case browserUnavailable
@@ -112,6 +115,8 @@ struct GeneratedPortForwardingRemoteAPI: PortForwardingRemoteAPI, Sendable {
       throw CancellationError()
     } catch let PortForwardingHTTPError.rejected(statusCode, code) {
       throw PortForwardingTransportError.rejected(statusCode: statusCode, code: code)
+    } catch PortForwardingHTTPError.certificateMismatch {
+      throw PortForwardingTransportError.certificateMismatch
     } catch PortForwardingHTTPError.invalidResponse, PortForwardingHTTPError.responseTooLarge {
       throw PortForwardingTransportError.invalidResponse
     } catch {
@@ -144,6 +149,10 @@ struct GeneratedPortForwardingRemoteAPI: PortForwardingRemoteAPI, Sendable {
         }
         throw error
       case .invalidRequest: throw error
+      case .certificateMismatch:
+        // The handshake was cancelled before the request left the device:
+        // the mutation definitively did not commit.
+        throw error
       default: throw PortForwardingTransportError.ambiguousMutation
       }
     } catch {

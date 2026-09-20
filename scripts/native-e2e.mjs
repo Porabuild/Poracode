@@ -5,6 +5,7 @@
 
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
+import { appendFileSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { chmod, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,7 +73,10 @@ function main() {
     if (requestedMode === "ios-ui") {
       return runIosUI();
     }
-    process.stderr.write("Usage: node scripts/native-e2e.mjs <mock|real|ios-ui>\n");
+    if (requestedMode === "android-real") {
+      return runAndroidReal();
+    }
+    process.stderr.write("Usage: node scripts/native-e2e.mjs <mock|real|ios-ui|android-real>\n");
     process.exit(2);
   }
 
@@ -196,6 +200,23 @@ async function runIosUI() {
   process.exit(0);
 }
 
+/** android-real entry: signal handlers exist before any child work. */
+async function runAndroidReal() {
+  let androidShutdown = null;
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.on(signal, () => {
+      if (androidShutdown) androidShutdown(0);
+      else process.exit(1);
+    });
+  }
+  await runAndroidRealJourney({
+    registerShutdown: (shutdown) => {
+      androidShutdown = shutdown;
+    },
+  });
+  process.exit(0);
+}
+
 // Build/simctl children of the ios-ui journey, so a programmatic shutdown can
 // kill the whole tree (an interactive SIGINT reaches them via the terminal
 // process group, `kill <pid>` does not). Declared before the entry guard
@@ -253,6 +274,14 @@ export function selectPrunableIosRunDirs(names, keep = IOS_UI_MAX_RUN_DIRS) {
 }
 
 async function runIosUIJourney({ registerShutdown }) {
+  // E.2 real-peer mode: with NATIVE_E2E_PEER_MODE=real the journey runs the
+  // family tests against the production headless host instead of the mock
+  // wire lab. The harness is then started in real mode (it needs
+  // dist/main/server.cjs) and its control plane is the one injected into the
+  // xctestrun — the journeys' real-mode completion check polls `/v1/state`
+  // and requires `mode=real`.
+  const peerMode = process.env.NATIVE_E2E_PEER_MODE === "real" ? "real" : "mock";
+  const harnessMode = peerMode === "real" ? "real" : "mock";
   const uiCapability = randomBytes(32).toString("base64url");
   const uiSlot = process.env[SLOT_ENV] ?? "0";
   const nativeE2ERoot = join(repoRoot, ".tmp/native-e2e");
@@ -272,7 +301,7 @@ async function runIosUIJourney({ registerShutdown }) {
       "--no-warnings=ExperimentalWarning",
       cliPath,
       "--mode",
-      "mock",
+      harnessMode,
       "--slot",
       uiSlot,
     ],
@@ -280,7 +309,7 @@ async function runIosUIJourney({ registerShutdown }) {
       cwd: repoRoot,
       env: {
         ...process.env,
-        NATIVE_E2E_MODE: "mock",
+        NATIVE_E2E_MODE: harnessMode,
         [SLOT_ENV]: uiSlot,
         NATIVE_E2E_CONTROL_CAPABILITY: uiCapability,
         NATIVE_E2E_STARTUP_TIMEOUT_MS: String(STARTUP_TIMEOUT_MS),
@@ -293,6 +322,7 @@ async function runIosUIJourney({ registerShutdown }) {
   );
 
   let controlUrl;
+  let realPeerPairingUrl;
   const ready = new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("native iOS harness startup timed out")),
@@ -304,6 +334,10 @@ async function runIosUIJourney({ registerShutdown }) {
         const match = line.match(/control=(http:\/\/127\.0\.0\.1:\d+)/);
         if (!match) return;
         controlUrl = match[1];
+        if (harnessMode === "real") {
+          const runDir = line.match(/runDir=(\S+)/)?.[1];
+          if (runDir) realPeerPairingUrl = readRealPeerPairingUrl(runDir);
+        }
         clearTimeout(timer);
         resolve();
       },
@@ -384,7 +418,7 @@ async function runIosUIJourney({ registerShutdown }) {
         `platform=iOS Simulator,id=${simulatorId}`,
         "-derivedDataPath",
         derivedData,
-        "-only-testing:NativeE2ETests/NativeJourneyUITests/testRealNativeRemoteJourney",
+        ...iosOnlyTestingFlags(),
         "build-for-testing",
       ],
       process.env,
@@ -399,11 +433,28 @@ async function runIosUIJourney({ registerShutdown }) {
     readinessPath = join(products, "NativeE2E-readiness.xctestrun");
     const generated = await readFile(join(products, generatedName), "utf8");
     const interfaceStyle = process.env.NATIVE_E2E_INTERFACE_STYLE;
+    // Real-peer family journeys: the pairing credential is minted by the real
+    // harness itself (`secrets/real-peer-pairing.json` in its run dir) and
+    // never transits a workflow env or log. `NATIVE_E2E_PAIRING_URL` stays as
+    // an operator override. Either way the URL carries a secret fragment; it
+    // is written only to the 0o600 xctestrun file and the log redactor masks
+    // `token=` fragments.
+    const realPairingURL = process.env.NATIVE_E2E_PAIRING_URL ?? realPeerPairingUrl;
+    if (peerMode === "real" && !realPairingURL) {
+      throw new Error(
+        "real-peer journey requested but no pairing credential is available " +
+          "(the real harness did not mint secrets/real-peer-pairing.json)",
+      );
+    }
     await writeFile(
       readinessPath,
       injectXCTestEnvironment(generated, {
         NATIVE_E2E_CONTROL_URL: controlUrl,
         NATIVE_E2E_CONTROL_CAPABILITY: uiCapability,
+        ...(peerMode === "real" ? { NATIVE_E2E_PEER_MODE: "real" } : {}),
+        ...(peerMode === "real" && realPairingURL
+          ? { NATIVE_E2E_PAIRING_URL: realPairingURL }
+          : {}),
         ...(interfaceStyle === "Dark" || interfaceStyle === "Light"
           ? { NATIVE_E2E_INTERFACE_STYLE: interfaceStyle }
           : {}),
@@ -421,7 +472,7 @@ async function runIosUIJourney({ registerShutdown }) {
         `platform=iOS Simulator,id=${simulatorId}`,
         "-resultBundlePath",
         resultBundle,
-        "-only-testing:NativeE2ETests/NativeJourneyUITests/testRealNativeRemoteJourney",
+        ...iosOnlyTestingFlags(),
         "test-without-building",
       ],
       process.env,
@@ -457,6 +508,223 @@ async function pruneIosUIRunDirs(nativeE2ERoot) {
   const entries = await readdir(nativeE2ERoot).catch(() => []);
   for (const name of selectPrunableIosRunDirs(entries)) {
     await rm(join(nativeE2ERoot, name), { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
+ * Reads the one-time real-peer pairing credential the real-mode harness mints
+ * into its run dir (`secrets/real-peer-pairing.json`, see
+ * tests/native-e2e/harness/cli.ts). Returns null when the harness has not
+ * published one. The value is never logged: it carries a secret fragment.
+ */
+function readRealPeerPairingUrl(runDir) {
+  try {
+    const parsed = JSON.parse(
+      readFileSync(join(runDir, "secrets", "real-peer-pairing.json"), "utf8"),
+    );
+    const url = parsed?.pairingUrl;
+    return typeof url === "string" && url.includes("#token=") ? url : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * -only-testing flags for the ios-ui journey. `NATIVE_E2E_IOS_ONLY_TESTING`
+ * (comma-separated) scopes a run — the real-peer CI leg uses it to run just
+ * the terminal-keystroke and git families; the default covers the full mock
+ * journey.
+ */
+function iosOnlyTestingFlags() {
+  const fromEnv = (process.env.NATIVE_E2E_IOS_ONLY_TESTING ?? "")
+    .split(",")
+    .map((flag) => flag.trim())
+    .filter(Boolean)
+    .map((flag) => `-only-testing:${flag}`);
+  return fromEnv.length > 0
+    ? fromEnv
+    : [
+        "-only-testing:NativeE2ETests/NativeJourneyUITests/testRealNativeRemoteJourney",
+        "-only-testing:NativeE2ETests/NativeFamilyJourneyUITests",
+      ];
+}
+
+const ANDROID_REAL_FAMILY_CLASS = "com.poracode.app.Android37WireLabFamilyInstrumentedTest";
+
+/**
+ * android-real journey (E.2): the real-peer leg of the API 37 instrumentation
+ * job, run after scripts/ci-android-api37.sh's mock leg (whose EXIT trap has
+ * already stopped the mock harness, freeing the slot). The CI shell cannot
+ * learn the harness capability or the pairing credential, so this subcommand
+ * owns the leg end to end: start the real-mode harness as a direct cli.ts
+ * child (the ci-android-api37.sh pattern), wait for its readiness line, read
+ * the harness-minted real-peer pairing credential, adb-reverse the control
+ * and production ports into the emulator (the device dials the pairing URL's
+ * 127.0.0.1 endpoint through the reverse; the production Host gate admits the
+ * loopback literal on its own bound port), and drive the family-journey class
+ * with peerMode=real. The steer/permission family tests skip themselves in
+ * real mode, so the class runs exactly the terminal-keystroke and git
+ * families. The pairing URL never appears on stdout; it is passed to
+ * instrumentation as a -P argument and redacted from streamed output (the
+ * same bearer-material-on-CI class as the mock leg's `capability` argument).
+ */
+async function runAndroidRealJourney({ registerShutdown }) {
+  const capability = randomBytes(32).toString("hex");
+  const slot = process.env[SLOT_ENV] ?? "1";
+  const evidenceRoot = process.env.RUNNER_TEMP ?? join(repoRoot, ".tmp", "native-e2e");
+  mkdirSync(evidenceRoot, { recursive: true, mode: 0o700 });
+  const stdoutPath = join(evidenceRoot, "android-real-host.stdout");
+  const stderrPath = join(evidenceRoot, "android-real-host.stderr");
+  const startupTimeoutMs = Number(process.env.NATIVE_E2E_STARTUP_TIMEOUT_MS ?? 180_000);
+  const testTimeoutMs = Number(process.env.NATIVE_E2E_TEST_TIMEOUT_MS ?? 1_800_000);
+
+  const harness = spawn(
+    process.execPath,
+    [
+      "--experimental-transform-types",
+      "--import",
+      tsRegisterPath,
+      "--no-warnings=ExperimentalWarning",
+      cliPath,
+      "--mode",
+      "real",
+      "--slot",
+      slot,
+    ],
+    {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        NATIVE_E2E_MODE: "real",
+        [SLOT_ENV]: slot,
+        NATIVE_E2E_CONTROL_CAPABILITY: capability,
+        NATIVE_E2E_STARTUP_TIMEOUT_MS: String(startupTimeoutMs),
+        NATIVE_E2E_TEST_TIMEOUT_MS: String(testTimeoutMs),
+        NATIVE_E2E_SHUTDOWN_TIMEOUT_MS: String(SHUTDOWN_WAIT_MS),
+      },
+      // Truncate ("w"), not append: the readiness poll below must never see a
+      // previous run's readiness line in a reused evidence directory.
+      stdio: ["ignore", openSync(stdoutPath, "w"), openSync(stderrPath, "w")],
+      detached: process.platform !== "win32",
+    },
+  );
+
+  let shuttingDown = false;
+  const killHarnessGroup = (signal) => {
+    if (!harness.pid) return;
+    try {
+      if (process.platform !== "win32") process.kill(-harness.pid, signal);
+      else harness.kill(signal);
+    } catch {
+      try {
+        harness.kill(signal);
+      } catch {
+        // already gone
+      }
+    }
+  };
+  registerShutdown((code = 1) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    killHarnessGroup("SIGTERM");
+    const killer = setTimeout(() => {
+      killHarnessGroup("SIGKILL");
+      process.exit(code);
+    }, SHUTDOWN_WAIT_MS);
+    harness.once("exit", () => {
+      clearTimeout(killer);
+      process.exit(code);
+    });
+  });
+
+  const dumpHarnessStderr = (lines) => {
+    const text = readFileSync(stderrPath, "utf8");
+    process.stderr.write(`${text.split(/\r?\n/).slice(0, lines).join("\n")}\n`);
+  };
+
+  // Reverse targets for the finally block; undefined until the readiness
+  // descriptor names them, and the finally skips removal until then. Declared
+  // at function scope so a throw before the descriptor is read can never hit
+  // the temporal dead zone inside the finally.
+  let controlPort;
+  let productionPort;
+  // Everything after the harness spawn runs inside this try so the finally
+  // always stops the harness: a stranded detached real host would hold the
+  // slot ports and the run dir secrets (including the minted pairing
+  // credential) alive.
+  try {
+    // Wait for the readiness line, mirroring ci-android-api37.sh's poll.
+    let readyLine;
+    const deadline = Date.now() + startupTimeoutMs;
+    for (;;) {
+      if (harness.exitCode !== null) {
+        dumpHarnessStderr(120);
+        throw new Error(`native android real harness exited early (${String(harness.exitCode)})`);
+      }
+      readyLine = readFileSync(stderrPath, "utf8")
+        .split(/\r?\n/)
+        .find((line) => line.includes("native-e2e real host ready"));
+      if (readyLine) break;
+      if (Date.now() > deadline) throw new Error("native android real harness startup timed out");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+
+    const runDir = readyLine.match(/runDir=(\S+)/)?.[1];
+    if (!runDir) throw new Error("real harness readiness line did not carry runDir");
+    const readyDescriptor = JSON.parse(readFileSync(join(runDir, "ready.json"), "utf8"));
+    controlPort = readyDescriptor?.ports?.control;
+    productionPort = readyDescriptor?.ports?.productionHost;
+    if (!controlPort || !productionPort) {
+      throw new Error("real harness readiness descriptor is missing control/productionHost ports");
+    }
+    const pairingUrl = readRealPeerPairingUrl(runDir);
+    if (!pairingUrl) {
+      throw new Error(
+        "real harness did not mint secrets/real-peer-pairing.json — the real-peer leg cannot pair",
+      );
+    }
+
+    await runBuffered("adb", ["reverse", `tcp:${controlPort}`, `tcp:${controlPort}`]);
+    await runBuffered("adb", ["reverse", `tcp:${productionPort}`, `tcp:${productionPort}`]);
+    const status = await runStreaming(
+      "./gradlew",
+      [
+        "connectedDebugAndroidTest",
+        "-Pandroid.testInstrumentationRunnerArguments.peerMode=real",
+        `-Pandroid.testInstrumentationRunnerArguments.pairingUrl=${pairingUrl}`,
+        `-Pandroid.testInstrumentationRunnerArguments.capability=${capability}`,
+        `-Pandroid.testInstrumentationRunnerArguments.controlPort=${controlPort}`,
+        `-Pandroid.testInstrumentationRunnerArguments.class=${ANDROID_REAL_FAMILY_CLASS}`,
+        "--no-daemon",
+        "--stacktrace",
+      ],
+      process.env,
+      pairingUrl,
+      join(repoRoot, "android"),
+    );
+    if (status !== 0) {
+      throw new Error(`android real-peer family journey failed (${String(status)})`);
+    }
+    const summary = process.env.GITHUB_STEP_SUMMARY;
+    if (summary) {
+      appendFileSync(
+        summary,
+        "- The real-peer family journey (terminal keystroke + git stage) ran against the production host.\n",
+      );
+    }
+  } finally {
+    if (controlPort !== undefined) {
+      await runBuffered("adb", ["reverse", "--remove", `tcp:${controlPort}`]).catch(() => {});
+    }
+    if (productionPort !== undefined) {
+      await runBuffered("adb", ["reverse", "--remove", `tcp:${productionPort}`]).catch(() => {});
+    }
+    killHarnessGroup("SIGTERM");
+    const exited = await Promise.race([
+      new Promise((resolve) => harness.once("exit", resolve)),
+      new Promise((resolve) => setTimeout(resolve, SHUTDOWN_WAIT_MS)),
+    ]);
+    if (!exited) killHarnessGroup("SIGKILL");
   }
 }
 
@@ -512,14 +780,18 @@ function runBuffered(command, args) {
       if (code === 0) resolve(stdout);
       else reject(new Error(`${command} failed (${String(code)}): ${redact(stderr)}`));
     });
+    // A missing binary must reject, not hang the awaiting journey forever.
+    processHandle.once("error", (error) =>
+      reject(new Error(`${command} failed to spawn: ${error.message}`)),
+    );
   });
 }
 
-function runStreaming(command, args, env, exactSecret) {
+function runStreaming(command, args, env, exactSecret, cwd = repoRoot) {
   return new Promise((resolve) => {
     const processHandle = trackChildProcess(
       spawn(command, args, {
-        cwd: repoRoot,
+        cwd,
         env,
         stdio: ["ignore", "pipe", "pipe"],
       }),

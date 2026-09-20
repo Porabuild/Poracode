@@ -207,6 +207,23 @@ private final class BrowserMirrorStreamingTask: NSObject, URLSessionDataDelegate
   }
 
   func urlSession(
+    _ session: URLSession,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+    TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+    TlsServerTrustEvaluator.handle(challenge, completionHandler: completionHandler)
+  }
+
+  func urlSession(
     _: URLSession,
     dataTask _: URLSessionDataTask,
     didReceive response: URLResponse,
@@ -240,7 +257,14 @@ private final class BrowserMirrorStreamingTask: NSObject, URLSessionDataDelegate
     lock.withLock {
       guard !finished else { return }
       if let error {
-        if (error as? URLError)?.code == .cancelled {
+        // Pin mismatch and task cancel both surface as URLError.cancelled, and
+        // Task.isCancelled is always false inside a delegate callback. Keep
+        // the URLError on this path so the execute-level catch can classify it
+        // (a real cancel is CancellationError there; anything else stays a
+        // transport failure) — mirrors BoundedHTTPBody.
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+          finish(error: Task.isCancelled ? CancellationError() : urlError)
+        } else if Task.isCancelled {
           finish(error: CancellationError())
         } else {
           finish(error: error)

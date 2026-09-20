@@ -96,6 +96,7 @@ struct ProjectEditView: View {
           } label: {
             Label(ProjectWorkspaceStrings.title, systemImage: "doc.text.magnifyingglass")
           }
+          .accessibilityIdentifier("native-e2e.project.workspace")
           NavigationLink {
             ProjectShellTerminalView(
               session: session,

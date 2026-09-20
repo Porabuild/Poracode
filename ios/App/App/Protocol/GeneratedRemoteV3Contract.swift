@@ -13,8 +13,9 @@ enum GeneratedRemoteV3Contract {
   /// 2 added the generated pairing state machine to the native bundle
   /// (V5 5.2); 3 adds the generated terminal-cursor machine and the
   /// `stateMachines` count; 4 adds the generated terminal hardware-key
-  /// encoder. A v3 manifest predates the encoder and is refused.
-  static let expectedNativeBundleManifestFormatVersion = 4
+  /// encoder; 5 adds background-task reduce and follow-up queue.
+  /// A v4 manifest predates those machines and is refused.
+  static let expectedNativeBundleManifestFormatVersion = 5
 
   static var isCompatible: Bool {
     RemoteContractMetadata.protocolVersion == expectedProtocolVersion
@@ -35,13 +36,26 @@ enum GeneratedRemoteV3Contract {
   }
 
   static func isCompatible(withNativeBundleManifest data: Data) -> Bool {
+    isCompatible(
+      withNativeBundleManifest: data,
+      expectedFormatVersion: expectedNativeBundleManifestFormatVersion
+    )
+  }
+
+  /// Test seam for the old-reader direction: a reader built against an earlier
+  /// bundle format must refuse a newer manifest (exact equality, never `<=`),
+  /// because format bumps add machines the old reader cannot decode.
+  static func isCompatible(
+    withNativeBundleManifest data: Data,
+    expectedFormatVersion: Int
+  ) -> Bool {
     guard let manifest = try? JSONDecoder().decode(CompatibilityManifest.self, from: data)
     else { return false }
     return isCompatible
       && manifest.protocolVersion == RemoteContractMetadata.protocolVersion
       && manifest.bindingFormatVersion == RemoteContractMetadata.bindingFormatVersion
       && manifest.generatorVersion == RemoteContractMetadata.generatorVersion
-      && manifest.formatVersion == expectedNativeBundleManifestFormatVersion
+      && manifest.formatVersion == expectedFormatVersion
   }
 
   static func environmentResponse(_ data: Data, legacy: Bool) throws -> Data {
@@ -204,6 +218,26 @@ enum GeneratedRemoteV3Contract {
       route.method == "GET"
     else {
       preconditionFailure("Generated remote-v3 route metadata is incompatible: agent-statuses")
+    }
+    return route.path
+  }()
+
+  static func hostDescribeResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EHostU2DDescribeU2EResponse,
+      boundary: "host describe response"
+    )
+  }
+
+  /// Generated path for `host-describe`, validated against the bearer +
+  /// `session:read` shape pairing and session restore depend on.
+  static let hostDescribeRoutePath: String = {
+    guard let route = RemoteContractMetadata.routes.first(where: { $0.id == "host-describe" }),
+      route.auth == "bearer",
+      route.scopes == ["session:read"],
+      route.method == "GET"
+    else {
+      preconditionFailure("Generated remote-v3 route metadata is incompatible: host-describe")
     }
     return route.path
   }()

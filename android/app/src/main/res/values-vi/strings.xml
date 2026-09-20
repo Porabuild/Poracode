@@ -151,4 +151,6 @@
     <string name="discover_hosts_stop">Dừng</string>
     <string name="discover_hosts_searching">Đang tìm máy chủ Poracode trong mạng này…</string>
     <string name="discover_hosts_empty">Chưa tìm thấy máy chủ Poracode nào.</string>
+    <string name="discover_hosts_unverified">Chưa xác minh</string>
+    <string name="tls_pin_mismatch">Chứng chỉ TLS của máy chủ không khớp với vân tay từ mã ghép nối. Hãy ghép nối lại từ bảng Remote Access trên máy tính.</string>
 </resources>

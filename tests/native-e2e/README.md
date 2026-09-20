@@ -35,6 +35,34 @@ There is no `/pair`, `/emit`, or `/shutdown`. Pairing material is written to
 exchange. `ready.json` and `/v1/state` never include tokens, tickets, fragments,
 or the control capability.
 
+## Real-peer device journeys (E.2)
+
+The terminal-keystroke and git family journeys run against BOTH peers. In
+`mock` (default) they poll the mock operation journal; in `real` (device tests
+`NATIVE_E2E_PEER_MODE=real` + a pairing credential) they pair with the
+production host and assert in-UI completion via `/v1/state` `mode=real`, while
+the observable PTY-echo / repo-index effects are asserted harness-side by
+`realHostObservableEffects.test.ts`.
+
+Real-mode harness startup mints one extra one-time pairing credential for the
+OUT-OF-PROCESS peer and writes it to `secrets/real-peer-pairing.json` (0600,
+deleted with the run dir). The device CI legs consume it through:
+
+- `scripts/native-e2e.mjs ios-ui` with `NATIVE_E2E_PEER_MODE=real` — starts the
+  real harness instead of the mock one, reads the minted credential (never a
+  workflow env var; `NATIVE_E2E_PAIRING_URL` remains an operator override), and
+  injects peerMode/pairing/control into the 0600 xctestrun. Scope the run with
+  `NATIVE_E2E_IOS_ONLY_TESTING` (comma-separated `-only-testing` targets).
+- `scripts/native-e2e.mjs android-real` — API 37 CI leg: starts the real
+  harness as a direct cli.ts child, `adb reverse`s its control + production
+  ports into the emulator (the pairing URL carries `127.0.0.1`, reached
+  through the reverse), and drives
+  `Android37WireLabFamilyInstrumentedTest` with
+  `-Pandroid.testInstrumentationRunnerArguments.peerMode=real`.
+
+Both legs require `dist/main/server.cjs` to be built first (the iOS mock
+journey does not, and stays the fast path).
+
 ## Run directory
 
 `.tmp/native-e2e/run-<timestamp>-<pid>-<nonce>/` (0700) with a `.native-e2e-run`
@@ -44,9 +72,9 @@ always deletes `secrets/`.
 
 ## Coverage
 
-`harness/operation-map.json` locks the 227 manifest-derived keys (67 routes,
-108 procedures, 9 client WS, 11 server WS, 16 replay, 16 runtime). The mock-host
-profile positively covers all 227 operations with schema-validated generated
+`harness/operation-map.json` locks the 259 manifest-derived keys (68 routes,
+139 procedures, 9 client WS, 11 server WS, 16 replay, 16 runtime). The mock-host
+profile positively covers all 259 operations with schema-validated generated
 requests, producer-shaped procedure goldens, stateful route/procedure fixtures,
 binary image bytes, raw upload bytes, and a real 302 forward-entry exchange.
 There are no residual operation-level mock gaps. Loading or negatively

@@ -38,6 +38,7 @@ struct HomeMoreSheet: View {
             HomeMoreLabel(ProjectManagementStrings.title, systemImage: "folder")
           }
           .disabled(session.currentProjectControllerSession == nil)
+          .accessibilityIdentifier("native-e2e.more.projects")
           NavigationLink {
             BrowserMirrorSessionView(session: session, embeddedInNavigationStack: true)
           } label: {
@@ -49,6 +50,7 @@ struct HomeMoreSheet: View {
           } label: {
             HomeMoreLabel(TerminalStrings.title, systemImage: "terminal")
           }
+          .accessibilityIdentifier("native-e2e.more.terminal")
           if let lease = session.currentPortForwardingAccess?.lease {
             NavigationLink {
               PortForwardingSessionView(
@@ -157,6 +159,7 @@ private struct HomeTerminalProjectsView: View {
             .padding(.vertical, 2)
           }
           .disabled(!option.online)
+          .accessibilityIdentifier("native-e2e.terminal.project.\(option.project.id)")
         }
         .listStyle(.insetGrouped)
       }

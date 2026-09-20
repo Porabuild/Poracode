@@ -14,6 +14,7 @@ import com.poracode.app.transport.RemoteApiGatewayFactory
 import com.poracode.app.transport.RemoteEventSocketFactory
 import com.poracode.app.transport.RemoteEventSocket
 import com.poracode.app.transport.RemoteWebSocketClient
+import com.poracode.app.transport.TlsCertPinStore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -125,7 +126,10 @@ class HostSessionController(
         scope.launch {
             try {
                 withContext(ioDispatcher) { repository.credentialsFor(connectionId) }
-                    ?.let { credentials -> beforeRemove(connectionId, credentials) }
+                    ?.let { credentials ->
+                        TlsCertPinStore.remove(credentials.profile.httpBaseUrl)
+                        beforeRemove(connectionId, credentials)
+                    }
                 val result = withContext(ioDispatcher) {
                     repository.removeHost(connectionId, receipt)
                 }
@@ -291,6 +295,9 @@ class HostSessionController(
         pool.updatePolicy(snapshot.selectedConnectionId, snapshot.lru)
         val canonical = compactHostsByEndpoint(snapshot)
         val retained = canonical.hosts.mapTo(mutableSetOf()) { it.connectionId }
+        for (host in canonical.hosts) {
+            TlsCertPinStore.register(host.httpBaseUrl, host.certFingerprint)
+        }
         updateState {
             it.copy(
                 hostCatalog = HostUiCatalog(

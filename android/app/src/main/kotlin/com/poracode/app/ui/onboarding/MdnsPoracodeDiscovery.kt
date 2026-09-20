@@ -38,8 +38,9 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * mDNS pairing discovery (V5 plan item P4). The desktop advertises
- * `_poracode._tcp.local` only for TLS-configured lan/tailnet binds, and the
- * TXT record carries the leaf-certificate fingerprint for pin-on-first-connect.
+ * `_poracode._tcp.local` only for TLS-configured lan/tailnet binds.
+ * The TXT fingerprint is unauthenticated multicast — discovery rows stay
+ * labelled unverified until the user pins via the QR `#fp=` value.
  * Discovery only ever FINDS an endpoint — the one-time pairing credential is
  * still required, and manual entry stays available beside it.
  */
@@ -269,6 +270,11 @@ internal fun NearbyHostsSection(
                                 Text(
                                     host.serviceName,
                                     style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    stringResource(R.string.discover_hosts_unverified),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnboardingMuted,
                                 )
                                 val endpoint = PoracodeServiceRecords.endpoint(host.host, host.port)
                                 if (endpoint != null) {

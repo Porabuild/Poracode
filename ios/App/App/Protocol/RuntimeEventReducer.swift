@@ -311,14 +311,10 @@ enum RuntimeEventReducer {
             domain.openRequests.removeAll { $0.requestId == requestId }
 
         case "background_tasks.changed":
-            // REPLACE the thread's live background task list (empty drains;
-            // unchanged is a no-op; never bumps the structural version).
-            guard let tasks = event.backgroundTasks else { return }
-            replaceBackgroundTasks(&domain, tasks: tasks)
+            applyGeneratedBackgroundTasks(&domain, eventType: event.type, incoming: event.backgroundTasks)
 
         case "session.exited":
-            // Background work dies with the agent process; drop the list.
-            domain.backgroundTasks = nil
+            applyGeneratedBackgroundTasks(&domain, eventType: event.type, incoming: [])
 
         case "item.started", "item.updated", "item.completed", "error":
             if eventAffectsStructuralVersion(event) {
@@ -341,17 +337,25 @@ enum RuntimeEventReducer {
         requests = domain.openRequests
     }
 
-    /// REPLACE semantics for `background_tasks.changed`: an empty list drops
-    /// the key and an unchanged list is a no-op (mirrors the shared reducer
-    /// and the Android `replaceBackgroundTasks`).
-    private static func replaceBackgroundTasks(
+    /// Generated V6 E.3 reduce: replace / drain / noop from the shared spec.
+    private static func applyGeneratedBackgroundTasks(
         _ domain: inout RuntimeThreadDomainState,
-        tasks: [RuntimeBackgroundTask]
+        eventType: String,
+        incoming: [RuntimeBackgroundTask]?
     ) {
-        if tasks.isEmpty {
-            domain.backgroundTasks = nil
-        } else if domain.backgroundTasks != tasks {
-            domain.backgroundTasks = tasks
+        let mappedIncoming = incoming?.map {
+            RemoteBackgroundTaskIdentity(taskId: $0.taskId, kind: $0.kind, description: $0.description)
+        }
+        let mappedPrevious = domain.backgroundTasks?.map {
+            RemoteBackgroundTaskIdentity(taskId: $0.taskId, kind: $0.kind, description: $0.description)
+        }
+        let next = RemoteBackgroundTaskReduce.apply(
+            eventType: eventType,
+            incoming: mappedIncoming,
+            previous: mappedPrevious
+        )
+        domain.backgroundTasks = next?.map {
+            RuntimeBackgroundTask(taskId: $0.taskId, kind: $0.kind, description: $0.description)
         }
     }
 

@@ -16,6 +16,8 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
     var pairedAt: Date
     var protocolVersion: Int
     var lastSelectedAt: Date?
+    var certFingerprint: String?
+    var hostCapabilities: HostServiceCapabilities?
 
     var id: ClientConnectionID { connectionId }
 
@@ -32,7 +34,9 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
         tokenExpiresAt: String? = nil,
         pairedAt: Date,
         protocolVersion: Int = ProtocolConstants.remoteProtocolVersion,
-        lastSelectedAt: Date? = nil
+        lastSelectedAt: Date? = nil,
+        certFingerprint: String? = nil,
+        hostCapabilities: HostServiceCapabilities? = nil
     ) {
         self.connectionId = connectionId
         self.desktopId = desktopId
@@ -47,6 +51,8 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
         self.pairedAt = pairedAt
         self.protocolVersion = protocolVersion
         self.lastSelectedAt = lastSelectedAt
+        self.certFingerprint = certFingerprint
+        self.hostCapabilities = hostCapabilities
     }
 
     init(
@@ -67,7 +73,9 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
             tokenExpiresAt: profile.tokenExpiresAt,
             pairedAt: profile.pairedAt,
             protocolVersion: profile.protocolVersion,
-            lastSelectedAt: lastSelectedAt
+            lastSelectedAt: lastSelectedAt,
+            certFingerprint: profile.certFingerprint,
+            hostCapabilities: profile.hostCapabilities
         )
     }
 
@@ -83,7 +91,9 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
             scopes: scopes,
             tokenExpiresAt: tokenExpiresAt,
             pairedAt: pairedAt,
-            protocolVersion: protocolVersion
+            protocolVersion: protocolVersion,
+            certFingerprint: certFingerprint,
+            hostCapabilities: hostCapabilities
         )
     }
 

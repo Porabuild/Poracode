@@ -145,6 +145,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     testImplementation("com.squareup.okhttp3:mockwebserver:5.4.0")
+    testImplementation("com.squareup.okhttp3:okhttp-tls:5.4.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     testImplementation("org.json:json:20250517")
 
@@ -155,6 +156,9 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:5.4.0")
+    androidTestImplementation("com.squareup.okhttp3:okhttp-tls:5.4.0")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     androidTestUtil("androidx.test:orchestrator:1.6.1")
 }
 
@@ -196,11 +200,12 @@ val verifyRemoteV3NativeBindings = tasks.register("verifyRemoteV3NativeBindings"
         // with the app constant (never disabled or loosened).
         // formatVersion 2 added the generated pairing state machine (V5 5.2);
         // 3 adds the generated terminal-cursor machine and the stateMachines count;
-        // 4 adds the generated terminal hardware-key encoder.
+        // 4 adds the generated terminal hardware-key encoder;
+        // 5 adds background-task reduce and follow-up queue.
         version("protocolVersion", 12)
         version("bindingFormatVersion", 2)
         version("generatorVersion", 3)
-        version("formatVersion", 4)
+        version("formatVersion", 5)
 
         val languages = manifest["languages"] as? Map<*, *>
             ?: error("native-bindings.json is missing languages")
