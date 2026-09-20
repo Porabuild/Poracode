@@ -10,6 +10,10 @@ import {
   type CursorSdkWorkerClientDependencies,
   type CursorSdkWorkerSpawnProcess,
 } from "./sdkWorkerClient";
+import {
+  CURSOR_SDK_WORKER_PROTOCOL_VERSION,
+  type CursorSdkWorkerProbeResult,
+} from "./sdkWorkerProtocol";
 
 const tempDirectories: string[] = [];
 const children: ChildProcess[] = [];
@@ -25,6 +29,87 @@ afterEach(() => {
 });
 
 describe("spawnCursorSdkWorker", () => {
+  it("fails the boot when a staged helper speaks an older protocol", async () => {
+    const fixture = makeProtocolFixture(CURSOR_SDK_WORKER_PROTOCOL_VERSION - 1);
+
+    // The handshake requires an exact version match: a stale staged helper is
+    // rejected loudly instead of silently ignoring the fields it does not know.
+    await expect(
+      spawnCursorSdkWorker({
+        projectLocation: nativeProjectLocation(fixture.directory),
+        workerPath: fixture.path,
+      }),
+    ).rejects.toThrow("not supported by host protocol");
+  });
+
+  it("hands the recorded root to a native worker and drops the recorded version", async () => {
+    const fixture = makeDiscoveryEchoFixture();
+    const client = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(fixture.directory),
+      workerPath: fixture.path,
+      pinnedRoot: { packageRoot: "/opt/pinned/sdk", source: "global-npm" },
+    });
+
+    // The wire carries the location and its source; the recorded version stays
+    // host-side detection state.
+    const probeResult = await client.probe();
+    expect(discoveryEchoOf(probeResult)).toEqual({
+      pinnedRoot: { packageRoot: "/opt/pinned/sdk", source: "global-npm" },
+    });
+    await client.dispose();
+  });
+
+  it("keeps an explicitly configured location authoritative over the record", async () => {
+    const fixture = makeDiscoveryEchoFixture();
+    const client = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(fixture.directory),
+      workerPath: fixture.path,
+      configuredPath: "/opt/configured/sdk",
+      pinnedRoot: { packageRoot: "/opt/pinned/sdk", source: "global-npm" },
+    });
+
+    const probeResult = await client.probe();
+    expect(discoveryEchoOf(probeResult)).toEqual({ configuredPath: "/opt/configured/sdk" });
+    await client.dispose();
+  });
+
+  it("never hands a native root to a WSL worker", async () => {
+    const fixture = makeDiscoveryEchoFixture();
+    const spawnProcess: CursorSdkWorkerSpawnProcess = (_command, _args, _options) => {
+      const child = spawn(process.execPath, [fixture.path], {
+        cwd: fixture.directory,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      children.push(child);
+      return child;
+    };
+    const client = await spawnCursorSdkWorker(
+      {
+        projectLocation: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/work/repo",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\work\\repo",
+        },
+        workerPath: fixture.path,
+        pinnedRoot: { packageRoot: "C:\\Users\\me\\sdk", source: "global-npm" },
+      },
+      {
+        spawnProcess,
+        resolveNode: async () => ({
+          nodePath: "/home/user/.nvm/node",
+          nodeVersion: "22.14.0",
+          source: "user-installed",
+        }),
+        deploy: () => ({ linuxBaseDir: "/tmp/poracode-test" }),
+      },
+    );
+
+    const probeResult = await client.probe();
+    expect(discoveryEchoOf(probeResult)).toEqual({});
+    await client.dispose();
+  });
+
   it("boots a native helper, ignores shell banners, and dispatches events safely", async () => {
     const fixture = makeProtocolFixture();
     const client = await spawnCursorSdkWorker({
@@ -166,7 +251,7 @@ describe("spawnCursorSdkWorker", () => {
   });
 
   it("rejects pending requests when the worker exits", async () => {
-    const fixture = makeProtocolFixture(1, true);
+    const fixture = makeProtocolFixture(CURSOR_SDK_WORKER_PROTOCOL_VERSION, true);
     const client = await spawnCursorSdkWorker({
       projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
@@ -183,7 +268,7 @@ describe("spawnCursorSdkWorker", () => {
   });
 
   it("reports transport failure when the worker exits after acknowledging a start", async () => {
-    const fixture = makeProtocolFixture(1, false, true);
+    const fixture = makeProtocolFixture(CURSOR_SDK_WORKER_PROTOCOL_VERSION, false, true);
     const client = await spawnCursorSdkWorker({
       projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
@@ -249,6 +334,7 @@ describe("spawnCursorSdkWorker", () => {
       projectLocation: nativeProjectLocation(fixture.directory),
       workerPath: fixture.path,
       requestTimeoutMs: 40,
+      startTimeoutMs: 40,
     });
     const transportErrors: Error[] = [];
     client.onTransportError((error) => transportErrors.push(error));
@@ -260,14 +346,53 @@ describe("spawnCursorSdkWorker", () => {
     });
 
     await expect(client.start({ message: "delayed" })).rejects.toThrow(
-      "Cursor SDK worker request start timed out.",
+      "Cursor SDK worker request start timed out after 40ms. The run may still start server-side",
     );
     expect(transportErrors).toHaveLength(1);
-    expect(transportErrors[0]?.message).toContain("start timed out");
+    expect(transportErrors[0]?.message).toContain("start timed out after 40ms");
     await expect(client.start({ message: "second" })).rejects.toThrow(
       "Cursor SDK worker is not running.",
     );
     await client.dispose();
+  });
+
+  it("gives start a longer budget than other requests by default", async () => {
+    // Run creation waits on backend provisioning, which is far more variable
+    // than the other worker RPCs: a 250ms ack must succeed for `start` while
+    // the same delay still times out `reload` under a 40ms override.
+    const slowStart = makeDelayedMethodFixture("start", 250);
+    const starter = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(slowStart.directory),
+      workerPath: slowStart.path,
+      requestTimeoutMs: 40,
+    });
+    await starter.initialize({
+      createOptions: {
+        model: { id: "fixture" },
+        local: { cwd: slowStart.directory },
+      },
+    });
+    await expect(starter.start({ message: "slow but healthy" })).resolves.toEqual({
+      runId: "late-run",
+    });
+    await starter.dispose();
+
+    const slowReload = makeDelayedMethodFixture("reload", 250);
+    const reloader = await spawnCursorSdkWorker({
+      projectLocation: nativeProjectLocation(slowReload.directory),
+      workerPath: slowReload.path,
+      requestTimeoutMs: 40,
+    });
+    await reloader.initialize({
+      createOptions: {
+        model: { id: "fixture" },
+        local: { cwd: slowReload.directory },
+      },
+    });
+    await expect(reloader.reload()).rejects.toThrow(
+      "Cursor SDK worker request reload timed out after 40ms.",
+    );
+    await reloader.dispose();
   });
 
   it("makes an initialize timeout fatal so a late create cannot orphan an agent", async () => {
@@ -287,7 +412,7 @@ describe("spawnCursorSdkWorker", () => {
           local: { cwd: fixture.directory },
         },
       }),
-    ).rejects.toThrow("Cursor SDK worker request initialize timed out.");
+    ).rejects.toThrow("Cursor SDK worker request initialize timed out after 40ms.");
     expect(transportErrors).toHaveLength(1);
     await expect(client.listModels()).rejects.toThrow("Cursor SDK worker is not running.");
     await client.dispose();
@@ -309,7 +434,9 @@ describe("spawnCursorSdkWorker", () => {
       },
     });
 
-    await expect(client.reload()).rejects.toThrow("Cursor SDK worker request reload timed out.");
+    await expect(client.reload()).rejects.toThrow(
+      "Cursor SDK worker request reload timed out after 40ms.",
+    );
     expect(transportErrors).toHaveLength(1);
     await expect(client.start({ message: "second" })).rejects.toThrow(
       "Cursor SDK worker is not running.",
@@ -318,8 +445,41 @@ describe("spawnCursorSdkWorker", () => {
   });
 });
 
+/** A worker whose responses echo back the `sdk` discovery payload it received. */
+function makeDiscoveryEchoFixture(): {
+  directory: string;
+  path: string;
+} {
+  const directory = mkdtempSync(join(tmpdir(), "poracode-cursor-sdk-discovery-"));
+  tempDirectories.push(directory);
+  const path = join(directory, "worker.mjs");
+  writeFileSync(
+    path,
+    `
+import { createInterface } from "node:readline";
+process.stdout.write(
+  JSON.stringify({ type: "ready", protocolVersion: ${CURSOR_SDK_WORKER_PROTOCOL_VERSION} }) + "\\n",
+);
+const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
+input.on("line", (line) => {
+  const request = JSON.parse(line);
+  const result = request.method === "models.list"
+    ? { models: [], sdkVersion: "1.0.24", source: "global-npm", packageRoot: "/opt/pinned/sdk", echo: request.params?.sdk ?? null }
+    : { agentId: "agent-fixture", echo: request.params?.sdk ?? null };
+  process.stdout.write(JSON.stringify({ type: "response", id: request.id, ok: true, result }) + "\\n");
+});
+`,
+    "utf8",
+  );
+  return { directory, path };
+}
+
+function discoveryEchoOf(probeResult: CursorSdkWorkerProbeResult): unknown {
+  return (probeResult as { echo?: unknown }).echo;
+}
+
 function makeProtocolFixture(
-  protocolVersion = 1,
+  protocolVersion = CURSOR_SDK_WORKER_PROTOCOL_VERSION,
   exitOnInitialize = false,
   exitAfterStart = false,
 ): {
@@ -393,7 +553,9 @@ function makeDelayedMethodFixture(
     path,
     `
 import { createInterface } from "node:readline";
-process.stdout.write(JSON.stringify({ type: "ready", protocolVersion: 1 }) + "\\n");
+process.stdout.write(
+  JSON.stringify({ type: "ready", protocolVersion: ${CURSOR_SDK_WORKER_PROTOCOL_VERSION} }) + "\\n",
+);
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 input.on("line", (line) => {
   const request = JSON.parse(line);

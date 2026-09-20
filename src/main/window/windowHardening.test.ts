@@ -6,6 +6,7 @@ import {
 } from "@/main/diagnostics/processGone";
 import {
   installRendererReloadGuard,
+  buildRendererAdditionalArguments,
   noteRendererWindowClose,
   requestTrackedRendererReload,
 } from "./windowHardening";
@@ -37,6 +38,26 @@ function createWindowHarness() {
 const killed = { reason: "killed", exitCode: 9 } satisfies RenderProcessGoneDetails;
 
 describe("renderer termination intent wiring", () => {
+  it("keeps renderer stream credentials out of process arguments", () => {
+    const options = {
+      appVersion: "1.0.0",
+      isDev: false,
+      windowKind: "main" as const,
+      channel: "stable" as const,
+      posthogEnableDev: false,
+      posthogEnabled: false,
+      posthogHost: "",
+      posthogKey: "",
+      sentryEnabled: false,
+      rendererStream: { version: 2, url: "ws://127.0.0.1:1234/events", token: "secret" },
+    };
+    const args = buildRendererAdditionalArguments(options);
+
+    expect(args.filter((arg) => arg.startsWith("--lc-backend"))).toEqual([]);
+    expect(args.join(" ")).not.toContain("secret");
+    expect(args.join(" ")).not.toContain("127.0.0.1:1234");
+  });
+
   it("supplies reload once, then keeps an unproven killed event observable", () => {
     const harness = createWindowHarness();
     const treatments: Array<ReturnType<typeof classifyRendererProcessGone>> = [];

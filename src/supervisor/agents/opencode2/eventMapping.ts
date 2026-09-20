@@ -510,7 +510,11 @@ export function mapOpenCode2Event(event: V2Event, state: OpenCode2MapperState): 
 
     // ── Retries / provider errors ───────────────────────────────────────
     case "session.retry.scheduled":
-      return openCode2ErrorEvents(state, readSessionError(event.data.error));
+      // A scheduled retry is still active work. It must not create an error
+      // row or consume the dedup key for a later final failure of the same cause.
+      return [
+        { type: "warning", threadId: state.threadId, message: readSessionError(event.data.error) },
+      ];
 
     // Intentionally not surfaced (no chat-row equivalent; covered elsewhere):
     // - session.created/renamed/deleted/idle/status/viewed (session chrome;
@@ -881,9 +885,9 @@ function readSessionError(error: unknown): string {
 }
 
 /**
- * Emit a transient error row unless the same message was just reported. The
- * beta stream can carry one failure through several channels (retry notice,
- * step failure, execution failure, provider error) — the message-keyed dedup
+ * Emit a final error row unless the same message was just reported. The
+ * beta stream can carry one failure through several channels (step failure,
+ * execution failure, provider error) — the message-keyed dedup
  * keeps a single crash from painting more than one row per turn.
  */
 function openCode2ErrorEvents(state: OpenCode2MapperState, message: string): RuntimeEvent[] {

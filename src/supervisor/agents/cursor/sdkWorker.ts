@@ -42,6 +42,9 @@ import {
   type RuntimeRun,
 } from "./sdkWorkerRuntime";
 import { probeCursorSdkAccountEmail } from "./sdkAccount";
+import { installCursorSdkCancellationHandler } from "./sdkCancellation";
+
+installCursorSdkCancellationHandler();
 
 // stdout is a protocol channel, while provider-native console output can carry
 // credentials or arbitrary non-JSON text. SDK failures are returned through

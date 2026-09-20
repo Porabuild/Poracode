@@ -461,6 +461,13 @@ export class WslBridgeServer {
 
     const spawnFn = this.options.spawn ?? spawnWslLineChild;
     const child = spawnFn(childOpts);
+    // A wsl.exe relay that dies before a teardown end() flushes surfaces as
+    // EPIPE on stdin; the exit handler owns the verdict, so it must not
+    // become an unhandled error. Other stdin errors go to onError.
+    child.stdin?.on("error", (error) => {
+      if ((error as NodeJS.ErrnoException).code === "EPIPE") return;
+      this.options.onError?.(`wsl hook bridge[${distro}] stdin error`, error);
+    });
 
     // For test stubs that don't wire stdout via spawnWslLineChild, attach
     // the splitter ourselves. Real `spawnWslLineChild` already attaches it

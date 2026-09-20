@@ -1,15 +1,14 @@
-import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { dirname } from "node:path";
 
 /**
- * Write a file atomically: serialize to a sibling temp file, then `rename` it
- * into place. A same-volume rename is atomic on POSIX and NTFS, so a crash or
- * power loss mid-write leaves either the old file or the new one intact —
- * never a truncated/partial file. Use for any file whose corruption would lose
- * user data or silently fall back to defaults (settings, registries, keys).
+ * Write through an exclusively created sibling file, then rename it into place.
+ * Readers see the complete old or new file. This helper does not fsync and does
+ * not provide a power-loss durability guarantee.
  *
- * The temp name includes the pid so concurrent writers in different processes
- * don't clobber each other's temp file.
+ * Each invocation owns a unique temporary name. Legacy PID.tmp files are ignored;
+ * an existing file, link or FIFO at a colliding name is never opened or removed.
  */
 export function writeFileAtomic(
   filePath: string,
@@ -17,16 +16,25 @@ export function writeFileAtomic(
   options?: { encoding?: BufferEncoding; mode?: number },
 ): void {
   mkdirSync(dirname(filePath), { recursive: true });
-  const tmp = `${filePath}.${process.pid}.tmp`;
+  const tmp = `${filePath}.${randomUUID()}.tmp`;
+  let ownsTemporary = false;
   try {
-    writeFileSync(tmp, data, options);
+    const descriptor = openSync(tmp, "wx", options?.mode);
+    ownsTemporary = true;
+    try {
+      writeFileSync(descriptor, data, options);
+    } finally {
+      closeSync(descriptor);
+    }
     renameAtomic(filePath, tmp);
   } catch (error) {
-    // Best-effort cleanup of the temp file; ignore if it never got created.
-    try {
-      rmSync(tmp, { force: true });
-    } catch {
-      // ignore cleanup failure
+    if (ownsTemporary) {
+      // Never remove a pre-existing path after open failed before ownership.
+      try {
+        rmSync(tmp, { force: true });
+      } catch {
+        // Preserve the original failure if cleanup also fails.
+      }
     }
     throw error;
   }

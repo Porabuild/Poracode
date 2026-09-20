@@ -1,4 +1,5 @@
 import { PortProxy } from "./portProxy";
+import type { ForwardOriginIdentity } from "./forwardOriginIdentity";
 import { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 
 export interface PortForwardingOptions {
@@ -7,6 +8,15 @@ export interface PortForwardingOptions {
   /** The remote-access server's own port, rejected as a self-referential
    * forward target (see {@link RemotePortForwardGateway}). */
   readonly remoteAccessPort: number;
+  /** Configured browser-forward child-origin identity. Absent = browser
+   * forwarding unavailable (raw TCP only). The same identity must be passed
+   * to `RemoteAccessServerOptions.forwardOrigin` — composition roots build it
+   * once via `createForwardOriginIdentity`. */
+  readonly forwardOrigin?: ForwardOriginIdentity;
+  /** Ports a paired client may forward (one allowlist shared by the discovery
+   * scan and the forward gate; see {@link RemotePortForwardGateway}). Defaults
+   * to the curated dev-port list. An explicit empty list refuses all forwards. */
+  readonly forwardablePorts?: readonly number[];
 }
 
 /**
@@ -29,8 +39,12 @@ export function createPortForwarding(options: PortForwardingOptions): PortForwar
   const gateway = new RemotePortForwardGateway({
     bindHost: options.bindHost,
     remoteAccessPort: options.remoteAccessPort,
+    ...(options.forwardablePorts ? { forwardablePorts: options.forwardablePorts } : {}),
   });
-  const proxy = new PortProxy({ gateway });
+  const proxy = new PortProxy({
+    gateway,
+    ...(options.forwardOrigin ? { forwardOrigin: options.forwardOrigin } : {}),
+  });
   return {
     gateway,
     proxy,

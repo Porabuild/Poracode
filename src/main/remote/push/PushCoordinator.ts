@@ -6,13 +6,29 @@ import {
   buildContentState,
   buildLiveActivityPayload,
   dismissalDateMs,
+  GENERIC_ALERT_TITLE,
+  IOS_ALERT_BODY_LOC_KEYS,
+  IOS_ALERT_TITLE_LOC_KEY,
   type ActiveThreadSnapshot,
-  type AlertContent,
   type AndroidStatusPayload,
   type DesktopSessionAttributes,
+  type IOSLocalizedAlertContent,
 } from "./payloads";
+import {
+  androidStatusFor,
+  iosAlertContent,
+  pushAlertTitle,
+  webAlertContent,
+} from "./pushAlertContent";
 import type { SendPush } from "./pushGateway";
-import type { PushRegistrationStore } from "./PushRegistrationStore";
+import { PushWorkScope, type PushScheduler } from "./PushWorkScope";
+export type { PushScheduler } from "./PushWorkScope";
+import {
+  pushRegistrationIdentity,
+  type PushRegistrationStore,
+  type StoredPushRegistration,
+} from "./PushRegistrationStore";
+import { pushCollapseId, pushPayloadRouting } from "./pushRouting";
 
 /** Statuses that keep a thread "running" in the desktop-session activity. */
 const ACTIVE_STATUSES: ReadonlySet<ThreadStatus> = new Set<ThreadStatus>([
@@ -37,18 +53,14 @@ const ALERT_STATUSES: ReadonlySet<ThreadStatus> = new Set<ThreadStatus>([
   "needs_reply",
 ]);
 
-const DEBOUNCE_MS = 3_000;
-const GENERIC_TITLE = "A conversation";
-
-export interface PushScheduler {
-  setTimeout(handler: () => void, ms: number): ReturnType<typeof setTimeout>;
-  clearTimeout(handle: ReturnType<typeof setTimeout>): void;
+function alertCategory(status: ThreadStatus): "done" | "needsAttention" | "error" | null {
+  if (status === "finished") return "done";
+  if (status === "needs_approval" || status === "needs_reply") return "needsAttention";
+  if (status === "error") return "error";
+  return null;
 }
 
-const defaultScheduler: PushScheduler = {
-  setTimeout: (handler, ms) => setTimeout(handler, ms),
-  clearTimeout: (handle) => clearTimeout(handle),
-};
+const DEBOUNCE_MS = 3_000;
 
 export interface PushCoordinatorOptions {
   readonly store: PushRegistrationStore;
@@ -77,49 +89,6 @@ function emptyLiveState(): DeviceLiveState {
 }
 
 /**
- * How the Android tray notification for a thread-state transition should be
- * sent. Body strings are user-visible on the phone but originate here in the
- * desktop main process, so they stay plain English — push-body localization is
- * a future concern (matches the iOS alert pushes, which do the same).
- */
-interface AndroidStatusSpec {
-  readonly body: string;
-  readonly priority: number;
-  /** Immediate (attention/finished/error) vs debounced (working). */
-  readonly immediate: boolean;
-  readonly silent?: boolean;
-}
-
-/** Maps a thread status to its Android status notification, or null (no push
- * for idle/inactive/launching). */
-function androidStatusFor(
-  status: ThreadStatus,
-  errorMessage: string | undefined,
-): AndroidStatusSpec | null {
-  switch (status) {
-    case "working":
-      // First activation of a thread: a quiet "Running" card, coalesced.
-      return { body: "Running", priority: 5, immediate: false, silent: true };
-    case "needs_approval":
-    case "needs_reply":
-      return { body: "Needs your input", priority: 10, immediate: true };
-    case "finished":
-      return { body: "Finished", priority: 10, immediate: true };
-    case "error":
-      return { body: truncateError(errorMessage), priority: 10, immediate: true };
-    default:
-      return null;
-  }
-}
-
-/** Error bodies are truncated to ~120 chars; empty/absent falls back to "Error". */
-function truncateError(errorMessage: string | undefined): string {
-  const trimmed = errorMessage?.trim();
-  if (!trimmed) return "Error";
-  return trimmed.length > 120 ? trimmed.slice(0, 120) : trimmed;
-}
-
-/**
  * Maps supervisor `thread-state` transitions to push notifications and iOS
  * Live Activity updates for every registered device. One "desktop session"
  * Live Activity per device carries up to 3 running threads.
@@ -130,21 +99,27 @@ export class PushCoordinator {
   private readonly activeThreads = new Map<string, ActiveThreadSnapshot>();
   private readonly lastStatusByThread = new Map<string, ThreadStatus>();
   private readonly liveState = new Map<string, DeviceLiveState>();
-  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
-  /** Android working-push debounce timers, keyed by `deviceId\0threadId`. */
-  private readonly androidTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  private readonly scheduler: PushScheduler;
+  private readonly work: PushWorkScope;
   private readonly now: () => number;
 
   constructor(private readonly options: PushCoordinatorOptions) {
-    this.scheduler = options.scheduler ?? defaultScheduler;
+    this.work = new PushWorkScope(options.sendPush, options.scheduler);
     this.now = options.now ?? (() => Date.now());
   }
 
+  dispose(): Promise<void> {
+    const closing = this.work.dispose();
+    this.activeThreads.clear();
+    this.lastStatusByThread.clear();
+    this.liveState.clear();
+    return closing;
+  }
+
   handleSupervisorEvent(event: SupervisorEvent): void {
+    if (this.work.closed) return;
     if (event.type !== "thread-state") return;
     if (!this.options.getSettings().enabled) return;
-    this.handleThreadState(event);
+    if (!this.work.closed) this.handleThreadState(event);
   }
 
   private handleThreadState(event: Extract<SupervisorEvent, { type: "thread-state" }>): void {
@@ -176,64 +151,65 @@ export class PushCoordinator {
     const suppressNotification = event.forceCloseActiveTurn === true;
     const attentionAlert =
       changed && !suppressNotification && ATTENTION_STATUSES.has(status)
-        ? this.alertContent(event.threadId, status)
+        ? iosAlertContent(status)
         : undefined;
-    const urgent = causedStart || causedEnd || attentionAlert !== undefined;
-
     // iOS: aggregate desktop-session Live Activity sync per device.
     for (const reg of this.options.store.list()) {
       if (reg.platform !== "ios") continue;
-      this.scheduleDeviceSync(reg.deviceId, urgent, attentionAlert);
+      const category = alertCategory(status);
+      const deviceAlert =
+        category && reg.alertPreferences?.statuses[category] === false ? undefined : attentionAlert;
+      this.scheduleDeviceSync(
+        reg,
+        event.threadId,
+        causedStart || causedEnd || deviceAlert !== undefined,
+        deviceAlert,
+      );
     }
 
     // iOS: ordinary alert pushes on attention / terminal transitions.
     if (changed && !suppressNotification && ALERT_STATUSES.has(status)) {
-      void this.sendAlertPushes(event.threadId, status).catch(() => {});
+      this.work.run(() => this.sendAlertPushes(event.threadId, status));
     }
 
     // Android: per-thread replaceable status notification (no Live Activity).
     if (changed) {
-      this.handleAndroidTransition(
-        event.threadId,
-        status,
-        event.errorMessage,
-        suppressNotification,
-      );
+      this.handleAndroidTransition(event.threadId, status, suppressNotification);
     }
   }
 
-  /**
-   * Android per-thread status push. Successive pushes for a thread share
-   * `collapseId = threadId`, so the tray notification replaces itself. Working
-   * is quiet + debounced (coalesces bursts); attention / terminal transitions
-   * flush immediately and cancel any pending working push for that thread so a
-   * stale "Running" can't land on top of "Finished".
-   */
+  /** Android per-thread status push. Routed registrations receive v1 custom
+   * data, while legacy registrations retain the released payload shape. */
   private handleAndroidTransition(
     threadId: string,
     status: ThreadStatus,
-    errorMessage: string | undefined,
     suppressNotification: boolean,
   ): void {
-    const spec = androidStatusFor(status, errorMessage);
+    const spec = androidStatusFor(status);
     if (suppressNotification || !spec) {
       this.clearAndroidTimersForThread(threadId);
       return;
     }
-    const payload = buildAndroidStatusPayload({
-      title: this.androidTitle(threadId),
-      body: spec.body,
-      threadId,
-      ...(spec.silent ? { silent: true } : {}),
-    });
     for (const reg of this.options.store.list()) {
       if (reg.platform !== "android" || !reg.deviceToken) continue;
-      const token = reg.deviceToken;
+      const category = alertCategory(status);
+      if (category && reg.alertPreferences?.statuses[category] === false) continue;
+      const routing = pushPayloadRouting(reg.routing, threadId);
+      const payload = buildAndroidStatusPayload({
+        title: pushAlertTitle(
+          this.threadInfo(threadId).title,
+          this.options.getSettings().redactContent,
+        ),
+        body: spec.body,
+        threadId,
+        ...(spec.silent || reg.alertPreferences?.sound === false ? { silent: true } : {}),
+        ...(routing ? { routing } : {}),
+      });
       if (spec.immediate) {
-        this.clearAndroidTimer(reg.deviceId, threadId);
-        void this.sendAndroidPush(reg.deviceId, token, payload, spec.priority).catch(() => {});
+        this.clearAndroidTimer(pushRegistrationIdentity(reg), threadId);
+        this.work.run(() => this.sendAndroidPush(reg, payload, spec.priority));
       } else {
-        this.scheduleAndroidPush(reg.deviceId, threadId, token, payload, spec.priority);
+        this.scheduleAndroidPush(reg, threadId, payload, spec.priority);
       }
     }
   }
@@ -241,98 +217,94 @@ export class PushCoordinator {
   private clearAndroidTimersForThread(threadId: string): void {
     for (const reg of this.options.store.list()) {
       if (reg.platform === "android") {
-        this.clearAndroidTimer(reg.deviceId, threadId);
+        this.clearAndroidTimer(pushRegistrationIdentity(reg), threadId);
       }
     }
   }
 
   private androidTimerKey(deviceId: string, threadId: string): string {
-    return `${deviceId} ${threadId}`;
+    return `android:${deviceId}\u0000${threadId}`;
   }
 
-  private clearAndroidTimer(deviceId: string, threadId: string): void {
-    const key = this.androidTimerKey(deviceId, threadId);
-    const pending = this.androidTimers.get(key);
-    if (pending !== undefined) {
-      this.scheduler.clearTimeout(pending);
-      this.androidTimers.delete(key);
-    }
+  private clearAndroidTimer(registrationId: string, threadId: string): void {
+    this.work.clearTimer(this.androidTimerKey(registrationId, threadId));
   }
 
   private scheduleAndroidPush(
-    deviceId: string,
+    registration: StoredPushRegistration,
     threadId: string,
-    token: string,
     payload: AndroidStatusPayload,
     priority: number,
   ): void {
-    this.clearAndroidTimer(deviceId, threadId);
-    const key = this.androidTimerKey(deviceId, threadId);
-    const handle = this.scheduler.setTimeout(() => {
-      this.androidTimers.delete(key);
-      void this.sendAndroidPush(deviceId, token, payload, priority).catch(() => {});
-    }, DEBOUNCE_MS);
-    this.androidTimers.set(key, handle);
+    const registrationId = pushRegistrationIdentity(registration);
+    this.clearAndroidTimer(registrationId, threadId);
+    const key = this.androidTimerKey(registrationId, threadId);
+    this.work.schedule(
+      key,
+      () => this.sendAndroidPush(registration, payload, priority),
+      DEBOUNCE_MS,
+    );
   }
 
   private async sendAndroidPush(
-    deviceId: string,
-    token: string,
+    scheduledRegistration: StoredPushRegistration,
     payload: AndroidStatusPayload,
     priority: number,
   ): Promise<void> {
-    const result = await this.options.sendPush({
-      token,
+    const registration = this.options.store.getExact(scheduledRegistration);
+    if (!registration?.deviceToken) return;
+    const result = await this.work.send({
+      token: registration.deviceToken,
       platform: "android",
       pushType: "alert",
       payload,
       priority,
-      collapseId: payload.threadId,
+      collapseId: pushCollapseId(
+        registration,
+        registration.routing?.desktopId ?? this.attributes().desktopId,
+        payload.threadId,
+      ),
     });
-    if (result.unregistered) {
-      this.options.store.removeToken(deviceId, { kind: "device" });
+    if (!this.work.closed && result.unregistered) {
+      this.options.store.removeToken(registration, { kind: "device" });
     }
-  }
-
-  private androidTitle(threadId: string): string {
-    if (this.options.getSettings().redactContent) return GENERIC_TITLE;
-    return this.threadInfo(threadId).title || GENERIC_TITLE;
   }
 
   private scheduleDeviceSync(
-    deviceId: string,
+    registration: StoredPushRegistration,
+    threadId: string,
     urgent: boolean,
-    alert: AlertContent | undefined,
+    alert: IOSLocalizedAlertContent | undefined,
   ): void {
+    const key = `ios:${pushRegistrationIdentity(registration)}`;
     if (urgent) {
-      const pending = this.timers.get(deviceId);
-      if (pending !== undefined) {
-        this.scheduler.clearTimeout(pending);
-        this.timers.delete(deviceId);
-      }
-      void this.syncDevice(deviceId, alert ? 10 : 5, alert).catch(() => {});
+      this.work.clearTimer(key);
+      this.work.run(() => this.syncDevice(registration, threadId, alert ? 10 : 5, alert));
       return;
     }
-    if (this.timers.has(deviceId)) return;
-    const handle = this.scheduler.setTimeout(() => {
-      this.timers.delete(deviceId);
-      void this.syncDevice(deviceId, 5, undefined).catch(() => {});
-    }, DEBOUNCE_MS);
-    this.timers.set(deviceId, handle);
+    if (this.work.hasTimer(key)) return;
+    this.work.schedule(
+      key,
+      () => this.syncDevice(registration, threadId, 5, undefined),
+      DEBOUNCE_MS,
+    );
   }
 
   private async syncDevice(
-    deviceId: string,
+    scheduledRegistration: StoredPushRegistration,
+    threadId: string,
     priority: number,
-    alert: AlertContent | undefined,
+    alert: IOSLocalizedAlertContent | undefined,
   ): Promise<void> {
-    const reg = this.options.store.get(deviceId);
+    const reg = this.options.store.getExact(scheduledRegistration);
     if (!reg || reg.platform !== "ios") return;
     const active = [...this.activeThreads.values()];
     const contentState = buildContentState(active, this.options.getSettings().redactContent);
     const now = this.now();
-    const liveState = this.liveState.get(deviceId) ?? emptyLiveState();
+    const registrationId = pushRegistrationIdentity(reg);
+    const liveState = this.liveState.get(registrationId) ?? emptyLiveState();
     const activityEntries = Object.entries(reg.activityTokens);
+    const routing = pushPayloadRouting(reg.routing, threadId);
 
     if (active.length > 0) {
       if (activityEntries.length > 0) {
@@ -342,39 +314,48 @@ export class PushCoordinator {
           contentState,
           now,
           ...(alert ? { alert } : {}),
+          ...(routing ? { routing } : {}),
         });
-        await Promise.all(
+        await this.work.join(
           activityEntries.map(async ([activityId, token]) => {
-            const result = await this.options.sendPush({
+            const result = await this.work.send({
               token,
               platform: "ios",
               pushType: "liveactivity",
               payload,
               priority,
             });
-            if (result.unregistered) {
-              this.options.store.removeToken(deviceId, { kind: "activity", activityId });
+            if (!this.work.closed && result.unregistered) {
+              this.options.store.removeToken(reg, { kind: "activity", activityId });
             }
           }),
         );
       } else if (reg.pushToStartToken && !liveState.startSent) {
+        const attributes = this.attributes();
         const payload = buildLiveActivityPayload({
           event: "start",
           contentState,
           now,
-          attributes: this.attributes(),
-          ...(alert ? { alert } : {}),
+          attributes: {
+            ...attributes,
+            ...(reg.routing ? { routing: reg.routing } : {}),
+          },
+          alert: alert ?? {
+            "title-loc-key": IOS_ALERT_TITLE_LOC_KEY,
+            "loc-key": IOS_ALERT_BODY_LOC_KEYS.running,
+          },
+          ...(routing ? { routing } : {}),
         });
-        const result = await this.options.sendPush({
+        const result = await this.work.send({
           token: reg.pushToStartToken,
           platform: "ios",
           pushType: "liveactivity",
           payload,
           priority,
         });
-        if (result.unregistered) {
-          this.options.store.removeToken(deviceId, { kind: "pushToStart" });
-        } else if (result.ok) {
+        if (!this.work.closed && result.unregistered) {
+          this.options.store.removeToken(reg, { kind: "pushToStart" });
+        } else if (!this.work.closed && result.ok) {
           liveState.startSent = true;
         }
       }
@@ -386,38 +367,42 @@ export class PushCoordinator {
           now,
           dismissalDate: dismissalDateMs(now),
           ...(alert ? { alert } : {}),
+          ...(routing ? { routing } : {}),
         });
-        await Promise.all(
+        await this.work.join(
           activityEntries.map(async ([activityId, token]) => {
-            const result = await this.options.sendPush({
+            const result = await this.work.send({
               token,
               platform: "ios",
               pushType: "liveactivity",
               payload,
               priority,
             });
-            if (result.unregistered) {
-              this.options.store.removeToken(deviceId, { kind: "activity", activityId });
+            if (!this.work.closed && result.unregistered) {
+              this.options.store.removeToken(reg, { kind: "activity", activityId });
             }
           }),
         );
       }
       liveState.startSent = false;
     }
-    this.liveState.set(deviceId, liveState);
+    if (!this.work.closed) this.liveState.set(registrationId, liveState);
   }
 
   private async sendAlertPushes(threadId: string, status: ThreadStatus): Promise<void> {
-    const content = this.alertContent(threadId, status);
-    const payload = buildAlertPayload(content);
-    await Promise.all(
+    const content = webAlertContent(
+      this.threadInfo(threadId).title,
+      status,
+      this.options.getSettings().redactContent,
+    );
+    await this.work.join(
       this.options.store.list().map(async (reg) => {
         // Android devices get their own status notifications (handleAndroidTransition).
         if (reg.platform === "android") return;
         if (reg.platform === "web") {
           if (!reg.webPushSubscription || !reg.webAppBasePath) return;
           const basePath = reg.webAppBasePath === "/" ? "" : reg.webAppBasePath.replace(/\/$/, "");
-          const result = await this.options.sendPush({
+          const result = await this.work.send({
             platform: "web",
             pushType: "alert",
             subscription: reg.webPushSubscription,
@@ -428,60 +413,48 @@ export class PushCoordinator {
               url: `${basePath}/thread/${encodeURIComponent(threadId)}`,
             },
             priority: 10,
-            collapseId: threadId,
+            collapseId: pushCollapseId(reg, this.attributes().desktopId, threadId),
           });
-          if (result.unregistered) {
-            this.options.store.removeToken(reg.deviceId, { kind: "web" });
+          if (!this.work.closed && result.unregistered) {
+            this.options.store.removeToken(reg, { kind: "web" });
           }
           return;
         }
         if (!reg.deviceToken) return;
-        const result = await this.options.sendPush({
+        const category = alertCategory(status);
+        if (category && reg.alertPreferences?.statuses[category] === false) return;
+        const payload = buildAlertPayload(
+          iosAlertContent(status),
+          pushPayloadRouting(reg.routing, threadId),
+          reg.alertPreferences?.sound ?? true,
+        );
+        const result = await this.work.send({
           token: reg.deviceToken,
           platform: "ios",
           pushType: "alert",
           payload,
           priority: 10,
+          collapseId: pushCollapseId(
+            reg,
+            reg.routing?.desktopId ?? this.attributes().desktopId,
+            threadId,
+          ),
         });
-        if (result.unregistered) {
-          this.options.store.removeToken(reg.deviceId, { kind: "device" });
+        if (!this.work.closed && result.unregistered) {
+          this.options.store.removeToken(reg, { kind: "device" });
         }
       }),
     );
   }
 
-  private alertContent(threadId: string, status: ThreadStatus): AlertContent {
-    const redact = this.options.getSettings().redactContent;
-    const info = this.threadInfo(threadId);
-    return {
-      title: redact ? GENERIC_TITLE : info.title || GENERIC_TITLE,
-      body: alertBody(status),
-    };
-  }
-
   private threadInfo(threadId: string): { title: string; project: string } {
     const thread = this.options.getThreads().find((entry) => entry.id === threadId);
-    if (!thread) return { title: GENERIC_TITLE, project: "" };
+    if (!thread) return { title: GENERIC_ALERT_TITLE, project: "" };
     const project = this.options.getProjects().find((entry) => entry.id === thread.projectId);
     return { title: thread.title, project: project?.name ?? "" };
   }
 
   private attributes(): DesktopSessionAttributes {
     return this.options.getAttributes?.() ?? { desktopId: "desktop", desktopName: "Poracode" };
-  }
-}
-
-function alertBody(status: ThreadStatus): string {
-  switch (status) {
-    case "finished":
-      return "Finished";
-    case "error":
-      return "Ended with an error";
-    case "needs_approval":
-      return "Needs your approval";
-    case "needs_reply":
-      return "Needs your input";
-    default:
-      return "Updated";
   }
 }

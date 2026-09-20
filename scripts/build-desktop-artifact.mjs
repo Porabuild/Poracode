@@ -53,6 +53,7 @@ const RUNTIME_DEPS = [
   "jsonc-parser",
   "micromatch",
   "node-pty",
+  "sharp",
   "smol-toml",
   "vscode-jsonrpc",
   "ws",
@@ -529,6 +530,10 @@ asarUnpack:
   - node_modules/better-sqlite3/**/*
   - dist/main/claudeSdkProbeWorker.mjs
   - dist/main/cursorSdkWorker.mjs
+  # The remote HTTP bridge is the utility-process module path main forks; keep
+  # it outside the archive so packaged startup never depends on asar module
+  # resolution inside a utility child.
+  - dist/main/remoteHttpBridge.cjs
   - node_modules/@anthropic-ai/claude-agent-sdk/**/*
 
 afterPack: build/after-pack.cjs

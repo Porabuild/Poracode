@@ -7,9 +7,6 @@
 export const GROK_GRPC_ENDPOINT =
   "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
 
-/** Empty unary gRPC-web frame: [flag=0x00, len=0x00000000]. */
-const GROK_GRPC_EMPTY_FRAME_BYTES = new Uint8Array([0, 0, 0, 0, 0]);
-
 /**
  * The same empty frame, base64-encoded for the `grpc-web-text` variant.
  *
@@ -20,9 +17,7 @@ const GROK_GRPC_EMPTY_FRAME_BYTES = new Uint8Array([0, 0, 0, 0, 0]);
  * and comes back `grpc-status: 16` / "No credentials presented." — so that is
  * the form we send.
  */
-export const GROK_GRPC_EMPTY_FRAME_BASE64 = Buffer.from(GROK_GRPC_EMPTY_FRAME_BYTES).toString(
-  "base64",
-);
+export const GROK_GRPC_EMPTY_FRAME_BASE64 = "AAAAAAA=";
 
 export interface GrokBilling {
   usedPercent: number;

@@ -80,7 +80,11 @@ describe("TodoList", () => {
       clientY: 0,
     });
     fireEvent(todoText, touchStart);
-    expect(touchStart.defaultPrevented).toBe(true);
+    expect(touchStart.defaultPrevented).toBe(false);
+
+    const selectionStart = new Event("selectstart", { bubbles: true, cancelable: true });
+    todoText.dispatchEvent(selectionStart);
+    expect(selectionStart.defaultPrevented).toBe(true);
 
     fireEvent.contextMenu(todoText);
     expect(openActions).toHaveBeenCalledExactlyOnceWith({

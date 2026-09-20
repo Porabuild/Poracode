@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { buildAgentCommand } from "../../base";
 import { resolveProbeSpawnCwd } from "../../probeCwd";
 import { classifyMuseServeExit } from "./exitClassification";
@@ -45,10 +46,10 @@ export interface SpawnMuseServeHostOptions {
 
 /**
  * Spawn a `muse serve` session host with piped stdio, mirroring the Codex
- * app-server probe spawn (WSL login-shell routing via `buildAgentCommand`,
+ * app-server probe spawn (WSL project login-shell routing via `buildAgentCommand`,
  * own process group off Windows). Rejects when the process fails to spawn
  * or exits immediately; callers own teardown via `terminateChildProcessTree`
- * plus `hostCookie` (a WSL launch can outlive its Windows wrapper — the
+ * plus `hostCookie` (a WSL project launch can outlive its Windows wrapper — the
  * cookie finds the surviving Linux process by environ for a bridge kill).
  */
 export async function spawnMuseServeHost(
@@ -68,6 +69,9 @@ export async function spawnMuseServeHost(
   });
   const spawnCwd = options.isolateCwd === false ? cmd.cwd : resolveProbeSpawnCwd(location, cmd.cwd);
   const ownedProcessGroup = process.platform !== "win32";
+  // Mock-QA enforcement: the session host is a real provider CLI process, so
+  // mock sessions refuse it whether it is spawned for a session or a probe.
+  assertAgentLaunchAllowed("session-host");
   const child = spawn(cmd.command, cmd.args, {
     ...(spawnCwd ? { cwd: spawnCwd } : {}),
     env: { ...process.env, ...cmd.env, TERM: "xterm-256color" },

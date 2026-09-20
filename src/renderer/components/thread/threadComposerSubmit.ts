@@ -66,7 +66,7 @@ export interface ComposerSubmitContext {
   setIsSubmitting: (value: boolean) => void;
   /** Open the model/effort picker (backs the `/model` and `/effort` commands). */
   requestOpenControl: (target: "model" | "effort") => void;
-  /** Mobile override: routes through the remote transport + dock collapse. */
+  /** Optional surface override for the canonical thread-input action. */
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   /** Called after the transport accepts any ordinary, steered, or queued send. */
   onSubmitSuccess?: (() => void) | undefined;
@@ -155,6 +155,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   };
   let clearedBeforeSendSettled = false;
   ctx.submittedRef.current = true;
+  useAppStore.getState().clearThreadDraftContent(thread.id);
   ctx.setIsSubmitting(true);
   if (!usesTerminalPresentation) {
     useAppStore.getState().requestChatScrollToBottom(thread.id);
@@ -237,19 +238,16 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       if (!clearedBeforeSendSettled) {
         clearSubmittedComposer();
       }
-      ctx.onSubmitSuccess?.();
+      if (ctx.isCurrentSession()) ctx.onSubmitSuccess?.();
     })
     .catch((error: unknown) => {
       // Leave the prompt intact so the user can retry.
+      useAppStore.getState().saveThreadDraftContent(thread.id, {
+        segments: submittedInputSegments,
+        attachments: submittedAttachments.map(storableAttachment),
+      });
       if (ctx.isCurrentSession()) {
         restoreSubmittedComposer();
-      } else {
-        // Stash path-only attachment copies: `previewUrl` object URLs belong to
-        // the composer session that submitted and are revoked when it clears.
-        useAppStore.getState().saveThreadDraftContent(thread.id, {
-          segments: submittedInputSegments,
-          attachments: submittedAttachments.map(storableAttachment),
-        });
       }
       toast.danger(friendlyError(error));
     })

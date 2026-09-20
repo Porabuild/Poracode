@@ -1,17 +1,25 @@
 #!/usr/bin/env node
 
-import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { access, mkdir, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import net from "node:net";
+import {
+  removeSmokeRuntime,
+  smokeElectronLaunch,
+  verifyReusableSmokeRuntime,
+} from "./poracode-smoke-runtime.mjs";
+import { startSmokeRenderer, waitForSmokeRenderer } from "./smoke-runtime-processes.mjs";
+import { stopOwnedProcess as stopProcess, stopOwnedProcesses } from "./smoke-owned-process.mjs";
 import {
   acquireDebugLaunchLock,
   assertSessionRootOutsideRepo,
   inspectDebugSessionHealth,
   isProcessRunning,
   listDebugSessions,
+  readDebugSession,
   resolveSessionFile,
   resolveSmokeRoot,
   writeDebugSession,
@@ -48,12 +56,16 @@ const cdpScript = join(repoRoot, ".agents/skills/interactive-testing/scripts/por
 const sessionFile = resolveSessionFile(root);
 
 let appProcess;
+let rendererProcess;
+let buildProcess;
+let runtime;
 let integrationProcess;
 let sessionManifest;
 let stopping = false;
 let stopRequested = false;
 let failureMessage;
 let releaseLaunchLock;
+let releaseRootLock;
 let stopRequestPoll;
 const stopRequestFile = join(root, "stop-request.json");
 let resolveStopRequest;
@@ -67,7 +79,7 @@ function requestStop() {
   stopping = true;
   process.exitCode = 0;
   resolveStopRequest();
-  for (const child of [integrationProcess, appProcess]) {
+  for (const child of [integrationProcess, appProcess, rendererProcess, buildProcess]) {
     void stopProcess(child).catch(() => {
       // The verified teardown in finally reports any process that remains.
     });
@@ -106,6 +118,12 @@ try {
             `active debug session is not healthy and will not be reused: ${existing.sessionFile}. ${health.detail}. Stop its owning terminal before relaunching`,
           );
         }
+        if (health.status === "ready")
+          await verifyReusableSmokeRuntime(existing.runtime, {
+            root: existing.root,
+            repoRoot,
+            rendererViteHMR: args.rendererViteHMR === true,
+          });
         console.log(
           `Debug session already ${health.status}; no second app was launched: ${existing.sessionFile}`,
         );
@@ -118,6 +136,15 @@ try {
         }
         break sessionLaunch;
       }
+    }
+    releaseRootLock = await acquireDebugLaunchLock(root);
+    try {
+      const prior = await readDebugSession(sessionFile);
+      if (["starting", "ready"].includes(prior.state) && isProcessRunning(prior.ownerPid)) {
+        throw new Error(`Session root is already owned by active PID ${prior.ownerPid}: ${root}`);
+      }
+    } catch (error) {
+      if (error.cause?.code !== "ENOENT") throw error;
     }
     if (args["reuse-fixture"] === true) {
       await Promise.all([access(join(projectDir, ".git")), access(join(dataDir, "state.sqlite"))]);
@@ -164,38 +191,80 @@ try {
     // nothing touches the real user profile. Real mode intentionally keeps the
     // real home so provider credentials that live under it (e.g. ~/.kimi-code)
     // resolve — only Poracode's own state stays isolated via PORACODE_BASE_DIR.
+    //
+    // PORACODE_MOCK_AGENTS additionally makes the supervisor refuse to spawn
+    // any real provider CLI (thread launches, one-shots, auth flows). The
+    // HOME/keychain sandbox does not extend to spawned CLIs — without this a
+    // mock-mode "Launch thread" used to execute the real provider binary with
+    // real credentials (2026-09-08 QA incident).
     const identityEnv =
       mode === "real"
         ? {}
         : {
             ...(process.platform === "darwin" ? { PORACODE_USE_MOCK_KEYCHAIN: "1" } : {}),
+            PORACODE_MOCK_AGENTS: "1",
             HOME: homeDir,
             USERPROFILE: homeDir,
             LOCALAPPDATA: localAppDataDir,
             APPDATA: roamingAppDataDir,
             PSModuleAnalysisCachePath: join(root, "powershell", "ModuleAnalysisCache"),
           };
-    const pnpm = pnpmSpawnCommand();
+    console.log(
+      `Preparing a session-owned development runtime (${args.rendererViteHMR === true ? "renderer Vite HMR enabled" : "frozen renderer"})…`,
+    );
     if (stopRequested) break sessionLaunch;
-    appProcess = spawn(pnpm.command, pnpm.args, {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        PORACODE_DEV_SERVER_PORT: String(vitePort),
-        PORACODE_DEV_APP_URL: appUrl,
-        PORACODE_CDP_PORT: String(port),
-        PORACODE_BASE_DIR: dataDir,
-        PORACODE_CDP_USER_DATA_DIR: join(dataDir, "userData"),
-        PORACODE_SMOKE_OUT_DIR: outDir,
-        PORACODE_DEV_SERVER_REQUIRE_FREE: "1",
-        PORACODE_DISABLE_DEVTOOLS: "1",
-        ...(launchOnly ? { VITE_PORACODE_SKIP_WELCOME: "1" } : {}),
-        ...identityEnv,
+    buildProcess = spawn(
+      process.execPath,
+      [
+        join(scriptDir, "prepare-smoke-runtime.mjs"),
+        repoRoot,
+        root,
+        sessionToken,
+        args.rendererViteHMR === true ? "hmr" : "snapshot",
+      ],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          ...(launchOnly ? { VITE_PORACODE_SKIP_WELCOME: "1" } : {}),
+          PORACODE_BUILD_TARGET: "electron",
+        },
+        detached: process.platform !== "win32",
+        windowsHide: process.platform === "win32",
+        stdio: "inherit",
       },
-      detached: process.platform !== "win32",
-      windowsHide: process.platform === "win32",
-      stdio: "inherit",
+    );
+    const buildExit = await waitForProcessExit(buildProcess);
+    if (stopRequested) break sessionLaunch;
+    if (buildExit !== 0) throw new Error("Isolated runtime preparation failed");
+    buildProcess = undefined;
+    runtime = JSON.parse(await readFile(join(root, "runtime-manifest.json"), "utf8"));
+    sessionManifest.runtime = runtime;
+    await persistSession();
+    if (stopRequested) break sessionLaunch;
+    const appEnv = {
+      ...process.env,
+      PORACODE_DEV_SERVER_PORT: String(vitePort),
+      PORACODE_DEV_APP_URL: appUrl,
+      PORACODE_CDP_PORT: String(port),
+      PORACODE_BASE_DIR: dataDir,
+      PORACODE_CDP_USER_DATA_DIR: join(dataDir, "userData"),
+      PORACODE_SMOKE_OUT_DIR: outDir,
+      PORACODE_DEV_SERVER_REQUIRE_FREE: "1",
+      PORACODE_DISABLE_DEVTOOLS: "1",
+      ...(launchOnly ? { VITE_PORACODE_SKIP_WELCOME: "1" } : {}),
+      ...identityEnv,
+    };
+    rendererProcess = startSmokeRenderer({ repoRoot, runtime, env: appEnv, port: vitePort });
+    sessionManifest.rendererPid = rendererProcess.pid ?? null;
+    await persistSession();
+    await waitForSmokeRenderer(rendererProcess, appUrl, startupTimeoutSeconds * 1000);
+    if (stopRequested) break sessionLaunch;
+    const launch = smokeElectronLaunch(runtime, join(dataDir, "userData"), {
+      ...appEnv,
+      VITE_DEV_SERVER_URL: appUrl,
     });
+    appProcess = spawn(launch.command, launch.args, launch.options);
     sessionManifest.appPid = appProcess.pid ?? null;
     await persistSession();
     appProcess.on("exit", (code, signal) => {
@@ -240,12 +309,13 @@ try {
         {
           cwd: repoRoot,
           stdio: "inherit",
+          detached: process.platform !== "win32",
           windowsHide: process.platform === "win32",
         },
       );
       const integrationExit = await waitForProcessExit(integrationProcess);
-      integrationProcess = undefined;
       if (stopRequested) break sessionLaunch;
+      integrationProcess = undefined;
       process.exitCode = integrationExit;
       console.log(`Automated smoke root: ${root}`);
     }
@@ -262,8 +332,13 @@ try {
   await releaseLaunchLock?.();
   let teardownError;
   try {
-    await stopProcess(appProcess);
+    await stopOwnedProcesses([integrationProcess, appProcess, rendererProcess, buildProcess]);
     if (sessionManifest) await waitForSessionPortsClosed(sessionManifest, 5_000);
+    if (sessionManifest)
+      await removeSmokeRuntime(
+        runtime ?? { appRoot: join(root, "runtime"), ownerToken: sessionToken },
+        root,
+      );
   } catch (error) {
     teardownError = error instanceof Error ? error.message : String(error);
     failureMessage ??= teardownError;
@@ -273,9 +348,11 @@ try {
   if (sessionManifest) {
     sessionManifest.state = failureMessage ? "failed" : "stopped";
     if (!teardownError) sessionManifest.appPid = null;
+    if (!teardownError) sessionManifest.rendererPid = null;
     if (failureMessage) sessionManifest.error = failureMessage;
     await persistSession();
   }
+  await releaseRootLock?.();
   process.off("SIGINT", requestStop);
   process.off("SIGTERM", requestStop);
 }
@@ -294,16 +371,6 @@ function parseArgs(argv) {
     }
   }
   return parsed;
-}
-
-function pnpmSpawnCommand() {
-  if (process.platform === "win32") {
-    return {
-      command: process.env.ComSpec ?? "cmd.exe",
-      args: ["/d", "/s", "/c", "pnpm run dev"],
-    };
-  }
-  return { command: "pnpm", args: ["run", "dev"] };
 }
 
 async function createFixture() {
@@ -553,50 +620,6 @@ function waitForProcessExit(child) {
   });
 }
 
-async function stopProcess(child) {
-  if (!child?.pid) return;
-  if (child.exitCode !== null) return;
-  if (process.platform === "win32") {
-    const result = spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
-      stdio: "ignore",
-      windowsHide: true,
-    });
-    await waitForChildExit(child, 5_000);
-    if (isProcessRunning(child.pid)) {
-      throw new Error(
-        `taskkill did not stop owned process tree ${child.pid} (exit ${result.status ?? "unknown"})`,
-      );
-    }
-    return;
-  }
-  sendSignal(child, "SIGINT");
-  await new Promise((done) => {
-    const timer = setTimeout(() => {
-      sendSignal(child, "SIGTERM");
-      done();
-    }, 5_000);
-    child.once("exit", () => {
-      clearTimeout(timer);
-      done();
-    });
-  });
-  await waitForChildExit(child, 5_000);
-  if (isProcessRunning(child.pid)) {
-    throw new Error(`owned process tree ${child.pid} did not stop after SIGTERM`);
-  }
-}
-
-async function waitForChildExit(child, timeoutMs) {
-  if (child.exitCode !== null || !isProcessRunning(child.pid)) return;
-  await new Promise((done) => {
-    const timeout = setTimeout(done, timeoutMs);
-    child.once("exit", () => {
-      clearTimeout(timeout);
-      done();
-    });
-  });
-}
-
 async function waitForSessionPortsClosed(session, timeoutMs) {
   const started = Date.now();
   const ports = [session.cdpPort, session.devServerPort];
@@ -651,13 +674,4 @@ function waitForManualStop(child) {
     child.once("exit", exited);
     void stopRequest.then(stop);
   });
-}
-
-function sendSignal(child, signal) {
-  if (!child.pid) return;
-  try {
-    process.kill(-child.pid, signal);
-  } catch {
-    child.kill(signal);
-  }
 }

@@ -48,9 +48,16 @@ function flush(): void {
   if (buffer.length === 0) return;
   const events = buffer;
   buffer = [];
-  void readBridge()
-    .appendUsageEvents({ events })
-    .catch(() => undefined);
+  try {
+    void readBridge()
+      .appendUsageEvents({ events })
+      .catch(() => undefined);
+  } catch {
+    // A throwing readBridge means the environment is torn down (e.g. a test
+    // worker whose bridge mock is gone by the time the debounce fires), not a
+    // failed write. Fire-and-forget semantics: drop the batch instead of
+    // surfacing an uncaught exception from a background timer.
+  }
 }
 
 function scheduleFlush(): void {

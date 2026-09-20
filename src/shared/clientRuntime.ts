@@ -1,0 +1,132 @@
+import type { StandaloneAttachInfo } from "./standaloneAttach";
+import type { HostServiceCapabilities } from "./hostControlProtocol";
+import type { SupervisorEventGap } from "./backendHostProtocol";
+import type { IpcProcedureName, PoracodeBridge, PoracodeInvokeBridge } from "./ipc";
+import type {
+  RemoteHttpBridgeCancelRequest,
+  RemoteHttpBridgeOpenRequest,
+  RemoteHttpBridgeOpenResult,
+} from "./remote/httpBridgeProtocol";
+import { REMOTE_HTTP_BRIDGE_VERSION } from "./remote/httpBridgeProtocol";
+
+// Version 5 added sequenced Electron supervisor-event fallback delivery.
+// Version 6 added the supervisor-event-gap signal that makes desktop windows
+// rebuild after the backend host shed queued IPC copies under backpressure.
+// Version 8 added native quick-composer show events and a checked preload
+// version. Version 9 stays RESERVED for the settings-authority activation
+// (see .agents/docs/versioning.md); this milestone deliberately skips it.
+// Version 10 is the per-window delivery-ownership boundary (V4 F7
+// correction): the facade now requires the generation-fenced recovery-barrier
+// listener and the per-window ownership grant. An older preload cannot honor
+// recovery barriers, so pairing it with a version-10 renderer would silently
+// strand the window on a stale cursor after socket loss — the version gate
+// rejects that pairing loudly instead.
+// Version 11 is the off-main remote HTTP bridge boundary (V4 F8): the preload
+// must expose the versioned bridge marker plus open/cancel and forward the
+// per-request `MessagePort` into the main world. A version-10 preload cannot
+// deliver request ports, so the renderer's remote HTTP transport has no
+// fallback and the version gate rejects the pairing loudly.
+// Version 12 is the settings-authority activation boundary (Gates 2-3 batch 1):
+// the renderer procedure map gains the settings-transaction procedures
+// (`settingsTransactionMutate`/`settingsTransactionSnapshot`). The preload
+// invoke surface is generic and needs no new API, but renderer bundles and
+// preloads must move in lockstep with the procedure map, so the gate rejects a
+// version-11 preload instead of letting its older bundle disagree about the
+// available settings procedures. See .agents/docs/versioning.md.
+// Version 13 is the bounded thread-list hydration boundary (Gate 4 hazard #3):
+// the renderer procedure map gains the additive main-local procedure
+// `dbGetThreadsPage` (cursor-paginated, project-scoped counterpart of
+// `dbGetThreads`). The preload invoke surface stays generic, but renderer
+// bundles and preloads must move in lockstep with the procedure map, so the
+// gate rejects a version-12 preload instead of letting an older bundle
+// disagree about which db procedures exist. No persisted state, remote wire,
+// or backend-host version change; the new procedure is an additive name inside
+// the existing envelopes.
+// Version 14 is the renderer-stream leg deletion (V5 plan 2.5): the facade no
+// longer exposes `getBackendRendererStreamInfo`,
+// `onBackendRendererStreamChanged`, `onRendererStreamRecovery`, or
+// `getRendererStreamOwnershipGrant` — the direct renderer stream, its grants,
+// and its recovery barriers are gone, and desktop events arrive only over the
+// sequenced desktop-IPC relay (plus its gap signal, still required). The
+// facade additionally advertises `ipcProcedureMapVersion` and the
+// `onBackendSupervisorReset` signal (relay sequence space restarts with a new
+// backend child). A version-13 preload cannot deliver the reset signal and
+// still serves the deleted stream APIs, so the gate rejects that pairing
+// loudly instead of half-serving both transports. See .agents/docs/versioning.md.
+export const PORACODE_CLIENT_RUNTIME_VERSION = 14 as const;
+
+export type ClientHost = "electron" | "browser";
+export type ClientSurface = "adaptive";
+export type ClientTransport = "electron-backend-host" | "remote-http-websocket";
+
+export interface ClientCapabilities {
+  readonly localBackend: boolean;
+  readonly manageRemoteEnvironments: boolean;
+  readonly nativeAppUpdates: boolean;
+  readonly nativeBrowserWebContents: boolean;
+  readonly nativeShell: boolean;
+  readonly nativeSsh: boolean;
+}
+
+/**
+ * Versioned renderer host contract. Domain procedures and native-shell
+ * capabilities are separate so the canonical UI can run without Electron.
+ */
+export interface ClientRuntime {
+  readonly version: typeof PORACODE_CLIENT_RUNTIME_VERSION;
+  readonly host: ClientHost;
+  readonly surface: ClientSurface;
+  readonly transport: ClientTransport;
+  readonly capabilities: ClientCapabilities;
+  /**
+   * Host-declared service capabilities this runtime was negotiated with (V5
+   * plan 1.2): the attach payload for attached Electron, local knowledge for
+   * the desktop-managed host, and fail-closed "unknown" for browser clients
+   * until the remote wire carries a describe. Optional so a legacy runtime
+   * source still typechecks; consumers must treat absence as "not offered"
+   * and never infer availability from `host`.
+   */
+  readonly hostCapabilities?: HostServiceCapabilities;
+  readonly procedures: PoracodeInvokeBridge;
+  readonly native: PoracodeNativeBridge;
+}
+
+export type PoracodeNativeBridge = Omit<PoracodeBridge, keyof PoracodeInvokeBridge>;
+
+/** Minimal Electron preload surface. It owns native shell IPC, never agents or SQLite. */
+export type ElectronHostBridge = PoracodeNativeBridge & {
+  readonly clientRuntimeVersion: typeof PORACODE_CLIENT_RUNTIME_VERSION;
+  invokeProcedure(name: IpcProcedureName, args: unknown[]): Promise<unknown>;
+  onSupervisorEventGap(listener: (gap: SupervisorEventGap) => void): () => void;
+  /**
+   * Backend reset (required at facade version 14): the desktop-IPC relay
+   * sequence space restarts with a new backend child, so the renderer drops
+   * its dedupe cursor and rebuilds subscribed state.
+   */
+  onBackendSupervisorReset(listener: () => void): () => void;
+  /**
+   * Procedure-map version handshake (V5 plan 2.6): the preload advertises the
+   * `IPC_PROCEDURE_MAP_VERSION` its bundle dispatches; the renderer asserts it
+   * (typed rejection) before installing any Electron runtime.
+   */
+  readonly ipcProcedureMapVersion: number;
+  /**
+   * Frame-set version of the off-main remote HTTP bridge. Required at facade
+   * version 11: the remote transport itself is port-based, so a preload that
+   * cannot deliver request ports must fail the facade gate instead of silently
+   * routing full response bodies through main.
+   */
+  readonly remoteHttpBridgeVersion: typeof REMOTE_HTTP_BRIDGE_VERSION;
+  /** Admit one remote HTTP request; main replies with the generation it minted. */
+  openRemoteHttpBridge(request: RemoteHttpBridgeOpenRequest): Promise<RemoteHttpBridgeOpenResult>;
+  /** Cancel fallback for a request whose per-request port has not attached yet. */
+  cancelRemoteHttpBridge(request: RemoteHttpBridgeCancelRequest): Promise<void>;
+  /**
+   * Standalone-attach bootstrap (additive, facade stays 11): present only in
+   * Electron builds that can be a client of an already-running headless
+   * owner. Resolves to the authenticated owner endpoint + fresh pairing URL,
+   * or null when this launch follows the managed-local path. Absence on an
+   * older preload means managed-local. Process-lifetime only, never persisted.
+   */
+  getStandaloneAttachInfo?(): Promise<StandaloneAttachInfo | null>;
+};

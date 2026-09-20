@@ -1,0 +1,13 @@
+{
+  "type": "terminal-watch-result",
+  "id": "terminal-fixture-missing",
+  "cursorSync": {
+    "version": 1,
+    "watchId": "watch-fixture-003",
+    "result": {
+      "status": "error",
+      "code": "not-found",
+      "retryable": false
+    }
+  }
+}

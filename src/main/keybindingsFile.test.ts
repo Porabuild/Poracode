@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   COMPOSER_CONTROL_COMMAND_IDS,
   DEFAULT_KEYBINDINGS,
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+  EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
   QUICK_COMPOSER_COMMAND_ID,
 } from "@/shared/keybindings";
 import { readKeybindingsFile, writeKeybindingsFile } from "./keybindingsFile";
@@ -65,6 +67,29 @@ describe("readKeybindingsFile", () => {
     const threadNew = result.keybindings.filter((b) => b.command === "thread.new");
     expect(threadNew.map((b) => b.key)).toEqual(expect.arrayContaining(["Ctrl+N", "Ctrl+Shift+O"]));
     expect(result.keybindings.some((b) => b.command === "thread.new.panel")).toBe(true);
+  });
+
+  it("backfills the markdown preview toggle into pre-existing files", () => {
+    tempDir = mkdtempSync(join(tmpdir(), "poracode-keybindings-"));
+    const path = join(tempDir, "keybindings.json");
+    // A file that predates the editor.toggle-markdown-preview default.
+    writeFileSync(
+      path,
+      `${JSON.stringify({ version: 1, keybindings: [{ command: "settings.open", key: "Ctrl+," }] })}\n`,
+      "utf8",
+    );
+
+    const result = readKeybindingsFile(path).file;
+    const binding = result.keybindings.find(
+      (item) => item.command === EDITOR_TOGGLE_MARKDOWN_PREVIEW_COMMAND_ID,
+    );
+
+    expect(binding).toMatchObject({
+      key: "Ctrl+Shift+V",
+      when: EDITOR_TOGGLE_MARKDOWN_PREVIEW_WHEN,
+    });
+    // The user's own binding survives untouched.
+    expect(result.keybindings).toContainEqual({ command: "settings.open", key: "Ctrl+," });
   });
 
   it("backfills the global quick-composer shortcut into pre-existing files", () => {

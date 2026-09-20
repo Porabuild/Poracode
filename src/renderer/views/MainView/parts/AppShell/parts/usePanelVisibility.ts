@@ -3,7 +3,7 @@ import { useBottomDockedTabs } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore, type RightPanelTab } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
-import { useDocksPanelHasContent } from "@/renderer/components/thread/useThreadDocksSummary";
+import { useThreadDocksPanelAvailable } from "@/renderer/components/thread/useThreadDocksSummary";
 import { useThreadGalleryImages } from "@/renderer/components/thread/useThreadGalleryImages";
 import { useFocusedThreadId } from "@/renderer/hooks/uiSelectors";
 
@@ -54,13 +54,14 @@ export function usePanelVisibility() {
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
+  const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
   const bottomDocks = useBottomDockedTabs();
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const threadDocksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const threadDocksFocus = usePanelStore((s) => s.threadDocksFocus);
   const currentThreadId = useFocusedThreadId();
   const bottomTerminalOpen = useBottomTerminalVisible();
-  const informationalDocksPanelOpen = useDocksPanelHasContent();
+  const informationalDocksPanelOpen = useThreadDocksPanelAvailable();
   const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);
   const gallery = useThreadGalleryImages(currentThreadId ?? undefined);
   const docksPanelOpen =
@@ -97,7 +98,8 @@ export function usePanelVisibility() {
       scopedSubAgentPanelOpen ||
       browserPanelOpen ||
       usagePanelOpen ||
-      notesPanelOpen
+      notesPanelOpen ||
+      portsPanelOpen
     : bottomTerminalOpen || hasBottomDocks;
   // A bottom-docked tab must not keep the right aside open on its own — it is
   // already rendered in the bottom row.
@@ -110,7 +112,8 @@ export function usePanelVisibility() {
       scopedSubAgentPanelOpen ||
       (browserPanelOpen && !isDocked("browser")) ||
       (usagePanelOpen && !isDocked("usage")) ||
-      (notesPanelOpen && !isDocked("notes")));
+      (notesPanelOpen && !isDocked("notes")) ||
+      portsPanelOpen);
   const sidePanelOpen = isTerminalRight ? rightPanelOpen : sideGitPanelOpen;
 
   return { rightPanelOpen, gitPanelOpen: sideGitPanelOpen, sidePanelOpen };

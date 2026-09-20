@@ -2,10 +2,10 @@ import { startTransition, useState } from "react";
 import { ChevronsDownUp, ChevronsUpDown, RefreshCw, Settings2 } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import { openUsageSettings } from "@/renderer/actions/panelActions";
-import { readBridge } from "@/renderer/bridge";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { resolveDisplayedProviders } from "@/renderer/components/providers/usageProviders";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 
 /**
  * Usage-tab actions rendered in the shared right-panel header (so the panel
@@ -21,6 +21,7 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
   const agentInstances = useSharedSettings((s) => s.agentInstances);
   const setUsageSetting = useSharedSettings((s) => s.setUsageSetting);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const requestRefresh = useUsageScopeStore((s) => s.requestRefresh);
 
   const displayed = resolveDisplayedProviders(providerOrder, disabledProviders, agentInstances);
   const allCollapsed =
@@ -29,10 +30,8 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
   const refreshNow = () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
-    void readBridge()
-      .refreshProviderUsage({})
-      .catch(() => undefined)
-      .finally(() => setIsRefreshing(false));
+    requestRefresh();
+    window.setTimeout(() => setIsRefreshing(false), 450);
   };
 
   const toggleCollapseAll = () => {

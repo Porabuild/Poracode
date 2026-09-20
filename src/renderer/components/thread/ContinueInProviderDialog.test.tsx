@@ -25,6 +25,7 @@ vi.mock("../../bridge", () => ({
   readBridge: () => bridge,
   isRemoteSession: () => false,
   isDevApp: () => false,
+  isCompactClientSurface: () => false,
 }));
 
 const thread: Thread = {

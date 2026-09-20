@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { readBridge } from "../bridge";
+import { hasAnyClientBridge, isStandaloneAttachRuntime } from "../clientRuntime";
 import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
@@ -230,7 +231,7 @@ interface SharedSettingsState extends SharedSettings {
 
 const RECENT_MODELS_LIMIT = 16;
 function hasBridge(): boolean {
-  return typeof window !== "undefined" && window.poracode !== undefined;
+  return hasAnyClientBridge();
 }
 
 function loadFallbackSettings(): SharedSettings {
@@ -1201,11 +1202,15 @@ export function whenSharedSettingsHydrated(): Promise<void> {
 }
 
 export function applyExternalSharedSettings(partial: Partial<SharedSettings>): void {
-  useSharedSettings.setState((state) => ({ ...state, ...partial }));
+  useSharedSettings.setState((state) => ({ ...state, ...partial, sharedSettingsHydrated: true }));
   cacheSettingsSnapshot(selectSharedSettings(useSharedSettings.getState()));
+  // Owner-pushed settings are authoritative (paired desktop values arriving
+  // over the remote sync, or a remote client's edit): mark the store hydrated
+  // so persistence and hydration waiters proceed without a local read-back.
+  initialLoadDone = true;
 }
 
-if (hasBridge()) {
+if (hasBridge() && !isStandaloneAttachRuntime()) {
   void readBridge()
     .getSharedSettings()
     .then((settings) => {

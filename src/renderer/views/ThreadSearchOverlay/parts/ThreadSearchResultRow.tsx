@@ -37,7 +37,7 @@ export function ThreadSearchResultRow(props: {
       role="option"
       aria-selected={isSelected}
       tabIndex={-1}
-      className={`group flex w-full cursor-default items-center gap-2 rounded-xl px-3 py-1 text-[13px] outline-none transition-colors ${stateClass}`}
+      className={`group flex w-full cursor-default items-center gap-2 rounded-xl px-3 py-1 text-[13px] outline-none transition-colors [@media(hover:none)]:min-h-11 [@media(pointer:coarse)]:min-h-11 ${stateClass}`}
       onClick={onActivate}
       onMouseMove={onHover}
       onKeyDown={(e) => handleKeyActivate(e, onActivate)}

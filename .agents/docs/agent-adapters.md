@@ -50,6 +50,11 @@ Providers own this classification; ordinary messages keep the default behavior.
 If none of the three fits, the right move is to add a new hook with a
 capability-shaped name and document it here — not to add a branch.
 
+Model descriptions can opt into compact inline hints through the renderer
+`registerModelDescriptionFormatter` hook. Providers parse their own catalog text
+and supply a numeric hint plus a localized explanation; the shared picker never
+parses vendor pricing formats.
+
 ### Extensions own their state
 
 A hook must not add fields to a shared state object. `AcpMapperState` exposes an
@@ -122,15 +127,6 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 - `buildLaunchArgv()` / `buildResumeArgv()` — Return an `AgentArgvSpec` (`{ binary, args, env?, sessionRef? }`). The runtime wraps it through `resolveLaunchSpec` which owns WSL login-shell, Windows PowerShell encoding, and env injection. **Adapters must never call `buildAgentCommand` on the main launch path** — the contract is structurally argv-only.
 - `createInitialSessionRef()` — Generate a session ID on first launch (or `undefined` if the CLI generates its own).
 
-### Optional — Execution Environment
-
-- `windowsProjectExecution?: "wsl"` — Run this provider in the default WSL
-  distro when the project is native Windows. Detection, terminal launch/resume,
-  auth/logout, one-shot generation, attachments, skills, MCPs, and provider
-  session discovery all use the resolved WSL environment; the project itself
-  remains a native Windows project. Use only when the provider has no native
-  Windows runtime.
-
 ### Optional — Terminal Heuristics
 
 - `isReadyForInitialPrompt?(text)` — True when the TUI is ready to receive the first user prompt.
@@ -183,6 +179,7 @@ The **Structured Session** column reflects whether the adapter implements `creat
 | OpenCode 2   | (probed dynamically via `@opencode/client`; utility default `opencode/big-pickle`) | Probed per model                         | terminal / GUI server | Yes (V2 HTTP server)             |
 | Pi           | (authenticated models probed via SDK)                                              | off…max, per model                       | terminal              | Yes (native SDK)                 |
 | Antigravity  | auto (`agy` CLI) / ACP registry probe for Chat                                     | ACP registry probe                       | terminal / GUI server | Yes (official `antigravity-acp`) |
+| Devin        | (families from CLI models list)                                                    | per-model variants                       | terminal              | Yes (official `devin acp`)       |
 | Command Code | Kimi/Claude/GPT/Gemini/GLM/… (static, `--list-models`)                             | (none)                                   | terminal              | No                               |
 | Muse Code    | muse-spark-1.3 family, static + `--help`/serve-catalog discoveries                 | probed (`none…ultra` fallback)           | terminal              | Yes (MSP over `muse serve`)      |
 
@@ -199,6 +196,21 @@ in `acpRegistryAutoInstallOptOuts`, so a deliberate removal is never undone; the
 next explicit install clears it. Composer, registry-card, and
 provider-settings update surfaces compare both installed versions with their
 independent latest sources, then one action updates whichever runtimes are stale.
+
+Devin uses Smart permissions in Terminal and Bypass in structured Chat (Plan
+still selects the ACP plan mode). Signed-in ACP also advertises Smart; Bypass remains the requested GUI policy.
+The adapter declares a `resolveMode` hook for this mapping; shared ACP code
+contains no provider-specific mode rules. Remote MCP servers are relayed through
+the existing tool-filter stdio worker, because Devin 3000.10.21 advertises only stdio MCP.
+A per-session configuration overlay makes injected servers visible to its native
+MCP discovery tools; it preserves existing config and durable session storage. Terminal launches use native SQLite ID discovery without reading transcript
+content; overlapping discoveries in the same cwd deliberately remain unresolved.
+ACP runs only for GUI threads because session/new alone does not persist a native
+session. Terminal MCP injection is not yet supported; the CLI has no verified
+per-thread MCP override, and shared user/project config is left untouched. The usage collector uses the private CLI quota endpoint,
+returns unsupported for accounts without quota windows, and shows overage as a
+remaining credit balance. Authenticated usage was verified with Devin 3000.10.21;
+account metadata is not parsed from undocumented CLI output.
 
 ### OpenCode 2 (`opencode2`)
 
@@ -242,7 +254,7 @@ is the minimum supported protocol because it introduced `permission.rules`.
 - **Compatibility copies:** provider discovery changes invalidate both the
   supervisor status cache and the renderer's persisted capability cache.
   Runtime `content.delta.replace` carries authoritative stream snapshots; remote
-  protocol v10 prevents older peers from appending them as deltas. Existing
+  protocol v12 prevents older peers from appending them as deltas. Existing
   persisted streams remain valid. Provider wire compatibility is enforced at
   detection and server acquisition.
 

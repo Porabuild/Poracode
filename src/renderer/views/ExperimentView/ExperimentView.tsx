@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Tooltip } from "@heroui/react";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { Crown, FlaskConical, LayoutGrid, Loader2, Trash2, X } from "lucide-react";
 import { isThreadTurnActive } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
@@ -35,6 +36,7 @@ type Confirmation = { kind: "merge" } | { kind: "discard" } | null;
 
 export function ExperimentView(props: { experimentId: string }) {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const experiment = useExperimentStore((state) => state.experiments[props.experimentId]);
   const [operation, setOperation] = useState<Operation | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation>(null);
@@ -155,116 +157,132 @@ export function ExperimentView(props: { experimentId: string }) {
     ? `${crownedModel} · ${crownedProvider}`
     : (crownedProvider ?? t`the winner`);
 
-  return (
-    <div className="flex h-full flex-col">
-      <div
-        className={`poracode-content-over-drag-region ${macosTrafficLightPadClass} h-[env(titlebar-area-height,32px)] shrink-0 px-3`}
+  const toolbarActions = (
+    <>
+      <Button
+        size="sm"
+        variant="tertiary"
+        className={compactLayout ? "h-11 min-h-11 px-3 text-sm" : "h-7 px-2 text-xs"}
+        isDisabled={candidates.length < 2 || operation === "merge" || operation === "discard"}
+        onPress={() => useAppStore.getState().openGroupGrid(exp.id)}
       >
-        <div className="mx-auto flex h-full max-w-4xl items-center gap-2">
-          <FlaskConical className="size-3.5 shrink-0 text-muted" />
-          <span className="truncate text-xs font-medium">{exp.title}</span>
-          <span className="shrink-0 rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px] text-muted">
-            <Plural value={candidates.length} one="# candidate" other="# candidates" />
-          </span>
-          <div className="ml-auto flex items-center gap-1">
+        <LayoutGrid className="size-3.5" />
+        <Trans>Open All</Trans>
+      </Button>
+      {hasAiResults ? (
+        <Button
+          size="sm"
+          variant="tertiary"
+          className={compactLayout ? "h-11 min-h-11 px-3 text-sm" : "h-7 px-2.5 text-xs"}
+          isDisabled={operation === "crown"}
+          onPress={judge.openResults}
+        >
+          <Crown className="size-3" />
+          <Trans>Results</Trans>
+        </Button>
+      ) : null}
+      {!decided ? (
+        <Tooltip delay={300}>
+          <Tooltip.Trigger>
             <Button
               size="sm"
               variant="tertiary"
-              className="h-7 px-2 text-xs"
-              isDisabled={candidates.length < 2 || operation === "merge" || operation === "discard"}
-              onPress={() => useAppStore.getState().openGroupGrid(exp.id)}
+              className={compactLayout ? "h-11 min-h-11 px-3 text-sm" : "h-7 px-2.5 text-xs"}
+              isDisabled={
+                operationLocked || hasActiveCandidate || candidates.length < 2 || !hasAvailableJudge
+              }
+              isPending={operation === "crown"}
+              onPress={judge.open}
             >
-              <LayoutGrid className="size-3.5" />
-              <Trans>Open All</Trans>
-            </Button>
-            {hasAiResults ? (
-              <Button
-                size="sm"
-                variant="tertiary"
-                className="h-7 px-2.5 text-xs"
-                isDisabled={operation === "crown"}
-                onPress={judge.openResults}
-              >
+              {operation === "crown" ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
                 <Crown className="size-3" />
-                <Trans>Results</Trans>
-              </Button>
-            ) : null}
-            {!decided ? (
-              <Tooltip delay={300}>
-                <Tooltip.Trigger>
-                  <Button
-                    size="sm"
-                    variant="tertiary"
-                    className="h-7 px-2.5 text-xs"
-                    isDisabled={
-                      operationLocked ||
-                      hasActiveCandidate ||
-                      candidates.length < 2 ||
-                      !hasAvailableJudge
-                    }
-                    isPending={operation === "crown"}
-                    onPress={judge.open}
-                  >
-                    {operation === "crown" ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <Crown className="size-3" />
-                    )}
-                    {operation === "crown" ? <Trans>Judging…</Trans> : <Trans>Crown with AI</Trans>}
-                  </Button>
-                </Tooltip.Trigger>
-                <Tooltip.Content>
-                  {!hasAvailableJudge ? (
-                    <Trans>None of these agents can run the AI comparison.</Trans>
-                  ) : hasActiveCandidate ? (
-                    <Trans>Wait for every candidate to finish before judging.</Trans>
-                  ) : (
-                    <Trans>Let an AI judge compare the candidate changes.</Trans>
-                  )}
-                </Tooltip.Content>
-              </Tooltip>
-            ) : null}
-            {decided && hasCleanupPending ? (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-6 px-2 text-xs"
-                isDisabled={operationLocked || hasActiveCandidate}
-                isPending={operation === "cleanup"}
-                onPress={() =>
-                  void performOperation("cleanup", async () => {
-                    await retryExperimentCleanup(exp.id);
-                  })
-                }
-              >
-                <Trans>Retry cleanup</Trans>
-              </Button>
-            ) : null}
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              isDisabled={operation === "discard"}
-              aria-label={t`Discard experiment`}
-              className="size-6 min-w-0 text-muted hover:text-danger"
-              onPress={() => setConfirmation({ kind: "discard" })}
-            >
-              <Trash2 className="size-3.5" />
+              )}
+              {operation === "crown" ? <Trans>Judging…</Trans> : <Trans>Crown with AI</Trans>}
             </Button>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              isDisabled={operation === "merge" || operation === "discard"}
-              aria-label={t`Close experiment`}
-              className="size-6 min-w-0 text-muted"
-              onPress={() => useAppStore.getState().openHome()}
-            >
-              <X className="size-3.5" />
-            </Button>
+          </Tooltip.Trigger>
+          <Tooltip.Content>
+            {!hasAvailableJudge ? (
+              <Trans>None of these agents can run the AI comparison.</Trans>
+            ) : hasActiveCandidate ? (
+              <Trans>Wait for every candidate to finish before judging.</Trans>
+            ) : (
+              <Trans>Let an AI judge compare the candidate changes.</Trans>
+            )}
+          </Tooltip.Content>
+        </Tooltip>
+      ) : null}
+      {decided && hasCleanupPending ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          className={compactLayout ? "h-11 min-h-11 px-3 text-sm" : "h-6 px-2 text-xs"}
+          isDisabled={operationLocked || hasActiveCandidate}
+          isPending={operation === "cleanup"}
+          onPress={() =>
+            void performOperation("cleanup", async () => {
+              await retryExperimentCleanup(exp.id);
+            })
+          }
+        >
+          <Trans>Retry cleanup</Trans>
+        </Button>
+      ) : null}
+      <Button
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        isDisabled={operation === "discard"}
+        aria-label={t`Discard experiment`}
+        className={
+          compactLayout
+            ? "size-11 min-w-11 text-muted hover:text-danger"
+            : "size-6 min-w-0 text-muted hover:text-danger"
+        }
+        onPress={() => setConfirmation({ kind: "discard" })}
+      >
+        <Trash2 className="size-3.5" />
+      </Button>
+      {compactLayout ? null : (
+        <Button
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          isDisabled={operation === "merge" || operation === "discard"}
+          aria-label={t`Close experiment`}
+          className="size-6 min-w-0 text-muted"
+          onPress={() => useAppStore.getState().openHome()}
+        >
+          <X className="size-3.5" />
+        </Button>
+      )}
+    </>
+  );
+
+  return (
+    <div className="flex h-full flex-col">
+      {compactLayout ? (
+        <div className="m-page-content flex shrink-0 flex-wrap items-center gap-2 px-[var(--m-page-inline)] pb-2">
+          <span className="shrink-0 rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px] text-muted">
+            <Plural value={candidates.length} one="# candidate" other="# candidates" />
+          </span>
+          {toolbarActions}
+        </div>
+      ) : (
+        <div
+          className={`poracode-content-over-drag-region ${macosTrafficLightPadClass} h-[env(titlebar-area-height,32px)] shrink-0 px-3`}
+        >
+          <div className="mx-auto flex h-full max-w-4xl items-center gap-2">
+            <FlaskConical className="size-3.5 shrink-0 text-muted" />
+            <span className="truncate text-xs font-medium">{exp.title}</span>
+            <span className="shrink-0 rounded-full bg-surface-secondary px-1.5 py-0.5 text-[10px] text-muted">
+              <Plural value={candidates.length} one="# candidate" other="# candidates" />
+            </span>
+            <div className="ml-auto flex items-center gap-1">{toolbarActions}</div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
         <div className="mx-auto flex max-w-4xl flex-col gap-3">

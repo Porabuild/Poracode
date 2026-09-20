@@ -22,7 +22,7 @@
  * official SDK (MIT, zero-dep) covers the same ground, but it is pre-1.0
  * with no stability promise, its pinned schema fingerprint matches neither
  * this host generation nor the transcript corpus, and Poracode-specific
- * mapping, WSL routing, and thread lifecycle must be ours regardless.
+ * mapping, WSL project routing, and thread lifecycle must be ours regardless.
  * Revisit when the SDK reaches 1.0 with a stability promise, its
  * fingerprint aligns with our minimum supported host, and WSL spawn
  * override is confirmed. Useful references either way:

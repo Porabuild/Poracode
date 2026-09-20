@@ -299,4 +299,47 @@ describe("probeAcpCapabilities live-process paths", () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it("reports why the probe produced no result via onFailureDetail", async () => {
+    // An agent that exits before the handshake used to fail silently; an
+    // install that cleanses and retries must be able to name the failure.
+    const details: string[] = [];
+    const result = await probeAcpCapabilities(
+      process.execPath,
+      ["-e", "process.exit(3)"],
+      process.cwd(),
+      { timeoutMs: 5_000, label: "detail-exit", onFailureDetail: (reason) => details.push(reason) },
+    );
+
+    expect(result).toBeUndefined();
+    expect(details).toHaveLength(1);
+    // The SDK may report the exit as a closed connection before the probe's
+    // own child-exited race fires; either way the reason must be surfaced.
+    expect(details[0]).toMatch(/closed|exited/);
+  });
+
+  it("reports a refused launch under an enforced mock session via onFailureDetail", async () => {
+    const originalMock = process.env.PORACODE_MOCK_AGENTS;
+    const originalDev = process.env.PORACODE_IS_DEV;
+    process.env.PORACODE_MOCK_AGENTS = "1";
+    process.env.PORACODE_IS_DEV = "1";
+    try {
+      const details: string[] = [];
+      const result = await probeAcpCapabilities(process.execPath, [FIXTURE], process.cwd(), {
+        timeoutMs: 5_000,
+        label: "detail-mock",
+        onFailureDetail: (reason) => details.push(reason),
+      });
+
+      expect(result).toBeUndefined();
+      expect(details).toHaveLength(1);
+      expect(details[0]).toContain("mock QA session");
+      expect(details[0]).toContain("session-probe");
+    } finally {
+      if (originalMock === undefined) delete process.env.PORACODE_MOCK_AGENTS;
+      else process.env.PORACODE_MOCK_AGENTS = originalMock;
+      if (originalDev === undefined) delete process.env.PORACODE_IS_DEV;
+      else process.env.PORACODE_IS_DEV = originalDev;
+    }
+  });
 });

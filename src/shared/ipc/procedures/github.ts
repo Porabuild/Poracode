@@ -26,6 +26,23 @@ import {
   ghRerunWorkflowRunPayloadSchema,
   ghSubmitPrReviewPayloadSchema,
   ghUpdatePrBranchPayloadSchema,
+  ghCheckAvailableResultSchema,
+  ghCreatePrResultSchema,
+  ghGetPrChecksResultSchema,
+  ghGetPrDetailsResultSchema,
+  ghGetPrDiffResultSchema,
+  ghGetPrFilesResultSchema,
+  ghGetPrForBranchResultSchema,
+  ghGetPrReviewThreadsResultSchema,
+  ghGetWorkflowDefinitionResultSchema,
+  ghGetWorkflowRunResultSchema,
+  ghListAccountsResultSchema,
+  ghListPrsResultSchema,
+  ghListPullRequestsResultSchema,
+  ghListReposResultSchema,
+  ghListWorkflowRunsResultSchema,
+  ghListWorkflowsResultSchema,
+  ghPostPrCommentResultSchema,
 } from "../../contracts";
 import type {
   CloneRepoPayload,
@@ -73,143 +90,183 @@ import type {
   PrComment,
   PrData,
 } from "../../contracts";
-import { definePayloadProcedure } from "../core";
+import { definePayloadProcedure, omittedResultSchema } from "../core";
 
 export const githubProcedures = {
   ghCheckAvailable: definePayloadProcedure<
     GetGitStatusPayload,
     GhCheckAvailableResult,
     "supervisor"
-  >("ghCheckAvailable", "supervisor", getGitStatusPayloadSchema),
+  >("ghCheckAvailable", "supervisor", getGitStatusPayloadSchema, ghCheckAvailableResultSchema),
   ghCreatePr: definePayloadProcedure<GhCreatePrPayload, PrData, "supervisor">(
     "ghCreatePr",
     "supervisor",
     ghCreatePrPayloadSchema,
+    ghCreatePrResultSchema,
   ),
   ghGetPrForBranch: definePayloadProcedure<GhGetPrForBranchPayload, PrData | null, "supervisor">(
     "ghGetPrForBranch",
     "supervisor",
     ghGetPrForBranchPayloadSchema,
+    ghGetPrForBranchResultSchema,
   ),
   ghListPrs: definePayloadProcedure<GhListPrsPayload, GhListPrsResult, "supervisor">(
     "ghListPrs",
     "supervisor",
     ghListPrsPayloadSchema,
+    ghListPrsResultSchema,
   ),
   ghListPullRequests: definePayloadProcedure<
     GhListPullRequestsPayload,
     GhListPullRequestsResult,
     "supervisor"
-  >("ghListPullRequests", "supervisor", ghListPullRequestsPayloadSchema),
+  >(
+    "ghListPullRequests",
+    "supervisor",
+    ghListPullRequestsPayloadSchema,
+    ghListPullRequestsResultSchema,
+  ),
   ghListWorkflows: definePayloadProcedure<
     GhListWorkflowsPayload,
     GhListWorkflowsResult,
     "supervisor"
-  >("ghListWorkflows", "supervisor", ghListWorkflowsPayloadSchema),
+  >("ghListWorkflows", "supervisor", ghListWorkflowsPayloadSchema, ghListWorkflowsResultSchema),
   ghListWorkflowRuns: definePayloadProcedure<
     GhListWorkflowRunsPayload,
     GhListWorkflowRunsResult,
     "supervisor"
-  >("ghListWorkflowRuns", "supervisor", ghListWorkflowRunsPayloadSchema),
+  >(
+    "ghListWorkflowRuns",
+    "supervisor",
+    ghListWorkflowRunsPayloadSchema,
+    ghListWorkflowRunsResultSchema,
+  ),
   ghGetWorkflowRun: definePayloadProcedure<
     GhGetWorkflowRunPayload,
     GhGetWorkflowRunResult,
     "supervisor"
-  >("ghGetWorkflowRun", "supervisor", ghGetWorkflowRunPayloadSchema),
+  >("ghGetWorkflowRun", "supervisor", ghGetWorkflowRunPayloadSchema, ghGetWorkflowRunResultSchema),
   ghGetWorkflowDefinition: definePayloadProcedure<
     GhGetWorkflowDefinitionPayload,
     GhGetWorkflowDefinitionResult,
     "supervisor"
-  >("ghGetWorkflowDefinition", "supervisor", ghGetWorkflowDefinitionPayloadSchema),
+  >(
+    "ghGetWorkflowDefinition",
+    "supervisor",
+    ghGetWorkflowDefinitionPayloadSchema,
+    ghGetWorkflowDefinitionResultSchema,
+  ),
   ghDispatchWorkflow: definePayloadProcedure<GhDispatchWorkflowPayload, void, "supervisor">(
     "ghDispatchWorkflow",
     "supervisor",
     ghDispatchWorkflowPayloadSchema,
+    omittedResultSchema,
   ),
   ghRerunWorkflowRun: definePayloadProcedure<GhRerunWorkflowRunPayload, void, "supervisor">(
     "ghRerunWorkflowRun",
     "supervisor",
     ghRerunWorkflowRunPayloadSchema,
+    omittedResultSchema,
   ),
   ghCancelWorkflowRun: definePayloadProcedure<GhCancelWorkflowRunPayload, void, "supervisor">(
     "ghCancelWorkflowRun",
     "supervisor",
     ghCancelWorkflowRunPayloadSchema,
+    omittedResultSchema,
   ),
   ghDeleteWorkflowRun: definePayloadProcedure<GhDeleteWorkflowRunPayload, void, "supervisor">(
     "ghDeleteWorkflowRun",
     "supervisor",
     ghDeleteWorkflowRunPayloadSchema,
+    omittedResultSchema,
   ),
   ghMergePr: definePayloadProcedure<GhMergePrPayload, void, "supervisor">(
     "ghMergePr",
     "supervisor",
     ghMergePrPayloadSchema,
+    omittedResultSchema,
   ),
   ghClosePr: definePayloadProcedure<GhClosePrPayload, void, "supervisor">(
     "ghClosePr",
     "supervisor",
     ghClosePrPayloadSchema,
+    omittedResultSchema,
   ),
   ghReopenPr: definePayloadProcedure<GhReopenPrPayload, void, "supervisor">(
     "ghReopenPr",
     "supervisor",
     ghReopenPrPayloadSchema,
+    omittedResultSchema,
   ),
   ghMarkPrReady: definePayloadProcedure<GhMarkPrReadyPayload, void, "supervisor">(
     "ghMarkPrReady",
     "supervisor",
     ghMarkPrReadyPayloadSchema,
+    omittedResultSchema,
   ),
   ghGetPrChecks: definePayloadProcedure<GhGetPrChecksPayload, GhGetPrChecksResult, "supervisor">(
     "ghGetPrChecks",
     "supervisor",
     ghGetPrChecksPayloadSchema,
+    ghGetPrChecksResultSchema,
   ),
   ghGetPrFiles: definePayloadProcedure<GhGetPrFilesPayload, GhGetPrFilesResult, "supervisor">(
     "ghGetPrFiles",
     "supervisor",
     ghGetPrFilesPayloadSchema,
+    ghGetPrFilesResultSchema,
   ),
   ghGetPrDiff: definePayloadProcedure<GhGetPrDiffPayload, GhGetPrDiffResult, "supervisor">(
     "ghGetPrDiff",
     "supervisor",
     ghGetPrDiffPayloadSchema,
+    ghGetPrDiffResultSchema,
   ),
   ghSubmitPrReview: definePayloadProcedure<GhSubmitPrReviewPayload, void, "supervisor">(
     "ghSubmitPrReview",
     "supervisor",
     ghSubmitPrReviewPayloadSchema,
+    omittedResultSchema,
   ),
   ghUpdatePrBranch: definePayloadProcedure<GhUpdatePrBranchPayload, void, "supervisor">(
     "ghUpdatePrBranch",
     "supervisor",
     ghUpdatePrBranchPayloadSchema,
+    omittedResultSchema,
   ),
   ghGetPrDetails: definePayloadProcedure<GhGetPrDetailsPayload, GhGetPrDetailsResult, "supervisor">(
     "ghGetPrDetails",
     "supervisor",
     ghGetPrDetailsPayloadSchema,
+    ghGetPrDetailsResultSchema,
   ),
   ghGetPrReviewComments: definePayloadProcedure<
     GhGetPrDetailsPayload,
     GhGetPrReviewThreadsResult,
     "supervisor"
-  >("ghGetPrReviewComments", "supervisor", ghGetPrDetailsPayloadSchema),
+  >(
+    "ghGetPrReviewComments",
+    "supervisor",
+    ghGetPrDetailsPayloadSchema,
+    ghGetPrReviewThreadsResultSchema,
+  ),
   ghPostPrComment: definePayloadProcedure<GhPostPrCommentPayload, PrComment, "supervisor">(
     "ghPostPrComment",
     "supervisor",
     ghPostPrCommentPayloadSchema,
+    ghPostPrCommentResultSchema,
   ),
   ghListAccounts: definePayloadProcedure<GhListAccountsPayload, GhListAccountsResult, "supervisor">(
     "ghListAccounts",
     "supervisor",
     ghListAccountsPayloadSchema,
+    ghListAccountsResultSchema,
   ),
   ghListRepos: definePayloadProcedure<GhListReposPayload, GhListReposResult, "supervisor">(
     "ghListRepos",
     "supervisor",
     ghListReposPayloadSchema,
+    ghListReposResultSchema,
   ),
   cloneRepo: definePayloadProcedure<CloneRepoPayload, CloneRepoResult, "supervisor">(
     "cloneRepo",

@@ -226,6 +226,19 @@ export class WslBridgeClient {
     });
   }
 
+  /** Move a path without replacing a destination created concurrently. */
+  async moveNoReplace(
+    location: WslLocation,
+    fromAbsolute: string,
+    toAbsolute: string,
+  ): Promise<void> {
+    await this.call(location, "/v1/fs/move-no-replace", {
+      projectRoot: location.linuxPath,
+      from: fromAbsolute,
+      to: toAbsolute,
+    });
+  }
+
   /**
    * Subscribe to filesystem changes under `paths`. Listener is registered
    * BEFORE the HTTP request so the first event cannot race in ahead of the

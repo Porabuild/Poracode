@@ -441,12 +441,12 @@ export const museDetectionSpec: DetectionSpec = {
       ...(overlay ?? {}),
     };
   },
-  // Muse ships via Meta's installer script only — no npm package, no
-  // `muse update` / self-updater. Re-run the official install script for
-  // updates. The script uses bash-isms (`set -o pipefail`), so it must be
+  // Muse ships via Meta's installer only — no npm package, no
+  // `muse update` / self-updater. Re-run the official installer for
+  // updates: the shell script on POSIX, the PowerShell script on Windows.
+  // The POSIX script uses bash-isms (`set -o pipefail`), so it must be
   // piped to `bash`, not `sh` (dash aborts with "Illegal option -o pipefail"
-  // and curl then fails with SIGPIPE). Windows runs the same installer in its
-  // default WSL distro (schema requires both platforms when `installer` is set).
+  // and curl then fails with SIGPIPE).
   update: {
     installer: {
       posix: {
@@ -454,12 +454,13 @@ export const museDetectionSpec: DetectionSpec = {
         args: ["-c", "curl -fsSL https://dev.meta.ai/install.sh | bash"],
       },
       windows: {
-        binary: "wsl.exe",
+        binary: "powershell.exe",
         args: [
-          "--exec",
-          "bash",
-          "-lc",
-          "if command -v curl >/dev/null 2>&1; then set -o pipefail; curl -fsSL https://dev.meta.ai/install.sh | bash; else exit 127; fi",
+          "-NoLogo",
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          "irm https://dev.meta.ai/install.ps1 | iex",
         ],
       },
     },

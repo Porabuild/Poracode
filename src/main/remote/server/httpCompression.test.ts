@@ -71,7 +71,7 @@ describe("writeNegotiatedJson", () => {
     const response = await fetch(url, { headers: { "accept-encoding": "gzip" } });
     expect(response.status).toBe(200);
     expect(response.headers.get("content-encoding")).toBe("gzip");
-    expect(response.headers.get("vary")).toBe("Accept-Encoding");
+    expect(response.headers.get("vary")).toBe("Accept-Encoding, Authorization");
     // `fetch` decodes transparently, so compare against the original body.
     expect(await response.text()).toBe(bigBody);
   });

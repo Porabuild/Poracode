@@ -3,6 +3,7 @@ import { reconnectBackoffDelay } from "./backoff";
 export const REMOTE_SOCKET_POLICY = {
   reconnectBaseMs: 1_000,
   reconnectMaxMs: 20_000,
+  unauthorizedReconnectMs: 60_000,
   healthPingIntervalMs: 25_000,
   healthPingTimeoutMs: 5_000,
   connectTimeoutMs: 15_000,

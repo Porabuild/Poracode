@@ -3,6 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, Check, GitBranch, X } from "lucide-react";
 import { useShallow } from "zustand/shallow";
 import { useAppStore } from "@/renderer/state/appStore";
+import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { useThreadSubAgentDockStore } from "@/renderer/state/threadSubAgentDockStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
 import { useWorkflowRun } from "@/renderer/state/useWorkflowRun";
@@ -321,7 +322,13 @@ function ActiveSubAgentRow({
   return (
     <ThreadDockActionRow
       title={rowTitle}
-      onClick={() => openSubAgent(threadId, item.id)}
+      onClick={() => {
+        if (placement === "right") {
+          showSubAgentPanel(threadId, item.id, projectLocation, "thread-info");
+        } else {
+          openSubAgent(threadId, item.id);
+        }
+      }}
       className={`${isDone ? "opacity-60" : ""} ${!isDone && placement === "composer" ? "bg-accent/10" : ""}`}
       action={<X className="size-3" />}
       actionLabel={t`Remove ${rowTitle} from panel`}

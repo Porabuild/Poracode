@@ -36,8 +36,8 @@ function rawRequest(port: number, headers: Record<string, string>): Promise<{ st
   });
 }
 
-afterEach(() => {
-  ingress?.dispose();
+afterEach(async () => {
+  await ingress?.dispose();
   ingress = null;
 });
 

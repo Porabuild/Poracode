@@ -6,6 +6,8 @@ import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { TerminalLinkProvider } from "./TerminalLinkProvider";
 import { resolveTerminalColor } from "./terminalColors";
+import { TerminalReplayGate } from "./terminalReplayGate";
+import { TerminalFeedStatus } from "./TerminalFeedStatus";
 import { TERMINAL_FONT_FAMILY } from "./terminalPrewarm";
 import { Terminal } from "@xterm/xterm";
 import { Button } from "@heroui/react";
@@ -22,8 +24,15 @@ import {
   type RefObject,
 } from "react";
 import { MAX_TERMINAL_COLS, MAX_TERMINAL_ROWS, type TerminalSize } from "@/shared/contracts";
+import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
+import type {
+  RemoteTerminalWatchResultError,
+  RemoteTerminalWatchResultReady,
+} from "@/shared/remote/protocol";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadOutputStore } from "@/renderer/state/threadOutputStore";
+import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
+import { watchManagedTerminal } from "@/renderer/state/remoteTerminalFeed";
 import { isMac, readBridge } from "@/renderer/bridge";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { useResolvedAppearance } from "@/renderer/components/ui/provider";
@@ -62,6 +71,10 @@ export interface XTermSurfaceHandle {
 
 const TERMINAL_SCROLLBAR_WIDTH = 9;
 const TERMINAL_INTERNAL_SCROLLBAR_WIDTH = 0.01;
+/** Keep parser-side live output bounded while a large historical replay drains. */
+const MAX_HYDRATION_BUFFER_CHARS = 1_000_000;
+/** Avoid an unbounded resnapshot loop when output permanently outruns parsing. */
+const MAX_HYDRATION_OVERFLOW_RESYNCS = 3;
 
 // Terminal colors track the active theme by reading the same CSS custom
 // properties the rest of the app uses, so presets (Dracula, Nord, ...) apply to
@@ -127,11 +140,7 @@ export const XTermSurface = forwardRef<
      * PTY bytes / reset / exit through this subscription instead of the local
      * supervisor IPC event stream. Returns an unsubscribe.
      */
-    outputSource?: (listener: {
-      onOutput: (data: string) => void;
-      onReset: () => void;
-      onExited: (exitCode: number | null) => void;
-    }) => () => void;
+    outputSource?: (listener: TerminalFeedListener) => () => void;
     /** Override PTY input/resize for a terminal hosted on a remote Poracode server. */
     writeInput?: (data: string) => Promise<void>;
     resizeBackingTerminal?: (size: TerminalSize) => Promise<void>;
@@ -206,6 +215,7 @@ export const XTermSurface = forwardRef<
   };
   const [hasSelection, setHasSelection] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const [watchError, setWatchError] = useState<RemoteTerminalWatchResultError | null>(null);
   const [scrollbar, setScrollbar] = useState({
     isVisible: false,
     thumbTopPercent: 0,
@@ -271,6 +281,14 @@ export const XTermSurface = forwardRef<
     let scrollbackHydrationToken = 0;
     let hydratingScrollback = false;
     let bufferedOutputDuringHydration = "";
+    let hydrationBufferOverflowed = false;
+    let hydrationOverflowResyncs = 0;
+    let hydrationBlocked = false;
+    let resubscribeOutput: (() => void) | null = null;
+    let resetBeforeInitialHydration = false;
+    let initialHydrationStarted = false;
+    let receivedFeedSnapshot = false;
+    const eventInterest = outputSource ? null : retainRendererEventInterest("terminal", terminalId);
     // First live output proves the PTY exists after a launch-race drop.
     let refitOnFirstOutput = true;
     // Fit the canvas every frame for live visual feedback, but DEBOUNCE the PTY
@@ -326,55 +344,98 @@ export const XTermSurface = forwardRef<
       });
     };
 
-    const hydrateScrollback = () => {
-      const token = ++scrollbackHydrationToken;
-      hydratingScrollback = true;
-      bufferedOutputDuringHydration = "";
-      let restoredScrollback = false;
-      const applyScrollback = (scrollback: string) => {
-        if (!isActive || token !== scrollbackHydrationToken) {
+    // End the hydration window: flush output that arrived while the replay was
+    // parsing, then nudge repaint-in-place agents over the restored frame.
+    const finishHydration = (token: number, restoredScrollback: boolean) => {
+      if (!isActive || token !== scrollbackHydrationToken) {
+        return;
+      }
+      hydratingScrollback = false;
+      if (restoredScrollback) hydrated = true;
+      if (hydrationBufferOverflowed) {
+        // The replay was followed by a known gap. Do not let a previously
+        // cached terminal be stashed as hydrated while recovery is pending.
+        hydrated = false;
+        hydrationBufferOverflowed = false;
+        bufferedOutputDuringHydration = "";
+        if (hydrationOverflowResyncs >= MAX_HYDRATION_OVERFLOW_RESYNCS) {
+          hydrationOverflowResyncs = 0;
+          hydrationBlocked = true;
+          setWatchError({ status: "error", code: "unavailable", retryable: false });
           return;
         }
-        // Replay control sequences as well as text: a redraw does not re-enter
-        // the alternate buffer or restore mouse/bracketed-paste modes.
-        if (scrollback.length > 0) {
-          terminal.reset();
-          terminal.write(scrollback);
-          bufferedOutputDuringHydration = "";
-          restoredScrollback = true;
-        }
-      };
-      // Caller-supplied scrollback (the PWA) hydrates synchronously — no bridge
-      // round-trip, so live output that arrives next isn't buffered/lost.
-      if (initialScrollback !== undefined) {
-        if (initialScrollback.length > 0) {
-          applyScrollback(initialScrollback);
-        }
-        hydratingScrollback = false;
-        hydrated = true;
-        if (bufferedOutputDuringHydration.length > 0) {
-          terminal.write(bufferedOutputDuringHydration);
-          bufferedOutputDuringHydration = "";
-        }
-        if (restoredScrollback) {
-          forceAgentRepaint();
+        hydrationOverflowResyncs += 1;
+        // The buffered suffix is incomplete and cannot be safely appended to
+        // the replay. Re-read the authoritative local transcript, or force a
+        // fresh remote cursor baseline when this surface is feed-backed.
+        if (resubscribeOutput) {
+          // Older/live-only feeds may not answer a rewatch with a baseline.
+          // Keep dropping live bytes until a snapshot or PTY reset proves that
+          // the cursor gap has been repaired.
+          hydrationBlocked = true;
+          setWatchError({ status: "error", code: "unavailable", retryable: true });
+          resubscribeOutput();
+        } else {
+          hydrateScrollback(true);
         }
         return;
       }
+      hydrationOverflowResyncs = 0;
+      if (bufferedOutputDuringHydration.length > 0) {
+        terminal.write(bufferedOutputDuringHydration);
+        bufferedOutputDuringHydration = "";
+      }
+      if (restoredScrollback) {
+        forceAgentRepaint();
+      }
+    };
+
+    const hydrateScrollback = (requireAuthoritativeScrollback = false) => {
+      const token = ++scrollbackHydrationToken;
+      hydratingScrollback = true;
+      hydrationBlocked = false;
+      hydrated = false;
+      bufferedOutputDuringHydration = "";
+      // Every replay path funnels through replayGate: replay bytes must parse
+      // with query replies suppressed (historical DA1/DSR/OSC queries would
+      // otherwise be answered to the live PTY), and live output that arrives
+      // while they parse is buffered until the replay has fully parsed.
+      const beginReplay = (scrollback: string) => {
+        hydrated = true;
+        replayGate.begin(scrollback, {
+          before: () => terminal.reset(),
+          complete: () => finishHydration(token, scrollback.length > 0),
+        });
+      };
+      // Caller-supplied scrollback (the PWA thread snapshot) needs no bridge
+      // round-trip; an empty string hydrates nothing.
+      if (initialScrollback !== undefined && !requireAuthoritativeScrollback) {
+        if (initialScrollback.length > 0) {
+          beginReplay(initialScrollback);
+        } else {
+          hydratingScrollback = false;
+          hydrated = true;
+        }
+        return;
+      }
+      let restoredScrollback = false;
       // Prefer the renderer-side accumulator (threadOutputStore): it keeps a
       // bounded append-only copy of this thread's PTY bytes across pane
-      // switches, so re-opening a repaint-in-place agent restores what the
-      // terminal actually displayed. The supervisor transcript read remains
-      // the fallback (e.g. when the store was reset or this surface mounted
-      // before any output was fed).
+      // switches, so re-opening a repaint-in-place agent (Claude no-flicker,
+      // Command Code) restores what the terminal actually displayed. The
+      // supervisor transcript read remains the fallback (e.g. when the store
+      // was reset or this surface mounted before any output was fed).
       const localScrollback = useThreadOutputStore.getState().readTail(terminalId, 100_000);
-      if (localScrollback.length > 0) {
-        applyScrollback(localScrollback);
-        hydratingScrollback = false;
-        hydrated = true;
-        if (restoredScrollback) {
-          forceAgentRepaint();
-        }
+      // The local accumulator is authoritative only while an interest lease
+      // remained active through a short pane hand-off. Once the backend has
+      // unsubscribed this thread, hidden output can create a gap; rehydrate
+      // that case from the supervisor transcript instead.
+      if (
+        !requireAuthoritativeScrollback &&
+        eventInterest?.continuous &&
+        localScrollback.length > 0
+      ) {
+        beginReplay(localScrollback);
         return;
       }
       void readBridge()
@@ -385,32 +446,43 @@ export const XTermSurface = forwardRef<
           if (restoredScrollback || !isActive || token !== scrollbackHydrationToken) {
             return;
           }
-          applyScrollback(scrollback);
           hydrated = true;
+          if (scrollback.length > 0 || requireAuthoritativeScrollback) {
+            restoredScrollback = true;
+            beginReplay(scrollback);
+          }
         })
-        .catch(() => undefined)
+        .catch(() => {
+          if (requireAuthoritativeScrollback && isActive && token === scrollbackHydrationToken) {
+            hydrationBlocked = true;
+            setWatchError({ status: "error", code: "unavailable", retryable: false });
+          }
+        })
         .finally(() => {
-          if (!isActive || token !== scrollbackHydrationToken) {
+          // When the bridge yielded nothing hydratable no gate session ends
+          // the window — close it here so live output keeps flowing.
+          if (restoredScrollback || !isActive || token !== scrollbackHydrationToken) {
             return;
           }
-          hydratingScrollback = false;
-          if (bufferedOutputDuringHydration.length > 0) {
-            terminal.write(bufferedOutputDuringHydration);
-            bufferedOutputDuringHydration = "";
-          }
-          // Reopen of an existing session: nudge the live agent into a fresh
-          // repaint over the replayed (and possibly stale) frame.
-          if (restoredScrollback) {
-            forceAgentRepaint();
-          }
+          if (requireAuthoritativeScrollback && hydrationBlocked) return;
+          finishHydration(token, false);
         });
     };
     const resetForNewPty = () => {
+      if (!initialHydrationStarted) resetBeforeInitialHydration = true;
       scrollbackHydrationToken++;
       hydratingScrollback = false;
       bufferedOutputDuringHydration = "";
+      hydrationBufferOverflowed = false;
+      hydrationOverflowResyncs = 0;
+      hydrationBlocked = false;
       hydrated = true;
       terminal.reset();
+      // A replay chunk may already be queued behind this reset. Wipe again
+      // once it has fully parsed (the gate runs the cleanup between the stale
+      // chunk and anything queued later) so historical text cannot land in the
+      // fresh buffer; its queries were suppressed while parsing.
+      replayGate.cancel(() => terminal.reset());
       onResetRef.current?.();
     };
 
@@ -701,6 +773,12 @@ export const XTermSurface = forwardRef<
       }
     }
 
+    // Query-reply gate for scrollback hydration. Created after every addon
+    // that registers parser handlers (ImageAddon answers DA1/XTSMGRAPHICS,
+    // ClipboardAddon answers OSC 52 reads) so the gate's handlers dispatch
+    // ahead of them — see terminalQuerySuppression.ts.
+    const replayGate = cached?.replayGate ?? new TerminalReplayGate(terminal);
+
     sessionDisposables.push(
       terminal.onBell(() => {
         onBellRef.current?.();
@@ -832,6 +910,7 @@ export const XTermSurface = forwardRef<
     if (!readOnly) {
       sessionDisposables.push(
         terminal.onData((data) => {
+          if (replayGate.isDroppingReplies) return;
           void writeInputToPty(data).catch(() => {
             // PTY may disappear during teardown; ignore stale writes.
           });
@@ -847,47 +926,100 @@ export const XTermSurface = forwardRef<
     // Terminal lifecycle feed (stays alive for the terminal's whole lifecycle).
     // Output/reset/exit handlers are shared between the local supervisor IPC
     // stream (desktop) and a caller-provided feed (the remote PWA's WebSocket).
-    const handleReset = () => resetForNewPty();
+    const handleReset = () => {
+      setWatchError(null);
+      resetForNewPty();
+    };
     const handleOutput = (data: string) => {
-      if (hydratingScrollback) {
-        bufferedOutputDuringHydration += data;
-        return;
-      }
+      // Live output proves the PTY exists even while historical bytes are
+      // hydrating. Deliver the launch resize before buffering the display.
       if (refitOnFirstOutput) {
         refitOnFirstOutput = false;
         requestRefitRef.current?.();
+      }
+      if (hydrationBlocked) return;
+      if (hydratingScrollback) {
+        if (bufferedOutputDuringHydration.length + data.length > MAX_HYDRATION_BUFFER_CHARS) {
+          // Once one chunk crosses the cap, discard the whole pending suffix;
+          // flushing a partial stream would create a cursor gap and render a
+          // plausible-looking but incorrect terminal.
+          hydrationBufferOverflowed = true;
+          bufferedOutputDuringHydration = "";
+          return;
+        }
+        bufferedOutputDuringHydration += data;
+        return;
       }
       terminal.write(data);
     };
     const handleExited = (exitCode: number | null) => {
       onExitedRef.current?.(exitCode);
     };
+    const handleSnapshot = (snapshot: RemoteTerminalWatchResultReady) => {
+      setWatchError(null);
+      hydrationBlocked = false;
+      receivedFeedSnapshot = true;
+      const token = ++scrollbackHydrationToken;
+      hydratingScrollback = true;
+      hydrated = false;
+      bufferedOutputDuringHydration = "";
+      hydrationBufferOverflowed = false;
+      // A feed baseline replaces the display. Its historical queries must not
+      // produce replies to the current PTY while reconciled live bytes wait.
+      replayGate.begin(snapshot.data, {
+        before: () => terminal.reset(),
+        complete: () => finishHydration(token, snapshot.data.length > 0),
+      });
+    };
 
-    const unsubscribe = outputSource
-      ? outputSource({ onOutput: handleOutput, onReset: handleReset, onExited: handleExited })
-      : readBridge().onSupervisorEvent((event) => {
-          if (event.type === "thread-reset" && event.threadId === terminalId) {
-            handleReset();
-          } else if (event.type === "thread-output" && event.threadId === terminalId) {
-            handleOutput(event.data);
-          } else if (event.type === "thread-exited" && event.threadId === terminalId) {
-            handleExited(event.exitCode);
-          }
-        });
+    let unsubscribe: () => void;
+    if (outputSource) {
+      const outputListener = {
+        onOutput: handleOutput,
+        onReset: handleReset,
+        onExited: handleExited,
+        onSnapshot: handleSnapshot,
+        onWatchError: setWatchError,
+      } satisfies TerminalFeedListener;
+      const subscribeOutput = () => {
+        unsubscribe = outputSource(outputListener);
+      };
+      resubscribeOutput = () => {
+        if (!isActive) return;
+        unsubscribe();
+        subscribeOutput();
+      };
+      subscribeOutput();
+    } else {
+      // V5 plan 2.5 completion: local terminals subscribe through the unified
+      // managed seam — loopback terminal-watch frames while that leg serves,
+      // the desktop-IPC relay's `thread-output` as the fallback, with the
+      // resync signal driving scrollback rehydration on every leg flip.
+      unsubscribe = watchManagedTerminal(terminalId, {
+        onOutput: handleOutput,
+        onReset: handleReset,
+        onExited: handleExited,
+        onSnapshot: handleSnapshot,
+        onWatchError: setWatchError,
+        onResync: () => hydrateScrollback(true),
+      });
+    }
 
     // Fit synchronously before hydrating: reading clientWidth forces layout, so
     // in a real browser the terminal is already at the viewport width when the
     // (async) scrollback replay writes — otherwise the raw transcript is written
     // at xterm's 80-col default and then reflowed, garbling a restored
     // full-height TUI frame. No-op when the pane has no layout yet (e.g. tests).
-    doFit();
-    if (!hydrated) {
-      hydrateScrollback();
-    } else if (visibleRef.current) {
-      // Reattach of a live instance: SIGWINCH so the agent redraws at the
-      // visible size without replaying raw PTY bytes.
-      forceAgentRepaint();
-    }
+    const initializeViewport = () => {
+      if (!isActive) return;
+      doFit();
+      initialHydrationStarted = true;
+      if (resetBeforeInitialHydration || receivedFeedSnapshot) return;
+      if (!hydrated || (eventInterest && !eventInterest.continuous)) hydrateScrollback();
+      else if (visibleRef.current) forceAgentRepaint();
+    };
+    if (eventInterest) void eventInterest.ready.then(initializeViewport);
+    else initializeViewport();
 
     // Double-rAF backstop in case layout hadn't settled at mount.
     requestAnimationFrame(() => {
@@ -906,6 +1038,7 @@ export const XTermSurface = forwardRef<
       if (ptyResizeTimer !== 0) {
         clearTimeout(ptyResizeTimer);
       }
+      replayGate.cancel();
       linkDisposable.dispose();
       searchResultsDisposable.dispose();
       for (const disposable of sessionDisposables) {
@@ -919,12 +1052,22 @@ export const XTermSurface = forwardRef<
       mount.removeEventListener("focusin", onTerminalFocusIn);
       clearActiveTerminalFind(findController);
       unsubscribe();
+      resubscribeOutput = null;
+      eventInterest?.release();
       resizeObserver.disconnect();
       screen.remove();
       const persist = shouldPersistXtermInstance(terminalId, useAppStore.getState());
       if (persist) {
-        stashXtermInstance(terminalId, { terminal, fit, search, screen, hydrated });
+        stashXtermInstance(terminalId, {
+          terminal,
+          fit,
+          search,
+          screen,
+          hydrated: hydrated && !hydratingScrollback && !hydrationBlocked,
+          replayGate,
+        });
       } else {
+        replayGate.dispose();
         webglContextLossDisposable?.dispose();
         webglAddon?.dispose();
         terminal.dispose();
@@ -1090,6 +1233,7 @@ export const XTermSurface = forwardRef<
             fixedTerminalSize ? "min-w-max overflow-visible" : "min-w-0 overflow-hidden"
           }`}
         />
+        {watchError ? <TerminalFeedStatus error={watchError} /> : null}
         {findOpen ? (
           <div className="pointer-events-auto absolute right-2 top-2 z-20">
             <FindBar

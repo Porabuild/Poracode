@@ -118,8 +118,8 @@ export default function AboutPage() {
               </h2>
               <p>
                 Poracode is developed in public and distributed under the Apache License 2.0. The
-                desktop app is available for macOS, Windows, and Linux, with a hosted companion at
-                app.poracode.com for connecting to a Poracode desktop that you control.
+                same application runs in Electron on macOS, Windows, and Linux and as an installable
+                web app at app.poracode.com for connecting to a Poracode host that you control.
               </p>
             </section>
 

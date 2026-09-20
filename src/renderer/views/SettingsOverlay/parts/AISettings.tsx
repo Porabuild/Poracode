@@ -40,7 +40,7 @@ function deriveMode(provider: string): Mode {
   return "custom";
 }
 
-function GenConfigSection(props: {
+export function GenConfigSection(props: {
   heading: string;
   description: string;
   provider: string;
@@ -262,7 +262,7 @@ function GenConfigSection(props: {
   );
 }
 
-function PresentationModeToggle(props: {
+export function PresentationModeToggle(props: {
   ariaLabel: string;
   value: ThreadPresentationMode;
   onChange: (value: ThreadPresentationMode) => void;

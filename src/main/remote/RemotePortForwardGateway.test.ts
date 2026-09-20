@@ -68,6 +68,34 @@ function startBareListener(host = "127.0.0.1"): Promise<{ port: number; server: 
   });
 }
 
+/** Reserves the ephemeral port on IPv4 while binding the actual listener on
+ * IPv6, then releases only the reservation. This prevents an unrelated IPv4
+ * listener from owning the same numeric port and making the IPv6-only probe
+ * test nondeterministically look like HTTP. */
+async function startIpv6OnlyBareListener(): Promise<{ port: number; server: Server }> {
+  const reservation = createNetServer();
+  const port = await new Promise<number>((resolve, reject) => {
+    reservation.once("error", reject);
+    reservation.listen(0, "127.0.0.1", () => {
+      resolve((reservation.address() as AddressInfo).port);
+    });
+  });
+  try {
+    const listener = await new Promise<Server>((resolve, reject) => {
+      const server = createNetServer((socket) => {
+        socket.on("error", () => {});
+        socket.resume();
+      });
+      server.once("error", reject);
+      server.listen(port, "::1", () => resolve(server));
+    });
+    netServers.push(listener);
+    return { port, server: listener };
+  } finally {
+    await new Promise<void>((resolve) => reservation.close(() => resolve()));
+  }
+}
+
 function startHttpServer(): Promise<{ port: number; server: HttpServer }> {
   return new Promise((resolve, reject) => {
     const server = createHttpServer((_req, res) => {
@@ -82,7 +110,24 @@ function startHttpServer(): Promise<{ port: number; server: HttpServer }> {
   });
 }
 
-async function connectAndExchange(port: number, payload: string): Promise<string> {
+/** Opens a forward for `targetPort` and mints its per-forward connect ticket —
+ * the same two calls the authenticated `POST /api/ports/forward` route makes
+ * (creation + ticket-in-result). */
+async function startForwardWithTicket(
+  gateway: RemotePortForwardGateway,
+  targetPort: number,
+): Promise<{ forward: Awaited<ReturnType<typeof gateway.startForward>>; ticket: string }> {
+  const forward = await gateway.startForward(targetPort);
+  return { forward, ticket: gateway.mintConnectTicket(forward.id) };
+}
+
+/** Connects to `port`, sends the credential line (when given) followed by
+ * `payload`, and resolves the first data chunk the socket receives. */
+async function connectAndExchange(
+  port: number,
+  payload: string,
+  credential?: string,
+): Promise<string> {
   const socket = connect(port, "127.0.0.1");
   await new Promise<void>((resolve, reject) => {
     socket.once("connect", resolve);
@@ -91,10 +136,29 @@ async function connectAndExchange(port: number, payload: string): Promise<string
   const received = new Promise<string>((resolve) => {
     socket.once("data", (data) => resolve(data.toString("utf8")));
   });
-  socket.write(payload);
+  socket.write(credential === undefined ? payload : `${credential}\n${payload}`);
   const result = await received;
   socket.end();
   return result;
+}
+
+/** Connects to `port`, writes `payload`, and asserts the connection is
+ * REFUSED: the socket closes and no data byte ever arrives (the refusal must
+ * never leak target output). */
+async function connectAndWaitForClose(port: number, payload: string): Promise<void> {
+  const socket = connect(port, "127.0.0.1");
+  await new Promise<void>((resolve, reject) => {
+    socket.once("connect", resolve);
+    socket.once("error", reject);
+  });
+  const firstChunk = new Promise<string>((resolve) => {
+    socket.once("data", (data) => resolve(data.toString("utf8")));
+  });
+  const closed = new Promise<"closed">((resolve) => socket.once("close", () => resolve("closed")));
+  socket.write(payload);
+  const winner = await Promise.race([closed, firstChunk.then(() => "data" as const)]);
+  expect(winner).toBe("closed");
+  socket.end();
 }
 
 afterEach(async () => {
@@ -156,7 +220,7 @@ describe("RemotePortForwardGateway.scanPorts", () => {
   // bound to `::1` only on some systems, so the scanner must probe both
   // loopback families, not just 127.0.0.1.
   it.skipIf(!ipv6Supported)("detects an IPv6-only listener as protocol unknown", async () => {
-    const { port } = await startBareListener("::1");
+    const { port } = await startIpv6OnlyBareListener();
     const gateway = makeGateway({
       bindHost: "127.0.0.1",
       candidatePorts: [port],
@@ -174,15 +238,15 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
   // today's (pre-mirroring) behavior, preserved as a regression guard.
   it("falls back to an ephemeral listen port when the mirrored port is taken, and still pipes bytes both ways", async () => {
     const { port: targetPort } = await startEchoServer();
-    const gateway = makeGateway({ bindHost: "127.0.0.1" });
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
 
-    const forward = await gateway.startForward(targetPort);
+    const { forward, ticket } = await startForwardWithTicket(gateway, targetPort);
     expect(forward.targetPort).toBe(targetPort);
     expect(forward.listenPort).toBeGreaterThan(0);
     expect(forward.listenPort).not.toBe(targetPort);
     expect(forward.id).toBeTruthy();
 
-    const echoed = await connectAndExchange(forward.listenPort, "hello over the wire");
+    const echoed = await connectAndExchange(forward.listenPort, "hello over the wire", ticket);
     expect(echoed).toBe("hello over the wire");
 
     const stopped = await gateway.stopForward(forward.id);
@@ -203,10 +267,10 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
   // IPv6, or a Vite-style dev server is undiscoverable *and* unreachable.
   it.skipIf(!ipv6Supported)("forwards bytes both ways to an IPv6-only upstream", async () => {
     const { port: targetPort } = await startEchoServer("::1");
-    const gateway = makeGateway({ bindHost: "127.0.0.1" });
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
 
-    const forward = await gateway.startForward(targetPort);
-    const echoed = await connectAndExchange(forward.listenPort, "hello over ipv6");
+    const { forward, ticket } = await startForwardWithTicket(gateway, targetPort);
+    const echoed = await connectAndExchange(forward.listenPort, "hello over ipv6", ticket);
     expect(echoed).toBe("hello over ipv6");
 
     const stopped = await gateway.stopForward(forward.id);
@@ -221,12 +285,12 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
     "mirrors the target's port number when it is free on the bind host",
     async () => {
       const { port: targetPort } = await startEchoServer("::1");
-      const gateway = makeGateway({ bindHost: "127.0.0.1" });
+      const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
 
-      const forward = await gateway.startForward(targetPort);
+      const { forward, ticket } = await startForwardWithTicket(gateway, targetPort);
       expect(forward.listenPort).toBe(targetPort);
 
-      const echoed = await connectAndExchange(forward.listenPort, "hello mirrored port");
+      const echoed = await connectAndExchange(forward.listenPort, "hello mirrored port", ticket);
       expect(echoed).toBe("hello mirrored port");
 
       const stopped = await gateway.stopForward(forward.id);
@@ -236,7 +300,7 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
 
   it("is idempotent per targetPort", async () => {
     const { port: targetPort } = await startEchoServer();
-    const gateway = makeGateway({ bindHost: "127.0.0.1" });
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
 
     const first = await gateway.startForward(targetPort);
     const second = await gateway.startForward(targetPort);
@@ -256,10 +320,27 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
     await expect(gateway.startForward(38987)).rejects.toMatchObject({ code: "invalid_port" });
   });
 
+  it("refuses a target port outside the forward allowlist even when nothing else forbids it", async () => {
+    const gateway = makeGateway({ bindHost: "127.0.0.1" });
+    // The default allowlist is the curated dev-port list; an arbitrary port
+    // (59999 is on no dev-server list) must be refused — the discovery list
+    // and the creation gate share one allowlist (plan item 4.5).
+    await expect(gateway.startForward(59999)).rejects.toMatchObject({
+      code: "port_not_forwardable",
+    });
+    // An explicit allowlist re-admits the port.
+    const scoped = makeGateway({ bindHost: "127.0.0.1", forwardablePorts: [59999] });
+    await expect(scoped.startForward(59999)).resolves.toMatchObject({ targetPort: 59999 });
+  });
+
   it("caps concurrent forwards", async () => {
     const { port: targetA } = await startEchoServer();
     const { port: targetB } = await startEchoServer();
-    const gateway = makeGateway({ bindHost: "127.0.0.1", maxForwards: 1 });
+    const gateway = makeGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [targetA, targetB],
+      maxForwards: 1,
+    });
 
     await gateway.startForward(targetA);
     await expect(gateway.startForward(targetB)).rejects.toMatchObject({
@@ -274,8 +355,8 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
 
   it("destroys live sockets and closes the listener on dispose", async () => {
     const { port: targetPort } = await startEchoServer();
-    const gateway = makeGateway({ bindHost: "127.0.0.1" });
-    const forward = await gateway.startForward(targetPort);
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
+    const { forward } = await startForwardWithTicket(gateway, targetPort);
 
     const socket = connect(forward.listenPort, "127.0.0.1");
     await new Promise<void>((resolve, reject) => {
@@ -288,11 +369,13 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
 
     await closed;
     expect(gateway.listForwards()).toEqual([]);
+    // Tickets die with the gateway: minting afterwards is refused.
+    expect(() => gateway.mintConnectTicket(forward.id)).toThrow(RemoteHttpError);
   });
 
   it("rejects startForward and scanPorts once disposed", async () => {
     const { port: targetPort } = await startEchoServer();
-    const gateway = makeGateway({ bindHost: "127.0.0.1" });
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
     gateway.dispose();
 
     await expect(gateway.startForward(targetPort)).rejects.toMatchObject({
@@ -303,7 +386,7 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
 
   it("closes the listener when dispose() races a startForward that is mid-listen", async () => {
     const { port: targetPort } = await startEchoServer();
-    const gateway = makeGateway({ bindHost: "127.0.0.1" });
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
 
     // `startForward` is not yet awaited: its `listen()` is in flight when
     // `dispose()` runs synchronously right after. The gateway must not
@@ -317,7 +400,7 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
 
   it("shares a single listener between concurrent startForward calls for the same port", async () => {
     const { port: targetPort } = await startEchoServer();
-    const gateway = makeGateway({ bindHost: "127.0.0.1" });
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
 
     const [first, second] = await Promise.all([
       gateway.startForward(targetPort),
@@ -331,7 +414,11 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
   it("counts in-flight starts toward maxForwards so concurrency can't blow the cap", async () => {
     const { port: targetA } = await startEchoServer();
     const { port: targetB } = await startEchoServer();
-    const gateway = makeGateway({ bindHost: "127.0.0.1", maxForwards: 1 });
+    const gateway = makeGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [targetA, targetB],
+      maxForwards: 1,
+    });
 
     const results = await Promise.allSettled([
       gateway.startForward(targetA),
@@ -351,5 +438,140 @@ describe("RemotePortForwardGateway.startForward / stopForward", () => {
     expect(rejected).toHaveLength(1);
     expect(rejected[0]!.reason).toMatchObject({ code: "forward_limit_reached" });
     expect(gateway.listForwards()).toHaveLength(1);
+  });
+});
+
+describe("RemotePortForwardGateway connect authentication (plan item 4.5)", () => {
+  it("refuses an unauthenticated connection without piping any byte to the target", async () => {
+    const { port: targetPort } = await startEchoServer();
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
+    const { forward } = await startForwardWithTicket(gateway, targetPort);
+
+    // An old-style client that just starts speaking its protocol (here: what
+    // an HTTP request line looks like to the listener) is destroyed.
+    await expect(
+      connectAndWaitForClose(forward.listenPort, "GET / HTTP/1.1\r\nHost: t\r\n\r\n"),
+    ).resolves.toBeUndefined();
+    // A wrong credential line is still a refusal.
+    await expect(
+      connectAndWaitForClose(forward.listenPort, "not-a-ticket\n"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("pipes bytes only after a valid per-forward ticket line", async () => {
+    const { port: targetPort } = await startEchoServer();
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
+    const { forward, ticket } = await startForwardWithTicket(gateway, targetPort);
+
+    const echoed = await connectAndExchange(forward.listenPort, "authenticated bytes", ticket);
+    expect(echoed).toBe("authenticated bytes");
+  });
+
+  it("rejects a wrong or foreign-forward ticket", async () => {
+    const { port: targetA } = await startEchoServer();
+    const { port: targetB } = await startEchoServer();
+    const gateway = makeGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [targetA, targetB],
+    });
+    const forwardA = await gateway.startForward(targetA);
+    const forwardB = await gateway.startForward(targetB);
+    const ticketA = gateway.mintConnectTicket(forwardA.id);
+
+    // A's ticket on B's listener: bound to the exact forward instance.
+    await expect(
+      connectAndWaitForClose(forwardB.listenPort, `${ticketA}\n`),
+    ).resolves.toBeUndefined();
+    // A fabricated token of the right shape: still a refusal.
+    await expect(
+      connectAndWaitForClose(
+        forwardA.listenPort,
+        "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ\n",
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("expires tickets after their TTL", async () => {
+    const { port: targetPort } = await startEchoServer();
+    const gateway = makeGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [targetPort],
+      connectTicketTtlMs: 0,
+    });
+    const { forward, ticket } = await startForwardWithTicket(gateway, targetPort);
+
+    await expect(
+      connectAndWaitForClose(forward.listenPort, `${ticket}\n`),
+    ).resolves.toBeUndefined();
+  });
+
+  it("destroys a connection that never completes its credential line", async () => {
+    const { port: targetPort } = await startEchoServer();
+    const gateway = makeGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [targetPort],
+      connectAuthTimeoutMs: 50,
+    });
+    const { forward } = await startForwardWithTicket(gateway, targetPort);
+
+    const socket = connect(forward.listenPort, "127.0.0.1");
+    await new Promise<void>((resolve, reject) => {
+      socket.once("connect", resolve);
+      socket.once("error", reject);
+    });
+    const closed = new Promise<void>((resolve) => socket.once("close", () => resolve()));
+    // No newline, no credential: bounded silence, then refusal.
+    socket.write("half a credential");
+    await expect(closed).resolves.toBeUndefined();
+    socket.end();
+  });
+
+  it("accepts the paired bearer token through the wired validator and refuses an invalid one", async () => {
+    const { port: targetPort } = await startEchoServer();
+    const gateway = makeGateway({
+      bindHost: "127.0.0.1",
+      candidatePorts: [targetPort],
+      authorizeConnectToken: (token) => token === "paired-bearer-token",
+    });
+    const { forward } = await startForwardWithTicket(gateway, targetPort);
+
+    const echoed = await connectAndExchange(
+      forward.listenPort,
+      "bearer bytes",
+      "paired-bearer-token",
+    );
+    expect(echoed).toBe("bearer bytes");
+    // The optional HTTP scheme prefix is accepted too.
+    const echoedPrefixed = await connectAndExchange(
+      forward.listenPort,
+      "bearer bytes 2",
+      "Bearer paired-bearer-token",
+    );
+    expect(echoedPrefixed).toBe("bearer bytes 2");
+    await expect(
+      connectAndWaitForClose(forward.listenPort, "Bearer wrong-token\n"),
+    ).resolves.toBeUndefined();
+  });
+
+  it("replays bytes sent past the credential line and keeps old tickets valid until their TTL", async () => {
+    const { port: targetPort } = await startEchoServer();
+    const gateway = makeGateway({ bindHost: "127.0.0.1", candidatePorts: [targetPort] });
+    const { forward, ticket } = await startForwardWithTicket(gateway, targetPort);
+
+    // Re-opening the forward (idempotent) mints a second ticket; the first
+    // stays valid within its own TTL.
+    await gateway.startForward(targetPort);
+    const secondTicket = gateway.mintConnectTicket(forward.id);
+    expect(secondTicket).not.toBe(ticket);
+
+    const echoed = await connectAndExchange(forward.listenPort, "old ticket", ticket);
+    expect(echoed).toBe("old ticket");
+    const echoedSecond = await connectAndExchange(forward.listenPort, "new ticket", secondTicket);
+    expect(echoedSecond).toBe("new ticket");
+  });
+
+  it("refuses to mint a connect ticket for an unknown forward", async () => {
+    const gateway = makeGateway({ bindHost: "127.0.0.1" });
+    expect(() => gateway.mintConnectTicket("no-such-forward")).toThrow(RemoteHttpError);
   });
 });

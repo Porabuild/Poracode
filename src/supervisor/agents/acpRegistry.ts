@@ -733,13 +733,30 @@ async function warmRegistryInstall(
   if (agent.distribution.npx) {
     await prefetchNpxDistribution(agent);
   }
+  const probeCommand = parseAcpGenericInstanceConfig(instance.config).binary;
   try {
     const ctx: AgentEnvContext | undefined =
       target.kind === "wsl" ? { envKind: "wsl", wslDistro: target.distro } : undefined;
     const result = await probeAcpGenericInstance(instance, ctx, {
       timeoutMs: REGISTRY_INSTALL_PROBE_TIMEOUT_MS,
+      // The probe swallows its own failures by design (detection probes are
+      // routine), but an install that is about to be cleansed and retried must
+      // name why — the soak churn-loop stayed invisible for a day because the
+      // failing stage never reached a log.
+      onFailureDetail: (reason) =>
+        console.warn(
+          `[acp-registry] install probe for ${agent.id} failed: ${reason} ` +
+            `(command: ${probeCommand}, budget ${REGISTRY_INSTALL_PROBE_TIMEOUT_MS}ms)`,
+        ),
     });
-    return result !== undefined;
+    if (result === undefined) {
+      console.warn(
+        `[acp-registry] install probe for ${agent.id} returned no capability result ` +
+          `(command: ${probeCommand}); treating the install as failed`,
+      );
+      return false;
+    }
+    return true;
   } catch (error) {
     console.warn(
       `[acp-registry] install probe failed for ${agent.id}:`,

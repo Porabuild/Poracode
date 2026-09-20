@@ -864,6 +864,44 @@ describe("SkillsService", () => {
     expect(activeScan.effectiveSkillIds).toContain(builtIn.id);
   });
 
+  it.each(["1.2.1", "1.5.0", "1.6.0", "1.7.0"])(
+    "uses updated user Crossagents skills over bundled %s",
+    async (version) => {
+      const pkg = await writePluginPackage(root, "subagent-delegation", [
+        "subagent-delegation",
+        "parallel-review",
+      ]);
+      pkg.plugin.manifest.version = version;
+      for (const name of ["subagent-delegation", "parallel-review"]) {
+        const destination = join(home, ".agents", "skills", name);
+        await mkdir(destination, { recursive: true });
+        await copyFile(
+          join(SHIPPED_PLUGINS_DIR, "subagent-delegation", "skills", name, "SKILL.md"),
+          join(destination, "SKILL.md"),
+        );
+      }
+      const pluginService = new SkillsService({
+        adapters,
+        homeDirectory: () => home,
+        readPlugins: () => [pkg.plugin],
+        readInstalledPlugins: () => installPlugin({}, pkg.plugin),
+      });
+      const scan = await pluginService.scan({ projectLocation, agentKind: "claude" });
+      for (const name of ["subagent-delegation", "parallel-review"]) {
+        const winner = scan.skills.find(
+          (skill) => skill.name === name && scan.effectiveSkillIds.includes(skill.id),
+        );
+        expect(winner?.providerId).toBe("agents");
+        expect(await readFile(winner!.skillFilePath, "utf8")).toBe(
+          await readFile(
+            join(SHIPPED_PLUGINS_DIR, "subagent-delegation", "skills", name, "SKILL.md"),
+            "utf8",
+          ),
+        );
+      }
+    },
+  );
+
   it("prefers a managed skill over a bundled skill with the same name", async () => {
     const bundledDir = join(root, "bundled-skills");
     await writeSkill(join(bundledDir, "skill-creator"), "skill-creator", "Bundled copy");

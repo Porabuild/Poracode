@@ -13,6 +13,7 @@ import {
   dbGetState,
   dbGetProject,
   dbGetThreads,
+  dbGetThreadsPage,
   dbMarkLiveThreadsInactive,
   dbSetState,
   dbUpsertProject,
@@ -25,6 +26,13 @@ import {
   dbFailRemoteCommand,
 } from "./remoteCommandReceipts";
 import { dbPersistExperimentState, dbSyncAll } from "./sync";
+import {
+  dbAppendThreadTerminalOutput,
+  dbClearThreadTerminalScrollback,
+  dbGetThreadTerminalScrollback,
+  dbGetThreadTerminalScrollbackRecord,
+  MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS,
+} from "./terminalScrollback";
 
 // node_modules/better-sqlite3 may be compiled for Electron's ABI. Fall back to
 // the Node-ABI binding used by the headless server, preparing it on demand so
@@ -103,6 +111,79 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
+  it("pages threads in stable (sort_order, id) order with resumable cursors", () => {
+    for (let index = 0; index < 25; index += 1) {
+      dbUpsertThread(testThread({ id: `thread-${index}` }), index);
+    }
+    const paged: string[] = [];
+    let cursor: string | undefined;
+    let pages = 0;
+    do {
+      const page = dbGetThreadsPage({ limit: 10, ...(cursor !== undefined ? { cursor } : {}) });
+      pages += 1;
+      paged.push(...page.threads.map((thread) => thread.id));
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor !== undefined);
+    expect(pages).toBe(3);
+    expect(paged).toEqual(Array.from({ length: 25 }, (_, index) => `thread-${index}`));
+    // The last page reports the end of the list, not a degenerate cursor.
+    expect(dbGetThreadsPage({ limit: 25 }).nextCursor).toBeNull();
+    expect(dbGetThreadsPage({ limit: 10 }).nextCursor).toBeTruthy();
+  });
+
+  it("keeps cursor paging stable when sort_order values tie", () => {
+    for (let index = 0; index < 6; index += 1) {
+      // Same sort_order for every row: the id tiebreaker owns the order.
+      dbUpsertThread(testThread({ id: `thread-${index}` }), 3);
+    }
+    const first = dbGetThreadsPage({ limit: 3 });
+    expect(first.threads).toHaveLength(3);
+    expect(first.nextCursor).toBeTruthy();
+    const second = dbGetThreadsPage({ limit: 3, cursor: first.nextCursor! });
+    expect(second.threads).toHaveLength(3);
+    expect(second.nextCursor).toBeNull();
+    const firstIds = new Set(first.threads.map((thread) => thread.id));
+    for (const thread of second.threads) {
+      expect(firstIds.has(thread.id)).toBe(false);
+    }
+    expect([...first.threads, ...second.threads].map((thread) => thread.id)).toEqual(
+      [...dbGetThreads().map((thread) => thread.id)].sort(),
+    );
+  });
+
+  it("scopes a page to one project", () => {
+    dbUpsertProject(
+      {
+        id: "project-2",
+        name: "Other project",
+        location: { kind: "posix", path: "/tmp/other" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      1,
+    );
+    for (let index = 0; index < 5; index += 1) {
+      dbUpsertThread(testThread({ id: `thread-a-${index}` }), index);
+      dbUpsertThread(testThread({ id: `thread-b-${index}`, projectId: "project-2" }), index);
+    }
+    const page = dbGetThreadsPage({ limit: 200, projectId: "project-2" });
+    expect(page.threads.map((thread) => thread.id)).toEqual([
+      "thread-b-0",
+      "thread-b-1",
+      "thread-b-2",
+      "thread-b-3",
+      "thread-b-4",
+    ]);
+  });
+
+  it("rejects malformed or foreign cursors instead of mispaging", () => {
+    dbUpsertThread(testThread(), 0);
+    expect(() => dbGetThreadsPage({ limit: 10, cursor: "bogus" })).toThrow(/Malformed/);
+    expect(() => dbGetThreadsPage({ limit: 10, cursor: "tp2.not-a-cursor" })).toThrow(/Malformed/);
+    expect(() => dbGetThreadsPage({ limit: 0 })).toThrow(/limit/);
+    expect(() => dbGetThreadsPage({ limit: 201 })).toThrow(/limit/);
+    expect(dbGetThreadsPage({ limit: 10 }).threads).toHaveLength(1);
+  });
+
   it("round-trips threadStatusSource through the threads table", () => {
     dbUpsertThread(testThread({ threadStatusSource: "server" }), 0);
     expect(dbGetThread("thread-1")?.threadStatusSource).toBe("server");
@@ -112,6 +193,70 @@ describe("projectsThreads (real sqlite round-trip)", () => {
 
     dbUpsertThread(testThread(), 0);
     expect(dbGetThread("thread-1")?.threadStatusSource).toBeUndefined();
+  });
+
+  it("persists bounded terminal scrollback across output batches", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+    dbAppendThreadTerminalOutput("thread-1", "hello", 5);
+    dbAppendThreadTerminalOutput("thread-1", " world", 11);
+    expect(dbGetThreadTerminalScrollback("thread-1")).toBe("hello world");
+
+    const replacement = "x".repeat(MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS + 10);
+    dbAppendThreadTerminalOutput("thread-1", replacement, 10);
+    expect(dbGetThreadTerminalScrollback("thread-1")).toHaveLength(
+      MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS,
+    );
+
+    dbClearThreadTerminalScrollback("thread-1");
+    expect(dbGetThreadTerminalScrollback("thread-1")).toBe("");
+  });
+
+  it("replaces terminal scrollback when an absolute cursor restarts", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+    dbAppendThreadTerminalOutput("thread-1", "gen-A-full", 10);
+    expect(dbGetThreadTerminalScrollbackRecord("thread-1")).toEqual({
+      transcript: "gen-A-full",
+      outputLength: 10,
+    });
+
+    dbAppendThreadTerminalOutput("thread-1", "Bok", 3);
+    expect(dbGetThreadTerminalScrollbackRecord("thread-1")).toEqual({
+      transcript: "Bok",
+      outputLength: 3,
+    });
+    dbAppendThreadTerminalOutput("thread-1", "!", 4);
+    expect(dbGetThreadTerminalScrollbackRecord("thread-1")).toEqual({
+      transcript: "Bok!",
+      outputLength: 4,
+    });
+  });
+
+  it("repairs databases created by the divergent schema 32/33 lineage", () => {
+    dbUpsertThread(testThread({ presentationMode: "terminal" }), 0);
+    closeDatabase();
+    const databasePath = join(dir, "state.sqlite");
+    const legacy = nativeBindingEnv
+      ? new Database(databasePath, { nativeBinding: nativeBindingEnv })
+      : new Database(databasePath);
+    legacy.exec(`
+      ALTER TABLE projects DROP COLUMN gh_account;
+      ALTER TABLE pr_watches DROP COLUMN blocked_reason;
+      UPDATE app_state SET value = '33' WHERE key = 'schema_version';
+    `);
+    legacy.close();
+
+    initDatabase(databasePath);
+
+    const projectColumns = getSqlite().prepare("PRAGMA table_info(projects)").all() as Array<{
+      name: string;
+    }>;
+    const watchColumns = getSqlite().prepare("PRAGMA table_info(pr_watches)").all() as Array<{
+      name: string;
+    }>;
+    expect(projectColumns.map((column) => column.name)).toContain("gh_account");
+    expect(watchColumns.map((column) => column.name)).toContain("blocked_reason");
+    expect(dbGetThread("thread-1")?.title).toBe("Test thread");
+    expect(dbGetState("schema_version")).toBe("46");
   });
 
   it("round-trips and clears the thread archive timestamp", () => {

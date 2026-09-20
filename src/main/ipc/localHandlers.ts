@@ -1,5 +1,4 @@
 import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
 import {
   app,
   clipboard,
@@ -12,31 +11,6 @@ import {
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
 import {
-  dbAppendUsageEvents,
-  dbDeleteProject,
-  dbDeleteThread,
-  dbGetProjectNotes,
-  dbGetProjects,
-  dbGetState,
-  dbGetThreadCompletedTurns,
-  dbGetThreadContextUsage,
-  dbGetThreadRuntimeItems,
-  dbGetThreadRuntimeItemsPage,
-  dbGetLatestThreadGoalItem,
-  dbTruncateThreadRuntimeAfter,
-  dbGetThreads,
-  dbPersistExperimentState,
-  dbListScheduleRuns,
-  dbReplaceThreadCompletedTurns,
-  dbReplaceThreadRuntimeSnapshot,
-  dbReplaceThreadRuntimeItems,
-  dbSetProjectNotes,
-  dbSetState,
-  dbSyncAll,
-  dbUpsertProject,
-  dbUpsertThread,
-} from "../db";
-import {
   deleteThreadAttachments,
   deleteThreadAttachmentsAsync,
   readLocalImageFile,
@@ -47,89 +21,63 @@ import {
 } from "../attachments/localFiles";
 import { createProjectDirectory } from "../projectDirectory";
 import { detectProjectIconFile, listProjectIconFiles } from "../projectIconDetect";
-import { diffSyncedThreads, syncedProjectsChanged } from "./threadSyncBroadcast";
 import { showOsNotification } from "../osNotifications";
 import { showAndFocusWindow } from "../window/showAndFocusWindow";
-import {
-  getProfileCoreStats,
-  getProfileDevicesResponse,
-  getProfileIdentityResponse,
-  getProfileTokenStats,
-  setProfileIdentityResponse,
-} from "../profile";
-import {
-  applyAgentSecretSetting,
-  applyCreateProfile,
-  applyProfileEnvironment,
-  mergeManagedSharedSettings,
-  readSharedSettingsFile,
-  writeSharedSettingsFile,
-} from "../sharedSettingsFile";
-import {
-  remoteProjectSchema,
-  type RemoteAccessPairingInfo,
-  type RemoteGitSummaries,
-} from "@/shared/remote";
-import { readKeybindingsFile, writeKeybindingsFile } from "../keybindingsFile";
+import { readKeybindingsFile } from "../keybindingsFile";
+import { applyKeybindingsWrite } from "../keybindingsApply";
 import type { KeybindingsFile } from "@/shared/keybindings";
-import type { RemoteAccessServer } from "../remote";
-import { getRemoteAccessPairingInfo } from "../remote/pairingInfo";
+import type { RendererEventSender } from "../backend/rendererEventInterestRegistry";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
+  type IpcProcedurePayload,
+  type IpcProcedureResult,
   type MainLocalIpcHandlerMap,
-  type RemoteAccessTailscaleStatus,
-  type StartTailscaleResult,
   type WindowChromePayload,
   type WindowChromeResult,
 } from "@/shared/ipc";
+import type {
+  BackendDatabaseCaller,
+  BackendDatabaseProcedureName,
+  BackendServiceCaller,
+} from "@/shared/backendHostProtocol";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
-import type { SharedSettings } from "@/shared/settings";
-import {
-  removeCrossagentRoutingOverride,
-  removeCrossagentSelectionUsageEntry,
-  retagCrossagentSelectionUsageEntry,
-} from "@/shared/crossagentRanking";
-import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
+import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
 import type { SshConnectionManager } from "../ssh/SshConnectionManager";
-import type { ScheduleService } from "../schedules/ScheduleService";
-import type { PrWatchService } from "../prWatch";
-import { homeScopeLocation } from "../schedules";
+import { homeScopeLocation } from "@/shared/homeScopeLocation";
 import { resolvePoracodeChannel } from "@/shared/channel";
-import {
-  requestLegacyDataMigration,
-  resolveLegacyElectronUserDataDir,
-} from "../legacyDataMigration";
+import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
   getBrowserPanelManager(): BrowserPanelManager | null;
-  getRemoteAccessServer(): RemoteAccessServer | null;
-  setRemoteAccessEnabled(enabled: boolean): Promise<RemoteAccessPairingInfo>;
-  getRemoteAccessTailscaleStatus(): Promise<RemoteAccessTailscaleStatus>;
-  setRemoteAccessTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
-  startTailscale(): Promise<StartTailscaleResult>;
-  setRemoteAccessAdvertisedUrl(url: string): Promise<RemoteAccessPairingInfo>;
   sshConnectionManager: SshConnectionManager;
   requirePoracodePaths(): PoracodePaths;
   legacyElectronUserDataDir?: string;
   legacyBaseDir?: string;
   updatePowerSaveBlocker(): void;
   autoUpdater: AutoUpdaterController;
-  /** Called with the settings just written, so consumers don't re-read the file. */
-  onSharedSettingsChanged?(settings: SharedSettings): void;
+  /** Called with the keybindings just written, so consumers don't re-read the file. */
   onKeybindingsChanged?(file: KeybindingsFile): void;
   setGlobalShortcutsSuspended?(suspended: boolean): void;
-  /** Per-thread git/PR summaries mirrored from the renderer for remote clients. */
-  onRemoteGitSummaries?(summaries: RemoteGitSummaries): void;
+  setRendererEventInterests(
+    interests: IpcProcedurePayload<"setRendererEventInterests">,
+    sender?: RendererEventSender,
+  ): Promise<void>;
   extractBrowserToWindow(): void;
   injectBrowserToMain(): void;
   /** Relaunch the app (exposed via the relaunchApp IPC). */
   requestRelaunch(): void;
-  scheduleService: ScheduleService;
-  prWatchService: PrWatchService;
+  database: BackendDatabaseCaller;
+  backendServices: BackendServiceCaller;
+  /** WS2 stage 4: forwards the compound checkpoint revert to the backend host. */
+  revertCheckpoint(input: {
+    threadId: string;
+    checkpointItemId: string;
+    operationKey: string;
+  }): Promise<CheckpointRevertResult>;
 }
 
 function requireBrowserPanel(getter: () => BrowserPanelManager | null): BrowserPanelManager {
@@ -159,8 +107,6 @@ function roundRect(rect: { x: number; y: number; width: number; height: number }
 }
 
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
-const REMOTE_HTTP_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
-const REMOTE_HTTP_REQUEST_TIMEOUT_MS = 60_000;
 
 function assertSafeExternalUrl(rawUrl: string): string {
   let parsed: URL;
@@ -193,35 +139,12 @@ export async function showAddFilesDialog(
 export function createLocalIpcHandlers(
   options: CreateLocalIpcHandlersOptions,
 ): MainLocalIpcHandlerMap {
-  const publishProjectsChanged = (projects = dbGetProjects()): void => {
-    const server = options.getRemoteAccessServer();
-    if (!server) return;
-    server.publishSupervisorEvent({
-      type: "remote-projects-changed",
-      projects: projects.map((project) => remoteProjectSchema.parse(project)),
-    });
-  };
-  const publishThreadsChanged = (
-    threadIds: readonly string[],
-    viewedThreadIds: readonly string[] = [],
-  ): void => {
-    if (threadIds.length === 0) return;
-    options.getRemoteAccessServer()?.publishSupervisorEvent({
-      type: "remote-threads-changed",
-      threadIds: [...new Set(threadIds)],
-      ...(viewedThreadIds.length > 0 ? { viewedThreadIds: [...new Set(viewedThreadIds)] } : {}),
-    });
-  };
-  // Shared plumbing for the main-local secret/profile handlers: read the
-  // settings file, apply one encrypting transform, persist, and notify.
-  const applyToSharedSettingsFile = <T>(
-    apply: (settings: SharedSettings, baseDir: string) => { settings: SharedSettings; result: T },
-  ): T => {
-    const settingsPath = options.requirePoracodePaths().settingsPath;
-    const applied = apply(readSharedSettingsFile(settingsPath), dirname(settingsPath));
-    writeSharedSettingsFile(settingsPath, applied.settings);
-    options.onSharedSettingsChanged?.(applied.settings);
-    return applied.result;
+  const callService = options.backendServices.callService.bind(options.backendServices);
+  const callDatabase = <Name extends BackendDatabaseProcedureName>(
+    name: Name,
+    payload: IpcProcedurePayload<Name>,
+  ): Promise<IpcProcedureResult<Name>> | IpcProcedureResult<Name> => {
+    return options.database.callDatabase(name, payload);
   };
   return defineMainLocalIpcHandlers({
     pickFolder: async (defaultPath) => {
@@ -270,47 +193,6 @@ export function createLocalIpcHandlers(
     },
     readLocalImageFile: ({ url }) => readLocalImageFile(url),
     createProjectDirectory: (payload) => createProjectDirectory(payload),
-    // Desktop-as-client: proxy a remote Poracode server request through the
-    // main process (no browser CORS). Restricted to http(s) and a bounded
-    // response so a hostile/buggy peer can't exfiltrate via odd schemes or
-    // exhaust memory. (The remote is one the user explicitly paired with.)
-    remoteHttpRequest: async (payload) => {
-      const protocol = new URL(payload.url).protocol;
-      if (protocol !== "http:" && protocol !== "https:") {
-        throw new Error(`remoteHttpRequest only supports http(s), got "${protocol}".`);
-      }
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), REMOTE_HTTP_REQUEST_TIMEOUT_MS);
-      timeout.unref?.();
-
-      try {
-        const response = await fetch(payload.url, {
-          method: payload.method ?? "GET",
-          signal: controller.signal,
-          ...(payload.headers ? { headers: payload.headers } : {}),
-          ...(payload.body !== undefined
-            ? { body: payload.body }
-            : payload.bodyBase64 !== undefined
-              ? { body: Buffer.from(payload.bodyBase64, "base64") }
-              : {}),
-        });
-        const buffer = await readBoundedResponseBody(response, REMOTE_HTTP_RESPONSE_MAX_BYTES);
-        return {
-          status: response.status,
-          headers: headersToRecord(response.headers),
-          body: Buffer.from(buffer).toString(payload.responseEncoding ?? "utf8"),
-        };
-      } catch (error) {
-        if (controller.signal.aborted) {
-          throw new Error(`Remote request timed out after ${REMOTE_HTTP_REQUEST_TIMEOUT_MS}ms.`, {
-            cause: error,
-          });
-        }
-        throw error;
-      } finally {
-        clearTimeout(timeout);
-      }
-    },
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
       const browserPanel = options.getBrowserPanelManager();
@@ -333,7 +215,7 @@ export function createLocalIpcHandlers(
       const baseDir = options.requirePoracodePaths().baseDir;
       const channel = resolvePoracodeChannel();
       const electronUserDataDir = app.getPath("userData");
-      return requestLegacyDataMigration({
+      return callService("requestLegacyDataMigration", {
         baseDir,
         channel,
         electronUserDataDir,
@@ -352,44 +234,31 @@ export function createLocalIpcHandlers(
     setKeybindings: (file) => {
       const path = options.requirePoracodePaths().keybindingsPath;
       options.setGlobalShortcutsSuspended?.(false);
-      options.onKeybindingsChanged?.(file);
-      try {
-        return writeKeybindingsFile(path, file);
-      } catch (error) {
-        try {
-          // The write is atomic, so on failure the file still holds the
-          // previous bindings — re-apply them to roll the shortcuts back.
-          options.onKeybindingsChanged?.(readKeybindingsFile(path).file);
-        } catch (restoreError) {
-          console.error("[poracode] failed to restore global shortcuts:", restoreError);
-        }
-        throw error;
-      }
+      return applyKeybindingsWrite({
+        path,
+        file,
+        ...(options.onKeybindingsChanged
+          ? { onKeybindingsChanged: options.onKeybindingsChanged }
+          : {}),
+      });
     },
     setGlobalShortcutsSuspended: (payload) =>
       options.setGlobalShortcutsSuspended?.(payload.suspended),
-    getRemoteAccessPairing: () => getRemoteAccessPairingInfo(options.getRemoteAccessServer()),
-    refreshRemoteAccessPairing: () => {
-      const server = options.getRemoteAccessServer();
-      server?.issuePairingUrl("Settings QR");
-      return getRemoteAccessPairingInfo(server);
-    },
-    setRemoteAccessEnabled: (payload) => options.setRemoteAccessEnabled(payload.enabled),
+    setRendererEventInterests: async (interests, sender?: RendererEventSender) =>
+      options.setRendererEventInterests(interests, sender),
+    getRemoteAccessPairing: () => callService("getRemoteAccessPairing", {}),
+    getManagedLoopbackBootstrap: () => callService("getManagedLoopbackBootstrap", {}),
+    refreshRemoteAccessPairing: () => callService("refreshRemoteAccessPairing", {}),
+    setRemoteAccessEnabled: (payload) => callService("setRemoteAccessEnabled", payload),
     sshDiscoverHosts: () => options.sshConnectionManager.discoverHosts(),
     sshConnect: (payload) => options.sshConnectionManager.connect(payload),
     sshDisconnect: ({ connectionId }) => options.sshConnectionManager.disconnect(connectionId),
-    getRemoteAccessTailscaleStatus: () => options.getRemoteAccessTailscaleStatus(),
+    getRemoteAccessTailscaleStatus: () => callService("getRemoteAccessTailscaleStatus", {}),
     setRemoteAccessTailscaleHttps: (payload) =>
-      options.setRemoteAccessTailscaleHttps(payload.enabled),
-    startTailscale: () => options.startTailscale(),
-    setRemoteAccessAdvertisedUrl: (payload) => options.setRemoteAccessAdvertisedUrl(payload.url),
-    revokeRemoteAccessSession: (payload) => {
-      const server = options.getRemoteAccessServer();
-      if (!server) {
-        return { revoked: false };
-      }
-      return { revoked: server.revokeAccessSession(payload.sessionId) };
-    },
+      callService("setRemoteAccessTailscaleHttps", payload),
+    startTailscale: () => callService("startTailscale", {}),
+    setRemoteAccessAdvertisedUrl: (payload) => callService("setRemoteAccessAdvertisedUrl", payload),
+    revokeRemoteAccessSession: (payload) => callService("revokeRemoteAccessSession", payload),
     revealProjectEntry: async (payload) => {
       shell.showItemInFolder(resolveProjectFsPath(payload));
     },
@@ -401,66 +270,20 @@ export function createLocalIpcHandlers(
       await shell.openPath(pluginsDir);
     },
     publishRemoteGitSummaries: (payload) => {
-      options.onRemoteGitSummaries?.(payload.summaries);
+      return callService("publishRemoteGitSummaries", payload);
     },
-    getSharedSettings: () => readSharedSettingsFile(options.requirePoracodePaths().settingsPath),
-    setSharedSettings: (settings) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      // Preserve supervisor-managed fields and encrypted provider-profile
-      // environments so the renderer's persist cycle doesn't clobber writes
-      // made out-of-band by the supervisor. (Shared with the app-controls MCP
-      // `update_settings` tool via `mergeManagedSharedSettings`.)
-      const merged = mergeManagedSharedSettings(readSharedSettingsFile(settingsPath), settings);
-      writeSharedSettingsFile(settingsPath, merged);
-      options.updatePowerSaveBlocker();
-      options.onSharedSettingsChanged?.(merged);
-    },
-    setAgentSecretSetting: (payload) =>
-      applyToSharedSettingsFile((settings, baseDir) => {
-        const { settings: next, storedValue } = applyAgentSecretSetting(settings, payload, baseDir);
-        return { settings: next, result: { storedValue } };
-      }),
-    removeCrossagentRoutingOverride: ({ tags }) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const current = readSharedSettingsFile(settingsPath);
-      const overrides = removeCrossagentRoutingOverride(current.crossagentRoutingOverrides, tags);
-      const settings = { ...current, crossagentRoutingOverrides: overrides };
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return overrides;
-    },
-    removeCrossagentMemoryEntry: ({ entry }) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const current = readSharedSettingsFile(settingsPath);
-      const usage = removeCrossagentSelectionUsageEntry(current.crossagentSelectionUsage, entry);
-      const settings = { ...current, crossagentSelectionUsage: usage };
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return usage;
-    },
-    updateCrossagentMemoryEntryTags: ({ entry, tags }) => {
-      const settingsPath = options.requirePoracodePaths().settingsPath;
-      const current = readSharedSettingsFile(settingsPath);
-      const usage = retagCrossagentSelectionUsageEntry(
-        current.crossagentSelectionUsage,
-        entry,
-        tags,
-      );
-      const settings = { ...current, crossagentSelectionUsage: usage };
-      writeSharedSettingsFile(settingsPath, settings);
-      options.onSharedSettingsChanged?.(settings);
-      return usage;
-    },
-    setProfileEnvironment: (payload) =>
-      applyToSharedSettingsFile((settings, baseDir) => {
-        const { settings: next, instance } = applyProfileEnvironment(settings, payload, baseDir);
-        return { settings: next, result: instance };
-      }),
-    createProfile: (payload) =>
-      applyToSharedSettingsFile((settings, baseDir) => {
-        const { settings: next, instance } = applyCreateProfile(settings, payload, baseDir);
-        return { settings: next, result: instance };
-      }),
+    getSharedSettings: () => callService("getSharedSettings", {}),
+    setSharedSettings: (settings) => callService("setSharedSettings", settings),
+    settingsTransactionMutate: (payload) => callService("settingsTransactionMutate", payload),
+    settingsTransactionSnapshot: () => callService("settingsTransactionSnapshot", {}),
+    setAgentSecretSetting: (payload) => callService("setAgentSecretSetting", payload),
+    removeCrossagentRoutingOverride: (payload) =>
+      callService("removeCrossagentRoutingOverride", payload),
+    removeCrossagentMemoryEntry: (payload) => callService("removeCrossagentMemoryEntry", payload),
+    updateCrossagentMemoryEntryTags: (payload) =>
+      callService("updateCrossagentMemoryEntryTags", payload),
+    setProfileEnvironment: (payload) => callService("setProfileEnvironment", payload),
+    createProfile: (payload) => callService("createProfile", payload),
     setWindowChrome: async (payload: WindowChromePayload): Promise<WindowChromeResult> => {
       const nativeCapable = supportsNativeWindowMaterial();
       const mainWindow = options.getMainWindow();
@@ -489,80 +312,64 @@ export function createLocalIpcHandlers(
       }
       return { nativeCapable };
     },
-    dbGetProjects: () => dbGetProjects(),
-    dbGetThreads: () => dbGetThreads(),
-    dbGetState: (key) => dbGetState(key),
-    dbSetState: ({ key, value }) => dbSetState(key, value),
-    dbUpsertProject: (project) => {
-      dbUpsertProject(project, 0);
-      publishProjectsChanged();
+    dbGetProjects: (payload) => callDatabase("dbGetProjects", payload),
+    dbGetThreads: (payload) => callDatabase("dbGetThreads", payload),
+    dbGetThreadsPage: (payload) => callDatabase("dbGetThreadsPage", payload),
+    dbGetState: (payload) => callDatabase("dbGetState", payload),
+    dbSetState: (payload) => callDatabase("dbSetState", payload),
+    dbUpsertProject: async (project) => {
+      await callDatabase("dbUpsertProject", project);
     },
-    dbUpsertThread: (thread) => {
-      dbUpsertThread(thread, 0);
-      publishThreadsChanged([thread.id]);
+    dbUpsertThread: async (thread) => {
+      await callDatabase("dbUpsertThread", thread);
     },
-    dbDeleteThread: ({ threadId }) => {
-      dbDeleteThread(threadId);
+    dbDeleteThread: async (payload) => {
+      await callDatabase("dbDeleteThread", payload);
+      const { threadId } = payload;
       deleteThreadAttachments(options.requirePoracodePaths(), threadId);
-      publishThreadsChanged([threadId]);
     },
-    dbDeleteProject: ({ projectId }) => {
-      const threadIds = dbGetThreads()
-        .filter((thread) => thread.projectId === projectId)
-        .map((thread) => thread.id);
-      dbDeleteProject(projectId);
-      publishProjectsChanged();
-      publishThreadsChanged(threadIds);
+    dbDeleteProject: async (payload) => {
+      await callDatabase("dbDeleteProject", payload);
     },
-    dbSyncAll: ({ projects, threads, viewJson }) => {
-      // Desktop-originated project and thread changes reach SQLite only through
-      // this persist. Diff before writing, then publish the same events remote
-      // commands send; the remote's debounced refresh reads the post-write state.
-      const projectsChanged = syncedProjectsChanged(dbGetProjects(), projects);
-      const { changedThreadIds, viewedThreadIds } = diffSyncedThreads(dbGetThreads(), threads);
-      dbSyncAll(projects, threads, viewJson);
-      if (projectsChanged) publishProjectsChanged(projects);
-      publishThreadsChanged(changedThreadIds, viewedThreadIds);
+    dbSyncAll: async (payload) => {
+      await callDatabase("dbSyncAll", payload);
+    },
+    dbSyncChanges: async (payload) => {
+      await callDatabase("dbSyncChanges", payload);
     },
     dbPersistExperimentState: async (payload) => {
-      dbPersistExperimentState(payload);
-      publishThreadsChanged([
-        ...payload.upsertThreads.map(({ thread }) => thread.id),
-        ...payload.deletedThreadIds,
-      ]);
+      await callDatabase("dbPersistExperimentState", payload);
       const paths = options.requirePoracodePaths();
       await Promise.all(
         payload.deletedThreadIds.map((threadId) => deleteThreadAttachmentsAsync(paths, threadId)),
       );
     },
-    dbGetThreadRuntimeItems: ({ threadId }) => dbGetThreadRuntimeItems(threadId),
-    dbGetThreadRuntimeItemsPage: ({ threadId, beforePosition, limit, targetTimelineEntryCount }) =>
-      dbGetThreadRuntimeItemsPage(threadId, beforePosition, limit, targetTimelineEntryCount),
-    dbGetLatestThreadGoalItem: ({ threadId }) => dbGetLatestThreadGoalItem(threadId),
-    dbTruncateThreadRuntimeAfter: ({ threadId, itemId }) =>
-      dbTruncateThreadRuntimeAfter(threadId, itemId),
-    dbReplaceThreadRuntimeItems: ({ threadId, items }) =>
-      dbReplaceThreadRuntimeItems(threadId, items),
-    dbGetThreadCompletedTurns: ({ threadId }) => dbGetThreadCompletedTurns(threadId),
-    dbReplaceThreadCompletedTurns: ({ threadId, turns }) =>
-      dbReplaceThreadCompletedTurns(threadId, turns),
-    dbReplaceThreadRuntimeSnapshot: ({ threadId, items, turns, contextUsage }) =>
-      dbReplaceThreadRuntimeSnapshot(threadId, items, turns, contextUsage),
-    dbGetThreadContextUsage: ({ threadId }) => dbGetThreadContextUsage(threadId),
-    dbGetProjectNotes: ({ projectId }) => dbGetProjectNotes(projectId),
-    dbSetProjectNotes: (notes) => dbSetProjectNotes(notes),
-    getSchedules: () => options.scheduleService.list(),
-    createSchedule: (task) => options.scheduleService.create(task),
-    updateSchedule: ({ id, task }) => options.scheduleService.update(id, task),
-    deleteSchedule: ({ id }) => options.scheduleService.delete(id),
-    runScheduleNow: ({ id }) => options.scheduleService.runNow(id),
-    getScheduleRuns: ({ id }) => dbListScheduleRuns(id),
-    getPrWatch: ({ projectId, prNumber }) => options.prWatchService.get(projectId, prNumber),
-    checkPrWatch: ({ projectId, prNumber }) =>
-      options.prWatchService.requestCheck(projectId, prNumber),
-    upsertPrWatch: (watch) => options.prWatchService.upsert(watch),
-    deletePrWatch: ({ projectId, prNumber }) => options.prWatchService.delete(projectId, prNumber),
-    syncPrWatchAgent: (agent) => options.prWatchService.syncAgent(agent),
+    dbGetThreadRuntimeItems: (payload) => callDatabase("dbGetThreadRuntimeItems", payload),
+    dbGetThreadRuntimeItemsPage: (payload) => callDatabase("dbGetThreadRuntimeItemsPage", payload),
+    dbGetLatestThreadGoalItem: (payload) => callDatabase("dbGetLatestThreadGoalItem", payload),
+    dbTruncateThreadRuntimeAfter: (payload) =>
+      callDatabase("dbTruncateThreadRuntimeAfter", payload),
+    revertCheckpoint: (payload) => options.revertCheckpoint(payload),
+    dbReplaceThreadRuntimeItems: (payload) => callDatabase("dbReplaceThreadRuntimeItems", payload),
+    dbGetThreadCompletedTurns: (payload) => callDatabase("dbGetThreadCompletedTurns", payload),
+    dbReplaceThreadCompletedTurns: (payload) =>
+      callDatabase("dbReplaceThreadCompletedTurns", payload),
+    dbReplaceThreadRuntimeSnapshot: (payload) =>
+      callDatabase("dbReplaceThreadRuntimeSnapshot", payload),
+    dbGetThreadContextUsage: (payload) => callDatabase("dbGetThreadContextUsage", payload),
+    dbGetProjectNotes: (payload) => callDatabase("dbGetProjectNotes", payload),
+    dbSetProjectNotes: (payload) => callDatabase("dbSetProjectNotes", payload),
+    getSchedules: () => callService("getSchedules", {}),
+    createSchedule: (task) => callService("createSchedule", task),
+    updateSchedule: (payload) => callService("updateSchedule", payload),
+    deleteSchedule: (payload) => callService("deleteSchedule", payload),
+    runScheduleNow: (payload) => callService("runScheduleNow", payload),
+    getScheduleRuns: (payload) => callDatabase("getScheduleRuns", payload),
+    getPrWatch: (payload) => callService("getPrWatch", payload),
+    checkPrWatch: (payload) => callService("checkPrWatch", payload),
+    upsertPrWatch: (watch) => callService("upsertPrWatch", watch),
+    deletePrWatch: (payload) => callService("deletePrWatch", payload),
+    syncPrWatchAgent: (agent) => callService("syncPrWatchAgent", agent),
     getUpdateStatus: () => options.autoUpdater.getStatus(),
     checkForUpdate: () => options.autoUpdater.checkForUpdate(),
     startUpdateDownload: () => options.autoUpdater.startUpdateDownload(),
@@ -687,11 +494,11 @@ export function createLocalIpcHandlers(
         options.requirePoracodePaths,
         options.getBrowserPanelManager,
       ).getLoginState(),
-    getProfileCoreStats: (req) => getProfileCoreStats(req),
-    getProfileTokenStats: (req) => getProfileTokenStats(req),
-    getProfileDevices: () => getProfileDevicesResponse(),
-    getProfileIdentity: () => getProfileIdentityResponse(),
-    setProfileIdentity: (identity) => setProfileIdentityResponse(identity),
+    getProfileCoreStats: (req) => callService("getProfileCoreStats", req),
+    getProfileTokenStats: (req) => callService("getProfileTokenStats", req),
+    getProfileDevices: () => callService("getProfileDevices", {}),
+    getProfileIdentity: () => callService("getProfileIdentity", {}),
+    setProfileIdentity: (identity) => callService("setProfileIdentity", identity),
     copyShareImage: async (rect) => {
       const win = options.getMainWindow();
       if (!win) return;
@@ -702,6 +509,6 @@ export function createLocalIpcHandlers(
         ]);
       }
     },
-    appendUsageEvents: ({ events }) => dbAppendUsageEvents(events),
+    appendUsageEvents: (payload) => callDatabase("appendUsageEvents", payload),
   });
 }

@@ -9,7 +9,7 @@ const execFileAsync = promisify(execFile);
  * Tailscale integration for HTTPS remote access. When the local Tailscale
  * daemon is running and HTTPS is available on the tailnet, the desktop can run
  * `tailscale serve` to reverse-proxy `https://<machine>.<tailnet>.ts.net` to the
- * local remote-access port, giving the mobile PWA a real secure context (needed
+ * local remote-access port, giving the canonical web app a real secure context (needed
  * for install + notifications) without exposing the LAN address.
  *
  * This module deliberately has no Electron imports so it stays unit-testable.

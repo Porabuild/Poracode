@@ -46,8 +46,13 @@ describe("database migration registry", () => {
       [39, "adopt Antigravity ACP provider"],
       [40, "normalize Antigravity ACP model variants"],
       [41, "repair Antigravity persisted model variants"],
+      [42, "main-created thread ownership"],
+      [43, "terminal scrollback"],
+      [44, "repair divergent schema 32 and 33"],
+      [45, "checkpoint revert operations journal"],
+      [46, "checkpoint revert provider anchor"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(41);
+    expect(LATEST_SCHEMA_VERSION).toBe(46);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 

@@ -11,8 +11,8 @@ const CACHE_NAME = `poracode-pwa-${BUILD_VERSION}`;
 const NAVIGATION_FALLBACK_DELAY_MS = 500;
 const APP_BASE_URL = new URL("./", self.location.href);
 const shellUrl = (path) => new URL(path, APP_BASE_URL).pathname;
-const SHELL_URLS = ["./", "app", "manifest.webmanifest", "app-icon.svg"].map(shellUrl);
-// Substituted per channel by scripts/finalize-mobile-build.mjs so a nightly
+const SHELL_URLS = ["./", "manifest.webmanifest", "app-icon.svg"].map(shellUrl);
+// Substituted per channel by scripts/finalize-web-build.mjs so a nightly
 // install's notifications carry the nightly art, not the stable icon.
 const NOTIFICATION_ICON_URL = shellUrl("__PORACODE_NOTIFICATION_ICON__");
 
@@ -28,7 +28,7 @@ function shellAssetUrls(html) {
 async function cacheShell() {
   const cache = await caches.open(CACHE_NAME);
   await Promise.allSettled(SHELL_URLS.map((url) => cache.add(url)));
-  const shell = await cache.match(shellUrl("app"));
+  const shell = await cache.match(shellUrl("./"));
   if (!shell) return;
   const assets = shellAssetUrls(await shell.text());
   await Promise.allSettled(assets.map((url) => cache.add(url)));
@@ -48,7 +48,9 @@ function validBuildAssetUrls(value) {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(cacheShell());
-  self.skipWaiting();
+  // Keep the previous worker in control until its documents close or reload.
+  // Activating immediately can delete the previous hashed asset cache while
+  // an old document still requests one of those URLs.
 });
 
 self.addEventListener("activate", (event) => {
@@ -137,15 +139,23 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   // Only handle same-origin requests; the desktop API lives elsewhere.
   if (url.origin !== self.location.origin) return;
-  const isAppRequest = url.pathname === "/app" || url.pathname.startsWith("/app/");
   const buildRoute = APP_BASE_URL.pathname.replace(/\/$/, "");
   const isBuildRequest =
     buildRoute === "" || url.pathname === buildRoute || url.pathname.startsWith(`${buildRoute}/`);
-  if (!isAppRequest && !isBuildRequest) return;
+  const isRuntimeRequest =
+    url.pathname === "/ws" ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/oauth/") ||
+    url.pathname.startsWith("/.well-known/") ||
+    url.pathname.startsWith("/forward/");
+  if (!isBuildRequest || isRuntimeRequest) return;
 
   if (url.pathname.startsWith(`${APP_BASE_URL.pathname}assets/`)) {
     event.respondWith(
-      caches.match(request).then(
+      // Hashed assets are immutable. Ignore Vary here because a later
+      // URL-only cache refresh has no Origin header, while ES-module requests
+      // do; matching Vary would strand a fully cached PWA at a blank shell.
+      caches.match(request, { ignoreVary: true }).then(
         (cached) =>
           cached ||
           fetch(request).then((response) => {
@@ -171,13 +181,13 @@ self.addEventListener("fetch", (event) => {
     const networkResponse = fetch(request).then(async (response) => {
       if (response.ok) {
         const cache = await caches.open(CACHE_NAME);
-        await cache.put(shellUrl("app"), response.clone());
+        await cache.put(shellUrl("./"), response.clone());
       }
       return response;
     });
     const cachedResponse = new Promise((resolve) => {
       setTimeout(() => {
-        void caches.match(shellUrl("app")).then(resolve);
+        void caches.match(shellUrl("./")).then(resolve);
       }, NAVIGATION_FALLBACK_DELAY_MS);
     });
     event.waitUntil(
@@ -189,12 +199,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       Promise.race([networkResponse, cachedResponse])
         .then((response) => response || networkResponse)
-        .catch(
-          async () =>
-            (await caches.match(shellUrl("app"))) ||
-            (await caches.match(shellUrl("./"))) ||
-            Response.error(),
-        ),
+        .catch(async () => (await caches.match(shellUrl("./"))) || Response.error()),
     );
     return;
   }
@@ -204,7 +209,7 @@ self.addEventListener("fetch", (event) => {
       .then((response) => {
         if (response.ok) {
           const clone = response.clone();
-          const cacheKey = request.mode === "navigate" ? shellUrl("app") : request;
+          const cacheKey = request.mode === "navigate" ? shellUrl("./") : request;
           void caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
         }
         return response;
@@ -213,11 +218,7 @@ self.addEventListener("fetch", (event) => {
         const cached = await caches.match(request);
         if (cached) return cached;
         if (request.mode === "navigate") {
-          return (
-            (await caches.match(shellUrl("app"))) ||
-            (await caches.match(shellUrl("./"))) ||
-            Response.error()
-          );
+          return (await caches.match(shellUrl("./"))) || Response.error();
         }
         return Response.error();
       }),

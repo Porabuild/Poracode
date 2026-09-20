@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="runtime_context_label">Kontekst</string>
+    <string name="runtime_context_usage">Wykorzystanie kontekstu</string>
+    <string name="runtime_context_show_details">Pokaż szczegóły wykorzystania kontekstu</string>
+    <string name="runtime_context_hide_details">Ukryj szczegóły wykorzystania kontekstu</string>
+    <string name="runtime_context_percent_full">Wypełniono w %1$d%%</string>
+    <string name="runtime_context_percent">%1$d%%</string>
+    <string name="runtime_context_used_and_limit">%1$s / %2$s tokenów</string>
+    <string name="runtime_context_used_value">Użyto %1$s</string>
+    <string name="runtime_context_limit_value">Limit: %1$s</string>
+    <string name="runtime_context_used">Użyto</string>
+    <string name="runtime_context_unknown">Nieznane</string>
+    <string name="runtime_context_provider_unreported">Dostawca nie zgłosił wykorzystania tokenów.</string>
+    <string name="runtime_context_summary">%1$s: %2$s</string>
+    <string name="runtime_context_compact_thousands">%1$s tys.</string>
+    <string name="runtime_context_compact_millions">%1$s mln</string>
+</resources>

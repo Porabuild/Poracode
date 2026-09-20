@@ -8,7 +8,7 @@ import { Button } from "@/renderer/components/common/Button";
  * Revert affordance data handed to rows that can revert: the checkpoint item
  * and the shared request-revert entry point (opens the confirm dialog owned
  * by `MessageList`). Rows render their own `CheckpointRevertButton` from it;
- * the mobile PWA instead routes it through the long-press action sheet.
+ * compact layout instead routes it through the long-press action sheet.
  */
 export interface CheckpointRevertRequest {
   itemId: string;
@@ -64,6 +64,9 @@ export const RevertCheckpointDialog = memo(function RevertCheckpointDialog(props
   checkpointGuard: CheckpointGuard;
   canRestoreFiles: boolean;
   errorMessage?: string | undefined;
+  /** The compound revert is running server-side; actions stay locked until it
+   * settles so a close cannot hide the outcome (WS6 in-progress indicator). */
+  isInFlight?: boolean;
   onDontAskAgainChange: (value: boolean) => void;
   onClose: () => void;
   onConfirm: () => void;
@@ -121,12 +124,30 @@ export const RevertCheckpointDialog = memo(function RevertCheckpointDialog(props
             </div>
           </AlertDialog.Body>
           <AlertDialog.Footer>
-            <Button slot="close" variant="ghost" className="text-muted">
+            <Button
+              slot="close"
+              variant="ghost"
+              className="text-muted"
+              isDisabled={props.isInFlight === true}
+            >
               <Trans>Cancel</Trans>
             </Button>
-            <Button variant="tertiary" onPress={props.onConfirm}>
-              <RotateCcw className="size-3.5" />
-              <Trans>Revert</Trans>
+            <Button
+              variant="tertiary"
+              onPress={props.onConfirm}
+              isDisabled={props.isInFlight === true}
+            >
+              {props.isInFlight ? (
+                <>
+                  <RotateCcw className="size-3.5 animate-spin" />
+                  <Trans>Reverting…</Trans>
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="size-3.5" />
+                  <Trans>Revert</Trans>
+                </>
+              )}
             </Button>
           </AlertDialog.Footer>
         </AlertDialog.Dialog>

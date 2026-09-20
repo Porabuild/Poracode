@@ -29,6 +29,7 @@ import type {
 } from "@/shared/contracts";
 import { sortEffortsByCanonicalOrder } from "@/shared/effortOrder";
 import { terminateChildProcessTree } from "@/shared/processTree";
+import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import {
   findThoughtLevelConfigOption,
   isToggleOnlyThoughtLevelConfig,
@@ -465,6 +466,14 @@ export async function probeAcpCapabilities(
      * that trigger browser OAuth.
      */
     authenticateMethodIds?: readonly string[];
+    /**
+     * Receives why the probe produced no usable result (spawn failure,
+     * timeout, protocol error, agent exit). Diagnostics only: a probe with a
+     * partial result still returns that result and never fires this. Lets
+     * callers that must explain an install failure surface the cause without
+     * making routine detection probes noisy.
+     */
+    onFailureDetail?: (reason: string) => void;
   },
 ): Promise<AcpProbeResult | undefined> {
   const timeoutMs = options?.timeoutMs ?? 15_000;
@@ -489,6 +498,10 @@ export async function probeAcpCapabilities(
       latestSlashCommands = commands;
     };
 
+    // Mock-QA enforcement: the capability probe executes the real provider CLI
+    // (initialize + authenticate handshake), so mock sessions refuse it; the
+    // probe fails like any other spawn error.
+    assertAgentLaunchAllowed("session-probe");
     child = spawn(command, args, {
       cwd: options?.processCwd,
       stdio: ["pipe", "pipe", "pipe"],
@@ -569,6 +582,7 @@ export async function probeAcpCapabilities(
     });
     if (spawnError) {
       console.log("%s failed to spawn: %s", tag, spawnError.message);
+      options?.onFailureDetail?.(`failed to spawn: ${spawnError.message}`);
       return undefined;
     }
 
@@ -815,10 +829,11 @@ export async function probeAcpCapabilities(
     }
 
     return probeResult;
-  } catch {
+  } catch (error) {
     if (Object.keys(probeResult).length > 0) {
       return probeResult;
     }
+    options?.onFailureDetail?.(error instanceof Error ? error.message : String(error));
     return undefined;
   } finally {
     if (abortProbe) options?.signal?.removeEventListener("abort", abortProbe);
@@ -886,6 +901,9 @@ export async function authenticateAcpAgent(
   let child: ChildProcessWithoutNullStreams | undefined;
 
   try {
+    // Mock-QA enforcement: sign-in executes the real provider CLI's auth flow
+    // and mutates real credentials — mock sessions refuse it outright.
+    assertAgentLaunchAllowed("session-auth");
     child = spawn(command, args, {
       ...(options?.processCwd ? { cwd: options.processCwd } : {}),
       stdio: ["pipe", "pipe", "pipe"],
@@ -963,6 +981,9 @@ export async function logoutAcpAgent(
   let child: ChildProcessWithoutNullStreams | undefined;
 
   try {
+    // Mock-QA enforcement: logout destroys real provider credentials — mock
+    // sessions refuse it so QA cannot tear down the user's real sign-ins.
+    assertAgentLaunchAllowed("session-auth");
     child = spawn(command, args, {
       ...(options?.processCwd ? { cwd: options.processCwd } : {}),
       stdio: ["pipe", "pipe", "pipe"],

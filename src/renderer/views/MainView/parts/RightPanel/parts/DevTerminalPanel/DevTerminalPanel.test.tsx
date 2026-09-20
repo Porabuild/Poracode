@@ -7,6 +7,7 @@ import { useAppStore } from "@/renderer/state/appStore";
 import { useDevTerminalStore, type DevTerminalTab } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { clearEagerShellStart } from "@/renderer/utils/shellUtils";
 import { DevTerminalPanel } from "./DevTerminalPanel";
 
 const { bridge, remote, layouts, toast } = vi.hoisted(() => ({
@@ -27,6 +28,7 @@ const { bridge, remote, layouts, toast } = vi.hoisted(() => ({
     bottomOnTerminalResize: undefined as
       | ((terminalId: string, size: { cols: number; rows: number }) => void)
       | undefined,
+    mobileProjectTabs: [] as DevTerminalTab[],
   },
   toast: {
     danger: vi.fn<(message: string) => void>(),
@@ -39,12 +41,8 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => bridge,
 }));
 
-vi.mock("@/renderer/utils/shellUtils", async (importActual) => ({
-  ...(await importActual<typeof import("@/renderer/utils/shellUtils")>()),
-  startShellWithCurrentSettings: (payload: unknown) => bridge.startShell(payload),
-}));
-
-vi.mock("@/renderer/state/remoteTerminalFeed", () => ({
+vi.mock("@/renderer/state/remoteTerminalFeed", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/state/remoteTerminalFeed")>()),
   watchRemoteTerminal: remote.watchTerminal,
 }));
 
@@ -80,6 +78,21 @@ vi.mock("./parts/BottomTerminalLayout", () => ({
           close bottom tab
         </button>
       </>
+    );
+  },
+}));
+
+vi.mock("./parts/MobileTerminalLayout", () => ({
+  MobileTerminalLayout: (props: {
+    projectTabs: DevTerminalTab[];
+    activeScopeLabel: string | undefined;
+    handleCloseTab: (tab: DevTerminalTab) => void;
+  }) => {
+    layouts.mobileProjectTabs = props.projectTabs;
+    return (
+      <button type="button" onClick={() => props.handleCloseTab(props.projectTabs[0]!)}>
+        close mobile tab
+      </button>
     );
   },
 }));
@@ -130,7 +143,9 @@ describe("DevTerminalPanel", () => {
     remote.watchTerminal.mockReset();
     layouts.bottomWatchTerminal = undefined;
     layouts.bottomOnTerminalResize = undefined;
+    layouts.mobileProjectTabs = [];
     toast.danger.mockReset();
+    clearEagerShellStart(tab.id);
     resetStores();
   });
 
@@ -172,6 +187,36 @@ describe("DevTerminalPanel", () => {
     };
     expect(layouts.bottomWatchTerminal?.(tab.id, listener)).toBe(unsubscribe);
     expect(remote.watchTerminal).toHaveBeenCalledWith("desktop-1", tab.id, listener);
+  });
+
+  it("preserves the started shell when the panel remounts on the same tab", async () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    const { unmount } = render(<DevTerminalPanel hideHeader />);
+
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(1));
+    unmount();
+
+    render(<DevTerminalPanel hideHeader />);
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(1));
+
+    // The backend PTY is still alive; re-issuing startShell would kill it and
+    // drop its retained scrollback (fresh shell welcome on remount).
+    expect(bridge.startShell).toHaveBeenCalledTimes(1);
+  });
+
+  it("dedupes concurrent resizes while the shell start is in flight", async () => {
+    useSharedSettings.setState({ terminalPosition: "bottom" });
+    render(<DevTerminalPanel hideHeader />);
+
+    // The start never resolves, so the second resize races an in-flight mark.
+    bridge.startShell.mockReturnValueOnce(new Promise(() => {}));
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+    layouts.bottomOnTerminalResize?.(tab.id, { cols: 100, rows: 30 });
+
+    await vi.waitFor(() => expect(bridge.startShell).toHaveBeenCalledTimes(1));
+    expect(bridge.startShell).toHaveBeenCalledTimes(1);
   });
 
   it("reports a failed remote shell start and allows the terminal to retry", async () => {
@@ -221,5 +266,18 @@ describe("DevTerminalPanel", () => {
 
     expect(onEmpty).toHaveBeenCalledOnce();
     expect(useSharedSettings.getState().terminalPosition).toBe("bottom");
+  });
+
+  it("uses the compact terminal layout without closing unrelated desktop panels", () => {
+    const onEmpty = vi.fn<() => void>();
+    render(<DevTerminalPanel hideHeader positionOverride="mobile" onEmpty={onEmpty} />);
+
+    expect(layouts.mobileProjectTabs).toEqual([tab]);
+    fireEvent.click(screen.getByRole("button", { name: "close mobile tab" }));
+
+    expect(onEmpty).toHaveBeenCalledOnce();
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(usePanelStore.getState().gitReviewContext).toEqual({ projectId: project.id });
+    expect(usePanelStore.getState().filesPanelContext?.projectId).toBe(project.id);
   });
 });

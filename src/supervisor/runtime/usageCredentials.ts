@@ -1,3 +1,4 @@
+import { resolveDevinToken } from "./devinCredentials";
 import type { CredentialStore } from "@poracode/agents-usage";
 import { getUsageSecret, setUsageSecret } from "@/shared/usageSecretStore";
 import { refreshRejectedClaudeToken, resolveClaudeToken } from "./claudeCredentials";
@@ -47,6 +48,7 @@ function tokenResolvers(
     factory: async () => resolveFactoryCliToken(),
     zai: resolveZaiToken,
     kimi: resolveKimiToken,
+    devin: resolveDevinToken,
     muse: resolveMuseToken,
     qwen: () => resolveQwenUsageToken(settingsPath),
     qoder: resolveQoderToken,

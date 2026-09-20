@@ -1,4 +1,6 @@
 import {
+  closeSync,
+  constants,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -8,7 +10,14 @@ import {
   rmSync,
   statSync,
   writeFileSync,
+  openSync,
+  lstatSync,
+  fstatSync,
+  symlinkSync,
 } from "node:fs";
+import { fork, execFileSync } from "node:child_process";
+import { once } from "node:events";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -22,6 +31,7 @@ import { writeFileAtomic } from "./atomicFile";
 const renameControl = vi.hoisted(() => ({
   failCodes: [] as string[],
   realRename: (() => {}) as (from: string, to: string) => void,
+  writeFailure: false,
 }));
 
 vi.mock("node:fs", async (importOriginal) => {
@@ -29,6 +39,13 @@ vi.mock("node:fs", async (importOriginal) => {
   renameControl.realRename = actual.renameSync;
   return {
     ...actual,
+    openSync: vi.fn<typeof actual.openSync>(actual.openSync),
+    closeSync: vi.fn<typeof actual.closeSync>(actual.closeSync),
+    writeFileSync: vi.fn<typeof actual.writeFileSync>((...args) => {
+      if (renameControl.writeFailure && typeof args[0] === "number")
+        throw new Error("Synthetic write failure.");
+      return actual.writeFileSync(...args);
+    }),
     renameSync: vi.fn<(from: string, to: string) => void>((from, to) => {
       const code = renameControl.failCodes.shift();
       if (code) {
@@ -39,11 +56,19 @@ vi.mock("node:fs", async (importOriginal) => {
   };
 });
 
+vi.mock("node:crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:crypto")>();
+  return { ...actual, randomUUID: vi.fn<typeof actual.randomUUID>(actual.randomUUID) };
+});
+
 describe("writeFileAtomic", () => {
   let dir: string;
 
   beforeEach(() => {
     renameControl.failCodes = [];
+    renameControl.writeFailure = false;
+    vi.mocked(randomUUID).mockReset();
+    vi.mocked(randomUUID).mockImplementation(() => "f6489b1a-1952-4a42-8e74-448e00c24a15");
     vi.mocked(renameSync).mockClear();
     dir = mkdtempSync(join(tmpdir(), "atomic-test-"));
   });
@@ -142,4 +167,120 @@ describe("writeFileAtomic", () => {
     // A non-retryable code aborts immediately after a single attempt.
     expect(vi.mocked(renameSync)).toHaveBeenCalledTimes(1);
   });
+
+  it.each(
+    process.platform === "win32"
+      ? (["file", "link"] as const)
+      : (["file", "link", "FIFO"] as const),
+  )("preserves a pre-existing %s at a colliding temporary name", (kind) => {
+    const target = join(dir, "target.json");
+    const temporary = `${target}.f6489b1a-1952-4a42-8e74-448e00c24a15.tmp`;
+    writeFileSync(target, "old target");
+    const linked = join(dir, "linked");
+    if (kind === "FIFO") execFileSync("mkfifo", [temporary]);
+    else if (kind === "link") {
+      mkdirSync(linked);
+      writeFileSync(join(linked, "preserve"), "linked bytes");
+      symlinkSync(linked, temporary, process.platform === "win32" ? "junction" : "dir");
+    } else writeFileSync(temporary, "unowned temporary bytes");
+    const preservedState = () =>
+      kind === "FIFO"
+        ? { fifo: lstatSync(temporary).isFIFO() }
+        : kind === "link"
+          ? {
+              link: lstatSync(temporary).isSymbolicLink(),
+              content: readFileSync(join(linked, "preserve"), "utf8"),
+            }
+          : { content: readFileSync(temporary, "utf8") };
+    const originalState = preservedState();
+    expect(() => writeFileAtomic(target, "replacement", { encoding: "utf8" })).toThrow(/EEXIST/);
+    expect(readFileSync(target, "utf8")).toBe("old target");
+    expect(preservedState()).toEqual(originalState);
+  });
+
+  it("closes its owned descriptor and preserves the target after a write failure", () => {
+    const target = join(dir, "target.json");
+    writeFileSync(target, "old target");
+    renameControl.writeFailure = true;
+    expect(() => writeFileAtomic(target, "replacement", { mode: 0o600, encoding: "utf8" })).toThrow(
+      /Synthetic write failure/,
+    );
+    const fd = vi.mocked(openSync).mock.results.at(-1)?.value as number;
+    expect(closeSync).toHaveBeenCalledWith(fd);
+    expect(() => fstatSync(fd)).toThrow(/EBADF/);
+    expect(readFileSync(target, "utf8")).toBe("old target");
+    expect(readdirSync(dir)).toEqual(["target.json"]);
+  });
+
+  it("preserves the requested encoding and creation mode", () => {
+    const target = join(dir, "encoded.json");
+    writeFileAtomic(target, "synthetic", { encoding: "utf16le", mode: 0o600 });
+    expect(readFileSync(target)).toEqual(Buffer.from("synthetic", "utf16le"));
+    expect(openSync).toHaveBeenCalledWith(expect.any(String), "wx", 0o600);
+  });
+
+  it.skipIf(process.platform === "win32")("applies the requested POSIX creation mode", () => {
+    const target = join(dir, "private.json");
+    writeFileAtomic(target, "private bytes", { mode: 0o600 });
+    expect(statSync(target).mode & 0o777).toBe(0o600);
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "ignores a legacy PID temporary FIFO without opening or renaming it",
+    async () => {
+      const target = join(dir, "target.json");
+      writeFileSync(target, "old target");
+      const moduleUrl = new URL("./atomicFile.ts", import.meta.url).href;
+      const bootstrap = `void(async()=>{
+const{writeFileAtomic}=await import(${JSON.stringify(moduleUrl)});
+process.send('ready');
+process.once('message',()=>{
+try{writeFileAtomic(${JSON.stringify(target)},'replacement',{encoding:'utf8'});process.send({ok:true},()=>process.disconnect())}
+catch(error){process.send({ok:false,error:String(error)},()=>process.disconnect())}
+});
+})();`;
+      const child = fork(join(dir, "unused.cjs"), [], {
+        execArgv: ["--eval", bootstrap],
+        env: { ...process.env, NODE_OPTIONS: "" },
+        stdio: ["ignore", "ignore", "pipe", "ipc"],
+      });
+      const closed = once(child, "close");
+      let stderr = "";
+      child.stderr?.on("data", (data: Buffer) => {
+        stderr = (stderr + data.toString()).slice(-2_000);
+      });
+      const exitedEarly = closed.then(() => {
+        throw new Error(`Atomic writer fixture exited before replying: ${stderr}`);
+      });
+      void exitedEarly.catch(() => undefined);
+      let backstop: ReturnType<typeof setTimeout> | undefined;
+      let reader: number | undefined;
+      let intervention = false;
+      try {
+        await Promise.race([once(child, "message"), exitedEarly]);
+        const temporary = `${target}.${child.pid}.tmp`;
+        execFileSync("mkfifo", [temporary]);
+        backstop = setTimeout(() => {
+          intervention = true;
+          reader = openSync(temporary, constants.O_RDONLY | constants.O_NONBLOCK);
+        }, 500);
+        const result = Promise.race([once(child, "message"), exitedEarly]);
+        child.send("write");
+        expect((await result)[0]).toEqual({ ok: true });
+        expect({ intervention, targetIsRegular: lstatSync(target).isFile() }).toEqual({
+          intervention: false,
+          targetIsRegular: true,
+        });
+        expect(readFileSync(target, "utf8")).toBe("replacement");
+        expect(lstatSync(temporary).isFIFO()).toBe(true);
+        await closed;
+      } finally {
+        clearTimeout(backstop);
+        if (reader !== undefined) closeSync(reader);
+        if (child.pid && child.pid > 0 && child.exitCode === null && child.signalCode === null)
+          child.kill("SIGKILL");
+        await closed;
+      }
+    },
+  );
 });

@@ -1,24 +1,16 @@
 import { toast } from "@heroui/react";
 import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
-import { Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { PixelLoader } from "./components/common/PixelLoader";
 import { StartupRecoveryScreen } from "./components/startup/StartupRecoveryScreen";
 import { msg } from "@/shared/messages";
-import type { RuntimeEvent } from "@/shared/contracts";
-import {
-  isAgentStatusSupervisorEvent,
-  type SupervisorEvent,
-  type UpdateStatus,
-} from "@/shared/ipc";
+import type { UpdateStatus } from "@/shared/ipc";
 import { readBridge } from "./bridge";
-import {
-  handleThreadStateNotification,
-  shouldInspectThreadStateForNotification,
-} from "./notifications";
+import { hasClientCapability } from "./clientRuntime";
+import { showUserNotification } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
-import { useThreadFollowUpQueueStore } from "./state/threadFollowUpQueueStore";
 import { useExperimentStore } from "./state/experimentStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
 import {
@@ -30,7 +22,7 @@ import {
   toggleMarkThreadDone,
   toggleStarThread,
 } from "./actions/threadActions";
-import { deleteWorktreeGroup } from "./actions/worktreeActions";
+import { forgetRemovedWorktreeGroup } from "./actions/worktreeActions";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
@@ -42,8 +34,16 @@ import { useThreadOutputStore } from "./state/threadOutputStore";
 import { applyAgentStatusSupervisorEvent } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
-import { clearRuntimeItemStoreSelectorCacheForThread } from "./components/thread/ChatPane/chatPaneSelectors";
-import { evictOversizedInactiveThreadRuntimeItems } from "./state/chatRuntimePersister";
+import { boundVisibleThreadRuntimeWindows } from "./state/chatRuntimePersister";
+import {
+  beginRendererPerfSpan,
+  startRendererPerfDiagnostics,
+} from "./diagnostics/rendererPerfDiagnostics";
+import { createLocalSnapshotRecovery } from "./state/remote/reducers/localSnapshotRecovery";
+import {
+  createSupervisorEventReducer,
+  type SupervisorEventReducer,
+} from "./state/remote/reducers/supervisorEventReducer";
 
 import { useAppHydration } from "@/renderer/hooks/useAppHydration";
 import { usePrWatchAgentSync } from "@/renderer/hooks/usePrWatchAgentSync";
@@ -51,19 +51,33 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
-import { QuickComposerOverlay } from "@/renderer/views/QuickComposerOverlay/QuickComposerOverlay";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
-import {
-  primeWorktreeGitState,
-  runWorktreeSetupScript,
-} from "@/renderer/actions/worktreeLaunchActions";
+import { primeWorktreeGitState } from "@/renderer/actions/worktreeLaunchActions";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
-import { BrowserPanel } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel";
-import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
-import { useStandaloneWindowViewTracking } from "@/renderer/analytics/useProductViewTracking";
 import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/deferredFeatures";
+import { UserMessageActionsSheet } from "@/renderer/components/thread/ChatPane/UserMessageActionsSheet";
+import { isBrowserClientRuntime, readElectronHostBridge } from "@/renderer/clientRuntime";
+
+const browserClientRuntime = isBrowserClientRuntime();
+const BrowserRuntimeServices = browserClientRuntime
+  ? lazy(() =>
+      import("@/renderer/pwa/BrowserRuntimeServices").then((module) => ({
+        default: module.BrowserRuntimeServices,
+      })),
+    )
+  : null;
+const BrowserExtractWindowApp = lazy(() =>
+  import("@/renderer/windowApps/BrowserExtractWindowApp").then((module) => ({
+    default: module.BrowserExtractWindowApp,
+  })),
+);
+const QuickComposerWindowApp = lazy(() =>
+  import("@/renderer/windowApps/QuickComposerWindowApp").then((module) => ({
+    default: module.QuickComposerWindowApp,
+  })),
+);
 
 // ── Module-level IPC listeners ──────────────────────────────────
 // Subscribes to supervisor events as soon as the module loads,
@@ -74,205 +88,87 @@ import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/de
 // Both subscribe calls return unsubscribe functions which we store
 // so that Vite HMR can tear them down before re-executing the module.
 
-let threadStateNotificationsArmed = false;
 export const STARTUP_RECOVERY_TIMEOUT_MS = 15_000;
 const windowKind = readBridge().windowKind;
 const isBrowserExtractWindow = windowKind === "browserExtract";
 const isQuickComposerWindow = windowKind === "quickComposer";
 const isMainWindow = windowKind === "main";
 
-// ── Runtime event batcher ───────────────────────────────────────
-// With many concurrent streaming chats, the supervisor produces hundreds of
-// `thread-runtime-event(s)` IPC messages per second. Applying each one
-// synchronously triggers a Zustand `set()` and re-evaluates every subscribed
-// selector. Visible panes flush once per animation frame; hidden panes flush
-// four times per second. Opening a pane promotes its queued events to the next
-// frame. Non-runtime events flush their own thread first so event ordering is
-// preserved without forcing every background thread through the reducer.
-const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
-const pendingRuntimeEvents = new Map<string, RuntimeEvent[]>();
-let runtimeFlushHandle: number | null = null;
-let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
+// ── Supervisor event reduction ──────────────────────────────────
+// The desktop flavor of THE shared SupervisorEvent reducer
+// (state/remote/reducers/supervisorEventReducer.ts). Runtime deltas stay
+// frame-paced (foreground panes flush per animation frame; hidden panes four
+// times per second) and recovery re-reads the authoritative LOCAL snapshot
+// before live deltas resume. Non-runtime events flush their own thread first
+// so event ordering is preserved without forcing every background thread
+// through the reducer.
+//
+// Gate 4 renderer perf diagnostics: inert unless the window was launched with
+// ?poracodePerfDiag=1 (or the localStorage flag), so production is untouched.
+startRendererPerfDiagnostics();
 
-function isForegroundRuntimeThread(threadId: string): boolean {
-  if (document.visibilityState === "hidden") return false;
-  const view = useAppStore.getState().view;
-  return view.kind === "thread" && view.panes.includes(threadId);
-}
+let supervisorReducerRef: SupervisorEventReducer | null = null;
+const localSnapshotRecovery = createLocalSnapshotRecovery({
+  getArbitration: () => {
+    const reducer = supervisorReducerRef;
+    if (!reducer) throw new Error("Supervisor event reducer is not installed.");
+    return reducer.arbitration;
+  },
+});
 
-function flushPendingRuntimeEvents(shouldFlush: (threadId: string) => boolean): void {
-  const store = useAppStore.getState();
-  const threads = store.threads;
-  const batches: { threadId: string; events: RuntimeEvent[] }[] = [];
-  for (const [threadId, events] of pendingRuntimeEvents) {
-    if (!shouldFlush(threadId)) continue;
-    batches.push({ threadId, events });
-    pendingRuntimeEvents.delete(threadId);
-  }
-  if (batches.length === 0) return;
-  // One Zustand set for all concurrent streams — avoids N selector passes when
-  // several chats are working in the background / being switched between.
-  store.applyRuntimeEventBatches(batches);
-  evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-  for (const { threadId, events } of batches) {
-    // Durable usage capture at the canonical layer (all providers normalized).
-    // Thread metadata is resolved lazily inside, so pure-delta frames are free.
-    recordRuntimeUsage(threadId, events, threads);
-  }
-}
-
-function schedulePendingRuntimeEvents(): void {
-  let hasForeground = false;
-  let hasBackground = false;
-  const view = useAppStore.getState().view;
-  const foregroundThreadIds: readonly string[] =
-    document.visibilityState !== "hidden" && view.kind === "thread" ? view.panes : [];
-  for (const threadId of pendingRuntimeEvents.keys()) {
-    if (foregroundThreadIds.includes(threadId)) hasForeground = true;
-    else hasBackground = true;
-    if (hasForeground && hasBackground) break;
-  }
-
-  if (hasForeground && runtimeFlushHandle === null) {
-    runtimeFlushHandle = requestAnimationFrame(() => {
-      runtimeFlushHandle = null;
-      flushPendingRuntimeEvents(isForegroundRuntimeThread);
-      schedulePendingRuntimeEvents();
-    });
-  } else if (!hasForeground && runtimeFlushHandle !== null) {
-    cancelAnimationFrame(runtimeFlushHandle);
-    runtimeFlushHandle = null;
-  }
-
-  if (hasBackground && backgroundRuntimeFlushHandle === null) {
-    backgroundRuntimeFlushHandle = setTimeout(() => {
-      backgroundRuntimeFlushHandle = null;
-      flushPendingRuntimeEvents((threadId) => !isForegroundRuntimeThread(threadId));
-      schedulePendingRuntimeEvents();
-    }, BACKGROUND_RUNTIME_EVENT_BATCH_MS);
-  } else if (!hasBackground && backgroundRuntimeFlushHandle !== null) {
-    clearTimeout(backgroundRuntimeFlushHandle);
-    backgroundRuntimeFlushHandle = null;
-  }
-}
-
-function appendRuntimeEvents(threadId: string, events: readonly RuntimeEvent[]): void {
-  const existing = pendingRuntimeEvents.get(threadId);
-  if (existing) {
-    for (const evt of events) existing.push(evt);
-  } else {
-    pendingRuntimeEvents.set(threadId, [...events]);
-  }
-}
-
-function flushPendingRuntimeEventsSync(threadId: string): void {
-  flushPendingRuntimeEvents((pendingThreadId) => pendingThreadId === threadId);
-  schedulePendingRuntimeEvents();
-}
-
-function installRuntimeEventScheduling(): () => void {
-  const unsubscribe = useAppStore.subscribe((state) => state.view, schedulePendingRuntimeEvents);
-  document.addEventListener("visibilitychange", schedulePendingRuntimeEvents);
-  return () => {
-    unsubscribe();
-    document.removeEventListener("visibilitychange", schedulePendingRuntimeEvents);
-  };
-}
-
-function handleSupervisorEvent(event: SupervisorEvent): void {
-  if ("threadId" in event && event.threadId.startsWith("shell:")) {
+const supervisorReducer = createSupervisorEventReducer({
+  // INJECTED recovery strategy: the local snapshot. The backend persists
+  // runtime events before broadcasting them, so overflow and reset re-read
+  // the authoritative local history before the queue resumes.
+  recovery: localSnapshotRecovery.strategy,
+  onSequencedEvent: localSnapshotRecovery.noteSequencedSupervisorEvent,
+  routeShellEvent: (event) => {
+    if (!("threadId" in event)) return;
     if (event.type === "thread-output") {
       useDevTerminalStore.getState().noteShellOutput(event.threadId);
     } else if (event.type === "thread-exited") {
       useDevTerminalStore.getState().markShellExited(event.threadId);
     }
-    return;
-  }
-
-  // Feed every agent thread's PTY bytes into the renderer-side scrollback
-  // accumulator. It runs regardless of which pane is mounted, so a hidden
-  // thread keeps its history (the xterm buffer dies with the unmounted pane).
-  // `thread-reset` (a fresh spawn) clears the thread's accumulated bytes.
-  if (event.type === "thread-output") {
-    useThreadOutputStore.getState().appendOutput(event.threadId, event.data);
-  } else if (event.type === "thread-reset") {
-    useThreadOutputStore.getState().clearOutput(event.threadId);
-  }
-
-  if (event.type === "thread-runtime-event") {
-    appendRuntimeEvents(event.threadId, [event.event]);
-    schedulePendingRuntimeEvents();
-    return;
-  }
-  if (event.type === "thread-runtime-events") {
-    if (event.events.length > 0) {
-      appendRuntimeEvents(event.threadId, event.events);
-      schedulePendingRuntimeEvents();
+  },
+  onThreadOutput: (threadId, data) => useThreadOutputStore.getState().appendOutput(threadId, data),
+  onThreadOutputCleared: (threadId) => useThreadOutputStore.getState().clearOutput(threadId),
+  onAgentStatusEvent: (event) =>
+    applyAgentStatusSupervisorEvent(event, { deferFirstLaunchBulk: true }),
+  onProviderUsage: (event) => useProviderUsageStore.getState().mergeSnapshot(event.snapshot),
+  onProviderUsageAll: (event) => useProviderUsageStore.getState().setSnapshots(event.snapshots),
+  wrapFlush: (run, stats) => {
+    const drainSpan = beginRendererPerfSpan("runtime-drain");
+    try {
+      run();
+    } finally {
+      drainSpan.end({ threads: stats.drainedThreads, events: stats.drainedEvents });
     }
-    return;
-  }
-  if (event.type === "thread-runtime-events-multi") {
-    let hasEvents = false;
-    for (const batch of event.batches) {
-      if (batch.events.length === 0) continue;
-      appendRuntimeEvents(batch.threadId, batch.events);
-      hasEvents = true;
+  },
+  wrapApply: (run, stats) => {
+    // One Zustand set for all concurrent streams — avoids N selector passes
+    // when several chats are working in the background / being switched
+    // between.
+    const applySpan = beginRendererPerfSpan("apply-runtime-batches");
+    try {
+      run();
+    } finally {
+      applySpan.end({ threads: stats.drainedThreads, events: stats.drainedEvents });
     }
-    if (hasEvents) schedulePendingRuntimeEvents();
-    return;
-  }
-
-  // Non-runtime event: drain pending runtime events first so the handler below
-  // observes the same ordering callers expect from the IPC stream.
-  if ("threadId" in event && pendingRuntimeEvents.has(event.threadId)) {
-    flushPendingRuntimeEventsSync(event.threadId);
-  }
-
-  if (event.type === "thread-state") {
-    const shouldCheckNotifications =
-      threadStateNotificationsArmed && shouldInspectThreadStateForNotification();
-    const appStore = useAppStore.getState();
-    const oldThread = shouldCheckNotifications
-      ? appStore.threads.find((t) => t.id === event.threadId)
-      : undefined;
-    appStore.updateThreadRuntime(event.threadId, event);
-    if (shouldCheckNotifications) {
-      const newThread = useAppStore.getState().threads.find((t) => t.id === event.threadId);
-      handleThreadStateNotification(event, oldThread, newThread);
+  },
+  afterApply: (batches, { threadMetadata }) => {
+    // Bounded visible window (Gate 4 Batch 1): inactive oversized threads are
+    // evicted by the core; LIVE (retained) threads are bytes-bounded here so
+    // an open thread streaming for hours cannot grow memory without bound.
+    boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
+    for (const { threadId, events } of batches) {
+      // Durable usage capture at the canonical layer (all providers
+      // normalized). Thread metadata is resolved lazily inside, so pure-delta
+      // frames are free.
+      recordRuntimeUsage(threadId, events, threadMetadata);
     }
-    // Once the agent process is gone, any sub-agent that hadn't completed is
-    // orphaned — its parent `item.completed` will never arrive. Reconcile so
-    // the active dock stops showing it as running.
-    if (event.status === "inactive" || event.status === "error") {
-      useAppStore.getState().reconcileStaleSubAgents(event.threadId);
-    }
-  }
-  if (event.type === "thread-pending-steer") {
-    useAppStore.getState().setPendingSteer(event.threadId, event.pending);
-  }
-  if (event.type === "thread-follow-up-queue") {
-    useThreadFollowUpQueueStore.getState().setQueue(event.threadId, event.queue);
-  }
-  if (event.type === "thread-reset") {
-    pendingRuntimeEvents.delete(event.threadId);
-    useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
-    useAppStore.getState().clearAllPendingSteer(event.threadId);
-    clearRuntimeItemStoreSelectorCacheForThread(event.threadId);
-  }
-  if (event.type === "thread-exited") {
-    useAppStore.getState().markThreadExited(event.threadId);
-    useAppStore.getState().clearAllPendingSteer(event.threadId);
-  }
-  if (isAgentStatusSupervisorEvent(event)) {
-    applyAgentStatusSupervisorEvent(event, { deferFirstLaunchBulk: true });
-  }
-  if (event.type === "provider-usage") {
-    useProviderUsageStore.getState().mergeSnapshot(event.snapshot);
-  }
-  if (event.type === "provider-usage-all") {
-    useProviderUsageStore.getState().setSnapshots(event.snapshots);
-  }
-}
+  },
+});
+supervisorReducerRef = supervisorReducer;
 
 function installThreadOutputPruning(): () => void {
   const retainActiveOutputs = () => {
@@ -353,15 +249,29 @@ export function installUpdateStatusSync(
 // so only the main window wires these up (and tears them down on HMR dispose).
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
-      readBridge().onSupervisorEvent(handleSupervisorEvent),
-      installRuntimeEventScheduling(),
-      installUpdateStatusSync(),
+      readBridge().onSupervisorEvent((event, rendererSequence) =>
+        supervisorReducer.dispatch(event, rendererSequence),
+      ),
+      // Backend reset (V5 2.5): the relay sequence space restarts with a new
+      // backend child. The transport drops its dedupe cursor and rebuilds;
+      // here the in-flight recovery state is invalidated so no stale
+      // authoritative read from the previous child is trusted.
+      ...(readElectronHostBridge()
+        ? [
+            readElectronHostBridge()!.onBackendSupervisorReset(() => {
+              localSnapshotRecovery.onTransportGenerationChanged();
+              supervisorReducer.invalidateInFlightRecoveries();
+            }),
+          ]
+        : []),
+      supervisorReducer.installScheduling(),
+      ...(hasClientCapability("nativeAppUpdates") ? [installUpdateStatusSync()] : []),
       // Thread-metadata commands issued from paired remote clients (mobile PWA).
       // They run through the same actions as local edits so persistence and
       // side effects (unload on archive, …) stay identical.
       readBridge().onRemoteThreadCommand((command) => {
         if (command.kind === "delete-worktree-group") {
-          deleteWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
+          forgetRemovedWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
           return;
         }
         if (command.kind === "prepare-worktree") {
@@ -370,12 +280,6 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
             .projects.find((entry) => entry.id === command.projectId);
           if (!project) return;
           void primeWorktreeGitState(project, command.worktreePath);
-          const setupScript = project.scripts?.setupScript;
-          if (setupScript) {
-            void runWorktreeSetupScript(project, command.worktreePath, setupScript, {
-              openTerminalPanel: false,
-            });
-          }
           return;
         }
         if (command.kind === "start") {
@@ -408,25 +312,37 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
               ),
             }));
             break;
+          case "clear-group":
+            useAppStore.setState((state) => {
+              const groupId = state.threads.find((t) => t.id === command.threadId)?.groupId;
+              let threads = state.threads.map((candidate) =>
+                candidate.id === command.threadId
+                  ? { ...candidate, groupId: undefined, groupName: undefined }
+                  : candidate,
+              );
+              if (groupId) {
+                const remainder = threads.filter((candidate) => candidate.groupId === groupId);
+                if (remainder.length === 1) {
+                  threads = threads.map((candidate) =>
+                    candidate.id === remainder[0]!.id
+                      ? { ...candidate, groupId: undefined, groupName: undefined }
+                      : candidate,
+                  );
+                }
+              }
+              return { threads };
+            });
+            break;
           case "set-worktree": {
             useAppStore
               .getState()
               .setThreadWorktree(command.threadId, command.worktreePath, command.worktreeBranch);
-            // A freshly-created remote worktree needs the same desktop-side follow-up
-            // a local "new thread in worktree" gets: prime its git state and run the
-            // project setup script.
             if (command.isNewWorktree) {
               const project = useAppStore
                 .getState()
                 .projects.find((p) => p.id === thread.projectId);
               if (project) {
                 void primeWorktreeGitState(project, command.worktreePath);
-                const setupScript = project.scripts?.setupScript;
-                if (setupScript) {
-                  void runWorktreeSetupScript(project, command.worktreePath, setupScript, {
-                    openTerminalPanel: false,
-                  });
-                }
               }
             }
             break;
@@ -459,6 +375,9 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);
       }),
+      readBridge().onUserNotification((notification) => {
+        showUserNotification(notification);
+      }),
       readBridge().onThreadOpenRequested(({ threadId, source }) => {
         openThread(threadId, {
           focusComposer: true,
@@ -478,7 +397,10 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
           await startThreadFromDraft(project, submission.input, { preserveActiveGroup: false });
         })().catch(() => undefined);
       }),
-      installRemoteGitSummaryPublisher(),
+      // Only the desktop host owns live local git state and publishes it to
+      // paired clients. Installing this in the PWA subscribes to projected
+      // state and attempts to send the projection back to the host.
+      ...(browserClientRuntime ? [] : [installRemoteGitSummaryPublisher()]),
       installRemoteProjectWorkspaceSync(),
       installThreadOutputPruning(),
     ]
@@ -489,15 +411,8 @@ let productAnalyticsStarted = false;
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     for (const cleanup of mainWindowCleanups) cleanup();
-    if (runtimeFlushHandle !== null) {
-      cancelAnimationFrame(runtimeFlushHandle);
-      runtimeFlushHandle = null;
-    }
-    if (backgroundRuntimeFlushHandle !== null) {
-      clearTimeout(backgroundRuntimeFlushHandle);
-      backgroundRuntimeFlushHandle = null;
-    }
-    pendingRuntimeEvents.clear();
+    supervisorReducer.clear();
+    localSnapshotRecovery.clearSequenceTracking();
     uninstallProductAnalytics?.();
     uninstallProductAnalytics = null;
     productAnalyticsStarted = false;
@@ -506,45 +421,20 @@ if (import.meta.hot) {
 
 export function App() {
   if (isBrowserExtractWindow) {
-    return <BrowserExtractApp />;
+    return (
+      <Suspense>
+        <BrowserExtractWindowApp />
+      </Suspense>
+    );
   }
   if (isQuickComposerWindow) {
-    return <QuickComposerApp />;
+    return (
+      <Suspense>
+        <QuickComposerWindowApp />
+      </Suspense>
+    );
   }
   return <MainApp />;
-}
-
-function BrowserExtractApp() {
-  useBrowserSync();
-  useStandaloneWindowViewTracking("browser_extracted");
-
-  return (
-    <AppProvider contentReady syncWindowChrome={false}>
-      <div className="flex h-screen w-screen overflow-hidden bg-[var(--content-background)] text-foreground">
-        <BrowserPanel visible surface="window" />
-      </div>
-    </AppProvider>
-  );
-}
-
-function QuickComposerApp() {
-  const { initialLoading } = useAppHydration({ runtimeOwner: false });
-  useStandaloneWindowViewTracking("quick_composer", !initialLoading);
-
-  return (
-    <AppProvider contentReady={!initialLoading} syncWindowChrome={false}>
-      {initialLoading ? (
-        <div className="quick-composer-root">
-          <div className="quick-composer-status">
-            <PixelLoader size="sm" />
-          </div>
-        </div>
-      ) : (
-        <QuickComposerOverlay />
-      )}
-      <ImageLightboxHost />
-    </AppProvider>
-  );
 }
 
 function MainApp() {
@@ -581,11 +471,9 @@ function MainApp() {
 
   useEffect(() => {
     if (initialLoading) {
-      threadStateNotificationsArmed = false;
       return;
     }
 
-    threadStateNotificationsArmed = true;
     void readBridge().notifyQuickComposerMainReady();
     if (!uninstallProductAnalytics) {
       uninstallProductAnalytics = installProductAnalytics();
@@ -595,7 +483,6 @@ function MainApp() {
       captureAppStarted();
     }
     return () => {
-      threadStateNotificationsArmed = false;
       void flushProductAnalytics();
     };
   }, [initialLoading]);
@@ -636,13 +523,15 @@ function MainApp() {
 
   return (
     <AppProvider contentReady>
-      <MainView
-        storeHydrated={storeHydrated}
-        runtimeSnapshotsReady={runtimeSnapshotsReady}
-        loadT0={loadT0}
-      />
+      <MainView storeHydrated={storeHydrated} runtimeSnapshotsReady={runtimeSnapshotsReady} />
       <DeferredCommandPalette />
       <ImageLightboxHost />
+      {BrowserRuntimeServices ? (
+        <Suspense>
+          <BrowserRuntimeServices />
+        </Suspense>
+      ) : null}
+      <UserMessageActionsSheet />
     </AppProvider>
   );
 }

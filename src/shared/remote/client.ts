@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
+import { tryParseSocketMessage as tryParseRemoteSocketMessage } from "./parseSocketMessage";
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
   REMOTE_COMMAND_ID_HEADER,
@@ -8,6 +9,7 @@ import {
   filterKnownRemoteAccessScopes,
   isRemoteFollowUpQueueProcedure,
   isRemoteProcedure,
+  remoteAgentSlashCommandsSchema,
   remoteAgentStatusesSchema,
   remoteAccessTokenResultSchema,
   remoteBrowserStateSchema,
@@ -22,15 +24,18 @@ import {
   remoteWebPushConfigResultSchema,
   remoteSettingsSchema,
   remoteSchedulesResponseSchema,
+  remoteScheduleRunsResponseSchema,
   remoteProjectCommandResultSchema,
   remoteProjectSettingsSchema,
   remoteRuntimeItemsPageSchema,
   remoteShellSnapshotSchema,
+  remoteThreadListPageSchema,
   remoteThreadSnapshotSchema,
   remoteWebSocketServerMessageSchema,
   remoteWebSocketTicketResultSchema,
   toWebSocketUrl,
   type RemoteAccessScope,
+  type RemoteAgentSlashCommands,
   type RemoteAgentStatuses,
   type RemoteAccessTokenResult,
   type RemoteBrowserCommand,
@@ -45,22 +50,33 @@ import {
   type RemoteProjectCommandResult,
   type RemoteProjectSettings,
   type RemotePushRegistration,
+  type RemotePushRegistrationRouting,
+  type RemotePushRegistrationResult,
   type RemoteRuntimeItemsPage,
   type RemoteRuntimeItemsPageRequest,
   type RemoteSettings,
   type RemoteSettingsPatch,
   type RemoteScheduleCommand,
   type RemoteShellSnapshot,
+  type RemoteThreadListPage,
   type RemoteThreadSnapshot,
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import {
   DEFAULT_TERMINAL_SIZE,
+  CHECKPOINT_REVERT_COMMAND_ID_PREFIX,
+  checkpointRevertPayloadSchema,
+  checkpointRevertResultSchema,
   controlThreadGoalPayloadSchema,
-  profileIdentitySchema,
+  profileCoreStatsSchema,
+  profileDevicesResponseSchema,
+  profileIdentityResponseSchema,
+  profileTokenStatsSchema,
+  providerUsageResponseSchema,
   prWatchSchema,
   projectNotesSchema,
   sendThreadInputPayloadSchema,
+  type CheckpointRevertResult,
   type ProfileCoreStats,
   type ControlThreadGoalPayload,
   type ProfileDevicesResponse,
@@ -89,9 +105,17 @@ import {
   type ThreadServerRequestId,
   type ScheduledTask,
   type ScheduledTaskInput,
+  type ScheduledTaskRun,
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
 import { readBoundedResponseBody } from "@/shared/http";
+import type { NormalizeExactOptionalProperties } from "@/shared/contracts/exactType";
+import {
+  ipcProcedureMap,
+  jsonCallEnvelopeSchema,
+  omittedCallEnvelopeSchema,
+  omittedResultSchema,
+} from "@/shared/ipc";
 
 export class RemoteClientError extends Error {
   constructor(
@@ -124,6 +148,12 @@ export function isRemoteTransportFailure(error: unknown): boolean {
 
 export interface ThreadHistoryOptions {
   readonly targetTimelineEntryCount?: number;
+  /**
+   * WS3 #2: skip the inlined `terminalScrollback` — cursor-sync clients
+   * render the terminal from the watch baseline instead, so inlining the
+   * tail transfers the same bytes twice.
+   */
+  readonly omitScrollback?: boolean;
 }
 
 function parseJsonResponse(text: string, response: Response): unknown {
@@ -161,6 +191,29 @@ function parseResponse<T>(schema: z.ZodType<T>, value: unknown, what: string): T
   );
 }
 
+function removeExplicitUndefined(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(removeExplicitUndefined);
+  if (!value || typeof value !== "object") return value;
+  const result: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (nested !== undefined) result[key] = removeExplicitUndefined(nested);
+  }
+  return result;
+}
+
+/**
+ * JSON cannot carry explicit `undefined`, but Zod's inferred optional properties
+ * include it. Remove any transform/default-produced undefined keys recursively
+ * so the validated result soundly satisfies exact-optional producer interfaces.
+ */
+function parseExactOptionalResponse<Contract>(
+  schema: z.ZodType<NormalizeExactOptionalProperties<Contract>>,
+  value: unknown,
+  what: string,
+): Contract {
+  return removeExplicitUndefined(parseResponse(schema, value, what)) as Contract;
+}
+
 function defaultClientMetadata(): RemoteClientMetadata {
   const userAgent = globalThis.navigator?.userAgent;
   const isMobile = userAgent ? /\bMobile\b/i.test(userAgent) : false;
@@ -194,6 +247,8 @@ interface StartRemoteThreadCommon {
 }
 
 export interface StartRemoteThreadInput extends StartRemoteThreadCommon {
+  /** Reopen from host-owned state without replacing another client's live runtime. */
+  readonly ensureRunning?: true;
   readonly projectLocation: ProjectLocation;
   readonly initialSize?: TerminalSize | undefined;
   readonly sessionRef?: StartThreadPayload["sessionRef"] | undefined;
@@ -232,10 +287,68 @@ export interface RemoteDesktopClientOptions {
   readonly maxResponseBodyBytes?: number;
   readonly onRequestSuccess?: () => void;
   readonly onRequestError?: (error: unknown) => void;
+  /**
+   * Gate 6 item 4.6 (S6): refresh-token plumbing. When present, a 401 from an
+   * expired 24-hour access token transparently refreshes (once) and retries
+   * the request; rotated tokens are handed back for persistence. Absent — the
+   * historical shape — the client simply fails authorization like before.
+   */
+  readonly tokenLifecycle?: RemoteTokenLifecycle;
+  /**
+   * Gate 6 item 4.2 (TLS): the pinned leaf-certificate fingerprint (lowercase
+   * hex). When set together with `certFingerprintProbe`, every request
+   * refuses (before sending credentials) when the probed server certificate
+   * does not match. The pin is typically adopted at first pairing from the
+   * QR's `#fp=…` fragment (see {@link exchangePairingCredential}) and
+   * persisted beside the server record.
+   */
+  readonly certFingerprint?: string;
+  /**
+   * Transport hook that observes the server's actual TLS certificate
+   * fingerprint (`sha256` over DER, lowercase hex). Only transports that can
+   * legitimately see the TLS layer (a Node/main-process fetch, tests) supply
+   * it; plain browser fetches rely on the platform chain validation and leave
+   * this unset.
+   */
+  readonly certFingerprintProbe?: RemoteCertFingerprintProbe;
+  /** Notified once when a first-pair probe validated the server certificate
+   * and the fingerprint was adopted as this client's pin. */
+  readonly onCertFingerprintValidated?: (fingerprint: string) => void;
 }
+
+/** Tokens of one session after a (re)issue; persisted by the caller. */
+export interface RemoteTokenSnapshot {
+  readonly accessToken: string;
+  readonly refreshToken?: string | undefined;
+  readonly refreshTokenExpiresAt?: string | undefined;
+}
+
+/** The caller-owned refresh-token store behind {@link RemoteDesktopClientOptions.tokenLifecycle}. */
+export interface RemoteTokenLifecycle {
+  /** The persisted refresh token for this server record, if any. */
+  refreshToken(): string | undefined;
+  /** Called after every successful refresh with the NEW token pair. */
+  onTokensRefreshed(tokens: RemoteTokenSnapshot): void;
+}
+
+export type RemoteCertFingerprintProbe = (url: URL) => Promise<string | null>;
 
 const DEFAULT_REMOTE_REQUEST_TIMEOUT_MS = 60_000;
 const DEFAULT_REMOTE_RESPONSE_MAX_BYTES = 64 * 1024 * 1024;
+/** Bounded revalidating-GET cache: shell snapshot, agent statuses, and one
+ * thread history per open thread fit far below this; eviction is oldest-first. */
+const ETAG_CACHE_MAX_ENTRIES = 32;
+
+/**
+ * Image-ticket cache for {@link RemoteDesktopClient.localImageUrl}. The TTL
+ * mirrors the host's mint window (`ImageTicketStore`, 30 s); a cached URL is
+ * reused only while more than the reuse margin remains so an `<img>` load
+ * starts with real validity left. The bound mirrors the host's live-ticket
+ * cap in spirit; eviction is oldest-first.
+ */
+const LOCAL_IMAGE_TICKET_TTL_MS = 30_000;
+const LOCAL_IMAGE_TICKET_REUSE_MARGIN_MS = 5_000;
+const LOCAL_IMAGE_TICKET_CACHE_MAX_ENTRIES = 64;
 
 /**
  * Long-running server operations (clone, push, PR creation, commit, sync,
@@ -248,6 +361,11 @@ const LONG_REMOTE_REQUEST_TIMEOUT_MS = 5 * 60_000;
 const settingsResponseSchema = z.object({ settings: remoteSettingsSchema });
 const browserStateResponseSchema = z.object({ state: remoteBrowserStateSchema });
 const attachmentUploadResponseSchema = z.object({ path: z.string().min(1) });
+/** Mint result of `POST /api/files/image-ticket` (B5b ticket flow). */
+const remoteImageTicketResultSchema = z.object({
+  ticket: z.string().min(1),
+  expiresAt: z.string().min(1),
+});
 const projectNotesResponseSchema = z.object({ notes: projectNotesSchema.nullable() });
 const prWatchResponseSchema = z.object({ watch: prWatchSchema.nullable() });
 
@@ -257,10 +375,17 @@ export class RemoteDesktopClient {
   private readonly maxResponseBodyBytes: number;
   private readonly onRequestSuccess: (() => void) | undefined;
   private readonly onRequestError: ((error: unknown) => void) | undefined;
+  private tokenLifecycle: RemoteTokenLifecycle | undefined;
+  /** The pin this client enforces on every request (adopted at first pair). */
+  private pinnedCertFingerprint: string | undefined;
+  private readonly certFingerprintProbe: RemoteCertFingerprintProbe | undefined;
+  private readonly onCertFingerprintValidated: ((fingerprint: string) => void) | undefined;
+  /** Memoized one-shot probe, so one client instance asks the transport once. */
+  private certFingerprintVerification: Promise<string | null> | undefined;
 
   constructor(
     readonly endpoint: string,
-    private readonly accessToken?: string,
+    private accessToken?: string,
     fetchImpl?: RemoteFetch,
     options: RemoteDesktopClientOptions = {},
   ) {
@@ -277,7 +402,50 @@ export class RemoteDesktopClient {
     this.maxResponseBodyBytes = options.maxResponseBodyBytes ?? DEFAULT_REMOTE_RESPONSE_MAX_BYTES;
     this.onRequestSuccess = options.onRequestSuccess;
     this.onRequestError = options.onRequestError;
+    this.tokenLifecycle = options.tokenLifecycle;
+    this.pinnedCertFingerprint = options.certFingerprint?.toLowerCase();
+    this.certFingerprintProbe = options.certFingerprintProbe;
+    this.onCertFingerprintValidated = options.onCertFingerprintValidated;
   }
+
+  /**
+   * Attaches (or replaces) the caller-owned refresh lifecycle after
+   * construction — for callers that build clients through an injected
+   * factory and can only bind persistence once the server record is known.
+   */
+  setTokenLifecycle(lifecycle: RemoteTokenLifecycle | undefined): void {
+    this.tokenLifecycle = lifecycle;
+  }
+
+  /** Sets (or clears) the pinned server certificate fingerprint after
+   * construction — same contract as the `certFingerprint` option. */
+  setCertFingerprintPin(fingerprint: string | undefined): void {
+    this.pinnedCertFingerprint = fingerprint?.toLowerCase();
+  }
+
+  /**
+   * Revalidating GET cache for the large read endpoints (shell snapshot,
+   * agent statuses, thread history). The server answers conditional requests
+   * with `304` and no body, so a cache hit skips the full payload download —
+   * the single largest cold-start and refresh cost on weak links. Bounded to
+   * `ETAG_CACHE_MAX_ENTRIES` with insertion-order eviction, and inherently
+   * credential-scoped: `accessToken` is fixed per client instance, so the
+   * cache dies with the credential that authorized its bodies.
+   */
+  private readonly etagCache = new Map<
+    string,
+    { readonly etag: string; readonly parsed: unknown }
+  >();
+
+  /** Minted one-time image tickets per absolute path, newest reuse first. */
+  private readonly localImageTickets = new Map<
+    string,
+    { readonly ticket: string; readonly expiresAtMs: number }
+  >();
+  /** In-flight mints, so concurrent render passes share one request per path. */
+  private readonly localImageTicketMints = new Map<string, Promise<void>>();
+  /** Latched when the host answers the mint route with 404 (older deploy). */
+  private localImageTicketsUnsupported = false;
 
   async environment(): Promise<RemoteEnvironmentDescriptor> {
     let raw: unknown;
@@ -320,7 +488,17 @@ export class RemoteDesktopClient {
      * {@link RemoteDesktopClientOptions.clientMetadata}.
      */
     readonly client?: RemoteClientMetadata;
+    /**
+     * Gate 6 item 4.2: the leaf-certificate fingerprint the pairing QR asserts
+     * (`#fp=sha256:<hex>`). When it can be checked — against the probed
+     * server certificate, or against this client's stored pin when no probe
+     * is available — a mismatch refuses pairing BEFORE the one-time
+     * credential is sent, so the credential cannot be stolen by a MITM whose
+     * link was cloned.
+     */
+    readonly certFingerprint?: string;
   }): Promise<RemoteAccessTokenResult> {
+    await this.refuseCertFingerprintMismatch(input.certFingerprint);
     const result = parseResponse(
       remoteAccessTokenResultSchema,
       await this.requestJson("/oauth/token", {
@@ -336,22 +514,161 @@ export class RemoteDesktopClient {
     );
     // Server-echoed granted scopes are lenient on the wire; narrow to the set
     // this build can act on.
-    return { ...result, scopes: filterKnownRemoteAccessScopes(result.scopes) };
+    const narrowed = { ...result, scopes: filterKnownRemoteAccessScopes(result.scopes) };
+    // First pair over a probe-capable transport: adopt the observed
+    // certificate as this record's pin (TOFU anchored by the QR's own
+    // fingerprint assertion) and hand it to the caller for persistence.
+    const actual = await this.probeCertFingerprint();
+    if (actual && !this.pinnedCertFingerprint) {
+      this.pinnedCertFingerprint = actual;
+      this.onCertFingerprintValidated?.(actual);
+    }
+    return narrowed;
   }
 
-  async snapshot(): Promise<RemoteShellSnapshot> {
-    return parseResponse(
+  /**
+   * Gate 6 item 4.6: exchanges the persisted refresh token for a fresh
+   * 24-hour access token (the refresh value rotates server-side). Returns the
+   * new tokens or null when this client has no lifecycle to refresh with.
+   */
+  async refreshTokens(): Promise<RemoteTokenSnapshot | null> {
+    const refreshToken = this.tokenLifecycle?.refreshToken();
+    if (!refreshToken) return null;
+    const result = parseResponse(
+      remoteAccessTokenResultSchema,
+      await this.requestJson(
+        "/oauth/token",
+        { method: "POST", body: { grantType: "refresh_token", refreshToken } },
+        // Never recurse into the refresh path from the refresh call itself.
+        { isTokenRefresh: true },
+      ),
+      "token refresh",
+    );
+    const tokens: RemoteTokenSnapshot = {
+      accessToken: result.accessToken,
+      ...(result.refreshToken
+        ? {
+            refreshToken: result.refreshToken,
+            ...(result.refreshTokenExpiresAt
+              ? { refreshTokenExpiresAt: result.refreshTokenExpiresAt }
+              : {}),
+          }
+        : {}),
+    };
+    this.accessToken = tokens.accessToken;
+    this.tokenLifecycle?.onTokensRefreshed(tokens);
+    return tokens;
+  }
+
+  /**
+   * Gate 6 item 4.2: refuses a pairing whose QR-asserted fingerprint contradicts
+   * what this client can verify (probed server certificate, else the stored
+   * pin). Returns silently when there is no QR assertion or nothing to check
+   * it against.
+   */
+  private async refuseCertFingerprintMismatch(claimed: string | undefined): Promise<void> {
+    if (!claimed) return;
+    const probed = await this.probeCertFingerprint();
+    const reference = this.pinnedCertFingerprint ?? probed;
+    if (reference && reference.toLowerCase() !== claimed.toLowerCase()) {
+      throw new RemoteClientError(
+        "The pairing link's certificate fingerprint does not match the server's TLS certificate. The link may be cloned, or the server certificate changed — re-generate the pairing QR on the desktop.",
+        502,
+        "certificate_fingerprint_mismatch",
+      );
+    }
+  }
+
+  private probeCertFingerprintVerification(): Promise<string | null> {
+    this.certFingerprintVerification ??= (async () => {
+      try {
+        return await this.certFingerprintProbe!(endpointUrl(this.endpoint, "/"));
+      } catch {
+        return null;
+      }
+    })();
+    return this.certFingerprintVerification;
+  }
+
+  private probeCertFingerprint(): Promise<string | null> {
+    if (!this.certFingerprintProbe) return Promise.resolve(null);
+    return this.probeCertFingerprintVerification();
+  }
+
+  /**
+   * Shell snapshot. Without options the historical full thread list is
+   * fetched. With `threadListPageLimit` (Gate 4 hazard #3) the request bounds
+   * the thread list and this method transparently pages the remainder from
+   * the thread-list route until the host reports the end, resolving with the
+   * complete assembled snapshot so callers keep a single unchanged contract.
+   * A host that predates the pagination ignores the query parameter and
+   * returns no `threadsNextCursor`, which ends the loop after one response.
+   */
+  async snapshot(options: { threadListPageLimit?: number } = {}): Promise<RemoteShellSnapshot> {
+    const limit = options.threadListPageLimit;
+    let snapshot = parseResponse(
       remoteShellSnapshotSchema,
-      await this.requestJson("/api/snapshot"),
+      await this.requestJson(
+        limit === undefined ? "/api/snapshot" : `/api/snapshot?threadLimit=${limit}`,
+      ),
       "snapshot",
     );
+    let cursor: string | null = snapshot.threadsNextCursor ?? null;
+    if (cursor === null) return snapshot;
+    const threads = [...snapshot.threads];
+    const runtimeSummariesByThread = { ...snapshot.runtimeSummariesByThread };
+    let gitSummariesByThread = snapshot.gitSummariesByThread;
+    // The host advances the cursor strictly past returned rows, so a repeated
+    // cursor can only mean a misbehaving peer; refuse it instead of looping.
+    const seenCursors = new Set<string>();
+    while (cursor !== null) {
+      if (seenCursors.has(cursor)) {
+        throw new RemoteClientError(
+          "The server repeated a thread-list cursor; the thread list may be incomplete.",
+          502,
+          "thread_list_cursor_loop",
+        );
+      }
+      seenCursors.add(cursor);
+      const nextCursor: string = cursor;
+      const page: RemoteThreadListPage = parseResponse(
+        remoteThreadListPageSchema,
+        await this.requestJson(
+          `/api/threads?limit=${limit}&cursor=${encodeURIComponent(nextCursor)}`,
+        ),
+        "thread list page",
+      );
+      threads.push(...page.threads);
+      Object.assign(runtimeSummariesByThread, page.runtimeSummariesByThread);
+      if (page.gitSummariesByThread) {
+        gitSummariesByThread = { ...(gitSummariesByThread ?? {}), ...page.gitSummariesByThread };
+      }
+      cursor = page.nextCursor ?? null;
+    }
+    return {
+      ...snapshot,
+      threads,
+      runtimeSummariesByThread,
+      ...(gitSummariesByThread !== undefined ? { gitSummariesByThread } : {}),
+      threadsNextCursor: null,
+    };
   }
 
-  async agentStatuses(): Promise<RemoteAgentStatuses> {
+  async agentStatuses(options: { omitSlashCommands?: boolean } = {}): Promise<RemoteAgentStatuses> {
+    // WS3-A payload split: slash-command catalogs dominate this response, so
+    // clients that fetch them lazily pass omitSlashCommands to skip them.
+    const path = options.omitSlashCommands
+      ? "/api/agent-statuses?slashCommands=0"
+      : "/api/agent-statuses";
+    return parseResponse(remoteAgentStatusesSchema, await this.requestJson(path), "agent statuses");
+  }
+
+  /** One agent's slash-command catalog (WS3-A lazy fetch partner). */
+  async agentSlashCommands(kind: string): Promise<RemoteAgentSlashCommands> {
     return parseResponse(
-      remoteAgentStatusesSchema,
-      await this.requestJson("/api/agent-statuses"),
-      "agent statuses",
+      remoteAgentSlashCommandsSchema,
+      await this.requestJson(`/api/agents/${encodeURIComponent(kind)}/slash-commands`),
+      "agent slash commands",
     );
   }
 
@@ -375,15 +692,13 @@ export class RemoteDesktopClient {
     await this.requestJson("/api/host-update/install", { method: "POST", body: {} });
   }
 
-  /** Provider usage snapshots; the response shape is a typed contract with no
-   * runtime schema (see `ProviderUsageResponse`), so a light shape check only. */
+  /** Provider usage snapshots validated against the collector-owned wire schema. */
   async providerUsage(): Promise<ProviderUsageResponse> {
-    const result = parseResponse(
-      z.object({ snapshots: z.array(z.unknown()), fromCache: z.boolean() }),
+    return parseResponse(
+      providerUsageResponseSchema,
       await this.requestJson("/api/provider-usage"),
       "provider usage",
     );
-    return result as ProviderUsageResponse;
   }
 
   async projectNotes(projectId: string): Promise<ProjectNotes | null> {
@@ -396,9 +711,10 @@ export class RemoteDesktopClient {
   }
 
   async setProjectNotes(notes: ProjectNotes): Promise<void> {
-    await this.requestJson(`/api/projects/${encodeURIComponent(notes.projectId)}/notes`, {
+    const { projectId, ...body } = notes;
+    await this.requestJson(`/api/projects/${encodeURIComponent(projectId)}/notes`, {
       method: "POST",
-      body: notes,
+      body,
     });
   }
 
@@ -483,6 +799,16 @@ export class RemoteDesktopClient {
     return schedule;
   }
 
+  async scheduleRuns(id: string): Promise<ScheduledTaskRun[]> {
+    const query = new URLSearchParams({ id });
+    const result = parseResponse(
+      remoteScheduleRunsResponseSchema,
+      await this.requestJson(`/api/schedules/runs?${query.toString()}`),
+      "schedule runs",
+    );
+    return result.runs;
+  }
+
   async getPrWatch(input: PrWatchKey): Promise<PrWatch | null> {
     const query = new URLSearchParams({
       projectId: input.projectId,
@@ -526,39 +852,35 @@ export class RemoteDesktopClient {
    * looseObject — a plain z.object would strip everything unnamed.
    */
   async profileDevices(): Promise<ProfileDevicesResponse> {
-    const result = parseResponse(
-      z.object({ devices: z.array(z.unknown()), currentDeviceId: z.string() }),
+    return parseExactOptionalResponse<ProfileDevicesResponse>(
+      profileDevicesResponseSchema,
       await this.requestJson("/api/profile/devices"),
       "profile devices",
     );
-    return result as ProfileDevicesResponse;
   }
 
   async profileCoreStats(req: ProfileStatsRequest): Promise<ProfileCoreStats> {
-    const result = parseResponse(
-      z.looseObject({ scope: z.string(), device: z.unknown(), totals: z.unknown() }),
+    return parseExactOptionalResponse<ProfileCoreStats>(
+      profileCoreStatsSchema,
       await this.requestJson("/api/profile/core-stats", { method: "POST", body: req }),
       "profile stats",
     );
-    return result as unknown as ProfileCoreStats;
   }
 
   async profileTokenStats(req: ProfileStatsRequest): Promise<ProfileTokenStats> {
-    const result = parseResponse(
-      z.looseObject({ available: z.boolean(), scope: z.string(), device: z.unknown() }),
+    return parseExactOptionalResponse<ProfileTokenStats>(
+      profileTokenStatsSchema,
       await this.requestJson("/api/profile/token-stats", { method: "POST", body: req }),
       "profile token stats",
     );
-    return result as unknown as ProfileTokenStats;
   }
 
   async setProfileIdentity(identity: ProfileIdentity): Promise<ProfileIdentityResponse> {
-    const result = parseResponse(
-      z.object({ identity: profileIdentitySchema, device: z.unknown() }),
+    return parseExactOptionalResponse<ProfileIdentityResponse>(
+      profileIdentityResponseSchema,
       await this.requestJson("/api/profile/identity", { method: "POST", body: identity }),
       "profile identity",
     );
-    return result as ProfileIdentityResponse;
   }
 
   async browserState(): Promise<RemoteBrowserState> {
@@ -589,6 +911,7 @@ export class RemoteDesktopClient {
       ...(options.targetTimelineEntryCount !== undefined
         ? { targetTimelineEntryCount: String(options.targetTimelineEntryCount) }
         : {}),
+      ...(options.omitScrollback ? { omitScrollback: "1" } : {}),
     });
     return remoteThreadSnapshotSchema.parse(
       await this.requestJson(`/api/threads/${encodeURIComponent(threadId)}/history?${search}`),
@@ -618,7 +941,14 @@ export class RemoteDesktopClient {
     const result = await this.requestJson("/api/threads/start", {
       method: "POST",
       headers: {
-        [REMOTE_COMMAND_ID_HEADER]: input.userMessageItemId ?? crypto.randomUUID(),
+        // Never reuse a send-path userMessageItemId: receipts reject the same
+        // command id across routes, and a failed /send must still be able to
+        // fall back to /start for unknown-session resume.
+        [REMOTE_COMMAND_ID_HEADER]: input.userMessageItemId
+          ? `thread-start-item:${input.userMessageItemId}`
+          : input.threadId
+            ? `thread-start:${input.threadId}`
+            : crypto.randomUUID(),
       },
       body: {
         ...(input.threadId ? { threadId: input.threadId } : {}),
@@ -633,6 +963,7 @@ export class RemoteDesktopClient {
         ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
         ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
         ...(input.providerSwitch ? { providerSwitch: input.providerSwitch } : {}),
+        ...(input.ensureRunning ? { ensureRunning: true } : {}),
       },
     });
     return parseResponse(z.object({ threadId: z.string() }), result, "thread");
@@ -705,6 +1036,30 @@ export class RemoteDesktopClient {
       method: "POST",
       body: { itemId: input.itemId },
     });
+  }
+
+  /** WS2 stage 4: the backend-owned compound checkpoint revert. */
+  async checkpointRevert(input: {
+    readonly threadId: string;
+    readonly checkpointItemId: string;
+    readonly operationKey: string;
+  }): Promise<CheckpointRevertResult> {
+    const parsed = checkpointRevertPayloadSchema.parse(input);
+    return checkpointRevertResultSchema.parse(
+      await this.requestJson(
+        `/api/threads/${encodeURIComponent(parsed.threadId)}/checkpoint-revert`,
+        {
+          method: "POST",
+          headers: {
+            [REMOTE_COMMAND_ID_HEADER]: `${CHECKPOINT_REVERT_COMMAND_ID_PREFIX}${parsed.operationKey}`,
+          },
+          body: {
+            checkpointItemId: parsed.checkpointItemId,
+            operationKey: parsed.operationKey,
+          },
+        },
+      ),
+    );
   }
 
   async setPendingSteer(input: SetPendingSteerPayload): Promise<void> {
@@ -788,18 +1143,38 @@ export class RemoteDesktopClient {
    * it.
    */
   async callRemoteProcedure(procedure: string, payload: unknown): Promise<unknown> {
-    const spec = isRemoteProcedure(procedure) ? REMOTE_PROCEDURE_SPECS[procedure] : undefined;
     try {
-      const result = (await this.requestJson("/api/git/call", {
+      if (!isRemoteProcedure(procedure)) {
+        throw new RemoteClientError(
+          `Procedure "${procedure}" is not available to remote clients.`,
+          403,
+          "git_procedure_not_allowed",
+        );
+      }
+      const spec = REMOTE_PROCEDURE_SPECS[procedure];
+      const envelope = await this.requestJson("/api/git/call", {
         method: "POST",
         body: { procedure, payload },
-        ...(spec && "timeout" in spec && spec.timeout === "long"
+        ...("timeout" in spec && spec.timeout === "long"
           ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS }
           : {}),
-      })) as { result: unknown };
-      return result.result;
+      });
+      const resultSchema = ipcProcedureMap[procedure].resultSchema;
+      if (!resultSchema) {
+        throw new RemoteClientError(
+          `Procedure "${procedure}" is missing an authoritative result schema.`,
+          500,
+          "git_procedure_result_schema_missing",
+        );
+      }
+      if (resultSchema === omittedResultSchema) {
+        parseResponse(omittedCallEnvelopeSchema, envelope, `procedure ${procedure}`);
+        return undefined;
+      }
+      return parseResponse(jsonCallEnvelopeSchema(resultSchema), envelope, `procedure ${procedure}`)
+        .result;
     } catch (error) {
-      // The remote protocol remains additive within v9. A v9 host from before
+      // A host from before
       // queued follow-ups knows the passthrough endpoint but rejects these new
       // procedure names; turn that capability miss into a stable, actionable
       // error. Never retry through setPendingSteer: queue and steer have
@@ -890,8 +1265,8 @@ export class RemoteDesktopClient {
    * `session:operate` scope (no separate push scope), so already-paired devices
    * register without re-pairing.
    */
-  async registerPush(registration: RemotePushRegistration): Promise<void> {
-    parseResponse(
+  async registerPush(registration: RemotePushRegistration): Promise<RemotePushRegistrationResult> {
+    return parseResponse(
       remotePushRegistrationResultSchema,
       await this.requestJson("/api/push/register", { method: "POST", body: registration }),
       "push registration",
@@ -904,8 +1279,11 @@ export class RemoteDesktopClient {
   }
 
   /** Drop all push registrations for a device (sign-out / unpair). */
-  async unregisterPush(deviceId: string): Promise<void> {
-    await this.requestJson("/api/push/unregister", { method: "POST", body: { deviceId } });
+  async unregisterPush(deviceId: string, routing?: RemotePushRegistrationRouting): Promise<void> {
+    await this.requestJson("/api/push/unregister", {
+      method: "POST",
+      body: { deviceId, ...(routing ? { routing } : {}) },
+    });
   }
 
   async websocketTicket(timeoutMs?: number): Promise<string> {
@@ -946,34 +1324,107 @@ export class RemoteDesktopClient {
 
   /**
    * Absolute URL of the authenticated image endpoint used for poracode-local
-   * sources. The access token rides in the query string because <img> tags
-   * can't send Authorization headers. Returns "" without a token — callers
-   * fall back to the original (unrenderable in a browser) URL then.
+   * sources. <img> tags can't send Authorization headers, so the URL carries
+   * the one-time `lc_img_` ticket minted from `POST /api/files/image-ticket`.
+   * Gate 6 item 4.6 (S6): the former `access_token` query-param fallback is
+   * GONE — a long-lived bearer in the URL leaks into proxy/relay access logs,
+   * and no URL in this client carries a bearer token anymore. Minting is
+   * asynchronous while every render-path consumer of this method is
+   * synchronous, so the FIRST resolution of a path returns "" (callers fall
+   * back to the original, unrenderable-in-a-browser URL) and the ticketed URL
+   * is served from cache on the next resolution. A 404 from the mint (older
+   * host without the route) latches off ticket use for this client instance.
    */
   localImageUrl(absolutePath: string): string {
     if (!this.accessToken) return "";
     const url = endpointUrl(this.endpoint, "/api/files/image");
     url.searchParams.set("path", absolutePath);
-    url.searchParams.set("access_token", this.accessToken);
-    return url.toString();
+    const cached = this.localImageTickets.get(absolutePath);
+    if (cached && cached.expiresAtMs > Date.now() + LOCAL_IMAGE_TICKET_REUSE_MARGIN_MS) {
+      url.searchParams.set("ticket", cached.ticket);
+      return url.toString();
+    }
+    this.queueImageTicketMint(absolutePath, absolutePath);
+    return "";
+  }
+
+  /**
+   * One shared mint: `key` dedupes concurrent resolutions, `pathValue` is the
+   * exact server-side path the ticket is bound to (the filesystem path for
+   * {@link localImageUrl}, the JSON reference path for {@link imageRefUrl}).
+   */
+  private queueImageTicketMint(key: string, pathValue: string): void {
+    if (this.localImageTicketsUnsupported) return;
+    // Deduped per key: markdown and gallery rendering can resolve the same
+    // image several times while one mint is in flight.
+    let mint = this.localImageTicketMints.get(key);
+    if (!mint) {
+      mint = this.mintImageTicket(key, pathValue);
+      this.localImageTicketMints.set(key, mint);
+      void mint.finally(() => {
+        this.localImageTicketMints.delete(key);
+      });
+    }
+  }
+
+  private async mintImageTicket(key: string, pathValue: string): Promise<void> {
+    try {
+      const result = parseResponse(
+        remoteImageTicketResultSchema,
+        await this.requestJson("/api/files/image-ticket", {
+          method: "POST",
+          body: { path: pathValue },
+        }),
+        "image ticket",
+      );
+      while (this.localImageTickets.size >= LOCAL_IMAGE_TICKET_CACHE_MAX_ENTRIES) {
+        const oldest = this.localImageTickets.keys().next().value;
+        if (oldest === undefined) break;
+        this.localImageTickets.delete(oldest);
+      }
+      this.localImageTickets.set(key, {
+        ticket: result.ticket,
+        expiresAtMs: Date.now() + LOCAL_IMAGE_TICKET_TTL_MS,
+      });
+    } catch (error) {
+      if (error instanceof RemoteClientError && error.status === 404) {
+        // Older host without the ticket route: stop re-requesting the route
+        // for this client's lifetime. There is no credential left that an
+        // <img> tag could legally carry on such a host.
+        this.localImageTicketsUnsupported = true;
+      }
+    }
   }
 
   /**
    * Absolute URL for a host-minted image reference. Like {@link localImageUrl}
-   * the token rides in the query string because <img> tags can't send an
-   * Authorization header — but unlike it, the location is addressed inside the
-   * host's own stored payload rather than by a filesystem path, so nothing the
-   * agent wrote can influence what gets served. Returns "" without a token.
+   * the URL authenticates with a one-time ticket minted for the exact JSON
+   * reference path — never a bearer token — because <img> tags can't send an
+   * Authorization header; and unlike a filesystem path, the location is
+   * addressed inside the host's own stored payload, so nothing the agent
+   * wrote can influence what gets served. Returns "" without a token or while
+   * the mint is in flight.
    */
   imageRefUrl(ref: RemoteImageRefValue): string {
     if (!this.accessToken) return "";
+    const pathValue = JSON.stringify(ref.path);
+    const mintKey = `${ref.threadId}/${ref.itemId}/${pathValue}`;
     const url = endpointUrl(this.endpoint, remoteImageRefPath(ref));
-    url.searchParams.set("access_token", this.accessToken);
-    return url.toString();
+    const cached = this.localImageTickets.get(mintKey);
+    if (cached && cached.expiresAtMs > Date.now() + LOCAL_IMAGE_TICKET_REUSE_MARGIN_MS) {
+      url.searchParams.set("ticket", cached.ticket);
+      return url.toString();
+    }
+    this.queueImageTicketMint(mintKey, pathValue);
+    return "";
   }
 
   parseSocketMessage(value: string): RemoteWebSocketServerMessage {
     return remoteWebSocketServerMessageSchema.parse(JSON.parse(value) as unknown);
+  }
+
+  tryParseSocketMessage(value: string): RemoteWebSocketServerMessage | null {
+    return tryParseRemoteSocketMessage(value);
   }
 
   private async requestJson(
@@ -987,13 +1438,34 @@ export class RemoteDesktopClient {
        * Long-running ops (clone, push, PR creation) pass a larger value. */
       readonly timeoutMs?: number;
     } = {},
+    // Internal refresh-loop state: the token-refresh call never refreshes
+    // (that would loop), and a post-refresh retry never retries again.
+    refreshState: { readonly isTokenRefresh?: boolean; readonly isRefreshRetry?: boolean } = {},
   ): Promise<unknown> {
+    // Gate 6 item 4.2: with a pinned fingerprint and a TLS-observable
+    // transport, refuse BEFORE credentials leave the client.
+    if (this.pinnedCertFingerprint && this.certFingerprintProbe) {
+      const actual = await this.probeCertFingerprint();
+      if (actual && actual.toLowerCase() !== this.pinnedCertFingerprint) {
+        throw new RemoteClientError(
+          "The server's TLS certificate no longer matches the fingerprint pinned at pairing. Re-pair the device from the desktop's Remote Access panel.",
+          502,
+          "certificate_fingerprint_mismatch",
+        );
+      }
+    }
+
     const headers: Record<string, string> = { ...init.headers };
     if (init.body !== undefined) {
       headers["content-type"] = "application/json";
     }
     if (this.accessToken) {
       headers.authorization = `Bearer ${this.accessToken}`;
+    }
+    const method = init.method ?? "GET";
+    const cached = method === "GET" ? this.etagCache.get(path) : undefined;
+    if (cached) {
+      headers["if-none-match"] = cached.etag;
     }
     const effectiveTimeoutMs = init.timeoutMs ?? this.requestTimeoutMs;
     const controller = new AbortController();
@@ -1032,11 +1504,18 @@ export class RemoteDesktopClient {
       // otherwise parse to `{}` and fail schema validation with a confusing
       // error. Fail loudly instead.
       if (response.status === 304) {
-        throw new RemoteClientError(
-          "Remote request returned 304 without a cached body.",
-          304,
-          "not_modified",
-        );
+        // Conditional GET revalidated clean: the cached body is the answer.
+        // Without a cache entry this is a protocol error (a bare 304 carries
+        // no body and would parse to `{}`), so fail loudly.
+        if (!cached) {
+          throw new RemoteClientError(
+            "Remote request returned 304 without a cached body.",
+            304,
+            "not_modified",
+          );
+        }
+        this.onRequestSuccess?.();
+        return cached.parsed;
       }
       const body = await Promise.race([
         readBoundedResponseBody(response, this.maxResponseBodyBytes),
@@ -1045,12 +1524,42 @@ export class RemoteDesktopClient {
       const text = new TextDecoder().decode(body);
       const parsed = parseJsonResponse(text, response);
       if (!response.ok) {
+        // Gate 6 item 4.6 (S6): a 401 from an expired 24-hour access token
+        // transparently refreshes once and retries the request. Any refresh
+        // failure surfaces the ORIGINAL authorization error, so callers keep
+        // seeing a clean 401 instead of a grant-endpoint failure.
+        if (
+          response.status === 401 &&
+          !refreshState.isTokenRefresh &&
+          !refreshState.isRefreshRetry &&
+          this.tokenLifecycle?.refreshToken()
+        ) {
+          try {
+            if (await this.refreshTokens()) {
+              return await this.requestJson(path, init, { isRefreshRetry: true });
+            }
+          } catch {
+            // fall through to the original error below
+          }
+        }
         const error = remoteHttpErrorSchema.safeParse(parsed);
         throw new RemoteClientError(
           error.success ? error.data.error.message : "Remote request failed.",
           response.status,
           error.success ? error.data.error.code : "request_failed",
         );
+      }
+      if (method === "GET") {
+        const etag = response.headers.get("etag");
+        if (etag) {
+          this.etagCache.delete(path);
+          this.etagCache.set(path, { etag, parsed });
+          while (this.etagCache.size > ETAG_CACHE_MAX_ENTRIES) {
+            const oldest = this.etagCache.keys().next().value;
+            if (oldest === undefined) break;
+            this.etagCache.delete(oldest);
+          }
+        }
       }
       this.onRequestSuccess?.();
       return parsed;

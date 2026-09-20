@@ -1,7 +1,15 @@
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, posix, resolve } from "node:path";
 import { homedir, tmpdir } from "node:os";
-import { beforeEach, afterEach, describe, expect, it } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { ProjectTreeService } from "./projectTree";
 import type { WslBridgeClient } from "./wsl/bridge/client";
@@ -240,6 +248,124 @@ describe("ProjectTreeService", () => {
     });
     expect(existsSync(join(tempDir, "dest", "renamed.ts"))).toBe(false);
   });
+
+  it("never replaces existing entries during create, rename, or move", async () => {
+    mkdirSync(join(tempDir, "src"), { recursive: true });
+    mkdirSync(join(tempDir, "dest"), { recursive: true });
+    writeFileSync(join(tempDir, "src", "existing.ts"), "source", "utf8");
+    writeFileSync(join(tempDir, "src", "collision.ts"), "destination", "utf8");
+    writeFileSync(join(tempDir, "dest", "existing.ts"), "moved destination", "utf8");
+
+    await expect(
+      service.createProjectEntry({
+        projectLocation: location,
+        path: "src/existing.ts",
+        type: "file",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      service.renameProjectEntry({
+        projectLocation: location,
+        path: "src/existing.ts",
+        nextName: "collision.ts",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      service.moveProjectEntry({
+        projectLocation: location,
+        path: "src/existing.ts",
+        nextParentPath: "dest",
+      }),
+    ).rejects.toThrow("already exists");
+
+    expect(readFileSync(join(tempDir, "src", "existing.ts"), "utf8")).toBe("source");
+    expect(readFileSync(join(tempDir, "src", "collision.ts"), "utf8")).toBe("destination");
+    expect(readFileSync(join(tempDir, "dest", "existing.ts"), "utf8")).toBe("moved destination");
+  });
+
+  it("rejects rename and delete operations targeting the project root", async () => {
+    writeFileSync(join(tempDir, "keep.txt"), "keep", "utf8");
+
+    await expect(
+      service.renameProjectEntry({ projectLocation: location, path: "/", nextName: "renamed" }),
+    ).rejects.toThrow("project root");
+    await expect(
+      service.deleteProjectEntry({ projectLocation: location, path: "." }),
+    ).rejects.toThrow("project root");
+
+    expect(readFileSync(join(tempDir, "keep.txt"), "utf8")).toBe("keep");
+  });
+
+  it("rejects project mutations through symbolic-link ancestors", async () => {
+    const outside = mkdtempSync(join(tmpdir(), "poracode-project-tree-outside-"));
+    writeFileSync(join(outside, "keep.txt"), "keep", "utf8");
+    try {
+      try {
+        symlinkSync(outside, join(tempDir, "outside-link"), "dir");
+      } catch {
+        return;
+      }
+
+      await expect(
+        service.createProjectEntry({
+          projectLocation: location,
+          path: "outside-link/new.txt",
+          type: "file",
+        }),
+      ).rejects.toThrow("Symbolic links");
+      await expect(
+        service.deleteProjectEntry({
+          projectLocation: location,
+          path: "outside-link/keep.txt",
+        }),
+      ).rejects.toThrow("Symbolic links");
+
+      expect(readFileSync(join(outside, "keep.txt"), "utf8")).toBe("keep");
+      expect(existsSync(join(outside, "new.txt"))).toBe(false);
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects WSL destination collisions and root deletion before mutation", async () => {
+    const stat = vi.fn<WslBridgeClient["stat"]>(async (_location, paths) => ({
+      stats: paths.map((path) => ({ path, exists: true, isFile: true })),
+    }));
+    const moveEntry = vi.fn<WslBridgeClient["moveNoReplace"]>(async () => undefined);
+    const removeEntry = vi.fn<WslBridgeClient["rm"]>(async () => undefined);
+    service.setWslClient({
+      stat,
+      moveNoReplace: moveEntry,
+      rm: removeEntry,
+    } as unknown as WslBridgeClient);
+    const wslLocation: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/home/user/repo",
+      uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\user\\repo",
+    };
+
+    await expect(
+      service.renameProjectEntry({
+        projectLocation: wslLocation,
+        path: "source.txt",
+        nextName: "destination.txt",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      service.moveProjectEntry({
+        projectLocation: wslLocation,
+        path: "source.txt",
+        nextParentPath: "dest",
+      }),
+    ).rejects.toThrow("already exists");
+    await expect(
+      service.deleteProjectEntry({ projectLocation: wslLocation, path: "/" }),
+    ).rejects.toThrow("project root");
+
+    expect(moveEntry).not.toHaveBeenCalled();
+    expect(removeEntry).not.toHaveBeenCalled();
+  });
 });
 
 /**
@@ -374,6 +500,30 @@ describe("ProjectTreeService WSL external files", () => {
     }
   });
 
+  it.each(["project", "external"] as const)(
+    "surfaces WSL commit-time conflicts through the %s editor without hiding other errors",
+    async (editor) => {
+      const location = makeWslLocation("/home/user/work/repo");
+      const absolutePath = "/home/user/work/repo/shared.txt";
+      bridge.files.set(absolutePath, { content: Buffer.from("before\n"), mtimeMs: 5000 });
+      const write = () => {
+        const payload = { projectLocation: location, content: "after\n", baseModifiedAtMs: 5000 };
+        return editor === "project"
+          ? service.writeProjectFile({ ...payload, path: "shared.txt" })
+          : service.writeExternalFile({ ...payload, absolutePath });
+      };
+      const commit = vi.spyOn(bridge, "writeFile");
+      commit.mockRejectedValueOnce(
+        Object.assign(new Error("file changed on disk since it was read"), { code: "EMTIME" }),
+      );
+      await expect(write()).rejects.toThrow("The file changed on disk. Reload it before saving.");
+      const denied = Object.assign(new Error("permission denied"), { code: "EACCES" });
+      commit.mockRejectedValueOnce(denied);
+      await expect(write()).rejects.toBe(denied);
+      expect(bridge.files.get(absolutePath)?.content.toString("utf8")).toBe("before\n");
+    },
+  );
+
   it("readExternalFile returns 'missing' when the WSL bridge reports ENOENT", async () => {
     const result = await service.readExternalFile({
       projectLocation: makeWslLocation("/home/user/work/repo"),
@@ -458,7 +608,6 @@ describe("ProjectTreeService.browseHostDirectory", () => {
 
   it("classifies a symlink to a directory as a directory", async () => {
     if (process.platform === "win32") return; // symlink perms differ on Windows CI
-    const { symlinkSync } = await import("node:fs");
     mkdirSync(join(tempDir, "real"));
     symlinkSync(join(tempDir, "real"), join(tempDir, "link"));
 

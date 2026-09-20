@@ -133,6 +133,12 @@ export function TodoRow(props: {
             className="lc-notes-todo-input m-0 h-5 min-w-0 flex-1 border-0 bg-transparent p-0 text-xs leading-5 text-foreground outline-none"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            onFocus={(event) => {
+              const input = event.currentTarget;
+              window.setTimeout(() => {
+                input.scrollIntoView({ block: "center", behavior: "smooth" });
+              }, 250);
+            }}
             onBlur={commitEdit}
             onKeyDown={(e) => {
               if (e.key === "Enter") {

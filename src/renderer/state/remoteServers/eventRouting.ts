@@ -1,5 +1,11 @@
 import { collectRuntimeEventsFromSupervisoryMessage } from "@/renderer/state/remote";
 
+/** Structural matcher used by the hot event-filter path. A cached index can
+ * expose only `has()` without copying a large Set for every incoming event. */
+export interface ThreadIdMatcher {
+  has(threadId: string): boolean;
+}
+
 export function shouldRefreshRemoteServerAfterEvent(value: unknown): boolean {
   if (!value || typeof value !== "object") return false;
   const type = (value as { type?: unknown }).type;
@@ -23,7 +29,7 @@ export function shouldRefreshRemoteAgentStatusesAfterEvent(value: unknown): bool
   );
 }
 
-export function filterRemoteThreadEvents(value: unknown, threadIds: ReadonlySet<string>): unknown {
+export function filterRemoteThreadEvents(value: unknown, threadIds: ThreadIdMatcher): unknown {
   if (!value || typeof value !== "object") return null;
   const type = (value as { type?: unknown }).type;
 

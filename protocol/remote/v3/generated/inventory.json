@@ -1,0 +1,19 @@
+{
+  "bindingFormatVersion": 2,
+  "doNotEdit": "GENERATED FILE. Do not edit by hand. Run `pnpm protocol:remote:v3:generate`.",
+  "generatorVersion": 3,
+  "inventory": {
+    "blockedProcedureResults": [],
+    "jsonProcedureResults": 65,
+    "procedures": 108,
+    "replayableEventTypes": 16,
+    "routes": 67,
+    "runtimeEventTypes": 16,
+    "voidProcedureResults": 43,
+    "webSocketClientMessages": 9,
+    "webSocketServerMessages": 11
+  },
+  "manifestHash": "sha256:680ed19fec59987e53d1692af7ea661afebde23a8c3769f3cd280cc2417e3f24",
+  "protocolVersion": 12,
+  "sourceHash": "sha256:b011e8c09353731b3029a221037932009a5bf0b319a6eac2e8e966ba3afe314a"
+}

@@ -69,7 +69,15 @@ function capabilitiesEqual(
   if (a.models.length !== b.models.length) return false;
   if (a.efforts.length !== b.efforts.length) return false;
   for (let i = 0; i < a.models.length; i++) {
-    if (a.models[i]!.id !== b.models[i]!.id) return false;
+    const previous = a.models[i]!;
+    const next = b.models[i]!;
+    if (
+      previous.id !== next.id ||
+      previous.label !== next.label ||
+      previous.description !== next.description ||
+      previous.tooltipDescription !== next.tooltipDescription
+    )
+      return false;
   }
   for (let i = 0; i < a.efforts.length; i++) {
     if (a.efforts[i] !== b.efforts[i]) return false;
@@ -264,11 +272,10 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 30,
-      // v30 mirrors supervisor STATUS_CACHE_VERSION=33: discover the OpenCode 2
-      // provider and re-probe the per-provider credentials agents report
-      // alongside their auth state.
-
+      version: 33,
+      // v33 mirrors supervisor STATUS_CACHE_VERSION=36. Cached Muse statuses
+      // that reported not-installed on Windows (WSL-routed detection) must be
+      // re-probed natively.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

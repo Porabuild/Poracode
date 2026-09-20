@@ -1,8 +1,12 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import { type PoracodeChannel, resolvePoracodeChannel } from "@/shared/channel";
+import {
+  legacyProductNameFor,
+  resolveLegacyElectronUserDataDir,
+} from "@/shared/legacyProductPaths";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import Database from "better-sqlite3";
 import { resolveBetterSqliteNativeBindingOptions } from "./db/connection";
@@ -14,11 +18,6 @@ const MIGRATION_REQUEST_SUFFIX = ".lightcode-migration-request-v1";
 const LEGACY_DATA_DIR_NAME: Record<PoracodeChannel, string> = {
   stable: ".lightcode",
   nightly: ".lightcode-nightly",
-};
-
-const LEGACY_PRODUCT_NAME: Record<PoracodeChannel, string> = {
-  stable: "Lightcode",
-  nightly: "Lightcode Nightly",
 };
 
 const TRANSIENT_DATA_ROOT_ENTRIES = new Set([
@@ -94,9 +93,7 @@ function legacyDataDir(channel: PoracodeChannel, override?: string): string {
   return override ?? join(homedir(), LEGACY_DATA_DIR_NAME[channel]);
 }
 
-export function legacyProductNameFor(channel: PoracodeChannel): string {
-  return LEGACY_PRODUCT_NAME[channel];
-}
+export { legacyProductNameFor, resolveLegacyElectronUserDataDir };
 
 function uniqueBackupPath(targetDir: string): string {
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -121,6 +118,47 @@ function hasLiveServerLock(dataDir: string): boolean {
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === "EPERM";
   }
+}
+
+export interface LegacyOwnershipProbe {
+  /** True when a launch would still attempt the legacy import. */
+  readonly pendingImport: boolean;
+  /** True when a live process holds a legacy (or importing-target) server.lock. */
+  readonly liveServerLock: boolean;
+  readonly legacyDataDir: string;
+}
+
+/**
+ * Side-effect-free ownership probe for desktop startup admission: mirrors the
+ * early-return predicates of `migrateLegacyDataOnLaunch` so a caller can
+ * refuse BEFORE acquiring the owner lease when a live legacy server would
+ * turn the import into a two-writer fight. An already-migrated profile
+ * (migration marker present, nothing left to import) reports no pending
+ * import even while the legacy app keeps running.
+ */
+export function probeLegacyOwnership(options: LegacyDataMigrationOptions): LegacyOwnershipProbe {
+  const channel = options.channel ?? resolvePoracodeChannel();
+  const migrationApplicable =
+    options.allowCustomDataRoot === true || isDefaultDataRoot(options.baseDir, channel);
+  const requested = existsSync(requestPath(options.baseDir));
+  const alreadyComplete = !requested && existsSync(markerPath(options.baseDir));
+  const sourceDataDir = legacyDataDir(channel, options.legacyBaseDir);
+  const importDataRoot =
+    isDirectory(sourceDataDir) && normalizedPath(sourceDataDir) !== normalizedPath(options.baseDir);
+  const importElectronUserData =
+    isDirectory(options.legacyElectronUserDataDir) &&
+    options.electronUserDataDir !== undefined &&
+    normalizedPath(options.legacyElectronUserDataDir) !==
+      normalizedPath(options.electronUserDataDir);
+  return {
+    pendingImport:
+      migrationApplicable && !alreadyComplete && (importDataRoot || importElectronUserData),
+    liveServerLock: importDataRoot
+      ? hasLiveServerLock(sourceDataDir) ||
+        (isDirectory(options.baseDir) && hasLiveServerLock(options.baseDir))
+      : false,
+    legacyDataDir: sourceDataDir,
+  };
 }
 
 function assertDataRootAvailable(dataDir: string): void {
@@ -212,16 +250,6 @@ function writeMigrationMarker(baseDir: string, marker: MigrationMarker): void {
 
 function removeMigrationRequest(baseDir: string): void {
   rmSync(requestPath(baseDir), { force: true });
-}
-
-export function resolveLegacyElectronUserDataDir(
-  electronUserDataDir: string,
-  channel: PoracodeChannel = resolvePoracodeChannel(),
-  isDev = false,
-): string {
-  const currentProductDir = isDev ? dirname(electronUserDataDir) : electronUserDataDir;
-  const legacyProductDir = join(dirname(currentProductDir), legacyProductNameFor(channel));
-  return isDev ? join(legacyProductDir, basename(electronUserDataDir)) : legacyProductDir;
 }
 
 export function migrateLegacyDataOnLaunch(
