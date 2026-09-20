@@ -41,7 +41,7 @@ async function pairBrowserDesktopFromUrl(href: string, cleanCurrentUrl = false):
     await Promise.all([useRemoteServersStore.persist.rehydrate(), useAppStore.persist.rehydrate()]);
     const record = await useRemoteServersStore.getState().pairServer({
       endpoint: normalizePairingEndpoint(pairing.host ?? pairing.url.toString()),
-      token: pairing.token,
+      token: href,
     });
     if (cleanCurrentUrl) {
       const nextUrl = new URL(window.location.href);
@@ -115,9 +115,8 @@ if (window.poracodeHost) {
     }
   } else {
     installElectronClientRuntime(window.poracodeHost);
-    // V5 plan 2.5 (loopback unification): the co-located remote server becomes
-    // the preferred event leg when it is reachable; the desktop-IPC relay
-    // stays the documented fallback. Fire-and-forget and non-fatal by design.
+    // V5 plan 2.5 / V6 B.6: the co-located remote server is the event
+    // data plane. Fire-and-forget; discovery retries until it is up.
     void startDesktopLoopbackEventIntake();
   }
   const { readBridge } = await import("./bridge");

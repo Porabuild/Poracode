@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import { PORACODE_CLIENT_RUNTIME_VERSION } from "@/shared/clientRuntime";
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { TerminalSnapshot } from "@/shared/contracts";
-import type { RemoteAccessServerOptions } from "@/main/remote/RemoteAccessServer";
-import { RemoteAccessServer } from "@/main/remote/RemoteAccessServer";
+import { IPC_PROCEDURE_MAP_VERSION } from "@/shared/ipc";
+import { agentStatusSchema, type ScheduledTask, type TerminalSnapshot } from "@/shared/contracts";
+import type { RemoteAccessServerOptions } from "@/host/remote/RemoteAccessServer";
+import { RemoteAccessServer } from "@/host/remote/RemoteAccessServer";
 import type { ManagedTerminalListener } from "./state/remoteTerminalFeed";
 import {
   installElectronClientRuntime,
@@ -15,13 +16,21 @@ import {
   startDesktopLoopbackEventIntake,
   __setDesktopLoopbackIntakeTestSeamsForTest,
 } from "./clientRuntime";
-import { watchManagedTerminal, watchRemoteTerminal } from "./state/remoteTerminalFeed";
 import {
-  MANAGED_LOOPBACK_DESKTOP_ID,
+  managedTerminalFeedId,
+  watchManagedTerminal,
+  watchRemoteTerminal,
+} from "./state/remoteTerminalFeed";
+import {
   __resetManagedLoopbackOwnerForTest,
   getManagedLoopbackOwnerRow,
   isManagedLoopbackRequestRoutingActive,
 } from "./state/remoteServers/managedLoopbackOwner";
+import {
+  DesktopLoopbackIntake,
+  parsePairingCredential,
+} from "./state/remoteServers/desktopLoopbackIntake";
+import { PreloadIpcTransport } from "./hostTransport";
 import { readBridge } from "./bridge";
 
 /**
@@ -120,6 +129,20 @@ async function startFixtureServer(): Promise<RemoteAccessServer> {
     ownsSupervisorPersistence: false,
     onEventInterestsChanged: vi.fn<() => void>(),
     callSupervisor: fixtureCallSupervisor as unknown as RemoteAccessServerOptions["callSupervisor"],
+    schedules: {
+      list: fixtureSchedulesList,
+      runs: () => [],
+      create: () => {
+        throw new Error("not used by the unification fixture");
+      },
+      update: () => {
+        throw new Error("not used by the unification fixture");
+      },
+      delete: () => {},
+      runNow: () => {
+        throw new Error("not used by the unification fixture");
+      },
+    },
   });
   servers.push(server);
   await server.start();
@@ -127,6 +150,9 @@ async function startFixtureServer(): Promise<RemoteAccessServer> {
 }
 
 let socketLog: string[] = [];
+
+/** Schedules gateway spy: proves desktop-scoped calls reach the SERVER. */
+const fixtureSchedulesList = vi.fn<() => ScheduledTask[]>(() => []);
 
 function wsSocketFactory(url: string) {
   const socket = new NodeWebSocket(url);
@@ -196,7 +222,7 @@ function electronHost(
     },
     onSupervisorEventGap: () => () => {},
     onBackendSupervisorReset: () => () => {},
-    ipcProcedureMapVersion: 1,
+    ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
     invokeProcedure: (async (name: string, args: unknown[]) => {
       if (name === "getManagedLoopbackBootstrap") return getBootstrap();
       if (name === "setRendererEventInterests") return null;
@@ -254,7 +280,9 @@ async function bootUnified(initialServer: RemoteAccessServer): Promise<void> {
     discoveryRetryMs: 80,
   });
   void startDesktopLoopbackEventIntake();
-  await vi.waitFor(() => expect(isDesktopLoopbackIntakeActive()).toBe(true));
+  // Generous timeout: under a loaded full-suite run the intake's WS connect
+  // can exceed vi.waitFor's 1s default.
+  await vi.waitFor(() => expect(isDesktopLoopbackIntakeActive()).toBe(true), { timeout: 10_000 });
 }
 
 /** Re-points the (mock) main bootstrap answer at a replacement server. */
@@ -311,8 +339,8 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
     server.publishSupervisorEvent({ type: "thread-exited", threadId: "term-1", exitCode: 7 });
     await vi.waitFor(() => expect(exited).toBe(7));
 
-    // While the leg serves, the relay's `thread-output` no longer reaches the
-    // surface (its bytes arrive through terminal-watch only).
+    // While the leg serves, IPC `thread-output` no longer reaches the
+    // surface (V6 B.6: there is no event relay).
     emitRelay({
       type: "thread-output",
       threadId: "term-1",
@@ -325,7 +353,7 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
     unsubscribe();
   });
 
-  it("falls back to the relay feed without data loss on leg severing, and resumes after re-bootstrap", async () => {
+  it("does not fall back to the IPC relay on leg severing, and resumes after re-bootstrap", async () => {
     snapshotsByThread.set("term-2", {
       generation: "gen-2",
       fromCursor: 0,
@@ -365,8 +393,8 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
     });
     await vi.waitFor(() => expect(outputs.join("")).toBe("BEFORE"));
 
-    // Sever the leg: the watches close, the transport rebuild dispatches the
-    // scrollback-resync recovery signal, and the relay feed resumes.
+    // Sever the leg: the watches close and the transport rebuilds. V6 B.6:
+    // IPC thread-output is not a data plane, so live bytes wait for resume.
     await server.dispose();
     await vi.waitFor(() => {
       expect(isDesktopLoopbackIntakeActive()).toBe(false);
@@ -381,7 +409,7 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
       outputLength: 5,
       terminalInstanceId: "gen-2",
     });
-    expect(outputs.join("")).toBe("BEFOREAFTER");
+    expect(outputs.join("")).toBe("BEFORE");
 
     // The server comes back (fresh port + fresh credential): the intake
     // re-bootstraps through main and the leg resumes serving the same watcher.
@@ -394,7 +422,7 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
     // A fresh watch arms on the replacement server (fresh baseline): a probe
     // watcher joining mid-session receives the active cache once it exists.
     let probeSnapshots = 0;
-    const unsubscribeProbe = watchRemoteTerminal(MANAGED_LOOPBACK_DESKTOP_ID, "term-2", {
+    const unsubscribeProbe = watchRemoteTerminal(managedTerminalFeedId(), "term-2", {
       onOutput: () => {},
       onReset: () => {},
       onExited: () => {},
@@ -410,7 +438,7 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
       outputLength: 7,
       terminalInstanceId: "gen-2",
     });
-    await vi.waitFor(() => expect(outputs.join("")).toBe("BEFOREAFTERRESUMED"));
+    await vi.waitFor(() => expect(outputs.join("")).toBe("BEFORERESUMED"));
 
     unsubscribeProbe();
     unsubscribe();
@@ -418,6 +446,23 @@ describe("desktop terminal on terminal-watch (unified loopback path)", () => {
 });
 
 describe("managed requests on the loopback HTTP leg", () => {
+  it("rotates an expired managed token while its event socket stays connected", async () => {
+    const server = await startFixtureServer();
+    await bootUnified(server);
+    const originalToken = getManagedLoopbackOwnerRow()!.accessToken;
+    const socketCount = socketLog.length;
+    const future = Date.now() + 25 * 60 * 60 * 1000;
+    vi.spyOn(Date, "now").mockReturnValue(future);
+
+    await expect(
+      Promise.all([readBridge().getSchedules(), readBridge().getSchedules()]),
+    ).resolves.toEqual([[], []]);
+    expect(getManagedLoopbackOwnerRow()!.accessToken).not.toBe(originalToken);
+    expect(isDesktopLoopbackIntakeActive()).toBe(true);
+    expect(socketLog).toHaveLength(socketCount);
+    await expect(readBridge().getSchedules()).resolves.toEqual([]);
+  });
+
   it("carries a 32 MiB readProjectFile reply byte-exactly over loopback HTTP", async () => {
     const server = await startFixtureServer();
     await bootUnified(server);
@@ -445,7 +490,21 @@ describe("managed requests on the loopback HTTP leg", () => {
     expect(result.content).toBe(blob);
   }, 60_000);
 
-  it("falls back to preload IPC without losing the call when the leg dies mid-request", async () => {
+  it("routes desktop-scoped schedule reads over loopback HTTP, never preload IPC (V6 B.2)", async () => {
+    const server = await startFixtureServer();
+    await bootUnified(server);
+    fixtureSchedulesList.mockClear();
+
+    // The bridge's desktop-scoped call must reach the co-located server's
+    // schedules gateway over the loopback HTTP leg. The preload stub throws
+    // `unexpected IPC procedure getSchedules` on any IPC fallback, so a green
+    // result here is itself the no-fallback proof.
+    const rows = (await readBridge().getSchedules()) as unknown[];
+    expect(fixtureSchedulesList).toHaveBeenCalledOnce();
+    expect(rows).toEqual([]);
+  }, 30_000);
+
+  it("does not fall back to preload IPC when the leg dies mid-request", async () => {
     const server = await startFixtureServer();
     await bootUnified(server);
 
@@ -461,12 +520,104 @@ describe("managed requests on the loopback HTTP leg", () => {
     }) as Promise<{ content: string }>;
 
     // Sever the leg while the request is in flight: the HTTP connection dies
-    // (a transport failure, not a server verdict), the intake drops the leg,
-    // and the request completes over preload IPC.
+    // and V6 B.6 does not retry over preload IPC.
     await server.dispose();
     await vi.waitFor(() => expect(isDesktopLoopbackIntakeActive()).toBe(false));
     release.current();
-    const result = await pending;
-    expect(result.content).toBe("IPC");
+    await expect(pending).rejects.toBeTruthy();
+  }, 30_000);
+
+  it("delivers live agent status to the runtime bridge over loopback WS", async () => {
+    const server = await startFixtureServer();
+    await bootUnified(server);
+    const seen: SupervisorEvent[] = [];
+    const unsubscribe = readBridge().onSupervisorEvent((event) => {
+      seen.push(event);
+    });
+    server.publishSupervisorEvent({
+      type: "windows-agent-statuses",
+      statuses: [
+        agentStatusSchema.parse({
+          kind: "claude",
+          label: "Claude",
+          installed: true,
+          authState: "authenticated",
+          capabilities: {},
+        }),
+      ],
+    });
+    await vi.waitFor(() =>
+      expect(seen.some((event) => event.type === "windows-agent-statuses")).toBe(true),
+    );
+    unsubscribe();
+  }, 30_000);
+});
+
+describe("quick composer live status on its own loopback session (V6 B.6)", () => {
+  const agentStatus = () =>
+    agentStatusSchema.parse({
+      kind: "claude",
+      label: "Claude",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {},
+    });
+
+  it("delivers agent status to a second window's own loopback session with no preload event plane", async () => {
+    const server = await startFixtureServer();
+    await bootUnified(server);
+    const mainSeen: SupervisorEvent[] = [];
+    const unsubscribeMain = readBridge().onSupervisorEvent((event) => {
+      mainSeen.push(event);
+    });
+
+    // The quick composer is a second renderer process running the SAME
+    // managed bootstrap (installElectronClientRuntime +
+    // startDesktopLoopbackEventIntake): its own loopback session and event
+    // surface, built here from the same pieces the wiring uses. Its mock
+    // preload still exposes onSupervisorEvent, but nothing in main fires it
+    // since V6 B.6 deleted the relay — the loopback intake is the only live
+    // path.
+    const composerTransport = new PreloadIpcTransport({
+      onBackendSupervisorReset: () => () => {},
+      onSupervisorEvent: () => () => {},
+      invokeProcedure: async () => null,
+    } as unknown as ElectronHostBridge);
+    const composerSeen: SupervisorEvent[] = [];
+    composerTransport.subscribeEvents((event) => composerSeen.push(event));
+    // Per-window bootstrap: main mints this window's own single-use
+    // credential, exactly what getManagedLoopbackBootstrap does per ask.
+    const composerPairing = parsePairingCredential(server.issuePairingUrl("quick-composer"));
+    expect(composerPairing).toBeTruthy();
+    const composerIntake = new DesktopLoopbackIntake({
+      endpoint: bootstrapAnswer!.endpoint,
+      pairingToken: composerPairing!,
+      socketFactory: wsSocketFactory,
+      dispatch: (event, seq, space) =>
+        composerTransport.dispatchSequencedEvent(event, seq, space ?? "loopback"),
+      requestRebuild: () => composerTransport.rebuildSubscribedState(),
+      onActiveChanged: (active) => composerTransport.setLoopbackActive(active),
+    });
+    await expect(composerIntake.activate()).resolves.toBe(true);
+    expect(composerIntake.isActive()).toBe(true);
+
+    // The deleted preload relay is inert: firing it delivers nothing to
+    // either window's live surface.
+    emitRelay({ type: "windows-agent-statuses", statuses: [agentStatus()] });
+    expect(composerSeen).toEqual([]);
+    expect(mainSeen).toEqual([]);
+
+    // Host-published live agent status reaches BOTH windows through their own
+    // loopback intakes.
+    server.publishSupervisorEvent({ type: "windows-agent-statuses", statuses: [agentStatus()] });
+    await vi.waitFor(() =>
+      expect(composerSeen.some((event) => event.type === "windows-agent-statuses")).toBe(true),
+    );
+    await vi.waitFor(() =>
+      expect(mainSeen.some((event) => event.type === "windows-agent-statuses")).toBe(true),
+    );
+
+    composerIntake.dispose();
+    unsubscribeMain();
   }, 30_000);
 });

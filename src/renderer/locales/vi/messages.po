@@ -3391,7 +3391,7 @@ msgstr "Lỗi kết nối"
 #~ msgstr "Lỗi kết nối."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "Kết nối thất bại."
 
@@ -5410,7 +5410,7 @@ msgstr "Không tải được thống kê hồ sơ."
 msgid "Failed to merge pull request: {detail}"
 msgstr "Không thể hợp nhất pull request: {detail}"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Failed to open remote thread."
 msgstr "Không thể mở luồng từ xa."
 
@@ -9236,6 +9236,10 @@ msgstr "Đã mở pull request #{0} cho ứng viên."
 msgid "Operate desktop apps through Poracode's desktop-control tools."
 msgstr "Vận hành ứng dụng máy tính qua công cụ điều khiển của Poracode."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Operator"
+msgstr "Người vận hành"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Optional"
 msgstr "Không bắt buộc"
@@ -9387,6 +9391,10 @@ msgstr "Thiết bị đã ghép đôi"
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pairing"
 #~ msgstr "Đang ghép đôi"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing access"
+msgstr "Quyền ghép nối"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
@@ -9751,6 +9759,7 @@ msgstr "Các chủ đề biên tập phổ biến được điều chỉnh cho p
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode"
 msgstr "Poracode"
 
@@ -10147,6 +10156,10 @@ msgstr "Các dự án trong {0} sẽ chuyển sang {1}. Không dự án nào b�
 #: src/mobile/setupEmptyState.tsx
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "Dự án nằm trên máy tính đã kết nối. Hãy thêm một dự án trước khi bắt đầu luồng."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Promoting this profile into the owned data root…"
+msgstr "Đang chuyển hồ sơ này vào thư mục gốc dữ liệu riêng…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -10688,7 +10701,7 @@ msgstr "Tên từ xa"
 #~ msgid "Remote project"
 #~ msgstr "Dự án từ xa"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Không tìm thấy dự án từ xa."
 
@@ -10696,7 +10709,8 @@ msgstr "Không tìm thấy dự án từ xa."
 #~ msgid "Remote server"
 #~ msgstr "Máy chủ từ xa"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
+#: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "Không tìm thấy máy chủ từ xa."
 
@@ -12574,7 +12588,7 @@ msgstr "SSE (cũ)"
 msgid "SSH config / agent"
 msgstr "Cấu hình SSH / tác tử"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/sessionReconnect.ts
 msgid "SSH connection failed."
 msgstr "Kết nối SSH thất bại."
 
@@ -13398,7 +13412,7 @@ msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đo
 #~ msgid "The remote Poracode server returned no pairing credential."
 #~ msgstr "Máy chủ Poracode từ xa không trả về thông tin xác thực ghép đôi."
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/pairing.ts
 msgid "The remote server returned no pairing credential."
 msgstr "Máy chủ từ xa không trả về thông tin xác thực ghép nối."
 
@@ -13704,6 +13718,14 @@ msgstr "dự án này"
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Máy chủ từ xa của dự án này đang ngoại tuyến. Hãy kết nối lại để bắt đầu một luồng."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This QR grants full operator access."
+msgstr "Mã QR này cấp quyền vận hành đầy đủ."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This QR grants read-only viewer access."
+msgstr "Mã QR này cấp quyền xem chỉ đọc."
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -14346,7 +14368,7 @@ msgstr "Không thể khởi động Tailscale."
 #~ msgid "Unable to start terminal"
 #~ msgstr "Không thể khởi động terminal"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Unable to start the remote thread."
 msgstr "Không thể bắt đầu luồng từ xa."
 
@@ -14995,6 +15017,10 @@ msgstr "Chỉ xem — kết nối này không thể thay đổi cài đặt máy
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Chỉ xem — kết nối này không thể quản lý dự án."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Viewer"
+msgstr "Người xem"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Violet"

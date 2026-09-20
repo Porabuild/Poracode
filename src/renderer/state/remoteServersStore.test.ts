@@ -17,6 +17,7 @@ import { PORACODE_REMOTE_PROTOCOL_VERSION, type RemoteGitSummaries } from "@/sha
 import { REMOTE_HTTP_BRIDGE_VERSION } from "@/shared/remote/httpBridgeProtocol";
 import { PORACODE_CLIENT_RUNTIME_VERSION } from "@/shared/clientRuntime";
 import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
+import { hostServiceCapabilities } from "@/shared/hostControlProtocol";
 import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "./remoteServersStore";
 import { installRemoteProjectWorkspaceSync } from "./remoteServers/appRows";
 import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
@@ -251,6 +252,9 @@ function makeClient(opts?: {
   environment?: RemoteDesktopClient["environment"];
   environmentHttpBaseUrl?: string;
   hostMode?: "desktop" | "helper";
+  autoUpdate?: boolean;
+  browserPanel?: boolean;
+  osNotifications?: boolean;
   projectCommand?: RemoteDesktopClient["projectCommand"];
   projectNotes?: RemoteDesktopClient["projectNotes"];
   projectSettings?: RemoteDesktopClient["projectSettings"];
@@ -349,6 +353,12 @@ function makeClient(opts?: {
       (async () => ({ currentVersion: "1.0", status: { type: "update-not-available" } })),
     settings: opts?.settings ?? (async () => ({})),
     installHostUpdate: opts?.installHostUpdate ?? (async () => {}),
+    describeHost: async () =>
+      hostServiceCapabilities({
+        autoUpdate: opts?.autoUpdate ?? opts?.hostMode !== "helper",
+        browserPanel: opts?.browserPanel ?? opts?.hostMode !== "helper",
+        osNotifications: opts?.osNotifications ?? opts?.hostMode === "desktop",
+      }),
   } as unknown as RemoteDesktopClient;
 }
 
@@ -640,7 +650,7 @@ describe("useRemoteServersStore", () => {
     }));
     useRemoteServersStore
       .getState()
-      .setClientFactory(factoryFor(makeClient({ hostMode: "desktop", checkHostUpdate })));
+      .setClientFactory(factoryFor(makeClient({ autoUpdate: true, checkHostUpdate })));
 
     await useRemoteServersStore
       .getState()
@@ -692,6 +702,11 @@ describe("useRemoteServersStore", () => {
           scopes: ["session:read", "projects:manage"],
           appVersion: "1.0",
           hostMode: "desktop",
+          hostCapabilities: hostServiceCapabilities({
+            autoUpdate: true,
+            osNotifications: true,
+            browserPanel: true,
+          }),
         },
       ],
       runtime: { d1: { status: "online", projects: [proj], threads: [] } },
@@ -743,6 +758,11 @@ describe("useRemoteServersStore", () => {
           scopes: ["session:read", "projects:manage"],
           appVersion: "1.0",
           hostMode: "desktop",
+          hostCapabilities: hostServiceCapabilities({
+            autoUpdate: true,
+            osNotifications: true,
+            browserPanel: true,
+          }),
         },
       ],
       runtime: { d1: { status: "online", projects: [proj], threads: [] } },
@@ -788,6 +808,11 @@ describe("useRemoteServersStore", () => {
           scopes: ["session:read", "projects:manage"],
           appVersion: "1.0",
           hostMode: "desktop",
+          hostCapabilities: hostServiceCapabilities({
+            autoUpdate: true,
+            osNotifications: true,
+            browserPanel: true,
+          }),
         },
       ],
       runtime: { d1: { status: "online", projects: [proj], threads: [] } },
@@ -828,6 +853,11 @@ describe("useRemoteServersStore", () => {
           scopes: ["session:read", "projects:manage"],
           appVersion: "1.0",
           hostMode: "desktop",
+          hostCapabilities: hostServiceCapabilities({
+            autoUpdate: true,
+            osNotifications: true,
+            browserPanel: true,
+          }),
         },
       ],
       runtime: { d1: { status: "online", projects: [proj], threads: [] } },
@@ -876,6 +906,11 @@ describe("useRemoteServersStore", () => {
       scopes: ["session:read", "projects:manage"],
       appVersion: "1.0",
       hostMode: "desktop",
+      hostCapabilities: hostServiceCapabilities({
+        autoUpdate: true,
+        osNotifications: true,
+        browserPanel: true,
+      }),
     };
     useRemoteServersStore.setState({
       servers: [server],
@@ -921,6 +956,11 @@ describe("useRemoteServersStore", () => {
       scopes: ["session:read", "projects:manage"],
       appVersion: "1.0",
       hostMode: "desktop",
+      hostCapabilities: hostServiceCapabilities({
+        autoUpdate: true,
+        osNotifications: true,
+        browserPanel: true,
+      }),
     };
     useRemoteServersStore.setState({
       servers: [server],
@@ -969,6 +1009,11 @@ describe("useRemoteServersStore", () => {
       scopes: ["session:read", "projects:manage"],
       appVersion: "1.0",
       hostMode: "desktop",
+      hostCapabilities: hostServiceCapabilities({
+        autoUpdate: true,
+        osNotifications: true,
+        browserPanel: true,
+      }),
     };
     useRemoteServersStore.setState({
       servers: [server],
@@ -1028,6 +1073,11 @@ describe("useRemoteServersStore", () => {
           scopes: ["session:read", "projects:manage"],
           appVersion: "1.0",
           hostMode: "desktop",
+          hostCapabilities: hostServiceCapabilities({
+            autoUpdate: true,
+            osNotifications: true,
+            browserPanel: true,
+          }),
         },
       ],
       runtime: { d1: { status: "online", projects: [proj], threads: [] } },
@@ -1062,6 +1112,11 @@ describe("useRemoteServersStore", () => {
           scopes: ["session:read", "projects:manage"],
           appVersion: "1.0",
           hostMode: "desktop",
+          hostCapabilities: hostServiceCapabilities({
+            autoUpdate: true,
+            osNotifications: true,
+            browserPanel: true,
+          }),
         },
       ],
       runtime: { d1: { status: "online", projects: [proj], threads: [] } },
@@ -1098,6 +1153,11 @@ describe("useRemoteServersStore", () => {
           scopes: ["session:read", "projects:manage"],
           appVersion: "1.0",
           hostMode: "desktop",
+          hostCapabilities: hostServiceCapabilities({
+            autoUpdate: true,
+            osNotifications: true,
+            browserPanel: true,
+          }),
         },
       ],
       runtime: { d1: { status: "online", projects: [proj], threads: [] } },
@@ -1340,6 +1400,7 @@ describe("useRemoteServersStore", () => {
         nativeBrowserWebContents: true,
         nativeShell: true,
         nativeSsh: true,
+        osNotifications: true,
       },
       procedures: bridge as never,
       native: bridge as never,

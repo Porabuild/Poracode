@@ -7,12 +7,11 @@
  * HTTP leg exactly the way attach mode routes over its paired owner row. The
  * row is deliberately EPHEMERAL, in-memory state: it never enters the
  * persisted `servers` list, the sidebar, or connectAll — losing it (leg down)
- * just sends requests back to the preload IPC fallback.
+ * leaves no live data plane until the intake reconnects (V6 B.6).
  */
 
-/** Identity of this desktop's own loopback server. A UUID in every other
- * row, so a literal with this prefix can never collide with a paired host. */
-export const MANAGED_LOOPBACK_DESKTOP_ID = "managed-loopback";
+/** Ephemeral token + endpoint for the managed loopback HTTP hop. The hop
+ * identity lives on `HostTransport`, not as a pseudo-paired server row. */
 
 export interface ManagedLoopbackOwnerRow {
   /** Loopback HTTP origin (trailing slash) of the co-located server. */

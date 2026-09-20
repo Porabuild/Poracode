@@ -41,6 +41,13 @@ export interface RemoteProcedureHost {
   resolveProjectOwner(
     projectId: string,
   ): { readonly desktopId: string; readonly remoteId: string } | undefined;
+  /**
+   * The desktop-scoped owner for procedures whose subject is the attached
+   * host itself (schedules, skill marketplace) rather than a payload-carried
+   * project/thread owner. Undefined when this host has no single attached
+   * desktop to answer for (V6 B.2).
+   */
+  resolveDesktopOwner(): { readonly desktopId: string } | undefined;
   withClient<Result>(
     desktopId: string,
     invoke: (client: RemoteDesktopClient) => Promise<Result>,
@@ -157,8 +164,6 @@ async function invokeRemoteProcedure(
   switch (spec.handler) {
     case "passthrough":
       return client.callRemoteProcedure(procedure, route.payload);
-    case "noop":
-      return undefined;
     case "adapter":
       return invokeRemoteIpcProcedure(
         client,
@@ -232,6 +237,17 @@ function resolveRemoteRoute(
   payload: unknown,
   remoteHost: RemoteProcedureHost | undefined,
 ): ResolvedRemoteRoute | undefined {
+  if (strategy === "desktop") {
+    // Desktop-scoped calls carry no owner in the payload (they may have no
+    // payload at all), so resolve the host's own desktop before any payload
+    // shape validation — but still forward a well-formed payload through.
+    const owner = remoteHost?.resolveDesktopOwner();
+    const input =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? (payload as Record<string, unknown>)
+        : {};
+    return owner ? { desktopId: owner.desktopId, payload: input } : undefined;
+  }
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
   const input = payload as Record<string, unknown>;
   if (strategy === "none") return undefined;

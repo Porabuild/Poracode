@@ -1,4 +1,5 @@
 import type { RuntimeEvent } from "@/shared/contracts";
+import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 
 /**
  * The final renderer consumer cannot apply an unbounded stream of runtime
@@ -32,7 +33,7 @@ export interface RuntimeEventQueueDiagnostics {
 }
 
 interface PendingThreadEvents {
-  events: Array<{ event: RuntimeEvent; sequence?: number }>;
+  events: Array<{ event: RuntimeEvent; sequence?: number; space: EventSequenceSpace }>;
   bytes: number;
 }
 
@@ -58,6 +59,7 @@ export class RuntimeEventQueue {
     threadId: string,
     events: readonly RuntimeEvent[],
     sequence?: number,
+    space: EventSequenceSpace = "ipc",
   ): RuntimeEventQueueEnqueueResult {
     if (events.length === 0) return { accepted: true, overflowed: false, blocked: false };
     if (this.blockedThreads.has(threadId)) {
@@ -79,16 +81,11 @@ export class RuntimeEventQueue {
         return { accepted: false, overflowed: true, blocked: true };
       }
       if (existing) {
-        existing.events.push(
-          ...events.map((event) => ({ event, ...(sequence !== undefined ? { sequence } : {}) })),
-        );
+        existing.events.push(...events.map((event) => stampQueuedEvent(event, sequence, space)));
         existing.bytes += bytes;
       } else {
         this.pending.set(threadId, {
-          events: events.map((event) => ({
-            event,
-            ...(sequence !== undefined ? { sequence } : {}),
-          })),
+          events: events.map((event) => stampQueuedEvent(event, sequence, space)),
           bytes,
         });
       }
@@ -112,16 +109,11 @@ export class RuntimeEventQueue {
       return { accepted: false, overflowed: true, blocked: true };
     }
     if (existing) {
-      existing.events.push(
-        ...events.map((event) => ({ event, ...(sequence !== undefined ? { sequence } : {}) })),
-      );
+      existing.events.push(...events.map((event) => stampQueuedEvent(event, sequence, space)));
       existing.bytes += bytes;
     } else {
       this.pending.set(threadId, {
-        events: events.map((event) => ({
-          event,
-          ...(sequence !== undefined ? { sequence } : {}),
-        })),
+        events: events.map((event) => stampQueuedEvent(event, sequence, space)),
         bytes,
       });
     }
@@ -161,16 +153,23 @@ export class RuntimeEventQueue {
     if (pending) this.removePending(threadId, pending);
   }
 
-  discardThroughSequence(threadId: string, sequence: number): void {
+  discardThroughSequence(
+    threadId: string,
+    sequence: number,
+    space: EventSequenceSpace = "ipc",
+  ): void {
     const pending = this.pending.get(threadId);
     if (!pending) return;
     const retained = pending.events.filter(
-      (entry) => entry.sequence === undefined || entry.sequence > sequence,
+      (entry) => entry.space !== space || entry.sequence === undefined || entry.sequence > sequence,
     );
     if (retained.length === pending.events.length) return;
     this.queuedEvents -= pending.events.length - retained.length;
     this.queuedBytes -= pending.events
-      .filter((entry) => entry.sequence !== undefined && entry.sequence <= sequence)
+      .filter(
+        (entry) =>
+          entry.space === space && entry.sequence !== undefined && entry.sequence <= sequence,
+      )
       .reduce((total, entry) => total + runtimeEventBytes(entry.event), 0);
     if (retained.length === 0) this.pending.delete(threadId);
     else {
@@ -209,6 +208,14 @@ export class RuntimeEventQueue {
     this.queuedEvents -= pending.events.length;
     this.queuedBytes -= pending.bytes;
   }
+}
+
+function stampQueuedEvent(
+  event: RuntimeEvent,
+  sequence: number | undefined,
+  space: EventSequenceSpace,
+): { event: RuntimeEvent; sequence?: number; space: EventSequenceSpace } {
+  return sequence !== undefined ? { event, sequence, space } : { event, space };
 }
 
 function runtimeEventBytes(event: RuntimeEvent): number {

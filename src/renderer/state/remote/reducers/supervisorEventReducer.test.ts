@@ -364,6 +364,40 @@ describe("localSnapshotRecovery — sequence arbitration", () => {
     expect(rehydrateThreadRuntimeItemsAfterReset).toHaveBeenCalledTimes(2);
   });
 
+  it("discards covered loopback deltas after a reset rereads their persisted rows", async () => {
+    let reducer: SupervisorEventReducer;
+    const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+    reducer = createSupervisorEventReducer({
+      recovery: recovery.strategy,
+      onSequencedEvent: recovery.noteSequencedSupervisorEvent,
+    });
+    vi.mocked(rehydrateThreadRuntimeItemsAfterReset)
+      .mockImplementationOnce(async () => {
+        reducer.dispatch(runtimeEvent("thread-1", "covered"), 2, { sequenceSpace: "loopback" });
+        return true;
+      })
+      .mockResolvedValue(true);
+    reducer.dispatch({ type: "thread-reset", threadId: "thread-1" });
+    await vi.waitFor(() => expect(rehydrateThreadRuntimeItemsAfterReset).toHaveBeenCalledTimes(2));
+    reducer.flushSync("thread-1");
+    expect(itemIds() ?? []).not.toContain("covered");
+    reducer.clear();
+  });
+
+  it("does not compare loopback cursors against a higher IPC cursor", async () => {
+    const discardThroughSequence = vi.fn<RuntimeQueueArbitration["discardThroughSequence"]>();
+    const recovery = createLocalSnapshotRecovery({
+      getArbitration: () => ({ hasUnsequenced: () => false, discardThroughSequence }),
+    });
+    recovery.noteSequencedSupervisorEvent(runtimeEvent("thread-1", "ipc"), 900, "ipc");
+    const settled = recovery.strategy.recoverFromThreadReset("thread-1", () => {});
+    recovery.noteSequencedSupervisorEvent(runtimeEvent("thread-1", "loopback"), 2, "loopback");
+    expect(await settled).toBe(true);
+    expect(rehydrateThreadRuntimeItemsAfterReset).toHaveBeenCalledTimes(2);
+    expect(discardThroughSequence).toHaveBeenCalledWith("thread-1", 900, "ipc");
+    expect(discardThroughSequence).toHaveBeenCalledWith("thread-1", 2, "loopback");
+  });
+
   it("does not discard queued deltas while unsequenced events are pending", async () => {
     const discardThroughSequence = vi.fn<RuntimeQueueArbitration["discardThroughSequence"]>();
     const recovery = createLocalSnapshotRecovery({
@@ -393,6 +427,6 @@ describe("localSnapshotRecovery — sequence arbitration", () => {
     );
 
     expect(recovered).toBe(true);
-    expect(discardThroughSequence).toHaveBeenCalledWith("thread-1", 5);
+    expect(discardThroughSequence).toHaveBeenCalledWith("thread-1", 5, "ipc");
   });
 });

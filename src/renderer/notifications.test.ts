@@ -1,26 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { sharedSettingsState, toastMock, bridgeMock, openThreadMock } = vi.hoisted(() => ({
-  sharedSettingsState: {
-    current: {
-      notificationsEnabled: true,
-      notificationSound: true,
-      notificationFilter: "unfocused",
-      notificationStatuses: { done: true, needsAttention: true, error: true },
+const { capabilityState, sharedSettingsState, toastMock, bridgeMock, openThreadMock } = vi.hoisted(
+  () => ({
+    /** Mirrors the negotiated client capability; tests flip it per flavor. */
+    capabilityState: { current: { osNotifications: true } },
+    sharedSettingsState: {
+      current: {
+        notificationsEnabled: true,
+        notificationSound: true,
+        notificationFilter: "unfocused",
+        notificationStatuses: { done: true, needsAttention: true, error: true },
+      },
     },
-  },
-  toastMock: {
-    danger: vi.fn<(title: string, options: unknown) => void>(),
-    success: vi.fn<(title: string, options: unknown) => void>(),
-    warning: vi.fn<(title: string, options: unknown) => void>(),
-  },
-  bridgeMock: {
-    focusWindow: vi.fn<() => Promise<void>>(),
-    remote: false,
-    showNotification: vi.fn<(payload: unknown) => Promise<boolean>>(),
-  },
-  openThreadMock: vi.fn<(threadId: string, options?: unknown) => void>(),
-}));
+    toastMock: {
+      danger: vi.fn<(title: string, options: unknown) => void>(),
+      success: vi.fn<(title: string, options: unknown) => void>(),
+      warning: vi.fn<(title: string, options: unknown) => void>(),
+    },
+    bridgeMock: {
+      focusWindow: vi.fn<() => Promise<void>>(),
+      remote: false,
+      showNotification: vi.fn<(payload: unknown) => Promise<boolean>>(),
+    },
+    openThreadMock: vi.fn<(threadId: string, options?: unknown) => void>(),
+  }),
+);
 
 vi.mock("@heroui/react", () => ({
   toast: toastMock,
@@ -33,6 +37,11 @@ vi.mock("@/renderer/actions/threadActions", () => ({
 vi.mock("@/renderer/bridge", () => ({
   isRemoteSession: () => bridgeMock.remote,
   readBridge: () => bridgeMock,
+}));
+
+vi.mock("@/renderer/clientRuntime", () => ({
+  hasClientCapability: (capability: string) =>
+    capability === "osNotifications" && capabilityState.current.osNotifications,
 }));
 
 vi.mock("@/renderer/state/appStore", () => ({
@@ -139,6 +148,7 @@ describe("showUserNotification native path", () => {
       notificationFilter: "unfocused",
       notificationStatuses: { done: true, needsAttention: true, error: true },
     };
+    capabilityState.current.osNotifications = true;
     bridgeMock.remote = false;
     vi.spyOn(document, "hasFocus").mockReturnValue(false);
     bridgeMock.showNotification.mockClear();
@@ -153,6 +163,13 @@ describe("showUserNotification native path", () => {
       body: "Thread\nFinished · Waiting for your input",
       threadId: "thread-1",
     });
+  });
+
+  it("hides the native OS notification when the host does not declare osNotifications", () => {
+    capabilityState.current.osNotifications = false;
+    showUserNotification(notification());
+
+    expect(bridgeMock.showNotification).not.toHaveBeenCalled();
   });
 
   it("swallows native notification IPC failures", async () => {

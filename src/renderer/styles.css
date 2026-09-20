@@ -4864,7 +4864,12 @@ button.poracode-thread-mention-chip:active {
 .poracode-slash-chip__name {
   display: inline-block;
   min-width: 0;
-  max-width: min(20rem, 100%);
+  /* Cap with a definite length only: a percentage here resolves against the
+     chip's own shrink-to-fit width, is ignored during intrinsic sizing, and
+     stretches the chip to the full line whenever the title is longer than the
+     cap. Narrow containers are covered by the chip's own max-width + flex
+     shrink (min-width: 0). */
+  max-width: 20rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

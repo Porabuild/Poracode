@@ -4,6 +4,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
+import { IPC_PROCEDURE_MAP_VERSION } from "@/shared/ipc";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import type { StandaloneAttachInfo } from "@/shared/standaloneAttach";
 import {
@@ -38,7 +39,7 @@ function electronHost(): ElectronHostBridge {
     onSupervisorEvent: () => () => {},
     onSupervisorEventGap: () => () => {},
     onBackendSupervisorReset: () => () => {},
-    ipcProcedureMapVersion: 1,
+    ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
     invokeProcedure: async () => undefined,
   } as unknown as ElectronHostBridge;
 }
@@ -59,6 +60,8 @@ function attachInfo(): StandaloneAttachInfo {
       computerUse: true,
       nativeSecrets: false,
       portForward: true,
+      autoUpdate: false,
+      osNotifications: false,
     },
   };
 }
@@ -105,12 +108,17 @@ describe("standalone attach client runtime", () => {
         // throw when invoked (V5 plan H2 / batch 0.1).
         nativeBrowserWebContents: false,
         nativeSsh: false,
+        osNotifications: false,
       },
     });
     // The attached flavor keeps the helper host's declared capabilities
     // verbatim for consumers (V5 plan 1.2), derived from the attach payload
     // rather than inferred from the host kind.
     expect(readClientRuntime().hostCapabilities).toEqual(attachInfo().capabilities);
+    expect(readClientRuntime().hostCapabilities).toMatchObject({
+      autoUpdate: false,
+      osNotifications: false,
+    });
     expect(isStandaloneAttachRuntime()).toBe(true);
   });
 
@@ -121,6 +129,7 @@ describe("standalone attach client runtime", () => {
     expect(readClientRuntime().hostCapabilities).toEqual(UNKNOWN_HOST_CAPABILITIES);
     expect(readClientRuntime().capabilities).toMatchObject({
       nativeSsh: false,
+      osNotifications: false,
       nativeBrowserWebContents: false,
     });
   });

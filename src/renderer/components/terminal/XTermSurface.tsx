@@ -991,10 +991,9 @@ export const XTermSurface = forwardRef<
       };
       subscribeOutput();
     } else {
-      // V5 plan 2.5 completion: local terminals subscribe through the unified
-      // managed seam — loopback terminal-watch frames while that leg serves,
-      // the desktop-IPC relay's `thread-output` as the fallback, with the
-      // resync signal driving scrollback rehydration on every leg flip.
+      // V5 plan 2.5 / V6 B.6: local terminals subscribe through the unified
+      // managed seam — loopback terminal-watch frames; no IPC thread-output
+      // fallback. Resync drives scrollback rehydration on every leg flip.
       unsubscribe = watchManagedTerminal(terminalId, {
         onOutput: handleOutput,
         onReset: handleReset,

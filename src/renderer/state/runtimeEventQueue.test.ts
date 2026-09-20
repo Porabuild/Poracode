@@ -83,4 +83,14 @@ describe("RuntimeEventQueue", () => {
     queue.resume("thread");
     expect(queue.enqueue("thread", [event("recovered")]).accepted).toBe(true);
   });
+
+  it("arbitrates interleaved ipc and loopback sequences independently", () => {
+    const queue = new RuntimeEventQueue({ maxEvents: 8, maxBytes: 10_000, maxThreadBytes: 10_000 });
+    expect(queue.enqueue("thread", [event("ipc-5")], 5, "ipc").accepted).toBe(true);
+    expect(queue.enqueue("thread", [event("loopback-1")], 1, "loopback").accepted).toBe(true);
+    queue.discardThroughSequence("thread", 5, "ipc");
+    expect(queue.drain(() => true)).toEqual([
+      { threadId: "thread", events: [event("loopback-1")] },
+    ]);
+  });
 });

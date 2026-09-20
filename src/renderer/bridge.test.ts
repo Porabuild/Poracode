@@ -8,6 +8,7 @@ function makeRemoteHost(client: Partial<RemoteDesktopClient> = {}): RemoteProced
   return {
     resolveThreadOwner: () => undefined,
     resolveProjectOwner: () => undefined,
+    resolveDesktopOwner: () => undefined,
     withClient: async (_desktopId, invoke) => invoke(client as RemoteDesktopClient),
   };
 }

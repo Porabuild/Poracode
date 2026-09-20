@@ -3391,7 +3391,7 @@ msgstr "Bağlantı hatası"
 #~ msgstr "Bağlantı hatası."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Connection failed."
 msgstr "Bağlantı başarısız."
 
@@ -5410,7 +5410,7 @@ msgstr "Profil istatistikleri yüklenemedi."
 msgid "Failed to merge pull request: {detail}"
 msgstr "Çekme isteği birleştirilemedi: {detail}"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Failed to open remote thread."
 msgstr "Uzak konu açılamadı."
 
@@ -9236,6 +9236,10 @@ msgstr "Aday için #{0} numaralı pull request açıldı."
 msgid "Operate desktop apps through Poracode's desktop-control tools."
 msgstr "Masaüstü uygulamalarını Poracode'un masaüstü denetim araçlarıyla kullanın."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Operator"
+msgstr "Operatör"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Optional"
 msgstr "İsteğe bağlı"
@@ -9387,6 +9391,10 @@ msgstr "Eşleştirilmiş cihazlar"
 #: src/mobile/remoteConnectionState.ts
 #~ msgid "Pairing"
 #~ msgstr "Eşleştiriliyor"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Pairing access"
+msgstr "Eşleştirme erişimi"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Pairing expired — pair again to reconnect."
@@ -9751,6 +9759,7 @@ msgstr "Poracode'a uyarlanmış popüler editör temaları. Her biri yukarıdaki
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Poracode"
 msgstr "Poracode"
 
@@ -10147,6 +10156,10 @@ msgstr "{0} içindeki projeler {1} alanına taşınır. Hiçbir proje silinmez."
 #: src/mobile/setupEmptyState.tsx
 #~ msgid "Projects live on the connected desktop. Add one before starting a thread."
 #~ msgstr "Projeler bağlı masaüstünde bulunur. Bir iş parçacığı başlatmadan önce bir proje ekleyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Promoting this profile into the owned data root…"
+msgstr "Bu profil, kendi veri köküne taşınıyor…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentPromptSection.tsx
@@ -10688,7 +10701,7 @@ msgstr "Uzak ad"
 #~ msgid "Remote project"
 #~ msgstr "Uzak proje"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Remote project not found."
 msgstr "Uzak proje bulunamadı."
 
@@ -10696,7 +10709,8 @@ msgstr "Uzak proje bulunamadı."
 #~ msgid "Remote server"
 #~ msgstr "Uzak sunucu"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
+#: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
 msgstr "Uzak sunucu bulunamadı."
 
@@ -12574,7 +12588,7 @@ msgstr "SSE (eski)"
 msgid "SSH config / agent"
 msgstr "SSH yapılandırması / aracı"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/sessionReconnect.ts
 msgid "SSH connection failed."
 msgstr "SSH bağlantısı başarısız oldu."
 
@@ -13398,7 +13412,7 @@ msgstr "Normal uygulama kabuğu oluşturulamadı. Arızanın araştırılabilmes
 #~ msgid "The remote Poracode server returned no pairing credential."
 #~ msgstr "Uzak Poracode sunucusu eşleştirme kimlik bilgisi döndürmedi."
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/pairing.ts
 msgid "The remote server returned no pairing credential."
 msgstr "Uzak sunucu eşleştirme kimlik bilgisi döndürmedi."
 
@@ -13704,6 +13718,14 @@ msgstr "bu proje"
 #: src/renderer/components/thread/ThreadDraftView.tsx
 msgid "This project's remote server is offline. Reconnect it to start a thread."
 msgstr "Bu projenin uzak sunucusu çevrimdışı. Bir iş parçacığı başlatmak için yeniden bağlanın."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This QR grants full operator access."
+msgstr "Bu QR kodu tam operatör erişimi verir."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "This QR grants read-only viewer access."
+msgstr "Bu QR kodu salt okunur izleyici erişimi verir."
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 #: src/renderer/i18n/sharedMessages.ts
@@ -14346,7 +14368,7 @@ msgstr "Tailscale başlatılamadı."
 #~ msgid "Unable to start terminal"
 #~ msgstr "Terminal başlatılamadı"
 
-#: src/renderer/state/remoteServersStore.ts
+#: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "Unable to start the remote thread."
 msgstr "Uzak iş parçacığı başlatılamadı."
 
@@ -14995,6 +15017,10 @@ msgstr "Yalnızca görüntüleme — bu bağlantı ana makine ayarlarını deği
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "View-only — this connection can't manage projects."
 msgstr "Yalnızca görüntüleme — bu bağlantı projeleri yönetemez."
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
+msgid "Viewer"
+msgstr "İzleyici"
 
 #: src/renderer/utils/projectIconColors.ts
 msgid "Violet"

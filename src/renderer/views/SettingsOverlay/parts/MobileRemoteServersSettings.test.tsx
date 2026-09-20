@@ -151,7 +151,8 @@ describe("MobileRemoteServersSettings", () => {
     await waitFor(() =>
       expect(state.pairServer).toHaveBeenCalledWith({
         endpoint: "http://192.168.1.20:49152",
-        token: "lc_pair_test",
+        token:
+          "https://app-nightly.poracode.com/?host=http%3A%2F%2F192.168.1.20%3A49152#token=lc_pair_test",
       }),
     );
     expect(state.connectAll).toHaveBeenCalled();
@@ -374,7 +375,8 @@ describe("RemoteServersSettings desktop pairing", () => {
     await waitFor(() =>
       expect(state.pairServer).toHaveBeenCalledWith({
         endpoint: "http://192.168.1.20:49152",
-        token: "lc_pair_test",
+        token:
+          "https://app-nightly.poracode.com/?host=http%3A%2F%2F192.168.1.20%3A49152#token=lc_pair_test",
       }),
     );
   });

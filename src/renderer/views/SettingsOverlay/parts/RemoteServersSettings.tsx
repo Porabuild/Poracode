@@ -478,17 +478,15 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
                   {runtime.message}
                 </p>
               ) : null}
-              {server.hostMode !== "helper" && canManage ? (
+              {server.hostCapabilities?.autoUpdate === true && canManage ? (
                 <RemoteHostUpdateControl server={server} isOnline={status === "online"} />
               ) : null}
-              {server.hostMode !== "helper" ? (
-                <RemoteHostSettingsSection
-                  desktopId={server.desktopId}
-                  isOnline={status === "online"}
-                  canRead={server.scopes.includes("session:read")}
-                  canWrite={server.scopes.includes("session:operate")}
-                />
-              ) : null}
+              <RemoteHostSettingsSection
+                desktopId={server.desktopId}
+                isOnline={status === "online"}
+                canRead={server.scopes.includes("session:read")}
+                canWrite={server.scopes.includes("session:operate")}
+              />
               <section>
                 <h3 className="mb-2 text-xs font-semibold text-foreground/80">
                   <Trans>Projects</Trans>
@@ -550,7 +548,7 @@ function DesktopRemoteServersSettings() {
     run(async () => {
       await pairServer({
         endpoint: normalizePairingEndpoint(parsed.host ?? parsed.url.toString()),
-        token: parsed.token,
+        token: pairingUrl,
       });
       await connectAll();
       setPairingUrl("");
