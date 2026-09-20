@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useRef } from "react";
-import { Button, Dropdown, Label } from "@heroui/react";
+import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
 import {
   ArrowLeft,
   Ellipsis,
@@ -282,6 +282,9 @@ export function UnifiedRightPanel(props: {
   const lockLabel = followsThread
     ? t`Unlock panel from the open thread`
     : t`Lock panel to the open thread`;
+  const lockHint = followsThread
+    ? t`Switching threads updates this panel to the focused thread's project and worktree.`
+    : t`Switching threads keeps this panel on the current project and worktree.`;
   const overflowActive =
     overflowedTabs.some((tab) => isTabOnScreen(tab.id)) || (lockOverflowed && followsThread);
 
@@ -396,15 +399,23 @@ export function UnifiedRightPanel(props: {
           );
         })}
         {onToggleFollowsThread && !lockOverflowed ? (
-          <button
-            type="button"
-            className={`${dragCtl} ${panelHeaderTabIconButtonClass(followsThread)}`}
-            title={lockLabel}
-            aria-pressed={followsThread}
-            onClick={onToggleFollowsThread}
-          >
-            {followsThread ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
-          </button>
+          <Tooltip delay={300}>
+            <button
+              type="button"
+              className={`${dragCtl} ${panelHeaderTabIconButtonClass(followsThread)}`}
+              aria-label={lockLabel}
+              aria-pressed={followsThread}
+              onClick={onToggleFollowsThread}
+            >
+              {followsThread ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+            </button>
+            <Tooltip.Content placement="bottom" className="max-w-64">
+              <div className="flex flex-col gap-0.5 py-0.5 text-left">
+                <p className="font-medium">{lockLabel}</p>
+                <p className="text-xs text-muted">{lockHint}</p>
+              </div>
+            </Tooltip.Content>
+          </Tooltip>
         ) : null}
         {headerOverflow.showTrigger ? (
           <Dropdown>

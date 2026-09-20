@@ -37,6 +37,10 @@ it("defaults the thread list to the flat layout", () => {
   expect(initialPanelState.threadListLayout).toBe("flat");
 });
 
+it("defaults the right panel to follow the focused thread", () => {
+  expect(initialPanelState.rightPanelFollowsThread).toBe(true);
+});
+
 function stubMatchMedia(matches: (query: string) => boolean) {
   vi.stubGlobal(
     "matchMedia",

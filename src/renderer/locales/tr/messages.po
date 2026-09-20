@@ -13046,6 +13046,14 @@ msgstr "{targetLabel} sağlayıcısına geçildi"
 msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
 msgstr "Sohbet yalnızca iki sohbet sağlayıcısı arasında yerinde sürdürülebildiğinden, geçiş yapmak aynı başlıkla yeni bir konu başlatır."
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads keeps this panel on the current project and worktree."
+msgstr "Konu değiştirmek bu paneli mevcut proje ve çalışma ağacında tutar."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads updates this panel to the focused thread's project and worktree."
+msgstr "Konu değiştirmek bu paneli odaktaki konunun projesine ve çalışma ağacına günceller."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Switching to a terminal provider starts a new thread with the same title."
 #~ msgstr "Terminal sağlayıcısına geçmek, aynı başlıkla yeni bir konu başlatır."

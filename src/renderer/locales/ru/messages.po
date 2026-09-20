@@ -13046,6 +13046,14 @@ msgstr "Переключено на {targetLabel}"
 msgid "Switching starts a new thread with the same title, because the chat can only continue in place between two chat providers."
 msgstr "Переключение запускает новый тред с тем же названием, так как чат можно продолжить на месте только между двумя чат-провайдерами."
 
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads keeps this panel on the current project and worktree."
+msgstr "При переключении тредов панель остаётся на текущем проекте и worktree."
+
+#: src/renderer/components/layout/UnifiedRightPanel.tsx
+msgid "Switching threads updates this panel to the focused thread's project and worktree."
+msgstr "При переключении тредов панель обновляется на проект и worktree активного треда."
+
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 #~ msgid "Switching to a terminal provider starts a new thread with the same title."
 #~ msgstr "Переключение на терминальный провайдер запускает новый тред с тем же названием."
