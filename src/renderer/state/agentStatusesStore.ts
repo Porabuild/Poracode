@@ -272,10 +272,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 34,
-      // v34 mirrors supervisor STATUS_CACHE_VERSION=37. Cached Cursor ACP
-      // capabilities that advertised one bracketed default variant per model
-      // must be re-probed for parameterized Effort / Fast / Context controls.
+      version: 35,
+      // v35 mirrors supervisor STATUS_CACHE_VERSION=38. Refresh derived model
+      // catalogs and their declared Fast capabilities before showing cached statuses.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

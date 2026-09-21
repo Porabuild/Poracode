@@ -90,6 +90,45 @@ beforeEach(() => {
 });
 
 describe("Grok capability detection", () => {
+  it("folds a build-fast sibling into the Fast toggle", async () => {
+    probeAcpCapabilitiesMock.mockResolvedValue({
+      models: [
+        { id: "grok-4.7", label: "Grok 4.7" },
+        {
+          id: "grok-4.7-build-fast",
+          label: "Grok 4.7 Fast",
+          description: "Fast variant. 2x the price.",
+        },
+        { id: "grok-4.6", label: "Grok 4.6" },
+      ],
+      modelMetadata: {
+        "grok-4.7": GROK_46_META,
+        "grok-4.7-build-fast": GROK_46_META,
+        "grok-4.6": GROK_46_META,
+      },
+      modelEfforts: {
+        "grok-4.7": ["low", "medium", "high", "xhigh"],
+        "grok-4.7-build-fast": ["low", "medium", "high", "xhigh"],
+        "grok-4.6": ["low", "medium", "high", "xhigh"],
+      },
+    });
+
+    const result = await grokDetectionSpec.capabilitiesProbe?.({
+      location: { kind: "posix", path: "/repo" },
+      executablePath: "grok",
+    });
+
+    expect(result?.models?.map((model) => model.id)).toEqual(["grok-4.7", "grok-4.6"]);
+    expect(result?.models?.map((model) => model.label)).toEqual(["Grok 4.7", "Grok 4.6"]);
+    expect(result?.fastModels).toEqual(["grok-4.7"]);
+    expect(result?.modelEfforts).not.toHaveProperty("grok-4.7-build-fast");
+    expect(result?.modelEfforts?.["grok-4.7"]).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(result?.modelContextSizes).toEqual({
+      "grok-4.7": ["500K"],
+      "grok-4.6": ["500K"],
+    });
+  });
+
   it("preserves ACP thinking model capabilities", async () => {
     probeAcpCapabilitiesMock.mockResolvedValue({
       models: [{ id: "grok-4.6", label: "Grok 4.6" }],

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { AgentStatus, Thread } from "@/shared/contracts";
 import { agentStatusForPresentation } from "@/shared/agentSelection";
+import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { getComposerControls } from "@/renderer/components/providers/providerComposer";
 import {
@@ -31,8 +32,13 @@ export function ComposerCompactSummary(props: {
     ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
   const presentationCapabilities = effectiveAgentStatus?.capabilities;
+  const modelId = canonicalProviderModelId(
+    thread.agentKind,
+    thread.config.model,
+    presentationCapabilities?.models ?? [],
+  );
   const modelLabel =
-    presentationCapabilities?.models.find((model) => model.id === thread.config.model)?.label ??
+    presentationCapabilities?.models.find((model) => model.id === modelId)?.label ??
     thread.config.model;
   const effortLabel = thread.config.effort ? formatEffortLabel(thread.config.effort) : undefined;
   let controls: ComposerControl[] = [];

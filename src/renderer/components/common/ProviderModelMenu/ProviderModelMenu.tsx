@@ -20,6 +20,11 @@ import { effectiveProviderOrder } from "@/shared/machineSettings";
 import { LOCAL_NATIVE_MACHINE_KEY } from "@/shared/machines";
 import { baseAgentKind, type ThreadPresentationMode } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
+import {
+  canonicalProviderModelId,
+  defaultFastEnabled,
+  normalizeProviderModelConfig,
+} from "@/renderer/components/providers/modelConfig";
 import { Button } from "../Button";
 import {
   buildProviderModelItems,
@@ -95,6 +100,12 @@ function normalizeCurrentModelForProvider(
   if (!provider || provider.capabilities.models.some((model) => model.id === modelId)) {
     return modelId;
   }
+  const canonicalModel = canonicalProviderModelId(
+    provider.kind,
+    modelId,
+    provider.capabilities.models,
+  );
+  if (canonicalModel !== modelId) return canonicalModel;
   if (baseAgentKind(provider.kind) !== "cursor") {
     return modelId;
   }
@@ -410,16 +421,44 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     `model:${currentProviderKey}:${effectiveCurrentModel}`,
   ]);
 
-  // Rows mirror the Fast preference saved per model — an explicitly saved value
-  // wins, otherwise the app default keeps Fast on for models that support it.
-  // This is intentionally not the current draft's toggle: the icon answers
-  // "what will selecting this model do", so every row resolves independently.
+  // Rows mirror the Fast preference saved per model. An explicit value wins;
+  // otherwise `defaultFastEnabled` applies. A saved fast-sibling id counts as
+  // Fast on for the standard row. This is not the current draft's toggle:
+  // the icon answers "what will selecting this model do".
   function modelFastEnabled(providerKind: string, modelId: string): boolean {
-    const saved = providerModelPreferences[providerKind]?.[modelId];
-    if (saved) return saved.fast ?? true;
+    const models =
+      providers.find((provider) => provider.kind === providerKind)?.capabilities.models ?? [];
+    const picked = normalizeProviderModelConfig(providerKind, { model: modelId }, models);
+    const saved = providerModelPreferences[providerKind]?.[picked.model];
+    if (saved) return saved.fast ?? picked.fast ?? defaultFastEnabled(providerKind);
+    if (picked.fast !== undefined) return picked.fast;
     const legacy = providerConfigs[providerKind];
-    if (legacy?.model === modelId && legacy.fast !== undefined) return legacy.fast;
-    return true;
+    if (!legacy?.model) return defaultFastEnabled(providerKind);
+    const normalized = normalizeProviderModelConfig(providerKind, legacy, models);
+    if (normalized.model !== picked.model) return defaultFastEnabled(providerKind);
+    return normalized.fast ?? defaultFastEnabled(providerKind);
+  }
+
+  function toggleModelFavorite(
+    providerKind: string,
+    modelId: string,
+    rowPresentationMode?: ThreadPresentationMode,
+  ) {
+    const mode = rowPresentationMode ?? presentationMode ?? "terminal";
+    const models =
+      providers.find((provider) => provider.kind === providerKind)?.capabilities.models ?? [];
+    const canonicalModel = canonicalProviderModelId(providerKind, modelId, models);
+    const matches = favorites.filter(
+      (ref) =>
+        ref.agentKind === providerKind &&
+        ref.presentationMode === mode &&
+        canonicalProviderModelId(providerKind, ref.modelId, models) === canonicalModel,
+    );
+    if (matches.length > 0) {
+      for (const ref of matches) toggleFavoriteModel(providerKind, ref.modelId, mode);
+    } else {
+      toggleFavoriteModel(providerKind, modelId, mode);
+    }
   }
 
   function selectModelItem(selected: ProviderModelItem | undefined) {
@@ -549,13 +588,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
           mobileExpanded={mobile && expanded}
           onActiveChange={setActiveModelItemId}
           modelFastEnabled={modelFastEnabled}
-          toggleFavorite={(providerKind, modelId, rowPresentationMode) =>
-            toggleFavoriteModel(
-              providerKind,
-              modelId,
-              rowPresentationMode ?? presentationMode ?? "terminal",
-            )
-          }
+          toggleFavorite={toggleModelFavorite}
           onSelect={handleSelect}
         />
       )}

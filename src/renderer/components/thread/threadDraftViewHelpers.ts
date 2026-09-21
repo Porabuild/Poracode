@@ -9,6 +9,10 @@ import type {
 import { baseAgentKind } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
+  defaultFastEnabled,
+  normalizeProviderModelConfig,
+} from "@/renderer/components/providers/modelConfig";
+import {
   agentStatusForPresentation,
   modelSelectionFor,
   resolveModelSelection,
@@ -224,17 +228,24 @@ export function resolveProviderDraftConfig(
   agent: AgentStatus,
   preferred?: Partial<ProviderDraftConfig>,
 ): ProviderDraftConfig {
-  const normalizedPreferred = normalizeCursorPreferredDraft(agent, preferred);
-  const nextModel = resolveModelValue(agent, normalizedPreferred?.model);
-  const nextEffort = resolveEffortValue(agent, nextModel, normalizedPreferred?.effort);
-  const nextContext = resolveContextSizeValue(agent, nextModel, normalizedPreferred?.contextSize);
+  const normalizedPreferred = normalizeProviderModelConfig(
+    agent.kind,
+    normalizeCursorPreferredDraft(agent, preferred) ?? {},
+    agent.capabilities.models,
+  );
+  const nextModel = resolveModelValue(agent, normalizedPreferred.model);
+  const nextEffort = resolveEffortValue(agent, nextModel, normalizedPreferred.effort);
+  const nextContext = resolveContextSizeValue(agent, nextModel, normalizedPreferred.contextSize);
   const supportsFast = supportsUsableFastMode(agent.capabilities, nextModel);
   // Fast mode is the composer's default for every model that can actually use
-  // it; only an explicitly saved `false` keeps it off. AI helpers (title/commit
-  // generation, schedules, PR automation) call `resolveFastValue` directly and
-  // keep their opt-in default, so background work doesn't silently spend fast
-  // requests.
-  const nextFast = resolveFastValue(agent, nextModel, normalizedPreferred?.fast ?? true);
+  // it unless the provider declares an opt-in default. AI helpers call
+  // `resolveFastValue` directly and keep their opt-in default, so background
+  // work doesn't silently spend fast requests.
+  const nextFast = resolveFastValue(
+    agent,
+    nextModel,
+    normalizedPreferred.fast ?? defaultFastEnabled(agent.kind),
+  );
   // Thinking starts enabled for every model that offers the toggle. An
   // explicitly saved `false` remains authoritative.
   const nextThinking = resolveThinkingValue(

@@ -16,6 +16,7 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildGrokAcpArgs, buildGrokArgs } from "./argv";
+import { resolveGrokAcpModel, withGrokCliModel } from "./fastMode";
 import { createGrokAcpSessionUpdateTransform } from "./acpTransform";
 import { buildGrokCommand, grokDefaultCapabilities, grokDetectionSpec } from "./detection";
 import {
@@ -152,7 +153,11 @@ export function createGrokAdapter(): AgentAdapter {
         ? resolveGrokSessionArg(location, cwd, known)
         : ({ kind: "new", sessionId } as const);
 
-      const args = buildGrokArgs(config, prompt, sessionArg);
+      const args = buildGrokArgs(
+        withGrokCliModel(config, capabilities.fastModels),
+        prompt,
+        sessionArg,
+      );
       // Returning the id as sessionRef lets the runtime skip post-spawn
       // discovery on the happy path (mirrors gemini/cursor).
       // discoverSessionRef stays wired up as the fallback.
@@ -167,7 +172,7 @@ export function createGrokAdapter(): AgentAdapter {
       const cwd = location.kind === "wsl" ? location.linuxPath : location.path;
       const known = sessionRef?.providerSessionId;
       const args = buildGrokArgs(
-        config,
+        withGrokCliModel(config, capabilities.fastModels),
         prompt,
         known ? resolveGrokSessionArg(location, cwd, known) : undefined,
       );
@@ -175,21 +180,25 @@ export function createGrokAdapter(): AgentAdapter {
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
-      const acpArgs = buildGrokAcpArgs(input.config);
+      const acpArgs = buildGrokAcpArgs(withGrokCliModel(input.config, capabilities.fastModels));
       const command = buildGrokCommand(
         input.projectLocation,
         [...acpArgs, "agent", "stdio"],
         resolveAgentBinaryPath(input.projectLocation, "grok"),
       );
-      return createAcpStructuredSession(command, {
-        ...input,
-        // Grok ACP proxies ReadFile through the client, including SKILL.md
-        // loads from ~/.grok/bundled/skills and ~/.grok/skills. Without a
-        // home-dir carve-out the shared fs bridge rejects those paths as
-        // outside the project and every global/bundled skill fails.
-        acpFsAgentHomeDirs: [".grok"],
-        acpSessionUpdateTransform: createGrokAcpSessionUpdateTransform(),
-      });
+      return createAcpStructuredSession(
+        command,
+        {
+          ...input,
+          // Grok ACP proxies ReadFile through the client, including SKILL.md
+          // loads from ~/.grok/bundled/skills and ~/.grok/skills. Without a
+          // home-dir carve-out the shared fs bridge rejects those paths as
+          // outside the project and every global/bundled skill fails.
+          acpFsAgentHomeDirs: [".grok"],
+          acpSessionUpdateTransform: createGrokAcpSessionUpdateTransform(),
+        },
+        { resolveModelConfig: resolveGrokAcpModel },
+      );
     },
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {

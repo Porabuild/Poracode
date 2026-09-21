@@ -26,6 +26,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
+import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
 import type { ProviderModelPreference } from "@/shared/settings";
 import {
   appendProviderComposerControls,
@@ -953,18 +954,33 @@ export function ThreadDraftView(props: {
         worktreeMode: effectiveWorktreeMode,
       });
     } else {
+      const picked = normalizeProviderModelConfig(
+        selectedAgentForConfig.kind,
+        { model: nextModel },
+        selectedAgentForConfig.capabilities.models,
+      );
+      const targetModel = picked.model ?? nextModel;
       const modelPreference = resolveProviderModelPreference(
         effectiveAgentKind as AgentStatus["kind"],
-        nextModel,
+        targetModel,
         providerConfigsRef.current,
         providerModelPreferencesRef.current,
       );
       latestConfigPatchRef.current(
-        patchConfigForModelChange(selectedAgentForConfig.capabilities, nextModel, {
-          ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
-          ...(contextSize ? { contextSize } : {}),
-          ...(modelPreference?.fast !== undefined ? { fast: modelPreference.fast } : {}),
-        }),
+        patchConfigForModelChange(
+          selectedAgentForConfig.capabilities,
+          targetModel,
+          {
+            ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
+            ...(contextSize ? { contextSize } : {}),
+            ...(modelPreference?.fast !== undefined
+              ? { fast: modelPreference.fast }
+              : picked.fast !== undefined
+                ? { fast: picked.fast }
+                : {}),
+          },
+          effectiveAgentKind ?? selectedAgent.kind,
+        ),
       );
     }
   };

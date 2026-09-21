@@ -103,7 +103,8 @@ const execFileAsync = promisify(execFile);
 // against the Windows host now that Muse ships a native Windows build.
 // v37 rebuilds Cursor ACP GUI capabilities: parameterized model picker
 // exposes bare model ids plus Effort / Fast / Context / Thinking controls.
-export const STATUS_CACHE_VERSION = 37;
+// v38 refreshes derived model catalogs and their declared Fast capabilities.
+export const STATUS_CACHE_VERSION = 38;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

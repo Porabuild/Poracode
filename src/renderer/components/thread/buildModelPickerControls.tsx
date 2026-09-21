@@ -10,6 +10,10 @@ import type {
 import { baseAgentKind } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
+  defaultFastEnabled,
+  normalizeProviderModelConfig,
+} from "@/renderer/components/providers/modelConfig";
+import {
   statusToMenuProvider,
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
@@ -174,6 +178,7 @@ export function patchConfigForModelChange(
     fast?: boolean;
     thinking?: boolean;
   },
+  agentKind = "",
 ): ModelPickerConfigPatch {
   const nextReasoning = modelSelectionFor(capabilities, model).reasoning;
   const effortValid = current.effort ? nextReasoning.values.includes(current.effort) : true;
@@ -192,7 +197,9 @@ export function patchConfigForModelChange(
     model,
     effort: effortValid && current.effort ? current.effort : (nextReasoning.default ?? ""),
     contextSize: nextContextSize,
-    fast: supportsUsableFastMode(capabilities, model) ? (current.fast ?? true) : false,
+    fast: supportsUsableFastMode(capabilities, model)
+      ? (current.fast ?? defaultFastEnabled(agentKind))
+      : false,
     thinking: capabilities.thinkingModels?.includes(model) ?? false,
   };
 }
@@ -390,19 +397,20 @@ export function buildControls(
     agentStatus.capabilities,
     presentationMode,
   );
+  const normalizedConfig = normalizeProviderModelConfig(
+    thread.agentKind,
+    normalizeCursorComposerConfig(thread.agentKind, thread.config, presentationCapabilities),
+    presentationCapabilities.models,
+  );
   // The model a thread already runs with stays selectable in its own composer
   // even if it is hidden for this surface — otherwise the picker has no entry
   // to label it from and shows the raw model id.
   const filteredCaps = withModelVisible(
     filterHiddenModels(presentationCapabilities, hiddenModelIds),
     presentationCapabilities,
-    thread.config?.model,
+    normalizedConfig.model,
   );
-  const effectiveConfig = normalizeCursorComposerConfig(
-    thread.agentKind,
-    thread.config,
-    filteredCaps,
-  );
+  const effectiveConfig = normalizedConfig;
   const isDisabled = !thread.canResumeWithConfig && thread.status !== "launching";
   const onPatch = (patch: Partial<ThreadConfig>) => {
     const config = { ...thread.config, ...effectiveConfig, ...patch };
@@ -433,15 +441,49 @@ export function buildControls(
       ...(machineKey ? { machineKey } : {}),
       presentationMode,
       isDisabled,
-      onProviderModelChange: ({ model }) => {
+      onProviderModelChange: ({ model: selectedModel }) => {
+        const current = normalizeProviderModelConfig(
+          thread.agentKind,
+          thread.config,
+          presentationCapabilities.models,
+        );
+        const picked = normalizeProviderModelConfig(
+          thread.agentKind,
+          { model: selectedModel },
+          filteredCaps.models,
+        );
+        const model = picked.model ?? selectedModel;
+        if (
+          current.model &&
+          current.model !== model &&
+          current.fast === true &&
+          thread.config.fast !== true
+        ) {
+          onModelPreferenceChange?.(current.model, {
+            ...(thread.config.effort ? { effort: thread.config.effort } : {}),
+            fast: true,
+          });
+        }
         const preference = modelPreferences?.[model];
+        const fast =
+          preference?.fast ??
+          (picked.model !== selectedModel
+            ? picked.fast
+            : current.model === model
+              ? current.fast
+              : undefined);
         onPatch(
-          patchConfigForModelChange(filteredCaps, model, {
-            ...(preference?.effort !== undefined ? { effort: preference.effort } : {}),
-            ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
-            ...(preference?.fast !== undefined ? { fast: preference.fast } : {}),
-            ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
-          }),
+          patchConfigForModelChange(
+            filteredCaps,
+            model,
+            {
+              ...(preference?.effort !== undefined ? { effort: preference.effort } : {}),
+              ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
+              ...(fast !== undefined ? { fast } : {}),
+              ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
+            },
+            thread.agentKind,
+          ),
         );
       },
       onConfigPatch: onPatch,

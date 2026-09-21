@@ -6,6 +6,7 @@ import {
   type AgentStatus,
   type ThreadPresentationMode,
 } from "@/shared/contracts";
+import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
 import { stripBracketParams } from "@/shared/modelLabels";
 import { deriveSubProvider, listSubProviderOrder } from "./deriveSubProvider";
 import {
@@ -279,8 +280,14 @@ interface VisibleProvider {
   searchText: string;
 }
 
-function findModelEntry(cache: ProviderModelCache, modelId: string): ModelEntry | undefined {
-  for (const alias of modelLookupAliases(modelId)) {
+function findModelEntry(
+  cache: ProviderModelCache,
+  modelId: string,
+  agentKind: string,
+): ModelEntry | undefined {
+  for (const alias of modelLookupAliases(
+    canonicalProviderModelId(agentKind, modelId, cache.models),
+  )) {
     const direct = cache.modelById.get(alias);
     if (direct) return direct;
   }
@@ -339,7 +346,7 @@ function resolveModelRef(
   const visibleProvider = findVisibleProvider(providersByKind, ref.agentKind, ref.presentationMode);
   if (!visibleProvider) return undefined;
   const { provider, cache } = visibleProvider;
-  let model = findModelEntry(cache, ref.modelId);
+  let model = findModelEntry(cache, ref.modelId, ref.agentKind);
   if (!model) {
     // Missing from the visible catalog means the caller either hid this model or
     // never offered it. Hidden ones drop out of the section; genuinely unknown
@@ -435,8 +442,21 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
   const singleProviderMode = visibleProviders.length === 1;
   const showProviderHeaders = visibleProviders.length > 1;
   const visibleKinds = new Set(visibleProviders.map((p) => p.kind));
-  const sectionFavoriteSet = new Set((favorites ?? []).map(refKey));
-  const favoriteStateSet = new Set((favoriteStateRefs ?? favorites ?? []).map(refKey));
+  function canonicalRefKey(ref: ModelRef): string {
+    const provider = findVisibleProvider(
+      visibleProvidersByKind,
+      ref.agentKind,
+      ref.presentationMode,
+    );
+    const modelId = canonicalProviderModelId(
+      ref.agentKind,
+      ref.modelId,
+      provider?.provider.capabilities.models ?? [],
+    );
+    return `${ref.agentKind}:${modelId}`;
+  }
+  const sectionFavoriteSet = new Set((favorites ?? []).map(canonicalRefKey));
+  const favoriteStateSet = new Set((favoriteStateRefs ?? favorites ?? []).map(canonicalRefKey));
 
   // In single-provider mode the standalone Favorites/Recent sections would just
   // duplicate rows from the provider's own model list (and a provider icon column
@@ -479,21 +499,27 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
       });
     if (items.length === 0) return;
     out.push({ type: "header-plain", id: `header:${sectionId}`, label: headerLabel });
+    const seenCanonical = new Set<string>();
     for (const m of items) {
       const visibleProvider = findVisibleProvider(
         visibleProvidersByKind,
         m.ref.agentKind,
         m.ref.presentationMode,
       );
+      const catalog = visibleProvider?.provider.capabilities.models ?? [];
+      const modelId = canonicalProviderModelId(m.ref.agentKind, m.ref.modelId, catalog);
+      const canonicalKey = `${m.ref.agentKind}:${modelId}`;
+      if (seenCanonical.has(canonicalKey)) continue;
+      seenCanonical.add(canonicalKey);
       const providerIcon = visibleProvider?.provider.icon;
       const shortcutSubLabel = disambiguatedSubLabel(
-        m.ref.modelId,
+        modelId,
         m.subProviderLabel,
         visibleProvider?.provider.label,
       );
       out.push({
         type: "model",
-        id: `${sectionId}:${m.ref.agentKind}:${m.ref.modelId}`,
+        id: `${sectionId}:${m.ref.agentKind}:${modelId}`,
         providerKind: m.ref.agentKind,
         providerKey: visibleProvider?.key ?? m.ref.agentKind,
         hiddenModelsKey: visibleProvider?.visibilityKey ?? m.ref.agentKind,
@@ -506,11 +532,10 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
         ...modelHintProps(m),
         ...(m.tooltipDescription ? { tooltipDescription: m.tooltipDescription } : {}),
         showProviderIcon: true,
-        ...(visibleProvider &&
-        supportsFastModel(visibleProvider.provider.capabilities, m.ref.modelId)
+        ...(visibleProvider && supportsFastModel(visibleProvider.provider.capabilities, modelId)
           ? { supportsFast: true }
           : {}),
-        isFavorite: favoriteStateSet.has(refKey(m.ref)),
+        isFavorite: favoriteStateSet.has(canonicalRefKey(m.ref)),
       });
     }
   }
@@ -521,7 +546,7 @@ export function buildProviderModelItems(input: BuildProviderModelItemsInput): Pr
     }
     if (recents?.length) {
       const filteredRecents = recents
-        .filter((r) => !sectionFavoriteSet.has(refKey(r)))
+        .filter((r) => !sectionFavoriteSet.has(canonicalRefKey(r)))
         .slice(0, recentsLimit);
       if (filteredRecents.length > 0) {
         pushShortcutSection("recent", msg`Recent`, filteredRecents);
