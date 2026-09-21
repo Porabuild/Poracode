@@ -6,6 +6,8 @@ import { RemoteClientError } from "@/shared/remote/client";
 import { REMOTE_BROWSER_FORWARD_VERSION } from "@/shared/remote/protocol";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
+import { remoteThreadId } from "@/renderer/state/remoteProjection";
+import { pruneLiveObservedCrossagentItems } from "@/renderer/state/slices/staleSubAgents";
 import { resetTruncateRecoveryEpoch } from "@/renderer/state/remote/truncateRecovery";
 import { releaseRemoteTerminalsForServer } from "@/renderer/remoteProcedureRouter";
 import { waitForHostUpdateReconnect } from "./hostUpdateReconnect";
@@ -367,6 +369,12 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       closeRemoteServerEventSocket(desktopId);
       resetTruncateRecoveryEpoch(desktopId);
       bumpRemoteServerGeneration(desktopId);
+      // The host session is gone: its Crossagent runs died with it, so their
+      // live-observation records must not outlive the connection and keep
+      // those tiles preserved as "running" on a future attach.
+      pruneLiveObservedCrossagentItems((threadId) =>
+        threadId.startsWith(remoteThreadId(desktopId, "")),
+      );
       // If the open live-chat thread belongs to this server, tear it (and its
       // socket) down first so it isn't left orphaned with no way to interact.
       if (get().openThread?.desktopId === desktopId) {
@@ -438,6 +446,11 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       setRemoteHostUpdateReconnectSeq(desktopId, reconnectSeq);
       invalidateRemoteServerRefresh(desktopId);
       closeRemoteServerEventSocket(desktopId);
+      // The host process restarts to install the update: every run it owned
+      // dies, and reconnect snapshots must be free to settle their rows.
+      pruneLiveObservedCrossagentItems((threadId) =>
+        threadId.startsWith(remoteThreadId(desktopId, "")),
+      );
       set((state) => {
         const { [desktopId]: _installed, ...hostUpdates } = state.hostUpdates;
         return {

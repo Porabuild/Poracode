@@ -452,9 +452,13 @@ export function createSupervisorEventReducer(
         const oldThread = useAppStore.getState().threads.find((t) => t.id === event.threadId);
         const payload = config.normalizeThreadState ? config.normalizeThreadState(event) : event;
         useAppStore.getState().updateThreadRuntime(event.threadId, payload);
-        // Once the agent process is gone, any sub-agent that hadn't completed
-        // is orphaned — its parent `item.completed` will never arrive.
-        // Reconcile so the active dock stops showing it as running.
+        // Once the agent process is gone, native sub-agents that hadn't
+        // completed are orphaned — their parent `item.completed` will never
+        // arrive — so reconcile to stop the active dock showing them as
+        // running. Crossagent runs are supervisor-owned and keep working
+        // through parent errors; their rows survive here and end only on the
+        // authoritative settle tile (or on force-terminated paths like
+        // provider switch).
         if (event.status === "inactive" || event.status === "error") {
           useAppStore.getState().reconcileStaleSubAgents(event.threadId);
         }

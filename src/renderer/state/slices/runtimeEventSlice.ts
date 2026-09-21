@@ -17,7 +17,7 @@ import {
   applyRuntimeEventBatchesToState,
   mergeCompletedTurns,
 } from "./runtimeEventReducer";
-import { terminateStaleSubAgentItems } from "./staleSubAgents";
+import { markLiveCrossagentItems, terminateStaleSubAgentItems } from "./staleSubAgents";
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -157,12 +157,28 @@ export interface RuntimeEventSlice {
    * Used when a thread has no live agent attached (after DB hydration, or when
    * a structured session exits / is about to be replaced on resume) — without
    * this, parents that never completed (denied permissions, crashes, abrupt
-   * exits) keep appearing in the active sub-agent dock forever.
+   * exits) keep appearing in the active sub-agent dock forever. Crossagent
+   * rows observed live this app session are kept unless `force` is set: the
+   * supervisor still owns those runs and their settle tile ends them
+   * authoritatively. `force` is for paths that already tore the owning
+   * supervisor session down (provider switch, backend supervisor reset).
    */
   reconcileStaleSubAgents(
     threadId: string,
-    options?: { readonly preserveObservedLive?: boolean },
+    options?: { readonly preserveObservedLive?: boolean; readonly force?: boolean },
   ): void;
+  /**
+   * `reconcileStaleSubAgents` for every thread with items in memory, in one
+   * state write. Used when the backend supervisor is replaced: every run it
+   * owned died with it, so pass `force` — live-observation records are cleared
+   * by the caller before this runs. `matchesThread` scopes the sweep (a local
+   * backend reset must not touch remote-host threads, whose hosts live on).
+   */
+  reconcileAllStaleSubAgents(options?: {
+    readonly preserveObservedLive?: boolean;
+    readonly force?: boolean;
+    readonly matchesThread?: (threadId: string) => boolean;
+  }): void;
   /** Replace the persisted item list for a thread (used during DB hydration). */
   hydrateThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
   /** Prepend an older persisted page while preserving newer live items. */
@@ -272,14 +288,20 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       return { truncateReloadExhausted };
     }),
 
-  applyRuntimeEvent: (threadId, event) =>
-    set((state) => applyRuntimeEventsToState(state, threadId, [event])),
+  applyRuntimeEvent: (threadId, event) => {
+    markLiveCrossagentItems(threadId, [event]);
+    set((state) => applyRuntimeEventsToState(state, threadId, [event]));
+  },
 
-  applyRuntimeEvents: (threadId, events) =>
-    set((state) => applyRuntimeEventsToState(state, threadId, events)),
+  applyRuntimeEvents: (threadId, events) => {
+    markLiveCrossagentItems(threadId, events);
+    set((state) => applyRuntimeEventsToState(state, threadId, events));
+  },
 
-  applyRuntimeEventBatches: (batches) =>
-    set((state) => applyRuntimeEventBatchesToState(state, batches)),
+  applyRuntimeEventBatches: (batches) => {
+    for (const batch of batches) markLiveCrossagentItems(batch.threadId, batch.events);
+    set((state) => applyRuntimeEventBatchesToState(state, batches));
+  },
 
   clearThreadRuntimeEvents: (threadId) =>
     set((state) => {
@@ -328,7 +350,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
     set((state) => {
       const items = state.runtimeItemsByIdByThread[threadId];
       if (!items) return {};
-      const nextItems = terminateStaleSubAgentItems(items, options);
+      const nextItems = terminateStaleSubAgentItems(threadId, items, options);
       if (!nextItems) return {};
       return {
         runtimeItemsByIdByThread: {
@@ -340,6 +362,26 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
           [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
         },
       };
+    }),
+
+  reconcileAllStaleSubAgents: (options) =>
+    set((state) => {
+      let runtimeItemsByIdByThread = state.runtimeItemsByIdByThread;
+      let runtimeStructuralVersionByThread = state.runtimeStructuralVersionByThread;
+      let changed = false;
+      for (const [threadId, items] of Object.entries(state.runtimeItemsByIdByThread)) {
+        if (options?.matchesThread && !options.matchesThread(threadId)) continue;
+        const nextItems = terminateStaleSubAgentItems(threadId, items, options);
+        if (!nextItems) continue;
+        changed = true;
+        runtimeItemsByIdByThread = { ...runtimeItemsByIdByThread, [threadId]: nextItems };
+        runtimeStructuralVersionByThread = {
+          ...runtimeStructuralVersionByThread,
+          [threadId]: (runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        };
+      }
+      if (!changed) return {};
+      return { runtimeItemsByIdByThread, runtimeStructuralVersionByThread };
     }),
 
   hydrateThreadRuntimeItems: (threadId, items) =>

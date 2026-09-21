@@ -428,7 +428,11 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
     // ended will hydrate here as still "running" and show up in the active
     // sub-agent dock forever. Reconcile in place so those rows render as
     // terminated immediately instead of waiting for a live event that will
-    // never come.
+    // never come. Crossagent rows observed live earlier in this app session
+    // are kept: their runs are supervisor-owned and may still be working.
+    // A run whose start this renderer never saw (mid-run attach) can be
+    // mis-terminated here; its next live progress frame re-marks it and
+    // self-heals the payload back to running.
     useAppStore.getState().reconcileStaleSubAgents(threadId, { preserveObservedLive: true });
   } else if (itemsResult.status === "rejected") {
     console.warn(

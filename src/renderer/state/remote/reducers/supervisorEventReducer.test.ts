@@ -25,6 +25,7 @@ vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
 
 import { clearRuntimeItemStoreSelectorCacheForThread as clearSelectorCache } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
 import { rehydrateThreadRuntimeItemsAfterReset } from "@/renderer/state/chatRuntimePersister";
+import { clearLiveObservedCrossagentItems } from "@/renderer/state/slices/staleSubAgents";
 import { createLocalSnapshotRecovery } from "./localSnapshotRecovery";
 import {
   createSupervisorEventReducer,
@@ -80,12 +81,14 @@ describe("supervisorEventReducer — shared core semantics", () => {
   let reducer: SupervisorEventReducer;
 
   beforeEach(() => {
+    clearLiveObservedCrossagentItems();
     reducer = createSupervisorEventReducer({ recovery: inlineRecovery });
   });
 
   afterEach(() => {
     reducer.clear();
     resetStore();
+    clearLiveObservedCrossagentItems();
     vi.clearAllMocks();
   });
 
@@ -95,6 +98,48 @@ describe("supervisorEventReducer — shared core semantics", () => {
 
     reducer.flushSync("thread-1");
     expect(itemIds()).toEqual(["item-1"]);
+  });
+
+  // The parent process is gone on thread-state error, so native sub-agents
+  // can never complete; Crossagent runs are supervisor-owned and keep working
+  // through the parent error — their rows must survive to their settle tile.
+  it("on thread-state error, settles native sub-agents but keeps live Crossagent rows", () => {
+    useAppStore.getState().applyRuntimeEvent("thread-1", {
+      type: "item.started",
+      threadId: "thread-1",
+      itemId: "native-sub",
+      itemType: "tool_call",
+      payload: { name: "Task", status: "running", isSubAgent: true },
+    });
+    useAppStore.getState().applyRuntimeEvent("thread-1", {
+      type: "item.started",
+      threadId: "thread-1",
+      itemId: "cross-run",
+      itemType: "tool_call",
+      payload: {
+        name: "spawn_agent",
+        status: "running",
+        isCrossagent: true,
+        crossagentStatus: "running",
+      },
+    });
+
+    reducer.dispatch({
+      type: "thread-state",
+      threadId: "thread-1",
+      status: "error",
+      attention: "none",
+      canResumeWithConfig: true,
+    });
+
+    const items = useAppStore.getState().runtimeItemsByIdByThread["thread-1"]!;
+    expect(items["native-sub"]).toMatchObject({
+      state: "completed",
+      payload: { status: "error" },
+    });
+    expect(items["cross-run"]).toMatchObject({
+      payload: { status: "running", crossagentStatus: "running" },
+    });
   });
 
   it("drains a thread's pending deltas before a non-runtime event touches its row", () => {
