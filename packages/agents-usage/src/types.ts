@@ -160,6 +160,8 @@ export interface UsageProviderDescriptor {
   needsLogin: boolean;
   /** True when a local credential can exist but usage meters still need a browser session. */
   needsBrowserSessionForUsage?: boolean;
+  /** An optional browser session adds billed cost even when another source supplies meters. */
+  browserSessionForDetails?: boolean;
   /** A cookie-backed provider also accepts a pasted API key. */
   apiKeyFallback?: boolean;
   windowIds: UsageWindowId[];

@@ -9,6 +9,7 @@ import {
 import { refreshAndMergeProviderUsage } from "./refreshProviderUsageSnapshot";
 import {
   needsBrowserSessionForUsage,
+  browserSessionAddsDetails,
   supportsApiKeyLogin,
   supportsBrowserLogin,
 } from "./usageProviders";
@@ -34,16 +35,10 @@ export function useUsageProviderLogin(id: string) {
   const isApiKeyLogin = supportsApiKeyLogin(id);
   const isBrowserLogin = supportsBrowserLogin(id);
   const supportsLogin = !isRemote && (isBrowserLogin || isApiKeyLogin);
-  // A stored session the latest fetch reports as rejected (expired cookie) still
-  // warrants a "Sign in" to re-auth; an unauthenticated provider always does. But
-  // never prompt sign-in once a fetch succeeds ("ok"): a provider authenticated
-  // by another path (e.g. Copilot's OAuth/CLI token) has no stored cookie session
-  // yet is signed in — offering "Sign in" there is wrong.
   const sessionRejected = snapshot?.status === "auth-missing";
-  // OpenCode can report a local Go plan before its meters resolve, but the
-  // meters are only available from the Go usage endpoint / the web session.
-  // Keep the sign-in action visible for the empty-meter state, including a
-  // cached snapshot from before any credential was captured.
+  // Some providers offer an optional browser source for billing or for meters
+  // their primary credential does not expose. Keep that action available.
+  const needsDetailsSession = browserSessionAddsDetails(id) && !snapshot?.cost;
   const needsUsageSession =
     !hasStoredSession &&
     needsBrowserSessionForUsage(id) &&
@@ -51,8 +46,8 @@ export function useUsageProviderLogin(id: string) {
     snapshot.windows.length === 0;
   const canSignIn =
     supportsLogin &&
-    (snapshot?.status !== "ok" || needsUsageSession) &&
-    (!hasStoredSession || sessionRejected);
+    (snapshot?.status !== "ok" || needsUsageSession || needsDetailsSession) &&
+    (!hasStoredSession || sessionRejected || needsDetailsSession);
   const canBrowserSignIn = canSignIn && isBrowserLogin;
   const canApiKeySignIn = canSignIn && isApiKeyLogin;
   const canSignOut = supportsLogin && hasStoredSession;

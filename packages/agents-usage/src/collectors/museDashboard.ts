@@ -4,7 +4,7 @@ import type { UsageSnapshot, UsageWindow } from "../types";
 
 export const MUSE_PROVIDER_ID = "muse" as const;
 export const MUSE_DASHBOARD_URL = "https://dev.meta.ai/usage";
-const MUSE_PORTAL_URL = "https://dev.meta.ai/api/portal";
+const MUSE_API_URL = "https://dev.meta.ai/api";
 const REQUEST_TIMEOUT_MS = 15_000;
 const SPEND_WINDOW_DAYS = 30;
 
@@ -84,7 +84,7 @@ type PortalResult =
   | { status: "auth-missing" | "error" }
   | { status: "rate-limited"; rateLimitedUntil?: number };
 
-async function fetchPortal(
+async function fetchMuseApi(
   host: HostPort,
   cookie: string,
   path: string,
@@ -92,7 +92,7 @@ async function fetchPortal(
 ): Promise<PortalResult> {
   const response = await host.http
     .request({
-      url: `${MUSE_PORTAL_URL}${path}`,
+      url: `${MUSE_API_URL}${path}`,
       headers: { Cookie: cookie, Accept: "application/json", Referer: MUSE_DASHBOARD_URL },
       timeoutMs: REQUEST_TIMEOUT_MS,
     })
@@ -127,7 +127,7 @@ export async function collectMuseDashboard(
   const base = { providerId: MUSE_PROVIDER_ID, windows: [], fetchedAt: nowMs };
   let teamId = (await host.credentials.getSecret(MUSE_PROVIDER_ID, "teamId"))?.trim();
   if (!teamId) {
-    const teams = await fetchPortal(host, cookie, "/teams", nowMs);
+    const teams = await fetchMuseApi(host, cookie, "/portal/teams", nowMs);
     if (teams.status !== "ok") return { ...base, ...teams };
     const list = record(teams.payload)?.teams;
     // Do not silently switch accounts when there is more than one team.
@@ -136,7 +136,7 @@ export async function collectMuseDashboard(
     teamId = id.trim();
   }
 
-  const teamPath = `/teams/${encodeURIComponent(teamId)}`;
+  const teamPath = `/portal/teams/${encodeURIComponent(teamId)}`;
   const span = museSpendWindow(nowMs);
   const query = new URLSearchParams({
     metric: "USAGE_BILLABLE_COST",
@@ -145,8 +145,8 @@ export async function collectMuseDashboard(
     timezone: "UTC",
   });
   const [quota, spend] = await Promise.all([
-    fetchPortal(host, cookie, `${teamPath}/subscription-quota`, nowMs),
-    fetchPortal(host, cookie, `${teamPath}/usage?${query}`, nowMs),
+    fetchMuseApi(host, cookie, `${teamPath}/subscription-quota`, nowMs),
+    fetchMuseApi(host, cookie, `${teamPath}/usage?${query}`, nowMs),
   ]);
   // Session rejection must offer re-login, even if the other endpoint succeeded.
   if (quota.status === "auth-missing" || spend.status === "auth-missing") {
@@ -177,4 +177,19 @@ export async function collectMuseDashboard(
       ? { cost: { currency: "USD", amount, period: "30d", estimated: false } }
       : {}),
   };
+}
+
+/** Confirm account ownership before combining optional billing with CLI quota. */
+export async function readMuseDashboardAccount(
+  host: HostPort,
+  cookie: string,
+  nowMs: number,
+): Promise<{ email?: string; rateLimitedUntil?: number }> {
+  const result = await fetchMuseApi(host, cookie, "/auth/me", nowMs);
+  if (result.status === "rate-limited") {
+    return { rateLimitedUntil: result.rateLimitedUntil ?? nowMs + 5 * 60_000 };
+  }
+  if (result.status !== "ok") return {};
+  const email = record(result.payload)?.email;
+  return typeof email === "string" && email.trim() ? { email: email.trim() } : {};
 }

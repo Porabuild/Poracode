@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
+import { Button, Tooltip } from "@heroui/react";
 import { useSortable } from "@dnd-kit/react/sortable";
-import { ChevronDown, ChevronRight, GripVertical, LogOut, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, LogIn, LogOut, RefreshCw } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { UsageSnapshot } from "@poracode/agents-usage/types";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
@@ -15,7 +16,10 @@ import {
   usageStatusText,
 } from "@/renderer/components/providers/usageFormat";
 import { usageToneColor } from "@/renderer/components/providers/usageTone";
-import { usesSharedWindowReset } from "@/renderer/components/providers/usageProviders";
+import {
+  browserSessionAddsDetails,
+  usesSharedWindowReset,
+} from "@/renderer/components/providers/usageProviders";
 import { useProviderUsageRefresh } from "@/renderer/components/providers/useProviderUsageRefresh";
 import { useUsageProviderLogin } from "@/renderer/components/providers/useUsageProviderLogin";
 import { useProviderUsage } from "@/renderer/state/providerUsageStore";
@@ -91,6 +95,7 @@ export function UsageProviderCard(props: {
     handleSubmitApiKey,
     handleSignOut,
   } = useUsageProviderLogin(id);
+  const optionalBrowserSignIn = canBrowserSignIn && browserSessionAddsDetails(id);
   const { refreshing, refresh } = useProviderUsageRefresh(id);
   const onSubmitApiKey = (event: FormEvent) => {
     event.preventDefault();
@@ -191,6 +196,25 @@ export function UsageProviderCard(props: {
         >
           <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
+        {optionalBrowserSignIn ? (
+          <Tooltip>
+            <Button
+              isIconOnly
+              variant="ghost"
+              aria-label={signingIn ? t`Signing in…` : t`Browser sign-in`}
+              onPress={() => void handleSignIn()}
+              isDisabled={signingIn}
+              className={`min-w-0 shrink-0 rounded-md p-0 text-muted/60 hover:bg-muted/10 hover:text-foreground ${
+                compact ? "size-11" : "size-5"
+              }`}
+            >
+              <LogIn className="size-3.5" />
+            </Button>
+            <Tooltip.Content placement="top">
+              {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
         {canSignOut ? (
           <button
             type="button"
@@ -241,16 +265,6 @@ export function UsageProviderCard(props: {
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-muted">{usageStatusText(snapshot, label, id)}</p>
-              {canBrowserSignIn ? (
-                <button
-                  type="button"
-                  onClick={() => void handleSignIn()}
-                  disabled={signingIn}
-                  className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
-                >
-                  {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
-                </button>
-              ) : null}
               {canApiKeySignIn ? (
                 <form onSubmit={onSubmitApiKey} className="flex items-center gap-1.5">
                   <input
@@ -274,6 +288,16 @@ export function UsageProviderCard(props: {
               ) : null}
             </div>
           )}
+          {canBrowserSignIn && !optionalBrowserSignIn ? (
+            <button
+              type="button"
+              onClick={() => void handleSignIn()}
+              disabled={signingIn}
+              className="rounded-lg border border-[color:var(--separator)] bg-surface px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted/10 disabled:opacity-50"
+            >
+              {signingIn ? <Trans>Signing in…</Trans> : <Trans>Browser sign-in</Trans>}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

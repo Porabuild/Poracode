@@ -1,36 +1,12 @@
 import { parseRetryAfter, toEpochMs } from "../formatters";
 import type { CollectOptions, HostPort, HttpResponse } from "../host";
 import type { UsageSnapshot, UsageWindow } from "../types";
-import { collectMuseDashboard, MUSE_PROVIDER_ID } from "./museDashboard";
+import { collectMuseDashboard, readMuseDashboardAccount, MUSE_PROVIDER_ID } from "./museDashboard";
 
 /**
- * Muse Code (Meta). Two sources, tried in this order:
- *
- * 1. The signed-in `dev.meta.ai` dashboard, with the browser session cookie
- *    captured by the in-app sign-in (`getSecret(id, "cookie")`). It is the
- *    only source for the weighted 5h / weekly quota meters and billed spend —
- *    see `museDashboard.ts`.
- * 2. The CLI's own key endpoint, with the device-code login `muse login`
- *    stores. It reports the subscription plan + account (and quota percents
- *    only when the endpoint chooses to include `subs_usage`), so the card can
- *    at least show who is signed in before the dashboard session is captured.
- *
- *   POST https://api.meta.ai/muse-code/key
- *     headers: Authorization: Bearer <dca access_token>, Content-Type: application/json
- *     body: {} (a body is required — empty posts are rejected with 400)
- *     → { subs_tier_name, user_email, user_full_name, is_subs_active,
- *         subs_usage?: { window?: { used_percent, resets_at, window_duration_mins },
- *                         weekly?: { used_percent, resets_at } } }
- *
- * Auth for (2) is the `access_token` (`dca:...`) from `~/.config/muse/auth.json`
- * `providers.meta` (resolved host-side, see `museCredentials.ts`) — notably
- * NOT `META_API_KEY` / the `api_key` field, which the endpoint rejects with
- * 401. Pay-as-you-go keys have no subscription quota, so a key-only setup
- * correctly reports `auth-missing` and the card prompts for sign-in.
- *
- * An `ok` snapshot from (2) with plan + account and no windows means "signed
- * in, no meters exposed", never a healthy 0% — the descriptor's
- * `needsBrowserSessionForUsage` keeps the dashboard sign-in offered there.
+ * Reuses the Muse CLI's device-code login for quota, plan, and account details.
+ * The optional dashboard session supplies fallback meters and billed spend.
+ * Inference API keys cannot authenticate the CLI's `/muse-code/key` endpoint.
  */
 
 export { MUSE_PROVIDER_ID };
@@ -93,7 +69,10 @@ function nonEmpty(value: unknown): string | undefined {
  * reports it; otherwise the snapshot carries plan + account only.
  */
 export function parseMuseUsage(body: unknown, nowMs: number): UsageSnapshot {
-  const data = (body ?? {}) as MuseKeyResponse;
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return errorSnapshot(nowMs, "invalid account response");
+  }
+  const data = body as MuseKeyResponse;
   const subsUsage =
     data.subs_usage && typeof data.subs_usage === "object" ? data.subs_usage : undefined;
   const windows: UsageWindow[] = [];
@@ -105,6 +84,9 @@ export function parseMuseUsage(body: unknown, nowMs: number): UsageSnapshot {
 
   const plan = nonEmpty(data.subs_tier_name);
   const authenticatedAs = nonEmpty(data.user_email) ?? nonEmpty(data.user_full_name);
+  if (!plan && !authenticatedAs && windows.length === 0) {
+    return errorSnapshot(nowMs, "missing account and usage data");
+  }
   return {
     providerId: MUSE_PROVIDER_ID,
     status: "ok",
@@ -129,22 +111,44 @@ function errorSnapshot(now: number, error: string): UsageSnapshot {
   return { providerId: MUSE_PROVIDER_ID, status: "error", windows: [], fetchedAt: now, error };
 }
 
-/**
- * Collect Muse Code usage. Prefers the captured dashboard session; falls back
- * to the CLI's device-code token host-side; returns `auth-missing` when neither
- * exists so the card can prompt for sign-in.
- */
+/** CLI quota takes precedence; browser sign-in remains optional for extra data. */
 export async function collectMuse(host: HostPort, _opts?: CollectOptions): Promise<UsageSnapshot> {
   const now = host.now();
+  const primary = await collectMuseKeyEndpoint(host, now);
+  // Honor the primary endpoint's backoff instead of masking it with another source.
+  if (primary.status === "rate-limited") return primary;
   const cookie = (await host.credentials.getSecret(MUSE_PROVIDER_ID, "cookie"))?.trim();
-  if (cookie) return collectMuseDashboard(host, cookie, now);
-  return collectMuseKeyEndpoint(host, now);
+  if (!cookie) return primary;
+  const dashboard = await collectMuseDashboard(host, cookie, now);
+  let selected = primary;
+  let accountRetryAt: number | undefined;
+  if (primary.status === "ok" && primary.windows.length > 0) {
+    // Optional billing must belong to the CLI account, not another browser login.
+    const account =
+      dashboard.cost && primary.authenticatedAs
+        ? await readMuseDashboardAccount(host, cookie, now)
+        : undefined;
+    const sameAccount =
+      account?.email !== undefined &&
+      account.email.toLowerCase() === primary.authenticatedAs?.toLowerCase();
+    accountRetryAt = account?.rateLimitedUntil;
+    selected = { ...primary, ...(sameAccount && dashboard.cost ? { cost: dashboard.cost } : {}) };
+  } else if (dashboard.status === "ok" || primary.status !== "ok") {
+    // Select a complete fallback without attaching another account's identity.
+    selected = dashboard;
+  }
+  const retryAt = Math.max(
+    accountRetryAt ?? 0,
+    dashboard.rateLimitedUntil ?? (dashboard.status === "rate-limited" ? now + 5 * 60_000 : 0),
+  );
+  // An optional endpoint's cooldown still applies when primary quota is healthy.
+  return { ...selected, ...(retryAt > 0 ? { rateLimitedUntil: retryAt } : {}) };
 }
 
 /** The CLI key-endpoint path: plan + account, meters only when reported. */
 async function collectMuseKeyEndpoint(host: HostPort, now: number): Promise<UsageSnapshot> {
   const token = await host.credentials.getOAuthToken(MUSE_PROVIDER_ID);
-  if (!token?.accessToken) return authMissing(now);
+  if (!token?.accessToken?.startsWith("dca:")) return authMissing(now);
 
   let res: HttpResponse;
   try {
@@ -155,6 +159,8 @@ async function collectMuseKeyEndpoint(host: HostPort, now: number): Promise<Usag
         Authorization: `Bearer ${token.accessToken}`,
         Accept: "application/json",
         "Content-Type": "application/json",
+        "x-api-version": "1.0.0",
+        "User-Agent": "Poracode",
       },
       // The endpoint requires a (possibly empty-object) JSON body.
       body: "{}",
