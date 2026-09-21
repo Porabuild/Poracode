@@ -3,9 +3,9 @@
  *
  * The CLI parser (`opencode models --verbose`) was the only way to enumerate
  * providers/models/variants before we started shipping the SDK runtime. Now
- * that the SDK runtime keeps one shared `opencode serve` per execution
- * environment, the one-time inventory call reuses that same sidecar. The SDK
- * returns:
+ * that the SDK runtime is available, inventory uses a short-lived server so
+ * it sees the refreshed on-disk catalog even while a chat server is running.
+ * The SDK returns:
  *
  *   - per-provider model `name` (we no longer need slug-titleization heuristics
  *     for everything the API knows)
@@ -151,7 +151,7 @@ function normalizeAgentsResponse(raw: unknown): OpenCodeSdkAgent[] {
 }
 
 /**
- * Acquire the runtime sidecar and call `provider.list()` + `app.agents()` in
+ * Acquire a fresh sidecar and call `provider.list()` + `app.agents()` in
  * this directory. The returned promise rejects on any failure; callers are
  * expected to fall back to the CLI parser.
  */
@@ -160,7 +160,7 @@ export async function probeOpenCodeInventoryViaSdk(
   signal?: AbortSignal,
 ): Promise<OpenCodeSdkInventory | undefined> {
   signal?.throwIfAborted();
-  const acquired = await acquireOpenCodeServer({ projectLocation: location });
+  const acquired = await acquireOpenCodeServer({ projectLocation: location, fresh: true });
 
   try {
     signal?.throwIfAborted();

@@ -255,6 +255,8 @@ async function spawnAndWire(projectLocation: ProjectLocation): Promise<ServerSna
 export interface AcquireOpenCodeServerInput {
   projectLocation: ProjectLocation;
   mcpServers?: readonly ResolvedMcpServer[];
+  /** Read updated on-disk config/catalogs without disturbing leased chat servers. */
+  fresh?: boolean;
 }
 
 async function addMcpServers(
@@ -331,7 +333,7 @@ async function acquireOpenCodeServerInner(
   input: AcquireOpenCodeServerInput,
   retryMcpConnectionLoss: boolean,
 ): Promise<AcquiredOpenCodeServer> {
-  const key = poolKey(input.projectLocation);
+  const key = input.fresh ? `probe:${randomUUID()}` : poolKey(input.projectLocation);
   let entry = pool.get(key);
 
   if (!entry) {

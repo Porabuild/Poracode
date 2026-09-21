@@ -105,6 +105,26 @@ describe("acquireOpenCodeServer", () => {
     );
   });
 
+  it("isolates fresh inventory servers without replacing or stopping the active chat server", async () => {
+    const chatHandle = makeHandle("http://127.0.0.1:4096");
+    const probeHandle = makeHandle("http://127.0.0.1:4097");
+    mocks.spawnOpenCodeServer.mockReturnValueOnce(chatHandle).mockReturnValueOnce(probeHandle);
+    const { acquireOpenCodeServer } = await import("./sdkClient");
+    const projectLocation: ProjectLocation = { kind: "posix", path: "/repo" };
+    const chat = await acquireOpenCodeServer({ projectLocation });
+    const probe = await acquireOpenCodeServer({ projectLocation, fresh: true });
+    expect(probe.baseUrl).toBe("http://127.0.0.1:4097");
+    await probe.dispose({ closeServerIfIdle: true });
+    expect(probeHandle.dispose).toHaveBeenCalledOnce();
+    expect(chatHandle.dispose).not.toHaveBeenCalled();
+    const nextChat = await acquireOpenCodeServer({ projectLocation });
+    expect(nextChat.baseUrl).toBe(chat.baseUrl);
+    expect(mocks.spawnOpenCodeServer).toHaveBeenCalledTimes(2);
+    await nextChat.dispose({ closeServerIfIdle: true });
+    await chat.dispose({ closeServerIfIdle: true });
+    expect(chatHandle.dispose).toHaveBeenCalledOnce();
+  });
+
   it("does not leak a rejected server startup as an unhandled rejection", async () => {
     const handle = {
       ...makeHandle("http://127.0.0.1:4096"),
