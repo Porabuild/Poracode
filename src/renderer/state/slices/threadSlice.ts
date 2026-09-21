@@ -382,7 +382,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       // the divider reads as settled history. The plan and goal docks already
       // scope themselves to the current provider era.
       const items = state.runtimeItemsByIdByThread[threadId];
-      const settledItems = items ? terminateStaleSubAgentItems(items) : undefined;
+      const settledItems = items
+        ? terminateStaleSubAgentItems(threadId, items, { force: true })
+        : undefined;
       return {
         threads,
         ...(settledItems

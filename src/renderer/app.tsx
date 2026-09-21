@@ -23,6 +23,8 @@ import {
   toggleStarThread,
 } from "./actions/threadActions";
 import { forgetRemovedWorktreeGroup } from "./actions/worktreeActions";
+import { isProjectedRemoteEntityId } from "./state/remoteProjection";
+import { pruneLiveObservedCrossagentItems } from "./state/slices/staleSubAgents";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
@@ -257,12 +259,26 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
       // Backend reset (V5 2.5): the relay sequence space restarts with a new
       // backend child. The transport drops its dedupe cursor and rebuilds;
       // here the in-flight recovery state is invalidated so no stale
-      // authoritative read from the previous child is trusted.
+      // authoritative read from the previous child is trusted. The replacement
+      // child also starts with an empty run tracker: every Crossagent run the
+      // old child owned died with it, so its live-observation records go and
+      // every still-running delegated row is force-settled — otherwise those
+      // tiles spin as "running" forever (no settle tile will ever arrive).
       ...(readElectronHostBridge()
         ? [
             readElectronHostBridge()!.onBackendSupervisorReset(() => {
               localSnapshotRecovery.onTransportGenerationChanged();
               supervisorReducer.invalidateInFlightRecoveries();
+              // Remote-host threads are unaffected by a local backend reset —
+              // keep their observation records and rows so a local reset can't
+              // falsely fail their still-live runs.
+              const isLocalBackendThread = (threadId: string) =>
+                !isProjectedRemoteEntityId(threadId, "thread");
+              pruneLiveObservedCrossagentItems(isLocalBackendThread);
+              useAppStore.getState().reconcileAllStaleSubAgents({
+                force: true,
+                matchesThread: isLocalBackendThread,
+              });
             }),
           ]
         : []),
