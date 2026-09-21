@@ -3755,6 +3755,28 @@ html[data-platform="darwin"] .poracode-sidebar-project-nudge {
   white-space: pre-wrap;
   overflow-wrap: break-word;
 }
+.lc-chat-markdown .katex,
+.poracode-markdown-preview .katex {
+  color: inherit;
+  font-size: 1.05em;
+  line-height: normal;
+  white-space: nowrap;
+}
+.lc-chat-markdown .katex-display,
+.poracode-markdown-preview .katex-display {
+  display: block;
+  max-width: 100%;
+  margin: 0.75em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.lc-chat-markdown .katex code,
+.poracode-markdown-preview .katex code {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: inherit;
+}
 .lc-chat-markdown li::marker {
   color: var(--lc-text-muted, currentColor);
 }
