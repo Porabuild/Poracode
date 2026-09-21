@@ -441,6 +441,26 @@ async function runOpenCodeDetectionProbe(
     return status ? { status } : {};
   }
 
+  // Refresh before starting the inventory server: provider.list() only reads
+  // OpenCode's catalog, and a running server retains its own in-memory copy.
+  // Status and capabilities share this entire operation through the pending map.
+  ctx.signal?.throwIfAborted();
+  const refreshed = await readAgentCommandOutput(
+    ctx.location,
+    ctx.executablePath,
+    ["models", "--refresh"],
+    {
+      timeoutMs: 15_000,
+      posixCwd: getAgentProbeCwd(ctx.location),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+      ...(ctx.probeEnv ? { env: ctx.probeEnv } : {}),
+    },
+  );
+  ctx.signal?.throwIfAborted();
+  if (!refreshed.ok) {
+    console.warn("[opencode] model cache refresh failed; probing the existing catalog");
+  }
+
   const sdkInventory = await probeOpenCodeInventoryViaSdk(ctx.location, ctx.signal).catch(
     (cause) => {
       console.warn(

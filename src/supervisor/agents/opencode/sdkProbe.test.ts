@@ -48,6 +48,10 @@ describe("probeOpenCodeInventoryViaSdk cancellation", () => {
     abort.abort(new Error("detection cancelled"));
 
     await expect(probe).rejects.toThrow("detection cancelled");
+    expect(acquireOpenCodeServer).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: location,
+      fresh: true,
+    });
     expect(dispose).toHaveBeenCalledExactlyOnceWith({ closeServerIfIdle: true });
   });
 
