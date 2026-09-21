@@ -4,15 +4,16 @@ import { AppProvider } from "@/renderer/components/ui/provider";
 import { MarkdownPreview } from "@/renderer/views/FileEditorOverlay/parts/MarkdownPreview";
 import ItemMarkdownInner from "./ItemMarkdownInner";
 
-function renderMarkdown(text: string) {
-  return render(
-    <AppProvider>
-      <ItemMarkdownInner text={text} />
-    </AppProvider>,
-  );
-}
+const surfaces = [
+  { name: "chat", content: (text: string) => <ItemMarkdownInner text={text} /> },
+  { name: "file preview", content: (text: string) => <MarkdownPreview content={text} /> },
+];
 
-describe("chat math rendering", () => {
+describe.each(surfaces)("$name math rendering", ({ content }) => {
+  function renderMarkdown(text: string) {
+    return render(<AppProvider>{content(text)}</AppProvider>);
+  }
+
   it("typesets dollar inline and display math", () => {
     const { container } = renderMarkdown(
       "Your forward operation is $Z=XW$ for image $i$.\n\n$$\n\\frac{\\partial L}{\\partial W}\n$$\n",
@@ -63,13 +64,56 @@ describe("chat math rendering", () => {
     expect(container.textContent).toContain("\\[1\\]");
   });
 
-  it("typesets the same delimiters in the file preview", () => {
-    const { container } = render(
-      <AppProvider>
-        <MarkdownPreview content={"Inline \\(x^2\\) and\n\n$$\ny=x\n$$\n"} />
-      </AppProvider>,
+  it("typesets one reply that mixes both delimiter dialects", () => {
+    const { container } = renderMarkdown(
+      [
+        "Your forward operation is $Z=XW$. For image \\(i\\) and class \\(j\\):",
+        "",
+        "$$",
+        "Z_{ij}=\\sum_d X_{id}W_{dj}.",
+        "$$",
+        "",
+        "Changing weight \\(W_{dj}\\) changes $Z_{ij}$ at rate $X_{id}$.",
+        "",
+        "\\[",
+        "\\frac{\\partial L}{\\partial W_{dj}}=\\sum_i X_{id}\\frac{\\partial L}{\\partial Z_{ij}}.",
+        "\\]",
+      ].join("\n"),
     );
-    expect(container.querySelectorAll(".katex").length).toBeGreaterThanOrEqual(2);
-    expect(container.querySelector(".katex-display")).not.toBeNull();
+    expect(container.querySelectorAll(".katex-display")).toHaveLength(2);
+    expect(container.querySelectorAll(".katex")).toHaveLength(8);
+    expect(container.textContent).not.toContain("$Z=XW$");
+  });
+
+  it("keeps malformed math from hiding the rest of the message", () => {
+    const { container } = renderMarkdown(
+      "Before $\\frac{1}{$.\n\nAfter the formula, valid math $x^2$ still renders.",
+    );
+    expect(container.querySelector(".katex-error")).not.toBeNull();
+    expect(container.textContent).toContain("After the formula");
+    expect(container.querySelectorAll(".katex")).toHaveLength(1);
+  });
+
+  it("keeps raw HTML sanitized and untrusted math commands disabled", () => {
+    const { container } = renderMarkdown(
+      '<img src="x" onerror="alert(1)"><script>alert(1)</script>\n\n$\\href{javascript:alert(1)}{click}$ and $x^2$.',
+    );
+    expect(container.querySelector("script, [onerror], a[href^='javascript:']")).toBeNull();
+    expect(container.querySelectorAll(".katex")).toHaveLength(2);
+  });
+
+  it.each([
+    ["dollar", "$$\n\\frac{1}{2}", "\n$$"],
+    ["LaTeX", "\\[\n\\frac{1}{2}", "\n\\]"],
+  ])("typesets %s display math when the closing delimiter arrives", (_, opening, closing) => {
+    const prefix = `An inline equation $x^2$.\n\n${opening}`;
+    const { container, rerender } = renderMarkdown(prefix);
+    expect(container.textContent).toContain("An inline equation");
+
+    rerender(<AppProvider>{content(`${prefix}${closing}\n\nAfter the formula.`)}</AppProvider>);
+
+    expect(container.querySelectorAll(".katex-display")).toHaveLength(1);
+    expect(container.querySelectorAll(".katex")).toHaveLength(2);
+    expect(container.textContent).toContain("After the formula.");
   });
 });
