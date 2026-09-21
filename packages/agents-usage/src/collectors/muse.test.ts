@@ -78,7 +78,7 @@ describe("parseMuseUsage", () => {
 });
 
 describe("collectMuse", () => {
-  it("prefers a captured dashboard session over the CLI token", async () => {
+  it("tries the CLI token before falling back to a captured dashboard session", async () => {
     const urls: string[] = [];
     const host = createFakeHost({
       secrets: { muse: { cookie: "llm_sess=abc" } },
@@ -88,7 +88,7 @@ describe("collectMuse", () => {
     });
     await collectMuse(host);
     expect(urls).toContain("https://dev.meta.ai/api/portal/teams");
-    expect(urls).not.toContain(MUSE_KEY_ENDPOINT);
+    expect(urls[0]).toBe(MUSE_KEY_ENDPOINT);
   });
 
   it("returns auth-missing without a stored CLI token", async () => {
@@ -100,6 +100,7 @@ describe("collectMuse", () => {
     let seenMethod: string | undefined;
     let seenAuth: string | undefined;
     let seenBody: string | undefined;
+    let seenVersion: string | undefined;
     const host = createFakeHost({
       tokens: { muse: { accessToken: "dca:probe" } },
       routes: { [MUSE_KEY_ENDPOINT]: { status: 200, body: KEY_BODY } },
@@ -107,10 +108,12 @@ describe("collectMuse", () => {
         seenMethod = req.method;
         seenAuth = req.headers?.["Authorization"];
         seenBody = req.body;
+        seenVersion = req.headers?.["x-api-version"];
       },
     });
     const snap = await collectMuse(host);
     expect(seenMethod).toBe("POST");
+    expect(seenVersion).toBe("1.0.0");
     expect(seenAuth).toBe("Bearer dca:probe");
     // The endpoint rejects empty posts with 400 — always send `{}`.
     expect(seenBody).toBe("{}");

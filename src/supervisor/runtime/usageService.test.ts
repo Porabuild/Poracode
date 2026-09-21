@@ -66,7 +66,7 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
-  it.each([4, 6])(
+  it.each([4, 6, 7])(
     "discards snapshots from obsolete collector cache version %i",
     async (version) => {
       const cachePath = tempCachePath();

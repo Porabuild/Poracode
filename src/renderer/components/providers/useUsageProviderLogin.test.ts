@@ -77,12 +77,12 @@ describe("useUsageProviderLogin", () => {
     expect(result.current.canSignIn).toBe(true);
   });
 
-  it("offers OpenCode browser login when local Go auth has no web meters", () => {
+  it("does not require browser login for API-backed OpenCode usage", () => {
     useProviderUsageStore.getState().mergeSnapshot(localGoSnapshot());
 
     const { result } = renderHook(() => useUsageProviderLogin("opencode"));
 
-    expect(result.current.canBrowserSignIn).toBe(true);
+    expect(result.current.canBrowserSignIn).toBe(false);
     expect(result.current.canSignOut).toBe(false);
   });
 

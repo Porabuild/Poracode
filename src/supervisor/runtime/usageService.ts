@@ -43,9 +43,10 @@ import { readSupervisorSharedSettings } from "./supervisorSharedSettings";
  * Cursor account when an SDK key is configured; v5 removes the desktop-app
  * credential fallback from the CLI-backed main tile; v6 sources OpenCode Go
  * meters from the direct API-key usage endpoint; v7 refreshes Muse snapshots
- * through the portal JSON API after the dashboard retired its Relay endpoint.
+ * through the portal JSON API after the dashboard retired its Relay endpoint;
+ * v8 prefers CLI quota and confines optional browser billing to the same account.
  */
-const USAGE_CACHE_VERSION = 7;
+const USAGE_CACHE_VERSION = 8;
 /** The full default provider set, from the package catalog (single source of truth). */
 const DEFAULT_PROVIDER_IDS: readonly string[] = allUsageProviderDescriptors().map((d) => d.id);
 const MIN_REFRESH_INTERVAL_MS = 2 * 60_000;
