@@ -16,6 +16,7 @@ import { friendlyError } from "@/shared/messages";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { useThreadFollowUpQueue } from "@/renderer/state/threadFollowUpQueueStore";
 import { agentStatusForPresentation, hasSelectableReasoning } from "@/shared/agentSelection";
+import { canonicalProviderModelId } from "@/renderer/components/providers/modelConfig";
 import {
   changeThreadConfig,
   clearThreadPendingSteer,
@@ -425,6 +426,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     thread.id,
     threadMentionToolsAvailable,
   );
+  const composerModelId = canonicalProviderModelId(
+    thread.agentKind,
+    thread.config?.model ?? "",
+    effectiveAgentStatus?.capabilities.models ?? [],
+  );
   const availableCommands = resolveAvailableSlashCommands(
     thread.slashCommands,
     effectiveAgentStatus?.capabilities.slashCommands,
@@ -432,12 +438,9 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       agentKind: thread.agentKind,
       presentationMode,
       runtimeLabel: effectiveAgentStatus?.capabilities.runtimeLabel,
-      hasEffort: hasSelectableReasoning(
-        effectiveAgentStatus?.capabilities,
-        thread.config?.model ?? "",
-      ),
+      hasEffort: hasSelectableReasoning(effectiveAgentStatus?.capabilities, composerModelId),
       supportsFast: effectiveAgentStatus
-        ? supportsUsableFastMode(effectiveAgentStatus.capabilities, thread.config?.model ?? "")
+        ? supportsUsableFastMode(effectiveAgentStatus.capabilities, composerModelId)
         : false,
       skillCommands,
       disabledSkillNames: effectiveAgentStatus?.capabilities.disabledSkillNames,

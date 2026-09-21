@@ -27,6 +27,7 @@ import { storableAttachment } from "../composer/useAttachments";
 import type { useAttachments } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
 import type { TerminalPaneHandle } from "./TerminalPane";
+import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
   bindLeadingSkillUnlessLocalAction,
@@ -128,8 +129,15 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     return;
   }
   if (localAction?.kind === "toggle-fast") {
-    if (agentStatus && supportsUsableFastMode(agentStatus.capabilities, thread.config.model)) {
-      changeThreadConfig(thread.id, { ...thread.config, fast: thread.config.fast !== true });
+    if (agentStatus) {
+      const normalized = normalizeProviderModelConfig(
+        thread.agentKind,
+        thread.config,
+        agentStatus.capabilities.models,
+      );
+      if (supportsUsableFastMode(agentStatus.capabilities, normalized.model)) {
+        changeThreadConfig(thread.id, { ...normalized, fast: normalized.fast !== true });
+      }
     }
     mentionRef.current?.clear();
     mentionRef.current?.focus();
