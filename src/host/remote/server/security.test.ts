@@ -135,6 +135,17 @@ describe("resolveRateLimitClient", () => {
     );
   });
 
+  it("matches bracketed IPv6 hops and never keys an all-trusted chain on the leftmost entry", () => {
+    const v6 = {
+      headers: { "x-forwarded-for": "203.0.113.9, [2001:db8::1]:443" },
+      socket: { remoteAddress: "2001:db8::1" },
+    } as unknown as Parameters<typeof resolveRateLimitClient>[0];
+    expect(resolveRateLimitClient(v6, ["2001:db8::1"])).toBe("203.0.113.9");
+    expect(resolveRateLimitClient(proxied("10.9.9.9, 10.0.0.5"), ["127.0.0.1", "10.0.0.0/8"])).toBe(
+      "10.0.0.5",
+    );
+  });
+
   it("ignores forwarding claims from an untrusted socket", () => {
     expect(resolveRateLimitClient(proxied("203.0.113.9"), [])).toBe("127.0.0.1");
   });

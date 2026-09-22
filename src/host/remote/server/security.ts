@@ -141,14 +141,24 @@ export function resolveRateLimitClient(
   const forwarded = req.headers["x-forwarded-for"];
   const hops = (Array.isArray(forwarded) ? forwarded.join(",") : (forwarded ?? ""))
     .split(",")
-    .map((hop) => hop.trim())
+    .map((hop) => unbracketForwardedHop(hop.trim()))
     .filter((hop) => hop.length > 0);
   // Walk from the nearest hop outward and stop at the first address that is
   // not itself a trusted proxy. The leftmost entry is whatever the client
   // sent before any proxy appended to it, so keying on it would let a
   // client mint a fresh bucket per request and bypass the limits.
+  // When every hop is itself trusted, the nearest entry is still the one our
+  // own proxy appended; the leftmost would again be client-chosen.
   const visitor = hops.findLast((hop) => !socketMatchesTrustedProxy(hop, trustedProxies));
-  return visitor ?? hops[0] ?? remoteAddress;
+  return visitor ?? hops.at(-1) ?? remoteAddress;
+}
+
+/** `[2001:db8::1]` or `[2001:db8::1]:443` → `2001:db8::1`, so bracketed IPv6
+ * hops compare against trusted-proxy entries like socket addresses do. */
+function unbracketForwardedHop(hop: string): string {
+  if (!hop.startsWith("[")) return hop;
+  const end = hop.indexOf("]");
+  return end > 1 ? hop.slice(1, end) : hop;
 }
 
 /**
