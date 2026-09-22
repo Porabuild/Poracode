@@ -167,6 +167,11 @@ const messages = {
   // ── OpenCode ──────────────────────────────────────────
   "opencode.retryFallback": "OpenCode request failed, retrying...",
 
+  // ── Codex ─────────────────────────────────────────────────
+  "codex.compactUnavailableDuringTurn":
+    "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes.",
+  "codex.compactFailed": "Codex could not compact the conversation: {detail}",
+
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
   "update.serviceUnavailable": "The update service is temporarily unavailable.",

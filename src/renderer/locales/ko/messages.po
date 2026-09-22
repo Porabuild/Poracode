@@ -3020,6 +3020,14 @@ msgstr "코드가 복사되었습니다."
 msgid "Codex"
 msgstr "Codex"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes."
+msgstr "턴이 실행 중일 때는 Codex가 대화를 압축할 수 없습니다. 턴이 끝나면 /compact를 다시 보내세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Codex could not compact the conversation: {detail}"
+msgstr "Codex가 대화를 압축하지 못했습니다: {detail}"
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
