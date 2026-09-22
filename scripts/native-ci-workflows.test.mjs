@@ -271,3 +271,233 @@ void test("native host load suites are isolated without serializing the whole fo
   const upload = steps.find((item) => item.name === "Upload native E2E evidence");
   assert.match(upload.with.path, /native-load-junit\.xml/u);
 });
+
+void test("physical-device workflow is dispatch-only on separately labeled self-hosted jobs", async () => {
+  const workflow = parse(
+    await readFile(
+      new URL("../.github/workflows/physical-device-qualification.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  // Dispatch-only: never triggered by push/PR, never a workflow_call building
+  // block, so no required gate can pull a physical device into CI.
+  assert.deepEqual(Object.keys(workflow.on), ["workflow_dispatch"]);
+  assert.deepEqual(Object.keys(workflow.jobs).sort(), ["android_device", "ios_device"]);
+  // Separate labeled self-hosted jobs: distinct device pools, one job per
+  // platform.
+  const runsOn = Object.values(workflow.jobs).map((job) => job["runs-on"]);
+  for (const labels of runsOn) {
+    assert.ok(Array.isArray(labels), "self-hosted jobs are selected by a label list");
+    assert.equal(labels[0], "self-hosted");
+  }
+  assert.notDeepEqual(runsOn[0], runsOn[1], "each platform targets its own labeled runner pool");
+  // A device is a shared resource: queue dispatches instead of cancelling a
+  // mid-run device grab.
+  assert.equal(workflow.concurrency["cancel-in-progress"], false);
+  // Evidence uploads fire on success and failure but not cancellation.
+  for (const job of Object.values(workflow.jobs)) {
+    const uploads = job.steps.filter((step) => step.uses?.startsWith("actions/upload-artifact@"));
+    assert.ok(uploads.length >= 1, "each job uploads evidence");
+    for (const upload of uploads) {
+      assert.ok(
+        typeof upload.if === "string" && upload.if.includes("!cancelled()"),
+        "evidence uploads must run on success and failure",
+      );
+      assert.ok(!upload.if.includes("always()"), "evidence uploads must not run on cancellation");
+    }
+  }
+});
+
+void test("physical-device workflow reuses the real-peer families and never carries pairing secrets", async () => {
+  const workflow = parse(
+    await readFile(
+      new URL("../.github/workflows/physical-device-qualification.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const serialized = JSON.stringify(workflow);
+  // Pairing credentials are harness-minted in-repo; no workflow input, env,
+  // or secret may carry them.
+  assert.ok(!serialized.includes("NATIVE_E2E_PAIRING_URL"));
+  assert.ok(!serialized.includes("pairingUrl"));
+  assert.ok(!/\bsecrets\./.test(serialized));
+  assert.ok(!serialized.includes("workflow_call"));
+
+  const ios = workflow.jobs.ios_device;
+  const iosRun = ios.steps.find((step) => step.run?.includes("node scripts/native-e2e.mjs ios-ui"));
+  assert.ok(iosRun, "the iOS job drives the ios-ui journey");
+  assert.equal(iosRun.env.NATIVE_E2E_PEER_MODE, "real");
+  assert.ok(iosRun.env.NATIVE_E2E_IOS_PHYSICAL_UDID, "the physical selector env is wired");
+  assert.ok(iosRun.env.NATIVE_E2E_DEVICE_HOST, "the device-reachable host env is wired");
+  assert.equal(iosRun.env.NATIVE_E2E_DEVICE_FORWARD, "1", "the opt-in forwarder is enabled");
+  for (const family of [
+    "testTerminalKeystrokeFamilyWritesToPty",
+    "testGitFamilyReachesHostFromWorkspace",
+  ]) {
+    assert.ok(
+      iosRun.env.NATIVE_E2E_IOS_ONLY_TESTING.includes(family),
+      `the real-peer scope must include ${family}`,
+    );
+  }
+  assert.ok(
+    ios.steps.some((step) => step.run?.includes("dist/main/server.cjs")),
+    "the iOS job builds the production host the real-peer journey requires",
+  );
+  assert.ok(
+    ios.steps.some((step) => step.name === "Resolve the physical iOS target" && step.run),
+    "missing dispatch inputs must fail the job before any device work",
+  );
+
+  const android = workflow.jobs.android_device;
+  const androidRun = android.steps.find((step) =>
+    step.run?.includes("scripts/ci-android-device.sh"),
+  );
+  assert.ok(androidRun, "the Android job runs the physical-device script");
+  assert.ok(androidRun.env.ANDROID_SERIAL, "the Android job pins ANDROID_SERIAL");
+  const serialStep = android.steps.find(
+    (step) => step.name === "Resolve the physical Android serial",
+  );
+  assert.match(serialStep.run, /\^\[A-Za-z0-9\._:-\]\+\$/u);
+  assert.match(serialStep.run, /printf 'ANDROID_SERIAL=%s\\n'/u);
+  assert.ok(
+    android.steps.some((step) => step.run?.includes("dist/main/server.cjs")),
+    "the Android job builds the production host the real-peer journey requires",
+  );
+});
+
+void test("physical Android script pins the serial, requires API >= 34, and hands off to the real-peer journey", async () => {
+  const script = await readFile(new URL("./ci-android-device.sh", import.meta.url), "utf8");
+  // No emulator machinery on the physical lane: strip comments and assert
+  // no executable line touches an emulator, AVD, KVM, or the 10.0.2.2 alias.
+  const executableLines = script
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*#/.test(line) && line.trim() !== "")
+    .join("\n");
+  assert.doesNotMatch(executableLines, /emulator|avdmanager|sdkmanager|kvm|10\.0\.2\.2/u);
+  // The device pin is absolute: every adb call carries -s "$ANDROID_SERIAL".
+  assert.doesNotMatch(executableLines, /\badb (?!-s)/u);
+  assert.match(executableLines, /ANDROID_SERIAL/);
+  assert.match(executableLines, /-lt 34/u, "the maintained floor is enforced numerically");
+  assert.match(executableLines, /android-real/u, "hand-off to the real-peer journey");
+
+  const temporaryRoot = fileURLToPath(new URL("../tmp/", import.meta.url));
+  await mkdir(temporaryRoot, { recursive: true });
+  const temporary = await mkdtemp(join(temporaryRoot, "android-device-"));
+  try {
+    const bin = join(temporary, "bin");
+    const android = join(temporary, "android");
+    await Promise.all([
+      mkdir(bin),
+      mkdir(android, { recursive: true }),
+      mkdir(join(temporary, "scripts"), { recursive: true }),
+    ]);
+    // Copied under scripts/ so the script's own `cd .../../android` resolves
+    // inside the fixture tree.
+    await copyFile(
+      new URL("./ci-android-device.sh", import.meta.url),
+      join(temporary, "scripts", "ci-android-device.sh"),
+    );
+    const nodeShebang = `#!${process.execPath}\n`;
+    await Promise.all([
+      writeFile(
+        join(bin, "adb"),
+        `#!/bin/sh
+if [ "$1" = "-s" ]; then shift 2; fi
+case "$1" in
+  get-state)
+    if [ "$FAILURE_STAGE" = "offline" ]; then echo offline; else echo device; fi;;
+  install) echo Success;;
+  logcat) ;;
+  shell)
+    shift
+    case "$*" in
+      'getprop sys.boot_completed') echo 1;;
+      'getprop ro.build.version.sdk') echo "\${FAKE_SDK:-34}";;
+      'getprop ro.build.version.release') echo 14;;
+      'pm path android') echo 'package:/data/app/android.apk';;
+      'am get-current-user') echo 0;;
+      'df -h /data') echo 'fixture-df';;
+      'dumpsys package '*) echo 'minSdk=34 targetSdk=37';;
+      'am force-stop '*) ;;
+      'am start '*) echo 'Status: ok';;
+      'pidof '*) echo 1234;;
+      *) echo "UNHANDLED ADB: $*" >&2; exit 9;;
+    esac;;
+  *) echo "UNHANDLED ADB CMD: $*" >&2; exit 9;;
+esac
+`,
+        { mode: 0o755 },
+      ),
+      writeFile(join(bin, "sleep"), nodeShebang + "setTimeout(() => {}, 20);\n", { mode: 0o755 }),
+      writeFile(
+        join(bin, "node"),
+        nodeShebang +
+          `import fs from 'node:fs';
+const root = process.env.RUNNER_TEMP;
+if (process.argv[2] !== 'scripts/native-e2e.mjs' || process.argv[3] !== 'android-real') {
+  console.error('unexpected journey invocation:', process.argv.slice(2));
+  process.exit(8);
+}
+fs.writeFileSync(root + '/journey.json', JSON.stringify({
+  cwd: process.cwd(),
+  args: process.argv.slice(2),
+  serial: process.env.ANDROID_SERIAL,
+}));
+`,
+        { mode: 0o755 },
+      ),
+    ]);
+
+    const run = (env) =>
+      spawnSync("bash", [join(temporary, "scripts", "ci-android-device.sh")], {
+        cwd: temporary,
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          RUNNER_TEMP: join(temporary, "evidence"),
+          GITHUB_STEP_SUMMARY: join(temporary, "evidence", "summary"),
+          ANDROID_SERIAL: "PXE0FIXTURE",
+          ...env,
+        },
+        encoding: "utf8",
+        timeout: 30_000,
+      });
+
+    // Missing serial fails before touching any device.
+    const missing = run({ ANDROID_SERIAL: "" });
+    assert.equal(missing.status, 1, missing.stdout + missing.stderr);
+    assert.match(missing.stderr, /ANDROID_SERIAL is required/);
+
+    // An unresponsive serial fails at get-state.
+    const offline = run({ FAILURE_STAGE: "offline" });
+    assert.equal(offline.status, 1, offline.stdout + offline.stderr);
+    assert.match(offline.stderr, /not an attached, responsive device/);
+
+    // Below the maintained floor fails without installing anything.
+    const old = run({ FAKE_SDK: "33" });
+    assert.equal(old.status, 1, old.stdout + old.stderr);
+    assert.match(old.stderr, /requires API >= 34/);
+    await assert.rejects(readFile(join(temporary, "evidence", "journey.json")), { code: "ENOENT" });
+
+    // A device at the floor passes the gates and hands off with the serial
+    // still exported for adb and Gradle. The journey path is repo-root
+    // relative: the script has `cd ..`-ed out of android/ at that point.
+    await mkdir(join(temporary, "evidence"), { recursive: true });
+    const good = run({});
+    assert.equal(good.status, 0, good.stdout + good.stderr);
+    const journey = JSON.parse(await readFile(join(temporary, "evidence", "journey.json"), "utf8"));
+    assert.equal(journey.cwd, temporary);
+    assert.deepEqual(journey.args, ["scripts/native-e2e.mjs", "android-real"]);
+    assert.equal(journey.serial, "PXE0FIXTURE");
+    assert.match(
+      await readFile(join(temporary, "evidence", "summary"), "utf8"),
+      /PXE0FIXTURE \(API 34\)/,
+    );
+    assert.match(
+      await readFile(join(temporary, "evidence", "android-device-launch.txt"), "utf8"),
+      /Status: ok/,
+    );
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
+});

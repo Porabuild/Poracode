@@ -52,6 +52,24 @@ final class NativeFamilyJourneyUITests: XCTestCase {
         app.launchArguments.append("-native-e2e-fresh-state")
       }
     }
+    // The iOS paste-permission system alert appears on physical devices when
+    // `pastePairingURL` reads the pasteboard into the app; the wire-lab
+    // journey registers this interruption monitor before launch, so the
+    // family journeys mirror it (the monitor fires on the UI interaction
+    // that follows the alert, here the field tap in `pastePairingURL`).
+    addUIInterruptionMonitor(withDescription: "System network confirmation") { alert in
+      let allowPaste = alert.buttons["Allow Paste"]
+      if allowPaste.exists {
+        allowPaste.tap()
+        return true
+      }
+      let allow = alert.buttons["Allow"]
+      if allow.exists {
+        allow.tap()
+        return true
+      }
+      return false
+    }
   }
 
   func testSteerFamilySetsPendingFromComposerDuringLiveTurn() async throws {

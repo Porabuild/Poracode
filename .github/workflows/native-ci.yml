@@ -310,7 +310,7 @@ jobs:
           NATIVE_E2E_PEER_MODE: "real"
           NATIVE_E2E_STARTUP_TIMEOUT_MS: "120000"
           NATIVE_E2E_TEST_TIMEOUT_MS: "1800000"
-          NATIVE_E2E_IOS_ONLY_TESTING: "NativeE2ETests/NativeFamilyJourneyUITests/testTerminalKeystrokeFamilyWritesToPty,NativeE2ETests/NativeFamilyJourneyUITests/testGitFamilyStagesFromWorkspace"
+          NATIVE_E2E_IOS_ONLY_TESTING: "NativeE2ETests/NativeFamilyJourneyUITests/testTerminalKeystrokeFamilyWritesToPty,NativeE2ETests/NativeFamilyJourneyUITests/testGitFamilyReachesHostFromWorkspace"
         run: node scripts/native-e2e.mjs ios-ui
 
       - name: Upload iOS journey evidence
