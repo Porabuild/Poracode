@@ -58,7 +58,7 @@ internal fun ProjectGitActions(
         OutlinedButton(
             onClick = { expanded = true },
             enabled = enabled && !busy,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag("git_actions_open"),
         ) { Text(stringResource(R.string.git_actions)) }
         when (outcome) {
             is GitMutationOutcome.Applied -> GitOutcomeText(R.string.git_change_applied)

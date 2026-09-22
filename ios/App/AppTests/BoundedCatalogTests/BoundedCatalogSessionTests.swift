@@ -44,18 +44,32 @@ final class BoundedCatalogSessionTests: XCTestCase {
     XCTAssertEqual(harness.session.catalog.isNegotiated, true)
 
     fixture.releaseWalks()
-    await harness.waitUntil("threads converge", timeout: 30) {
+    // This is a correctness/scale fixture, not a latency budget. On shared CI
+    // simulators the 140 paged responses can take more than 30 seconds even
+    // though the same run completes locally in about 26 seconds. Wait once for
+    // the full state instead of recording cascading failures from three
+    // sequential deadlines; production latency is qualified separately.
+    await harness.waitUntil(
+      "large catalog converges",
+      timeout: 120,
+      diagnostics: {
+        "threads=\(harness.session.snapshot?.threads.count ?? -1) "
+          + "projects=\(harness.session.snapshot?.projects.count ?? -1) "
+          + "threadRequests=\(fixture.requestCount("/api/threads")) "
+          + "projectRequests=\(fixture.requestCount("/api/projects")) "
+          + "threadPass=\(harness.session.state.catalog.threadPass != nil) "
+          + "projectPass=\(harness.session.state.catalog.projectPass != nil)"
+      }
+    ) {
       harness.session.snapshot?.threads.count == 10_000
-    }
-    await harness.waitUntil("projects converge", timeout: 30) {
-      harness.session.snapshot?.projects.count == 2_000
-    }
-    await harness.waitUntil("walks complete", timeout: 30) {
-      harness.session.state.catalog.threadPass == nil
+        && harness.session.snapshot?.projects.count == 2_000
+        && harness.session.state.catalog.threadPass == nil
         && harness.session.state.catalog.projectPass == nil
         && !harness.session.state.catalog.pendingThreadsPass
         && !harness.session.state.catalog.pendingProjectsPass
     }
+    XCTAssertEqual(harness.session.snapshot?.threads.count, 10_000)
+    XCTAssertEqual(harness.session.snapshot?.projects.count, 2_000)
     // Only the shell page 1 advances the global replay cursor; paint and
     // inventory continuations never do.
     XCTAssertEqual(harness.session.state.lastSeenSeq, pageOneSeq)

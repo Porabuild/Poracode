@@ -144,6 +144,11 @@ class Android37WireLabFamilyInstrumentedTest {
                 compose.onNodeWithText("Fixture Project").performClick()
             }
         }
+        if (!isRealPeer) {
+            waitForOperation("route:terminal-start")
+            waitForOperation("ws-client:terminal-watch")
+            waitForOperation("ws-server:terminal-watch-result")
+        }
         waitForEnabledTag("terminal_input")
         compose.onNodeWithTag("terminal_input").performTextInput("echo family-pty")
         waitForEnabledTag("terminal_send")
@@ -163,8 +168,11 @@ class Android37WireLabFamilyInstrumentedTest {
         compose.onNodeWithText(projectLabel).performClick()
         waitForEnabledTag("project_workspace")
         compose.onNodeWithTag("project_workspace").performClick()
+        if (!isRealPeer) waitForOperation("procedure:gitProjectSnapshot")
         waitForEnabledTag("workspace_git")
         compose.onNodeWithTag("workspace_git").performClick()
+        waitForEnabledTag("git_actions_open")
+        compose.onNodeWithTag("git_actions_open").performClick()
         waitForEnabledTag("git_stage_all")
         compose.onNodeWithTag("git_stage_all").performClick()
         if (isRealPeer) pollRealPeerState() else {

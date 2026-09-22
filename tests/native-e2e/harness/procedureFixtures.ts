@@ -125,6 +125,18 @@ export class LabProcedureWorkspace {
           totalDeletions: 0,
         };
       }
+      case "gitProjectSnapshot":
+        return {
+          status: this.invoke("getGitStatus", payload),
+          branches: REMOTE_PROCEDURE_RESULT_FIXTURES.gitListBranches,
+          worktrees: [...this.worktrees].map((path) => ({
+            path,
+            branch: "fixture-worktree",
+            commit: "abc123",
+            isMain: false,
+          })),
+          ghAvailable: true,
+        };
       case "gitListWorktrees":
         return {
           worktrees: [...this.worktrees].map((path) => ({
