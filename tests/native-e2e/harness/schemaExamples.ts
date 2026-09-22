@@ -2,15 +2,19 @@ type JsonSchema = Readonly<Record<string, unknown>>;
 
 const FIXTURE_TIME = "2026-08-12T10:03:00.000Z";
 const FIXTURE_UUID = "123e4567-e89b-42d3-a456-426614174000";
-// Must satisfy `^SHA256:[A-Za-z0-9+/]{43}$` and `^[a-f0-9]{64}$` respectively:
-// the environment projection embeds both shapes, and the mock validates every
-// generated response against the authoritative Zod schema.
+// Must satisfy `^SHA256:[A-Za-z0-9+/]{43}$`, `^[a-f0-9]{64}$`, and
+// `^(?:[0-9a-f]{40}|[0-9a-f]{64})$` respectively: the environment projection
+// embeds the first two shapes, experiment-command requests embed the third,
+// and the mock validates every generated response against the authoritative
+// Zod schema.
 const FIXTURE_FINGERPRINT = `SHA256:${"A".repeat(43)}`;
 const FIXTURE_RUNTIME_HASH = "a".repeat(64);
+const FIXTURE_BASE_COMMIT = "b".repeat(40);
 
 const STRING_EXAMPLES: Readonly<Record<string, string>> = {
   absolutePath: "/tmp/native-e2e-fixture/README.md",
   baseBranch: "main",
+  baseCommit: FIXTURE_BASE_COMMIT,
   branch: "fixture-branch",
   checkpointItemId: "checkpoint-fixture",
   content: "fixture content",

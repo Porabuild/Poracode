@@ -34,7 +34,7 @@ describe("native real-socket core coverage profile", () => {
     expect(snapshot.complete).toBe(true);
     expect(snapshot.fullParityComplete).toBe(true);
     expect(snapshot.counts).toEqual({
-      route: { expected: 86, positive: 86, unsupported: 0, missing: 0 },
+      route: { expected: 88, positive: 88, unsupported: 0, missing: 0 },
       procedure: { expected: 126, positive: 126, unsupported: 0, missing: 0 },
       "ws-client": { expected: 9, positive: 9, unsupported: 0, missing: 0 },
       "ws-server": { expected: 11, positive: 11, unsupported: 0, missing: 0 },
