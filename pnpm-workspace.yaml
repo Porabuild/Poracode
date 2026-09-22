@@ -3,6 +3,9 @@ packages:
   - "website"
   - "packages/agents-usage"
   - "packages/codex-protocol"
+  # Publishable npx entry (plan D1). Shares the workspace name "poracode" with
+  # the private root package; select it by path, never by name.
+  - "packages/poracode-cli"
 
 # Share the virtual store across worktrees/checkouts via symlinks instead of
 # hardlinking every package into each node_modules/.pnpm (see pnpm.io/git-worktrees).

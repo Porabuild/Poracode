@@ -41,6 +41,7 @@ resources/computer-use-helper/
 resources/computer-use-helper-dev/
 resources/mobile-ssh-runtime/
 resources/web-ssh-runtime/
+resources/ssh-runtime-archive/
 .envrc
 .envrc.local
 /Microsoft/Windows/PowerShell/ModuleAnalysisCache

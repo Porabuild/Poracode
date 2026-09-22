@@ -126,9 +126,21 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
+  # ── Step 2b: Build and qualify the standalone server artifact ────
+  # Plan D3: the release promotes the exact bytes this job qualified; it never
+  # rebuilds the tarball after tests.
+  server_artifact:
+    needs: prepare
+    if: ${{ !inputs.dry_run }}
+    uses: ./.github/workflows/_server-artifact.yml
+    with:
+      ref: ${{ needs.prepare.outputs.source_ref }}
+      version: ${{ needs.prepare.outputs.version }}
+      artifact_name: poracode-server-artifact
+
   # ── Step 3: Create GitHub Release with auto-generated notes ──────
   release:
-    needs: [prepare, build]
+    needs: [prepare, build, server_artifact]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
 
@@ -138,6 +150,13 @@ jobs:
         with:
           path: ${{ runner.temp }}/release-assets
           pattern: dist-*
+          merge-multiple: true
+
+      - name: Download the qualified server artifact
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/release-assets
+          pattern: poracode-server-artifact-qualified-*
           merge-multiple: true
 
       - name: List release assets
@@ -164,21 +183,49 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
+      # Same-bytes gate (plan D3): every downloaded tarball must hash to the
+      # value its leg recorded, and the launcher manifest must point at those
+      # exact bytes for every advertised target, before anything is published.
+      - name: Verify every qualified server artifact
+        env:
+          ASSETS: ${{ runner.temp }}/release-assets
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          METADATA=("$ASSETS"/server-artifact-*.json)
+          if [ "${#METADATA[@]}" -eq 0 ]; then
+            echo "::error::no qualified server metadata in the release assets"
+            exit 1
+          fi
+          ARGS=()
+          for metadata in "${METADATA[@]}"; do
+            NAME=$(node -p "require('$metadata').tarball.name")
+            EXPECTED=$(node -p "require('$metadata').tarball.sha256")
+            test -f "$ASSETS/$NAME" || { echo "::error::missing qualified tarball $NAME"; exit 1; }
+            ACTUAL=$(sha256sum "$ASSETS/$NAME" | cut -d' ' -f1)
+            test "$ACTUAL" = "$EXPECTED" || { echo "::error::$NAME sha256 mismatch"; exit 1; }
+            VERSION=$(node -p "require('$metadata').version")
+            test "$VERSION" = "$RELEASE_VERSION" || {
+              echo "::error::$NAME version $VERSION does not match $RELEASE_VERSION"
+              exit 1
+            }
+            ARGS+=(--artifact "$metadata")
+          done
+          node scripts/generate-runtime-manifest.mjs --verify "${ARGS[@]}" \
+            --manifest "$ASSETS/poracode-runtime-manifest.json"
+        shell: bash
+
       - name: Create release commit and staging tag
         id: stage_release
         env:
           DRAFT_TAG: release-draft-${{ github.run_id }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            p.version = process.env.RELEASE_VERSION;
-            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
-          "
+          node scripts/set-release-version.mjs "$RELEASE_VERSION"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json
+          git add package.json packages/poracode-cli/package.json packages/poracode-cli/runtime-manifest.json
           if ! git diff --cached --quiet; then
             git commit -m "release: $RELEASE_VERSION"
           fi
@@ -250,3 +297,62 @@ jobs:
           if gh api "repos/${{ github.repository }}/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1; then
             gh api --method DELETE "repos/${{ github.repository }}/git/refs/tags/$RELEASE_TAG"
           fi
+
+  # ── Step 4: Publish the qualified launcher to npm ────────────────
+  # Publishes the exact qualified manifest/bytes from step 2b, never a rebuild.
+  # Disabled until the repository variable NPM_PUBLISH_ENABLED=true and npm
+  # trusted publishing (or an owner NPM_TOKEN) are configured; the publish
+  # script's preflight fails with the exact missing credential when that is
+  # not in place.
+  publish_npm:
+    name: Publish the poracode npm launcher
+    needs: [prepare, server_artifact, release]
+    if: ${{ !inputs.dry_run && vars.NPM_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout the release source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Download the aggregate qualified artifact
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/release-assets
+          pattern: poracode-server-artifact-qualified-*
+          merge-multiple: true
+
+      - name: Set the release version
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
+        shell: bash
+
+      - name: Pack and publish the exact qualified package
+        env:
+          ASSETS: ${{ runner.temp }}/release-assets
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          ARGS=()
+          for metadata in "$ASSETS"/server-artifact-*.json; do
+            ARGS+=(--artifact "$metadata")
+          done
+          if [ "${#ARGS[@]}" -eq 0 ]; then
+            echo "::error::no qualified server metadata to publish"
+            exit 1
+          fi
+          node scripts/publish-npm-package.mjs "${ARGS[@]}" \
+            --manifest "$ASSETS/poracode-runtime-manifest.json" \
+            --tag latest \
+            --trusted-publishing
+        shell: bash

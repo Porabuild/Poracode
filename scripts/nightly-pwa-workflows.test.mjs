@@ -99,6 +99,7 @@ void test("native qualification preserves every existing contract, build, and fo
     "ios_ui",
     "native_e2e_foundation",
     "remote_v3_contract",
+    "server_install_qualification",
   ]);
   for (const prerequisite of jobs.native_gate.needs)
     assert.ok(

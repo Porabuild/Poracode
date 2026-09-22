@@ -10,6 +10,7 @@
  * upgraded daemon asserting the lease is released again.
  */
 import { spawn, execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 import {
   existsSync,
@@ -23,6 +24,68 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { installServerPrefix } from "./install-server-prefix.mjs";
+import { readServerArtifactMetadata } from "./server-artifact-metadata.mjs";
+
+function sha256File(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+/**
+ * Plan D3: qualification runs on the exact artifact metadata the release will
+ * promote. The tarball hash must match, and every resource the metadata
+ * advertises (bundled web client, native overlay targets) must be present in
+ * the installed release.
+ */
+function assertArtifactIntegrity({ tarball, artifactPath, prefix }) {
+  if (!artifactPath) return null;
+  const metadata = readServerArtifactMetadata(artifactPath);
+  const actual = sha256File(tarball);
+  if (actual !== metadata.tarball.sha256) {
+    throw new Error(
+      `artifact integrity failed: tarball sha256 ${actual} does not match server-artifact.json ` +
+        `${metadata.tarball.sha256}`,
+    );
+  }
+  const current = join(prefix, "current");
+  const releasePackage = JSON.parse(readFileSync(join(current, "package.json"), "utf8"));
+  if (releasePackage.version !== metadata.version) {
+    throw new Error(
+      `artifact integrity failed: installed version ${releasePackage.version} does not match ` +
+        `server-artifact.json ${metadata.version}`,
+    );
+  }
+  if (metadata.webClient?.present === true) {
+    const index = join(current, "renderer", "index.html");
+    if (!existsSync(index)) {
+      throw new Error(`artifact integrity failed: advertised web client is missing (${index})`);
+    }
+  }
+  // The documented target recipe installs and runs from the artifact alone, so
+  // the frozen bytes must ship the thin prefix installer (with its full import
+  // closure) and the systemd unit.
+  for (const shippedPath of [
+    "scripts/install-server-prefix.mjs",
+    "scripts/server-release-install.mjs",
+    "scripts/server-native-overlay.mjs",
+    "packaging/systemd/poracode-server.service",
+  ]) {
+    if (!existsSync(join(current, shippedPath))) {
+      throw new Error(`artifact integrity failed: release is missing ${shippedPath}`);
+    }
+  }
+  for (const moduleName of ["node-pty", "better-sqlite3"]) {
+    const overlayPath = join(current, "native-overlay", moduleName, "overlay.json");
+    if (!existsSync(overlayPath)) continue;
+    const overlay = JSON.parse(readFileSync(overlayPath, "utf8"));
+    const pinned = releasePackage.dependencies?.[moduleName];
+    if (typeof overlay.version === "string" && pinned !== undefined && overlay.version !== pinned) {
+      throw new Error(
+        `artifact integrity failed: ${moduleName} overlay ${overlay.version} != package pin ${pinned}`,
+      );
+    }
+  }
+  return metadata;
+}
 
 function allocateLoopbackPort() {
   return new Promise((resolvePort, reject) => {
@@ -336,6 +399,14 @@ export async function qualifyServerInstall(options) {
   const prefix = options.prefix;
   const entry = join(prefix, "current", "lib", "server.cjs");
   if (!existsSync(entry)) throw new Error(`installed server missing: ${entry}`);
+  const artifactMetadata =
+    options.tarball && options.artifactPath
+      ? assertArtifactIntegrity({
+          tarball: options.tarball,
+          artifactPath: options.artifactPath,
+          prefix,
+        })
+      : null;
 
   const profile = mkdtempSync(join(options.workRoot ?? tmpdir(), "poracode-qualify-profile-"));
   // Project files are not legacy profile data. Keeping them in the profile
@@ -410,15 +481,27 @@ export async function qualifyServerInstall(options) {
     });
   }
 
-  return { profile, prefix, doctor: doctorReport, ownerPhase: "stopped", upgrade };
+  return {
+    profile,
+    prefix,
+    doctor: doctorReport,
+    ownerPhase: "stopped",
+    upgrade,
+    artifactVersion: artifactMetadata?.version ?? null,
+    webClient: artifactMetadata?.webClient ?? null,
+  };
 }
 
 async function main() {
   const argv = process.argv.slice(2);
   let tarball = argv.find((_, i) => argv[i - 1] === "--tarball");
   let prefix = argv.find((_, i) => argv[i - 1] === "--prefix");
+  let artifactPath = argv.find((_, i) => argv[i - 1] === "--artifact");
   if (!tarball) {
-    throw new Error("Usage: server-install-qualification.mjs --tarball <file> [--prefix <dir>]");
+    throw new Error(
+      "Usage: server-install-qualification.mjs --tarball <file> [--prefix <dir>] " +
+        "[--artifact <server-artifact.json>]",
+    );
   }
   tarball = resolve(tarball);
   const workRoot = mkdtempSync(join(tmpdir(), "poracode-qualify-"));
@@ -426,9 +509,20 @@ async function main() {
   if (!existsSync(join(prefix, "current", "lib", "server.cjs"))) {
     installServerPrefix({ tarball, prefix });
   }
-  const result = await qualifyServerInstall({ prefix, workRoot, tarball });
+  const result = await qualifyServerInstall({
+    prefix,
+    workRoot,
+    tarball,
+    ...(artifactPath ? { artifactPath: resolve(artifactPath) } : {}),
+  });
   process.stdout.write(
-    `${JSON.stringify({ ok: true, ownerPhase: result.ownerPhase, upgrade: result.upgrade?.ok === true })}\n`,
+    `${JSON.stringify({
+      ok: true,
+      ownerPhase: result.ownerPhase,
+      upgrade: result.upgrade?.ok === true,
+      artifactVersion: result.artifactVersion,
+      webClientPresent: result.webClient?.present === true,
+    })}\n`,
   );
 }
 

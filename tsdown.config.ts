@@ -120,6 +120,14 @@ export default defineConfig([
     ...shared,
   },
   {
+    // Device-local SSH environment utility (C3/A5): owns SSH discovery,
+    // runtime archive staging, remote bootstrap subprocesses and tunnels
+    // outside Electron main. Main only forks it and forwards versioned frames.
+    entry: { sshEnvironmentWorker: "src/main/ssh/sshEnvironmentWorkerHost.ts" },
+    clean: false,
+    ...shared,
+  },
+  {
     entry: { legacyMigrationWorker: "src/backend/legacyMigrationWorker.ts" },
     clean: false,
     ...shared,
@@ -130,7 +138,12 @@ export default defineConfig([
     ...shared,
   },
   {
-    entry: { supervisor: "src/supervisor/index.ts" },
+    // The staging worker shares the supervisor build so it is part of the
+    // same runtime manifest (and therefore the standalone server tarball).
+    entry: {
+      supervisor: "src/supervisor/index.ts",
+      wslStagingWorker: "src/supervisor/wsl/staging/worker.ts",
+    },
     clean: false,
     plugins: [runtimeDeclaration("src/supervisor/index.ts", "supervisor")],
     ...shared,

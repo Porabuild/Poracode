@@ -1,4 +1,8 @@
 import { headersToRecord, readBoundedResponseBody } from "@/shared/http";
+import {
+  ENVIRONMENT_AUTHORIZATION_HEADER,
+  isEnvironmentProxyRequestPath,
+} from "@/shared/environments";
 import { relayDialOriginHeaders } from "./relayDialOrigin";
 import { isRelayBoundCredential } from "./relayChannelBinding";
 import type { RelayRequestFrame } from "@/shared/remote/relayProtocol";
@@ -32,6 +36,12 @@ function isTokenExchangeRequest(frame: Pick<RelayRequestFrame, "method" | "path"
  * Anything that does not unwrap (raw tokens from direct pairing, foreign or
  * malformed values) passes through untouched and the server's own auth path
  * answers it — old clients and direct-paired bearers keep working.
+ *
+ * C1: the parent environment credential rides its own reserved header and is
+ * unwrapped with the same channel-binding check, but ONLY on an environment
+ * proxy path — on any other path the parent's reserved-header rejection owns
+ * the request. The child bearer stays in `Authorization` and is never
+ * relay-bound (the child issues it directly), so it passes through untouched.
  */
 function unwrapBoundCredentials(
   rt: RelayHostRuntime,
@@ -43,18 +53,31 @@ function unwrapBoundCredentials(
     const match = /^bearer\s+(.+)$/i.exec(value.trim());
     return match ? (match[1]?.trim() ?? null) : null;
   };
+  /** The raw credential for one relay-bound header value, or null when the
+   * value is not a bound credential this enrollment can unwrap. */
+  const unwrap = (value: string): string | null => {
+    const trimmed = value.trim();
+    const credential = bearerOf(trimmed) ?? trimmed;
+    if (!isRelayBoundCredential(credential)) return null;
+    return rt.channelBinding.unbind(credential);
+  };
   const headers: Record<string, string> = {};
   let path = frame.path;
+  const environmentProxyPath = isEnvironmentProxyRequestPath(frame.path);
   for (const [key, value] of Object.entries(frame.headers)) {
-    if (key.toLowerCase() === "authorization") {
-      const trimmed = value.trim();
-      const credential = bearerOf(trimmed) ?? trimmed;
-      if (isRelayBoundCredential(credential)) {
-        const unwrapped = rt.channelBinding.unbind(credential);
-        if (unwrapped !== null) {
-          headers[key] = `Bearer ${unwrapped}`;
-          continue;
-        }
+    const lower = key.toLowerCase();
+    if (lower === "authorization") {
+      const unwrapped = unwrap(value);
+      if (unwrapped !== null) {
+        headers[key] = `Bearer ${unwrapped}`;
+        continue;
+      }
+    }
+    if (lower === ENVIRONMENT_AUTHORIZATION_HEADER && environmentProxyPath) {
+      const unwrapped = unwrap(value);
+      if (unwrapped !== null) {
+        headers[key] = `Bearer ${unwrapped}`;
+        continue;
       }
     }
     headers[key] = value;

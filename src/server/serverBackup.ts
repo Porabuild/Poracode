@@ -136,7 +136,7 @@ export async function createHostDataBackup(
 
   // The inventory excludes the database and its journals plus ephemeral owner
   // control credentials; it refuses symlinks, special and multiply-linked files.
-  const inventory = inventoryImportFiles(paths.dataRoot);
+  const inventory = await inventoryImportFiles(paths.dataRoot);
   request.signal?.throwIfAborted();
 
   mkdirSync(destination, { recursive: true, mode: 0o700 });
@@ -171,7 +171,7 @@ export async function createHostDataBackup(
 
   // Copies every inventoried file and re-verifies the destination by hashing;
   // a source file that changed mid-copy is refused instead of backed up.
-  copyImportFiles(paths.dataRoot, destination, inventory);
+  await copyImportFiles(paths.dataRoot, destination, inventory);
 
   const databaseSchemaVersion = readSnapshotSchemaVersion(snapshotPath);
   // The read-only schema probe above leaves WAL sidecars beside a snapshot
@@ -199,7 +199,7 @@ export async function createHostDataBackup(
     ownerPhase: ownerRecord?.phase ?? null,
     credentialMode: credentialModeFor(paths.dataRoot),
     databaseSchemaVersion,
-    databaseSha256: hashImportFile(snapshotPath),
+    databaseSha256: await hashImportFile(snapshotPath),
     fileInventorySha256: inventory.sha256,
     files: inventory.files,
     fileBytes: inventory.bytes,

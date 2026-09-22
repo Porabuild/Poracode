@@ -12,39 +12,98 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import Database from "better-sqlite3";
 import { afterEach, describe, expect, it } from "vitest";
+import { callHostControl } from "@/backend/ownership/hostControlClient";
+import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
+import { canonicalHostPath, resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { installServerPrefix } from "../../scripts/install-server-prefix.mjs";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { readReleaseBuildIdentity } from "./serverUpgradeIdentity";
 import { upgradeServerPrefix } from "./serverUpgrade";
 
 /**
- * V6 D.4 round-1 follow-up: a REAL upgrade integration test. It installs a
- * genuinely assembled tarball into a tmp prefix, starts the real server so it
- * HOLDS THE OWNER LEASE, upgrades with the default (real) IO, and asserts the
- * restarted daemon serves; then a broken tarball must roll the symlink and
- * the daemon back. Skipped unless a tarball is present in `dist/` — CI runs
- * it in `server_install_qualification` right after assembling the tarball.
+ * V6 D.4 round-1 follow-up plus D4: REAL upgrade integration tests against a
+ * genuinely assembled tarball. They install the artifact, start the real
+ * server so it HOLDS THE OWNER LEASE, upgrade with the default (real) IO, and
+ * assert the authenticated build identity of the restarted daemon. Skipped
+ * unless a D4-capable tarball is present in `dist/` — CI runs this in
+ * `server_install_qualification` right after assembling the tarball.
+ *
+ * The N-1 → N test uses distinct bytes (the current tarball as the running
+ * release, and a repacked, differently-versioned, differently-hashed copy as
+ * N) and a profile database genuinely reverted to the pre-47 shape by applying
+ * the exact inverse of migration 47 (drop index and added columns), so the
+ * forward-only schema 47 path (backup, staged admission, column/index creation,
+ * interrupted-receipt rewrite) is exercised end to end on real pre-47 data.
+ * This is not a released N-1 artifact: a real published previous release
+ * remains a release gate (recorded in tmp/v2-production/d4-review-corrections.md).
  */
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const distDir = join(repoRoot, "dist");
+// Test hook so the required-mode failure is verifiable without touching dist/.
+const distDir = process.env.PORACODE_SERVER_DIST_DIR?.trim() || join(repoRoot, "dist");
 
+/**
+ * The current assembly recipe ships `scripts/server-release-install.mjs`, and
+ * the install path refuses archives carrying symlink entries. A stale tarball
+ * from an older recipe cannot be installed by design, so skip instead of
+ * failing on unrelated dist/ leftovers.
+ */
 function findTarball(): string | null {
   if (!existsSync(distDir)) return null;
-  const tarballs = readdirSync(distDir).filter(
-    (name) => name.startsWith("poracode-server-") && name.endsWith(".tar.gz"),
-  );
-  if (tarballs.length === 0) return null;
-  return join(distDir, tarballs[0]!);
+  const tarballs = readdirSync(distDir)
+    .filter((name) => name.startsWith("poracode-server-") && name.endsWith(".tar.gz"))
+    .sort()
+    .reverse();
+  for (const name of tarballs) {
+    const path = join(distDir, name);
+    try {
+      const listing = execFileSync("tar", ["-tzf", path], { encoding: "utf8" });
+      if (listing.includes("scripts/server-release-install.mjs")) return path;
+    } catch {
+      // Unreadable candidate; try the next one.
+    }
+  }
+  return null;
+}
+
+/** A pre-D4 bundle cannot answer the authenticated status/admit operations. */
+function tarballSupportsD4(path: string): boolean {
+  try {
+    const entrypoint = execFileSync("tar", ["-xzf", path, "-O", "lib/server.cjs"], {
+      encoding: "utf8",
+      maxBuffer: 256 * 1024 * 1024,
+    });
+    return entrypoint.includes("not-staging") && entrypoint.includes("identity-mismatch");
+  } catch {
+    return false;
+  }
 }
 
 const tarball = findTarball();
-const runnable = tarball !== null && process.platform !== "win32";
+const runnable = tarball !== null && process.platform !== "win32" && tarballSupportsD4(tarball);
+const required = process.env.PORACODE_REQUIRE_SERVER_IT === "1";
+if (required && !runnable) {
+  // Required mode must fail, never pass by skipping: a missing artifact means
+  // the only real-artifact upgrade gate disappeared.
+  throw new Error(
+    "PORACODE_REQUIRE_SERVER_IT=1 but no D4-capable dist/poracode-server-*.tar.gz exists " +
+      "(one carrying scripts/server-release-install.mjs and the authenticated status/admit " +
+      "operations). Assemble the artifact first: `pnpm run build:web && " +
+      "pnpm run prepare:server-native && pnpm run prepare:agent-plugins && " +
+      "pnpm run prepare:computer-use-helper && pnpm run assemble:server-tarball`.",
+  );
+}
 if (!runnable) {
   console.warn(
-    "[serverUpgrade.integration] SKIPPED: no dist/poracode-server-*.tar.gz. " +
-      "Run `pnpm run build && pnpm run prepare:server-native && pnpm run prepare:package-assets && " +
-      "pnpm run prepare:agent-plugins && pnpm run prepare:computer-use-helper && " +
-      "pnpm run assemble:server-tarball` first.",
+    "[serverUpgrade.integration] SKIPPED: no D4-capable current-recipe " +
+      "dist/poracode-server-*.tar.gz (one carrying scripts/server-release-install.mjs and " +
+      "the authenticated status/admit operations). Run `pnpm run build:web && " +
+      "pnpm run prepare:server-native && pnpm run prepare:agent-plugins && " +
+      "pnpm run prepare:computer-use-helper && pnpm run assemble:server-tarball` first. " +
+      "This is a pending real-artifact gate, not passing evidence. Set " +
+      "PORACODE_REQUIRE_SERVER_IT=1 (the artifact workflow must do this) to fail instead of skip.",
   );
 }
 
@@ -266,11 +325,22 @@ function pidAlive(pid: number): boolean {
   }
 }
 
-/** doctor-passing but health-dead: runs forever, binds nothing. */
+/**
+ * doctor-passing but health-dead: runs forever, binds nothing. The synthetic
+ * registry satisfies the upgrader's migration-policy gate (latest schema 47,
+ * matching the running profile, so no migration is pending and the failure
+ * takes the pre-admission rollback path this test asserts).
+ */
 const BROKEN_SERVER_STUB = [
   "const argv = process.argv.slice(2);",
   'if (argv[0] === "doctor") {',
-  '  process.stdout.write(JSON.stringify({ checks: [{ name: "stub", status: "ok" }] }) + "\\n");',
+  "  process.stdout.write(JSON.stringify({",
+  '    checks: [{ name: "stub", status: "ok" }],',
+  "    migrations: {",
+  "      latestSchemaVersion: 47,",
+  '      registry: [{ version: 47, name: "stub", rollback: "forward-only" }],',
+  "    },",
+  '  }) + "\\n");',
   "  process.exit(0);",
   "}",
   "process.title = 'poracode-broken-upgrade';",
@@ -288,6 +358,80 @@ function buildBrokenTarball(sourceTarball: string): string {
   return brokenTarball;
 }
 
+/**
+ * The "N" bytes: the current source tree repacked with another version and a
+ * byte-different entrypoint, so identity qualification cannot pass by
+ * accident and the upgrade cannot be a same-tarball reinstall. This is a
+ * repack of the current build, not a released N-1 artifact.
+ */
+function buildDistinctTarball(sourceTarball: string, version: string): string {
+  const stage = mkdtempSync(join(tmpdir(), "poracode-distinct-stage-"));
+  dirs.push(stage);
+  execFileSync("tar", ["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
+  const packagePath = join(stage, "package.json");
+  const parsed = JSON.parse(readFileSync(packagePath, "utf8")) as Record<string, unknown>;
+  writeFileSync(packagePath, `${JSON.stringify({ ...parsed, version }, null, 2)}\n`);
+  const entry = join(stage, "lib", "server.cjs");
+  writeFileSync(entry, `${readFileSync(entry, "utf8")}\n// distinct D4 artifact ${version}\n`);
+  const distinct = join(stage, `poracode-server-${version}.tar.gz`);
+  execFileSync("tar", ["-czf", distinct, "-C", stage, "."], { stdio: "pipe" });
+  return distinct;
+}
+
+const INTERRUPTED_RECEIPT_ID = "receipt-interrupted-before-upgrade";
+
+/**
+ * Genuine pre-47 shape: apply the exact inverse of migration 47 to the
+ * database the current artifact created (drop the principal index and both
+ * added columns), record schema 46, and seed an interrupted `in_progress`
+ * receipt. Migration 47 then really runs during the upgrade: it must recreate
+ * the columns/index and preserve the interrupted receipt as `uncertain`.
+ */
+function revertProfileToPre47Shape(profile: string): void {
+  const paths = resolveHostRootPaths(profile);
+  const database = new Database(join(paths.dataRoot, "state.sqlite"), {
+    ...resolveBetterSqliteNativeBindingOptions(),
+    timeout: 5_000,
+  });
+  try {
+    database.exec("DROP INDEX IF EXISTS idx_remote_command_receipts_principal");
+    const columns = database.prepare("PRAGMA table_info(remote_command_receipts)").all() as {
+      name: string;
+    }[];
+    if (columns.some((column) => column.name === "principal_id"))
+      database.exec("ALTER TABLE remote_command_receipts DROP COLUMN principal_id");
+    if (columns.some((column) => column.name === "request_digest"))
+      database.exec("ALTER TABLE remote_command_receipts DROP COLUMN request_digest");
+    database
+      .prepare(
+        "INSERT INTO app_state (key, value) VALUES ('schema_version', '46') " +
+          "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+      )
+      .run();
+    database
+      .prepare(
+        "INSERT OR REPLACE INTO remote_command_receipts " +
+          "(command_id, route, state, response, created_at, updated_at) VALUES (?, ?, ?, NULL, ?, ?)",
+      )
+      .run(
+        INTERRUPTED_RECEIPT_ID,
+        "/api/threads/t1/checkpoint-revert",
+        "in_progress",
+        Date.now(),
+        Date.now(),
+      );
+    const reverted = database.prepare("PRAGMA table_info(remote_command_receipts)").all() as {
+      name: string;
+    }[];
+    if (
+      reverted.some((column) => column.name === "principal_id" || column.name === "request_digest")
+    )
+      throw new Error("failed to revert the profile database to the pre-47 shape");
+  } finally {
+    database.close();
+  }
+}
+
 describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () => {
   it(
     "upgrades a running, lease-holding install from a real tarball and serves from the new release",
@@ -295,7 +439,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
     async () => {
       const workRoot = mkdtempSync(join(tmpdir(), "poracode-upgrade-it-"));
       dirs.push(workRoot);
-      const prefix = join(workRoot, "prefix");
+      const prefix = canonicalHostPath(join(workRoot, "prefix"));
       const profile = join(workRoot, "profile");
       const port = await allocateLoopbackPort();
       sandboxEnv(profile, port);
@@ -322,6 +466,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
         // `npm install`, real doctor, and a restart that must find the
         // running daemon through its owner-lease record (no pid file exists).
         const result = await upgradeServerPrefix({ from: tarball!, prefix, json: true });
+        if (!result.ok) console.error("[serverUpgrade.integration] upgrade failed:", result);
         expect(result.ok).toBe(true);
         expect(result.rolledBack).toBe(false);
         expect(readlinkSync(join(prefix, "current"))).not.toBe(currentBefore);
@@ -350,6 +495,29 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
         const record = ownerRecord(profile);
         expect(record?.pid).toBe(respawned);
 
+        // D4: the restarted daemon proves the exact staged build over the
+        // authenticated control surface — not merely a healthy HTTP answer.
+        const paths = resolveHostRootPaths(profile);
+        const currentRelease = resolve(prefix, readlinkSync(join(prefix, "current")));
+        const expectedIdentity = readReleaseBuildIdentity(currentRelease);
+        const owner = readHostOwnerRecord(paths);
+        expect(owner).not.toBeNull();
+        const status = await callHostControl(paths, "status");
+        expect(status.ownerGeneration).toBe(owner!.generation);
+        expect(status.result).toMatchObject({
+          mode: "headless",
+          state: "ready",
+          admission: "open",
+          profileNamespace: paths.profileNamespace,
+          dataRoot: paths.dataRoot,
+          build: {
+            version: expectedIdentity.version,
+            entrypointSha256: expectedIdentity.entrypointSha256,
+            root: currentRelease,
+            layoutKind: "prefix",
+          },
+        });
+
         await stopDaemonAt(pidPath, profile);
       } finally {
         if (daemon.child.exitCode === null) daemon.child.kill("SIGTERM");
@@ -363,7 +531,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
     async () => {
       const workRoot = mkdtempSync(join(tmpdir(), "poracode-upgrade-it-broken-"));
       dirs.push(workRoot);
-      const prefix = join(workRoot, "prefix");
+      const prefix = canonicalHostPath(join(workRoot, "prefix"));
       const profile = join(workRoot, "profile");
       const port = await allocateLoopbackPort();
       sandboxEnv(profile, port);
@@ -381,6 +549,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
           json: true,
           healthTimeoutMs: 8_000,
         });
+        if (!result.ok) console.error("[serverUpgrade.integration] broken upgrade:", result);
         expect(result.ok).toBe(false);
         expect(result.rolledBack).toBe(true);
         expect(readlinkSync(join(prefix, "current"))).toBe(currentBefore);
@@ -392,6 +561,108 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
         expect(record?.phase === "ready" || record?.phase === "preparing").toBe(true);
         expect(record?.pid).not.toBe(daemon.child.pid);
         expect(pidAlive(record?.pid ?? -1)).toBe(true);
+
+        await stopDaemonAt(join(prefix, "poracode-server.pid"), profile);
+      } finally {
+        if (daemon.child.exitCode === null) daemon.child.kill("SIGTERM");
+      }
+    },
+  );
+
+  it(
+    "upgrades a profile reverted to the genuine pre-47 schema with a repacked current artifact",
+    { timeout: 900_000 },
+    async () => {
+      const workRoot = mkdtempSync(join(tmpdir(), "poracode-upgrade-it-forward-"));
+      dirs.push(workRoot);
+      const prefix = canonicalHostPath(join(workRoot, "prefix"));
+      const profile = join(workRoot, "profile");
+      const port = await allocateLoopbackPort();
+      sandboxEnv(profile, port);
+      // The current artifact is installed and started once so it owns the
+      // profile and creates a real database; it is then stopped.
+      installServerPrefix({ tarball: tarball!, prefix });
+      const daemon = await startDaemon(prefix, profile, port);
+      try {
+        await waitForHealth(port, true, 30_000);
+        daemon.child.kill("SIGTERM");
+        await waitForOwnerPhase(profile, "stopped", 20_000);
+        // The database is genuinely reverted to the pre-47 shape, so migration
+        // 47 is truly pending instead of being a relabeled no-op.
+        revertProfileToPre47Shape(profile);
+
+        // N: distinct bytes (another version, another entrypoint hash).
+        const distinctTarball = buildDistinctTarball(tarball!, "9.9.9-d4");
+        const currentBefore = readlinkSync(join(prefix, "current"));
+        const result = await upgradeServerPrefix({
+          from: distinctTarball,
+          prefix,
+          json: true,
+        });
+        if (!result.ok) console.error("[serverUpgrade.integration] upgrade failed:", result);
+        expect(result.ok).toBe(true);
+        expect(result.outcome).toBe("upgraded");
+        expect(result.migration).toMatchObject({
+          currentSchemaVersion: 46,
+          latestSchemaVersion: 47,
+          forwardOnly: [47],
+        });
+        // A consistent pre-migration backup was captured and retained.
+        expect(result.backupPath).not.toBeNull();
+        expect(existsSync(join(result.backupPath!, "poracode-backup.json"))).toBe(true);
+        expect(readlinkSync(join(prefix, "current"))).not.toBe(currentBefore);
+
+        // The candidate's own registry advanced the recorded schema.
+        const paths = resolveHostRootPaths(profile);
+        const database = new Database(join(paths.dataRoot, "state.sqlite"), {
+          ...resolveBetterSqliteNativeBindingOptions(),
+          readonly: true,
+          fileMustExist: true,
+        });
+        let schemaVersion = 0;
+        try {
+          const row = database
+            .prepare<[], { value: string }>(
+              "SELECT value FROM app_state WHERE key = 'schema_version'",
+            )
+            .get();
+          schemaVersion = Number(row?.value ?? 0);
+          // Migration 47 really ran: the reverted pre-47 shape gained the
+          // principal/digest columns and their index, and the interrupted
+          // receipt was preserved as `uncertain`, never deleted.
+          const columns = database.prepare("PRAGMA table_info(remote_command_receipts)").all() as {
+            name: string;
+          }[];
+          expect(columns.map((column) => column.name)).toEqual(
+            expect.arrayContaining(["principal_id", "request_digest"]),
+          );
+          const indexes = database.prepare("PRAGMA index_list(remote_command_receipts)").all() as {
+            name: string;
+          }[];
+          expect(indexes.map((index) => index.name)).toContain(
+            "idx_remote_command_receipts_principal",
+          );
+          const receipt = database
+            .prepare("SELECT state FROM remote_command_receipts WHERE command_id = ?")
+            .get(INTERRUPTED_RECEIPT_ID) as { state?: string } | undefined;
+          expect(receipt?.state).toBe("uncertain");
+        } finally {
+          database.close();
+        }
+        expect(schemaVersion).toBe(47);
+
+        const currentRelease = resolve(prefix, readlinkSync(join(prefix, "current")));
+        const expectedIdentity = readReleaseBuildIdentity(currentRelease);
+        expect(expectedIdentity.version).toBe("9.9.9-d4");
+        const status = await callHostControl(paths, "status");
+        expect(status.result).toMatchObject({
+          state: "ready",
+          admission: "open",
+          build: {
+            version: "9.9.9-d4",
+            entrypointSha256: expectedIdentity.entrypointSha256,
+          },
+        });
 
         await stopDaemonAt(join(prefix, "poracode-server.pid"), profile);
       } finally {

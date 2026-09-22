@@ -1,13 +1,14 @@
-import { build } from "esbuild";
-import { fork, type ChildProcess } from "node:child_process";
+import { fork } from "node:child_process";
 import { once } from "node:events";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { HostOwnerLease, HostRootInUseError } from "@/backend/ownership/hostOwnerLease";
+import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { buildSyntheticCliEntry } from "./cliTestBundle";
+import { expectOwned, signalOwnedChild, stopOwnedChild, withinDeadline } from "./cliTestHelpers";
 import { ensureDeclaredAssetsDir } from "./testDeclaredAssets";
 
 let directory: string;
@@ -16,40 +17,7 @@ let entry: string;
 beforeAll(async () => {
   directory = mkdtempSync(join(tmpdir(), "poracode-cli-signal-"));
   entry = join(directory, "server.cjs");
-  await build({
-    entryPoints: [fileURLToPath(new URL("./cli.ts", import.meta.url))],
-    outfile: entry,
-    bundle: true,
-    platform: "node",
-    format: "cjs",
-    packages: "external",
-    logLevel: "silent",
-    plugins: [
-      {
-        name: "synthetic-headless-services",
-        setup(builder) {
-          builder.onResolve(
-            {
-              filter: new RegExp(
-                "(createHeadlessRemoteHost|headlessRemoteComposition|pairingControl|nodePerformanceDiagnostics)$",
-              ),
-            },
-            (args) => ({ path: args.path, namespace: "synthetic" }),
-          );
-          builder.onLoad({ filter: new RegExp(".*"), namespace: "synthetic" }, (args) => {
-            const contents = args.path.endsWith("createHeadlessRemoteHost")
-              ? "export const createHeadlessRemoteHost = (options) => globalThis.__cliFixture.create(options);"
-              : args.path.endsWith("nodePerformanceDiagnostics")
-                ? "export const startNodePerformanceDiagnostics = () => ({stop: () => globalThis.__cliFixture.stopDiagnostics()});"
-                : args.path.endsWith("headlessRemoteComposition")
-                  ? "export class HeadlessCompositionShutdownError extends AggregateError {}"
-                  : "export const requestPairingFromRunningServer = () => { throw new Error('Pairing is outside this fixture.'); }; export const requestHostStatusFromRunningServer = () => { throw new Error('Status is outside this fixture.'); };";
-            return { contents, loader: "js" };
-          });
-        },
-      },
-    ],
-  });
+  await buildSyntheticCliEntry(entry);
 });
 
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
@@ -57,20 +25,6 @@ afterAll(() => rmSync(directory, { recursive: true, force: true }));
 interface ChildMessage {
   type: string;
   [key: string]: unknown;
-}
-
-async function withinDeadline<T>(work: Promise<T>, description: string): Promise<T> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    return await Promise.race([
-      work,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error(description)), 3_000);
-      }),
-    ]);
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 function runChild(
@@ -172,39 +126,8 @@ function runChild(
     child,
     closed,
     waitFor,
-    waitForExit: () => withinDeadline(exited, "CLI child did not exit after its join."),
+    waitForExit: () => withinDeadline(exited, "CLI child did not exit after its join.", 3_000),
   };
-}
-
-function signalOwnedChild(child: ChildProcess, signal: NodeJS.Signals): void {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  if (typeof child.pid !== "number" || !Number.isSafeInteger(child.pid) || child.pid <= 0)
-    throw new Error("The test has no positive owned child PID to signal.");
-  child.kill(signal);
-}
-
-async function stopOwnedChild(test: ReturnType<typeof runChild>): Promise<void> {
-  const { child, closed } = test;
-  if (
-    child.exitCode === null &&
-    child.signalCode === null &&
-    typeof child.pid === "number" &&
-    Number.isSafeInteger(child.pid) &&
-    child.pid > 0
-  )
-    signalOwnedChild(child, "SIGKILL");
-  await withinDeadline(closed, "Test-owned CLI child did not confirm pipe closure.");
-}
-
-function expectOwned(profile: string) {
-  let contender: HostOwnerLease | undefined;
-  try {
-    expect(() => {
-      contender = HostOwnerLease.acquire(resolveHostRootPaths(profile), "desktop");
-    }).toThrow(HostRootInUseError);
-  } finally {
-    contender?.release();
-  }
 }
 
 it("joins failed spawn closure without signaling an absent PID", async () => {
@@ -219,10 +142,10 @@ it("joins failed spawn closure without signaling an absent PID", async () => {
   try {
     await expect(test.waitFor("pending")).rejects.toMatchObject({ code: "ENOENT" });
     expect(test.child.pid).toBeUndefined();
-    await stopOwnedChild(test);
+    await stopOwnedChild(test, 3_000);
     expect(kill).not.toHaveBeenCalled();
   } finally {
-    await stopOwnedChild(test);
+    await stopOwnedChild(test, 3_000);
     kill.mockRestore();
   }
 });
@@ -259,7 +182,7 @@ describe.skipIf(process.platform === "win32")("actual CLI startup signals", () =
         const successor = HostOwnerLease.acquire(resolveHostRootPaths(profile), "desktop");
         successor.release();
       } finally {
-        await stopOwnedChild(test);
+        await stopOwnedChild(test, 3_000);
       }
     },
   );
@@ -284,7 +207,7 @@ describe.skipIf(process.platform === "win32")("actual CLI startup signals", () =
       test.child.send("inspect");
       expect(await test.waitFor("state")).toMatchObject({ disposeCalls: 1, exitCode: 1 });
     } finally {
-      await stopOwnedChild(test);
+      await stopOwnedChild(test, 3_000);
     }
   });
 });

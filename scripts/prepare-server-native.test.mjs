@@ -1,15 +1,19 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import {
   CROSS_TARGETS,
+  crossTargetsForHost,
   hostPlatformKey,
   missingRequiredTargets,
   parseRequireTargets,
   stageBetterSqlite3,
 } from "./prepare-server-native.mjs";
+
+const hostTarget = `${hostPlatformKey()}-${process.arch}`;
+const hostCrossTargets = crossTargetsForHost();
 
 const tempDirs = [];
 
@@ -29,6 +33,7 @@ function tempDir(prefix) {
 function createFakeModuleRoot(targets) {
   const root = tempDir("poracode-sqlite-module-");
   mkdirSync(join(root, "prebuilds"), { recursive: true });
+  writeFileSync(join(root, "package.json"), '{"name":"better-sqlite3","version":"13.0.3"}\n');
   for (const target of targets) {
     writeFileSync(join(root, "prebuilds", `${target}.node`), `binding:${target}\n`);
   }
@@ -47,6 +52,13 @@ void test("parseRequireTargets collects every --require-target value", () => {
   assert.throws(() => parseRequireTargets(["--bogus"]), {
     message: "Unknown option: --bogus",
   });
+});
+
+void test("crossTargetsForHost stages the other macOS arch and the Linux cross set", () => {
+  assert.deepEqual(crossTargetsForHost("darwin", "arm64"), ["darwin-x64"]);
+  assert.deepEqual(crossTargetsForHost("darwin", "x64"), ["darwin-arm64"]);
+  assert.deepEqual(crossTargetsForHost("linux", "x64"), CROSS_TARGETS);
+  assert.deepEqual(crossTargetsForHost("linux", "arm64"), CROSS_TARGETS);
 });
 
 void test("a required target must be covered by every staged native module (V6 D.2)", () => {
@@ -77,12 +89,11 @@ void test("a required target must be covered by every staged native module (V6 D
 });
 
 void test("stageBetterSqlite3 stages the host binding plus every present cross prebuild", () => {
-  const hostTarget = `${hostPlatformKey()}-${process.arch}`;
-  const moduleRoot = createFakeModuleRoot([hostTarget, ...CROSS_TARGETS]);
+  const moduleRoot = createFakeModuleRoot([hostTarget, ...hostCrossTargets]);
   const destinationDir = tempDir("poracode-sqlite-out-");
   const staged = stageBetterSqlite3({ moduleRoot, destinationDir, validateBinding: false });
   assert.ok(staged.includes(hostTarget), `host target ${hostTarget} must count as covered`);
-  for (const target of CROSS_TARGETS) {
+  for (const target of hostCrossTargets) {
     assert.ok(
       existsSync(join(destinationDir, "better-sqlite3", `${target}.node`)),
       `${target} prebuild must be staged`,
@@ -90,31 +101,53 @@ void test("stageBetterSqlite3 stages the host binding plus every present cross p
     assert.ok(staged.includes(target));
   }
   assert.ok(existsSync(join(destinationDir, "better_sqlite3.node")));
+  // Plan D3: the staged wrapper version and per-target hashes are recorded so
+  // an install can refuse bindings staged for another wrapper.
+  const overlay = JSON.parse(
+    readFileSync(join(destinationDir, "better-sqlite3", "overlay.json"), "utf8"),
+  );
+  assert.equal(overlay.version, "13.0.3");
+  assert.equal(overlay.hostTarget, hostTarget);
+  assert.deepEqual(
+    overlay.targets.map((target) => target.dir).sort(),
+    [hostTarget, ...hostCrossTargets].sort(),
+  );
+  for (const target of overlay.targets) {
+    assert.match(target.sha256, /^[0-9a-f]{64}$/u);
+  }
 });
 
 void test("stageBetterSqlite3 fails a --require-target whose better-sqlite3 prebuild is missing", () => {
-  const hostTarget = `${hostPlatformKey()}-${process.arch}`;
+  const missingTarget = hostCrossTargets[0] ?? "linux-arm64";
   const moduleRoot = createFakeModuleRoot(
-    [hostTarget, ...CROSS_TARGETS].filter((target) => target !== "linux-arm64"),
+    [hostTarget, ...hostCrossTargets].filter((target) => target !== missingTarget),
   );
   const destinationDir = tempDir("poracode-sqlite-out-");
   assert.throws(
     () =>
       stageBetterSqlite3({
-        requiredTargets: ["linux-arm64"],
+        requiredTargets: [missingTarget],
         moduleRoot,
         destinationDir,
         validateBinding: false,
       }),
-    /no better-sqlite3 prebuild for linux-arm64/u,
+    new RegExp(`no better-sqlite3 prebuild for ${missingTarget}`, "u"),
   );
 });
 
 void test("stageBetterSqlite3 keeps warn+skip for a missing target nobody required", () => {
-  const hostTarget = `${hostPlatformKey()}-${process.arch}`;
   const moduleRoot = createFakeModuleRoot([hostTarget]);
   const destinationDir = tempDir("poracode-sqlite-out-");
   const staged = stageBetterSqlite3({ moduleRoot, destinationDir, validateBinding: false });
   assert.deepEqual(staged, [hostTarget]);
-  assert.ok(!existsSync(join(destinationDir, "better-sqlite3")));
+  for (const target of hostCrossTargets) {
+    assert.ok(!existsSync(join(destinationDir, "better-sqlite3", `${target}.node`)));
+  }
+  const overlay = JSON.parse(
+    readFileSync(join(destinationDir, "better-sqlite3", "overlay.json"), "utf8"),
+  );
+  assert.deepEqual(
+    overlay.targets.map((target) => target.dir),
+    [hostTarget],
+  );
 });

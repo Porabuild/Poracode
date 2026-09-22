@@ -25,6 +25,8 @@ vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
 const priorArguments = process.argv;
 const priorExitCode = process.exitCode;
 const signals = new Map<string, () => void>();
+// The documented minimum clamp keeps the fatal-startup bound fast in tests.
+const TEST_SHUTDOWN_DRAIN_DEADLINE_MS = 500;
 // The synthetic host must expose the owned data root contract: serve() starts
 // the leveled log file under it as soon as the lease is held (plan 4.9).
 let dataRoot: string | undefined;
@@ -32,6 +34,7 @@ beforeEach(() => {
   process.argv = ["synthetic-node", "synthetic-server"];
   process.exitCode = undefined;
   vi.stubEnv("PORACODE_HEADLESS_SERVER", "0");
+  vi.stubEnv("PORACODE_SHUTDOWN_DRAIN_DEADLINE_MS", String(TEST_SHUTDOWN_DRAIN_DEADLINE_MS));
   // The test process runs cli.ts from src/server, outside both published
   // install shapes; serve() resolves the layout contract first, so the
   // required asset is declared explicitly (the documented escape hatch). The
@@ -109,17 +112,21 @@ describe("headless CLI startup lifetime", () => {
     },
   );
 
-  it("does not force exit when partial construction cannot confirm shutdown", async () => {
+  it("does not force exit before the deadline when partial construction cannot confirm shutdown", async () => {
     fixture.createHost.mockRejectedValue(
       new HeadlessCompositionShutdownError([new Error("synthetic construction cleanup failure")]),
     );
     runCli();
     await vi.waitFor(() => expect(fixture.stopDiagnostics).toHaveBeenCalledOnce());
+    // No premature exit: the owner stays retained for the whole bound.
     expect(process.exit).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
+    await vi.waitFor(() => expect(process.exit).toHaveBeenCalledExactlyOnceWith(1), {
+      timeout: 3_000,
+    });
   });
 
-  it("does not force exit when listener startup fails and runtime cleanup rejects", async () => {
+  it("does not force exit before the deadline when listener startup fails and runtime cleanup rejects", async () => {
     const dispose = vi.fn<() => Promise<void>>(async () => {
       throw new Error("synthetic unconfirmed supervisor drain");
     });
@@ -134,6 +141,9 @@ describe("headless CLI startup lifetime", () => {
     expect(dispose).toHaveBeenCalledOnce();
     expect(process.exit).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
+    await vi.waitFor(() => expect(process.exit).toHaveBeenCalledExactlyOnceWith(1), {
+      timeout: 3_000,
+    });
   });
 
   it("waits for confirmed startup cleanup before reporting a fatal failure", async () => {
@@ -153,6 +163,12 @@ describe("headless CLI startup lifetime", () => {
       held.resolve();
       await vi.waitFor(() => expect(process.exit).toHaveBeenCalledExactlyOnceWith(1));
       expect(fixture.stopDiagnostics).toHaveBeenCalledOnce();
+      // Confirmed cleanup must disarm the armed fatal-startup bound: the
+      // explicit fatal exit stays the only exit.
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, TEST_SHUTDOWN_DRAIN_DEADLINE_MS + 100),
+      );
+      expect(process.exit).toHaveBeenCalledTimes(1);
     } finally {
       held.resolve();
     }

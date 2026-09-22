@@ -1,6 +1,7 @@
 import { resolveRemoteAccessBind } from "@/host/remote/config";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { resolveServerResourceDirs, type ServerInstallLayout } from "./serverInstallLayout";
+import { describeUpgradeJournalRemediation } from "./serverUpgradeJournal";
 import type {
   CredentialSnapshot,
   LeaseKernelLockProbe,
@@ -83,6 +84,8 @@ export function buildChecks(input: {
   liveStatus: ServerDoctorReport["remoteAccess"]["liveStatus"];
   layout: ServerInstallLayout | { readonly error: string };
   hostServices: ServerDoctorReport["hostServices"];
+  migrations: ServerDoctorReport["migrations"];
+  upgradeJournal: ServerDoctorReport["upgradeJournal"];
   logSource: string | null;
 }): ServerDoctorCheck[] {
   const checks: ServerDoctorCheck[] = [];
@@ -228,6 +231,29 @@ export function buildChecks(input: {
         input.liveStatus.endpoint ?? "no endpoint"
       }.`,
     });
+    // D4: a healthy answer is not a release identity. Report what the live
+    // owner can prove, and mark a pre-D4 owner explicitly instead of treating
+    // liveness as upgrade qualification.
+    const live = input.liveStatus;
+    if (live.statusSupported && live.build) {
+      checks.push({
+        name: "upgrade-identity",
+        status: live.admission === "held" ? "warn" : "ok",
+        detail:
+          `Authenticated status reports build ${live.build.version} ` +
+          `(entrypoint ${live.build.entrypointSha256?.slice(0, 16) ?? "unreadable"}…, ` +
+          `admission ${live.admission ?? "unknown"}).`,
+      });
+    } else {
+      checks.push({
+        name: "upgrade-identity",
+        status: "warn",
+        detail:
+          "The running owner predates the authenticated status operation; its build " +
+          "identity is not provable. It can be drained, but an upgrade candidate must " +
+          "prove its own exact build before admission.",
+      });
+    }
   } else if (input.discovery !== null) {
     checks.push({
       name: "remote-access",
@@ -240,6 +266,82 @@ export function buildChecks(input: {
       status: "warn",
       detail: input.discoveryError ?? "No control discovery published; the owner is not running.",
     });
+  }
+
+  {
+    const migrations = input.migrations;
+    checks.push(
+      migrations.forwardOnly.length === 0
+        ? {
+            name: "migration-policy",
+            status: "ok",
+            detail:
+              `Schema ${migrations.latestSchemaVersion}; every migration is ` +
+              "rollback-compatible, so a code-only rollback is data-safe.",
+          }
+        : {
+            name: "migration-policy",
+            status: "warn",
+            detail:
+              `Schema ${migrations.latestSchemaVersion}; forward-only migration(s) ` +
+              `${migrations.forwardOnly.map((entry) => entry.version).join(", ")} ` +
+              `(rollback-compatible through ${migrations.rollbackCompatibleThrough}). ` +
+              "An upgrade past them requires a consistent backup before the candidate runs, " +
+              "and the backup must never be restored over accepted newer writes.",
+          },
+    );
+  }
+
+  {
+    const journal = input.upgradeJournal;
+    checks.push(
+      journal.state === "absent"
+        ? {
+            name: "upgrade-journal",
+            status: "ok",
+            detail: "No interrupted upgrade journal; no staged admission hold.",
+          }
+        : journal.state === "ok"
+          ? journal.terminal
+            ? {
+                name: "upgrade-journal",
+                status: "ok",
+                detail:
+                  `The last upgrade (${journal.releaseId}) is terminal (${journal.phase}); ` +
+                  "the next upgrade replaces the journal.",
+              }
+            : {
+                name: "upgrade-journal",
+                status: "warn",
+                detail:
+                  `An upgrade of this prefix did not finish (phase ${journal.phase}, release ` +
+                  `${journal.releaseId}, updated ${journal.updatedAt}` +
+                  (journal.expectedVersion !== null
+                    ? `, expected version ${journal.expectedVersion}`
+                    : "") +
+                  (journal.forwardOnlyMigration
+                    ? "; a forward-only migration was pending, so a backup is required before " +
+                      "retrying"
+                    : "") +
+                  (journal.backupPath !== null ? `, backup ${journal.backupPath}` : "") +
+                  "). " +
+                  describeUpgradeJournalRemediation({
+                    prefix: journal.prefix,
+                    phase: journal.phase,
+                    releaseDir: journal.releaseDir,
+                  }),
+              }
+          : {
+              name: "upgrade-journal",
+              status: "error",
+              detail:
+                `The upgrade journal at ${journal.path} is present but ${journal.state} ` +
+                `(${journal.reason}). Releases under the prefix stay non-admitting until it is ` +
+                "resolved; inspect it, then use `poracode-server upgrade --resume` or " +
+                "`poracode-server upgrade --abandon-journal --confirm` after verifying nothing " +
+                "is running.",
+            },
+    );
   }
 
   checks.push(

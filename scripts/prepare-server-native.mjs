@@ -1,8 +1,10 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { runtimePlatformKey } from "./server-native-overlay.mjs";
 
 const require = createRequire(import.meta.url);
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -18,19 +20,30 @@ const outputDir = join(repoRoot, "dist", "server-native");
  */
 const OVERLAY_FORMAT_VERSION = 2;
 
-// docs/STANDALONE_SERVER.md §8: glibc and musl Linux targets are distinguished
+// docs/STANDALONE_SERVER.md §3.4: glibc and musl Linux targets are distinguished
 // because the prebuild directory names differ (`linux-*` vs `linuxmusl-*`).
-const platformKey =
-  process.platform === "linux" && !process.report.getReport().header.glibcVersionRuntime
-    ? "linuxmusl"
-    : process.platform;
+const platformKey = runtimePlatformKey();
 
 /** V6 D.2 machine shapes carried in addition to the packaging host's own. */
 export const CROSS_TARGETS = ["linux-x64", "linux-arm64", "linuxmusl-x64", "linuxmusl-arm64"];
 
-/** The packaging host's own `platform-arch` key (docs/STANDALONE_SERVER.md §8). */
+/** The packaging host's own `platform-arch` key (docs/STANDALONE_SERVER.md §3.4). */
 export function hostPlatformKey() {
   return platformKey;
+}
+
+/**
+ * Machine shapes a packaging host can stage beyond its own. Linux hosts stage
+ * the D.2 cross targets (built in an emulated container or downloaded);
+ * macOS hosts stage the other macOS arch from the modules' own published
+ * prebuilds, so one `darwin-arm64`-assembled tarball also covers `darwin-x64`
+ * (and vice versa on an Intel runner). Windows desktop packaging never builds
+ * a standalone server artifact.
+ */
+export function crossTargetsForHost(platform = platformKey, arch = process.arch) {
+  if (platform === "darwin")
+    return ["darwin-arm64", "darwin-x64"].filter((t) => t !== `${platform}-${arch}`);
+  return CROSS_TARGETS;
 }
 
 /** Directory a CI job can drop cross-built bindings into: `<target>/pty.node`. */
@@ -110,8 +123,18 @@ export function stageBetterSqlite3({
   mkdirSync(destinationDir, { recursive: true });
   copyFileSync(binding, outputFile);
 
-  const stagedTargets = [`${platformKey}-${process.arch}`];
-  for (const target of CROSS_TARGETS) {
+  const hostTarget = `${platformKey}-${process.arch}`;
+  const stagedTargets = [hostTarget];
+  const targets = [
+    {
+      platform: platformKey,
+      arch: process.arch,
+      dir: hostTarget,
+      file: "better_sqlite3.node",
+      sha256: createHash("sha256").update(readFileSync(outputFile)).digest("hex"),
+    },
+  ];
+  for (const target of crossTargetsForHost(platformKey, process.arch)) {
     const source = join(prebuildDir, `${target}.node`);
     if (!existsSync(source)) {
       const message = `[poracode-server] no better-sqlite3 prebuild for ${target}: checked ${source}.`;
@@ -121,10 +144,40 @@ export function stageBetterSqlite3({
     }
     const destDir = join(destinationDir, "better-sqlite3");
     mkdirSync(destDir, { recursive: true });
-    copyFileSync(source, join(destDir, `${target}.node`));
+    const destination = join(destDir, `${target}.node`);
+    copyFileSync(source, destination);
     stagedTargets.push(target);
+    targets.push({
+      platform: target.split("-")[0],
+      arch: target.split("-")[1],
+      dir: target,
+      file: `better-sqlite3/${target}.node`,
+      sha256: createHash("sha256").update(readFileSync(destination)).digest("hex"),
+    });
     console.log(`[poracode-server] staged better-sqlite3 ${target}.node`);
   }
+  // Overlay manifest boundary (docs/.agents/docs/versioning.md): the wrapper
+  // version is recorded so an install can refuse bindings staged for another
+  // better-sqlite3 version. Older tarballs without this file still apply.
+  const modulePackagePath = join(moduleRoot, "package.json");
+  const modulePackage = existsSync(modulePackagePath)
+    ? JSON.parse(readFileSync(modulePackagePath, "utf8"))
+    : undefined;
+  mkdirSync(join(destinationDir, "better-sqlite3"), { recursive: true });
+  writeFileSync(
+    join(destinationDir, "better-sqlite3", "overlay.json"),
+    `${JSON.stringify(
+      {
+        formatVersion: 1,
+        package: "better-sqlite3",
+        ...(typeof modulePackage?.version === "string" ? { version: modulePackage.version } : {}),
+        hostTarget,
+        targets,
+      },
+      null,
+      2,
+    )}\n`,
+  );
   console.log(`[poracode-server] prepared better-sqlite3 N-API binding: ${outputFile}`);
   return stagedTargets;
 }
@@ -145,7 +198,7 @@ export function stageBetterSqlite3({
  * so an install verifies the target it applies.
  *
  * Upstream node-pty publishes no Linux prebuilds (docs/STANDALONE_SERVER.md
- * §8), so beyond the host target — prebuild when present, otherwise the local
+ * §3.4), so beyond the host target — prebuild when present, otherwise the local
  * node-gyp build output — each D.2 cross target is staged from, in order:
  *   1. the package's own `prebuilds/<target>/` (future upstream releases),
  *   2. `PORACODE_NODE_PTY_CROSS_BINDINGS/<target>/pty.node` (a CI job builds
@@ -239,10 +292,22 @@ async function stageNodePty(requiredTargets) {
     existsSync(join(hostPrebuildDir, "pty.node")) ? hostPrebuildDir : hostBuiltDir,
   );
 
-  // Cross targets: optional unless --require-target names them.
-  if (platformKey.toString().startsWith("linux") || crossSourcesConfigured()) {
-    for (const target of CROSS_TARGETS) {
+  // Cross targets: optional unless --require-target names them. Candidate
+  // order matches the documented contract: the module's own published
+  // prebuilds (node-pty ships darwin-x64/darwin-arm64), a CI cross-built
+  // binding, then a published download.
+  if (
+    platformKey.toString().startsWith("linux") ||
+    platformKey === "darwin" ||
+    crossSourcesConfigured()
+  ) {
+    for (const target of crossTargetsForHost(platformKey, process.arch)) {
       if (target === hostTarget || stagedTargets.some((entry) => entry.dir === target)) continue;
+      const publishedPrebuild = join(nodePtyRoot, "prebuilds", target);
+      if (existsSync(join(publishedPrebuild, "pty.node"))) {
+        stageFrom(target, publishedPrebuild);
+        continue;
+      }
       const crossSource = join(crossBindingsDir(), target);
       if (existsSync(join(crossSource, "pty.node"))) {
         stageFrom(target, crossSource);
@@ -257,7 +322,7 @@ async function stageNodePty(requiredTargets) {
       }
       const message =
         `[poracode-server] no node-pty prebuild for ${target}: checked ` +
-        `${join(nodePtyRoot, "prebuilds", target)}, ${crossSource}, and ` +
+        `${publishedPrebuild}, ${crossSource}, and ` +
         `${prebuildDownloadUrl(target) ?? "no download URL"}.`;
       if (requiredTargets.includes(target)) throw new Error(message);
       console.warn(`[poracode-server] WARNING ${message} The overlay will not cover it.`);
@@ -287,6 +352,10 @@ const invokedDirectly =
 if (invokedDirectly) {
   try {
     const requiredTargets = parseRequireTargets(process.argv.slice(2));
+    // Start from a clean overlay: a previous generation's build tree can carry
+    // node_modules symlinks that the tarball contract refuses, and stale
+    // targets must never ride into a new artifact.
+    rmSync(outputDir, { recursive: true, force: true });
     const stagedByModule = {
       "better-sqlite3": stageBetterSqlite3({ requiredTargets }),
       "node-pty": await stageNodePty(requiredTargets),

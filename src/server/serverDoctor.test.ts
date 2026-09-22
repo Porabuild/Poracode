@@ -6,6 +6,7 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterAll, describe, expect, it } from "vitest";
 import { HOST_CONTROL_DISCOVERY_VERSION } from "@/shared/hostControlProtocol";
+import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { resolveHostRootPaths, type HostRootPaths } from "@/backend/ownership/hostRootPaths";
 import {
   collectServerDoctorReport,
@@ -13,6 +14,7 @@ import {
   redactDiagnosticLine,
   tailTextFile,
 } from "./serverDoctor";
+import { serverUpgradeJournalPath, writeServerUpgradeJournal } from "./serverUpgradeJournal";
 
 const DEAD_PID = 999_999_999;
 const fixtures: string[] = [];
@@ -43,7 +45,11 @@ function buildProfileFixture(options: { withRoot?: boolean } = {}): ProfileFixtu
   const prefixLibDir = join(root, "install", "lib");
   mkdirSync(prefixLibDir, { recursive: true });
   mkdirSync(join(root, "install", "resources", "wsl-helpers"), { recursive: true });
-  writeFileSync(join(root, "install", "package.json"), "{}\n", "utf8");
+  writeFileSync(
+    join(root, "install", "package.json"),
+    `${JSON.stringify({ version: "1.8.1" })}\n`,
+    "utf8",
+  );
 
   if (options.withRoot === false) {
     return { root, namespace, paths, prefixLibDir, secretKeyValue: "A".repeat(43) + "=" };
@@ -175,6 +181,78 @@ describe("collectServerDoctorReport", () => {
     expect(statuses["credentials"]).toBe("ok");
     expect(statuses["remote-access"]).toBe("warn");
     expect(statuses["recent-errors"]).toBe("warn");
+  });
+
+  it("reports the D4 migration rollback policy and never invents a dev version", async () => {
+    const fixture = buildProfileFixture();
+    const report = await collectServerDoctorReport({
+      profileNamespace: fixture.namespace,
+      controlTimeoutMs: 300,
+      libDir: fixture.prefixLibDir,
+      env: { PORACODE_APP_VERSION: "dev" },
+    });
+    expect(report.migrations.latestSchemaVersion).toBe(LATEST_SCHEMA_VERSION);
+    expect(report.migrations.forwardOnly.map((entry) => entry.version)).toContain(47);
+    expect(report.migrations.rollbackCompatibleThrough).toBe(46);
+    expect(report.versions.versionSource).toBe("artifact");
+    expect(report.versions.appVersion).not.toBe("dev");
+    const statuses = Object.fromEntries(report.checks.map((check) => [check.name, check.status]));
+    expect(statuses["migration-policy"]).toBe("warn");
+    expect(report.checks.find((check) => check.name === "migration-policy")?.detail).toContain(
+      "forward-only",
+    );
+  });
+
+  it("reports the interrupted upgrade journal with actionable guidance (F4)", async () => {
+    const fixture = buildProfileFixture();
+    // A prefix-shaped release under <prefix>/releases so the doctor can derive
+    // the upgrade prefix from the running bundle directory.
+    const prefix = join(fixture.root, "install");
+    const releaseDir = join(prefix, "releases", "release-x");
+    const releaseLibDir = join(releaseDir, "lib");
+    mkdirSync(releaseLibDir, { recursive: true });
+    mkdirSync(join(releaseDir, "resources", "wsl-helpers"), { recursive: true });
+    writeFileSync(join(releaseDir, "package.json"), `${JSON.stringify({ version: "1.1.0" })}\n`);
+    writeServerUpgradeJournal(prefix, {
+      prefix,
+      releaseId: "release-x",
+      releaseDir,
+      previousTarget: null,
+      phase: "swapped",
+      detail: null,
+      backupPath: join(prefix, "backups", "pre-migration"),
+      expectedVersion: "1.1.0",
+      expectedEntrypointSha256: "a".repeat(64),
+      forwardOnlyMigration: true,
+    });
+    const report = await collectServerDoctorReport({
+      profileNamespace: fixture.namespace,
+      controlTimeoutMs: 300,
+      libDir: releaseLibDir,
+    });
+    expect(report.upgradeJournal).toMatchObject({
+      state: "ok",
+      phase: "swapped",
+      releaseId: "release-x",
+      expectedVersion: "1.1.0",
+      forwardOnlyMigration: true,
+      terminal: false,
+    });
+    const check = report.checks.find((entry) => entry.name === "upgrade-journal");
+    expect(check?.status).toBe("warn");
+    expect(check?.detail).toContain("--resume --confirm");
+    expect(check?.detail).toContain("--abandon-journal --confirm");
+
+    // A present-but-corrupt journal is an error: releases under the prefix
+    // hold admission until it is resolved.
+    writeFileSync(serverUpgradeJournalPath(prefix), "{not json\n");
+    const corrupt = await collectServerDoctorReport({
+      profileNamespace: fixture.namespace,
+      controlTimeoutMs: 300,
+      libDir: releaseLibDir,
+    });
+    expect(corrupt.upgradeJournal).toMatchObject({ state: "invalid" });
+    expect(corrupt.checks.find((entry) => entry.name === "upgrade-journal")?.status).toBe("error");
   });
 
   it("names the effective bind exposure and warns or refuses on plaintext lan", async () => {

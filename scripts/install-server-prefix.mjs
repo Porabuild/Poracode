@@ -3,13 +3,14 @@
  * Install a poracode-server tarball into a prefix (V6 D.1/D.2).
  *
  * Layout: `<prefix>/releases/<id>/` with `<prefix>/current` → that release.
- * Applies native-overlay before `npm install` so node-pty skips node-gyp.
+ * The release-directory install (safe extraction, `npm install
+ * --ignore-scripts`, then the verified native overlay) is the shared
+ * `server-release-install.mjs` contract.
  */
-import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
+import { realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { applyServerNativeOverlay } from "./server-native-overlay.mjs";
+import { installServerRelease, writeCurrentSymlink } from "./server-release-install.mjs";
 
 function parseArgs(argv) {
   let tarball;
@@ -25,28 +26,19 @@ function parseArgs(argv) {
   return { tarball, prefix };
 }
 
-export function installServerPrefix({ tarball, prefix }) {
-  const releaseId = `release-${Date.now().toString(36)}`;
-  const releaseDir = join(prefix, "releases", releaseId);
-  mkdirSync(releaseDir, { recursive: true });
-  execFileSync("tar", ["-xzf", tarball, "-C", releaseDir], { stdio: "pipe" });
-  const overlayRoot = join(releaseDir, "native-overlay");
-  if (existsSync(join(overlayRoot, "node-pty", "overlay.json"))) {
-    applyServerNativeOverlay({ prefix: releaseDir, overlayRoot });
-  }
-  execFileSync("npm", ["install", "--omit=dev", "--no-audit", "--no-fund", "--loglevel=error"], {
-    cwd: releaseDir,
-    stdio: "inherit",
-    env: { ...process.env, npm_config_audit: "false" },
-  });
-  const current = join(prefix, "current");
-  rmSync(current, { force: true });
-  symlinkSync(`releases/${releaseId}`, current, "dir");
-  return { prefix, releaseDir, current };
+export function installServerPrefix({ tarball, prefix, releaseId }) {
+  const id = releaseId ?? `release-${Date.now().toString(36)}`;
+  const releaseDir = join(prefix, "releases", id);
+  installServerRelease({ tarball, releaseDir });
+  writeCurrentSymlink(prefix, releaseDir);
+  return { prefix, releaseDir, current: join(prefix, "current") };
 }
 
+// realpath on both sides: a bootstrap directory under a symlinked path (e.g.
+// macOS `/tmp` -> `/private/tmp`, `mktemp -d` under `/var/folders`) must still
+// run the installer instead of silently exiting 0.
 const invokedDirectly =
-  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
 if (invokedDirectly) {
   const result = installServerPrefix(parseArgs(process.argv.slice(2)));
   process.stdout.write(`${result.current}\n`);
