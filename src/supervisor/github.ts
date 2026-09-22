@@ -227,6 +227,7 @@ function classifyError(error: unknown, operation: string): Error {
 
   if (
     lower.includes("command not found") ||
+    lower.includes("gh: not found") ||
     lower.includes("is not recognized") ||
     lower.includes("enoent")
   ) {
@@ -245,7 +246,9 @@ function classifyError(error: unknown, operation: string): Error {
     lower.includes("authentication failed") ||
     lower.includes("not logged in") ||
     lower.includes("gh auth login") ||
-    lower.includes("no oauth token")
+    lower.includes("no oauth token") ||
+    // An invalid or expired GH_TOKEN fails with the API's 401 and no hint.
+    lower.includes("bad credentials")
   ) {
     return new GhUnavailableError(
       `GitHub CLI is not authenticated. Run "gh auth login" in the terminal.`,

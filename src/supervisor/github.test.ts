@@ -427,6 +427,8 @@ describe("GitHubService", () => {
       "To get started with GitHub CLI, please run:  gh auth login",
       "HTTP 401: Requires authentication (https://api.github.com/graphql)\nTry authenticating with:  gh auth login -h github.com",
       "spawn gh ENOENT",
+      "HTTP 401: Bad credentials (https://api.github.com/graphql)",
+      "sh: 1: gh: not found",
     ])("returns an empty map when gh is missing or unauthenticated: %s", async (message) => {
       execFileAsyncMock.mockRejectedValue(new Error(message));
 

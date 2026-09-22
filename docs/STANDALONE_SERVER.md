@@ -443,21 +443,21 @@ The remote-listener and service contract is environment-first, with an optional
 JSON config file whose fields map onto the same names (precedence per field:
 CLI flag > environment > config file > built-in default; `src/server/serverConfig.ts`).
 
-| Variable                                               | Meaning                                                                                                 |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
-| `PORACODE_BASE_DIR`                                    | Profile namespace (required for a dedicated service profile). The server owns `<dir>.host-v1`.          |
-| `PORACODE_REMOTE_ACCESS_HOST`                          | Bind host for the remote listener (default `127.0.0.1`, loopback only).                                 |
-| `PORACODE_REMOTE_ACCESS_PORT`                          | Bind port; unset picks the first free port from 49152.                                                  |
-| `PORACODE_REMOTE_BIND_MODE`                            | Named bind: `loopback` (default), `tailnet`, `lan`.                                                     |
-| `PORACODE_REMOTE_TLS_CERT` / `_KEY`                    | PEM pair; both together or startup fails. Required for unacknowledged wide binds.                       |
-| `PORACODE_ALLOW_PLAINTEXT_LAN`                         | Exactly `1` acknowledges a plaintext LAN/all-interfaces bind. Never file-configurable.                  |
-| `PORACODE_SECRET_STORAGE_KEY`                          | Explicit base64 32-byte credential key. Absent → file-backed `headless-file` key inside the owned root. |
-| `PORACODE_REMOTE_RELAY_URL` / `_SECRET`                | Register with a relay for cross-network access.                                                         |
-| `PORACODE_APP_VERSION`                                 | Fallback version when the artifact's `package.json` cannot be read; `dev` is ignored.                   |
-| `PORACODE_LOG_LEVEL`                                   | `debug` / `info` / `warn` / `error` (default `info`).                                                   |
-| `PORACODE_SHUTDOWN_DRAIN_DEADLINE_MS`                  | SIGTERM drain deadline in ms (default 10000).                                                           |
-| `PORACODE_REMOTE_TRUSTED_PROXIES`                      | Addresses/CIDRs whose `X-Forwarded-For` the rate limiter may honor.                                     |
-| `PORACODE_*_DIR` / `PORACODE_COMPUTER_USE_HELPER_ROOT` | Explicit resource declarations (§3.1), validated absolute directories.                                  |
+| Variable                                               | Meaning                                                                                                         |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `PORACODE_BASE_DIR`                                    | Profile namespace (required for a dedicated service profile). The server owns `<dir>.host-v1`.                  |
+| `PORACODE_REMOTE_ACCESS_HOST`                          | Bind host for the remote listener (default `127.0.0.1`, loopback only).                                         |
+| `PORACODE_REMOTE_ACCESS_PORT`                          | Bind port; unset picks the first free port from 49152.                                                          |
+| `PORACODE_REMOTE_BIND_MODE`                            | Named bind: `loopback` (default), `tailnet`, `lan`.                                                             |
+| `PORACODE_REMOTE_TLS_CERT` / `_KEY`                    | PEM pair; both together or startup fails. Required for unacknowledged wide binds.                               |
+| `PORACODE_ALLOW_PLAINTEXT_LAN`                         | Exactly `1` acknowledges a plaintext LAN/all-interfaces bind. Never file-configurable.                          |
+| `PORACODE_SECRET_STORAGE_KEY`                          | Explicit base64 32-byte credential key. Absent → file-backed `headless-file` key inside the owned root.         |
+| `PORACODE_REMOTE_RELAY_URL` / `_SECRET`                | Register with a relay for cross-network access.                                                                 |
+| `PORACODE_APP_VERSION`                                 | Fallback version when the artifact's `package.json` cannot be read; `dev` is ignored.                           |
+| `PORACODE_LOG_LEVEL`                                   | `debug` / `info` / `warn` / `error` (default `info`).                                                           |
+| `PORACODE_SHUTDOWN_DRAIN_DEADLINE_MS`                  | SIGTERM drain deadline in ms (default 10000).                                                                   |
+| `PORACODE_REMOTE_TRUSTED_PROXIES`                      | Addresses/CIDRs whose `X-Forwarded-For` the rate limiter may honor; dials from them are never treated as local. |
+| `PORACODE_*_DIR` / `PORACODE_COMPUTER_USE_HELPER_ROOT` | Explicit resource declarations (§3.1), validated absolute directories.                                          |
 
 `serve` (the default when no command is given) reads an optional JSON config
 file at `<PORACODE_BASE_DIR>/poracode-server.json`, or the path given with
