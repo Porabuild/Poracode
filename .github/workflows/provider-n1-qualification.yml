@@ -121,8 +121,6 @@ jobs:
     if: ${{ always() && !cancelled() }}
     runs-on: [self-hosted, macOS, ARM64, provider-qualification]
     timeout-minutes: 90
-    env:
-      N1_EVIDENCE_DIR: ${{ runner.temp }}/n1-qualification-evidence
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -145,6 +143,7 @@ jobs:
         env:
           CANDIDATE_URL: ${{ inputs.candidate_tarball_url }}
           CANDIDATE_SHA: ${{ inputs.candidate_tarball_sha256 }}
+          N1_EVIDENCE_DIR: ${{ runner.temp }}/n1-qualification-evidence
           # Release download only. It travels in a header and is never echoed.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -180,6 +179,7 @@ jobs:
 
       - name: Run the published N-1 upgrade gate
         env:
+          N1_EVIDENCE_DIR: ${{ runner.temp }}/n1-qualification-evidence
           # Release-list and N-1 asset downloads only. The script removes it
           # from every spawned server/terminal environment.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
