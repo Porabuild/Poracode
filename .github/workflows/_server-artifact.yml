@@ -213,14 +213,14 @@ jobs:
             TARBALLS+=("$candidate")
           done
           TARBALL="${TARBALLS[0]}"
-          TAR_MEMBERS="$RUNNER_TEMP/poracode-server-tar-members.txt"
-          tar -tzf "$TARBALL" > "$TAR_MEMBERS"
+          VERIFY_ARGS=()
           for target in $(echo "$REQUIRE_TARGETS" | tr ',' ' '); do
-            grep -Fq "native-overlay/node-pty/$target/pty.node" "$TAR_MEMBERS"
-            grep -Fq "native-overlay/better-sqlite3/$target.node" "$TAR_MEMBERS"
+            VERIFY_ARGS+=(--target "$target")
           done
-          grep -Fq 'renderer/index.html' "$TAR_MEMBERS"
-          grep -Fq 'npm-shrinkwrap.json' "$TAR_MEMBERS"
+          node scripts/verify-server-tarball-contents.mjs \
+            --tarball "$TARBALL" \
+            --overlay-root dist/server-native \
+            "${VERIFY_ARGS[@]}"
           test -f dist/server-artifact.json
         shell: bash
 

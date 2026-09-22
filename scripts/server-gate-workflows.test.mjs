@@ -118,22 +118,15 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
     "the upgrade integration test must run with PORACODE_REQUIRE_SERVER_IT=1",
   );
 
-  // The tarball-content gate covers BOTH modules for every advertised target
-  // plus the bundled web client and frozen closure, and no step may pick an
-  // arbitrary tarball out of a list.
+  // The tarball-content gate follows the overlay manifests for BOTH modules
+  // (the host sqlite binding intentionally has a different path from cross
+  // bindings), and no step may pick an arbitrary tarball out of a list.
   const prebuilds = steps.find(
     (step) => step.name === "Require every advertised prebuild and the web client in the tarball",
   );
-  assert.match(prebuilds.run, /native-overlay\/node-pty\/\$target\/pty\.node/u);
-  assert.match(prebuilds.run, /native-overlay\/better-sqlite3\/\$target\.node/u);
-  assert.match(prebuilds.run, /renderer\/index\.html/u);
-  assert.match(prebuilds.run, /npm-shrinkwrap\.json/u);
-  assert.equal(
-    (prebuilds.run.match(/tar -tzf/gmu) ?? []).length,
-    1,
-    "the archive is listed once so grep -q cannot SIGPIPE tar under pipefail",
-  );
-  assert.doesNotMatch(prebuilds.run, /tar -tzf[^\n]*\|\s*grep/u);
+  assert.match(prebuilds.run, /verify-server-tarball-contents\.mjs/u);
+  assert.match(prebuilds.run, /--overlay-root dist\/server-native/u);
+  assert.match(prebuilds.run, /VERIFY_ARGS\+=\(--target "\$target"\)/u);
   for (const step of steps) {
     assert.doesNotMatch(step.run ?? "", /\|\s*head\s+-n\s*1/u, "no arbitrary tarball selection");
   }
