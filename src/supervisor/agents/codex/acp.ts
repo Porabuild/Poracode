@@ -69,6 +69,7 @@ import {
 } from "./probe";
 import { CodexSubAgentRouter } from "./subAgentRouting";
 import { isCodexCompactCommand, runCodexCompactCommand } from "./compactCommand";
+import { CodexContextWindowReload } from "./contextWindowReload";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
@@ -267,6 +268,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private pendingSystemErrorFallback: ReturnType<typeof setTimeout> | undefined;
   private mapperState: CodexMapperState | undefined;
   private subAgentRouter: CodexSubAgentRouter | undefined;
+  private contextWindowReload: CodexContextWindowReload | undefined;
   private forkNotificationBuffer:
     | Array<{
         method: string;
@@ -320,6 +322,27 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private ensureSubAgentRouter(): CodexSubAgentRouter {
     this.subAgentRouter ??= new CodexSubAgentRouter(this.threadId, this.wslDistro);
     return this.subAgentRouter;
+  }
+
+  private ensureContextWindowReload(): CodexContextWindowReload {
+    this.contextWindowReload ??= new CodexContextWindowReload();
+    return this.contextWindowReload;
+  }
+
+  /** Cold-resume the idle thread when the composer's context window changed. */
+  private async applyContextWindowChange(threadId: string, config: ThreadConfig): Promise<void> {
+    await this.ensureContextWindowReload().reload(
+      {
+        request: (method, params) => this.rpc.request(method, params),
+        buildResumeOverrides: (next) =>
+          buildCodexThreadOverrides(next, {
+            projectLocation: this.projectLocation,
+            mcpServers: this.mcpServers,
+          }),
+      },
+      threadId,
+      config,
+    );
   }
 
   private emitRuntimeEvents(events: RuntimeEvent[]): void {
@@ -614,6 +637,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
     this.remoteThreadId = threadId;
     this.rpc.claimThread(threadId);
+    this.ensureContextWindowReload().recordApplied(config);
     this.ensureMapperState().usageScope = new CodexUsageScopeTracker(threadId, createdNewThread);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: threadId };
     if (!createdNewThread) {
@@ -797,8 +821,16 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
     this.emitRuntimeEvents(userEvents);
 
+    const reloadContextWindow =
+      this.activeTurnId === undefined &&
+      this.activeTurnIds.size === 0 &&
+      this.ensureContextWindowReload().needsReload(config);
     this.currentThreadStatus = { type: "active", activeFlags: [] };
     this.emitUpdate({ status: "working", attention: "working" });
+    if (reloadContextWindow) {
+      await this.applyContextWindowChange(threadId, config);
+      if (this.isDisposed) return;
+    }
 
     const input = buildCodexTurnInput(prompt, segments, options?.inlineInstructions);
     try {
@@ -1212,6 +1244,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
 
     this.remoteThreadId = newThreadId;
     this.rpc.claimThread(newThreadId);
+    this.ensureContextWindowReload().recordApplied(rollbackConfig);
     this.launchOptions = { ...this.launchOptions, resumeThreadId: newThreadId };
     // The fork created a NEW provider thread carrying inherited history: bump
     // the usage scope epoch so the first sample on it is a baseline, and do it
@@ -1367,6 +1400,9 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       return;
     }
     const notificationThreadId = readNotificationThreadId(params, this.remoteThreadId);
+    if (this.contextWindowReload?.holdsNotification(readNotificationThreadId(params, undefined))) {
+      return;
+    }
     if (
       this.forkNotificationBuffer &&
       notificationThreadId &&

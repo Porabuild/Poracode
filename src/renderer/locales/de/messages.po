@@ -2361,6 +2361,14 @@ msgstr "Branch kann nicht gewechselt werden – committen oder stashen Sie zuers
 msgid "Category"
 msgstr "Kategorie"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change"
+msgstr "Ändern"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change context size to {contextLabel}?"
+msgstr "Kontextgröße auf {contextLabel} ändern?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Projektordner ändern"
@@ -4793,6 +4801,10 @@ msgstr "Doku"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
 msgstr "Fragen Sie nicht noch einmal"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Don't show again"
+msgstr "Nicht mehr anzeigen"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Don't show hook install proposal"
@@ -13769,6 +13781,10 @@ msgstr "Die MCP-Server-Konfiguration ist ungültig oder verwendet einen reservie
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "Der MCP-Server ist ungültig."
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+msgstr "Die neue Kontextgröße gilt ab deiner nächsten Nachricht. Die Agentensitzung wird vor dem Senden dieser Nachricht neu geladen; die Unterhaltung bleibt erhalten."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."

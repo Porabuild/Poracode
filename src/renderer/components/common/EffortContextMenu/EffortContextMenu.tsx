@@ -1,10 +1,12 @@
-import { startTransition, useState, type ReactNode } from "react";
+import { startTransition, useRef, useState, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown } from "lucide-react";
 import { Header, Label, ListBox, Tooltip } from "@heroui/react";
 import type { LabeledOption } from "@/shared/contracts";
 import { Button } from "../Button";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
+import { shouldConfirmContextSizeReload } from "@/renderer/state/contextSizeReloadPreference";
+import { ContextSizeReloadPopover } from "./ContextSizeReloadPopover";
 
 export interface EffortContextMenuProps {
   efforts: readonly LabeledOption[];
@@ -13,6 +15,8 @@ export interface EffortContextMenuProps {
   contextSizes: readonly LabeledOption[];
   contextValue?: string;
   onContextChange?: (value: string) => void;
+  /** Confirm a context change first: it reloads an already-started session. */
+  confirmContextChange?: boolean;
   thinkingSupported?: boolean;
   thinkingValue?: boolean;
   onThinkingChange?: (value: boolean) => void;
@@ -34,6 +38,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     contextSizes,
     contextValue,
     onContextChange,
+    confirmContextChange = false,
     thinkingSupported = false,
     thinkingValue = false,
     onThinkingChange,
@@ -48,6 +53,11 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
 
   const { t } = useLingui();
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingContext, setPendingContext] = useState<{
+    id: string;
+    anchor: { x: number; y: number };
+  } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const { mobile } = useResponsiveMenu();
 
   const hasEffort = efforts.length > 0;
@@ -112,11 +122,24 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
   function handleContext(id: string) {
     if (closeOnSelect) handleOpenChange(false);
     if (id === contextValue) return;
+    if (confirmContextChange && shouldConfirmContextSizeReload()) {
+      handleOpenChange(false);
+      const rect = triggerRef.current?.getBoundingClientRect();
+      setPendingContext({ id, anchor: { x: rect?.left ?? 0, y: rect?.top ?? 0 } });
+      return;
+    }
     startTransition(() => onContextChange?.(id));
+  }
+
+  function confirmPendingContext() {
+    const id = pendingContext?.id;
+    setPendingContext(null);
+    if (id !== undefined) startTransition(() => onContextChange?.(id));
   }
 
   const trigger = (
     <Button
+      ref={triggerRef}
       aria-label={t`Effort and context`}
       isDisabled={isDisabled ?? false}
       size="sm"
@@ -242,7 +265,7 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     </div>
   );
 
-  return (
+  const menu = (
     <ResponsiveMenuSurface
       isOpen={isOpen}
       onOpenChange={handleOpenChange}
@@ -265,6 +288,23 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
     >
       {mobile ? mobileContent : desktopContent}
     </ResponsiveMenuSurface>
+  );
+
+  return (
+    <>
+      {menu}
+      {pendingContext ? (
+        <ContextSizeReloadPopover
+          anchorPosition={pendingContext.anchor}
+          contextLabel={
+            contextSizes.find((option) => option.id === pendingContext.id)?.label ??
+            pendingContext.id
+          }
+          onCancel={() => setPendingContext(null)}
+          onConfirm={confirmPendingContext}
+        />
+      ) : null}
+    </>
   );
 }
 

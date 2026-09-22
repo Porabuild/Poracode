@@ -2361,6 +2361,14 @@ msgstr "Không thể chuyển nhánh — trước tiên hãy commit hoặc stash
 msgid "Category"
 msgstr "Danh mục"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change"
+msgstr "Thay đổi"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change context size to {contextLabel}?"
+msgstr "Đổi kích thước ngữ cảnh thành {contextLabel}?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Thay đổi thư mục dự án"
@@ -4793,6 +4801,10 @@ msgstr "Tài liệu"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
 msgstr "Đừng hỏi lại"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Don't show again"
+msgstr "Không hiển thị lại"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Don't show hook install proposal"
@@ -13769,6 +13781,10 @@ msgstr "Cấu hình máy chủ MCP không hợp lệ hoặc sử dụng tên dà
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "Máy chủ MCP không hợp lệ."
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+msgstr "Kích thước ngữ cảnh mới áp dụng từ tin nhắn tiếp theo của bạn. Phiên tác nhân sẽ được tải lại trước khi gửi tin nhắn đó; cuộc trò chuyện vẫn được giữ nguyên."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
