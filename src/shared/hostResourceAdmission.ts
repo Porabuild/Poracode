@@ -262,11 +262,35 @@ export const hostResourceAdmissionPolicySchema = z.object({
   refuseNewStarts: z.string().min(1).optional(),
 });
 
+/**
+ * Execution environment of one admitted Git child. Mirrors
+ * `ProjectLocation["kind"]` (`src/shared/contracts/common.ts`): the
+ * process-global report owner cannot infer it, so the admit site declares it.
+ */
+export type GitProcessAdmissionEnvironment = "posix" | "windows" | "wsl";
+
+/** Live per-environment gauges, counted in permit units (Git children). */
+export interface GitProcessAdmissionEnvironmentUsage {
+  active: number;
+  queued: number;
+}
+
 export interface GitProcessAdmissionClassDiagnostics {
   limit: number;
   active: number;
   queued: number;
   maxActive: number;
+  /**
+   * Additive timing split (monotonic milliseconds); absent on reports from
+   * older peers. `queueWaitMs` sums admit→grant spans over every grant
+   * (immediate grants contribute zero); `executionMs` sums grant→release
+   * spans over exactly-once releases. Timed-out and cancelled queue entries
+   * contribute to neither.
+   */
+  queueWaitMs?: number;
+  maxQueueWaitMs?: number;
+  executionMs?: number;
+  maxExecutionMs?: number;
 }
 
 export interface GitProcessAdmissionDiagnostics {
@@ -276,13 +300,38 @@ export interface GitProcessAdmissionDiagnostics {
   queueFullRefusals: number;
   waitTimeoutRefusals: number;
   cancellations: number;
+  /**
+   * Additive: direct single-command `fetch` executions whose grant→release
+   * span exceeded the declared slow threshold; absent on older peers. WSL
+   * batch chunks are not subcommand-tagged and are never counted here.
+   */
+  slowFetches?: number;
+  /**
+   * Additive: live gauges by execution environment; absent on older peers.
+   * `active` counts held permit units and `queued` counts queued permit
+   * units (a multi-command batch contributes its `units` to both). Active
+   * environment sums match the per-class active totals; queued environment
+   * sums count permit units, while the existing per-class `queued` field
+   * counts queue entries. Environments with no live or queued children report
+   * zero.
+   */
+  environments?: Record<GitProcessAdmissionEnvironment, GitProcessAdmissionEnvironmentUsage>;
 }
+
+export const gitProcessAdmissionEnvironmentUsageSchema = z.object({
+  active: z.number().int().min(0),
+  queued: z.number().int().min(0),
+});
 
 export const gitProcessAdmissionClassDiagnosticsSchema = z.object({
   limit: z.number().int().min(1),
   active: z.number().int().min(0),
   queued: z.number().int().min(0),
   maxActive: z.number().int().min(0),
+  queueWaitMs: z.number().min(0).optional(),
+  maxQueueWaitMs: z.number().min(0).optional(),
+  executionMs: z.number().min(0).optional(),
+  maxExecutionMs: z.number().min(0).optional(),
 });
 
 export const gitProcessAdmissionDiagnosticsSchema = z.object({
@@ -292,6 +341,14 @@ export const gitProcessAdmissionDiagnosticsSchema = z.object({
   queueFullRefusals: z.number().int().min(0),
   waitTimeoutRefusals: z.number().int().min(0),
   cancellations: z.number().int().min(0),
+  slowFetches: z.number().int().min(0).optional(),
+  environments: z
+    .object({
+      posix: gitProcessAdmissionEnvironmentUsageSchema,
+      windows: gitProcessAdmissionEnvironmentUsageSchema,
+      wsl: gitProcessAdmissionEnvironmentUsageSchema,
+    })
+    .optional(),
 });
 
 /**

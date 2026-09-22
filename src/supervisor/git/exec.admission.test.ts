@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import type {
   WslBridgeClient,
@@ -16,8 +16,10 @@ import {
   GIT_ADMISSION_QUEUE_FULL_CODE,
   GIT_ADMISSION_WAIT_TIMEOUT_CODE,
   GIT_PROCESS_ADMISSION_DEFAULT_POLICY,
+  GIT_SLOW_FETCH_EXECUTION_MS,
   gitProcessAdmissionUsage,
   resetGitProcessAdmissionForTests,
+  setGitProcessAdmissionClockForTests,
 } from "./gitProcessAdmission";
 import { execGit, execGitBatchWslBridge, setWslGitBridgeClient } from "./exec";
 import { GitStatusService } from "./statusService";
@@ -427,6 +429,84 @@ describe("execGit admission (local path, real git)", () => {
   });
 });
 
+describe("execGit admission environment and slow-fetch tagging", () => {
+  it("tags WSL singles and batches with the wsl environment gauges", async () => {
+    const recorder = emptyRecorder();
+    const { client, release } = makeGatedBridge(recorder);
+    setWslGitBridgeClient(client);
+    const runs = Array.from({ length: 2 }, () =>
+      execGit(wslLocation, ["status", "--porcelain=v2", "-b"]),
+    );
+    const batch = execGitBatchWslBridge(
+      wslLocation,
+      Array.from({ length: 3 }, (_, index) => ({
+        cwd: wslLocation.linuxPath,
+        args: ["status", `--slot=${index}`],
+      })),
+      10_000,
+    );
+    await settle();
+    // Two single permits plus the 3-unit batch: five wsl children in flight.
+    expect(gitProcessAdmissionUsage().environments).toMatchObject({
+      wsl: { active: 5, queued: 0 },
+      posix: { active: 0, queued: 0 },
+      windows: { active: 0, queued: 0 },
+    });
+
+    release();
+    await Promise.all([...runs, batch]);
+    expect(gitProcessAdmissionUsage().environments?.wsl).toEqual({ active: 0, queued: 0 });
+  });
+
+  it("counts a queued windows command under its own environment", async () => {
+    configureGitProcessAdmission({ shortPermits: 1 });
+    const holder = await admitGitProcess("short");
+    const windowsLocation: ProjectLocation = { kind: "windows", path: tmpdir() };
+    const run = execGit(windowsLocation, ["--version"]);
+    await settle();
+    expect(gitProcessAdmissionUsage().environments).toMatchObject({
+      windows: { active: 0, queued: 1 },
+    });
+
+    holder.release();
+    await run;
+    expect(gitProcessAdmissionUsage().environments?.windows).toEqual({ active: 0, queued: 0 });
+  });
+
+  it("counts a queued posix command under its own environment", async () => {
+    configureGitProcessAdmission({ shortPermits: 1 });
+    const holder = await admitGitProcess("short");
+    const run = execGit(posixRepoLocation, ["--version"]);
+    await settle();
+    expect(gitProcessAdmissionUsage().environments?.posix).toEqual({ active: 0, queued: 1 });
+
+    holder.release();
+    await run;
+    expect(gitProcessAdmissionUsage().environments?.posix).toEqual({ active: 0, queued: 0 });
+  });
+
+  it("counts a slow direct fetch through the gated bridge", async () => {
+    // Manual clock on the process singleton: the gate holds the fetch's
+    // grant→release span while the clock advances past the slow threshold.
+    let nowMs = 1_000;
+    setGitProcessAdmissionClockForTests(() => nowMs);
+    const recorder = emptyRecorder();
+    const { client, release } = makeGatedBridge(recorder);
+    setWslGitBridgeClient(client);
+    const run = execGit(wslLocation, ["fetch", "origin"]);
+    await settle();
+    expect(gitProcessAdmissionUsage().long.active).toBe(1);
+
+    nowMs += GIT_SLOW_FETCH_EXECUTION_MS + 5;
+    release();
+    await run;
+    const usage = gitProcessAdmissionUsage();
+    expect(usage.slowFetches).toBe(1);
+    expect(usage.long.executionMs).toBe(GIT_SLOW_FETCH_EXECUTION_MS + 5);
+    expect(usage.environments?.wsl).toEqual({ active: 0, queued: 0 });
+  });
+});
+
 describe("Git status admission failures", () => {
   it("does not translate admission pressure into a non-repository result", async () => {
     configureGitProcessAdmission({ shortPermits: 1, admissionWaitTimeoutMs: 20 });
@@ -451,6 +531,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
+  setGitProcessAdmissionClockForTests();
   setWslGitBridgeClient(undefined);
   resetGitProcessAdmissionForTests();
   configureGitProcessAdmission({ ...GIT_PROCESS_ADMISSION_DEFAULT_POLICY });

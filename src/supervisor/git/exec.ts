@@ -12,6 +12,7 @@ import type { WslBridgeClient, WslGitExecResult } from "../wsl/bridge/client";
 import {
   admitGitProcess,
   classifyGitProcess,
+  firstGitSubcommandToken,
   gitProcessAdmissionUsage,
   type GitProcessClass,
 } from "./gitProcessAdmission";
@@ -135,6 +136,7 @@ export async function execGitBatchWslBridge(
     }
     const ticket = await admitGitProcess(batchClass, {
       units: chunk.length,
+      environment: location.kind,
       ...(options?.signal ? { signal: options.signal } : {}),
     });
     try {
@@ -193,8 +195,14 @@ export async function execGit(
   // wait timeout and queued cancellation stay typed admission refusals and are
   // never re-wrapped as Git command failures. The permit is released exactly
   // once when the awaited command settles — the exec callback/reap boundary
-  // for local children, the bridge call settling for WSL.
+  // for local children, the bridge call settling for WSL. The admit site is
+  // the only place that knows the execution environment and subcommand, so it
+  // declares both for the diagnostics gauges (no subcommand tag on batch
+  // chunks: their permits cover several commands and are never fetch-counted).
+  const subcommand = firstGitSubcommandToken(args);
   const ticket = await admitGitProcess(options?.admissionClass ?? classifyGitProcess(args), {
+    environment: location.kind,
+    ...(subcommand !== undefined ? { subcommand } : {}),
     ...(options?.signal ? { signal: options.signal } : {}),
   });
   try {

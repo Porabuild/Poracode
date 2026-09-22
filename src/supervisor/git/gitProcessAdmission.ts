@@ -67,7 +67,13 @@
  * existing non-repository fallback.
  */
 
-import type { GitProcessAdmissionDiagnostics } from "@/shared/hostResourceAdmission";
+import { performance } from "node:perf_hooks";
+import type {
+  GitProcessAdmissionClassDiagnostics,
+  GitProcessAdmissionDiagnostics,
+  GitProcessAdmissionEnvironment,
+  GitProcessAdmissionEnvironmentUsage,
+} from "@/shared/hostResourceAdmission";
 
 export type GitProcessClass = "short" | "long";
 
@@ -98,6 +104,17 @@ export const GIT_PROCESS_ADMISSION_DEFAULT_POLICY: Readonly<GitProcessAdmissionP
 export const GIT_ADMISSION_QUEUE_FULL_CODE = "git_admission_queue_full" as const;
 export const GIT_ADMISSION_WAIT_TIMEOUT_CODE = "git_admission_wait_timeout" as const;
 export const GIT_ADMISSION_CANCELLED_CODE = "git_admission_cancelled" as const;
+
+/**
+ * A direct `fetch` whose admitted execution (grant→release) exceeds this span
+ * is counted in `slowFetches`. Derived as a third of the 30s network command
+ * timeout (`GIT_NETWORK_TIMEOUT` in `./exec`): a network fetch that has
+ * consumed a third of its budget is slow enough to surface in burst
+ * qualification evidence. Strictly-greater comparison, and only
+ * single-command admissions carry a subcommand tag — WSL batch chunks never
+ * populate it, so batch fetches are out of scope by construction.
+ */
+export const GIT_SLOW_FETCH_EXECUTION_MS = 10_000;
 
 export type GitProcessAdmissionRefusalCode =
   | typeof GIT_ADMISSION_QUEUE_FULL_CODE
@@ -181,6 +198,14 @@ export function classifyGitProcess(args: readonly string[]): GitProcessClass {
   return LONG_GIT_SUBCOMMANDS.has(sub.token) ? "long" : "short";
 }
 
+/**
+ * First non-option argv token (the git subcommand), shared with admit sites
+ * so callers can tag a request without re-deriving the token rule.
+ */
+export function firstGitSubcommandToken(args: readonly string[]): string | undefined {
+  return firstSubcommandToken(args)?.token;
+}
+
 /** Released admission slot. `release()` is exactly-once (idempotent no-op after). */
 export interface GitProcessAdmissionTicket {
   readonly gitClass: GitProcessClass;
@@ -193,24 +218,45 @@ export interface GitProcessAdmitRequest {
   units?: number;
   /** Abort while queued → cancelled before spawn (see module comment). */
   signal?: AbortSignal;
+  /**
+   * Execution environment of the child (`ProjectLocation["kind"]`). The
+   * scheduler cannot infer it; admit sites in `./exec` always declare it.
+   * Drives the `usage().environments` gauges.
+   */
+  environment?: GitProcessAdmissionEnvironment;
+  /**
+   * First subcommand token, when the caller knows it. Only single-command
+   * admissions declare it; drives the `slowFetches` counter.
+   */
+  subcommand?: string;
 }
 
-export interface GitProcessAdmissionClassUsage {
+export interface GitProcessAdmissionClassUsage extends GitProcessAdmissionClassDiagnostics {
   limit: number;
   active: number;
   queued: number;
   /** High-water mark of concurrent active units observed since creation/reset. */
   maxActive: number;
+  queueWaitMs: number;
+  maxQueueWaitMs: number;
+  executionMs: number;
+  maxExecutionMs: number;
 }
 
 export interface GitProcessAdmissionUsage extends GitProcessAdmissionDiagnostics {
   short: GitProcessAdmissionClassUsage;
   long: GitProcessAdmissionClassUsage;
+  slowFetches: number;
+  environments: Record<GitProcessAdmissionEnvironment, GitProcessAdmissionEnvironmentUsage>;
 }
 
 interface QueueEntry {
   gitClass: GitProcessClass;
   units: number;
+  environment: GitProcessAdmissionEnvironment | undefined;
+  subcommand: string | undefined;
+  /** Monotonic timestamp taken when the entry was enqueued. */
+  enqueuedAt: number;
   signal: AbortSignal | undefined;
   onAbort: (() => void) | undefined;
   timer: ReturnType<typeof setTimeout>;
@@ -222,11 +268,29 @@ interface ClassPool {
   limit: number;
   active: number;
   maxActive: number;
+  queueWaitMs: number;
+  maxQueueWaitMs: number;
+  executionMs: number;
+  maxExecutionMs: number;
   queue: QueueEntry[];
 }
 
 function isPositiveInt(value: number): boolean {
   return Number.isInteger(value) && value > 0;
+}
+
+/** Monotonic default clock for the timing split; injectable for deterministic tests. */
+const defaultSchedulerNow = (): number => performance.now();
+
+function emptyEnvironmentUsage(): Record<
+  GitProcessAdmissionEnvironment,
+  GitProcessAdmissionEnvironmentUsage
+> {
+  return {
+    posix: { active: 0, queued: 0 },
+    windows: { active: 0, queued: 0 },
+    wsl: { active: 0, queued: 0 },
+  };
 }
 
 /**
@@ -239,17 +303,56 @@ export class GitProcessAdmissionScheduler {
   private readonly pools: Record<GitProcessClass, ClassPool>;
   private counts: Pick<
     GitProcessAdmissionUsage,
-    "admitted" | "queueFullRefusals" | "waitTimeoutRefusals" | "cancellations"
+    "admitted" | "queueFullRefusals" | "waitTimeoutRefusals" | "cancellations" | "slowFetches"
   >;
+  private environments: Record<GitProcessAdmissionEnvironment, GitProcessAdmissionEnvironmentUsage>;
+  private now: () => number;
   private generation = 0;
 
-  constructor(policy: GitProcessAdmissionPolicy = GIT_PROCESS_ADMISSION_DEFAULT_POLICY) {
+  constructor(
+    policy: GitProcessAdmissionPolicy = GIT_PROCESS_ADMISSION_DEFAULT_POLICY,
+    options?: { now?: () => number },
+  ) {
     this.policy = { ...policy };
+    this.now = options?.now ?? defaultSchedulerNow;
     this.pools = {
-      short: { limit: this.policy.shortPermits, active: 0, maxActive: 0, queue: [] },
-      long: { limit: this.policy.longPermits, active: 0, maxActive: 0, queue: [] },
+      short: {
+        limit: this.policy.shortPermits,
+        active: 0,
+        maxActive: 0,
+        queueWaitMs: 0,
+        maxQueueWaitMs: 0,
+        executionMs: 0,
+        maxExecutionMs: 0,
+        queue: [],
+      },
+      long: {
+        limit: this.policy.longPermits,
+        active: 0,
+        maxActive: 0,
+        queueWaitMs: 0,
+        maxQueueWaitMs: 0,
+        executionMs: 0,
+        maxExecutionMs: 0,
+        queue: [],
+      },
     };
-    this.counts = { admitted: 0, queueFullRefusals: 0, waitTimeoutRefusals: 0, cancellations: 0 };
+    this.environments = emptyEnvironmentUsage();
+    this.counts = {
+      admitted: 0,
+      queueFullRefusals: 0,
+      waitTimeoutRefusals: 0,
+      cancellations: 0,
+      slowFetches: 0,
+    };
+  }
+
+  /**
+   * Process-local test hook for the timing split: replaces the monotonic
+   * clock, or restores the default when omitted.
+   */
+  setClockForTests(now?: () => number): void {
+    this.now = now ?? defaultSchedulerNow;
   }
 
   /**
@@ -298,8 +401,10 @@ export class GitProcessAdmissionScheduler {
       this.counts.queueFullRefusals += 1;
       throw this.refusal(GIT_ADMISSION_QUEUE_FULL_CODE, gitClass, units);
     }
+    const environment = request?.environment;
+    const subcommand = request?.subcommand;
     if (pool.queue.length === 0 && pool.active + units <= pool.limit) {
-      return this.grant(gitClass, units);
+      return this.grant(gitClass, units, { environment, subcommand });
     }
     if (this.queuedEntryCount() >= this.policy.maxQueuedEntries) {
       this.counts.queueFullRefusals += 1;
@@ -309,6 +414,9 @@ export class GitProcessAdmissionScheduler {
       const entry: QueueEntry = {
         gitClass,
         units,
+        environment,
+        subcommand,
+        enqueuedAt: this.now(),
         signal: request?.signal,
         onAbort: undefined,
         timer: setTimeout(() => {
@@ -333,6 +441,7 @@ export class GitProcessAdmissionScheduler {
       // Enqueue before any capacity re-check so a synchronous release in
       // between cannot strand this entry.
       pool.queue.push(entry);
+      if (environment) this.environments[environment].queued += units;
       // A configure() between our limit read and now may have freed room; the
       // strict-FIFO pump only admits this entry when it is the head and fits.
       this.pump(gitClass);
@@ -344,6 +453,11 @@ export class GitProcessAdmissionScheduler {
       short: this.classUsage("short"),
       long: this.classUsage("long"),
       ...this.counts,
+      environments: {
+        posix: { ...this.environments.posix },
+        windows: { ...this.environments.windows },
+        wsl: { ...this.environments.wsl },
+      },
     };
   }
 
@@ -360,15 +474,47 @@ export class GitProcessAdmissionScheduler {
       }
       pool.active = 0;
       pool.maxActive = 0;
+      pool.queueWaitMs = 0;
+      pool.maxQueueWaitMs = 0;
+      pool.executionMs = 0;
+      pool.maxExecutionMs = 0;
     }
-    this.counts = { admitted: 0, queueFullRefusals: 0, waitTimeoutRefusals: 0, cancellations: 0 };
+    this.environments = emptyEnvironmentUsage();
+    this.counts = {
+      admitted: 0,
+      queueFullRefusals: 0,
+      waitTimeoutRefusals: 0,
+      cancellations: 0,
+      slowFetches: 0,
+    };
   }
 
-  private grant(gitClass: GitProcessClass, units: number): GitProcessAdmissionTicket {
+  private grant(
+    gitClass: GitProcessClass,
+    units: number,
+    context?: {
+      environment: GitProcessAdmissionEnvironment | undefined;
+      subcommand: string | undefined;
+      enqueuedAt?: number;
+    },
+  ): GitProcessAdmissionTicket {
     const pool = this.pools[gitClass];
+    const queueWaitMs =
+      context?.enqueuedAt === undefined ? 0 : Math.max(0, this.now() - context.enqueuedAt);
+    pool.queueWaitMs += queueWaitMs;
+    pool.maxQueueWaitMs = Math.max(pool.maxQueueWaitMs, queueWaitMs);
     pool.active += units;
     pool.maxActive = Math.max(pool.maxActive, pool.active);
     this.counts.admitted += 1;
+    const environment = context?.environment;
+    if (environment) {
+      // Only pumped entries were counted as queued; immediate grants were
+      // never enqueued, so their environment gauge never carried them.
+      if (context?.enqueuedAt !== undefined) this.environments[environment].queued -= units;
+      this.environments[environment].active += units;
+    }
+    const subcommand = context?.subcommand;
+    const grantedAt = this.now();
     let released = false;
     const generation = this.generation;
     return {
@@ -379,6 +525,13 @@ export class GitProcessAdmissionScheduler {
         released = true;
         if (generation !== this.generation) return;
         pool.active -= units;
+        if (environment) this.environments[environment].active -= units;
+        const executionMs = Math.max(0, this.now() - grantedAt);
+        pool.executionMs += executionMs;
+        pool.maxExecutionMs = Math.max(pool.maxExecutionMs, executionMs);
+        if (subcommand === "fetch" && executionMs > GIT_SLOW_FETCH_EXECUTION_MS) {
+          this.counts.slowFetches += 1;
+        }
         this.pump(gitClass);
       },
     };
@@ -394,14 +547,23 @@ export class GitProcessAdmissionScheduler {
       const head = pool.queue.shift()!;
       clearTimeout(head.timer);
       this.detachSignal(head);
-      head.settle(this.grant(head.gitClass, head.units));
+      head.settle(
+        this.grant(head.gitClass, head.units, {
+          environment: head.environment,
+          subcommand: head.subcommand,
+          enqueuedAt: head.enqueuedAt,
+        }),
+      );
     }
   }
 
   private removeQueued(gitClass: GitProcessClass, entry: QueueEntry): void {
     const pool = this.pools[gitClass];
     const index = pool.queue.indexOf(entry);
-    if (index >= 0) pool.queue.splice(index, 1);
+    if (index >= 0) {
+      pool.queue.splice(index, 1);
+      if (entry.environment) this.environments[entry.environment].queued -= entry.units;
+    }
     clearTimeout(entry.timer);
     this.detachSignal(entry);
   }
@@ -420,6 +582,10 @@ export class GitProcessAdmissionScheduler {
       active: pool.active,
       queued: pool.queue.length,
       maxActive: pool.maxActive,
+      queueWaitMs: pool.queueWaitMs,
+      maxQueueWaitMs: pool.maxQueueWaitMs,
+      executionMs: pool.executionMs,
+      maxExecutionMs: pool.maxExecutionMs,
     };
   }
 
@@ -495,6 +661,15 @@ export function resetGitProcessAdmissionForTests(): void {
   processGitProcessAdmission.resetForTests();
 }
 
+/**
+ * Process-local test hook for the timing split: installs a deterministic
+ * clock on the singleton, or restores the default monotonic clock when
+ * omitted. Only the process-default instance is affected.
+ */
+export function setGitProcessAdmissionClockForTests(now?: () => number): void {
+  processGitProcessAdmission.setClockForTests(now);
+}
+
 export function isGitProcessAdmissionError(error: unknown): error is GitProcessAdmissionError {
   return error instanceof GitProcessAdmissionError;
 }
@@ -502,6 +677,10 @@ export function isGitProcessAdmissionError(error: unknown): error is GitProcessA
 /** Direct scheduler access for tests that need an isolated instance. */
 export function createGitProcessAdmissionScheduler(
   policy?: Partial<GitProcessAdmissionPolicy>,
+  options?: { now?: () => number },
 ): GitProcessAdmissionScheduler {
-  return new GitProcessAdmissionScheduler({ ...GIT_PROCESS_ADMISSION_DEFAULT_POLICY, ...policy });
+  return new GitProcessAdmissionScheduler(
+    { ...GIT_PROCESS_ADMISSION_DEFAULT_POLICY, ...policy },
+    options,
+  );
 }

@@ -74,8 +74,14 @@ describe("SupervisorRuntime host resource admission wiring", () => {
       overloadRetryAfterMs: 1_000,
     });
     expect(status.gitProcesses).toMatchObject({
-      short: { limit: 8, active: 0, queued: 0 },
-      long: { limit: 2, active: 0, queued: 0 },
+      short: { limit: 8, active: 0, queued: 0, queueWaitMs: 0, executionMs: 0 },
+      long: { limit: 2, active: 0, queued: 0, queueWaitMs: 0, executionMs: 0 },
+      slowFetches: 0,
+      environments: {
+        posix: { active: 0, queued: 0 },
+        windows: { active: 0, queued: 0 },
+        wsl: { active: 0, queued: 0 },
+      },
     });
 
     const live = runtime.hostResourceAdmission.tryAcquire({

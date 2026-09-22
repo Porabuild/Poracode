@@ -6,6 +6,7 @@ import {
   GIT_ADMISSION_QUEUE_FULL_CODE,
   GIT_ADMISSION_WAIT_TIMEOUT_CODE,
   GIT_PROCESS_ADMISSION_DEFAULT_POLICY,
+  GIT_SLOW_FETCH_EXECUTION_MS,
   type GitProcessAdmissionTicket,
 } from "./gitProcessAdmission";
 
@@ -16,6 +17,17 @@ function makeScheduler() {
     maxQueuedEntries: 8,
     admissionWaitTimeoutMs: 1_000,
   });
+}
+
+/** Deterministic monotonic clock for the timing split; advance by hand. */
+function makeClock(startMs = 1_000) {
+  let value = startMs;
+  return {
+    now: (): number => value,
+    advance: (ms: number): void => {
+      value += ms;
+    },
+  };
 }
 
 /** Drain admission microtasks deterministically without real delays. */
@@ -344,6 +356,271 @@ describe("GitProcessAdmissionScheduler release and isolation", () => {
     const current = await scheduler.admit("short", { units: 2 });
     expect(scheduler.usage().short.active).toBe(2);
     current.release();
+  });
+});
+
+describe("GitProcessAdmissionScheduler timing split", () => {
+  it("records zero wait for immediate grants and the exact execution span", async () => {
+    const clock = makeClock();
+    const scheduler = createGitProcessAdmissionScheduler(
+      { shortPermits: 2, longPermits: 1, maxQueuedEntries: 8, admissionWaitTimeoutMs: 1_000 },
+      { now: clock.now },
+    );
+    const ticket = await scheduler.admit("short");
+    clock.advance(250);
+    ticket.release();
+    expect(scheduler.usage().short).toMatchObject({
+      queueWaitMs: 0,
+      maxQueueWaitMs: 0,
+      executionMs: 250,
+      maxExecutionMs: 250,
+    });
+  });
+
+  it("splits queued admission wait from execution duration deterministically", async () => {
+    const clock = makeClock();
+    const scheduler = createGitProcessAdmissionScheduler(
+      { shortPermits: 1, longPermits: 1, maxQueuedEntries: 8, admissionWaitTimeoutMs: 1_000 },
+      { now: clock.now },
+    );
+    const holder = await scheduler.admit("short"); // granted at t=1000
+    clock.advance(40);
+    const queued = scheduler.admit("short"); // enqueued at t=1040
+    await settle();
+    clock.advance(210); // t=1250
+    holder.release(); // queued head grants: wait 1040→1250 = 210
+    const queuedTicket = await queued;
+    clock.advance(90); // t=1340
+    queuedTicket.release(); // executed 1250→1340 = 90
+    expect(scheduler.usage().short).toMatchObject({
+      queueWaitMs: 210,
+      maxQueueWaitMs: 210,
+      executionMs: 340, // holder 1000→1250 = 250, queued 90
+      maxExecutionMs: 250,
+    });
+  });
+
+  it("counts no wait or execution for a timed-out queue entry", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const clock = makeClock();
+    const scheduler = createGitProcessAdmissionScheduler(
+      { shortPermits: 1, longPermits: 1, maxQueuedEntries: 8, admissionWaitTimeoutMs: 500 },
+      { now: clock.now },
+    );
+    const holder = await scheduler.admit("short");
+    clock.advance(40);
+    const queued = scheduler.admit("short");
+    const failure = queued.catch((error: unknown) => error);
+    clock.advance(500);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(await failure).toMatchObject({ code: GIT_ADMISSION_WAIT_TIMEOUT_CODE });
+    expect(scheduler.usage().waitTimeoutRefusals).toBe(1);
+    expect(scheduler.usage().short).toMatchObject({
+      queueWaitMs: 0,
+      maxQueueWaitMs: 0,
+      executionMs: 0,
+    });
+    clock.advance(100);
+    holder.release(); // grant t=1000 → release t=1640
+    expect(scheduler.usage().short.executionMs).toBe(640);
+  });
+
+  it("counts no wait or execution for a cancelled queue entry", async () => {
+    const clock = makeClock();
+    const scheduler = createGitProcessAdmissionScheduler(
+      { shortPermits: 1, longPermits: 1, maxQueuedEntries: 8, admissionWaitTimeoutMs: 1_000 },
+      { now: clock.now },
+    );
+    const holder = await scheduler.admit("short");
+    clock.advance(30);
+    const controller = new AbortController();
+    const queued = scheduler.admit("short", { signal: controller.signal });
+    await settle();
+    controller.abort();
+    await expect(queued).rejects.toMatchObject({ code: GIT_ADMISSION_CANCELLED_CODE });
+    expect(scheduler.usage().cancellations).toBe(1);
+    expect(scheduler.usage().short).toMatchObject({
+      queueWaitMs: 0,
+      executionMs: 0,
+      active: 1,
+      queued: 0,
+    });
+    clock.advance(120);
+    holder.release(); // grant t=1000 → release t=1150
+    expect(scheduler.usage().short.executionMs).toBe(150);
+  });
+
+  it("counts execution exactly once across repeated releases", async () => {
+    const clock = makeClock();
+    const scheduler = createGitProcessAdmissionScheduler(
+      { shortPermits: 2, longPermits: 1, maxQueuedEntries: 8, admissionWaitTimeoutMs: 1_000 },
+      { now: clock.now },
+    );
+    const ticket = await scheduler.admit("short");
+    clock.advance(100);
+    ticket.release();
+    clock.advance(500);
+    ticket.release();
+    ticket.release();
+    expect(scheduler.usage().short.executionMs).toBe(100);
+  });
+
+  it("tracks the timing split per class", async () => {
+    const clock = makeClock();
+    const scheduler = createGitProcessAdmissionScheduler(
+      { shortPermits: 1, longPermits: 1, maxQueuedEntries: 8, admissionWaitTimeoutMs: 1_000 },
+      { now: clock.now },
+    );
+    const shortTicket = await scheduler.admit("short");
+    const longTicket = await scheduler.admit("long");
+    clock.advance(500);
+    longTicket.release();
+    clock.advance(100);
+    shortTicket.release();
+    expect(scheduler.usage().short.executionMs).toBe(600);
+    expect(scheduler.usage().long.executionMs).toBe(500);
+    expect(scheduler.usage().long.queueWaitMs).toBe(0);
+  });
+
+  it("counts slow fetches strictly past the declared threshold", async () => {
+    const clock = makeClock();
+    const scheduler = createGitProcessAdmissionScheduler(
+      { shortPermits: 2, longPermits: 1, maxQueuedEntries: 8, admissionWaitTimeoutMs: 1_000 },
+      { now: clock.now },
+    );
+    // Exactly at the threshold is not slow; one millisecond past it is.
+    const fetchA = await scheduler.admit("long", { subcommand: "fetch" });
+    clock.advance(GIT_SLOW_FETCH_EXECUTION_MS);
+    fetchA.release();
+    expect(scheduler.usage().slowFetches).toBe(0);
+
+    const fetchB = await scheduler.admit("long", { subcommand: "fetch" });
+    clock.advance(GIT_SLOW_FETCH_EXECUTION_MS + 1);
+    fetchB.release();
+    expect(scheduler.usage().slowFetches).toBe(1);
+    expect(scheduler.usage().long.maxExecutionMs).toBe(GIT_SLOW_FETCH_EXECUTION_MS + 1);
+
+    // The same span is not a slow fetch for other subcommands or untagged work.
+    const commit = await scheduler.admit("long", { subcommand: "commit" });
+    clock.advance(GIT_SLOW_FETCH_EXECUTION_MS + 1);
+    commit.release();
+    expect(scheduler.usage().slowFetches).toBe(1);
+
+    const untagged = await scheduler.admit("long");
+    clock.advance(GIT_SLOW_FETCH_EXECUTION_MS + 1);
+    untagged.release();
+    expect(scheduler.usage().slowFetches).toBe(1);
+  });
+
+  it("resets timing totals, slow fetches and environment gauges with the pools", async () => {
+    const clock = makeClock();
+    const scheduler = createGitProcessAdmissionScheduler(
+      { shortPermits: 2, longPermits: 1, maxQueuedEntries: 8, admissionWaitTimeoutMs: 1_000 },
+      { now: clock.now },
+    );
+    const ticket = await scheduler.admit("short", { environment: "wsl" });
+    clock.advance(50);
+    ticket.release();
+    scheduler.resetForTests();
+    expect(scheduler.usage()).toMatchObject({
+      short: { queueWaitMs: 0, maxQueueWaitMs: 0, executionMs: 0, maxExecutionMs: 0 },
+      slowFetches: 0,
+      environments: {
+        posix: { active: 0, queued: 0 },
+        windows: { active: 0, queued: 0 },
+        wsl: { active: 0, queued: 0 },
+      },
+    });
+  });
+});
+
+describe("GitProcessAdmissionScheduler environment gauges", () => {
+  it("reports every environment with zero gauges before any admission", () => {
+    const scheduler = makeScheduler();
+    expect(scheduler.usage().environments).toEqual({
+      posix: { active: 0, queued: 0 },
+      windows: { active: 0, queued: 0 },
+      wsl: { active: 0, queued: 0 },
+    });
+  });
+
+  it("tracks active and queued permit units per environment", async () => {
+    const scheduler = makeScheduler();
+    const wsl = await scheduler.admit("short", { environment: "wsl" });
+    // Two posix units queue behind the single wsl unit (pool limit is 2).
+    const posix = scheduler.admit("short", { environment: "posix", units: 2 });
+    await settle();
+    expect(scheduler.usage().environments).toEqual({
+      posix: { active: 0, queued: 2 },
+      windows: { active: 0, queued: 0 },
+      wsl: { active: 1, queued: 0 },
+    });
+
+    wsl.release();
+    const posixTicket = await posix;
+    expect(scheduler.usage().environments).toMatchObject({
+      posix: { active: 2, queued: 0 },
+      wsl: { active: 0, queued: 0 },
+    });
+    posixTicket.release();
+    expect(scheduler.usage().environments).toEqual({
+      posix: { active: 0, queued: 0 },
+      windows: { active: 0, queued: 0 },
+      wsl: { active: 0, queued: 0 },
+    });
+  });
+
+  it("returns queued gauges on cancellation without disturbing active work", async () => {
+    const scheduler = makeScheduler();
+    const holderA = await scheduler.admit("short", { environment: "wsl" });
+    const holderB = await scheduler.admit("short", { environment: "wsl" });
+    const controller = new AbortController();
+    const queued = scheduler.admit("short", { environment: "posix", signal: controller.signal });
+    await settle();
+    expect(scheduler.usage().environments).toMatchObject({
+      posix: { active: 0, queued: 1 },
+      wsl: { active: 2, queued: 0 },
+    });
+    controller.abort();
+    await expect(queued).rejects.toMatchObject({ code: GIT_ADMISSION_CANCELLED_CODE });
+    expect(scheduler.usage().environments).toMatchObject({
+      posix: { active: 0, queued: 0 },
+      wsl: { active: 2, queued: 0 },
+    });
+    holderA.release();
+    holderB.release();
+    expect(scheduler.usage().environments?.wsl).toEqual({ active: 0, queued: 0 });
+  });
+
+  it("keeps untagged admissions out of the per-environment gauges", async () => {
+    const scheduler = makeScheduler();
+    const ticket = await scheduler.admit("short");
+    expect(scheduler.usage().short.active).toBe(1);
+    expect(scheduler.usage().environments).toEqual({
+      posix: { active: 0, queued: 0 },
+      windows: { active: 0, queued: 0 },
+      wsl: { active: 0, queued: 0 },
+    });
+    ticket.release();
+  });
+
+  it("settles the gauges exactly once when a queued entry is pumped", async () => {
+    const scheduler = createGitProcessAdmissionScheduler({
+      shortPermits: 1,
+      longPermits: 1,
+      maxQueuedEntries: 8,
+      admissionWaitTimeoutMs: 1_000,
+    });
+    const holder = await scheduler.admit("short", { environment: "wsl" });
+    const queued = scheduler.admit("short", { environment: "wsl" });
+    await settle();
+    expect(scheduler.usage().environments.wsl).toEqual({ active: 1, queued: 1 });
+
+    holder.release();
+    const ticket = await queued;
+    expect(scheduler.usage().environments.wsl).toEqual({ active: 1, queued: 0 });
+    ticket.release();
+    expect(scheduler.usage().environments.wsl).toEqual({ active: 0, queued: 0 });
   });
 });
 
