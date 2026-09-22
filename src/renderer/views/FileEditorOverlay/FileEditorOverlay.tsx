@@ -1,6 +1,7 @@
 import { toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft } from "lucide-react";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import {
   overlaySidebarColumnClass,
@@ -23,7 +24,8 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
   const hasDirtyBuffers = Object.values(buffers).some(
     (buffer) => buffer.status === "ready" && buffer.isDirty,
   );
-  const isRemoteRoot = rootContext.remoteServerId !== undefined;
+  const canBrowseProject =
+    rootContext.remoteServerId === undefined && !isHomeProjectId(rootContext.projectId);
 
   function requestClose() {
     if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {
@@ -45,7 +47,7 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
       }
       sidebar={
         <div className={overlaySidebarColumnClass}>
-          {isRemoteRoot ? null : (
+          {canBrowseProject ? (
             <div className="min-h-0 flex-1 overflow-hidden">
               <ProjectTreeView
                 rootContext={rootContext}
@@ -57,7 +59,7 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
                 onPinFile={pinTab}
               />
             </div>
-          )}
+          ) : null}
           <div className={sidebarFooterNavClass}>
             <SidebarButton
               icon={<ArrowLeft className="size-4" />}

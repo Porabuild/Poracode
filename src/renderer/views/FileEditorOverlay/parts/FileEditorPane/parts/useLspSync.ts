@@ -4,6 +4,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { lspOrchestrator } from "@/renderer/lsp";
 import { createLspFileUri } from "@/shared/lsp";
+import { isHomeProjectId } from "@/shared/homeScope";
 
 export function useLspSync(params: {
   monaco: Monaco | null;
@@ -18,12 +19,14 @@ export function useLspSync(params: {
   );
 
   // Start the server and sync the active document once Monaco has mounted and
-  // the buffer content is ready.
+  // the buffer content is ready. Home opens individual files without treating
+  // the user's entire home directory as a language-server workspace.
   useEffect(() => {
     if (
       !lspEnabled ||
       !monaco ||
       !rootProjectId ||
+      isHomeProjectId(rootProjectId) ||
       !rootProjectLocation ||
       !activePath ||
       bufferStatus !== "ready"
@@ -62,12 +65,14 @@ export function useLspSync(params: {
   useEffect(() => {
     const projectId = rootProjectId;
     return () => {
-      if (projectId) void lspOrchestrator.stopProject(projectId);
+      if (projectId && !isHomeProjectId(projectId)) void lspOrchestrator.stopProject(projectId);
     };
   }, [rootProjectId]);
 
   function notifyDidSave(path: string) {
-    if (!lspEnabled || !rootProjectId || !rootProjectLocation) return;
+    if (!lspEnabled || !rootProjectId || isHomeProjectId(rootProjectId) || !rootProjectLocation) {
+      return;
+    }
     const session = lspOrchestrator.getSession(rootProjectId, path);
     const savedBuffer = useFileEditorStore.getState().buffers[path];
     if (session && savedBuffer?.status === "ready") {

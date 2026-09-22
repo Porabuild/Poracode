@@ -4,6 +4,7 @@ import { MessageCircle } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAppStore } from "@/renderer/state/appStore";
 import type { Thread } from "@/shared/contracts";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { EmptyState } from "./components";
 import { useDesktopPanelStore } from "./desktopPanelStore";
 import { openWorktreeDraft, preselectWorktreeDraft, runThreadAction } from "./navHelpers";
@@ -55,6 +56,7 @@ export function ThreadDetail(props: {
   }
 
   const loading = remote.selectedThreadSnapshot?.thread.id !== thread.id;
+  const canBrowseProject = !isHomeProjectId(thread.projectId);
   return (
     <Suspense
       fallback={
@@ -95,17 +97,23 @@ export function ThreadDetail(props: {
             params: { threadId: thread.id, parentItemId },
           });
         }}
-        onOpenWorkspace={(tab) => {
-          if (useRightPanel) {
-            useDesktopPanelStore.getState().show(tab === "changes" ? "git" : "files", thread.id);
-            return;
-          }
-          void navigate({
-            to: "/workspace/$threadId",
-            params: { threadId: thread.id },
-            search: { tab },
-          });
-        }}
+        {...(canBrowseProject
+          ? {
+              onOpenWorkspace: (tab) => {
+                if (useRightPanel) {
+                  useDesktopPanelStore
+                    .getState()
+                    .show(tab === "changes" ? "git" : "files", thread.id);
+                  return;
+                }
+                void navigate({
+                  to: "/workspace/$threadId",
+                  params: { threadId: thread.id },
+                  search: { tab },
+                });
+              },
+            }
+          : {})}
         onOpenWorkspaceFile={(path, lineNumber) => {
           if (useRightPanel) {
             useDesktopPanelStore.getState().showFile(thread.id, path, lineNumber);
@@ -121,17 +129,21 @@ export function ThreadDetail(props: {
             },
           });
         }}
-        onOpenWorkspaceFolder={(path) => {
-          if (useRightPanel) {
-            useDesktopPanelStore.getState().showFolder(thread.id, path);
-            return;
-          }
-          void navigate({
-            to: "/workspace/$threadId",
-            params: { threadId: thread.id },
-            search: { tab: "files", folder: path },
-          });
-        }}
+        {...(canBrowseProject
+          ? {
+              onOpenWorkspaceFolder: (path) => {
+                if (useRightPanel) {
+                  useDesktopPanelStore.getState().showFolder(thread.id, path);
+                  return;
+                }
+                void navigate({
+                  to: "/workspace/$threadId",
+                  params: { threadId: thread.id },
+                  search: { tab: "files", folder: path },
+                });
+              },
+            }
+          : {})}
         onOpenTerminal={() => {
           if (useRightPanel) {
             useDesktopPanelStore.getState().show("terminal", thread.id);

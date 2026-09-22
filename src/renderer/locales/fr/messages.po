@@ -1809,6 +1809,7 @@ msgid "Awaiting review"
 msgstr "Examen en attente"
 
 #: src/mobile/views/BrowserView.tsx
+#: src/mobile/views/HomeFileView.tsx
 #: src/mobile/views/NotesView.tsx
 #: src/mobile/views/pr/PrPageHeader.tsx
 #: src/mobile/views/TerminalView.tsx
@@ -1921,7 +1922,7 @@ msgstr "Fichier binaire — aperçu indisponible."
 msgid "Binary file or no diff available"
 msgstr "Fichier binaire ou aucune différence disponible"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Binary files can't be edited here."
 msgstr "Les fichiers binaires ne peuvent pas être modifiés ici."
@@ -4560,6 +4561,7 @@ msgstr "Abandonner l’expérience ?"
 msgid "Discard unsaved changes in {path}?"
 msgstr "Abandonner les modifications non enregistrées dans {path} ?"
 
+#: src/renderer/actions/fileEditorContext.ts
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorModal.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPanel.tsx
@@ -5419,7 +5421,7 @@ msgstr "Les modifications de fichiers apparaîtront ici."
 msgid "File is too large to preview."
 msgstr "Le fichier est trop volumineux pour être prévisualisé."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "File no longer exists on disk."
 msgstr "Le fichier n'existe plus sur le disque."
@@ -7001,6 +7003,7 @@ msgstr "Chargement des exécutions de workflows"
 #: src/mobile/ThreadDetail.tsx
 #: src/mobile/views/FilesView.tsx
 #: src/mobile/views/HostFolderPicker.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/app.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/WorkflowOverlayBody.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
@@ -8280,6 +8283,10 @@ msgstr "Aucune compétence externe n’a été trouvée dans cette portée."
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 msgid "No file checkpoint is stored for this message."
 msgstr "Aucun point de contrôle de fichier n'est stocké pour ce message."
+
+#: src/mobile/views/MobileFileEditor.tsx
+msgid "No file selected."
+msgstr "Aucun fichier sélectionné."
 
 #. placeholder {0}: query.trim()
 #. placeholder {0}: tree.searchQuery
@@ -11242,7 +11249,7 @@ msgstr "Même ordre de fournisseurs sur toutes les machines"
 msgid "Saturation and brightness"
 msgstr "Saturation et luminosité"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
 #: src/renderer/components/thread/ThreadGoalControls.tsx
@@ -13286,12 +13293,12 @@ msgstr "Cet appareil n'a pas de caméra utilisable. Saisissez plutôt l'endpoint
 msgid "this environment"
 msgstr "cet environnement"
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "Ce fichier est trop volumineux pour l'éditeur intégré."
 
-#: src/mobile/views/FilesView.tsx
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Ce fichier utilise un encodage non pris en charge."

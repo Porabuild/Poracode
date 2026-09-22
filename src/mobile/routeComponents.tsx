@@ -5,6 +5,7 @@ import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { useAppStore } from "@/renderer/state/appStore";
 import { SubAgentContent } from "@/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay";
 import { getBasename } from "@/shared/pathUtils";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { buildWorktreeLocation, resolveProjectLocation } from "@/shared/worktree";
 import { useGitSummariesStore } from "./gitSummaries";
 import { useMobileApp, useRemote } from "./remoteContext";
@@ -626,8 +627,11 @@ export function WorkspaceRoute() {
   // the thread's working tree is a git repo (per the cached summary).
   const isRepo = useGitSummariesStore((s) => s.byThread[threadId]?.isRepo === true);
   const filesTarget = buildFilesTarget(remote, threadId);
-  const gitTarget = isRepo ? buildGitTarget(remote, threadId) : null;
+  const canBrowseProject = filesTarget !== null && !isHomeProjectId(filesTarget.project.id);
+  const gitTarget = isRepo && canBrowseProject ? buildGitTarget(remote, threadId) : null;
   const hasTarget = Boolean(filesTarget);
+  // A Home URL without a file still needs the empty viewer and its Back action.
+  const openInRightPanel = useRightPanel && (canBrowseProject || Boolean(file));
 
   // If the thread/project never resolves (e.g. a stale deep link), bail out to
   // the thread list once the session has booted.
@@ -636,20 +640,22 @@ export function WorkspaceRoute() {
   }, [remote.booted, hasTarget, navigate]);
 
   useEffect(() => {
-    if (!useRightPanel || !hasTarget) return;
+    if (!openInRightPanel || !hasTarget) return;
     const panel = useDesktopPanelStore.getState();
     if (file) panel.showFile(threadId, file, line);
-    else if (folder) panel.showFolder(threadId, folder);
-    else panel.show(tab === "changes" ? "git" : "files", threadId);
+    else if (canBrowseProject) {
+      if (folder) panel.showFolder(threadId, folder);
+      else panel.show(tab === "changes" ? "git" : "files", threadId);
+    }
     void navigate({
       to: "/thread/$threadId",
       params: { threadId },
       replace: true,
     });
-  }, [file, folder, hasTarget, line, navigate, tab, threadId, useRightPanel]);
+  }, [canBrowseProject, file, folder, hasTarget, line, navigate, openInRightPanel, tab, threadId]);
 
   if (!filesTarget) return null;
-  if (useRightPanel) {
+  if (openInRightPanel) {
     return null;
   }
   // The workspace belongs to a thread; closing returns there deterministically

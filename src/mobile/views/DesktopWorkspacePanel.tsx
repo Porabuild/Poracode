@@ -18,6 +18,7 @@ import {
   Waypoints,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
+import { isHomeProjectId } from "@/shared/homeScope";
 import {
   UnifiedRightPanel,
   type RightPanelTab,
@@ -91,7 +92,7 @@ export function DesktopWorkspacePanel(props: {
   const { remote, currentThreadId } = props;
   const { t } = useLingui();
   const navigate = useNavigate();
-  const open = useDesktopPanelStore((state) => state.open);
+  const requestedOpen = useDesktopPanelStore((state) => state.open);
   const activeTab = useDesktopPanelStore((state) => state.activeTab);
   const storedThreadId = useDesktopPanelStore((state) => state.threadId);
   const initialFilePath = useDesktopPanelStore((state) => state.initialFilePath);
@@ -111,6 +112,7 @@ export function DesktopWorkspacePanel(props: {
     threadId ? state.byThread[threadId]?.isRepo === true : false,
   );
   const filesTarget = threadId ? buildFilesTarget(remote, threadId) : null;
+  const canBrowseProject = filesTarget !== null && !isHomeProjectId(filesTarget.project.id);
   const subAgentItemExists = useAppStore((state) =>
     subAgentThreadId && subAgentParentItemId
       ? state.runtimeItemsByIdByThread[subAgentThreadId]?.[subAgentParentItemId] !== undefined
@@ -124,7 +126,8 @@ export function DesktopWorkspacePanel(props: {
   const subAgentTarget = subAgentInCurrentThread
     ? buildFilesTarget(remote, subAgentThreadId)
     : null;
-  const gitTarget = threadId && isRepo ? buildGitTarget(remote, threadId) : null;
+  const gitTarget =
+    threadId && isRepo && canBrowseProject ? buildGitTarget(remote, threadId) : null;
   const filesRootContext = filesTarget
     ? buildFileEditorContext(filesTarget.project, filesTarget.worktreePath, thread?.worktreeBranch)
     : null;
@@ -142,6 +145,9 @@ export function DesktopWorkspacePanel(props: {
         ? "files"
         : activeTab;
   const projectId = filesTarget?.project.id ?? null;
+  // Home file requests open the editor overlay, never an empty project panel.
+  const canShowPanel = visibleTab !== "files" || canBrowseProject;
+  const open = requestedOpen && canShowPanel;
   const worktreePath = filesTarget?.worktreePath;
   const worktreeBranch = thread?.worktreeBranch;
   const [panelWidth, setPanelWidth] = useState(readPanelWidth);
@@ -201,9 +207,11 @@ export function DesktopWorkspacePanel(props: {
   }, [open, projectId, visibleTab, worktreePath]);
 
   useEffect(() => {
-    if (!open || visibleTab !== "files" || openRequestKey === 0 || !project) {
+    if (!requestedOpen || visibleTab !== "files" || !project) {
       return;
     }
+    if (isHomeProjectId(project.id)) useDesktopPanelStore.getState().close();
+    if (openRequestKey === 0) return;
     if (handledOpenRequestRef.current === openRequestKey) return;
     handledOpenRequestRef.current = openRequestKey;
 
@@ -217,7 +225,7 @@ export function DesktopWorkspacePanel(props: {
       );
       return;
     }
-    if (initialFolderPath) {
+    if (initialFolderPath && !isHomeProjectId(project.id)) {
       const parts = initialFolderPath.split(/[\\/]/).filter(Boolean);
       useProjectTreeStore
         .getState()
@@ -227,7 +235,7 @@ export function DesktopWorkspacePanel(props: {
     initialFilePath,
     initialFolderPath,
     initialLineNumber,
-    open,
+    requestedOpen,
     openRequestKey,
     project,
     visibleTab,
@@ -360,7 +368,7 @@ export function DesktopWorkspacePanel(props: {
 
   return (
     <div ref={toolsRef} className="m-desktop-tools">
-      {panelRendered ? (
+      {panelRendered && canShowPanel ? (
         <>
           {panelVisible ? (
             <div
@@ -416,7 +424,7 @@ export function DesktopWorkspacePanel(props: {
                   ) : null
                 }
                 filesContent={
-                  openedTabs.has("files") && filesRootContext ? (
+                  openedTabs.has("files") && filesRootContext && canBrowseProject ? (
                     <ProjectFilesPanel key={threadId} rootContext={filesRootContext} />
                   ) : null
                 }
@@ -454,7 +462,7 @@ export function DesktopWorkspacePanel(props: {
                 }
                 showTerminalTab={filesTarget !== null}
                 showGitTab={gitTarget !== null}
-                showFilesTab={filesTarget !== null}
+                showFilesTab={canBrowseProject}
                 showNotesTab={filesTarget !== null}
                 showUsageTab={remote.activeDesktop !== null}
                 showBrowserTab={false}
@@ -490,7 +498,7 @@ export function DesktopWorkspacePanel(props: {
       ) : null}
       <nav
         className="m-desktop-tool-rail"
-        data-hidden={open || panelRendered || undefined}
+        data-hidden={open || (panelRendered && canShowPanel) || undefined}
         aria-label={t`Tools`}
       >
         <span className="m-desktop-tool-rail__collapsed" aria-hidden="true">
@@ -501,7 +509,9 @@ export function DesktopWorkspacePanel(props: {
             const scoped = id === "git" || id === "files" || id === "terminal" || id === "notes";
             const requiresDesktop = id === "usage" || id === "ports";
             const disabled =
-              (scoped && !filesTarget) || (requiresDesktop && remote.activeDesktop === null);
+              (scoped && !filesTarget) ||
+              (id === "files" && !canBrowseProject) ||
+              (requiresDesktop && remote.activeDesktop === null);
             const label = tabLabel(id);
             return (
               <Button

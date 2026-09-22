@@ -9,6 +9,9 @@ import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueu
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 import { ThreadView } from "./ThreadView";
 import { suppressNextGhostTap } from "../suppressGhostTap";
+import { ThreadDetail } from "../ThreadDetail";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { useDesktopPanelStore } from "../desktopPanelStore";
 
 const fixtures = vi.hoisted(() => ({
   project: {
@@ -31,7 +34,14 @@ const fixtures = vi.hoisted(() => ({
   desktopPointer: false,
   keyboardOffset: 0,
   agentStatuses: [] as AgentStatus[],
+  navigate: vi.fn<(input: unknown) => void>(),
 }));
+
+vi.mock("@tanstack/react-router", () => ({ useNavigate: () => fixtures.navigate }));
+vi.mock("../remoteContext", () => ({
+  useRemote: () => ({ activeThreads: [], openThread: vi.fn<(thread: Thread) => Promise<void>>() }),
+}));
+vi.mock("../useGitSummaryHydration", () => ({ useGitSummaryHydration: () => undefined }));
 
 const bridgeMock = vi.hoisted(() => ({
   pauseThreadFollowUps: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -85,10 +95,6 @@ vi.mock("../TerminalAccessory", () => ({
 
 vi.mock("../ThreadTitleRow", () => ({
   ThreadTitleRow: () => <div data-testid="thread-title-row" />,
-}));
-
-vi.mock("../GitSummaryParts", () => ({
-  WorkspaceChip: () => <button type="button">Workspace</button>,
 }));
 
 vi.mock("@/renderer/components/thread/ThreadComposerSection", () => ({
@@ -167,6 +173,7 @@ vi.mock("../useKeyboardOffset", () => ({
 
 vi.mock("../useMediaQuery", () => ({
   DESKTOP_POINTER_QUERY: "desktop-pointer",
+  DESKTOP_RIGHT_PANEL_QUERY: "right-panel",
   useMediaQuery: () => fixtures.desktopPointer,
 }));
 
@@ -191,6 +198,8 @@ describe("mobile ThreadView", () => {
     fixtures.desktopPointer = false;
     fixtures.keyboardOffset = 0;
     fixtures.agentStatuses = [];
+    fixtures.navigate.mockClear();
+    useDesktopPanelStore.getState().reset();
     useAppStore.setState({
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -201,6 +210,32 @@ describe("mobile ThreadView", () => {
       pendingComposerFocusThreadId: null,
     });
   });
+
+  it.each([false, true])(
+    "gates the actual workspace chip through ThreadDetail (wide=%s)",
+    async (wide) => {
+      fixtures.desktopPointer = wide;
+      const thread = makeTerminalThread();
+      const { container, rerender } = render(
+        <ThreadDetail thread={{ ...thread, projectId: HOME_PROJECT_ID }} hideHeader={false} />,
+      );
+      await screen.findByTestId("thread-title-row");
+      expect(container.querySelector(".m-ws-chip")).not.toBeInTheDocument();
+      rerender(<ThreadDetail thread={thread} hideHeader={false} />);
+      fireEvent.click(await screen.findByRole("button", { name: "Repo" }));
+      expect(
+        wide ? useDesktopPanelStore.getState() : fixtures.navigate.mock.calls[0]?.[0],
+      ).toMatchObject(
+        wide
+          ? { open: true, activeTab: "files" }
+          : {
+              to: "/workspace/$threadId",
+              params: { threadId: thread.id },
+              search: { tab: "files" },
+            },
+      );
+    },
+  );
 
   it("enables desktop composer behavior only for desktop-like PWA input", () => {
     const thread = makeTerminalThread();

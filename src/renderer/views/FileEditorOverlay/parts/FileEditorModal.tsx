@@ -1,6 +1,7 @@
 import { Button, Modal, toast } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { Maximize2, X } from "lucide-react";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { overlaySidebarColumnClass } from "@/renderer/components/layout/sidebarChrome";
 import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { FileEditorPane } from "./FileEditorPane/FileEditorPane";
@@ -20,7 +21,8 @@ export function FileEditorModal() {
   const hasDirtyBuffers = Object.values(buffers).some(
     (buffer) => buffer.status === "ready" && buffer.isDirty,
   );
-  const isRemoteRoot = rootContext?.remoteServerId !== undefined;
+  const canBrowseProject =
+    rootContext?.remoteServerId === undefined && !isHomeProjectId(rootContext?.projectId);
 
   function requestClose() {
     if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {
@@ -69,10 +71,10 @@ export function FileEditorModal() {
             <Modal.Body className="min-h-0 p-0">
               <div
                 className={`grid h-full min-h-0 ${
-                  isRemoteRoot ? "grid-cols-[minmax(0,1fr)]" : "grid-cols-[320px_minmax(0,1fr)]"
+                  canBrowseProject ? "grid-cols-[320px_minmax(0,1fr)]" : "grid-cols-[minmax(0,1fr)]"
                 }`}
               >
-                {isRemoteRoot ? null : (
+                {canBrowseProject ? (
                   <div className="min-h-0 border-r border-[color:var(--border)]">
                     <div className={overlaySidebarColumnClass}>
                       <ProjectTreeView
@@ -86,7 +88,7 @@ export function FileEditorModal() {
                       />
                     </div>
                   </div>
-                )}
+                ) : null}
                 <FileEditorPane
                   showTabs={false}
                   onOpenFullscreen={() => setOverlayMode("fullscreen")}

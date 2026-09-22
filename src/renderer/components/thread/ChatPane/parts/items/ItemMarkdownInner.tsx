@@ -383,9 +383,12 @@ function MdCode(props: { className: string; isBlock?: boolean; children?: ReactN
   if (isBlock) {
     return <code className={props.className || undefined}>{props.children}</code>;
   }
-  if (actions?.projectLocation) {
+  if (actions) {
     const ref = parseProjectPathRef(text, { rootNames: actions.projectRootNames });
-    if (ref) {
+    if (
+      ref &&
+      (actions.projectLocation || (ref.kind === "file" && actions.openProjectRelativePath))
+    ) {
       return renderPathChip(ref, actions.projectLocation, actions);
     }
   }
@@ -433,7 +436,7 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
 
   const explicitPathRef = parsePathRefUrl(href);
   if (explicitPathRef) {
-    return actions?.projectLocation ? (
+    return actions ? (
       renderPathChip(explicitPathRef, actions.projectLocation, actions)
     ) : (
       <span>{props.children}</span>
@@ -522,10 +525,12 @@ function parseHrefProjectPathRef(
 
 function renderPathChip(
   ref: ProjectPathRef,
-  projectLocation: ProjectLocation,
+  projectLocation: ProjectLocation | undefined,
   actions: NonNullable<ReturnType<typeof useChatPaneActions>>,
 ) {
-  const normalized = normalizeChatProjectPath(ref.path, projectLocation);
+  const normalized = projectLocation
+    ? normalizeChatProjectPath(ref.path, projectLocation)
+    : ref.path;
   if (ref.kind === "file") {
     return (
       <InlineFilePathChip

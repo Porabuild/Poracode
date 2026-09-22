@@ -3,6 +3,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, ProjectTreeEntry } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { FilesView } from "./FilesView";
 
 const bridge = vi.hoisted(() => ({
@@ -138,6 +139,76 @@ describe("FilesView", () => {
     await waitFor(() => {
       expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     });
+  });
+
+  it("opens Home files without mounting a tree and returns to its caller", async () => {
+    const homeProject = { ...project, id: HOME_PROJECT_ID, name: "Home" };
+    const target = {
+      project: homeProject,
+      projectLocation: homeProject.location,
+      rootLabel: homeProject.name,
+    };
+    const path = "D:/output/report.md";
+    const onClose = vi.fn<() => void>();
+    const { rerender } = render(
+      <FilesView target={target} refreshSignal={0} initialFilePath={path} onClose={onClose} />,
+    );
+    expect(await screen.findByLabelText(`Editor ${path}`)).toHaveAttribute("readonly");
+    expect(bridge.readAbsoluteFile).toHaveBeenCalledExactlyOnceWith({
+      projectLocation: target.projectLocation,
+      absolutePath: path,
+    });
+    rerender(
+      <FilesView
+        target={target}
+        refreshSignal={1}
+        initialFilePath={path}
+        initialFolderPath="Documents"
+        onClose={onClose}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByPlaceholderText("Search files")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New file" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New folder" })).not.toBeInTheDocument();
+    for (const operation of [
+      bridge.listProjectTree,
+      bridge.searchProjectTree,
+      bridge.createProjectEntry,
+      bridge.renameProjectEntry,
+      bridge.deleteProjectEntry,
+      bridge.readProjectFile,
+      bridge.writeProjectFile,
+    ])
+      expect(operation).not.toHaveBeenCalled();
+  });
+
+  it("keeps an exit available for a Home read failure without exposing a browser", async () => {
+    bridge.readAbsoluteFile.mockRejectedValueOnce(new Error("Offline"));
+    const onClose = vi.fn<() => void>();
+    render(
+      <FilesView
+        target={{
+          project: { ...project, id: HOME_PROJECT_ID },
+          projectLocation: project.location,
+          rootLabel: "Home",
+        }}
+        refreshSignal={0}
+        initialFilePath="notes.md"
+        onClose={onClose}
+      />,
+    );
+    await waitFor(() =>
+      expect(bridge.readAbsoluteFile).toHaveBeenCalledWith({
+        projectLocation: project.location,
+        absolutePath: "C:\\repo\\notes.md",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(bridge.listProjectTree).not.toHaveBeenCalled();
+    expect(screen.queryByPlaceholderText("Search files")).not.toBeInTheDocument();
   });
 
   it("creates a file from mobile and opens it for editing", async () => {

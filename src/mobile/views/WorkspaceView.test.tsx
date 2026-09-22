@@ -2,6 +2,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitProjectSnapshotResult, GitStatusResult, Project } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { WorkspaceView } from "./WorkspaceView";
@@ -107,9 +108,18 @@ vi.mock("./GitView", () => ({
 }));
 
 vi.mock("./FilesView", () => ({
-  FilesView: (props: { initialFilePath?: string; initialOpenKey?: string }) => (
+  FilesView: (props: {
+    initialFilePath?: string;
+    initialOpenKey?: string;
+    onClose?: () => void;
+  }) => (
     <div data-testid="files-view" data-open-key={props.initialOpenKey ?? ""}>
       {props.initialFilePath ?? ""}
+      {props.onClose ? (
+        <button type="button" onClick={props.onClose}>
+          Close file
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -200,6 +210,27 @@ describe("mobile WorkspaceView branch selector", () => {
       branches: {},
       worktrees: {},
     });
+  });
+
+  it("keeps Home outside the project workspace shell and closes back to the caller", () => {
+    const project = { ...makeProject(), id: HOME_PROJECT_ID, name: "Home" };
+    const onClose = vi.fn<() => void>();
+    render(
+      <WorkspaceView
+        gitTarget={{ project }}
+        filesTarget={{ project, projectLocation: project.location, rootLabel: "Home" }}
+        initialTab="changes"
+        initialFilePath="/tmp/report.md"
+        onClose={onClose}
+      />,
+    );
+    expect(screen.getByTestId("files-view")).toHaveTextContent("/tmp/report.md");
+    expect(screen.queryByTestId("git-view")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Refresh" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+    expect(branchSelectorRender).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Close file" }));
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("switches or creates the main repo branch through the remote bridge", async () => {

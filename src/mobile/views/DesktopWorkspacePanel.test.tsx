@@ -2,6 +2,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useDesktopPanelStore } from "../desktopPanelStore";
@@ -214,6 +215,69 @@ describe("DesktopWorkspacePanel", () => {
       />,
     );
     expect(showTerminalPanel).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a Home citation without mounting or leaving behind a project file panel", async () => {
+    const homeProject = { ...project, id: HOME_PROJECT_ID, name: "Home" };
+    const homeThread = { ...thread, projectId: HOME_PROJECT_ID };
+    useDesktopPanelStore.getState().showFile(thread.id, "/tmp/report.md", 7);
+    render(
+      <DesktopWorkspacePanel
+        remote={{ ...remote, projects: [homeProject], activeThreads: [homeThread] }}
+        currentThreadId={thread.id}
+      />,
+    );
+    await waitFor(() =>
+      expect(openFileInEditor).toHaveBeenCalledExactlyOnceWith(
+        homeProject,
+        undefined,
+        undefined,
+        "/tmp/report.md",
+        7,
+      ),
+    );
+    expect(screen.queryByTestId("files-view")).not.toBeInTheDocument();
+    expect(useDesktopPanelStore.getState().open).toBe(false);
+    expect(screen.getByRole("button", { name: "Files" })).toBeDisabled();
+  });
+
+  it.each(["files", "git", "folder"] as const)(
+    "never mounts an empty Home panel for a %s request",
+    (target) => {
+      const homeProject = { ...project, id: HOME_PROJECT_ID, name: "Home" };
+      const homeThread = { ...thread, projectId: HOME_PROJECT_ID };
+      if (target === "folder") useDesktopPanelStore.getState().showFolder(thread.id, "Documents");
+      else useDesktopPanelStore.getState().show(target, thread.id);
+      const { container } = render(
+        <DesktopWorkspacePanel
+          remote={{ ...remote, projects: [homeProject], activeThreads: [homeThread] }}
+          currentThreadId={thread.id}
+        />,
+      );
+      expect(container.querySelector(".m-desktop-workspace__panel")).not.toBeInTheDocument();
+      expect(container.querySelector(".m-desktop-tool-rail")).not.toHaveAttribute("data-hidden");
+      expect(useDesktopPanelStore.getState().open).toBe(false);
+      expect(openFileInEditor).not.toHaveBeenCalled();
+    },
+  );
+
+  it("removes the retained project browser immediately when its target becomes Home", () => {
+    useDesktopPanelStore.getState().show("files", thread.id);
+    const { container, rerender } = renderPanel();
+    expect(screen.getByTestId("files-view")).toBeInTheDocument();
+    rerender(
+      <DesktopWorkspacePanel
+        remote={{
+          ...remote,
+          projects: [{ ...project, id: HOME_PROJECT_ID }],
+          activeThreads: [{ ...thread, projectId: HOME_PROJECT_ID }],
+        }}
+        currentThreadId={thread.id}
+      />,
+    );
+    expect(container.querySelector(".m-desktop-workspace__panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("files-view")).not.toBeInTheDocument();
+    expect(useDesktopPanelStore.getState().open).toBe(false);
   });
 
   it("opens file deep links through the shared desktop editor flow", async () => {

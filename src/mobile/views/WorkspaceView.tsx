@@ -4,6 +4,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, FolderTree, GitBranch, RefreshCw } from "lucide-react";
 import { friendlyError } from "@/shared/messages";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
 import { BranchSelector, type BranchSelection } from "@/renderer/components/common";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -36,7 +37,7 @@ const EMPTY_TAB_STATE: WorkspaceTabState = {
  * line, refresh and back; the active pane drives them through callbacks and
  * goes immersive (header + segmented hidden) while a diff or editor is open.
  */
-export function WorkspaceView(props: {
+interface WorkspaceViewProps {
   readonly gitTarget: GitTarget | null;
   readonly filesTarget: FilesTarget;
   readonly initialTab: WorkspaceTab;
@@ -50,7 +51,32 @@ export function WorkspaceView(props: {
   readonly onLaunchConflictResolverThread?:
     | ((input: ConflictResolverLaunchInput) => void)
     | undefined;
-}) {
+}
+
+export function WorkspaceView(props: WorkspaceViewProps) {
+  if (isHomeProjectId(props.filesTarget.project.id)) {
+    return (
+      <section className="m-workspace">
+        <div className="m-workspace__body">
+          <FilesView
+            target={props.filesTarget}
+            refreshSignal={0}
+            {...(props.initialFilePath !== undefined
+              ? { initialFilePath: props.initialFilePath }
+              : {})}
+            {...(props.initialLineNumber !== undefined
+              ? { initialLineNumber: props.initialLineNumber }
+              : {})}
+            onClose={props.onClose}
+          />
+        </div>
+      </section>
+    );
+  }
+  return <ProjectWorkspaceView {...props} />;
+}
+
+function ProjectWorkspaceView(props: WorkspaceViewProps) {
   const { t } = useLingui();
   const navigate = useNavigate();
   const { gitTarget, filesTarget } = props;
