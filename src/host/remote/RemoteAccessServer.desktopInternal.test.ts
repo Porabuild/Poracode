@@ -6,8 +6,7 @@ import {
   type RemoteAccessServerInfo,
   type RemoteAccessServerOptions,
 } from "./RemoteAccessServer";
-import { isLoopbackRemoteAddress } from "./server/desktopInternalStream";
-import { RELAY_LOOPBACK_HOP_HEADER } from "./server/security";
+import { isLoopbackSocketAddress, RELAY_LOOPBACK_HOP_HEADER } from "./server/security";
 import { relayLoopbackHopSecret } from "./server/relayHopSecret";
 
 vi.mock("@/host/db", () => {
@@ -65,7 +64,7 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-function buildServer(): RemoteAccessServer {
+function buildServer(overrides: Partial<RemoteAccessServerOptions> = {}): RemoteAccessServer {
   const server = new RemoteAccessServer({
     truncateThreadRuntime: () => {},
     appVersion: "1.0.0",
@@ -76,6 +75,7 @@ function buildServer(): RemoteAccessServer {
     // event-publish path under test.
     ownsSupervisorPersistence: false,
     callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
+    ...overrides,
   });
   servers.push(server);
   return server;
@@ -141,6 +141,8 @@ interface OpenOptions {
   readonly desktopInternal?: boolean;
   /** Simulates the relay adapter's local dial: loopback socket + hop marker. */
   readonly relayHop?: boolean;
+  /** Extra upgrade-request headers (e.g. proxy-forwarding claims). */
+  readonly headers?: Record<string, string>;
   readonly lastDesktopSeq?: number;
   readonly scopes?: readonly string[];
 }
@@ -159,9 +161,10 @@ async function openSocket(
     wsUrl.searchParams.set("lastDesktopSeq", String(options.lastDesktopSeq));
   }
   const ws = new WebSocket(wsUrl, {
-    ...(options.relayHop
-      ? { headers: { [RELAY_LOOPBACK_HOP_HEADER]: relayLoopbackHopSecret() } }
-      : {}),
+    headers: {
+      ...(options.relayHop ? { [RELAY_LOOPBACK_HOP_HEADER]: relayLoopbackHopSecret() } : {}),
+      ...(options.headers ?? {}),
+    },
   });
   const next = createWsReader(ws);
   await new Promise<void>((resolve, reject) => {
@@ -169,6 +172,27 @@ async function openSocket(
     ws.once("error", reject);
   });
   return { ws, next };
+}
+
+/**
+ * Proves the socket was admitted as an ORDINARY session: after `ready`, the
+ * next frame is the shared event and no desktop-only family precedes it (an
+ * admitted desktop session would deliver the desktop-event first, FIFO).
+ * Returns the shared-event frame so each caller asserts on it directly.
+ */
+async function expectOrdinarySession(
+  socket: { readonly next: () => Promise<Record<string, unknown>> },
+  server: RemoteAccessServer,
+): Promise<Record<string, unknown>> {
+  server.publishSupervisorEvent({ type: "git-changed", projectId: "p1" });
+  server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t1"] });
+  const ready = await socket.next();
+  expect(ready.type).toBe("ready");
+  const shared = await socket.next();
+  expect(shared.type).toBe("event");
+  // A grace period so a wrongly admitted desktop-event cannot arrive late.
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  return shared;
 }
 
 describe("RemoteAccessServer desktop-internal sessions (V5 plan 2.5)", () => {
@@ -266,17 +290,17 @@ describe("RemoteAccessServer desktop-internal sessions (V5 plan 2.5)", () => {
   });
 
   it("classifies loopback addresses only, so the opt-in cannot be honored off-loopback", () => {
-    expect(isLoopbackRemoteAddress("127.0.0.1")).toBe(true);
-    expect(isLoopbackRemoteAddress("127.8.8.8")).toBe(true);
-    expect(isLoopbackRemoteAddress("::1")).toBe(true);
-    expect(isLoopbackRemoteAddress("::ffff:127.0.0.1")).toBe(true);
+    expect(isLoopbackSocketAddress("127.0.0.1")).toBe(true);
+    expect(isLoopbackSocketAddress("127.8.8.8")).toBe(true);
+    expect(isLoopbackSocketAddress("::1")).toBe(true);
+    expect(isLoopbackSocketAddress("::ffff:127.0.0.1")).toBe(true);
     // Unix-socket peers report no remote address; they are local by construction.
-    expect(isLoopbackRemoteAddress("")).toBe(true);
-    expect(isLoopbackRemoteAddress(undefined)).toBe(false);
-    expect(isLoopbackRemoteAddress("192.168.1.20")).toBe(false);
-    expect(isLoopbackRemoteAddress("10.0.0.5")).toBe(false);
-    expect(isLoopbackRemoteAddress("::ffff:10.0.0.5")).toBe(false);
-    expect(isLoopbackRemoteAddress("fe80::1")).toBe(false);
+    expect(isLoopbackSocketAddress("")).toBe(true);
+    expect(isLoopbackSocketAddress(undefined)).toBe(false);
+    expect(isLoopbackSocketAddress("192.168.1.20")).toBe(false);
+    expect(isLoopbackSocketAddress("10.0.0.5")).toBe(false);
+    expect(isLoopbackSocketAddress("::ffff:10.0.0.5")).toBe(false);
+    expect(isLoopbackSocketAddress("fe80::1")).toBe(false);
   });
 
   it("streams terminal output to a desktop-internal session only through terminal-watch", async () => {
@@ -347,17 +371,54 @@ describe("RemoteAccessServer desktop-internal sessions (V5 plan 2.5)", () => {
       relayHop: true,
       scopes: ["session:read"],
     });
-    server.publishSupervisorEvent({ type: "git-changed", projectId: "p1" });
-    server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t1"] });
-    // The ready handshake arrives first; the desktop-only family must NOT
-    // follow (it would precede the shared event on an admitted desktop
-    // session), while the shared stream still does.
-    const ready = await proxied.next();
-    expect(ready.type).toBe("ready");
-    const shared = await proxied.next();
-    expect(shared.type).toBe("event");
+    const shared = await expectOrdinarySession(proxied, server);
     expect((shared.event as { type: string }).type).toBe("remote-threads-changed");
-    await new Promise((resolve) => setTimeout(resolve, 50));
     proxied.ws.close();
+  });
+
+  it("denies desktop-internal admission to a loopback dial from a configured trusted proxy", async () => {
+    // A paired REMOTE client behind the configured local reverse proxy also
+    // arrives from 127.0.0.1: a socket matching `trustedProxies` is a proxied
+    // dial, never a direct local peer, so the desktop-only stream must stay
+    // closed to it (same shared classifier as /metrics and the experiment
+    // locality gate).
+    const server = buildServer({ trustedProxies: ["127.0.0.1"] });
+    const info = await server.start();
+    const proxied = await openSocket(server, info, {
+      desktopInternal: true,
+      scopes: ["session:read"],
+    });
+    const shared = await expectOrdinarySession(proxied, server);
+    expect((shared.event as { type: string }).type).toBe("remote-threads-changed");
+    proxied.ws.close();
+  });
+
+  it("denies desktop-internal admission when the upgrade carries forwarding headers", async () => {
+    // An UNCONFIGURED local reverse proxy or tunnel is covered by the request
+    // itself: any proxy-forwarding header means the dial is proxied, and a
+    // genuine local client has no reason to send one.
+    const server = buildServer();
+    const info = await server.start();
+    const tunneled = await openSocket(server, info, {
+      desktopInternal: true,
+      headers: { "x-forwarded-for": "203.0.113.9" },
+      scopes: ["session:read"],
+    });
+    const shared = await expectOrdinarySession(tunneled, server);
+    expect((shared.event as { type: string }).type).toBe("remote-threads-changed");
+    tunneled.ws.close();
+  });
+
+  it("still admits a direct loopback opt-in when only other addresses are trusted proxies", async () => {
+    // Non-regression: threading trustedProxies into the classifier must not
+    // over-refuse a plain local dial that matches no configured entry.
+    const server = buildServer({ trustedProxies: ["10.0.0.0/8"] });
+    const info = await server.start();
+    const desktop = await openSocket(server, info, { desktopInternal: true });
+    await expect(desktop.next()).resolves.toMatchObject({ type: "ready" });
+    server.publishSupervisorEvent({ type: "git-changed", projectId: "p1" });
+    const frame = await desktop.next();
+    expect(frame.type).toBe("desktop-event");
+    desktop.ws.close();
   });
 });

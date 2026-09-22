@@ -1,7 +1,7 @@
 import { RemoteHttpError } from "../auth";
 import { writeJson } from "./httpResponses";
 import type { HttpRouteHandlerTable } from "./httpRouteHandlers.shared";
-import { isDirectLoopbackPeer } from "./security";
+import { isDirectLoopbackPeer, resolvedTrustedProxies } from "./security";
 
 /** Operability HTTP route handlers (contract `opsRoutes`). */
 export const OPS_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, "healthz" | "metrics"> = {
@@ -12,11 +12,13 @@ export const OPS_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, "healthz" | "metric
   },
 
   // `metrics` answers only loopback peers (the minimal posture gate: the
-  // dispatcher's Host-header allowlist already ran; this adds the socket's
-  // remote-address check, relay hop marker included). Anything non-loopback is
-  // a flat 403 before any metric value is computed.
+  // dispatcher's Host-header allowlist already ran; this adds the shared
+  // direct-peer locality check — loopback socket with no relay hop marker, no
+  // configured trusted-proxy socket, and no proxy-forwarding headers, since a
+  // proxied dial arrives from loopback too). Anything not a direct local peer
+  // is a flat 403 before any metric value is computed.
   metrics: async ({ ctx, req, res }) => {
-    if (!isDirectLoopbackPeer(req)) {
+    if (!isDirectLoopbackPeer(req, resolvedTrustedProxies(ctx.options))) {
       throw new RemoteHttpError(
         "metrics_loopback_only",
         "Metrics are only served to loopback clients.",

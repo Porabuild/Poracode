@@ -209,4 +209,55 @@ describe("RemoteAccessServer operability routes (item 4.9 rider)", () => {
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({ error: { code: "metrics_loopback_only" } });
   });
+
+  it("refuses /metrics to a loopback dial from a configured trusted proxy", async () => {
+    // A paired REMOTE client behind the configured local reverse proxy also
+    // arrives from 127.0.0.1: a socket matching `trustedProxies` is a proxied
+    // dial, never a direct local peer (same classifier as the WS
+    // desktop-internal gate and the experiment locality gate).
+    const server = createServer("127.0.0.1", { trustedProxies: ["127.0.0.1"] });
+    const info = await server.start();
+
+    const response = await fetch(new URL("/metrics", info.httpBaseUrl));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: "metrics_loopback_only" } });
+  });
+
+  it("refuses /metrics when the request carries proxy-forwarding headers", async () => {
+    // Covers an UNCONFIGURED local reverse proxy/tunnel: any forwarding header
+    // means the dial is proxied, and a genuine local client only downgrades
+    // itself by sending one.
+    const server = createServer();
+    const info = await server.start();
+    for (const header of ["x-forwarded-for", "forwarded", "x-real-ip"]) {
+      const response = await fetch(new URL("/metrics", info.httpBaseUrl), {
+        headers: { [header]: "203.0.113.9" },
+      });
+      expect(`${header} ${response.status}`).toBe(`${header} 403`);
+      expect(await response.json()).toMatchObject({ error: { code: "metrics_loopback_only" } });
+    }
+  });
+
+  it("still serves /metrics to a plain loopback dial when only other addresses are trusted", async () => {
+    // Non-regression: threading trustedProxies into the classifier must not
+    // over-refuse a local dial that matches no configured entry.
+    const server = createServer("127.0.0.1", { trustedProxies: ["10.0.0.0/8"] });
+    const info = await server.start();
+
+    const response = await fetch(new URL("/metrics", info.httpBaseUrl));
+    expect(response.status).toBe(200);
+  });
+
+  it("honors the environment-configured trusted proxies for the locality gate too", async () => {
+    // The standalone server resolves `PORACODE_REMOTE_TRUSTED_PROXIES` into
+    // options; the embedded server reads the same env as the fallback, so the
+    // locality gates harden identically without an options change.
+    vi.stubEnv("PORACODE_REMOTE_TRUSTED_PROXIES", "127.0.0.1");
+    const server = createServer();
+    const info = await server.start();
+
+    const response = await fetch(new URL("/metrics", info.httpBaseUrl));
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: { code: "metrics_loopback_only" } });
+  });
 });

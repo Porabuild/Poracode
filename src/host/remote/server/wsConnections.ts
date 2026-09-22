@@ -1,4 +1,4 @@
-import { hasRelayLoopbackHopMarker } from "./security";
+import { isDirectLoopbackPeer, resolvedTrustedProxies } from "./security";
 import { randomUUID } from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
@@ -26,7 +26,6 @@ import type { RemoteServerContext } from "./context";
 import {
   desktopInternalStreamHostOf,
   isDesktopInternalSession,
-  isLoopbackRemoteAddress,
   markDesktopInternalSession,
   unmarkDesktopInternalSession,
 } from "./desktopInternalStream";
@@ -199,18 +198,25 @@ function parseLastDesktopSeq(searchParams: URLSearchParams): number | null {
 
 /**
  * Desktop-internal admission (V5 plan 2.5): the opt-in query parameter counts
- * only when the upgrade originates from a loopback address. A remote peer
+ * only for a DIRECT loopback peer (the one shared classifier). A remote peer
  * sending the parameter is admitted as an ordinary session — fail-closed by
  * construction, so the desktop-only event surface can never be negotiated
- * across the network.
+ * across the network, neither through the relay adapter nor behind a trusted
+ * proxy that also dials from loopback.
  */
-function desktopInternalRequested(req: IncomingMessage, searchParams: URLSearchParams): boolean {
+function desktopInternalRequested(
+  ctx: RemoteServerContext,
+  req: IncomingMessage,
+  searchParams: URLSearchParams,
+): boolean {
   if (searchParams.get(REMOTE_DESKTOP_INTERNAL_WS_PARAM) !== "1") return false;
   // Deep-review fix: the relay adapter also dials from loopback on behalf of
-  // REMOTE visitors (forwarding their query params verbatim), so the socket
-  // address alone would admit any paired client to the desktop-only stream.
-  // A marked dial is proxied, never direct.
-  return isLoopbackRemoteAddress(req.socket.remoteAddress) && !hasRelayLoopbackHopMarker(req);
+  // REMOTE visitors (forwarding their query params verbatim), and a trusted
+  // proxy forwards the same way, so the socket address alone would admit any
+  // paired client to the desktop-only stream. The shared direct-peer
+  // classifier fails closed on every proxied-dial marker (relay hop secret,
+  // configured trusted-proxy socket, proxy-forwarding headers).
+  return isDirectLoopbackPeer(req, resolvedTrustedProxies(ctx.options));
 }
 
 export function rejectUpgrade(
@@ -259,7 +265,7 @@ export async function handleUpgrade(
     const initialItemInterests = parseThreadItemInterests(url.searchParams);
     const noticesCapable = parseNoticesCapability(url.searchParams);
     const boundedCatalogChanges = parseBoundedCatalogChangesDeclaration(url.searchParams);
-    const desktopInternal = desktopInternalRequested(req, url.searchParams);
+    const desktopInternal = desktopInternalRequested(ctx, req, url.searchParams);
     const lastDesktopSeq = desktopInternal ? parseLastDesktopSeq(url.searchParams) : null;
     // B3: per-principal socket admission AFTER authentication (the session id
     // survives refresh/reconnect, so a new TCP socket cannot mint a new

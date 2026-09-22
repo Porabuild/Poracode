@@ -65,16 +65,57 @@ export function isLoopbackSocketAddress(address: string | undefined): boolean {
 
 export { RELAY_LOOPBACK_HOP_HEADER, hasRelayLoopbackHopMarker } from "./relayHopSecret";
 
-/**
- * Whether the request is a DIRECT loopback peer: socket address loopback AND
- * not a relay-proxied dial (the relay adapter connects from loopback, which
- * alone would make every remote visitor 'local' to address-based gates).
- */
-export function isDirectLoopbackPeer(req: {
+/** The request slice the direct-loopback peer classifier reads. */
+export interface DirectLoopbackPeerRequest {
   readonly headers: IncomingHttpHeaders;
   readonly socket: { readonly remoteAddress?: string | undefined };
-}): boolean {
-  return isLoopbackSocketAddress(req.socket.remoteAddress) && !hasRelayLoopbackHopMarker(req);
+}
+
+/**
+ * Headers a reverse proxy or tunnel stamps when dialing on someone else's
+ * behalf. Presence alone is the claim — a direct local dial never carries one,
+ * and a genuine local client that sends one only downgrades itself — so any of
+ * these disqualifies locality regardless of the trusted-proxy configuration
+ * (which only covers proxies the operator knew to declare).
+ */
+const PROXY_FORWARDING_HEADERS = ["x-forwarded-for", "forwarded", "x-real-ip"] as const;
+
+/** Whether the request carries any proxy-forwarding claim (single or array form). */
+export function hasProxyForwardingHeaders(req: { readonly headers: IncomingHttpHeaders }): boolean {
+  return PROXY_FORWARDING_HEADERS.some((header) => req.headers[header] !== undefined);
+}
+
+/**
+ * Whether the request is a DIRECT loopback peer: socket address loopback AND
+ * no proxied-dial marker. The relay adapter connects from loopback, which
+ * alone would make every remote visitor 'local' to address-based gates; a
+ * configured trusted proxy (or a request advertising forwarding via
+ * `X-Forwarded-For` / `Forwarded` / `X-Real-IP`) hides the real visitor behind
+ * that same loopback socket — all three fail closed here.
+ */
+export function isDirectLoopbackPeer(
+  req: DirectLoopbackPeerRequest,
+  trustedProxies: readonly string[] = [],
+): boolean {
+  return (
+    isLoopbackSocketAddress(req.socket.remoteAddress) &&
+    !hasRelayLoopbackHopMarker(req) &&
+    !socketMatchesTrustedProxy(req.socket.remoteAddress, trustedProxies) &&
+    !hasProxyForwardingHeaders(req)
+  );
+}
+
+/**
+ * The ONE trusted-proxy allow-list resolver: explicit server options win,
+ * `PORACODE_REMOTE_TRUSTED_PROXIES` is the shared fallback (the standalone
+ * server seeds it from `--trusted-proxies`; the embedded server reads the
+ * environment directly). Resolved per request so every gate — rate limiting
+ * and the direct-loopback locality gates alike — sees the same list.
+ */
+export function resolvedTrustedProxies(options: {
+  readonly trustedProxies?: readonly string[] | undefined;
+}): readonly string[] {
+  return options.trustedProxies ?? remoteTrustedProxyAddresses();
 }
 
 /**
@@ -173,10 +214,7 @@ export class RemoteServerSecurity {
    * identity for authentication or post-auth accounting.
    */
   resolveClientAddress(req: IncomingMessage): string {
-    return resolveRateLimitClient(
-      req,
-      this.ctx.options.trustedProxies ?? remoteTrustedProxyAddresses(),
-    );
+    return resolveRateLimitClient(req, resolvedTrustedProxies(this.ctx.options));
   }
 
   applyCors(req: IncomingMessage, res: ServerResponse): boolean {
@@ -259,10 +297,7 @@ export class RemoteServerSecurity {
         this.rateLimitBuckets.delete(key);
       }
     }
-    const client = resolveRateLimitClient(
-      req,
-      this.ctx.options.trustedProxies ?? remoteTrustedProxyAddresses(),
-    );
+    const client = resolveRateLimitClient(req, resolvedTrustedProxies(this.ctx.options));
     const key = `${bucketName}:${client}`;
     const bucket = this.rateLimitBuckets.get(key);
     if (!bucket || bucket.resetAtMs <= now) {

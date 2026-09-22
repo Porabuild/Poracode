@@ -164,6 +164,7 @@ async function postCommand(
   experimentId: string,
   body: RemoteExperimentCommand,
   commandId?: string,
+  extraHeaders?: Record<string, string>,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const { experimentId: _pathId, ...wireBody } = body;
   const response = await fetch(
@@ -174,6 +175,7 @@ async function postCommand(
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
         ...(commandId ? { "x-poracode-command-id": commandId } : {}),
+        ...(extraHeaders ?? {}),
       },
       body: JSON.stringify(wireBody),
     },
@@ -764,6 +766,78 @@ describe.skipIf(!sqliteAvailable)("experiment authority over real HTTP", () => {
     expect(await response.json()).toMatchObject({
       error: { code: "experiments_desktop_local" },
     });
+    expect(storedExperiments()).toEqual({});
+    expect(threadRow("E1-c1")).toBeUndefined();
+  });
+
+  it("refuses a command from a loopback dial behind a configured trusted proxy", async () => {
+    // The documented mutation LOCALITY gate uses the shared direct-peer
+    // classifier: a paired REMOTE client behind the configured local reverse
+    // proxy arrives from 127.0.0.1 too, and a socket matching `trustedProxies`
+    // is a proxied dial, never a direct local peer. A plain dial on a server
+    // trusting only other addresses must stay admitted (no over-refusal).
+    const record = experimentRecord("E1");
+    const buildLocalityServer = async (trustedProxies: readonly string[]) => {
+      const localityServer = new RemoteAccessServer({
+        truncateThreadRuntime: () => {},
+        appVersion: "1.0.0",
+        identity: { desktopId: "desktop-experiments", label: "Experiment desktop" },
+        host: "127.0.0.1",
+        port: 0,
+        experimentAuthority: custody,
+        callSupervisor,
+        trustedProxies,
+      });
+      servers.push(localityServer);
+      const localityInfo = await localityServer.start();
+      const localityToken = await exchangePairingUrl(localityInfo.pairingUrl, [
+        "session:read",
+        "session:operate",
+      ]);
+      return { localityInfo, localityToken };
+    };
+
+    const { localityInfo, localityToken } = await buildLocalityServer(["127.0.0.1"]);
+    const refused = await postCommand(
+      localityInfo,
+      localityToken,
+      "E1",
+      createCommandWire(record),
+      "experiment-trusted-proxy-1",
+    );
+    expect(refused.status).toBe(403);
+    expect(refused.body).toMatchObject({ error: { code: "experiments_desktop_local" } });
+    expect(storedExperiments()).toEqual({});
+
+    const direct = await buildLocalityServer(["10.0.0.0/8"]);
+    const admitted = await postCommand(
+      direct.localityInfo,
+      direct.localityToken,
+      "E1",
+      createCommandWire(record),
+      "experiment-trusted-proxy-2",
+    );
+    expect(admitted.status).toBe(200);
+    expect(storedExperiments().E1).toEqual(record);
+  });
+
+  it("refuses a command whose request carries proxy-forwarding headers", async () => {
+    // An UNCONFIGURED local reverse proxy/tunnel is covered by the request
+    // itself: any forwarding header means the dial is proxied, and a genuine
+    // local client only downgrades itself by sending one.
+    const record = experimentRecord("E1");
+    for (const [index, header] of ["x-forwarded-for", "forwarded", "x-real-ip"].entries()) {
+      const refused = await postCommand(
+        info,
+        operatorToken,
+        "E1",
+        createCommandWire(record),
+        `experiment-forwarded-${index}`,
+        { [header]: "203.0.113.9" },
+      );
+      expect(`${header} ${refused.status}`).toBe(`${header} 403`);
+      expect(refused.body).toMatchObject({ error: { code: "experiments_desktop_local" } });
+    }
     expect(storedExperiments()).toEqual({});
     expect(threadRow("E1-c1")).toBeUndefined();
   });
