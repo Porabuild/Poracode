@@ -248,6 +248,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     kind: z.literal("add-existing"),
     path: z.string().min(1),
     name: z.string().min(1).optional(),
+    workspaceId: z.string().min(1).optional(),
   }),
   // Create a new empty folder under `parentPath` and register it.
   z.object({

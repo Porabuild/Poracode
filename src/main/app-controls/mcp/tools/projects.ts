@@ -1,15 +1,19 @@
 import { z } from "zod";
 import type { Project, ProjectLocation, Thread } from "@/shared/contracts";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { projectIdProp, requireProject, type ToolDomain } from "./types";
+import { inheritCallerWorkspaceId, requireWorkspace } from "./workspaceLookup";
 
 const projectIdArgsSchema = z.object({ projectId: z.string().min(1) });
 const createArgsSchema = z.object({
   path: z.string().trim().min(1),
   name: z.string().trim().min(1).max(120).optional(),
+  workspaceId: z.string().trim().min(1).optional(),
 });
 const updateArgsSchema = z.object({
   projectId: z.string().min(1),
   name: z.string().trim().min(1).max(120).optional(),
+  workspaceId: z.union([z.string().trim().min(1), z.null()]).optional(),
 });
 
 export const projectTools: ToolDomain = {
@@ -17,7 +21,7 @@ export const projectTools: ToolDomain = {
     {
       name: "list_projects",
       description:
-        "List all of the user's projects with id, name, absolute path, runtime kind (windows/wsl/posix), and open/total thread counts.",
+        "List all of the user's projects with id, name, absolute path, runtime kind (windows/wsl/posix), workspaceId when filed, and open/total thread counts.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     {
@@ -29,7 +33,7 @@ export const projectTools: ToolDomain = {
     {
       name: "create_project",
       description:
-        "Register an existing folder on this device as a Poracode project. The directory must already exist; the path must be absolute.",
+        "Register an existing folder on this device as a Poracode project. The directory must already exist; the path must be absolute. Optionally file it into a workspace (id or unique name from list_workspaces); omitted projects inherit the calling thread's workspace when possible.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -37,12 +41,14 @@ export const projectTools: ToolDomain = {
         properties: {
           path: { type: "string", minLength: 1 },
           name: { type: "string", minLength: 1, maxLength: 120 },
+          workspaceId: { type: "string", minLength: 1 },
         },
       },
     },
     {
       name: "update_project",
-      description: "Update an existing project's editable metadata (currently: rename).",
+      description:
+        "Update an existing project's editable metadata: rename, or file it into a workspace. workspaceId accepts an id or unique name from list_workspaces; null unfiles the project so it is visible in every workspace. The Home project cannot be filed.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -50,6 +56,7 @@ export const projectTools: ToolDomain = {
         properties: {
           projectId: projectIdProp,
           name: { type: "string", minLength: 1, maxLength: 120 },
+          workspaceId: { type: ["string", "null"], minLength: 1 },
         },
       },
     },
@@ -88,26 +95,49 @@ export const projectTools: ToolDomain = {
       };
     },
     create_project: async (args, ctx) => {
-      const { path, name } = createArgsSchema.parse(args);
+      const { path, name, workspaceId: requestedWorkspace } = createArgsSchema.parse(args);
       if (!ctx.directoryExists(path)) {
         throw new Error(`Directory does not exist on disk: ${path}`);
       }
+      const workspaceId = requestedWorkspace
+        ? requireWorkspace(ctx, requestedWorkspace).id
+        : inheritCallerWorkspaceId(ctx);
       const result = await ctx.applyProjectCommand({
         kind: "add-existing",
         path,
         ...(name ? { name } : {}),
+        ...(workspaceId ? { workspaceId } : {}),
       });
       return { created: result.created ?? true, project: result.project ?? null };
     },
     update_project: (args, ctx) => {
-      const { projectId, name } = updateArgsSchema.parse(args);
+      const { projectId, name, workspaceId } = updateArgsSchema.parse(args);
       const project = requireProject(ctx, projectId);
-      if (name === undefined) {
-        throw new Error("Provide at least one field to update (name).");
+      if (name === undefined && workspaceId === undefined) {
+        throw new Error("Provide at least one field to update (name or workspaceId).");
       }
-      const next: Project = { ...project, name };
+      if (workspaceId !== undefined && isHomeProjectId(project.id)) {
+        throw new Error(
+          "The Home project belongs to every workspace. File Home threads with update_thread instead.",
+        );
+      }
+      let next: Project = name !== undefined ? { ...project, name } : project;
+      if (workspaceId !== undefined) {
+        const { workspaceId: _dropped, ...rest } = next;
+        next =
+          workspaceId === null
+            ? rest
+            : { ...rest, workspaceId: requireWorkspace(ctx, workspaceId).id };
+      }
       ctx.updateProject(next);
-      return { updated: true, project: { id: next.id, name: next.name } };
+      return {
+        updated: true,
+        project: {
+          id: next.id,
+          name: next.name,
+          ...(next.workspaceId ? { workspaceId: next.workspaceId } : {}),
+        },
+      };
     },
   },
 };
@@ -128,6 +158,7 @@ function projectView(project: Project, allThreads: readonly Thread[]) {
     ...(project.location.kind === "wsl" ? { distro: project.location.distro } : {}),
     threadCount: projectThreads.length,
     openThreadCount: openThreads.length,
+    ...(project.workspaceId ? { workspaceId: project.workspaceId } : {}),
   };
 }
 

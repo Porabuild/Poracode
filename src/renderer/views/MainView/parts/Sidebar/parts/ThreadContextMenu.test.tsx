@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { groupExperiment } from "@/shared/test/threadGroups";
+import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
@@ -61,6 +63,8 @@ function renderMenu(
 describe("ThreadContextMenu project actions", () => {
   beforeEach(() => {
     resetDevTerminalStore();
+    useExperimentStore.setState({ experiments: {} });
+    useAppStore.setState({ threads: [], view: { kind: "home" } });
     usePanelStore.setState({ githubActionsContext: null });
     useSharedSettings.setState({ workspaces: [] } as never);
   });
@@ -176,5 +180,37 @@ describe("ThreadContextMenu project actions", () => {
     expect(action.querySelector(".animate-spin")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Stop Build" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Stop Build" })).not.toBeInTheDocument();
+  });
+  it("removes an ordinary pair through the shared renderer action and collapses its view", async () => {
+    const first = thread({ groupId: "g1", groupName: "Research" });
+    const second = thread({ id: "t2", groupId: "g1", groupName: "Research" });
+    useAppStore.setState({
+      threads: [first, second],
+      view: { kind: "thread", panes: [first.id, second.id], activeGroupId: "g1" },
+    });
+    await renderMenu(first);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Remove from group" }));
+    expect(
+      useAppStore
+        .getState()
+        .threads.every((row) => row.groupId === undefined && row.groupName === undefined),
+    ).toBe(true);
+    expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [first.id] });
+  });
+
+  it("does not reassign an experiment candidate while grouping other open threads", async () => {
+    const experiment = groupExperiment();
+    useExperimentStore.setState({ experiments: { [experiment.id]: experiment } });
+    const ordinary = thread();
+    const candidate = thread({ id: "a", groupId: experiment.id });
+    useAppStore.setState({
+      threads: [ordinary, candidate],
+      view: { kind: "thread", panes: [ordinary.id, candidate.id] },
+    });
+    const before = useAppStore.getState();
+    await renderMenu(ordinary);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Group open threads" }));
+    expect(useAppStore.getState().threads).toBe(before.threads);
+    expect(useAppStore.getState().view).toBe(before.view);
   });
 });

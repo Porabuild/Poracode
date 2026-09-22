@@ -20,6 +20,7 @@ import {
 import type { ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project, Thread } from "@/shared/contracts";
+import { canChangeThreadGroup } from "@/shared/threadGroups";
 import { isHomeProject } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
@@ -37,6 +38,7 @@ import {
   useRunningProjectActionIds,
   useThreadAgentStatuses,
 } from "@/renderer/hooks/uiSelectors";
+import { applyRemoteSetGroupCommand } from "@/renderer/actions/remoteGroupCommandActions";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
 import {
@@ -359,6 +361,18 @@ export function ThreadContextMenu(props: {
           const projectId = openThreads[0]?.projectId;
           if (!projectId || !openThreads.every((other) => other.projectId === projectId)) return;
           const groupId = crypto.randomUUID();
+          const experiments = useExperimentStore.getState().experiments;
+          if (
+            openThreads.some(
+              (other) =>
+                !canChangeThreadGroup(
+                  other.groupId,
+                  groupId,
+                  (id) => experiments[id] !== undefined,
+                ),
+            )
+          )
+            return;
           const groupName = thread.title;
           useAppStore.setState((s) => ({
             threads: s.threads.map((other) =>
@@ -370,26 +384,7 @@ export function ThreadContextMenu(props: {
           }));
         }
         if (key === "ungroup") {
-          useAppStore.setState((state) => {
-            let updatedThreads = state.threads.map((other) =>
-              other.id === thread.id
-                ? { ...other, groupId: undefined, groupName: undefined }
-                : other,
-            );
-            const remaining = updatedThreads.filter((other) => other.groupId === thread.groupId);
-            if (remaining.length === 1) {
-              updatedThreads = updatedThreads.map((other) =>
-                other.id === remaining[0]!.id
-                  ? { ...other, groupId: undefined, groupName: undefined }
-                  : other,
-              );
-            }
-            const view =
-              state.view.kind === "thread" && state.view.activeGroupId === thread.groupId
-                ? { kind: "thread" as const, panes: [state.view.panes[0]] as [string] }
-                : state.view;
-            return { threads: updatedThreads, view };
-          });
+          applyRemoteSetGroupCommand(thread.id, undefined, undefined);
         }
         if (key === "archive" && !isExperimentCandidate) archiveThread(thread.id);
         if (key === "rename") onRename?.();

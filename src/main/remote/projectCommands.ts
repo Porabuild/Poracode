@@ -151,8 +151,19 @@ function assertSafeCloneUrl(rawUrl: string): void {
   }
 }
 
-function makeProject(location: ProjectLocation, name: string, createdAt: string): Project {
-  return { id: randomUUID(), name, location, createdAt };
+function makeProject(
+  location: ProjectLocation,
+  name: string,
+  createdAt: string,
+  workspaceId?: string,
+): Project {
+  return {
+    id: randomUUID(),
+    name,
+    location,
+    createdAt,
+    ...(workspaceId ? { workspaceId } : {}),
+  };
 }
 
 /**
@@ -172,7 +183,7 @@ export async function applyRemoteProjectCommand(
       const name = command.name?.trim() || nameFromPath(command.path);
       assertValidName(name);
       const location = deriveLocationFromPath(command.path, deps.platform);
-      return register(deps, location, name, Boolean(command.name?.trim()));
+      return register(deps, location, name, Boolean(command.name?.trim()), command.workspaceId);
     }
     case "create": {
       assertValidProjectPath(command.parentPath, deps.platform);
@@ -299,6 +310,7 @@ function register(
   location: ProjectLocation,
   name: string,
   nameOverride: boolean,
+  workspaceId?: string,
 ): RemoteProjectCommandResult {
   const identityOptions = { caseInsensitivePosix: deps.platform === "darwin" };
   const identity = projectIdentityKey({ location }, identityOptions);
@@ -306,12 +318,22 @@ function register(
     .getProjects()
     .find((candidate) => projectIdentityKey(candidate, identityOptions) === identity);
   if (existing) {
-    const next = nameOverride && existing.name !== name ? { ...existing, name } : existing;
+    const changesName = nameOverride && existing.name !== name;
+    const changesWorkspace = workspaceId !== undefined && existing.workspaceId !== workspaceId;
+    const next =
+      changesName || changesWorkspace
+        ? {
+            ...existing,
+            ...(changesName ? { name } : {}),
+            ...(changesWorkspace ? { workspaceId } : {}),
+          }
+        : existing;
     if (next !== existing) deps.updateProject(next);
     return { projects: deps.getProjects(), project: next, created: false };
   }
 
-  const project = makeProject(location, name, deps.now());
+  const project = makeProject(location, name, deps.now(), workspaceId);
+
   // Descending timestamp → new projects sort to the top (sortOrder is ASC).
   deps.upsertProject(project, -Date.parse(project.createdAt));
   return { projects: deps.getProjects(), project, created: true };

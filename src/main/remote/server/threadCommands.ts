@@ -22,6 +22,7 @@ import {
 } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap } from "@/shared/ipc";
+import { clearThreadGroupFields, dissolveGroupMembership } from "@/shared/threadGroups";
 import { msg } from "@/shared/messages";
 import {
   dbDeleteProject,
@@ -37,6 +38,7 @@ import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
 import {
   assertRemoteGitMutationExperimentSafe,
+  assertPersistedThreadGroupChangeSafe,
   discardPersistedProjectExperiments,
 } from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
@@ -203,12 +205,34 @@ export async function applyRemoteThreadCommand(
         updatedAt: new Date().toISOString(),
       }));
       return false;
-    case "set-group":
-      updateRemoteThread(command.threadId, (thread) => ({
-        ...thread,
-        groupId: command.groupId,
-        groupName: command.groupName,
-      }));
+    case "set-group": {
+      const threads = dbGetThreads();
+      const current = threads.find((thread) => thread.id === command.threadId);
+      if (!current) throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+      assertPersistedThreadGroupChangeSafe(current.groupId, command.groupId);
+      if (command.groupId) {
+        const groupId = command.groupId;
+        const groupName = command.groupName ?? groupId;
+        updateRemoteThread(command.threadId, (thread) => ({
+          ...thread,
+          groupId,
+          groupName,
+        }));
+        return false;
+      }
+      const result = dissolveGroupMembership(threads, command.threadId);
+      for (const clearedId of result.clearedIds) {
+        updateRemoteThread(clearedId, clearThreadGroupFields);
+      }
+      return false;
+    }
+    case "set-workspace":
+      updateRemoteThread(command.threadId, (thread) => {
+        const { workspaceId: _dropped, ...rest } = thread;
+        return command.workspaceId
+          ? { ...rest, workspaceId: command.workspaceId, updatedAt: new Date().toISOString() }
+          : { ...rest, updatedAt: new Date().toISOString() };
+      });
       return false;
     case "archive":
       await closeThreadBestEffort(ctx, command.threadId);
@@ -275,6 +299,7 @@ async function startRemoteThread(
     ...(presentationMode !== "terminal" ? { threadStatusSource: "server" } : {}),
     ...(command.groupId ? { groupId: command.groupId } : {}),
     ...(command.groupName ? { groupName: command.groupName } : {}),
+    ...(command.workspaceId ? { workspaceId: command.workspaceId } : {}),
     ...(command.worktreePath ? { worktreePath: command.worktreePath } : {}),
     ...(command.worktreeBranch ? { worktreeBranch: command.worktreeBranch } : {}),
     createdAt: now,

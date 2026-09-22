@@ -75,6 +75,7 @@ export function applyRemoteThreadStartCommand(command: RemoteStartCommand): void
     ...(command.parentThreadId ? { parentThreadId: command.parentThreadId } : {}),
     ...(command.groupId ? { groupId: command.groupId } : {}),
     ...(command.groupName ? { groupName: command.groupName } : {}),
+    ...(command.workspaceId ? { workspaceId: command.workspaceId } : {}),
   });
   if (command.launchRuntime !== false) {
     if (command.userMessageItemId) {

@@ -17,6 +17,7 @@ import {
   EXPERIMENT_STORE_VERSION,
   experimentSchema,
 } from "@/shared/contracts";
+import { canChangeThreadGroup } from "@/shared/threadGroups";
 import { toWslUncPath } from "@/shared/wsl";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { dbGetProjects, dbGetState, dbGetThreads, dbSetState } from "../db";
@@ -110,9 +111,29 @@ export async function discardPersistedProjectExperiments(
   );
 }
 
+/** Check both ends before a sidebar group mutation writes or emits anything. */
+export function assertPersistedThreadGroupChangeSafe(
+  previousGroupId: string | undefined,
+  nextGroupId: string | undefined,
+): void {
+  const experiments = readPersistedExperiments();
+  if (
+    !canChangeThreadGroup(previousGroupId, nextGroupId, (id) =>
+      experiments.some((experiment) => experiment.id === id),
+    )
+  )
+    conflict();
+}
+
 export function assertRemoteThreadCommandExperimentSafe(command: RemoteThreadCommand): void {
   let threadIds: readonly string[];
   switch (command.kind) {
+    case "set-group":
+      assertPersistedThreadGroupChangeSafe(
+        dbGetThreads().find((thread) => thread.id === command.threadId)?.groupId,
+        command.groupId,
+      );
+      return;
     case "start":
     case "set-worktree":
     case "archive":

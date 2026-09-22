@@ -455,6 +455,11 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     groupId: z.string().min(1).optional(),
     groupName: z.string().min(1).optional(),
     /**
+     * Workspace to file a Home thread into at creation. Only meaningful while
+     * `projectId` is Home — same rule as {@link threadSchema}'s `workspaceId`.
+     */
+    workspaceId: z.string().min(1).optional(),
+    /**
      * Set when this start continues an existing thread under a different
      * provider (a remote "Continue in..." switch). The server retargets the
      * durable row and forwards the command so the desktop renderer's store
@@ -462,15 +467,24 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
      */
     providerSwitch: providerSwitchSchema.optional(),
   }),
-  // Assigns an existing thread to a sidebar group. Used to pull an
-  // orchestrator parent into the group its children are created in; the
-  // renderer owns thread metadata, so this routes through its store like the
-  // other metadata commands instead of writing the DB directly.
+  // Assigns an existing thread to a sidebar group, or removes it from one.
+  // Used to pull an orchestrator parent into the group its children are
+  // created in, and to undo that grouping. Omit groupId/groupName to ungroup;
+  // the renderer owns thread metadata, so this routes through its store like
+  // the other metadata commands instead of writing the DB directly.
   z.object({
     kind: z.literal("set-group"),
     threadId: z.string().min(1),
-    groupId: z.string().min(1),
-    groupName: z.string().min(1),
+    groupId: z.string().min(1).optional(),
+    groupName: z.string().min(1).optional(),
+  }),
+  // Files a Home thread into a workspace, or unfiles it (visible in every
+  // workspace) when workspaceId is omitted. Project threads scope through
+  // `project.workspaceId` instead; a tag here is inert for those.
+  z.object({
+    kind: z.literal("set-workspace"),
+    threadId: z.string().min(1),
+    workspaceId: z.string().min(1).optional(),
   }),
   z.object({ kind: z.literal("rename"), threadId: z.string().min(1), title: z.string().min(1) }),
   z.object({ kind: z.literal("acknowledge"), threadId: z.string().min(1) }),
