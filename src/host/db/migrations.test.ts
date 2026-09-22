@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertMigrationRollbackClassifications,
   DATABASE_MIGRATIONS,
+  describeMigrationRollbackPolicy,
   LATEST_SCHEMA_VERSION,
+  MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM,
   validateMigrationRegistry,
 } from "./migrations";
 
@@ -51,8 +54,11 @@ describe("database migration registry", () => {
       [44, "repair divergent schema 32 and 33"],
       [45, "checkpoint revert operations journal"],
       [46, "checkpoint revert provider anchor"],
+      [47, "remote command receipt principal and request digest"],
+      [48, "runtime durable canonical-gap evidence"],
+      [49, "runtime history notice acknowledgement"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(46);
+    expect(LATEST_SCHEMA_VERSION).toBe(49);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -81,5 +87,33 @@ describe("database migration registry", () => {
         { version: 3, name: "same operation" },
       ]),
     ).toThrow(/name is duplicated/i);
+  });
+
+  it("requires an explicit rollback classification from the reviewed floor (F10)", () => {
+    // The floor is the first migration added after the D4 review (schema 47).
+    // It never needs to advance: every migration at or above it must declare
+    // its data compatibility, so a new unclassified migration fails closed
+    // instead of silently defaulting to rollback-compatible.
+    expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
+    expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
+      version: 49,
+      name: "runtime history notice acknowledgement",
+      rollback: "forward-only",
+    });
+    // Migrations below the floor keep their reviewed defaults.
+    expect(() =>
+      assertMigrationRollbackClassifications([{ version: 47, name: "reviewed default" }]),
+    ).not.toThrow();
+    expect(() =>
+      assertMigrationRollbackClassifications([{ version: 48, name: "unclassified" }]),
+    ).toThrow(/does not declare/u);
+    expect(() => validateMigrationRegistry([{ version: 48, name: "unclassified" }])).toThrow(
+      /does not declare/u,
+    );
+    expect(() =>
+      assertMigrationRollbackClassifications([
+        { version: 48, name: "classified", rollback: "forward-only" },
+      ]),
+    ).not.toThrow();
   });
 });

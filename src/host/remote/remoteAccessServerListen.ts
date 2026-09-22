@@ -15,6 +15,7 @@ import {
   type RemoteAccessServerInfo,
 } from "./remoteAccessServerTypes";
 import { mintPairingUrl, recordAudit } from "./remoteAccessServerPairing";
+import { announceRemoteServerShutdown } from "./remoteAccessServerShutdown";
 
 export function createRemoteAccessHttpServer(
   tls: RemoteAccessServerHost["tls"],
@@ -112,12 +113,19 @@ function listenOnce(host: RemoteAccessServerHost): Promise<void> {
  * Closes admission, then joins listener startup, transports and actual owned
  * continuations. A disconnected client or a transport deadline is never
  * evidence that a handler can no longer write to the database.
+ *
+ * Connected clients first get one standards-based going-away close frame
+ * (RFC 6455 1001, no new protocol event) through
+ * {@link announceRemoteServerShutdown}. The announcement is queued, not
+ * awaited: a cooperating client closes at once, and one that ignores the frame
+ * is destroyed by the same `connections.close(grace)` deadline that bounded
+ * shutdown before the announcement existed, so the overall transport budget is
+ * unchanged. Terminating every socket first (the old behavior) reached the
+ * same bound but never told the client the server was going down.
  */
 export async function finishDispose(host: RemoteAccessServerHost): Promise<void> {
   host.heartbeat.stop();
-  for (const client of host.clients.keys()) {
-    client.terminate();
-  }
+  announceRemoteServerShutdown(host);
   host.clients.clear();
   host.replayingClients.clear();
   host.clientLiveness.clear();

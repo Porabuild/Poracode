@@ -13,9 +13,9 @@ export const OPS_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, "healthz" | "metric
 
   // `metrics` answers only loopback peers (the minimal posture gate: the
   // dispatcher's Host-header allowlist already ran; this adds the socket's
-  // remote-address check). Anything non-loopback is a flat 403 before any
-  // metric value is computed.
-  metrics: ({ ctx, req, res }) => {
+  // remote-address check, relay hop marker included). Anything non-loopback is
+  // a flat 403 before any metric value is computed.
+  metrics: async ({ ctx, req, res }) => {
     if (!isDirectLoopbackPeer(req)) {
       throw new RemoteHttpError(
         "metrics_loopback_only",
@@ -24,6 +24,12 @@ export const OPS_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, "healthz" | "metric
       );
     }
     const memory = process.memoryUsage();
+    // On-demand admission snapshot: read through the supervisor client's
+    // bounded existing-IPC peek, which never forks a stopped supervisor. The
+    // field is omitted for a cold/unknown/older supervisor so an unavailable
+    // count is never fabricated as zero; the usage it carries counts logical
+    // supervisor execution slots, not OS processes or RSS.
+    const admission = await ctx.options.peekResourceAdmissionStatus?.();
     writeJson(res, 200, {
       process: {
         uptimeSeconds: Math.floor(process.uptime()),
@@ -35,6 +41,7 @@ export const OPS_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, "healthz" | "metric
         eventBufferEntries: ctx.eventBuffer.length,
         lastEventSeq: ctx.seq,
       },
+      ...(admission?.kind === "available" ? { hostResourceAdmission: admission.status } : {}),
     });
   },
 };

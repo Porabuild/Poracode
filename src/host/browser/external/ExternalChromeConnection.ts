@@ -1,5 +1,5 @@
 import type { WebSocket } from "ws";
-import type { CdpSession } from "../../../main/browser/cdp/cdpClient";
+import type { CdpSession } from "../cdp/session";
 
 /**
  * One connected companion extension = one live control channel to the user's

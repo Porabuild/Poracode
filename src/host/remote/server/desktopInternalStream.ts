@@ -112,8 +112,10 @@ export function replayDesktopEvents(
         reason: "Desktop event replay window expired; request a fresh snapshot.",
       };
     },
-    frameFor: (entry) =>
-      `{"type":"desktop-event","seq":${entry.seq},"space":"ipc","event":${entry.json}}`,
+    frameFor: (entry) => ({
+      kind: "frame",
+      data: `{"type":"desktop-event","seq":${entry.seq},"space":"ipc","event":${entry.json}}`,
+    }),
   });
 }
 

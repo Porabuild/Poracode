@@ -47,10 +47,10 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
-  it("replaces pre-snapshot chunked streams and preserves other streams", () => {
+  it("replaces pre-snapshot chunked streams and preserves other streams", async () => {
     const threadId = "thread-1",
       itemId = "recovery";
-    dbReplaceThreadRuntimeItems(threadId, [
+    await dbReplaceThreadRuntimeItems(threadId, [
       {
         id: itemId,
         type: "assistant_message",
@@ -69,7 +69,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
       { type: "content.delta", threadId, itemId, stream: "assistant_text", delta: " tail" },
     ]);
-    expect(dbGetThreadRuntimeItems(threadId)[0]?.streams).toEqual({
+    expect((await dbGetThreadRuntimeItems(threadId))[0]?.streams).toEqual({
       assistant_text: "correct tail",
       reasoning_text: "keep",
     });
@@ -83,10 +83,10 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
         replace: true,
       },
     ]);
-    expect(dbGetThreadRuntimeItems(threadId)[0]?.streams.assistant_text).toBe("");
+    expect((await dbGetThreadRuntimeItems(threadId))[0]?.streams.assistant_text).toBe("");
   });
 
-  it("applies streamed item and context updates without replacing the transcript", () => {
+  it("applies streamed item and context updates without replacing the transcript", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -127,7 +127,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
 
-    expect(dbGetThreadRuntimeItems("thread-1")).toEqual([
+    expect(await dbGetThreadRuntimeItems("thread-1")).toEqual([
       {
         id: "assistant-1",
         type: "assistant_message",
@@ -142,7 +142,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     });
   });
 
-  it("deduplicates repeated item starts and removes empty completed reasoning", () => {
+  it("deduplicates repeated item starts and removes empty completed reasoning", async () => {
     const start = {
       type: "item.started" as const,
       threadId: "thread-1",
@@ -150,7 +150,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       itemType: "reasoning" as const,
     };
     dbApplyThreadRuntimeEvents("thread-1", [start, start]);
-    expect(dbGetThreadRuntimeItems("thread-1")).toHaveLength(1);
+    expect(await dbGetThreadRuntimeItems("thread-1")).toHaveLength(1);
 
     dbApplyThreadRuntimeEvents("thread-1", [
       {
@@ -159,11 +159,11 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
         itemId: "reasoning-1",
       },
     ]);
-    expect(dbGetThreadRuntimeItems("thread-1")).toEqual([]);
+    expect(await dbGetThreadRuntimeItems("thread-1")).toEqual([]);
   });
 
-  it("prunes only trailing top-level reasoning after an interrupted turn", () => {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  it("prunes only trailing top-level reasoning after an interrupted turn", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       { id: "reasoning-before", type: "reasoning", state: "completed", streams: {} },
       { id: "assistant-1", type: "assistant_message", state: "completed", streams: {} },
       { id: "reasoning-after", type: "reasoning", state: "completed", streams: {} },
@@ -187,7 +187,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
 
-    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual([
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual([
       "reasoning-before",
       "assistant-1",
       "plan-1",
@@ -196,7 +196,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     ]);
   });
 
-  it("persists an open request so a snapshot can recover it, then retires it on resolve", () => {
+  it("persists an open request so a snapshot can recover it, then retires it on resolve", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "request.opened",
@@ -209,7 +209,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
 
     // The open request is persisted as a non-rendered runtime item keyed by
     // request id, carrying the payload the recovery path reads back.
-    expect(dbGetThreadRuntimeItems("thread-1")).toEqual([
+    expect(await dbGetThreadRuntimeItems("thread-1")).toEqual([
       {
         id: "pending_request:req-1",
         type: "pending_request",
@@ -225,7 +225,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
 
     // It must survive the paginated read the narrow PWA uses to open a thread,
     // otherwise snapshot recovery would never see it.
-    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
+    const page = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
     expect(page.items.map((item) => item.id)).toContain("pending_request:req-1");
 
     // Resolving the request retires the item so it is no longer recoverable.
@@ -237,11 +237,11 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
         outcome: "answered",
       },
     ]);
-    expect(dbGetThreadRuntimeItems("thread-1")[0]?.state).toBe("completed");
+    expect((await dbGetThreadRuntimeItems("thread-1"))[0]?.state).toBe("completed");
   });
 
-  it("does not count request items toward the narrow PWA timeline target", () => {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  it("does not count request items toward the narrow PWA timeline target", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       {
         id: "assistant-0",
         type: "assistant_message",
@@ -278,15 +278,15 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
 
-    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
+    const page = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
     expect(
       page.items.filter((item) => item.type === "assistant_message").map((item) => item.id),
     ).toEqual(["assistant-0", "assistant-1"]);
     expect(page.items.map((item) => item.id)).toContain("pending_request:active");
   });
 
-  it("does not use a hidden request item as a completed-turn anchor", () => {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  it("does not use a hidden request item as a completed-turn anchor", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       {
         id: "assistant-1",
         type: "assistant_message",
@@ -309,7 +309,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
-  it("persists a provider handoff divider and keeps it out of the turn anchor", () => {
+  it("persists a provider handoff divider and keeps it out of the turn anchor", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -333,7 +333,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       { type: "item.completed", threadId: "thread-1", itemId: "handoff-1" },
     ]);
 
-    const items = dbGetThreadRuntimeItems("thread-1");
+    const items = await dbGetThreadRuntimeItems("thread-1");
     expect(items.map((item) => item.type)).toEqual(["assistant_message", "provider_handoff"]);
     expect(items.at(-1)?.payload).toMatchObject({
       fromAgentKind: "claude",
@@ -344,8 +344,8 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
-  it("does not use a goal item as a completed-turn anchor", () => {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  it("does not use a goal item as a completed-turn anchor", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       {
         id: "assistant-1",
         type: "assistant_message",
@@ -364,7 +364,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(dbGetLatestThreadRuntimeAnchorItemId("thread-1")).toBe("assistant-1");
   });
 
-  it("retires a still-open request item when the turn completes", () => {
+  it("retires a still-open request item when the turn completes", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "request.opened",
@@ -374,7 +374,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
         payload: { summary: "Run the command?" },
       },
     ]);
-    expect(dbGetThreadRuntimeItems("thread-1")[0]?.state).toBe("started");
+    expect((await dbGetThreadRuntimeItems("thread-1"))[0]?.state).toBe("started");
 
     dbApplyThreadRuntimeEvents("thread-1", [
       {
@@ -384,10 +384,10 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
         state: "interrupted",
       },
     ]);
-    expect(dbGetThreadRuntimeItems("thread-1")[0]?.state).toBe("completed");
+    expect((await dbGetThreadRuntimeItems("thread-1"))[0]?.state).toBe("completed");
   });
 
-  it("pages backward from the transcript tail and truncates by item position", () => {
+  it("pages backward from the transcript tail and truncates by item position", async () => {
     dbApplyThreadRuntimeEvents(
       "thread-1",
       Array.from({ length: 250 }, (_, index) => ({
@@ -398,23 +398,23 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       })),
     );
 
-    const tail = dbGetThreadRuntimeItemsPage("thread-1", undefined, 200);
+    const tail = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 200);
     expect(tail.items[0]?.id).toBe("item-50");
     expect(tail.items.at(-1)?.id).toBe("item-249");
     expect(tail.nextCursor).toBe(50);
 
-    const older = dbGetThreadRuntimeItemsPage("thread-1", tail.nextCursor ?? undefined, 200);
+    const older = await dbGetThreadRuntimeItemsPage("thread-1", tail.nextCursor ?? undefined, 200);
     expect(older.items).toHaveLength(50);
     expect(older.items[0]?.id).toBe("item-0");
     expect(older.nextCursor).toBeNull();
 
     dbTruncateThreadRuntimeAfter("thread-1", "item-124");
-    expect(dbGetThreadRuntimeItems("thread-1")).toHaveLength(125);
-    expect(dbGetThreadRuntimeItems("thread-1").at(-1)?.id).toBe("item-124");
+    expect(await dbGetThreadRuntimeItems("thread-1")).toHaveLength(125);
+    expect((await dbGetThreadRuntimeItems("thread-1")).at(-1)?.id).toBe("item-124");
   });
 
-  it("pages exact user and assistant messages without tool activity consuming the limit", () => {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  it("pages exact user and assistant messages without tool activity consuming the limit", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       { id: "user-0", type: "user_message", state: "completed", streams: {} },
       { id: "tool-0", type: "tool_call", state: "completed", streams: { output: "tool" } },
       {
@@ -440,17 +440,21 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
 
-    const latest = dbGetThreadConversationItemsPage("thread-1", undefined, 2);
+    const latest = await dbGetThreadConversationItemsPage("thread-1", undefined, 2);
     expect(latest.items.map((item) => item.id)).toEqual(["user-1", "assistant-1"]);
     expect(latest.nextCursor).not.toBeNull();
 
-    const older = dbGetThreadConversationItemsPage("thread-1", latest.nextCursor ?? undefined, 2);
+    const older = await dbGetThreadConversationItemsPage(
+      "thread-1",
+      latest.nextCursor ?? undefined,
+      2,
+    );
     expect(older.items.map((item) => item.id)).toEqual(["user-0", "assistant-0"]);
     expect(older.nextCursor).toBeNull();
   });
 
-  it("keeps a groupable run intact when a page boundary lands inside it", () => {
-    dbReplaceThreadRuntimeItems(
+  it("keeps a groupable run intact when a page boundary lands inside it", async () => {
+    await dbReplaceThreadRuntimeItems(
       "thread-1",
       Array.from({ length: 250 }, (_, index) => ({
         id: `item-${index}`,
@@ -468,21 +472,21 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       })),
     );
 
-    const tail = dbGetThreadRuntimeItemsPage("thread-1", undefined, 200);
+    const tail = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 200);
     expect(tail.items).toHaveLength(220);
     expect(tail.items[0]?.id).toBe("item-30");
     expect(tail.items.at(-1)?.id).toBe("item-249");
     expect(tail.nextCursor).toBe(30);
 
-    const older = dbGetThreadRuntimeItemsPage("thread-1", tail.nextCursor ?? undefined, 200);
+    const older = await dbGetThreadRuntimeItemsPage("thread-1", tail.nextCursor ?? undefined, 200);
     expect(older.items).toHaveLength(30);
     expect(older.items[0]?.id).toBe("item-0");
     expect(older.items.at(-1)?.id).toBe("item-29");
     expect(older.nextCursor).toBeNull();
   });
 
-  it("fills one page by projected timeline entries across dense tool runs", () => {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  it("fills one page by projected timeline entries across dense tool runs", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       { id: "assistant-0", type: "assistant_message", state: "completed", streams: {} },
       ...Array.from({ length: 30 }, (_, index) => ({
         id: `group-a-${index}`,
@@ -507,15 +511,15 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       { id: "assistant-3", type: "assistant_message", state: "completed", streams: {} },
     ]);
 
-    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 10, 4);
+    const page = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 10, 4);
     expect(page.items).toHaveLength(62);
     expect(page.items[0]?.id).toBe("group-b-0");
     expect(page.items.at(-1)?.id).toBe("assistant-3");
     expect(page.nextCursor).toBe(32);
   });
 
-  it("returns exact 40-row timeline pages instead of the full raw scan batch", () => {
-    dbReplaceThreadRuntimeItems(
+  it("returns exact 40-row timeline pages instead of the full raw scan batch", async () => {
+    await dbReplaceThreadRuntimeItems(
       "thread-1",
       Array.from({ length: 90 }, (_, index) => ({
         id: `assistant-${index}`,
@@ -525,21 +529,26 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       })),
     );
 
-    const tail = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
+    const tail = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
     expect(tail.items).toHaveLength(40);
     expect(tail.items[0]?.id).toBe("assistant-50");
     expect(tail.items.at(-1)?.id).toBe("assistant-89");
     expect(tail.nextCursor).toBe(50);
 
-    const older = dbGetThreadRuntimeItemsPage("thread-1", tail.nextCursor ?? undefined, 500, 40);
+    const older = await dbGetThreadRuntimeItemsPage(
+      "thread-1",
+      tail.nextCursor ?? undefined,
+      500,
+      40,
+    );
     expect(older.items).toHaveLength(40);
     expect(older.items[0]?.id).toBe("assistant-10");
     expect(older.items.at(-1)?.id).toBe("assistant-49");
     expect(older.nextCursor).toBe(10);
   });
 
-  it("counts subagent parents and inline images as standalone rendered rows", () => {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  it("counts subagent parents and inline images as standalone rendered rows", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       { id: "assistant-0", type: "assistant_message", state: "completed", streams: {} },
       { id: "command-0", type: "command_execution", state: "completed", streams: {} },
       { id: "command-1", type: "command_execution", state: "completed", streams: {} },
@@ -567,7 +576,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       { id: "assistant-1", type: "assistant_message", state: "completed", streams: {} },
     ]);
 
-    const page = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 4);
+    const page = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 4);
     expect(page.items.map((item) => item.id)).toEqual([
       "command-0",
       "command-1",
@@ -579,7 +588,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(page.nextCursor).toBe(1);
   });
 
-  it("uses the parent lookup index when paging a thread", () => {
+  it("uses the parent lookup index when paging a thread", async () => {
     const plan = getSqlite()
       .prepare(
         `EXPLAIN QUERY PLAN
@@ -594,7 +603,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     );
   });
 
-  it("adds the parent lookup index when upgrading schema v37", () => {
+  it("adds the parent lookup index when upgrading schema v37", async () => {
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       UPDATE app_state SET value = '37' WHERE key = 'schema_version';
@@ -613,7 +622,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
-  it("repairs a missing parent lookup column when upgrading a drifted schema v37", () => {
+  it("repairs a missing parent lookup column when upgrading a drifted schema v37", async () => {
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       ALTER TABLE thread_runtime_items DROP COLUMN parent_item_id;
@@ -633,7 +642,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
-  it("repairs a missing parent lookup index at the current schema version", () => {
+  it("repairs a missing parent lookup index at the current schema version", async () => {
     getSqlite().exec("DROP INDEX idx_runtime_items_thread_parent");
 
     closeDatabase();
@@ -645,7 +654,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(columns.map((column) => column.name)).toEqual(["thread_id", "parent_item_id"]);
   });
 
-  it("repairs the parent lookup index from the prerelease Antigravity schema v40", () => {
+  it("repairs the parent lookup index from the prerelease Antigravity schema v40", async () => {
     getSqlite().exec(`
       DROP INDEX idx_runtime_items_thread_parent;
       UPDATE app_state SET value = '40' WHERE key = 'schema_version';
@@ -664,7 +673,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(schemaVersion.value).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
-  it("keeps buffered stream writes readable before the flush window elapses", () => {
+  it("keeps buffered stream writes readable before the flush window elapses", async () => {
     // Writes are queued to keep streaming off the per-chunk rewrite path, so
     // every reader must drain the queue or hydration would serve a stale
     // transcript.
@@ -695,7 +704,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       { type: "item.completed", threadId: "thread-1", itemId: "cmd-1" },
     ]);
 
-    const items = dbGetThreadRuntimeItems("thread-1");
+    const items = await dbGetThreadRuntimeItems("thread-1");
 
     expect(items).toHaveLength(1);
     expect(items[0]).toMatchObject({
@@ -703,10 +712,12 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       state: "completed",
       streams: { command_output: "line one line two" },
     });
-    expect(dbGetThreadRuntimeItemsPage("thread-1", undefined, 50, 40).items).toHaveLength(1);
+    expect((await dbGetThreadRuntimeItemsPage("thread-1", undefined, 50, 40)).items).toHaveLength(
+      1,
+    );
   });
 
-  it("applies queued events in order across separate batches", () => {
+  it("applies queued events in order across separate batches", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -745,13 +756,13 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
 
-    const items = dbGetThreadRuntimeItems("thread-1");
+    const items = await dbGetThreadRuntimeItems("thread-1");
 
     expect(items.map((item) => item.id)).toEqual(["msg-1", "msg-2"]);
     expect(items[0]!.streams.assistant_text).toBe("abc");
   });
 
-  it("keeps a multi-megabyte stream whole while it fits the retained window", () => {
+  it("keeps a multi-megabyte stream whole while it fits the retained window", async () => {
     const megabyte = "y".repeat(1_000_000);
     dbApplyThreadRuntimeEvents("thread-1", [
       {
@@ -772,16 +783,16 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
           delta: megabyte,
         },
       ]);
-      dbFlushThreadRuntimeWrites("thread-1");
+      await dbFlushThreadRuntimeWrites("thread-1");
     }
 
-    const output = dbGetThreadRuntimeItems("thread-1")[0]!.streams.command_output!;
+    const output = (await dbGetThreadRuntimeItems("thread-1"))[0]!.streams.command_output!;
 
     expect(output).toBe(megabyte.repeat(3));
     expect(output).not.toContain("poracode elided");
   });
 
-  it("bounds a runaway command output while keeping its head and tail", () => {
+  it("bounds a runaway command output while keeping its head and tail", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -798,7 +809,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
         delta: "FIRST-LINE ",
       },
     ]);
-    dbFlushThreadRuntimeWrites("thread-1");
+    await dbFlushThreadRuntimeWrites("thread-1");
     for (let i = 0; i < 6; i += 1) {
       dbApplyThreadRuntimeEvents("thread-1", [
         {
@@ -809,7 +820,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
           delta: "x".repeat(1_000_000),
         },
       ]);
-      dbFlushThreadRuntimeWrites("thread-1");
+      await dbFlushThreadRuntimeWrites("thread-1");
     }
     dbApplyThreadRuntimeEvents("thread-1", [
       {
@@ -821,7 +832,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
 
-    const output = dbGetThreadRuntimeItems("thread-1")[0]!.streams.command_output!;
+    const output = (await dbGetThreadRuntimeItems("thread-1"))[0]!.streams.command_output!;
 
     // Whole chunks are dropped, so the retained window can overshoot by at most
     // the newest chunk; it must never grow without bound.
@@ -832,7 +843,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(output).toContain("poracode elided");
   });
 
-  it("drops a completed reasoning item whose text only ever arrived as chunks", () => {
+  it("drops a completed reasoning item whose text only ever arrived as chunks", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -864,13 +875,13 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       { type: "item.completed", threadId: "thread-1", itemId: "think-2" },
     ]);
 
-    const items = dbGetThreadRuntimeItems("thread-1");
+    const items = await dbGetThreadRuntimeItems("thread-1");
 
     expect(items.map((item) => item.id)).toEqual(["think-2"]);
     expect(items[0]!.streams.reasoning_text).toBe("a real thought");
   });
 
-  it("counts completed reasoning whose non-whitespace text is only in the chunk tail", () => {
+  it("counts completed reasoning whose non-whitespace text is only in the chunk tail", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -888,10 +899,12 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       { type: "item.completed", threadId: "thread-1", itemId: "think-tail" },
     ]);
 
-    expect(dbGetThreadRuntimeItemsPage("thread-1", undefined, 50, 40).items).toHaveLength(1);
+    expect((await dbGetThreadRuntimeItemsPage("thread-1", undefined, 50, 40)).items).toHaveLength(
+      1,
+    );
   });
 
-  it("removes the appended stream tail when the thread is deleted", () => {
+  it("removes the appended stream tail when the thread is deleted", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -908,7 +921,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
         delta: "z".repeat(HEAD_CHARS + 50_000),
       },
     ]);
-    dbFlushThreadRuntimeWrites("thread-1");
+    await dbFlushThreadRuntimeWrites("thread-1");
     const chunkCount = () =>
       (
         getSqlite()
@@ -930,7 +943,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     expect(stateCount()).toBe(0);
   });
 
-  it("does not resurrect queued writes for a transcript that was replaced", () => {
+  it("does not resurrect queued writes for a transcript that was replaced", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -940,7 +953,7 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
 
-    dbReplaceThreadRuntimeItems("thread-1", [
+    await dbReplaceThreadRuntimeItems("thread-1", [
       {
         id: "fresh-1",
         type: "assistant_message",
@@ -949,10 +962,10 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       },
     ]);
 
-    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual(["fresh-1"]);
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual(["fresh-1"]);
   });
 
-  it("does not apply queued writes after a thread id is deleted and reused", () => {
+  it("does not apply queued writes after a thread id is deleted and reused", async () => {
     dbApplyThreadRuntimeEvents("thread-1", [
       {
         type: "item.started",
@@ -965,11 +978,11 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
     dbDeleteThread("thread-1");
     dbUpsertThread(testThread(), 0);
 
-    expect(dbGetThreadRuntimeItems("thread-1")).toEqual([]);
+    expect(await dbGetThreadRuntimeItems("thread-1")).toEqual([]);
   });
 
-  it("returns the latest goal even when its position is before the tail window", () => {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  it("returns the latest goal even when its position is before the tail window", async () => {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       {
         id: "goal-outside-tail",
         type: "goal",
@@ -985,11 +998,11 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
       })),
     ]);
 
-    const tail = dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
+    const tail = await dbGetThreadRuntimeItemsPage("thread-1", undefined, 500, 40);
     expect(tail.items.some((item) => item.id === "goal-outside-tail")).toBe(false);
     expect(tail.items.at(-1)?.id).toBe("assistant-89");
 
-    expect(dbGetLatestThreadGoalItem("thread-1")?.id).toBe("goal-outside-tail");
+    expect((await dbGetLatestThreadGoalItem("thread-1"))?.id).toBe("goal-outside-tail");
 
     dbApplyThreadRuntimeEvents("thread-1", [
       {
@@ -1000,6 +1013,6 @@ describe.skipIf(!sqliteAvailable)("runtimeItems incremental persistence", () => 
         payload: { action: "updated", objective: "new goal" },
       },
     ]);
-    expect(dbGetLatestThreadGoalItem("thread-1")?.id).toBe("goal-new");
+    expect((await dbGetLatestThreadGoalItem("thread-1"))?.id).toBe("goal-new");
   });
 });

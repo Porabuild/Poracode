@@ -2,6 +2,12 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { ZodError } from "zod";
 import { remoteHttpErrorSchema } from "@/shared/remote";
 import { writeJsonResponse } from "@/shared/http";
+import {
+  HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
+  hostResourceRetryAfterMsOf,
+  isHostResourceAdmissionRefusal,
+  isHostResourceBusyError,
+} from "@/shared/hostResourceAdmission";
 import { RemoteHttpError } from "../auth";
 import { writeNegotiatedJson } from "./httpCompression";
 
@@ -92,15 +98,50 @@ export function writeHardenedImageResponse(
   res.end(input.data);
 }
 
+/**
+ * Maps a typed host-resource-admission refusal (rehydrated from the supervisor
+ * reply by `SupervisorClient`) to the existing HTTP error shape. Both refusal
+ * codes are a definite, retryable 429; only `host_resource_busy` carries a
+ * `Retry-After` hint — an unavailable policy must not promise a retry that
+ * cannot succeed yet. A refusal that reached a route whose earlier effects
+ * cannot be excluded never arrives here: `runRemoteCommand` answers the typed
+ * 409 first.
+ */
+function hostResourceAdmissionHttpError(error: unknown): RemoteHttpError | null {
+  if (!isHostResourceAdmissionRefusal(error)) return null;
+  const code = (error as { code?: unknown }).code;
+  const message =
+    error instanceof Error && error.message.length > 0
+      ? error.message
+      : "Host resources are unavailable for a new start.";
+  return new RemoteHttpError(
+    typeof code === "string" && code.length > 0 ? code : HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
+    message,
+    429,
+    isHostResourceBusyError(error) ? hostResourceRetryAfterMsOf(error) : undefined,
+  );
+}
+
 export function writeError(res: ServerResponse, error: unknown): void {
-  if (error instanceof RemoteHttpError) {
+  const httpError =
+    error instanceof RemoteHttpError ? error : hostResourceAdmissionHttpError(error);
+  if (httpError) {
+    // B3: a typed overload carries a retry hint; surface it as the standard
+    // `Retry-After` header (seconds) on 429/503. The JSON error body is
+    // unchanged, so every existing client keeps parsing exactly what it did.
+    if (
+      httpError.retryAfterMs !== undefined &&
+      (httpError.status === 429 || httpError.status === 503)
+    ) {
+      res.setHeader("Retry-After", String(Math.max(1, Math.ceil(httpError.retryAfterMs / 1_000))));
+    }
     writeJson(
       res,
-      error.status,
+      httpError.status,
       remoteHttpErrorSchema.parse({
         error: {
-          code: error.code,
-          message: error.message,
+          code: httpError.code,
+          message: httpError.message,
         },
       }),
     );

@@ -6,6 +6,7 @@ import {
 } from "@/shared/remote";
 import { type AuthenticatedRemoteSession } from "../auth";
 import type { RemoteServerContext } from "./context";
+import { PrincipalOverloadError } from "./principalAdmission";
 import {
   buildTerminalWatchResultMessage,
   composeTerminalBaselineStream,
@@ -47,6 +48,7 @@ export async function handleReliableTerminalWatch(
     // receives the unavailable result.
     ctx.terminalCursorSync.clearReliable(ws, terminalId);
     ctx.terminalWatches.get(ws)?.delete(terminalId);
+    ctx.principalAdmission.releaseWatch(ws, terminalId);
     try {
       void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
     } catch {
@@ -88,6 +90,27 @@ export async function handleReliableTerminalWatch(
     return;
   }
 
+  // B3 principal watch budget, checked before any state is installed. A
+  // rejection is a typed retryable result, never a silent drop.
+  if (terminalWatches && !terminalWatches.has(terminalId)) {
+    try {
+      ctx.principalAdmission.tryAdmitWatch(ws, session.sessionId, terminalId);
+    } catch (error) {
+      if (error instanceof PrincipalOverloadError && ws.readyState === WebSocket.OPEN) {
+        ctx.send(
+          ws,
+          buildTerminalWatchResultMessage(terminalId, watchId, {
+            status: "error",
+            code: "unavailable",
+            retryable: true,
+            reason: error.watchReason,
+          }),
+        );
+      }
+      return;
+    }
+  }
+
   // Rewatch replaces prior reliable state for this terminal id (new epoch).
   // Version 2 baselines stream through the credit-windowed scheduler; the
   // registration (epochs, barrier, tagging) is identical to v1.
@@ -104,6 +127,7 @@ export async function handleReliableTerminalWatch(
     // Only remove terminal interest when no reliable registration remains for it.
     if (!ctx.terminalCursorSync.hasReliableWatcher(ws, terminalId)) {
       ctx.terminalWatches.get(ws)?.delete(terminalId);
+      ctx.principalAdmission.releaseWatch(ws, terminalId);
     }
     void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
     if (ws.readyState === WebSocket.OPEN) {
@@ -138,6 +162,7 @@ export async function handleReliableTerminalWatch(
     if (ctx.terminalCursorSync.clearReliableIfMatch(ws, terminalId, watchId, epoch)) {
       if (!ctx.terminalCursorSync.hasReliableWatcher(ws, terminalId)) {
         ctx.terminalWatches.get(ws)?.delete(terminalId);
+        ctx.principalAdmission.releaseWatch(ws, terminalId);
       }
       void Promise.resolve(ctx.notifyEventInterestsChanged()).catch(() => {});
     }
@@ -161,6 +186,25 @@ export async function handleReliableTerminalWatch(
       maxChunkBytes: cursorSync.maxChunkBytes,
       maxWindowBytes: cursorSync.maxWindowBytes,
     });
+    // B3 principal baseline budget: retained serialized bytes + stream count,
+    // reserved per stream identity (watchId + epoch) and released by the
+    // scheduler when the stream actually leaves it.
+    let baselineBytes = 0;
+    for (const messageBytes of stream.messageBytes) baselineBytes += messageBytes;
+    try {
+      ctx.principalAdmission.tryAdmitBaseline(ws, session.sessionId, watchId, epoch, baselineBytes);
+    } catch (error) {
+      if (error instanceof PrincipalOverloadError) {
+        failSetup({
+          status: "error",
+          code: "unavailable",
+          retryable: true,
+          reason: error.watchReason,
+        });
+        return;
+      }
+      throw error;
+    }
     ctx.terminalBaselineStreams.enqueue(ws, {
       terminalId,
       watchId,

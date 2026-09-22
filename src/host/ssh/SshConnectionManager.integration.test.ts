@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -26,6 +27,15 @@ function normalizedTerminalText(value: string): string {
 
 function compactTerminalText(value: string): string {
   return normalizedTerminalText(value).replace(/\s+/gu, "");
+}
+
+function parseKeyValueFile(contents: string): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const line of contents.split(/\r?\n/g)) {
+    const separator = line.indexOf("=");
+    if (separator > 0) fields[line.slice(0, separator)] = line.slice(separator + 1);
+  }
+  return fields;
 }
 
 describe.skipIf(!target || !identityFile)("SshConnectionManager real SSH", () => {
@@ -99,6 +109,54 @@ describe.skipIf(!target || !identityFile)("SshConnectionManager real SSH", () =>
 
       const reused = await manager.connect({ connection });
       expect(reused.endpoint).toBe(connected.endpoint);
+
+      // C2 ownership-safety leg. The remote owner record is authenticated
+      // (generation/profile/root match a host-control describe), and an
+      // independent second client reuses the same owner instead of starting
+      // or signalling one. Reusing a runtime with a different bundled hash is
+      // covered by the fixture tests; here the real runtime hash is identical.
+      const remoteShell = (command: string): string =>
+        execFileSync(
+          "ssh",
+          [
+            "-T",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ConnectTimeout=10",
+            "-p",
+            String(port),
+            "-i",
+            identityFile!,
+            target!,
+            command,
+          ],
+          { encoding: "utf8", timeout: 30_000 },
+        );
+      const identityPath = `"$HOME/.poracode/ssh/hosts/${connection.id}/owner-identity"`;
+      const firstIdentity = parseKeyValueFile(remoteShell(`cat ${identityPath}`));
+      expect(firstIdentity.version).toBe("1");
+      expect(firstIdentity.generation).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+      );
+      expect(Number(firstIdentity.pid)).toBeGreaterThan(0);
+      expect(firstIdentity.port).toBe(String(connected.remotePort));
+      const secondClient = new SshConnectionManager({
+        mainBundleDir: join(root, "dist", "main"),
+        agentPluginsDir: join(root, "resources", "agent-plugins"),
+        wslHelpersDir: join(root, "resources", "wsl-helpers"),
+        cacheDir,
+        ...(process.platform === "win32" ? { sshConfigFile: "NUL" } : {}),
+      });
+      try {
+        const secondConnect = await secondClient.connect({ connection });
+        expect(secondConnect.remotePort).toBe(connected.remotePort);
+      } finally {
+        await secondClient.dispose();
+      }
+      const secondIdentity = parseKeyValueFile(remoteShell(`cat ${identityPath}`));
+      expect(secondIdentity.pid).toBe(firstIdentity.pid);
+      expect(secondIdentity.generation).toBe(firstIdentity.generation);
 
       const shellId = `shell:${crypto.randomUUID()}`;
       const ticket = await client.websocketTicket();

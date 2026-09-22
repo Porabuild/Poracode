@@ -13,7 +13,6 @@ import {
   dbGetThreads,
   dbGetThreadsPage,
   dbListScheduleRuns,
-  dbPersistExperimentState,
   dbReplaceThreadCompletedTurns,
   dbReplaceThreadRuntimeItems,
   dbReplaceThreadRuntimeSnapshot,
@@ -27,8 +26,17 @@ import {
 } from "@/host/db";
 import type { BackendDatabaseCall } from "@/shared/backendHostProtocol";
 
-/** Runs the renderer-persistence subset on the backend host's SQLite connection. */
-export function callDatabaseRpc(call: BackendDatabaseCall): unknown {
+/**
+ * Runs the renderer-persistence subset on the backend host's SQLite connection.
+ *
+ * Async by contract: ordered-transcript reads and content mutations go through
+ * the runtime persistence fence/mutation gate, so the reply arrives only after
+ * the read is exact or the mutation applied (or with the typed busy/degraded/
+ * contaminated refusal). The request/response ENVELOPES are unchanged; only
+ * reply latency moves from synchronous to awaited. The backend request handler
+ * already runs on an async path and simply returns this promise.
+ */
+export async function callDatabaseRpc(call: BackendDatabaseCall): Promise<unknown> {
   switch (call.name) {
     case "dbGetProjects":
       return dbGetProjects();
@@ -50,8 +58,6 @@ export function callDatabaseRpc(call: BackendDatabaseCall): unknown {
       return dbSyncAll(call.payload.projects, call.payload.threads, call.payload.viewJson);
     case "dbSyncChanges":
       return dbSyncChanges(call.payload);
-    case "dbPersistExperimentState":
-      return dbPersistExperimentState(call.payload);
     case "dbGetThreadRuntimeItems":
       return dbGetThreadRuntimeItems(call.payload.threadId);
     case "dbGetThreadRuntimeItemsPage":

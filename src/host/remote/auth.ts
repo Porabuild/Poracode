@@ -36,6 +36,12 @@ export class RemoteHttpError extends Error {
     readonly code: string,
     message: string,
     readonly status: number,
+    /**
+     * B3: optional overload hint, surfaced as the HTTP `Retry-After` header on
+     * 429/503 responses and in rejected WebSocket upgrades. Additive on the
+     * wire (the error body schema is unchanged).
+     */
+    readonly retryAfterMs?: number,
   ) {
     super(message);
     this.name = "RemoteHttpError";
@@ -134,6 +140,19 @@ interface StoredWebSocketTicket {
   readonly expiresAtMs: number;
 }
 
+/**
+ * One-use parent environment upgrade ticket (ADR §5): bound to the minting
+ * session AND the exact environment, 30s TTL, in-memory only, and revoked with
+ * its session alongside ordinary WebSocket tickets. The child's own ticket is
+ * independent and never handled here.
+ */
+interface StoredEnvironmentWebSocketTicket {
+  readonly ticketHash: string;
+  readonly sessionId: string;
+  readonly environmentId: string;
+  readonly expiresAtMs: number;
+}
+
 export interface IssuedPairingCredential {
   readonly id: string;
   readonly credential: string;
@@ -197,6 +216,11 @@ export class RemoteAuthStore {
   private readonly pairingCredentials = new Map<string, StoredPairingCredential>();
   private readonly accessSessions = new Map<string, StoredAccessSession>();
   private readonly websocketTickets = new Map<string, StoredWebSocketTicket>();
+  /** Parent environment upgrade tickets (session + environment bound). */
+  private readonly environmentWebSocketTickets = new Map<
+    string,
+    StoredEnvironmentWebSocketTicket
+  >();
   /** Revoked token hashes (access AND refresh) until their natural expiry. */
   private readonly revokedTokenHashes = new Map<string, number>();
   /** Rotated-out refresh hashes → owning session (V6 A.7 reuse detection). */
@@ -445,6 +469,11 @@ export class RemoteAuthStore {
           this.websocketTickets.delete(ticketHash);
         }
       }
+      for (const [ticketHash, ticket] of this.environmentWebSocketTickets) {
+        if (ticket.sessionId === sessionId) {
+          this.environmentWebSocketTickets.delete(ticketHash);
+        }
+      }
       this.persistAccessSessions();
       return true;
     }
@@ -487,6 +516,67 @@ export class RemoteAuthStore {
     return toAuthenticatedSession(session);
   }
 
+  /**
+   * Mints one single-use parent environment upgrade ticket bound to the
+   * authenticated session and one environment id. The session must hold every
+   * scope the caller declares (`ENVIRONMENT_USE_SCOPES` for the environment
+   * data plane); the token value never appears in a URL a child can observe
+   * beyond the parent proxy hop.
+   */
+  issueEnvironmentWebSocketTicket(input: {
+    readonly accessToken: string;
+    readonly environmentId: string;
+    readonly scopes: readonly RemoteAccessScope[];
+    readonly ttlMs?: number;
+  }): RemoteWebSocketTicketResult {
+    const session = this.authenticateBearerToken(input.accessToken, input.scopes);
+    const ticket = randomCredential("lc_envws");
+    const expiresAtMs = Date.now() + (input.ttlMs ?? DEFAULT_WEBSOCKET_TICKET_TTL_MS);
+    const ticketHash = hashCredential(ticket);
+    this.environmentWebSocketTickets.set(ticketHash, {
+      ticketHash,
+      sessionId: session.sessionId,
+      environmentId: input.environmentId,
+      expiresAtMs,
+    });
+    return {
+      ticket,
+      expiresAt: toIso(expiresAtMs),
+    };
+  }
+
+  /**
+   * Consumes one parent environment upgrade ticket for exactly its bound
+   * environment. Single use even on a mismatch; a ticket whose session was
+   * revoked or expired fails like an invalid access token.
+   */
+  consumeEnvironmentWebSocketTicket(input: {
+    readonly ticket: string;
+    readonly environmentId: string;
+  }): AuthenticatedRemoteSession {
+    this.pruneExpired();
+    const ticketHash = hashCredential(input.ticket);
+    const stored = this.environmentWebSocketTickets.get(ticketHash);
+    if (!stored) {
+      throw new RemoteHttpError("invalid_websocket_ticket", "Invalid WebSocket ticket.", 401);
+    }
+    this.environmentWebSocketTickets.delete(ticketHash);
+    if (stored.environmentId !== input.environmentId) {
+      throw new RemoteHttpError(
+        "invalid_websocket_ticket",
+        "This WebSocket ticket is not valid for this environment.",
+        401,
+      );
+    }
+    const session = [...this.accessSessions.values()].find(
+      (entry) => entry.id === stored.sessionId,
+    );
+    if (!session || session.expiresAtMs <= Date.now()) {
+      throw new RemoteHttpError("invalid_access_token", "Invalid access token.", 401);
+    }
+    return toAuthenticatedSession(session);
+  }
+
   private pruneExpired(): void {
     const now = Date.now();
     let accessSessionsChanged = false;
@@ -504,6 +594,11 @@ export class RemoteAuthStore {
     for (const [hash, ticket] of this.websocketTickets) {
       if (ticket.expiresAtMs <= now) {
         this.websocketTickets.delete(hash);
+      }
+    }
+    for (const [hash, ticket] of this.environmentWebSocketTickets) {
+      if (ticket.expiresAtMs <= now) {
+        this.environmentWebSocketTickets.delete(hash);
       }
     }
     for (const [hash, expiresAtMs] of this.revokedTokenHashes) {

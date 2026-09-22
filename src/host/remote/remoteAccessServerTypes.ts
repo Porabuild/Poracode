@@ -1,5 +1,6 @@
 import type { Server } from "node:http";
 import type { WebSocket, WebSocketServer } from "ws";
+import { matchEnvironmentProxyPath } from "@/shared/environments";
 import type { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
 import type { HttpServerConnections } from "@/shared/httpServerConnections";
 import type {
@@ -12,8 +13,16 @@ import type {
   RemoteSettingsPatch,
 } from "@/shared/remote";
 import type { GitStateInterest, GitStateSnapshot } from "@/shared/gitState";
+import type { ResourceAdmissionPeek } from "@/shared/hostResourceAdmission";
 import type { LiveEventInterests } from "@/shared/liveEventInterests";
+import type {
+  RuntimeHistoryGapAcknowledgeResult,
+  RuntimeHistoryGapDescriptor,
+  RuntimeHistoryNotice,
+  RuntimeHistoryNoticeLookup,
+} from "@/shared/runtimeHistoryNotice";
 import type { TerminalBaselineStreamScheduler } from "./server/terminalBaselineStream";
+import type { PrincipalAdmissionController } from "./server/principalAdmission";
 import type {
   BackgroundTask,
   CheckpointRevertResult,
@@ -43,6 +52,8 @@ import type { RemoteAccessIdentity } from "./identity";
 import type { ForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
 import type { ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import type { PortProxy } from "./portForward/portProxy";
+import type { EnvironmentProxyFactory } from "./environments/types";
+import type { EnvironmentManagementRuntime } from "./environments/environmentManagement";
 import type { RemoteBrowserGatewayLike } from "./RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "./RemotePortForwardGateway";
 import type { RemoteAuditSink } from "./server/auditLog";
@@ -61,6 +72,18 @@ export const DEFAULT_LISTEN_RETRY_ATTEMPTS = 5;
 export const DEFAULT_LISTEN_RETRY_DELAY_MS = 500;
 export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK = 128;
 export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_SOURCE = 32;
+/**
+ * B3 pre-authentication fairness bound keyed on the resolved client address
+ * (relay hop secret / trusted proxies, exactly like the rate limiter). A flood
+ * cannot multiply unauthenticated work by opening sockets, because every
+ * socket shares the address's allowance. The address is a coarse bound only —
+ * never identity: NAT/proxy peers share it, so the default stays far above
+ * normal concurrency (half the global admission) and authenticated principals
+ * are budgeted separately by `PrincipalAdmissionController`. Control-class
+ * work is exempt so Stop/approval stays admissible under an address's bulk
+ * flood (the global control reserve still bounds it).
+ */
+export const DEFAULT_MAX_CONCURRENT_INGRESS_WORK_PER_ADDRESS = 64;
 /**
  * Reserved control-priority capacity (Gate 4 fairness): slots of the ingress
  * semaphore bulk traffic can never occupy, so Stop/approval-class requests
@@ -86,6 +109,23 @@ export const DEFAULT_RESERVED_INGRESS_CONTROL_CAPACITY_PER_SOURCE = 4;
  */
 export type IngressWorkClass = "control" | "bulk";
 
+/**
+ * B4 read class: `legacy-bulk` marks the unbounded legacy read variants
+ * (`/api/snapshot` without `threadLimit` or a `reads` echo,
+ * `/api/threads/<id>/history` without `runtimePage=1` or a `reads` echo). The
+ * route handlers admit them explicitly (2 global / 1 principal + the
+ * stored-byte reservation pre-check); every declared/bounded read stays
+ * `normal` and keeps the ordinary B3 budgets.
+ */
+export type IngressReadClass = "normal" | "legacy-bulk";
+
+export interface IngressRequestClassification {
+  readonly workClass: IngressWorkClass;
+  readonly readClass: IngressReadClass;
+  /** Resolved client address for the pre-auth fairness bound (never identity). */
+  readonly clientAddress: string;
+}
+
 const INGRESS_CONTROL_ROUTE_SUFFIXES: ReadonlySet<string> = new Set([
   "/interrupt",
   "/close",
@@ -94,17 +134,65 @@ const INGRESS_CONTROL_ROUTE_SUFFIXES: ReadonlySet<string> = new Set([
 ]);
 
 /** Route suffix of a POST to `/api/threads/<single-segment-id>/...` when it is
- * one of the stop/answer control routes; `null` for everything else. Shape
- * mirrors `threadIdFromPath` in `httpRouter.ts` (raw id, no decoded `/`). */
+ * one of the stop/answer control routes; `null` for everything else. The id
+ * shape mirrors `threadIdFromPath` in `httpRouter.ts` (raw, no decoded `/`),
+ * and every suffix in the set is matched as a whole so the two-segment
+ * `/terminal/close` route stays reachable. */
 export function ingressControlRouteSuffix(pathname: string): string | null {
   if (!pathname.startsWith("/api/threads/")) return null;
-  const rest = pathname.slice("/api/threads/".length);
-  const cut = rest.lastIndexOf("/");
-  if (cut <= 0) return null;
-  const id = rest.slice(0, cut);
-  if (!id || id.includes("/")) return null;
-  const suffix = rest.slice(cut);
-  return INGRESS_CONTROL_ROUTE_SUFFIXES.has(suffix) ? suffix : null;
+  for (const suffix of INGRESS_CONTROL_ROUTE_SUFFIXES) {
+    if (!pathname.endsWith(suffix)) continue;
+    const rawId = pathname.slice("/api/threads/".length, pathname.length - suffix.length);
+    if (!rawId || rawId.includes("/")) continue;
+    return suffix;
+  }
+  return null;
+}
+
+/**
+ * Work class for one already-matched environment proxy child path (the
+ * gateway's view). Shares the ONE control-route list with
+ * {@link ingressControlRouteSuffix} — no second route table — and, exactly
+ * like the transport classifier, only a POST can be control. The child path
+ * was already unwrapped and guarded by `matchEnvironmentProxyPath`.
+ */
+export function environmentProxyChildWorkClass(
+  method: string,
+  rawChildPath: string,
+): IngressWorkClass {
+  if (method !== "POST") return "bulk";
+  return ingressControlRouteSuffix(rawChildPath) === null ? "bulk" : "control";
+}
+
+/**
+ * Work class for one raw request target, direct or through the environment
+ * data plane. Direct control routes keep the historical WHATWG-pathname
+ * classification. A proxy-shaped target is classified by its INNER child path
+ * unwrapped from the RAW target through the same `matchEnvironmentProxyPath`
+ * guard the dispatcher uses, so only a well-formed proxy shape can borrow the
+ * reserved control class: malformed shapes, encoded separators, dot segments,
+ * and nested proxy paths stay bulk (the inner path is unwrapped exactly once,
+ * so a nested proxy path is not a thread route). Forwarded child authorities
+ * never reach the path check — `classifyIngressRequest` forces them bulk
+ * first.
+ *
+ * B4: proxied reads stay `normal` because the environment data plane dispatches
+ * them to the environment proxy gateway, never to the registry read handlers
+ * that carry the legacy bulk admission.
+ */
+export function classifyIngressWorkClass(method: string, rawTarget: string): IngressWorkClass {
+  if (method !== "POST") return "bulk";
+  const proxyMatch = matchEnvironmentProxyPath(rawTarget);
+  if (proxyMatch) {
+    if (proxyMatch.kind !== "match") return "bulk";
+    return environmentProxyChildWorkClass(method, proxyMatch.rawChildPath);
+  }
+  try {
+    const { pathname } = new URL(rawTarget, "http://poracode.invalid");
+    return ingressControlRouteSuffix(pathname) === null ? "bulk" : "control";
+  } catch {
+    return "bulk";
+  }
 }
 
 export function firstHostHeaderValue(value: string | string[] | undefined): string | null {
@@ -152,6 +240,29 @@ type RemoteAccessListenerTls = {
   readonly key: string;
   readonly fingerprint: string;
 };
+
+/**
+ * The embedded desktop experiment authority seams. Every method already exists
+ * on the supervisor client; this port only names the exact capabilities the
+ * experiment command route is allowed to use, so the shared route module never
+ * reaches into the supervisor directly.
+ */
+export interface RemoteExperimentAuthority {
+  /**
+   * Hold the per-thread mutation lock across a multi-step custody operation
+   * (confirmed retirement + the final destructive DB mutation). Nested
+   * acquisition in deterministic candidate-id order is how a removal holds
+   * every affected candidate at once.
+   */
+  runThreadMutation<Result>(threadId: string, operation: () => Promise<Result>): Promise<Result>;
+  /**
+   * Confirmed retirement of a thread's live runtime: true only when the live
+   * runtime is verifiably gone or none was live. A no-start refusal counts as
+   * confirmed only when the lifecycle owner positively proves no process or
+   * transition can still act. Never spawns a supervisor.
+   */
+  retireThread(threadId: string): Promise<boolean>;
+}
 
 export interface RemoteAccessServerOptions {
   readonly appVersion: string;
@@ -258,6 +369,48 @@ export interface RemoteAccessServerOptions {
    * never occupy, with the same scaling and validation rules.
    */
   readonly reservedIngressControlCapacityPerSource?: number;
+  /**
+   * B3 principal fairness: outstanding HTTP/WS continuations admitted per
+   * authenticated principal (session). Non-waiting; over-budget work is
+   * rejected with a typed 429 `principal_busy` plus `Retry-After`.
+   */
+  readonly maxConcurrentPrincipalWork?: number;
+  /**
+   * Slice of `maxConcurrentPrincipalWork` bulk can never occupy, so a Stop /
+   * approval request from the same principal is admitted while its own bulk
+   * work is saturated. Same scaling/validation rules as the transport reserve.
+   */
+  readonly reservedPrincipalControlCapacity?: number;
+  /** Aggregate principal work; defaults to `maxConcurrentIngressWork`. */
+  readonly maxTotalPrincipalWork?: number;
+  /** Established event sockets per principal (16 default). */
+  readonly maxSocketsPerPrincipal?: number;
+  /** Established event sockets across all principals (128 default). */
+  readonly maxTotalSockets?: number;
+  /** Terminal watch interests per principal (256 default). */
+  readonly maxWatchesPerPrincipal?: number;
+  /** Terminal watch interests across all principals (4096 default). */
+  readonly maxTotalWatches?: number;
+  /** Retained chunked-baseline streams per principal (16 default). */
+  readonly maxBaselineStreamsPerPrincipal?: number;
+  /** Retained chunked-baseline streams across all principals (256 default). */
+  readonly maxTotalBaselineStreams?: number;
+  /** Retained serialized baseline bytes per principal (16 MiB default). */
+  readonly maxBaselineBytesPerPrincipal?: number;
+  /** Retained serialized baseline bytes across all principals (64 MiB default). */
+  readonly maxTotalBaselineBytes?: number;
+  /** Live outbound WebSocket queue bytes per principal (16 MiB default). */
+  readonly maxQueuedBytesPerPrincipal?: number;
+  /** Live outbound WebSocket queue bytes across all principals (64 MiB default). */
+  readonly maxTotalQueuedBytes?: number;
+  /**
+   * B3 pre-authentication bound: concurrent non-control continuations per
+   * resolved client address (64 default). Coarse anti-flood bound shared by
+   * NAT/proxy peers — never identity.
+   */
+  readonly maxConcurrentIngressWorkPerAddress?: number;
+  /** `Retry-After` hint carried by typed overload rejections (1000 ms default). */
+  readonly overloadRetryAfterMs?: number;
   /** Grace before closing active transports; admitted handlers are still joined. */
   readonly shutdownConnectionGraceMs?: number;
   readonly authStore?: RemoteAuthStore;
@@ -275,6 +428,24 @@ export interface RemoteAccessServerOptions {
    */
   readonly ownsSupervisorPersistence?: boolean;
   /**
+   * B1 GUI durable-gap recovery port, composed only when this host owns the
+   * durable evidence/notice store (desktop backend and headless host both
+   * forward their `BackendHostCore`). Absent = the feature is not composed:
+   * the runtime/gap routes answer 503, history reads neither gate nor attach a
+   * notice, and the descriptor advertises no `runtimeHistoryNotices`
+   * capability. Never routed through supervisor-event persistence.
+   */
+  readonly runtimeHistoryGap?: {
+    /** SELECT-only current-episode descriptor (throws typed when unreadable). */
+    read(threadId: string): RuntimeHistoryGapDescriptor | null;
+    /** SELECT-only durable notice for one thread, or null. */
+    readNotice(threadId: string): RuntimeHistoryNotice | null;
+    /** Bounded derived lookup for live/replay scoping; `error` fails closed. */
+    lookupNotice(threadId: string): RuntimeHistoryNoticeLookup;
+    /** The one synchronous acknowledgement transaction under the host's locks. */
+    acknowledge(threadId: string, token: string): Promise<RuntimeHistoryGapAcknowledgeResult>;
+  };
+  /**
    * Aggregate live-stream demand from all authenticated WebSocket clients.
    * May return a Promise; reliable terminal watches await it as the interest
    * activation barrier before reading a snapshot.
@@ -290,6 +461,14 @@ export interface RemoteAccessServerOptions {
     name: Name,
     payload: IpcProcedurePayload<Name>,
   ): Promise<IpcProcedureResult<Name>>;
+  /**
+   * On-demand supervisor admission snapshot for the loopback `/metrics`
+   * handler. Optional: a host without it omits the field entirely (an absent
+   * or older supervisor must never be reported as zero usage). Implementations
+   * must answer from an already-running supervisor and never fork one — the
+   * loopback probe is a diagnostic, not a launch trigger.
+   */
+  readonly peekResourceAdmissionStatus?: () => Promise<ResourceAdmissionPeek>;
   /**
    * Single-mutation owner for checkpoint truncates: performs the database
    * write and publishes one canonical `runtime.truncated` event through the
@@ -317,6 +496,19 @@ export interface RemoteAccessServerOptions {
    * available to receive the command.
    */
   dispatchThreadCommand?(command: RemoteThreadCommand): boolean | Promise<boolean>;
+  /**
+   * Experiment authority port (capabilities.experiments v1). Composed ONLY by
+   * the embedded desktop backend that owns the local-shell experiment worktree
+   * driver; a headless/helper composition omits it, so the experiment routes
+   * answer 501 and no capability is advertised. Presence of this port is the
+   * composition gate — not a hostMode branch.
+   *
+   * The port reuses the existing supervisor seams: per-thread mutation
+   * ownership held across a candidate's confirmed retirement AND the final
+   * destructive DB mutation, and confirmed retirement that is never a start
+   * trigger.
+   */
+  readonly experimentAuthority?: RemoteExperimentAuthority;
   /** Resolve authoritative MCP settings for a remotely launched persisted thread. */
   resolveMcpLaunchSnapshot?(projectId: string): McpLaunchSnapshot;
   /** Built-in browser bridge: tab commands plus screencast mirroring. */
@@ -347,6 +539,21 @@ export interface RemoteAccessServerOptions {
    * non-loopback peer or without a constant-time match.
    */
   readonly forwardDispatchKey?: string;
+  /**
+   * C1 parent proxy data plane (ADR §5). When composed, the parent intercepts
+   * `/api/environments/{environmentId}/proxy/*` before registry matching,
+   * authenticates the parent credential from
+   * `x-poracode-environment-authorization`, and streams to the verified
+   * environment target. The factory receives the server's ONE principal
+   * admission controller so proxy legs share the existing per-principal
+   * work/socket budgets. Absent = the feature is not composed: the prefix
+   * still fails closed and never falls through to ordinary routing. The
+   * management routes and the descriptor capability stay with their own
+   * composition owner; this option alone advertises nothing.
+   */
+  readonly environmentProxy?: EnvironmentProxyFactory;
+  /** The host-owned environment authority. Advertised only with its proxy. */
+  readonly environmentManagement?: EnvironmentManagementRuntime;
   /**
    * Remote-editable desktop settings (AI helpers, agent/model configuration,
    * and persistent composer MCP enablement). `update` merges a patch into the
@@ -432,7 +639,14 @@ export interface RemoteAccessServerOptions {
   };
   /** Notifies the desktop shell after the active pairing code rotates. */
   readonly onPairingChanged?: () => void;
-  /** Keeps a live desktop renderer in sync with project mutations made over HTTP. */
+  /**
+   * Optional host hook receiving the authoritative project rows after an HTTP
+   * project mutation. No production composition consumes it anymore: the
+   * desktop renderer converges through the server's `remote-projects-changed`
+   * WS membership event, and the previous backend→main full-copy relay was
+   * removed. Kept as an embedding seam for hosts that own project rows
+   * in-process (and exercised by the focused route tests).
+   */
   readonly onProjectsChanged?: (projects: readonly Project[]) => void;
 }
 
@@ -459,6 +673,18 @@ export interface RemoteAccessServerHost {
   readonly gitStateInterests: Map<WebSocket, readonly GitStateInterest[]>;
   readonly supervisorEventListeners: Set<(event: RemoteBroadcastEvent) => void>;
   readonly itemInterests: Map<WebSocket, ReadonlySet<string>>;
+  /**
+   * B1: connections that declared `notices=v1` at upgrade (canonical runtime
+   * content for a notice thread is otherwise withheld). Absent entry = the
+   * connection cannot render a notice, so the gate applies.
+   */
+  readonly noticeCapableClients: Set<WebSocket>;
+  /**
+   * Connections that declared `catalogChanges=bounded-v1` at upgrade with
+   * `session:read`: they receive bounded catalog-change signals instead of the
+   * full project list.
+   */
+  readonly boundedCatalogChangeClients: Set<WebSocket>;
   readonly eventBuffer: BufferedSupervisorEvent[];
   desktopSeq: number;
   readonly desktopEventBuffer: BufferedSupervisorEvent[];
@@ -467,9 +693,13 @@ export interface RemoteAccessServerHost {
   readonly backgroundTasksByThread: Map<string, readonly BackgroundTask[]>;
   readonly maxConcurrentIngressWork: number;
   readonly maxConcurrentIngressWorkPerSource: number;
+  readonly maxConcurrentIngressWorkPerAddress: number;
   readonly reservedIngressControlCapacity: number;
   readonly reservedIngressControlCapacityPerSource: number;
+  /** Post-authentication principal/session budgets (B3). */
+  readonly principalAdmission: PrincipalAdmissionController;
   readonly ingressWorkBySource: WeakMap<object, number>;
+  readonly ingressWorkByAddress: Map<string, number>;
   readonly ingressPolicyCache: WeakMap<ForwardOriginIdentity, ForwardOriginPolicy>;
   ingressWorkCount: number;
   seq: number;

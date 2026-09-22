@@ -87,7 +87,7 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
-  it("keeps a main-created thread (and its launch transcript) that the renderer has not mirrored yet", () => {
+  it("keeps a main-created thread (and its launch transcript) that the renderer has not mirrored yet", async () => {
     dbUpsertThread(remoteStartedThread(), 0);
     persistLaunchUserMessage("thread-remote");
 
@@ -95,12 +95,12 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
 
     expect(dbGetThread("thread-remote")).not.toBeNull();
-    expect(dbGetThreadRuntimeItems("thread-remote").map((item) => item.type)).toEqual([
+    expect((await dbGetThreadRuntimeItems("thread-remote")).map((item) => item.type)).toEqual([
       "user_message",
     ]);
   });
 
-  it("keeps the ownership marker across database connection lifetimes", () => {
+  it("keeps the ownership marker across database connection lifetimes", async () => {
     dbUpsertThread(remoteStartedThread(), 0);
     persistLaunchUserMessage("thread-remote");
 
@@ -109,10 +109,10 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
 
     expect(dbGetThread("thread-remote")).not.toBeNull();
-    expect(dbGetThreadRuntimeItems("thread-remote")).toHaveLength(1);
+    expect(await dbGetThreadRuntimeItems("thread-remote")).toHaveLength(1);
   });
 
-  it("validates an already-migrated desktop database without taking migration ownership", () => {
+  it("validates an already-migrated desktop database without taking migration ownership", async () => {
     const databasePath = join(dir, "state.sqlite");
     dbSetState("schema_version", "31");
 
@@ -122,25 +122,25 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     expect(dbGetState("schema_version")).toBe("31");
   });
 
-  it("still deletes a thread the renderer dropped after it had mirrored it", () => {
+  it("still deletes a thread the renderer dropped after it had mirrored it", async () => {
     dbUpsertThread(remoteStartedThread(), 0);
     persistLaunchUserMessage("thread-remote");
 
     // Renderer applied the command: its snapshot now carries the thread.
     dbSyncAll([project], [remoteStartedThread()], JSON.stringify({ kind: "home" }));
-    expect(dbGetThreadRuntimeItems("thread-remote")).toHaveLength(1);
+    expect(await dbGetThreadRuntimeItems("thread-remote")).toHaveLength(1);
 
     // The user deletes it in the renderer.
     dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
 
     expect(dbGetThread("thread-remote")).toBeNull();
-    expect(dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
+    expect(await dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
   });
 
   // Rows written before provider switching existed are already on disk with
   // their original agent_kind. Both upsert paths omitted agent_kind from their
   // conflict-set, which silently pinned such a row to its first provider.
-  it("moves an existing thread row to its new provider, keeping the transcript", () => {
+  it("moves an existing thread row to its new provider, keeping the transcript", async () => {
     dbUpsertThread(remoteStartedThread(), 0);
     persistLaunchUserMessage("thread-remote");
     expect(dbGetThread("thread-remote")?.agentKind).toBe("claude");
@@ -153,12 +153,12 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     dbSyncAll([project], [switched], JSON.stringify({ kind: "home" }));
 
     expect(dbGetThread("thread-remote")?.agentKind).toBe("copilot");
-    expect(dbGetThreadRuntimeItems("thread-remote").map((item) => item.type)).toEqual([
+    expect((await dbGetThreadRuntimeItems("thread-remote")).map((item) => item.type)).toEqual([
       "user_message",
     ]);
   });
 
-  it("moves an existing thread row to its new provider through dbUpsertThread", () => {
+  it("moves an existing thread row to its new provider through dbUpsertThread", async () => {
     dbUpsertThread(remoteStartedThread(), 0);
     expect(dbGetThread("thread-remote")?.agentKind).toBe("claude");
 
@@ -167,7 +167,7 @@ describe.skipIf(!sqliteAvailable)("dbSyncAll thread ownership", () => {
     expect(dbGetThread("thread-remote")?.agentKind).toBe("codex");
   });
 
-  it("persists thread workspace tags through a full renderer sync", () => {
+  it("persists thread workspace tags through a full renderer sync", async () => {
     const tagged: Thread = {
       ...remoteStartedThread(),
       id: "thread-tagged",
@@ -209,7 +209,7 @@ describe.skipIf(!sqliteAvailable)("dbSyncChanges row-scoped sync", () => {
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
-  it("upserts only the changed rows it receives and never touches unlisted rows", () => {
+  it("upserts only the changed rows it receives and never touches unlisted rows", async () => {
     dbUpsertThread(remoteStartedThread(), 0);
 
     dbSyncChanges({
@@ -233,7 +233,7 @@ describe.skipIf(!sqliteAvailable)("dbSyncChanges row-scoped sync", () => {
     expect(dbGetState("view")).toBe('{"kind":"home"}');
   });
 
-  it("reindexes every row from a shipped order list so drags survive a restart", () => {
+  it("reindexes every row from a shipped order list so drags survive a restart", async () => {
     const a = { ...remoteStartedThread(), id: "thread-a" };
     const b = { ...remoteStartedThread(), id: "thread-b" };
     dbSyncChanges({
@@ -261,7 +261,7 @@ describe.skipIf(!sqliteAvailable)("dbSyncChanges row-scoped sync", () => {
     expect(dbGetThreads().map((thread) => thread.id)).toEqual(["thread-b", "thread-a"]);
   });
 
-  it("deletes explicitly listed threads with their transcripts and ownership markers", () => {
+  it("deletes explicitly listed threads with their transcripts and ownership markers", async () => {
     dbUpsertThread(remoteStartedThread(), 0);
     persistLaunchUserMessage("thread-remote");
 
@@ -274,14 +274,14 @@ describe.skipIf(!sqliteAvailable)("dbSyncChanges row-scoped sync", () => {
     });
 
     expect(dbGetThread("thread-remote")).toBeNull();
-    expect(dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
+    expect(await dbGetThreadRuntimeItems("thread-remote")).toEqual([]);
 
     // A later full sync must treat this id as deletable again, not protected.
     dbSyncAll([project], [], JSON.stringify({ kind: "home" }));
     expect(dbGetThread("thread-remote")).toBeNull();
   });
 
-  it("upserting a mirrored thread hands ownership back so full syncs can delete it", () => {
+  it("upserting a mirrored thread hands ownership back so full syncs can delete it", async () => {
     dbUpsertThread(remoteStartedThread(), 0);
     persistLaunchUserMessage("thread-remote");
 
@@ -293,7 +293,7 @@ describe.skipIf(!sqliteAvailable)("dbSyncChanges row-scoped sync", () => {
       deletedThreadIds: [],
       viewJson: "{}",
     });
-    expect(dbGetThreadRuntimeItems("thread-remote")).toHaveLength(1);
+    expect(await dbGetThreadRuntimeItems("thread-remote")).toHaveLength(1);
 
     // Now the renderer dropping the row in a full sync is a real deletion.
     dbSyncAll([project], [], JSON.stringify({ kind: "home" }));

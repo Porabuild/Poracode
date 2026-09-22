@@ -222,6 +222,11 @@ describe("sharedSettingsFile", () => {
         collapsedProviders: [],
         selectedRingGroups: {},
       },
+      hostResourceAdmission: {
+        maxActiveAgentSessions: 0,
+        maxActiveTerminalShells: 0,
+        maxActiveGenerationHelpers: 0,
+      },
       crossagentRoutingGuide: "",
     });
 
@@ -367,6 +372,11 @@ describe("sharedSettingsFile", () => {
         providerOrder: [],
         collapsedProviders: [],
         selectedRingGroups: {},
+      },
+      hostResourceAdmission: {
+        maxActiveAgentSessions: 0,
+        maxActiveTerminalShells: 0,
+        maxActiveGenerationHelpers: 0,
       },
       crossagentRoutingGuide: "",
     });

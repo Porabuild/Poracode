@@ -104,7 +104,7 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunks migration", () => {
     sqlite.close();
   }
 
-  it("compacts an oversized stream on upgrade, keeping head and tail", () => {
+  it("compacts an oversized stream on upgrade, keeping head and tail", async () => {
     const head = "FIRST-LINE";
     const tail = "LAST-LINE";
     const oversized = `${head}${"x".repeat(MAX_PERSISTED_STREAM_CHARS * 2)}${tail}`;
@@ -112,7 +112,7 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunks migration", () => {
 
     initDatabase(dbPath);
 
-    const item = dbGetThreadRuntimeItems("thread-1")[0]!;
+    const item = (await dbGetThreadRuntimeItems("thread-1"))[0]!;
     const output = item.streams.command_output!;
     expect(output.length).toBeLessThanOrEqual(MAX_PERSISTED_STREAM_CHARS);
     expect(output.startsWith(head)).toBe(true);
@@ -141,28 +141,28 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunks migration", () => {
     }
   }
 
-  it("leaves transcripts that already fit byte for byte", () => {
+  it("leaves transcripts that already fit byte for byte", async () => {
     seedPreCapDatabase({ command_output: "small output" });
 
     initDatabase(dbPath);
 
-    expect(dbGetThreadRuntimeItems("thread-1")[0]!.streams).toEqual({
+    expect((await dbGetThreadRuntimeItems("thread-1"))[0]!.streams).toEqual({
       command_output: "small output",
     });
   });
 
-  it("migrates astral text measured as oversized UTF-16", () => {
+  it("migrates astral text measured as oversized UTF-16", async () => {
     const oversized = "😀".repeat(MAX_PERSISTED_STREAM_CHARS / 2 + 10);
     seedPreCapDatabase({ command_output: oversized });
 
     initDatabase(dbPath);
 
-    const output = dbGetThreadRuntimeItems("thread-1")[0]!.streams.command_output!;
+    const output = (await dbGetThreadRuntimeItems("thread-1"))[0]!.streams.command_output!;
     expect(output.length).toBeLessThanOrEqual(MAX_PERSISTED_STREAM_CHARS + 256_000);
     expect(output).not.toContain("�");
   });
 
-  it("keeps one bounded stream layout when a large legacy item resumes", () => {
+  it("keeps one bounded stream layout when a large legacy item resumes", async () => {
     seedPreCapDatabase({
       command_output: `LEGACY-HEAD ${"x".repeat(MAX_PERSISTED_STREAM_CHARS * 2)}`,
     });
@@ -178,7 +178,7 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunks migration", () => {
       },
     ]);
 
-    const output = dbGetThreadRuntimeItems("thread-1")[0]!.streams.command_output!;
+    const output = (await dbGetThreadRuntimeItems("thread-1"))[0]!.streams.command_output!;
     expect(output.startsWith("LEGACY-HEAD ")).toBe(true);
     expect(output.endsWith(" APPENDED-TAIL")).toBe(true);
     expect(output.match(/poracode elided/g)).toHaveLength(1);

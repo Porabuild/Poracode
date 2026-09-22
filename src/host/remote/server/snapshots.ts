@@ -1,7 +1,14 @@
 import {
   PORACODE_REMOTE_PROTOCOL_VERSION,
+  REMOTE_CATALOG_MUTATIONS_VERSION,
+  REMOTE_BOUNDED_CATALOG_CHANGES_VERSION,
   REMOTE_PUSH_ROUTING_VERSION,
   REMOTE_BROWSER_FORWARD_VERSION,
+  REMOTE_RUNTIME_HISTORY_NOTICES_VERSION,
+  REMOTE_SSH_ENVIRONMENTS_VERSION,
+  REMOTE_THREAD_LAUNCH_METADATA_VERSION,
+  REMOTE_PROJECT_COMMAND_RESULTS_VERSION,
+  REMOTE_EXPERIMENTS_VERSION,
   REMOTE_STANDARD_SCOPES,
   remoteAgentStatusesSchema,
   remoteEnvironmentDescriptorSchema,
@@ -13,6 +20,7 @@ import {
   type RemoteAgentSlashCommands,
   type RemoteAgentStatuses,
   type RemoteEnvironmentDescriptor,
+  type RemoteRuntimeHistoryNotice,
   type RemoteRuntimeItemsPage,
   type RemoteRuntimeItemsPageRequest,
   type RemoteShellSnapshot,
@@ -26,20 +34,30 @@ import {
   type Thread,
 } from "@/shared/contracts";
 import {
+  beginRuntimeFence,
   dbGetProjects,
   dbGetThread,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
-  dbGetLatestThreadGoalItem,
-  dbGetThreadRuntimeItems,
+  dbGetThreadRuntimeSummariesCommitted,
   dbGetThreadRuntimeItemsPage,
-  dbGetThreadRuntimeSummaries,
+  dbReadLatestThreadGoalItem,
+  dbReadThreadRuntimeItems,
+  dbReadThreadRuntimeItemsPage,
   dbGetThreadTerminalScrollback,
   dbGetThreads,
   dbGetThreadsPage,
+  flushRuntimeFence,
+  readRuntimeFence,
 } from "@/host/db";
+import {
+  LEGACY_RUNTIME_PAGE_LIMIT,
+  LEGACY_RUNTIME_PAGE_TARGET_ENTRIES,
+} from "@/host/db/runtimeTimelineReads";
 import { RemoteHttpError } from "../auth";
+import { mapFenceRefusal, mapPersistenceRefusal } from "./persistenceRefusals";
 import type { RemoteServerContext } from "./context";
+import { readRuntimeHistoryNoticeForRead } from "./runtimeHistoryNoticeGate";
 import { withStableUpdatedAt } from "./stableUpdatedAt";
 import { projectRuntimeItemsImageRefs } from "./imageRefProjection";
 import { projectGitStateSnapshotForRemote } from "./gitStateProjection";
@@ -60,7 +78,9 @@ function runtimeSummariesFor(
   threads: readonly Thread[],
 ): RemoteShellSnapshot["runtimeSummariesByThread"] {
   const visibleThreads = threads.filter((thread) => !thread.archived);
-  const runtimeSummaries = dbGetThreadRuntimeSummaries(visibleThreads.map((thread) => thread.id));
+  const runtimeSummaries = dbGetThreadRuntimeSummariesCommitted(
+    visibleThreads.map((thread) => thread.id),
+  );
   const summariesByThread: RemoteShellSnapshot["runtimeSummariesByThread"] = {};
   for (const thread of visibleThreads) {
     const summary = runtimeSummaries[thread.id] ?? { itemCount: 0 };
@@ -113,15 +133,57 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       wsBaseUrl: info.wsBaseUrl,
     },
     capabilities: {
+      ...(ctx.options.environmentManagement && ctx.environmentProxy
+        ? { sshEnvironments: { versions: [REMOTE_SSH_ENVIRONMENTS_VERSION] } }
+        : {}),
       ...(ctx.options.portProxy
         ? { browserForward: { versions: [REMOTE_BROWSER_FORWARD_VERSION] } }
         : {}),
       ...(ctx.options.pushRegistrations
         ? { pushRouting: { versions: [REMOTE_PUSH_ROUTING_VERSION] } }
         : {}),
+      // B1: advertised only when the composition wired the durable gap/notice
+      // store; a client shows the recovery action only when it is advertised.
+      ...(ctx.options.runtimeHistoryGap
+        ? { runtimeHistoryNotices: { versions: [REMOTE_RUNTIME_HISTORY_NOTICES_VERSION] } }
+        : {}),
       terminalCursorSync: {
         versions: [...TERMINAL_CURSOR_SYNC_SUPPORTED_VERSIONS],
       },
+      // Managed catalog mutations: relative project/thread reorder, nullable
+      // workspace assignment, and project draft-config persistence ride the
+      // existing command routes on every composition that serves them.
+      catalogMutations: {
+        versions: [REMOTE_CATALOG_MUTATIONS_VERSION],
+      },
+      // Bounded catalog-change notifications: a client may declare
+      // `catalogChanges=bounded-v1` on its event socket to receive the bounded
+      // signal form instead of the full catalog list. Every composition that
+      // serves the shared event stream implements the projection, so this is
+      // unconditional; it is a separate capability from catalog mutability.
+      boundedCatalogChanges: {
+        versions: [REMOTE_BOUNDED_CATALOG_CHANGES_VERSION],
+      },
+      // Managed-root launch metadata: a `start` command's workspace/geometry
+      // and parent/PR lineage are persisted by this route implementation and
+      // honored at launch. Separate from catalog mutability: a client sends
+      // only the fields it knows this host will apply.
+      threadLaunchMetadata: {
+        versions: [REMOTE_THREAD_LAUNCH_METADATA_VERSION],
+      },
+      // Managed-root bounded project-command results: the existing project
+      // command route honors the exact per-request bounded declaration.
+      projectCommandResults: {
+        versions: [REMOTE_PROJECT_COMMAND_RESULTS_VERSION],
+      },
+      // Experiment authority: advertised ONLY when this composition wired the
+      // embedded desktop authority port (the local-shell experiment worktree
+      // driver). A headless/helper composition omits the port, so the routes
+      // answer 501 and clients refuse the feature truthfully. The mutating
+      // routes additionally enforce the documented loopback LOCALITY check.
+      ...(ctx.options.experimentAuthority
+        ? { experiments: { versions: [REMOTE_EXPERIMENTS_VERSION] } }
+        : {}),
     },
   });
 }
@@ -153,17 +215,24 @@ export function buildShellSnapshot(
     gitSummariesByThread = gitSummariesFor(ctx, threads);
     threadsNextCursor = page.nextCursor;
   }
+  const projects = dbGetProjects();
+  const gitState = ctx.options.gitState
+    ? projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot())
+    : undefined;
+  // Capture the sequence after every synchronous read (summaries barrier
+  // included) so the cursor never lags content that the snapshot already
+  // contains. Shell summaries are projections, so a degraded barrier still
+  // serves the committed prefix here.
+  const snapshotSeq = ctx.seq;
   return remoteShellSnapshotSchema.parse(
     withStableUpdatedAt("shell", {
-      snapshotSeq: ctx.seq,
-      projects: dbGetProjects(),
+      snapshotSeq,
+      projects,
       threads,
       ...(threadsNextCursor ? { threadsNextCursor } : {}),
       runtimeSummariesByThread: summariesByThread,
       gitSummariesByThread,
-      ...(ctx.options.gitState
-        ? { gitState: projectGitStateSnapshotForRemote(ctx.options.gitState.getSnapshot()) }
-        : {}),
+      ...(gitState ? { gitState } : {}),
     }),
   );
 }
@@ -273,19 +342,86 @@ export async function buildThreadSnapshot(
      * inlined `terminalScrollback` here so the tail is never sent twice.
      */
     readonly omitScrollback?: boolean;
+    /**
+     * B1: the request declared `notices=v1`. Read and gated inside the fenced
+     * turn; absent means an incapable reader is refused typed on a notice
+     * thread instead of being served a transcript it cannot reconcile.
+     */
+    readonly noticesDeclared?: boolean;
   } = {},
 ): Promise<RemoteThreadSnapshot> {
-  // Capture the sequence at request start. The snapshot reads several
-  // independent async sources; using ctx.seq at return would label a queue
-  // read taken before a live event as current when that event lands while the
-  // other reads are suspended.
-  const snapshotSeq = ctx.seq;
   const initialThread = dbGetThread(threadId);
   if (!initialThread) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
 
   const readsTerminal = initialThread.presentationMode !== "gui";
+  // Asynchronous committed-prefix fence: pin the intake prefix and capture the
+  // published cursor in the SAME synchronous turn, then commit the prefix in
+  // chunks, then read behind the held fence. Content is exactly the published
+  // canonical domain at or below `snapshotSeq`: no yielded gap can admit an
+  // event that content misses while the cursor already covers it.
+  let fenceToken: ReturnType<typeof beginRuntimeFence>;
+  try {
+    // Waiter-bound exhaustion throws synchronously here, before the fence
+    // exists; it is the same typed retryable refusal as a failed flush.
+    fenceToken = beginRuntimeFence(threadId);
+  } catch (error) {
+    throw mapPersistenceRefusal(error);
+  }
+  const snapshotSeq = ctx.seq;
+  const fenceResult = await flushRuntimeFence(fenceToken);
+  if (fenceResult.kind !== "committed") {
+    throw mapFenceRefusal(threadId, fenceResult);
+  }
+  let runtimePage: ReturnType<typeof dbReadThreadRuntimeItemsPage> | null = null;
+  let runtimeItems: ReturnType<typeof dbReadThreadRuntimeItems>;
+  let latestGoal: ReturnType<typeof dbReadLatestThreadGoalItem>;
+  let completedTurns: ReturnType<typeof dbGetThreadCompletedTurns>;
+  let contextUsage: ReturnType<typeof dbGetThreadContextUsage>;
+  let runtimeNotice: ReturnType<typeof readRuntimeHistoryNoticeForRead>;
+  try {
+    ({ runtimePage, runtimeItems, latestGoal, completedTurns, contextUsage, runtimeNotice } =
+      readRuntimeFence(fenceToken, () => {
+        const page = options.runtimePage
+          ? dbReadThreadRuntimeItemsPage(
+              threadId,
+              undefined,
+              LEGACY_RUNTIME_PAGE_LIMIT,
+              options.targetTimelineEntryCount ?? LEGACY_RUNTIME_PAGE_TARGET_ENTRIES,
+            )
+          : null;
+        return {
+          runtimePage: page,
+          runtimeItems: page?.items ?? dbReadThreadRuntimeItems(threadId),
+          latestGoal: page ? dbReadLatestThreadGoalItem(threadId) : null,
+          completedTurns: dbGetThreadCompletedTurns(threadId),
+          contextUsage: dbGetThreadContextUsage(threadId),
+          // B1: the notice read and its declared-reader gate share this
+          // synchronous fenced turn with the transcript read, so an
+          // acknowledgement cannot land between them.
+          runtimeNotice: readRuntimeHistoryNoticeForRead(
+            ctx,
+            threadId,
+            options.noticesDeclared === true,
+          ),
+        };
+      }));
+  } catch (error) {
+    // A contaminated thread must not be served as a short transcript with a
+    // fresh cursor (the client would replay and double-apply the gap). Refuse
+    // with a retryable typed error instead.
+    throw mapPersistenceRefusal(error);
+  }
+  const runtimeItemsWithGoal =
+    latestGoal && !runtimeItems.some((item) => item.id === latestGoal.id)
+      ? [latestGoal, ...runtimeItems]
+      : runtimeItems;
+
+  // Async supervisor reads come after the cursor. A queue/task/state event that
+  // lands while they are suspended is > cursor and arrives through WS replay;
+  // applying those events is idempotent, so the snapshot can never silently
+  // miss an update it does not carry.
   let terminalScrollback: string | undefined;
   let terminalSize: RemoteThreadSnapshot["terminalSize"] | undefined;
   // Keep this call independent from the terminal reads below. A host with an
@@ -325,22 +461,14 @@ export async function buildThreadSnapshot(
 
   // The supervisor reads above cross an async boundary. Runtime and
   // thread-state events can persist while they are in flight, so re-read the
-  // row before taking the synchronous runtime snapshot; otherwise a completed
-  // transcript can be returned with an older `working` status and the client
-  // will conservatively treat the history as non-authoritative.
+  // row before returning; otherwise a completed transcript can be returned
+  // with an older `working` status and the client will conservatively treat
+  // the history as non-authoritative. A state newer than the cursor is
+  // re-delivered by replay, so this cannot disagree silently.
   const thread = dbGetThread(threadId);
   if (!thread) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
-  const runtimePage = options.runtimePage
-    ? dbGetThreadRuntimeItemsPage(threadId, undefined, 500, options.targetTimelineEntryCount ?? 40)
-    : null;
-  const runtimeItems = runtimePage?.items ?? dbGetThreadRuntimeItems(threadId);
-  const latestGoal = runtimePage ? dbGetLatestThreadGoalItem(threadId) : null;
-  const runtimeItemsWithGoal =
-    latestGoal && !runtimeItems.some((item) => item.id === latestGoal.id)
-      ? [latestGoal, ...runtimeItems]
-      : runtimeItems;
   const followUpQueue = await followUpQueuePromise;
   return remoteThreadSnapshotSchema.parse(
     withStableUpdatedAt(`thread:${threadId}`, {
@@ -350,30 +478,45 @@ export async function buildThreadSnapshot(
       // of runtime payload bytes and the client fetches each one on demand.
       runtimeItems: projectRuntimeItemsImageRefs(threadId, runtimeItemsWithGoal),
       ...(runtimePage ? { runtimeNextCursor: runtimePage.nextCursor } : {}),
-      completedTurns: dbGetThreadCompletedTurns(threadId),
-      contextUsage: dbGetThreadContextUsage(threadId),
+      completedTurns,
+      contextUsage,
       backgroundTasks,
       ...(terminalScrollback ? { terminalScrollback } : {}),
       ...(terminalSize ? { terminalSize } : {}),
       ...(followUpQueue !== undefined ? { followUpQueue } : {}),
+      ...(runtimeNotice !== undefined ? { runtimeNotice } : {}),
     }),
   );
 }
 
-export function buildThreadRuntimeItemsPage(
+export async function buildThreadRuntimeItemsPage(
   input: RemoteRuntimeItemsPageRequest,
-): RemoteRuntimeItemsPage {
+  options: {
+    /**
+     * B1: the durable notice already read + gated by the caller for this
+     * request. Managed GUI hydration reads item pages, so the notice must ride
+     * this shape too; the caller reads it synchronously with the gate.
+     */
+    readonly runtimeNotice?: RemoteRuntimeHistoryNotice;
+  } = {},
+): Promise<RemoteRuntimeItemsPage> {
   if (!dbGetThread(input.threadId)) {
     throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
   }
-  const page = dbGetThreadRuntimeItemsPage(
-    input.threadId,
-    input.beforePosition,
-    input.limit,
-    input.targetTimelineEntryCount,
-  );
+  let page: ReturnType<typeof dbReadThreadRuntimeItemsPage>;
+  try {
+    page = await dbGetThreadRuntimeItemsPage(
+      input.threadId,
+      input.beforePosition,
+      input.limit,
+      input.targetTimelineEntryCount,
+    );
+  } catch (error) {
+    throw mapPersistenceRefusal(error);
+  }
   return remoteRuntimeItemsPageSchema.parse({
     ...page,
     items: projectRuntimeItemsImageRefs(input.threadId, page.items),
+    ...(options.runtimeNotice ? { runtimeNotice: options.runtimeNotice } : {}),
   });
 }

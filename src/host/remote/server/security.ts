@@ -1,7 +1,15 @@
 import { isIP } from "node:net";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { isLoopbackHostname } from "@/shared/http";
-import { REMOTE_COMMAND_ID_HEADER, type RemoteAccessScope } from "@/shared/remote";
+import {
+  REMOTE_COMMAND_ID_HEADER,
+  REMOTE_PROJECT_COMMAND_RESULT_HEADER,
+  type RemoteAccessScope,
+} from "@/shared/remote";
+import {
+  ENVIRONMENT_AUTH_AUTHORITY_HEADER,
+  ENVIRONMENT_AUTHORIZATION_HEADER,
+} from "@/shared/environments";
 import { remoteTrustedProxyAddresses } from "../config";
 import { hasRelayLoopbackHopMarker } from "./relayHopSecret";
 import { socketMatchesTrustedProxy } from "./trustedProxy";
@@ -159,12 +167,37 @@ export class RemoteServerSecurity {
 
   constructor(private readonly ctx: SecurityContext) {}
 
+  /**
+   * The resolved client address used by the pre-auth fairness bound (B3) and
+   * the rate limiter: relay-hop / trusted-proxy aware, and never treated as
+   * identity for authentication or post-auth accounting.
+   */
+  resolveClientAddress(req: IncomingMessage): string {
+    return resolveRateLimitClient(
+      req,
+      this.ctx.options.trustedProxies ?? remoteTrustedProxyAddresses(),
+    );
+  }
+
   applyCors(req: IncomingMessage, res: ServerResponse): boolean {
     res.setHeader(
       "Access-Control-Allow-Headers",
-      `authorization, content-type, ${REMOTE_COMMAND_ID_HEADER}`,
+      // Fixed allow-list, never a reflection of `Access-Control-Request-Headers`.
+      // The C1 parent proxy credential travels in its own reserved header
+      // (never `Authorization`, which stays the child's bearer), so browser
+      // preflights on the environment data plane must be allowed to send it.
+      // The bounded project-command declaration is an ordinary request header
+      // too: `window.fetch` cannot send it (directly or through the parent
+      // proxy) unless a preflight names it here.
+      `authorization, content-type, ${REMOTE_COMMAND_ID_HEADER}, ` +
+        `${ENVIRONMENT_AUTHORIZATION_HEADER}, ${REMOTE_PROJECT_COMMAND_RESULT_HEADER}`,
     );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    // C1 R1: the parent's auth-authority marker is a response header the
+    // browser client must be able to read off a failed proxied request;
+    // `window.fetch` cannot see non-exposed response headers. `Vary` already
+    // carries `Origin` below, and the marker is emitted by the parent only.
+    res.setHeader("Access-Control-Expose-Headers", ENVIRONMENT_AUTH_AUTHORITY_HEADER);
     // An absent Origin is a distinct cache variant too (native vs browser).
     res.setHeader("Vary", "Origin");
     const origin = this.trustedRequestOrigin(req);

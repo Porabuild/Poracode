@@ -6,9 +6,14 @@ export function sanitizeAttachmentPathPart(value: string): string {
   return value.replace(/[<>:"/\\|?*]/g, "-");
 }
 
-export function getThreadAttachmentDir(paths: PoracodePaths, threadId: string): string {
+/** Shared by writers and reclamation. Preserve the existing on-disk naming format. */
+export function getThreadAttachmentDirName(threadId: string): string {
   const pathPart = sanitizeAttachmentPathPart(threadId).slice(0, 12);
-  return join(paths.attachmentsDir, pathPart === "." || pathPart === ".." ? "--" : pathPart);
+  return pathPart === "." || pathPart === ".." ? "--" : pathPart;
+}
+
+export function getThreadAttachmentDir(paths: PoracodePaths, threadId: string): string {
+  return join(paths.attachmentsDir, getThreadAttachmentDirName(threadId));
 }
 
 /** Persist a browser-selected file under the host's attachment root. */

@@ -1,4 +1,6 @@
 import {
+  isRemoteProjectCatalogCommand,
+  REMOTE_PROJECT_COMMAND_RESULT_DECLARATION,
   remoteBrowserCommandSchema,
   remotePortEnterRequestSchema,
   remotePortEnterResultSchema,
@@ -24,7 +26,13 @@ import { redactMcpServer } from "@/host/mcpSettings";
 import { parseBearerAuthorizationHeader, RemoteHttpError } from "../auth";
 import { FORWARD_ORIGIN_UNAVAILABLE } from "../portForward/forwardOriginIdentity";
 import { writeHardenedImageResponse, writeJson } from "./httpResponses";
-import { requirePathParam, type HttpRouteHandlerTable } from "./httpRouteHandlers.shared";
+import {
+  remoteProjectCommandResultIsBounded,
+  requirePathParam,
+  requireRemoteCommandId,
+  type HttpRouteHandlerTable,
+} from "./httpRouteHandlers.shared";
+import { commandOutcomeUncertainAfterEffect, runRemoteCommand } from "./remoteCommandIdempotency";
 import {
   IMAGE_TICKET_QUERY_PARAM,
   imageTicketRequestBodySchema,
@@ -315,20 +323,107 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     writeJson(res, 200, { result: await runRemoteProcedure(ctx, req) });
   },
 
-  "project-command": async ({ ctx, req, res }) => {
+  "project-command": async ({ ctx, req, res, url, session }) => {
     const command = remoteProjectCommandSchema.parse(await readJsonBody(req));
-    const result = await runProjectCommand(ctx, command);
-    // Tell every connected client to refresh its shell snapshot.
+    if (remoteProjectCommandResultIsBounded(req)) {
+      // Declared bounded result mode (capabilities.projectCommandResults v1).
+      // Separate from the catalog-mutation KINDS: the declaration decides only
+      // the response/payload contract, so every kind may opt in. The command
+      // id is REQUIRED for every opted-in mutation (the receipt is the only
+      // retry-safety identity), and the semantic mode is part of the receipt
+      // digest, so the same id with a different mode or body conflicts instead
+      // of replaying across contracts. Only the bounded response is recorded —
+      // never the catalog — and the declaration-aware publication reads the
+      // catalog only when an undeclared subscriber or the embedding callback
+      // actually consumes it.
+      const response = await runRemoteCommand({
+        commandId: requireRemoteCommandId(req, command.kind),
+        route: url.pathname,
+        principalId: session?.sessionId ?? null,
+        requestPayload: {
+          result: REMOTE_PROJECT_COMMAND_RESULT_DECLARATION,
+          command,
+        },
+        operation: async (markDispatched) => {
+          // The effect boundary marks the receipt's uncertainty; any later
+          // failure (post-write read/parse, publication, callback) must answer
+          // as may-have-committed, never as a definite failed receipt.
+          let committed = false;
+          const signal = () => {
+            committed = true;
+            markDispatched();
+          };
+          try {
+            const outcome = await runProjectCommand(ctx, command, signal, {
+              resultMode: "bounded",
+              onEffectBoundary: signal,
+            });
+            ctx.publishCatalogChanged();
+            return outcome.response;
+          } catch (error) {
+            if (committed) throw commandOutcomeUncertainAfterEffect(error);
+            throw error;
+          }
+        },
+      });
+      writeJson(res, 200, response);
+      return;
+    }
+    if (isRemoteProjectCatalogCommand(command)) {
+      // Narrow catalog mutation: the caller's per-action command id is
+      // REQUIRED before any effect (a relative move is only retry-safe under
+      // it), the response is bounded, and publication happens inside the
+      // operation so a replayed receipt never re-broadcasts. Only the bounded
+      // response is recorded — never the catalog. The declaration-aware
+      // publication reads the catalog only when an undeclared subscriber or
+      // the embedding `onProjectsChanged` hook actually consumes it.
+      const response = await runRemoteCommand({
+        commandId: requireRemoteCommandId(req, command.kind),
+        route: url.pathname,
+        principalId: session?.sessionId ?? null,
+        requestPayload: command,
+        operation: async (markDispatched) => {
+          // The DB intent signals its true commit boundary: the change-listener
+          // fan-out, post-write read/parse, WS publication, and the optional
+          // in-process project hook all run AFTER the durable write. A failure
+          // from any of them must answer as may-have-committed, never as a
+          // definite pre-effect failure — while a refusal or no-op (no signal)
+          // stays raw.
+          let committed = false;
+          try {
+            const outcome = await runProjectCommand(ctx, command, () => {
+              committed = true;
+              markDispatched();
+            });
+            ctx.publishCatalogChanged();
+            return outcome.response;
+          } catch (error) {
+            if (committed) throw commandOutcomeUncertainAfterEffect(error);
+            throw error;
+          }
+        },
+      });
+      writeJson(res, 200, response);
+      return;
+    }
+    // Tell every connected client to refresh its snapshot with the bounded
+    // `remote-projects-changed` membership event. Remote responses deliberately
+    // omit sensitive project settings such as MCP server definitions; the
+    // optional in-process `onProjectsChanged` hook gets the authoritative rows
+    // for a host that owns project state directly (no production composition
+    // consumes it — the desktop renderer converges over the loopback WS).
+    const outcome = await runProjectCommand(ctx, command);
+    if (outcome.kind !== "complete") {
+      // Unreachable: only catalog kinds return a bounded outcome, and they
+      // were handled above.
+      throw new Error("Legacy project command returned a bounded outcome.");
+    }
     ctx.publishSupervisorEvent({
       type: "remote-projects-changed",
-      projects: result.response.projects,
+      projects: [...outcome.broadcastProjects],
     });
-    // Remote responses deliberately omit sensitive project settings such as
-    // MCP server definitions. The host renderer persists this internal
-    // notification, so give it the authoritative rows rather than the
-    // redacted response or it would write the omitted settings back as null.
-    ctx.options.onProjectsChanged?.(result.projects);
-    writeJson(res, 200, result.response);
+    ctx.options.onProjectsChanged?.(outcome.projects);
+    writeJson(res, 200, outcome.response);
   },
 
   "project-settings": ({ res, params }) => {

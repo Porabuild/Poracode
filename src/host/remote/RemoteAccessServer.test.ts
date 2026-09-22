@@ -51,12 +51,13 @@ import {
   dbGetProjects,
   dbGetThread,
   dbGetThreadContextUsage,
-  dbGetLatestThreadGoalItem,
+  dbReadLatestThreadGoalItem,
   dbGetLatestThreadRuntimeAnchorItemId,
-  dbGetThreadRuntimeItems,
-  dbGetThreadRuntimeItem,
+  dbReadThreadRuntimeItems,
+  dbGetThreadRuntimeItemCommitted,
+  dbReadThreadRuntimeItemsPage,
   dbGetThreadRuntimeItemsPage,
-  dbGetThreadRuntimeSummaries,
+  dbGetThreadRuntimeSummariesCommitted,
   dbGetThreadTerminalScrollbackRecord,
   dbGetThreads,
   dbReplaceThreadRuntimeSnapshot,
@@ -66,7 +67,14 @@ import {
   dbUpdateProject,
   dbUpsertProject,
   dbUpsertThread,
+  dbRemoveProjectExperiments,
 } from "@/host/db";
+// B1 ordering proof uses the real bounded queue (the barrel above is mocked).
+import {
+  dbDiscardThreadRuntimeWrites as discardRealRuntimeWrites,
+  dbHasPendingThreadRuntimeWrites as hasPendingRealRuntimeWrites,
+} from "@/host/db/runtimeItems";
+import { resetRuntimePersistenceForTests } from "@/host/db/runtimePersistenceRuntime";
 import { RemoteAuthStore } from "./auth";
 import { deriveForwardOwner, ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
@@ -90,26 +98,85 @@ vi.mock("@/host/db", () => {
   // it must actually advance on bumpProfileDataGeneration() (as it does with
   // real SQLite) or an identity write would never invalidate the cached read.
   let profileDataGeneration = 0;
+  const getProjects = vi.fn<() => Project[]>(() => []);
   return {
     dbAppendThreadCompletedTurn: vi.fn<(...args: unknown[]) => void>(),
     dbApplyThreadRuntimeEvents: vi.fn<(...args: unknown[]) => void>(),
+    // B4 legacy bulk-read pre-check: empty reservations keep every legacy
+    // read inside the cap in these HTTP tests (no real SQLite).
+    dbMeasureLegacySnapshotCharge: vi.fn<
+      () => { threadsStoredBytes: number; projectsStoredBytes: number }
+    >(() => ({ threadsStoredBytes: 0, projectsStoredBytes: 0 })),
+    dbMeasureLegacyHistoryCharge: vi.fn<
+      () => {
+        itemsStoredBytes: number;
+        streamTailStoredBytes: number;
+        completedTurnsStoredBytes: number;
+        scrollbackStoredBytes: number;
+        contextUsageStoredBytes: number;
+      }
+    >(() => ({
+      itemsStoredBytes: 0,
+      streamTailStoredBytes: 0,
+      completedTurnsStoredBytes: 0,
+      scrollbackStoredBytes: 0,
+      contextUsageStoredBytes: 0,
+    })),
+    // Experiment authority: the project-removal guard + exact-id experiment
+    // removal that the shared project-command deps now require.
+    beginProjectRemoval: vi.fn<(projectId: string) => () => void>(() => () => {}),
+    awaitProjectExperimentWorktreePreparations: vi.fn<(projectId: string) => Promise<void>>(
+      async () => {},
+    ),
+    beginProjectExperimentWorktreePreparation: vi.fn<(projectId: string) => () => void>(
+      () => () => {},
+    ),
+    isProjectRemoving: vi.fn<(projectId: string) => boolean>(() => false),
+    dbRemoveProjectExperiments: vi.fn<
+      (
+        projectId: string,
+        recordIds: readonly string[],
+      ) => {
+        status: "ok";
+        removedIds: readonly string[];
+      }
+    >((_projectId, recordIds) => ({ status: "ok", removedIds: [...recordIds] })),
     dbClaimRemoteCommand: vi.fn<() => { state: "claimed" }>(() => ({ state: "claimed" })),
     dbCompleteRemoteCommand: vi.fn<(...args: unknown[]) => void>(),
     dbFailRemoteCommand: vi.fn<(...args: unknown[]) => void>(),
     dbDeleteThread: vi.fn<(threadId: string) => void>(),
-    dbGetProject: vi.fn<(projectId: string) => unknown>(() => null),
+    dbGetProject: vi.fn<(projectId: string) => Project | null>(
+      (projectId) => getProjects().find((project) => project.id === projectId) ?? null,
+    ),
     dbGetProjectNotes: vi.fn<(projectId: string) => unknown>(() => null),
-    dbGetProjects: vi.fn<() => unknown[]>(() => []),
+    dbGetProjects: getProjects,
     dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
     dbGetThreadContextUsage: vi.fn<() => null>(() => null),
-    dbGetLatestThreadGoalItem: vi.fn<() => unknown>(() => null),
+    dbReadLatestThreadGoalItem: vi.fn<() => unknown>(() => null),
     dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
-    dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
-    dbGetThreadRuntimeItem: vi.fn<(...args: unknown[]) => unknown>(() => undefined),
-    dbGetThreadRuntimeItemsPage: vi.fn<() => { items: unknown[]; nextCursor: number | null }>(
+    dbReadThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
+    dbGetThreadRuntimeItemCommitted: vi.fn<(...args: unknown[]) => unknown>(() => undefined),
+    dbReadThreadRuntimeItemsPage: vi.fn<() => { items: unknown[]; nextCursor: number | null }>(
       () => ({ items: [], nextCursor: null }),
     ),
-    dbGetThreadRuntimeSummaries: vi.fn<() => Record<string, unknown>>(() => ({})),
+    dbGetThreadRuntimeItemsPage: vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => ({
+      items: [],
+      nextCursor: null,
+    })),
+    beginRuntimeFence: vi.fn<
+      (threadId: string) => { threadId: string; throughPersistSeq: number; generation: number }
+    >((threadId) => ({ threadId, throughPersistSeq: 0, generation: 1 })),
+    flushRuntimeFence: vi.fn<() => Promise<unknown>>(async () => ({
+      kind: "committed" as const,
+      persistSeq: 0,
+      pendingEvents: 0,
+      pendingBytes: 0,
+    })),
+    readRuntimeFence: vi.fn<(token: unknown, read: () => unknown) => unknown>((_token, read) =>
+      read(),
+    ),
+    releaseRuntimeFence: vi.fn<() => void>(),
+    dbGetThreadRuntimeSummariesCommitted: vi.fn<() => Record<string, unknown>>(() => ({})),
     dbGetThreadTerminalScrollback: vi.fn<() => string>(() => ""),
     dbGetThreadTerminalScrollbackRecord: vi.fn<
       () => { transcript: string; outputLength: number } | null
@@ -134,6 +201,16 @@ vi.mock("@/host/db", () => {
     }),
   };
 });
+
+/**
+ * Runs the queued runtime control-write cycle (thread-state rows and
+ * completed turns are idempotent control ops with bounded retry since the B1
+ * correction, so their durable effect lands on a later macrotask).
+ */
+async function flushQueuedControlWrites(): Promise<void> {
+  await new Promise((resolve) => setImmediate(resolve));
+  await new Promise((resolve) => setImmediate(resolve));
+}
 
 const servers: RemoteAccessServer[] = [];
 const tempDirs: string[] = [];
@@ -172,17 +249,29 @@ afterEach(async () => {
   vi.mocked(dbFailRemoteCommand).mockReset();
   vi.mocked(dbDeleteThread).mockReset();
   vi.mocked(dbGetThreadCompletedTurns).mockReset().mockReturnValue([]);
-  vi.mocked(dbGetProject).mockReset().mockReturnValue(null);
+  vi.mocked(dbGetProject)
+    .mockReset()
+    .mockImplementation(
+      (projectId) => dbGetProjects().find((project) => project.id === projectId) ?? null,
+    );
   vi.mocked(dbGetProjectNotes).mockReset().mockReturnValue(null);
   vi.mocked(dbGetProjects).mockReset().mockReturnValue([]);
   vi.mocked(dbGetThreadContextUsage).mockReset().mockReturnValue(null);
-  vi.mocked(dbGetLatestThreadGoalItem).mockReset().mockReturnValue(null);
+  vi.mocked(dbReadLatestThreadGoalItem).mockReset().mockReturnValue(null);
   vi.mocked(dbGetLatestThreadRuntimeAnchorItemId).mockReset().mockReturnValue(null);
-  vi.mocked(dbGetThreadRuntimeItems).mockReset().mockReturnValue([]);
-  vi.mocked(dbGetThreadRuntimeItemsPage)
+  vi.mocked(dbReadThreadRuntimeItems).mockReset().mockReturnValue([]);
+  vi.mocked(dbReadThreadRuntimeItemsPage)
     .mockReset()
     .mockReturnValue({ items: [], nextCursor: null });
-  vi.mocked(dbGetThreadRuntimeSummaries).mockReset().mockReturnValue({});
+  // The page route consumes the fenced async reader; tests configure the
+  // sync committed reader, so the async one delegates to it.
+  vi.mocked(dbGetThreadRuntimeItemsPage).mockReset();
+  const syncPageReader = vi.mocked(dbReadThreadRuntimeItemsPage) as unknown as (
+    ...inner: unknown[]
+  ) => { items: unknown[]; nextCursor: number | null };
+  vi.mocked(dbGetThreadRuntimeItemsPage).mockImplementation((async (...args: unknown[]) =>
+    syncPageReader(...args)) as unknown as typeof dbGetThreadRuntimeItemsPage);
+  vi.mocked(dbGetThreadRuntimeSummariesCommitted).mockReset().mockReturnValue({});
   vi.mocked(dbGetThread).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreadTerminalScrollbackRecord).mockReset().mockReturnValue(null);
   vi.mocked(dbGetThreads).mockReset().mockReturnValue([]);
@@ -682,7 +771,7 @@ describe("RemoteAccessServer", () => {
     expect(new URL(info.httpBaseUrl).port).toBe(String(port));
   });
 
-  it("persists remotely broadcast thread-state transitions", () => {
+  it("persists remotely broadcast thread-state transitions", async () => {
     const initialStartedAt = "2026-01-01T00:00:00.000Z";
     const db = mockThreadDb([
       createTestThread({
@@ -712,6 +801,7 @@ describe("RemoteAccessServer", () => {
       canResumeWithConfig: true,
       threadStatusSource: "server",
     });
+    await flushQueuedControlWrites();
 
     expect(db.threads()[0]).toMatchObject({
       id: "thread-remote",
@@ -825,7 +915,7 @@ describe("RemoteAccessServer", () => {
     });
   });
 
-  it("persists thread-state even when the stored row carries no status source", () => {
+  it("persists thread-state even when the stored row carries no status source", async () => {
     // Rows written before the thread_status_source column existed (or by code
     // paths that never set it) read back with threadStatusSource undefined; a
     // source-tagged event must still persist or the row freezes at its
@@ -850,6 +940,7 @@ describe("RemoteAccessServer", () => {
       canResumeWithConfig: false,
       threadStatusSource: "server",
     });
+    await flushQueuedControlWrites();
 
     expect(db.threads()[0]).toMatchObject({
       id: "thread-legacy",
@@ -858,7 +949,7 @@ describe("RemoteAccessServer", () => {
     });
   });
 
-  it("persists thread-state across a status source change", () => {
+  it("persists thread-state across a status source change", async () => {
     const db = mockThreadDb([
       createTestThread({
         id: "thread-terminal",
@@ -884,6 +975,7 @@ describe("RemoteAccessServer", () => {
       canResumeWithConfig: false,
       threadStatusSource: "cli_hook",
     });
+    await flushQueuedControlWrites();
 
     expect(db.threads()[0]).toMatchObject({
       id: "thread-terminal",
@@ -892,7 +984,7 @@ describe("RemoteAccessServer", () => {
     });
   });
 
-  it("persists runtime event batches immediately before a settling thread-state", () => {
+  it("persists runtime event batches immediately before a settling thread-state", async () => {
     mockThreadDb([
       createTestThread({
         id: "thread-runtime",
@@ -931,15 +1023,15 @@ describe("RemoteAccessServer", () => {
         { type: "item.completed", threadId: "thread-runtime", itemId: "assistant-1" },
       ],
     });
-    expect(dbApplyThreadRuntimeEvents).toHaveBeenCalledWith(
-      "thread-runtime",
-      expect.arrayContaining([
-        expect.objectContaining({ type: "item.started", itemId: "assistant-1" }),
-        expect.objectContaining({ type: "content.delta", delta: "hello" }),
-        expect.objectContaining({ type: "item.completed", itemId: "assistant-1" }),
-      ]),
-    );
+    // B1: the batch is admitted to the bounded persistence queue before the
+    // thread row is written, so a snapshot taken after the state change cannot
+    // observe the settling status without the events that produced it.
+    expect(hasPendingRealRuntimeWrites("thread-runtime")).toBe(true);
 
+    let pendingWhenStateWritten = false;
+    vi.mocked(dbUpsertThread).mockImplementation(() => {
+      pendingWhenStateWritten = hasPendingRealRuntimeWrites("thread-runtime");
+    });
     server.publishSupervisorEvent({
       type: "thread-state",
       threadId: "thread-runtime",
@@ -947,8 +1039,12 @@ describe("RemoteAccessServer", () => {
       attention: "none",
       canResumeWithConfig: false,
     });
+    await flushQueuedControlWrites();
 
-    expect(dbApplyThreadRuntimeEvents).toHaveBeenCalledTimes(1);
+    expect(pendingWhenStateWritten).toBe(true);
+    expect(hasPendingRealRuntimeWrites("thread-runtime")).toBe(true);
+    discardRealRuntimeWrites("thread-runtime");
+    resetRuntimePersistenceForTests();
   });
 
   it("rotates the desktop pairing code after exchange and rejects replay", async () => {
@@ -1160,9 +1256,9 @@ describe("RemoteAccessServer", () => {
     };
     const tailPage = { items: [fullItems[1]!], nextCursor: 41 };
     vi.mocked(dbGetThread).mockReturnValue(thread);
-    vi.mocked(dbGetLatestThreadGoalItem).mockReturnValue(goalItem);
-    vi.mocked(dbGetThreadRuntimeItems).mockReturnValue(fullItems);
-    vi.mocked(dbGetThreadRuntimeItemsPage).mockReturnValue(tailPage);
+    vi.mocked(dbReadLatestThreadGoalItem).mockReturnValue(goalItem);
+    vi.mocked(dbReadThreadRuntimeItems).mockReturnValue(fullItems);
+    vi.mocked(dbReadThreadRuntimeItemsPage).mockReturnValue(tailPage);
 
     const server = new RemoteAccessServer({
       truncateThreadRuntime: () => {},
@@ -1193,7 +1289,7 @@ describe("RemoteAccessServer", () => {
       runtimeItems: [goalItem, ...tailPage.items],
       runtimeNextCursor: 41,
     });
-    expect(dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith(
+    expect(dbReadThreadRuntimeItemsPage).toHaveBeenLastCalledWith(
       "thread-paged",
       undefined,
       500,
@@ -1201,7 +1297,7 @@ describe("RemoteAccessServer", () => {
     );
 
     const tailWithGoal = { items: [goalItem, ...tailPage.items], nextCursor: 41 };
-    vi.mocked(dbGetThreadRuntimeItemsPage).mockReturnValue(tailWithGoal);
+    vi.mocked(dbReadThreadRuntimeItemsPage).mockReturnValue(tailWithGoal);
     const narrowTailResponse = await fetch(
       new URL(
         "/api/threads/thread-paged/history?runtimePage=1&targetTimelineEntryCount=20",
@@ -1214,14 +1310,14 @@ describe("RemoteAccessServer", () => {
       runtimeItems: tailWithGoal.items,
       runtimeNextCursor: 41,
     });
-    expect(dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith(
+    expect(dbReadThreadRuntimeItemsPage).toHaveBeenLastCalledWith(
       "thread-paged",
       undefined,
       500,
       20,
     );
 
-    vi.mocked(dbGetThreadRuntimeItemsPage).mockReturnValue(tailPage);
+    vi.mocked(dbReadThreadRuntimeItemsPage).mockReturnValue(tailPage);
     const olderResponse = await fetch(
       new URL(
         "/api/threads/thread-paged/history/items?beforePosition=41&limit=500&targetTimelineEntryCount=40",
@@ -1231,7 +1327,7 @@ describe("RemoteAccessServer", () => {
     );
     expect(olderResponse.status).toBe(200);
     await expect(olderResponse.json()).resolves.toEqual(tailPage);
-    expect(dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith("thread-paged", 41, 500, 40);
+    expect(dbReadThreadRuntimeItemsPage).toHaveBeenLastCalledWith("thread-paged", 41, 500, 40);
   });
 
   it("re-reads thread state after asynchronous terminal snapshot calls", async () => {
@@ -1431,7 +1527,7 @@ describe("RemoteAccessServer", () => {
       archived: true,
     });
     vi.mocked(dbGetThreads).mockReturnValue([visibleThread, archivedThread]);
-    vi.mocked(dbGetThreadRuntimeSummaries).mockReturnValue({
+    vi.mocked(dbGetThreadRuntimeSummariesCommitted).mockReturnValue({
       "thread-visible": {
         itemCount: 3,
         latestItemId: "item-3",
@@ -1474,8 +1570,8 @@ describe("RemoteAccessServer", () => {
       expect.objectContaining({ id: "thread-archived", archived: true }),
     );
     expect((snapshot as { projects: Project[] }).projects[0]).not.toHaveProperty("mcpServers");
-    expect(dbGetThreadRuntimeSummaries).toHaveBeenCalledWith(["thread-visible"]);
-    expect(dbGetThreadRuntimeItems).not.toHaveBeenCalled();
+    expect(dbGetThreadRuntimeSummariesCommitted).toHaveBeenCalledWith(["thread-visible"]);
+    expect(dbReadThreadRuntimeItems).not.toHaveBeenCalled();
     expect(dbGetThreadContextUsage).not.toHaveBeenCalled();
   });
 
@@ -1593,7 +1689,7 @@ describe("RemoteAccessServer", () => {
     // nothing — which must be a clean 404 rather than a crash.
     expect((await fetch(refUrl('["images",0]').url, refUrl('["images",0]').init)).status).toBe(404);
     const imageBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    vi.mocked(dbGetThreadRuntimeItem).mockReturnValueOnce({
+    vi.mocked(dbGetThreadRuntimeItemCommitted).mockReturnValueOnce({
       id: "item-1",
       type: "assistant_message",
       state: "completed",
@@ -4462,7 +4558,15 @@ describe("RemoteAccessServer", () => {
       }),
     });
 
+    // No command id was supplied, so no durable receipt exists. H1: without a
+    // receipt the engine classifies ONLY admission refusals — a post-mark
+    // non-admission failure keeps its raw definite error (the historical
+    // behavior), so this is a plain 500, never the typed uncertain 409. The
+    // row rollback below still proves the failure was handled without effect.
     expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      error: { code: "internal_error" },
+    });
     // The row is authoritative about provider and config again; the restored
     // session ref is dead either way (the supervisor closes the session before
     // the failure point) but the row must not keep the failed target's shape.
@@ -5356,10 +5460,11 @@ describe("RemoteAccessServer", () => {
     );
     expect(callSupervisor).toHaveBeenCalledWith("closeThread", { threadId: "thread-1" });
     expect(dbDeleteProject).toHaveBeenCalledWith(project.id);
-    const persisted = JSON.parse(
-      vi.mocked(dbSetState).mock.calls.findLast(([key]) => key === "poracode-experiments-v1")![1],
-    ) as { state: { experiments: Record<string, unknown> } };
-    expect(persisted.state.experiments).toEqual({});
+    // Exact-id removal: the recorded experiment ids go through the dedicated
+    // helper (raw per-record splice) instead of a whole-map dbSetState write.
+    expect(vi.mocked(dbRemoveProjectExperiments)).toHaveBeenCalledWith(project.id, [
+      "experiment-1",
+    ]);
   });
 
   it("serves browser state/commands and streams mirror status to watchers", async () => {

@@ -1,4 +1,6 @@
+import { EXPERIMENT_ROUTE_HANDLERS } from "./httpRouteHandlers.experiments";
 import { OPS_ROUTE_HANDLERS } from "./httpRouteHandlers.ops";
+import { ENVIRONMENT_MANAGEMENT_ROUTE_HANDLERS } from "./httpRouteHandlers.environments";
 import { SESSION_ROUTE_HANDLERS } from "./httpRouteHandlers.session";
 import type { HttpRouteHandlerTable } from "./httpRouteHandlers.shared";
 import { THREAD_ROUTE_HANDLERS } from "./httpRouteHandlers.threads";
@@ -23,7 +25,9 @@ export {
  */
 export const ROUTE_HANDLERS: HttpRouteHandlerTable = {
   ...SESSION_ROUTE_HANDLERS,
+  ...ENVIRONMENT_MANAGEMENT_ROUTE_HANDLERS,
   ...WORKSPACE_ROUTE_HANDLERS,
   ...THREAD_ROUTE_HANDLERS,
+  ...EXPERIMENT_ROUTE_HANDLERS,
   ...OPS_ROUTE_HANDLERS,
 };

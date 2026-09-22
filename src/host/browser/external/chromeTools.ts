@@ -2,18 +2,15 @@ import {
   loadPluginCoreSkillPhrase,
   uniqueCoreSkillForBuiltInMcp,
 } from "@/shared/plugins/builtInCoreSkills";
-import { performPageActions, readPerformSteps } from "../../../main/browser/mcp/tools/perform";
-import { dispatchPageTool, PAGE_TOOL_NAMES } from "../../../main/browser/mcp/tools/page";
-import { TOOLS } from "../../../main/browser/mcp/tools/specs";
+import { performPageActions, readPerformSteps } from "../mcp/tools/perform";
+import { dispatchPageTool, PAGE_TOOL_NAMES } from "../mcp/tools/page";
+import { TOOLS } from "../mcp/tools/specs";
 import { threadGroupColor } from "@/shared/browserMcpThread";
-import type { CdpSession } from "../../../main/browser/cdp/cdpClient";
-import { captureScreenshotPng, evalJs, navigate, reload } from "../../../main/browser/cdp/tools";
-import {
-  setCursorOverlayVisible,
-  withCursorOverlayHidden,
-} from "../../../main/browser/cursorOverlay";
+import type { CdpSession } from "../cdp/session";
+import { captureScreenshotPng, evalJs, navigate, reload } from "../cdp/tools";
+import { setCursorOverlayVisible, withCursorOverlayHidden } from "../cursorOverlay";
 
-import type { McpContent, McpToolResult, ToolSpec } from "../../../main/browser/mcp/tools/types";
+import type { McpContent, McpToolResult, ToolSpec } from "../mcp/tools/types";
 
 import type { ExternalChromeConnection } from "./ExternalChromeConnection";
 
@@ -21,7 +18,7 @@ import type { ExternalChromeConnection } from "./ExternalChromeConnection";
  * Tools for driving the user's REAL Chrome via the
  * companion extension. It reuses the embedded browser's CDP tool library
  * (`../cdp/tools`) and DOM interaction primitives (`../pageDriver`) through the
- * shared {@link import("../cdp/cdpClient").CdpSession} seam — a thin
+ * shared {@link import("../cdp/session").CdpSession} seam — a thin
  * `executeJavaScript` adapter — so behaviour matches the embedded browser.
  */
 

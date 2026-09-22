@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "./RemoteAccessServer";
 
-const dbGetThreadRuntimeItem = vi.fn<(...args: unknown[]) => unknown>();
+const dbGetThreadRuntimeItemCommitted = vi.fn<(...args: unknown[]) => unknown>();
 
 vi.mock("@/host/db", () => ({
-  dbGetThreadRuntimeItem: (...args: unknown[]) => dbGetThreadRuntimeItem(...args),
+  dbGetThreadRuntimeItemCommitted: (...args: unknown[]) => dbGetThreadRuntimeItemCommitted(...args),
   dbGetThreads: vi.fn<(...args: unknown[]) => unknown>(() => []),
   dbGetThread: vi.fn<(...args: unknown[]) => unknown>(() => null),
   dbGetProject: vi.fn<(...args: unknown[]) => unknown>(() => null),
@@ -23,7 +23,7 @@ afterEach(async () => {
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
-  dbGetThreadRuntimeItem.mockReset();
+  dbGetThreadRuntimeItemCommitted.mockReset();
 });
 
 function createServer(): RemoteAccessServer {
@@ -108,7 +108,7 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
     const info = await server.start();
     const token = await issueToken(info);
 
-    dbGetThreadRuntimeItem.mockReturnValue({
+    dbGetThreadRuntimeItemCommitted.mockReturnValue({
       id: "item-1",
       payload: { images: [SVG_TEXT] },
     });
@@ -126,7 +126,7 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
 
     // A raster image keeps inline disposition with the fixed filename, and the
     // long-lived runtime cache header survives the hardening.
-    dbGetThreadRuntimeItem.mockReturnValue({
+    dbGetThreadRuntimeItemCommitted.mockReturnValue({
       id: "item-1",
       payload: { images: [`data:image/png;base64,${PNG_BYTES.toString("base64")}`] },
     });

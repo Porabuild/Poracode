@@ -7,7 +7,7 @@ import {
 import { readImageDimensions } from "@/shared/imageDimensions";
 import { remoteImageRef, type RemoteImageRefValue } from "@/shared/remote";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
-import { dbGetThreadRuntimeItem } from "@/host/db";
+import { dbGetThreadRuntimeItemCommitted } from "@/host/db";
 import { getCachedImagePreview, imagePreviewKey, scheduleImagePreview } from "./imagePreview";
 
 /**
@@ -143,7 +143,7 @@ export function resolveImageRef(
   // the endpoint quiet on a host whose database is unavailable or mid-recovery.
   let item;
   try {
-    item = dbGetThreadRuntimeItem(threadId, itemId);
+    item = dbGetThreadRuntimeItemCommitted(threadId, itemId);
   } catch {
     return null;
   }

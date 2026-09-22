@@ -1,16 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import packageJson from "../../../package.json" with { type: "json" };
 import { SSH_RUNTIME_MANIFEST_VERSION } from "@/shared/sshRuntimeManifest";
 import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
 import { verifyRuntimeResources } from "@/shared/runtimeResourceInventory";
 import { writeFileAtomic } from "@/shared/atomicFile";
-import { readBoundedRuntimeFileSync } from "@/shared/readBoundedRuntimeFile";
-import {
-  RUNTIME_CODE_MAX_FILE_BYTES,
-  RUNTIME_MANIFEST_MAX_BYTES,
-} from "@/shared/runtimeCodeManifest";
+import { RUNTIME_MANIFEST_MAX_BYTES } from "@/shared/runtimeCodeManifest";
 import {
   hashRuntimeDirectory,
   regularArchiveExists,
@@ -19,83 +14,18 @@ import {
   stageRuntimeFile,
 } from "./runtimeBundleFiles";
 import { readRuntimeBuildManifests, verifyRuntimeBuildCode } from "./runtimeBuildManifests";
+import {
+  assertHeadlessServerBundle,
+  manifestPath,
+  readBundleManifest,
+  runtimePackageJson,
+  sshRuntimeVersion,
+  type BundleManifest,
+  type SshRuntimeBundle,
+  type SshRuntimeBundleOptions,
+} from "./runtimeBundleShared";
 
-export interface SshRuntimeBundleOptions {
-  readonly mainBundleDir: string;
-  readonly agentPluginsDir: string;
-  readonly wslHelpersDir: string;
-  readonly bundledSkillsDir?: string;
-  readonly bundledPluginsDir?: string;
-  readonly cacheDir: string;
-  readonly tarCommand?: string;
-}
-
-export interface SshRuntimeBundle {
-  readonly archivePath: string;
-  readonly hash: string;
-  readonly version: string;
-}
-
-function runtimePackageJson(dependencyNames: readonly string[]): string {
-  const availableDependencies: Readonly<Record<string, string>> = packageJson.dependencies;
-  const dependencies = Object.fromEntries(
-    dependencyNames.map((name) => {
-      const version = availableDependencies[name];
-      if (!Object.hasOwn(availableDependencies, name) || typeof version !== "string" || !version)
-        throw new Error(`Missing remote runtime dependency ${name}.`);
-      return [name, version];
-    }),
-  );
-  return `${JSON.stringify(
-    {
-      name: "poracode-ssh-runtime",
-      version: packageJson.version,
-      private: true,
-      engines: packageJson.engines,
-      dependencies,
-    },
-    null,
-    2,
-  )}\n`;
-}
-
-interface BundleManifest {
-  readonly key: string;
-  readonly signature: string;
-  readonly hash: string;
-}
-
-function manifestPath(cacheDir: string): string {
-  return join(cacheDir, "bundle-manifest.json");
-}
-
-function readBundleManifest(cacheDir: string): BundleManifest | null {
-  try {
-    const value = JSON.parse(
-      readBoundedRuntimeFileSync(manifestPath(cacheDir), RUNTIME_MANIFEST_MAX_BYTES).toString(
-        "utf8",
-      ),
-    ) as Partial<BundleManifest> | null;
-    return value &&
-      typeof value.key === "string" &&
-      typeof value.signature === "string" &&
-      typeof value.hash === "string" &&
-      /^[a-f0-9]{64}$/u.test(value.hash)
-      ? (value as BundleManifest)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function assertHeadlessServerBundle(path: string): void {
-  const source = readBoundedRuntimeFileSync(path, RUNTIME_CODE_MAX_FILE_BYTES).toString("utf8");
-  if (/\brequire\(["']electron["']\)|\bimport\(["']electron["']\)/.test(source)) {
-    throw new Error(
-      "Poracode Helper cannot include Electron. Check the standalone server import graph.",
-    );
-  }
-}
+export type { SshRuntimeBundle, SshRuntimeBundleOptions } from "./runtimeBundleShared";
 
 // The staged runtime is fixed for a given app build, so the archive+hash is
 // identical on every connect. Cache it per option set (keyed by the source
@@ -154,8 +84,8 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
   if (manifest && manifest.key === cacheKey && manifest.signature === signature) {
     const archivePath = join(options.cacheDir, `${manifest.hash}.tar.gz`);
     if (regularArchiveExists(archivePath)) {
-      cachedBundle = { key: cacheKey, hash: manifest.hash, version: packageJson.version };
-      return { archivePath, hash: manifest.hash, version: packageJson.version };
+      cachedBundle = { key: cacheKey, hash: manifest.hash, version: sshRuntimeVersion() };
+      return { archivePath, hash: manifest.hash, version: sshRuntimeVersion() };
     }
   }
 
@@ -212,7 +142,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
         { cwd: options.cacheDir },
       );
     }
-    cachedBundle = { key: cacheKey, hash, version: packageJson.version };
+    cachedBundle = { key: cacheKey, hash, version: sshRuntimeVersion() };
     try {
       writeFileAtomic(
         manifestPath(options.cacheDir),
@@ -222,7 +152,7 @@ export function ensureSshRuntimeBundle(options: SshRuntimeBundleOptions): SshRun
     } catch {
       // Best-effort: without the manifest the next app start just rebuilds.
     }
-    return { archivePath, hash, version: packageJson.version };
+    return { archivePath, hash, version: sshRuntimeVersion() };
   } finally {
     rmSync(stage, { recursive: true, force: true });
   }

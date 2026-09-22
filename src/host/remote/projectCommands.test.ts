@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { reorderCatalogIds } from "@/shared/catalogOrder";
 import type { Project } from "@/shared/contracts";
 import { remoteProjectCommandSchema } from "@/shared/remote";
 import { applyRemoteProjectCommand, type RemoteProjectCommandDeps } from "./projectCommands";
@@ -18,8 +19,50 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
     const index = projects.findIndex((candidate) => candidate.id === project.id);
     if (index !== -1) projects[index] = project;
   });
+  const reorderProject = vi.fn<RemoteProjectCommandDeps["reorderProject"]>((input) => {
+    const ids = projects.map((project) => project.id);
+    if (!ids.includes(input.projectId)) return { status: "project_missing" };
+    if (input.projectId !== input.targetProjectId && !ids.includes(input.targetProjectId)) {
+      return { status: "target_missing" };
+    }
+    const nextIds = reorderCatalogIds(ids, input.projectId, input.targetProjectId, input.placement);
+    if (nextIds === ids) return { status: "noop" };
+    const byId = new Map(projects.map((project) => [project.id, project]));
+    let changed = 0;
+    ids.forEach((id, index) => {
+      if (id !== nextIds[index]) changed += 1;
+    });
+    projects.splice(0, projects.length, ...nextIds.map((id) => byId.get(id)!));
+    return { status: "applied", changed };
+  });
+  const setProjectWorkspace = vi.fn<RemoteProjectCommandDeps["setProjectWorkspace"]>(
+    (projectId, workspaceId) => {
+      const index = projects.findIndex((project) => project.id === projectId);
+      if (index === -1) return false;
+      const current = projects[index]!;
+      projects[index] =
+        workspaceId === null
+          ? (({ workspaceId: _cleared, ...rest }) => rest)(current)
+          : { ...current, workspaceId };
+      return true;
+    },
+  );
+  const setProjectLastDraftConfig = vi.fn<RemoteProjectCommandDeps["setProjectLastDraftConfig"]>(
+    (projectId, lastDraftConfig) => {
+      const index = projects.findIndex((project) => project.id === projectId);
+      if (index === -1) return false;
+      const current = projects[index]!;
+      projects[index] =
+        lastDraftConfig === null
+          ? (({ lastDraftConfig: _cleared, ...rest }) => rest)(current)
+          : { ...current, lastDraftConfig };
+      return true;
+    },
+  );
   const deps: RemoteProjectCommandDeps = {
     getProjects: () => [...projects],
+    getProject: (projectId) => projects.find((project) => project.id === projectId) ?? null,
+    beginProjectRemoval: vi.fn<RemoteProjectCommandDeps["beginProjectRemoval"]>(() => () => {}),
     removeProjectExperiments: vi.fn<RemoteProjectCommandDeps["removeProjectExperiments"]>(
       async () => {},
     ),
@@ -28,6 +71,9 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
     upsertProject,
     updateProject,
     deleteProject,
+    reorderProject,
+    setProjectWorkspace,
+    setProjectLastDraftConfig,
     closeThread: vi.fn<RemoteProjectCommandDeps["closeThread"]>(async () => {}),
     cloneRepo: vi.fn<RemoteProjectCommandDeps["cloneRepo"]>(async () => ({
       path: "/repos/cloned",
@@ -37,7 +83,16 @@ function makeDeps(overrides?: Partial<RemoteProjectCommandDeps>) {
     now: () => NOW,
     ...overrides,
   };
-  return { deps, projects, upsertProject, updateProject, deleteProject };
+  return {
+    deps,
+    projects,
+    upsertProject,
+    updateProject,
+    deleteProject,
+    reorderProject,
+    setProjectWorkspace,
+    setProjectLastDraftConfig,
+  };
 }
 
 describe("applyRemoteProjectCommand", () => {
@@ -48,8 +103,10 @@ describe("applyRemoteProjectCommand", () => {
       deps,
     );
 
-    expect(result.project?.name).toBe("my-app");
-    expect(result.project?.location).toEqual({ kind: "posix", path: "/work/my-app" });
+    expect(result.response.project?.name).toBe("my-app");
+    expect(result.response.project?.location).toEqual({ kind: "posix", path: "/work/my-app" });
+    expect(result.kind).toBe("complete");
+    if (result.kind !== "complete") throw new Error("expected a complete legacy outcome");
     expect(result.projects).toHaveLength(1);
     expect(projects[0]?.name).toBe("my-app");
   });
@@ -60,7 +117,7 @@ describe("applyRemoteProjectCommand", () => {
       { kind: "add-existing", path: "/work/my-app", name: "Custom" },
       deps,
     );
-    expect(result.project?.name).toBe("Custom");
+    expect(result.response.project?.name).toBe("Custom");
   });
 
   it("sorts new projects to the top via a descending-timestamp sortOrder", async () => {
@@ -79,7 +136,7 @@ describe("applyRemoteProjectCommand", () => {
       deps,
     );
     expect(deps.makeDirectory).toHaveBeenCalledWith("/work/fresh");
-    expect(result.project?.location).toEqual({ kind: "posix", path: "/work/fresh" });
+    expect(result.response.project?.location).toEqual({ kind: "posix", path: "/work/fresh" });
   });
 
   it("surfaces a directory-creation failure as a 400", async () => {
@@ -112,7 +169,7 @@ describe("applyRemoteProjectCommand", () => {
       name: "cloned-app",
       source: { kind: "url", url: "https://example.com/x.git" },
     });
-    expect(result.project?.location).toEqual({ kind: "posix", path: "/work/cloned-app" });
+    expect(result.response.project?.location).toEqual({ kind: "posix", path: "/work/cloned-app" });
   });
 
   it("removes a project after closing its threads", async () => {
@@ -131,6 +188,8 @@ describe("applyRemoteProjectCommand", () => {
     const result = await applyRemoteProjectCommand({ kind: "remove", projectId: "p1" }, deps);
 
     expect(closeThread).toHaveBeenCalledTimes(2);
+    expect(result.kind).toBe("complete");
+    if (result.kind !== "complete") throw new Error("expected a complete legacy outcome");
     expect(result.projects).toHaveLength(0);
   });
 
@@ -165,8 +224,8 @@ describe("applyRemoteProjectCommand", () => {
         disabled: true,
       }),
     );
-    expect(result.project?.scripts?.setupScript).toBe("pnpm install");
-    expect(result.project?.ghAccount).toEqual({ host: "github.com", login: "octocat" });
+    expect(result.response.project?.scripts?.setupScript).toBe("pnpm install");
+    expect(result.response.project?.ghAccount).toEqual({ host: "github.com", login: "octocat" });
   });
 
   it("clears optional project settings when the patch uses null", async () => {
@@ -204,11 +263,11 @@ describe("applyRemoteProjectCommand", () => {
       location: { kind: "posix", path: "/work/app" },
       createdAt: NOW,
     });
-    expect(result.project).not.toHaveProperty("icon");
-    expect(result.project).not.toHaveProperty("scripts");
-    expect(result.project).not.toHaveProperty("searchSettings");
-    expect(result.project).not.toHaveProperty("mcpServers");
-    expect(result.project).not.toHaveProperty("ghAccount");
+    expect(result.response.project).not.toHaveProperty("icon");
+    expect(result.response.project).not.toHaveProperty("scripts");
+    expect(result.response.project).not.toHaveProperty("searchSettings");
+    expect(result.response.project).not.toHaveProperty("mcpServers");
+    expect(result.response.project).not.toHaveProperty("ghAccount");
   });
 
   it("sets and updates the project icon through the patch", async () => {
@@ -404,7 +463,7 @@ describe("applyRemoteProjectCommand", () => {
     await expect(
       applyRemoteProjectCommand({ kind: "relocate", projectId: "p1", path: "/srv/app" }, idle.deps),
     ).resolves.toMatchObject({
-      project: { location: { kind: "posix", path: "/srv/app" } },
+      response: { project: { location: { kind: "posix", path: "/srv/app" } } },
     });
 
     const running = makeDeps({ hasRunningProjectThread: () => true });
@@ -453,7 +512,7 @@ describe("applyRemoteProjectCommand", () => {
 
     await expect(
       applyRemoteProjectCommand({ kind: "remove", projectId: "p1" }, deps),
-    ).resolves.toMatchObject({ projects: [] });
+    ).resolves.toMatchObject({ response: { projects: [] } });
     expect(removeProjectExperiments).toHaveBeenCalledWith(expect.objectContaining({ id: "p1" }));
     expect(calls).toEqual(["remove-experiments", "close-thread", "delete-project"]);
   });
@@ -513,7 +572,7 @@ describe("applyRemoteProjectCommand", () => {
       { kind: "add-existing", path: "/home/me/app" },
       deps,
     );
-    expect(ok.project?.location).toEqual({ kind: "posix", path: "/home/me/app" });
+    expect(ok.response.project?.location).toEqual({ kind: "posix", path: "/home/me/app" });
   });
 
   describe("clone URL transport validation", () => {
@@ -579,7 +638,7 @@ describe("applyRemoteProjectCommand", () => {
         deps,
       );
       expect(cloneRepo).toHaveBeenCalledOnce();
-      expect(result.project?.location).toEqual({ kind: "posix", path: "/work/r" });
+      expect(result.response.project?.location).toEqual({ kind: "posix", path: "/work/r" });
     });
 
     it("allows valid ssh and scp-style URLs", async () => {

@@ -1,4 +1,5 @@
 import { getSqlite } from "./connection";
+import { commitRuntimeThreadPrefixSync } from "./runtimePersistenceRuntime";
 
 export type CheckpointRevertProviderPhase =
   | "pending"
@@ -185,6 +186,12 @@ export function dbCountRollbackTurnsAfterCheckpoint(
 }
 
 export function dbHasThreadRuntimeItem(threadId: string, itemId: string): boolean {
+  // B1: accepted events may still be buffered. The checkpoint boundary is
+  // synchronous by contract, so commit the thread's accepted prefix first (in
+  // chunk-bound transactions) instead of declaring a just-created checkpoint
+  // missing. Typed degraded/contaminated refusals propagate rather than
+  // answering "nothing to revert" over uncommitted or refused state.
+  commitRuntimeThreadPrefixSync(threadId);
   return (
     getSqlite()
       .prepare("SELECT position FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")

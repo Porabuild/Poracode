@@ -61,7 +61,7 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
     });
   }
 
-  it("is an absolute no-op when the checkpoint does not exist", () => {
+  it("is an absolute no-op when the checkpoint does not exist", async () => {
     seedItems(["item-a", "item-b"]);
     appendTurn("item-b", 0);
 
@@ -69,14 +69,14 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
       truncated: false,
       removedCompletedTurnAnchors: [],
     });
-    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual([
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual([
       "item-a",
       "item-b",
     ]);
     expect(dbGetThreadCompletedTurns("thread-1")).toHaveLength(1);
   });
 
-  it("is an absolute no-op when the checkpoint is already the last item, leaving orphan turns untouched", () => {
+  it("is an absolute no-op when the checkpoint is already the last item, leaving orphan turns untouched", async () => {
     // Orphaned turn: its anchor is not in the transcript (removed by an
     // earlier mutation). A truncate that removes no tail items must not clean
     // it up or report it — the reported metadata must never diverge from the
@@ -89,14 +89,14 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
       truncated: false,
       removedCompletedTurnAnchors: [],
     });
-    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual([
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual([
       "item-a",
       "item-b",
     ]);
     expect(dbGetThreadCompletedTurns("thread-1")).toHaveLength(2);
   });
 
-  it("removes exactly the tail items and the completed turns anchored on them", () => {
+  it("removes exactly the tail items and the completed turns anchored on them", async () => {
     seedItems(["item-a", "item-b", "item-c", "item-d"]);
     appendTurn("item-a", 0);
     appendTurn("item-c", 1);
@@ -106,7 +106,7 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
       truncated: true,
       removedCompletedTurnAnchors: ["item-c", "item-d"],
     });
-    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual([
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual([
       "item-a",
       "item-b",
     ]);
@@ -115,7 +115,7 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
     ]);
   });
 
-  it("does not report or delete turns orphaned by earlier mutations during a real truncation", () => {
+  it("does not report or delete turns orphaned by earlier mutations during a real truncation", async () => {
     seedItems(["item-a", "item-b", "item-c"]);
     appendTurn("item-c", 0);
     appendTurn("removed-elsewhere", 1);
@@ -129,7 +129,7 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
     ]);
   });
 
-  it("reports an actual truncation with an empty anchor list when no turns were anchored on the tail", () => {
+  it("reports an actual truncation with an empty anchor list when no turns were anchored on the tail", async () => {
     seedItems(["item-a", "item-b"]);
     appendTurn("item-a", 0);
 
@@ -137,12 +137,12 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
       truncated: true,
       removedCompletedTurnAnchors: [],
     });
-    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual(["item-a"]);
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual(["item-a"]);
     expect(dbGetThreadCompletedTurns("thread-1")).toHaveLength(1);
   });
-  it("handles large tails without exceeding SQLite parameter limits", () => {
+  it("handles large tails without exceeding SQLite parameter limits", async () => {
     seedItems(["checkpoint"]);
-    dbFlushThreadRuntimeWrites("thread-1");
+    await dbFlushThreadRuntimeWrites("thread-1");
     const sqlite = getSqlite();
     const insertItem = sqlite.prepare(
       "INSERT INTO thread_runtime_items (thread_id, item_id, position, type, state) VALUES ('thread-1', ?, ?, 'assistant_message', 'completed')",
@@ -161,19 +161,21 @@ describe.skipIf(!sqliteAvailable)("dbTruncateThreadRuntimeAfter mutation contrac
     const result = dbTruncateThreadRuntimeAfter("thread-1", "checkpoint");
     expect(result.truncated).toBe(true);
     expect(result.removedCompletedTurnAnchors).toHaveLength(tailCount);
-    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual(["checkpoint"]);
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual([
+      "checkpoint",
+    ]);
     expect(dbGetThreadCompletedTurns("thread-1")).toEqual([]);
   });
 
-  it("rolls back turn deletion if deleting the runtime tail fails", () => {
+  it("rolls back turn deletion if deleting the runtime tail fails", async () => {
     seedItems(["item-a", "item-b"]);
     appendTurn("item-b", 0);
-    dbFlushThreadRuntimeWrites("thread-1");
+    await dbFlushThreadRuntimeWrites("thread-1");
     getSqlite().exec(
       "CREATE TRIGGER reject_truncate BEFORE DELETE ON thread_runtime_items BEGIN SELECT RAISE(ABORT, 'blocked truncate'); END",
     );
     expect(() => dbTruncateThreadRuntimeAfter("thread-1", "item-a")).toThrow("blocked truncate");
-    expect(dbGetThreadRuntimeItems("thread-1").map((item) => item.id)).toEqual([
+    expect((await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id)).toEqual([
       "item-a",
       "item-b",
     ]);

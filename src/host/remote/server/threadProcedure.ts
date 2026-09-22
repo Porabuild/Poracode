@@ -9,12 +9,15 @@ import type { Project, ProjectLocation, Thread } from "@/shared/contracts";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "@/shared/ipc";
 import { ipcProcedureMap, parseRemoteProcedureResultValue } from "@/shared/ipc";
 import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
+import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
 import { dbGetProjects, dbGetThreads } from "@/host/db";
 import { RemoteHttpError } from "../auth";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { assertRemoteGitMutationExperimentSafe } from "../experimentOwnership";
 import type { RemoteServerContext } from "./context";
+import { remoteCommandId } from "./httpRouteHandlers.shared";
 import { readJsonBody } from "./requestBody";
+import { runRemoteCommand } from "./remoteCommandIdempotency";
 
 /**
  * Generic desktop-supervisor passthrough. The PWA reuses desktop-backed
@@ -54,7 +57,22 @@ export async function runRemoteProcedure(
     sessionId: ctx.security.requireBearerSession(req, []).session.sessionId,
     detail: { procedure },
   });
-  const name = procedure as SupervisorProcedureName;
+  // R1: the allowlist is supervisor-typed (`REMOTE_PROCEDURE_SPECS` is
+  // constrained to `SupervisorProcedureName`), so no main-local IPC procedure
+  // can reach this dispatch anymore. The check below is the fail-closed
+  // runtime backstop for that invariant: if a future regression re-admits a
+  // main-local name, it is refused typed instead of being cast to a supervisor
+  // procedure the supervisor cannot answer (the old silent HTTP 500).
+  if (ipcProcedureMap[procedure].transport !== "supervisor") {
+    throw new RemoteHttpError(
+      "git_procedure_not_allowed",
+      `Procedure "${procedure}" is not a supervisor procedure.`,
+      403,
+    );
+  }
+  // Annotated (not cast) on purpose: the assignment only type-checks while the
+  // allowlist stays supervisor-typed.
+  const name: SupervisorProcedureName = procedure;
   const parsedPayload = ipcProcedureMap[name].payloadSchema.parse(payload) as IpcProcedurePayload<
     typeof name
   >;
@@ -70,12 +88,45 @@ export async function runRemoteProcedure(
   }
   let raw: unknown;
   try {
-    raw = await ctx.options.callSupervisor(name, parsedPayload);
+    // `startThread` is delivered through this generic passthrough on the
+    // managed-loopback and browser legs. Wrap that one effect in the same
+    // crash-aware receipt authority its dedicated route uses, keyed by the
+    // client's stable command id and this session: a crash after dispatch
+    // surfaces as the typed uncertain outcome and is never blindly repeated.
+    // No reconcile hook exists for a start (no durable provider-acceptance
+    // proof), so an unresolved receipt stays uncertain. Every other procedure
+    // keeps the existing unwrapped passthrough semantics.
+    if (name === "startThread") {
+      // `name === "startThread"` already selected the start payload schema, so
+      // the validated union narrows to the start payload here.
+      const startPayload = parsedPayload as IpcProcedurePayload<"startThread">;
+      const principalId = ctx.security.requireBearerSession(req, []).session.sessionId;
+      raw = await runRemoteCommand({
+        commandId: remoteCommandId(req),
+        route: `procedure:${name}`,
+        principalId,
+        requestPayload: startPayload,
+        // The whole operation is the supervisor call: the B1 pre-launch touch
+        // is evidence, not a command effect, and the supervisor refuses a
+        // capacity/policy admission before teardown or queue mutation. An
+        // admission refusal here is therefore a definite failure (429).
+        isPreEffectFailure: isHostResourceAdmissionRefusal,
+        operation: (markDispatched) => {
+          markDispatched();
+          return ctx.options.callSupervisor("startThread", startPayload);
+        },
+      });
+    } else {
+      raw = await ctx.options.callSupervisor(name, parsedPayload);
+    }
   } catch (error) {
     throw mapSupervisorProcedureError(name, error);
   }
   try {
-    return parseRemoteProcedureResultValue(resultSchema, raw);
+    // `unknown` is explicit: the schema here is the supervisor allowlist's
+    // result-schema union, and inference over that union is not stable — the
+    // route's own return type is `unknown` anyway.
+    return parseRemoteProcedureResultValue<unknown>(resultSchema, raw);
   } catch {
     throw new RemoteHttpError(
       "invalid_procedure_result",

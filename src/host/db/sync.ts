@@ -1,10 +1,4 @@
-import {
-  EXPERIMENT_STORE_KEY,
-  EXPERIMENT_STORE_VERSION,
-  type Project,
-  type Thread,
-} from "@/shared/contracts";
-import type { DbPersistExperimentStatePayload } from "@/shared/ipc";
+import { type Project, type Thread } from "@/shared/contracts";
 import { getSqlite } from "./connection";
 import {
   dbFindRunningCheckpointRevertForThreads,
@@ -16,6 +10,7 @@ import {
   isMainCreatedThreadUnmirrored,
 } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
+import { notifyThreadsDeleted } from "./deletedThreadNotifications";
 import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
 import {
   prepareProjectUpsertStatement,
@@ -44,11 +39,21 @@ export function dbSyncChanges(payload: {
   viewJson: string;
 }): void {
   const sqlite = getSqlite();
+  // Explicit renderer deletions plus the project-cascade deletions captured
+  // inside the transaction below; announced together after the commit.
+  const deletedThreadIds = new Set(payload.deletedThreadIds);
   sqlite
     .transaction(() => {
       const deleteProject = sqlite.prepare("DELETE FROM projects WHERE id = ?");
       const deleteProjectNotes = sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?");
+      const listProjectThreadIds = sqlite.prepare("SELECT id FROM threads WHERE project_id = ?");
       for (const projectId of payload.deletedProjectIds) {
+        // Capture the project's threads BEFORE the delete: the foreign-key
+        // cascade removes them inside this transaction, and the postcommit
+        // announcement must include them like any explicit deletion.
+        for (const row of listProjectThreadIds.all(projectId) as Array<{ id: string }>) {
+          deletedThreadIds.add(row.id);
+        }
         deleteProject.run(projectId);
         deleteProjectNotes.run(projectId);
       }
@@ -100,7 +105,11 @@ export function dbSyncChanges(payload: {
         .run(payload.viewJson);
     })
     .immediate();
-  for (const threadId of payload.deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
+  // The mirror transaction committed; announce the explicit and
+  // project-cascaded deletions so the composition's reclaimer can retire
+  // their attachment directories.
+  notifyThreadsDeleted([...deletedThreadIds]);
+  for (const threadId of deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
   // View-only writes (navigation, layout) must not wake the projection watch.
   if (
     payload.projects.length > 0 ||
@@ -184,34 +193,8 @@ export function dbSyncAll(projectsData: Project[], threadsData: Thread[], viewJs
         .run(viewJson);
     })
     .immediate();
+  // The full-snapshot transaction committed; announce the diffed deletions.
+  notifyThreadsDeleted([...deletedThreadIds]);
   for (const threadId of deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
   notifyProjectThreadDataChanged();
-}
-
-export function dbPersistExperimentState(payload: DbPersistExperimentStatePayload): void {
-  const sqlite = getSqlite();
-  sqlite
-    .transaction(() => {
-      const deleteThread = sqlite.prepare("DELETE FROM threads WHERE id = ?");
-      for (const threadId of payload.deletedThreadIds) deleteThread.run(threadId);
-
-      const upsertThread = prepareThreadUpsertStatement(sqlite, THREAD_SYNC_OPTIONS);
-      for (const { thread, sortOrder } of payload.upsertThreads) {
-        runThreadUpsert(upsertThread, thread, sortOrder, THREAD_SYNC_OPTIONS);
-      }
-
-      sqlite
-        .prepare(
-          "INSERT INTO app_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        )
-        .run(
-          EXPERIMENT_STORE_KEY,
-          JSON.stringify({
-            state: { experiments: payload.experiments },
-            version: EXPERIMENT_STORE_VERSION,
-          }),
-        );
-    })
-    .immediate();
-  for (const threadId of payload.deletedThreadIds) dbDiscardThreadRuntimeWrites(threadId);
 }

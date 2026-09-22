@@ -1,9 +1,3 @@
-import type { IncomingMessage } from "node:http";
-import {
-  REMOTE_COMMAND_ID_HEADER,
-  remoteRuntimeItemsPageRequestSchema,
-  remoteTimelineEntryCountSchema,
-} from "@/shared/remote";
 import {
   checkpointRevertPayloadSchema,
   closeThreadPayloadSchema,
@@ -21,16 +15,19 @@ import {
   writeTerminalPayloadSchema,
 } from "@/shared/contracts";
 import { dbTruncateRuntimeItemsPayloadSchema } from "@/shared/ipc/schemas";
-import { startExistingThreadBodySchema } from "@/shared/remote/contract/routeBodies";
-import { msg } from "@/shared/messages";
 import {
-  dbClaimRemoteCommand,
-  dbCompleteRemoteCommand,
-  dbFailRemoteCommand,
-  dbResetRemoteCommand,
-  dbGetThread,
-  dbGetThreads,
-} from "@/host/db";
+  remoteRuntimeGapAcknowledgeBodySchema,
+  remoteRuntimeGapReadResultSchema,
+  startExistingThreadBodySchema,
+} from "@/shared/remote/contract/routeBodies";
+import {
+  isRemoteThreadCatalogCommand,
+  remoteRuntimeGapAcknowledgeResultSchema,
+} from "@/shared/remote";
+import { runtimeHistoryNoticeTokensEqual } from "@/shared/runtimeHistoryNotice";
+import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
+import { msg } from "@/shared/messages";
+import { dbGetProject, dbGetThread, dbGetThreads } from "@/host/db";
 import { RemoteHttpError } from "../auth";
 import {
   assertRemoteThreadCommandExperimentSafe,
@@ -40,88 +37,30 @@ import type { RemoteAccessServerOptions } from "../RemoteAccessServer";
 import { writeJson, writeNegotiatedJsonResponse } from "./httpResponses";
 import {
   mapCheckpointRevertCompletedResponse,
+  remoteCommandId,
   requirePathParam,
+  requireRemoteCommandId,
   type HttpRouteCall,
   type HttpRouteHandlerTable,
 } from "./httpRouteHandlers.shared";
+import { commandOutcomeUncertainAfterEffect, runRemoteCommand } from "./remoteCommandIdempotency";
 import { readJsonBody } from "./requestBody";
-import { buildThreadListPage, buildThreadRuntimeItemsPage, buildThreadSnapshot } from "./snapshots";
+import { mapPersistenceRefusal } from "./persistenceRefusals";
+import {
+  requireRuntimeHistoryGapPort,
+  requireRuntimeHistoryNoticesDeclaration,
+  toRemoteRuntimeGapAcknowledgeResult,
+  toRemoteRuntimeGapDescriptor,
+  toRemoteRuntimeHistoryNotice,
+} from "./runtimeHistoryNoticeGate";
+import { handleCatalogThreadList } from "./catalogPages";
+import { handleBoundedThreadHistoryItems, handleBoundedThreadTurns } from "./historyRead";
+import { handleLegacyAdmittedThreadHistory } from "./legacyAdmittedReads";
 import {
   applyRemoteThreadCommand,
   applyRemoteThreadSwitch,
   ensureRemoteThreadRunning,
 } from "./threadCommands";
-
-function remoteCommandId(req: IncomingMessage): string | null {
-  const raw = req.headers[REMOTE_COMMAND_ID_HEADER];
-  const commandId = (Array.isArray(raw) ? raw[0] : raw)?.trim();
-  if (!commandId) return null;
-  if (!/^[A-Za-z0-9._:-]{1,128}$/.test(commandId)) {
-    throw new RemoteHttpError("invalid_command_id", "Remote command id is invalid.", 400);
-  }
-  return commandId;
-}
-
-async function runIdempotentRemoteMutation<T>(
-  req: IncomingMessage,
-  route: string,
-  operation: () => Promise<T>,
-  options: {
-    readonly isRetryableResult?: (response: T) => boolean;
-    /**
-     * Validates (and may adjust) a completed outer receipt before it is
-     * replayed. Throw to conflict instead of replaying a stale receipt for a
-     * different explicit request. Used by checkpoint-revert so an outer cache
-     * hit can never bypass the canonical target check.
-     */
-    readonly mapCompletedResponse?: (cached: T) => T;
-  } = {},
-): Promise<T> {
-  const commandId = remoteCommandId(req);
-  if (!commandId) return operation();
-
-  const claim = dbClaimRemoteCommand(commandId, route, {
-    ...(options.isRetryableResult
-      ? { isCompletedResponseRetryable: (response) => options.isRetryableResult!(response as T) }
-      : {}),
-  });
-  if (claim.state === "completed") {
-    const cached = claim.response as T;
-    return options.mapCompletedResponse ? options.mapCompletedResponse(cached) : cached;
-  }
-  if (claim.state === "conflict") {
-    throw new RemoteHttpError(
-      "command_id_conflict",
-      "Remote command id was already used for another operation.",
-      409,
-    );
-  }
-  if (claim.state === "in_progress") {
-    throw new RemoteHttpError("command_in_progress", "Remote command is already in progress.", 409);
-  }
-  if (claim.state === "failed") {
-    throw new RemoteHttpError(
-      "command_failed",
-      "Remote command already failed and was not repeated.",
-      409,
-    );
-  }
-
-  try {
-    const response = await operation();
-    if (options.isRetryableResult?.(response)) {
-      // The operation journal owns retryable application phases. Release the
-      // transport receipt so the same command ID can explicitly resume it.
-      dbResetRemoteCommand(commandId);
-    } else {
-      dbCompleteRemoteCommand(commandId, response);
-    }
-    return response;
-  } catch (error) {
-    dbFailRemoteCommand(commandId);
-    throw error;
-  }
-}
 
 /**
  * POST /api/threads/{threadId}<suffix> endpoints that validate the body (merged
@@ -135,28 +74,22 @@ async function forwardThreadBodyPost(
     callSupervisor: RemoteAccessServerOptions["callSupervisor"],
     body: Record<string, unknown>,
   ) => Promise<unknown>,
-  options: { readonly idempotent?: boolean } = {},
 ): Promise<void> {
-  const { ctx, req, res, url, params } = call;
+  const { ctx, req, res, params } = call;
   const threadId = requirePathParam(params, "threadId");
   const body = await readJsonBody(req);
-  const run = async () => {
-    await dispatch(ctx.options.callSupervisor, {
-      ...(typeof body === "object" && body !== null ? body : {}),
-      threadId,
-    });
-    return { ok: true };
-  };
-  const result = options.idempotent
-    ? await runIdempotentRemoteMutation(req, url.pathname, run)
-    : await run();
-  writeJson(res, 200, result);
+  await dispatch(ctx.options.callSupervisor, {
+    ...(typeof body === "object" && body !== null ? body : {}),
+    threadId,
+  });
+  writeJson(res, 200, { ok: true });
 }
 
 type ThreadRouteId =
   | "thread-list"
   | "thread-history-items"
   | "thread-history"
+  | "thread-turns"
   | "thread-start-existing"
   | "terminal-start"
   | "thread-runtime-truncate"
@@ -171,68 +104,27 @@ type ThreadRouteId =
   | "terminal-write"
   | "terminal-resize"
   | "terminal-close"
-  | "request-resolve";
+  | "request-resolve"
+  | "thread-runtime-gap"
+  | "thread-runtime-gap-acknowledge";
 
 /** Thread-group HTTP route handlers (contract `threadRoutes`). */
 export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> = {
-  "thread-list": async ({ ctx, req, res, url }) => {
-    const limitRaw = url.searchParams.get("limit");
-    const limit = Number(limitRaw);
-    if (limitRaw === null || !Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
-      throw new RemoteHttpError(
-        "invalid_thread_limit",
-        "limit must be an integer between 1 and 200.",
-        400,
-      );
-    }
-    const cursor = url.searchParams.get("cursor");
-    await writeNegotiatedJsonResponse(
-      req,
-      res,
-      200,
-      buildThreadListPage(ctx, { limit, ...(cursor !== null ? { cursor } : {}) }),
-    );
-  },
+  // B4: legacy `limit` + `tp1.` cursor path is preserved byte-for-byte inside
+  // the handler; declared clients get paint/inventory pages with caps.
+  "thread-list": handleCatalogThreadList,
 
-  "thread-history-items": async ({ req, res, url, params }) => {
-    const threadId = requirePathParam(params, "threadId");
-    const beforePosition = url.searchParams.get("beforePosition");
-    const targetTimelineEntryCount = url.searchParams.get("targetTimelineEntryCount");
-    const input = remoteRuntimeItemsPageRequestSchema.parse({
-      threadId,
-      limit: Number(url.searchParams.get("limit")),
-      ...(beforePosition !== null ? { beforePosition: Number(beforePosition) } : {}),
-      ...(targetTimelineEntryCount !== null
-        ? { targetTimelineEntryCount: Number(targetTimelineEntryCount) }
-        : {}),
-    });
-    await writeNegotiatedJsonResponse(req, res, 200, buildThreadRuntimeItemsPage(input));
-  },
+  "thread-history-items": handleBoundedThreadHistoryItems,
 
-  "thread-history": async ({ ctx, req, res, url, params }) => {
-    const historyThreadId = requirePathParam(params, "threadId");
-    const targetTimelineEntryCount = url.searchParams.get("targetTimelineEntryCount");
-    const omitScrollback = url.searchParams.get("omitScrollback") === "1";
-    await writeNegotiatedJsonResponse(
-      req,
-      res,
-      200,
-      await buildThreadSnapshot(ctx, historyThreadId, {
-        runtimePage: url.searchParams.get("runtimePage") === "1",
-        ...(omitScrollback ? { omitScrollback } : {}),
-        ...(targetTimelineEntryCount !== null
-          ? {
-              targetTimelineEntryCount: remoteTimelineEntryCountSchema.parse(
-                Number(targetTimelineEntryCount),
-              ),
-            }
-          : {}),
-      }),
-    );
-  },
+  // B4: the undeclared full-history variant is wrapped by the explicit legacy
+  // bulk admission + stored-byte pre-check; declared clients get the bounded
+  // tail. Both paths are written by the delegated handler.
+  "thread-history": handleLegacyAdmittedThreadHistory,
+
+  "thread-turns": handleBoundedThreadTurns,
 
   "thread-start-existing": async (call) => {
-    const { ctx, req, res, url } = call;
+    const { ctx, req, res, url, session } = call;
     const body = await readJsonBody(req);
     const payload = startThreadPayloadSchema.parse(body);
     const threadId = payload.threadId;
@@ -270,11 +162,33 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
     }
     const mcpSnapshot =
       ctx.options.resolveMcpLaunchSnapshot?.(thread.projectId) ?? emptyMcpLaunchSnapshot();
-    const result = await runIdempotentRemoteMutation(req, url.pathname, () =>
-      payload.providerSwitch
-        ? applyRemoteThreadSwitch(ctx, { ...payload, threadId, ...mcpSnapshot })
-        : ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot }),
-    );
+    const result = await runRemoteCommand({
+      commandId: remoteCommandId(req),
+      route: url.pathname,
+      principalId: session?.sessionId ?? null,
+      requestPayload: payload,
+      // A plain restart's whole operation is the supervisor call (the B1
+      // pre-launch touch is evidence, not a command effect), so an admission
+      // refusal is definite. A provider switch retargets the durable row and
+      // dispatches the renderer before that call — earlier effects exist, so
+      // no predicate: the receipt and the first response stay uncertain.
+      ...(payload.providerSwitch ? {} : { isPreEffectFailure: isHostResourceAdmissionRefusal }),
+      operation: (markDispatched) => {
+        // A provider switch marks at its own true effect boundary: the switch
+        // validates before any retarget, renderer dispatch or supervisor call
+        // and marks only past that, so a rejected validation is a definite
+        // failure while everything from the retarget on stays uncertain.
+        if (payload.providerSwitch) {
+          return applyRemoteThreadSwitch(
+            ctx,
+            { ...payload, threadId, ...mcpSnapshot },
+            markDispatched,
+          );
+        }
+        markDispatched();
+        return ctx.options.callSupervisor("startThread", { ...payload, ...mcpSnapshot });
+      },
+    });
     writeJson(res, 200, result);
   },
 
@@ -296,12 +210,20 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
     // One mutation + one canonical `runtime.truncated` publication, owned by
     // the host composition — this route never writes the DB directly, so a
     // remote truncate reaches every other client exactly like a local one.
-    ctx.options.truncateThreadRuntime(payload.threadId, payload.itemId);
+    // A typed persistence refusal (busy/degraded/contaminated) is raised by
+    // the gate before the truncate applies, so it maps to a retryable 503
+    // instead of an opaque 500.
+    try {
+      ctx.options.truncateThreadRuntime(payload.threadId, payload.itemId);
+    } catch (error) {
+      throw mapPersistenceRefusal(error);
+    }
     ctx.publishThreadsChanged([payload.threadId]);
     writeJson(res, 200, { ok: true });
   },
 
-  "thread-checkpoint-revert": async ({ ctx, req, res, url, params }) => {
+  "thread-checkpoint-revert": async (call) => {
+    const { ctx, req, res, url, params, session } = call;
     const revertThreadId = requirePathParam(params, "threadId");
     // WS2 stage 3/4: the compound checkpoint revert — provider rollback, file
     // checkpoint restore and transcript truncation as ONE journaled backend
@@ -320,25 +242,42 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
       ...(typeof body === "object" && body !== null ? body : {}),
       threadId: revertThreadId,
     });
-    const result = await runIdempotentRemoteMutation(
-      req,
-      url.pathname,
-      () => ctx.options.revertCheckpoint!(payload),
-      {
-        isRetryableResult: (value) =>
-          Boolean(value && typeof value === "object" && "outcome" in value) &&
-          (value as { outcome?: unknown }).outcome === "failed",
-        // The outer receipt must not bypass canonical validation: a cache
-        // hit still binds to the inner journal's frozen target.
-        mapCompletedResponse: (cached) => mapCheckpointRevertCompletedResponse(payload, cached),
+    const result = await runRemoteCommand({
+      commandId: remoteCommandId(req),
+      route: url.pathname,
+      principalId: session?.sessionId ?? null,
+      requestPayload: payload,
+      operation: (markDispatched) => {
+        markDispatched();
+        return ctx.options.revertCheckpoint!(payload);
       },
-    );
+      isRetryableResult: (value) =>
+        Boolean(value && typeof value === "object" && "outcome" in value) &&
+        (value as { outcome?: unknown }).outcome === "failed",
+      // The outer receipt must not bypass canonical validation: a cache
+      // hit still binds to the inner journal's frozen target.
+      mapCompletedResponse: (cached) => mapCheckpointRevertCompletedResponse(payload, cached),
+      // A pre-binding frozen response is safe to replay: it is a cached result,
+      // never a new mutation, and `mapCompletedResponse` still validates it
+      // against the inner journal whenever that row survives.
+      isLegacyCompletedResponseReplayable: () => true,
+      // An interrupted revert resumes through its own journal: the journal is
+      // claimed before the first side effect, records every phase before its
+      // effect, and never re-runs a completed destructive provider phase.
+      reconcileUncertain: () => ({ kind: "resume" }),
+    }).catch((error: unknown) => {
+      // A typed persistence refusal is mapped to a retryable 503 only after
+      // `runRemoteCommand` recorded the receipt outcome: the dispatch mark
+      // already classified the command `uncertain`, so this mapping never
+      // promises a blind re-send and never bypasses receipt classification.
+      throw mapPersistenceRefusal(error);
+    });
     ctx.publishThreadsChanged([payload.threadId]);
     await writeNegotiatedJsonResponse(req, res, 200, result);
   },
 
   "thread-command": async (call) => {
-    const { ctx, req, res, url, params } = call;
+    const { ctx, req, res, url, params, session } = call;
     const commandThreadId = requirePathParam(params, "threadId");
     const body = await readJsonBody(req);
     const command = remoteThreadCommandSchema.parse({
@@ -353,7 +292,7 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
       );
     }
     assertRemoteThreadCommandExperimentSafe(command);
-    const dispatch = async () => {
+    const dispatch = async (markDispatched?: () => void) => {
       if (command.kind === "delete-worktree-group") {
         const linkedThreadIds = dbGetThreads()
           .filter(
@@ -374,6 +313,16 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
           );
         }
       }
+      // A `start`'s genuinely pre-effect validation runs BEFORE the mark: a
+      // missing project means no row and no provider call can exist, so the
+      // receipt is a definite failure and the client may create a new attempt
+      // with a fresh id. Everything after the mark (worktree preparation, the
+      // durable row write, the provider launch) may have produced an external
+      // effect and must stay `uncertain`, never a definite failure.
+      if (command.kind === "start" && !dbGetProject(command.projectId)) {
+        throw new RemoteHttpError("project_not_found", msg("remote.project.notFound"), 404);
+      }
+      if (command.kind === "start") markDispatched?.();
       if (command.kind === "start" && command.isNewWorktree && command.worktreePath) {
         await applyRemoteThreadCommand(ctx, {
           kind: "prepare-worktree",
@@ -388,47 +337,103 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
           worktreePath: command.worktreePath,
         });
       }
-      const requiresRenderer = await applyRemoteThreadCommand(ctx, command);
-      if (requiresRenderer && (await ctx.options.dispatchThreadCommand?.(command)) !== true) {
-        throw new RemoteHttpError(
-          "desktop_unavailable",
-          "The desktop app is not available to apply this change.",
-          503,
+      const catalogIntent = isRemoteThreadCatalogCommand(command);
+      // Catalog kinds signal their true commit boundary from inside the DB
+      // intent (after the atomic write, before the throwing listener fan-out),
+      // so every post-commit failure below answers as may-have-committed.
+      let catalogCommitted = false;
+      try {
+        const requiresRenderer = await applyRemoteThreadCommand(
+          ctx,
+          command,
+          catalogIntent && markDispatched
+            ? () => {
+                catalogCommitted = true;
+                markDispatched();
+              }
+            : undefined,
         );
-      }
-      if (!requiresRenderer) {
-        const rendererCommand = (() => {
-          if (command.kind !== "start") return command;
-          const { isNewWorktree: _isNewWorktree, ...startCommand } = command;
-          return { ...startCommand, launchRuntime: false };
-        })();
-        await ctx.options.dispatchThreadCommand?.(rendererCommand);
-        if (command.kind === "acknowledge") {
-          ctx.publishSupervisorEvent({
-            type: "remote-threads-changed",
-            threadIds: [command.threadId],
-            viewedThreadIds: [command.threadId],
-          });
-        } else {
-          ctx.publishThreadsChanged([command.threadId]);
+        if (requiresRenderer && (await ctx.options.dispatchThreadCommand?.(command)) !== true) {
+          throw new RemoteHttpError(
+            "desktop_unavailable",
+            "The desktop app is not available to apply this change.",
+            503,
+          );
         }
+        if (!requiresRenderer) {
+          // Catalog mutations are host-authoritative and mirror-free: the
+          // desktop renderer is not asked to understand the new kinds, and every
+          // client (the desktop included) converges from the server broadcast.
+          if (!catalogIntent) {
+            const rendererCommand = (() => {
+              if (command.kind !== "start") return command;
+              const { isNewWorktree: _isNewWorktree, ...startCommand } = command;
+              return { ...startCommand, launchRuntime: false };
+            })();
+            await ctx.options.dispatchThreadCommand?.(rendererCommand);
+          }
+          if (command.kind === "acknowledge") {
+            ctx.publishSupervisorEvent({
+              type: "remote-threads-changed",
+              threadIds: [command.threadId],
+              viewedThreadIds: [command.threadId],
+            });
+          } else if (command.kind === "reorder") {
+            // Every moved thread is named so a client can re-sort without a
+            // catalog-wide response.
+            ctx.publishThreadsChanged([...command.threadIds, command.targetThreadId]);
+          } else {
+            ctx.publishThreadsChanged([command.threadId]);
+          }
+        }
+      } catch (error) {
+        if (catalogCommitted) throw commandOutcomeUncertainAfterEffect(error);
+        throw error;
       }
       return { ok: true };
     };
+    // Receipt-guarded kinds: `start` (crash-unsafe launch) and the narrow
+    // catalog mutations. Catalog kinds REQUIRE the caller's per-action command
+    // id before any effect, because a relative move is only retry-safe under
+    // it; legacy kinds keep their historical optional header. A pure
+    // validation refusal stays a definite failure: the commit signal fires
+    // only after a real write.
+    const catalogCommand = isRemoteThreadCatalogCommand(command);
     const result =
-      command.kind === "start"
-        ? await runIdempotentRemoteMutation(req, url.pathname, dispatch)
+      command.kind === "start" || catalogCommand
+        ? await runRemoteCommand({
+            commandId: catalogCommand
+              ? requireRemoteCommandId(req, command.kind)
+              : remoteCommandId(req),
+            route: url.pathname,
+            principalId: session?.sessionId ?? null,
+            requestPayload: command,
+            operation: (markDispatched) => dispatch(markDispatched),
+          })
         : await dispatch();
     writeJson(res, 200, result);
   },
 
-  "thread-send": (call) => {
-    return forwardThreadBodyPost(
-      call,
-      (callSupervisor, body) =>
-        callSupervisor("sendThreadInput", sendThreadInputPayloadSchema.parse(body)),
-      { idempotent: true },
-    );
+  "thread-send": async (call) => {
+    const { ctx, req, res, url, params, session } = call;
+    const threadId = requirePathParam(params, "threadId");
+    const body = await readJsonBody(req);
+    const payload = sendThreadInputPayloadSchema.parse({
+      ...(typeof body === "object" && body !== null ? body : {}),
+      threadId,
+    });
+    const result = await runRemoteCommand({
+      commandId: remoteCommandId(req),
+      route: url.pathname,
+      principalId: session?.sessionId ?? null,
+      requestPayload: payload,
+      operation: async (markDispatched) => {
+        markDispatched();
+        await ctx.options.callSupervisor("sendThreadInput", payload);
+        return { ok: true };
+      },
+    });
+    writeJson(res, 200, result);
   },
 
   "thread-interrupt": (call) => {
@@ -482,4 +487,92 @@ export const THREAD_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ThreadRouteId> =
     forwardThreadBodyPost(call, (callSupervisor, body) =>
       callSupervisor("closeThread", closeThreadPayloadSchema.parse(body)),
     ),
+
+  // B1 declared-only durable-gap recovery. `notices=v1` is required on both
+  // routes; the ack requires the standard command-id receipt and never touches
+  // committed transcript bytes.
+  "thread-runtime-gap": (call) => {
+    const { ctx, res, url, params } = call;
+    const threadId = requirePathParam(params, "threadId");
+    requireRuntimeHistoryNoticesDeclaration(url);
+    const port = requireRuntimeHistoryGapPort(ctx);
+    if (!dbGetThread(threadId)) {
+      throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+    }
+    try {
+      const descriptor = port.read(threadId);
+      const notice = port.readNotice(threadId);
+      writeJson(
+        res,
+        200,
+        remoteRuntimeGapReadResultSchema.parse({
+          gap: descriptor ? toRemoteRuntimeGapDescriptor(descriptor) : null,
+          notice: notice ? toRemoteRuntimeHistoryNotice(notice) : null,
+        }),
+      );
+    } catch (error) {
+      throw mapPersistenceRefusal(error);
+    }
+  },
+
+  "thread-runtime-gap-acknowledge": async (call) => {
+    const { ctx, req, res, url, params, session } = call;
+    const threadId = requirePathParam(params, "threadId");
+    requireRuntimeHistoryNoticesDeclaration(url);
+    const port = requireRuntimeHistoryGapPort(ctx);
+    if (!dbGetThread(threadId)) {
+      throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+    }
+    const body = await readJsonBody(req);
+    const payload = remoteRuntimeGapAcknowledgeBodySchema.parse({
+      ...(typeof body === "object" && body !== null ? body : {}),
+      threadId,
+    });
+    const commandId = remoteCommandId(req);
+    if (!commandId) {
+      throw new RemoteHttpError(
+        "command_id_required",
+        "Acknowledging a runtime gap requires an x-poracode-command-id header.",
+        400,
+      );
+    }
+    const result = await runRemoteCommand({
+      commandId,
+      route: url.pathname,
+      principalId: session?.sessionId ?? null,
+      requestPayload: payload,
+      operation: (markDispatched) => {
+        // Everything past this mark may have committed the durable
+        // acknowledgement, so a failure stays `uncertain` (never a definite
+        // failure) and a retry resolves only through the reconcile proof below.
+        markDispatched();
+        return port
+          .acknowledge(threadId, payload.episodeToken)
+          .then(toRemoteRuntimeGapAcknowledgeResult);
+      },
+      // A cached response is replayed through the wire schema, so a receipt
+      // written by another build can never leak a non-wire shape.
+      mapCompletedResponse: (cached) => remoteRuntimeGapAcknowledgeResultSchema.parse(cached),
+      // Concrete existing notice proof through the current session seam: the
+      // stored acknowledged token must be exactly the episode token this
+      // command requested. Without that proof the receipt stays unresolved —
+      // a previously uncertain acknowledgement is never re-executed blindly.
+      reconcileUncertain: () => {
+        try {
+          const notice = port.readNotice(threadId);
+          return notice &&
+            runtimeHistoryNoticeTokensEqual(notice.acknowledgedToken, payload.episodeToken)
+            ? { kind: "resume" }
+            : { kind: "unresolved" };
+        } catch {
+          return { kind: "unresolved" };
+        }
+      },
+    }).catch((error: unknown) => {
+      // Typed busy/unavailable/identity refusals are honest retryable or
+      // corrupt-state answers; commit errors keep their truthful HTTP shape.
+      throw mapPersistenceRefusal(error);
+    });
+    writeJson(res, 200, result);
+  },
 };

@@ -1,10 +1,15 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { Duplex } from "node:stream";
+import {
+  ENVIRONMENT_INTERNAL_HEADER_PREFIX,
+  matchEnvironmentProxyPath,
+} from "@/shared/environments";
 import { RemoteHttpError } from "../auth";
 import { ForwardOriginPolicy, isForwardOriginAuthority } from "../portForward/forwardOrigin";
 import type { ForwardOriginIdentity } from "../portForward/forwardOriginIdentity";
 import { FORWARD_ORIGIN_EXCHANGE_PATH, PortProxy } from "../portForward/portProxy";
+import type { IngressRequestClassification } from "../remoteAccessServerTypes";
 import type { RemoteServerContext } from "./context";
 import { handleHttp } from "./httpRouter";
 import { writeError } from "./httpResponses";
@@ -232,6 +237,109 @@ function writeForwardError(res: ServerResponse, error: unknown): void {
 }
 
 /**
+ * ANY `x-poracode-environment-*` header outside the data-plane prefix is a
+ * reserved parent-internal header (the parent credential header included).
+ * Detection is prefix-based — unknown or misspelled names included — so
+ * partial/forged reserved metadata never falls through to ordinary routing, a
+ * forwarded child origin, or the PWA. (Node lowercases inbound header names.)
+ */
+export function hasReservedEnvironmentHeader(req: IncomingMessage): boolean {
+  return Object.keys(req.headers).some((name) =>
+    name.toLowerCase().startsWith(ENVIRONMENT_INTERNAL_HEADER_PREFIX),
+  );
+}
+
+function rejectReservedEnvironmentHeader(res: ServerResponse): void {
+  writeError(
+    res,
+    new RemoteHttpError(
+      "environment_header_rejected",
+      "Reserved environment headers are only valid on the environment proxy path.",
+      403,
+    ),
+  );
+}
+
+/**
+ * C1 data-plane dispatch (ADR §5), intercepted after forward-origin routing
+ * and before registry matching: the child `Authorization` bearer must never be
+ * mistaken for a parent credential by ordinary routing, and a path-traversal
+ * attempt on the prefix is a bounded error, never a registry lookup. The
+ * gateway (when composed) owns everything after this point.
+ */
+async function dispatchEnvironmentProxyHttp(
+  ctx: RemoteServerContext,
+  req: IncomingMessage,
+  res: ServerResponse,
+  match: NonNullable<ReturnType<typeof matchEnvironmentProxyPath>>,
+): Promise<void> {
+  if (match.kind === "invalid") {
+    writeError(
+      res,
+      new RemoteHttpError(
+        "environment_proxy_path_invalid",
+        "The environment proxy path is invalid.",
+        400,
+      ),
+    );
+    return;
+  }
+  const gateway = ctx.environmentProxy;
+  if (!gateway) {
+    writeError(
+      res,
+      new RemoteHttpError(
+        "environment_proxy_unavailable",
+        "Server-owned environments are not available on this host.",
+        503,
+      ),
+    );
+    return;
+  }
+  try {
+    await gateway.handleHttpRequest({
+      req,
+      res,
+      security: ctx.security,
+      environmentId: match.environmentId,
+      rawChildPath: match.rawChildPath,
+      rawQuery: match.rawQuery,
+    });
+  } catch (error) {
+    if (res.destroyed) return;
+    if (!res.headersSent) writeError(res, error);
+    else if (!res.writableEnded) res.destroy();
+  }
+}
+
+async function dispatchEnvironmentProxyUpgrade(
+  ctx: RemoteServerContext,
+  req: IncomingMessage,
+  socket: Duplex,
+  head: Buffer,
+  match: NonNullable<ReturnType<typeof matchEnvironmentProxyPath>>,
+): Promise<void> {
+  if (match.kind === "invalid") {
+    rejectUpgrade(socket, 400, "Bad Request");
+    return;
+  }
+  const gateway = ctx.environmentProxy;
+  if (!gateway) {
+    rejectUpgrade(socket, 503, "Service Unavailable");
+    return;
+  }
+  await gateway.handleUpgradeRequest({
+    req,
+    socket,
+    head,
+    security: ctx.security,
+    environmentId: match.environmentId,
+    rawChildPath: match.rawChildPath,
+    rawQuery: match.rawQuery,
+  });
+}
+
+/**
  * A supplied `Origin` must equal the child's exact external origin — a
  * browser always sends it on state-changing requests and WebSocket upgrades,
  * and a caller-supplied Origin can never assert trusted dispatch context.
@@ -328,15 +436,35 @@ export async function handleRemoteAccessHttpRequest(
   ctx: RemoteServerContext,
   req: IncomingMessage,
   res: ServerResponse,
+  classification: IngressRequestClassification,
 ): Promise<void> {
   stripUnauthenticatedRelayHopMarker(req.headers);
+  const environmentProxyPath = matchEnvironmentProxyPath(req.url ?? "/");
+  const reservedEnvironmentHeader = hasReservedEnvironmentHeader(req);
   const child = resolveChildRequest(ctx, req);
-  if (child.kind === "relay-api") {
-    await handleHttp(ctx, req, res, ctx.options.getRelayForwardOrigin?.() ?? null);
+  if (child.kind === "relay-api" || child.kind === "ordinary") {
+    if (environmentProxyPath !== null) {
+      await dispatchEnvironmentProxyHttp(ctx, req, res, environmentProxyPath);
+      return;
+    }
+    if (reservedEnvironmentHeader) {
+      rejectReservedEnvironmentHeader(res);
+      return;
+    }
+    await handleHttp(
+      ctx,
+      req,
+      res,
+      child.kind === "relay-api"
+        ? (ctx.options.getRelayForwardOrigin?.() ?? null)
+        : (ctx.options.forwardOrigin ?? null),
+      classification.workClass,
+      classification.readClass,
+    );
     return;
   }
-  if (child.kind === "ordinary") {
-    await handleHttp(ctx, req, res);
+  if (reservedEnvironmentHeader) {
+    rejectReservedEnvironmentHeader(res);
     return;
   }
   try {
@@ -377,13 +505,27 @@ export async function handleRemoteAccessUpgrade(
   head: Buffer,
 ): Promise<void> {
   stripUnauthenticatedRelayHopMarker(req.headers);
+  const environmentProxyPath = matchEnvironmentProxyPath(req.url ?? "/");
+  const reservedEnvironmentHeader = hasReservedEnvironmentHeader(req);
   const child = resolveChildRequest(ctx, req);
   if (child.kind === "relay-api") {
     rejectUpgrade(socket, 403, "Forbidden");
     return;
   }
   if (child.kind === "ordinary") {
+    if (environmentProxyPath !== null) {
+      await dispatchEnvironmentProxyUpgrade(ctx, req, socket, head, environmentProxyPath);
+      return;
+    }
+    if (reservedEnvironmentHeader) {
+      rejectUpgrade(socket, 403, "Forbidden");
+      return;
+    }
     await handleUpgrade(ctx, req, socket, head);
+    return;
+  }
+  if (reservedEnvironmentHeader) {
+    rejectUpgrade(socket, 403, "Forbidden");
     return;
   }
   try {

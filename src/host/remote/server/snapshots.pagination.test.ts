@@ -82,12 +82,13 @@ function decodeCursor(cursor: string): { s: number; i: string } {
 }
 
 vi.mock("@/host/db", () => ({
+  RuntimePersistenceDegradedError: class extends Error {},
   dbGetProjects: vi.fn<() => never[]>(() => []),
   dbGetThreads: vi.fn<() => Thread[]>(() => ALL_THREADS),
   dbGetThreadsPage: vi.fn<
     (query: { limit: number; cursor?: string }) => { threads: Thread[]; nextCursor: string | null }
   >((query) => pageOver(ALL_THREADS, query)),
-  dbGetThreadRuntimeSummaries: vi.fn<
+  dbGetThreadRuntimeSummariesCommitted: vi.fn<
     (ids: string[]) => Record<string, { itemCount: number; latestItemId: string }>
   >((ids: string[]) =>
     Object.fromEntries(ids.map((id) => [id, { itemCount: 3, latestItemId: `${id}-latest` }])),
