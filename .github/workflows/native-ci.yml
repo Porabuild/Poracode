@@ -117,7 +117,7 @@ jobs:
         run: ./gradlew clean testDebugUnitTest assembleDebug lintDebug --no-daemon --stacktrace
 
       - name: Upload Android evidence
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: android-native-ci-${{ github.run_attempt }}
@@ -193,7 +193,7 @@ jobs:
             -parallel-testing-enabled NO
 
       - name: Upload iOS test evidence
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-native-ci-${{ github.run_attempt }}
@@ -297,7 +297,7 @@ jobs:
         run: node scripts/native-e2e.mjs ios-ui
 
       - name: Upload iOS journey evidence
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ios-ui-journey-${{ github.run_attempt }}
@@ -456,7 +456,7 @@ jobs:
           script: node ../scripts/native-e2e.mjs android-real
 
       - name: Upload Android 17 runtime evidence
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: android-api37-runtime-${{ github.run_attempt }}
@@ -536,7 +536,7 @@ jobs:
             printf '%s\n' '### Android 14 minimum-supported runtime evidence' '' '- API 34 emulator booted as Android 14 (REL).' '- The minSdk 34 APK launched and exposed the pairing entry point.' '- The minimum-SDK launch and TLS pin pairing tests passed.' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Android 14 minimum-supported runtime evidence
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: android-api34-runtime-${{ github.run_attempt }}
@@ -653,7 +653,7 @@ jobs:
           '
 
       - name: Upload native E2E evidence
-        if: ${{ always() }}
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: native-e2e-foundation-${{ github.run_attempt }}
