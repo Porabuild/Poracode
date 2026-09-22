@@ -19,12 +19,24 @@ import { PORACODE_CLIENT_RUNTIME_VERSION } from "@/shared/clientRuntime";
 import { RemoteClientError, RemoteDesktopClient } from "@/shared/remote/client";
 import { hostServiceCapabilities } from "@/shared/hostControlProtocol";
 import { __resetRemoteServersStoreForTest, useRemoteServersStore } from "./remoteServersStore";
+import {
+  noteProjectCommandResultsCapability,
+  __resetProjectCommandResultsCapabilityForTest,
+} from "./remote/projectCommandResultsCapability";
+import { EnvironmentCascadeConfirmationRequiredError } from "./remoteServers/sessionReconnect";
+import { environmentChildGrantSubject } from "./remoteServers/environmentSessions";
+import {
+  __peekRefreshTokenForTest,
+  rememberRefreshToken,
+  rememberRefreshTokenForSubject,
+} from "./remoteServers/refreshTokens";
 import { installRemoteProjectWorkspaceSync } from "./remoteServers/appRows";
 import { filterRemoteThreadEvent } from "./remoteServers/eventRouting";
 import { mainProcessFetch } from "./remoteServers/mainProcessFetch";
 import { resetRemoteHttpBridgeClientForTest } from "./remoteServers/remoteHttpBridgeClient";
 import type {
   RemoteClientFactory,
+  RemoteEnvironmentTransport,
   RemoteServerRecord,
   RemoteSocketFactory,
   RemoteSocketLike,
@@ -34,7 +46,13 @@ import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "./slices/threadSlice";
 import { watchRemoteTerminal } from "./remoteTerminalFeed";
-import { remoteProjectId, remoteThreadId } from "./remoteProjection";
+import { remoteProjectId, remoteThreadId, projectRemoteProject } from "./remoteProjection";
+import {
+  __resetProjectSettingsLoaderForTest,
+  ensureProjectMcpServersLoaded,
+  isProjectMcpServersLoaded,
+} from "@/renderer/state/projectSettings/projectSettingsLoader";
+import { bumpRemoteServerGeneration } from "./remoteServers/eventSocketRegistry";
 import {
   getAuthoritativeHistorySeq,
   getTruncateNeededSeq,
@@ -248,6 +266,15 @@ function makeClient(opts?: {
   snapshotProjects?: Project[];
   snapshotThrows?: boolean;
   snapshot?: RemoteDesktopClient["snapshot"];
+  /** B4 negotiation verdict for the default bounded stubs. */
+  boundedNegotiation?: "bounded" | "legacy";
+  boundedShellSnapshot?: RemoteDesktopClient["boundedShellSnapshot"];
+  boundedThreadListPage?: RemoteDesktopClient["boundedThreadListPage"];
+  boundedProjectListPage?: RemoteDesktopClient["boundedProjectListPage"];
+  boundedCatalogMembership?: RemoteDesktopClient["boundedCatalogMembership"];
+  boundedThreadHistory?: RemoteDesktopClient["boundedThreadHistory"];
+  boundedThreadHistoryItems?: RemoteDesktopClient["boundedThreadHistoryItems"];
+  boundedThreadTurns?: RemoteDesktopClient["boundedThreadTurns"];
   agentStatuses?: RemoteDesktopClient["agentStatuses"];
   environment?: RemoteDesktopClient["environment"];
   environmentHttpBaseUrl?: string;
@@ -279,6 +306,21 @@ function makeClient(opts?: {
   settings?: RemoteDesktopClient["settings"];
   installHostUpdate?: RemoteDesktopClient["installHostUpdate"];
 }): RemoteDesktopClient {
+  const boundedNegotiation = opts?.boundedNegotiation ?? "bounded";
+  const snapshotImpl: RemoteDesktopClient["snapshot"] =
+    opts?.snapshot ??
+    (async () => {
+      if (opts?.snapshotThrows) throw new Error("boom");
+      return {
+        snapshotSeq: 0,
+        projects: opts?.snapshotProjects ?? [proj],
+        threads: [],
+        runtimeSummariesByThread: {},
+        updatedAt: "now",
+      };
+    });
+  const threadHistoryImpl: RemoteDesktopClient["threadHistory"] =
+    opts?.threadHistory ?? (async () => remoteThreadSnapshot(remoteThread.id));
   return {
     // Gate 6 items 4.2/4.6: the store attaches the token-refresh lifecycle and
     // the certificate pin to every client it builds.
@@ -311,25 +353,87 @@ function makeClient(opts?: {
       })),
     agentStatuses:
       opts?.agentStatuses ?? (async () => ({ windows: [], wsl: [], updatedAt: "now" })),
-    snapshot:
-      opts?.snapshot ??
+    snapshot: snapshotImpl,
+    boundedShellSnapshot:
+      opts?.boundedShellSnapshot ??
       (async () => {
-        if (opts?.snapshotThrows) throw new Error("boom");
+        if (boundedNegotiation === "legacy") {
+          return {
+            negotiation: "legacy" as const,
+            page: {
+              snapshotSeq: 0,
+              projects: [],
+              threads: [],
+              runtimeSummariesByThread: {},
+              updatedAt: "legacy-probe",
+            },
+          };
+        }
+        const page = await snapshotImpl({});
         return {
-          snapshotSeq: 0,
-          projects: opts?.snapshotProjects ?? [proj],
-          threads: [],
-          runtimeSummariesByThread: {},
-          updatedAt: "now",
+          negotiation: "bounded" as const,
+          page: {
+            ...page,
+            reads: "bounded-v1" as const,
+            threadsNextCursor: null,
+            projectsNextCursor: null,
+          },
         };
       }),
+    boundedThreadListPage:
+      opts?.boundedThreadListPage ??
+      (async () => ({
+        negotiation: "bounded" as const,
+        page: {
+          threads: [],
+          runtimeSummariesByThread: {},
+          nextCursor: null,
+          reads: "bounded-v1" as const,
+        },
+      })),
+    boundedProjectListPage:
+      opts?.boundedProjectListPage ??
+      (async () => ({
+        projects: [],
+        projectsNextCursor: null,
+        reads: "bounded-v1" as const,
+      })),
+    boundedCatalogMembership:
+      opts?.boundedCatalogMembership ??
+      (async (request: { threadIds?: string[]; projectIds?: string[] }) => ({
+        existingThreadIds: request.threadIds ?? [],
+        existingProjectIds: request.projectIds ?? [],
+      })),
+    boundedThreadHistory:
+      opts?.boundedThreadHistory ??
+      (async (threadId: string) => {
+        const page = await threadHistoryImpl(threadId);
+        if (boundedNegotiation === "legacy") return { negotiation: "legacy" as const, page };
+        return {
+          negotiation: "bounded" as const,
+          page: { ...page, reads: "bounded-v1" as const, completedTurnsNextCursor: null },
+        };
+      }),
+    boundedThreadHistoryItems:
+      opts?.boundedThreadHistoryItems ??
+      (async () => ({
+        negotiation: "bounded" as const,
+        page: { items: [], nextCursor: null, reads: "bounded-v1" as const },
+      })),
+    boundedThreadTurns:
+      opts?.boundedThreadTurns ??
+      (async () => ({
+        turns: [],
+        completedTurnsNextCursor: null,
+        reads: "bounded-v1" as const,
+      })),
     projectCommand:
       opts?.projectCommand ?? (async () => ({ projects: opts?.snapshotProjects ?? [proj] })),
     projectNotes: opts?.projectNotes ?? (async () => null),
     projectSettings: opts?.projectSettings ?? (async () => ({})),
     interruptThread: opts?.interruptThread ?? (async () => {}),
     closeThread: opts?.closeThread ?? (async () => {}),
-    threadHistory: opts?.threadHistory ?? (async () => remoteThreadSnapshot(remoteThread.id)),
+    threadHistory: threadHistoryImpl,
     threadRuntimeItemsPage:
       opts?.threadRuntimeItemsPage ?? (async () => ({ items: [], nextCursor: null })),
     websocketTicket: opts?.websocketTicket ?? (async () => "ticket-1"),
@@ -1590,9 +1694,9 @@ describe("useRemoteServersStore", () => {
 
   it("keeps mirrored project metadata local across reconnects", async () => {
     const remoteWorkspaceProject = { ...proj, workspaceId: "remote-workspace" };
-    const projectCommand = vi.fn<RemoteDesktopClient["projectCommand"]>(async () => ({
+    const projectCommand = vi.fn<() => Promise<{ projects: unknown[] }>>(async () => ({
       projects: [remoteWorkspaceProject],
-    }));
+    })) as unknown as RemoteDesktopClient["projectCommand"];
     useRemoteServersStore
       .getState()
       .setClientFactory(
@@ -1631,6 +1735,47 @@ describe("useRemoteServersStore", () => {
     expect(
       useAppStore.getState().projects.find((project) => project.id === projectedId)?.name,
     ).toBe("Local Project");
+  });
+
+  it("declares the bounded project-command result mode only for capable paired connections", async () => {
+    __resetProjectCommandResultsCapabilityForTest();
+    const calls: Array<{ readonly command: unknown; readonly options: unknown }> = [];
+    const projectCommand = (async (command: unknown, options?: unknown) => {
+      calls.push({ command, options });
+      return { ok: true, project: proj };
+    }) as unknown as RemoteDesktopClient["projectCommand"];
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ projectCommand })));
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          desktopId: "d1",
+          label: "Server One",
+          endpoint: "http://desktop-one.test/",
+          accessToken: "token-one",
+          scopes: [],
+        },
+      ],
+      runtime: { d1: { status: "online", projects: [proj], threads: [] } },
+    });
+    noteProjectCommandResultsCapability("d1", true);
+
+    await useRemoteServersStore
+      .getState()
+      .runProjectCommand("d1", { kind: "update", projectId: "p1", patch: { name: "Renamed" } });
+    expect(calls).toHaveLength(1);
+    expect((calls[0]?.options as { readonly result?: string } | undefined)?.result).toBe("bounded");
+    expect((calls[0]?.options as { readonly commandId?: string } | undefined)?.commandId).toEqual(
+      expect.any(String),
+    );
+
+    // An unconverted (or downgraded) connection keeps the complete response
+    // path and sends no unsupported declaration.
+    noteProjectCommandResultsCapability("d1", false);
+    await useRemoteServersStore
+      .getState()
+      .runProjectCommand("d1", { kind: "update", projectId: "p1", patch: { name: "Renamed" } });
+    expect(calls).toHaveLength(2);
+    expect(calls[1]?.options).toBeUndefined();
   });
 
   it("derives a mirror's workspace from its local counterpart until filed explicitly", async () => {
@@ -2620,9 +2765,9 @@ describe("useRemoteServersStore", () => {
   });
 
   it("runs a remote project command then refreshes the snapshot", async () => {
-    const projectCommand = vi.fn<RemoteDesktopClient["projectCommand"]>(async () => ({
+    const projectCommand = vi.fn<() => Promise<{ projects: unknown[] }>>(async () => ({
       projects: [proj, proj2],
-    }));
+    })) as unknown as RemoteDesktopClient["projectCommand"];
     useRemoteServersStore
       .getState()
       .setClientFactory(
@@ -2657,13 +2802,95 @@ describe("useRemoteServersStore", () => {
       .getState()
       .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
 
-    await useRemoteServersStore.getState().loadProjectSettings("d1", "p1");
+    __resetProjectSettingsLoaderForTest();
+    await ensureProjectMcpServersLoaded(remoteProjectId("d1", "p1"));
 
     expect(projectSettings).toHaveBeenCalledWith("p1");
     expect(
       useAppStore.getState().projects.find((project) => project.id === remoteProjectId("d1", "p1"))
         ?.mcpServers,
     ).toEqual([server]);
+    // The loaded marker suppresses a duplicate authoritative read.
+    await ensureProjectMcpServersLoaded(remoteProjectId("d1", "p1"));
+    expect(projectSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("a retired project's late settings response never paints and never marks loaded", async () => {
+    const server = {
+      id: "memory-id",
+      name: "memory",
+      description: "Memory tools",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "stdio" as const, command: "node", args: ["server.js"], env: {} },
+    };
+    let releaseSettings!: (value: { mcpServers: (typeof server)[] }) => void;
+    const heldSettings = new Promise<{ mcpServers: (typeof server)[] }>((resolve) => {
+      releaseSettings = resolve;
+    });
+    const projectSettings = vi
+      .fn<RemoteDesktopClient["projectSettings"]>()
+      .mockImplementationOnce(() => heldSettings)
+      .mockResolvedValue({ mcpServers: [] });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ projectSettings })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    __resetProjectSettingsLoaderForTest();
+    const projectedId = remoteProjectId("d1", "p1");
+    const pending = ensureProjectMcpServersLoaded(projectedId);
+    await vi.waitFor(() => expect(projectSettings).toHaveBeenCalledTimes(1));
+    // The row is retired while the read is in flight (dropped exactly the way
+    // `syncRemoteAppRows` drops unsynced mirrors): the late response must not
+    // resurrect anything, and the marker must stay unset.
+    useAppStore.getState().deleteProject(projectedId);
+    releaseSettings({ mcpServers: [server] });
+    await pending;
+    expect(useAppStore.getState().projects.some((project) => project.id === projectedId)).toBe(
+      false,
+    );
+
+    // A re-projected row under the same owner re-reads: the fenced-out
+    // response left "not loaded", never "loaded empty".
+    useAppStore.setState((state) => ({
+      projects: [...state.projects, projectRemoteProject("d1", proj)],
+    }));
+    await ensureProjectMcpServersLoaded(projectedId);
+    expect(projectSettings).toHaveBeenCalledTimes(2);
+  });
+
+  it("a reconnect to the same host retires the loaded marker and re-reads", async () => {
+    const server = {
+      id: "memory-id",
+      name: "memory",
+      description: "Memory tools",
+      enabled: true,
+      timeoutMs: 30_000,
+      transport: { type: "stdio" as const, command: "node", args: ["server.js"], env: {} },
+    };
+    const projectSettings = vi.fn<RemoteDesktopClient["projectSettings"]>(async () => ({
+      mcpServers: [server],
+    }));
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ projectSettings })));
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+
+    __resetProjectSettingsLoaderForTest();
+    await ensureProjectMcpServersLoaded(remoteProjectId("d1", "p1"));
+    expect(projectSettings).toHaveBeenCalledTimes(1);
+
+    // A reconnect to the SAME host keeps desktopId/remoteId but starts a new
+    // client identity generation: the cached marker must not survive it.
+    bumpRemoteServerGeneration("d1");
+    const row = useAppStore
+      .getState()
+      .projects.find((project) => project.id === remoteProjectId("d1", "p1"));
+    expect(isProjectMcpServersLoaded(row!)).toBe(false);
+
+    await ensureProjectMcpServersLoaded(remoteProjectId("d1", "p1"));
+    expect(projectSettings).toHaveBeenCalledTimes(2);
   });
 
   it("browses folders through the selected remote server", async () => {
@@ -2958,7 +3185,9 @@ describe("useRemoteServersStore", () => {
     );
     useRemoteServersStore
       .getState()
-      .setClientFactory(factoryFor(makeClient({ snapshot, threadHistory })));
+      .setClientFactory(
+        factoryFor(makeClient({ snapshot, threadHistory, boundedNegotiation: "legacy" })),
+      );
     await pairIsolated(() => socket);
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
 
@@ -3073,7 +3302,9 @@ describe("useRemoteServersStore", () => {
       runtimeSummariesByThread: {},
       updatedAt: "now",
     }));
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ snapshot, boundedNegotiation: "legacy" })));
     await pairIsolated(() => socket);
     await useRemoteServersStore.getState().openRemoteThread("d1", "rt-1");
     const projectedThreadId = remoteThreadId("d1", "rt-1");
@@ -3112,7 +3343,9 @@ describe("useRemoteServersStore", () => {
       runtimeSummariesByThread: {},
       updatedAt: "now",
     }));
-    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ snapshot })));
+    useRemoteServersStore
+      .getState()
+      .setClientFactory(factoryFor(makeClient({ snapshot, boundedNegotiation: "legacy" })));
     useRemoteServersStore.getState().setSocketFactory(() => socket);
     await useRemoteServersStore
       .getState()
@@ -3326,7 +3559,7 @@ describe("useRemoteServersStore", () => {
     });
     expect(socketFactory).toHaveBeenNthCalledWith(
       1,
-      "ws://192.168.1.9:38987/ws?ticket=ticket-1&last=1",
+      "ws://192.168.1.9:38987/ws?ticket=ticket-1&last=1&notices=v1",
     );
 
     deliverFillersThrough(sockets[0]!, 7);
@@ -3347,7 +3580,7 @@ describe("useRemoteServersStore", () => {
     });
     expect(socketFactory).toHaveBeenNthCalledWith(
       2,
-      "ws://192.168.1.9:38987/ws?ticket=ticket-2&last=7",
+      "ws://192.168.1.9:38987/ws?ticket=ticket-2&last=7&notices=v1",
     );
 
     sync.dispatchRemoteSupervisorEvent.mockClear();
@@ -3374,7 +3607,7 @@ describe("useRemoteServersStore", () => {
     expect(socketFactory).toHaveBeenCalledTimes(3);
     expect(socketFactory).toHaveBeenNthCalledWith(
       3,
-      "ws://192.168.1.9:38987/ws?ticket=ticket-3&last=2",
+      "ws://192.168.1.9:38987/ws?ticket=ticket-3&last=2&notices=v1",
     );
   });
 
@@ -3669,7 +3902,9 @@ describe("useRemoteServersStore", () => {
   it("compensates when an authoritative snapshot precedes deletion and the start response", async () => {
     const start = deferred<{ threadId: string }>();
     const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(() => start.promise);
-    const sendThreadCommand = vi.fn<RemoteDesktopClient["sendThreadCommand"]>(async () => {});
+    const sendThreadCommand = vi.fn<() => Promise<void>>(
+      async () => {},
+    ) as unknown as RemoteDesktopClient["sendThreadCommand"];
     let authoritative = false;
     const snapshot = vi.fn<RemoteDesktopClient["snapshot"]>(async () => ({
       snapshotSeq: authoritative ? 2 : 1,
@@ -3749,7 +3984,9 @@ describe("useRemoteServersStore", () => {
     const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
       threadId: "rt-waiting",
     }));
-    const sendThreadCommand = vi.fn<RemoteDesktopClient["sendThreadCommand"]>(async () => {});
+    const sendThreadCommand = vi.fn<() => Promise<void>>(
+      async () => {},
+    ) as unknown as RemoteDesktopClient["sendThreadCommand"];
     useRemoteServersStore
       .getState()
       .setClientFactory(factoryFor(makeClient({ snapshot, startNewThread, sendThreadCommand })));
@@ -3801,9 +4038,9 @@ describe("useRemoteServersStore", () => {
   });
 
   it("retains a cancelled remote launch when compensating deletion fails", async () => {
-    const sendThreadCommand = vi.fn<RemoteDesktopClient["sendThreadCommand"]>(async () => {
+    const sendThreadCommand = vi.fn<() => Promise<void>>(async () => {
       throw new Error("remote delete failed");
-    });
+    }) as unknown as RemoteDesktopClient["sendThreadCommand"];
     useRemoteServersStore
       .getState()
       .setClientFactory(factoryFor(makeClient({ sendThreadCommand })));
@@ -3845,9 +4082,9 @@ describe("useRemoteServersStore", () => {
       threadId: "rt-hydrating",
     }));
     const threadHistory = vi.fn<RemoteDesktopClient["threadHistory"]>(() => history.promise);
-    const sendThreadCommand = vi.fn<RemoteDesktopClient["sendThreadCommand"]>(async () => {
+    const sendThreadCommand = vi.fn<() => Promise<void>>(async () => {
       throw new Error("remote delete failed");
-    });
+    }) as unknown as RemoteDesktopClient["sendThreadCommand"];
     useRemoteServersStore
       .getState()
       .setClientFactory(
@@ -5159,5 +5396,123 @@ describe("useRemoteServersStore", () => {
     // future server with the same id.
     useRemoteServersStore.getState().removeServer("d1");
     expect(localStorage.getItem("poracode.remoteServerCertPins")).toBe("{}");
+  });
+});
+
+describe("host-owned environment removal cascade (C1 R2)", () => {
+  const ENVIRONMENT_ID = "11111111-1111-4111-8111-111111111111";
+  const PARENT_KEY = "conn-parent";
+  const CHILD_KEY = "conn-child";
+  const parentRecord = {
+    connectionId: PARENT_KEY,
+    desktopId: "parent-desktop",
+    label: "Parent",
+    endpoint: "http://127.0.0.1:49153/",
+    accessToken: "parent-access",
+    scopes: ["session:read"],
+    transport: { kind: "direct" },
+  } as unknown as RemoteServerRecord;
+  const childRecord = {
+    connectionId: CHILD_KEY,
+    desktopId: "child-desktop",
+    label: "Child",
+    endpoint: `http://127.0.0.1:49153/api/environments/${ENVIRONMENT_ID}/proxy/`,
+    accessToken: "child-access",
+    scopes: ["session:read"],
+    transport: {
+      kind: "environment",
+      parentConnectionId: PARENT_KEY,
+      environmentId: ENVIRONMENT_ID,
+      childDesktopId: "child-desktop",
+    },
+  } as unknown as RemoteServerRecord;
+
+  beforeEach(() => {
+    __resetRemoteServersStoreForTest();
+    useRemoteServersStore.setState({ servers: [parentRecord, childRecord] });
+  });
+
+  afterEach(() => {
+    __resetRemoteServersStoreForTest();
+  });
+
+  it("refuses to cascade a parent with dependents without explicit confirmation", () => {
+    expect(() => useRemoteServersStore.getState().removeServer(PARENT_KEY)).toThrow(
+      EnvironmentCascadeConfirmationRequiredError,
+    );
+    expect(useRemoteServersStore.getState().servers).toHaveLength(2);
+  });
+
+  it("cascades local records and child grants only, never the host environment", () => {
+    rememberRefreshToken(PARENT_KEY, "parent-refresh");
+    rememberRefreshTokenForSubject(
+      environmentChildGrantSubject(childRecord.transport as RemoteEnvironmentTransport)!,
+      "child-refresh",
+    );
+    useRemoteServersStore.getState().removeServer(PARENT_KEY, { cascadeEnvironments: true });
+    expect(useRemoteServersStore.getState().servers).toHaveLength(0);
+    expect(
+      __peekRefreshTokenForTest(
+        environmentChildGrantSubject(childRecord.transport as RemoteEnvironmentTransport)!,
+      ),
+    ).toBeUndefined();
+    expect(__peekRefreshTokenForTest(PARENT_KEY)).toBeUndefined();
+  });
+
+  it("removing an environment never deletes the parent record or grant", () => {
+    rememberRefreshToken(PARENT_KEY, "parent-refresh");
+    rememberRefreshTokenForSubject(
+      environmentChildGrantSubject(childRecord.transport as RemoteEnvironmentTransport)!,
+      "child-refresh",
+    );
+    useRemoteServersStore.getState().removeServer(CHILD_KEY);
+    expect(useRemoteServersStore.getState().servers.map((s) => s.connectionId)).toEqual([
+      PARENT_KEY,
+    ]);
+    expect(__peekRefreshTokenForTest(PARENT_KEY)).toBe("parent-refresh");
+    expect(
+      __peekRefreshTokenForTest(
+        environmentChildGrantSubject(childRecord.transport as RemoteEnvironmentTransport)!,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("renames an environment record by its connection key (C1 F8)", () => {
+    useRemoteServersStore.getState().renameServer(CHILD_KEY, "Build box");
+    const renamed = useRemoteServersStore
+      .getState()
+      .servers.find((server) => server.connectionId === CHILD_KEY);
+    expect(renamed?.label).toBe("Build box");
+    expect(renamed?.remoteLabel).toBe("Child");
+    // The direct/ssh record keyed by its own connection is untouched.
+    expect(
+      useRemoteServersStore.getState().servers.find((s) => s.connectionId === PARENT_KEY)?.label,
+    ).toBe("Parent");
+  });
+
+  it("restores an environment reconnect under its own connection key without clobbering the same child's direct row (C1 F3)", async () => {
+    const directChild = {
+      connectionId: "child-desktop",
+      desktopId: "child-desktop",
+      label: "Direct child",
+      endpoint: "http://127.0.0.1:49153/",
+      accessToken: "direct-access",
+      scopes: ["session:read"],
+      transport: { kind: "direct" },
+    } as unknown as RemoteServerRecord;
+    useRemoteServersStore.setState({
+      servers: [parentRecord, directChild, childRecord],
+      runtime: {
+        "child-desktop": { status: "online", projects: [], threads: [] },
+      },
+    });
+    void useRemoteServersStore
+      .getState()
+      .reconnectServer(CHILD_KEY)
+      .catch(() => undefined);
+    // The environment's connecting row is keyed by the connection key; the
+    // direct pairing of the same child host keeps its own online row.
+    expect(useRemoteServersStore.getState().runtime[CHILD_KEY]?.status).toBe("connecting");
+    expect(useRemoteServersStore.getState().runtime["child-desktop"]?.status).toBe("online");
   });
 });

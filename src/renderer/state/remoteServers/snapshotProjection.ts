@@ -1,15 +1,26 @@
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
-import type { Thread, TerminalSize } from "@/shared/contracts";
+import type { Thread, Project, TerminalSize } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
 import {
+  REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
+  REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
+  isRemoteBoundedReadProtocolError,
   isRemoteTransportFailure,
+  type RemoteBoundedShellSnapshotPage,
+  type RemoteBoundedThreadHistoryPage,
   type RemoteDesktopClient,
   type StartRemoteNewThreadInput,
 } from "@/shared/remote/client";
 import { waitForRemoteThreadAppearance } from "@/shared/remote/threadAppearance";
 import { i18n } from "@/renderer/i18n/i18n";
 import { applyThreadSnapshot, type ApplyThreadSnapshotResult } from "@/renderer/state/remote";
+import {
+  clearThreadHistoryNotice,
+  noteThreadHistoryRecoveryNeeded,
+  recordThreadHistoryNoticeRead,
+} from "@/renderer/state/remote/historyNoticeStore";
+import { hostSupportsRuntimeHistoryNotices } from "@/renderer/state/remote/historyNoticeCapability";
 import { recordAuthoritativeHistoryInstall } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
@@ -18,11 +29,15 @@ import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollo
 import {
   runtimePageOverlapsExistingTranscript,
   seedOlderThreadRuntimeItemsCursor,
+  setOlderThreadHistoryContinuation,
+  setOlderThreadHistoryInvalidation,
 } from "@/renderer/state/chatRuntimePersister";
 import {
   projectRemoteThread,
   projectRemoteThreadSnapshot,
+  remoteProjectId,
   remoteThreadId,
+  unprojectRemoteThreadId,
   unprojectRemoteThreadMentionSegments,
 } from "@/renderer/state/remoteProjection";
 import {
@@ -31,6 +46,7 @@ import {
   currentRemoteServerGeneration,
   getRemoteServerEventSocketEntry,
   hasRemoteServerCursorSyncV2,
+  remoteServerSnapshotSeq,
   remoteThreadAppliedSeq,
   removeRemoteServerThreadItemInterest,
   setHydratingRemoteServerThreadItemInterest,
@@ -45,11 +61,33 @@ import {
 import { syncRemoteGitSummaries } from "./gitSummaries";
 import { syncRemoteGitStateSnapshot } from "./gitState";
 import { replaceCachedProjects } from "./projectCache";
-import { syncRemoteAppRows } from "./appRows";
+import { applyRemoteCatalogOrder, syncRemoteAppRows } from "./appRows";
 import { reconcileThreadRowsWithAppliedEvents, reuseRemoteRows } from "./rowReuse";
+import {
+  beginBoundedCatalogAttempt,
+  configureBoundedCatalogController,
+  installBoundedCatalogShellPage,
+  isKnownLegacyCatalogConnection,
+  noteBoundedCatalogLegacy,
+} from "./catalog/boundedCatalogController";
+import {
+  bumpCatalogOrderGenerationFor,
+  catalogOrderGenerationFor,
+  catalogOrderIntentInFlightFor,
+} from "./catalog/catalogOrderFence";
+import { orderCatalogRowsById, type CatalogKind } from "./catalog/boundedCatalogAlgorithm";
+import {
+  configureBoundedHistoryClient,
+  forgetBoundedHistoryThreadByViewId,
+  mergeBoundedTailTurns,
+  loadOlderBoundedCompletedTurns,
+  recordBoundedHistoryTail,
+} from "./catalog/boundedHistory";
 import { REMOTE_SHELL_THREAD_PAGE_LIMIT } from "./pairing";
+import { remoteConnectionKey } from "./types";
 import type {
   OpenRemoteThread,
+  RemoteServerRecord,
   RemoteServerRuntime,
   RemoteSocketLike,
   RemoteThreadLaunchResult,
@@ -61,6 +99,13 @@ import type {
 } from "./storeClient";
 
 let openRemoteThreadRequestSeq = 0;
+
+/**
+ * Stable identity of the paired/remote bounded-catalog consumer. The consumer
+ * registry is keyed by this id, so re-registering the store never displaces
+ * the managed root's consumer (and vice versa).
+ */
+export const REMOTE_SERVERS_CATALOG_CONSUMER_ID = "remote-servers";
 
 export function __resetOpenRemoteThreadRequestSeqForTest(): void {
   openRemoteThreadRequestSeq = 0;
@@ -105,6 +150,233 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     startRemoteServerEventStream,
     activateRemoteTerminalFeed,
   } = deps;
+
+  const findServer = (connectionKey: string) =>
+    get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+
+  const commitBoundedThreadRows = (
+    connectionKey: string,
+    rows: Thread[],
+    preserveThreadIds: ReadonlySet<string>,
+  ): void => {
+    set((state) => {
+      const current = state.runtime[connectionKey];
+      if (!current) return state;
+      if (
+        current.threads === rows &&
+        current.status === "online" &&
+        current.message === undefined
+      ) {
+        return state;
+      }
+      const { message: _message, ...rest } = current;
+      return {
+        runtime: {
+          ...state.runtime,
+          [connectionKey]: { ...rest, status: "online", threads: rows },
+        },
+      };
+    });
+    syncRemoteAppRows(connectionKey, undefined, rows, { preserveThreadIds, partial: true });
+  };
+
+  const commitBoundedProjectRows = (connectionKey: string, rows: Project[]): void => {
+    set((state) => {
+      const current = state.runtime[connectionKey];
+      if (!current) return state;
+      const projectsChanged = current.projects !== rows;
+      const lastKnownProjects = projectsChanged
+        ? replaceCachedProjects(state.lastKnownProjects, connectionKey, rows)
+        : state.lastKnownProjects;
+      if (!projectsChanged && lastKnownProjects === state.lastKnownProjects) return state;
+      return {
+        runtime: { ...state.runtime, [connectionKey]: { ...current, projects: rows } },
+        lastKnownProjects,
+      };
+    });
+    syncRemoteAppRows(connectionKey, rows, undefined, { partial: true });
+  };
+
+  const removeBoundedThreadRows = (connectionKey: string, threadIds: readonly string[]): void => {
+    const removed = new Set(threadIds);
+    set((state) => {
+      const current = state.runtime[connectionKey];
+      if (!current) return state;
+      const threads = current.threads.filter((thread) => !removed.has(thread.id));
+      if (threads.length === current.threads.length) return state;
+      return { runtime: { ...state.runtime, [connectionKey]: { ...current, threads } } };
+    });
+    for (const threadId of threadIds) {
+      const viewThreadId = remoteThreadId(connectionKey, threadId);
+      // Authoritative host removal: the durable notice state goes with the
+      // thread instead of surviving to re-attach to a future row.
+      clearThreadHistoryNotice(viewThreadId);
+      useAppStore.getState().deleteThread(viewThreadId);
+    }
+  };
+
+  const removeBoundedProjectRows = (connectionKey: string, projectIds: readonly string[]): void => {
+    const removed = new Set(projectIds);
+    set((state) => {
+      const current = state.runtime[connectionKey];
+      if (!current) return state;
+      const projects = current.projects.filter((project) => !removed.has(project.id));
+      if (projects.length === current.projects.length) return state;
+      const lastKnownProjects = current.projects.some((project) => removed.has(project.id))
+        ? replaceCachedProjects(
+            state.lastKnownProjects,
+            connectionKey,
+            current.projects.filter((project) => !removed.has(project.id)),
+          )
+        : state.lastKnownProjects;
+      return {
+        runtime: { ...state.runtime, [connectionKey]: { ...current, projects } },
+        lastKnownProjects,
+      };
+    });
+    for (const projectId of projectIds) {
+      useAppStore.getState().deleteProject(remoteProjectId(connectionKey, projectId));
+    }
+  };
+
+  const protectedBoundedThreadIds = (connectionKey: string): ReadonlySet<string> => {
+    const protectedIds = new Set<string>();
+    const openThread = get().openThread;
+    if (openThread?.desktopId === connectionKey) protectedIds.add(openThread.threadId);
+    const provisioning = useAppStore.getState().provisioningWorktreeThreadIds;
+    for (const [viewThreadId, value] of Object.entries(provisioning)) {
+      if (value !== true) continue;
+      const remoteId = unprojectRemoteThreadId(connectionKey, viewThreadId);
+      if (remoteId) protectedIds.add(remoteId);
+    }
+    return protectedIds;
+  };
+
+  // The controller only needs a stable per-connection client: the record
+  // reference changes on re-pairing/rotation, so the WeakMap naturally drops
+  // the retired client instead of serving it to a successor generation.
+  const connectionIdentityCache = new WeakMap<
+    RemoteServerRecord,
+    { client: RemoteDesktopClient }
+  >();
+  // Authoritative manual order for one connection: the runtime rows and the
+  // exact projected app-store slots that belong to this connection (other
+  // hosts and managed-root rows keep their positions).
+  const reorderBoundedRuntimeRows = (
+    connectionKey: string,
+    kind: CatalogKind,
+    orderedIds: readonly string[],
+  ): void => {
+    set((state) => {
+      const current = state.runtime[connectionKey];
+      if (!current) return state;
+      if (kind === "threads") {
+        const threads = orderCatalogRowsById(current.threads, orderedIds);
+        if (threads === current.threads) return state;
+        return { runtime: { ...state.runtime, [connectionKey]: { ...current, threads } } };
+      }
+      const projects = orderCatalogRowsById(current.projects, orderedIds);
+      if (projects === current.projects) return state;
+      return { runtime: { ...state.runtime, [connectionKey]: { ...current, projects } } };
+    });
+  };
+  configureBoundedCatalogController(
+    {
+      id: REMOTE_SERVERS_CATALOG_CONSUMER_ID,
+      ownsConnection: (connectionKey) => findServer(connectionKey) !== undefined,
+    },
+    {
+      connectionIdentity: (connectionKey) => {
+        const server = findServer(connectionKey);
+        if (!server) return undefined;
+        let cached = connectionIdentityCache.get(server);
+        if (!cached) {
+          cached = { client: clientForServer(server) };
+          connectionIdentityCache.set(server, cached);
+        }
+        return {
+          generation: currentRemoteServerGeneration(connectionKey),
+          identity: `${server.endpoint}\u0000${server.accessToken}`,
+          client: cached.client,
+        };
+      },
+      runtimeThreads: (connectionKey) => get().runtime[connectionKey]?.threads,
+      runtimeProjects: (connectionKey) => get().runtime[connectionKey]?.projects,
+      runtimeStatus: (connectionKey) => get().runtime[connectionKey]?.status,
+      commitThreadRows: commitBoundedThreadRows,
+      commitProjectRows: commitBoundedProjectRows,
+      removeThreadRows: removeBoundedThreadRows,
+      removeProjectRows: removeBoundedProjectRows,
+      withClient: (connectionKey, invoke) => withClient(connectionKey, invoke),
+      reportProtocolError: (connectionKey, error) => {
+        reportRemoteServerError(connectionKey, error, i18n._(msg`The remote catalog read failed.`));
+      },
+      appliedThreadSeq: remoteThreadAppliedSeq,
+      connectionSeq: remoteServerSnapshotSeq,
+      bumpConnectionSeq: bumpRemoteServerSnapshotSeq,
+      protectedThreadIds: protectedBoundedThreadIds,
+      // Paired connections declare manual-order convergence exactly like the
+      // managed root: a completed manual paint pass applies the host's id order
+      // to this connection's runtime rows and projected app-store slots, and
+      // membership events refresh the paint so an external reorder or a
+      // host-prepended row converges without a reconnect. The fence is keyed by
+      // this connection key, so one host's order can never invalidate another's
+      // walk and a local reorder keeps its optimistic paint until the host
+      // confirms it.
+      manualOrderConvergence: {
+        generation: (connectionKey, kind) => catalogOrderGenerationFor(connectionKey, kind),
+        apply: (connectionKey, kind, orderedIds, generation) => {
+          if (generation !== catalogOrderGenerationFor(connectionKey, kind)) return "stale";
+          if (catalogOrderIntentInFlightFor(connectionKey, kind)) return "deferred";
+          bumpCatalogOrderGenerationFor(connectionKey, kind);
+          reorderBoundedRuntimeRows(connectionKey, kind, orderedIds);
+          applyRemoteCatalogOrder(connectionKey, kind, orderedIds);
+          return "applied";
+        },
+      },
+      isForeground: () => typeof document === "undefined" || document.visibilityState === "visible",
+    },
+  );
+  configureBoundedHistoryClient((desktopId, invoke) => withClient(desktopId, invoke));
+  setOlderThreadHistoryContinuation((viewThreadId) => loadOlderBoundedCompletedTurns(viewThreadId));
+  setOlderThreadHistoryInvalidation((viewThreadId) =>
+    forgetBoundedHistoryThreadByViewId(viewThreadId),
+  );
+
+  const patchBoundedAgentStatuses = async (
+    connectionKey: string,
+    statusesPromise: Promise<RemoteServerRuntime["agentStatuses"]>,
+    isLatest: () => boolean,
+  ): Promise<void> => {
+    const statuses = await statusesPromise;
+    if (statuses === undefined || !isLatest()) return;
+    set((state) => {
+      const current = state.runtime[connectionKey];
+      if (!current) return state;
+      if (current.agentStatuses === statuses) return state;
+      if (
+        current.agentStatuses &&
+        JSON.stringify(current.agentStatuses.windows) === JSON.stringify(statuses.windows) &&
+        JSON.stringify(current.agentStatuses.wsl) === JSON.stringify(statuses.wsl)
+      ) {
+        return state;
+      }
+      return {
+        runtime: { ...state.runtime, [connectionKey]: { ...current, agentStatuses: statuses } },
+      };
+    });
+  };
+
+  const installBoundedShellPage = (
+    connectionKey: string,
+    page: RemoteBoundedShellSnapshotPage,
+  ): void => {
+    installBoundedCatalogShellPage(connectionKey, page);
+    if (page.gitSummariesByThread) {
+      syncRemoteGitSummaries(connectionKey, page.gitSummariesByThread);
+    }
+    if (page.gitState) syncRemoteGitStateSnapshot(connectionKey, page.gitState);
+  };
 
   return {
     launchRemoteThread: async (
@@ -183,13 +455,17 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
     openRemoteThread: async (
       desktopId: string,
       threadId: string,
-      options?: { readonly focus?: boolean; readonly quiet?: boolean },
+      options?: {
+        readonly focus?: boolean;
+        readonly quiet?: boolean;
+        readonly signal?: AbortSignal;
+      },
     ): Promise<boolean> => {
       const focus = options?.focus ?? true;
       const requestSeq = openRemoteThreadRequestSeq + 1;
       openRemoteThreadRequestSeq = requestSeq;
       const previousOpenThread = get().openThread;
-      const server = get().servers.find((entry) => entry.desktopId === desktopId);
+      const server = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
       if (!server) {
         reportRemoteServerError(
           desktopId,
@@ -205,6 +481,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       // store so the desktop ChatPane renders it (coexists with local threads).
       // A failed history fetch (server asleep/unreachable) must not reject.
       let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
+      let boundedHistoryPage: RemoteBoundedThreadHistoryPage | undefined;
       const followUpQueueSnapshotGuard = captureThreadFollowUpQueueSnapshot(
         remoteThreadId(desktopId, threadId),
       );
@@ -212,10 +489,29 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         // WS3 #2: cursor-sync v2 connections get the authoritative tail
         // from the chunked watch baseline — never send it twice.
         const omitScrollback = hasRemoteServerCursorSyncV2(desktopId);
-        snapshot = await withClient(desktopId, (client) =>
-          omitScrollback
-            ? client.threadHistory(threadId, { omitScrollback: true })
-            : client.threadHistory(threadId),
+        // B1: declare only when this host advertises the durable notice and the
+        // renderer can display it (the ChatPane banner + explicit ack are
+        // installed). An incapable reader would be refused 409 on a notice
+        // thread, so the gate is the capability, not optimism.
+        const noticesCapable = hostSupportsRuntimeHistoryNotices(server);
+        const historyOptions = {
+          ...(omitScrollback ? { omitScrollback: true as const } : {}),
+          ...(options?.signal ? { signal: options.signal } : {}),
+          ...(noticesCapable ? { noticesCapable: true as const } : {}),
+          maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
+          maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
+        };
+        const result = await withClient(desktopId, (client) =>
+          client.boundedThreadHistory(threadId, historyOptions),
+        );
+        snapshot = result.page;
+        if (result.negotiation === "bounded") boundedHistoryPage = result.page;
+        // Durable notice from the authoritative snapshot: retained across
+        // later reads that omit the field, fenced by connection identity.
+        recordThreadHistoryNoticeRead(
+          remoteThreadId(desktopId, threadId),
+          remoteConnectionKey(server),
+          result.page.runtimeNotice,
         );
       } catch (error) {
         // Drop this thread's hydration interest even when superseded: a
@@ -226,6 +522,15 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         // pane; a same-thread retry re-registers on success.
         removeRemoteServerThreadItemInterest(desktopId, threadId);
         if (requestSeq !== openRemoteThreadRequestSeq) return false;
+        // A definite declared-read refusal on a notice-capable host is the
+        // open-gap recovery signal: surface the explicit review path instead
+        // of only a generic load failure.
+        if (hostSupportsRuntimeHistoryNotices(server) && !isRemoteTransportFailure(error)) {
+          noteThreadHistoryRecoveryNeeded(
+            remoteThreadId(desktopId, threadId),
+            remoteConnectionKey(server),
+          );
+        }
         // Re-assert the previous open thread only while it is still the
         // open slice: a superseding open owns its own registration, and a
         // thread the server deleted (refreshServer cleared the slice) must
@@ -249,7 +554,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         }
         return false;
       }
-      const currentServer = get().servers.find((entry) => entry.desktopId === desktopId);
+      const currentServer = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
       if (
         !currentServer ||
         `${currentServer.endpoint}\0${currentServer.accessToken}` !== serverIdentityAtStart ||
@@ -259,15 +564,21 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       }
       const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
       const viewThreadId = projectedSnapshot.thread.id;
+      // Retain the bounded tail cursor + page proof so older completed-turn
+      // pages and older runtime-item pages can continue on this connection.
+      if (boundedHistoryPage) {
+        recordBoundedHistoryTail({ desktopId, threadId, page: boundedHistoryPage });
+      }
+      const installSnapshot = mergeBoundedTailTurns(projectedSnapshot, viewThreadId);
       const existingRuntimeItemIds =
         useAppStore.getState().runtimeItemIdsByThread[viewThreadId] ?? [];
-      seedOlderThreadRuntimeItemsCursor(viewThreadId, projectedSnapshot.runtimeNextCursor ?? null, {
+      seedOlderThreadRuntimeItemsCursor(viewThreadId, installSnapshot.runtimeNextCursor ?? null, {
         preserveExistingCursor: runtimePageOverlapsExistingTranscript(
-          projectedSnapshot.runtimeItems,
+          installSnapshot.runtimeItems,
           existingRuntimeItemIds,
         ),
       });
-      const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(projectedSnapshot, {
+      const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(installSnapshot, {
         fromServer: true,
         lastSeenEventSeq: remoteThreadAppliedSeq(desktopId, threadId),
         followUpQueueSnapshotGuard,
@@ -346,7 +657,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       desktopId: string,
       options: { readonly includeAgentStatuses?: boolean } = {},
     ): Promise<void> => {
-      const server = get().servers.find((entry) => entry.desktopId === desktopId);
+      const server = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
       if (!server) return;
       // A debounced refresh may already be pending; this immediate refresh
       // supersedes it so we don't fire a second GET moments later.
@@ -363,7 +674,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       // late snapshot doesn't resurrect a removed server's runtime.
       const setRuntime = (entry: RemoteServerRuntime) =>
         set((state) => {
-          if (!state.servers.some((s) => s.desktopId === desktopId)) return state;
+          if (!state.servers.some((s) => remoteConnectionKey(s) === desktopId)) return state;
           if (state.runtime[desktopId] === entry) return state;
           return { runtime: { ...state.runtime, [desktopId]: entry } };
         });
@@ -375,18 +686,53 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       }
       try {
         const client = clientForServer(server);
+        // A reconnect starts fresh bounded passes; an in-memory cursor from
+        // the previous session must not be resumed across the gap.
+        if (cached()?.status !== "online") beginBoundedCatalogAttempt(desktopId);
+        const includeAgentStatuses = options.includeAgentStatuses !== false;
+        const agentStatusesPromise: Promise<RemoteServerRuntime["agentStatuses"]> =
+          includeAgentStatuses
+            ? client
+                .agentStatuses({ omitSlashCommands: true })
+                .then((statuses) => applyCachedSlashCommandCatalogs(server.endpoint, statuses))
+            : Promise.resolve(cached()?.agentStatuses);
+        // The request starts eagerly so it overlaps the shell probe, but the
+        // probe may throw or be superseded before anything awaits this
+        // promise. Mark its rejection observed at creation: the awaited
+        // branches below still surface a failure through the refresh's error
+        // state, while the superseded/probe-failure branches can never reach
+        // the renderer's global unhandled-rejection handler (crash screen).
+        void agentStatusesPromise.catch(() => undefined);
+        // B4 declared read: ONE bounded shell page paints first. The result's
+        // negotiation verdict decides the path; only an absent echo downgrades
+        // to the assembled legacy snapshot, anything else must throw.
+        if (!isKnownLegacyCatalogConnection(desktopId)) {
+          const bounded = await client.boundedShellSnapshot({
+            order: "manual",
+            threadLimit: REMOTE_SHELL_THREAD_PAGE_LIMIT,
+            summaries: false,
+            maxBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
+            maxDecodeBytes: REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
+          });
+          if (!isLatest()) return;
+          if (bounded.negotiation === "bounded") {
+            if (takeRemoteServerRowResyncPending(desktopId)) {
+              beginBoundedCatalogAttempt(desktopId);
+            }
+            installBoundedShellPage(desktopId, bounded.page);
+            await patchBoundedAgentStatuses(desktopId, agentStatusesPromise, isLatest);
+            if (!isLatest()) return;
+            syncDesktopBrowserBridgeClient(get());
+            return;
+          }
+          noteBoundedCatalogLegacy(desktopId);
+        }
         const snapshotPromise = client.snapshot({
           threadListPageLimit: REMOTE_SHELL_THREAD_PAGE_LIMIT,
         });
-        const [snapshot, agentStatuses] =
-          options.includeAgentStatuses === false
-            ? [await snapshotPromise, cached()?.agentStatuses]
-            : await Promise.all([
-                snapshotPromise,
-                client
-                  .agentStatuses({ omitSlashCommands: true })
-                  .then((statuses) => applyCachedSlashCommandCatalogs(server.endpoint, statuses)),
-              ]);
+        const [snapshot, agentStatuses] = includeAgentStatuses
+          ? await Promise.all([snapshotPromise, agentStatusesPromise])
+          : [await snapshotPromise, cached()?.agentStatuses];
         // Drop a stale (superseded) result so out-of-order resolutions don't
         // regress the UI or the seq cursor.
         if (!isLatest()) return;
@@ -427,7 +773,8 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
                 ...(nextAgentStatuses ? { agentStatuses: nextAgentStatuses } : {}),
               };
         set((state) => {
-          if (!state.servers.some((entry) => entry.desktopId === desktopId)) return state;
+          if (!state.servers.some((entry) => remoteConnectionKey(entry) === desktopId))
+            return state;
           const lastKnownProjects = projectsChanged
             ? replaceCachedProjects(state.lastKnownProjects, desktopId, projects)
             : state.lastKnownProjects;
@@ -472,9 +819,15 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         syncDesktopBrowserBridgeClient(get());
       } catch (error) {
         if (!isLatest()) return;
+        // A bounded-read protocol violation is a typed failure of this
+        // connection's read contract, not the host being offline, and its SDK
+        // prose is English-only: surface the localized catalog message instead.
+        const protocolViolation = isRemoteBoundedReadProtocolError(error);
         setRuntime({
-          status: isRemoteTransportFailure(error) ? "offline" : "error",
-          message: friendlyError(error) || i18n._(msg`Connection failed.`),
+          status: protocolViolation || !isRemoteTransportFailure(error) ? "error" : "offline",
+          message: protocolViolation
+            ? i18n._(msg`The remote catalog read failed.`)
+            : friendlyError(error) || i18n._(msg`Connection failed.`),
           projects: cached()?.projects ?? [],
           threads: cached()?.threads ?? [],
         });

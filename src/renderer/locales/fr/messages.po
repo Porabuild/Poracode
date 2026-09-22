@@ -772,6 +772,10 @@ msgstr "Un écran verrouillé interrompt tout contrôle du bureau ; l'écran res
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "Une suppression de messages n’a pas pu être confirmée. Actualisez pour resynchroniser cette conversation."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
+msgstr "Un Poracode Helper possède cette connexion mais ne répond pas. Arrêtez le helper distant, puis reconnectez-vous."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "Un profil portant ce nom existe déjà."
@@ -820,6 +824,10 @@ msgstr "Accepter les deux modifications"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Current Change"
 msgstr "Accepter le changement actuel"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Accept host key"
+msgstr "Accepter la clé de l'hôte"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Incoming Change"
@@ -1134,6 +1142,18 @@ msgstr "Arguments supplémentaires transmis à chaque nouveau shell du panneau d
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "Arguments supplémentaires transmis à chaque nouveau shell Windows. Placez entre guillemets les valeurs contenant des espaces."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt"
+msgstr "Adopter"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt legacy"
+msgstr "Adopter l'ancienne"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt legacy connection"
+msgstr "Adopter la connexion existante"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Annoncez une URL de base personnalisée, par ex. un proxy inverse ou un tunnel. Laissez vide pour un choix automatique."
@@ -1434,6 +1454,14 @@ msgstr "Un autre chat utilise ce même arbre. La restauration de fichiers pourra
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Une autre opération pour cette expérience est toujours en cours."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode client is preparing this connection. Try again in a moment."
+msgstr "Un autre client Poracode prépare cette connexion. Réessayez dans un instant."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
+msgstr "Un autre propriétaire Poracode occupe déjà la racine de données de cette connexion. Arrêtez-le sur l'hôte distant, puis reconnectez-vous."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -1980,6 +2008,33 @@ msgstr "Favoris"
 msgid "Bottom"
 msgstr "En bas"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Limite le nombre de sessions d'agent pouvant s'exécuter simultanément sur cet hôte. Compte les emplacements d'exécution logiques, pas les processus du système d'exploitation ni la mémoire. 0 = illimité ; aucune limite mesurée n'est encore appliquée."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Limite le nombre de sessions d'agent pouvant s'exécuter simultanément sur cet hôte. Compte les emplacements d'exécution logiques, pas les processus du système d'exploitation ni la mémoire. 0 = illimité."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Limite le nombre d'assistants de génération éphémères (titres de fils de discussion, messages de commit, résolution de conflits) pouvant s'exécuter simultanément sur cet hôte. Compte les emplacements d'exécution logiques, pas les processus du système d'exploitation ni la mémoire. 0 = illimité ; aucune limite mesurée n'est encore appliquée."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Limite le nombre d'assistants de génération éphémères (titres de fils de discussion, messages de commit, résolution de conflits) pouvant s'exécuter simultanément sur cet hôte. Compte les emplacements d'exécution logiques, pas les processus du système d'exploitation ni la mémoire. 0 = illimité."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Limite le nombre de shells de terminal pouvant s'exécuter simultanément sur cet hôte. Compte les emplacements d'exécution logiques, pas les processus du système d'exploitation ni la mémoire. 0 = illimité ; aucune limite mesurée n'est encore appliquée."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Limite le nombre de shells de terminal pouvant s'exécuter simultanément sur cet hôte. Compte les emplacements d'exécution logiques, pas les processus du système d'exploitation ni la mémoire. 0 = illimité."
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -2237,6 +2292,8 @@ msgstr "Serveur distant inaccessible. Vérifiez qu'il est en ligne, puis reconne
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -2794,6 +2851,10 @@ msgstr "Fermer l'éditeur"
 msgid "Close Editor Tab"
 msgstr "Fermer l'onglet Éditeur"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Close environment actions"
+msgstr "Fermer les actions de l'environnement"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
 msgstr "Fermer l’expérience"
@@ -3297,6 +3358,7 @@ msgstr "Entre en conflit avec une compétence gérée"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -3356,6 +3418,7 @@ msgstr "Se connecter à un serveur distant"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Connected"
 msgstr "Connecté"
 
@@ -3376,6 +3439,7 @@ msgstr "Connexion..."
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3478,6 +3542,14 @@ msgstr "Continuez dans..."
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Continuer sur l'adresse de l'ordinateur"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Continue with incomplete history"
+msgstr "Continuer avec l'historique incomplet"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
+msgstr "Continuer conservera l'historique restant et marquera cet épisode comme acquitté ; le contenu manquant n'est pas restauré."
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
@@ -3690,6 +3762,14 @@ msgstr "Impossible d'accéder au compte GitHub \"{login}\". Exécutez \"gh auth 
 msgid "Couldn't clone the repository."
 msgstr "Impossible de cloner le référentiel."
 
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
+msgstr "Impossible de confirmer la modification de l’expérience auprès de l’hôte. Elle a peut-être déjà été appliquée. Rechargez l’expérience avant de réessayer."
+
+#: src/renderer/actions/threadCommandOutcomeActions.ts
+msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
+msgstr "L'hôte n'a pas pu confirmer cette commande. Elle a peut-être déjà été appliquée — vérifiez le fil de discussion avant de réessayer."
+
 #: src/renderer/actions/threadLaunchActions.ts
 msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
 msgstr "Impossible de copier vos modifications non validées dans le nouvel arbre de travail : elles restent sur la branche actuelle."
@@ -3727,6 +3807,10 @@ msgstr "Impossible de charger le journal des modifications. Vérifiez votre conn
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't load the skill."
 msgstr "Impossible de charger la compétence."
+
+#: src/renderer/state/projectSettings/projectSettingsLoader.ts
+msgid "Couldn't load this project's MCP server settings, so the change was not saved."
+msgstr "Impossible de charger les paramètres des serveurs MCP de ce projet ; la modification n'a pas été enregistrée."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -3778,6 +3862,7 @@ msgstr "Impossible de mettre à jour la compétence."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Create"
@@ -3884,6 +3969,10 @@ msgstr "Création PR…"
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 msgid "Creating worktree…"
 msgstr "Création de l’arbre de travail…"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Credential missing"
+msgstr "Identifiant manquant"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
@@ -4229,6 +4318,7 @@ msgstr "Déléguez le travail à d’autres agents IA."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4284,6 +4374,10 @@ msgstr "Supprimer la branche ?"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "Delete done threads"
 msgstr "Supprimer les fils terminés"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Delete environment"
+msgstr "Supprimer l'environnement"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Delete file"
@@ -4551,6 +4645,10 @@ msgstr "Désactiver l'utilisation de l'ordinateur"
 msgid "Disable Crossagents"
 msgstr "Désactiver Crossagents"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disable on host"
+msgstr "Désactiver sur l'hôte"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "Désactiver le projet"
@@ -4623,9 +4721,17 @@ msgstr "Abandonner les modifications non enregistrées dans {path} ?"
 msgid "Discard unsaved editor changes?"
 msgstr "Abandonner les modifications non enregistrées de l'éditeur ?"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disconnect"
+msgstr "Déconnecter"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Disconnect server"
 #~ msgstr "Déconnecter le serveur"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disconnected"
+msgstr "Déconnecté"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -4806,6 +4912,7 @@ msgstr "par ex. Travail"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Modifier"
@@ -4813,6 +4920,10 @@ msgstr "Modifier"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Edit {serverName}"
 msgstr "Modifier {serverName}"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Edit environment"
+msgstr "Modifier l'environnement"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
@@ -4937,6 +5048,10 @@ msgstr "Activez l'accès au microphone dans les paramètres de votre système, p
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "Activer les notifications"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Enable on host"
+msgstr "Activer sur l'hôte"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable plugin"
@@ -5080,6 +5195,10 @@ msgstr "Saisissez un JSON valide."
 msgid "Environment"
 msgstr "Environnement"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Environment name"
+msgstr "Nom de l'environnement"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable name"
 msgstr "Nom de la variable d'environnement"
@@ -5111,6 +5230,7 @@ msgstr "erreur"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
@@ -5317,6 +5437,10 @@ msgstr "Le gagnant désigné par le juge de l'expérience doit être compris ent
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Experiment prompt must not be blank"
 msgstr "L'invite de l'expérience ne doit pas être vide"
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "Experiments are unavailable on this host. The change was not saved."
+msgstr "Les expériences ne sont pas disponibles sur cet hôte. La modification n’a pas été enregistrée."
 
 #: src/renderer/actions/experimentActions.ts
 msgid "Experiments run on the machine hosting the project. Open the project on its host to run an experiment."
@@ -6247,9 +6371,25 @@ msgstr "Portée utilisateur"
 msgid "Homepage"
 msgstr "Page d'accueil"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host credential reference"
+msgstr "Référence d'identifiant de l'hôte"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host credential reference (optional)"
+msgstr "Référence d'identifiant de l'hôte (facultatif)"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "L’hôte est à jour."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host key mismatch"
+msgstr "La clé de l'hôte ne correspond pas"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host key trust accepted."
+msgstr "Confiance en la clé de l'hôte acceptée."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
@@ -6262,6 +6402,15 @@ msgstr "Échec de la mise à jour de l’hôte."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host version: {currentVersion}"
 msgstr "Version de l’hôte : {currentVersion}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Host-owned environment"
+msgstr "Environnement détenu par l'hôte"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
+msgid "Host-owned environments"
+msgstr "Environnements détenus par l'hôte"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
@@ -6307,6 +6456,10 @@ msgstr "Identifiant"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Identity and usage stats"
 msgstr "Identité et statistiques d'utilisation"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Identity changed"
+msgstr "Identité modifiée"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Identity file"
@@ -6930,6 +7083,14 @@ msgstr "Laisser un commentaire"
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Laissez vide pour utiliser la branche par défaut du dépôt."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Leave the credential reference empty to keep the current one."
+msgstr "Laissez la référence d'identifiant vide pour conserver l'actuelle."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Legacy connection id"
+msgstr "ID de connexion existante"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Moins"
@@ -6999,6 +7160,10 @@ msgstr "Liste des tâches"
 #~ msgid "Live {0}"
 #~ msgstr "En direct {0}"
 
+#: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
+msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
+msgstr "Les mises à jour en direct sont en pause pour {droppedRuntimeThreadCount, plural, one {# fil de discussion} other {# fils de discussion}} car cette fenêtre dépasse la limite de {MANAGED_ITEM_INTERESTS_MAX} fils de discussion en streaming direct. Fermez ou rouvrez un fil de discussion pour reprendre ceux qui sont en pause."
+
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
 msgstr "Voix en direct"
@@ -7031,6 +7196,10 @@ msgstr "Chargement du diff..."
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Loading editor…"
 msgstr "Chargement de l'éditeur…"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Loading environments…"
+msgstr "Chargement des environnements…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
@@ -7399,6 +7568,33 @@ msgstr "Respecter la casse"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "Suivez votre système, ou forcez le thème clair ou sombre."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active agent sessions"
+msgstr "Nombre max de sessions d'agent actives"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active agent sessions, 0 for unlimited"
+msgstr "Sessions d'agent actives max., 0 pour illimité"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active generation helpers"
+msgstr "Nombre max d'assistants de génération actifs"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active generation helpers, 0 for unlimited"
+msgstr "Assistants de génération actifs max., 0 pour illimité"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active terminal shells"
+msgstr "Nombre max de shells de terminal actifs"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active terminal shells, 0 for unlimited"
+msgstr "Shells de terminal actifs max., 0 pour illimité"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -7865,6 +8061,10 @@ msgstr "Raisonnement le plus utilisé"
 msgid "Move"
 msgstr "Déplacer"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
+msgstr "Déplacez une connexion SSH locale à l'appareil vers cet environnement via son ID de connexion. Les clés ne sont jamais téléversées."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Replacer le navigateur dans la fenêtre principale"
@@ -8022,6 +8222,10 @@ msgstr "A besoin d'attention · Réponse requise"
 msgid "Needs attention on {0}"
 msgstr "Attention requise sur {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Needs repair"
+msgstr "Réparation nécessaire"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Besoin d'une réponse"
@@ -8065,6 +8269,10 @@ msgstr "Clé API du nouveau profil Cursor"
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #~ msgid "New Cursor profile name"
 #~ msgstr "Nom du nouveau profil Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "New environment"
+msgstr "Nouvel environnement"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "New experiment"
@@ -8422,6 +8630,10 @@ msgstr "Aucun compte GitHub CLI trouvé. Connectez-vous avec <0>gh auth login</0
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Aucun historique pour l’instant"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "No host-owned environments on this server yet."
+msgstr "Aucun environnement détenu par l'hôte sur ce serveur pour l'instant."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "No icons found"
@@ -8809,6 +9021,10 @@ msgstr "M'avertir de"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "npx"
 msgstr "npx"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Observed"
+msgstr "Observé"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
@@ -9328,6 +9544,10 @@ msgstr "Remplace {conflict}"
 msgid "Overriding the global setting for this project."
 msgstr "Remplacement du paramètre global pour ce projet."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Owner unverified"
+msgstr "Propriétaire non vérifié"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Package"
 msgstr "Paquet"
@@ -9373,6 +9593,10 @@ msgstr "Associez un téléphone, une tablette ou un navigateur à ce bureau."
 #~ msgid "Pair again"
 #~ msgstr "Associer à nouveau"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Pair this device"
+msgstr "Appairer cet appareil"
+
 #: src/renderer/views/MainView/parts/BrowserRemoteConnectionGate.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9382,6 +9606,11 @@ msgstr "Associer à Poracode"
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
 msgid "Pair with Poracode on your desktop to sync threads, projects, and settings."
 msgstr "Associez Poracode sur votre ordinateur pour synchroniser fils de discussion, projets et paramètres."
+
+#. placeholder {0}: record.label
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Paired {0} on this device."
+msgstr "{0} appairé sur cet appareil."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -9445,6 +9674,14 @@ msgstr "Dossier parent"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "Dossier parent, par ex. /home/me/projects"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
+msgstr "Une partie de l'historique de cette conversation est peut-être manquante sur le serveur. Examinez les options de récupération avant de continuer."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
+msgstr "Une partie de l'historique de cette conversation a été perdue sur le serveur et n'a pas pu être affichée. Au moins {refusedEvents} événements / {refusedBytes} octets sont concernés."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
@@ -9656,6 +9893,7 @@ msgid "Pink"
 msgstr "Rose"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
 msgstr "Épinglé"
 
@@ -9833,6 +10071,7 @@ msgstr "Les outils de navigateur intégrés de Poracode."
 #~ msgstr "poracode/my-branch"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Port"
 msgstr "Port"
 
@@ -10001,6 +10240,10 @@ msgstr "Politique de confidentialité"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
 #~ msgstr "Clé privée"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Probe host key"
+msgstr "Sonder la clé de l'hôte"
 
 #. placeholder {0}: updateAllProgress.agentLabel
 #. placeholder {1}: updateAllProgress.current
@@ -10801,6 +11044,11 @@ msgstr "Supprimer le candidat {0}"
 msgid "Remove connection"
 msgstr "Supprimer la connexion"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove connection and environments"
+msgstr "Supprimer la connexion et les environnements"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #~ msgid "Remove Cursor profile"
 #~ msgstr "Supprimer le profil Cursor"
@@ -10890,6 +11138,11 @@ msgstr "Supprimez les expériences du projet avant de supprimer le projet."
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Supprimer les identifiants enregistrés de ce fournisseur ? Vous pourrez le reconnecter depuis « Ajouter un fournisseur »."
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove this connection?"
+msgstr "Supprimer cette connexion ?"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -11168,10 +11421,12 @@ msgstr "Reprendre les suivis en file d’attente"
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11313,6 +11568,10 @@ msgstr "Examiner la PR #{prNumber} pour {0}"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Review presentation"
 msgstr "Présentation de la revue"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Review recovery"
+msgstr "Examiner la récupération"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"
@@ -11468,6 +11727,10 @@ msgstr "S'exécute avant la suppression d'un arbre de travail (par exemple, <0>r
 msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 msgstr "S'exécute dans un terminal après la création d'un nouvel arbre de travail (par exemple, <0>pnpm install</0>)."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Runs on this server. Credentials stay on the server."
+msgstr "S'exécute sur ce serveur. Les identifiants restent sur le serveur."
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Runs out early"
 msgstr "S'épuise tôt"
@@ -11513,6 +11776,7 @@ msgstr "Saturation et luminosité"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -12522,6 +12786,10 @@ msgstr "Certains arbres de travail des candidats perdants n’ont pas pu être s
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
 msgstr "Certains dossiers de fournisseurs n’ont pas pu être analysés. Les compétences chargées avec succès restent affichées."
 
+#: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
+msgid "Some threads are paused"
+msgstr "Certains fils de discussion sont en pause"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Un problème est survenu au démarrage de la caméra. Saisissez plutôt l'endpoint et le jeton ci-dessous pour associer."
@@ -12599,6 +12867,7 @@ msgstr "Échec de la connexion SSH."
 msgid "SSH hostname"
 msgstr "Nom d’hôte SSH"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "SSH port"
 msgstr "Port SSH"
@@ -12607,9 +12876,9 @@ msgstr "Port SSH"
 msgid "SSH port (optional)"
 msgstr "Port SSH (facultatif)"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "SSH target"
-#~ msgstr "Cible SSH"
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "SSH target"
+msgstr "Cible SSH"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -12759,6 +13028,10 @@ msgstr "Démarrage de la caméra…"
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Starting remotely…"
 #~ msgstr "Démarrage à distance…"
+
+#: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
+msgid "Starting the desktop's own server…"
+msgstr "Démarrage du propre serveur du bureau…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -13317,6 +13590,10 @@ msgstr "Cette session distante n’existait déjà plus."
 #~ msgid "the {0} WSL user"
 #~ msgstr "l’utilisateur WSL {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The acknowledgement failed."
+msgstr "L'acquittement a échoué."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "l'agent"
@@ -13362,6 +13639,41 @@ msgstr "La cadence de rafraîchissement en arrière-plan par défaut, utilisée 
 msgid "The desktop server is still coming online."
 msgstr "Le serveur du bureau est encore en cours de démarrage."
 
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+msgid "The desktop's own catalog read failed."
+msgstr "Le propre catalogue du bureau n'a pas pu être lu."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "The desktop's own server is not connected yet."
+msgstr "Le propre serveur du bureau n'est pas encore connecté."
+
+#: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/managedParentRuntime.ts
+msgid "The desktop's own server is not connected."
+msgstr "Le serveur propre au bureau n'est pas connecté."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The desktop's own server is not connected. The experiment change was not saved."
+msgstr "Le serveur propre à l’application de bureau n’est pas connecté. La modification de l’expérience n’a pas été enregistrée."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+#: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+msgid "The desktop's own server is not connected. Your change was not saved."
+msgstr "Le propre serveur du bureau n'est pas connecté. Votre modification n'a pas été enregistrée."
+
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "The desktop's own server reconnected before the history read completed."
+msgstr "Le propre serveur du bureau s'est reconnecté avant la fin de la lecture de l'historique."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+msgid "The desktop's own server refused the change."
+msgstr "Le propre serveur du bureau a refusé la modification."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The environment changed on the host. Refresh and try again."
+msgstr "L'environnement a changé sur l'hôte. Actualisez et réessayez."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/actions/experimentWorktreeActions.ts
 #: src/renderer/i18n/sharedMessages.ts
@@ -13369,9 +13681,25 @@ msgstr "Le serveur du bureau est encore en cours de démarrage."
 msgid "The experiment candidate worktree is unavailable."
 msgstr "L’arbre de travail du candidat de l’expérience est indisponible."
 
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment changed on the host while it was being saved. Reload and try again."
+msgstr "L’expérience a été modifiée sur l’hôte pendant son enregistrement. Rechargez-la et réessayez."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment no longer exists on the host."
+msgstr "L’expérience n’existe plus sur l’hôte."
+
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "L'invite de l'expérience est trop longue."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment state could not be verified."
+msgstr "L’état de l’expérience n’a pas pu être vérifié."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment state is too large to load or change safely."
+msgstr "L’état de l’expérience est trop volumineux pour être chargé ou modifié en toute sécurité."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
@@ -13382,10 +13710,31 @@ msgstr "Le compte GitHub \"{login}\" appartient à {host}, qui ne correspond pas
 msgid "the global {0} WSL scope"
 msgstr "la portée WSL globale de {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/state/remote/historyNoticeActions.ts
+msgid "The history notice could not be read from the server."
+msgstr "L'avis d'historique n'a pas pu être lu depuis le serveur."
+
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "The host is restarting to install the update."
 msgstr "L’hôte redémarre pour installer la mise à jour."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The host rejected the request."
+msgstr "L'hôte a rejeté la requête."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The host returned an invalid environment pairing endpoint."
+msgstr "L'hôte a renvoyé un point de terminaison d'appairage d'environnement non valide."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
+msgstr "L'hôte arrête puis redémarre le propriétaire de cet environnement avec le runtime fourni. Le répertoire de données de l'enfant n'est pas modifié."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
+msgstr "L'avis d'historique incomplet a changé sur le serveur. Examinez les détails mis à jour avant de continuer."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -13406,6 +13755,28 @@ msgstr "Le serveur MCP n’est pas valide."
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "Le shell d'application normal n'a pas pu être rendu. Les diagnostics ci-dessous sont affichés avant le rechargement afin que la panne puisse être étudiée."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/sessionReconnect.ts
+#: src/renderer/state/remoteServers/storeClient.ts
+msgid "The paired server that owns this environment is not connected."
+msgstr "Le serveur appairé qui possède cet environnement n'est pas connecté."
+
+#: src/renderer/state/remoteServers/snapshotProjection.ts
+msgid "The remote catalog read failed."
+msgstr "La lecture du catalogue distant a échoué."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again."
+msgstr "Le helper distant ne s'est pas arrêté dans sa fenêtre d'arrêt et continue de s'exécuter. Arrêtez-le sur l'hôte distant, puis réessayez."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect."
+msgstr "L'hôte distant exécute un Poracode Helper que ce client ne peut pas vérifier. Arrêtez le helper distant, puis reconnectez-vous."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version."
+msgstr "L'hôte distant exécute un Poracode Helper incompatible ({version}). Arrêtez le helper distant, puis reconnectez-vous pour installer la version de cette application."
 
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "The remote Poracode server returned no pairing credential."
@@ -13446,6 +13817,10 @@ msgstr "Le modèle sélectionné compare des instantanés des modifications de c
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
 msgstr "La configuration du serveur n’est pas valide."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The server could not confirm the acknowledgement. Retry to continue."
+msgstr "Le serveur n'a pas pu confirmer l'acquittement. Réessayez pour continuer."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server returned an invalid MCP response."
@@ -13583,6 +13958,10 @@ msgstr "Cette clé API authentifie les chats SDK de ce profil et sa carte d'util
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Ce navigateur ne prend pas en charge les notifications système ici ; vous verrez toujours les notifications intégrées à l’application."
 
+#: src/renderer/actions/experimentResponseReads.ts
+msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
+msgstr "La réponse de ce candidat est trop longue pour être comparée. Fractionnez l'expérience ou raccourcissez la transcription."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "This catalog manages downloads through its website."
 #~ msgstr "Ce catalogue gère les téléchargements via son site web."
@@ -13607,6 +13986,10 @@ msgstr "Cet ordinateur"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Cette connexion peut voir les projets, mais pas les gérer. Associez-la à nouveau pour l’activer."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
+msgstr "Cette connexion possède des enregistrements d'environnements détenus par l'hôte sur cet appareil. La supprimer supprime aussi ces enregistrements locaux et leurs autorisations d'appareil. L'hôte conserve ses environnements."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Ce poste"
@@ -13626,6 +14009,14 @@ msgstr "Cet appareil n'a pas de caméra utilisable. Collez plutôt le lien d'ass
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
 msgstr "cet environnement"
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "This environment's host identity changed. Re-pair it explicitly from the host."
+msgstr "L'identité d'hôte de cet environnement a changé. Réappairez-le explicitement depuis l'hôte."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "This episode has been acknowledged; the missing content is not restored."
+msgstr "Cet épisode a été acquitté ; le contenu manquant n'est pas restauré."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
@@ -13743,6 +14134,10 @@ msgstr "Ce suivi en file d’attente est déjà en cours d’envoi."
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Cela supprime les messages ultérieurs et restaure les fichiers lorsqu'un instantané de point de contrôle est disponible."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "This removes the environment from the host. The server's child workspace is not deleted."
+msgstr "Cela supprime l'environnement de l'hôte. L'espace de travail enfant du serveur n'est pas supprimé."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This removes the schedule and its latest result from this device."
 msgstr "Cela supprime la planification et son dernier résultat de cet appareil."
@@ -13757,6 +14152,14 @@ msgstr "Cela supprime l'arbre de travail sur \"{0}\" et ferme {1, plural, one {#
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Cela supprime l'arbre de travail sur \"{0}\", puis supprime la branche."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+msgid "This server does not support the bounded catalog read."
+msgstr "Ce serveur ne prend pas en charge la lecture limitée du catalogue."
+
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "This server does not support the bounded history read."
+msgstr "Ce serveur ne prend pas en charge la lecture limitée de l'historique."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -14443,6 +14846,10 @@ msgstr "Impossible de mettre à jour l'URL publique."
 #~ msgid "Unable to update the thread."
 #~ msgstr "Impossible de mettre à jour le fil."
 
+#: src/renderer/hostTransport/loopbackHttpWsTransport.ts
+msgid "Unable to verify the desktop's own server."
+msgstr "Impossible de vérifier le serveur propre au bureau."
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
@@ -14603,6 +15010,10 @@ msgstr "non indexé"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Non pris en charge"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Unverified"
+msgstr "Non vérifié"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -14800,6 +15211,18 @@ msgstr "Mise à jour dans ce terminal. Il se fermera une fois terminée."
 msgid "Updating to v{0}"
 msgstr "Mise à jour vers v{0}"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade"
+msgstr "Mettre à niveau"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade environment owner"
+msgstr "Mettre à niveau le propriétaire de l'environnement"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade owner"
+msgstr "Mettre à niveau le propriétaire"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "URL"
@@ -14934,6 +15357,10 @@ msgstr "Utilisé pour les nouvelles sessions interactives du panneau de terminal
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "user@example.com"
 #~ msgstr "user@example.com"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "user@host"
+msgstr "user@host"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

@@ -1,33 +1,96 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, normalize, resolve } from "node:path";
 import { net, protocol } from "electron";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import { getProjectFsPath } from "@/shared/wsl";
-import { getThreadAttachmentDir, sanitizeAttachmentPathPart } from "./attachmentStorage";
+import {
+  getThreadAttachmentDir,
+  sanitizeAttachmentPathPart,
+} from "@/host/attachments/attachmentStorage";
 
-export function saveClipboardImageFile(
+async function writeUniqueAttachmentFile(
+  directory: string,
+  stem: string,
+  extension: string,
+  data: Uint8Array | string,
+): Promise<string> {
+  for (let attempt = 1; ; attempt += 1) {
+    const suffix = attempt === 1 ? "" : ` (${attempt})`;
+    const filePath = join(directory, `${stem}${suffix}${extension}`);
+    try {
+      await writeFile(filePath, data, { flag: "wx" });
+      return filePath;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+  }
+}
+
+/**
+ * Orders every operation that touches one thread's attachment directory.
+ *
+ * Saves are async, so two writes racing into the same directory could otherwise
+ * interleave their `mkdir`/`writeFile` turns and both claim the same target
+ * name. Chaining each operation onto the previous one for the same resolved
+ * directory serializes them. Operations on different thread directories never
+ * wait on each other, and entries are dropped once their tail settles,
+ * including after a failure (a rejection propagates to its own caller without
+ * poisoning the chain). Directory deletion is not part of this queue: the
+ * backend composition's reclaimer owns removal of a deleted thread's directory
+ * from the committed DB seam, and a detached directory can only be resurrected
+ * as an ordinary backlog orphan, never clobbering a live thread's files.
+ */
+const threadDirectoryTails = new Map<string, Promise<void>>();
+
+async function withThreadDirectoryOrder<T>(
+  directory: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const previous = threadDirectoryTails.get(directory) ?? Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((finish) => {
+    release = finish;
+  });
+  const tail = previous.catch(() => undefined).then(() => current);
+  threadDirectoryTails.set(directory, tail);
+  await previous.catch(() => undefined);
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (threadDirectoryTails.get(directory) === tail) {
+      threadDirectoryTails.delete(directory);
+    }
+  }
+}
+
+export async function saveClipboardImageFile(
   paths: PoracodePaths,
   payload: { threadId: string; data: Uint8Array; extension: string },
-): string {
+): Promise<string> {
   const threadDir = getThreadAttachmentDir(paths, payload.threadId);
-  mkdirSync(threadDir, { recursive: true });
-  const namePrefix = sanitizeAttachmentPathPart(payload.threadId).slice(0, 8);
-  const fileName = `${namePrefix}-${Date.now()}.${payload.extension || "png"}`;
-  const filePath = join(threadDir, fileName);
-  writeFileSync(filePath, payload.data);
-  return filePath;
+  return withThreadDirectoryOrder(threadDir, async () => {
+    await mkdir(threadDir, { recursive: true });
+    const namePrefix = sanitizeAttachmentPathPart(payload.threadId).slice(0, 8);
+    const stem = `${namePrefix}-${Date.now()}`;
+    return writeUniqueAttachmentFile(
+      threadDir,
+      stem,
+      `.${payload.extension || "png"}`,
+      payload.data,
+    );
+  });
 }
 
 /** Write raw image bytes to a user-chosen absolute path (download "Save as…"). */
-export function writeImageFile(filePath: string, data: Uint8Array): void {
-  writeFileSync(filePath, Buffer.from(data));
+export async function writeImageFile(filePath: string, data: Uint8Array): Promise<void> {
+  await writeFile(filePath, data);
 }
 
 /** Read image bytes addressed by the desktop-only local-file protocol. */
-export function readLocalImageFile(url: string): Uint8Array {
+export async function readLocalImageFile(url: string): Promise<Uint8Array> {
   if (!/^(?:poracode|lightcode)-local:\/\//.test(url)) {
     throw new Error("Unsupported local image URL");
   }
@@ -35,7 +98,7 @@ export function readLocalImageFile(url: string): Uint8Array {
   if (filePath.includes("\0")) {
     throw new Error("Invalid local image path");
   }
-  return readFileSync(resolve(filePath));
+  return readFile(resolve(filePath));
 }
 
 /**
@@ -45,29 +108,18 @@ export function readLocalImageFile(url: string): Uint8Array {
  * place more than once: a fixed name would let a later handoff rewrite the file
  * an earlier user message still points at, so scrolling back would show context
  * that was never actually sent. Old summaries are removed with the rest of the
- * thread's attachments by `deleteThreadAttachments`.
+ * thread's attachments when the thread is deleted.
  */
-export function saveHandoffContextFile(
+export async function saveHandoffContextFile(
   paths: PoracodePaths,
   payload: { threadId: string; content: string },
-): string {
+): Promise<string> {
   const threadDir = getThreadAttachmentDir(paths, payload.threadId);
-  mkdirSync(threadDir, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const filePath = join(threadDir, `handoff-context-${stamp}.md`);
-  writeFileSync(filePath, payload.content, "utf-8");
-  return filePath;
-}
-
-export function deleteThreadAttachments(paths: PoracodePaths, threadId: string): void {
-  rmSync(getThreadAttachmentDir(paths, threadId), { recursive: true, force: true });
-}
-
-export async function deleteThreadAttachmentsAsync(
-  paths: PoracodePaths,
-  threadId: string,
-): Promise<void> {
-  await rm(getThreadAttachmentDir(paths, threadId), { recursive: true, force: true });
+  return withThreadDirectoryOrder(threadDir, async () => {
+    await mkdir(threadDir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    return writeUniqueAttachmentFile(threadDir, `handoff-context-${stamp}`, ".md", payload.content);
+  });
 }
 
 export function resolveProjectFsPath(payload: {

@@ -772,6 +772,10 @@ msgstr "Заблокований екран повністю зупиняє ке
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "Не вдалося підтвердити видалення повідомлень. Оновіть, щоб ресинхронізувати цю розмову."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
+msgstr "Poracode Helper володіє цим підключенням, але не відповідає. Зупиніть віддалений helper і підключіться знову."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "Профіль із таким іменем уже існує."
@@ -820,6 +824,10 @@ msgstr "Прийняти обидві зміни"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Current Change"
 msgstr "Прийняти поточну зміну"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Accept host key"
+msgstr "Прийняти ключ хоста"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Incoming Change"
@@ -1134,6 +1142,18 @@ msgstr "Додаткові аргументи для кожної нової о�
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "Додаткові аргументи, що передаються кожній новій оболонці Windows. Значення з пробілами беріть у лапки."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt"
+msgstr "Прийняти"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt legacy"
+msgstr "Прийняти застаріле"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt legacy connection"
+msgstr "Прийняти застаріле з'єднання"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Оголосіть власний базовий URL, наприклад зворотний проксі або тунель. Залиште порожнім для автоматичного режиму."
@@ -1434,6 +1454,14 @@ msgstr "Інший чат використовує це саме дерево. �
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Інша операція для цього експерименту ще виконується."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode client is preparing this connection. Try again in a moment."
+msgstr "Інший клієнт Poracode готує це підключення. Спробуйте ще раз за мить."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
+msgstr "Інший власник Poracode вже займає корінь даних цього підключення. Зупиніть його на віддаленому хості та підключіться знову."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -1980,6 +2008,33 @@ msgstr "Закладки"
 msgid "Bottom"
 msgstr "Знизу"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Обмежує кількість сесій агента, які можуть виконуватися одночасно на цьому хості. Враховуються логічні слоти виконання, а не процеси ОС чи пам'ять. 0 — без обмежень; виміряний ліміт поки не застосовується."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Обмежує кількість сесій агента, які можуть виконуватися одночасно на цьому хості. Враховуються логічні слоти виконання, а не процеси ОС чи пам'ять. 0 — без обмежень."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Обмежує кількість нетривких помічників генерації (заголовки тредів, повідомлення комітів, розв'язання конфліктів), які можуть виконуватися одночасно на цьому хості. Враховуються логічні слоти виконання, а не процеси ОС чи пам'ять. 0 — без обмежень; виміряний ліміт поки не застосовується."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Обмежує кількість нетривких помічників генерації (заголовки тредів, повідомлення комітів, розв'язання конфліктів), які можуть виконуватися одночасно на цьому хості. Враховуються логічні слоти виконання, а не процеси ОС чи пам'ять. 0 — без обмежень."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Обмежує кількість оболонок термінала, які можуть виконуватися одночасно на цьому хості. Враховуються логічні слоти виконання, а не процеси ОС чи пам'ять. 0 — без обмежень; виміряний ліміт поки не застосовується."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Обмежує кількість оболонок термінала, які можуть виконуватися одночасно на цьому хості. Враховуються логічні слоти виконання, а не процеси ОС чи пам'ять. 0 — без обмежень."
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -2237,6 +2292,8 @@ msgstr "Не вдалося зв’язатися з віддаленим сер
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -2794,6 +2851,10 @@ msgstr "Закрити редактор"
 msgid "Close Editor Tab"
 msgstr "Закрити вкладку редактора"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Close environment actions"
+msgstr "Закрити дії середовища"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
 msgstr "Закрити експеримент"
@@ -3297,6 +3358,7 @@ msgstr "Конфліктує з керованою навичкою"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -3356,6 +3418,7 @@ msgstr "Підключитися до віддаленого сервера"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Connected"
 msgstr "Підключено"
 
@@ -3376,6 +3439,7 @@ msgstr "Підключення..."
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3478,6 +3542,14 @@ msgstr "Продовжити в..."
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Продовжити за адресою десктопа"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Continue with incomplete history"
+msgstr "Продовжити з неповною історією"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
+msgstr "Продовження збереже решту історії та позначить цей епізод як підтверджений; відсутній вміст не відновлюється."
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
@@ -3690,6 +3762,14 @@ msgstr "Не вдалося отримати доступ до обліково�
 msgid "Couldn't clone the repository."
 msgstr "Не вдалося клонувати репозиторій."
 
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
+msgstr "Не вдалося підтвердити зміну експерименту на хості. Можливо, її вже застосовано. Перезавантажте експеримент перед повторною спробою."
+
+#: src/renderer/actions/threadCommandOutcomeActions.ts
+msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
+msgstr "Не вдалося підтвердити цю команду на хості. Можливо, її вже застосовано — перевірте тред, перш ніж повторити спробу."
+
 #: src/renderer/actions/threadLaunchActions.ts
 msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
 msgstr "Не вдалося скопіювати ваші незакомічені зміни в новий worktree — вони залишаються в поточній гілці."
@@ -3727,6 +3807,10 @@ msgstr "Не вдалося завантажити список змін. Пер
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't load the skill."
 msgstr "Не вдалося завантажити навичку."
+
+#: src/renderer/state/projectSettings/projectSettingsLoader.ts
+msgid "Couldn't load this project's MCP server settings, so the change was not saved."
+msgstr "Не вдалося завантажити налаштування серверів MCP цього проєкту, тому зміну не збережено."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -3778,6 +3862,7 @@ msgstr "Не вдалося оновити навичку."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Create"
@@ -3884,6 +3969,10 @@ msgstr "Створення PR…"
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 msgid "Creating worktree…"
 msgstr "Створення worktree…"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Credential missing"
+msgstr "Немає облікових даних"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
@@ -4229,6 +4318,7 @@ msgstr "Делегуйте роботу іншим ШІ-агентам."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4284,6 +4374,10 @@ msgstr "Видалити гілку?"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "Delete done threads"
 msgstr "Видалити завершені потоки"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Delete environment"
+msgstr "Видалити середовище"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Delete file"
@@ -4551,6 +4645,10 @@ msgstr "Вимкнути керування комп'ютером"
 msgid "Disable Crossagents"
 msgstr "Вимкнути Crossagents"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disable on host"
+msgstr "Вимкнути на хості"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "Вимкнути проект"
@@ -4623,9 +4721,17 @@ msgstr "Скасувати незбережені зміни в {path}?"
 msgid "Discard unsaved editor changes?"
 msgstr "Скасувати незбережені зміни в редакторі?"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disconnect"
+msgstr "Відключити"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Disconnect server"
 #~ msgstr "Відключити сервер"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disconnected"
+msgstr "Відключено"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -4806,6 +4912,7 @@ msgstr "напр. Робота"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Редагувати"
@@ -4813,6 +4920,10 @@ msgstr "Редагувати"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Edit {serverName}"
 msgstr "Редагувати {serverName}"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Edit environment"
+msgstr "Редагувати середовище"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
@@ -4937,6 +5048,10 @@ msgstr "Увімкніть доступ до мікрофона в налашт�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "Увімкнути сповіщення"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Enable on host"
+msgstr "Увімкнути на хості"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable plugin"
@@ -5080,6 +5195,10 @@ msgstr "Введіть допустимий JSON."
 msgid "Environment"
 msgstr "Середовище"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Environment name"
+msgstr "Назва середовища"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable name"
 msgstr "Назва змінної середовища"
@@ -5111,6 +5230,7 @@ msgstr "помилка"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
@@ -5317,6 +5437,10 @@ msgstr "Номер переможця експерименту має бути �
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Experiment prompt must not be blank"
 msgstr "Промпт експерименту не може бути порожнім"
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "Experiments are unavailable on this host. The change was not saved."
+msgstr "Експерименти недоступні на цьому хості. Зміну не збережено."
 
 #: src/renderer/actions/experimentActions.ts
 msgid "Experiments run on the machine hosting the project. Open the project on its host to run an experiment."
@@ -6247,9 +6371,25 @@ msgstr "Домашня область"
 msgid "Homepage"
 msgstr "Домашня сторінка"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host credential reference"
+msgstr "Посилання на облікові дані хоста"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host credential reference (optional)"
+msgstr "Посилання на облікові дані хоста (необов'язково)"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "Хост оновлено до останньої версії."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host key mismatch"
+msgstr "Ключ хоста не збігається"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host key trust accepted."
+msgstr "Довіру до ключа хоста прийнято."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
@@ -6262,6 +6402,15 @@ msgstr "Не вдалося оновити хост."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host version: {currentVersion}"
 msgstr "Версія хоста: {currentVersion}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Host-owned environment"
+msgstr "Середовище, що належить хосту"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
+msgid "Host-owned environments"
+msgstr "Середовища, що належать хосту"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
@@ -6307,6 +6456,10 @@ msgstr "Ідентифікатор"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Identity and usage stats"
 msgstr "Особисті дані та статистика використання"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Identity changed"
+msgstr "Ідентичність змінено"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Identity file"
@@ -6930,6 +7083,14 @@ msgstr "Залишити коментар"
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Залиште порожнім, щоб використати стандартну гілку репозиторію."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Leave the credential reference empty to keep the current one."
+msgstr "Залиште посилання на облікові дані порожнім, щоб зберегти поточне."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Legacy connection id"
+msgstr "Ідентифікатор застарілого з'єднання"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Менше"
@@ -6999,6 +7160,10 @@ msgstr "Список завдань"
 #~ msgid "Live {0}"
 #~ msgstr "Онлайн {0}"
 
+#: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
+msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
+msgstr "Живі оновлення призупинено для {droppedRuntimeThreadCount, plural, one {# треда} few {# тредів} many {# тредів} other {# треда}}, тому що це вікно перевищує ліміт у {MANAGED_ITEM_INTERESTS_MAX} тредів живої трансляції. Закрийте або відкрийте тред заново, щоб відновити призупинені."
+
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
 msgstr "Голосовий чат"
@@ -7031,6 +7196,10 @@ msgstr "Завантаження різниці..."
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Loading editor…"
 msgstr "Завантаження редактора…"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Loading environments…"
+msgstr "Завантаження середовищ…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
@@ -7399,6 +7568,33 @@ msgstr "Враховувати регістр"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "Підлаштовуватися під систему або примусово світла чи темна."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active agent sessions"
+msgstr "Макс. активних сесій агента"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active agent sessions, 0 for unlimited"
+msgstr "Макс. активних сесій агента, 0 — без обмежень"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active generation helpers"
+msgstr "Макс. активних помічників генерації"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active generation helpers, 0 for unlimited"
+msgstr "Макс. активних помічників генерації, 0 — без обмежень"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active terminal shells"
+msgstr "Макс. активних оболонок термінала"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active terminal shells, 0 for unlimited"
+msgstr "Макс. активних оболонок термінала, 0 — без обмежень"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -7866,6 +8062,10 @@ msgstr "Найуживаніший рівень міркувань"
 msgid "Move"
 msgstr "Перемістити"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
+msgstr "Перенесіть наявне локальне SSH-з'єднання на це середовище за ідентифікатором з'єднання. Ключі ніколи не завантажуються."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Повернути браузер у головне вікно"
@@ -8023,6 +8223,10 @@ msgstr "Потребує уваги · Потрібна відповідь"
 msgid "Needs attention on {0}"
 msgstr "Потребує уваги: {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Needs repair"
+msgstr "Потребує відновлення"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Потребує відповіді"
@@ -8066,6 +8270,10 @@ msgstr "Ключ API нового профілю Cursor"
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #~ msgid "New Cursor profile name"
 #~ msgstr "Назва нового профілю Cursor"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "New environment"
+msgstr "Нове середовище"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "New experiment"
@@ -8423,6 +8631,10 @@ msgstr "Облікові записи GitHub CLI не знайдено. Увій
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Історії ще немає"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "No host-owned environments on this server yet."
+msgstr "На цьому сервері ще немає середовищ, що належать хосту."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "No icons found"
@@ -8810,6 +9022,10 @@ msgstr "Сповіщати мене про"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "npx"
 msgstr "npx"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Observed"
+msgstr "Спостережено"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
@@ -9329,6 +9545,10 @@ msgstr "Перевизначає {conflict}"
 msgid "Overriding the global setting for this project."
 msgstr "Перевизначення глобального налаштування для цього проєкту."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Owner unverified"
+msgstr "Власника не підтверджено"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Package"
 msgstr "Пакет"
@@ -9374,6 +9594,10 @@ msgstr "Спаруйте телефон, планшет або браузер і
 #~ msgid "Pair again"
 #~ msgstr "Підключити знову"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Pair this device"
+msgstr "З'єднати цей пристрій"
+
 #: src/renderer/views/MainView/parts/BrowserRemoteConnectionGate.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9383,6 +9607,11 @@ msgstr "З’єднати з Poracode"
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
 msgid "Pair with Poracode on your desktop to sync threads, projects, and settings."
 msgstr "З'єднайте з Poracode на комп'ютері, щоб синхронізувати треди, проєкти й налаштування."
+
+#. placeholder {0}: record.label
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Paired {0} on this device."
+msgstr "{0} з'єднано на цьому пристрої."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -9446,6 +9675,14 @@ msgstr "Батьківська папка"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "Батьківська папка, напр. /home/me/projects"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
+msgstr "Частина історії цієї розмови може бути відсутня на сервері. Перегляньте варіанти відновлення, перш ніж продовжити."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
+msgstr "Частину історії цієї розмови втрачено на сервері, і її не вдалося показати. Щонайменше {refusedEvents} подій / {refusedBytes} байтів зачеплено."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
@@ -9657,6 +9894,7 @@ msgid "Pink"
 msgstr "Рожевий"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
 msgstr "Закріплено"
 
@@ -9834,6 +10072,7 @@ msgstr "Вбудовані інструменти браузера Poracode."
 #~ msgstr "poracode/my-branch"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Port"
 msgstr "Порт"
 
@@ -10002,6 +10241,10 @@ msgstr "Політика конфіденційності"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
 #~ msgstr "Закритий ключ"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Probe host key"
+msgstr "Перевірити ключ хоста"
 
 #. placeholder {0}: updateAllProgress.agentLabel
 #. placeholder {1}: updateAllProgress.current
@@ -10802,6 +11045,11 @@ msgstr "Видалити кандидата {0}"
 msgid "Remove connection"
 msgstr "Видалити підключення"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove connection and environments"
+msgstr "Видалити з'єднання та середовища"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #~ msgid "Remove Cursor profile"
 #~ msgstr "Видалити профіль Cursor"
@@ -10891,6 +11139,11 @@ msgstr "Видаліть експерименти проєкту, перш ні�
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Видалити збережені облікові дані цього постачальника? Ви зможете підключити його знову через «Додати постачальника»."
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove this connection?"
+msgstr "Видалити це з'єднання?"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -11169,10 +11422,12 @@ msgstr "Відновити повідомлення з черги"
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11314,6 +11569,10 @@ msgstr "Переглянути PR #{prNumber} для {0}"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Review presentation"
 msgstr "Відображення рев'ю"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Review recovery"
+msgstr "Переглянути відновлення"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"
@@ -11469,6 +11728,10 @@ msgstr "Виконується перед видаленням worktree (нап�
 msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 msgstr "Виконується в терміналі після створення нового worktree (наприклад, <0>pnpm install</0>)."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Runs on this server. Credentials stay on the server."
+msgstr "Працює на цьому сервері. Облікові дані залишаються на сервері."
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Runs out early"
 msgstr "Закінчиться раніше"
@@ -11514,6 +11777,7 @@ msgstr "Насиченість та яркість"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -12523,6 +12787,10 @@ msgstr "Не вдалося видалити деякі worktree кандида�
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
 msgstr "Деякі папки провайдерів не вдалося просканувати. Успішно завантажені навички все одно відображаються."
 
+#: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
+msgid "Some threads are paused"
+msgstr "Деякі треди призупинено"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Не вдалося запустити камеру. Натомість введіть endpoint і токен нижче, щоб підключити."
@@ -12600,6 +12868,7 @@ msgstr "Не вдалося підключитися через SSH."
 msgid "SSH hostname"
 msgstr "Ім’я хоста SSH"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "SSH port"
 msgstr "Порт SSH"
@@ -12608,9 +12877,9 @@ msgstr "Порт SSH"
 msgid "SSH port (optional)"
 msgstr "Порт SSH (необов’язково)"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "SSH target"
-#~ msgstr "SSH-адреса"
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "SSH target"
+msgstr "SSH-адреса"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -12760,6 +13029,10 @@ msgstr "Запуск камеры…"
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Starting remotely…"
 #~ msgstr "Віддалений запуск…"
+
+#: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
+msgid "Starting the desktop's own server…"
+msgstr "Запуск власного сервера робочого столу…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -13318,6 +13591,10 @@ msgstr "Цієї віддаленої сесії вже не було."
 #~ msgid "the {0} WSL user"
 #~ msgstr "користувача WSL {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The acknowledgement failed."
+msgstr "Не вдалося підтвердити."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "агент"
@@ -13363,6 +13640,41 @@ msgstr "Періодичність фонового оновлення за за
 msgid "The desktop server is still coming online."
 msgstr "Сервер робочого стола ще запускається."
 
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+msgid "The desktop's own catalog read failed."
+msgstr "Не вдалося прочитати власний каталог робочого столу."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "The desktop's own server is not connected yet."
+msgstr "Власний сервер робочого столу ще не підключено."
+
+#: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/managedParentRuntime.ts
+msgid "The desktop's own server is not connected."
+msgstr "Власний сервер робочого столу не підключено."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The desktop's own server is not connected. The experiment change was not saved."
+msgstr "Немає з’єднання з власним сервером настільного застосунку. Зміну експерименту не збережено."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+#: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+msgid "The desktop's own server is not connected. Your change was not saved."
+msgstr "Власний сервер робочого столу не підключено. Вашу зміну не збережено."
+
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "The desktop's own server reconnected before the history read completed."
+msgstr "Власний сервер робочого столу перепідключився до завершення читання історії."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+msgid "The desktop's own server refused the change."
+msgstr "Власний сервер робочого столу відхилив зміну."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The environment changed on the host. Refresh and try again."
+msgstr "Середовище змінилося на хості. Оновіть і спробуйте знову."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/actions/experimentWorktreeActions.ts
 #: src/renderer/i18n/sharedMessages.ts
@@ -13370,9 +13682,25 @@ msgstr "Сервер робочого стола ще запускається."
 msgid "The experiment candidate worktree is unavailable."
 msgstr "Worktree кандидата експерименту недоступний."
 
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment changed on the host while it was being saved. Reload and try again."
+msgstr "Під час збереження експеримент було змінено на хості. Перезавантажте його та спробуйте ще раз."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment no longer exists on the host."
+msgstr "Експеримент більше не існує на хості."
+
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "Промпт експерименту задовгий."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment state could not be verified."
+msgstr "Не вдалося перевірити стан експерименту."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment state is too large to load or change safely."
+msgstr "Стан експерименту завеликий для безпечного завантаження або зміни."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
@@ -13383,10 +13711,31 @@ msgstr "Обліковий запис GitHub \"{login}\" належить до {
 msgid "the global {0} WSL scope"
 msgstr "глобальну область WSL {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/state/remote/historyNoticeActions.ts
+msgid "The history notice could not be read from the server."
+msgstr "Не вдалося прочитати сповіщення про історію із сервера."
+
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "The host is restarting to install the update."
 msgstr "Хост перезапускається для встановлення оновлення."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The host rejected the request."
+msgstr "Хост відхилив запит."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The host returned an invalid environment pairing endpoint."
+msgstr "Хост повернув неприпустиму кінцеву точку сполучення середовища."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
+msgstr "Хост зупиняє й перезапускає власника цього середовища з вбудованим середовищем виконання. Каталог даних дочірнього елемента не змінюється."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
+msgstr "Сповіщення про неповну історію змінилося на сервері. Перегляньте оновлені відомості, перш ніж продовжити."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -13407,6 +13756,28 @@ msgstr "Сервер MCP недопустимий."
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "Звичайна оболонка програми не змогла відрендеритися. Діагностика нижче показана перед перезавантаженням, щоб проблему можна було дослідити."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/sessionReconnect.ts
+#: src/renderer/state/remoteServers/storeClient.ts
+msgid "The paired server that owns this environment is not connected."
+msgstr "Сполучений сервер, якому належить це середовище, не підключено."
+
+#: src/renderer/state/remoteServers/snapshotProjection.ts
+msgid "The remote catalog read failed."
+msgstr "Не вдалося прочитати віддалений каталог."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again."
+msgstr "Віддалений helper не зупинився протягом вікна завершення та продовжує працювати. Зупиніть його на віддаленому хості та спробуйте ще раз."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect."
+msgstr "На віддаленому хості запущено Poracode Helper, який цей клієнт не може перевірити. Зупиніть віддалений helper і підключіться знову."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version."
+msgstr "На віддаленому хості запущено несумісний Poracode Helper ({version}). Зупиніть віддалений helper і підключіться знову, щоб установити версію цього застосунку."
 
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "The remote Poracode server returned no pairing credential."
@@ -13447,6 +13818,10 @@ msgstr "Вибрана модель порівнює знімки змін ко�
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
 msgstr "Конфігурація сервера некоректна."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The server could not confirm the acknowledgement. Retry to continue."
+msgstr "Сервер не зміг підтвердити підтвердження. Повторіть спробу, щоб продовжити."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server returned an invalid MCP response."
@@ -13584,6 +13959,10 @@ msgstr "Цей API-ключ автентифікує SDK-чати цього п�
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Цей браузер не підтримує тут системні сповіщення; ви й надалі бачитимете сповіщення всередині застосунку."
 
+#: src/renderer/actions/experimentResponseReads.ts
+msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
+msgstr "Відповідь цього кандидата завелика для порівняння. Розділіть експеримент або скоротіть листування."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "This catalog manages downloads through its website."
 #~ msgstr "Цей каталог керує завантаженнями через свій вебсайт."
@@ -13608,6 +13987,10 @@ msgstr "Цей комп’ютер"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Це підключення може переглядати проєкти, але не керувати ними. Створіть сполучення заново, щоб увімкнути керування."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
+msgstr "Це з'єднання володіє записами середовищ хоста на цьому пристрої. Його видалення також видалить ці локальні записи та їхні дозволи пристрою. Хост зберігає свої середовища."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Цей комп'ютер"
@@ -13627,6 +14010,14 @@ msgstr "На цьому пристрої немає придатної каме�
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
 msgstr "це середовище"
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "This environment's host identity changed. Re-pair it explicitly from the host."
+msgstr "Ідентичність хоста цього середовища змінилася. З'єднайте його знову явно з хоста."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "This episode has been acknowledged; the missing content is not restored."
+msgstr "Цей епізод підтверджено; відсутній вміст не відновлено."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
@@ -13744,6 +14135,10 @@ msgstr "Це повідомлення в черзі вже надсилаєть�
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Це видаляє наступні повідомлення та відновлює файли, якщо доступний знімок контрольної точки."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "This removes the environment from the host. The server's child workspace is not deleted."
+msgstr "Це видалить середовище з хоста. Дочірній робочий простір сервера не видаляється."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This removes the schedule and its latest result from this device."
 msgstr "Видаляє розклад і його останній результат із цього пристрою."
@@ -13758,6 +14153,14 @@ msgstr "Це видаляє worktree у \"{0}\" і закриває {1, plural, 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Це видаляє worktree у \"{0}\", а потім видаляє гілку."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+msgid "This server does not support the bounded catalog read."
+msgstr "Цей сервер не підтримує обмежене читання каталогу."
+
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "This server does not support the bounded history read."
+msgstr "Цей сервер не підтримує обмежене читання історії."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -14444,6 +14847,10 @@ msgstr "Не вдалося оновити публічний URL."
 #~ msgid "Unable to update the thread."
 #~ msgstr "Не удалось обновить поток."
 
+#: src/renderer/hostTransport/loopbackHttpWsTransport.ts
+msgid "Unable to verify the desktop's own server."
+msgstr "Не вдалося перевірити власний сервер робочого столу."
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
@@ -14604,6 +15011,10 @@ msgstr "не в індексі"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Не підтримується"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Unverified"
+msgstr "Не перевірено"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -14801,6 +15212,18 @@ msgstr "Оновлення виконується в цьому термінал
 msgid "Updating to v{0}"
 msgstr "Оновлення до v{0}"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade"
+msgstr "Оновити"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade environment owner"
+msgstr "Оновити власника середовища"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade owner"
+msgstr "Оновити власника"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "URL"
@@ -14935,6 +15358,10 @@ msgstr "Використовується для нових інтерактив�
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "user@example.com"
 #~ msgstr "user@example.com"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "user@host"
+msgstr "user@host"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

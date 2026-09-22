@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Input, Modal, Tooltip } from "@heroui/react";
+import { Input, Modal, Tooltip, toast } from "@heroui/react";
 import {
   AppWindow,
   Download,
@@ -34,11 +34,23 @@ import {
 } from "./McpProjectDestinationDropdown";
 import { McpServerEditor } from "./McpServerEditor";
 import { mcpTransportSummary, serializeMcpServersJson } from "./mcpFormUtils";
+import {
+  readCurrentServers,
+  removeServerRow,
+  updateServerRow,
+  type McpServersSink,
+} from "./mcpServersMutation";
+import { friendlyError } from "@/shared/messages";
 import { type McpServerProbeState, useMcpServerProbes } from "./useMcpServerProbes";
 import { useMcpServerOauth } from "./useMcpServerOauth";
 
 const EMPTY_MCP_SERVERS: McpServer[] = [];
 type McpServerScope = "user" | "workspace";
+
+/** One toast per failed MCP mutation — never a silent destructive miss. */
+const reportMutationError = (error: unknown): void => {
+  toast.danger(friendlyError(error));
+};
 
 interface EditorState {
   key: string;
@@ -47,13 +59,11 @@ interface EditorState {
   selectedDestinationId: string;
 }
 
-interface McpServerSource {
-  servers: McpServer[];
+interface McpServerSource extends McpServersSink {
   projectId?: string;
   projectLocation?: ProjectLocation;
   projectName?: string;
   projectIcon?: string;
-  onChange: (servers: McpServer[]) => void;
 }
 
 interface McpEditorDestination {
@@ -63,13 +73,11 @@ interface McpEditorDestination {
 }
 
 /** Every app project the import modal can scan or import into. */
-export interface McpImportProjectTarget {
+export interface McpImportProjectTarget extends McpServersSink {
   id: string;
   name: string;
   location: ProjectLocation;
   icon?: string;
-  servers: McpServer[];
-  onChange: (servers: McpServer[]) => void;
 }
 
 interface BuiltInSettings {
@@ -147,7 +155,8 @@ export function McpServersManager(props: {
         projectId: project.id,
         projectLocation: project.location,
         projectName: project.name,
-        onChange: project.onChange,
+        ...(project.loadServers ? { loadServers: project.loadServers } : {}),
+        saveServers: project.saveServers,
       },
     }),
   );
@@ -255,28 +264,62 @@ export function McpServersManager(props: {
 
   const upsert = (server: McpServer) => {
     if (!editor) return;
-    const targetSource = editorDestinations.find(
-      (destination) => destination.id === editor.selectedDestinationId,
-    )?.source;
-    if (!targetSource) return;
-    const existingIndex = targetSource.servers.findIndex((item) => item.id === server.id);
-    targetSource.onChange(
-      existingIndex === -1
-        ? [...targetSource.servers, server]
-        : targetSource.servers.map((item) => (item.id === server.id ? server : item)),
+    const destination = editorDestinations.find(
+      (candidate) => candidate.id === editor.selectedDestinationId,
     );
-    if (
-      editor.server &&
-      editor.sourceDestinationId &&
-      editor.sourceDestinationId !== editor.selectedDestinationId
-    ) {
-      const source = editorDestinations.find(
-        (destination) => destination.id === editor.sourceDestinationId,
-      )?.source;
-      const sourceServerId = editor.server.id;
-      source?.onChange(source.servers.filter((item) => item.id !== sourceServerId));
-    }
-    setEditor(undefined);
+    const targetSource = destination?.source;
+    if (!targetSource) return;
+    // Project destinations commit against their authoritative list: a source
+    // whose settings are not loaded yet must never be treated as empty. A move
+    // preflights BOTH lists before the first write — a source read refused
+    // after the target write would strand a half-applied move.
+    //
+    // Confirmation order: the destination save is awaited to confirmation
+    // BEFORE the source loses the server. A refused destination save (e.g. the
+    // host rejecting a «redacted» credential the target cannot restore) must
+    // never delete the original copy. The two writes remain two independent,
+    // per-destination saves — deliberately not an atomic move: if the source
+    // removal fails after the destination confirmed, the server exists in both
+    // lists until the user retries, which is the safe direction to fail in.
+    const editorKey = editor.key;
+    void (async () => {
+      const targetServers = await readCurrentServers(targetSource);
+      const sourceDestination =
+        editor.server && editor.sourceDestinationId !== editor.selectedDestinationId
+          ? editorDestinations.find((candidate) => candidate.id === editor.sourceDestinationId)
+          : undefined;
+      const source = sourceDestination?.source;
+      if (source) await readCurrentServers(source);
+      const sourceServerId = editor.server?.id;
+      const existingIndex = targetServers.findIndex((item) => item.id === server.id);
+      const nextTarget =
+        existingIndex === -1
+          ? [...targetServers, server]
+          : targetServers.map((item) => (item.id === server.id ? server : item));
+      await targetSource.saveServers(nextTarget);
+      try {
+        if (source && sourceServerId !== undefined) {
+          // Re-read the source now that the destination confirmed: the
+          // preflight snapshot goes stale while a slow destination save gives
+          // other clients a window to modify the source. Remove only the moved
+          // id from the fresh read; if that read or save still fails, the
+          // source keeps its copy — a safe duplicate, never a loss.
+          const currentSource = await readCurrentServers(source);
+          if (currentSource.some((item) => item.id === sourceServerId)) {
+            await source.saveServers(currentSource.filter((item) => item.id !== sourceServerId));
+          }
+        }
+      } finally {
+        // The destination holds the server from here on: close the editor even
+        // when the source removal failed (the duplicate is surfaced below).
+        setEditor((current) => (current?.key === editorKey ? undefined : current));
+      }
+    })().catch((error) => {
+      // A destination refusal lands here with the source list untouched and
+      // the editor still open; a source refusal lands here after the editor
+      // closed with its copy retained. One truthful toast either way.
+      reportMutationError(error);
+    });
   };
 
   const importExternalServers = (destination: McpImportDestination, servers: McpServer[]) => {
@@ -285,14 +328,20 @@ export function McpServersManager(props: {
         ? props.sources.user
         : props.importProjects?.find((project) => project.id === destination.projectId);
     if (!target) return;
-    const names = new Set(target.servers.map((server) => server.name.toLowerCase()));
-    const imported = servers.filter((server) => {
-      const name = server.name.toLowerCase();
-      if (names.has(name)) return false;
-      names.add(name);
-      return true;
-    });
-    if (imported.length > 0) target.onChange([...target.servers, ...imported]);
+    void (async () => {
+      // Merge into the authoritative list: importing into another project must
+      // preserve the configuration it already has, even when that
+      // configuration was never projected into the catalog row.
+      const current = await readCurrentServers(target);
+      const names = new Set(current.map((server) => server.name.toLowerCase()));
+      const imported = servers.filter((server) => {
+        const name = server.name.toLowerCase();
+        if (names.has(name)) return false;
+        names.add(name);
+        return true;
+      });
+      if (imported.length > 0) await target.saveServers([...current, ...imported]);
+    })().catch((error) => reportMutationError(error));
   };
 
   const exportServers = () => {
@@ -514,15 +563,19 @@ export function McpServersManager(props: {
                       tools,
                       disabledTools: server.disabledTools ?? [],
                       onToolEnabledChange: (tool, enabled) => {
+                        // The modal updates optimistically from the visible
+                        // row; the persist applies the same delta to the row's
+                        // current fields on the source's fresh list.
                         const disabled = new Set(server.disabledTools ?? []);
                         if (enabled) disabled.delete(tool);
                         else disabled.add(tool);
                         const disabledTools = [...disabled];
-                        source.onChange(
-                          source.servers.map((item) =>
-                            item.id === server.id ? { ...item, disabledTools } : item,
-                          ),
-                        );
+                        void updateServerRow(source, server.id, (item) => {
+                          const fresh = new Set(item.disabledTools ?? []);
+                          if (enabled) fresh.delete(tool);
+                          else fresh.add(tool);
+                          return { ...item, disabledTools: [...fresh] };
+                        }).catch(reportMutationError);
                         setToolList((current) =>
                           current ? { ...current, disabledTools } : current,
                         );
@@ -530,11 +583,10 @@ export function McpServersManager(props: {
                     })
                   }
                   onToggle={(enabled) =>
-                    source.onChange(
-                      source.servers.map((item) =>
-                        item.id === server.id ? { ...item, enabled } : item,
-                      ),
-                    )
+                    void updateServerRow(source, server.id, (item) => ({
+                      ...item,
+                      enabled,
+                    })).catch(reportMutationError)
                   }
                   onEdit={() =>
                     setEditor({
@@ -545,7 +597,7 @@ export function McpServersManager(props: {
                     })
                   }
                   onDelete={() =>
-                    source.onChange(source.servers.filter((item) => item.id !== server.id))
+                    void removeServerRow(source, server.id).catch(reportMutationError)
                   }
                 />
               );

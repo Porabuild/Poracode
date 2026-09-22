@@ -34,6 +34,23 @@ import {
   unprojectRemoteThreadMentionSegments,
 } from "@/renderer/state/remoteProjection";
 import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reachability";
+import {
+  isManagedRootDesktopRuntime,
+  startManagedRootThread,
+} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import {
+  consumePendingManagedRootLaunch,
+  dropPendingManagedRootLaunch,
+  notePendingManagedRootLaunch,
+  peekPendingManagedRootLaunch,
+  retainPendingManagedRootLaunch,
+} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+import { managedRootSupportsThreadLaunchMetadata } from "@/renderer/state/managedRootCatalog/rootLaunchMetadataCapability";
+import { reconcileManagedRootThreadLaunch } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
+import {
+  dispatchManagedRootProjectDraftConfig,
+  dispatchManagedRootThreadWorkspace,
+} from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import type { PendingLaunchProviderSwitch } from "@/renderer/state/slices/launchSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
@@ -41,6 +58,13 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
 import { buildProjectDraftConfig } from "@/renderer/views/MainView/parts/AppContent/draftConfig";
+import {
+  isRemoteCommandOutcomeAuthoritativelyResolved,
+  isRemoteCommandOutcomeUncertainError,
+  notifyThreadCommandOutcomeUncertain,
+  reconcileRemoteThreadCommandOutcome,
+  reconcileThreadCommandOutcome,
+} from "./threadCommandOutcomeActions";
 import {
   createWorktree,
   primeWorktreeGitState,
@@ -76,11 +100,18 @@ export async function performInitialThreadLaunch(input: {
       );
   }
 
+  // An uncertain-retry replay reuses the operation's original optimistic item
+  // id instead of painting a second local copy of the same user message.
+  const retainedReplay =
+    !providerSwitch && !resumableSessionRef && !remoteOwner(thread) && isManagedRootDesktopRuntime()
+      ? peekPendingManagedRootLaunch(thread.id)
+      : undefined;
   const optimisticUserMessageItemId =
     userMessageItemId ??
     (providerSwitch
       ? allocateInitialUserMessageItemId(thread, prompt)
-      : appendOptimisticInitialUserMessage(thread, prompt, segments));
+      : (retainedReplay?.replay?.userMessageItemId ??
+        appendOptimisticInitialUserMessage(thread, prompt, segments)));
   if (optimisticUserMessageItemId && !providerSwitch) {
     useAppStore.getState().updateThreadRuntime(thread.id, {
       status: "working",
@@ -127,38 +158,143 @@ export async function performInitialThreadLaunch(input: {
   // apply the remote projectLocation on this machine (posix path →
   // `spawn /bin/bash ENOENT` on Windows) and never reach the remote supervisor.
   const owner = remoteOwner(thread);
-  if (owner) {
-    // No mcpLaunchSnapshot here: the host ignores client-supplied MCP servers
-    // and resolves the launch snapshot from its own settings.
-    await useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
-      client.startThread({
-        threadId: owner.remoteId,
-        projectLocation: unprojectProjectLocation(projectLocation),
+  // A root row the renderer has not asked the host to create yet is created
+  // and launched by ONE explicit host `start` command, so the durable row and
+  // the session are born together (the supervisor IPC path can only resume a
+  // row the host already knows). A resume/switch keeps the supervisor path.
+  const pendingRootLaunch =
+    !owner && !providerSwitch && !resumableSessionRef && isManagedRootDesktopRuntime()
+      ? consumePendingManagedRootLaunch(thread.id)
+      : undefined;
+  try {
+    if (pendingRootLaunch) {
+      // An uncertain retry reuses the retained body VERBATIM; a new episode
+      // derives it once from the thread and the launch inputs. The metadata
+      // fields are capability-gated: an unadvertised host would strip them and
+      // answer success, so they are omitted rather than falsely claimed.
+      let launchInput = pendingRootLaunch.replay;
+      if (!launchInput) {
+        const supportsLaunchMetadata = await managedRootSupportsThreadLaunchMetadata();
+        launchInput = {
+          threadId: thread.id,
+          projectId: thread.projectId,
+          agentKind: thread.agentKind,
+          ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
+          config: thread.config,
+          prompt,
+          ...(segments ? { segments } : {}),
+          ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
+          ...(optimisticUserMessageItemId
+            ? { userMessageItemId: optimisticUserMessageItemId }
+            : {}),
+          ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
+          ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
+          ...(pendingRootLaunch.isNewWorktree ? { isNewWorktree: true } : {}),
+          ...(thread.groupId ? { groupId: thread.groupId } : {}),
+          ...(thread.groupName ? { groupName: thread.groupName } : {}),
+          // An explicit title (fork/handoff inherit the source's) is
+          // authoritative host-side; without it the host derives a new one.
+          ...(thread.title ? { title: thread.title } : {}),
+          ...(supportsLaunchMetadata
+            ? {
+                ...(thread.workspaceId ? { workspaceId: thread.workspaceId } : {}),
+                initialSize,
+                ...(thread.parentThreadId ? { parentThreadId: thread.parentThreadId } : {}),
+                ...(thread.prNumber ? { prNumber: thread.prNumber } : {}),
+              }
+            : {}),
+        };
+      }
+      // The exact operation is retained BEFORE it is sent, so an uncertain
+      // outcome (which may already have started the provider) keeps the same
+      // id and body for an explicit retry; the host receipt then replays or
+      // refuses that exact operation instead of running a second launch.
+      retainPendingManagedRootLaunch(thread.id, {
+        isNewWorktree: pendingRootLaunch.isNewWorktree,
+        commandId: pendingRootLaunch.commandId,
+        replay: launchInput,
+      });
+      try {
+        await startManagedRootThread(launchInput, { commandId: pendingRootLaunch.commandId });
+      } catch (error) {
+        // The operation is retired ONLY when the host authoritatively resolved
+        // it as a definite failure for this same command id (a recorded
+        // `failed` receipt, answered as `command_failed`) or when this was a
+        // first-ever attempt whose failure is classified definite (proven
+        // pre-effect) — only then is a fresh operation genuinely new work.
+        // While an uncertain episode exists, a locally raised error (e.g. the
+        // loopback leg being down) or a generic 404/403 says nothing about the
+        // earlier external effect, so the exact id and body stay retained.
+        const hadUncertainEpisode = pendingRootLaunch.replay !== undefined;
+        if (
+          !isRemoteCommandOutcomeUncertainError(error) &&
+          (!hadUncertainEpisode || isRemoteCommandOutcomeAuthoritativelyResolved(error))
+        ) {
+          notePendingManagedRootLaunch(thread.id, pendingRootLaunch.isNewWorktree);
+        }
+        throw error;
+      }
+      // The operation completed (or its recorded outcome replayed): the row is
+      // host-owned now, so the create+launch intent is retired and a later
+      // message on this thread is an ordinary send, never a relaunch.
+      dropPendingManagedRootLaunch(thread.id);
+      // Workspace assignment is a follow-up narrow command only when the start
+      // body could not carry it (an unadvertised capability); Home threads keep
+      // the workspace they were started in instead of becoming unfiled.
+      if (thread.workspaceId && launchInput.workspaceId === undefined) {
+        dispatchManagedRootThreadWorkspace(thread.id, thread.workspaceId);
+      }
+    } else if (owner) {
+      // No mcpLaunchSnapshot here: the host ignores client-supplied MCP servers
+      // and resolves the launch snapshot from its own settings.
+      await useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
+        client.startThread({
+          threadId: owner.remoteId,
+          projectLocation: unprojectProjectLocation(projectLocation),
+          ...startInput,
+          ...(!prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId
+            ? { ensureRunning: true as const }
+            : {}),
+          ...(startInput.segments
+            ? {
+                segments: unprojectRemoteThreadMentionSegments(
+                  owner.desktopId,
+                  startInput.segments,
+                  useAppStore.getState().threads,
+                ),
+              }
+            : {}),
+        }),
+      );
+    } else {
+      await readBridge().startThread({
+        threadId: thread.id,
+        projectLocation,
         ...startInput,
-        ...(!prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId
-          ? { ensureRunning: true as const }
-          : {}),
         ...(startInput.segments
-          ? {
-              segments: unprojectRemoteThreadMentionSegments(
-                owner.desktopId,
-                startInput.segments,
-                useAppStore.getState().threads,
-              ),
-            }
+          ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
           : {}),
-      }),
-    );
-  } else {
-    await readBridge().startThread({
-      threadId: thread.id,
-      projectLocation,
-      ...startInput,
-      ...(startInput.segments
-        ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
-        : {}),
-      ...mcpLaunchSnapshot,
-    });
+        ...mcpLaunchSnapshot,
+      });
+    }
+  } catch (error) {
+    // The host may have started the session without being able to confirm it.
+    // Keep the optimistic launch state, explain the uncertainty, and run one
+    // bounded authoritative read — never a resend. The error still propagates
+    // so launch catches do not paint a definite failure.
+    if (isRemoteCommandOutcomeUncertainError(error)) {
+      notifyThreadCommandOutcomeUncertain();
+      if (pendingRootLaunch) {
+        // The same operation id and exact original body stay retained for an
+        // explicit retry. The bounded read is evidence/row convergence only:
+        // absence is never used to mint a fresh identity because the provider
+        // may already have received the prompt before the failure.
+        await reconcileManagedRootThreadLaunch(thread.id);
+      } else {
+        await reconcileThreadCommandOutcome(thread);
+      }
+    }
+    throw error;
   }
   captureThreadStarted(thread);
   if (prompt.length > 0 || (segments?.length ?? 0) > 0) {
@@ -220,14 +356,13 @@ export async function startThreadFromDraft(
   const owner = remoteOwner(project);
   const host = threadLaunchHost(project);
 
-  useAppStore.getState().updateProjectDraftConfig(
-    project.id,
-    buildProjectDraftConfig({
-      agentKind,
-      config,
-      worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
-    }),
-  );
+  const nextDraftConfig = buildProjectDraftConfig({
+    agentKind,
+    config,
+    worktreeMode: !isHomeScope && worktreeIsNewBranch === true,
+  });
+  useAppStore.getState().updateProjectDraftConfig(project.id, nextDraftConfig);
+  dispatchManagedRootProjectDraftConfig(project.id, nextDraftConfig);
 
   let worktreePath = isHomeScope ? undefined : existingWorktreePath;
   let isNewWorktree = false;
@@ -343,6 +478,10 @@ export async function startThreadFromDraft(
         }
         if (started === "cancellation-failed") return;
       } catch (error) {
+        // Uncertain: the launch may have committed. The launch action already
+        // reconciled once and explained it; never paint a definite failure or
+        // unwind the worktree the session may be running in.
+        if (isRemoteCommandOutcomeUncertainError(error)) throw error;
         if (!useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
           return;
@@ -372,6 +511,9 @@ export async function startThreadFromDraft(
           initialSize: DEFAULT_TERMINAL_SIZE,
         });
       } catch (error) {
+        // Uncertain: the launch may have committed — keep the optimistic row
+        // and the worktree; the launch action already reconciled once.
+        if (isRemoteCommandOutcomeUncertainError(error)) throw error;
         if (!useAppStore.getState().threads.some((thread) => thread.id === pendingThread.id)) {
           await performWorktreeRemoval(project, worktreePath, worktreeBranch);
           return;
@@ -414,31 +556,48 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
     return {
       setupRunsOnHost: true,
       startThread: async (launch) => {
-        const remoteId = launch.threadId;
-        return useRemoteServersStore.getState().launchRemoteThread(
-          {
-            ...(remoteId ? { threadId: remoteId } : {}),
-            desktopId: owner.desktopId,
-            projectId: owner.remoteId,
-            agentKind: launch.agentKind,
-            config: launch.config,
-            prompt: launch.prompt,
-            ...(launch.segments ? { segments: launch.segments } : {}),
-            presentationMode: launch.presentationMode ?? "terminal",
-            ...(launch.worktreePath ? { worktreePath: launch.worktreePath } : {}),
-            ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
-            ...(launch.isNewWorktree ? { isNewWorktree: true } : {}),
-            ...(launch.userMessageItemId ? { userMessageItemId: launch.userMessageItemId } : {}),
-          },
-          remoteId
-            ? {
-                isPendingLaunchOwned: () =>
-                  useAppStore.getState().provisioningWorktreeThreadIds[
-                    remoteThreadId(owner.desktopId, remoteId)
-                  ] === true,
-              }
-            : undefined,
-        );
+        // Allocate the host thread id here, not inside `launchRemoteThread`:
+        // an uncertain start still needs the id to read back authoritatively.
+        // Only a caller-supplied id (the provisioning-worktree launch) carries
+        // the abandonment check; a fresh draft launch keeps the existing
+        // no-compensation behavior.
+        const remoteId = launch.threadId ?? crypto.randomUUID();
+        const launchOptions = launch.threadId
+          ? {
+              isPendingLaunchOwned: () =>
+                useAppStore.getState().provisioningWorktreeThreadIds[
+                  remoteThreadId(owner.desktopId, remoteId)
+                ] === true,
+            }
+          : undefined;
+        try {
+          return await useRemoteServersStore.getState().launchRemoteThread(
+            {
+              threadId: remoteId,
+              desktopId: owner.desktopId,
+              projectId: owner.remoteId,
+              agentKind: launch.agentKind,
+              config: launch.config,
+              prompt: launch.prompt,
+              ...(launch.segments ? { segments: launch.segments } : {}),
+              presentationMode: launch.presentationMode ?? "terminal",
+              ...(launch.worktreePath ? { worktreePath: launch.worktreePath } : {}),
+              ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
+              ...(launch.isNewWorktree ? { isNewWorktree: true } : {}),
+              ...(launch.userMessageItemId ? { userMessageItemId: launch.userMessageItemId } : {}),
+            },
+            launchOptions,
+          );
+        } catch (error) {
+          // The host may have started the session without confirming it: keep
+          // the optimistic row, explain the uncertainty, and read the
+          // client-chosen thread id back once — never resend.
+          if (isRemoteCommandOutcomeUncertainError(error)) {
+            notifyThreadCommandOutcomeUncertain();
+            await reconcileRemoteThreadCommandOutcome(owner.desktopId, remoteId);
+          }
+          throw error;
+        }
       },
     };
   }
@@ -459,6 +618,9 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
           initialSize: DEFAULT_TERMINAL_SIZE,
         });
       } catch (error) {
+        // Uncertain: the launch may have committed — the launch action already
+        // reconciled once; keep the optimistic row instead of an error status.
+        if (isRemoteCommandOutcomeUncertainError(error)) throw error;
         if (useAppStore.getState().threads.some((row) => row.id === thread.id)) {
           markThreadLaunchFailed(thread.id, error);
         }
@@ -526,6 +688,10 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
 /** Surface a failed launch on the thread row (error item + error status). */
 function markThreadLaunchFailed(threadId: string, error: unknown): void {
   const store = useAppStore.getState();
+  // The pending create+launch intent survives every failure: a definite
+  // pre-effect failure was already re-armed as a fresh attempt by the launch
+  // path, and an uncertain outcome keeps the SAME operation id and exact body
+  // for an explicit retry. Only an authoritative removal drops the intent.
   const message = friendlyError(error);
   store.applyRuntimeEvent(threadId, {
     type: "error",

@@ -772,6 +772,10 @@ msgstr "Màn hình bị khóa sẽ chặn mọi thao tác điều khiển máy t
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "Không thể xác nhận việc xóa tin nhắn. Hãy làm mới để đồng bộ hóa lại cuộc trò chuyện này."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
+msgstr "Một Poracode Helper đang sở hữu kết nối này nhưng không phản hồi. Hãy dừng helper từ xa rồi kết nối lại."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "Đã có hồ sơ trùng tên này."
@@ -820,6 +824,10 @@ msgstr "Chấp nhận cả hai thay đổi"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Current Change"
 msgstr "Chấp nhận thay đổi hiện tại"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Accept host key"
+msgstr "Chấp nhận khóa máy chủ"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Incoming Change"
@@ -1134,6 +1142,18 @@ msgstr "Các đối số bổ sung được truyền cho mỗi shell mới của
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "Các đối số bổ sung được truyền cho mỗi shell Windows mới. Đặt các giá trị có khoảng trắng trong dấu ngoặc kép."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt"
+msgstr "Chuyển sang"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt legacy"
+msgstr "Chuyển kết nối cũ"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt legacy connection"
+msgstr "Chuyển kết nối cũ"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. Để trống để dùng tự động."
@@ -1434,6 +1454,14 @@ msgstr "Một cuộc trò chuyện khác cũng sử dụng cây này. Khôi ph�
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Một thao tác khác của thử nghiệm này vẫn đang chạy."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode client is preparing this connection. Try again in a moment."
+msgstr "Một ứng dụng khách Poracode khác đang chuẩn bị kết nối này. Hãy thử lại sau giây lát."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
+msgstr "Một chủ sở hữu Poracode khác đã giữ thư mục gốc dữ liệu của kết nối này. Hãy dừng nó trên máy chủ từ xa rồi kết nối lại."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -1980,6 +2008,33 @@ msgstr "Dấu trang"
 msgid "Bottom"
 msgstr "Dưới cùng"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Giới hạn số phiên tác nhân có thể chạy đồng thời trên máy chủ này. Đếm khe thực thi logic, không phải tiến trình hệ điều hành hay bộ nhớ. 0 = không giới hạn; chưa áp dụng giới hạn đo lường nào."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Giới hạn số phiên tác nhân có thể chạy đồng thời trên máy chủ này. Đếm khe thực thi logic, không phải tiến trình hệ điều hành hay bộ nhớ. 0 = không giới hạn."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Giới hạn số trợ lý tạo ngắn hạn (tiêu đề luồng, thông báo commit, giải quyết xung đột) có thể chạy đồng thời trên máy chủ này. Đếm khe thực thi logic, không phải tiến trình hệ điều hành hay bộ nhớ. 0 = không giới hạn; chưa áp dụng giới hạn đo lường nào."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Giới hạn số trợ lý tạo ngắn hạn (tiêu đề luồng, thông báo commit, giải quyết xung đột) có thể chạy đồng thời trên máy chủ này. Đếm khe thực thi logic, không phải tiến trình hệ điều hành hay bộ nhớ. 0 = không giới hạn."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Giới hạn số shell terminal có thể chạy đồng thời trên máy chủ này. Đếm khe thực thi logic, không phải tiến trình hệ điều hành hay bộ nhớ. 0 = không giới hạn; chưa áp dụng giới hạn đo lường nào."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Giới hạn số shell terminal có thể chạy đồng thời trên máy chủ này. Đếm khe thực thi logic, không phải tiến trình hệ điều hành hay bộ nhớ. 0 = không giới hạn."
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -2237,6 +2292,8 @@ msgstr "Không thể kết nối tới máy chủ từ xa. Hãy kiểm tra máy 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -2794,6 +2851,10 @@ msgstr "Đóng trình chỉnh sửa"
 msgid "Close Editor Tab"
 msgstr "Đóng tab trình chỉnh sửa"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Close environment actions"
+msgstr "Đóng thao tác môi trường"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
 msgstr "Đóng thử nghiệm"
@@ -3297,6 +3358,7 @@ msgstr "Xung đột với một skill được quản lý"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -3356,6 +3418,7 @@ msgstr "Kết nối tới máy chủ từ xa"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Connected"
 msgstr "Đã kết nối"
 
@@ -3376,6 +3439,7 @@ msgstr "Đang kết nối..."
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3478,6 +3542,14 @@ msgstr "Tiếp tục trong..."
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Tiếp tục trên địa chỉ của desktop"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Continue with incomplete history"
+msgstr "Tiếp tục với lịch sử không đầy đủ"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
+msgstr "Tiếp tục sẽ giữ lại phần lịch sử còn lại và đánh dấu tập này là đã xác nhận; nội dung bị thiếu không được khôi phục."
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
@@ -3690,6 +3762,14 @@ msgstr "Không thể truy cập tài khoản GitHub \"{login}\". Hãy chạy \"g
 msgid "Couldn't clone the repository."
 msgstr "Không thể sao chép kho lưu trữ."
 
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
+msgstr "Không thể xác nhận thay đổi của thử nghiệm với máy chủ. Thay đổi có thể đã được áp dụng. Hãy tải lại thử nghiệm trước khi thử lại."
+
+#: src/renderer/actions/threadCommandOutcomeActions.ts
+msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
+msgstr "Máy chủ không thể xác nhận lệnh này. Lệnh có thể đã được áp dụng — hãy kiểm tra luồng trước khi thử lại."
+
 #: src/renderer/actions/threadLaunchActions.ts
 msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
 msgstr "Không thể sao chép những thay đổi chưa được cam kết của bạn vào cây làm việc mới - chúng vẫn còn trên nhánh hiện tại."
@@ -3727,6 +3807,10 @@ msgstr "Không thể tải nhật ký thay đổi. Hãy kiểm tra kết nối h
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't load the skill."
 msgstr "Không thể tải skill."
+
+#: src/renderer/state/projectSettings/projectSettingsLoader.ts
+msgid "Couldn't load this project's MCP server settings, so the change was not saved."
+msgstr "Không thể tải cài đặt máy chủ MCP của dự án này nên thay đổi chưa được lưu."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -3778,6 +3862,7 @@ msgstr "Không thể cập nhật skill."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Create"
@@ -3884,6 +3969,10 @@ msgstr "Đang tạo PR…"
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 msgid "Creating worktree…"
 msgstr "Đang tạo cây làm việc…"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Credential missing"
+msgstr "Thiếu thông tin xác thực"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
@@ -4229,6 +4318,7 @@ msgstr "Giao việc cho các tác nhân AI khác."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4284,6 +4374,10 @@ msgstr "Xóa nhánh?"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "Delete done threads"
 msgstr "Xóa các luồng đã xong"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Delete environment"
+msgstr "Xóa môi trường"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Delete file"
@@ -4551,6 +4645,10 @@ msgstr "Tắt sử dụng máy tính"
 msgid "Disable Crossagents"
 msgstr "Tắt Crossagents"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disable on host"
+msgstr "Tắt trên máy chủ"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "Vô hiệu hóa dự án"
@@ -4623,9 +4721,17 @@ msgstr "Hủy các thay đổi chưa được lưu trong {path}?"
 msgid "Discard unsaved editor changes?"
 msgstr "Hủy các thay đổi chưa lưu trong trình chỉnh sửa?"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disconnect"
+msgstr "Ngắt kết nối"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Disconnect server"
 #~ msgstr "Ngắt kết nối máy chủ"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disconnected"
+msgstr "Đã ngắt kết nối"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -4806,6 +4912,7 @@ msgstr "ví dụ: Work"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Chỉnh sửa"
@@ -4813,6 +4920,10 @@ msgstr "Chỉnh sửa"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Edit {serverName}"
 msgstr "Chỉnh sửa {serverName}"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Edit environment"
+msgstr "Chỉnh sửa môi trường"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
@@ -4937,6 +5048,10 @@ msgstr "Bật quyền truy cập micrô trong cài đặt hệ thống của b�
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "Bật thông báo"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Enable on host"
+msgstr "Bật trên máy chủ"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable plugin"
@@ -5080,6 +5195,10 @@ msgstr "Nhập JSON hợp lệ."
 msgid "Environment"
 msgstr "Môi trường"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Environment name"
+msgstr "Tên môi trường"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable name"
 msgstr "Tên biến môi trường"
@@ -5111,6 +5230,7 @@ msgstr "lỗi"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
@@ -5317,6 +5437,10 @@ msgstr "Người thắng do trình đánh giá thử nghiệm chọn phải nằ
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Experiment prompt must not be blank"
 msgstr "Lời nhắc thử nghiệm không được để trống"
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "Experiments are unavailable on this host. The change was not saved."
+msgstr "Không thể sử dụng thử nghiệm trên máy chủ này. Thay đổi chưa được lưu."
 
 #: src/renderer/actions/experimentActions.ts
 msgid "Experiments run on the machine hosting the project. Open the project on its host to run an experiment."
@@ -6247,9 +6371,25 @@ msgstr "phạm vi thư mục chính"
 msgid "Homepage"
 msgstr "Trang chủ"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host credential reference"
+msgstr "Tham chiếu thông tin xác thực máy chủ"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host credential reference (optional)"
+msgstr "Tham chiếu thông tin xác thực máy chủ (không bắt buộc)"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "Máy chủ đã được cập nhật."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host key mismatch"
+msgstr "Khóa máy chủ không khớp"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host key trust accepted."
+msgstr "Đã chấp nhận tin cậy khóa máy chủ."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
@@ -6262,6 +6402,15 @@ msgstr "Không thể cập nhật máy chủ."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host version: {currentVersion}"
 msgstr "Phiên bản máy chủ: {currentVersion}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Host-owned environment"
+msgstr "Môi trường thuộc máy chủ"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
+msgid "Host-owned environments"
+msgstr "Môi trường thuộc máy chủ"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
@@ -6307,6 +6456,10 @@ msgstr "Định danh"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Identity and usage stats"
 msgstr "Danh tính và số liệu sử dụng"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Identity changed"
+msgstr "Danh tính đã thay đổi"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Identity file"
@@ -6930,6 +7083,14 @@ msgstr "Để lại bình luận"
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Để trống để dùng nhánh mặc định của kho lưu trữ."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Leave the credential reference empty to keep the current one."
+msgstr "Để trống tham chiếu thông tin xác thực để giữ nguyên thông tin hiện tại."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Legacy connection id"
+msgstr "ID kết nối cũ"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Ít"
@@ -6999,6 +7160,10 @@ msgstr "Liệt kê nhiệm vụ"
 #~ msgid "Live {0}"
 #~ msgstr "Trực tuyến {0}"
 
+#: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
+msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
+msgstr "Cập nhật trực tiếp bị tạm dừng cho {droppedRuntimeThreadCount, plural, other {# luồng}} vì cửa sổ này vượt quá giới hạn {MANAGED_ITEM_INTERESTS_MAX} luồng phát trực tiếp. Hãy đóng hoặc mở lại một luồng để tiếp tục các luồng bị tạm dừng."
+
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
 msgstr "Trò chuyện thoại trực tiếp"
@@ -7031,6 +7196,10 @@ msgstr "Đang tải khác biệt..."
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Loading editor…"
 msgstr "Đang tải trình chỉnh sửa…"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Loading environments…"
+msgstr "Đang tải môi trường…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
@@ -7399,6 +7568,33 @@ msgstr "Phân biệt chữ hoa/thường"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "Theo hệ thống của bạn, hoặc buộc dùng giao diện sáng hoặc tối."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active agent sessions"
+msgstr "Số phiên tác nhân hoạt động tối đa"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active agent sessions, 0 for unlimited"
+msgstr "Số phiên tác nhân hoạt động tối đa, 0 là không giới hạn"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active generation helpers"
+msgstr "Số trợ lý tạo hoạt động tối đa"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active generation helpers, 0 for unlimited"
+msgstr "Số trợ lý tạo hoạt động tối đa, 0 là không giới hạn"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active terminal shells"
+msgstr "Số shell terminal hoạt động tối đa"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active terminal shells, 0 for unlimited"
+msgstr "Số shell terminal hoạt động tối đa, 0 là không giới hạn"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -7866,6 +8062,10 @@ msgstr "Mức suy luận dùng nhiều nhất"
 msgid "Move"
 msgstr "Di chuyển"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
+msgstr "Di chuyển kết nối SSH cục bộ trên thiết bị hiện có sang môi trường này bằng ID kết nối. Khóa không bao giờ được tải lên."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Chuyển trình duyệt về cửa sổ chính"
@@ -8023,6 +8223,10 @@ msgstr "Cần chú ý · Cần trả lời"
 msgid "Needs attention on {0}"
 msgstr "Cần chú ý trên {0}"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Needs repair"
+msgstr "Cần sửa chữa"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Cần trả lời"
@@ -8066,6 +8270,10 @@ msgstr "Khóa API của hồ sơ Cursor mới"
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #~ msgid "New Cursor profile name"
 #~ msgstr "Tên hồ sơ Cursor mới"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "New environment"
+msgstr "Môi trường mới"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "New experiment"
@@ -8423,6 +8631,10 @@ msgstr "Không tìm thấy tài khoản GitHub CLI nào. Đăng nhập bằng <0
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Chưa có lịch sử"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "No host-owned environments on this server yet."
+msgstr "Máy chủ này chưa có môi trường thuộc máy chủ."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "No icons found"
@@ -8810,6 +9022,10 @@ msgstr "Thông báo cho tôi về"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "npx"
 msgstr "npx"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Observed"
+msgstr "Đã quan sát"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
@@ -9329,6 +9545,10 @@ msgstr "Ghi đè {conflict}"
 msgid "Overriding the global setting for this project."
 msgstr "Ghi đè cài đặt chung cho dự án này."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Owner unverified"
+msgstr "Chủ sở hữu chưa xác minh"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Package"
 msgstr "Gói"
@@ -9374,6 +9594,10 @@ msgstr "Ghép đôi điện thoại, máy tính bảng hoặc trình duyệt v�
 #~ msgid "Pair again"
 #~ msgstr "Ghép đôi lại"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Pair this device"
+msgstr "Ghép nối thiết bị này"
+
 #: src/renderer/views/MainView/parts/BrowserRemoteConnectionGate.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9383,6 +9607,11 @@ msgstr "Ghép nối với Poracode"
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
 msgid "Pair with Poracode on your desktop to sync threads, projects, and settings."
 msgstr "Ghép nối với Poracode trên máy tính để đồng bộ luồng, dự án và cài đặt."
+
+#. placeholder {0}: record.label
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Paired {0} on this device."
+msgstr "Đã ghép nối {0} trên thiết bị này."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -9446,6 +9675,14 @@ msgstr "Thư mục cha"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "Thư mục cha, ví dụ /home/me/projects"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
+msgstr "Một phần lịch sử của cuộc trò chuyện này có thể bị thiếu trên máy chủ. Hãy xem các tùy chọn khôi phục trước khi tiếp tục."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
+msgstr "Một phần lịch sử của cuộc trò chuyện này đã bị mất trên máy chủ và không thể hiển thị. Ít nhất {refusedEvents} sự kiện / {refusedBytes} byte bị ảnh hưởng."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
@@ -9657,6 +9894,7 @@ msgid "Pink"
 msgstr "Hồng"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
 msgstr "Đã ghim"
 
@@ -9834,6 +10072,7 @@ msgstr "Công cụ trình duyệt tích hợp sẵn của Poracode."
 #~ msgstr "poracode/my-branch"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Port"
 msgstr "Cổng"
 
@@ -10002,6 +10241,10 @@ msgstr "Chính sách quyền riêng tư"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
 #~ msgstr "Khóa riêng"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Probe host key"
+msgstr "Dò khóa máy chủ"
 
 #. placeholder {0}: updateAllProgress.agentLabel
 #. placeholder {1}: updateAllProgress.current
@@ -10802,6 +11045,11 @@ msgstr "Xóa ứng viên {0}"
 msgid "Remove connection"
 msgstr "Xóa kết nối"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove connection and environments"
+msgstr "Xóa kết nối và môi trường"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #~ msgid "Remove Cursor profile"
 #~ msgstr "Xóa hồ sơ Cursor"
@@ -10891,6 +11139,11 @@ msgstr "Hãy xóa các thử nghiệm của dự án trước khi xóa dự án.
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Xóa thông tin đăng nhập đã lưu của nhà cung cấp này? Bạn có thể kết nối lại từ “Thêm nhà cung cấp”."
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove this connection?"
+msgstr "Xóa kết nối này?"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -11169,10 +11422,12 @@ msgstr "Tiếp tục tin nhắn tiếp theo trong hàng đợi"
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11314,6 +11569,10 @@ msgstr "Xem lại PR #{prNumber} cho {0}"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Review presentation"
 msgstr "Hiển thị đánh giá"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Review recovery"
+msgstr "Xem khôi phục"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"
@@ -11469,6 +11728,10 @@ msgstr "Chạy trước khi cây làm việc bị xóa (ví dụ: <0>rm -rf node
 msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 msgstr "Chạy trong terminal sau khi cây làm việc mới được tạo (ví dụ: <0>pnpm install</0>)."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Runs on this server. Credentials stay on the server."
+msgstr "Chạy trên máy chủ này. Thông tin xác thực vẫn ở trên máy chủ."
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Runs out early"
 msgstr "Hết sớm"
@@ -11514,6 +11777,7 @@ msgstr "Độ bão hòa và độ sáng"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -12523,6 +12787,10 @@ msgstr "Không thể xóa một số cây làm việc của các ứng viên kh�
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
 msgstr "Không thể quét một số thư mục của nhà cung cấp. Các skill đã tải thành công vẫn được hiển thị."
 
+#: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
+msgid "Some threads are paused"
+msgstr "Một số luồng đã tạm dừng"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Có lỗi khi khởi động camera. Hãy nhập endpoint và token bên dưới để ghép đôi thay thế."
@@ -12600,6 +12868,7 @@ msgstr "Kết nối SSH thất bại."
 msgid "SSH hostname"
 msgstr "Tên máy chủ SSH"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "SSH port"
 msgstr "Cổng SSH"
@@ -12608,9 +12877,9 @@ msgstr "Cổng SSH"
 msgid "SSH port (optional)"
 msgstr "Cổng SSH (không bắt buộc)"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "SSH target"
-#~ msgstr "Đích SSH"
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "SSH target"
+msgstr "Đích SSH"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -12760,6 +13029,10 @@ msgstr "Đang khởi động camera…"
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Starting remotely…"
 #~ msgstr "Đang khởi động từ xa…"
+
+#: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
+msgid "Starting the desktop's own server…"
+msgstr "Đang khởi động máy chủ riêng của máy tính…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -13318,6 +13591,10 @@ msgstr "Phiên từ xa đó đã không còn."
 #~ msgid "the {0} WSL user"
 #~ msgstr "người dùng WSL {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The acknowledgement failed."
+msgstr "Xác nhận không thành công."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "tác nhân"
@@ -13363,6 +13640,41 @@ msgstr "Nhịp làm mới nền mặc định, được dùng cho mọi nhà cun
 msgid "The desktop server is still coming online."
 msgstr "Máy chủ trên máy tính vẫn đang khởi động."
 
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+msgid "The desktop's own catalog read failed."
+msgstr "Không thể đọc danh mục riêng của máy tính."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "The desktop's own server is not connected yet."
+msgstr "Máy chủ riêng của máy tính chưa được kết nối."
+
+#: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/managedParentRuntime.ts
+msgid "The desktop's own server is not connected."
+msgstr "Máy chủ riêng của máy tính để bàn chưa kết nối."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The desktop's own server is not connected. The experiment change was not saved."
+msgstr "Chưa kết nối với máy chủ riêng của ứng dụng máy tính. Thay đổi của thử nghiệm chưa được lưu."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+#: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+msgid "The desktop's own server is not connected. Your change was not saved."
+msgstr "Máy chủ riêng của máy tính chưa được kết nối. Thay đổi của bạn chưa được lưu."
+
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "The desktop's own server reconnected before the history read completed."
+msgstr "Máy chủ riêng của máy tính đã kết nối lại trước khi quá trình đọc lịch sử hoàn tất."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+msgid "The desktop's own server refused the change."
+msgstr "Máy chủ riêng của máy tính đã từ chối thay đổi."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The environment changed on the host. Refresh and try again."
+msgstr "Môi trường đã thay đổi trên máy chủ. Làm mới và thử lại."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/actions/experimentWorktreeActions.ts
 #: src/renderer/i18n/sharedMessages.ts
@@ -13370,9 +13682,25 @@ msgstr "Máy chủ trên máy tính vẫn đang khởi động."
 msgid "The experiment candidate worktree is unavailable."
 msgstr "Cây làm việc của ứng viên thử nghiệm không khả dụng."
 
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment changed on the host while it was being saved. Reload and try again."
+msgstr "Thử nghiệm đã thay đổi trên máy chủ trong khi đang lưu. Hãy tải lại rồi thử lại."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment no longer exists on the host."
+msgstr "Thử nghiệm không còn tồn tại trên máy chủ."
+
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "Lời nhắc thử nghiệm quá dài."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment state could not be verified."
+msgstr "Không thể xác minh trạng thái của thử nghiệm."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment state is too large to load or change safely."
+msgstr "Trạng thái thử nghiệm quá lớn để tải hoặc thay đổi một cách an toàn."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
@@ -13383,10 +13711,31 @@ msgstr "Tài khoản GitHub \"{login}\" thuộc về {host}, không khớp với
 msgid "the global {0} WSL scope"
 msgstr "phạm vi WSL toàn cục {0}"
 
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/state/remote/historyNoticeActions.ts
+msgid "The history notice could not be read from the server."
+msgstr "Không thể đọc thông báo lịch sử từ máy chủ."
+
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "The host is restarting to install the update."
 msgstr "Máy chủ đang khởi động lại để cài đặt bản cập nhật."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The host rejected the request."
+msgstr "Máy chủ đã từ chối yêu cầu."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The host returned an invalid environment pairing endpoint."
+msgstr "Máy chủ trả về điểm cuối ghép nối môi trường không hợp lệ."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
+msgstr "Máy chủ dừng và khởi động lại chủ sở hữu của môi trường này bằng thời gian chạy đi kèm. Thư mục dữ liệu của con không bị thay đổi."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
+msgstr "Thông báo lịch sử không đầy đủ đã thay đổi trên máy chủ. Hãy xem chi tiết cập nhật trước khi tiếp tục."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -13407,6 +13756,28 @@ msgstr "Máy chủ MCP không hợp lệ."
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đoán bên dưới được hiển thị trước khi tải lại để có thể điều tra lỗi."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/sessionReconnect.ts
+#: src/renderer/state/remoteServers/storeClient.ts
+msgid "The paired server that owns this environment is not connected."
+msgstr "Máy chủ đã ghép nối sở hữu môi trường này chưa kết nối."
+
+#: src/renderer/state/remoteServers/snapshotProjection.ts
+msgid "The remote catalog read failed."
+msgstr "Không thể đọc danh mục từ xa."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again."
+msgstr "Helper từ xa không dừng trong cửa sổ tắt máy và vẫn đang chạy. Hãy dừng nó trên máy chủ từ xa rồi thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect."
+msgstr "Máy chủ từ xa có Poracode Helper mà ứng dụng khách này không thể xác minh. Hãy dừng helper từ xa rồi kết nối lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version."
+msgstr "Máy chủ từ xa đang chạy Poracode Helper không tương thích ({version}). Hãy dừng helper từ xa rồi kết nối lại để cài đặt phiên bản của ứng dụng này."
 
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "The remote Poracode server returned no pairing credential."
@@ -13447,6 +13818,10 @@ msgstr "Mô hình đã chọn so sánh ảnh chụp nhanh các thay đổi của
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
 msgstr "Cấu hình máy chủ không hợp lệ."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The server could not confirm the acknowledgement. Retry to continue."
+msgstr "Máy chủ không thể xác nhận việc xác nhận. Thử lại để tiếp tục."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server returned an invalid MCP response."
@@ -13584,6 +13959,10 @@ msgstr "Khóa API này xác thực các cuộc trò chuyện SDK của hồ sơ 
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Trình duyệt này không hỗ trợ thông báo hệ thống ở đây; bạn vẫn sẽ thấy thông báo trong ứng dụng."
 
+#: src/renderer/actions/experimentResponseReads.ts
+msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
+msgstr "Phản hồi của ứng viên này quá lớn để so sánh. Hãy tách thử nghiệm hoặc rút ngắn bản ghi hội thoại."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "This catalog manages downloads through its website."
 #~ msgstr "Danh mục này quản lý bản tải xuống thông qua trang web."
@@ -13608,6 +13987,10 @@ msgstr "Máy tính này"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Kết nối này có thể xem dự án nhưng không thể quản lý. Hãy ghép nối lại để bật."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
+msgstr "Kết nối này sở hữu các bản ghi môi trường thuộc máy chủ trên thiết bị này. Xóa nó cũng xóa các bản ghi cục bộ đó và quyền của thiết bị. Máy chủ vẫn giữ các môi trường của mình."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Máy tính này"
@@ -13627,6 +14010,14 @@ msgstr "Thiết bị này không có camera dùng được. Hãy dán liên kế
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
 msgstr "môi trường này"
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "This environment's host identity changed. Re-pair it explicitly from the host."
+msgstr "Danh tính máy chủ của môi trường này đã thay đổi. Ghép nối lại rõ ràng từ máy chủ."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "This episode has been acknowledged; the missing content is not restored."
+msgstr "Tập này đã được xác nhận; nội dung bị thiếu không được khôi phục."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
@@ -13744,6 +14135,10 @@ msgstr "Tin nhắn tiếp theo trong hàng đợi này đang được gửi."
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Thao tác này sẽ xóa các tin nhắn sau này và khôi phục các tệp khi có ảnh chụp nhanh điểm kiểm tra."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "This removes the environment from the host. The server's child workspace is not deleted."
+msgstr "Thao tác này xóa môi trường khỏi máy chủ. Không gian làm việc con của máy chủ không bị xóa."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This removes the schedule and its latest result from this device."
 msgstr "Thao tác này xóa lịch biểu và kết quả mới nhất khỏi thiết bị này."
@@ -13758,6 +14153,14 @@ msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\" và đóng {1, p
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Thao tác này sẽ xóa cây làm việc trên \"{0}\", sau đó xóa nhánh."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+msgid "This server does not support the bounded catalog read."
+msgstr "Máy chủ này không hỗ trợ đọc danh mục giới hạn."
+
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "This server does not support the bounded history read."
+msgstr "Máy chủ này không hỗ trợ đọc lịch sử giới hạn."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -14444,6 +14847,10 @@ msgstr "Không thể cập nhật URL công khai."
 #~ msgid "Unable to update the thread."
 #~ msgstr "Không thể cập nhật luồng."
 
+#: src/renderer/hostTransport/loopbackHttpWsTransport.ts
+msgid "Unable to verify the desktop's own server."
+msgstr "Không thể xác minh máy chủ riêng của máy tính để bàn."
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
@@ -14604,6 +15011,10 @@ msgstr "chưa đưa vào staging"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Không được hỗ trợ"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Unverified"
+msgstr "Chưa xác minh"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -14801,6 +15212,18 @@ msgstr "Đang cập nhật trong terminal này. Sẽ đóng khi hoàn tất."
 msgid "Updating to v{0}"
 msgstr "Đang cập nhật lên v{0}"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade"
+msgstr "Nâng cấp"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade environment owner"
+msgstr "Nâng cấp chủ sở hữu môi trường"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade owner"
+msgstr "Nâng cấp chủ sở hữu"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "URL"
@@ -14935,6 +15358,10 @@ msgstr "Dùng cho các phiên tương tác mới trong bảng terminal."
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "user@example.com"
 #~ msgstr "user@example.com"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "user@host"
+msgstr "user@host"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

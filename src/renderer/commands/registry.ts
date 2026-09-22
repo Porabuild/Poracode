@@ -15,6 +15,11 @@ import { captureThreadPromptSubmitted } from "@/renderer/analytics/posthog";
 import { addExistingProject } from "@/renderer/actions/createProjectActions";
 import { getCurrentProjectId, resolveActivePaneId } from "@/renderer/actions/currentProject";
 import {
+  isRemoteCommandOutcomeUncertainError,
+  notifyThreadCommandOutcomeUncertain,
+  reconcileThreadCommandOutcome,
+} from "@/renderer/actions/threadCommandOutcomeActions";
+import {
   openChangelogSettings,
   openFilesPanel,
   openGitReview,
@@ -493,11 +498,23 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
     when: "hasThread",
     showInShortcuts: false,
     run: async () => {
-      await readBridge().sendThreadInput({
-        threadId: thread.id,
-        prompt: `/${command.id}`,
-        config: thread.config,
-      });
+      try {
+        await readBridge().sendThreadInput({
+          threadId: thread.id,
+          prompt: `/${command.id}`,
+          config: thread.config,
+        });
+      } catch (error) {
+        // The host may have applied the command without being able to confirm
+        // it: explain the uncertainty and run one bounded authoritative read —
+        // never a resend, and no success bookkeeping.
+        if (isRemoteCommandOutcomeUncertainError(error)) {
+          notifyThreadCommandOutcomeUncertain();
+          await reconcileThreadCommandOutcome(thread);
+          return;
+        }
+        throw error;
+      }
       captureThreadPromptSubmitted(thread, `/${command.id}`, undefined, "command_palette");
       useAppStore.getState().touchThread(thread.id);
     },

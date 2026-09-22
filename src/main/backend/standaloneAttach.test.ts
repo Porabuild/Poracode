@@ -462,7 +462,7 @@ describe("standalone attach decision", () => {
     const modulePath = join(process.cwd(), "src/main/backend/standaloneAttach.ts");
     const source = readFileSync(modulePath, "utf8");
     for (const forbidden of [
-      'from "@/main/db"',
+      'from "@/host/db"',
       "initDatabase(",
       "getSqlite(",
       "HostOwnerLease.acquire",

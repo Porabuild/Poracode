@@ -1,139 +1,63 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { useShallow } from "zustand/shallow";
-import type { Experiment, ExperimentCrown } from "@/shared/contracts";
-import {
-  EXPERIMENT_STORE_KEY,
-  EXPERIMENT_STORE_VERSION,
-  experimentSchema,
-} from "@/shared/contracts";
-import { createDbStorage } from "./dbStorage";
+import type { Experiment } from "@/shared/contracts";
+
+/**
+ * In-memory projection of the host's canonical experiment store.
+ *
+ * The durable authority for experiments is the co-located backend host
+ * (`GET /api/experiments` + `/api/experiments/{id}/command`, capability
+ * `experiments` v1). This store holds a memory-only projection of that state:
+ * it NEVER persists through `dbSetState` and never writes a whole-map
+ * fallback. (The legacy `dbPersistExperimentState` IPC writer is removed —
+ * hop 16.) Every durable change is an explicit host
+ * command issued by `rootExperimentAuthority.ts`.
+ *
+ * The projection is intentionally narrow: `replaceExperiments` installs the
+ * canonical host records, `upsertExperiment` installs one confirmed record,
+ * and `removeExperiment` drops only a host-confirmed removal. Local optimistic
+ * paints (rename) are display-only and are overwritten by the next
+ * authoritative projection.
+ */
 
 interface ExperimentStore {
   experiments: Record<string, Experiment>;
   addExperiment: (experiment: Experiment) => void;
-  renameExperiment: (experimentId: string, title: string) => void;
-  setExperimentCrown: (experimentId: string, crown: ExperimentCrown) => void;
-  decideExperiment: (experimentId: string, winnerThreadId: string) => void;
+  upsertExperiment: (experiment: Experiment) => void;
+  replaceExperiments: (experiments: Record<string, Experiment>) => void;
   removeExperiment: (experimentId: string) => void;
   removeProjectExperiments: (projectId: string) => void;
-  reconcileExperiments: (projectIds: ReadonlySet<string>) => void;
 }
 
-function parseExperiments(value: unknown): Record<string, Experiment> {
-  if (!value || typeof value !== "object") return {};
-  const parsed: Record<string, Experiment> = {};
-  for (const [id, candidate] of Object.entries(value)) {
-    const result = experimentSchema.safeParse(candidate);
-    if (result.success && result.data.id === id) parsed[id] = result.data;
-  }
-  return parsed;
-}
-
-export const useExperimentStore = create<ExperimentStore>()(
-  persist(
-    (set) => ({
-      experiments: {},
-      addExperiment: (experiment) =>
-        set((state) => ({
-          experiments: { ...state.experiments, [experiment.id]: experiment },
-        })),
-      renameExperiment: (experimentId, title) =>
-        set((state) => {
-          const experiment = state.experiments[experimentId];
-          const trimmed = title.trim();
-          if (!experiment || !trimmed || trimmed === experiment.title) return state;
-          return {
-            experiments: {
-              ...state.experiments,
-              [experimentId]: {
-                ...experiment,
-                title: trimmed,
-                updatedAt: new Date().toISOString(),
-              },
-            },
-          };
-        }),
-      setExperimentCrown: (experimentId, crown) =>
-        set((state) => {
-          const experiment = state.experiments[experimentId];
-          if (!experiment) return state;
-          return {
-            experiments: {
-              ...state.experiments,
-              [experimentId]: {
-                ...experiment,
-                crown,
-                updatedAt: new Date().toISOString(),
-              },
-            },
-          };
-        }),
-      decideExperiment: (experimentId, winnerThreadId) =>
-        set((state) => {
-          const experiment = state.experiments[experimentId];
-          if (
-            !experiment ||
-            !experiment.candidates.some((item) => item.threadId === winnerThreadId)
-          ) {
-            return state;
-          }
-          return {
-            experiments: {
-              ...state.experiments,
-              [experimentId]: {
-                ...experiment,
-                winnerThreadId,
-                status: "decided",
-                updatedAt: new Date().toISOString(),
-              },
-            },
-          };
-        }),
-      removeExperiment: (experimentId) =>
-        set((state) => {
-          if (!(experimentId in state.experiments)) return state;
-          const { [experimentId]: _removed, ...experiments } = state.experiments;
-          return { experiments };
-        }),
-      removeProjectExperiments: (projectId) =>
-        set((state) => {
-          const experiments = Object.fromEntries(
-            Object.entries(state.experiments).filter(
-              ([, experiment]) => experiment.projectId !== projectId,
-            ),
-          );
-          return Object.keys(experiments).length === Object.keys(state.experiments).length
-            ? state
-            : { experiments };
-        }),
-      reconcileExperiments: (projectIds) =>
-        set((state) => {
-          const experiments = Object.fromEntries(
-            Object.entries(state.experiments).filter(([, experiment]) =>
-              projectIds.has(experiment.projectId),
-            ),
-          );
-          return Object.keys(experiments).length === Object.keys(state.experiments).length
-            ? state
-            : { experiments };
-        }),
+export const useExperimentStore = create<ExperimentStore>()((set) => ({
+  experiments: {},
+  addExperiment: (experiment) =>
+    set((state) => ({
+      experiments: { ...state.experiments, [experiment.id]: experiment },
+    })),
+  upsertExperiment: (experiment) =>
+    set((state) => ({
+      experiments: { ...state.experiments, [experiment.id]: experiment },
+    })),
+  replaceExperiments: (experiments) => set({ experiments }),
+  removeExperiment: (experimentId) =>
+    set((state) => {
+      if (!(experimentId in state.experiments)) return state;
+      const { [experimentId]: _removed, ...experiments } = state.experiments;
+      return { experiments };
     }),
-    {
-      name: EXPERIMENT_STORE_KEY,
-      version: EXPERIMENT_STORE_VERSION,
-      storage: createDbStorage(),
-      merge: (persistedState, currentState) => {
-        const persisted = persistedState as { experiments?: unknown } | undefined;
-        return {
-          ...currentState,
-          experiments: parseExperiments(persisted?.experiments),
-        };
-      },
-      partialize: (state) => ({ experiments: state.experiments }) as ExperimentStore,
-    },
-  ),
-);
+  removeProjectExperiments: (projectId) =>
+    set((state) => {
+      const experiments = Object.fromEntries(
+        Object.entries(state.experiments).filter(
+          ([, experiment]) => experiment.projectId !== projectId,
+        ),
+      );
+      return Object.keys(experiments).length === Object.keys(state.experiments).length
+        ? state
+        : { experiments };
+    }),
+}));
 
 export function useExperimentCandidateOrder(projectId?: string): ReadonlyMap<string, number> {
   return useExperimentStore(

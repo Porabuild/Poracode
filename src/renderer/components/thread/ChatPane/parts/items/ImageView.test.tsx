@@ -1,9 +1,12 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ImageLightboxHost } from "@/renderer/components/composer";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
+import { ChatPaneActionsContext } from "../../chatPaneActionsContext";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
+import { remoteImageRef } from "@/shared/remote";
 import { ImageView } from "./ImageView";
 
 const PNG_BASE64 =
@@ -142,6 +145,72 @@ describe("ImageView", () => {
     expect(image).toHaveStyle({
       transform: "translate3d(50px, 25px, 0) scale(1.5)",
     });
+  });
+
+  it("renders a reserved slot, then the blob after one keyed notification (R3)", () => {
+    let url = "";
+    const listeners = new Set<() => void>();
+    let requests = 0;
+    let subscribes = 0;
+    const readiness: RemoteImageReadiness = {
+      resolveRef: () => url,
+      subscribeRef: (_ref, listener) => {
+        subscribes += 1;
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      requestRef: () => {
+        requests += 1;
+      },
+      resolvePath: () => "",
+      subscribePath: () => () => undefined,
+      requestPath: () => undefined,
+    };
+    const ref = {
+      threadId: "thread-1",
+      itemId: "item-1",
+      path: ["result", "images", 0] as const,
+      mime: "image/png",
+      bytes: 3,
+      preview: `data:image/png;base64,${PNG_BASE64}`,
+    };
+    const view = render(
+      <AppProvider>
+        <ChatPaneActionsContext.Provider
+          value={{
+            threadId: "thread-1",
+            remoteImageRefUrl: readiness.resolveRef,
+            remoteImageReadiness: readiness,
+          }}
+        >
+          <ImageView
+            item={imageItem({
+              name: "image_view",
+              status: "success",
+              result: { images: [remoteImageRef(ref)] },
+            })}
+          />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>,
+    );
+
+    // Pending: no `<img>` request, but the reserved slot and the keyed
+    // subscription exist, and exactly one fetch was requested from the effect.
+    expect(screen.queryByAltText("Generated image")).toBeNull();
+    expect(subscribes).toBe(1);
+    expect(requests).toBe(1);
+
+    act(() => {
+      url = "blob:environment-1";
+      for (const listener of [...listeners]) listener();
+    });
+    const img = screen.getByAltText("Generated image") as HTMLImageElement;
+    expect(img.getAttribute("src")).toBe("blob:environment-1");
+    // A resolved snapshot is never re-requested in a loop.
+    expect(requests).toBe(1);
+
+    view.unmount();
+    expect(listeners.size).toBe(0);
   });
 
   it("falls back to the tool-call row when the result is not an image", () => {

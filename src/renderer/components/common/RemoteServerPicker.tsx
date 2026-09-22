@@ -5,6 +5,7 @@ import { useLingui } from "@lingui/react/macro";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { ResponsiveMenuSurface } from "@/renderer/components/common/ResponsiveMenuSurface";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { RemoteServerIcon } from "./RemoteServerIcon";
 
@@ -22,9 +23,10 @@ export function RemoteServerPicker(props: {
   const runtime = useRemoteServersStore((state) => state.runtime);
   const [open, setOpen] = useState(false);
   const effectiveValue =
-    props.value ?? (!props.includeLocal ? (servers[0]?.desktopId ?? null) : null);
+    props.value ??
+    (!props.includeLocal ? (servers[0] ? remoteConnectionKey(servers[0]) : null) : null);
   const selected = effectiveValue
-    ? servers.find((server) => server.desktopId === effectiveValue)
+    ? servers.find((server) => remoteConnectionKey(server) === effectiveValue)
     : undefined;
   const label = selected
     ? desktopTitle(selected.label)
@@ -59,7 +61,7 @@ export function RemoteServerPicker(props: {
           >
             {selected ? (
               <RemoteServerIcon
-                status={runtime[selected.desktopId]?.status ?? "offline"}
+                status={runtime[remoteConnectionKey(selected)]?.status ?? "offline"}
                 className="size-3.5"
                 dotClassName="size-1"
               />
@@ -86,14 +88,14 @@ export function RemoteServerPicker(props: {
         ) : null}
         {servers.map((server) => (
           <button
-            key={server.desktopId}
+            key={remoteConnectionKey(server)}
             type="button"
             className="m-sheet-action"
-            onClick={() => choose(server.desktopId)}
+            onClick={() => choose(remoteConnectionKey(server))}
           >
-            <RemoteServerIcon status={runtime[server.desktopId]?.status ?? "offline"} />
+            <RemoteServerIcon status={runtime[remoteConnectionKey(server)]?.status ?? "offline"} />
             <span className="min-w-0 flex-1 truncate">{desktopTitle(server.label)}</span>
-            {effectiveValue === server.desktopId ? (
+            {effectiveValue === remoteConnectionKey(server) ? (
               <Check className="size-4 shrink-0 text-accent" />
             ) : null}
           </button>

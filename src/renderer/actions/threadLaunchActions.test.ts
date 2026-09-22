@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { RemoteClientError } from "@/shared/remote/client";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 
 function deferred<T>() {
@@ -85,6 +86,11 @@ const mocks = vi.hoisted(() => {
       vi.fn<(project: Project, path: string, branch?: string) => Promise<boolean>>(),
     refreshGitProject: vi.fn<(project: unknown, reason: string, scope: string) => Promise<void>>(),
     generateTitleAsync: vi.fn<(...args: unknown[]) => void>(),
+    notifyThreadCommandOutcomeUncertain: vi.fn<() => void>(),
+    reconcileThreadCommandOutcome: vi.fn<(thread: Thread) => Promise<boolean>>(async () => true),
+    reconcileRemoteThreadCommandOutcome: vi.fn<
+      (desktopId: string, remoteId: string) => Promise<boolean>
+    >(async () => true),
   };
 });
 
@@ -155,6 +161,16 @@ vi.mock("./worktreeLaunchActions", () => ({
 vi.mock("./worktreeActions", () => ({
   performWorktreeRemoval: mocks.performWorktreeRemoval,
 }));
+
+vi.mock("./threadCommandOutcomeActions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./threadCommandOutcomeActions")>();
+  return {
+    ...actual,
+    notifyThreadCommandOutcomeUncertain: mocks.notifyThreadCommandOutcomeUncertain,
+    reconcileThreadCommandOutcome: mocks.reconcileThreadCommandOutcome,
+    reconcileRemoteThreadCommandOutcome: mocks.reconcileRemoteThreadCommandOutcome,
+  };
+});
 
 import { performInitialThreadLaunch, startThreadFromDraft } from "./threadLaunchActions";
 
@@ -783,6 +799,37 @@ describe("startThreadFromDraft host transport", () => {
       errorMessage: "Host refused launch",
       canResumeWithConfig: false,
     });
+  });
+
+  it("retains remote worktree context when the host start outcome is transport-ambiguous", async () => {
+    mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
+    mocks.createWorktree.mockResolvedValue({ path: "/srv/worktrees/feature" });
+    // A dispatched timeout: the start may have committed, so nothing may be
+    // unwound and no definite failure may be painted.
+    mocks.remoteState.launchRemoteThread.mockRejectedValue(
+      new RemoteClientError("timed out", 0, "timeout", {
+        requestPhase: "dispatched",
+        requestMayHaveCommitted: true,
+      }),
+    );
+
+    await expect(
+      startThreadFromDraft(remoteProject, {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build remotely",
+        worktreeBranch: "feature",
+        worktreeIsNewBranch: true,
+      }),
+    ).rejects.toMatchObject({ status: 0, code: "timeout" });
+
+    expect(mocks.performWorktreeRemoval).not.toHaveBeenCalled();
+    expect(mocks.notifyThreadCommandOutcomeUncertain).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileRemoteThreadCommandOutcome).toHaveBeenCalledTimes(1);
+    expect(mocks.appState.updateThreadRuntime).not.toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.objectContaining({ status: "error" }),
+    );
   });
 
   it("refuses to launch on a remote project whose server is offline", async () => {

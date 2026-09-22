@@ -219,9 +219,15 @@ export function createSupervisorEventReducer(
   const runtimeRecoveryInvalidated = new Set<string>();
   let runtimeFlushHandle: number | null = null;
   let backgroundRuntimeFlushHandle: ReturnType<typeof setTimeout> | null = null;
+  let runtimeDrainContinuationHandle: ReturnType<typeof setTimeout> | null = null;
+  let runtimeDrainContinuationFlush: (() => void) | null = null;
   let removeSchedulingListeners: (() => void) | null = null;
 
   const BACKGROUND_RUNTIME_EVENT_BATCH_MS = 250;
+  /** A3 cooperative flush budget, measured per drained slice. The value is an
+   * initial estimate: it keeps one rAF/background task well inside a frame
+   * while still draining bursts in one pass; tune from A0 measurements. */
+  const RUNTIME_FLUSH_BUDGET_MS = 4;
 
   const isForegroundRuntimeThread = (threadId: string): boolean => {
     if (document.visibilityState === "hidden") return false;
@@ -229,26 +235,53 @@ export function createSupervisorEventReducer(
     return view.kind === "thread" && view.panes.includes(threadId);
   };
 
-  const flushPendingRuntimeEvents = (shouldFlush: (threadId: string) => boolean): void => {
+  const scheduleDrainContinuation = (flush: () => void): void => {
+    runtimeDrainContinuationFlush = flush;
+    if (runtimeDrainContinuationHandle !== null) return;
+    runtimeDrainContinuationHandle = setTimeout(() => {
+      runtimeDrainContinuationHandle = null;
+      const next = runtimeDrainContinuationFlush;
+      runtimeDrainContinuationFlush = null;
+      next?.();
+    }, 0);
+  };
+
+  const flushPendingRuntimeEvents = (
+    shouldFlush: (threadId: string) => boolean,
+    budgeted = false,
+  ): void => {
     const stats = { drainedThreads: 0, drainedEvents: 0 };
     const runFlush = (): void => {
       const store = useAppStore.getState();
       const threadMetadata = store.threads;
-      const batches = queue.drain(shouldFlush);
+      const { batches, hasMore } = queue.drainBudgeted(
+        shouldFlush,
+        budgeted ? RUNTIME_FLUSH_BUDGET_MS : Number.POSITIVE_INFINITY,
+      );
       stats.drainedThreads = batches.length;
       stats.drainedEvents = batches.reduce((total, batch) => total + batch.events.length, 0);
-      if (batches.length === 0) return;
-      const applyBatches = (): void => {
-        store.applyRuntimeEventBatches(batches);
-      };
-      if (config.wrapApply) config.wrapApply(applyBatches, stats);
-      else applyBatches();
-      evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
-      config.afterApply?.(batches, {
-        threadMetadata,
-        drainedThreads: stats.drainedThreads,
-        drainedEvents: stats.drainedEvents,
-      });
+      if (batches.length > 0) {
+        const applyBatches = (): void => {
+          store.applyRuntimeEventBatches(batches);
+        };
+        if (config.wrapApply) config.wrapApply(applyBatches, stats);
+        else applyBatches();
+        evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
+        config.afterApply?.(batches, {
+          threadMetadata,
+          drainedThreads: stats.drainedThreads,
+          drainedEvents: stats.drainedEvents,
+        });
+      }
+      if (hasMore && budgeted) {
+        // A3: yield between safe ordered units instead of draining the whole
+        // burst in one task. Order is preserved because each unit is a
+        // contiguous run of one thread's queue.
+        scheduleDrainContinuation(() => {
+          flushPendingRuntimeEvents(shouldFlush, true);
+          schedulePendingRuntimeEvents();
+        });
+      }
     };
     if (config.wrapFlush) config.wrapFlush(runFlush, stats);
     else runFlush();
@@ -266,7 +299,7 @@ export function createSupervisorEventReducer(
     if (hasForeground && runtimeFlushHandle === null) {
       runtimeFlushHandle = requestAnimationFrame(() => {
         runtimeFlushHandle = null;
-        flushPendingRuntimeEvents(isForegroundRuntimeThread);
+        flushPendingRuntimeEvents(isForegroundRuntimeThread, true);
         schedulePendingRuntimeEvents();
       });
     } else if (!hasForeground && runtimeFlushHandle !== null) {
@@ -277,7 +310,7 @@ export function createSupervisorEventReducer(
     if (hasBackground && backgroundRuntimeFlushHandle === null) {
       backgroundRuntimeFlushHandle = setTimeout(() => {
         backgroundRuntimeFlushHandle = null;
-        flushPendingRuntimeEvents((threadId) => !isForegroundRuntimeThread(threadId));
+        flushPendingRuntimeEvents((threadId) => !isForegroundRuntimeThread(threadId), true);
         schedulePendingRuntimeEvents();
       }, BACKGROUND_RUNTIME_EVENT_BATCH_MS);
     } else if (!hasBackground && backgroundRuntimeFlushHandle !== null) {
@@ -534,6 +567,11 @@ export function createSupervisorEventReducer(
       clearTimeout(backgroundRuntimeFlushHandle);
       backgroundRuntimeFlushHandle = null;
     }
+    if (runtimeDrainContinuationHandle !== null) {
+      clearTimeout(runtimeDrainContinuationHandle);
+      runtimeDrainContinuationHandle = null;
+    }
+    runtimeDrainContinuationFlush = null;
     removeSchedulingListeners?.();
     removeSchedulingListeners = null;
     queue.clear();

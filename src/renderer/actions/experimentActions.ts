@@ -5,6 +5,8 @@ import type {
   AgentStatus,
   CreateExperimentWorktreesResult,
   ExperimentCandidate,
+  ExperimentCandidateRowUpdate,
+  ExperimentCandidateThreadCreation,
   ProjectLocation,
   PromptSegment,
   ThreadConfig,
@@ -22,13 +24,20 @@ import { makeThreadTitle, useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { refreshGitProject } from "@/renderer/state/gitRefresh";
+import {
+  commitManagedExperimentChange,
+  commitManagedExperimentCreate,
+  commitManagedExperimentRemoval,
+  isManagedExperimentOutcomeUncertain,
+  requireManagedExperimentAuthority,
+} from "@/renderer/state/managedRootCatalog/rootExperimentAuthority";
 import { requestGeneratedTitle } from "@/renderer/utils/titleGen";
 import {
   detachThreadFromWorktree,
-  persistExperimentOwnershipState,
   removeExperimentCandidateWorktree,
 } from "./experimentWorktreeActions";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
+import { isRemoteCommandOutcomeUncertainError } from "./threadCommandOutcomeActions";
 import { primeWorktreeGitState, runWorktreeSetupScript } from "./worktreeLaunchActions";
 import { worktreePlacementPayload } from "./worktreePlacement";
 
@@ -54,18 +63,71 @@ function candidateLabel(spec: ExperimentCandidateSpec, agent: AgentStatus | unde
   return detail ? `${detail} · ${provider}` : provider;
 }
 
+/**
+ * Persist a generated title through the host authority. The rebase planner is
+ * semantic: it applies the generated title ONLY while the authoritative record
+ * still carries the prompt fallback, so a user's newer title is never
+ * overwritten by a late generation result.
+ */
 function applyExperimentTitle(experimentId: string, title: string, fallbackTitle: string): void {
-  const experiment = useExperimentStore.getState().experiments[experimentId];
-  if (!experiment || experiment.title !== fallbackTitle) return;
-  useExperimentStore.getState().renameExperiment(experimentId, title);
   const trimmed = title.trim();
   if (!trimmed || trimmed === fallbackTitle) return;
-  const candidateIds = new Set(experiment.candidates.map((candidate) => candidate.threadId));
-  useAppStore.setState((state) => ({
-    threads: state.threads.map((thread) =>
-      candidateIds.has(thread.id) ? { ...thread, groupName: trimmed } : thread,
-    ),
-  }));
+  const experiment = useExperimentStore.getState().experiments[experimentId];
+  if (!experiment) return;
+  const candidateIds = experiment.candidates.map((candidate) => candidate.threadId);
+  void commitManagedExperimentChange(experimentId, (record) =>
+    record.title === fallbackTitle
+      ? {
+          record: { ...record, title: trimmed, updatedAt: new Date().toISOString() },
+          rows: record.candidates.map((candidate) => ({
+            threadId: candidate.threadId,
+            groupName: trimmed,
+          })),
+        }
+      : null,
+  )
+    .then((confirmed) => {
+      if (!confirmed) return;
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((thread) =>
+          candidateIds.includes(thread.id) ? { ...thread, groupName: trimmed } : thread,
+        ),
+      }));
+    })
+    .catch((error) => {
+      console.warn("[experiment title-gen] failed to save the generated title:", error);
+    });
+}
+
+/** Confirm a sidebar rename and candidate group names before projecting it. */
+export async function renameExperimentWithAuthority(
+  experimentId: string,
+  title: string,
+): Promise<void> {
+  const experiment = useExperimentStore.getState().experiments[experimentId];
+  const trimmed = title.trim();
+  if (!experiment || !trimmed || trimmed === experiment.title) return;
+  try {
+    const confirmed = await commitManagedExperimentChange(experimentId, (record) => ({
+      record: { ...record, title: trimmed, updatedAt: new Date().toISOString() },
+      rows: record.candidates.map((candidate) => ({
+        threadId: candidate.threadId,
+        groupName: trimmed,
+      })),
+    }));
+    if (confirmed) {
+      const candidateIds = new Set(confirmed.candidates.map((candidate) => candidate.threadId));
+      useAppStore.setState((state) => ({
+        threads: state.threads.map((thread) =>
+          thread.groupId === confirmed.id && candidateIds.has(thread.id)
+            ? { ...thread, groupName: confirmed.title }
+            : thread,
+        ),
+      }));
+    }
+  } catch (error) {
+    toast.danger(friendlyError(error));
+  }
 }
 
 function generateExperimentTitleAsync(
@@ -105,6 +167,15 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
   }
   if (prompt.length > MAX_EXPERIMENT_PROMPT_LENGTH) {
     toast.danger(i18n._(msg`The experiment prompt is too long.`));
+    return null;
+  }
+  // The durable record lives in the co-located host's experiment authority.
+  // Refuse before creating any local row, worktree, or provider launch when
+  // that authority is absent; there is no whole-map fallback.
+  try {
+    await requireManagedExperimentAuthority();
+  } catch (error) {
+    toast.danger(friendlyError(error));
     return null;
   }
 
@@ -149,7 +220,6 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
       label,
     };
   });
-  const plannedThreadIds = plans.map((plan) => plan.threadId);
   const appStore = useAppStore.getState();
   const threads = plans.map((plan) =>
     appStore.createThread({
@@ -165,6 +235,11 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
       groupName: title,
       presentationMode: plan.spec.presentationMode,
       focus: false,
+      // Experiment candidate durability is the host experiment `create`
+      // command below: this row must not be marked as a managed-root
+      // create+launch (the host `start` command would launch it and replace
+      // its metadata). See managedRootCatalog/rootCreateIntent.ts.
+      suppressHostCreateIntent: true,
     }),
   );
   const threadById = new Map(threads.map((thread) => [thread.id, thread] as const));
@@ -200,16 +275,36 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     createdAt: now,
     updatedAt: now,
   };
-  useExperimentStore.getState().addExperiment({
+  const createdRecord = {
     ...experimentBase,
     candidates: plans.map((plan) => candidateRecord(plan)),
+  };
+  useExperimentStore.getState().addExperiment(createdRecord);
+  const threadSpecs: ExperimentCandidateThreadCreation[] = plans.map((plan) => {
+    const thread = threadById.get(plan.threadId)!;
+    return {
+      threadId: thread.id,
+      projectId: project.id,
+      title: plan.label,
+      agentKind: thread.agentKind,
+      ...(thread.agentInstanceId ? { agentInstanceId: thread.agentInstanceId } : {}),
+      config: thread.config,
+      ...(thread.presentationMode ? { presentationMode: thread.presentationMode } : {}),
+      worktreeBranch: plan.worktreeBranch,
+    };
   });
   try {
-    await persistExperimentOwnershipState(plannedThreadIds);
+    // ONE atomic host transaction inserts the record and every candidate row
+    // BEFORE any worktree is prepared or any provider is launched. Only a
+    // definitive failure (proven zero effect) rolls the local rows back; an
+    // uncertain outcome may still have committed, so the local record is kept
+    // and no worktree or provider effect is started.
+    await commitManagedExperimentCreate(createdRecord, threadSpecs);
   } catch (error) {
-    for (const thread of threads) useAppStore.getState().deleteThread(thread.id);
-    useExperimentStore.getState().removeExperiment(experimentId);
-    await persistExperimentOwnershipState(plannedThreadIds).catch(() => undefined);
+    if (!isManagedExperimentOutcomeUncertain(error)) {
+      for (const thread of threads) useAppStore.getState().deleteThread(thread.id);
+      useExperimentStore.getState().removeExperiment(experimentId);
+    }
     toast.danger(friendlyError(error));
     return null;
   }
@@ -269,25 +364,6 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
         : thread;
     }),
   }));
-  useExperimentStore.setState((state) => {
-    const experiment = state.experiments[experimentId];
-    if (!experiment) return state;
-    return {
-      experiments: {
-        ...state.experiments,
-        [experimentId]: {
-          ...experiment,
-          candidates: experiment.candidates.map((candidate) => {
-            const worktree = preparedWorktreeByThreadId.get(candidate.threadId);
-            return worktree
-              ? { ...candidate, worktreePath: worktree.path, worktreeState: "owned" as const }
-              : candidate;
-          }),
-          updatedAt: new Date().toISOString(),
-        },
-      },
-    };
-  });
 
   const preparedIds = new Set<string>(prepared.map((candidate) => candidate.threadId));
   const failedPlans = plans.filter((plan) => !preparedIds.has(plan.threadId));
@@ -301,6 +377,22 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
       failedPlanCleanupComplete = false;
     }
   }
+
+  const cleanupRows = (): ExperimentCandidateRowUpdate[] =>
+    plans.flatMap((plan): ExperimentCandidateRowUpdate[] => {
+      if (cleanedIds.has(plan.threadId)) {
+        return [{ threadId: plan.threadId, worktree: null, fail: true }];
+      }
+      const candidate = prepared.find((item) => item.threadId === plan.threadId);
+      return candidate
+        ? [
+            {
+              threadId: candidate.threadId,
+              worktree: { path: candidate.worktreePath, branch: candidate.worktreeBranch },
+            },
+          ]
+        : [];
+    });
 
   if (prepared.length < 2 || !failedPlanCleanupComplete) {
     let cleanupComplete = failedPlanCleanupComplete;
@@ -321,29 +413,43 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
       });
     }
     if (!cleanupComplete) {
-      const currentExperiment = useExperimentStore.getState().experiments[experimentId];
-      useExperimentStore.getState().addExperiment({
-        ...(currentExperiment ?? experimentBase),
-        candidates: plans.map((plan) => {
-          const candidate = prepared.find((item) => item.threadId === plan.threadId);
-          return candidateRecord(
-            plan,
-            cleanedIds.has(plan.threadId) ? undefined : candidate?.worktreePath,
-            cleanedIds.has(plan.threadId) ? "removed" : candidate ? "owned" : "pending",
-          );
-        }),
-        updatedAt: new Date().toISOString(),
+      const cleanedAt = new Date().toISOString();
+      await commitManagedExperimentChange(experimentId, (record) => ({
+        // Keep the authoritative candidate ownership; only the intended
+        // worktree/failure states and narrow row effects change.
+        record: {
+          ...record,
+          candidates: plans.map((plan) => {
+            const candidate = prepared.find((item) => item.threadId === plan.threadId);
+            return candidateRecord(
+              plan,
+              cleanedIds.has(plan.threadId) ? undefined : candidate?.worktreePath,
+              cleanedIds.has(plan.threadId) ? "removed" : candidate ? "owned" : "pending",
+            );
+          }),
+          updatedAt: cleanedAt,
+        },
+        rows: cleanupRows(),
+      })).catch((error) => {
+        console.error("[experiment] failed to persist partial cleanup", error);
       });
-      await persistExperimentOwnershipState(plannedThreadIds).catch(() => undefined);
       toast.warning(i18n._(msg`Some experiment worktrees could not be removed.`));
     } else {
+      try {
+        // Confirmed host removal deletes the record and every candidate row
+        // (the never-launched candidates need no live-runtime retirement).
+        await commitManagedExperimentRemoval(experimentId, "delete");
+      } catch (error) {
+        toast.danger(friendlyError(error));
+        void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
+        return experimentId;
+      }
       for (const thread of threads) useAppStore.getState().deleteThread(thread.id);
       useExperimentStore.getState().removeExperiment(experimentId);
       const currentView = useAppStore.getState().view;
       if (currentView.kind === "experiment" && currentView.experimentId === experimentId) {
         useAppStore.getState().openHome();
       }
-      await persistExperimentOwnershipState(plannedThreadIds).catch(() => undefined);
       toast.danger(
         i18n._(msg`At least two worktrees must be created. Any partial experiment was cleaned up.`),
       );
@@ -352,35 +458,62 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
     return cleanupComplete ? null : experimentId;
   }
 
-  for (const thread of threads) {
-    if (!preparedIds.has(thread.id)) useAppStore.getState().deleteThread(thread.id);
-  }
   const preparedThreads = prepared.map((candidate) =>
     useAppStore.getState().threads.find((thread) => thread.id === candidate.threadId)!,
   );
-  const currentExperiment = useExperimentStore.getState().experiments[experimentId];
-  useExperimentStore.getState().addExperiment({
-    ...(currentExperiment ?? experimentBase),
-    candidates: prepared.map((candidate) =>
-      candidateRecord(candidate, candidate.worktreePath, "owned"),
-    ),
-    updatedAt: new Date().toISOString(),
+  for (const plan of failedPlans) {
+    // The host row for a failed candidate is preserved (never deleted) and
+    // marked failed/detached through the confirmed update below; locally the
+    // candidate is shown as errored instead of disappearing.
+    useAppStore.getState().updateThreadRuntime(plan.threadId, {
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: false,
+    });
+  }
+  const finalCandidates = plans.map((plan) => {
+    const candidate = prepared.find((item) => item.threadId === plan.threadId);
+    return candidate
+      ? candidateRecord(candidate, candidate.worktreePath, "owned")
+      : candidateRecord(plan, undefined, "removed");
   });
-  await persistExperimentOwnershipState(plannedThreadIds).catch((error) => {
+  try {
+    await commitManagedExperimentChange(experimentId, (record) => ({
+      record: {
+        ...record,
+        candidates: finalCandidates,
+        updatedAt: new Date().toISOString(),
+      },
+      rows: cleanupRows(),
+    }));
+  } catch (error) {
     console.error("[experiment] failed to persist prepared candidates", error);
-  });
+    toast.danger(friendlyError(error));
+    // The host may already have committed this update. Keep the experiment
+    // and its worktrees available for recovery, but never launch against an
+    // unconfirmed candidate row or start another external effect.
+    return experimentId;
+  }
   const setupScript = project.scripts?.setupScript;
   await Promise.all(
     preparedThreads.map(async (thread, index) => {
       const candidate = prepared[index]!;
       void primeWorktreeGitState(project, candidate.worktreePath);
-      await performInitialThreadLaunch({
-        thread,
-        projectLocation: buildWorktreeLocation(project.location, candidate.worktreePath),
-        prompt,
-        ...(input.segments ? { segments: input.segments } : {}),
-        initialSize: DEFAULT_TERMINAL_SIZE,
-      }).catch((error) => {
+      try {
+        await performInitialThreadLaunch({
+          thread,
+          projectLocation: buildWorktreeLocation(project.location, candidate.worktreePath),
+          prompt,
+          ...(input.segments ? { segments: input.segments } : {}),
+          initialSize: DEFAULT_TERMINAL_SIZE,
+        });
+      } catch (error) {
+        // A typed-uncertain start may have committed on the host: the launch
+        // action already explained it once and ran the bounded authoritative
+        // reconcile. Keep that reconciled state — never paint a definite
+        // failure, never fire a second toast, and never continue the setup
+        // script for this uncertain launch.
+        if (isRemoteCommandOutcomeUncertainError(error)) return;
         console.error("[experiment] failed to start candidate", error);
         useAppStore.getState().updateThreadRuntime(thread.id, {
           status: "error",
@@ -388,7 +521,7 @@ export async function launchExperiment(input: LaunchExperimentInput): Promise<st
           canResumeWithConfig: false,
         });
         toast.danger(friendlyError(error));
-      });
+      }
       if (setupScript) {
         void runWorktreeSetupScript(project, candidate.worktreePath, setupScript, {
           openTerminalPanel: false,

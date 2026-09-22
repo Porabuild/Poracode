@@ -67,7 +67,7 @@ export function deriveMachines(inputs: {
   projectDistros: readonly string[];
   /** Distros already present in detected WSL agent statuses. */
   statusDistros?: readonly string[];
-  remoteServers: readonly { desktopId: string; label: string }[];
+  remoteServers: readonly { desktopId: string; connectionId?: string; label: string }[];
   remoteRuntime: Readonly<
     Record<
       string,
@@ -102,14 +102,17 @@ export function deriveMachines(inputs: {
       wslDistro: distro,
     });
   }
-  const remoteName = (desktopId: string) =>
-    inputs.remoteServers.find((server) => server.desktopId === desktopId)?.label ?? desktopId;
+  const remoteName = (connectionKey: string) =>
+    inputs.remoteServers.find(
+      (server) => (server.connectionId ?? server.desktopId) === connectionKey,
+    )?.label ?? connectionKey;
   for (const server of inputs.remoteServers) {
-    const runtime = inputs.remoteRuntime[server.desktopId];
+    const connectionKey = server.connectionId ?? server.desktopId;
+    const runtime = inputs.remoteRuntime[connectionKey];
     const status = remoteStatusOf(runtime?.status);
     const nativeRef: MachineRef = {
       host: "remote",
-      desktopId: server.desktopId,
+      desktopId: connectionKey,
       env: { kind: "native" },
     };
     machines.push({
@@ -118,7 +121,7 @@ export function deriveMachines(inputs: {
       kind: "remote",
       label: machineLabel(nativeRef, { remoteName }),
       status,
-      desktopId: server.desktopId,
+      desktopId: connectionKey,
     });
     const remoteDistros = [
       ...new Set(
@@ -130,7 +133,7 @@ export function deriveMachines(inputs: {
     for (const distro of remoteDistros) {
       const ref: MachineRef = {
         host: "remote",
-        desktopId: server.desktopId,
+        desktopId: connectionKey,
         env: { kind: "wsl", distro },
       };
       machines.push({
@@ -139,7 +142,7 @@ export function deriveMachines(inputs: {
         kind: "remote-wsl",
         label: machineLabel(ref, { remoteName }),
         status,
-        desktopId: server.desktopId,
+        desktopId: connectionKey,
         wslDistro: distro,
       });
     }

@@ -25,6 +25,7 @@ export function buildDesktopBackendInitialize(input: {
    * orphaned backend keeps excluding a successor owner).
    */
   dataFencePath: string;
+  environmentAssets?: NonNullable<BackendHostInitializePayload["desktop"]>["environmentAssets"];
   hostCapabilities?: import("@/shared/hostControlProtocol").HostServiceCapabilities;
 }): BackendHostInitializePayload {
   return {
@@ -34,6 +35,7 @@ export function buildDesktopBackendInitialize(input: {
       channel: input.channel,
       settingsPath: input.settingsPath,
       dataFencePath: input.dataFencePath,
+      ...(input.environmentAssets ? { environmentAssets: input.environmentAssets } : {}),
       ...(input.devServerUrl ? { devServerUrl: input.devServerUrl } : {}),
       ...(input.hostCapabilities ? { hostCapabilities: input.hostCapabilities } : {}),
     },

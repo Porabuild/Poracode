@@ -4,7 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { CircleAlert, RefreshCw, ServerCog } from "lucide-react";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
+import { remoteConnectionKey, type RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 
 export function RemoteHostUpdateControl({
   server,
@@ -14,12 +14,13 @@ export function RemoteHostUpdateControl({
   readonly isOnline: boolean;
 }) {
   const { t } = useLingui();
+  const connectionKey = remoteConnectionKey(server);
   const getHostUpdateState = useRemoteServersStore((s) => s.getHostUpdateState);
   const checkHostUpdate = useRemoteServersStore((s) => s.checkHostUpdate);
   const installHostUpdate = useRemoteServersStore((s) => s.installHostUpdate);
-  const updateState = useRemoteServersStore((s) => s.hostUpdates[server.desktopId]);
+  const updateState = useRemoteServersStore((s) => s.hostUpdates[connectionKey]);
   const restarting = useRemoteServersStore(
-    (s) => s.hostUpdateRestarts[server.desktopId] !== undefined,
+    (s) => s.hostUpdateRestarts[connectionKey] !== undefined,
   );
   const [checked, setChecked] = useState(false);
   const { busy, error, run } = useAsyncOperation();
@@ -31,26 +32,26 @@ export function RemoteHostUpdateControl({
 
   useEffect(() => {
     if (!isOnline) return;
-    void getHostUpdateState(server.desktopId).catch(() => undefined);
-  }, [getHostUpdateState, isOnline, server.desktopId]);
+    void getHostUpdateState(connectionKey).catch(() => undefined);
+  }, [getHostUpdateState, isOnline, connectionKey]);
 
   useEffect(() => {
     if (!isUpdating) return;
     const timer = setInterval(() => {
-      void getHostUpdateState(server.desktopId).catch(() => undefined);
+      void getHostUpdateState(connectionKey).catch(() => undefined);
     }, 1_000);
     return () => clearInterval(timer);
-  }, [getHostUpdateState, isUpdating, server.desktopId]);
+  }, [getHostUpdateState, isUpdating, connectionKey]);
 
   const check = () =>
     run(async () => {
       setChecked(true);
-      await checkHostUpdate(server.desktopId);
+      await checkHostUpdate(connectionKey);
     });
 
   const install = () =>
     run(async () => {
-      await installHostUpdate(server.desktopId);
+      await installHostUpdate(connectionKey);
       toast.success(t`The host is restarting to install the update.`);
     });
 

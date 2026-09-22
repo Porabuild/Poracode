@@ -7,12 +7,11 @@ import {
   nativeImage,
   shell,
   type BrowserWindow,
+  type WebContents,
 } from "electron";
 import type { BrowserPanelManager } from "../browser";
 import { openMicrophoneSettings } from "../browser/permissions";
 import {
-  deleteThreadAttachments,
-  deleteThreadAttachmentsAsync,
   readLocalImageFile,
   resolveProjectFsPath,
   saveClipboardImageFile,
@@ -26,7 +25,6 @@ import { showAndFocusWindow } from "../window/showAndFocusWindow";
 import { readKeybindingsFile } from "../keybindingsFile";
 import { applyKeybindingsWrite } from "../keybindingsApply";
 import type { KeybindingsFile } from "@/shared/keybindings";
-import type { RendererEventSender } from "../backend/rendererEventInterestRegistry";
 import type { AutoUpdaterController } from "../updates/autoUpdater";
 import {
   defineMainLocalIpcHandlers,
@@ -45,16 +43,17 @@ import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../win
 import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { UsageLoginManager } from "../usageLogin/UsageLoginManager";
-import type { SshConnectionManager } from "../ssh/SshConnectionManager";
+import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import { homeScopeLocation } from "@/shared/homeScopeLocation";
 import { resolvePoracodeChannel } from "@/shared/channel";
 import { resolveLegacyElectronUserDataDir } from "@/shared/legacyProductPaths";
 import { probeTlsCertificateFingerprint } from "@/host/remote/certFingerprintProbe";
+import { installManagedLoopbackCertificatePin } from "../remote/managedLoopbackCertificatePin";
 
 interface CreateLocalIpcHandlersOptions {
   getMainWindow(): BrowserWindow | null;
   getBrowserPanelManager(): BrowserPanelManager | null;
-  sshConnectionManager: SshConnectionManager;
+  sshConnectionManager: SshEnvironmentController;
   requirePoracodePaths(): PoracodePaths;
   legacyElectronUserDataDir?: string;
   legacyBaseDir?: string;
@@ -63,10 +62,6 @@ interface CreateLocalIpcHandlersOptions {
   /** Called with the keybindings just written, so consumers don't re-read the file. */
   onKeybindingsChanged?(file: KeybindingsFile): void;
   setGlobalShortcutsSuspended?(suspended: boolean): void;
-  setRendererEventInterests(
-    interests: IpcProcedurePayload<"setRendererEventInterests">,
-    sender?: RendererEventSender,
-  ): Promise<void>;
   extractBrowserToWindow(): void;
   injectBrowserToMain(): void;
   /** Relaunch the app (exposed via the relaunchApp IPC). */
@@ -168,9 +163,9 @@ export function createLocalIpcHandlers(
       }),
     detectProjectIcon: ({ projectLocation }) => detectProjectIconFile(projectLocation),
     listProjectIconFiles: ({ projectLocation }) => listProjectIconFiles(projectLocation),
-    saveClipboardImage: (payload) =>
+    saveClipboardImage: async (payload) =>
       saveClipboardImageFile(options.requirePoracodePaths(), payload),
-    saveHandoffContext: (payload) =>
+    saveHandoffContext: async (payload) =>
       saveHandoffContextFile(options.requirePoracodePaths(), payload),
     saveImageFile: async ({ data, suggestedName }) => {
       const win = options.getMainWindow();
@@ -182,7 +177,7 @@ export function createLocalIpcHandlers(
         ],
       });
       if (result.canceled || !result.filePath) return null;
-      writeImageFile(result.filePath, data);
+      await writeImageFile(result.filePath, data);
       return result.filePath;
     },
     copyImageToClipboard: async ({ data }) => {
@@ -196,7 +191,7 @@ export function createLocalIpcHandlers(
       ]);
       return true;
     },
-    readLocalImageFile: ({ url }) => readLocalImageFile(url),
+    readLocalImageFile: async ({ url }) => readLocalImageFile(url),
     createProjectDirectory: (payload) => createProjectDirectory(payload),
     openExternal: async (url) => {
       const safeUrl = assertSafeExternalUrl(url);
@@ -252,10 +247,15 @@ export function createLocalIpcHandlers(
     },
     setGlobalShortcutsSuspended: (payload) =>
       options.setGlobalShortcutsSuspended?.(payload.suspended),
-    setRendererEventInterests: async (interests, sender?: RendererEventSender) =>
-      options.setRendererEventInterests(interests, sender),
     getRemoteAccessPairing: () => callService("getRemoteAccessPairing", {}),
-    getManagedLoopbackBootstrap: () => callService("getManagedLoopbackBootstrap", {}),
+    getManagedLoopbackBootstrap: async (_payload, sender?: WebContents) => {
+      const bootstrap = await callService("getManagedLoopbackBootstrap", {});
+      // Main-native TLS authority: install the exact loopback origin/leaf pin
+      // from the authenticated backend bootstrap before the renderer attaches.
+      // A null answer (server not serving/disposed) clears any previous pin.
+      if (sender) installManagedLoopbackCertificatePin(sender.session, bootstrap);
+      return bootstrap;
+    },
     probeTlsCertificateFingerprint: (payload) => probeTlsCertificateFingerprint(payload.url),
     refreshRemoteAccessPairing: (payload) =>
       callService("refreshRemoteAccessPairing", payload?.preset ? { preset: payload.preset } : {}),
@@ -333,11 +333,10 @@ export function createLocalIpcHandlers(
     dbUpsertThread: async (thread) => {
       await callDatabase("dbUpsertThread", thread);
     },
-    dbDeleteThread: async (payload) => {
-      await callDatabase("dbDeleteThread", payload);
-      const { threadId } = payload;
-      deleteThreadAttachments(options.requirePoracodePaths(), threadId);
-    },
+    dbDeleteThread: (payload) => callDatabase("dbDeleteThread", payload),
+    // No local attachment rm here: the backend composition's reclaimer owns
+    // the attachments root and reclaims the deleted thread's directory from
+    // the committed DB seam, for every delete origin.
     dbDeleteProject: async (payload) => {
       await callDatabase("dbDeleteProject", payload);
     },
@@ -346,13 +345,6 @@ export function createLocalIpcHandlers(
     },
     dbSyncChanges: async (payload) => {
       await callDatabase("dbSyncChanges", payload);
-    },
-    dbPersistExperimentState: async (payload) => {
-      await callDatabase("dbPersistExperimentState", payload);
-      const paths = options.requirePoracodePaths();
-      await Promise.all(
-        payload.deletedThreadIds.map((threadId) => deleteThreadAttachmentsAsync(paths, threadId)),
-      );
     },
     dbGetThreadRuntimeItems: (payload) => callDatabase("dbGetThreadRuntimeItems", payload),
     dbGetThreadRuntimeItemsPage: (payload) => callDatabase("dbGetThreadRuntimeItemsPage", payload),

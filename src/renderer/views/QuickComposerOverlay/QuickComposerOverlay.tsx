@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { Button } from "@heroui/react";
+import { Button, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { AgentStatus, Project } from "@/shared/contracts";
+import { friendlyError } from "@/shared/messages";
 import { isAgentStatusSupervisorEvent } from "@/shared/ipc";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
@@ -209,6 +210,10 @@ export function QuickComposerOverlay() {
         setPendingForm(null);
         if (lifecycle.showGeneration === generation) transitionPhase("idle");
       }
+      // The shared composer catch swallows non-voice submission errors, so
+      // this is the only surface for a refused handoff — show it exactly once
+      // while the restored draft is still recoverable.
+      toast.danger(friendlyError(error));
       throw error;
     }
   };

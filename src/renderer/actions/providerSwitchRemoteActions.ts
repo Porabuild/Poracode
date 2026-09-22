@@ -16,6 +16,11 @@ import { isRemoteProjectUnreachable } from "@/renderer/state/remoteServers/reach
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { markThreadDone } from "./threadActions";
 import { buildHandoffLaunchInput } from "./providerHandoff";
+import {
+  isRemoteCommandOutcomeUncertainError,
+  notifyThreadCommandOutcomeUncertain,
+  reconcileRemoteThreadCommandOutcome,
+} from "./threadCommandOutcomeActions";
 
 /**
  * Continue a mirrored thread in a NEW thread on its host — the fork intent,
@@ -155,6 +160,14 @@ export async function continueRemoteThreadInNewThread(input: {
       useAppStore.getState().openThreadSideBySide(thread.id);
     }
   } catch (error) {
+    // The host may have started the replacement without confirming it: keep
+    // the optimistic row, explain the uncertainty, and read the client-chosen
+    // thread id back once — never resend, and never claim a definite failure.
+    if (isRemoteCommandOutcomeUncertainError(error)) {
+      notifyThreadCommandOutcomeUncertain();
+      await reconcileRemoteThreadCommandOutcome(owner.desktopId, hostThreadId);
+      return;
+    }
     useAppStore.getState().deleteThread(projectedId);
     toast.danger(friendlyError(error));
     return;

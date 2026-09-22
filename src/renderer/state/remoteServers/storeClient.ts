@@ -1,17 +1,26 @@
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
-import { isRemoteTransportFailure, type RemoteDesktopClient } from "@/shared/remote/client";
+import {
+  isRemoteBoundedReadProtocolError,
+  isRemoteTransportFailure,
+  type RemoteDesktopClient,
+} from "@/shared/remote/client";
 import { i18n } from "@/renderer/i18n/i18n";
 import { resetTruncateReloadBackoff } from "@/renderer/state/remote/truncateRecovery";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
+import { environmentSessionForServer } from "./environmentSessions";
+import { remoteConnectionKey } from "./types";
 import {
   nextRemoteHostUpdateSequence,
   remoteHostUpdateRequestSeq,
   setRemoteHostUpdateRequestSeq,
 } from "./connectionRefresh";
 import {
+  connectionRefreshSubject,
   deleteRefreshTokenFromVault,
+  ensureConnectionIncarnation,
+  ownsConnectionIncarnation,
   refreshTokenForDesktop,
   rememberRefreshToken,
   writeRefreshTokenToVault,
@@ -65,11 +74,15 @@ export function createRemoteServerClientBindings(
    * offline/errored. The renderer's global unhandledrejection handler would
    * otherwise crash-screen on any stray rejection from a `void action(...)`. */
   const reportRemoteServerError = (desktopId: string, error: unknown, fallback: string) => {
-    const message = friendlyError(error) || fallback;
+    // A bounded-read protocol violation is a typed contract failure whose SDK
+    // prose is English-only: the caller's localized fallback is the message,
+    // and the host stays reachable (error, never offline).
+    const protocolViolation = isRemoteBoundedReadProtocolError(error);
+    const message = protocolViolation ? fallback : friendlyError(error) || fallback;
     toast.danger(message);
     setRemoteServerFailure(
       desktopId,
-      isRemoteTransportFailure(error) ? "offline" : "error",
+      !protocolViolation && isRemoteTransportFailure(error) ? "offline" : "error",
       message,
     );
   };
@@ -82,24 +95,48 @@ export function createRemoteServerClientBindings(
    * hook when one is available. Factory-created clients are wrapped here
    * so every call site gets the same behavior.
    */
-  const clientForServer = (server: {
-    readonly desktopId: string;
-    readonly endpoint: string;
-    readonly accessToken: string;
-  }): RemoteDesktopClient => {
+  const clientForServer = (server: RemoteServerRecord): RemoteDesktopClient => {
+    if (server.transport?.kind === "environment") {
+      const session = environmentSessionForServer(server);
+      if (!session) {
+        throw new Error(
+          i18n._(msg`The paired server that owns this environment is not connected.`),
+        );
+      }
+      return session.client;
+    }
     const client = get().clientFactory(server.endpoint, server.accessToken);
+    // The refresh grant is per connection, like every other session map. For
+    // direct/ssh records the connection key equals the host identity, so v1
+    // `refresh.<desktopId>` slots keep their exact key.
+    const connectionKey = remoteConnectionKey(server);
+    // One legitimate incarnation per connection record, shared by every live
+    // client of this connection (including the long-lived parent session), so
+    // clients never revoke each other's valid rotation. A record removed during
+    // this client's life has no incarnation: its callback stays inert.
+    const present = get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey);
+    const incarnation = present ? ensureConnectionIncarnation(connectionKey) : undefined;
     client.setTokenLifecycle({
-      refreshToken: () => refreshTokenForDesktop(server.desktopId),
+      refreshToken: () => refreshTokenForDesktop(connectionKey),
       onTokensRefreshed: (tokens) => {
+        // A delayed rotation from a removed or re-paired connection can neither
+        // resurrect a deleted grant nor overwrite a freshly paired one.
+        if (incarnation === undefined || !ownsConnectionIncarnation(connectionKey, incarnation)) {
+          return;
+        }
         if (tokens.refreshToken) {
-          rememberRefreshToken(server.desktopId, tokens.refreshToken);
-          void writeRefreshTokenToVault(server.desktopId, tokens.refreshToken);
+          rememberRefreshToken(connectionKey, tokens.refreshToken);
+          void writeRefreshTokenToVault(
+            connectionRefreshSubject(connectionKey),
+            tokens.refreshToken,
+            incarnation,
+          );
         } else {
-          void deleteRefreshTokenFromVault(server.desktopId);
+          void deleteRefreshTokenFromVault(connectionRefreshSubject(connectionKey));
         }
       },
     });
-    const pin = certPinForDesktop(server.desktopId);
+    const pin = certPinForDesktop(remoteConnectionKey(server));
     if (pin) client.setCertFingerprintPin(pin);
     return client;
   };
@@ -108,9 +145,9 @@ export function createRemoteServerClientBindings(
    * shared "not found" error the action callers already surface. An
    * offline runtime is deliberately still probeable: explicit refresh and
    * retry actions are how a paired server proves it has recovered. */
-  const requireClient = (desktopId: string): RemoteDesktopClient => {
+  const requireClient = (connectionKey: string): RemoteDesktopClient => {
     const state = get();
-    const server = state.servers.find((entry) => entry.desktopId === desktopId);
+    const server = state.servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
     if (!server) throw new Error(i18n._(msg`Remote server not found.`));
     return clientForServer(server);
   };
@@ -159,14 +196,15 @@ export function createRemoteServerClientBindings(
   const checkHostUpdateInBackground = (server: RemoteServerRecord): void => {
     if (server.hostCapabilities?.autoUpdate !== true || !server.scopes.includes("projects:manage"))
       return;
+    const connectionKey = remoteConnectionKey(server);
     const requestSeq = nextRemoteHostUpdateSequence();
-    setRemoteHostUpdateRequestSeq(server.desktopId, requestSeq);
+    setRemoteHostUpdateRequestSeq(connectionKey, requestSeq);
     void clientForServer(server)
       .checkHostUpdate()
       .then((update) => {
-        if (remoteHostUpdateRequestSeq(server.desktopId) !== requestSeq) return;
+        if (remoteHostUpdateRequestSeq(connectionKey) !== requestSeq) return;
         set((state) => ({
-          hostUpdates: { ...state.hostUpdates, [server.desktopId]: update },
+          hostUpdates: { ...state.hostUpdates, [connectionKey]: update },
         }));
       })
       .catch(() => undefined);

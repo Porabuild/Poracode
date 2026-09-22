@@ -8,6 +8,7 @@ import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { ConfirmationPopover } from "@/renderer/components/common/ConfirmationPopover";
 import { ProjectRemoteServerIcon } from "@/renderer/components/common/ProjectRemoteServer";
 import { useAppStore } from "@/renderer/state/appStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import { deleteThreadsAndOwnedWorktrees, unarchiveThread } from "@/renderer/actions/threadActions";
@@ -50,7 +51,8 @@ export function ArchivedThreadsSettings() {
   const [machineId, setMachineId] = useState(LOCAL_MACHINE_ID);
   const [clearTarget, setClearTarget] = useState<ClearTarget | null>(null);
   const selectedMachineId =
-    machineId === LOCAL_MACHINE_ID || remoteServers.some((server) => server.desktopId === machineId)
+    machineId === LOCAL_MACHINE_ID ||
+    remoteServers.some((server) => remoteConnectionKey(server) === machineId)
       ? machineId
       : LOCAL_MACHINE_ID;
   const archivedThreads = threads.filter(
@@ -64,14 +66,14 @@ export function ArchivedThreadsSettings() {
   const machineOptions = [
     { id: LOCAL_MACHINE_ID, label: t`This machine`, icon: <Monitor className="size-4" /> },
     ...remoteServers.map((server) => ({
-      id: server.desktopId,
+      id: remoteConnectionKey(server),
       label: desktopTitle(server.label),
       icon: (
         <ProjectRemoteServerIcon
           info={{
             isRemote: true,
             serverName: desktopTitle(server.label),
-            status: remoteRuntimes[server.desktopId]?.status,
+            status: remoteRuntimes[remoteConnectionKey(server)]?.status,
           }}
           className="size-3.5 text-muted"
           dotClassName="size-1"

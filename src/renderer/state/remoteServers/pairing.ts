@@ -8,6 +8,22 @@ import { msg } from "@lingui/core/macro";
 import { filterKnownRemoteAccessScopes, REMOTE_OPERATOR_SCOPES } from "@/shared/remote";
 import { i18n } from "@/renderer/i18n/i18n";
 import { readBridge } from "@/renderer/bridge";
+import {
+  environmentAdvertisesRuntimeHistoryNotices,
+  noteRuntimeHistoryNoticesCapability,
+} from "@/renderer/state/remote/historyNoticeCapability";
+import {
+  environmentAdvertisesBoundedCatalogChanges,
+  noteBoundedCatalogChangesCapability,
+} from "@/renderer/state/remote/boundedCatalogChangesCapability";
+import {
+  environmentAdvertisesProjectCommandResults,
+  noteProjectCommandResultsCapability,
+} from "@/renderer/state/remote/projectCommandResultsCapability";
+import {
+  environmentAdvertisesCatalogMutations,
+  noteCatalogMutationsCapability,
+} from "@/renderer/state/remote/catalogMutationsCapability";
 import { resetTruncateRecoveryEpoch } from "@/renderer/state/remote/truncateRecovery";
 import { applyCachedSlashCommandCatalogs } from "./slashCommandCatalogs";
 import { syncRemoteGitSummaries } from "./gitSummaries";
@@ -22,7 +38,10 @@ import {
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { nextRemoteHostUpdateSequence, setRemoteHostUpdateReconnectSeq } from "./connectionRefresh";
 import { terminalCapabilitiesFromEnvironment } from "./terminalCapabilities";
+import { disposeEnvironmentParentSession } from "./environmentSessions";
 import {
+  acquireConnectionIncarnation,
+  connectionRefreshSubject,
   deleteRefreshTokenFromVault,
   rememberRefreshToken,
   writeRefreshTokenToVault,
@@ -177,7 +196,42 @@ export function createPairingActions(deps: PairingActionDeps) {
         .agentStatuses({ omitSlashCommands: true })
         .then((statuses) => applyCachedSlashCommandCatalogs(normalized, statuses)),
     ]);
+    // v2 connection key: direct/ssh records keep `connectionId === desktopId`,
+    // so persisted vault keys, pins, and projections stay byte-identical.
+    const connectionId = environment.desktopId;
+    // B1: negotiate the durable-notice capability from the same descriptor the
+    // record is built from (process-local; re-proven on every reconnect).
+    noteRuntimeHistoryNoticesCapability(
+      connectionId,
+      environmentAdvertisesRuntimeHistoryNotices(environment),
+    );
+    // Same per-connection descriptor facts for the bounded notification
+    // declaration and the bounded project-command result mode.
+    noteBoundedCatalogChangesCapability(
+      connectionId,
+      environmentAdvertisesBoundedCatalogChanges(environment),
+    );
+    noteProjectCommandResultsCapability(
+      connectionId,
+      environmentAdvertisesProjectCommandResults(environment),
+    );
+    // Narrow catalog mutations (the paired sidebar's reorder intents) are the
+    // same kind of per-connection descriptor fact: recorded at pairing so the
+    // very first drag after pairing reaches a host that advertised them.
+    noteCatalogMutationsCapability(
+      connectionId,
+      environmentAdvertisesCatalogMutations(environment),
+    );
+    // A pairing commit IS a new incarnation of this connection. Retire the
+    // previous long-lived parent session and its credential fence BEFORE any
+    // vault/record commit (direct, SSH, and standalone attach all commit
+    // through here), so a delayed rotation from the old pairing can neither
+    // resurrect its grant nor overwrite this one, and the new pin/token are
+    // adopted by the next parent lookup.
+    disposeEnvironmentParentSession(connectionId);
+    const incarnation = acquireConnectionIncarnation(connectionId);
     let record: RemoteServerRecord = {
+      connectionId,
       desktopId: environment.desktopId,
       label: environment.label,
       remoteLabel: environment.label,
@@ -204,27 +258,31 @@ export function createPairingActions(deps: PairingActionDeps) {
     // this session. Older hosts without the refresh grant simply omit the
     // field — nothing to store then.
     if (tokenResult.refreshToken) {
-      rememberRefreshToken(record.desktopId, tokenResult.refreshToken);
-      void writeRefreshTokenToVault(record.desktopId, tokenResult.refreshToken);
+      rememberRefreshToken(connectionId, tokenResult.refreshToken);
+      void writeRefreshTokenToVault(
+        connectionRefreshSubject(connectionId),
+        tokenResult.refreshToken,
+        incarnation,
+      );
     } else {
-      void deleteRefreshTokenFromVault(record.desktopId);
+      void deleteRefreshTokenFromVault(connectionRefreshSubject(connectionId));
     }
     // Gate 6 item 4.2: pin the QR-asserted certificate fingerprint (TOFU
     // anchored by the link the desktop itself rendered) beside the server
     // record. Re-pairing with a fresh QR replaces the pin.
-    if (input.certFingerprint) rememberCertPin(record.desktopId, input.certFingerprint);
-    setRemoteHostUpdateReconnectSeq(record.desktopId, nextRemoteHostUpdateSequence());
-    bumpRemoteServerGeneration(record.desktopId);
+    if (input.certFingerprint) rememberCertPin(connectionId, input.certFingerprint);
+    setRemoteHostUpdateReconnectSeq(connectionId, nextRemoteHostUpdateSequence());
+    bumpRemoteServerGeneration(connectionId);
     set((state) => ({
-      servers: [...state.servers.filter((s) => s.desktopId !== record.desktopId), record],
+      servers: [...state.servers.filter((s) => s.connectionId !== connectionId), record],
       lastKnownProjects: replaceCachedProjects(
         state.lastKnownProjects,
-        record.desktopId,
+        connectionId,
         snapshot.projects,
       ),
       runtime: {
         ...state.runtime,
-        [record.desktopId]: {
+        [connectionId]: {
           status: "online",
           projects: snapshot.projects,
           threads: snapshot.threads,
@@ -232,16 +290,16 @@ export function createPairingActions(deps: PairingActionDeps) {
         },
       },
     }));
-    syncRemoteAppRows(record.desktopId, snapshot.projects, snapshot.threads);
+    syncRemoteAppRows(connectionId, snapshot.projects, snapshot.threads);
     if (snapshot.gitSummariesByThread) {
-      syncRemoteGitSummaries(record.desktopId, snapshot.gitSummariesByThread);
+      syncRemoteGitSummaries(connectionId, snapshot.gitSummariesByThread);
     }
-    if (snapshot.gitState) syncRemoteGitStateSnapshot(record.desktopId, snapshot.gitState);
-    setRemoteServerSnapshotSeq(record.desktopId, snapshot.snapshotSeq);
+    if (snapshot.gitState) syncRemoteGitStateSnapshot(connectionId, snapshot.gitState);
+    setRemoteServerSnapshotSeq(connectionId, snapshot.snapshotSeq);
     // Pairing overwrites the seq baseline; stale per-thread marks from a
     // previous pairing of the same host must not refuse this snapshot.
-    clearRemoteThreadAppliedSeqs(record.desktopId);
-    resetTruncateRecoveryEpoch(record.desktopId);
+    clearRemoteThreadAppliedSeqs(connectionId);
+    resetTruncateRecoveryEpoch(connectionId);
     syncDesktopBrowserBridgeClient(get());
     await startRemoteServerEventStream(record, terminalCapabilitiesFromEnvironment(environment));
     checkHostUpdateInBackground(record);
@@ -273,7 +331,7 @@ export function createPairingActions(deps: PairingActionDeps) {
         ...(attachFingerprint ? { certFingerprint: attachFingerprint } : {}),
       });
       standaloneOwnerGeneration = attach.ownerGeneration;
-      standaloneOwnerDesktopId = record.desktopId;
+      standaloneOwnerDesktopId = record.connectionId ?? record.desktopId;
       return record;
     },
 

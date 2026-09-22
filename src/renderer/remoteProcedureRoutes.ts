@@ -62,6 +62,12 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   readLocalImageFile: "local-shell: reads a file from this machine's disk for inline preview",
   openPluginsFolder: "local-shell: reveals a folder in this machine's file manager",
 
+  // R1: this machine's file manager and disk probes — meaningless against a
+  // paired host's paths, and already guarded off or null-tolerated remotely.
+  revealProjectEntry: "local-shell: reveals a project path in this machine's file manager",
+  detectProjectIcon: "local-shell: probes this machine's disk for a project icon image",
+  listProjectIconFiles: "local-shell: probes this machine's disk for candidate icon files",
+
   // Window, OS, and app lifecycle
   focusWindow: "local-shell: focuses this desktop's own window",
   setWindowChrome: "local-shell: restyles this desktop window's native chrome",
@@ -81,10 +87,34 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   setGlobalShortcutsSuspended: "local-shell: OS-global shortcuts registered by this desktop",
 
   // Transport bootstrap (must run before any other data plane exists)
-  setRendererEventInterests:
-    "local-shell: this window's event-interest registration with its own main process",
   getManagedLoopbackBootstrap:
     "local-shell: mints the loopback credential itself, so it precedes the loopback leg on IPC",
+
+  // Host-owned destructive-retirement check (housekeeping purge)
+  closeThreadConfirmed:
+    "local-shell: host-owned confirmed-retirement close for destructive housekeeping; the renderer never issues it and no remote route exists",
+
+  // R1: host-custody thread/project deletion — the renderer's real deletes ride
+  // the thread-command / project-command registry routes, which own
+  // notifications and housekeeping; the raw DB row deletes stay preload-only.
+  dbDeleteThread:
+    "local-shell: thread deletion goes through the thread-command registry route, which owns notifications and housekeeping; the raw DB row delete stays preload-only",
+  dbDeleteProject:
+    "local-shell: project deletion goes through the project-command registry route with host custody; the raw DB row delete stays preload-only",
+
+  // R1: raw runtime persistence writes are host-owned. Remote history mutation
+  // is the truncate/bounded registry surface, never a renderer DB replace.
+  dbReplaceThreadRuntimeItems:
+    "local-shell: raw runtime item persistence is host-owned; remote clients mutate history through the truncate registry route, never a renderer DB replace",
+  dbReplaceThreadCompletedTurns:
+    "local-shell: raw completed-turn persistence is host-owned; remote clients never replace turn history through a renderer DB write",
+  dbReplaceThreadRuntimeSnapshot:
+    "local-shell: raw runtime snapshot persistence is host-owned; remote clients never replace the snapshot through a renderer DB write",
+
+  // R1: unbounded full-transcript read — the bounded history-items pages are
+  // the remote data plane (the experiment judge walks them).
+  dbGetThreadRuntimeItems:
+    "local-shell: unbounded full-transcript read; remote clients page the bounded history-items route instead of one raw DB read",
 
   // Remote-access server control — the host's own trust surface
   getRemoteAccessPairing:
@@ -124,6 +154,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   dbGetProjects: "local-shell: this window's project catalog rows; host truth is the describe API",
   dbGetThreads:
     "local-shell: this window's thread catalog rows; host truth is the thread-list registry route",
+  dbGetThreadsPage:
+    "local-shell: this window's paginated catalog hydration; host truth is the thread-list registry route",
   dbUpsertProject: "local-shell: this window's catalog write; host truth is the snapshot/API",
   dbUpsertThread: "local-shell: this window's catalog write; host truth is the snapshot/API",
   dbSyncAll: "local-shell: this window's catalog sync; host truth is the snapshot/API",
@@ -256,6 +288,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: this window's hydration read of the backend snapshot stores; remote clients page snapshots through the server surfaces",
   getTerminalShellSnapshots:
     "local-shell: this window's hydration read of the backend snapshot stores; remote clients page snapshots through the server surfaces",
+  getResourceAdmissionStatus:
+    "local-shell: internal managed-supervisor diagnostics; network diagnostics are restricted to loopback metrics, not the remote procedure allowlist",
 
   // Local language clients and plugins
   lspStop: "local-shell: language-client lifetime is bound to this renderer window",
@@ -268,8 +302,6 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
     "local-shell: preps a directory on this machine's disk; creating projects on a remote host is the project-command registry route",
 
   // Experiments — this window's git catalog
-  dbPersistExperimentState:
-    "local-shell: experiment UI state is this window's catalog, not a host supervisor procedure",
   createExperimentWorktrees:
     "local-shell: experiment worktrees are this window's git catalog; unique-candidate refinements are not portable wire validators",
   removeExperimentWorktrees:
@@ -288,4 +320,16 @@ export function isRemoteRoutableProcedure(
   procedure: string,
 ): procedure is RemoteRoutableProcedureName {
   return Object.hasOwn(REMOTE_PROCEDURE_ROUTES, procedure);
+}
+
+/** Whether `procedure` is a router-owned PASSTHROUGH: a supervisor-allowlist
+ * name the generic remote passthrough (`/api/git/call`) executes. The managed
+ * loopback transport uses this metadata to decide that a local-resolving
+ * routable call still belongs to the co-located server — the single policy
+ * table stays the only source of that fact. */
+export function isPassthroughRemoteProcedure(procedure: IpcProcedureName): boolean {
+  return (
+    isRemoteRoutableProcedure(procedure) &&
+    REMOTE_PROCEDURE_ROUTES[procedure].handler === "passthrough"
+  );
 }

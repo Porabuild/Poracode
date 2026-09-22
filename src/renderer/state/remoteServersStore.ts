@@ -9,7 +9,7 @@ import {
 } from "@/renderer/remoteProcedureRouter";
 import { __resetTruncateRecoveryForTest } from "@/renderer/state/remote/truncateRecovery";
 import { useAppStore } from "@/renderer/state/appStore";
-import { remoteOwner, remoteProjectId } from "@/renderer/state/remoteProjection";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import {
   resetRemoteTerminalFeed,
   setRemoteTerminalSocketSender,
@@ -39,16 +39,43 @@ import type {
 } from "@/renderer/state/remoteServers/types";
 import { createSecureRemoteServersStorage } from "@/renderer/state/remoteServers/secureStorage";
 import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
+import { __resetBoundedCatalogForTest } from "@/renderer/state/remoteServers/catalog/boundedCatalogController";
+import { __resetCatalogOrderFencesForTest } from "@/renderer/state/remoteServers/catalog/catalogOrderFence";
+import { __resetCatalogMutationsCapabilityForTest } from "@/renderer/state/remote/catalogMutationsCapability";
+import { __resetBoundedHistoryForTest } from "@/renderer/state/remoteServers/catalog/boundedHistory";
+import {
+  sendClientProjectCommand,
+  sendClientThreadCommand,
+} from "@/renderer/state/remoteServers/catalog/clientCatalogCommands";
+import { hostSupportsProjectCommandResultsForConnection } from "@/renderer/state/remote/projectCommandResultsCapability";
 import {
   scheduleServerRefresh as scheduleRemoteServerRefresh,
   __resetConnectionRefreshForTest,
 } from "@/renderer/state/remoteServers/connectionRefresh";
 import { startRemoteServerEventStream as startRemoteServerEventStreamSession } from "@/renderer/state/remoteServers/eventSocketSession";
 import {
+  deleteRefreshTokenFromVault,
   hydrateRefreshTokens,
+  refreshTokenForSubject,
+  rememberRefreshTokenForSubject,
+  writeRefreshTokenToVault,
   __peekRefreshTokenForTest,
+  type RefreshSubject,
+  type RemoteEnvironmentGrantSubject,
 } from "@/renderer/state/remoteServers/refreshTokens";
 import { createRemoteServerClientBindings } from "@/renderer/state/remoteServers/storeClient";
+import {
+  configureEnvironmentSessions,
+  environmentChildGrantSubject,
+  environmentImageUrl,
+  requestEnvironmentImage,
+  subscribeEnvironmentImage,
+  __resetEnvironmentSessionsForTest,
+} from "@/renderer/state/remoteServers/environmentSessions";
+import {
+  environmentTransportHasParent,
+  remoteConnectionKey,
+} from "@/renderer/state/remoteServers/types";
 import {
   certPinForDesktop,
   createPairingActions,
@@ -76,6 +103,30 @@ export {
 
 export { getStandaloneOwnerDesktopId, getStandaloneOwnerGeneration, __resetStandaloneOwnerForTest };
 
+/**
+ * Renderer remote-servers store v1 → v2 migration (pure, fixture-tested).
+ *
+ * v2 makes `connectionId` the per-connection key. Every v1 record is a
+ * direct/ssh pairing, so `connectionId = desktopId` preserves persisted
+ * projections, certificate-pin keys, and vault keys byte-for-byte. A v1
+ * document can never contain an environment record (the transport kind is new),
+ * so no other rewrite is needed.
+ */
+export function migrateRemoteServersPersistedState(
+  persistedState: unknown,
+  version: number,
+): RemoteServersState {
+  const state = (persistedState ?? {}) as RemoteServersState & {
+    servers?: RemoteServerRecord[];
+  };
+  if (version >= 2) return state;
+  const servers = (state.servers ?? []).map((server) => ({
+    ...server,
+    connectionId: server.connectionId ?? server.desktopId,
+  }));
+  return { ...state, servers } as RemoteServersState;
+}
+
 export { hydrateRefreshTokens, __peekRefreshTokenForTest };
 
 /**
@@ -99,6 +150,15 @@ const defaultSocketFactory: RemoteSocketFactory = (url) =>
 export const useRemoteServersStore = create<RemoteServersState>()(
   persist(
     (set, get) => {
+      configureEnvironmentSessions({
+        getState: get,
+        clientFactory: () => get().clientFactory,
+        certPinForConnection: certPinForDesktop,
+        refreshTokenForSubject,
+        rememberRefreshToken: rememberRefreshTokenForSubject,
+        writeRefreshTokenToVault,
+        deleteRefreshTokenFromVault,
+      });
       const {
         setRemoteServerFailure,
         reportRemoteServerError,
@@ -136,6 +196,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           closeRemoteServerEventSocket,
           activateRemoteTerminalFeed,
           rememberTerminalConnection: terminalConnections.remember,
+          clientForServer,
           buildOpenThread,
         });
 
@@ -192,21 +253,25 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         launchRemoteThread: projection.launchRemoteThread,
         openRemoteThread: projection.openRemoteThread,
         closeRemoteThread: projection.closeRemoteThread,
-        sendThreadCommand: async (desktopId, command) => {
-          await withClient(desktopId, (client) => client.sendThreadCommand(command));
+        sendThreadCommand: async (desktopId, command, options = {}) => {
+          await withClient(desktopId, (client) =>
+            sendClientThreadCommand(client, command, options),
+          );
           get().scheduleServerRefresh(desktopId);
         },
 
         pairServer: pairing.pairServer,
         ensureStandaloneOwner: pairing.ensureStandaloneOwner,
         pairSshServer: pairing.pairSshServer,
-        renameServer: (desktopId, label) => {
+        renameServer: (connectionKey, label) => {
           set((state) => {
-            const server = state.servers.find((candidate) => candidate.desktopId === desktopId);
+            const server = state.servers.find(
+              (candidate) => remoteConnectionKey(candidate) === connectionKey,
+            );
             if (!server || server.label === label) return {};
             return {
               servers: state.servers.map((candidate) =>
-                candidate.desktopId === desktopId
+                remoteConnectionKey(candidate) === connectionKey
                   ? { ...candidate, label, remoteLabel: candidate.remoteLabel ?? candidate.label }
                   : candidate,
               ),
@@ -247,21 +312,25 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           if (runtime) syncRemoteAppRows(desktopId, runtime.projects, runtime.threads);
         },
 
-        runProjectCommand: async (desktopId, command) => {
-          await withClient(desktopId, (client) => client.projectCommand(command));
+        runProjectCommand: async (desktopId, command, options = {}) => {
+          // Declare the bounded result mode only for a connection whose fresh
+          // descriptor advertised it; every other host keeps the complete
+          // legacy response (and receives no unsupported declaration). The
+          // explicit per-operation id the mode requires is minted in the
+          // shared command seam, which also honors a caller's reused id.
+          await withClient(desktopId, (client) =>
+            sendClientProjectCommand(client, command, {
+              ...options,
+              ...(hostSupportsProjectCommandResultsForConnection(desktopId)
+                ? { result: "bounded" as const }
+                : {}),
+            }),
+          );
           if (command.kind === "update") {
             get().scheduleServerRefresh(desktopId);
           } else {
             await get().refreshServer(desktopId);
           }
-        },
-
-        loadProjectSettings: async (desktopId, projectId) => {
-          const settings = await withClient(desktopId, (client) =>
-            client.projectSettings(projectId),
-          );
-          const projectedId = remoteProjectId(desktopId, projectId);
-          useAppStore.getState().updateProjectMcpServers(projectedId, settings.mcpServers ?? []);
         },
 
         browseHostDirectory: async (desktopId, path) => {
@@ -291,21 +360,39 @@ export const useRemoteServersStore = create<RemoteServersState>()(
           );
         },
 
-        localImageUrl: (desktopId, path) => {
+        localImageUrl: (connectionKey, path) => {
           try {
-            return requireClient(desktopId).localImageUrl(path);
+            return requireClient(connectionKey).localImageUrl(path);
           } catch {
             return "";
           }
         },
 
-        imageRefUrl: (desktopId, ref) => {
+        imageRefUrl: (connectionKey, ref) => {
           try {
-            return requireClient(desktopId).imageRefUrl(ref);
+            return requireClient(connectionKey).imageRefUrl(ref);
           } catch {
             return "";
           }
         },
+
+        listEnvironmentDependents: (connectionKey) => {
+          const parentRef = { kind: "connection", connectionId: connectionKey } as const;
+          return get().servers.filter(
+            (server) =>
+              server.transport?.kind === "environment" &&
+              environmentTransportHasParent(server.transport, parentRef),
+          );
+        },
+
+        resolveEnvironmentImage: (connectionKey, key) => environmentImageUrl(connectionKey, key),
+
+        requestEnvironmentImage: (connectionKey, target) => {
+          requestEnvironmentImage(connectionKey, target);
+        },
+
+        subscribeEnvironmentImage: (connectionKey, key, listener, target) =>
+          subscribeEnvironmentImage(connectionKey, key, listener, target),
       };
     },
     {
@@ -323,19 +410,54 @@ export const useRemoteServersStore = create<RemoteServersState>()(
       // factories stay process-local. Bearer tokens live in the native OS
       // keystore or the browser/Electron WebCrypto vault, not plaintext storage.
       partialize: persistedRemoteServersState,
-      version: 1,
-      // v1 reserves null in projectWorkspaceIds for an explicit "unfiled"
-      // override. Older string-valued entries and absent entries remain valid.
-      migrate: (persistedState) => persistedState as RemoteServersState,
+      version: 2,
+      /**
+       * v1 → v2: `connectionId` becomes the per-connection key.
+       *
+       * For every existing record `connectionId = desktopId`, so direct/ssh
+       * records stay byte-identical in behavior; persisted projections, vault
+       * keys, and certificate pins keep their v1 identifiers. Environment
+       * records never exist in a v1 document, so no other rewrite is needed.
+       * v1's reserved `null` in projectWorkspaceIds (explicit "unfiled")
+       * remains valid.
+       */
+      migrate: (persistedState, version) =>
+        migrateRemoteServersPersistedState(persistedState, version),
       // Gate 6 item 4.6 (S6): once the persisted server records land, fill the
       // synchronous refresh-token map from the encrypted vault, so the first
       // 401 of any session can already refresh transparently. Runs out of the
       // connectAll path on purpose — connectAll keeps its synchronous
-      // "connecting" state contract.
+      // "connecting" state contract. Environment records hydrate their
+      // parent-scoped child grant in addition to the record key; a persisted
+      // remote-environment grant still at the pre-correction
+      // `refresh.environment.<parent>.<envId>` slot migrates only when that
+      // slot is unambiguously the environment's (never a direct record's own
+      // grant), and only after a strict vault write succeeded.
       onRehydrateStorage: () => (state) => {
-        if (state?.servers?.length) {
-          void hydrateRefreshTokens(state.servers.map((server) => server.desktopId));
+        if (!state?.servers?.length) return;
+        const subjects: RefreshSubject[] = [];
+        const legacyRemoteEnvironmentSubjects: RemoteEnvironmentGrantSubject[] = [];
+        const directConnectionIds = new Set<string>();
+        for (const server of state.servers) {
+          const connectionKey = remoteConnectionKey(server);
+          subjects.push({ kind: "connection", connectionId: connectionKey });
+          if (server.transport?.kind === "environment") {
+            const grant = environmentChildGrantSubject(server.transport);
+            if (grant) {
+              subjects.push(grant);
+              if (grant.kind === "remoteEnvironmentGrant") {
+                legacyRemoteEnvironmentSubjects.push(grant);
+              }
+            }
+          } else {
+            directConnectionIds.add(connectionKey);
+          }
         }
+        void hydrateRefreshTokens({
+          subjects,
+          legacyRemoteEnvironmentSubjects,
+          directConnectionIds,
+        });
       },
     },
   ),
@@ -369,8 +491,13 @@ registerRemoteProcedureHost({
  */
 export function __resetRemoteServersStoreForTest(): void {
   closeAllRemoteServerEventSockets();
+  __resetEnvironmentSessionsForTest();
   __resetStandaloneOwnerForTest();
   __resetConnectionRefreshForTest();
+  __resetBoundedCatalogForTest();
+  __resetCatalogOrderFencesForTest();
+  __resetCatalogMutationsCapabilityForTest();
+  __resetBoundedHistoryForTest();
   __resetEventSocketRegistryForTest();
   __resetTruncateRecoveryForTest();
   clearRemoteGitState();

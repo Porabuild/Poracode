@@ -12,7 +12,7 @@ import type { UsageLoginConfirmationAction, UsageLoginDeviceCode } from "@/share
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { BrowserLinkOpenTarget, BrowserLinkPresentationMode } from "@/shared/settings";
 import type { ShellStateStore } from "../backend/BackendStateStore";
-import { readSharedSettingsFile } from "../sharedSettingsFile";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { saveClipboardImageFile } from "../attachments/localFiles";
 import { BrowserLoginCaptureCoordinator } from "./BrowserLoginCaptureCoordinator";
 import { BrowserTab, resolveWebContentsById } from "./BrowserTab";
@@ -843,7 +843,7 @@ export class BrowserPanelManager {
     const bytes = await tab.capturePng(clip);
 
     const data = new Uint8Array(bytes);
-    const path = saveClipboardImageFile(this.paths, {
+    const path = await saveClipboardImageFile(this.paths, {
       threadId,
       data,
       extension: "png",

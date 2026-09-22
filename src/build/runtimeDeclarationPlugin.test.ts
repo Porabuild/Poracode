@@ -46,6 +46,7 @@ async function fixture() {
     "pnpm-lock.yaml",
     "scripts/prepare-agent-plugins.mjs",
     "scripts/server-native-overlay.mjs",
+    "scripts/server-release-install.mjs",
   ])
     await writeFile(join(root, path), "");
   await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module" }));

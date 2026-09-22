@@ -13,6 +13,14 @@ vi.mock("@/renderer/bridge", () => ({
   readBridge: () => ({}),
 }));
 
+const groupIntentsMock = vi.hoisted(() => vi.fn<(assignments: unknown) => void>());
+vi.mock("@/renderer/state/managedRootCatalog/rootCatalogIntents", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/renderer/state/managedRootCatalog/rootCatalogIntents")
+  >()),
+  dispatchManagedRootThreadGroupIntents: groupIntentsMock,
+}));
+
 const project: Project = {
   id: "p1",
   name: "Poracode",
@@ -114,6 +122,44 @@ describe("ThreadContextMenu project actions", () => {
 
     expect(screen.getByRole("menuitem", { name: "Git" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Run" })).not.toBeInTheDocument();
+  });
+
+  it("routes Group open threads through the managed-root group intents", async () => {
+    groupIntentsMock.mockClear();
+    const first = thread({ id: "t1", projectId: project.id });
+    const second = thread({ id: "t2", projectId: project.id });
+    useAppStore.setState({
+      threads: [first, second],
+      view: { kind: "thread", panes: ["t1", "t2"] },
+    });
+
+    await renderMenu(first, project);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Group open threads" }));
+
+    expect(groupIntentsMock).toHaveBeenCalledTimes(1);
+    const assignments = groupIntentsMock.mock.calls[0]![0] as Array<{
+      threadId: string;
+      groupId?: string;
+      groupName?: string;
+    }>;
+    expect(assignments.map((assignment) => assignment.threadId).sort()).toEqual(["t1", "t2"]);
+    expect(new Set(assignments.map((assignment) => assignment.groupId)).size).toBe(1);
+    expect(assignments.every((assignment) => assignment.groupName === first.title)).toBe(true);
+  });
+
+  it("routes Remove from group through the managed-root clear-group intents", async () => {
+    groupIntentsMock.mockClear();
+    const first = thread({ id: "t1", projectId: project.id, groupId: "g-1", groupName: "G" });
+    const second = thread({ id: "t2", projectId: project.id, groupId: "g-1", groupName: "G" });
+    useAppStore.setState({
+      threads: [first, second],
+      view: { kind: "thread", panes: ["t1", "t2"] },
+    });
+
+    await renderMenu(first, project);
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Remove from group" }));
+
+    expect(groupIntentsMock).toHaveBeenCalledWith([{ threadId: "t1" }, { threadId: "t2" }]);
   });
 
   it("files a Home thread under a picked workspace and un-files it again", async () => {

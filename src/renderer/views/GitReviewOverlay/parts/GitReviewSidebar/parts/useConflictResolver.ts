@@ -15,6 +15,7 @@ import {
 } from "@/renderer/components/providers/conflictResolver";
 import { resolveFastValue } from "@/renderer/components/thread/threadDraftViewHelpers";
 import { recordAiAction } from "@/renderer/state/usageRecorder";
+
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";

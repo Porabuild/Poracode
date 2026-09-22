@@ -15,15 +15,13 @@ interface RegisterIpcHandlersOptions {
   callSupervisor<Name extends SupervisorProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
-    /** Authenticated invoking webContents id; scopes terminal-bootstrap retention. */
-    originWindowId?: number,
   ): Promise<IpcProcedureResult<Name>>;
 }
 
 export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
-  // Main-local handlers may need the invoking webContents (per-window state
-  // such as renderer event interests); supervisor calls carry only its
-  // authenticated id as the request origin.
+  // Main-local handlers may need the invoking webContents (per-window state);
+  // supervisor calls carry no per-window metadata since A2 removed the
+  // terminal-bootstrap relay window.
   const invoke = async (
     name: IpcProcedureName,
     args: unknown[],
@@ -39,7 +37,7 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
       ) => unknown;
       return handler(payload, sender);
     }
-    return options.callSupervisor(name as SupervisorProcedureName, payload as never, sender?.id);
+    return options.callSupervisor(name as SupervisorProcedureName, payload as never);
   };
   const procedureNames = Object.keys(ipcProcedureMap) as IpcProcedureName[];
   for (const name of procedureNames) {

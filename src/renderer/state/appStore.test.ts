@@ -1,5 +1,7 @@
+import "fake-indexeddb/auto";
 import { composerDraftStorage } from "./composerDraftStorage";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readRawBrowserMetadataRecordForTest } from "./browserMetadataCacheRecords";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
 import { findPaneSlotId, type PaneLayout } from "@/shared/paneLayout";
 import {
@@ -34,11 +36,42 @@ describe("appStore runtime config sync", () => {
     useThreadFollowUpQueueStore.getState().reset();
   });
 
-  it("does not write the full app snapshot when only a draft changes", () => {
+  it("commits app metadata to the async cache when only a draft changes", async () => {
     installBrowserClientRuntime({} as PoracodeBridge);
+    // Hydration replaces persisted row arrays asynchronously; let it settle so
+    // the revision assertions below only see writes caused by this test.
+    if (!useAppStore.persist.hasHydrated()) {
+      await new Promise<void>((resolve) => useAppStore.persist.onFinishHydration(() => resolve()));
+    }
     const project = useAppStore
       .getState()
       .addProject({ kind: "posix", path: "/draft-write-probe" });
+    const projectsOf = (record: Awaited<ReturnType<typeof readRawBrowserMetadataRecordForTest>>) =>
+      (record?.value as { state?: { projects?: Array<{ id: string; name: string }> } } | undefined)
+        ?.state?.projects;
+    const waitForSnapshot = async (
+      predicate: (
+        record: NonNullable<Awaited<ReturnType<typeof readRawBrowserMetadataRecordForTest>>>,
+      ) => boolean,
+    ) => {
+      for (let attempt = 0; attempt < 200; attempt += 1) {
+        const record = await readRawBrowserMetadataRecordForTest("poracode-app-v2");
+        if (record && predicate(record)) return record;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      throw new Error("timed out waiting for the app snapshot commit");
+    };
+
+    // The project reaches the IndexedDB cache and its revision settles.
+    let previousRevision: number | undefined;
+    const initial = await waitForSnapshot((record) => {
+      const settled = record.revision === previousRevision;
+      previousRevision = record.revision;
+      return (
+        settled && projectsOf(record)?.some((candidate) => candidate.id === project.id) === true
+      );
+    });
+
     const writes = vi.spyOn(Storage.prototype, "setItem");
     try {
       for (const text of ["a", "ab", "abc"]) {
@@ -52,8 +85,25 @@ describe("appStore runtime config sync", () => {
       expect(
         writes.mock.calls.filter(([name]) => name.startsWith("poracode-composer-draft-v1:")),
       ).toHaveLength(1);
+      // Draft-only changes never re-commit the full app metadata.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect((await readRawBrowserMetadataRecordForTest("poracode-app-v2"))?.revision).toBe(
+        initial.revision,
+      );
+
       useAppStore.getState().renameProject(project.id, "Renamed");
-      expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(1);
+      const renamed = await waitForSnapshot(
+        (record) =>
+          record.revision === initial.revision + 1 &&
+          projectsOf(record)?.some(
+            (candidate) => candidate.id === project.id && candidate.name === "Renamed",
+          ) === true,
+      );
+      expect(renamed.value).toMatchObject({
+        state: { projects: expect.arrayContaining([expect.objectContaining({ id: project.id })]) },
+      });
+      // The app snapshot never goes through the synchronous localStorage path.
+      expect(writes.mock.calls.filter(([name]) => name === "poracode-app-v2")).toHaveLength(0);
     } finally {
       writes.mockRestore();
       useAppStore.getState().clearDraftContent(project.id);
@@ -143,7 +193,7 @@ describe("appStore runtime config sync", () => {
     expect(updated?.worktreeBranch).toBe("feature/x");
   });
 
-  it("keeps an unresolved optimistic worktree thread out of persisted state", () => {
+  it("desktop persisted state is preferences-only (no catalog rows at all)", () => {
     const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
     const thread = useAppStore.getState().createThread({
       projectId: project.id,
@@ -153,7 +203,7 @@ describe("appStore runtime config sync", () => {
       worktreeBranch: "poracode/feature",
       worktreeProvisioning: true,
     });
-    const experimentThread = useAppStore.getState().createThread({
+    useAppStore.getState().createThread({
       projectId: project.id,
       agentKind: "codex",
       config: { model: "gpt-5.4" },
@@ -164,12 +214,16 @@ describe("appStore runtime config sync", () => {
     });
     const partialize = useAppStore.persist.getOptions().partialize!;
 
-    const unresolved = partialize(useAppStore.getState()) as Pick<
-      AppStoreState,
-      "threads" | "view"
-    >;
-    expect(unresolved.threads).not.toContainEqual(expect.objectContaining({ id: thread.id }));
-    expect(unresolved.threads).toContainEqual(expect.objectContaining({ id: experimentThread.id }));
+    const unresolved = partialize(useAppStore.getState()) as {
+      view: AppStoreState["view"];
+      threads?: unknown;
+      projects?: unknown;
+    };
+    // The catalog is host-owned: no row ever reaches desktop persistence.
+    expect(unresolved.threads).toBeUndefined();
+    expect(unresolved.projects).toBeUndefined();
+    // A view that points at the unresolved provisioning row is not restorable
+    // after restart, so the preference falls back to home.
     expect(unresolved.view).toEqual({ kind: "home" });
 
     useAppStore.getState().updateThreadRuntime(thread.id, {
@@ -177,22 +231,23 @@ describe("appStore runtime config sync", () => {
       attention: "error",
       canResumeWithConfig: false,
     });
-    const failed = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads">;
-    expect(failed.threads).not.toContainEqual(expect.objectContaining({ id: thread.id }));
+    const failed = partialize(useAppStore.getState()) as { threads?: unknown };
+    expect(failed.threads).toBeUndefined();
 
     useAppStore
       .getState()
       .setThreadWorktree(thread.id, "C:\\worktrees\\feature", "poracode/feature");
-    const resolved = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads" | "view">;
-    expect(resolved.threads).toContainEqual(
-      expect.objectContaining({ id: thread.id, worktreePath: "C:\\worktrees\\feature" }),
-    );
+    const resolved = partialize(useAppStore.getState()) as {
+      view: AppStoreState["view"];
+      threads?: unknown;
+    };
+    expect(resolved.threads).toBeUndefined();
     expect(useAppStore.getState().provisioningWorktreeThreadIds[thread.id]).toBeUndefined();
     expect(resolved.view).toMatchObject({ kind: "thread", panes: [thread.id] });
     expect(useAppStore.persist.getOptions().version).toBe(5);
   });
 
-  it("keeps remote archived threads out of persisted state", () => {
+  it("desktop persisted state carries no threads regardless of archive/projection", () => {
     const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
     const local = useAppStore.getState().createThread({
       projectId: project.id,
@@ -215,9 +270,9 @@ describe("appStore runtime config sync", () => {
     });
 
     const partialize = useAppStore.persist.getOptions().partialize!;
-    const persisted = partialize(useAppStore.getState()) as Pick<AppStoreState, "threads">;
+    const persisted = partialize(useAppStore.getState()) as { threads?: unknown };
 
-    expect(persisted.threads.map((thread) => thread.id)).toEqual([local.id]);
+    expect(persisted.threads).toBeUndefined();
   });
 
   it("migrates legacy archived threads to store version 5", async () => {

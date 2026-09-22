@@ -12,7 +12,7 @@ import {
   classifyRendererProcessGone,
   type RendererProcessGoneIntent,
 } from "./diagnostics/processGone";
-import { readSharedSettingsFile } from "./sharedSettingsFile";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { createMainWindow } from "./window/createMainWindow";
 import { createMainWindowCloseLifecycle } from "./window/mainWindowClose";
 import { installMainRendererInvalidation } from "./window/mainRendererInvalidation";
@@ -249,8 +249,6 @@ export function createQuickComposerLifecycleHost(
 function createMainAppWindow(showOnReady = true, stateOverride?: ShellStateStore): BrowserWindow {
   const windowChrome = resolveWindowChromeOptions();
   let window: BrowserWindow;
-  // Captured before any close path can destroy the webContents the id reads from.
-  let windowSenderId: number | undefined;
   const closeLifecycle = createMainWindowCloseLifecycle({
     isQuitting: () => desktopApp.isQuitting,
     closeToTrayEnabled: isCloseToTrayEnabled,
@@ -269,7 +267,6 @@ function createMainAppWindow(showOnReady = true, stateOverride?: ShellStateStore
     showOnReady,
     onClosed: () => {
       const wasMainWindow = desktopApp.mainWindow === window;
-      if (windowSenderId !== undefined) desktopApp.clearRendererEventInterests?.(windowSenderId);
       if (wasMainWindow) {
         desktopApp.mainWindow = null;
         desktopApp.quickComposerLifecycle?.markMainNotReady();
@@ -281,12 +278,10 @@ function createMainAppWindow(showOnReady = true, stateOverride?: ShellStateStore
       captureRendererProcessGone(details, "renderer", intent);
     },
   });
-  windowSenderId = window.webContents.id;
   installMainRendererInvalidation(window.webContents, {
     isCurrent: () => desktopApp.mainWindow === window,
     invalidate: () => {
       desktopApp.quickComposerLifecycle?.markMainNotReady();
-      if (windowSenderId !== undefined) desktopApp.clearRendererEventInterests?.(windowSenderId);
     },
   });
   return window;

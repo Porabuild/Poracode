@@ -4,11 +4,18 @@ import {
   TERMINAL_CURSOR_SYNC_VERSION,
   TERMINAL_CURSOR_SYNC_V2_VERSION,
 } from "@/shared/remote/protocol";
+import { environmentAdvertisesBoundedCatalogChanges } from "@/renderer/state/remote/boundedCatalogChangesCapability";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 
 /** Connection-local, never persisted: a reconnect must revalidate support. */
 export interface TerminalConnectionCapabilities {
   readonly cursorSyncVersion?: 1 | 2;
+  /**
+   * `capabilities.boundedCatalogChanges` v1 from the SAME descriptor this
+   * connection negotiated. The WS upgrade may declare the signal form only
+   * when this is true and the bounded catalog consumer is installed.
+   */
+  readonly boundedCatalogChanges?: boolean;
 }
 
 type Environment = Awaited<ReturnType<RemoteDesktopClient["environment"]>>;
@@ -19,9 +26,11 @@ const SUPPORTED_CURSOR_SYNC_VERSIONS = [
 ] as const;
 
 /**
- * Pick the newest advertised cursor-sync version this build supports.
- * Negotiated from the fresh per-connection descriptor only — never persisted —
- * so an old host keeps v1 and a v2-capable host upgrades on the next connect.
+ * Pick the newest advertised cursor-sync version this build supports, and the
+ * exact bounded-catalog-changes verdict. Negotiated from the fresh
+ * per-connection descriptor only — never persisted — so an old host keeps v1
+ * and a v2-capable host upgrades on the next connect, and a declaration can
+ * never outlive the descriptor that authorized it.
  */
 export function terminalCapabilitiesFromEnvironment(
   environment: Environment,
@@ -32,7 +41,12 @@ export function terminalCapabilitiesFromEnvironment(
   );
   // Newest supported advertised version; the tuple is ordered ascending.
   const newest = supported[supported.length - 1];
-  return newest === undefined ? {} : { cursorSyncVersion: newest };
+  return {
+    ...(newest === undefined ? {} : { cursorSyncVersion: newest }),
+    ...(environmentAdvertisesBoundedCatalogChanges(environment)
+      ? { boundedCatalogChanges: true }
+      : {}),
+  };
 }
 
 /** Reuse only the descriptor just fetched for this initial connection.

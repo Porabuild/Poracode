@@ -59,6 +59,10 @@ import {
 } from "@/renderer/actions/threadActions";
 import { runProjectAction, stopProjectAction } from "@/renderer/actions/terminalActions";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
+import {
+  dispatchManagedRootThreadGroupIntents,
+  dispatchManagedRootThreadWorkspace,
+} from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 
 /**
  * Right-click menu shared by every sidebar surface that shows a thread —
@@ -370,8 +374,14 @@ export function ThreadContextMenu(props: {
             ),
             view: s.view.kind === "thread" ? { ...s.view, activeGroupId: groupId } : s.view,
           }));
+          // The durable effect of grouping a root row is the host command; the
+          // local paint above is display-only until the next page confirms it.
+          dispatchManagedRootThreadGroupIntents(
+            openThreads.map((other) => ({ threadId: other.id, groupId, groupName })),
+          );
         }
         if (key === "ungroup") {
+          const clearedThreadIds = new Set<string>([thread.id]);
           useAppStore.setState((state) => {
             let updatedThreads = state.threads.map((other) =>
               other.id === thread.id
@@ -380,6 +390,7 @@ export function ThreadContextMenu(props: {
             );
             const remaining = updatedThreads.filter((other) => other.groupId === thread.groupId);
             if (remaining.length === 1) {
+              clearedThreadIds.add(remaining[0]!.id);
               updatedThreads = updatedThreads.map((other) =>
                 other.id === remaining[0]!.id
                   ? { ...other, groupId: undefined, groupName: undefined }
@@ -392,6 +403,9 @@ export function ThreadContextMenu(props: {
                 : state.view;
             return { threads: updatedThreads, view };
           });
+          dispatchManagedRootThreadGroupIntents(
+            [...clearedThreadIds].map((threadId) => ({ threadId })),
+          );
         }
         if (key === "archive" && !isExperimentCandidate) archiveThread(thread.id);
         if (key === "rename") onRename?.();
@@ -409,9 +423,10 @@ export function ThreadContextMenu(props: {
         if (key.startsWith("stop-action:")) {
           stopProjectAction(project.id, key.slice("stop-action:".length), thread.worktreePath);
         }
-        applyWorkspaceMenuChoice(key, (workspaceId) =>
-          useAppStore.getState().setThreadWorkspace(thread.id, workspaceId),
-        );
+        applyWorkspaceMenuChoice(key, (workspaceId) => {
+          useAppStore.getState().setThreadWorkspace(thread.id, workspaceId);
+          dispatchManagedRootThreadWorkspace(thread.id, workspaceId);
+        });
       }}
     >
       {props.children}

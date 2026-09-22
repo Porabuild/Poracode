@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_EXPERIMENT_PROMPT_LENGTH,
+  experimentSchema,
   type Experiment,
   type Project,
+  type RemoteExperimentCommand,
   type Thread,
 } from "@/shared/contracts";
+import { RemoteClientError } from "@/shared/remote/client";
+import { hydrateManagedExperimentState } from "@/renderer/state/managedRootCatalog/rootExperimentAuthority";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useThreadLiveWorkflowStore } from "@/renderer/state/threadLiveWorkflowStore";
+import { __resetManagedRootLaunchMetadataCapabilityForTest } from "@/renderer/state/managedRootCatalog/rootLaunchMetadataCapability";
 import {
   crownExperiment,
   createExperimentCandidatePr,
@@ -16,6 +21,7 @@ import {
   launchExperiment,
   mergeExperimentWinner,
   retryExperimentCleanup,
+  renameExperimentWithAuthority,
 } from "./experimentActions";
 
 const mocks = vi.hoisted(() => ({
@@ -30,6 +36,28 @@ const mocks = vi.hoisted(() => ({
       supportsTextOnlyOneShot: boolean;
     };
   }>,
+  authority: {
+    activationSeq: 0,
+    revisionSeq: 0,
+    activation: null as null | {
+      readonly seq: number;
+      readonly client: {
+        environment(): Promise<unknown>;
+        experimentState(): Promise<{ revision: string; experiments: Record<string, Experiment> }>;
+        sendExperimentCommand(
+          command: RemoteExperimentCommand,
+          options: { readonly commandId: string },
+        ): Promise<{ ok: true; revision: string }>;
+      };
+    },
+    sendExperimentCommand:
+      vi.fn<
+        (
+          command: RemoteExperimentCommand,
+          options: { readonly commandId: string },
+        ) => Promise<{ ok: true; revision: string }>
+      >(),
+  },
   bridge: {
     createExperimentWorktrees: vi.fn<(payload: any) => Promise<any>>(),
     removeExperimentWorktrees: vi.fn<(payload: any) => Promise<any>>(),
@@ -90,8 +118,14 @@ const mocks = vi.hoisted(() => ({
     dbSetState: vi.fn<(key: string, value: string) => Promise<void>>(),
     dbUpsertThread: vi.fn<(thread: Thread) => Promise<void>>(),
     dbDeleteThread: vi.fn<(threadId: string) => Promise<void>>(),
-    dbPersistExperimentState: vi.fn<(payload: any) => Promise<void>>(),
-    dbGetThreadRuntimeItems: vi.fn<(threadId: string) => Promise<any[]>>(),
+    dbGetThreadRuntimeItemsPage:
+      vi.fn<
+        (input: {
+          threadId: string;
+          limit: number;
+          beforePosition?: number;
+        }) => Promise<{ items: any[]; nextCursor: number | null }>
+      >(),
   },
   performInitialThreadLaunch: vi.fn<(input: unknown) => Promise<void>>(),
   performWorktreeRemoval:
@@ -119,6 +153,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/renderer/bridge", () => ({
   readBridge: () => mocks.bridge,
+}));
+// The real authority module drives the REAL command construction; only the
+// managed-loopback activation behind it is a stubbed transport, so these tests
+// prove actual client dispatch (command ids, bodies, ordering) end to end.
+vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/renderer/hostTransport/loopbackHttpWsTransport")>()),
+  readManagedLoopbackActivation: () => mocks.authority.activation,
 }));
 vi.mock("@/renderer/utils/titleGen", () => ({
   requestGeneratedTitle: mocks.requestGeneratedTitle,
@@ -307,14 +348,30 @@ describe("experimentActions", () => {
     mocks.bridge.dbSetState.mockResolvedValue(undefined);
     mocks.bridge.dbUpsertThread.mockResolvedValue(undefined);
     mocks.bridge.dbDeleteThread.mockResolvedValue(undefined);
-    mocks.bridge.dbGetThreadRuntimeItems.mockReset().mockResolvedValue([]);
-    mocks.bridge.dbPersistExperimentState.mockImplementation(async (payload) => {
-      for (const item of payload.upsertThreads) await mocks.bridge.dbUpsertThread(item.thread);
-      for (const threadId of payload.deletedThreadIds) {
-        await mocks.bridge.dbDeleteThread(threadId);
-      }
-      await mocks.bridge.dbSetState("experiments", JSON.stringify(payload.experiments));
+    mocks.bridge.dbGetThreadRuntimeItemsPage.mockReset().mockResolvedValue({
+      items: [],
+      nextCursor: null,
     });
+    mocks.authority.sendExperimentCommand.mockReset().mockImplementation(async (command) => {
+      if (command.kind === "remove") {
+        useExperimentStore.getState().removeExperiment(command.experimentId);
+      } else {
+        useExperimentStore.getState().upsertExperiment(experimentSchema.parse(command.record));
+      }
+      return { ok: true as const, revision: `rev-${(mocks.authority.revisionSeq += 1)}` };
+    });
+    mocks.authority.activation = {
+      seq: (mocks.authority.activationSeq += 1),
+      client: {
+        environment: async () => ({ capabilities: { experiments: { versions: [1] } } }),
+        experimentState: async () => ({
+          revision: `rev-${(mocks.authority.revisionSeq += 1)}`,
+          experiments: useExperimentStore.getState().experiments,
+        }),
+        sendExperimentCommand: mocks.authority.sendExperimentCommand,
+      },
+    };
+    __resetManagedRootLaunchMetadataCapabilityForTest();
     mocks.generateTitleWithFallback.mockResolvedValue("AI experiment title");
     mocks.requestGeneratedTitle.mockResolvedValue("AI experiment title");
     mocks.bridge.getExperimentCandidateDiff.mockResolvedValue({
@@ -476,9 +533,224 @@ describe("experimentActions", () => {
     expect(id).toBeNull();
     expect(mocks.bridge.gitListBranches).not.toHaveBeenCalled();
     expect(mocks.bridge.createExperimentWorktrees).not.toHaveBeenCalled();
+    expect(mocks.authority.sendExperimentCommand).not.toHaveBeenCalled();
     expect(useAppStore.getState().threads).toHaveLength(0);
     expect(useExperimentStore.getState().experiments).toEqual({});
   });
+
+  it("refuses before any local effect when the host does not advertise experiments", async () => {
+    mocks.authority.activation = {
+      seq: (mocks.authority.activationSeq += 1),
+      client: {
+        environment: async () => ({ capabilities: {} }),
+        experimentState: async () => ({ revision: "rev", experiments: {} }),
+        sendExperimentCommand: mocks.authority.sendExperimentCommand,
+      },
+    };
+
+    const id = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+      ],
+    });
+
+    expect(id).toBeNull();
+    expect(mocks.bridge.gitListBranches).not.toHaveBeenCalled();
+    expect(mocks.bridge.gitAddWorktree).not.toHaveBeenCalled();
+    expect(mocks.authority.sendExperimentCommand).not.toHaveBeenCalled();
+    expect(useAppStore.getState().threads).toHaveLength(0);
+    expect(useExperimentStore.getState().experiments).toEqual({});
+  });
+
+  it.each(["offline", "unsupported"])(
+    "does not paint a rename when authority is %s",
+    async (state) => {
+      const existing = experiment();
+      useExperimentStore.getState().addExperiment(existing);
+      useAppStore.setState({
+        threads: [
+          {
+            ...thread("thread-1", "/repo/one", "poracode/one"),
+            groupId: existing.id,
+            groupName: existing.title,
+          },
+        ],
+      });
+      if (state === "offline") mocks.authority.activation = null;
+      else mocks.authority.activation!.client.environment = async () => ({ capabilities: {} });
+      await renameExperimentWithAuthority(existing.id, "Unsaved name");
+      expect(useExperimentStore.getState().experiments[existing.id]?.title).toBe(existing.title);
+      expect(useAppStore.getState().threads[0]?.groupName).toBe(existing.title);
+      expect(mocks.authority.sendExperimentCommand).not.toHaveBeenCalled();
+    },
+  );
+
+  it("projects confirmed experiment names only onto owned candidate rows", async () => {
+    const existing = experiment();
+    useExperimentStore.getState().addExperiment(existing);
+    useAppStore.setState({
+      threads: [
+        {
+          ...thread("thread-1", "/repo/one", "poracode/one"),
+          groupId: existing.id,
+          groupName: existing.title,
+        },
+        {
+          ...thread("unrelated", "/repo/other", "poracode/other"),
+          groupId: "another-group",
+          groupName: "Other group",
+        },
+      ],
+    });
+    await renameExperimentWithAuthority(existing.id, "Confirmed name");
+    expect(useExperimentStore.getState().experiments[existing.id]?.title).toBe("Confirmed name");
+    expect(useAppStore.getState().threads.map((row) => row.groupName)).toEqual([
+      "Confirmed name",
+      "Other group",
+    ]);
+    expect(mocks.authority.sendExperimentCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "replace",
+        rows: existing.candidates.map((candidate) => ({
+          threadId: candidate.threadId,
+          groupName: "Confirmed name",
+        })),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("refuses before any local effect when the loopback leg is down", async () => {
+    mocks.authority.activation = null;
+
+    const id = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+      ],
+    });
+
+    expect(id).toBeNull();
+    expect(mocks.authority.sendExperimentCommand).not.toHaveBeenCalled();
+    expect(useAppStore.getState().threads).toHaveLength(0);
+    expect(useExperimentStore.getState().experiments).toEqual({});
+  });
+
+  it("keeps the local create and skips worktrees and launches when the create outcome is uncertain", async () => {
+    mocks.authority.sendExperimentCommand.mockRejectedValue(
+      new RemoteClientError("connection dropped after dispatch", 0, "network", {
+        requestMayHaveCommitted: true,
+      }),
+    );
+
+    const id = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+      ],
+    });
+
+    expect(id).toBeNull();
+    // The exact original command id and body are retried; no fresh destructive
+    // intent is issued.
+    expect(mocks.authority.sendExperimentCommand).toHaveBeenCalledTimes(3);
+    const [first, second, third] = mocks.authority.sendExperimentCommand.mock.calls;
+    expect(first?.[1].commandId).toBe(second?.[1].commandId);
+    expect(second?.[1].commandId).toBe(third?.[1].commandId);
+    expect(second?.[0]).toEqual(first?.[0]);
+    expect(third?.[0]).toEqual(first?.[0]);
+    // A possibly-committed create must not be deleted locally, and no worktree
+    // or provider effect may start.
+    expect(useExperimentStore.getState().experiments).not.toEqual({});
+    expect(useAppStore.getState().threads).toHaveLength(2);
+    expect(mocks.bridge.gitAddWorktree).not.toHaveBeenCalled();
+    expect(mocks.bridge.createExperimentWorktrees).not.toHaveBeenCalled();
+    expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
+  });
+
+  it("confirms the candidate worktree row update before launching candidates", async () => {
+    await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+      ],
+    });
+
+    const replaceCallIndex = mocks.authority.sendExperimentCommand.mock.calls.findIndex(
+      ([command]) => command.kind === "replace" && command.rows?.some((row) => row.worktree),
+    );
+    const replaceCommand = mocks.authority.sendExperimentCommand.mock.calls[replaceCallIndex]?.[0];
+    expect(replaceCommand).toMatchObject({
+      kind: "replace",
+      rows: [
+        {
+          threadId: expect.any(String),
+          worktree: { path: "/repo/one", branch: expect.stringMatching(/^poracode\/experiment-/) },
+        },
+        {
+          threadId: expect.any(String),
+          worktree: { path: "/repo/two", branch: expect.stringMatching(/^poracode\/experiment-/) },
+        },
+      ],
+    });
+    expect(
+      mocks.authority.sendExperimentCommand.mock.invocationCallOrder[replaceCallIndex]!,
+    ).toBeLessThan(mocks.performInitialThreadLaunch.mock.invocationCallOrder[0]!);
+  });
+
+  it.each([false, true])(
+    "does not launch when the prepared worktrees are unconfirmed (uncertain=%s)",
+    async (uncertain) => {
+      const error = new RemoteClientError(
+        "worktree update failed",
+        uncertain ? 0 : 403,
+        uncertain ? "network" : "forbidden",
+        { requestMayHaveCommitted: uncertain },
+      );
+      const normalSend = mocks.authority.sendExperimentCommand.getMockImplementation()!;
+      mocks.authority.sendExperimentCommand.mockImplementation(async (command, options) => {
+        if (command.kind === "replace" && command.rows?.some((row) => row.worktree)) throw error;
+        return normalSend(command, options);
+      });
+      const id = await launchExperiment({
+        projectId: project.id,
+        prompt: "Implement it",
+        baseBranch: "main",
+        candidates: [
+          { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+          { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+        ],
+      });
+      expect(id).not.toBeNull();
+      expect(mocks.bridge.createExperimentWorktrees).toHaveBeenCalledTimes(1);
+      expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
+      expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
+      expect(mocks.bridge.removeExperimentWorktrees).not.toHaveBeenCalled();
+      const updates = mocks.authority.sendExperimentCommand.mock.calls.filter(
+        ([command]) => command.kind === "replace" && command.rows?.some((row) => row.worktree),
+      );
+      expect(updates).toHaveLength(uncertain ? 3 : 1);
+      for (const update of updates) expect(update).toEqual(updates[0]);
+      expect(
+        mocks.authority.sendExperimentCommand.mock.calls.some(
+          ([command]) => command.kind === "remove",
+        ),
+      ).toBe(false);
+    },
+  );
 
   it("fans out from one frozen commit using normal thread creation and launch semantics", async () => {
     const id = await launchExperiment({
@@ -504,14 +776,30 @@ describe("experimentActions", () => {
 
     expect(id).toBeTruthy();
     expect(mocks.bridge.gitAddWorktree).toHaveBeenCalledTimes(2);
-    expect(mocks.bridge.dbSetState.mock.invocationCallOrder[0]).toBeLessThan(
+    // The atomic create+specs command is confirmed BEFORE any worktree is
+    // prepared or any provider is launched.
+    const createCommand = mocks.authority.sendExperimentCommand.mock.calls[0]?.[0];
+    expect(createCommand).toMatchObject({
+      kind: "create",
+      experimentId: id,
+      record: {
+        id,
+        status: "running",
+        candidates: [
+          expect.objectContaining({ worktreeState: "pending" }),
+          expect.objectContaining({ worktreeState: "pending" }),
+        ],
+      },
+      threads: [
+        expect.objectContaining({ projectId: project.id, worktreeBranch: expect.any(String) }),
+        expect.objectContaining({ projectId: project.id, worktreeBranch: expect.any(String) }),
+      ],
+    });
+    expect(mocks.authority.sendExperimentCommand.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.bridge.gitAddWorktree.mock.invocationCallOrder[0]!,
     );
-    expect(mocks.bridge.dbUpsertThread.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.bridge.dbSetState.mock.invocationCallOrder[0]!,
-    );
-    expect(mocks.bridge.dbUpsertThread.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.bridge.gitAddWorktree.mock.invocationCallOrder[0]!,
+    expect(mocks.authority.sendExperimentCommand.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.performInitialThreadLaunch.mock.invocationCallOrder[0]!,
     );
     expect(
       mocks.bridge.gitAddWorktree.mock.calls.map(
@@ -668,7 +956,7 @@ describe("experimentActions", () => {
 
     expect(mocks.bridge.gitListBranches).not.toHaveBeenCalled();
     expect(mocks.bridge.gitAddWorktree).not.toHaveBeenCalled();
-    expect(mocks.bridge.dbUpsertThread).not.toHaveBeenCalled();
+    expect(mocks.authority.sendExperimentCommand).not.toHaveBeenCalled();
     expect(mocks.bridge.dbSetState).not.toHaveBeenCalled();
     expect(mocks.performInitialThreadLaunch).not.toHaveBeenCalled();
     expect(useAppStore.getState().threads).toEqual([]);
@@ -945,19 +1233,27 @@ describe("experimentActions", () => {
       ],
     }));
     useExperimentStore.getState().addExperiment(experiment());
-    mocks.bridge.dbGetThreadRuntimeItems.mockImplementation(async (threadId) => [
-      {
-        id: `${threadId}-answer`,
-        type: "assistant_message",
-        state: "completed",
-        payload: {
-          content: [
-            { kind: "text", text: threadId === "thread-1" ? "First answer" : "Second answer" },
-          ],
+    // R1: the judge pages the bounded runtime-items route; the walk resolves
+    // with one complete page per candidate.
+    mocks.bridge.dbGetThreadRuntimeItemsPage.mockImplementation(async (input) => ({
+      items: [
+        {
+          id: `${input.threadId}-answer`,
+          type: "assistant_message",
+          state: "completed",
+          payload: {
+            content: [
+              {
+                kind: "text",
+                text: input.threadId === "thread-1" ? "First answer" : "Second answer",
+              },
+            ],
+          },
+          streams: {},
         },
-        streams: {},
-      },
-    ]);
+      ],
+      nextCursor: null,
+    }));
     mocks.bridge.judgeExperimentSnapshot.mockResolvedValueOnce({
       hash: "response-hash",
       winnerThreadId: "thread-2",
@@ -1232,7 +1528,7 @@ describe("experimentActions", () => {
     expect(useAppStore.getState().threads).toEqual([]);
   });
 
-  it("removes the experiment before discard cleanup finishes", async () => {
+  it("projects the removal only after the host confirms it and discard cleanup finishes", async () => {
     const threads = [
       thread("thread-1", "/repo/one", "poracode/one"),
       thread("thread-2", "/repo/two", "poracode/two"),
@@ -1253,17 +1549,23 @@ describe("experimentActions", () => {
 
     const discard = discardExperiment("experiment-1");
 
-    expect(useAppStore.getState().view).toEqual({ kind: "home" });
-    expect(useAppStore.getState().threads).toEqual([]);
-    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+    // The record only disappears after the confirmed removal + cleanup: a
+    // local delete before the host committed would resurrect from projection.
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeDefined();
 
     await vi.waitFor(() => expect(mocks.performWorktreeRemoval).toHaveBeenCalledTimes(2));
     finishRemoval(true);
     await expect(discard).resolves.toBe(true);
     expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+    expect(useAppStore.getState().view).toEqual({ kind: "home" });
+    expect(useAppStore.getState().threads).toEqual([]);
+    expect(mocks.authority.sendExperimentCommand).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "remove", candidateDisposition: "delete" }),
+      expect.objectContaining({ commandId: expect.any(String) }),
+    );
   });
 
-  it("removes the experiment while an earlier operation finishes", async () => {
+  it("waits for an earlier operation before the confirmed removal", async () => {
     useAppStore.setState((state) => ({
       ...state,
       threads: [
@@ -1285,15 +1587,15 @@ describe("experimentActions", () => {
     await vi.waitFor(() => expect(mocks.bridge.gitPush).toHaveBeenCalledOnce());
     const discard = discardExperiment("experiment-1");
 
-    expect(useAppStore.getState().view).toEqual({ kind: "home" });
-    expect(useAppStore.getState().threads).toEqual([]);
-    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
+    // The PR release is still in flight; discard must not start cleanup or a
+    // competing removal before it settles.
     expect(mocks.performWorktreeRemoval).not.toHaveBeenCalled();
 
     finishPush();
     await expect(createPr).resolves.toBe(true);
     await expect(discard).resolves.toBe(true);
     expect(mocks.performWorktreeRemoval).toHaveBeenCalledTimes(2);
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toBeUndefined();
   });
 
   it("keeps the experiment removed when discard cleanup is partial", async () => {
@@ -1541,5 +1843,247 @@ describe("experimentActions", () => {
     expect(
       useAppStore.getState().threads.find((item) => item.id === "thread-1"),
     ).not.toHaveProperty("worktreePath");
+  });
+
+  it("confirms the cleanup on the host before reporting success and survives a fresh projection", async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [
+        thread("thread-1", "/repo/one", "poracode/one"),
+        thread("thread-2", "/repo/two", "poracode/two"),
+      ],
+    }));
+    useExperimentStore.getState().addExperiment({
+      ...experiment(),
+      crown: {
+        threadId: "thread-1",
+        source: "user",
+        createdAt: "2026-07-13T00:01:00.000Z",
+      },
+      winnerThreadId: "thread-1",
+      status: "decided",
+    });
+
+    await expect(retryExperimentCleanup("experiment-1")).resolves.toBe(true);
+
+    const replaceCalls = mocks.authority.sendExperimentCommand.mock.calls.filter(
+      ([command]) => command.kind === "replace",
+    );
+    expect(replaceCalls).toHaveLength(1);
+    const replaceCommand = replaceCalls[0]![0] as Extract<
+      RemoteExperimentCommand,
+      { kind: "replace" }
+    >;
+    expect(replaceCommand.rows).toEqual([
+      { threadId: "thread-1", worktree: null, retire: "done" },
+      { threadId: "thread-2", worktree: null, retire: "done" },
+    ]);
+    expect(replaceCalls[0]![1].commandId).toEqual(expect.any(String));
+    expect(replaceCommand.record.crown).toMatchObject({ threadId: "thread-1" });
+    expect(replaceCommand.record.winnerThreadId).toBe("thread-1");
+    // A fresh authoritative read projects the same removed candidates: the
+    // cleanup can never resurrect as a stale owned row.
+    await expect(hydrateManagedExperimentState()).resolves.toBe(true);
+    expect(
+      useExperimentStore
+        .getState()
+        .experiments["experiment-1"]?.candidates.map(
+          (candidate) => [candidate.worktreeState, "worktreePath" in candidate] as const,
+        ),
+    ).toEqual([
+      ["removed", false],
+      ["removed", false],
+    ]);
+    expect(
+      useAppStore.getState().threads.find((item) => item.id === "thread-1"),
+    ).not.toHaveProperty("worktreePath");
+  });
+
+  it("persists partial cleanup for exactly the candidates that were removed", async () => {
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [
+        thread("thread-1", "/repo/one", "poracode/one"),
+        thread("thread-2", "/repo/two", "poracode/two"),
+      ],
+    }));
+    useExperimentStore.getState().addExperiment({
+      ...experiment(),
+      crown: {
+        threadId: "thread-1",
+        source: "user",
+        createdAt: "2026-07-13T00:01:00.000Z",
+      },
+      winnerThreadId: "thread-1",
+      status: "decided",
+    });
+    mocks.performWorktreeRemoval.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+    await expect(retryExperimentCleanup("experiment-1")).resolves.toBe(false);
+
+    const replaceEntry = mocks.authority.sendExperimentCommand.mock.calls.find(
+      ([command]) => command.kind === "replace",
+    );
+    const replaceCommand = replaceEntry?.[0] as
+      | Extract<RemoteExperimentCommand, { kind: "replace" }>
+      | undefined;
+    expect(replaceCommand).toMatchObject({
+      rows: [{ threadId: "thread-1", worktree: null, retire: "done" }],
+    });
+    expect(replaceCommand?.record.candidates.map((candidate) => candidate.worktreeState)).toEqual([
+      "removed",
+      "owned",
+    ]);
+    expect(replaceCommand?.record.candidates[1]).toMatchObject({ worktreePath: "/repo/two" });
+    await expect(hydrateManagedExperimentState()).resolves.toBe(true);
+    expect(
+      useExperimentStore
+        .getState()
+        .experiments["experiment-1"]?.candidates.map((candidate) => candidate.worktreeState),
+    ).toEqual(["removed", "owned"]);
+    expect(useAppStore.getState().threads.find((item) => item.id === "thread-2")).toHaveProperty(
+      "worktreePath",
+      "/repo/two",
+    );
+  });
+
+  it.each(["offline", "unsupported"])(
+    "starts no cleanup effect when the authority is %s",
+    async (state) => {
+      useAppStore.setState((state_) => ({
+        ...state_,
+        threads: [
+          thread("thread-1", "/repo/one", "poracode/one"),
+          thread("thread-2", "/repo/two", "poracode/two"),
+        ],
+      }));
+      useExperimentStore.getState().addExperiment({
+        ...experiment(),
+        crown: {
+          threadId: "thread-1",
+          source: "user",
+          createdAt: "2026-07-13T00:01:00.000Z",
+        },
+        winnerThreadId: "thread-1",
+        status: "decided",
+      });
+      if (state === "offline") mocks.authority.activation = null;
+      else mocks.authority.activation!.client.environment = async () => ({ capabilities: {} });
+
+      await expect(retryExperimentCleanup("experiment-1")).resolves.toBe(false);
+
+      expect(mocks.bridge.closeThread).not.toHaveBeenCalled();
+      expect(mocks.bridge.gitListWorktrees).not.toHaveBeenCalled();
+      expect(mocks.bridge.removeExperimentWorktrees).not.toHaveBeenCalled();
+      expect(mocks.authority.sendExperimentCommand).not.toHaveBeenCalled();
+      expect(
+        useExperimentStore
+          .getState()
+          .experiments["experiment-1"]?.candidates.every(
+            (candidate) => candidate.worktreeState === "owned",
+          ),
+      ).toBe(true);
+    },
+  );
+
+  it.each([false, true])(
+    "reports no success while the cleanup record stays unconfirmed (uncertain=%s)",
+    async (uncertain) => {
+      useAppStore.setState((state) => ({
+        ...state,
+        threads: [
+          thread("thread-1", "/repo/one", "poracode/one"),
+          thread("thread-2", "/repo/two", "poracode/two"),
+        ],
+      }));
+      useExperimentStore.getState().addExperiment({
+        ...experiment(),
+        crown: {
+          threadId: "thread-1",
+          source: "user",
+          createdAt: "2026-07-13T00:01:00.000Z",
+        },
+        winnerThreadId: "thread-1",
+        status: "decided",
+      });
+      const error = new RemoteClientError(
+        "cleanup update failed",
+        uncertain ? 0 : 403,
+        uncertain ? "network" : "forbidden",
+        { requestMayHaveCommitted: uncertain },
+      );
+      const normalSend = mocks.authority.sendExperimentCommand.getMockImplementation()!;
+      mocks.authority.sendExperimentCommand.mockImplementation(async (command, options) => {
+        if (command.kind === "replace") throw error;
+        return normalSend(command, options);
+      });
+
+      await expect(retryExperimentCleanup("experiment-1")).resolves.toBe(false);
+
+      // The physical cleanup already happened and nothing was rolled back.
+      expect(mocks.performWorktreeRemoval).toHaveBeenCalledTimes(2);
+      const attempts = mocks.authority.sendExperimentCommand.mock.calls.filter(
+        ([command]) => command.kind === "replace",
+      );
+      expect(attempts).toHaveLength(uncertain ? 3 : 1);
+      for (const attempt of attempts) {
+        expect(attempt[1].commandId).toBe(attempts[0]![1].commandId);
+        expect(attempt[0]).toEqual(attempts[0]![0]);
+      }
+    },
+  );
+
+  it("keeps the reconciled state and skips the setup script when a candidate start is uncertain", async () => {
+    mocks.performInitialThreadLaunch.mockRejectedValue(
+      new RemoteClientError("connection dropped after dispatch", 0, "network", {
+        requestMayHaveCommitted: true,
+      }),
+    );
+
+    const id = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+      ],
+    });
+
+    expect(id).toBeTruthy();
+    expect(mocks.performInitialThreadLaunch).toHaveBeenCalledTimes(2);
+    // No definite error paint for a possibly-committed start, and no setup
+    // continuation for the uncertain launches: the optimistic launch state
+    // (and whatever the bounded reconcile projected) is preserved.
+    expect(useAppStore.getState().threads.map((item) => item.status)).toEqual([
+      "launching",
+      "launching",
+    ]);
+    expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
+  });
+
+  it("paints a definite candidate launch failure and still runs its setup script", async () => {
+    mocks.performInitialThreadLaunch.mockRejectedValueOnce(new Error("provider refused"));
+
+    const id = await launchExperiment({
+      projectId: project.id,
+      prompt: "Implement it",
+      baseBranch: "main",
+      candidates: [
+        { agentKind: "codex", config: { model: "gpt-5" }, presentationMode: "gui" },
+        { agentKind: "claude", config: { model: "opus" }, presentationMode: "gui" },
+      ],
+    });
+
+    expect(id).toBeTruthy();
+    expect(
+      useAppStore
+        .getState()
+        .threads.map((item) => item.status)
+        .sort(),
+    ).toEqual(["error", "launching"]);
+    // Definite failures keep the pre-existing behavior: paint the error and
+    // continue with the setup script; only the uncertain launch skips it.
+    expect(mocks.runWorktreeSetupScript).toHaveBeenCalledTimes(2);
   });
 });

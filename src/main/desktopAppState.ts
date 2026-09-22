@@ -13,7 +13,7 @@ import type { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import type { HostCredentialAdoptionService } from "@/backend/ownership/nativeSecretKey";
 import type { BackendHostClient } from "./backend/BackendHostClient";
 import type { BackendStateStore, ShellStateStore } from "./backend/BackendStateStore";
-import type { ComposedHostServices } from "./hostServices/composeHostServices";
+import type { ComposedHostServices } from "@/host/hostServices/composeHostServices";
 import type {
   DeferredAttachProbe,
   StandaloneAttachSession,
@@ -110,7 +110,6 @@ export interface DesktopAppState {
   browserExtractWindow: BrowserWindow | null;
   backendHostClient: BackendHostClient | null;
   backendStateStore: BackendStateStore | null;
-  clearRendererEventInterests: ((senderId?: number) => void) | null;
   // Retained so the native Tray icon stays reachable from GC.
   tray: TrayHandle | null;
   quickComposerShortcutManager: QuickComposerShortcutManager | null;
@@ -152,7 +151,6 @@ export const desktopApp: DesktopAppState = {
   browserExtractWindow: null,
   backendHostClient: null,
   backendStateStore: null,
-  clearRendererEventInterests: null,
   tray: null,
   quickComposerShortcutManager: null,
   isQuitting: false,

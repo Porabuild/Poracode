@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import { app, dialog } from "electron";
-import { preparePoracodeDataRoot } from "./poracodeData";
+import { preparePoracodeDataRoot } from "@/host/poracodeData";
 import { registerLocalFileProtocolScheme } from "./attachments/localFiles";
 import { registerPickerProtocolScheme } from "./browser";
 import { buildBrowserUserAgent } from "./browser/userAgent";
@@ -11,7 +11,7 @@ import { shouldStartMinimized } from "./startupSettings";
 import { handleStartupFailure } from "./startupFailureDialog";
 import { reportSingleInstanceRefusal } from "./singleInstanceRefusal";
 import { toError } from "@/shared/errorMessage";
-import { readSharedSettingsFile } from "./sharedSettingsFile";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { captureMainException, initializeMainSentry } from "./diagnostics/sentry";
 import { legacyProductNameFor } from "@/shared/legacyProductPaths";
 import { shouldUseMockKeychain } from "./mockKeychain";

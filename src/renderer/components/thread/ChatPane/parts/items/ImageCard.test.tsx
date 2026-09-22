@@ -46,7 +46,7 @@ describe("ImageCard", () => {
     vi.mocked(getThreadGalleryImages).mockReturnValueOnce(gallery);
     const { view } = renderCard(imageSource);
     fireEvent.click(view.getByRole("button", { name: "Open image preview" }));
-    expect(openThreadGallery).toHaveBeenCalledWith(gallery, imageSource.src);
+    expect(openThreadGallery).toHaveBeenCalledWith(gallery, imageSource.src, 0, "thread");
   });
   it("reserves the slot from intrinsic size so the timeline cannot shift on load", () => {
     // width/height ride along on the host's image reference precisely so the

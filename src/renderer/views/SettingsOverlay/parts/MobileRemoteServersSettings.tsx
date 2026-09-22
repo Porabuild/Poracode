@@ -5,6 +5,7 @@ import {
   ClipboardPaste,
   Download,
   FolderOpen,
+  X,
   Laptop,
   Link2,
   Loader2,
@@ -21,7 +22,13 @@ import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { useCanInstall, promptInstall } from "@/renderer/pwa/install";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
+import {
+  environmentTransportHasParent,
+  isEnvironmentServer,
+  remoteConnectionKey,
+  type RemoteServerRecord,
+} from "@/renderer/state/remoteServers/types";
+import { EnvironmentSettingsSection } from "./EnvironmentSettingsSection";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import { decodeQrImageFile } from "@/renderer/utils/qrImage";
@@ -60,13 +67,34 @@ function MobileRemoteServerRow(props: {
 }) {
   const { t } = useLingui();
   const { server } = props;
-  const runtime = useRemoteServersStore((state) => state.runtime[server.desktopId]);
+  const connectionKey = remoteConnectionKey(server);
+  const environmentRecord = isEnvironmentServer(server);
+  // Select the stable `servers` array and derive dependents outside the hook:
+  // a filtering selector allocates a new array per snapshot, which
+  // useSyncExternalStore reads as a perpetually fresh snapshot and loops the
+  // row into React #185. Same predicate as the remove cascade.
+  const servers = useRemoteServersStore((state) => state.servers);
+  const parentRef = { kind: "connection", connectionId: connectionKey } as const;
+  const dependents = servers.filter(
+    (candidate) =>
+      candidate.transport?.kind === "environment" &&
+      environmentTransportHasParent(candidate.transport, parentRef),
+  );
+  const runtime = useRemoteServersStore((state) => state.runtime[connectionKey]);
   const lastKnownProjects = useRemoteServersStore(
-    (state) => state.lastKnownProjects[server.desktopId],
+    (state) => state.lastKnownProjects[connectionKey],
   );
   const renameServer = useRemoteServersStore((state) => state.renameServer);
   const removeServer = useRemoteServersStore((state) => state.removeServer);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const requestRemove = () => {
+    if (!environmentRecord && dependents.length > 0) {
+      setConfirmRemoveOpen(true);
+      return;
+    }
+    removeServer(connectionKey);
+  };
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const status = runtime?.status ?? "offline";
@@ -94,7 +122,7 @@ function MobileRemoteServerRow(props: {
             initialValue={title}
             ariaLabel={t`Rename connection`}
             onCommit={(value) => {
-              renameServer(server.desktopId, value);
+              renameServer(connectionKey, value);
               setRenaming(false);
             }}
             onCancel={() => setRenaming(false)}
@@ -149,6 +177,13 @@ function MobileRemoteServerRow(props: {
                 setProjectsOpen(true);
               }}
             />
+            {!environmentRecord ? (
+              <EnvironmentSettingsSection
+                parent={{ kind: "connection", connectionId: connectionKey }}
+                parentScopes={server.scopes}
+                compact
+              />
+            ) : null}
             {props.onOpenDesktopSettings ? (
               <SidebarButton
                 icon={<MonitorCog className="size-4" />}
@@ -156,7 +191,7 @@ function MobileRemoteServerRow(props: {
                 isDisabled={status !== "online"}
                 onPress={() => {
                   setMenuOpen(false);
-                  props.onOpenDesktopSettings?.(server.desktopId);
+                  props.onOpenDesktopSettings?.(connectionKey);
                 }}
               />
             ) : null}
@@ -173,7 +208,7 @@ function MobileRemoteServerRow(props: {
               label={<span className="text-danger">{t`Remove connection`}</span>}
               onPress={() => {
                 setMenuOpen(false);
-                removeServer(server.desktopId);
+                requestRemove();
               }}
             />
           </div>
@@ -186,6 +221,32 @@ function MobileRemoteServerRow(props: {
           isOnline={status === "online"}
           onClose={() => setProjectsOpen(false)}
         />
+      ) : null}
+      {confirmRemoveOpen ? (
+        <BottomSheet
+          label={t`Remove this connection?`}
+          closeLabel={t`Cancel`}
+          onClose={() => setConfirmRemoveOpen(false)}
+        >
+          <div className="m-sheet-head">
+            <span>{t`Remove this connection?`}</span>
+          </div>
+          <div className="m-sheet-list">
+            <SidebarButton
+              icon={<Trash2 className="size-4 text-danger" />}
+              label={<span className="text-danger">{t`Remove connection and environments`}</span>}
+              onPress={() => {
+                setConfirmRemoveOpen(false);
+                removeServer(connectionKey, { cascadeEnvironments: true });
+              }}
+            />
+            <SidebarButton
+              icon={<X className="size-4" />}
+              label={t`Cancel`}
+              onPress={() => setConfirmRemoveOpen(false)}
+            />
+          </div>
+        </BottomSheet>
       ) : null}
     </>
   );
@@ -494,7 +555,7 @@ export function MobileRemoteServersSettings(props: {
         <div className="flex flex-col gap-1.5">
           {servers.map((server) => (
             <MobileRemoteServerRow
-              key={server.desktopId}
+              key={remoteConnectionKey(server)}
               server={server}
               onOpenDesktopSettings={props.onOpenDesktopSettings}
             />

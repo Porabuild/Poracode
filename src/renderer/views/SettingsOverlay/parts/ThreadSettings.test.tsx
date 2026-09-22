@@ -34,6 +34,9 @@ describe("ThreadSettings", () => {
     expect(screen.getByText("Auto-archive done threads after")).toBeInTheDocument();
     expect(screen.getByText("Default thread removal")).toBeInTheDocument();
     expect(screen.getByText("Confirm before deleting threads")).toBeInTheDocument();
+    expect(screen.getByText("Max active agent sessions")).toBeInTheDocument();
+    expect(screen.getByText("Max active terminal shells")).toBeInTheDocument();
+    expect(screen.getByText("Max active generation helpers")).toBeInTheDocument();
     expect(screen.getByText("Follow-up behavior")).toBeInTheDocument();
     expect(screen.getByText(/Ctrl\+Enter uses the opposite action/u)).toBeInTheDocument();
   });
@@ -47,6 +50,9 @@ describe("ThreadSettings", () => {
     expect(screen.queryByText("Auto-archive done threads after")).not.toBeInTheDocument();
     expect(screen.queryByText("Default thread removal")).not.toBeInTheDocument();
     expect(screen.queryByText("Confirm before deleting threads")).not.toBeInTheDocument();
+    expect(screen.queryByText("Max active agent sessions")).not.toBeInTheDocument();
+    expect(screen.queryByText("Max active terminal shells")).not.toBeInTheDocument();
+    expect(screen.queryByText("Max active generation helpers")).not.toBeInTheDocument();
     expect(screen.getByText("Follow-up behavior")).toBeInTheDocument();
   });
 

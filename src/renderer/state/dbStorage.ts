@@ -2,8 +2,14 @@ import type { PersistStorage, StorageValue } from "zustand/middleware";
 import { isQuickComposerWindow, readBridge } from "../bridge";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasAnyClientBridge, hasClientCapability } from "../clientRuntime";
-import type { Project, Thread, AppView } from "@/shared/contracts";
-import { getPersistJsonEngine } from "./remote/engine";
+import type { AppView } from "@/shared/contracts";
+import {
+  CLIENT_ENGINE_AUX_STRINGIFY_MAX_BYTES,
+  ClientEngineAuxInputTooLargeError,
+  getPersistJsonEngine,
+  projectJsonBytes,
+} from "./remote/engine";
+import { createBrowserMetadataCache } from "./browserMetadataCache";
 
 const LARGE_STORAGE_JSON_CHARS = 32 * 1024;
 
@@ -56,14 +62,21 @@ async function readPersistedState(name: string): Promise<string | null> {
 /** Creates a Zustand-compatible storage adapter backed by SQLite via IPC. */
 export function createDbStorage<S>(): PersistStorage<S> {
   const appStoreWrites = new AppStoreWriteQueue();
+  // Bridge-less (browser/PWA) path: an asynchronous IndexedDB cache that
+  // coalesces writes, bounds record size, and degrades to memory. The SQLite
+  // path below is unchanged.
+  const browserCache = createBrowserMetadataCache({
+    parseLegacy: (raw) => parseStorageValue(raw),
+    reportError: (operation, error) => reportPersistError(operation, error),
+  });
 
   return {
     async getItem(name: string): Promise<StorageValue<S> | null> {
       if (!hasBridge()) {
-        return (await parseStorageValue(localStorage.getItem(name))) as StorageValue<S>;
+        return (await browserCache.read(name)) as StorageValue<S> | null;
       }
       if (name === APP_STORE_NAME) {
-        const value = await loadAppStore();
+        const value = await loadAppPreferences();
         if (value) appStoreWrites.remember(value);
         return value as StorageValue<S> | null;
       }
@@ -73,21 +86,17 @@ export function createDbStorage<S>(): PersistStorage<S> {
     async setItem(name: string, value: StorageValue<S>): Promise<void> {
       if (name === APP_STORE_NAME) {
         if (!hasBridge()) {
-          if (appStoreWrites.isDuplicate(value)) return;
-          appStoreWrites.remember(value);
-          localStorage.setItem(name, JSON.stringify(value));
-          return;
+          return browserCache.write(name, value);
         }
         if (isQuickComposerWindow()) return;
         return appStoreWrites.write(value);
       }
 
+      if (!hasBridge()) {
+        return browserCache.write(name, value);
+      }
       const json = await shouldSkipWrite(name, value);
       if (json === null) return;
-      if (!hasBridge()) {
-        localStorage.setItem(name, json);
-        return;
-      }
       readBridge()
         .dbSetState(name, json)
         .catch((error) => reportPersistError(`state "${name}"`, error));
@@ -96,10 +105,7 @@ export function createDbStorage<S>(): PersistStorage<S> {
     async removeItem(name: string): Promise<void> {
       lastStorageJson.delete(name);
       if (!hasBridge()) {
-        if (name === APP_STORE_NAME) {
-          appStoreWrites.forget();
-        }
-        return localStorage.removeItem(name);
+        return browserCache.remove(name);
       }
       if (name === APP_STORE_NAME) {
         return appStoreWrites.remove(removeAppStore);
@@ -161,10 +167,6 @@ class AppStoreWriteQueue {
 
   remember(value: StorageValue<unknown>): void {
     this.lastPersisted = value;
-  }
-
-  forget(): void {
-    this.lastPersisted = undefined;
   }
 
   write(value: StorageValue<unknown>): Promise<void> {
@@ -240,7 +242,7 @@ class AppStoreWriteQueue {
       if (operation.kind === "write") {
         if (!isSameAppStoreValue(this.lastPersisted, operation.value)) {
           try {
-            await saveAppStore(operation.value, this.lastPersisted);
+            await saveAppPreferences(operation.value);
             this.lastPersisted = operation.value;
           } catch {
             this.lastPersisted = undefined;
@@ -265,42 +267,25 @@ class AppStoreWriteQueue {
 }
 
 /**
- * Hydration page size for the bounded thread-list read (Gate 4 hazard #3).
- * `dbGetThreads` returns every row, so each window load transferred the whole
- * host list in one IPC reply; pages of 100 keep a single reply inside the
- * 64 KiB response bound at realistic thread sizes (asserted by the snapshots
- * pagination acceptance test) while the host loop never serializes more than
- * one page per reply.
+ * Preferences-only desktop hydration (B4 S4/D2).
+ *
+ * The root catalog is host-owned and arrives over the managed loopback bounded
+ * HTTP walk, so hydration reads ONLY the native preferences (`view`,
+ * `groupLayouts`). It never reads catalog rows, never awaits the loopback, and
+ * returns the catalog keys ABSENT (never `[]`, which the persist merge would
+ * treat as an authoritative empty catalog and clobber rows installed while the
+ * read was in flight).
  */
-const APP_STORE_HYDRATION_THREAD_PAGE_SIZE = 100;
-
-/** Load projects + threads + view from SQLite and assemble into Zustand persist format. */
-async function loadAppStore(): Promise<StorageValue<unknown> | null> {
+async function loadAppPreferences(): Promise<StorageValue<unknown> | null> {
   const startedAt = performance.now();
-  const threads: Thread[] = [];
-  let threadPageCursor: string | undefined;
-  // The project/view reads are independent of the paged thread list, so the
-  // first thread page and the unrelated reads start together.
-  const [projects, firstThreadPage, viewJson] = await Promise.all([
-    readBridge().dbGetProjects(),
-    readBridge().dbGetThreadsPage({ limit: APP_STORE_HYDRATION_THREAD_PAGE_SIZE }),
+  const [viewJson, groupLayoutsJson] = await Promise.all([
     readBridge().dbGetState("view"),
+    readBridge().dbGetState("groupLayouts"),
   ]);
-  threads.push(...firstThreadPage.threads);
-  threadPageCursor = firstThreadPage.nextCursor ?? undefined;
-  while (threadPageCursor !== undefined) {
-    const cursor = threadPageCursor;
-    const page = await readBridge().dbGetThreadsPage({
-      limit: APP_STORE_HYDRATION_THREAD_PAGE_SIZE,
-      cursor,
-    });
-    threads.push(...page.threads);
-    threadPageCursor = page.nextCursor ?? undefined;
+  if (import.meta.env.DEV) {
+    performance.measure("poracode:preferences hydration", { start: startedAt });
   }
-
-  if (projects.length === 0 && threads.length === 0 && !viewJson) {
-    return null;
-  }
+  if (!viewJson && !groupLayoutsJson) return null;
 
   let view: AppView = { kind: "home" };
   if (viewJson) {
@@ -310,12 +295,7 @@ async function loadAppStore(): Promise<StorageValue<unknown> | null> {
       // corrupt — fall back to home
     }
   }
-
   let groupLayouts: Record<string, unknown> = {};
-  const groupLayoutsJson = await readBridge().dbGetState("groupLayouts");
-  if (import.meta.env.DEV) {
-    performance.measure("poracode:database hydration", { start: startedAt });
-  }
   if (groupLayoutsJson) {
     try {
       groupLayouts = JSON.parse(groupLayoutsJson) as Record<string, unknown>;
@@ -323,67 +303,34 @@ async function loadAppStore(): Promise<StorageValue<unknown> | null> {
       // corrupt — ignore
     }
   }
-
-  return {
-    state: { projects, threads, view, groupLayouts },
-    version: 5,
-  };
+  return { state: { view, groupLayouts }, version: 5 };
 }
 
 /**
- * Parse the Zustand persist payload and write to SQLite.
- *
- * With a previously persisted snapshot, only rows whose object identity changed
- * ship over IPC (`dbSyncChanges`): the store replaces row objects exactly when
- * their content changes, so reference inequality is a precise change signal and
- * a 1k-thread host persists one dirty row instead of re-upserting every row.
- * The first write after startup (no snapshot yet) and error recovery fall back
- * to the full `dbSyncAll`.
+ * Write only the persisted preferences. Catalog rows have no renderer write
+ * path: every content intent is an explicit host command, so `dbSyncAll` /
+ * `dbSyncChanges` are unreachable from persistence.
  */
-async function saveAppStore(
-  value: StorageValue<unknown>,
-  previous?: StorageValue<unknown>,
-): Promise<void> {
-  let state:
-    | {
-        projects?: Project[];
-        threads?: Thread[];
-        view?: AppView;
-        groupLayouts?: Record<string, unknown>;
-      }
-    | undefined;
+async function saveAppPreferences(value: StorageValue<unknown>): Promise<void> {
   let viewJson: string;
   let groupLayoutsJson: string | undefined;
   try {
-    state = value.state as typeof state;
+    const state = value.state as { view?: AppView; groupLayouts?: Record<string, unknown> } | null;
     if (!state || typeof state !== "object") return;
     viewJson = JSON.stringify(state.view ?? { kind: "home" });
     groupLayoutsJson = state.groupLayouts ? JSON.stringify(state.groupLayouts) : undefined;
   } catch (error) {
-    reportPersistError("app store", error);
+    reportPersistError("app preferences", error);
     throw error;
   }
 
-  const projects = state.projects ?? [];
-  const threads = state.threads ?? [];
-  const changes = previous ? appStoreRowChanges(previous, projects, threads) : null;
-
   const writes: Promise<void>[] = [
-    (changes
-      ? readBridge().dbSyncChanges({
-          projects: changes.projects,
-          threads: changes.threads,
-          deletedProjectIds: changes.deletedProjectIds,
-          deletedThreadIds: changes.deletedThreadIds,
-          ...(changes.projectOrder ? { projectOrder: changes.projectOrder } : {}),
-          ...(changes.threadOrder ? { threadOrder: changes.threadOrder } : {}),
-          viewJson,
-        })
-      : readBridge().dbSyncAll(projects, threads, viewJson)
-    ).catch((error) => {
-      reportPersistError("projects/threads/view", error);
-      throw error;
-    }),
+    readBridge()
+      .dbSetState("view", viewJson)
+      .catch((error) => {
+        reportPersistError("view", error);
+        throw error;
+      }),
   ];
   if (groupLayoutsJson !== undefined) {
     writes.push(
@@ -400,65 +347,16 @@ async function saveAppStore(
   if (failure?.status === "rejected") throw failure.reason;
 }
 
-interface AppStoreRowChanges {
-  projects: Array<{ project: Project; sortOrder: number }>;
-  threads: Array<{ thread: Thread; sortOrder: number }>;
-  deletedProjectIds: string[];
-  deletedThreadIds: string[];
-  projectOrder?: string[];
-  threadOrder?: string[];
-}
-
 /**
- * Diffs the current project/thread rows against the last persisted snapshot.
- * Row objects are recreated only when their content changes, so reference
- * inequality covers both edits and additions; deletions are ids present before
- * and absent now. Order is a property of the ARRAY, not the row: a drag
- * reorder permutes the same row objects, so any change to the id sequence
- * ships the full ordered id lists for main to reindex, and every changed row
- * carries its current full-list index because the upsert writes sort_order.
+ * Clears renderer preferences only. A client reset must never delete
+ * host-shared catalog rows, so there is no `dbSyncAll([], [], …)` wipe here.
  */
-function appStoreRowChanges(
-  previous: StorageValue<unknown>,
-  projects: Project[],
-  threads: Thread[],
-): AppStoreRowChanges {
-  const prevState = previous.state as { projects?: Project[]; threads?: Thread[] } | undefined;
-  const prevProjects = new Map((prevState?.projects ?? []).map((project) => [project.id, project]));
-  const prevThreads = new Map((prevState?.threads ?? []).map((thread) => [thread.id, thread]));
-  const projectIds = new Set(projects.map((project) => project.id));
-  const threadIds = new Set(threads.map((thread) => thread.id));
-
-  const prevProjectOrder = (prevState?.projects ?? []).map((project) => project.id);
-  const prevThreadOrder = (prevState?.threads ?? []).map((thread) => thread.id);
-  const projectOrder = projects.map((project) => project.id);
-  const threadOrder = threads.map((thread) => thread.id);
-
-  return {
-    projects: projects
-      .map((project, sortOrder) => ({ project, sortOrder }))
-      .filter(({ project }) => prevProjects.get(project.id) !== project),
-    threads: threads
-      .map((thread, sortOrder) => ({ thread, sortOrder }))
-      .filter(({ thread }) => prevThreads.get(thread.id) !== thread),
-    deletedProjectIds: [...prevProjects.keys()].filter((projectId) => !projectIds.has(projectId)),
-    deletedThreadIds: [...prevThreads.keys()].filter((threadId) => !threadIds.has(threadId)),
-    ...(sameIdSequence(prevProjectOrder, projectOrder) ? {} : { projectOrder }),
-    ...(sameIdSequence(prevThreadOrder, threadOrder) ? {} : { threadOrder }),
-  };
-}
-
-function sameIdSequence(previous: string[], next: string[]): boolean {
-  if (previous.length !== next.length) return false;
-  return previous.every((id, index) => id === next[index]);
-}
-
 async function removeAppStore(): Promise<void> {
   const writes = [
     readBridge()
-      .dbSyncAll([], [], JSON.stringify({ kind: "home" }))
+      .dbSetState("view", JSON.stringify({ kind: "home" }))
       .catch((error) => {
-        reportPersistError("removal of projects/threads/view", error);
+        reportPersistError("removal of view", error);
         throw error;
       }),
     readBridge()
@@ -494,12 +392,47 @@ async function parseStorageValue(raw: string | null): Promise<StorageValue<unkno
   }
 }
 
+/**
+ * Serialize one generic named store for SQLite.
+ *
+ * Producer-side admission (A3 correction): a bounded projection decides both
+ * the hard cap and the route, without ever serializing the whole graph to
+ * measure it. The old heuristic chose the off-thread engine from the PREVIOUS
+ * payload length, so a small-to-large growth spur could still run an unbounded
+ * synchronous `JSON.stringify` on the UI thread, and the engine could accept an
+ * unbounded stringify graph on a 64 KiB reservation. Now:
+ *
+ * - a graph whose projected footprint exceeds the per-request cap is refused
+ *   typed, reported, and the write is skipped (in-memory state is kept; the
+ *   next change retries) instead of freezing the UI thread;
+ * - a graph at or above the large threshold rides the persist engine, which
+ *   charges the same bounded projection and stringifies off-thread;
+ * - everything smaller stays on the synchronous path, which is safe because
+ *   the projection proved it is small.
+ */
 async function shouldSkipWrite(name: string, value: StorageValue<unknown>): Promise<string | null> {
-  const previous = lastStorageJson.get(name);
-  const json =
-    previous !== undefined && previous.length >= LARGE_STORAGE_JSON_CHARS
-      ? await getPersistJsonEngine().stringifyJson(value)
-      : JSON.stringify(value);
+  const projection = projectJsonBytes(value, CLIENT_ENGINE_AUX_STRINGIFY_MAX_BYTES);
+  if (!projection.ok) {
+    reportPersistError(
+      `state "${name}" input (${projection.reason})`,
+      new ClientEngineAuxInputTooLargeError(projection.reason),
+    );
+    return null;
+  }
+  let json: string;
+  if (projection.bytes >= LARGE_STORAGE_JSON_CHARS * 2) {
+    try {
+      json = await getPersistJsonEngine().stringifyJson(value);
+    } catch (error) {
+      // Typed engine failure (worker unavailable/mismatch): report and skip
+      // instead of leaving an unhandled rejection on Zustand's fire-and-forget
+      // setItem. In-memory state is kept; the next change retries.
+      reportPersistError(`state "${name}"`, error);
+      return null;
+    }
+  } else {
+    json = JSON.stringify(value);
+  }
   if (lastStorageJson.get(name) === json) return null;
   lastStorageJson.set(name, json);
   return json;
@@ -511,26 +444,11 @@ function isSameAppStoreValue(
 ): boolean {
   if (!previous || previous.version !== next.version) return false;
   const prevState = previous.state as
-    | {
-        projects?: Project[];
-        threads?: Thread[];
-        view?: AppView;
-        groupLayouts?: Record<string, unknown>;
-      }
+    | { view?: AppView; groupLayouts?: Record<string, unknown> }
     | undefined;
   const nextState = next.state as
-    | {
-        projects?: Project[];
-        threads?: Thread[];
-        view?: AppView;
-        groupLayouts?: Record<string, unknown>;
-      }
+    | { view?: AppView; groupLayouts?: Record<string, unknown> }
     | undefined;
   if (!prevState || !nextState) return false;
-  return (
-    prevState.projects === nextState.projects &&
-    prevState.threads === nextState.threads &&
-    prevState.view === nextState.view &&
-    prevState.groupLayouts === nextState.groupLayouts
-  );
+  return prevState.view === nextState.view && prevState.groupLayouts === nextState.groupLayouts;
 }

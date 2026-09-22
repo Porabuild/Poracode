@@ -1,9 +1,10 @@
-import type { RemoteServersState } from "./types";
+import { remoteConnectionKey, type RemoteServersState } from "./types";
 
-// ── Per-server snapshot refresh: coalesced + debounced ──────────────
-// Route qualifying events through one per-desktopId debounced scheduler (mirrors
-// the PWA's 600ms) so a burst yields a single GET, and tag each in-flight refresh
-// with a monotonic request id so a stale response never overwrites a newer one.
+// ── Per-connection snapshot refresh: coalesced + debounced ──────────
+// Route qualifying events through one per-connection-key debounced scheduler
+// (mirrors the PWA's 600ms) so a burst yields a single GET, and tag each
+// in-flight refresh with a monotonic request id so a stale response never
+// overwrites a newer one.
 const REMOTE_SERVER_REFRESH_DEBOUNCE_MS = 600;
 const remoteServerRefreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const remoteServerRefreshSeqByDesktopId = new Map<string, number>();
@@ -78,22 +79,22 @@ export function invalidateRemoteServerRefresh(desktopId: string): void {
 
 export function scheduleServerRefresh(
   get: () => RemoteServersState,
-  desktopId: string,
+  connectionKey: string,
   options: { readonly includeAgentStatuses?: boolean } = {},
 ): void {
-  if (!get().servers.some((entry) => entry.desktopId === desktopId)) return;
+  if (!get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey)) return;
   const shouldIncludeAgentStatuses =
-    options.includeAgentStatuses === true || remoteServerAgentStatusRefreshes.has(desktopId);
-  clearRemoteServerRefreshTimer(desktopId);
-  if (shouldIncludeAgentStatuses) remoteServerAgentStatusRefreshes.add(desktopId);
+    options.includeAgentStatuses === true || remoteServerAgentStatusRefreshes.has(connectionKey);
+  clearRemoteServerRefreshTimer(connectionKey);
+  if (shouldIncludeAgentStatuses) remoteServerAgentStatusRefreshes.add(connectionKey);
   remoteServerRefreshTimers.set(
-    desktopId,
+    connectionKey,
     setTimeout(() => {
-      remoteServerRefreshTimers.delete(desktopId);
-      if (!get().servers.some((entry) => entry.desktopId === desktopId)) return;
-      const includeAgentStatuses = remoteServerAgentStatusRefreshes.delete(desktopId);
+      remoteServerRefreshTimers.delete(connectionKey);
+      if (!get().servers.some((entry) => remoteConnectionKey(entry) === connectionKey)) return;
+      const includeAgentStatuses = remoteServerAgentStatusRefreshes.delete(connectionKey);
       void get()
-        .refreshServer(desktopId, { includeAgentStatuses })
+        .refreshServer(connectionKey, { includeAgentStatuses })
         .catch(() => undefined);
     }, REMOTE_SERVER_REFRESH_DEBOUNCE_MS),
   );

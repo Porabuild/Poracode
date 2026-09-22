@@ -1,7 +1,7 @@
 import type { PersistStorage, StorageValue } from "zustand/middleware";
 import { filterKnownRemoteAccessScopes } from "@/shared/remote";
 import { sshConnectionConfigSchema } from "@/shared/ssh";
-import type { RemoteServerRecord } from "./types";
+import { remoteConnectionKey, type RemoteServerRecord } from "./types";
 import { deleteDesktopToken, getDesktopToken, setDesktopToken } from "./tokenVault";
 
 type StateWithServers = { servers: RemoteServerRecord[] };
@@ -29,8 +29,38 @@ function parseStoredValue<S>(raw: string | null): StorageValue<S> | null {
   }
 }
 
-function serverIds<S extends StateWithServers>(value: StorageValue<S> | null): Set<string> {
-  return new Set(value?.state.servers.map((server) => server.desktopId) ?? []);
+/**
+ * Vault slots are owned by the connection key. v1 records are equal by
+ * construction (`connectionId = desktopId`), so their published
+ * `token.<desktopId>` slots keep their exact key; a v2 environment record uses
+ * its locally minted `connectionId` and never shares a slot with a direct
+ * pairing of the same child host.
+ */
+function vaultConnectionKeys<S extends StateWithServers>(
+  value: StorageValue<S> | null,
+): Set<string> {
+  return new Set(value?.state.servers.map(remoteConnectionKey) ?? []);
+}
+
+/**
+ * A v2 environment record may have been written to the v1-era
+ * `token.<desktopId>` slot by a pre-correction build. That slot is only
+ * attributable when exactly one record in the document claims the desktop
+ * identity: two connections of the same child host share one bearer there, and
+ * a shared bearer is never copied into either connection.
+ */
+function legacyDesktopSlot(
+  server: RemoteServerRecord,
+  servers: readonly RemoteServerRecord[],
+): string | undefined {
+  if (remoteConnectionKey(server) === server.desktopId) return undefined;
+  let claimants = 0;
+  for (const candidate of servers) {
+    if (candidate.desktopId !== server.desktopId) continue;
+    claimants += 1;
+    if (claimants > 1) return undefined;
+  }
+  return claimants === 1 ? server.desktopId : undefined;
 }
 
 function parseLegacyTransport(value: unknown): RemoteServerRecord["transport"] {
@@ -54,8 +84,9 @@ async function hydrateServers(
   let migrationPending = false;
   const rows = await Promise.all(
     servers.map(async (server) => {
+      const connectionKey = remoteConnectionKey(server);
       if (server.accessToken) {
-        const stored = await setDesktopToken(server.desktopId, server.accessToken);
+        const stored = await setDesktopToken(connectionKey, server.accessToken);
         migrated ||= stored;
         migrationPending ||= !stored;
         return {
@@ -63,7 +94,11 @@ async function hydrateServers(
           persisted: stored || !retainFailedPlaintext ? { ...server, accessToken: "" } : server,
         };
       }
-      const accessToken = await getDesktopToken(server.desktopId);
+      let accessToken = await getDesktopToken(connectionKey);
+      if (!accessToken) {
+        const fallbackKey = legacyDesktopSlot(server, servers);
+        if (fallbackKey !== undefined) accessToken = await getDesktopToken(fallbackKey);
+      }
       return {
         live: accessToken ? { ...server, accessToken } : server,
         persisted: server,
@@ -200,11 +235,26 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
             state: { ...captured.state, servers: hydrated.persisted },
           }),
         );
-        const retained = new Set(captured.state.servers.map((server) => server.desktopId));
+        const retained = new Set(captured.state.servers.map(remoteConnectionKey));
+        const retainedDesktopIds = new Set(
+          captured.state.servers.map((server) => server.desktopId),
+        );
+        const staleSlots = new Set<string>();
+        for (const connectionKey of vaultConnectionKeys(previous)) {
+          if (!retained.has(connectionKey)) staleSlots.add(connectionKey);
+        }
+        for (const server of previous?.state.servers ?? []) {
+          const connectionKey = remoteConnectionKey(server);
+          if (retained.has(connectionKey)) continue;
+          // A removed environment connection may also own the v1-era shared
+          // `token.<desktopId>` slot; purge it only when no retained record
+          // still claims that desktop identity.
+          if (connectionKey !== server.desktopId && !retainedDesktopIds.has(server.desktopId)) {
+            staleSlots.add(server.desktopId);
+          }
+        }
         await Promise.all(
-          [...serverIds(previous)]
-            .filter((desktopId) => !retained.has(desktopId))
-            .map((desktopId) => deleteDesktopToken(desktopId)),
+          [...staleSlots].map((connectionKey) => deleteDesktopToken(connectionKey)),
         );
       });
     },
@@ -213,7 +263,9 @@ export function createSecureRemoteServersStorage<S extends StateWithServers>(
       return enqueueWrite(async () => {
         const stored = parseStoredValue<S>(localStorage.getItem(name));
         localStorage.removeItem(name);
-        await Promise.all([...serverIds(stored)].map((desktopId) => deleteDesktopToken(desktopId)));
+        const slots = vaultConnectionKeys(stored);
+        for (const server of stored?.state.servers ?? []) slots.add(server.desktopId);
+        await Promise.all([...slots].map((connectionKey) => deleteDesktopToken(connectionKey)));
       });
     },
   };

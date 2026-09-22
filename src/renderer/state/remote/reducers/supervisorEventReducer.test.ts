@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { RuntimeEvent } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 
 // Observe selector-cache invalidation while keeping every real export.
@@ -73,6 +74,7 @@ const resetStore = (): void => {
     runtimeStructuralVersionByThread: {},
     runtimeHydrationStatus: {},
     runtimeRequestsByThread: {},
+    pendingSteerByThreadId: {},
     threads: [],
   });
 };
@@ -380,6 +382,97 @@ describe("supervisorEventReducer — invalidateInFlightRecoveries", () => {
     reducer.invalidateInFlightRecoveries();
     expect(useAppStore.getState().runtimeHydrationStatus["thread-1"]).toBe("failed");
     reducer.clear();
+  });
+});
+
+describe("supervisorEventReducer — A3 budgeted scheduled drain", () => {
+  afterEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  it("splits a large scheduled flush across tasks, preserving order and converging", async () => {
+    let applies = 0;
+    const reducer = createSupervisorEventReducer({
+      recovery: inlineRecovery,
+      wrapApply: (run) => {
+        applies += 1;
+        run();
+      },
+    });
+    const uninstall = reducer.installScheduling();
+    const events = Array.from({ length: 1_200 }, (_, index) => itemStarted(`item-${index}`));
+
+    reducer.enqueueRuntimeBatches([{ threadId: "thread-1", events }]);
+    await vi.waitFor(() => expect(itemIds()?.length).toBe(1_200), { timeout: 5_000 });
+
+    expect(itemIds()).toEqual(events.map((event) => event.itemId));
+    // More than one apply means the drain yielded between ordered units
+    // instead of running the whole burst in one task.
+    expect(applies).toBeGreaterThan(1);
+    uninstall();
+    reducer.clear();
+  });
+
+  it("keeps a non-runtime control event responsive while a large background drain continues", async () => {
+    const reducer = createSupervisorEventReducer({ recovery: inlineRecovery });
+    const uninstall = reducer.installScheduling();
+    const events = Array.from({ length: 1_200 }, (_, index) => itemStarted(`item-${index}`));
+
+    reducer.enqueueRuntimeBatches([{ threadId: "thread-1", events }]);
+    // The scheduled flush is budgeted; control for another thread must not
+    // wait behind the remaining runtime slices.
+    reducer.dispatch({
+      type: "thread-pending-steer",
+      threadId: "thread-2",
+      pending: { id: "steer-1", prompt: "keep control responsive", stagedAt: Date.now() },
+    });
+    expect(useAppStore.getState().pendingSteerByThreadId["thread-2"]).toMatchObject({
+      id: "steer-1",
+    });
+    // The large drain has not run to completion in the same task.
+    expect(itemIds()).toBeUndefined();
+
+    await vi.waitFor(() => expect(itemIds()?.length).toBe(1_200), { timeout: 5_000 });
+    uninstall();
+    reducer.clear();
+  });
+
+  it("converges to the same state as one synchronous drain, truncation ordering included", async () => {
+    const events: RuntimeEvent[] = [];
+    for (let index = 0; index < 700; index += 1) events.push(itemStarted(`item-${index}`));
+    events.push({
+      type: "runtime.truncated",
+      threadId: "thread-1",
+      itemId: "item-600",
+      removedCompletedTurnAnchors: [],
+    });
+    for (let index = 700; index < 740; index += 1) events.push(itemStarted(`item-${index}`));
+
+    const synchronous = createSupervisorEventReducer({ recovery: inlineRecovery });
+    synchronous.enqueueRuntimeBatches([{ threadId: "thread-1", events }]);
+    synchronous.flushSync("thread-1");
+    const baseline = [...(itemIds() ?? [])];
+    // item-0..item-600 survive the truncation; item-601..item-699 are cut;
+    // the trailing item-700..item-739 apply after the checkpoint.
+    expect(baseline).toHaveLength(641);
+    synchronous.clear();
+    resetStore();
+
+    let applies = 0;
+    const budgeted = createSupervisorEventReducer({
+      recovery: inlineRecovery,
+      wrapApply: (run) => {
+        applies += 1;
+        run();
+      },
+    });
+    const uninstall = budgeted.installScheduling();
+    budgeted.enqueueRuntimeBatches([{ threadId: "thread-1", events }]);
+    await vi.waitFor(() => expect(itemIds()).toEqual(baseline), { timeout: 5_000 });
+    expect(applies).toBeGreaterThan(1);
+    uninstall();
+    budgeted.clear();
   });
 });
 

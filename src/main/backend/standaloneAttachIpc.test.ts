@@ -152,7 +152,6 @@ describe("standalone attach device IPC", () => {
         "probeTlsCertificateFingerprint",
         "setGlobalShortcutsSuspended",
         "setKeybindings",
-        "setRendererEventInterests",
         "startUpdateDownload",
       ].sort(),
     );
@@ -160,13 +159,6 @@ describe("standalone attach device IPC", () => {
   });
 
   it("serves device locals with real implementations", async () => {
-    await expect(
-      invoke(
-        "setRendererEventInterests",
-        [{ terminalThreadIds: [], runtimeThreadIds: [] }],
-        main.sender,
-      ),
-    ).resolves.toBeUndefined();
     const bindings = (await invoke("getKeybindings", [], main.sender)) as { path: string };
     expect(bindings.path).toBe(join(profileNamespace, "keybindings.json"));
     await expect(invoke("focusWindow", [], main.sender)).resolves.toBeUndefined();

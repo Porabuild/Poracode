@@ -10,14 +10,13 @@ import { HostCredentialAdoptionService } from "@/backend/ownership/nativeSecretK
 import { captureMainException } from "./diagnostics/sentry";
 import { createTray } from "./tray";
 import { getAppName } from "@/shared/appName";
-import { cleanupOrphanedAttachments } from "./poracodeData";
 import { saveWindowBounds } from "./window/createMainWindow";
 import { showAndFocusWindow } from "./window/showAndFocusWindow";
 import { safeStorageHealth } from "./safeStorageHealth";
 import { startDesktopHostControl } from "./backend/desktopHostControl";
 import type { BackendHostClient } from "./backend/BackendHostClient";
 import type { BackendStateStore } from "./backend/BackendStateStore";
-import type { SshConnectionManager } from "./ssh/SshConnectionManager";
+import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import type { AutoUpdaterController } from "./updates/autoUpdater";
 import type { DesktopTrayFeed } from "./desktopAppBackendHost";
 import {
@@ -25,7 +24,7 @@ import {
   openThreadFromTray,
   toggleQuickComposerWindow,
 } from "./desktopAppWindows";
-import { desktopApp, channel, isDev, requirePoracodePaths } from "./desktopAppState";
+import { desktopApp, channel, isDev } from "./desktopAppState";
 
 /** Create the tray, bind its feeds, and load the initial projections. */
 export async function createDesktopTray(feed: DesktopTrayFeed): Promise<void> {
@@ -101,35 +100,18 @@ export function publishDesktopOwnerServices(): void {
 export interface DesktopLifecycleDeps {
   readonly backendHost: BackendHostClient;
   readonly shellState: BackendStateStore;
-  /** Non-null on the desktop: the composition always ships SSH inputs. */
-  readonly sshConnectionManager: SshConnectionManager;
+  /** Device-local SSH controller (the utility supervisor on the desktop). */
+  readonly ssh: SshEnvironmentController;
   /** Joins the browser watch stop and the remote gateway dispose (quit). */
   disposeBrowserGateway(): Promise<void>;
   readonly autoUpdater: AutoUpdaterController;
-  readonly initialMainWindow: ReturnType<typeof ensureMainWindow>;
   readonly supervisorPath: string;
 }
 
-/** Post-ready hooks: attachments cleanup, updater, dev watch, quit join. */
+/** Post-ready hooks: updater, dev watch, quit join. Attachment reclamation is
+ * owned by the backend composition's durable services (one authoritative
+ * reclaimer per attachments root), so main runs no second sweep here. */
 export function registerDesktopAppLifecycle(deps: DesktopLifecycleDeps): void {
-  deps.initialMainWindow.once("ready-to-show", () => {
-    setTimeout(() => {
-      const attachmentPaths = requirePoracodePaths();
-      void deps.backendHost
-        .callDatabase("dbGetThreads", {})
-        .then((threads) =>
-          cleanupOrphanedAttachments(
-            attachmentPaths.attachmentsDir,
-            threads.map((thread) => thread.id),
-          ),
-        )
-        .catch((error) => {
-          // Same shutdown-race shape as the tray refresh above.
-          captureMainException(error, { "poracode.feature_area": "attachments-cleanup" });
-        });
-    }, 0);
-  });
-
   if (!isDev) {
     deps.autoUpdater.initialize();
   }
@@ -218,7 +200,7 @@ function registerBeforeQuitJoin(deps: DesktopLifecycleDeps): void {
         () => controlToDispose?.dispose(),
         () => adoptionToDispose?.dispose(),
         () =>
-          deps.sshConnectionManager.dispose().catch((error) => {
+          deps.ssh.dispose().catch((error) => {
             captureMainException(error, { "poracode.feature_area": "ssh" });
           }),
         () => deps.shellState.close(),

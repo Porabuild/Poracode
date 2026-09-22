@@ -11,6 +11,7 @@ import {
 } from "@/renderer/state/threadDeletePreference";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
+import { ResourceAdmissionSettings } from "./ResourceAdmissionSettings";
 import {
   followUpBehaviorOptions,
   threadRemoveActionOptions,
@@ -192,6 +193,11 @@ export function ThreadSettings() {
           />
         </SettingRow>
       )}
+
+      {/* Host execution-slot bounds are absent from the remote settings wire, so an
+          ordinary remote session cannot edit the paired host's policy; hide them
+          there instead of pretending a local edit reaches the host. */}
+      {!remote && <ResourceAdmissionSettings />}
     </SettingsPage>
   );
 }

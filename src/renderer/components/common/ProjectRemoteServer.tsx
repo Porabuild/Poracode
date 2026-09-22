@@ -6,6 +6,7 @@ import { isHomeProject } from "@/shared/homeScope";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { createArrayKeyedMap } from "@/renderer/state/derivations";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerRecord, RemoteServerStatus } from "@/renderer/state/remoteServers/types";
 import { useProjectIconNode } from "./ProjectIcon";
@@ -36,7 +37,7 @@ const LOCAL: ProjectRemoteServerInfo = {
 };
 
 const serverByDesktopId = createArrayKeyedMap<RemoteServerRecord, string, RemoteServerRecord>(
-  (servers) => new Map(servers.map((server) => [server.desktopId, server])),
+  (servers) => new Map(servers.map((server) => [remoteConnectionKey(server), server])),
 );
 
 /**

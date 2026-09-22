@@ -80,6 +80,7 @@ import {
 } from "@/renderer/components/experiment/ExperimentDraftTargets";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { isDraftContentNonEmpty } from "@/renderer/state/slices/types";
@@ -368,6 +369,11 @@ export function ThreadDraftComposerArea(props: {
   );
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
+    : undefined;
+  // Host-owned environment attachments resolve through the keyed readiness
+  // subscription; direct/ssh keep their synchronous endpoint URL.
+  const remoteImageReadiness = remoteDesktopId
+    ? environmentImageReadinessFor(remoteDesktopId)
     : undefined;
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
@@ -893,6 +899,13 @@ export function ThreadDraftComposerArea(props: {
     if (authRequired) {
       return;
     }
+    // Draft state may hold an empty model until one is chosen, but the wire
+    // contract (threadConfigSchema) rejects it, so the launch would be refused
+    // and silently dropped. Admit nonempty models only, before any launch or
+    // draft-clear side effect.
+    if (!props.config.model) {
+      return;
+    }
 
     resetDraftRefs();
     submittedRef.current = true;
@@ -1242,6 +1255,7 @@ export function ThreadDraftComposerArea(props: {
             }}
             onPreviewPdf={(att) => openPdfPreview(att.path)}
             {...(attachmentImageUrlForPath ? { imageUrlForPath: attachmentImageUrlForPath } : {})}
+            remoteImageReadiness={remoteImageReadiness}
             leading={
               mentionedMcpServers.length > 0 || showComputerUseChip ? (
                 <>
@@ -1347,6 +1361,7 @@ export function ThreadDraftComposerArea(props: {
           agentUpdating ||
           hostUpdateRestarting ||
           isSubmitting ||
+          (!experimentMode && !props.config.model) ||
           !(hasContent || attachments.attachments.length > 0) ||
           (experimentMode && experimentCandidates.length < 2)
         }

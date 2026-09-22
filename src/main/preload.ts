@@ -6,7 +6,6 @@ import type { RemoteAccessPairingInfo } from "@/shared/remote";
 import type { SharedSettings } from "@/shared/settings";
 import type { GitStatePatch } from "@/shared/gitState";
 import type { UserNotification } from "@/shared/threadNotification";
-import { isSupervisorEventGap } from "@/shared/backendHostProtocol";
 import { PORACODE_CLIENT_RUNTIME_VERSION, type ElectronHostBridge } from "@/shared/clientRuntime";
 import {
   hostServiceCapabilitiesSchema,
@@ -29,7 +28,6 @@ import {
   type BrowserEvent,
   type PrWatchMergedEvent,
   type PrWatchStatusEvent,
-  type ProjectStateChangedEvent,
   type QuickComposerSubmission,
   type ThreadOpenRequestedEvent,
   type UpdateStatus,
@@ -183,15 +181,6 @@ const bridge: ElectronHostBridge = {
   // against its own map before installing the runtime, so a mixed bundle or
   // foreign preload pair rejects typed instead of guessing semantics.
   ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
-  onSupervisorEventGap(listener) {
-    const handler = (_event: Electron.IpcRendererEvent, gap: unknown) => {
-      if (isSupervisorEventGap(gap)) listener(gap);
-    };
-    ipcRenderer.on(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.backendSupervisorEventGap, handler);
-    };
-  },
   onBackendSupervisorReset(listener) {
     const handler = () => listener();
     ipcRenderer.on(IPC_EVENT_CHANNELS.backendSupervisorReset, handler);
@@ -242,15 +231,6 @@ const bridge: ElectronHostBridge = {
     ipcRenderer.on(IPC_EVENT_CHANNELS.sharedSettingsChanged, handler);
     return () => {
       ipcRenderer.removeListener(IPC_EVENT_CHANNELS.sharedSettingsChanged, handler);
-    };
-  },
-  onProjectStateChanged(listener) {
-    const handler = (_event: Electron.IpcRendererEvent, payload: ProjectStateChangedEvent) => {
-      listener(payload);
-    };
-    ipcRenderer.on(IPC_EVENT_CHANNELS.projectStateChanged, handler);
-    return () => {
-      ipcRenderer.removeListener(IPC_EVENT_CHANNELS.projectStateChanged, handler);
     };
   },
   onGitStateChanged(listener) {

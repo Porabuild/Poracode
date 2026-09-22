@@ -1,3 +1,4 @@
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { AgentDiscoveryScreen } from "@/renderer/components/thread/AgentDiscoveryScreen";
@@ -175,7 +176,7 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   );
   const [mobileDesktopId, setMobileDesktopId] = useState<string | null>(null);
   const selectedDesktop =
-    servers.find((server) => server.desktopId === mobileDesktopId) ?? defaultDesktop;
+    servers.find((server) => remoteConnectionKey(server) === mobileDesktopId) ?? defaultDesktop;
   useProductViewTracking(
     {
       ...settingsSectionProductProperties(activeSection),
@@ -215,7 +216,10 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
 
   // Drop a disconnected desktop selection during render so the picker never
   // paints a frame for a desktop that is no longer paired.
-  if (mobileDesktopId && !servers.some((server) => server.desktopId === mobileDesktopId)) {
+  if (
+    mobileDesktopId &&
+    !servers.some((server) => remoteConnectionKey(server) === mobileDesktopId)
+  ) {
     setMobileDesktopId(null);
   }
 
@@ -438,11 +442,11 @@ export function SettingsOverlay(props: { onClose: () => void; onBack?: () => voi
   const scopedPageContent =
     showMobileDesktopPicker && selectedDesktop ? (
       <div className="m-machine-scoped-content relative h-full min-h-0">
-        <div key={selectedDesktop.desktopId} className="h-full min-h-0">
+        <div key={remoteConnectionKey(selectedDesktop)} className="h-full min-h-0">
           {pageContent}
         </div>
         <MobileMachineToolbar
-          desktopId={selectedDesktop.desktopId}
+          desktopId={remoteConnectionKey(selectedDesktop)}
           onDesktopChange={changeMobileDesktop}
         />
       </div>

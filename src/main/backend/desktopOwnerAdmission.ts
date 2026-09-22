@@ -24,7 +24,7 @@ import {
 } from "@/backend/ownership/hostOwnerLease";
 import { resolveDesktopHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import type { PoracodeChannel } from "@/shared/channel";
-import { probeLegacyOwnership } from "../legacyDataMigration";
+import { probeLegacyOwnership } from "@/host/legacyDataMigration";
 
 /** Bounded wait-and-reprobe for a concurrently releasing owner (3 x 500ms). */
 const REPROBE_ATTEMPTS = 3;

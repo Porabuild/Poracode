@@ -266,6 +266,29 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
     message:
       "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
   }),
+  "remote.helper.ownerUnverified": msg({
+    message:
+      "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect.",
+  }),
+  "remote.helper.ownerUnresponsive": msg({
+    message:
+      "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect.",
+  }),
+  "remote.helper.ownerIncompatible": msg({
+    message:
+      "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version.",
+  }),
+  "remote.helper.ownerConflict": msg({
+    message:
+      "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect.",
+  }),
+  "remote.helper.busy": msg({
+    message: "Another Poracode client is preparing this connection. Try again in a moment.",
+  }),
+  "remote.helper.drainTimeout": msg({
+    message:
+      "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again.",
+  }),
   "ssh.runtimeManifest.invalid": msg({
     message: "Poracode SSH runtime manifest is missing or invalid: {path}",
   }),

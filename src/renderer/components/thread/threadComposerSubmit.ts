@@ -11,6 +11,7 @@ import type {
 import { friendlyError } from "@/shared/messages";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { readBridge } from "@/renderer/bridge";
+import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import {
   changeThreadConfig,
   resolveThreadServerRequest,
@@ -254,6 +255,13 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
         segments: submittedInputSegments,
         attachments: submittedAttachments.map(storableAttachment),
       });
+      if (isRemoteCommandOutcomeUncertainError(error)) {
+        // The command may have committed: the send action already reconciled
+        // once and showed the localized uncertainty explanation. Keep the
+        // optimistic paint and the saved draft, but do not restore the
+        // composer — a blind resend could duplicate the effect.
+        return;
+      }
       if (ctx.isCurrentSession()) {
         restoreSubmittedComposer();
       }

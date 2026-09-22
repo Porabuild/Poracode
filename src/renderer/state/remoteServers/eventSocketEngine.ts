@@ -1,20 +1,16 @@
-import type { ClientEngineHost } from "@/renderer/state/remote/engine";
+import type { ClientEngineLane } from "@/renderer/state/remote/engine";
 
 /**
- * The remote-socket engine is shared by every paired-server session in this
- * window, so exactly ONE overflow listener is registered for the module and
- * the latest session re-points it. A stale session's sink is inert: its
- * handler checks `isCurrent()` before touching any socket. Overflow resets
- * the engine, so every session with an in-flight `decodeRemote` also sees a
- * typed rejection and resyncs through the per-frame catch — the sink only
- * covers overflow with no locally pending decode.
+ * A3: overflow notification is LANE-keyed. Each paired-host session binds its
+ * own lane's overflow sink, so host A reaching its count/byte budget can no
+ * longer reset the shared engine or notify host B's session (the pre-A3
+ * process-wide single-sink slot was a cross-host cascade at lane granularity).
+ *
+ * The sink is one of two delivery paths for the same event: every pending
+ * decode of the overflowing lane already rejects with
+ * `ClientEngineLaneOverflowError`, and the sink additionally covers a lane
+ * whose queued frames expired without a new decode attempt.
  */
-let engineOverflowSink: (() => void) | null = null;
-let engineOverflowBoundTo: ClientEngineHost | null = null;
-
-export function bindRemoteEngineOverflowListener(engine: ClientEngineHost, sink: () => void): void {
-  engineOverflowSink = sink;
-  if (engineOverflowBoundTo === engine) return;
-  engineOverflowBoundTo = engine;
-  engine.addOverflowListener(() => engineOverflowSink?.());
+export function bindRemoteEngineLaneOverflow(lane: ClientEngineLane, sink: () => void): () => void {
+  return lane.addOverflowListener(sink);
 }

@@ -11,8 +11,7 @@ import { requestTrackedRendererReload } from "./window/windowHardening";
 import { QuickComposerShortcutManager } from "./quickComposerShortcut";
 import type { AutoUpdaterController } from "./updates/autoUpdater";
 import type { BackendHostClient } from "./backend/BackendHostClient";
-import type { RendererEventInterestsWiring } from "./backend/rendererEventInterestsWiring";
-import type { SshConnectionManager } from "./ssh/SshConnectionManager";
+import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import type { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
 import { updatePowerSaveBlocker } from "./desktopAppShell";
 import {
@@ -34,8 +33,7 @@ import {
 
 export interface DesktopIpcDeps {
   readonly backendHost: BackendHostClient;
-  readonly rendererEventInterests: RendererEventInterestsWiring;
-  readonly sshConnectionManager: SshConnectionManager;
+  readonly ssh: SshEnvironmentController;
   readonly autoUpdater: AutoUpdaterController;
   /** Created by the caller before this registration runs. */
   readonly quickComposerShortcutManager: QuickComposerShortcutManager;
@@ -48,7 +46,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
     localHandlers: createLocalIpcHandlers({
       getMainWindow: () => desktopApp.mainWindow,
       getBrowserPanelManager: () => desktopApp.browserPanelManager,
-      sshConnectionManager: deps.sshConnectionManager,
+      sshConnectionManager: deps.ssh,
       requirePoracodePaths,
       legacyElectronUserDataDir,
       ...(legacyBaseDirOverride ? { legacyBaseDir: legacyBaseDirOverride } : {}),
@@ -56,19 +54,6 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       autoUpdater: deps.autoUpdater,
       onKeybindingsChanged: (file) => deps.quickComposerShortcutManager.apply(file),
       setGlobalShortcutsSuspended: (suspended) => globalShortcut.setSuspended(suspended),
-      setRendererEventInterests: async (interests, sender) => {
-        // Every registered window is a desktop bulk consumer until its
-        // direct stream binds the grant; the wiring mints identity and
-        // generation before publishing interests and republishes the
-        // per-window table even when this window's slice does not move the
-        // merged union (a window whose transport has never connected still
-        // holds the IPC fallback open).
-        deps.rendererEventInterests.setInterests(sender ?? null, {
-          terminalThreadIds: interests.terminalThreadIds,
-          runtimeThreadIds: interests.runtimeThreadIds,
-          allRuntimeEvents: false,
-        });
-      },
       extractBrowserToWindow,
       injectBrowserToMain,
       requestRelaunch: () => {
@@ -83,8 +68,7 @@ export function registerDesktopIpc(deps: DesktopIpcDeps): void {
       hostOffersOsNotifications: () =>
         desktopApp.hostServices?.capabilities.osNotifications === true,
     }),
-    callSupervisor: (name, payload, originWindowId) =>
-      deps.backendHost.call(name, payload, originWindowId),
+    callSupervisor: (name, payload) => deps.backendHost.call(name, payload),
   });
 
   ipcMain.handle(IPC_WINDOW_CHANNELS.quickComposerSubmit, (event, payload: unknown) => {

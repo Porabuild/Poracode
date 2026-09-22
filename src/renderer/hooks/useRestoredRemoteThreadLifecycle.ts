@@ -4,6 +4,7 @@ import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isDraftPaneId } from "@/shared/paneId";
 import { useAppStore, type AppStoreState } from "@/renderer/state/appStore";
 import { remoteOwner, type RemoteOwner } from "@/renderer/state/remoteProjection";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import type { RemoteServerStatus, RemoteServersState } from "@/renderer/state/remoteServers/types";
 
@@ -58,7 +59,10 @@ function selectRestoredRemoteOwnerKeys(state: AppStoreState): readonly string[] 
  */
 function selectRestoredRemoteReadinessKey(state: RemoteServersState): string {
   return state.servers
-    .map((server) => `${server.desktopId}:${state.runtime[server.desktopId]?.status ?? "unknown"}`)
+    .map(
+      (server) =>
+        `${remoteConnectionKey(server)}:${state.runtime[remoteConnectionKey(server)]?.status ?? "unknown"}`,
+    )
     .sort()
     .join(",");
 }
@@ -193,7 +197,7 @@ export function useRestoredRemoteThreadLifecycle(enabled: boolean): void {
     const serverReady = (desktopId: string): boolean => {
       const remote = useRemoteServersStore.getState();
       return (
-        remote.servers.some((server) => server.desktopId === desktopId) &&
+        remote.servers.some((server) => remoteConnectionKey(server) === desktopId) &&
         remote.runtime[desktopId]?.status === "online"
       );
     };
@@ -270,7 +274,11 @@ export function useRestoredRemoteThreadLifecycle(enabled: boolean): void {
     const remoteState = useRemoteServersStore.getState();
     const statuses = new Map(
       remoteState.servers.map(
-        (server) => [server.desktopId, remoteState.runtime[server.desktopId]?.status] as const,
+        (server) =>
+          [
+            remoteConnectionKey(server),
+            remoteState.runtime[remoteConnectionKey(server)]?.status,
+          ] as const,
       ),
     );
     for (const [desktopId, status] of statuses) {

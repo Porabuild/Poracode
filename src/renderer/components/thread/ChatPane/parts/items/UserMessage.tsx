@@ -304,7 +304,7 @@ export const UserMessage = memo(function UserMessage({
                 if (gallery.length > 1) {
                   const src = attachmentImageUrl(att, imageUrlForPath);
                   if (gallery.some((img) => img.src === src)) {
-                    openThreadGallery(gallery, src);
+                    openThreadGallery(gallery, src, 0, threadId);
                     return;
                   }
                 }

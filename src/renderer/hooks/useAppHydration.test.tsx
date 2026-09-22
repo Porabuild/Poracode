@@ -22,6 +22,14 @@ const mocks = vi.hoisted(() => ({
       }>
     >(),
   },
+  commitManagedExperimentChange:
+    vi.fn<
+      (
+        experimentId: string,
+        plan: (record: Experiment) => { record: Experiment } | null,
+      ) => Promise<Experiment | null>
+    >(),
+  hydrateManagedExperimentState: vi.fn<() => Promise<boolean>>(),
   hydrateThreadRuntimeItems: vi.fn<(threadId: string) => Promise<void>>(),
   compactClientRuntimeSurface: false,
   startDeferredFeaturePrewarm: vi.fn<(target: "desktop" | "compact") => () => void>(
@@ -30,9 +38,17 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/renderer/bridge", () => ({ readBridge: () => mocks.bridge }));
-vi.mock("@/renderer/state/chatRuntimePersister", () => ({
-  hydrateThreadRuntimeItems: mocks.hydrateThreadRuntimeItems,
+vi.mock("@/renderer/state/managedRootCatalog/rootExperimentAuthority", () => ({
+  commitManagedExperimentChange: mocks.commitManagedExperimentChange,
+  hydrateManagedExperimentState: mocks.hydrateManagedExperimentState,
 }));
+vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>();
+  return {
+    ...actual,
+    hydrateThreadRuntimeItems: mocks.hydrateThreadRuntimeItems,
+  };
+});
 vi.mock("@/renderer/clientRuntime", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/renderer/clientRuntime")>()),
   isCompactClientRuntimeSurface: () => mocks.compactClientRuntimeSurface,
@@ -84,11 +100,19 @@ describe("useAppHydration experiments", () => {
     vi.clearAllMocks();
     mocks.compactClientRuntimeSurface = false;
     vi.spyOn(useAppStore.persist, "hasHydrated").mockReturnValue(true);
-    vi.spyOn(useExperimentStore.persist, "hasHydrated").mockReturnValue(true);
     vi.spyOn(useAppStore.persist, "onHydrate").mockReturnValue(() => undefined);
     vi.spyOn(useAppStore.persist, "onFinishHydration").mockReturnValue(() => undefined);
-    vi.spyOn(useExperimentStore.persist, "onHydrate").mockReturnValue(() => undefined);
-    vi.spyOn(useExperimentStore.persist, "onFinishHydration").mockReturnValue(() => undefined);
+    mocks.hydrateManagedExperimentState.mockResolvedValue(false);
+    // Stand-in for the confirmed host projection: apply the planner against
+    // the in-memory record and install the confirmed record.
+    mocks.commitManagedExperimentChange.mockImplementation(async (experimentId, plan) => {
+      const base = useExperimentStore.getState().experiments[experimentId];
+      if (!base) return null;
+      const planned = plan(base);
+      if (!planned) return null;
+      useExperimentStore.getState().upsertExperiment(planned.record);
+      return planned.record;
+    });
     useAppStore.setState((state) => ({
       ...state,
       projects: [project],
@@ -148,15 +172,8 @@ describe("useAppHydration experiments", () => {
 
   it("flips storeHydrated to true when hydration finishes after mount", async () => {
     vi.mocked(useAppStore.persist.hasHydrated).mockReturnValue(false);
-    vi.mocked(useExperimentStore.persist.hasHydrated).mockReturnValue(false);
     const finishListeners: Array<() => void> = [];
     vi.mocked(useAppStore.persist.onFinishHydration).mockImplementation((listener) => {
-      finishListeners.push(() => {
-        (listener as unknown as () => void)();
-      });
-      return () => undefined;
-    });
-    vi.mocked(useExperimentStore.persist.onFinishHydration).mockImplementation((listener) => {
       finishListeners.push(() => {
         (listener as unknown as () => void)();
       });
@@ -167,7 +184,6 @@ describe("useAppHydration experiments", () => {
     expect(result.current.storeHydrated).toBe(false);
 
     vi.mocked(useAppStore.persist.hasHydrated).mockReturnValue(true);
-    vi.mocked(useExperimentStore.persist.hasHydrated).mockReturnValue(true);
     act(() => {
       for (const listener of finishListeners) listener();
     });

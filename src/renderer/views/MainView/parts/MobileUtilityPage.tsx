@@ -1,3 +1,4 @@
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { Suspense, useState } from "react";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
@@ -47,17 +48,20 @@ export function MobileUtilityPage() {
   const [selectedDesktopId, setSelectedDesktopId] = useState<string | null>(null);
   const [selectedNotesProjectId, setSelectedNotesProjectId] = useState<string | null>(null);
   const selectedServer =
-    servers.find((server) => server.desktopId === selectedDesktopId) ?? projectServer;
+    servers.find((server) => remoteConnectionKey(server) === selectedDesktopId) ?? projectServer;
   const projectRuntime = useRemoteServersStore((state) =>
-    selectedServer ? state.runtime[selectedServer.desktopId] : undefined,
+    selectedServer ? state.runtime[remoteConnectionKey(selectedServer)] : undefined,
   );
   const lastKnownProjects = useRemoteServersStore((state) =>
-    selectedServer ? state.lastKnownProjects[selectedServer.desktopId] : undefined,
+    selectedServer ? state.lastKnownProjects[remoteConnectionKey(selectedServer)] : undefined,
   );
 
   // Drop a disconnected desktop selection during render so the page never
   // paints a frame for a desktop that is no longer paired.
-  if (selectedDesktopId && !servers.some((server) => server.desktopId === selectedDesktopId)) {
+  if (
+    selectedDesktopId &&
+    !servers.some((server) => remoteConnectionKey(server) === selectedDesktopId)
+  ) {
     setSelectedDesktopId(null);
   }
 
@@ -131,7 +135,11 @@ export function MobileUtilityPage() {
     const project =
       notesProjects.find((candidate) => candidate.id === selectedNotesProjectId) ??
       notesProjects.find((candidate) => candidate.id === currentProjectId) ??
-      notesProjects.find((candidate) => candidate.remoteServerId === projectServer?.desktopId) ??
+      notesProjects.find(
+        (candidate) =>
+          candidate.remoteServerId ===
+          (projectServer ? remoteConnectionKey(projectServer) : undefined),
+      ) ??
       notesProjects[0];
     return project ? (
       <BrowserRemoteConnectionGate allowOffline>
@@ -158,14 +166,14 @@ export function MobileUtilityPage() {
           <BrowserRemoteConnectionGate allowOffline>
             {page === "pullRequests" ? (
               <PullRequestsView
-                key={selectedServer.desktopId}
-                remoteDesktopId={selectedServer.desktopId}
+                key={remoteConnectionKey(selectedServer)}
+                remoteDesktopId={remoteConnectionKey(selectedServer)}
                 onRemoteDesktopChange={changeDesktop}
               />
             ) : (
               <SchedulesView
-                key={selectedServer.desktopId}
-                remoteDesktopId={selectedServer.desktopId}
+                key={remoteConnectionKey(selectedServer)}
+                remoteDesktopId={remoteConnectionKey(selectedServer)}
                 onRemoteDesktopChange={changeDesktop}
               />
             )}
@@ -187,7 +195,7 @@ export function MobileUtilityPage() {
           />
         </div>
         <MobileMachineToolbar
-          desktopId={selectedServer.desktopId}
+          desktopId={remoteConnectionKey(selectedServer)}
           onDesktopChange={changeDesktop}
         />
       </div>

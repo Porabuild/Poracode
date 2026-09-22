@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import type { RemoteImageRefValue } from "@/shared/remote";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 
 export type ChatPaneActions = {
   /** Owning thread — lets inline images open the thread-wide gallery. */
@@ -52,6 +53,12 @@ export type ChatPaneActions = {
   remoteLocalImageUrl?: ((url: string) => string) | undefined;
   /** Resolve an inline-image reference held in a remote host's transcript. */
   remoteImageRefUrl?: ((ref: RemoteImageRefValue) => string) | undefined;
+  /**
+   * Keyed readiness surface for host-owned environment images (R3). Present
+   * only when the thread's server record is an environment; consumers then
+   * subscribe instead of relying on incidental rerenders.
+   */
+  remoteImageReadiness?: RemoteImageReadiness | undefined;
 };
 
 export const ChatPaneActionsContext = createContext<ChatPaneActions | null>(null);

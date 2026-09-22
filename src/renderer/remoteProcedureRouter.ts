@@ -19,6 +19,7 @@ import {
   projectRemoteFollowUpQueue,
   unprojectRemoteThreadId,
 } from "@/renderer/state/remoteProjection";
+import { invokeBoundedRuntimeItemsPage } from "@/renderer/state/remoteServers/catalog/boundedHistoryRegistry";
 import {
   isRemoteRoutableProcedure,
   REMOTE_PROCEDURE_ROUTES,
@@ -32,6 +33,12 @@ interface ResolvedRemoteRoute {
   readonly projectedProjectId?: string;
   readonly terminalId?: string;
   readonly terminalKind?: "shell" | "thread";
+  /**
+   * Provenance: the managed loopback leg started this terminal, so only the
+   * live managed host may serve the route — never the persisted host, even if
+   * a paired desktop's id reads like the internal loopback identity.
+   */
+  readonly managedLoopback?: boolean;
 }
 
 export interface RemoteProcedureHost {
@@ -58,8 +65,45 @@ export type RemoteRouteDecision<Result = unknown> =
   | { readonly kind: "local" }
   | { readonly kind: "remote"; readonly result: Promise<Result> };
 
+/**
+ * The live managed-loopback procedure owner (the renderer's own co-located
+ * HTTP leg).
+ *
+ * Registered by `hostTransport/loopbackHttpWsTransport` while exactly one
+ * loopback activation is serving, and cleared on deactivation. It is a
+ * separate slot from the persisted host on purpose:
+ *
+ * - the identity is opaque and minted by the leg (`managedIdentity.ts`), so a
+ *   paired desktop's id — even one reading `"managed-loopback"` — can never
+ *   alias a managed-owned route, and vice versa;
+ * - a managed-owned route is never silently re-assigned to a persisted host
+ *   when the leg is down (it fails truthfully instead), and the registration
+ *   holds no client of a retired activation.
+ */
+export interface ManagedLoopbackProcedureHostRegistration {
+  /** Opaque routing identity minted by the managed leg (never a persisted
+   * desktop id). Process-stable, so a managed terminal keeps routing to the
+   * successor client after a leg reconnect. */
+  readonly desktopId: string;
+  /** The composed managed procedure host that serves managed-owned routes. */
+  readonly host: RemoteProcedureHost;
+  /** Activation fence: false once the registration's leg has retired. */
+  isCurrent(): boolean;
+}
+
+/** Terminal ownership provenance. Persisted owners route through the
+ * registered persisted host; managed loopback owners route through the live
+ * managed host registration — never through a desktop-id string match. */
+type RemoteTerminalOwnerRecord =
+  | { readonly kind: "persisted"; readonly desktopId: string }
+  | { readonly kind: "managed-loopback"; readonly desktopId: string };
+
 let host: RemoteProcedureHost | undefined;
-const remoteTerminals = new RemoteTerminalOwnership<string>();
+let managedLoopbackHost: ManagedLoopbackProcedureHostRegistration | null = null;
+const remoteTerminals = new RemoteTerminalOwnership<RemoteTerminalOwnerRecord>();
+/** One identity-stable record per persisted owner, so batch release keeps
+ * matching the same object the terminal entries registered. */
+const persistedTerminalOwners = new Map<string, RemoteTerminalOwnerRecord>();
 const REMOTE_LOCATION_KEYS = [
   "projectLocation",
   "worktreeLocation",
@@ -82,8 +126,33 @@ export function readRegisteredRemoteProcedureHost(): RemoteProcedureHost | undef
   return host;
 }
 
+/** Installs the live managed-loopback host (loopback host lifecycle owns it),
+ * or clears it when the leg deactivates. A non-current registration is never
+ * used to route: managed-owned routes then fail truthfully. */
+export function registerManagedLoopbackProcedureHost(
+  registration: ManagedLoopbackProcedureHostRegistration | null,
+): void {
+  managedLoopbackHost = registration;
+}
+
+export function readManagedLoopbackProcedureHost(): ManagedLoopbackProcedureHostRegistration | null {
+  return managedLoopbackHost;
+}
+
+function persistedTerminalOwner(desktopId: string): RemoteTerminalOwnerRecord {
+  const cached = persistedTerminalOwners.get(desktopId);
+  if (cached) return cached;
+  const record: RemoteTerminalOwnerRecord = { kind: "persisted", desktopId };
+  persistedTerminalOwners.set(desktopId, record);
+  return record;
+}
+
 export function remoteTerminalOwner(terminalId: string): string | undefined {
-  return remoteTerminals.owner(terminalId);
+  const owner = remoteTerminals.owner(terminalId);
+  // Managed-loopback terminals belong to the renderer's own feed namespace
+  // (`managedTerminalFeedId()`); only persisted owners carry a paired-server
+  // desktop id for feed/event routing.
+  return owner?.kind === "persisted" ? owner.desktopId : undefined;
 }
 
 export function releaseRemoteTerminal(terminalId: string): void {
@@ -91,11 +160,16 @@ export function releaseRemoteTerminal(terminalId: string): void {
 }
 
 export function releaseRemoteTerminalsForServer(desktopId: string): void {
-  remoteTerminals.releaseOwnedBy(desktopId);
+  const record = persistedTerminalOwners.get(desktopId);
+  if (!record) return;
+  remoteTerminals.releaseOwnedBy(record);
+  persistedTerminalOwners.delete(desktopId);
 }
 
 export function resetRemoteProcedureRouterForTest(): void {
   remoteTerminals.clear();
+  persistedTerminalOwners.clear();
+  managedLoopbackHost = null;
 }
 
 export function unprojectProjectLocation(location: ProjectLocation): ProjectLocation {
@@ -135,18 +209,29 @@ export function routeRemoteProcedure<Name extends IpcProcedureName>(
     };
   }
   if (!route) return { kind: "local" };
-  const remoteHost = effectiveHost;
+  // Managed ownership is decided by provenance + a live registration, never
+  // by a desktop-id string: the managed identity is opaque, so a route can
+  // only carry it if the managed leg minted it.
+  const managed = resolveManagedLoopbackOwner(route, effectiveHost);
+  if (route.managedLoopback && !managed) {
+    return {
+      kind: "remote",
+      result: Promise.reject(new Error(msg("remote.server.unreachable"))),
+    };
+  }
+  const remoteHost = managed?.host ?? effectiveHost;
   if (!remoteHost) {
     return {
       kind: "remote",
       result: Promise.reject(new Error(msg("remote.server.unreachable"))),
     };
   }
+  const managedLoopback = managed !== undefined;
   return {
     kind: "remote",
     result: remoteHost.withClient(route.desktopId, async (client) =>
       projectOwnedResult(
-        await invokeRemoteProcedure(procedure, spec, client, route),
+        await invokeRemoteProcedure(procedure, spec, client, route, managedLoopback),
         route.projectedProjectId,
         route.desktopId,
         procedure,
@@ -155,21 +240,52 @@ export function routeRemoteProcedure<Name extends IpcProcedureName>(
   };
 }
 
+/** The live managed registration that owns one resolved route, or undefined.
+ * Either the route's provenance names the managed leg, or the caller passed
+ * the live managed host as its override and the route resolves the managed
+ * owner identity. Both checks also require the registration to be current. */
+function resolveManagedLoopbackOwner(
+  route: ResolvedRemoteRoute,
+  effectiveHost: RemoteProcedureHost | undefined,
+): ManagedLoopbackProcedureHostRegistration | undefined {
+  const registration = managedLoopbackHost;
+  if (!registration?.isCurrent()) return undefined;
+  if (route.managedLoopback) {
+    return registration.desktopId === route.desktopId ? registration : undefined;
+  }
+  return effectiveHost === registration.host && route.desktopId === registration.desktopId
+    ? registration
+    : undefined;
+}
+
 async function invokeRemoteProcedure(
   procedure: RemoteRoutableProcedureName,
   spec: RemoteProcedureRouteSpec,
   client: RemoteDesktopClient,
   route: ResolvedRemoteRoute,
+  managedLoopback: boolean,
 ): Promise<unknown> {
   switch (spec.handler) {
     case "passthrough":
       return client.callRemoteProcedure(procedure, route.payload);
-    case "adapter":
+    case "adapter": {
+      // B4: a negotiated bounded connection pages older runtime items through
+      // the bounded items route; a genuine older host falls through to the
+      // legacy adapter route.
+      if (procedure === "dbGetThreadRuntimeItemsPage") {
+        const bounded = await invokeBoundedRuntimeItemsPage(
+          client,
+          route.desktopId,
+          route.payload as Parameters<typeof invokeBoundedRuntimeItemsPage>[2],
+        );
+        if (bounded) return bounded;
+      }
       return invokeRemoteIpcProcedure(
         client,
         procedure as RemoteIpcAdapterProcedureName,
         route.payload,
       );
+    }
     case "thread-clipboard-image": {
       const input = route.payload as IpcProcedurePayload<"saveClipboardImage">;
       return client.uploadAttachment({
@@ -191,7 +307,10 @@ async function invokeRemoteProcedure(
     }
     case "shell-start": {
       const input = route.payload as unknown as StartShellPayload;
-      return remoteTerminals.start(input.shellId, route.desktopId, () => client.startShell(input));
+      const owner: RemoteTerminalOwnerRecord = managedLoopback
+        ? { kind: "managed-loopback", desktopId: route.desktopId }
+        : persistedTerminalOwner(route.desktopId);
+      return remoteTerminals.start(input.shellId, owner, () => client.startShell(input));
     }
     case "shell-close":
       if (!route.terminalId) return undefined;
@@ -254,7 +373,9 @@ function resolveRemoteRoute(
   if (strategy === "thread") return resolveThreadRoute(input, remoteHost);
   if (strategy === "project") return resolveProjectRoute(input, remoteHost);
   if (strategy === "terminal") return resolveTerminalRoute(input, remoteHost);
-  if (strategy === "skillLocations") return resolveSkillLocationsOwner(input);
+  if (strategy === "skillLocations") {
+    return resolveSkillLocationsOwner(input, remoteHost?.resolveDesktopOwner()?.desktopId);
+  }
   const key =
     strategy === "projectLocation" || strategy === "optionalProjectLocation"
       ? "projectLocation"
@@ -365,12 +486,13 @@ function resolveTerminalRoute(
         ? input.threadId
         : undefined;
   if (!terminalId) return undefined;
-  const shellDesktopId = remoteTerminals.owner(terminalId);
-  if (shellDesktopId) {
+  const shellOwner = remoteTerminals.owner(terminalId);
+  if (shellOwner) {
     return {
-      desktopId: shellDesktopId,
+      desktopId: shellOwner.desktopId,
       terminalId,
       terminalKind: "shell",
+      ...(shellOwner.kind === "managed-loopback" ? { managedLoopback: true } : {}),
       payload: unprojectRemotePayload(input) as Record<string, unknown>,
     };
   }
@@ -400,13 +522,14 @@ function resolveTerminalRoute(
 
 function resolveSkillLocationsOwner(
   input: Record<string, unknown>,
+  globalOwnerId: string | undefined,
 ): ResolvedRemoteRoute | undefined {
   if (!Array.isArray(input.skills)) return undefined;
   const locations = analyzeRemoteLocations(input);
   if (locations.owners.size === 0) return undefined;
   assertSingleOwner(locations);
   const desktopId = [...locations.owners][0]!;
-  if (!skillLocationsBelongToHost(input, desktopId)) {
+  if (!skillLocationsBelongToHost(input, desktopId, globalOwnerId)) {
     throw new Error(msg("remote.server.unreachable"));
   }
   return {
@@ -415,14 +538,31 @@ function resolveSkillLocationsOwner(
   };
 }
 
-function skillLocationsBelongToHost(input: Record<string, unknown>, desktopId: string): boolean {
+/** An omitted location means the caller's known host-global scope. It cannot
+ * borrow the owner of another location: the UI may import a local global skill
+ * into a paired project. Keep that cross-host case refused rather than reading
+ * the same absolute path on a different machine. */
+function skillLocationBelongsToHost(
+  value: unknown,
+  desktopId: string,
+  globalOwnerId: string | undefined,
+): boolean {
+  if (value === undefined) return desktopId === globalOwnerId;
+  return projectLocation(value)?.remoteServerId === desktopId;
+}
+
+function skillLocationsBelongToHost(
+  input: Record<string, unknown>,
+  desktopId: string,
+  globalOwnerId: string | undefined,
+): boolean {
   if (!Array.isArray(input.skills)) return false;
   return input.skills.every((skill) => {
     if (!skill || typeof skill !== "object" || Array.isArray(skill)) return false;
     const record = skill as Record<string, unknown>;
     return (
-      projectLocation(record.projectLocation)?.remoteServerId === desktopId &&
-      projectLocation(record.sourceProjectLocation)?.remoteServerId === desktopId
+      skillLocationBelongsToHost(record.projectLocation, desktopId, globalOwnerId) &&
+      skillLocationBelongsToHost(record.sourceProjectLocation, desktopId, globalOwnerId)
     );
   });
 }

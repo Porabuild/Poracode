@@ -1,5 +1,6 @@
 import type { BrowserPanelManager } from "../../BrowserPanelManager";
-import type { McpToolAnnotations } from "@/shared/contracts";
+
+export type { McpContent, McpToolResult, ToolSpec } from "@/host/browser/mcp/tools/types";
 
 export interface ToolContext {
   manager: BrowserPanelManager;
@@ -10,25 +11,6 @@ export interface ToolContext {
    *  per-thread group named after the task. */
   threadId?: string;
   threadTitle?: string;
-}
-
-export interface ToolSpec {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  annotations?: McpToolAnnotations;
-}
-
-export interface McpContent {
-  type: "text" | "image";
-  text?: string;
-  data?: string;
-  mimeType?: string;
-}
-
-export interface McpToolResult {
-  content: McpContent[];
-  isError?: boolean;
 }
 
 export type ResolvedBrowserTab = NonNullable<ReturnType<BrowserPanelManager["getActiveTab"]>>;

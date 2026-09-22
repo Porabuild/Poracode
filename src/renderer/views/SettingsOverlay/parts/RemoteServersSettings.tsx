@@ -23,7 +23,13 @@ import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
+import {
+  environmentTransportHasParent,
+  isEnvironmentServer,
+  remoteConnectionKey,
+  type RemoteServerRecord,
+} from "@/renderer/state/remoteServers/types";
+import { EnvironmentSettingsSection } from "./EnvironmentSettingsSection";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import {
@@ -303,15 +309,37 @@ function ManageProjects({
 
 function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
   const { t } = useLingui();
-  const runtime = useRemoteServersStore((s) => s.runtime[server.desktopId]);
+  const connectionKey = remoteConnectionKey(server);
+  const environmentRecord = isEnvironmentServer(server);
+  // Select the stable `servers` array and derive dependents outside the hook:
+  // a filtering selector allocates a new array per snapshot, which
+  // useSyncExternalStore reads as a perpetually fresh snapshot and loops the
+  // row into React #185. Same predicate as the remove cascade.
+  const servers = useRemoteServersStore((state) => state.servers);
+  const parentRef = { kind: "connection", connectionId: connectionKey } as const;
+  const dependents = servers.filter(
+    (candidate) =>
+      candidate.transport?.kind === "environment" &&
+      environmentTransportHasParent(candidate.transport, parentRef),
+  );
+  const runtime = useRemoteServersStore((s) => s.runtime[connectionKey]);
   const reconnectServer = useRemoteServersStore((s) => s.reconnectServer);
   const renameServer = useRemoteServersStore((s) => s.renameServer);
   const removeServer = useRemoteServersStore((s) => s.removeServer);
   const { busy, run } = useAsyncOperation();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const isRenaming = nameDraft !== null;
+
+  const requestRemove = () => {
+    if (!environmentRecord && dependents.length > 0) {
+      setConfirmRemoveOpen(true);
+      return;
+    }
+    removeServer(connectionKey);
+  };
 
   useEffect(() => {
     if (!isRenaming) return;
@@ -326,7 +354,7 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
   const saveName = () => {
     const name = nameDraft?.trim();
     if (!name) return;
-    renameServer(server.desktopId, name);
+    renameServer(connectionKey, name);
     setNameDraft(null);
   };
 
@@ -357,9 +385,11 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
               </span>
             ) : null}
             <span aria-hidden="true" className="truncate text-xs text-muted/70">
-              {server.transport?.kind === "ssh"
-                ? server.transport.connection.target
-                : endpointHost(server.endpoint)}
+              {environmentRecord
+                ? t`Host-owned environment`
+                : server.transport?.kind === "ssh"
+                  ? server.transport.connection.target
+                  : endpointHost(server.endpoint)}
             </span>
           </span>
         }
@@ -383,8 +413,8 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
                 disabledKeys={busy ? ["refresh"] : []}
                 onAction={(key) => {
                   if (key === "rename") setNameDraft(title);
-                  else if (key === "refresh") void run(() => reconnectServer(server.desktopId));
-                  else if (key === "remove") removeServer(server.desktopId);
+                  else if (key === "refresh") void run(() => reconnectServer(connectionKey));
+                  else if (key === "remove") requestRemove();
                 }}
               >
                 <Dropdown.Item id="rename" textValue={t`Rename`}>
@@ -442,6 +472,46 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
         </div>
       ) : null}
 
+      <Modal.Backdrop
+        isOpen={confirmRemoveOpen}
+        onOpenChange={(open) => !open && setConfirmRemoveOpen(false)}
+      >
+        <Modal.Container size="sm" scroll="inside">
+          <Modal.Dialog className="overflow-hidden p-0">
+            <Modal.CloseTrigger />
+            <Modal.Header className="border-b border-[var(--hairline)] px-5 py-4">
+              <Modal.Heading className="text-sm">
+                <Trans>Remove this connection?</Trans>
+              </Modal.Heading>
+            </Modal.Header>
+            <Modal.Body className="!m-0 flex flex-col gap-3 !px-5 !py-4">
+              <div className="text-xs text-muted">
+                <Trans>
+                  This connection owns host-owned environment records on this device. Removing it
+                  also removes those local records and their device grants. The host keeps its
+                  environments.
+                </Trans>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onPress={() => {
+                    setConfirmRemoveOpen(false);
+                    removeServer(connectionKey, { cascadeEnvironments: true });
+                  }}
+                >
+                  <Trans>Remove connection and environments</Trans>
+                </Button>
+                <Button variant="ghost" size="sm" onPress={() => setConfirmRemoveOpen(false)}>
+                  <Trans>Cancel</Trans>
+                </Button>
+              </div>
+            </Modal.Body>
+          </Modal.Dialog>
+        </Modal.Container>
+      </Modal.Backdrop>
+
       <Modal.Backdrop isOpen={detailsOpen} onOpenChange={setDetailsOpen}>
         <Modal.Container size="lg" scroll="inside">
           <Modal.Dialog className="overflow-hidden p-0 sm:max-w-[640px]">
@@ -464,9 +534,11 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
                       ·
                     </span>
                     <span className="truncate font-mono text-[11px]">
-                      {server.transport?.kind === "ssh"
-                        ? server.transport.connection.target
-                        : endpointHost(server.endpoint)}
+                      {environmentRecord
+                        ? t`Host-owned environment`
+                        : server.transport?.kind === "ssh"
+                          ? server.transport.connection.target
+                          : endpointHost(server.endpoint)}
                     </span>
                   </div>
                 </div>
@@ -478,23 +550,29 @@ function RemoteServerRow({ server }: { readonly server: RemoteServerRecord }) {
                   {runtime.message}
                 </p>
               ) : null}
-              {server.hostCapabilities?.autoUpdate === true && canManage ? (
+              {!environmentRecord && server.hostCapabilities?.autoUpdate === true && canManage ? (
                 <RemoteHostUpdateControl server={server} isOnline={status === "online"} />
               ) : null}
               <RemoteHostSettingsSection
-                desktopId={server.desktopId}
+                desktopId={connectionKey}
                 isOnline={status === "online"}
                 canRead={server.scopes.includes("session:read")}
                 canWrite={server.scopes.includes("session:operate")}
               />
+              {!environmentRecord ? (
+                <EnvironmentSettingsSection
+                  parent={{ kind: "connection", connectionId: connectionKey }}
+                  parentScopes={server.scopes}
+                />
+              ) : null}
               <section>
                 <h3 className="mb-2 text-xs font-semibold text-foreground/80">
                   <Trans>Projects</Trans>
                 </h3>
-                <RemoteServerProjectList desktopId={server.desktopId} projects={projects} />
+                <RemoteServerProjectList desktopId={connectionKey} projects={projects} />
               </section>
               {canManage ? (
-                <ManageProjects desktopId={server.desktopId} isOnline={status === "online"} />
+                <ManageProjects desktopId={connectionKey} isOnline={status === "online"} />
               ) : (
                 <p className="pt-0.5 text-xs text-muted/70">
                   <Trans>View-only — this connection can't manage projects.</Trans>
@@ -565,7 +643,7 @@ function DesktopRemoteServersSettings() {
       {servers.length > 0 ? (
         <div className="flex flex-col gap-0.5">
           {servers.map((server) => (
-            <RemoteServerRow key={server.desktopId} server={server} />
+            <RemoteServerRow key={remoteConnectionKey(server)} server={server} />
           ))}
         </div>
       ) : null}

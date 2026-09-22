@@ -1,10 +1,4 @@
 import {
-  decideLoopbackCertificateTrust,
-  readManagedLoopbackCertificatePin,
-  CERTIFICATE_VERIFY_OK,
-  CERTIFICATE_VERIFY_CHROMIUM,
-} from "../remote/loopbackCertificatePin";
-import {
   registerRemoteCertificatePin,
   removeRemoteCertificatePin,
   matchesRemoteCertificatePin,
@@ -39,17 +33,13 @@ export function registerRemoteHttpBridgeIpc(options: RegisterRemoteHttpBridgeIpc
     }
     let trusted = false;
     if (hasRemoteCertificatePin(contents.session, url)) {
+      // Exact-origin leaf pin: the managed loopback bootstrap installs one for
+      // the co-located server, the bridge installs them for remote hosts.
       trusted = matchesRemoteCertificatePin(contents.session, url, certificate.data);
     } else {
-      const loopback = decideLoopbackCertificateTrust({
-        hostname: new URL(url).hostname,
-        certificatePem: certificate.data,
-        pinnedFingerprint: readManagedLoopbackCertificatePin(),
-      });
-      trusted =
-        loopback === CERTIFICATE_VERIFY_OK ||
-        (loopback === CERTIFICATE_VERIFY_CHROMIUM &&
-          chromiumCertificateVerdict(contents.session, url, certificate.data));
+      // No exact-origin pin: only Chromium's own hostname-aware chain verdict
+      // can trust the certificate. Everything else fails closed.
+      trusted = chromiumCertificateVerdict(contents.session, url, certificate.data);
     }
     event.preventDefault();
     callback(trusted);

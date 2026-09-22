@@ -1,8 +1,8 @@
 import { webContents as webContentsModule, type WebContents } from "electron";
 import { CdpClient } from "./cdp/cdpClient";
-import { DialogController } from "./cdp/dialogController";
-import { NetworkCapture } from "./cdp/networkCapture";
-import { withCursorOverlayHidden } from "./cursorOverlay";
+import { DialogController } from "@/host/browser/cdp/dialogController";
+import { NetworkCapture } from "@/host/browser/cdp/networkCapture";
+import { withCursorOverlayHidden } from "@/host/browser/cursorOverlay";
 import {
   installNavigationGuards,
   installSessionPermissions,

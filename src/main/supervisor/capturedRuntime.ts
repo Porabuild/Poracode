@@ -11,7 +11,7 @@ import {
 import { SSH_RUNTIME_MANIFEST_VERSION } from "@/shared/sshRuntimeManifest";
 import { createCapturedRuntimeBootstrap } from "./capturedRuntimeBootstrap";
 import { readVerifiedRuntimeManifest, type RuntimeManifestExpectation } from "./runtimeManifest";
-import { stopSupervisorChild } from "./stopSupervisorChild";
+import { stopSupervisorChild } from "@/host/supervisor/stopSupervisorChild";
 
 export interface CapturedRuntimeOptions extends RuntimeManifestExpectation {
   readonly entry: "supervisor";

@@ -15,6 +15,7 @@ import {
   retargetPairingUrl,
 } from "@/shared/remote/pairingUrl";
 import { SettingRow, SettingsPage } from "./SettingsForm";
+import { ManagedHostEnvironmentsSection } from "./ManagedHostEnvironmentsSection";
 
 interface PairingViewState {
   readonly info: RemoteAccessPairingInfo | null;
@@ -921,27 +922,38 @@ export function RemoteAccessSettings() {
         <div className="rounded-lg border border-danger/30 px-4 py-3 text-sm text-danger">
           {state.error}
         </div>
-      ) : state.info?.status === "ready" ? (
+      ) : (
         <div className="space-y-10">
-          <PairingReady
-            key={state.info.tailscaleHttpBaseUrl ? "tailscale" : "local"}
-            info={state.info}
-            isRefreshing={isRefreshing}
-            revokingSessionId={revokingSessionId}
-            pairingPreset={pairingPreset}
-            onPairingPresetChange={(preset) => {
-              setPairingPreset(preset);
-              void refresh(preset);
-            }}
-            onRefresh={() => void refresh()}
-            onRevoke={(sessionId) => void revokeSession(sessionId)}
-          />
-          <RemoteAccessAdvanced
-            onPairingChanged={(info) => setState(pairingViewStateFromInfo(info))}
-          />
-          <RemotePushSection />
+          {state.info?.status === "ready" ? (
+            <>
+              <PairingReady
+                key={state.info.tailscaleHttpBaseUrl ? "tailscale" : "local"}
+                info={state.info}
+                isRefreshing={isRefreshing}
+                revokingSessionId={revokingSessionId}
+                pairingPreset={pairingPreset}
+                onPairingPresetChange={(preset) => {
+                  setPairingPreset(preset);
+                  void refresh(preset);
+                }}
+                onRefresh={() => void refresh()}
+                onRevoke={(sessionId) => void revokeSession(sessionId)}
+              />
+              <RemoteAccessAdvanced
+                onPairingChanged={(info) => setState(pairingViewStateFromInfo(info))}
+              />
+              <RemotePushSection />
+            </>
+          ) : null}
+          {/*
+            The desktop's own host-owned environments are managed through the
+            live loopback authority, independent of whether remote access is
+            advertised — so this exists in the OFF state too (managed-parent
+            integration).
+          */}
+          <ManagedHostEnvironmentsSection />
         </div>
-      ) : null}
+      )}
     </SettingsPage>
   );
 }

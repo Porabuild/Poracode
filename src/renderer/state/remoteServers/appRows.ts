@@ -83,6 +83,37 @@ function withoutWorkspace(project: Project): Project {
 }
 
 /**
+ * Upsert mirrored rows IN PLACE: a row that already exists in the app store is
+ * replaced at its current slot, rows outside the incoming page are kept where
+ * they are, and only genuinely new rows append. A bounded page arrives while
+ * the connection's manual order is authoritative, so re-appending the
+ * connection's rows on every page would wipe the applied order (and move the
+ * host's block past other hosts' rows).
+ */
+function upsertRemoteMirrorRows<
+  T extends { readonly id: string; readonly remoteServerId?: string | undefined },
+>(existing: T[], desktopId: string, incoming: readonly T[]): T[] {
+  const incomingById = new Map(incoming.map((row) => [row.id, row]));
+  const applied = new Set<string>();
+  let changed = false;
+  const next = existing.map((row) => {
+    if (row.remoteServerId !== desktopId) return row;
+    const replacement = incomingById.get(row.id);
+    if (!replacement) return row;
+    applied.add(row.id);
+    if (replacement !== row) changed = true;
+    return replacement;
+  });
+  for (const row of incoming) {
+    if (applied.has(row.id)) continue;
+    applied.add(row.id);
+    next.push(row);
+    changed = true;
+  }
+  return changed ? next : existing;
+}
+
+/**
  * Mirror a server's snapshot into the app store, restricted to the projects the
  * user syncs. Threads of an unsynced project are dropped too — without their
  * project row they would be orphans in the sidebar.
@@ -96,8 +127,19 @@ export function syncRemoteAppRows(
   desktopId: string,
   allProjects?: readonly Project[],
   allThreads?: readonly Thread[],
-  options: { readonly preserveThreadIds?: ReadonlySet<string> } = {},
+  options: {
+    readonly preserveThreadIds?: ReadonlySet<string>;
+    /**
+     * Bounded-catalog mode: the passed rows are one page (or the accumulated
+     * bounded catalog), never a complete membership statement. Existing
+     * mirrored rows outside the page are kept — `syncRemoteAppRows`' delete
+     * pass belongs to the assembled legacy path only, while the bounded path
+     * deletes exclusively through the confirmation-gated inventory walk.
+     */
+    readonly partial?: boolean;
+  } = {},
 ): void {
+  const partial = options.partial === true;
   const remoteState = useRemoteServersStore.getState();
   const excluded = remoteState.excludedProjectIds[desktopId];
   const projects = allProjects ? filterSyncedRemoteProjects(allProjects, excluded) : undefined;
@@ -150,7 +192,7 @@ export function syncRemoteAppRows(
     return projectThreadIdentityPreserving(desktopId, thread);
   });
   const projectedThreadIds = new Set(projectedThreads?.map((thread) => thread.id) ?? []);
-  if (projectedProjects) {
+  if (projectedProjects && !partial) {
     const projectedProjectIds = new Set(projectedProjects.map((project) => project.id));
     for (const project of useAppStore.getState().projects) {
       if (project.remoteServerId === desktopId && !projectedProjectIds.has(project.id)) {
@@ -158,7 +200,7 @@ export function syncRemoteAppRows(
       }
     }
   }
-  if (projectedThreads) {
+  if (projectedThreads && !partial) {
     for (const thread of appState.threads) {
       if (
         thread.remoteServerId === desktopId &&
@@ -183,19 +225,26 @@ export function syncRemoteAppRows(
       return {
         ...(projectedProjects
           ? {
-              projects: [
-                ...state.projects.filter((project) => project.remoteServerId !== desktopId),
-                ...projectedProjects,
-              ],
+              projects: partial
+                ? upsertRemoteMirrorRows(state.projects, desktopId, projectedProjects)
+                : [
+                    ...state.projects.filter((project) => project.remoteServerId !== desktopId),
+                    ...projectedProjects,
+                  ],
             }
           : {}),
         ...(projectedThreads
           ? {
-              threads: [
-                ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
-                ...provisioningThreads,
-                ...projectedThreads,
-              ],
+              threads: partial
+                ? upsertRemoteMirrorRows(state.threads, desktopId, [
+                    ...provisioningThreads,
+                    ...projectedThreads,
+                  ])
+                : [
+                    ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
+                    ...provisioningThreads,
+                    ...projectedThreads,
+                  ],
             }
           : {}),
       };
@@ -208,6 +257,76 @@ export function syncRemoteAppRows(
     if (gitStatuses[project.id]) continue;
     void refreshGitProject(project, "manual", "full").catch(() => undefined);
   }
+}
+
+/**
+ * Apply one connection's authoritative manual id order to its EXACT projected
+ * app-store slots: the connection's rows are permuted between the indices they
+ * already occupy, so other hosts' rows and managed-root rows keep their
+ * positions. Ids the order did not name follow in their previous relative
+ * order, matching the runtime-order apply. `orderedIds` are HOST ids; app rows
+ * carry them as `remoteId`.
+ */
+export function applyRemoteCatalogOrder(
+  desktopId: string,
+  kind: "threads" | "projects",
+  orderedIds: readonly string[],
+): void {
+  if (orderedIds.length === 0) return;
+  const orderIndex = new Map<string, number>();
+  for (const [index, id] of orderedIds.entries()) {
+    if (!orderIndex.has(id)) orderIndex.set(id, index);
+  }
+  if (kind === "threads") {
+    useAppStore.setState((state) => {
+      const rows = state.threads.filter((row) => row.remoteServerId === desktopId);
+      const nextRows = orderScopedRows(rows, orderIndex);
+      if (nextRows === rows) return state;
+      return { threads: replaceScopedRows(state.threads, desktopId, nextRows) };
+    });
+    return;
+  }
+  useAppStore.setState((state) => {
+    const rows = state.projects.filter((row) => row.remoteServerId === desktopId);
+    const nextRows = orderScopedRows(rows, orderIndex);
+    if (nextRows === rows) return state;
+    return { projects: replaceScopedRows(state.projects, desktopId, nextRows) };
+  });
+}
+
+function orderScopedRows<T extends { readonly id: string; readonly remoteId?: string | undefined }>(
+  rows: T[],
+  orderIndex: ReadonlyMap<string, number>,
+): T[] {
+  if (rows.length < 2) return rows;
+  const ranked = rows.map((row, index) => ({
+    row,
+    index,
+    rank: orderIndex.get(row.remoteId ?? row.id),
+  }));
+  ranked.sort((left, right) => {
+    const leftNamed = left.rank !== undefined;
+    const rightNamed = right.rank !== undefined;
+    if (leftNamed && rightNamed) return left.rank! - right.rank!;
+    if (leftNamed !== rightNamed) return leftNamed ? -1 : 1;
+    return left.index - right.index;
+  });
+  return ranked.every((entry, index) => entry.row === rows[index])
+    ? rows
+    : ranked.map((entry) => entry.row);
+}
+
+function replaceScopedRows<
+  T extends { readonly id: string; readonly remoteServerId?: string | undefined },
+>(all: T[], desktopId: string, orderedRows: T[]): T[] {
+  const next = all.slice();
+  let cursor = 0;
+  for (let index = 0; index < next.length; index += 1) {
+    if (next[index]!.remoteServerId !== desktopId) continue;
+    next[index] = orderedRows[cursor]!;
+    cursor += 1;
+  }
+  return next;
 }
 
 export function removeRemoteAppRows(desktopId: string): void {

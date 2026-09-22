@@ -15,11 +15,11 @@ import {
   type RightPanelTab,
   type ThreadDockFocus,
 } from "@/renderer/state/panelStore";
-import { remoteOwner } from "@/renderer/state/remoteProjection";
 import {
   selectBrowserPanelAvailable,
   useRemoteServersStore,
 } from "@/renderer/state/remoteServersStore";
+import { ensureProjectMcpServersLoaded } from "@/renderer/state/projectSettings/projectSettingsLoader";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
 import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
@@ -202,14 +202,13 @@ export function toggleBrowserPanel(): void {
 }
 
 export function openProjectSettings(projectId: string): void {
-  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
-  const owner = remoteOwner(project);
-  if (owner) {
-    void useRemoteServersStore
-      .getState()
-      .loadProjectSettings(owner.desktopId, owner.remoteId)
-      .catch((error) => toast.danger(friendlyError(error)));
-  }
+  // Settings surfaces must not read a not-yet-loaded projection as "configured
+  // empty": make the private settings resident before the overlay paints, for
+  // BOTH owner shapes — the loader resolves paired mirror vs managed root in
+  // one place instead of a topology branch here.
+  void ensureProjectMcpServersLoaded(projectId).catch((error) =>
+    toast.danger(friendlyError(error)),
+  );
   usePanelStore.getState().openProjectSettings(projectId);
 }
 
