@@ -1,18 +1,23 @@
 /**
  * Hand-written TypeScript for the MSP (Muse Session Protocol) wire subset
  * Poracode speaks. Derived from the `muse schema generate-json-schema`
- * export of Muse Code 1.0.2:
+ * export of Muse Code 1.3.0:
  *
  *   muse schema generate-json-schema --out DIR   (offline, instant)
  *
  * Pinned bundle: schema version 1, fingerprint
- * `sha256:03312c213efd14277a0e0a102f70adeae497a469ca4edf7242f479953ed758b7`.
+ * `sha256:ab69549a7ebb423fce94068762da0b5ff3cdec1f8fc263dcc17248eda117f852`.
  * To regenerate: re-run the export against the installed binary, copy the
  * bundle over `msp/fixtures/msp.schema.json`, run
  * `pnpm exec oxfmt msp/fixtures/msp.schema.json` (fixtures are format-checked),
  * and run `msp/schemaFixture.test.ts` — it fails on method/enum drift against
  * the names used below. The schema is additive-open by design: the client and
  * mapper must ignore unknown methods, fields, and item kinds.
+ *
+ * Live-verified caveats (1.3.0): the exported method index is aspirational in
+ * places — `view/subscribe` and `session/read` answer `methodNotFound` on a
+ * real host — and memory-only hosts (`serve --no-session-log`) never emit
+ * view events, so GUI sessions must stay durable. Live behavior is truth.
  *
  * Transport: newline-delimited JSON-RPC 2.0 over the `muse serve` stdio
  * pipes (verified live). Handshake is `initialize` then a bare
@@ -32,7 +37,7 @@
 
 export const MSP_SCHEMA_VERSION = 1;
 export const MSP_SCHEMA_FINGERPRINT =
-  "sha256:03312c213efd14277a0e0a102f70adeae497a469ca4edf7242f479953ed758b7";
+  "sha256:ab69549a7ebb423fce94068762da0b5ff3cdec1f8fc263dcc17248eda117f852";
 
 export type MspRequestId = number | string;
 

@@ -319,6 +319,13 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "thread.compact.noop": msg({
     message: "Nothing to compact yet — the conversation is still small.",
   }),
+  "thread.goal.none": msg({ message: "No active goal in this session." }),
+  "thread.goal.invalidState": msg({ message: "The goal can't do that in its current state." }),
+  "thread.goal.editUsage": msg({ message: "Usage: /goal edit <objective>" }),
+  "thread.goal.unsupported": msg({
+    message:
+      "This version of Muse Code does not support session goals. Update Muse Code and try again.",
+  }),
   "desktop.promotion.progress.title": msg({ message: "Poracode" }),
   "desktop.promotion.progress.body": msg({
     message: "Promoting this profile into the owned data root…",

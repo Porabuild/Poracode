@@ -3,6 +3,7 @@ import type {
   PromptSegment,
   RuntimeEvent,
   ThreadConfig,
+  ThreadGoalControl,
   ThreadServerRequestId,
 } from "@/shared/contracts";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
@@ -16,6 +17,7 @@ import {
   type StartTurnOptions,
   type StructuredSessionHandle,
   type StructuredSessionListener,
+  type StructuredTurnResult,
 } from "../../base";
 import { resolveAgentBinaryPath } from "../../binaryResolver";
 import {
@@ -55,7 +57,13 @@ import {
   type PendingUserInput,
 } from "./requestMapping";
 import { mintMspCommandId } from "./uuidv7";
-import { isMuseCompactCommand } from "./localCommands";
+import { dispatchMuseGoalCommand } from "./goalCommands";
+import {
+  isMuseCompactCommand,
+  museGoalCommandMethod,
+  parseMuseGoalCommand,
+  type MuseGoalCommand,
+} from "./localCommands";
 import { buildMuseTurnInput } from "./turnInput";
 import { msg } from "@/shared/messages";
 import { isFullBypassApprovalPolicy } from "@/shared/agents/unrestrictedPermissions";
@@ -228,7 +236,9 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
       ? await this.client.request("session/resume", {
           commandId: mintMspCommandId(),
           sessionId: resumeId,
-          excludeItems: true,
+          // Snapshot, not items: no transcript replay, but the folded view
+          // state carries the retained goal/todo blocks (see below).
+          history: "snapshot",
         })
       : await this.client.request("session/start", {
           commandId: mintMspCommandId(),
@@ -261,6 +271,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     if (session && "todoList" in session && session["todoList"]) {
       this.applyTodoListChanged({ todoList: session["todoList"] });
     }
+    this.hydrateResumeSnapshot(result);
     if (this.activeTurnId) this.emitTurnStarted(this.activeTurnId);
     this.publishUpdate();
     return sessionId;
@@ -271,13 +282,19 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     const start = this.startTurnRequest(prompt, config, segments, options);
-    this.pendingTurnStart = start;
+    // Goal submissions resolve with `completed-without-turn`; the
+    // in-flight gate only needs completion, not the outcome.
+    const pending = start.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.pendingTurnStart = pending;
     try {
-      await start;
+      return await start;
     } finally {
-      if (this.pendingTurnStart === start) this.pendingTurnStart = undefined;
+      if (this.pendingTurnStart === pending) this.pendingTurnStart = undefined;
     }
   }
 
@@ -286,12 +303,16 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     const sessionId = this.requireSessionId();
     await this.applyConfig(config);
     if (isMuseCompactCommand(prompt)) {
       await this.compactSession(sessionId);
       return;
+    }
+    const goalCommand = parseMuseGoalCommand(prompt);
+    if (goalCommand) {
+      return this.runGoalCommand(sessionId, goalCommand);
     }
     const commandId = mintMspCommandId();
     this.pendingUserItems.set(commandId, options?.userMessageItemId ?? `user-${commandId}`);
@@ -400,6 +421,87 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   }
 
   /**
+   * `/goal …` is a session command, not a turn: the supervisor already
+   * painted the optimistic user row (and opened its synthetic turn) before
+   * this runs. Verbs that never wake a turn (`pause`, `clear`, `view`,
+   * `editUsage`) settle back here with `completed-without-turn` — goal
+   * items are excluded from the renderer's turn-reopen, so the trailing
+   * `goalChanged` item events are safe outside any turn. Verbs that may
+   * wake one (`set`, `edit`, `resume`) adopt the ack-named turn exactly
+   * like `turn/start` acks; the host's own `turn/completed` then closes
+   * the submission.
+   */
+  private async runGoalCommand(
+    sessionId: string,
+    command: MuseGoalCommand,
+  ): Promise<void | StructuredTurnResult> {
+    // The renderer paints Working optimistically on submit, and only a
+    // *changed* supervisor status clears it — leave and re-enter the
+    // settled state so a command-only submission can never stick the
+    // composer (same trap `/compact` works around with a local turn).
+    this.status = "working";
+    this.attention = "working";
+    this.publishUpdate();
+    const method = museGoalCommandMethod(command.kind);
+    if (!method) {
+      if (command.kind === "editUsage") {
+        this.emit({
+          type: "warning",
+          threadId: this.input.threadId,
+          message: msg("thread.goal.editUsage"),
+        });
+      } else if (!this.mapper.goalItemId) {
+        this.emit({
+          type: "warning",
+          threadId: this.input.threadId,
+          message: msg("thread.goal.none"),
+        });
+      }
+      this.settleCommandOnlySubmission();
+      return { outcome: "completed-without-turn" };
+    }
+    let turnId: string | undefined;
+    try {
+      ({ turnId } = await dispatchMuseGoalCommand(
+        this.client,
+        sessionId,
+        method,
+        "objective" in command ? command.objective : undefined,
+      ));
+    } catch (error) {
+      // A failed dispatch owns no host turn: report inline. Throwing here
+      // would fail the whole structured session, not just the command.
+      this.emit({ type: "error", threadId: this.input.threadId, message: errorMessage(error) });
+      this.settleCommandOnlySubmission();
+      return { outcome: "completed-without-turn" };
+    }
+    if (turnId && turnId !== this.activeTurnId && !this.completedTurnIds.has(turnId)) {
+      this.activeTurnId = turnId;
+      this.emitTurnStarted(turnId);
+      this.publishUpdate();
+      // The host owns the turn lifecycle from here.
+      return;
+    }
+    if (turnId) {
+      // Busy admission: the ack names the already-running turn, whose own
+      // `turn/completed` closes this submission.
+      return;
+    }
+    this.settleCommandOnlySubmission();
+    return { outcome: "completed-without-turn" };
+  }
+
+  /**
+   * Settle a submission that runs no model turn. Recomputed (not forced):
+   * a still-running turn keeps working, and pending approvals/questions
+   * keep their attention — only a truly settled thread falls back to idle.
+   */
+  private settleCommandOnlySubmission(): void {
+    this.refreshWorkingState();
+    this.publishUpdate();
+  }
+
+  /**
    * Enqueue input onto the running turn. `turn/steer` carries no `displayText`
    * (unlike `turn/start`), so the steered prompt only reaches the transcript
    * through the server's `userMessage` echo — and registering the optimistic
@@ -413,7 +515,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     config: ThreadConfig,
     segments?: PromptSegment[],
     options?: StartTurnOptions,
-  ): Promise<void> {
+  ): Promise<void | StructuredTurnResult> {
     const userItemId = options?.userMessageItemId ?? `user-${mintMspCommandId()}`;
     const steerOptions: StartTurnOptions = { ...options, userMessageItemId: userItemId };
     if (prompt.length > 0) {
@@ -480,6 +582,31 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   forceCompleteTurn(): void {
     if (!this.activeTurnId) return;
     this.completeTurn(this.activeTurnId, "cancelled");
+  }
+
+  /**
+   * Goal dock controls (`edit`, `pause`, `resume`, `clear`) run straight
+   * `goal/*` RPCs — no submission lifecycle is involved, and the host's
+   * `session/goalChanged` repaints the dock. A woken goal-driving turn is
+   * adopted like a `turn/start` ack so Stop and steer target it; rejections
+   * (pre-goal host, cleared goal) surface through the shared toast path.
+   */
+  async controlGoal(control: ThreadGoalControl): Promise<void> {
+    const method = museGoalCommandMethod(control.action);
+    if (!method) throw new Error(msg("thread.goal.unsupported"));
+    const { turnId } = await dispatchMuseGoalCommand(
+      this.client,
+      this.requireSessionId(),
+      method,
+      control.action === "edit" ? control.objective : undefined,
+    );
+    if (turnId && turnId !== this.activeTurnId && !this.completedTurnIds.has(turnId)) {
+      this.activeTurnId = turnId;
+      this.status = "working";
+      this.attention = "working";
+      this.emitTurnStarted(turnId);
+      this.publishUpdate();
+    }
   }
 
   async resolveServerRequest(requestId: ThreadServerRequestId, response: unknown): Promise<void> {
@@ -721,6 +848,27 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         this.applyTodoListChanged(params);
         return;
       }
+    }
+  }
+
+  /**
+   * Restore the goal dock (and plan) when resuming a session whose goal
+   * outlived the previous host. Verified live on 1.3.0: the `session`
+   * object carries no goal and no `session/goalChanged` replay follows the
+   * resume — the folded `history.snapshot.state` goal block is the only
+   * read-back. Present since 1.0.2, so older hosts either serve it or
+   * downgrade to `none` (same as before); a null goal is a no-op.
+   */
+  private hydrateResumeSnapshot(result: Record<string, unknown>): void {
+    const history = recordOf(result["history"]);
+    const snapshot = recordOf(history?.["snapshot"]);
+    const state = recordOf(snapshot?.["state"]);
+    if (!state) return;
+    if ("goal" in state && state["goal"] !== undefined) {
+      this.emitMany(mapMuseMspGoalChanged(this.mapper, { goal: state["goal"] }));
+    }
+    if (state["todoList"] !== undefined) {
+      this.applyTodoListChanged({ todoList: state["todoList"] });
     }
   }
 

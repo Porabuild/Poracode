@@ -649,7 +649,6 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{totalCount}개 중 {visibleCount}개 사용 가능"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount}개 중 {visibleCount}개 표시"
@@ -6289,7 +6288,6 @@ msgid "Hide {label} circle in sidebar"
 msgstr "사이드바에서 {label} 원 숨기기"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "모두 숨기기"
@@ -8441,6 +8439,10 @@ msgstr "다음 탭"
 msgid "No active browser tab"
 msgstr "활성 브라우저 탭이 없습니다."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No active goal in this session."
+msgstr "이 세션에 활성 목표가 없습니다."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "No active session"
 #~ msgstr "활성 세션 없음"
@@ -8722,7 +8724,6 @@ msgstr "마이크를 찾을 수 없습니다."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "No models found"
 msgstr "모델을 찾을 수 없습니다."
 
@@ -12031,13 +12032,11 @@ msgid "Search MCP servers..."
 msgstr "MCP 서버 검색..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Search models"
 msgstr "모델 검색"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Search models..."
 msgstr "모델 검색..."
 
@@ -12301,6 +12300,10 @@ msgstr "그룹 색상 설정"
 msgid "Set or view an experimental goal"
 msgstr "실험 목표 설정 또는 보기"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Set or view the session goal"
+msgstr "세션 목표를 설정하거나 보기"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "단축키 설정"
@@ -12388,7 +12391,6 @@ msgstr "OS 수준 에이전트 세션에 대해 프로젝트 없는 홈 범위�
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "모두 표시"
@@ -13259,7 +13261,6 @@ msgstr "지원:"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Supports Fast mode"
 msgstr "고속 모드 지원"
 
@@ -13710,6 +13711,10 @@ msgstr "GitHub 계정 \"{login}\"은(는) {host}에 속하며 이 프로젝트�
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "{0} 전역 WSL 범위"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The goal can't do that in its current state."
+msgstr "현재 목표 상태에서는 이 작업을 할 수 없습니다."
 
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
@@ -14194,6 +14199,10 @@ msgstr "이 스레드는 컨텍스트를 전달하지 않고 프로바이더를 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "이 스레드는 컨텍스트를 전달하지 않고 포크되었습니다. {agent}이(가) Poracode의 read_thread 도구 없이 시작되어 원본 대화를 읽을 수 없습니다. app-controls MCP 도구를 다시 활성화하거나 필요한 내용을 요약해 주세요."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
+msgstr "이 버전의 Muse Code는 세션 목표를 지원하지 않습니다. Muse Code를 업데이트한 후 다시 시도하세요."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -15256,6 +15265,10 @@ msgstr "사용 설정"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "사용량을 알 수 없음"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Usage: /goal edit <objective>"
+msgstr "사용법: /goal edit <objective>"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."

@@ -218,7 +218,7 @@ describe("Muse MSP canonical mapping", () => {
         action: "set",
         objective: "Fix flaky network test",
         status: "active",
-        availableActions: [],
+        availableActions: ["edit", "pause", "clear"],
         lastReason: "Investigating timeout",
       },
     });
@@ -246,7 +246,7 @@ describe("Muse MSP canonical mapping", () => {
       payload: {
         action: "updated",
         status: "paused",
-        availableActions: [],
+        availableActions: ["edit", "resume", "clear"],
       },
     });
     expect(pauseEvents[1]).toMatchObject({
@@ -296,7 +296,7 @@ describe("Muse MSP canonical mapping", () => {
       payload: {
         action: "updated",
         status: "active",
-        availableActions: [],
+        availableActions: ["edit", "pause", "clear"],
       },
     });
     expect(resumeEvents[1]).toMatchObject({

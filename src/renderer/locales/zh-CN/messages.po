@@ -649,7 +649,6 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{visibleCount}/{totalCount} 可用"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{totalCount} 中的 {visibleCount} 个可见"
@@ -6289,7 +6288,6 @@ msgid "Hide {label} circle in sidebar"
 msgstr "在侧边栏中隐藏 {label} 圆环"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "全部隐藏"
@@ -8440,6 +8438,10 @@ msgstr "下一个选项卡"
 msgid "No active browser tab"
 msgstr "没有活动的浏览器选项卡"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No active goal in this session."
+msgstr "此会话中没有活动目标。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "No active session"
 #~ msgstr "没有活动会话"
@@ -8721,7 +8723,6 @@ msgstr "找不到麦克风。"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "No models found"
 msgstr "未找到模型"
 
@@ -12030,13 +12031,11 @@ msgid "Search MCP servers..."
 msgstr "搜索 MCP 服务器..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Search models"
 msgstr "搜索模型"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Search models..."
 msgstr "搜索模型..."
 
@@ -12300,6 +12299,10 @@ msgstr "设置分组颜色"
 msgid "Set or view an experimental goal"
 msgstr "设置或查看实验目标"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Set or view the session goal"
+msgstr "设置或查看会话目标"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "设置快捷键"
@@ -12387,7 +12390,6 @@ msgstr "为操作系统级别的代理会话显示一个无项目的主页范围
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "显示全部"
@@ -13258,7 +13260,6 @@ msgstr "支持："
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Supports Fast mode"
 msgstr "支持快速模式"
 
@@ -13709,6 +13710,10 @@ msgstr "GitHub 帐户“{login}”属于 {host}，与此项目的 GitHub 远程�
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "全局 {0} WSL 范围"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The goal can't do that in its current state."
+msgstr "目标当前的状态不支持此操作。"
 
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
@@ -14193,6 +14198,10 @@ msgstr "此线程在未传递上下文的情况下切换了提供商：{agent} �
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "此线程在未传递上下文的情况下被派生：{agent} 启动时没有 Poracode 的 read_thread 工具，因此无法读取原始对话。请重新启用 app-controls MCP 工具，或概述它需要的内容。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
+msgstr "此版本的 Muse Code 不支持会话目标。请更新 Muse Code 后重试。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -15255,6 +15264,10 @@ msgstr "使用设置"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "用量未知"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Usage: /goal edit <objective>"
+msgstr "用法：/goal edit <objective>"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."

@@ -35,17 +35,18 @@ describe("provider slash-command registry", () => {
     ).toEqual(["model", "plan", "agent", "effort", "fast"]);
   });
 
-  it("builds Muse commands without unsupported plan or goal modes", () => {
+  it("builds Muse commands without unsupported plan modes", () => {
     const registration = getGuiSlashCommands("muse");
 
     expect(registration).toBeDefined();
-    // `/compact` is the one Muse TUI built-in the session protocol exposes.
+    // `/compact` and `/goal` are the Muse TUI built-ins the session protocol
+    // exposes; both submit to the provider.
     expect(
       registration?.buildCommands({ hasEffort: false, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "compact"]);
+    ).toEqual(["model", "compact", "goal"]);
     expect(
       registration?.buildCommands({ hasEffort: true, supportsFast: false }).map(({ id }) => id),
-    ).toEqual(["model", "compact", "effort"]);
+    ).toEqual(["model", "compact", "goal", "effort"]);
   });
 
   it("offers Cursor local commands only under the SDK runtime", () => {

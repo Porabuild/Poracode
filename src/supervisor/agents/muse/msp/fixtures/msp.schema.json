@@ -564,6 +564,12 @@
       ],
       "type": "object"
     },
+    "AttentionFlag": {
+      "description": "One attention flag (tdd SS2.4, ADR 31983 D3): a pending server-initiated\nrequest class parked on the session. Open on the wire — clients MUST\nignore unknown values; future attention kinds are additive.",
+      "enum": ["approvalPending", "inputPending"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
     "BackgroundInitiator": {
       "description": "Who durably backgrounded a task (tdd SS4.5.5,\n`TaskBackgroundedInitiator`). Open — runtime vocabulary.",
       "enum": ["user", "timeout"],
@@ -591,7 +597,7 @@
     },
     "CapabilityName": {
       "description": "A grantable capability name (SS1.4.4). Open: the reserved `rawLog` entry\njoins this domain as an additive open-enum extension when SS6 un-defers\n(#13929, Scenario 5 AS-3) — closed would make that a retype.",
-      "enum": ["userShell"],
+      "enum": ["userShell", "sessionMcp"],
       "type": "string",
       "x-msp-openness": "open"
     },
@@ -615,6 +621,10 @@
             "type": "string"
           },
           "type": "array"
+        },
+        "userInputDialogs": {
+          "description": "Whether this client can render a `userInput/request` dialog and answer\nit (SS5.10). **Absent means capable** (D-047): a client that predates\nthe member keeps today's contract, so no existing client changes its\nhandshake. `false` makes the host withhold `userInput/request` toward\nthis client — the D-027 additive-optional-field + withheld-method\nconvention.\n\nDeliberately NOT a `requestedCapabilities` name: that registry records\noperations a host GRANTS (SS1.4.4), and whether a client can draw a\ndialog is a fact about the client, never a privilege the host hands\nout.",
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -781,6 +791,10 @@
           "description": "Approval identity on SS5 errors.",
           "type": "string"
         },
+        "availability": {
+          "description": "The stored output's availability on `outputUnavailable` — the durable\n`ToolOutputAvailability` value, read-time-derived when the durable\nrecord still says `available` (SS4.5.5; spec 208 FM-008).",
+          "type": "string"
+        },
         "capability": {
           "$ref": "#/$defs/CapabilityName",
           "description": "The missing capability, on `capabilityRequired` errors. Typed on the\ngrantable registry, so `rawLog` is outside the v1 domain and joins it\nas an additive open-enum extension when SS6 un-defers (TEST-009)."
@@ -814,6 +828,10 @@
           "description": "The oldest servable view position on `viewTruncated` (`-32040`,\nSS4.11); served as an explicit `null` when nothing before the head\nis servable — the null is present on the wire, never a dropped key\n(spec 208 FM-005 / Scenario 6.2).",
           "type": ["string", "null"]
         },
+        "itemId": {
+          "description": "The item whose stored output was requested, on the `item/readOutput`\narms (`notFound`, `outputUnavailable`, and the misaligned-offset\n`invalidParams`).",
+          "type": "string"
+        },
         "kind": {
           "$ref": "#/$defs/ErrorKind",
           "description": "The stable camelCase category clients branch on."
@@ -829,6 +847,10 @@
         "limitBytes": {
           "description": "The exceeded byte limit, on `inputTooLarge` errors.",
           "type": "integer"
+        },
+        "outputRef": {
+          "description": "The requested `outputRef.id`, on the same `item/readOutput` arms.",
+          "type": "string"
         },
         "paths": {
           "description": "Candidate retained paths on `sessionAmbiguous`.",
@@ -848,6 +870,10 @@
         "retryable": {
           "description": "Whether retrying can succeed (e.g. `overloaded`). When present,\noverrides the error table row's `retryable` default for this code.",
           "type": "boolean"
+        },
+        "selector": {
+          "description": "The rejected skill selector on `skillNotFound` (`-32032`, SS3.22.4).",
+          "type": "string"
         },
         "sessionId": {
           "description": "Session identity on errors whose lookup is session-scoped.",
@@ -896,7 +922,9 @@
         "sessionStreamMismatch",
         "commandRejected",
         "backpressured",
+        "skillNotFound",
         "viewTruncated",
+        "outputUnavailable",
         "boundaryPruned",
         "boundaryUnusable",
         "noBoundary",
@@ -1016,6 +1044,108 @@
         }
       },
       "required": ["objective", "percentComplete", "status"],
+      "type": "object"
+    },
+    "GoalClearParams": {
+      "description": "`goal/clear` params (tdd SS3.18). An `objective` here is an unknown field\nand rejects `-32602 invalidParams` — the bare verbs carry exactly this\npair.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "sessionId"],
+      "type": "object"
+    },
+    "GoalCommandResult": {
+      "description": "The shared SS3.18 goal ack, admission-only: all five verbs answer this\none shape (the tdd's \"Shared contract\"), differing only in when `turnId`\nis present.",
+      "properties": {
+        "commandId": {
+          "description": "Echoes the client's id.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CommandStatus",
+          "description": "Admission status."
+        },
+        "turnId": {
+          "description": "Present by exactly the four SS3.18 result cases: an idle wake carries\nthe fresh goal turn's id; a busy `set`/`edit`/`resume` carries the\nadmission-time active turn's id (a routing fact, not a delivery\npromise); `pause`/`clear` never carry it; an idle admission whose\nresulting goal is not unfinished parks the notification and carries\nnone. **Additive-optional**: absent means \"no turn named\", never\nfabricated.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "status"],
+      "type": "object"
+    },
+    "GoalEditParams": {
+      "description": "`goal/edit` params (tdd SS3.18): replace the current goal's objective.\nSame shape as `goal/set`; the verbs differ in their `missing_goal`\nprecondition, not their payload.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "objective": {
+          "description": "The replacement objective; same trim/non-empty rule as `goal/set`.",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "objective", "sessionId"],
+      "type": "object"
+    },
+    "GoalPauseParams": {
+      "description": "`goal/pause` params (tdd SS3.18); shape as `goal/clear`.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "sessionId"],
+      "type": "object"
+    },
+    "GoalResumeParams": {
+      "description": "`goal/resume` params (tdd SS3.18); shape as `goal/clear`.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "sessionId"],
+      "type": "object"
+    },
+    "GoalSetParams": {
+      "description": "`goal/set` params (tdd SS3.18): set the session's goal objective.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "objective": {
+          "description": "The objective text; required, non-empty after Unicode-whitespace trim\n(the trimmed text is the payload). Empty-after-trim is\n`-32602 invalidParams` (tdd SS3.18).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "objective", "sessionId"],
       "type": "object"
     },
     "HistoryMode": {
@@ -1250,6 +1380,14 @@
           "$ref": "#/$defs/OutputRef",
           "description": "`toolCall`/`userShell`: stored-output reference; fetch the full bytes\nvia `item/readOutput` (served by #208)."
         },
+        "patchRef": {
+          "$ref": "#/$defs/OutputRef",
+          "description": "`toolCall`: stored structured-patch reference (`kind: \"tool_patch\"`,\n`mediaType: \"application/json\"`); the body is fetched via\n`item/readOutput` with `patchRef.id`, and the ref survives the\nSS2.5.2 elided-snapshot rung exactly like `outputRef` without ever\nbeing an elision trigger (tdd SS2.5.2, SS4.5.5; #33025)."
+        },
+        "patchSummary": {
+          "$ref": "#/$defs/PatchSummary",
+          "description": "`toolCall`: server-authored edit-family diff summary (#33025)\n— always beside `patchRef`; absent = no diff available (tdd SS4.5.5)."
+        },
         "providerItemId": {
           "description": "`reasoning`: provider reasoning item id (e.g. `rs_...`), for\nprovider-side correlation.",
           "type": "string"
@@ -1351,7 +1489,7 @@
         },
         "turnId": {
           "description": "The owning turn (== the submitting `commandId` for fresh turns, tdd\nSS3.1.4). `null` only for `userShell` — the one kind outside a turn\n(tdd SS4.5.6).",
-          "type": "string"
+          "type": ["string", "null"]
         },
         "usage": {
           "$ref": "#/$defs/TokenUsage",
@@ -1434,6 +1572,70 @@
       ],
       "type": "string",
       "x-msp-openness": "open"
+    },
+    "ItemReadOutputEncoding": {
+      "description": "The `item/readOutput` content encoding (tdd SS4.7.4). Closed: text media\nis ALWAYS `utf8` and binary media `base64`; a third value would change\nthe client's decode contract.",
+      "enum": ["utf8", "base64"],
+      "type": "string",
+      "x-msp-openness": "closed"
+    },
+    "ItemReadOutputParams": {
+      "description": "`item/readOutput` params (tdd SS4.7.4): byte-ranged fetch of stored full\noutput that the view truncated — the `outputRef` fetch path SS3.9 and\nSS4.5.5 owe. Read-only; works on loaded and unloaded sessions; no lease.",
+      "properties": {
+        "itemId": {
+          "description": "The item whose stored output is fetched.",
+          "type": "string"
+        },
+        "lengthBytes": {
+          "description": "STORED bytes requested; default and max 6 MiB (tdd SS4.7.4). A value\nabove the max is served at the max.",
+          "type": "integer"
+        },
+        "offsetBytes": {
+          "description": "STORED-byte offset to start from; 0 when omitted. STORED bytes are a\nproperty of the output, not of a transport (tdd SS4.7.4).",
+          "type": "integer"
+        },
+        "outputRef": {
+          "description": "The `outputRef.id` from the item (never the `uri`; the uri is\ndisplay/provenance).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The session the item belongs to.",
+          "type": "string"
+        }
+      },
+      "required": ["itemId", "outputRef", "sessionId"],
+      "type": "object"
+    },
+    "ItemReadOutputResult": {
+      "description": "`item/readOutput` result (tdd SS4.7.4): one stored-byte page.",
+      "properties": {
+        "byteLen": {
+          "description": "STORED bytes served in THIS response (not the output's total; that is\n`outputRef.byteLen` on the item). The next page's `offsetBytes` is\n`offsetBytes + byteLen` — short-serving and advancing are separate,\nso paging never skips or double-reads a byte (tdd SS4.7.4).",
+          "type": "integer"
+        },
+        "content": {
+          "description": "The served range, decoded per `encoding`.",
+          "type": "string"
+        },
+        "encoding": {
+          "$ref": "#/$defs/ItemReadOutputEncoding",
+          "description": "How `content` encodes the stored bytes."
+        },
+        "eof": {
+          "description": "`true` when this range reached the end of the stored output.",
+          "type": "boolean"
+        },
+        "mediaType": {
+          "description": "The stored output's media type (e.g. `text/plain`).",
+          "type": "string"
+        },
+        "offsetBytes": {
+          "description": "The STORED-byte offset this response actually served from.",
+          "type": "integer"
+        }
+      },
+      "required": ["byteLen", "content", "encoding", "eof", "mediaType", "offsetBytes"],
+      "type": "object"
     },
     "ItemStartedParams": {
       "description": "`item/started` params (tdd SS4.3): a new item opened on the transcript.\n`sourceRange` is absent when the item opens on an ephemeral record (the\ndelta-streamed kinds); the item's authoritative open is re-stated by its\ndurable-sourced `item/completed` (tdd SS4.2).",
@@ -1786,6 +1988,25 @@
       "type": "string",
       "x-msp-openness": "open"
     },
+    "PatchSummary": {
+      "description": "Server-authored edit-family diff summary (tdd SS4.5.5, #33025):\n`files` counts the stored patch document's file entries; `added` and\n`removed` are the total `+`/`-` prefixed LINE counts summed over the\nstored patch's hunks across all files — line counts, never hunk or byte\ncounts. Rides the `toolCall` item beside `patchRef`; the body is fetched\nvia `item/readOutput` with `patchRef.id`.",
+      "properties": {
+        "added": {
+          "description": "Total `+`-prefixed line count across all files' hunks.",
+          "type": "integer"
+        },
+        "files": {
+          "description": "File entries in the stored patch document.",
+          "type": "integer"
+        },
+        "removed": {
+          "description": "Total `-`-prefixed line count across all files' hunks.",
+          "type": "integer"
+        }
+      },
+      "required": ["added", "files", "removed"],
+      "type": "object"
+    },
     "PendingApprovalPointer": {
       "description": "A pending approval in the snapshot: the SS2.5.2 pointer shape plus the\ngated `itemId` when one exists (tdd SS4.9.1).",
       "properties": {
@@ -1867,9 +2088,30 @@
     },
     "ReasoningEffort": {
       "description": "The reasoning-effort tier sampled at submission (tdd SS3.2, SS3.3). The\n**same closed tier vocabulary** on both the fresh-turn and steer lanes,\nspelled identically; invalid tiers are invalid params. `none` is a tier of\nthe vocabulary (ask for no reasoning), not a way to say \"unset\".",
-      "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "ultra"],
+      "enum": ["none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
       "type": "string",
       "x-msp-openness": "closed"
+    },
+    "ReasoningEffortChangeSource": {
+      "description": "What drove a reasoning-effort default change (tdd SS4.6.9). Open; v1's\nonly producer is `user` (an accepted `session/setReasoningEffort`).",
+      "enum": ["user", "default", "policy"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "ReasoningEffortState": {
+      "description": "The snapshot's standing session-default reasoning effort (tdd SS4.9.1,\nADR 31255 D1): the fold of the latest completed\n`runtime.reasoning_effort_reconfigure` fact — the same pair\n`session/reasoningEffortChanged` carries.",
+      "properties": {
+        "reasoningEffort": {
+          "$ref": "#/$defs/ReasoningEffort",
+          "description": "The standing default tier — the closed SS3.2 vocabulary, spelled\nidentically to `turn/start.reasoningEffort`."
+        },
+        "source": {
+          "$ref": "#/$defs/ReasoningEffortChangeSource",
+          "description": "Which actor class set the default."
+        }
+      },
+      "required": ["reasoningEffort", "source"],
+      "type": "object"
     },
     "RecordPosition": {
       "description": "One end of a [`SourceRange`]: a record's event id and its sequence number\nwithin the stream (tdd SS4.2).",
@@ -1918,6 +2160,11 @@
       "description": "A request id (SS1.3): client-chosen string or integer. `1` and `\"1\"` do\nnot compare equal; each direction owns its own id space.",
       "type": ["integer", "string"]
     },
+    "RequestReceipt": {
+      "description": "The SS5.3.3 presentation receipt — the client's response to a\nserver-initiated request (`approval/request`, `userInput/request`).\n\nThe response acknowledges presentation only (\"a surface showed or will\nshow this\"): it changes no state, the server uses it for diagnostics\nalone, and the decision/answer travels as a command (`approval/decide`,\n`userInput/answer`). An error response or a dropped connection means this\nconnection could not present the request; the approval or prompt stays\npending and the request is re-issued on the next subscribe (SS5.6).\nThere is no dismiss-without-deciding on the wire.",
+      "properties": {},
+      "type": "object"
+    },
     "SchemaInfo": {
       "description": "The `schema` pair in [`InitializeResult`] (SS1.4.1, SS1.5.3). `version`\nis the wire **envelope** schema version — distinct from the session-view\n`schemaVersion`, the raw-log `schema_version`, and the 0.x/1.0 stability\nposture, which is not on the wire at all (INV-006a).",
       "properties": {
@@ -1960,8 +2207,23 @@
           "$ref": "#/$defs/EffectiveApprovalModeState",
           "description": "The folded effective approval mode. **Additive-optional**: a Session\nobject that omits it means the host has not folded a mode, which is\nwhy the index-derived `session/list` entry may legitimately omit it\n(tdd SS2.4, SS5.12)."
         },
+        "attention": {
+          "description": "Attention flags (tdd SS2.4, ADR 31983 D3). **Additive-optional**,\npresent only when at least one flag is set; absence is a\nNON-assertion (nothing pending, or the loaded session's pending\nsource declined to answer). Loaded sessions only: a `notLoaded` row\nomits it even while its durable pending set is non-empty.",
+          "items": {
+            "$ref": "#/$defs/AttentionFlag"
+          },
+          "type": "array"
+        },
+        "branch": {
+          "description": "Derived workspace branch (tdd SS2.14.1, #27598) — the index's last\nderived value; the live-change signal stays `session/branchChanged`\n(SS4.6.4). **Additive-optional**, omitted when underivable.",
+          "type": "string"
+        },
         "createdAt": {
           "description": "RFC3339. For a fork this is the fork session id's UUIDv7 mint instant\n(tdd SS2.4).",
+          "type": "string"
+        },
+        "firstUserPrompt": {
+          "description": "Derived first-user-prompt preview (tdd SS2.14.1, #27598).\n**Additive-optional**, omitted when underivable.",
           "type": "string"
         },
         "forkedFrom": {
@@ -1975,9 +2237,17 @@
           ],
           "description": "`null` for root sessions; fork provenance otherwise (tdd SS2.4)."
         },
+        "lastActivityAt": {
+          "description": "Content-activity recency, RFC3339 (tdd SS2.4, ADR 31983 D5).\n**Additive-optional**: omitted when no content record exists. Never\nadvanced by lifecycle bookkeeping (the resume marker, re-stamps) or\na fork's copied seed-replay records, and never precedes `createdAt`.",
+          "type": "string"
+        },
         "modelId": {
           "description": "The winning metadata fold's model; `null` when that record omits it.",
           "type": ["string", "null"]
+        },
+        "name": {
+          "description": "The durable allocated session name (tdd SS2.4/SS2.14.1, #27598;\nADR 27598 D2/D4). **Additive-optional**: present when the serving path\nholds an allocated name, omitted otherwise — absent is never\nfabricated. Authoritative and renameable via `session/rename`.",
+          "type": "string"
         },
         "path": {
           "description": "Absolute path of the session's durable log; non-nullable. Under the\nephemeral session profile it is the **empty string**, meaning \"no\ndurable log exists\" (tdd SS2.13.2) — the one value a client must not\nhand to a filesystem call.",
@@ -1994,6 +2264,10 @@
         "status": {
           "$ref": "#/$defs/SessionStatus",
           "description": "Load state as this host knows it; `session/list` reports `notLoaded`\nfor sessions loaded by *other* hosts (tdd SS2.4)."
+        },
+        "title": {
+          "description": "Derived display title (tdd SS2.14.1, #27598): a heuristic that may\nevolve — its carriage, not its derivation, is the contract.\n**Additive-optional**, omitted when underivable.",
+          "type": "string"
         },
         "turnCount": {
           "description": "Completed-turn count from the session view fold (tdd SS2.4).",
@@ -2136,8 +2410,16 @@
       "type": "object"
     },
     "SessionConfig": {
-      "description": "`session/start`'s reserved `config` object (tdd SS2.5.1): no members in\nv1.\n\nSS2.5.1 also ratifies \"unknown keys are rejected, not ignored\". That is\n#22785 E6b, ruled and NOT exported: spec 206 INV-015 forbids it\ncategorically and TEST-024 enforces that. The model carries the opt-in\nmechanism; this type does not opt in, so the published surface is\nunchanged. See [#23456](https://github.com/mslsrc/tbh/issues/23456).",
-      "properties": {},
+      "description": "The open configuration extension object shared by `session/start` and\n`session/resume` (ADR 32760 D1).\n\nUnknown keys are ignored on the wire, never rejected (tdd SS1.5.4, spec\n206 INV-015; D-052 resolving\n[#23456](https://github.com/mslsrc/tbh/issues/23456)): the live decoder\nis D-042's tolerant path, and TEST-024 keeps every exported bundle free\nof `additionalProperties: false`. The Rust typed model's\n`deny_unknown_fields` is internal and never exported — the #22785 E6b\nclosedness export applies nowhere, and the `x-msp-closed` opt-in\nmechanism stays inert. Recognized `mcpServers` values are typed and\nvalidated before they leave the wire boundary.",
+      "properties": {
+        "mcpServers": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SessionMcpServerConfig"
+          },
+          "description": "Native MCP servers added only to this session runtime.",
+          "type": "object"
+        }
+      },
       "type": "object"
     },
     "SessionContextUsageParams": {
@@ -2330,6 +2612,85 @@
       "required": ["nextCursor", "sessions"],
       "type": "object"
     },
+    "SessionMcpServerConfig": {
+      "description": "One native MCP server supplied at session construction (ADR 32760 D1).\n\n**Closed union** (#33295 owner ruling A1, extending D-033/D-050 to\n`oneOf`): a validator MUST reject an undeclared `transport` arm — the\nserver fails `session/start` decode on an unknown transport, and a future\ntransport arrives as an explicit schema addition.",
+      "oneOf": [
+        {
+          "properties": {
+            "args": {
+              "description": "Ordered child arguments.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "command": {
+              "description": "Executable name or path. Configuration diagnostics never echo it.",
+              "type": "string"
+            },
+            "env": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Explicit child environment additions.",
+              "type": "object"
+            },
+            "framing": {
+              "$ref": "#/$defs/SessionMcpStdioFraming",
+              "description": "Stdio framing mode; defaults to automatic detection."
+            },
+            "mode": {
+              "$ref": "#/$defs/SessionMcpServerMode",
+              "description": "Required/optional startup posture; defaults to required."
+            },
+            "transport": {
+              "const": "stdio",
+              "type": "string"
+            }
+          },
+          "required": ["command", "transport"],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "headers": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "Explicit request headers.",
+              "type": "object"
+            },
+            "mode": {
+              "$ref": "#/$defs/SessionMcpServerMode",
+              "description": "Required/optional startup posture; defaults to required."
+            },
+            "transport": {
+              "const": "streamableHttp",
+              "type": "string"
+            },
+            "url": {
+              "description": "HTTP(S) endpoint. Configuration diagnostics never echo it.",
+              "type": "string"
+            }
+          },
+          "required": ["transport", "url"],
+          "type": "object"
+        }
+      ],
+      "x-msp-openness": "closed"
+    },
+    "SessionMcpServerMode": {
+      "description": "Startup failure posture for a session MCP server.",
+      "enum": ["required", "optional"],
+      "type": "string",
+      "x-msp-openness": "closed"
+    },
+    "SessionMcpStdioFraming": {
+      "description": "Stdio framing choices exposed by session MCP configuration.",
+      "enum": ["auto", "contentLength", "lineDelimitedJson"],
+      "type": "string",
+      "x-msp-openness": "closed"
+    },
     "SessionModelChangedParams": {
       "description": "`session/modelChanged` params (tdd SS4.6.1): a durable model-selection\nrecord landed (tdd SS3.8).",
       "properties": {
@@ -2359,6 +2720,71 @@
         }
       },
       "required": ["modelId", "sessionId", "source", "sourceRange", "viewCursor"],
+      "type": "object"
+    },
+    "SessionModelRouteUnservedParams": {
+      "description": "`session/modelRouteUnserved` params (#25603, ADR 25603 D1, spec 5469\nAmendment 16): an accepted `login.credential_update` installed a provider\nthat cannot serve the session's STANDING model route. Disclosure only —\nthe standing selection is unchanged (no `session/modelChanged` fires) and\nthe repair path is a routable `session/setModel`. Folded from the durable\n`runtime.provider_reconfigure.standing_route_unserved` record; additive —\nclients that predate it skip the unknown method.",
+      "properties": {
+        "commandId": {
+          "description": "The command whose accepted swap installed the provider.",
+          "type": "string"
+        },
+        "installedProviderId": {
+          "description": "The provider id the swap installed.",
+          "type": "string"
+        },
+        "modelId": {
+          "description": "The standing (still bound, now unroutable) model.",
+          "type": "string"
+        },
+        "providerId": {
+          "description": "The standing model's provider; `null` when the selection names none.",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The owning session.",
+          "type": "string"
+        },
+        "sourceRange": {
+          "$ref": "#/$defs/SourceRange",
+          "description": "The durable records this event folded from."
+        },
+        "viewCursor": {
+          "description": "Opaque, strictly monotonic view cursor (tdd SS4.1).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "commandId",
+        "installedProviderId",
+        "modelId",
+        "sessionId",
+        "sourceRange",
+        "viewCursor"
+      ],
+      "type": "object"
+    },
+    "SessionNameChangedParams": {
+      "description": "`session/nameChanged` params (tdd SS4.6.7, #27598): the fold of ANY\ndurable session-name record — the FIRST-NAMING automatic allocate as well\nas an accepted `session/rename` (or the same in-process runtime command).\nReplace-wholesale like every SS4.6 sibling.",
+      "properties": {
+        "name": {
+          "description": "The new canonical name now in effect.",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The owning session.",
+          "type": "string"
+        },
+        "sourceRange": {
+          "$ref": "#/$defs/SourceRange",
+          "description": "The durable records this event folded from."
+        },
+        "viewCursor": {
+          "description": "Opaque, strictly monotonic view cursor (tdd SS4.1).",
+          "type": "string"
+        }
+      },
+      "required": ["name", "sessionId", "sourceRange", "viewCursor"],
       "type": "object"
     },
     "SessionReadParams": {
@@ -2402,12 +2828,81 @@
       "required": ["history", "pendingRequests", "session", "viewCursor"],
       "type": "object"
     },
+    "SessionReasoningEffortChangedParams": {
+      "description": "`session/reasoningEffortChanged` params (tdd SS4.6.9, ADR 31255 D1): a\ndurable reasoning-effort reconfigure record landed (tdd SS3.21). Replace\nwholesale, latest wins; the snapshot carries the latest value (SS4.9.1).",
+      "properties": {
+        "reasoningEffort": {
+          "$ref": "#/$defs/ReasoningEffort",
+          "description": "The new session default: the closed eight-string tier vocabulary of\ntdd SS3.2, spelled identically."
+        },
+        "sessionId": {
+          "description": "The owning session.",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/ReasoningEffortChangeSource",
+          "description": "What drove the change."
+        },
+        "sourceRange": {
+          "$ref": "#/$defs/SourceRange",
+          "description": "The durable records this event folded from."
+        },
+        "viewCursor": {
+          "description": "Opaque, strictly monotonic view cursor (tdd SS4.1).",
+          "type": "string"
+        }
+      },
+      "required": ["reasoningEffort", "sessionId", "source", "sourceRange", "viewCursor"],
+      "type": "object"
+    },
+    "SessionRenameParams": {
+      "description": "`session/rename` params (tdd SS2.14.2, #27598): set or change the durable\nallocated session name through the runtime `session_name` command. One\nwriter; withheld under the ephemeral profile.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "name": {
+          "description": "The requested name; the runtime's normalization and validation apply.",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "name", "sessionId"],
+      "type": "object"
+    },
+    "SessionRenameResult": {
+      "description": "`session/rename` result (tdd SS2.14.2, #27598): `name` is the canonical\n(normalized) name the durable record settled.",
+      "properties": {
+        "commandId": {
+          "description": "Echoes the client's id.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The settled canonical name. Omitted on the `RecoveryPending` arm, which\nanswers `{commandId, status: \"accepted\"}` and delivers the name via\n`session/nameChanged` / `Session.name` (tdd SS2.14.2).",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CommandStatus",
+          "description": "Admission status."
+        }
+      },
+      "required": ["commandId", "status"],
+      "type": "object"
+    },
     "SessionResumeParams": {
       "description": "`session/resume` params (tdd SS2.5.2).",
       "properties": {
         "commandId": {
           "description": "The SS2.5 idempotency handle (UUIDv7). A resume that loads a session\nwrites a durable `SessionResumed` record.",
           "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/SessionConfig",
+          "description": "The same open construction-time extension object as `session/start`."
         },
         "cursor": {
           "description": "A view cursor previously observed by this client — or an observed\n`summarizedThrough` compaction anchor (tdd SS4.5.10, D-029). When\npresent the server returns only the suffix and `history.mode` is\n`none` (tdd SS2.5.2). Omitted and explicit `null` both mean \"no\ncursor\" (#23468).",
@@ -2448,7 +2943,7 @@
           "description": "The loaded session."
         },
         "viewCursor": {
-          "description": "The session view head; the connection is subscribed after it.",
+          "description": "The session view head; the connection is subscribed after it. A\nstill-loaded session a prior `view/unsubscribe` detached is\nRE-ATTACHED by this resume (spec 208 FR-002a, #28920): live delivery\nresumes from this head. Explicit-cursor re-attach with `(after, head]`\nengine replay stays `view/subscribe` (SS4.7.1).",
           "type": "string"
         }
       },
@@ -2531,6 +3026,40 @@
       "required": ["commandId", "status"],
       "type": "object"
     },
+    "SessionSetReasoningEffortParams": {
+      "description": "`session/setReasoningEffort` params (tdd SS3.21, ADR 31255 D1): set the\nsession's standing reasoning-effort default. A turn carrying its own\n`reasoningEffort` overrides it for that turn only; the default overrides\nthe host's configured default. Same accept/reject and `commandId`\nidempotency shape as `session/setModel` (SS3.8).",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "reasoningEffort": {
+          "$ref": "#/$defs/ReasoningEffort",
+          "description": "The new session default: the closed eight-string tier vocabulary\n`turn/start` carries (SS3.2), spelled identically. Invalid tiers are\ninvalid params. A default of `max` rides provider requests verbatim,\nnever clamped (ADR 28621 D8, ADR 31131 D1)."
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "reasoningEffort", "sessionId"],
+      "type": "object"
+    },
+    "SessionSetReasoningEffortResult": {
+      "description": "`session/setReasoningEffort` result (tdd SS3.21). The default is durable\non ack and applies to turns launched after admission; a running turn keeps\nthe request options it already resolved.",
+      "properties": {
+        "commandId": {
+          "description": "Echoes the client's id.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CommandStatus",
+          "description": "Admission status."
+        }
+      },
+      "required": ["commandId", "status"],
+      "type": "object"
+    },
     "SessionStartParams": {
       "description": "`session/start` params (tdd SS2.5.1).",
       "properties": {
@@ -2551,7 +3080,7 @@
         },
         "config": {
           "$ref": "#/$defs/SessionConfig",
-          "description": "Reserved for per-session overrides owned by a future Configuration\nsection, which is why [`SessionConfig`] declares no members."
+          "description": "Reserved for per-session overrides owned by a future Configuration\nsection. Issue #32760 admits only its `mcpServers` member."
         },
         "modelId": {
           "description": "Initial model; server default when omitted.",
@@ -2593,6 +3122,32 @@
       "enum": ["notLoaded", "idle", "running"],
       "type": "string",
       "x-msp-openness": "open"
+    },
+    "SessionStatusChangedParams": {
+      "description": "`session/statusChanged` params (tdd SS4.6.10, ADR 31983 D2): a loaded\nsession's projected `(status, attention)` value flipped. A command-plane\nbroadcast — delivered to every connection regardless of its view\nsubscription set, never gated, no `sourceRange`; the same facts live on\nthe Session object, which is how a client seeds its table (no initial\nburst on connect).",
+      "properties": {
+        "attention": {
+          "description": "Attention flags after the transition; present only when at least one\nflag is set (tdd SS2.4, ADR 31983 D3).",
+          "items": {
+            "$ref": "#/$defs/AttentionFlag"
+          },
+          "type": "array"
+        },
+        "sessionId": {
+          "description": "The owning session.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/SessionStatus",
+          "description": "Load state after the transition (the closed SS2.4 enum, unchanged)."
+        },
+        "viewCursor": {
+          "description": "The causing record's view cursor (ADR 31983 D4). Required-nullable:\n`null` exactly when the paired `session/closed`'s cursor is `null`\n(the unload fold-failure arm); a definite cursor everywhere else.",
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["sessionId", "status", "viewCursor"],
+      "type": "object"
     },
     "SessionTodoListChangedParams": {
       "description": "`session/todoListChanged` params (tdd SS4.6.3): a `TodoSnapshotUpdated`\nrecord landed. Replace the whole list on every event; an empty `items`\narray is a cleared list, not a no-op.",
@@ -2722,6 +3277,104 @@
       "required": ["commandId", "status"],
       "type": "object"
     },
+    "SessionViewHealth": {
+      "description": "The view-health state (tdd SS2.5.2 companion). Open enum (`x-msp-openness:\nopen`): a client MUST ignore an unrecognized value. v1 emits only\n`Unavailable`; openness itself reserves additive room for a future re-arm\n(ADR 32557 D1 names it `healthy`) and for the #14401 durable-degraded axis,\nso no never-emitted token is baked onto the stable surface now.",
+      "enum": ["unavailable"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
+    "SessionViewHealthChangedParams": {
+      "description": "`session/viewHealthChanged` params (ADR 32557; #32557): the named\nsession's live view stream became unavailable, and why.\n\nBest-effort: ordered after already-queued view frames and may be dropped\n(for example when the connection is closing), so a client MUST NOT assume a\nguaranteed push and still reads `history.noneReason` on its next\nresume/read (FM-005).",
+      "properties": {
+        "health": {
+          "$ref": "#/$defs/SessionViewHealth",
+          "description": "The new view-health state. In v1 the host emits only `Unavailable`."
+        },
+        "noneReason": {
+          "$ref": "#/$defs/HistoryNoneReason",
+          "description": "Why the view is unavailable — the SAME typed `HistoryNoneReason`\nvocabulary the pull path stamps on `history.noneReason` (tdd SS2.5.2,\nD-050), so a client reuses one handler for push and pull.\n`projectionUnavailable` in v1; present only when `health` is\n`Unavailable`. Open on the client side: an unknown reason decodes\nconservatively and renders generically."
+        },
+        "sessionId": {
+          "description": "The session whose live view health changed.",
+          "type": "string"
+        }
+      },
+      "required": ["health", "sessionId"],
+      "type": "object"
+    },
+    "SkillCatalogEntry": {
+      "description": "One typed-invocable shortcut spelling (tdd SS3.22.1). A plugin skill may\ncontribute two rows: its bare-name winner and its qualified\n`<pluginId>:<skillId>` form.",
+      "properties": {
+        "argumentHint": {
+          "description": "Present when the skill declares an argument hint.",
+          "type": "string"
+        },
+        "description": {
+          "description": "The skill's palette summary.",
+          "type": "string"
+        },
+        "displayName": {
+          "description": "The skill display name the first-party palette shows.",
+          "type": "string"
+        },
+        "pluginId": {
+          "description": "The owning plugin's identifier; present when `source` is `plugin`.",
+          "type": "string"
+        },
+        "selector": {
+          "description": "The shortcut token without the leading slash — bare (`fix-bug`) or\nplugin-qualified (`acme:deploy`) — the exact value a `skill` input\npart submits. Unique within one response.",
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SkillSource",
+          "description": "Where the skill comes from."
+        }
+      },
+      "required": ["description", "displayName", "selector", "source"],
+      "type": "object"
+    },
+    "SkillChangedParams": {
+      "description": "`skill/changed` params (tdd SS3.22.2): the session's user-invocable set\nchanged; clients re-issue `skill/list`. Advisory — the host may coalesce\nbursts and guarantees no ordering relative to view events (ADR 32471 D3).",
+      "properties": {
+        "sessionId": {
+          "description": "The session whose set changed.",
+          "type": "string"
+        }
+      },
+      "required": ["sessionId"],
+      "type": "object"
+    },
+    "SkillListParams": {
+      "description": "`skill/list` params (tdd SS3.22.1). Per-session because skill scope\nfollows the session's workspace and plugin state.",
+      "properties": {
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["sessionId"],
+      "type": "object"
+    },
+    "SkillListResult": {
+      "description": "`skill/list` result (tdd SS3.22.1): one row per typed-invocable shortcut\nspelling — exactly the invocations the first-party typed dispatch accepts\n(spec 11352 INV-007 predicate and the shared shortcut layer's name\nresolution, both by call-through; ADR 32471 D2).",
+      "properties": {
+        "skills": {
+          "description": "The session's user-invocable skill rows.",
+          "items": {
+            "$ref": "#/$defs/SkillCatalogEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": ["skills"],
+      "type": "object"
+    },
+    "SkillSource": {
+      "description": "A skill row's source scope (tdd SS3.22.1): the projection of the skills\ncrate's `SkillsSourceScope`. Open (server-produced result vocabulary,\nthe #22785 enum-openness rule): a future scope value is additive.",
+      "enum": ["bundled", "user", "project", "plugin"],
+      "type": "string",
+      "x-msp-openness": "open"
+    },
     "SnapshotAnchor": {
       "description": "The compaction boundary an anchored snapshot is anchored at (tdd SS2.5.2).",
       "properties": {
@@ -2799,6 +3452,10 @@
           },
           "type": "array"
         },
+        "name": {
+          "description": "The settled canonical session name; `null` when the session was never\nnamed (#27598, tdd SS4.9.1 / SS2.14). Folds the same durable\n`session/nameChanged` record `Session.name` reports.",
+          "type": "string"
+        },
         "pendingApprovals": {
           "description": "The pending-approval half of the pending set.",
           "items": {
@@ -2819,6 +3476,10 @@
             "$ref": "#/$defs/TurnRef"
           },
           "type": "array"
+        },
+        "reasoningEffort": {
+          "$ref": "#/$defs/ReasoningEffortState",
+          "description": "The latest session-default reasoning effort with its source; ABSENT\nuntil a set lands (tdd SS4.9.1 `reasoningEffort`, ADR 31255 D1 — the\n`contextUsage` absent arm, never present-null)."
         },
         "todoList": {
           "anyOf": [
@@ -3008,6 +3669,63 @@
       "required": ["commandId", "sessionId", "subagentId"],
       "type": "object"
     },
+    "SubscriptionUsage": {
+      "description": "The one usage payload shape: the `usage/read` result's `usage` member and\nthe `usage/changed` params (ADR 32563 D2/D3). The numbers are\npoint-in-time — `observedAtMs` is the host's arrival stamp, so a client\nrenders \"as of\", never implies live data (spec 18742 US-FR-004).",
+      "properties": {
+        "observedAtMs": {
+          "description": "When the host RECEIVED this observation (frame arrival or mint\nrequest-send), epoch milliseconds.",
+          "type": "integer"
+        },
+        "tier": {
+          "description": "The provider's subscription tier id, verbatim.",
+          "type": "string"
+        },
+        "weekly": {
+          "$ref": "#/$defs/SubscriptionUsageWeekly",
+          "description": "The rolling weekly block."
+        },
+        "window": {
+          "$ref": "#/$defs/SubscriptionUsageWindow",
+          "description": "The current window."
+        }
+      },
+      "required": ["observedAtMs", "tier", "weekly", "window"],
+      "type": "object"
+    },
+    "SubscriptionUsageWeekly": {
+      "description": "The rolling weekly block: same semantics as\n[`SubscriptionUsageWindow`] without a duration (ADR 32563 D2).",
+      "properties": {
+        "resetsAtMs": {
+          "description": "When the weekly window resets, epoch milliseconds.",
+          "type": "integer"
+        },
+        "usedPercent": {
+          "description": "Percent of the weekly budget used (integer ≥ 0, may exceed 100).",
+          "type": "integer"
+        }
+      },
+      "required": ["resetsAtMs", "usedPercent"],
+      "type": "object"
+    },
+    "SubscriptionUsageWindow": {
+      "description": "The current usage window (the provider's 5-hour-class block): verbatim\nprovider percentages with the reset stamp normalized to epoch\nmilliseconds (ADR 32563 D2).",
+      "properties": {
+        "resetsAtMs": {
+          "description": "When the window resets, epoch milliseconds.",
+          "type": "integer"
+        },
+        "usedPercent": {
+          "description": "Percent of the window's budget used: an integer ≥ 0, verbatim from\nthe provider — over-quota values above 100 are valid.",
+          "type": "integer"
+        },
+        "windowDurationMins": {
+          "description": "The window's length in minutes (> 0).",
+          "type": "integer"
+        }
+      },
+      "required": ["resetsAtMs", "usedPercent", "windowDurationMins"],
+      "type": "object"
+    },
     "SuccessResponse": {
       "description": "A success response frame (SS1.2 §2.3).",
       "properties": {
@@ -3026,6 +3744,93 @@
         }
       },
       "required": ["id", "jsonrpc", "result"],
+      "type": "object"
+    },
+    "TaskBackgroundParams": {
+      "description": "`task/background` params (tdd §3.13): durably send a running foreground\ntool task to the background.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        },
+        "taskId": {
+          "description": "The task to background, exactly as the view names it: the `toolCall`\nitem's `itemId` IS the task id (SS4.5.5).",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "sessionId", "taskId"],
+      "type": "object"
+    },
+    "TaskCommandResult": {
+      "description": "The `task/background` / `task/stop` ack (tdd §3.13/§3.14): admission-only,\nechoing the targeted task.",
+      "properties": {
+        "commandId": {
+          "description": "Echoes the client's id.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CommandStatus",
+          "description": "Admission status."
+        },
+        "taskId": {
+          "description": "Echoes the targeted task id.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "status", "taskId"],
+      "type": "object"
+    },
+    "TaskStopAllParams": {
+      "description": "`task/stopAll` params (tdd §3.15): stop every stoppable background\nworkload live at admission.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "sessionId"],
+      "type": "object"
+    },
+    "TaskStopAllResult": {
+      "description": "The `task/stopAll` ack (tdd §3.15): always `accepted`, including over an\nempty set — a blanket stop over nothing is a satisfied gesture. The ack\ndeliberately carries no stopped-task list; count the kills from the view.",
+      "properties": {
+        "commandId": {
+          "description": "Echoes the client's id.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CommandStatus",
+          "description": "Admission status."
+        }
+      },
+      "required": ["commandId", "status"],
+      "type": "object"
+    },
+    "TaskStopParams": {
+      "description": "`task/stop` params (tdd §3.14): stop one named background task. Required\ntarget, never \"whichever is loudest\" — §3.15 is the blanket verb.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        },
+        "taskId": {
+          "description": "The task to stop, the `toolCall` item's `itemId` (SS4.5.5).",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "sessionId", "taskId"],
       "type": "object"
     },
     "TodoItem": {
@@ -3234,7 +4039,8 @@
         "workflowLaunchError",
         "environmentError",
         "modelError",
-        "launchError"
+        "launchError",
+        "authRequired"
       ],
       "type": "string",
       "x-msp-openness": "open"
@@ -3246,6 +4052,10 @@
       },
       "description": "One ordered content part of a turn submission (tdd SS3.2). File mentions\nare text, not a part type: write `@relative/path` in a text part. A\nstructured `mention` part is reserved and currently rejected, and an\nunknown part type is `invalidParams` (tdd SS3.1.2, SS3.2) — which is what\ncloses [`TurnInputPartType`].\n\nModelled as a discriminated flat object rather than a Rust `enum`, the\nconvention [`crate::view::approval::ApprovalSubject`] already established\nfor a wire union in this crate: the v1 schema model names no\nobject-variant union shape and fails closed on one. The serialized JSON is\nthe tdd shape either way; what a flat object cannot express is\n\"`mediaType` is required exactly when `type` is `image`\".\n\n**RULED (#22785 E4, owner, 2026-08-26): the precedent is accepted.** A\nstrict union node kind may be funded later as a follow-up; if it is, it\nmust cover [`crate::method::lifecycle::PendingRequestPointer`] too.",
       "properties": {
+        "arguments": {
+          "description": "Free-text skill arguments, optional on a `skill` part — the wire twin\nof what the TUI accepts after the shortcut token (tdd SS3.22.3).",
+          "type": "string"
+        },
         "base64Data": {
           "description": "Base64 payload, required on an `image` part. Invalid base64 or an\nempty payload is rejected with invalid params.",
           "type": "string"
@@ -3256,6 +4066,10 @@
         },
         "mediaType": {
           "description": "Media type, required on an `image` part.",
+          "type": "string"
+        },
+        "selector": {
+          "description": "The skill to invoke, required on a `skill` part (tdd SS3.2, SS3.22.3;\nADR 32471 D4): a bare or plugin-qualified shortcut token from\n`skill/list`. The HOST resolves and expands; an unknown selector is\nthe typed `-32032 skillNotFound` request error.",
           "type": "string"
         },
         "text": {
@@ -3276,7 +4090,7 @@
     },
     "TurnInputPartType": {
       "description": "The `type` discriminator of a turn input part (tdd SS3.2). Closed: an\nunknown part type is `invalidParams` (tdd SS3.1.2).",
-      "enum": ["text", "image"],
+      "enum": ["text", "image", "skill"],
       "type": "string",
       "x-msp-openness": "closed"
     },
@@ -3663,6 +4477,16 @@
         }
       },
       "required": ["sessionId", "sourceRange", "viewCursor"],
+      "type": "object"
+    },
+    "UsageReadResult": {
+      "description": "`usage/read` result: `{usage?}` — omitted, never `null`, when the host\nhas observed nothing (ADR 32563 D2: truthful absence, no\n\"nothing observed\" error).",
+      "properties": {
+        "usage": {
+          "$ref": "#/$defs/SubscriptionUsage",
+          "description": "The last-observed subscription usage window, when one exists."
+        }
+      },
       "type": "object"
     },
     "UserInputAnswer": {
@@ -4144,6 +4968,32 @@
       "required": ["schemaVersion", "state", "viewCursor"],
       "type": "object"
     },
+    "ViewSubscribeParams": {
+      "description": "`view/subscribe` params (tdd SS4.7.1): attach this connection's live view\nsubscription for a session at an explicit cursor — the fine-grained\ncounterpart of the SS2 auto-subscribe, and the gap-free re-attachment\npath after `view/unsubscribe`. It never loads a session, takes no lease,\nwrites nothing.",
+      "properties": {
+        "after": {
+          "description": "Resume cursor. When present, the server replays `(after, head]` as\nordinary view notifications before any live event — one gapless\ncursor sequence. Omitted means \"from now\": no historical replay\n(tdd SS4.7.1).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The session to follow.",
+          "type": "string"
+        }
+      },
+      "required": ["sessionId"],
+      "type": "object"
+    },
+    "ViewSubscribeResult": {
+      "description": "`view/subscribe` result (tdd SS4.7.1).",
+      "properties": {
+        "viewCursor": {
+          "description": "The view head at subscribe time; the client knows it is live once\ncursors pass it.",
+          "type": "string"
+        }
+      },
+      "required": ["viewCursor"],
+      "type": "object"
+    },
     "ViewUnsubscribeParams": {
       "description": "`view/unsubscribe` params (tdd SS4.7.2): remove this connection from the\nsession's view subscription set — the protocol's single unsubscribe\noperation, at the altitude that owns subscriptions (tdd SS2.5.6 points\nhere). It does not unload the session; unloading is the idle policy\n(tdd SS2.8).",
       "properties": {
@@ -4158,6 +5008,25 @@
     "ViewUnsubscribeResult": {
       "description": "`view/unsubscribe` result (tdd SS4.7.2): the empty object. Idempotent —\nunsubscribing while not subscribed returns `{}`.",
       "properties": {},
+      "type": "object"
+    },
+    "WorkflowCancelParams": {
+      "description": "`workflow/cancel` params (tdd SS3.19): cancel a live workflow run.",
+      "properties": {
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        },
+        "workflowRunId": {
+          "description": "The run to cancel, exactly as the `workflow` item names it (SS4.5.8);\nrequired, non-empty.",
+          "type": "string"
+        }
+      },
+      "required": ["commandId", "sessionId", "workflowRunId"],
       "type": "object"
     },
     "WorkflowChild": {
@@ -4202,11 +5071,64 @@
       },
       "required": ["attempt", "childId", "status"],
       "type": "object"
+    },
+    "WorkflowChildAction": {
+      "description": "Which control to apply to the child's current attempt (tdd SS3.20).\nClosed on the wire: an unknown value is `-32602 invalidParams`.",
+      "enum": ["skip", "retry"],
+      "type": "string",
+      "x-msp-openness": "closed"
+    },
+    "WorkflowChildControlParams": {
+      "description": "`workflow/childControl` params (tdd SS3.20): skip or retry one workflow\nchild, keyed by the `(childId, attempt)` pair the `workflow` item's\n`children[]` carries.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/WorkflowChildAction",
+          "description": "The control to apply."
+        },
+        "attempt": {
+          "description": "The child's CURRENT attempt (integer >= 1). A stale value rejects\n`\"stale_attempt\"`; re-read the item and re-key — never guess.",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "childId": {
+          "description": "The child, from the item's `children[]`; required, non-empty.",
+          "type": "string"
+        },
+        "commandId": {
+          "description": "The SS3.1.1 idempotency handle (UUIDv7).",
+          "type": "string"
+        },
+        "sessionId": {
+          "description": "The target session.",
+          "type": "string"
+        },
+        "workflowRunId": {
+          "description": "The run owning the child (SS4.5.8); required, non-empty.",
+          "type": "string"
+        }
+      },
+      "required": ["action", "attempt", "childId", "commandId", "sessionId", "workflowRunId"],
+      "type": "object"
+    },
+    "WorkflowControlResult": {
+      "description": "The shared SS3.19/SS3.20 admission-only ack: deliberately bare\n`{commandId, status}` — settlement arrives as the workflow item's view\nevents, never through the ack.",
+      "properties": {
+        "commandId": {
+          "description": "Echoes the client's id.",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/CommandStatus",
+          "description": "Admission status."
+        }
+      },
+      "required": ["commandId", "status"],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "capabilities": {
-    "grantable": ["userShell"],
+    "grantable": ["userShell", "sessionMcp"],
     "reserved": [
       {
         "name": "rawLog",
@@ -4314,8 +5236,18 @@
       "retryable": true
     },
     {
+      "code": -32032,
+      "kind": "skillNotFound",
+      "retryable": false
+    },
+    {
       "code": -32040,
       "kind": "viewTruncated",
+      "retryable": false
+    },
+    {
+      "code": -32041,
+      "kind": "outputUnavailable",
       "retryable": false
     },
     {
@@ -4384,6 +5316,51 @@
         "$ref": "#/$defs/ApprovalListPendingResult"
       }
     },
+    "goal/clear": {
+      "description": "Clears the session goal; never wakes and its ack never names a turn (tdd SS3.18, spec 14408; enrolled by #33066).",
+      "params": {
+        "$ref": "#/$defs/GoalClearParams"
+      },
+      "result": {
+        "$ref": "#/$defs/GoalCommandResult"
+      }
+    },
+    "goal/edit": {
+      "description": "Replaces the current goal's objective under the same wake gate as goal/set (tdd SS3.18, spec 14408; enrolled by #33066).",
+      "params": {
+        "$ref": "#/$defs/GoalEditParams"
+      },
+      "result": {
+        "$ref": "#/$defs/GoalCommandResult"
+      }
+    },
+    "goal/pause": {
+      "description": "Pauses the session goal; never wakes and its ack never names a turn (tdd SS3.18, spec 14408; enrolled by #33066).",
+      "params": {
+        "$ref": "#/$defs/GoalPauseParams"
+      },
+      "result": {
+        "$ref": "#/$defs/GoalCommandResult"
+      }
+    },
+    "goal/resume": {
+      "description": "Resumes a paused goal under the same wake gate as goal/set (tdd SS3.18, spec 14408; enrolled by #33066).",
+      "params": {
+        "$ref": "#/$defs/GoalResumeParams"
+      },
+      "result": {
+        "$ref": "#/$defs/GoalCommandResult"
+      }
+    },
+    "goal/set": {
+      "description": "Sets the session goal objective; wakes a goal-driving turn iff idle and the resulting goal is unfinished (tdd SS3.18, spec 14408; enrolled by #33066).",
+      "params": {
+        "$ref": "#/$defs/GoalSetParams"
+      },
+      "result": {
+        "$ref": "#/$defs/GoalCommandResult"
+      }
+    },
     "initialize": {
       "description": "Opens the connection: client identification, capability requests, and the experimental opt-in; the reply carries the envelope schema version and the stable-surface fingerprint (SS1.4.1).",
       "params": {
@@ -4391,6 +5368,15 @@
       },
       "result": {
         "$ref": "#/$defs/InitializeResult"
+      }
+    },
+    "item/readOutput": {
+      "description": "Byte-ranged read of stored full output the view truncated; works on loaded and unloaded sessions and takes no lease (SS4.7.4).",
+      "params": {
+        "$ref": "#/$defs/ItemReadOutputParams"
+      },
+      "result": {
+        "$ref": "#/$defs/ItemReadOutputResult"
       }
     },
     "model/list": {
@@ -4438,6 +5424,15 @@
         "$ref": "#/$defs/SessionReadResult"
       }
     },
+    "session/rename": {
+      "description": "Sets or changes the durable allocated session name through the runtime session_name command; withheld under the ephemeral profile (SS2.14.2, #27598).",
+      "params": {
+        "$ref": "#/$defs/SessionRenameParams"
+      },
+      "result": {
+        "$ref": "#/$defs/SessionRenameResult"
+      }
+    },
     "session/resume": {
       "description": "Loads a stored session on this host, auto-subscribes this connection, and returns the history needed to render it (SS2.5.2).",
       "params": {
@@ -4465,6 +5460,15 @@
         "$ref": "#/$defs/SessionSetModelResult"
       }
     },
+    "session/setReasoningEffort": {
+      "description": "Sets the session's standing reasoning-effort default; a turn carrying its own tier overrides it for that turn only (SS3.21, ADR 31255 D1).",
+      "params": {
+        "$ref": "#/$defs/SessionSetReasoningEffortParams"
+      },
+      "result": {
+        "$ref": "#/$defs/SessionSetReasoningEffortResult"
+      }
+    },
     "session/start": {
       "description": "Creates a brand-new session, loads it on this host, durably records the start, and auto-subscribes this connection (SS2.5.1).",
       "params": {
@@ -4481,6 +5485,15 @@
       },
       "result": {
         "$ref": "#/$defs/SessionUserShellResult"
+      }
+    },
+    "skill/list": {
+      "description": "Reads the session's user-invocable skill rows — one per typed-invocable shortcut spelling, the INV-007 predicate and shared name resolution by call-through; a query, not a command (SS3.22.1).",
+      "params": {
+        "$ref": "#/$defs/SkillListParams"
+      },
+      "result": {
+        "$ref": "#/$defs/SkillListResult"
       }
     },
     "subagent/close": {
@@ -4555,6 +5568,33 @@
         "$ref": "#/$defs/CommandAcceptedResult"
       }
     },
+    "task/background": {
+      "description": "Durably sends a running foreground tool task to the background; the `TaskBackgrounded` record lands before the ack and the `toolCall` item's `item/updated` folds the flip (tdd §3.13, #14411; enrolled under the #33065 T1 ruling).",
+      "params": {
+        "$ref": "#/$defs/TaskBackgroundParams"
+      },
+      "result": {
+        "$ref": "#/$defs/TaskCommandResult"
+      }
+    },
+    "task/stop": {
+      "description": "Stops one named background task; the kill settles durably and the item folds a terminal (tdd §3.14, #14411; enrolled under the #33065 T1 ruling).",
+      "params": {
+        "$ref": "#/$defs/TaskStopParams"
+      },
+      "result": {
+        "$ref": "#/$defs/TaskCommandResult"
+      }
+    },
+    "task/stopAll": {
+      "description": "Stops every stoppable background workload live at admission; always accepted, one item terminal folds per stopped item-visible task (tdd §3.15, #14411; enrolled under the #33065 T1 ruling).",
+      "params": {
+        "$ref": "#/$defs/TaskStopAllParams"
+      },
+      "result": {
+        "$ref": "#/$defs/TaskStopAllResult"
+      }
+    },
     "turn/cancel": {
       "description": "Cancels a turn on the normal command lane, recording no priority interrupt intent (SS3.5).",
       "params": {
@@ -4600,6 +5640,12 @@
         "$ref": "#/$defs/TurnUnqueueResult"
       }
     },
+    "usage/read": {
+      "description": "Reads the host's last-observed subscription usage window (5h-class and weekly percent blocks, tier, arrival stamp) without a model call; the usage member is omitted when nothing has been observed (ADR 32563 D2).",
+      "result": {
+        "$ref": "#/$defs/UsageReadResult"
+      }
+    },
     "userInput/answer": {
       "description": "Answers every question of an open user-input prompt (SS5.10.2).",
       "params": {
@@ -4636,6 +5682,15 @@
         "$ref": "#/$defs/ViewPageResult"
       }
     },
+    "view/subscribe": {
+      "description": "Attaches this connection's live view subscription for a session at an explicit cursor, replaying `(after, head]` before any live event; the re-attach path after `view/unsubscribe` (SS4.7.1).",
+      "params": {
+        "$ref": "#/$defs/ViewSubscribeParams"
+      },
+      "result": {
+        "$ref": "#/$defs/ViewSubscribeResult"
+      }
+    },
     "view/unsubscribe": {
       "description": "Removes this connection from the session's view subscription set; does not unload the session (SS4.7.2).",
       "params": {
@@ -4643,6 +5698,24 @@
       },
       "result": {
         "$ref": "#/$defs/ViewUnsubscribeResult"
+      }
+    },
+    "workflow/cancel": {
+      "description": "Cancels a live workflow run; admission-only bare ack, the cancellation's truth arrives as the workflow item's view events (tdd SS3.19, spec 14410; enrolled by the #33065 sweep).",
+      "params": {
+        "$ref": "#/$defs/WorkflowCancelParams"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowControlResult"
+      }
+    },
+    "workflow/childControl": {
+      "description": "Skips or retries one workflow child keyed by the item's (childId, attempt) pair; admission-only bare ack (tdd SS3.20, spec 14410; enrolled by the #33065 sweep).",
+      "params": {
+        "$ref": "#/$defs/WorkflowChildControlParams"
+      },
+      "result": {
+        "$ref": "#/$defs/WorkflowControlResult"
       }
     }
   },
@@ -4722,6 +5795,30 @@
         "$ref": "#/$defs/SessionModelChangedParams"
       }
     },
+    "session/modelRouteUnserved": {
+      "description": "An accepted login credential update installed a provider that cannot serve the session's standing model route; the standing selection is unchanged and a routable session/setModel repairs it (#25603, spec 5469 Amendment 16).",
+      "params": {
+        "$ref": "#/$defs/SessionModelRouteUnservedParams"
+      }
+    },
+    "session/nameChanged": {
+      "description": "A durable session-name record landed (rename or first naming): the fold of the session_name record (SS4.6.7, #27598).",
+      "params": {
+        "$ref": "#/$defs/SessionNameChangedParams"
+      }
+    },
+    "session/reasoningEffortChanged": {
+      "description": "A durable session-default reasoning-effort change took effect (SS4.6.9, ADR 31255 D1).",
+      "params": {
+        "$ref": "#/$defs/SessionReasoningEffortChangedParams"
+      }
+    },
+    "session/statusChanged": {
+      "description": "A loaded session's (status, attention) flipped; command-plane broadcast, cursor-stamped, not subscription-gated (SS4.6.10, ADR 31983 D2).",
+      "params": {
+        "$ref": "#/$defs/SessionStatusChangedParams"
+      }
+    },
     "session/todoListChanged": {
       "description": "The todo list was replaced wholesale; empty items is a cleared list (SS4.6.3).",
       "params": {
@@ -4732,6 +5829,18 @@
       "description": "A model call completed with usage: raw counters plus counted-once derivations plus session cumulative (SS4.6.5).",
       "params": {
         "$ref": "#/$defs/SessionTokenUsageParams"
+      }
+    },
+    "session/viewHealthChanged": {
+      "description": "A loaded session's live view stream became unavailable, and why: a command-plane push delivered independent of the view subscription set when the materialized projection fails closed (ADR 32557; #32557).",
+      "params": {
+        "$ref": "#/$defs/SessionViewHealthChangedParams"
+      }
+    },
+    "skill/changed": {
+      "description": "The session's user-invocable skill set changed; clients re-issue skill/list. A live host-state projection, not a view event (SS3.22.2).",
+      "params": {
+        "$ref": "#/$defs/SkillChangedParams"
       }
     },
     "turn/completed": {
@@ -4764,6 +5873,12 @@
         "$ref": "#/$defs/TurnUnqueuedParams"
       }
     },
+    "usage/changed": {
+      "description": "The host's last-observed subscription usage DATA changed (window, weekly, or tier — not a stamp-only refresh), with the same payload shape as usage/read's usage member; the absent-to-present first observation emits (ADR 32563 D3).",
+      "params": {
+        "$ref": "#/$defs/SubscriptionUsage"
+      }
+    },
     "userInput/requested": {
       "description": "A user-input prompt opened: the fold of its durable Requested record (SS5.10.1).",
       "params": {
@@ -4780,6 +5895,26 @@
       "description": "Push delivery dropped events: `(after, next)` brackets the undelivered range and delivery continues from `next` (SS4.8; spec 208 FM-001).",
       "params": {
         "$ref": "#/$defs/ViewGapParams"
+      }
+    }
+  },
+  "requests": {
+    "approval/request": {
+      "description": "Server-initiated must-answer request presenting a pending approval to every subscribed connection; the response is the SS5.3.3 presentation receipt — the decision travels as approval/decide (SS5.3; indexed by #23840).",
+      "params": {
+        "$ref": "#/$defs/ApprovalRequestParams"
+      },
+      "result": {
+        "$ref": "#/$defs/RequestReceipt"
+      }
+    },
+    "userInput/request": {
+      "description": "Server-initiated must-answer request presenting a pending user-input prompt; the response is the SS5.3.3 presentation receipt — the answer travels as userInput/answer (SS5.10.1; indexed by #23840).",
+      "params": {
+        "$ref": "#/$defs/UserInputRequestParams"
+      },
+      "result": {
+        "$ref": "#/$defs/RequestReceipt"
       }
     }
   },
