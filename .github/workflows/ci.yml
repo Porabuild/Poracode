@@ -300,7 +300,10 @@ jobs:
         run: scripts/ci-rebuild-node-pty.sh
 
       - name: Test shard
-        run: pnpm run test --shard=${{ matrix.shard }}/8
+        # The generated Swift/Kotlin compiler fixture belongs to the scoped
+        # native-contract lane. Keeping it here made renderer-only PRs spend
+        # most of their critical path compiling native fixtures.
+        run: pnpm run test --shard=${{ matrix.shard }}/8 --exclude='src/shared/remote/contract/native/runtime.test.ts'
 
   test_perf:
     name: Perf suites (uncontended)
