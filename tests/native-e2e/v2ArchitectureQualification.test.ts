@@ -262,6 +262,9 @@ let hostLoad: HostLoadSampler | undefined;
 let memory: ProcessMemorySampler | undefined;
 let cpu: ProcessCpuSampler | undefined;
 let clients: ProfileClient[] = [];
+// Clients closed on purpose mid-cell (the reconnect probe's original socket).
+// They keep their metrics for the seq-gap gate but are never pinged again.
+let retiredClients: ProfileClient[] = [];
 const accounting = new Map<string, FrameClassAccounting>();
 const timeline: Record<string, number | string> = {};
 const protocolEvidence: {
@@ -771,6 +774,7 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
     try {
       for (const client of clients) await client.close();
       clients = [];
+      retiredClients = [];
     } catch {
       // Teardown continues; the session stop below is the owning cleanup.
     }
@@ -1491,7 +1495,10 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
             fixture.terminalThreadId,
             `${recoveredLabel}-watch-visible-terminal`,
           );
-          clients.push(recovered);
+          // The recovered connection takes the original's slot; the closed
+          // original can no longer answer pings, so it is retired instead.
+          clients.splice(reconnectIndex, 1, recovered);
+          retiredClients.push(client);
           reconnectClientEvidence = {
             label: client.label,
             lastSeenSeq,
@@ -2150,7 +2157,7 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
       );
 
       expect(finalProducerCheck.verified).toBe(spec.producers);
-      for (const client of clients) {
+      for (const client of [...clients, ...retiredClients]) {
         expect(client.metrics.eventSeqGaps).toBe(0);
       }
       expect(
