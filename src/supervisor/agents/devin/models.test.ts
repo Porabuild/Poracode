@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   devinModelCapabilities,
   parseDevinModelCatalog,
@@ -86,6 +86,63 @@ describe("Devin model families", () => {
     expect(() => parseDevinModelCatalog('{"families": [{"variants": []}]}')).toThrow(
       /invalid_type/,
     );
+  });
+  it("tolerates an unrecognized effort tier instead of failing launch", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const catalog = parseDevinModelCatalog(
+        JSON.stringify({
+          families: [
+            {
+              family_label: "GPT-5.6 Sol",
+              slug: "gpt-5.6-sol",
+              variants: [
+                { model_uid: "gpt-5-6-sol-ultra", label: "GPT-5.6 Sol Ultra Thinking" },
+                { model_uid: "gpt-5-6-sol-medium", label: "GPT-5.6 Sol Medium Thinking" },
+              ],
+            },
+          ],
+        }),
+      );
+      // An unrecognized tier is treated as effort-less so the variant keeps
+      // its wire ID and launch still resolves the provider's own first
+      // variant; only the picker entry is dropped.
+      expect(catalog[0]!.variants.map((v) => v.effort)).toEqual(["", "medium"]);
+      const caps = devinModelCapabilities(catalog);
+      expect(caps.efforts).toEqual(["medium"]);
+      expect(caps.modelEfforts["gpt-5-6-sol-ultra"]).toEqual(["medium"]);
+      expect(caps.modelDefaultEfforts?.["gpt-5-6-sol-ultra"]).toBeUndefined();
+      expect(resolveDevinModel({ model: "gpt-5-6-sol-ultra" }, catalog)).toBe("gpt-5-6-sol-ultra");
+      expect(resolveDevinModel({ model: "gpt-5-6-sol-ultra", effort: "medium" }, catalog)).toBe(
+        "gpt-5-6-sol-medium",
+      );
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0])).toContain("ultra");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+  it("warns about an unrecognized effort tier once across catalog reloads", () => {
+    const parse = () =>
+      parseDevinModelCatalog(
+        JSON.stringify({
+          families: [
+            {
+              family_label: "GLM-5.2",
+              slug: "glm-5.2",
+              variants: [{ model_uid: "glm-5-2-mega", label: "GLM-5.2 Mega Thinking" }],
+            },
+          ],
+        }),
+      );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      parse();
+      parse();
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+    }
   });
   it("resolves the live ACP config option using provider IDs", () => {
     expect(
