@@ -213,6 +213,14 @@ function parseJsonListOutput(stdout: string): unknown[] {
   return Array.isArray(raw) ? raw : [];
 }
 
+/**
+ * Expected, user-resolvable gh states: the binary is absent from PATH or the
+ * user has not authenticated. Background project-row surfaces (PR-status
+ * prefetch) degrade these to "no PR data" — the same contract as a repo with
+ * no GitHub remote — instead of failing on every refresh cycle.
+ */
+export class GhUnavailableError extends Error {}
+
 function classifyError(error: unknown, operation: string): Error {
   const msg = error instanceof Error ? error.message : String(error);
   const lower = msg.toLowerCase();
@@ -222,7 +230,7 @@ function classifyError(error: unknown, operation: string): Error {
     lower.includes("is not recognized") ||
     lower.includes("enoent")
   ) {
-    return new Error(
+    return new GhUnavailableError(
       `GitHub CLI (gh) is not installed or not on PATH. Install it from https://cli.github.com`,
     );
   }
@@ -239,7 +247,9 @@ function classifyError(error: unknown, operation: string): Error {
     lower.includes("gh auth login") ||
     lower.includes("no oauth token")
   ) {
-    return new Error(`GitHub CLI is not authenticated. Run "gh auth login" in the terminal.`);
+    return new GhUnavailableError(
+      `GitHub CLI is not authenticated. Run "gh auth login" in the terminal.`,
+    );
   }
 
   return new Error(`gh ${operation} failed: ${msg}`);
@@ -987,7 +997,13 @@ export class GitHubService {
       return result;
     } catch (err) {
       if (isNoGitHubRepositoryError(err)) return {};
-      throw classifyError(err, "pr list");
+      const classified = classifyError(err, "pr list");
+      // gh missing / unauthenticated is expected-absent for a background
+      // prefetch: degrade to an empty map exactly like the no-repo case.
+      // Previously this rejected and the remote passthrough answered 500
+      // internal_error once per project per refresh cycle.
+      if (classified instanceof GhUnavailableError) return {};
+      throw classified;
     }
   }
 

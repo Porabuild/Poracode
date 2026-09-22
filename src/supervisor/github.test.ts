@@ -423,6 +423,16 @@ describe("GitHubService", () => {
       await expect(new GitHubService().listPrs(location)).resolves.toEqual({});
     });
 
+    it.each([
+      "To get started with GitHub CLI, please run:  gh auth login",
+      "HTTP 401: Requires authentication (https://api.github.com/graphql)\nTry authenticating with:  gh auth login -h github.com",
+      "spawn gh ENOENT",
+    ])("returns an empty map when gh is missing or unauthenticated: %s", async (message) => {
+      execFileAsyncMock.mockRejectedValue(new Error(message));
+
+      await expect(new GitHubService().listPrs(location)).resolves.toEqual({});
+    });
+
     it("does not hide unrelated gh failures", async () => {
       execFileAsyncMock.mockRejectedValue(new Error("GraphQL: API rate limit exceeded"));
 
