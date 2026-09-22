@@ -15,10 +15,10 @@ import {
   resolveEnabledMcpServers,
   type McpServer,
 } from "./mcpServer";
-import { TOOLS as browserTools } from "@/main/browser/mcp/tools/specs";
-import { CHROME_TOOLS as chromeTools } from "@/main/browser/external/chromeTools";
+import { TOOLS as browserTools } from "@/host/browser/mcp/tools/specs";
+import { CHROME_TOOLS as chromeTools } from "@/host/browser/external/chromeTools";
 import { TOOLS as computerUseTools } from "@/host/computer-use/mcp/toolRegistry";
-import { TOOLS as appControlsTools } from "@/main/app-controls/mcp/toolRegistry";
+import { TOOLS as appControlsTools } from "@/host/app-controls/mcp/toolRegistry";
 import { TOOLS as crossagentTools } from "@/supervisor/crossagentMcp/toolRegistry";
 
 function server(id: string, name: string, enabled = true): McpServer {

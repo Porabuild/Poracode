@@ -8,6 +8,7 @@ import {
   type AgentEnvContext,
   type CreateStructuredSessionInput,
   inheritBaseSpawnEnv,
+  prepareAgentLocationEnvironment,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import {
@@ -90,6 +91,7 @@ export function createFactoryAdapter(): AgentAdapter {
       return undefined;
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildFactoryCommand(
         input.projectLocation,
         resolveAgentBinaryPath(input.projectLocation, "droid"),
@@ -107,6 +109,7 @@ export function createFactoryAdapter(): AgentAdapter {
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildFactoryCommand(location, resolveAgentBinaryPath(location, "droid"));
     },
     defaultOneShotModel: "auto",

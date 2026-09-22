@@ -193,7 +193,11 @@ describe("IPC application queue observations", () => {
       sender.reply(reply("held"));
       if (mode === "eager") sender.setEagerShed(true);
       let shedBytes = 0;
-      for (let index = 1; index <= 4; index++) {
+      // Eager mode sheds each incoming bulk at the source (4 messages). The
+      // overflow mode needs a fifth message so the third bulk is shed into the
+      // already-queued marker; the marker keeps its original admission time.
+      const messageCount = mode === "eager" ? 4 : 5;
+      for (let index = 1; index <= messageCount; index++) {
         now = index * 10;
         const message: Message = { kind: "bulk", data: `${index}🧪` };
         sender.sendMessage(message);

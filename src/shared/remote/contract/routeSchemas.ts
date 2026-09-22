@@ -25,6 +25,7 @@ import {
   profileTokenStatsSchema,
 } from "../../contracts/profileResults";
 import { sharedSettingsSchema } from "../../settings";
+import { hostResourceAdmissionStatusSchema } from "../../hostResourceAdmission";
 import { gitStateSnapshotWireSchema } from "./gitStateWire";
 import {
   remoteAgentStatusesSchema,
@@ -39,6 +40,7 @@ import {
   remotePortForwardResultSchema,
   remotePortUnforwardRequestSchema,
   remotePortsStateSchema,
+  remoteProjectCommandResponseSchema,
   remoteProjectCommandResultSchema,
   remoteProjectCommandSchema,
   remoteProjectSettingsSchema,
@@ -122,6 +124,14 @@ export const metricsResponseSchema = z.object({
     /** Sequence of the last published replayable event (0 = none yet). */
     lastEventSeq: z.number().int().nonnegative(),
   }),
+  /**
+   * Additive on-demand supervisor admission snapshot (logical execution-slot
+   * counts, never OS processes or RSS). Omitted when the supervisor is
+   * stopped, unknown or older, so an unavailable count is never fabricated as
+   * zero. Optional on the wire: old readers ignore it, the loopback handler
+   * includes it only when the peek answered.
+   */
+  hostResourceAdmission: hostResourceAdmissionStatusSchema.optional(),
 });
 
 export const attachmentUploadResultSchema = z.object({
@@ -226,8 +236,39 @@ export const threadHistoryQuerySchema = decodedThreadHistoryQuerySchema;
 export { decodedAgentStatusesQuerySchema as agentStatusesQuerySchema } from "./queryCodecs";
 export { decodedShellSnapshotQuerySchema as shellSnapshotQuerySchema } from "./queryCodecs";
 export { decodedThreadListQuerySchema as threadListQuerySchema } from "./queryCodecs";
+export { decodedThreadTurnsQuerySchema as threadTurnsQuerySchema } from "./queryCodecs";
+export { decodedProjectListQuerySchema as projectListQuerySchema } from "./queryCodecs";
+export { decodedRuntimeGapQuerySchema as runtimeGapQuerySchema } from "./queryCodecs";
+export { decodedRuntimeGapAcknowledgeQuerySchema as runtimeGapAcknowledgeQuerySchema } from "./queryCodecs";
 export { remoteAgentSlashCommandsSchema } from "../protocol";
 export const threadHistoryItemsQuerySchema = decodedThreadHistoryItemsQuerySchema;
+
+/**
+ * B1 runtime-gap recovery wire shapes. Declared-only: a client reaches these
+ * routes only after `capabilities.runtimeHistoryNotices` is advertised, and
+ * every request must echo `notices=v1`.
+ */
+export {
+  remoteRuntimeGapAcknowledgeBodySchema,
+  remoteRuntimeGapAcknowledgeResultSchema,
+  remoteRuntimeGapReadResultSchema,
+} from "../protocol";
+
+/**
+ * B4 bounded-read response schemas owned by the shared contract modules. The
+ * registry references these directly so the generated contract and the host
+ * builders share ONE definition.
+ */
+export {
+  boundedShellSnapshotSchema,
+  boundedThreadListPageSchema,
+  catalogProjectListPageSchema,
+} from "../catalogReadSchemas";
+export {
+  catalogMembershipRequestSchema,
+  catalogMembershipResponseSchema,
+} from "../catalogReadContract";
+export { historyTurnPageSchema } from "../historyReadContract";
 
 export const remoteShellSnapshotWireSchema = remoteShellSnapshotSchema
   .omit({ gitState: true })
@@ -340,6 +381,7 @@ export {
   remotePortForwardResultSchema,
   remotePortUnforwardRequestSchema,
   remotePortsStateSchema,
+  remoteProjectCommandResponseSchema,
   remoteProjectCommandResultSchema,
   remoteProjectCommandSchema,
   remoteProjectSettingsSchema,

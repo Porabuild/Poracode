@@ -1,4 +1,4 @@
-import { preparePoracodeDataRoot } from "@/main/poracodeData";
+import { preparePoracodeDataRoot } from "@/host/poracodeData";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import { HostOwnerLease, type HostOwnerKind } from "./hostOwnerLease";
 import { resolveHostRootPaths } from "./hostRootPaths";

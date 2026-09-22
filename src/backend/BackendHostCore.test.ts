@@ -1,10 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import type { SupervisorEvent } from "@/shared/ipc";
+import type { SupervisorClient } from "@/host/supervisor/SupervisorClient";
+import type {
+  PersistOutcome,
+  PersistSupervisorEventOptions,
+} from "@/host/remote/server/runtimePersistence";
 
 const mocks = vi.hoisted(() => ({
   initDatabase: vi.fn<(path: string, options?: { schemaMode?: "migrate" | "validate" }) => void>(),
   closeDatabase: vi.fn<() => void>(),
+  attachRuntimePersistenceDurableGapFromCurrentConnection: vi.fn<() => void>(),
+  armRuntimeThreadForLaunch: vi.fn<(threadId: string) => void>(),
   dbMarkLiveThreadsInactive: vi.fn<() => void>(),
+  dbGetProjects: vi.fn<() => { id: string }[]>(() => []),
+  dbUpsertProject: vi.fn<(project: { id: string }) => void>(),
   dbTruncateThreadRuntimeAfter: vi.fn<
     (
       threadId: string,
@@ -20,7 +30,20 @@ const mocks = vi.hoisted(() => ({
   dbClaimCheckpointRevertOperation: vi.fn<(input: unknown) => unknown>(),
   dbGetCheckpointRevertOperation: vi.fn<(operationKey: string) => unknown>(),
   dbUpdateCheckpointRevertPhases: vi.fn<() => void>(),
-  persistSupervisorEvent: vi.fn<(event: SupervisorEvent) => void>(),
+  getRuntimeThreadGapDescriptor: vi.fn<(threadId: string) => unknown>(),
+  acknowledgeRuntimeThreadGap: vi.fn<(threadId: string, token: string) => Promise<unknown>>(),
+  runThreadMutation:
+    vi.fn<(threadId: string, operation: () => Promise<unknown>) => Promise<unknown>>(),
+  persistSupervisorEvent:
+    vi.fn<
+      (
+        event: SupervisorEvent,
+        options?: PersistSupervisorEventOptions,
+      ) => PersistOutcome<SupervisorEvent>
+    >(),
+  acknowledgeCanonicalFlow: vi.fn<(flowSeq: number) => void>(),
+  getPeerCanonicalCapabilities: vi.fn<SupervisorClient["getPeerCanonicalCapabilities"]>(),
+  setEventBackpressured: vi.fn<SupervisorClient["setEventBackpressured"]>(),
   start: vi.fn<() => void>(),
   restart: vi.fn<() => void>(),
   dispose: vi.fn<() => void>(),
@@ -28,14 +51,26 @@ const mocks = vi.hoisted(() => ({
   supervisorOptions: null as null | {
     onEvent(event: SupervisorEvent): void;
     onReset(): void;
+    onFlowControlReady?(): void;
+    prepareStartThread?(payload: { threadId?: string }): { threadId?: string };
   },
   supervisorConstructorError: null as Error | null,
 }));
 
-vi.mock("@/main/db", () => ({
+vi.mock("@/host/db", () => ({
   initDatabase: mocks.initDatabase,
   closeDatabase: mocks.closeDatabase,
+  attachRuntimePersistenceDurableGapFromCurrentConnection:
+    mocks.attachRuntimePersistenceDurableGapFromCurrentConnection,
+  armRuntimeThreadForLaunch: mocks.armRuntimeThreadForLaunch,
+  getRuntimeThreadGapDescriptor: mocks.getRuntimeThreadGapDescriptor,
+  acknowledgeRuntimeThreadGap: mocks.acknowledgeRuntimeThreadGap,
+  addRuntimePersistenceHealthListener: vi.fn<() => () => void>(() => () => undefined),
+  getRuntimePersistenceShutdownReport: vi.fn<() => null>(() => null),
+  setRuntimePersistenceInFlightWindowBytes: vi.fn<(bytes: number | null) => void>(),
   dbMarkLiveThreadsInactive: mocks.dbMarkLiveThreadsInactive,
+  dbGetProjects: mocks.dbGetProjects,
+  dbUpsertProject: mocks.dbUpsertProject,
   dbTruncateThreadRuntimeAfter: mocks.dbTruncateThreadRuntimeAfter,
   dbGetThread: mocks.dbGetThread,
   dbGetProject: mocks.dbGetProject,
@@ -51,12 +86,16 @@ vi.mock("@/host/remote/server/runtimePersistence", () => ({
   persistSupervisorEvent: mocks.persistSupervisorEvent,
 }));
 
-vi.mock("@/main/supervisor/SupervisorClient", () => ({
+vi.mock("@/host/supervisor/SupervisorClient", () => ({
   SupervisorClient: class {
     start = mocks.start;
     restart = mocks.restart;
     dispose = mocks.dispose;
     call = mocks.supervisorCall;
+    acknowledgeCanonicalFlow = mocks.acknowledgeCanonicalFlow;
+    getPeerCanonicalCapabilities = mocks.getPeerCanonicalCapabilities;
+    setEventBackpressured = mocks.setEventBackpressured;
+    runThreadMutation = mocks.runThreadMutation;
 
     constructor(options: { onEvent(event: SupervisorEvent): void; onReset(): void }) {
       if (mocks.supervisorConstructorError) throw mocks.supervisorConstructorError;
@@ -65,11 +104,7 @@ vi.mock("@/main/supervisor/SupervisorClient", () => ({
   },
 }));
 
-import {
-  BackendEventRouter,
-  BackendHostCore,
-  filterSupervisorEventForInterests,
-} from "./BackendHostCore";
+import { BackendHostCore } from "./BackendHostCore";
 
 describe("BackendHostCore", () => {
   beforeEach(() => {
@@ -78,6 +113,49 @@ describe("BackendHostCore", () => {
     }
     mocks.supervisorOptions = null;
     mocks.supervisorConstructorError = null;
+    mocks.dbGetProjects.mockImplementation(() => []);
+    mocks.dbUpsertProject.mockImplementation(() => undefined);
+    mocks.persistSupervisorEvent.mockImplementation((event) => ({ kind: "publish", event }));
+    mocks.getPeerCanonicalCapabilities.mockReturnValue({
+      supportsCanonicalCredit: false,
+      generation: null,
+    });
+    mocks.runThreadMutation.mockImplementation((_threadId, operation) =>
+      Promise.resolve(operation()),
+    );
+  });
+
+  it("negotiates canonical credit when the supervisor advertises and clears it for a legacy restart", async () => {
+    const host = new BackendHostCore({
+      baseDir: "/data",
+      dbPath: "/data/state.sqlite",
+      supervisor: {
+        appVersion: "test",
+        isDev: false,
+        supervisorPath: "/supervisor.cjs",
+        wslHelpersDir: "/wsl",
+        secretStorageKey: "secret",
+      },
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
+    mocks.getPeerCanonicalCapabilities.mockReturnValue({
+      supportsCanonicalCredit: true,
+      generation: "boot-1",
+      maxInFlightBytes: 17 * 1024 * 1024,
+      maxEnvelopeBytes: 8 * 1024 * 1024,
+    });
+    mocks.supervisorOptions?.onFlowControlReady?.();
+    expect(mocks.setEventBackpressured).toHaveBeenLastCalledWith(false, undefined, {
+      canonicalCreditBytes: 17 * 1024 * 1024,
+    });
+    mocks.getPeerCanonicalCapabilities.mockReturnValue({
+      supportsCanonicalCredit: false,
+      generation: null,
+    });
+    mocks.supervisorOptions?.onFlowControlReady?.();
+    expect(mocks.setEventBackpressured).toHaveBeenLastCalledWith(false, undefined, {});
+    await host.dispose();
   });
 
   it("owns database and supervisor lifecycle", async () => {
@@ -102,7 +180,17 @@ describe("BackendHostCore", () => {
     host.closeDatabase();
 
     expect(mocks.initDatabase).toHaveBeenCalledExactlyOnceWith("/data/state.sqlite");
+    // The eager runtime-owned durable-gap open runs right after the migrate
+    // open, before any canonical event can be admitted.
+    expect(mocks.attachRuntimePersistenceDurableGapFromCurrentConnection).toHaveBeenCalledOnce();
     expect(mocks.dbMarkLiveThreadsInactive).toHaveBeenCalledOnce();
+    // The canonical Home row is persisted at startup, before any catalog or
+    // launch request can observe an absent row.
+    expect(mocks.dbGetProjects).toHaveBeenCalled();
+    expect(mocks.dbUpsertProject).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ id: HOME_PROJECT_ID }),
+      0,
+    );
     // startSupervisor is idempotent (start once); restartSupervisor forces.
     expect(mocks.start).toHaveBeenCalledTimes(1);
     expect(mocks.restart).toHaveBeenCalledTimes(1);
@@ -112,7 +200,10 @@ describe("BackendHostCore", () => {
 
   it("persists each supervisor event before publishing it", async () => {
     const order: string[] = [];
-    mocks.persistSupervisorEvent.mockImplementation(() => order.push("persist"));
+    mocks.persistSupervisorEvent.mockImplementation((event) => {
+      order.push("persist");
+      return { kind: "publish", event };
+    });
     const host = new BackendHostCore({
       baseDir: "/data",
       dbPath: "/data/state.sqlite",
@@ -132,6 +223,92 @@ describe("BackendHostCore", () => {
     await host.dispose();
 
     expect(order).toEqual(["persist", "publish"]);
+  });
+
+  describe("persistence admission publication", () => {
+    function createHost(onEvent: (event: SupervisorEvent) => void): BackendHostCore {
+      return new BackendHostCore({
+        baseDir: "/data",
+        dbPath: "/data/state.sqlite",
+        supervisor: {
+          appVersion: "test",
+          isDev: false,
+          supervisorPath: "/supervisor.cjs",
+          wslHelpersDir: "/wsl",
+          secretStorageKey: "secret",
+        },
+        onEvent,
+        onReset: vi.fn<() => void>(),
+      });
+    }
+
+    function canonicalBatch(): Extract<SupervisorEvent, { type: "thread-runtime-events" }> {
+      return {
+        type: "thread-runtime-events",
+        threadId: "thread",
+        flowSeq: 7,
+        events: ["accepted", "refused"].map((delta) => ({
+          type: "content.delta",
+          threadId: "thread",
+          itemId: "item",
+          stream: "command_output",
+          delta,
+        })),
+      };
+    }
+
+    it("acknowledges an explicit refusal only after admission and never publishes it", async () => {
+      const order: string[] = [];
+      const publish = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost(publish);
+      mocks.persistSupervisorEvent.mockImplementation(() => {
+        expect(mocks.acknowledgeCanonicalFlow).not.toHaveBeenCalled();
+        order.push("admission-refused");
+        return { kind: "withhold", reason: "refused", threadIds: ["thread"] };
+      });
+      mocks.acknowledgeCanonicalFlow.mockImplementation(() => order.push("ack"));
+      mocks.supervisorOptions!.onEvent(canonicalBatch());
+      expect(publish).not.toHaveBeenCalled();
+      expect(mocks.acknowledgeCanonicalFlow).toHaveBeenCalledExactlyOnceWith(7);
+      expect(order).toEqual(["admission-refused", "ack"]);
+      await host.dispose();
+    });
+
+    it("publishes the admitted prefix while acknowledging the original envelope", async () => {
+      const publish = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost(publish);
+      const original = canonicalBatch();
+      const accepted: SupervisorEvent = { ...original, events: original.events.slice(0, 1) };
+      mocks.persistSupervisorEvent.mockReturnValue({
+        kind: "publish-partial",
+        event: accepted,
+        droppedEvents: 1,
+        droppedBytes: 32,
+      });
+      mocks.supervisorOptions!.onEvent(original);
+      expect(publish).toHaveBeenCalledExactlyOnceWith(accepted);
+      expect(mocks.acknowledgeCanonicalFlow).toHaveBeenCalledExactlyOnceWith(7);
+      expect(original.events).toHaveLength(2);
+      await host.dispose();
+    });
+
+    it("publishes a deferred reset only when persistence confirms completion", async () => {
+      const publish = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost(publish);
+      const reset: SupervisorEvent = { type: "thread-reset", threadId: "thread" };
+      let complete: PersistSupervisorEventOptions["publishDeferredEvent"];
+      mocks.persistSupervisorEvent.mockImplementation((_event, options) => {
+        complete = options?.publishDeferredEvent;
+        return { kind: "withhold", reason: "deferred-reset", threadIds: ["thread"] };
+      });
+      mocks.supervisorOptions!.onEvent(reset);
+      expect(publish).not.toHaveBeenCalled();
+      expect(complete).toBeTypeOf("function");
+      complete!(reset);
+      expect(publish).toHaveBeenCalledExactlyOnceWith(reset);
+      expect(mocks.acknowledgeCanonicalFlow).not.toHaveBeenCalled();
+      await host.dispose();
+    });
   });
 
   it("closes the database when supervisor construction fails", () => {
@@ -175,254 +352,296 @@ describe("BackendHostCore", () => {
     expect(mocks.initDatabase).toHaveBeenCalledExactlyOnceWith("/data/state.sqlite", {
       schemaMode: "validate",
     });
+    // A validate-only open never arms or binds durable evidence, and never
+    // writes the canonical Home row (offline/import opens stay read-only).
+    expect(mocks.attachRuntimePersistenceDurableGapFromCurrentConnection).not.toHaveBeenCalled();
+    expect(mocks.dbGetProjects).not.toHaveBeenCalled();
+    expect(mocks.dbUpsertProject).not.toHaveBeenCalled();
     await host.dispose();
   });
 
-  it("publishes high-volume events only for interested threads", () => {
-    const interests = {
-      terminalThreadIds: ["terminal-visible"],
-      runtimeThreadIds: ["chat-visible"],
-      allRuntimeEvents: false,
-    };
+  it("composes the existing prepareStartThread and arms the durable touch before dispatch", async () => {
+    const existingPrepare = vi.fn<
+      (payload: { threadId?: string }) => { threadId?: string; preparedByMain?: boolean }
+    >((payload) => ({
+      ...payload,
+      preparedByMain: true,
+    }));
+    const host = new BackendHostCore({
+      baseDir: "/data",
+      dbPath: "/data/state.sqlite",
+      supervisor: {
+        appVersion: "test",
+        isDev: false,
+        supervisorPath: "/supervisor.cjs",
+        wslHelpersDir: "/wsl",
+        secretStorageKey: "secret",
+        prepareStartThread: existingPrepare as never,
+      },
+      onEvent: vi.fn<(event: SupervisorEvent) => void>(),
+      onReset: vi.fn<() => void>(),
+    });
 
-    expect(
-      filterSupervisorEventForInterests(
-        {
-          type: "thread-output",
-          threadId: "terminal-hidden",
-          data: "noise",
-          outputLength: 5,
-          terminalInstanceId: "gen-test",
-        },
-        interests,
-      ),
-    ).toBeNull();
-    const hiddenShellActivityAt = new Map<string, number>();
-    expect(
-      filterSupervisorEventForInterests(
-        {
-          type: "thread-output",
-          threadId: "shell:action",
-          data: "done",
-          outputLength: 4,
-          terminalInstanceId: "gen-test",
-        },
-        interests,
-        hiddenShellActivityAt,
-        1_000,
-      ),
-    ).toEqual({
-      type: "thread-output",
-      threadId: "shell:action",
-      data: "",
-      outputLength: 4,
-      terminalInstanceId: "gen-test",
+    const prepare = mocks.supervisorOptions?.prepareStartThread;
+    expect(prepare).toBeTypeOf("function");
+    const prepared = prepare!({ threadId: "thread-1" }) as {
+      threadId?: string;
+      preparedByMain?: boolean;
+    };
+    // The existing callback is composed, not overwritten, and the durable
+    // touch runs after it with the final thread id.
+    expect(existingPrepare).toHaveBeenCalledExactlyOnceWith({ threadId: "thread-1" });
+    expect(prepared).toMatchObject({ threadId: "thread-1", preparedByMain: true });
+    expect(mocks.armRuntimeThreadForLaunch).toHaveBeenCalledExactlyOnceWith("thread-1");
+
+    // A refused (unknown/storage-failed) touch propagates, so the supervisor
+    // request rejects before `child.send`.
+    mocks.armRuntimeThreadForLaunch.mockImplementationOnce(() => {
+      throw new Error("durable touch refused");
     });
-    expect(
-      filterSupervisorEventForInterests(
-        {
-          type: "thread-output",
-          threadId: "shell:action",
-          data: "more",
-          outputLength: 8,
-          terminalInstanceId: "gen-test",
+    expect(() => prepare!({ threadId: "thread-unknown" })).toThrow("durable touch refused");
+
+    // A launch without a host-known thread id (supervisor allocates it) has no
+    // touch target; admission covers its first canonical event instead.
+    mocks.armRuntimeThreadForLaunch.mockClear();
+    prepare!({});
+    expect(mocks.armRuntimeThreadForLaunch).not.toHaveBeenCalled();
+    await host.dispose();
+  });
+
+  describe("runtime gap acknowledgement", () => {
+    function appliedResult() {
+      return {
+        outcome: "applied" as const,
+        notice: {
+          threadId: "thread-1",
+          acknowledgedToken: "gap2:e11111111-1111-4111-8111-111111111111",
+          source: "exact" as const,
+          reason: "age" as const,
+          refusedEvents: 1,
+          refusedBytes: 10,
+          acknowledgedCount: 1,
+          firstAcknowledgedAt: 1,
+          lastAcknowledgedAt: 1,
         },
-        interests,
-        hiddenShellActivityAt,
-        1_499,
-      ),
-    ).toBeNull();
-    expect(
-      filterSupervisorEventForInterests(
-        {
-          type: "thread-output",
-          threadId: "shell:action",
-          data: "more",
-          outputLength: 8,
-          terminalInstanceId: "gen-test",
+        descriptor: {
+          threadId: "thread-1",
+          token: "gap2:e11111111-1111-4111-8111-111111111111",
+          source: "exact" as const,
+          reason: "age" as const,
+          refusedEvents: 1,
+          refusedBytes: 10,
+          createdAt: 7,
         },
-        interests,
-        hiddenShellActivityAt,
-        1_500,
-      ),
-    ).toEqual({
-      type: "thread-output",
-      threadId: "shell:action",
-      data: "",
-      outputLength: 8,
-      terminalInstanceId: "gen-test",
+        supersededAcceptedEvents: 2,
+      };
+    }
+
+    function createHost(options: {
+      onEvent: (event: SupervisorEvent) => void;
+      onRuntimeGapAcknowledged?: (threadId: string) => void;
+    }): BackendHostCore {
+      return new BackendHostCore({
+        baseDir: "/data",
+        dbPath: "/data/state.sqlite",
+        supervisor: {
+          appVersion: "test",
+          isDev: false,
+          supervisorPath: "/supervisor.cjs",
+          wslHelpersDir: "/wsl",
+          secretStorageKey: "secret",
+        },
+        onEvent: options.onEvent,
+        onReset: vi.fn<() => void>(),
+        ...(options.onRuntimeGapAcknowledged
+          ? { onRuntimeGapAcknowledged: options.onRuntimeGapAcknowledged }
+          : {}),
+      });
+    }
+
+    it("reads the current episode descriptor through the database layer", async () => {
+      const host = createHost({ onEvent: vi.fn<(event: SupervisorEvent) => void>() });
+      const descriptor = {
+        threadId: "thread-1",
+        token: "gap2:e11111111-1111-4111-8111-111111111111",
+        source: "exact",
+        reason: "age",
+        refusedEvents: 2,
+        refusedBytes: 20,
+        createdAt: 7,
+      };
+      mocks.getRuntimeThreadGapDescriptor.mockReturnValue(descriptor);
+
+      expect(host.getThreadRuntimeGap("thread-1")).toEqual(descriptor);
+      expect(mocks.getRuntimeThreadGapDescriptor).toHaveBeenCalledExactlyOnceWith("thread-1");
+
+      await host.dispose();
+      expect(() => host.getThreadRuntimeGap("thread-1")).toThrow("shutting down");
     });
-    expect(
-      filterSupervisorEventForInterests(
-        {
-          type: "thread-runtime-events-multi",
-          batches: [
-            {
-              threadId: "chat-visible",
-              events: [
-                {
-                  type: "item.completed",
-                  threadId: "chat-visible",
-                  itemId: "visible-item",
-                },
-              ],
-            },
-            {
-              threadId: "chat-hidden",
-              events: [
-                {
-                  type: "item.completed",
-                  threadId: "chat-hidden",
-                  itemId: "hidden-item",
-                },
-                {
-                  type: "request.opened",
-                  threadId: "chat-hidden",
-                  requestId: "approval-1",
-                  requestType: "tool_call_approval",
-                  payload: { summary: "Approve the background command?" },
-                },
-                {
-                  type: "turn.completed",
-                  threadId: "chat-hidden",
-                  turnId: "turn-hidden",
-                  state: "completed",
-                },
-              ],
-            },
-          ],
-        },
-        interests,
-      ),
-    ).toEqual({
-      type: "thread-runtime-events-multi",
-      batches: [
-        {
-          threadId: "chat-visible",
-          events: [
-            {
-              type: "item.completed",
-              threadId: "chat-visible",
-              itemId: "visible-item",
-            },
-          ],
-        },
-        {
-          threadId: "chat-hidden",
-          events: [
-            {
-              type: "request.opened",
-              threadId: "chat-hidden",
-              requestId: "approval-1",
-              requestType: "tool_call_approval",
-              payload: { summary: "Approve the background command?" },
-            },
-            {
-              type: "turn.completed",
-              threadId: "chat-hidden",
-              turnId: "turn-hidden",
-              state: "completed",
-            },
-          ],
-        },
-      ],
-    });
-    expect(
-      filterSupervisorEventForInterests(
-        {
-          type: "thread-runtime-event",
-          threadId: "chat-hidden",
-          event: {
-            type: "content.delta",
-            threadId: "chat-hidden",
-            itemId: "hidden-item",
-            stream: "assistant_text",
-            delta: "noise",
+
+    it("acknowledges under the supervisor dispatch lock and only `applied` runs the reset + hook", async () => {
+      const order: string[] = [];
+      const onEvent = vi.fn<(event: SupervisorEvent) => void>((event) => {
+        if (event.type === "thread-reset") order.push("reset");
+      });
+      const host = createHost({
+        onEvent,
+        onRuntimeGapAcknowledged: () => order.push("hook"),
+      });
+      mocks.acknowledgeRuntimeThreadGap.mockImplementation(async () => {
+        order.push("commit");
+        return {
+          outcome: "applied",
+          notice: {
+            threadId: "thread-1",
+            acknowledgedToken: "gap2:e11111111-1111-4111-8111-111111111111",
+            source: "exact",
+            reason: "age",
+            refusedEvents: 2,
+            refusedBytes: 20,
+            acknowledgedCount: 1,
+            firstAcknowledgedAt: 1,
+            lastAcknowledgedAt: 1,
           },
+          descriptor: {
+            threadId: "thread-1",
+            token: "gap2:e11111111-1111-4111-8111-111111111111",
+            source: "exact",
+            reason: "age",
+            refusedEvents: 2,
+            refusedBytes: 20,
+            createdAt: 7,
+          },
+          supersededAcceptedEvents: 2,
+        };
+      });
+
+      const result = await host.acknowledgeThreadRuntimeGap(
+        "thread-1",
+        "gap2:e11111111-1111-4111-8111-111111111111",
+      );
+      expect(result).toMatchObject({ outcome: "applied" });
+      expect(mocks.runThreadMutation).toHaveBeenCalledOnce();
+      expect(mocks.runThreadMutation.mock.calls[0]?.[0]).toBe("thread-1");
+      expect(mocks.acknowledgeRuntimeThreadGap).toHaveBeenCalledExactlyOnceWith(
+        "thread-1",
+        "gap2:e11111111-1111-4111-8111-111111111111",
+      );
+      expect(order).toEqual(["commit", "reset", "hook"]);
+
+      order.length = 0;
+      mocks.acknowledgeRuntimeThreadGap.mockResolvedValue({ outcome: "stale", current: null });
+      expect(
+        await host.acknowledgeThreadRuntimeGap(
+          "thread-1",
+          "gap2:e00000000-0000-4000-8000-000000000000",
+        ),
+      ).toMatchObject({ outcome: "stale" });
+      expect(order).toEqual([]);
+      await host.dispose();
+    });
+
+    it("a throwing post-commit hook never turns an applied acknowledgement into a failure", async () => {
+      const onEvent = vi.fn<(event: SupervisorEvent) => void>();
+      const host = createHost({
+        onEvent,
+        onRuntimeGapAcknowledged: () => {
+          throw new Error("hook exploded");
         },
-        interests,
-      ),
-    ).toBeNull();
-  });
-
-  it("keeps initial terminal output subscribed until interest acknowledgement", () => {
-    vi.useFakeTimers();
-    const router = new BackendEventRouter();
-    const output: SupervisorEvent = {
-      type: "thread-output",
-      threadId: "terminal-starting",
-      data: "first frame",
-      outputLength: 11,
-      terminalInstanceId: "gen-test",
-    };
-
-    router.retainTerminalBootstrap("terminal-starting");
-    expect(router.filter(output)).toBe(output);
-    expect(router.filter(output)).toBe(output);
-
-    router.setInterests({
-      terminalThreadIds: ["terminal-starting"],
-      runtimeThreadIds: [],
-      allRuntimeEvents: false,
+      });
+      mocks.acknowledgeRuntimeThreadGap.mockResolvedValue({
+        outcome: "applied",
+        notice: {
+          threadId: "thread-1",
+          acknowledgedToken: "gap2:e11111111-1111-4111-8111-111111111111",
+          source: "exact",
+          reason: "age",
+          refusedEvents: 1,
+          refusedBytes: 10,
+          acknowledgedCount: 1,
+          firstAcknowledgedAt: 1,
+          lastAcknowledgedAt: 1,
+        },
+        descriptor: {
+          threadId: "thread-1",
+          token: "gap2:e11111111-1111-4111-8111-111111111111",
+          source: "exact",
+          reason: "age",
+          refusedEvents: 1,
+          refusedBytes: 10,
+          createdAt: 7,
+        },
+        supersededAcceptedEvents: 0,
+      });
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        await expect(
+          host.acknowledgeThreadRuntimeGap(
+            "thread-1",
+            "gap2:e11111111-1111-4111-8111-111111111111",
+          ),
+        ).resolves.toMatchObject({ outcome: "applied" });
+        expect(onEvent.mock.calls.some(([event]) => event.type === "thread-reset")).toBe(true);
+      } finally {
+        consoleError.mockRestore();
+      }
+      await host.dispose();
     });
-    expect(router.filter(output)).toBe(output);
 
-    router.setInterests({
-      terminalThreadIds: [],
-      runtimeThreadIds: [],
-      allRuntimeEvents: false,
+    it("a throwing reset fan-out does not reject the applied ack or skip the hook", async () => {
+      const order: string[] = [];
+      const host = createHost({
+        onEvent: vi.fn<(event: SupervisorEvent) => void>((event) => {
+          if (event.type === "thread-reset") {
+            order.push("reset");
+            throw new Error("reset fan-out exploded");
+          }
+        }),
+        onRuntimeGapAcknowledged: () => order.push("hook"),
+      });
+      mocks.acknowledgeRuntimeThreadGap.mockResolvedValue(appliedResult());
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        await expect(
+          host.acknowledgeThreadRuntimeGap(
+            "thread-1",
+            "gap2:e11111111-1111-4111-8111-111111111111",
+          ),
+        ).resolves.toMatchObject({ outcome: "applied" });
+        // Both callbacks ran despite the first throwing, in publication order.
+        expect(order).toEqual(["reset", "hook"]);
+      } finally {
+        consoleError.mockRestore();
+      }
+      await host.dispose();
     });
-    expect(router.filter(output)).toBeNull();
-    router.dispose();
-    vi.useRealTimers();
-  });
 
-  it("expires unacknowledged terminal bootstrap interest", () => {
-    vi.useFakeTimers();
-    const router = new BackendEventRouter();
-    const output: SupervisorEvent = {
-      type: "thread-output",
-      threadId: "terminal-starting",
-      data: "first frame",
-      outputLength: 11,
-      terminalInstanceId: "gen-test",
-    };
-
-    router.retainTerminalBootstrap("terminal-starting");
-    vi.advanceTimersByTime(10_000);
-
-    expect(router.filter(output)).toBeNull();
-    router.dispose();
-    vi.useRealTimers();
-  });
-
-  it("attributes bootstrap retention to the authenticated requesting window only", () => {
-    const router = new BackendEventRouter();
-
-    // Originless starts (server, remote, background) widen no window.
-    router.retainTerminalBootstrap("originless");
-    expect(router.isTerminalBootstrapRetainedFor(7, "originless")).toBe(false);
-    expect(router.isTerminalBootstrapRetainedFor(8, "originless")).toBe(false);
-    // The legacy union filter parity (pre-table mainWindow relay) is kept.
-    expect(
-      router.filter({
-        type: "thread-output",
-        threadId: "originless",
-        data: "x",
-        outputLength: 1,
-        terminalInstanceId: "gen-test",
-      }),
-    ).not.toBeNull();
-
-    // Only the authenticated origin window may fail open for the thread.
-    router.retainTerminalBootstrap("shell:new", 7);
-    expect(router.isTerminalBootstrapRetainedFor(7, "shell:new")).toBe(true);
-    expect(router.isTerminalBootstrapRetainedFor(8, "shell:new")).toBe(false);
-    // A re-retain by another origin moves the attribution.
-    router.retainTerminalBootstrap("shell:new", 8);
-    expect(router.isTerminalBootstrapRetainedFor(7, "shell:new")).toBe(false);
-    expect(router.isTerminalBootstrapRetainedFor(8, "shell:new")).toBe(true);
-    router.dispose();
+    it("a throwing hook does not suppress the reset fan-out", async () => {
+      const order: string[] = [];
+      const host = createHost({
+        onEvent: vi.fn<(event: SupervisorEvent) => void>((event) => {
+          if (event.type === "thread-reset") order.push("reset");
+        }),
+        onRuntimeGapAcknowledged: () => {
+          order.push("hook");
+          throw new Error("hook exploded");
+        },
+      });
+      mocks.acknowledgeRuntimeThreadGap.mockResolvedValue(appliedResult());
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        await expect(
+          host.acknowledgeThreadRuntimeGap(
+            "thread-1",
+            "gap2:e11111111-1111-4111-8111-111111111111",
+          ),
+        ).resolves.toMatchObject({ outcome: "applied" });
+        expect(order).toEqual(["reset", "hook"]);
+      } finally {
+        consoleError.mockRestore();
+      }
+      await host.dispose();
+    });
   });
 
   describe("truncateThreadRuntime", () => {

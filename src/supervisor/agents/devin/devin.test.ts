@@ -35,13 +35,15 @@ describe("Devin provider", () => {
       "--help\n$(echo no)",
     ]);
   });
-  it("resumes an exact opaque session without dropping the prompt", () => {
+  it("resumes an exact opaque session without dropping the prompt", async () => {
     const adapter = createDevinAdapter();
     expect(
-      adapter.buildResumeArgv({ kind: "posix", path: "/project" }, { model: "" }, "next", {
-        providerSessionId: "heavy-basin",
-        discoveredAt: "2026-09-10T00:00:00Z",
-      }).args,
+      (
+        await adapter.buildResumeArgv({ kind: "posix", path: "/project" }, { model: "" }, "next", {
+          providerSessionId: "heavy-basin",
+          discoveredAt: "2026-09-10T00:00:00Z",
+        })
+      ).args,
     ).toEqual([
       "--respect-workspace-trust",
       "false",
@@ -65,7 +67,7 @@ describe("Devin provider", () => {
     expect(adapter.shouldDeferPromptToTerminal?.(config)).toBe(true);
     expect(adapter.buildTerminalPreInputs?.(config)).toEqual([["/plan", "@wait:200", "\r"]]);
   });
-  it("keeps one-shots noninteractive and preserves prompts", () => {
+  it("keeps one-shots noninteractive and preserves prompts", async () => {
     expect(buildDevinOneShotArgs(undefined, "title")).toEqual([
       "--permission-mode",
       "bypass",
@@ -76,7 +78,7 @@ describe("Devin provider", () => {
     ]);
     const adapter = createDevinAdapter();
     expect(adapter.capabilities.supportsOneShot).toBe(true);
-    expect(adapter.buildOneShotCommand?.("swe", undefined, "title")?.stdin).toBe("");
+    expect((await adapter.buildOneShotCommand?.("swe", undefined, "title"))?.stdin).toBe("");
   });
   it("keeps login and logout available if ACP probing fails", () => {
     expect(buildDevinProbeCapabilities(undefined)).toMatchObject({

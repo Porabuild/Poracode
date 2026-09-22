@@ -7,7 +7,6 @@ import type {
   PendingSteerState,
   PrData,
   PrDetails,
-  Project,
   RuntimeEvent,
   ThreadAttention,
   ThreadConfig,
@@ -31,15 +30,159 @@ export type SupervisorRequest = {
   };
 }[SupervisorProcedureName];
 
-/** Trusted parent-to-supervisor flow control; kept outside the procedure RPC map. */
-export interface SupervisorFlowControl {
-  control: "set-output-backpressure";
-  paused: boolean;
+/**
+ * Trusted parent-to-supervisor flow control; kept outside the procedure RPC
+ * map. Two planes are deliberately distinct:
+ * - `set-output-backpressure` (B3): client-socket pressure sheds rebuildable
+ *   terminal output at the source.
+ * - `set-event-backpressure` (B1): host persistence health stops canonical
+ *   runtime production. A supervisor that has not advertised
+ *   `SupervisorFlowControlCapabilities.versions` containing 1 must never
+ *   receive this control: a released binary that only knows the first plane
+ *   would misread it as output pressure and shed terminal bytes.
+ */
+export type SupervisorFlowControl =
+  | { control: "set-output-backpressure"; paused: boolean }
+  | {
+      control: "set-event-backpressure";
+      paused: boolean;
+      reason?: "host-persistence-degraded" | "host-persistence-refusing";
+      /**
+       * Additive optional: stop only these threads' canonical producers. A peer
+       * that ignores the field pauses globally (the safe degradation). Used for
+       * per-thread admission refusals so one thread's overflow never stops
+       * unrelated sessions.
+       */
+      threadIds?: string[];
+      /**
+       * Additive optional: the host's credit window for canonical bytes the
+       * supervisor has emitted but the host has not yet acknowledged. The
+       * supervisor only enforces it when it advertised `supportsCanonicalCredit`;
+       * an old supervisor ignores it and stays on the static advertisement.
+       */
+      canonicalCreditBytes?: number;
+      /**
+       * Additive optional: highest canonical `flowSeq` the host has fully
+       * admitted or refused. The supervisor frees the corresponding ledger
+       * bytes (including anything still in kernel/receiver buffers).
+       */
+      canonicalAckSeq?: number;
+      /**
+       * Additive optional: the supervisor boot generation the credit window
+       * applies to (from `SupervisorFlowControlCapabilities`). Acks and windows
+       * from any other generation are ignored, so a restarted supervisor can
+       * never free ledger bytes for a pre-restart flow sequence.
+       */
+      canonicalFlowGeneration?: string;
+    }
+  | {
+      /**
+       * Additive optional control (only sent to a peer that advertised
+       * `supportsCanonicalCredit`): advance the acknowledged flow prefix
+       * without changing producer pause state. Sent after the host's persist
+       * outcome for the envelope, so it can never ack bytes the host did not
+       * admit or explicitly refuse.
+       */
+      control: "ack-canonical-flow";
+      ackSeq: number;
+      generation: string;
+    };
+
+/** Supervisor→host capability advertisement, emitted once per boot. */
+export interface SupervisorFlowControlCapabilities {
+  kind: "supervisor-flow-control-capabilities";
+  versions: number[];
+  /**
+   * Additive optional: the supervisor's own retained canonical bound (sender
+   * bulk queue + one maximum envelope + control reserve). The host uses it for
+   * the pause arithmetic when the peer advertises it and falls back to a
+   * conservative constant otherwise.
+   */
+  maxInFlightBytes?: number;
+  /** Additive optional: the largest single canonical envelope the supervisor emits. */
+  maxEnvelopeBytes?: number;
+  /**
+   * Additive optional: this supervisor tracks host credit/ack for canonical
+   * bytes. The host grants a window and acks only when this is true, so an old
+   * supervisor is never told about a window it does not honor.
+   */
+  supportsCanonicalCredit?: boolean;
+  /**
+   * Additive optional: this supervisor process's boot generation. The host
+   * echoes it on every credit grant and ack; a value that does not match the
+   * current boot is ignored by the supervisor's credit ledger.
+   */
+  canonicalFlowGeneration?: string;
+}
+
+export const SUPERVISOR_EVENT_BACKPRESSURE_VERSION = 1 as const;
+
+export function isSupervisorFlowControlCapabilities(
+  message: unknown,
+): message is SupervisorFlowControlCapabilities {
+  if (typeof message !== "object" || message === null) return false;
+  const candidate = message as Record<string, unknown>;
+  return (
+    candidate.kind === "supervisor-flow-control-capabilities" &&
+    Array.isArray(candidate.versions) &&
+    candidate.versions.every((version) => typeof version === "number")
+  );
+}
+
+export function isSupervisorFlowControl(message: unknown): message is SupervisorFlowControl {
+  if (typeof message !== "object" || message === null) return false;
+  const candidate = message as Record<string, unknown>;
+  if (candidate.control === "ack-canonical-flow") {
+    return (
+      typeof candidate.ackSeq === "number" &&
+      Number.isFinite(candidate.ackSeq) &&
+      typeof candidate.generation === "string" &&
+      candidate.generation.length > 0
+    );
+  }
+  return (
+    (candidate.control === "set-output-backpressure" ||
+      candidate.control === "set-event-backpressure") &&
+    typeof candidate.paused === "boolean"
+  );
+}
+
+/**
+ * Canonical flow identity of an envelope, if it carries one. Only a positive
+ * finite integer is meaningful; a malformed value is treated as absent rather
+ * than as a flow that could ack a different sequence.
+ */
+export function canonicalFlowSeqOf(event: SupervisorEvent): number | undefined {
+  if (
+    event.type !== "thread-runtime-event" &&
+    event.type !== "thread-runtime-events" &&
+    event.type !== "thread-runtime-events-multi"
+  ) {
+    return undefined;
+  }
+  const flowSeq = event.flowSeq;
+  return typeof flowSeq === "number" && Number.isInteger(flowSeq) && flowSeq > 0
+    ? flowSeq
+    : undefined;
 }
 
 export type SupervisorReply =
   | { replyTo: string; ok: true; data: unknown }
-  | { replyTo: string; ok: false; error: string };
+  | {
+      replyTo: string;
+      ok: false;
+      error: string;
+      /**
+       * Additive typed refusal code (e.g. `host_resource_busy`,
+       * `host_resource_policy_unavailable`). Older supervisors omit both
+       * fields and the host degrades to a plain message-only Error; newer
+       * hosts rehydrate `code`/`retryAfterMs` onto the rejected error. No
+       * reply version exists and `isSupervisorReply` keys only on `replyTo`.
+       */
+      errorCode?: string;
+      /** Additive Retry-After hint (ms); only meaningful for busy refusals. */
+      retryAfterMs?: number;
+    };
 
 export type SupervisorEvent =
   | {
@@ -95,11 +238,26 @@ export type SupervisorEvent =
       /** Terminal instance/generation id; batching must not coalesce across this. */
       terminalInstanceId: string;
     }
-  | { type: "thread-runtime-event"; threadId: string; event: RuntimeEvent }
-  | { type: "thread-runtime-events"; threadId: string; events: RuntimeEvent[] }
+  | {
+      type: "thread-runtime-event";
+      threadId: string;
+      event: RuntimeEvent;
+      /** Host-credited canonical flow identity (additive; ignored by old hosts). */
+      flowSeq?: number;
+      flowBytes?: number;
+    }
+  | {
+      type: "thread-runtime-events";
+      threadId: string;
+      events: RuntimeEvent[];
+      flowSeq?: number;
+      flowBytes?: number;
+    }
   | {
       type: "thread-runtime-events-multi";
       batches: ReadonlyArray<{ threadId: string; events: RuntimeEvent[] }>;
+      flowSeq?: number;
+      flowBytes?: number;
     }
   | {
       type: "thread-state";
@@ -208,11 +366,6 @@ export type ThreadOpenRequestedEvent = {
   threadId: string;
   /** Present for OS notification clicks; omitted by tray and app-control opens. */
   source?: "notification";
-};
-
-/** Project rows changed outside the renderer's persisted app-store snapshot. */
-export type ProjectStateChangedEvent = {
-  projects: Project[];
 };
 
 /** Successful desktop PR automation merge; consumed once by the runtime-owner renderer. */

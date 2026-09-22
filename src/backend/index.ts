@@ -8,15 +8,18 @@ import {
   type BackendHostReply,
   type BackendHostRequest,
 } from "@/shared/backendHostProtocol";
-import { BackendEventRouter, BackendHostCore } from "./BackendHostCore";
+import { BackendHostCore } from "./BackendHostCore";
 import { BackendDesktopServices } from "./BackendDesktopServices";
+import { composeBackendEnvironments } from "./BackendEnvironments";
+import type { ComposedHostEnvironments } from "@/host/environments/composeHostEnvironments";
 import { BackendNativeRequests } from "./BackendNativeRequests";
-import { createBackendHostShedPolicy, createSupervisorEventRelay } from "./supervisorEventRelay";
+import { createNativeThreadActivityProjection } from "./nativeThreadActivity";
 import { shutdownBackendHost } from "./shutdown";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
-import { callDatabaseRpc } from "@/main/db/databaseRpc";
+import { callDatabaseRpc } from "@/host/db/databaseRpc";
+import { getRuntimePersistenceSample } from "@/host/db/runtimePersistenceRuntime";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
-import type { LiveEventInterests } from "@/shared/liveEventInterests";
+import type { SupervisorEvent } from "@/shared/ipc";
 
 /** Bare wholesale-replace RPCs refused at the mutation owner (see the
  * `call-database` case); the host-internal DB functions stay available to the
@@ -27,21 +30,14 @@ const WHOLESALE_RUNTIME_REPLACE_RPC: ReadonlySet<string> = new Set([
   "dbReplaceThreadRuntimeSnapshot",
 ]);
 
-const performanceDiagnostics = startNodePerformanceDiagnostics("backend");
+const performanceDiagnostics = startNodePerformanceDiagnostics("backend", process.env, {
+  // B1: additive bounded-persistence evidence on the existing sample lines.
+  sampleRuntimePersistence: () => getRuntimePersistenceSample(),
+});
 let backendHost: BackendHostCore | null = null;
 let desktopServices: BackendDesktopServices | null = null;
+let environments: ComposedHostEnvironments | null = null;
 let supervisorExtraEnv: Record<string, string> = {};
-const eventRouter = new BackendEventRouter();
-let rendererEventInterests: LiveEventInterests = {
-  terminalThreadIds: [],
-  runtimeThreadIds: [],
-  allRuntimeEvents: false,
-};
-let remoteEventInterests: LiveEventInterests = {
-  terminalThreadIds: [],
-  runtimeThreadIds: [],
-  allRuntimeEvents: false,
-};
 const requests = new AsyncWorkTracker();
 const initialization = new AsyncWorkTracker();
 let shuttingDown = false;
@@ -52,6 +48,7 @@ let runtimeWorkJoined = false;
 function stopRuntimeWork(): Promise<void> {
   if (runtimeStop) return runtimeStop;
   acceptingRequests = false;
+  nativeThreadActivity.dispose();
   const barrier = Promise.withResolvers<void>();
   runtimeStop = barrier.promise;
   void (async () => {
@@ -63,6 +60,7 @@ function stopRuntimeWork(): Promise<void> {
       // Keep service references and SQLite alive through every continuation.
       await joinRuntimeShutdown([
         () => desktopServices?.dispose(),
+        () => environments?.dispose(),
         () => backendHost?.disposeSupervisor(),
         () => requests.drain(),
       ]);
@@ -73,12 +71,6 @@ function stopRuntimeWork(): Promise<void> {
   })().then(barrier.resolve, barrier.reject);
   return runtimeStop;
 }
-
-// Shed logging is throttled because sheds arrive per enqueue during a burst —
-// a line per shed would be stderr lines per frame exactly when I/O is worst.
-let shedLogCount = 0;
-let shedLogBytes = 0;
-let shedLogAt = 0;
 
 const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
   ...(performanceDiagnostics ? { queueDiagnostics: performanceDiagnostics.queueCapture } : {}),
@@ -95,27 +87,29 @@ const sender = new SupervisorIpcSender<BackendHostOutboundMessage>({
   onFatalError: () => {
     void shutdown(1, false);
   },
-  // A stalled desktop consumer must not pause the shared supervisor. Bulk
-  // renderer content may shed oldest-first — each shed batch inserts a
-  // supervisor-event-gap signal ahead of the surviving traffic, and the
-  // desktop relay rebuilds affected windows from persisted state. This
-  // containment is per-traffic-class: a queue saturated by non-replayable
-  // traffic alone (replies, thread-state, crossagent, native, errors) still
-  // fails closed, so an arbitrary IPC stall is not fully isolated.
+  // A2: nothing bulk crosses this channel anymore, so there is nothing to shed
+  // oldest-first. The default sender policy is fail-closed: a stalled main is
+  // reported as an error instead of silently discarding native state. Main-IPC
+  // congestion can no longer pause the shared supervisor (no producer
+  // backpressure is derived from this channel), and remote clients keep being
+  // served by the host's own server.
   backpressureTimeoutMs: null,
-  shedPolicy: createBackendHostShedPolicy(),
-  onMessagesShed: ({ count, bytes }) => {
-    shedLogCount += count;
-    shedLogBytes += bytes;
-    const now = Date.now();
-    if (shedLogAt !== 0 && now - shedLogAt < 5_000) return;
-    shedLogAt = now;
-    console.error(
-      `[backend-host] shed ${shedLogCount} queued renderer events (${shedLogBytes} bytes) under desktop-IPC backpressure; gap recovery signals emitted.`,
-    );
-    shedLogCount = 0;
-    shedLogBytes = 0;
-  },
+});
+
+/**
+ * Single observe path for supervisor events inside the backend host. Durable
+ * and remote observers keep their interests; the only state that crosses to
+ * main is the bounded, coalesced native activity projection (A2). The former
+ * desktop-IPC bulk relay and its interest router are gone.
+ */
+function observeSupervisorEvent(event: SupervisorEvent): void {
+  desktopServices?.observeSupervisorEvent(event);
+  nativeThreadActivity.observe(event);
+}
+
+const nativeThreadActivity = createNativeThreadActivityProjection({
+  emit: (changes) =>
+    send({ version: BACKEND_HOST_PROTOCOL_VERSION, kind: "native-thread-activity", changes }),
 });
 performanceDiagnostics?.observeIpcQueue("backend-to-main", () => sender.getQueueDiagnostics());
 
@@ -174,25 +168,6 @@ function reportError(
   });
 }
 
-function syncEventInterests(): void {
-  eventRouter.setInterests({
-    terminalThreadIds: [
-      ...new Set([
-        ...rendererEventInterests.terminalThreadIds,
-        ...remoteEventInterests.terminalThreadIds,
-      ]),
-    ],
-    runtimeThreadIds: [
-      ...new Set([
-        ...rendererEventInterests.runtimeThreadIds,
-        ...remoteEventInterests.runtimeThreadIds,
-      ]),
-    ],
-    allRuntimeEvents:
-      rendererEventInterests.allRuntimeEvents || remoteEventInterests.allRuntimeEvents,
-  });
-}
-
 function requestNative(
   request: import("@/shared/backendHostProtocol").BackendNativeRequest,
 ): Promise<unknown> {
@@ -220,22 +195,6 @@ function replyFailure(replyTo: string, error: unknown): void {
   send(reply);
 }
 
-// Single delivery path for supervisor events leaving the backend host (V5
-// 2.5): the legacy full relay across the desktop-IPC channel. Every event is
-// filtered by the union interests router and crosses ONCE, carrying its
-// host-lifetime monotonic relay sequence; desktop windows dedupe and gate
-// rebuilds by that sequence, and IPC shedding recovers through
-// `supervisor-event-gap` (see the shed policy in supervisorEventRelay.ts).
-// Renderer congestion is never forwarded upstream as supervisor-wide output
-// backpressure (Gate 4 §5.4 F10 semantics retained).
-let rendererEventSequence = 0;
-const relaySupervisorEvent = createSupervisorEventRelay({
-  nextSequence: () => ++rendererEventSequence,
-  observeEvent: (event) => desktopServices?.observeSupervisorEvent(event),
-  filterEventForRelay: (event) => eventRouter.filter(event),
-  sendToMain: send,
-});
-
 async function initialize(
   request: Extract<BackendHostRequest, { operation: "initialize" }>,
 ): Promise<unknown> {
@@ -262,20 +221,16 @@ async function initialize(
       reportError,
     },
     onEvent: (event) => {
-      relaySupervisorEvent(event);
+      observeSupervisorEvent(event);
     },
     onSupervisorOutputShed: (threadIds) => {
       // The supervisor shed terminal-output batches in transit; the events
-      // never persisted, so windows must rebuild those threads' output from
-      // the supervisor's authoritative scrollback. The unsequenced
-      // `thread-scrollback-resync` events dispatch ungated in every window.
-      for (const threadId of threadIds) {
-        send({
-          version: BACKEND_HOST_PROTOCOL_VERSION,
-          kind: "supervisor-event",
-          event: { type: "thread-scrollback-resync", threadId },
-        });
-      }
+      // never persisted. Remote clients must resynchronize those threads from
+      // the supervisor's authoritative PTY scrollback over the WS
+      // `resync-required` path (headless parity). The old `thread-scrollback-
+      // resync` supervisor event targeted a main consumer that no longer
+      // existed after V6 B.6 and is deleted with the relay (A2).
+      desktopServices?.handleSupervisorOutputShed();
       reportError?.(
         new Error(
           `supervisor shed terminal output for ${threadIds.length} thread(s) under IPC backpressure`,
@@ -288,34 +243,33 @@ async function initialize(
       // also drop its cached background-task levels here.
       desktopServices?.handleSupervisorReset();
       for (const event of desktopServices?.markLiveThreadsInactive() ?? []) {
-        relaySupervisorEvent(event);
+        observeSupervisorEvent(event);
       }
       send({
         version: BACKEND_HOST_PROTOCOL_VERSION,
         kind: "supervisor-reset",
       });
     },
+    onRuntimeGapAcknowledged: (threadId) => {
+      // B1 durable-gap acknowledgement committed: publication-only recovery
+      // (the local renderer already gets `thread-reset` through `onEvent`, and
+      // remote clients resync). This must never re-enter supervisor-event
+      // persistence, which would erase committed transcript bytes.
+      desktopServices?.handleRuntimeGapAcknowledged(threadId);
+    },
   });
+  environments = await composeBackendEnvironments(request.payload, backendHost);
   desktopServices = new BackendDesktopServices({
     initialize: request.payload,
     host: backendHost,
+    ...(environments ? { environments: environments.runtimeService } : {}),
     requestNative,
     reportError,
     emitNativeEvent: (event) =>
       send({ version: BACKEND_HOST_PROTOCOL_VERSION, kind: "native-event", event }),
-    setRemoteEventInterests: (interests) => {
-      remoteEventInterests = interests;
-      syncEventInterests();
-    },
   });
   if (!acceptingRequests) throw new Error("Backend host is shutting down.");
   return null;
-}
-
-/** Validated authenticated origin window of a call-supervisor request, or undefined. */
-function readCallOriginWindowId(request: { originWindowId?: unknown }): number | undefined {
-  const value = request.originWindowId;
-  return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : undefined;
 }
 
 function handleRequest(request: BackendHostRequest): Promise<unknown> {
@@ -337,6 +291,7 @@ function handleRequest(request: BackendHostRequest): Promise<unknown> {
 async function disposeRuntime(): Promise<null> {
   await stopRuntimeWork();
   desktopServices = null;
+  environments = null;
   backendHost?.closeDatabase();
   backendHost = null;
   return null;
@@ -371,34 +326,16 @@ async function executeRequest(
       // after the first success this await is a resolved promise.
       await desktopServices?.prepareSupervisor();
       const supervisorRequest = request.payload;
-      const payload = supervisorRequest.payload as { shellId?: string; threadId?: string };
-      const bootstrapThreadId =
-        supervisorRequest.type === "startShell"
-          ? payload.shellId
-          : supervisorRequest.type === "startThread"
-            ? payload.threadId
-            : undefined;
-      // The start's authenticated origin window (main-assigned from the IPC
-      // sender, or the backend-validated stream bind). Originless starts —
-      // server, remote, background — widen no window's bootstrap retention.
-      const originWindowId = readCallOriginWindowId(supervisorRequest);
-      if (bootstrapThreadId) {
-        eventRouter.retainTerminalBootstrap(bootstrapThreadId, originWindowId);
-      }
-      if (supervisorRequest.type === "closeThread" && payload.threadId) {
-        eventRouter.clearTerminalBootstrap(payload.threadId);
-      }
-      try {
-        return await host.supervisorClient.call(
-          supervisorRequest.type,
-          supervisorRequest.payload as never,
-        );
-      } catch (error) {
-        if (bootstrapThreadId) {
-          eventRouter.clearTerminalBootstrap(bootstrapThreadId);
-        }
-        throw error;
-      }
+      // A2 removed the relay whose terminal-bootstrap interest window this
+      // request origin used to widen; terminal delivery is `terminal-watch`-
+      // scoped on the loopback WS, so there is no backend-side bootstrap
+      // retention left to scope. The desktop composition additionally guards
+      // the experiment worktree preparation at this existing call boundary
+      // (stale-ownership refusal + in-flight coordination with project
+      // removal); every other procedure passes straight through.
+      return await (desktopServices
+        ? desktopServices.callSupervisor(supervisorRequest.type, supervisorRequest.payload as never)
+        : host.supervisorClient.call(supervisorRequest.type, supervisorRequest.payload as never));
     }
     case "call-database": {
       // Truncate is intercepted at the request owner: locally-acting renderer
@@ -430,7 +367,7 @@ async function executeRequest(
             "runtime state arrives through runtime events, not wholesale client replaces.",
         );
       }
-      const result = callDatabaseRpc(request.payload);
+      const result = await callDatabaseRpc(request.payload);
       desktopServices?.databaseChanged(request.payload);
       return result;
     }
@@ -443,10 +380,6 @@ async function executeRequest(
     case "call-service":
       if (!desktopServices) throw new Error("Backend desktop services are not initialized.");
       return desktopServices.call(request.payload.name, request.payload.payload as never);
-    case "set-event-interests":
-      rendererEventInterests = request.payload;
-      syncEventInterests();
-      return null;
     case "browser-event":
       desktopServices?.publishBrowserEvent(request.payload);
       return null;
@@ -489,13 +422,13 @@ async function shutdown(exitCode: number, flush: boolean): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
   acceptingRequests = false;
-  eventRouter.dispose();
   nativeRequests.cancel(new Error("Backend host is shutting down."));
   await shutdownBackendHost({
     steps: [
       async () => {
         await stopRuntimeWork();
         desktopServices = null;
+        environments = null;
       },
       async () => {
         if (flush && process.connected) await sender.flushAndWait(1_000);

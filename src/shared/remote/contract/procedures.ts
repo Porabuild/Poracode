@@ -8,6 +8,16 @@ export const BLOCKED_PROCEDURE_RESULTS: readonly string[] = [];
 function procedureContract(name: RemoteProcedureName): RemoteProcedureContract {
   const spec = REMOTE_PROCEDURE_SPECS[name];
   const ipc = ipcProcedureMap[name];
+  // R1: the allowlist is supervisor-typed; this fail-closed assertion keeps a
+  // main-local procedure out of the generated contract surface even if the
+  // compile-time constraint is ever weakened.
+  if (ipc.transport !== "supervisor") {
+    throw new Error(
+      `Remote procedure "${name}" is not a supervisor procedure ` +
+        `(transport "${ipc.transport}"). Main-local procedures must never enter ` +
+        "the generic remote passthrough contract.",
+    );
+  }
   const resultSchema = ipc.resultSchema;
   if (!resultSchema) {
     throw new Error(

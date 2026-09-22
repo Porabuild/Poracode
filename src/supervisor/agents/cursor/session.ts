@@ -1,9 +1,19 @@
-import { spawnSync } from "node:child_process";
 import type { ProjectLocation } from "@/shared/contracts";
-import { buildAgentCommand } from "../base";
+import {
+  buildAgentCommand,
+  prepareAgentLocationEnvironment,
+  readCommandOutputAsync,
+} from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 
-export function createCursorChatSync(location: ProjectLocation): string | undefined {
+/**
+ * Ask `cursor-agent create-chat` for a pre-assigned chat id. Async and bounded
+ * so a WSL launch never pins the supervisor control loop: the WSL location is
+ * prepared against the shared launch-environment cache and the command runs
+ * through the async child runner.
+ */
+export async function createCursorChat(location: ProjectLocation): Promise<string | undefined> {
+  await prepareAgentLocationEnvironment(location);
   const spec = buildAgentCommand(
     location,
     "cursor-agent",
@@ -11,15 +21,12 @@ export function createCursorChatSync(location: ProjectLocation): string | undefi
     resolveAgentBinaryPath(location, "cursor-agent"),
   );
   try {
-    const result = spawnSync(spec.command, spec.args, {
-      encoding: "utf8",
+    const result = await readCommandOutputAsync(spec.command, spec.args, {
       ...(spec.cwd ? { cwd: spec.cwd } : {}),
-      windowsHide: true,
       timeout: 15_000,
     });
-    const chatId = (result.stdout ?? "").trim();
-    if (result.status === 0 && chatId.length > 0) {
-      return chatId;
+    if (result.ok && result.stdout.length > 0) {
+      return result.stdout;
     }
   } catch {
     // Fall through — launch without a pre-assigned session

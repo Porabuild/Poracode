@@ -12,7 +12,6 @@ import {
   dbDeleteThreadPayloadSchema,
   dbGetCompletedTurnsPayloadSchema,
   dbGetProjectNotesPayloadSchema,
-  dbPersistExperimentStatePayloadSchema,
   dbGetRuntimeItemsPayloadSchema,
   dbGetRuntimeItemsPagePayloadSchema,
   dbGetThreadContextUsagePayloadSchema,
@@ -30,7 +29,6 @@ import {
   persistedRuntimeItemSchema,
   persistedThreadPageRemoteSchema,
   persistedCompletedTurnSchema,
-  type DbPersistExperimentStatePayload,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,
@@ -101,11 +99,6 @@ export const dbProcedures = {
     void,
     "main-local"
   >("dbSyncChanges", "main-local", dbSyncChangesPayloadSchema),
-  dbPersistExperimentState: definePayloadProcedure<
-    DbPersistExperimentStatePayload,
-    void,
-    "main-local"
-  >("dbPersistExperimentState", "main-local", dbPersistExperimentStatePayloadSchema),
   dbGetThreadRuntimeItems: defineIpcProcedure<
     [string],
     z.infer<typeof dbGetRuntimeItemsPayloadSchema>,

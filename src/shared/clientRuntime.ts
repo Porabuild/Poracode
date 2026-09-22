@@ -1,6 +1,5 @@
 import type { StandaloneAttachInfo } from "./standaloneAttach";
 import type { HostServiceCapabilities } from "./hostControlProtocol";
-import type { SupervisorEventGap } from "./backendHostProtocol";
 import type { IpcProcedureName, PoracodeBridge, PoracodeInvokeBridge } from "./ipc";
 import type {
   RemoteHttpBridgeCancelRequest,
@@ -54,6 +53,10 @@ import { CLIENT_HOST_HOP_VERSION } from "./clientHostHop";
 // backend child). A version-13 preload cannot deliver the reset signal and
 // still serves the deleted stream APIs, so the gate rejects that pairing
 // loudly instead of half-serving both transports. See .agents/docs/versioning.md.
+// Version 15 (V2 A2) removes `onSupervisorEventGap`: the desktop-IPC bulk relay
+// and its shed-gap recovery signal are gone, and the preload no longer serves
+// the `setRendererEventInterests` procedure. A version-14 preload still speaks
+// the removed vocabulary, so the gate rejects that pairing loudly.
 export const PORACODE_CLIENT_RUNTIME_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export type ClientHost = "electron" | "browser";
@@ -99,11 +102,10 @@ export type PoracodeNativeBridge = Omit<PoracodeBridge, keyof PoracodeInvokeBrid
 export type ElectronHostBridge = Omit<PoracodeNativeBridge, "onSupervisorEvent"> & {
   readonly clientRuntimeVersion: typeof PORACODE_CLIENT_RUNTIME_VERSION;
   invokeProcedure(name: IpcProcedureName, args: unknown[]): Promise<unknown>;
-  onSupervisorEventGap(listener: (gap: SupervisorEventGap) => void): () => void;
   /**
-   * Backend reset (required at facade version 14): the desktop-IPC relay
-   * sequence space restarts with a new backend child, so the renderer drops
-   * its dedupe cursor and rebuilds subscribed state.
+   * Backend reset (required at facade version 14): a new backend child
+   * restarts the loopback sequence spaces, so the renderer drops its dedupe
+   * cursors and rebuilds subscribed state.
    */
   onBackendSupervisorReset(listener: () => void): () => void;
   /**

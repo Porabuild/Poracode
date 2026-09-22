@@ -17,6 +17,7 @@ import {
   ProcessPerformanceSampler,
 } from "./processPerformanceSampler";
 import type { AppMetricsSample } from "./appMetricsSample";
+import type { RuntimePersistenceSample } from "./runtimePersistenceSample";
 
 type ProcessRole = "desktop-main" | "backend" | "supervisor" | "server" | "relay";
 const DEFAULT_INTERVAL_MS = 1_000;
@@ -39,6 +40,13 @@ export interface NodePerformanceDiagnosticsOptions {
    * probe simply omits the field.
    */
   sampleAppMetrics?(): AppMetricsSample | null;
+  /**
+   * B1 additive sampler: bounded runtime persistence pending bytes/events/age,
+   * flush outcomes and storage state. Appended as one optional
+   * `runtimePersistence` field on sample lines, following the same
+   * format-2-additive rule as `appMetrics`. Null or a thrown probe omits it.
+   */
+  sampleRuntimePersistence?(): RuntimePersistenceSample | null;
 }
 
 function optionalInteger(
@@ -138,6 +146,14 @@ export function startNodePerformanceDiagnostics(
         appMetrics = null;
       }
     }
+    let runtimePersistence: RuntimePersistenceSample | null = null;
+    if (options.sampleRuntimePersistence) {
+      try {
+        runtimePersistence = options.sampleRuntimePersistence();
+      } catch {
+        runtimePersistence = null;
+      }
+    }
     writer.append({
       kind: "sample",
       formatVersion: NODE_PERFORMANCE_EVIDENCE_FORMAT_VERSION,
@@ -149,6 +165,7 @@ export function startNodePerformanceDiagnostics(
       // Format-v2-additive: a new OPTIONAL field on sample lines only; the
       // start line and every existing field are unchanged, so no version bump.
       ...(appMetrics ? { appMetrics } : {}),
+      ...(runtimePersistence ? { runtimePersistence } : {}),
     });
   }
 

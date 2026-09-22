@@ -2,7 +2,7 @@ import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import {
   spawnCursorSdkWorker,
@@ -14,6 +14,7 @@ import {
   CURSOR_SDK_WORKER_PROTOCOL_VERSION,
   type CursorSdkWorkerProbeResult,
 } from "./sdkWorkerProtocol";
+import { primeWslLaunchEnvironment } from "../base";
 
 const tempDirectories: string[] = [];
 const children: ChildProcess[] = [];
@@ -29,6 +30,10 @@ afterEach(() => {
 });
 
 describe("spawnCursorSdkWorker", () => {
+  beforeEach(() => {
+    primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
+  });
+
   it("fails the boot when a staged helper speaks an older protocol", async () => {
     const fixture = makeProtocolFixture(CURSOR_SDK_WORKER_PROTOCOL_VERSION - 1);
 

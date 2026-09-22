@@ -43,6 +43,7 @@ export class RemoteClientPinCore {
         "The pairing link's certificate fingerprint does not match the server's TLS certificate. The link may be cloned, or the server certificate changed — re-generate the pairing QR on the desktop.",
         502,
         "certificate_fingerprint_mismatch",
+        { requestPhase: "presend", requestMayHaveCommitted: false },
       );
     }
   }
@@ -64,11 +65,16 @@ export class RemoteClientPinCore {
   }
 }
 
-/** Shared transport-independent certificate mismatch surfaced by native TLS paths. */
+/**
+ * Shared transport-independent certificate mismatch surfaced by native TLS
+ * paths. It is a presend refusal: the request was never handed to the
+ * transport, so a mutation behind it is a definite failure, never ambiguous.
+ */
 export function remoteCertificateMismatchError(): RemoteClientError {
   return new RemoteClientError(
     "The server's TLS certificate no longer matches the fingerprint pinned at pairing. Re-pair the device from the desktop's Remote Access panel.",
     502,
     "certificate_fingerprint_mismatch",
+    { requestPhase: "presend", requestMayHaveCommitted: false },
   );
 }

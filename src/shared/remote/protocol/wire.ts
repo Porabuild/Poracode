@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { sensitiveAgentSettingKeys } from "../../agentSecrets";
+import { CATALOG_READS_CAPABILITY } from "../catalogReadContract";
 import { persistedRuntimeItemSchema } from "../../ipc/schemas";
 import { gitStateInterestSchema } from "../../gitState";
 import { sharedSettingsSchema } from "../../settings";
@@ -14,6 +15,7 @@ import {
   remoteTerminalWatchBaselineChunkSchema,
   remoteAccessSessionSchema,
 } from "./core";
+import { remoteRuntimeHistoryNoticeSchema } from "./runtimeHistoryNotice";
 
 export const remoteTimelineEntryCountSchema = z.number().int().min(1).max(100);
 
@@ -28,6 +30,18 @@ export type RemoteRuntimeItemsPageRequest = z.infer<typeof remoteRuntimeItemsPag
 export const remoteRuntimeItemsPageSchema = z.object({
   items: z.array(persistedRuntimeItemSchema),
   nextCursor: z.number().int().nonnegative().nullable(),
+  /**
+   * B4 bounded-reads echo (`reads=bounded-v1`). Absent on legacy hosts and on
+   * undeclared responses, so an old reader ignores it and a declared client
+   * uses its absence as the only "genuine older host" downgrade signal.
+   */
+  reads: z.literal(CATALOG_READS_CAPABILITY).optional(),
+  /**
+   * B1 durable history-incomplete notice (see `remoteThreadSnapshotSchema`).
+   * Managed GUI hydration reads item pages, so the notice rides this shape too
+   * and cannot be missed by a client that never fetches the snapshot route.
+   */
+  runtimeNotice: remoteRuntimeHistoryNoticeSchema.optional(),
 });
 export type RemoteRuntimeItemsPage = z.infer<typeof remoteRuntimeItemsPageSchema>;
 

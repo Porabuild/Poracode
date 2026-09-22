@@ -40,6 +40,18 @@ export interface SessionRuntimeLifecycleContext {
   failStructuredSession(session: SessionRuntime, error: unknown): void;
   indexSessionRef(session: SessionRuntime, prevId: string | undefined): void;
   pollSessionRefDiscovery(session: SessionRuntime): void;
+  /**
+   * A runtime generation was published for this thread (initial launch, resume,
+   * restart, or replacement). Used to reset per-generation producer state that
+   * must not outlive the session it described.
+   */
+  onSessionAttached?(threadId: string): void;
+  /**
+   * Notified when an observed effect released this session's execution lease.
+   * The manager prunes retained retirement custody on release; a timed-out
+   * retirement entry must not outlive the reservation it was protecting.
+   */
+  onResourceLeaseRelease?(session: SessionRuntime): void;
 }
 
 /** Registers a newly-created runtime and owns its structured-session / PTY event bindings. */
@@ -49,6 +61,9 @@ export class SessionRuntimeLifecycle {
   attach(session: SessionRuntime): void {
     const context = this.context;
     context.sessions.set(session.threadId, session);
+    // A replacement generation is not the stopped predecessor: per-generation
+    // overflow-stop state must not suppress this session's own hard stop.
+    context.onSessionAttached?.(session.threadId);
     if (session.pty) {
       context.ptyLifecycle.track(session);
     }
@@ -80,6 +95,16 @@ export class SessionRuntimeLifecycle {
   private bindStructuredSession(session: SessionRuntime): void {
     session.structuredSession?.setListener({
       onClose: () => {
+        // Transport close is the structured side's confirmed retirement.
+        session.structuredRetired = true;
+        // A structured-only session's logical retirement is its transport
+        // close; release the slot here. When a PTY also backs this session,
+        // retirement requires both owned effects (the close path kills the
+        // PTY next and the PTY exit cannot release alone).
+        if (!session.pty) {
+          session.resourceLease?.confirmExit();
+          this.context.onResourceLeaseRelease?.(session);
+        }
         if (!this.canHandleStructuredEvent(session)) return;
         this.handleStructuredSessionClosed(session);
       },
@@ -222,8 +247,18 @@ export class SessionRuntimeLifecycle {
     pty.onExit((event) => {
       const context = this.context;
       context.ptyLifecycle.resolveExit(session);
+      // Observed PTY exit releases a terminal session's slot; instance-keyed,
+      // so a late predecessor exit cannot free a successor. A mixed session
+      // (out-of-contract PTY + structured) still owes the structured side's
+      // confirmation, so the PTY exit alone must not free its capacity.
+      if (!session.structuredSession || session.structuredRetired === true) {
+        session.resourceLease?.confirmExit();
+        context.onResourceLeaseRelease?.(session);
+      }
       try {
-        session.launchCleanup?.();
+        void Promise.resolve(session.launchCleanup?.()).catch(() => {
+          // Temporary launch-resource cleanup is best effort.
+        });
       } catch {
         // Temporary launch-resource cleanup is best effort.
       }

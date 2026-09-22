@@ -4,6 +4,7 @@ import {
   HOST_CONTROL_PROTOCOL_VERSION,
   hostControlReplySchema,
   hostControlRequestSchema,
+  hostControlStatusResultSchema,
   hostDescriptionSchema,
 } from "./hostControlProtocol";
 
@@ -157,5 +158,95 @@ describe("owner management contract", () => {
     expect(hostControlReplySchema.safeParse({ ...reply, ownerGeneration: undefined }).success).toBe(
       false,
     );
+  });
+
+  describe("D4 upgrade identity operations", () => {
+    const build = {
+      version: "1.8.1",
+      sourceRevision: null,
+      entrypointSha256: "a".repeat(64),
+      root: "/opt/poracode/releases/release-fixture",
+      layoutKind: "prefix",
+    };
+    const statusResult = {
+      profileNamespace: description.profileNamespace,
+      dataRoot: description.dataRoot,
+      mode: "headless",
+      state: "starting",
+      admission: "held",
+      endpoint: null,
+      build,
+    };
+
+    it("accepts the additive status and admit operations under version 2", () => {
+      expect(
+        hostControlRequestSchema.parse({ ...request, operation: "status", payload: {} }),
+      ).toMatchObject({ operation: "status", payload: {} });
+      expect(
+        hostControlRequestSchema.parse({
+          ...request,
+          operation: "admit",
+          payload: { expectedVersion: "1.8.1", expectedEntrypointSha256: "a".repeat(64) },
+        }),
+      ).toMatchObject({ operation: "admit" });
+      // An admit without the expected identity can never release admission.
+      expect(
+        hostControlRequestSchema.safeParse({ ...request, operation: "admit", payload: {} }).success,
+      ).toBe(false);
+      expect(
+        hostControlRequestSchema.safeParse({
+          ...request,
+          operation: "admit",
+          payload: { expectedVersion: "1.8.1", expectedEntrypointSha256: "not-a-digest" },
+        }).success,
+      ).toBe(false);
+    });
+
+    it("keeps the strict describe shape unchanged for older local peers", () => {
+      // The operation list stays at its historical two entries: a pre-D4 peer
+      // parses a new owner's describe, and discovers status/admit by trying.
+      expect(hostDescriptionSchema.parse(description).operations).toEqual([
+        "describe",
+        "issue-pairing",
+      ]);
+      expect(
+        hostDescriptionSchema.safeParse({ ...description, operations: ["describe", "status"] })
+          .success,
+      ).toBe(false);
+    });
+
+    it("round-trips the status result and rejects a widened identity", () => {
+      expect(hostControlStatusResultSchema.parse(statusResult)).toEqual(statusResult);
+      expect(
+        hostControlStatusResultSchema.safeParse({ ...statusResult, admission: "maybe" }).success,
+      ).toBe(false);
+      expect(
+        hostControlStatusResultSchema.safeParse({
+          ...statusResult,
+          build: { ...build, entrypointSha256: "short" },
+        }).success,
+      ).toBe(false);
+      const reply = {
+        version: HOST_CONTROL_PROTOCOL_VERSION,
+        requestId: request.requestId,
+        ownerGeneration: request.ownerGeneration,
+        ok: true,
+        result: statusResult,
+      };
+      expect(hostControlReplySchema.parse(reply)).toEqual(reply);
+    });
+
+    it("exposes identity refusal codes without free-form detail", () => {
+      for (const code of ["identity-mismatch", "not-staging"]) {
+        const reply = {
+          version: HOST_CONTROL_PROTOCOL_VERSION,
+          requestId: request.requestId,
+          ownerGeneration: request.ownerGeneration,
+          ok: false,
+          error: { code },
+        };
+        expect(hostControlReplySchema.parse(reply)).toEqual(reply);
+      }
+    });
   });
 });

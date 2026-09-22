@@ -39,7 +39,6 @@ vi.mock("./base/processRuntime", async (importActual) => {
   const shellBinaries = new Set(["pwsh.exe", "pwsh", "powershell.exe", "powershell"]);
   return {
     ...actual,
-    resolveWslShellPath: () => "/bin/bash",
     // Keep shell detection real, but skip PATH resolution for agent CLIs so
     // Windows tests assert argv shaping (`codex`, `copilot`) instead of fnm
     // node.exe / .cmd shim expansion on the host machine.
@@ -51,6 +50,7 @@ vi.mock("./base/processRuntime", async (importActual) => {
 import {
   buildWindowsCommand,
   getWslCommand,
+  primeWslLaunchEnvironment,
   resolveLaunchSpec,
   type AgentAdapter,
   type AgentLaunchOptions,
@@ -63,31 +63,36 @@ import { buildCodexArgvFor, primeCodexGoalsSupport } from "./codex/argv";
 import { createCursorAdapter } from "./cursor";
 import { createGrokAdapter } from "./grok";
 
-function launch(
+/**
+ * These suites pin provider argv shaping through the same async launch
+ * planning the supervisor uses. A WSL location needs its launch environment
+ * prepared first — `beforeEach` seeds it so the suites never spawn a probe.
+ */
+async function launch(
   adapter: AgentAdapter,
   location: ProjectLocation,
   config: ThreadConfig,
   prompt: string,
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
-): CommandSpec {
+): Promise<CommandSpec> {
   return resolveLaunchSpec(
     location,
-    adapter.buildLaunchArgv(location, config, prompt, sessionRef, launchOptions),
+    await adapter.buildLaunchArgv(location, config, prompt, sessionRef, launchOptions),
   );
 }
 
-function resume(
+async function resume(
   adapter: AgentAdapter,
   location: ProjectLocation,
   config: ThreadConfig,
   prompt: string,
   sessionRef: SessionRef,
   launchOptions?: AgentLaunchOptions,
-): CommandSpec {
+): Promise<CommandSpec> {
   return resolveLaunchSpec(
     location,
-    adapter.buildResumeArgv(location, config, prompt, sessionRef, launchOptions),
+    await adapter.buildResumeArgv(location, config, prompt, sessionRef, launchOptions),
   );
 }
 
@@ -137,9 +142,10 @@ function clearBrowserMcpEnv(): void {
 describe("agent command builders", () => {
   beforeEach(() => {
     clearBrowserMcpEnv();
+    primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
   });
-  it.skipIf(process.platform !== "win32")("builds a Windows Codex launch command", () => {
-    const spec = launch(createCodexAdapter(), windowsProject, config, "hello");
+  it.skipIf(process.platform !== "win32")("builds a Windows Codex launch command", async () => {
+    const spec = await launch(createCodexAdapter(), windowsProject, config, "hello");
     expect(spec.cwd).toBe("C:\\Users\\demo\\project");
     const { cmd, cmdArgs } = parseWindowsSpec(spec);
     expect(cmd).toBe("codex");
@@ -148,8 +154,8 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "builds a WSL Codex launch command via login shell",
-    () => {
-      const spec = launch(createCodexAdapter(), wslProject, config, "hello");
+    async () => {
+      const spec = await launch(createCodexAdapter(), wslProject, config, "hello");
       expect(spec.command.toLowerCase()).toBe(getWslCommand().toLowerCase());
       expect(spec.args.slice(0, 5)).toEqual([
         "-d",
@@ -173,8 +179,8 @@ describe("agent command builders", () => {
     20_000,
   );
 
-  it("builds a Codex app-server stdio command", () => {
-    const spec = buildCodexAppServerCommand(windowsProject);
+  it("builds a Codex app-server stdio command", async () => {
+    const spec = await buildCodexAppServerCommand(windowsProject);
 
     const { cmd, cmdArgs } = parseWindowsSpec(spec);
     expect(cmd).toBe("codex");
@@ -190,8 +196,8 @@ describe("agent command builders", () => {
     expect(cmdArgs).not.toContain("--session-source");
   });
 
-  it("passes the Codex approvals reviewer override to terminal sessions", () => {
-    const spec = buildCodexArgvFor(
+  it("passes the Codex approvals reviewer override to terminal sessions", async () => {
+    const spec = await buildCodexArgvFor(
       windowsProject,
       { ...config, approvalsReviewer: "auto_review" },
       "hello",
@@ -201,22 +207,22 @@ describe("agent command builders", () => {
     expect(spec.args).toContain('approvals_reviewer="auto_review"');
   });
 
-  it("passes the Codex context window and compact limit to terminal sessions", () => {
-    const spec = buildCodexArgvFor(windowsProject, { ...config, contextSize: "1m" }, "hello");
+  it("passes the Codex context window and compact limit to terminal sessions", async () => {
+    const spec = await buildCodexArgvFor(windowsProject, { ...config, contextSize: "1m" }, "hello");
 
     expect(spec.args).toContain("model_context_window=1000000");
     expect(spec.args).toContain("model_auto_compact_token_limit=950000");
   });
 
-  it("defaults Codex terminal sessions to a 400k context window", () => {
-    const spec = buildCodexArgvFor(windowsProject, config, "hello");
+  it("defaults Codex terminal sessions to a 400k context window", async () => {
+    const spec = await buildCodexArgvFor(windowsProject, config, "hello");
 
     expect(spec.args).toContain("model_context_window=400000");
     expect(spec.args).toContain("model_auto_compact_token_limit=380000");
   });
 
-  it("injects Codex browser MCP config when enabled, using a token env var", () => {
-    const spec = buildCodexAppServerCommand(windowsProject, {
+  it("injects Codex browser MCP config when enabled, using a token env var", async () => {
+    const spec = await buildCodexAppServerCommand(windowsProject, {
       mcpServers: [
         {
           id: "browser",
@@ -239,8 +245,8 @@ describe("agent command builders", () => {
     expect(Object.values(spec.env ?? {})).toContain("secret-token");
   });
 
-  it("keeps pooled Codex MCP config out of argv while preserving token env vars", () => {
-    const spec = buildCodexAppServerCommand(windowsProject, {
+  it("keeps pooled Codex MCP config out of argv while preserving token env vars", async () => {
+    const spec = await buildCodexAppServerCommand(windowsProject, {
       mcpServers: [
         {
           id: "browser",
@@ -261,8 +267,8 @@ describe("agent command builders", () => {
     expect(Object.values(spec.env ?? {})).toContain("secret-token");
   });
 
-  it("injects Codex Crossagents MCP config when enabled, using a distinct token env var", () => {
-    const spec = buildCodexAppServerCommand(windowsProject, {
+  it("injects Codex Crossagents MCP config when enabled, using a distinct token env var", async () => {
+    const spec = await buildCodexAppServerCommand(windowsProject, {
       mcpServers: [
         {
           id: "crossagents",
@@ -286,13 +292,13 @@ describe("agent command builders", () => {
     expect(cmdArgs).toContain('mcp_servers.crossagents.default_tools_approval_mode="approve"');
     expect(cmdArgs).not.toContain('mcp_servers.crossagents.bearer_token="crossagent-token"');
 
-    const disabledSpec = buildCodexAppServerCommand(windowsProject);
+    const disabledSpec = await buildCodexAppServerCommand(windowsProject);
     const { cmdArgs: disabledArgs } = parseWindowsSpec(disabledSpec);
     expect(disabledArgs.some((a) => a.startsWith("mcp_servers.crossagents"))).toBe(false);
   });
 
-  it("resumes the server thread when structured session provides a threadId", () => {
-    const spec = launch(createCodexAdapter(), windowsProject, config, "", undefined, {
+  it("resumes the server thread when structured session provides a threadId", async () => {
+    const spec = await launch(createCodexAdapter(), windowsProject, config, "", undefined, {
       suppressResumeConfigOverrides: true,
       resumeThreadId: "019d19c4-8050-7270-b8fc-589eee8136c2",
     });
@@ -305,13 +311,13 @@ describe("agent command builders", () => {
     expect(cmdArgs[cmdArgs.length - 1]).toBe("019d19c4-8050-7270-b8fc-589eee8136c2");
   });
 
-  it("builds a WSL Codex app-server command without a login shell", () => {
+  it("builds a WSL Codex app-server command without a login shell", async () => {
     // WSL goals support is detected asynchronously and cached during detection
     // (see codex/index.ts), so prime it the way detection would before building
     // the launch command — otherwise it defaults to off and `--enable goals`
     // is omitted.
     primeCodexGoalsSupport(wslProject, "codex-cli 0.130.0", "/home/demo/.local/bin/codex");
-    const spec = buildCodexAppServerCommand(wslProject, {
+    const spec = await buildCodexAppServerCommand(wslProject, {
       wslExecPath: "/home/demo/.local/bin/codex",
       wslNodePath: "/home/demo/.nvm/versions/node/v24.10.0/bin/node",
     });
@@ -334,12 +340,12 @@ describe("agent command builders", () => {
     ]);
   });
 
-  it("omits an empty prompt when reopening Codex", () => {
+  it("omits an empty prompt when reopening Codex", async () => {
     const sessionRef: SessionRef = {
       providerSessionId: "abc-123",
       discoveredAt: new Date().toISOString(),
     };
-    const spec = resume(createCodexAdapter(), windowsProject, config, "", sessionRef);
+    const spec = await resume(createCodexAdapter(), windowsProject, config, "", sessionRef);
     const { cmdArgs } = parseWindowsSpec(spec);
     const resumeIndex = cmdArgs.indexOf("resume");
 
@@ -360,14 +366,14 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "builds a Claude launch command with a pre-assigned session id",
-    () => {
+    async () => {
       const claudeConfig: ThreadConfig = {
         model: "sonnet",
         effort: "high",
         mode: "agent",
         approvalPolicy: "default",
       };
-      const spec = launch(createClaudeAdapter(), windowsProject, claudeConfig, "hello");
+      const spec = await launch(createClaudeAdapter(), windowsProject, claudeConfig, "hello");
       const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
 
       expect(script).toContain("--session-id");
@@ -382,8 +388,8 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "builds a Claude launch command without a trailing empty prompt",
-    () => {
-      const spec = launch(createClaudeAdapter(), windowsProject, config, "");
+    async () => {
+      const spec = await launch(createClaudeAdapter(), windowsProject, config, "");
       const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
 
       expect(script).toContain("--session-id");
@@ -393,8 +399,8 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "separates Claude MCP config values from the prompt positional",
-    () => {
-      const spec = launch(createClaudeAdapter(), windowsProject, config, "hello", undefined, {
+    async () => {
+      const spec = await launch(createClaudeAdapter(), windowsProject, config, "hello", undefined, {
         mcpServers: [
           {
             id: "vercel",
@@ -415,12 +421,12 @@ describe("agent command builders", () => {
     },
   );
 
-  it.skipIf(process.platform !== "win32")("builds a Claude resume command", () => {
+  it.skipIf(process.platform !== "win32")("builds a Claude resume command", async () => {
     const sessionRef: SessionRef = {
       providerSessionId: "abc-123",
       discoveredAt: new Date().toISOString(),
     };
-    const spec = resume(createClaudeAdapter(), windowsProject, config, "next", sessionRef);
+    const spec = await resume(createClaudeAdapter(), windowsProject, config, "next", sessionRef);
     expect(spec.command).toBeTruthy();
     expect(spec.args.length).toBeGreaterThan(0);
 
@@ -430,8 +436,8 @@ describe("agent command builders", () => {
     expect(script).not.toContain("--session-id");
   });
 
-  it("passes reasoning effort through one-shot commit generation commands", () => {
-    expect(createCodexAdapter().buildOneShotCommand?.("gpt-5.4-mini", "low")).toEqual({
+  it("passes reasoning effort through one-shot commit generation commands", async () => {
+    expect(await createCodexAdapter().buildOneShotCommand?.("gpt-5.4-mini", "low")).toEqual({
       command: "codex",
       args: [
         "exec",
@@ -445,7 +451,7 @@ describe("agent command builders", () => {
     });
 
     expect(
-      createClaudeAdapter().buildOneShotCommand?.("haiku", "low", "Summarize this diff"),
+      await createClaudeAdapter().buildOneShotCommand?.("haiku", "low", "Summarize this diff"),
     ).toEqual({
       command: "claude",
       args: [
@@ -463,7 +469,7 @@ describe("agent command builders", () => {
     });
 
     expect(
-      createCopilotAdapter().buildOneShotCommand?.("gpt-5", "low", "Summarize this diff"),
+      await createCopilotAdapter().buildOneShotCommand?.("gpt-5", "low", "Summarize this diff"),
     ).toEqual({
       command: "copilot",
       args: [
@@ -480,9 +486,9 @@ describe("agent command builders", () => {
     });
   });
 
-  it("builds a Grok one-shot command via the headless `grok -p` path", () => {
+  it("builds a Grok one-shot command via the headless `grok -p` path", async () => {
     expect(
-      createGrokAdapter().buildOneShotCommand?.("grok-4.5", undefined, "Summarize this diff"),
+      await createGrokAdapter().buildOneShotCommand?.("grok-4.5", undefined, "Summarize this diff"),
     ).toEqual({
       command: "grok",
       args: ["--no-auto-update", "-p", "Summarize this diff", "-m", "grok-4.5", "--always-approve"],
@@ -490,9 +496,9 @@ describe("agent command builders", () => {
     });
   });
 
-  it("builds a Claude text-only one-shot with provider extensions disabled", () => {
+  it("builds a Claude text-only one-shot with provider extensions disabled", async () => {
     expect(
-      createClaudeAdapter().buildTextOnlyOneShotCommand?.(
+      await createClaudeAdapter().buildTextOnlyOneShotCommand?.(
         "claude-opus-4-8",
         "high",
         "Judge these diffs",
@@ -520,9 +526,9 @@ describe("agent command builders", () => {
     });
   });
 
-  it("restricts Claude judge workspaces to read and search tools", () => {
+  it("restricts Claude judge workspaces to read and search tools", async () => {
     expect(
-      createClaudeAdapter().buildOneShotCommand?.(
+      await createClaudeAdapter().buildOneShotCommand?.(
         "claude-sonnet-5",
         "high",
         "Judge the anonymous patch files",
@@ -556,9 +562,9 @@ describe("agent command builders", () => {
     });
   });
 
-  it("forwards effort to Grok one-shots as --reasoning-effort", () => {
+  it("forwards effort to Grok one-shots as --reasoning-effort", async () => {
     expect(
-      createGrokAdapter().buildOneShotCommand?.("grok-4.5", "low", "Summarize this diff"),
+      await createGrokAdapter().buildOneShotCommand?.("grok-4.5", "low", "Summarize this diff"),
     ).toEqual({
       command: "grok",
       args: [
@@ -575,15 +581,15 @@ describe("agent command builders", () => {
     });
   });
 
-  it("returns undefined for a Grok one-shot when no prompt is supplied", () => {
-    expect(createGrokAdapter().buildOneShotCommand?.("grok-4.5", undefined, undefined)).toBe(
+  it("returns undefined for a Grok one-shot when no prompt is supplied", async () => {
+    expect(await createGrokAdapter().buildOneShotCommand?.("grok-4.5", undefined, undefined)).toBe(
       undefined,
     );
   });
 
-  it("appends fast-mode settings to the Claude one-shot command when fast is set", () => {
+  it("appends fast-mode settings to the Claude one-shot command when fast is set", async () => {
     expect(
-      createClaudeAdapter().buildOneShotCommand?.(
+      await createClaudeAdapter().buildOneShotCommand?.(
         "claude-opus-4-8",
         "high",
         "Summarize this diff",
@@ -610,16 +616,20 @@ describe("agent command builders", () => {
 
     // Without the flag the command is unchanged (no stray --settings).
     expect(
-      createClaudeAdapter()
-        .buildOneShotCommand?.("claude-opus-4-8", "high", "Summarize this diff")
-        ?.args.includes("--settings"),
+      (
+        await createClaudeAdapter().buildOneShotCommand?.(
+          "claude-opus-4-8",
+          "high",
+          "Summarize this diff",
+        )
+      )?.args.includes("--settings"),
     ).toBe(false);
   });
 
   it.skipIf(process.platform !== "win32")(
     "builds a Copilot launch command with a pre-assigned session id",
-    () => {
-      const spec = launch(
+    async () => {
+      const spec = await launch(
         createCopilotAdapter(),
         windowsProject,
         { model: "gpt-5", effort: "high", approvalPolicy: "never" },
@@ -642,8 +652,8 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "omits --yolo for default approval policy on Copilot",
-    () => {
-      const spec = launch(
+    async () => {
+      const spec = await launch(
         createCopilotAdapter(),
         windowsProject,
         { model: "gpt-5", approvalPolicy: "default" },
@@ -659,8 +669,8 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "keeps Copilot model and effort flags when resuming an ACP-backed session",
-    () => {
-      const spec = launch(
+    async () => {
+      const spec = await launch(
         createCopilotAdapter(),
         windowsProject,
         { model: "gpt-5.4", effort: "high", approvalPolicy: "never" },
@@ -684,8 +694,8 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "passes --plan and an unmodified initial prompt when launching in plan mode",
-    () => {
-      const spec = launch(
+    async () => {
+      const spec = await launch(
         createCopilotAdapter(),
         windowsProject,
         { model: "claude-haiku-4.5", effort: "high", mode: "plan", approvalPolicy: "never" },
@@ -703,7 +713,7 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "prefers pwsh, then powershell, then cmd on Windows",
-    () => {
+    async () => {
       expect(
         buildWindowsCommand("C:\\Users\\demo\\project", "codex", ["hello"], (name) =>
           name === "pwsh.exe" ? "C:\\Program Files\\PowerShell\\7\\pwsh.exe" : undefined,
@@ -727,7 +737,7 @@ describe("agent command builders", () => {
 
   it.skipIf(process.platform !== "win32")(
     "uses encoded PowerShell commands for prompts with special characters",
-    () => {
+    async () => {
       const spec = buildWindowsCommand(
         "C:\\Users\\demo\\project",
         "codex",
@@ -740,21 +750,24 @@ describe("agent command builders", () => {
     },
   );
 
-  it.skipIf(process.platform !== "win32")("omits an empty prompt when reopening Claude", () => {
-    const sessionRef: SessionRef = {
-      providerSessionId: "abc-123",
-      discoveredAt: new Date().toISOString(),
-    };
-    const spec = resume(createClaudeAdapter(), windowsProject, config, "", sessionRef);
-    const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
+  it.skipIf(process.platform !== "win32")(
+    "omits an empty prompt when reopening Claude",
+    async () => {
+      const sessionRef: SessionRef = {
+        providerSessionId: "abc-123",
+        discoveredAt: new Date().toISOString(),
+      };
+      const spec = await resume(createClaudeAdapter(), windowsProject, config, "", sessionRef);
+      const script = decodePowerShellEncodedCommand(spec.args[3] ?? "");
 
-    expect(script).toContain("--resume");
-    expect(script).toContain("abc-123");
-    expect(script).not.toContain(", ''");
-  });
+      expect(script).toContain("--resume");
+      expect(script).toContain("abc-123");
+      expect(script).not.toContain(", ''");
+    },
+  );
 
-  it.skipIf(process.platform !== "win32")("builds a Windows Cursor launch command", () => {
-    const spec = launch(createCursorAdapter(), windowsProject, { model: "auto" }, "hello");
+  it.skipIf(process.platform !== "win32")("builds a Windows Cursor launch command", async () => {
+    const spec = await launch(createCursorAdapter(), windowsProject, { model: "auto" }, "hello");
     expect(spec.cwd).toBe("C:\\Users\\demo\\project");
     const { cmd, cmdArgs } = parseWindowsSpec(spec);
     expect(cmd).toBe("cursor-agent");
@@ -762,12 +775,18 @@ describe("agent command builders", () => {
     expect(cmdArgs).toContain("auto");
   });
 
-  it("builds a Cursor resume command with --resume", () => {
+  it("builds a Cursor resume command with --resume", async () => {
     const sessionRef: SessionRef = {
       providerSessionId: "chat_019d6099-45a3-7962-a595-2d7f59276118",
       discoveredAt: new Date().toISOString(),
     };
-    const spec = resume(createCursorAdapter(), windowsProject, { model: "auto" }, "", sessionRef);
+    const spec = await resume(
+      createCursorAdapter(),
+      windowsProject,
+      { model: "auto" },
+      "",
+      sessionRef,
+    );
     const { cmdArgs } = parseWindowsSpec(spec);
 
     expect(cmdArgs).toContain("--resume=chat_019d6099-45a3-7962-a595-2d7f59276118");
@@ -775,23 +794,26 @@ describe("agent command builders", () => {
     expect(cmdArgs).not.toContain("");
   });
 
-  it.skipIf(process.platform !== "win32")("builds a Cursor launch command with plan mode", () => {
-    const spec = launch(
-      createCursorAdapter(),
-      windowsProject,
-      { model: "gpt-5.4-medium", mode: "plan" },
-      "analyze code",
-    );
-    const { cmd, cmdArgs } = parseWindowsSpec(spec);
-    expect(cmd).toBe("cursor-agent");
-    expect(cmdArgs).toContain("--model");
-    expect(cmdArgs).toContain("gpt-5.4-medium");
-    expect(cmdArgs).toContain("--mode");
-    expect(cmdArgs).toContain("plan");
-  });
+  it.skipIf(process.platform !== "win32")(
+    "builds a Cursor launch command with plan mode",
+    async () => {
+      const spec = await launch(
+        createCursorAdapter(),
+        windowsProject,
+        { model: "gpt-5.4-medium", mode: "plan" },
+        "analyze code",
+      );
+      const { cmd, cmdArgs } = parseWindowsSpec(spec);
+      expect(cmd).toBe("cursor-agent");
+      expect(cmdArgs).toContain("--model");
+      expect(cmdArgs).toContain("gpt-5.4-medium");
+      expect(cmdArgs).toContain("--mode");
+      expect(cmdArgs).toContain("plan");
+    },
+  );
 
-  it("builds a Cursor launch command with --yolo for bypass approvals", () => {
-    const spec = launch(
+  it("builds a Cursor launch command with --yolo for bypass approvals", async () => {
+    const spec = await launch(
       createCursorAdapter(),
       windowsProject,
       { model: "auto", approvalPolicy: "never" },
@@ -803,8 +825,8 @@ describe("agent command builders", () => {
     expect(cmdArgs).toContain("auto");
   });
 
-  it("omits --yolo for default approval policy on Cursor", () => {
-    const spec = launch(
+  it("omits --yolo for default approval policy on Cursor", async () => {
+    const spec = await launch(
       createCursorAdapter(),
       windowsProject,
       { model: "auto", approvalPolicy: "default" },
@@ -814,12 +836,12 @@ describe("agent command builders", () => {
     expect(cmdArgs).not.toContain("--yolo");
   });
 
-  it("uses Cursor print mode with --trust for one-shot commands", () => {
-    expect(createCursorAdapter().buildOneShotCommand?.("auto")).toEqual({
+  it("uses Cursor print mode with --trust for one-shot commands", async () => {
+    expect(await createCursorAdapter().buildOneShotCommand?.("auto")).toEqual({
       command: "cursor-agent",
       args: ["--print", "--force", "--trust", "--output-format", "json"],
     });
-    expect(createCursorAdapter().buildOneShotCommand?.("composer-2.5")).toEqual({
+    expect(await createCursorAdapter().buildOneShotCommand?.("composer-2.5")).toEqual({
       command: "cursor-agent",
       args: ["--print", "--force", "--trust", "--output-format", "json", "--model", "composer-2.5"],
     });

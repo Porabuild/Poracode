@@ -139,7 +139,7 @@ describe.skipIf(process.platform === "win32")("POSIX login shell wrappers", () =
     await primeExecutablePathCache(["opencode"]);
 
     expect(
-      resolveLaunchSpec(posixProject, {
+      await resolveLaunchSpec(posixProject, {
         binary: "opencode",
         args: ["--version"],
         preferShell: true,

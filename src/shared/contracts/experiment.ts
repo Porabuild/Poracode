@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { agentKindSchema, projectLocationSchema } from "./common";
+import { agentInstanceIdSchema } from "./agentInstance";
+import { agentKindSchema, projectLocationSchema, threadPresentationModeSchema } from "./common";
+import { threadConfigSchema } from "./config";
 import { fullCommitOidSchema } from "./git";
 import { promptSegmentSchema } from "./thread";
 
@@ -377,3 +379,136 @@ export const getExperimentCandidateStatsResultSchema = z.object({
   deletions: z.number().int().nonnegative(),
   files: z.number().int().nonnegative(),
 });
+
+// ── Experiment authority wire (capabilities.experiments v1) ────────────────
+//
+// The canonical `experimentSchema` above carries cross-field `superRefine`
+// checks and a non-blank prompt refine. Native/portable generators reject
+// `zod.custom-refine`, so the route body carries a structural twin built from
+// the canonical `.shape`: same fields and leaf bounds, with only the refined
+// leaves widened to plain structural strings. The host re-parses every record
+// with the canonical schema before any write (`400 invalid_experiment`) and
+// parses every stored record canonically on read (fail closed), so no
+// refinement is dropped — it is deliberately host-side.
+
+const canonicalExperimentShape = experimentSchema.shape;
+const experimentCrownShape = ((
+  canonicalExperimentShape.crown as unknown as { def?: { innerType?: z.ZodType } }
+).def?.innerType ?? canonicalExperimentShape.crown) as unknown as {
+  options: [{ shape: Record<string, z.ZodType> }, { shape: Record<string, z.ZodType> }];
+};
+
+export const experimentCrownWireSchema = z.discriminatedUnion("source", [
+  z.object({ ...experimentCrownShape.options[0].shape, rationale: z.string().min(1) }),
+  z.object({
+    ...experimentCrownShape.options[1].shape,
+    // The canonical user variant pins `rationale`/`modelLabel` to `never`
+    // (absent-only). The portable structural twin widens them to `unknown`:
+    // the "must be absent" rule is semantic and stays enforced by the
+    // canonical host re-parse (400 invalid_experiment), while the native
+    // emitter has no `not` keyword for the never-union.
+    rationale: z.unknown().optional(),
+    modelLabel: z.unknown().optional(),
+  }),
+]);
+
+/**
+ * Portable structural twin of {@link experimentSchema} for the remote wire and
+ * the native binding inventory. Field-key parity with the canonical record is
+ * asserted by the contract tests so a future record field cannot drift
+ * unnoticed while the canonical refinements stay host-side.
+ */
+export const experimentWireSchema = z.object({
+  ...canonicalExperimentShape,
+  prompt: z.string().min(1).max(MAX_EXPERIMENT_PROMPT_LENGTH),
+  crown: experimentCrownWireSchema.optional(),
+});
+export type ExperimentWire = z.infer<typeof experimentWireSchema>;
+
+/**
+ * One candidate thread to insert with an experiment `create`. The candidate id
+ * set must equal the record's candidate ids, every spec must carry the
+ * record's project, and the branch must match the record candidate's branch.
+ * `group_id`/`group_name` are derived from the record (`id`/`title`), exactly
+ * like the renderer's own candidate rows.
+ */
+export const experimentCandidateThreadCreationSchema = z.object({
+  threadId: z.string().min(1),
+  projectId: z.string().min(1),
+  title: z.string().min(1),
+  agentKind: agentKindSchema,
+  agentInstanceId: agentInstanceIdSchema.optional(),
+  config: threadConfigSchema,
+  presentationMode: threadPresentationModeSchema.optional(),
+  worktreeBranch: z.string().min(1),
+  parentThreadId: z.string().min(1).optional(),
+});
+export type ExperimentCandidateThreadCreation = z.infer<
+  typeof experimentCandidateThreadCreationSchema
+>;
+
+/**
+ * Narrow, allowlisted candidate-row update. Creation fields are never
+ * rewritten; `retire`/`fail` additionally require confirmed retirement
+ * host-side, and `fail` only applies to a candidate with no recorded session.
+ */
+export const experimentCandidateRowUpdateSchema = z.object({
+  threadId: z.string().min(1),
+  worktree: z
+    .object({ path: z.string().min(1), branch: z.string().min(1) })
+    .nullable()
+    .optional(),
+  groupName: z.string().min(1).nullable().optional(),
+  retire: z.literal("done").optional(),
+  fail: z.literal(true).optional(),
+});
+export type ExperimentCandidateRowUpdate = z.infer<typeof experimentCandidateRowUpdateSchema>;
+
+/** The three experiment authority intents; `experimentId` is path-injected. */
+export const remoteExperimentCommandSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("create"),
+    experimentId: z.string().min(1),
+    record: experimentWireSchema,
+    threads: z.array(experimentCandidateThreadCreationSchema).min(2).max(MAX_EXPERIMENT_CANDIDATES),
+  }),
+  z.object({
+    kind: z.literal("replace"),
+    experimentId: z.string().min(1),
+    revision: z.string().min(1),
+    record: experimentWireSchema,
+    rows: z.array(experimentCandidateRowUpdateSchema).max(MAX_EXPERIMENT_CANDIDATES).optional(),
+  }),
+  z.object({
+    kind: z.literal("remove"),
+    experimentId: z.string().min(1),
+    revision: z.string().min(1),
+    candidateDisposition: z.enum(["delete", "release"]),
+  }),
+]);
+export type RemoteExperimentCommand = z.infer<typeof remoteExperimentCommandSchema>;
+export type RemoteExperimentCommandKind = RemoteExperimentCommand["kind"];
+
+/** `GET /api/experiments`: the store revision plus every canonical record. */
+export const remoteExperimentStateSchema = z.object({
+  revision: z.string().min(1),
+  experiments: z.record(z.string(), experimentWireSchema),
+});
+export type RemoteExperimentState = z.infer<typeof remoteExperimentStateSchema>;
+
+/** `POST /api/experiments/{experimentId}/command` success result. */
+export const remoteExperimentCommandResultSchema = z.object({
+  ok: z.literal(true),
+  revision: z.string().min(1),
+});
+export type RemoteExperimentCommandResult = z.infer<typeof remoteExperimentCommandResultSchema>;
+
+/**
+ * Maximum stored experiment-store bytes served or accepted for mutation.
+ * The served read refuses typed (`experiments_too_large`) before parsing; a
+ * mutation whose committed value would exceed this is refused typed as well,
+ * except a value that strictly shrinks an already over-budget store (the
+ * removal/shrink recovery path). Never truncated, never republished without
+ * untouched survivor values.
+ */
+export const MAX_EXPERIMENT_STATE_BYTES = 16 * 1024 * 1024;

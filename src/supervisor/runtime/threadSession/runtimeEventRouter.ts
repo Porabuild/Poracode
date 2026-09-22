@@ -1,14 +1,14 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
-import { RuntimeEventBuffer } from "./runtimeEventBuffer";
+import { RuntimeEventBuffer, type RuntimeEventBufferOptions } from "./runtimeEventBuffer";
 import { SubAgentRegistry } from "./subAgentRegistry";
 
 export class RuntimeEventRouter {
   private readonly subAgents = new SubAgentRegistry();
   private readonly runtimeEvents: RuntimeEventBuffer;
 
-  constructor(emit: (event: SupervisorEvent) => void) {
-    this.runtimeEvents = new RuntimeEventBuffer(emit);
+  constructor(emit: (event: SupervisorEvent) => void, options: RuntimeEventBufferOptions = {}) {
+    this.runtimeEvents = new RuntimeEventBuffer(emit, options);
   }
 
   append(threadId: string, event: RuntimeEvent): void {
@@ -58,6 +58,46 @@ export class RuntimeEventRouter {
 
   clearAllForThread(threadId: string): void {
     this.subAgents.clearAllForThread(threadId);
+  }
+
+  /** Host persistence backpressure: hold canonical envelopes, keep bounds. */
+  setPaused(paused: boolean): void {
+    this.runtimeEvents.setPaused(paused);
+  }
+
+  /** Host canonical credit changed; flush what now fits. */
+  setCanonicalCapacity(remainingBytes: number): void {
+    this.runtimeEvents.setCanonicalCapacity(remainingBytes);
+  }
+
+  /**
+   * Release one thread's retained batch ahead of a stop marker (F9
+   * post-batch ordering). Capacity-aware; whatever does not fit stays bounded
+   * in the buffer.
+   */
+  releaseThread(threadId: string): void {
+    this.runtimeEvents.releaseThread(threadId);
+  }
+
+  /**
+   * Queue an explicit stop marker behind the thread's retained canonical
+   * content. Emitted immediately when nothing is held; otherwise released when
+   * the retained batch fully drains, so a stop never precedes its content.
+   */
+  queueStopMarker(threadId: string, marker: SupervisorEvent): void {
+    this.runtimeEvents.queueStopMarker(threadId, marker);
+  }
+
+  isPaused(): boolean {
+    return this.runtimeEvents.isPaused();
+  }
+
+  hasPending(): boolean {
+    return this.runtimeEvents.hasPending();
+  }
+
+  pendingStats(): { events: number; bytes: number; threads: number } {
+    return this.runtimeEvents.pendingStats();
   }
 
   flush(): void {

@@ -54,10 +54,14 @@ export {
   type BrowserEvent,
   type PrWatchMergedEvent,
   type PrWatchStatusEvent,
-  type ProjectStateChangedEvent,
   type ThreadOpenRequestedEvent,
+  SUPERVISOR_EVENT_BACKPRESSURE_VERSION,
+  canonicalFlowSeqOf,
+  isSupervisorFlowControl,
+  isSupervisorFlowControlCapabilities,
   type SupervisorEvent,
   type SupervisorFlowControl,
+  type SupervisorFlowControlCapabilities,
   isSupervisorOutputShedSignal,
   type SupervisorOutputShedSignal,
   type SupervisorReply,
@@ -82,7 +86,6 @@ export {
 } from "./procedures/browser";
 export {
   windowChromePayloadSchema,
-  type DbPersistExperimentStatePayload,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,

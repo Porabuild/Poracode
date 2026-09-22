@@ -70,14 +70,17 @@ async function runWslProbeWorker(
   }
 
   const resolvedNode = await Promise.race([
-    resolveNodeForDistro(location.distro),
+    resolveNodeForDistro(location.distro, { signal }),
     abortPromise(signal),
   ]);
   if (signal.aborted) throw signal.reason;
 
-  const deployed = deployFilesToWslTempBase(location.distro, `poracode-mcp-probe-${process.pid}`, [
-    { src: workerSource, relDest: "mcp-probe/mcp-probe.mjs" },
-  ]);
+  const deployed = await deployFilesToWslTempBase(
+    location.distro,
+    `poracode-mcp-probe-${process.pid}`,
+    [{ src: workerSource, relDest: "mcp-probe/mcp-probe.mjs" }],
+    { signal },
+  );
   if (!deployed) return unavailableMcpProbeResult("probe-unavailable", environment);
   if (signal.aborted) throw signal.reason;
   const workerPath = `${deployed.linuxBaseDir}/mcp-probe/mcp-probe.mjs`;

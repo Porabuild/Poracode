@@ -16,6 +16,19 @@ export interface ThreadHistoryOptions {
    * tail transfers the same bytes twice.
    */
   readonly omitScrollback?: boolean;
+  /**
+   * B1: declare `notices=v1` on this transcript read. Off by default; only a
+   * client that actually renders the durable history-incomplete notice may
+   * turn it on. Without it, a thread with an acknowledged notice is refused
+   * (`runtime_history_notice_unsupported`) instead of served.
+   */
+  readonly noticesCapable?: boolean;
+  /**
+   * Caller-owned cancellation for a bounded recovery read. Aborting makes the
+   * request fail with a `cancelled` error (never a transport failure), so a
+   * local deadline cannot paint the host offline.
+   */
+  readonly signal?: AbortSignal;
 }
 
 interface StartRemoteThreadCommon {
@@ -47,6 +60,42 @@ export interface StartRemoteNewThreadInput extends StartRemoteThreadCommon {
   readonly title?: string | undefined;
   readonly groupId?: string | undefined;
   readonly groupName?: string | undefined;
+  /**
+   * Id of the orchestrator thread that created this thread. Persisted on the
+   * durable row only while the host advertises
+   * `capabilities.threadLaunchMetadata` v1 (see
+   * {@link hostSupportsThreadLaunchMetadata}); an older host strips the field
+   * and answers success.
+   */
+  readonly parentThreadId?: string | undefined;
+  /** Pull request the new thread is associated with; same capability gate. */
+  readonly prNumber?: number | undefined;
+  /**
+   * Workspace the thread belongs to (Home threads). Same capability gate as
+   * {@link parentThreadId}: the host persists it on the row; without the
+   * advertised capability a caller that needs the assignment must instead use
+   * the narrow `set-workspace` thread command on a host that advertises
+   * `catalogMutations`.
+   */
+  readonly workspaceId?: string | undefined;
+  /** Exact initial PTY geometry; defaults to the host launch size when absent. */
+  readonly initialSize?: TerminalSize | undefined;
+}
+
+/**
+ * Options for {@link RemoteClientThreadsApi.startNewThread}.
+ */
+export interface StartRemoteNewThreadOptions {
+  /**
+   * Explicit idempotency key for the launch operation. Supply it together with
+   * an explicit `threadId` to retain ONE launch operation across a retry: the
+   * host binds the receipt to this principal, the route and the exact body, so
+   * a retry with the same id replays the recorded outcome instead of launching
+   * a second runtime, and an interrupted attempt stays `uncertain` (a typed
+   * 409) rather than being blindly repeated. Mint a fresh id for a genuinely
+   * new action. Omitted callers keep the historical per-thread default.
+   */
+  readonly commandId?: string | undefined;
 }
 
 /**
@@ -73,6 +122,14 @@ export interface RemoteDesktopClientOptions {
   readonly maxResponseBodyBytes?: number;
   readonly onRequestSuccess?: () => void;
   readonly onRequestError?: (error: unknown) => void;
+  /**
+   * Lowercased response-header allowlist copied onto a definite HTTP error as
+   * {@link RemoteClientError.responseEvidence}. Empty/absent means no evidence
+   * is captured — the default, so no existing client changes behavior. The
+   * environment client allows exactly the parent-origin auth marker so a
+   * residual 401 can be attributed without a probe request.
+   */
+  readonly responseEvidenceHeaders?: readonly string[];
   /**
    * Gate 6 item 4.6 (S6): refresh-token plumbing. When present, a 401 from an
    * expired 24-hour access token transparently refreshes (once) and retries
@@ -172,6 +229,19 @@ export type RemoteJsonRequestInit = {
   /** Per-call deadline override; defaults to the client's requestTimeoutMs.
    * Long-running ops (clone, push, PR creation) pass a larger value. */
   readonly timeoutMs?: number;
+  /**
+   * Declares that this request can produce an external effect. Only a
+   * dispatched failure of a declared mutation can be classified
+   * may-have-committed; reads never opt in, so a read timeout or 5xx can never
+   * be mistaken for an unresolved mutation.
+   */
+  readonly mutation?: boolean;
+  /**
+   * Caller-owned cancellation. Aborting rejects the request with a `cancelled`
+   * error (status 499, not a transport failure); a signal already aborted
+   * before dispatch keeps the refusal in the presend phase.
+   */
+  readonly signal?: AbortSignal;
 };
 
 export type RemoteJsonRefreshState = {

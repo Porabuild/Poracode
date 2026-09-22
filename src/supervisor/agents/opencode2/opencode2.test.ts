@@ -469,9 +469,9 @@ describe("createOpenCode2Adapter", () => {
     expect(adapter.shouldDeferPromptToTerminal?.({ model: "" })).toBe(true);
   });
 
-  it("resumes through --session and forwards MCP config via the config overlay env", () => {
+  it("resumes through --session and forwards MCP config via the config overlay env", async () => {
     const adapter = createOpenCode2Adapter();
-    const launch = adapter.buildLaunchArgv(
+    const launch = await adapter.buildLaunchArgv(
       { kind: "posix", path: "/repo" },
       { model: "" },
       "",
@@ -481,7 +481,7 @@ describe("createOpenCode2Adapter", () => {
     expect(launch.args).toEqual(["--session", "ses_launch"]);
     expect(launch.sessionRef).toMatchObject({ providerSessionId: "ses_launch" });
 
-    const resume = adapter.buildResumeArgv(
+    const resume = await adapter.buildResumeArgv(
       { kind: "posix", path: "/repo" },
       { model: "" },
       "next",
@@ -501,9 +501,9 @@ describe("createOpenCode2Adapter", () => {
     expect(resume.env?.OPENCODE_CONFIG_CONTENT).toContain('"browser"');
   });
 
-  it("omits the MCP env when a launch carries no servers", () => {
+  it("omits the MCP env when a launch carries no servers", async () => {
     const adapter = createOpenCode2Adapter();
-    const resume = adapter.buildResumeArgv(
+    const resume = await adapter.buildResumeArgv(
       { kind: "posix", path: "/repo" },
       { model: "", approvalPolicy: "yolo" },
       "next",

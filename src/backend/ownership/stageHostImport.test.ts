@@ -16,9 +16,32 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { LATEST_SCHEMA_VERSION } from "@/main/db/migrations";
+import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { HOST_CONTROL_DISCOVERY_FILE } from "@/shared/hostControlProtocol";
-import { HostOwnerLease } from "./hostOwnerLease";
+import { HostOwnerLease, readHostOwnerRecord } from "./hostOwnerLease";
+
+/**
+ * Fault injection for the staging cleanup path: `rm` fails only for paths
+ * that still exist, so the success path (staging already renamed into place)
+ * stays untouched. Everything else delegates to the real implementation.
+ */
+const cleanupFault = vi.hoisted(() => ({ failForExistingPaths: false }));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    rm: async (
+      path: Parameters<typeof actual.rm>[0],
+      options?: Parameters<typeof actual.rm>[1],
+    ) => {
+      if (cleanupFault.failForExistingPaths && typeof path === "string" && existsSync(path)) {
+        throw new Error("synthetic cleanup failure");
+      }
+      return actual.rm(path, options);
+    },
+  };
+});
 import { HOST_ROOT_MANIFEST_FILE, resolveHostRootPaths } from "./hostRootPaths";
 import {
   HOST_IMPORT_RECEIPT_FILE,
@@ -294,5 +317,97 @@ describe("explicit offline backup staging", () => {
       JSON.stringify({ ...receipt, files: receipt.files + 1 }),
     );
     expect(() => readHostImportReceipt(value.lease)).toThrow(/does not match its root manifest/u);
+  });
+
+  it("rejects a source that changes during the asynchronous file copy and removes staging", async () => {
+    const value = fixture();
+    writeFileSync(join(value.source, "extra.txt"), "extra");
+    let mutated = false;
+    await expect(
+      stageHostImport(value.lease, {
+        sourceBackupPath: value.source,
+        sourceDeclaredOffline: true,
+        onCopyProgress: (copied, total) => {
+          // Mutate only after the last inventoried file was copied, so the
+          // destination still matches its inventory and the staging-level
+          // source re-inventory is the check that refuses.
+          if (mutated || copied !== total) return;
+          mutated = true;
+          writeFileSync(join(value.source, "settings.json"), '{"changed":"during-copy"}');
+        },
+      }),
+    ).rejects.toThrow(/changed during import/u);
+    expect(mutated).toBe(true);
+    expect(existsSync(value.lease.paths.dataRoot)).toBe(false);
+    expect(readdirSync(value.root).some((name) => name.includes(".import-"))).toBe(false);
+  });
+
+  it("aborts on the caller's signal at a copy boundary without publishing staging", async () => {
+    const value = fixture();
+    writeFileSync(join(value.source, "extra-1.txt"), "one");
+    writeFileSync(join(value.source, "extra-2.txt"), "two");
+    const controller = new AbortController();
+    const progress: number[] = [];
+    await expect(
+      stageHostImport(
+        value.lease,
+        {
+          sourceBackupPath: value.source,
+          sourceDeclaredOffline: true,
+          onCopyProgress: (copied) => {
+            progress.push(copied);
+            controller.abort();
+          },
+        },
+        controller.signal,
+      ),
+    ).rejects.toThrow(/abort/iu);
+    expect(progress).toHaveLength(1);
+    expect(existsSync(value.lease.paths.dataRoot)).toBe(false);
+    expect(readdirSync(value.root).some((name) => name.includes(".import-"))).toBe(false);
+  });
+
+  it("delivers progress incrementally while the event loop keeps running", async () => {
+    const value = fixture();
+    writeFileSync(join(value.source, "extra-1.txt"), "one");
+    writeFileSync(join(value.source, "extra-2.txt"), "two");
+    let deferredRan = false;
+    const progress: Array<[number, number]> = [];
+    await stageHostImport(value.lease, {
+      sourceBackupPath: value.source,
+      sourceDeclaredOffline: true,
+      onCopyProgress: (copied, total) => {
+        progress.push([copied, total]);
+        if (!deferredRan) setImmediate(() => (deferredRan = true));
+      },
+    });
+    // The synchronous copy could never yield to a macrotask mid-copy.
+    expect(progress.length).toBe(3);
+    expect(deferredRan).toBe(true);
+    expect(progress.at(-1)?.[0]).toBe(progress.at(-1)?.[1]);
+  });
+
+  it("keeps the staging phase for recovery when cleanup after a failed copy also fails", async () => {
+    const value = fixture();
+    writeFileSync(join(value.source, "extra.txt"), "extra");
+    cleanupFault.failForExistingPaths = true;
+    try {
+      await expect(
+        stageHostImport(value.lease, {
+          sourceBackupPath: value.source,
+          sourceDeclaredOffline: true,
+          onCopyProgress: () => {
+            writeFileSync(join(value.source, "settings.json"), '{"changed":"during-copy"}');
+          },
+        }),
+      ).rejects.toThrow(/synthetic cleanup failure/u);
+    } finally {
+      cleanupFault.failForExistingPaths = false;
+    }
+    // The cleanup failure must not rewrite the owner record back to
+    // "preparing": the staging phase is the recovery evidence that the next
+    // launch classifies, and the failed destination was never published.
+    expect(readHostOwnerRecord(value.lease.paths)?.phase).toBe("staging-import");
+    expect(existsSync(value.lease.paths.dataRoot)).toBe(false);
   });
 });

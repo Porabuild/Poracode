@@ -44,11 +44,12 @@ export interface WslBridgeServerOptions {
   resolveNode?: (distro: string) => Promise<ResolvedNode | null>;
   /**
    * Test seam: replace the deploy step. Defaults to `deployFilesToWslTempBase`.
+   * Results may be sync (test stubs) or async (the real staging service).
    */
   deploy?: (
     distro: string,
     files: { src: string; relDest: string }[],
-  ) => { linuxBaseDir: string } | null;
+  ) => { linuxBaseDir: string } | null | Promise<{ linuxBaseDir: string } | null>;
   /** Optional override for the resources dir (defaults to `resolveWslHelpersDir`). */
   helpersDir?: string;
   /**
@@ -338,7 +339,7 @@ export class WslBridgeServer {
     if (existsSync(watcherBinding)) {
       deployedFiles.push({ src: watcherBinding, relDest: "bridge/watcher.node" });
     }
-    const result = deploy(distro, deployedFiles);
+    const result = await deploy(distro, deployedFiles);
     if (!result) {
       if (isPoracodeHookDebug()) {
         console.log("[supervisor] hook-debug: WSL bridge not started", {

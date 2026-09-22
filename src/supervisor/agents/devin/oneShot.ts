@@ -18,7 +18,7 @@ export async function runDevinOneShot(input: RunOneShotInput): Promise<string> {
     { model: input.model, effort: input.effort, fast: input.fast },
     families,
   );
-  const { spec, spawn } = prepareOneShot(input.location, {
+  const { spec, spawn } = await prepareOneShot(input.location, {
     command: "devin",
     args: buildDevinOneShotArgs(model, input.prompt),
     isolateCwd: !input.readOnlyWorkspace,

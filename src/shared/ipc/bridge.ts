@@ -17,7 +17,6 @@ import type {
   BrowserEvent,
   PrWatchMergedEvent,
   PrWatchStatusEvent,
-  ProjectStateChangedEvent,
   SupervisorEvent,
   ThreadOpenRequestedEvent,
   UpdateStatus,
@@ -81,7 +80,6 @@ export type PoracodeBridge = PoracodeInvokeBridge & {
   onRemoteAccessPairingChanged(listener: (info: RemoteAccessPairingInfo) => void): () => void;
   /** Shared settings rewritten outside this renderer (e.g. by a remote client). */
   onSharedSettingsChanged(listener: (settings: SharedSettings) => void): () => void;
-  onProjectStateChanged(listener: (event: ProjectStateChangedEvent) => void): () => void;
   onGitStateChanged(listener: (patch: GitStatePatch) => void): () => void;
   onUserNotification(listener: (notification: UserNotification) => void): () => void;
   onPrWatchMerged(listener: (event: PrWatchMergedEvent) => void): () => void;
@@ -140,16 +138,6 @@ export type MainLocalIpcHandlerMap = {
   [Name in MainLocalProcedureName]: (
     payload: IpcProcedurePayload<Name>,
   ) => Promise<IpcProcedureResult<Name>> | IpcProcedureResult<Name>;
-} & {
-  // The one main-local procedure that needs the invoking webContents: each
-  // renderer window registers its own live-event interests, and main keys
-  // them per window. Optional-second-param so generic callers are unaffected.
-  setRendererEventInterests: (
-    payload: IpcProcedurePayload<"setRendererEventInterests">,
-    sender?: { readonly id: number; once(channel: "destroyed", listener: () => void): unknown },
-  ) =>
-    | Promise<IpcProcedureResult<"setRendererEventInterests">>
-    | IpcProcedureResult<"setRendererEventInterests">;
 };
 
 export type SupervisorIpcHandlerMap = {

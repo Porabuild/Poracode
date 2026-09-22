@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readSharedSettingsFile, writeSharedSettingsFile } from "@/main/sharedSettingsFile";
+import { readSharedSettingsFile, writeSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { AGENT_PROFILE_DRIVERS } from "@/shared/contracts";
 import type { AgentInstanceConfig } from "@/shared/contracts";
 import { defaultSharedSettings } from "@/shared/settings";

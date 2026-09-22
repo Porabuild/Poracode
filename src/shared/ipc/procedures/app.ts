@@ -70,11 +70,6 @@ export const setGlobalShortcutsSuspendedPayloadSchema = z.object({
   suspended: z.boolean(),
 });
 
-export const setRendererEventInterestsPayloadSchema = z.object({
-  terminalThreadIds: z.array(z.string()),
-  runtimeThreadIds: z.array(z.string()),
-});
-
 /**
  * Live view of the local Tailscale daemon + our `tailscale serve` HTTPS mapping,
  * surfaced in desktop Settings → Remote Access.
@@ -208,11 +203,6 @@ export const appProcedures = {
     void,
     "main-local"
   >("setGlobalShortcutsSuspended", "main-local", setGlobalShortcutsSuspendedPayloadSchema),
-  setRendererEventInterests: definePayloadProcedure<
-    z.infer<typeof setRendererEventInterestsPayloadSchema>,
-    void,
-    "main-local"
-  >("setRendererEventInterests", "main-local", setRendererEventInterestsPayloadSchema),
   getRemoteAccessPairing: defineNoArgProcedure<RemoteAccessPairingInfo, "main-local">(
     "getRemoteAccessPairing",
     "main-local",

@@ -1,12 +1,15 @@
 import { tryParseSocketMessage as tryParseRemoteSocketMessage } from "./parseSocketMessage";
 import {
+  REMOTE_COMMAND_ID_HEADER,
+  REMOTE_PROJECT_COMMAND_RESULT_DECLARATION,
+  REMOTE_PROJECT_COMMAND_RESULT_HEADER,
   remotePortEnterResultSchema,
   remotePortForwardResultSchema,
   remotePortUnforwardResultSchema,
   remotePortsStateSchema,
   remotePushRegistrationResultSchema,
   remoteWebPushConfigResultSchema,
-  remoteProjectCommandResultSchema,
+  remoteProjectCommandResponseSchema,
   remoteProjectSettingsSchema,
   remoteWebSocketServerMessageSchema,
   remoteWebSocketTicketResultSchema,
@@ -15,7 +18,7 @@ import {
   type RemotePortForwardResult,
   type RemotePortsState,
   type RemoteProjectCommand,
-  type RemoteProjectCommandResult,
+  type RemoteProjectCommandResponse,
   type RemoteProjectSettings,
   type RemotePushRegistration,
   type RemotePushRegistrationRouting,
@@ -23,24 +26,90 @@ import {
   type RemoteWebSocketServerMessage,
 } from "@/shared/remote";
 import { RemoteClientThreadsApi } from "./clientApiThreads";
+import { RemoteClientError } from "./clientErrors";
 import { parseResponse } from "./clientParse";
 import { endpointUrl, LONG_REMOTE_REQUEST_TIMEOUT_MS } from "./clientTypes";
+import {
+  isRemoteProjectCatalogCommand,
+  type RemoteProjectCatalogCommand,
+} from "./protocol/catalogMutations";
+
+/** Pre-existing project-command kinds with their complete-list semantics. */
+type RemoteProjectLegacyCommand = Exclude<RemoteProjectCommand, RemoteProjectCatalogCommand>;
 
 export abstract class RemoteClientWorkspaceApi extends RemoteClientThreadsApi {
   /**
    * Add (existing folder / scratch / clone) or remove a project on the paired
-   * desktop or server. Requires the `projects:manage` scope. Returns the full
-   * updated project list; connected clients also receive a
+   * desktop or server. Requires the `projects:manage` scope. Legacy kinds
+   * return the full updated project list; the narrow catalog-mutation kinds
+   * (`reorder`, `set-workspace`, `set-draft-config`) return the bounded
+   * acknowledgement, require the host to advertise
+   * `capabilities.catalogMutations` (see {@link hostSupportsCatalogMutations}),
+   * and REQUIRE the caller's explicit per-operation `commandId`: the host
+   * refuses a catalog kind without one before any effect, and a retry with the
+   * same id and identical body replays the recorded response instead of
+   * re-applying the relative move. Declaring the bounded result mode
+   * (`result: "bounded"`) is a separate per-request negotiation that requires
+   * the same explicit `commandId` for EVERY kind, refused locally before any
+   * request when absent. Mint the id per user action; reuse it only for a retry
+   * of that same action. Connected clients also receive a
    * `remote-projects-changed` event to refresh their snapshot.
    */
-  async projectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult> {
-    return remoteProjectCommandResultSchema.parse(
+  async projectCommand(
+    command: RemoteProjectCatalogCommand,
+    options: { readonly commandId: string; readonly result?: "bounded" },
+  ): Promise<RemoteProjectCommandResponse>;
+  async projectCommand(
+    command: RemoteProjectLegacyCommand,
+    options?: { readonly commandId?: string; readonly result?: "bounded" },
+  ): Promise<RemoteProjectCommandResponse>;
+  async projectCommand(
+    command: RemoteProjectCommand,
+    options: { readonly commandId?: string; readonly result?: "bounded" } = {},
+  ): Promise<RemoteProjectCommandResponse> {
+    if (isRemoteProjectCatalogCommand(command) && options.commandId === undefined) {
+      throw new Error(
+        "Catalog project commands require an explicit per-operation commandId so a retry is replayed instead of re-applied.",
+      );
+    }
+    const bounded = options.result === "bounded";
+    if (bounded && options.commandId === undefined) {
+      throw new Error(
+        "The bounded project-command result mode requires an explicit per-operation commandId: only a receipt-guarded mutation may opt in.",
+      );
+    }
+    const headers: Record<string, string> = {
+      ...(options.commandId !== undefined ? { [REMOTE_COMMAND_ID_HEADER]: options.commandId } : {}),
+      ...(bounded
+        ? { [REMOTE_PROJECT_COMMAND_RESULT_HEADER]: REMOTE_PROJECT_COMMAND_RESULT_DECLARATION }
+        : {}),
+    };
+    const response = parseResponse(
+      remoteProjectCommandResponseSchema,
       await this.requestJson("/api/projects/command", {
         method: "POST",
+        ...(Object.keys(headers).length > 0 ? { mutation: true, headers } : {}),
         body: command,
         ...(command.kind === "clone" ? { timeoutMs: LONG_REMOTE_REQUEST_TIMEOUT_MS } : {}),
       }),
+      "project command",
     );
+    if (bounded && "projects" in response) {
+      // Truthful refusal instead of silently accepting a complete catalog the
+      // caller asked not to receive: the host either predates the bounded
+      // result mode (capability gate was skipped) or ignored the declaration.
+      // The 200 proves the mutation already executed, so the refusal must be
+      // classified like every post-response schema mismatch (`parseResponse`):
+      // `invalid_response` at 500 is may-have-committed, never a definite
+      // no-effect error a fresh-id retry could safely repeat.
+      throw new RemoteClientError(
+        "The host did not honor the bounded project-command result declaration; " +
+          "gate the declaration on capabilities.projectCommandResults v1.",
+        500,
+        "invalid_response",
+      );
+    }
+    return response;
   }
 
   async projectSettings(projectId: string): Promise<RemoteProjectSettings> {

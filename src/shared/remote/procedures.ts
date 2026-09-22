@@ -1,4 +1,4 @@
-import type { IpcProcedureName } from "../ipc";
+import type { SupervisorProcedureName } from "../ipc";
 import type { RemoteAccessScope } from "./protocol";
 
 export type RemoteProcedureOwner =
@@ -175,10 +175,15 @@ export const REMOTE_PROCEDURE_SPECS = {
 
   // V6 B.2: former IPC-only / remote-noop names. Loopback HTTP is the data
   // plane; paired clients invoke the same allowlisted passthrough.
+  // R1: this table is SUPERVISOR-typed — the satisfies constraint below turns
+  // any main-local IPC name (raw DB or local-shell procedure) into a compile
+  // error, closing the misroute class that sent `dbDeleteThread` and the
+  // legacy goal read to the supervisor as HTTP 500s. Main-local reads that
+  // remote legs genuinely need ride the bounded-history adapter
+  // (`REMOTE_IPC_ADAPTER_SPECS`) or stay local (`NON_ROUTER_PROJECT_PROCEDURES`).
   gitWatchProject: operate("projectLocation"),
   gitWatchWorktrees: operate("project"),
   gitUnwatchProject: operate("project"),
-  revealProjectEntry: operate("projectLocation"),
   startThread: operate("projectLocation"),
   ensureThreadRunning: operate("projectLocation"),
   createRevertAnchor: operate("thread"),
@@ -190,23 +195,11 @@ export const REMOTE_PROCEDURE_SPECS = {
   connectThreadVoice: operate("thread"),
   disconnectThreadVoice: operate("thread"),
   lspStart: operate("projectLocation"),
-  dbDeleteThread: operate("thread"),
-  dbDeleteProject: operate("project"),
-  dbGetThreadRuntimeItems: read("thread"),
-  dbGetLatestThreadGoalItem: read("thread"),
-  dbGetThreadsPage: read("project"),
-  dbReplaceThreadRuntimeItems: operate("thread"),
-  dbGetThreadCompletedTurns: read("thread"),
-  dbReplaceThreadCompletedTurns: operate("thread"),
-  dbReplaceThreadRuntimeSnapshot: operate("thread"),
-  dbGetThreadContextUsage: read("thread"),
   readTerminalScrollback: read("thread"),
   readTerminalSize: read("thread"),
   readTerminalSnapshot: read("thread"),
   readThreadBackgroundTasks: read("thread"),
-  detectProjectIcon: read("projectLocation"),
-  listProjectIconFiles: read("projectLocation"),
-} as const satisfies Partial<Record<IpcProcedureName, RemoteProcedureSpec>>;
+} as const satisfies Partial<Record<SupervisorProcedureName, RemoteProcedureSpec>>;
 
 export type RemoteProcedureName = keyof typeof REMOTE_PROCEDURE_SPECS;
 

@@ -3,7 +3,11 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
+import {
+  defaultSharedSettings,
+  type SharedSettings,
+  type SharedSettingsInput,
+} from "@/shared/settings";
 import { settingsSubjectId, type SettingsSubject } from "@/shared/settingsTransactions";
 import { SettingsAuthority } from "./SettingsAuthority";
 import { SettingsCompatWriter } from "./settingsCompatWrites";
@@ -175,6 +179,49 @@ describe("settings compat and trusted writes", () => {
     });
     expect(authority.snapshot().sequence).toBe(snapshot.sequence);
     expect(await readFile(settingsPath, "utf8")).toBe(before);
+  });
+
+  it("preserves a committed admission policy when an older whole snapshot omits the field", async () => {
+    const admission = {
+      maxActiveAgentSessions: 3,
+      maxActiveTerminalShells: 0,
+      maxActiveGenerationHelpers: 0,
+    };
+    const { authority, writes } = await open({ hostResourceAdmission: admission });
+    const sequence = authority.snapshot().sequence;
+    const stale = { ...authority.readSettings() } as Record<string, unknown>;
+    delete stale.hostResourceAdmission;
+
+    await writes.commitCompatSnapshot(stale as unknown as SharedSettingsInput);
+
+    expect(authority.readSettings().hostResourceAdmission).toEqual(admission);
+    expect(authority.snapshot().sequence).toBe(sequence);
+  });
+
+  it("lets a present stale admission value win field-wise as documented", async () => {
+    const { authority, writes } = await open({
+      hostResourceAdmission: {
+        maxActiveAgentSessions: 3,
+        maxActiveTerminalShells: 0,
+        maxActiveGenerationHelpers: 0,
+      },
+    });
+    const stale = structuredClone(authority.readSettings());
+    stale.hostResourceAdmission = {
+      maxActiveAgentSessions: 0,
+      maxActiveTerminalShells: 0,
+      maxActiveGenerationHelpers: 0,
+    };
+
+    await writes.commitCompatSnapshot(stale);
+
+    // Present values win field-wise; only omission is a no-op. Current writers
+    // always send the committed value, so this is not a live clobber path.
+    expect(authority.readSettings().hostResourceAdmission).toEqual({
+      maxActiveAgentSessions: 0,
+      maxActiveTerminalShells: 0,
+      maxActiveGenerationHelpers: 0,
+    });
   });
 
   it("throws the typed refusal kinds a transport maps to 409/429", async () => {

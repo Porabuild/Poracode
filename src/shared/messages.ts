@@ -180,6 +180,18 @@ const messages = {
   "remote.helper.timeout": "Timed out waiting for Poracode Helper.",
   "remote.helper.startFailed":
     "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
+  "remote.helper.ownerUnverified":
+    "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect.",
+  "remote.helper.ownerUnresponsive":
+    "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect.",
+  "remote.helper.ownerIncompatible":
+    "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version.",
+  "remote.helper.ownerConflict":
+    "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect.",
+  "remote.helper.busy":
+    "Another Poracode client is preparing this connection. Try again in a moment.",
+  "remote.helper.drainTimeout":
+    "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again.",
   "ssh.runtimeManifest.invalid": "Poracode SSH runtime manifest is missing or invalid: {path}",
   "remote.project.invalidName": "Enter a valid project name.",
   "remote.project.invalidPath": "Enter a valid absolute project path.",
@@ -364,6 +376,31 @@ const errorPatterns: Array<{
   {
     test: /Poracode Helper failed to start|Poracode SSH requires (?:Node 24\.10 or newer|npm)|Uploaded Poracode runtime archive was not found|No remote loopback port is available for Poracode/i,
     key: "remote.helper.startFailed",
+  },
+  {
+    test: /^The remote host has a Poracode Helper this client cannot verify\./,
+    key: "remote.helper.ownerUnverified",
+  },
+  {
+    test: /^A Poracode Helper owns this connection but is not responding\./,
+    key: "remote.helper.ownerUnresponsive",
+  },
+  {
+    test: /^The remote host runs an incompatible Poracode Helper \(/,
+    key: "remote.helper.ownerIncompatible",
+    params: (raw) => ({ version: raw.match(/\(([^)]*)\)/)?.[1] ?? "unknown" }),
+  },
+  {
+    test: /^Another Poracode owner already holds this connection's data root\./,
+    key: "remote.helper.ownerConflict",
+  },
+  {
+    test: /^Another Poracode client is (?:preparing this connection|installing the remote runtime)\./,
+    key: "remote.helper.busy",
+  },
+  {
+    test: /^The remote helper did not stop within its shutdown window/,
+    key: "remote.helper.drainTimeout",
   },
   {
     // undici and browser fetch collapse transport failures into these opaque

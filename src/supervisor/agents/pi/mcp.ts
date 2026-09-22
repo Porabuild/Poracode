@@ -1,16 +1,16 @@
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { stageLaunchHelper } from "../base/launchHelper";
 
-export function piMcpLaunch(
+export async function piMcpLaunch(
   location: ProjectLocation,
   servers: readonly ResolvedMcpServer[] = [],
-): {
+): Promise<{
   args: string[];
   env?: Record<string, string>;
-  cleanup?: () => void;
-} {
+  cleanup?: () => Promise<void>;
+}> {
   if (!servers.length) return { args: [] };
-  const helper = stageLaunchHelper(location, "pi-mcp-extension.mjs", "pi-mcp");
+  const helper = await stageLaunchHelper(location, "pi-mcp-extension.mjs", "pi-mcp");
   return {
     args: ["--extension", helper.path],
     env: {

@@ -26,10 +26,15 @@ import {
   quoteHookCommandArg,
   readBundledPluginVersion,
   readPluginManifest,
+  removeStagedPluginDir,
   renderNativeHookPowerShellWrapper,
   renderNativeHookWrapper,
+  resolvePluginVerificationIo,
+  stagePluginAssetsToWsl,
+  verifyStagedPluginAt,
   warnIfPluginManifestMissing,
 } from "./installerBase";
+import { setWslStagingService } from "../../wsl/staging";
 
 const tempDirs: string[] = [];
 
@@ -530,5 +535,120 @@ describe("ctxCacheKey", () => {
     expect(ctxCacheKey({ envKind: "windows", baseDir: "/tmp/a" })).toBe("windows||/tmp/a");
     expect(ctxCacheKey({ envKind: "wsl", wslDistro: "Ubuntu" })).toBe("wsl|Ubuntu|");
     expect(ctxCacheKey(undefined)).toBe("no-ctx");
+  });
+});
+
+describe("stagePluginAssetsToWsl (worker-backed)", () => {
+  afterEach(() => {
+    setWslStagingService(undefined);
+  });
+
+  it("stages assets through the shared staging service and returns the linux plugin dir", async () => {
+    const root = makeTempDir();
+    writeFileSync(join(root, "plugin.json"), '{"version":"1.2.3"}');
+    writeFileSync(join(root, "forward.mjs"), "export default 1;\n");
+    const deployed: unknown[] = [];
+    setWslStagingService({
+      resolveHome: async () => "/home/user",
+      deployHome: async (_distro: string, input: unknown) => {
+        deployed.push(input);
+        return { filesWritten: 2 };
+      },
+    } as never);
+
+    const staged = await stagePluginAssetsToWsl("Ubuntu", root, "claude");
+
+    expect(staged).toMatchObject({
+      ok: true,
+      linuxPluginDir: "/home/user/.poracode/agent-plugins/claude",
+    });
+    expect(deployed[0]).toMatchObject({
+      home: "/home/user",
+      files: expect.arrayContaining([
+        expect.objectContaining({ relDest: "agent-plugins/claude/plugin.json" }),
+        expect.objectContaining({ relDest: "agent-plugins/claude/forward.mjs" }),
+      ]),
+    });
+  });
+
+  it("removes a WSL plugin dir through the worker instead of a synchronous UNC walk", async () => {
+    const removed: string[] = [];
+    setWslStagingService({
+      resolveHome: async () => "/home/user",
+      remove: async (_distro: string, path: string) => {
+        removed.push(path);
+      },
+    } as never);
+
+    await removeStagedPluginDir("claude", { envKind: "wsl", wslDistro: "Ubuntu" });
+
+    expect(removed).toEqual([
+      "\\\\wsl.localhost\\Ubuntu\\home\\user\\.poracode\\agent-plugins\\claude",
+    ]);
+  });
+});
+
+describe("verifyStagedPluginAt (worker-backed)", () => {
+  afterEach(() => {
+    setWslStagingService(undefined);
+  });
+
+  it("verifies a WSL install entirely through the staging worker", async () => {
+    const calls: string[] = [];
+    setWslStagingService({
+      pathExists: async (_distro: string, path: string) => {
+        calls.push(`exists:${path}`);
+        return true;
+      },
+      readTextFile: async (_distro: string, path: string) => {
+        calls.push(`read:${path}`);
+        return '{"version":"1.2.3"}';
+      },
+    } as never);
+
+    await expect(
+      verifyStagedPluginAt("/home/demo/.poracode/agent-plugins/claude", "wsl", {
+        distro: "Ubuntu",
+      }),
+    ).resolves.toEqual({ installed: true, version: "1.2.3" });
+
+    // Every read is a worker request over the distro UNC path; no synchronous
+    // host handle is ever opened against the WSL share.
+    expect(calls).toEqual([
+      "exists:\\\\wsl.localhost\\Ubuntu\\home\\demo\\.poracode\\agent-plugins\\claude\\plugin.json",
+      "exists:\\\\wsl.localhost\\Ubuntu\\home\\demo\\.poracode\\agent-plugins\\claude\\forward.mjs",
+      "read:\\\\wsl.localhost\\Ubuntu\\home\\demo\\.poracode\\agent-plugins\\claude\\plugin.json",
+    ]);
+  });
+
+  it("refuses WSL verification without a distro instead of falling back synchronously", () => {
+    expect(() => resolvePluginVerificationIo("wsl")).toThrow(/distro/i);
+  });
+
+  it("keeps another distro and local work moving while one distro's worker stalls", async () => {
+    const releaseStalled = Promise.withResolvers<void>();
+    let localAdvanced = false;
+    setWslStagingService({
+      pathExists: async (distro: string, path: string) => {
+        if (distro === "Stalled") await releaseStalled.promise;
+        return path.length > 0;
+      },
+      readTextFile: async () => '{"version":"1.0.0"}',
+    } as never);
+
+    const blocked = verifyStagedPluginAt("/home/u/plugin", "wsl", { distro: "Stalled" });
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        localAdvanced = true;
+        resolve();
+      });
+    });
+    const other = await verifyStagedPluginAt("/home/u/plugin", "wsl", { distro: "Ubuntu" });
+
+    expect(localAdvanced).toBe(true);
+    expect(other).toEqual({ installed: true, version: "1.0.0" });
+
+    releaseStalled.resolve();
+    await expect(blocked).resolves.toEqual({ installed: true, version: "1.0.0" });
   });
 });

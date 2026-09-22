@@ -9,6 +9,7 @@ import {
   detectProbeLocation,
   inheritBaseSpawnEnv,
   mergeSpawnEnv,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -30,7 +31,7 @@ import {
   readBundledCursorPluginVersion,
   uninstallCursorPlugin,
 } from "./plugin/install";
-import { createCursorChatSync } from "./session";
+import { createCursorChat } from "./session";
 import { CURSOR_IDLE_RE, CURSOR_WORKING_RE, detectCursorTerminalStatus } from "./terminal";
 import { applyCursorSdkProbe, probeCursorSdkRuntime } from "./sdkDetection";
 import { CursorSdkSession } from "./sdkSession";
@@ -194,12 +195,12 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installCursorPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installCursorPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCursorPlugin(ctx);
+      await uninstallCursorPlugin(ctx);
     },
 
     detectInstall: async (ctx) => {
@@ -220,9 +221,9 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         configuredCursorStructuredRuntime(ctx?.agentSettings),
       );
     },
-    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
-      const mcp = cursorMcpLaunch(location, launchOptions?.mcpServers);
-      const chatId = createCursorChatSync(location);
+    async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
+      const mcp = await cursorMcpLaunch(location, launchOptions?.mcpServers);
+      const chatId = await createCursorChat(location);
       const args = [...mcp.args, ...buildCursorArgs(config, prompt, chatId)];
       return {
         ...mcp,
@@ -230,8 +231,8 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
         ...(chatId ? { sessionRef: createKnownSessionRef(chatId) } : {}),
       };
     },
-    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
-      const mcp = cursorMcpLaunch(location, launchOptions?.mcpServers);
+    async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+      const mcp = await cursorMcpLaunch(location, launchOptions?.mcpServers);
       const args = [...mcp.args, ...buildCursorArgs(config, prompt, sessionRef.providerSessionId)];
       return { ...mcp, ...buildCursorArgvSpec(location, args) };
     },
@@ -257,6 +258,7 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
           });
         }
       }
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildCursorAgentCommand(input.projectLocation, ["acp"]);
       const acpEnv = mergeSpawnEnv(input.baseSpawnEnv, profileKeyEnv);
       return createAcpStructuredSession(command, {
@@ -270,10 +272,13 @@ export function createCursorAdapter(options: CursorAdapterOptions = {}): AgentAd
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildCursorAgentCommand(location, ["acp"]);
     },
     async buildAcpLogoutCommand(ctx) {
-      return buildCursorAgentCommand(detectProbeLocation(ctx), ["logout"]);
+      const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
+      return buildCursorAgentCommand(location, ["logout"]);
     },
     buildDirectInput(prompt, _segments, _config, projectLocation) {
       // Cursor's TUI debounces fast incoming bytes as a paste burst. With

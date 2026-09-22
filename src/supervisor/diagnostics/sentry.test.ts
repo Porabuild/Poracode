@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  HostResourceBusyError,
+  HostResourcePolicyUnavailableError,
+} from "../runtime/hostResourceAdmission";
+import {
   classifySupervisorFailure,
   classifySupervisorIpcFailure,
   initializeSupervisorSentry,
@@ -268,6 +272,35 @@ describe("supervisor Sentry policy", () => {
       treatment: "capture",
       domain: "supervisor.ipc",
       fingerprint: null,
+    });
+  });
+
+  it.each([
+    [
+      "host-resource-busy",
+      new HostResourceBusyError({
+        resourceClass: "agent-session",
+        limit: 1,
+        active: 1,
+        pending: 0,
+        retiring: 0,
+        retryAfterMs: 1_000,
+      }),
+    ],
+    [
+      "host-resource-policy-unavailable",
+      new HostResourcePolicyUnavailableError("host-resource-admission-invalid"),
+    ],
+  ])("treats a typed admission refusal as expected operational: %s", (errorClass, error) => {
+    expect(classifySupervisorIpcFailure(error, "startThread")).toEqual({
+      failureClass: "expected-operational",
+      treatment: "drop",
+      level: null,
+      operational: true,
+      domain: "supervisor.ipc",
+      operation: "startthread",
+      errorClass,
+      fingerprint: ["poracode", "supervisor.ipc", "startthread", errorClass],
     });
   });
 

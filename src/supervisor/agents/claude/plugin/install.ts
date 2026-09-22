@@ -1,7 +1,6 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -14,15 +13,18 @@ import {
   getNativeHookWrapperFilename,
   getNativePluginBaseDir,
   getWslPluginBaseDirs,
-  hasNativeHookWrapper,
   isWslPluginContext,
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  readPluginManifestWith,
   removeStagedPluginDir,
+  resolvePluginVerificationIo,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   writeNativeHookWrapper,
   type PluginManifest,
+  type PluginVerificationTarget,
 } from "../../plugin/installerBase";
 
 /**
@@ -58,7 +60,7 @@ export interface ClaudePluginPaths {
   /** Path to the generated Claude settings file (passed via `--settings`). */
   settingsPath: string;
   /** Plugin semver from plugin.json. */
-  version: string;
+  version?: string;
 }
 
 const callerDir =
@@ -86,16 +88,9 @@ function computeClaudePluginPaths(ctx?: AgentEnvContext): ClaudePluginPaths {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "claude");
     if (!wsl) return { pluginDir: "", settingsPath: "", version: "0.0.0" };
-    let version = "0.0.0";
-    try {
-      version = readPluginManifest(wsl.uncBase).version;
-    } catch {
-      // staged manifest missing or distro unreachable.
-    }
     return {
       pluginDir: wsl.linuxBase,
       settingsPath: `${wsl.linuxBase}/settings.json`,
-      version,
     };
   }
   const pluginDir = getNativePluginBaseDir("claude", ctx?.baseDir);
@@ -144,10 +139,12 @@ export interface InstallClaudePluginOptions {
   resolvedNodePath?: string | undefined;
 }
 
-export function installClaudePlugin(
+export async function installClaudePlugin(
   ctx?: AgentEnvContext,
   options?: InstallClaudePluginOptions,
-): { ok: true; paths: ClaudePluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<
+  { ok: true; paths: ClaudePluginPaths; version: string } | { ok: false; reason: string }
+> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -200,13 +197,15 @@ export function installClaudePlugin(
   };
 }
 
-function installClaudePluginWsl(
+async function installClaudePluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
-): { ok: true; paths: ClaudePluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "claude", {
+): Promise<
+  { ok: true; paths: ClaudePluginPaths; version: string } | { ok: false; reason: string }
+> {
+  const staged = await stagePluginAssetsToWsl(distro, sourceDir, "claude", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
@@ -216,14 +215,10 @@ function installClaudePluginWsl(
   const linuxForwardPath = `${linuxPluginDir}/forward.mjs`;
   const headExpression = buildWslHookCommandHead(resolvedNodePath, linuxForwardPath);
 
-  const uncSettingsPath = toWslUncPath(distro, linuxSettingsPath);
   try {
-    mkdirSync(dirname(uncSettingsPath), { recursive: true });
-    const settings = renderClaudeSettings(headExpression);
-    writeFileSync(uncSettingsPath, JSON.stringify(settings, null, 2), "utf8");
-    const uncHooksPath = toWslUncPath(distro, `${linuxPluginDir}/hooks/hooks.json`);
-    mkdirSync(dirname(uncHooksPath), { recursive: true });
-    writeFileSync(uncHooksPath, JSON.stringify(settings, null, 2), "utf8");
+    const serialized = JSON.stringify(renderClaudeSettings(headExpression), null, 2);
+    await writeWslTextFile(distro, linuxSettingsPath, serialized);
+    await writeWslTextFile(distro, `${linuxPluginDir}/hooks/hooks.json`, serialized);
   } catch (error) {
     return {
       ok: false,
@@ -252,35 +247,48 @@ function installClaudePluginWsl(
  * Read whether the plugin is already installed at the canonical staging path
  * for the given environment.
  */
-export function isClaudePluginInstalled(ctx?: AgentEnvContext): {
-  installed: boolean;
-  version?: string;
-} {
+export async function isClaudePluginInstalled(
+  ctx?: AgentEnvContext,
+): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "claude");
     if (!wsl) return { installed: false };
-    return verifyClaudeInstallAt(wsl.uncBase, "wsl");
+    return verifyClaudeInstallAt(wsl.linuxBase, "wsl", { distro: ctx.wslDistro });
   }
   return verifyClaudeInstallAt(getNativePluginBaseDir("claude", ctx?.baseDir), "native");
 }
 
-export function uninstallClaudePlugin(ctx?: AgentEnvContext): void {
-  removeStagedPluginDir("claude", ctx);
+export async function uninstallClaudePlugin(ctx?: AgentEnvContext): Promise<void> {
+  await removeStagedPluginDir("claude", ctx);
 }
 
-function verifyClaudeInstallAt(
+const CLAUDE_VERIFY_ASSETS = [
+  "plugin.json",
+  "forward.mjs",
+  FORWARD_RUNTIME_FILE,
+  "hooks/hooks.json",
+  "settings.json",
+] as const;
+
+async function verifyClaudeInstallAt(
   readableDir: string,
   target: "native" | "wsl",
-): { installed: boolean; version?: string } {
-  if (!existsSync(join(readableDir, "plugin.json"))) return { installed: false };
-  if (!existsSync(join(readableDir, "forward.mjs"))) return { installed: false };
-  if (!existsSync(join(readableDir, FORWARD_RUNTIME_FILE))) return { installed: false };
-  if (!existsSync(join(readableDir, "hooks", "hooks.json"))) return { installed: false };
-  if (!existsSync(join(readableDir, "settings.json"))) return { installed: false };
-  if (!hasNativeHookWrapper(readableDir, target)) return { installed: false };
+  options?: PluginVerificationTarget,
+): Promise<{ installed: boolean; version?: string }> {
+  const io = resolvePluginVerificationIo(target, options);
+  for (const asset of CLAUDE_VERIFY_ASSETS) {
+    const path = io.joinPath(readableDir, ...asset.split("/"));
+    if (!(await io.pathExists(path))) return { installed: false };
+  }
+  if (
+    target === "native" &&
+    !(await io.pathExists(io.joinPath(readableDir, getNativeHookWrapperFilename())))
+  ) {
+    return { installed: false };
+  }
   try {
-    const version = readPluginManifest(readableDir).version;
-    return { installed: true, version };
+    const manifest = await readPluginManifestWith(io, readableDir);
+    return { installed: true, version: manifest.version };
   } catch {
     return { installed: false };
   }

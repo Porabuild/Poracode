@@ -2,7 +2,6 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toWslUncPath } from "@/shared/wsl";
 import { getCachedWslHomeDirectory, type AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -18,8 +17,12 @@ import {
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  readWslTextFile,
   removeStagedPluginDir,
+  removeWslPath,
+  resolvePluginVerificationIo,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   verifyStagedPluginAt,
   writeNativeHookWrapper,
   type PluginManifest,
@@ -50,7 +53,7 @@ export interface GrokPluginPaths {
   /** Absolute path of the user-global hook config file written by install. */
   globalHookFilePath: string;
   /** Plugin semver from plugin.json. */
-  version: string;
+  version?: string;
 }
 
 const GROK_HOOK_EVENTS = ["SessionStart", "UserPromptSubmit", "Stop", "Notification"] as const;
@@ -89,19 +92,12 @@ function computeGrokPluginPaths(ctx?: AgentEnvContext): GrokPluginPaths {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "grok");
     if (!wsl) return { pluginDir: "", globalHookFilePath: "", version: "0.0.0" };
-    let version = "0.0.0";
-    try {
-      version = readPluginManifest(wsl.uncBase).version;
-    } catch {
-      // staged manifest missing or distro unreachable
-    }
     const grokDir = wslGlobalGrokDir(ctx.wslDistro);
     return {
       pluginDir: wsl.linuxBase,
       globalHookFilePath: grokDir
         ? `${grokDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`
         : "",
-      version,
     };
   }
   const pluginDir = getNativePluginBaseDir("grok", ctx?.baseDir);
@@ -142,10 +138,10 @@ export interface InstallGrokPluginOptions {
   globalGrokDirOverride?: string;
 }
 
-export function installGrokPlugin(
+export async function installGrokPlugin(
   ctx?: AgentEnvContext,
   options?: InstallGrokPluginOptions,
-): { ok: true; paths: GrokPluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<{ ok: true; paths: GrokPluginPaths; version: string } | { ok: false; reason: string }> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -213,14 +209,14 @@ export function installGrokPlugin(
   };
 }
 
-function installGrokPluginWsl(
+async function installGrokPluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
   globalGrokDirOverride: string | undefined,
-): { ok: true; paths: GrokPluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "grok", {
+): Promise<{ ok: true; paths: GrokPluginPaths; version: string } | { ok: false; reason: string }> {
+  const staged = await stagePluginAssetsToWsl(distro, sourceDir, "grok", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
@@ -228,19 +224,19 @@ function installGrokPluginWsl(
   const linuxForward = `${staged.linuxPluginDir}/forward.mjs`;
   const linuxGrokDir = globalGrokDirOverride ?? `${staged.deploy.home}/${GLOBAL_GROK_DIR_NAME}`;
   const linuxHookFilePath = `${linuxGrokDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`;
-  const uncHookFilePath = toWslUncPath(distro, linuxHookFilePath);
 
   const command = buildWslHookCommandHead(resolvedNodePath, linuxForward);
 
-  const writeResult = writeGrokHookFileIfChanged(uncHookFilePath, { command });
+  const writeResult = await writeGrokHookFileIfChangedWsl(distro, linuxHookFilePath, { command });
   if (!writeResult.ok) {
     return {
       ok: false,
       reason: `failed to write Grok hook file at ${linuxHookFilePath} in wsl distro ${distro}: ${writeResult.reason}`,
     };
   }
-  removeManagedHookFile(
-    toWslUncPath(distro, `${linuxGrokDir}/${GLOBAL_HOOK_DIR_NAME}/${LEGACY_GLOBAL_HOOK_FILENAME}`),
+  await removeManagedHookFileWsl(
+    distro,
+    `${linuxGrokDir}/${GLOBAL_HOOK_DIR_NAME}/${LEGACY_GLOBAL_HOOK_FILENAME}`,
   );
 
   console.log(
@@ -264,20 +260,19 @@ function installGrokPluginWsl(
 
 const GROK_VERIFY_ASSETS = ["plugin.json", "forward.mjs", FORWARD_RUNTIME_FILE] as const;
 
-export function isGrokPluginInstalled(ctx?: AgentEnvContext): {
-  installed: boolean;
-  version?: string;
-} {
+export async function isGrokPluginInstalled(
+  ctx?: AgentEnvContext,
+): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "grok");
     if (!wsl) return { installed: false };
     const grokDir = wslGlobalGrokDir(ctx.wslDistro);
-    const hookFile = grokDir
-      ? toWslUncPath(ctx.wslDistro, `${grokDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`)
-      : "";
-    return verifyStagedPluginAt(wsl.uncBase, "wsl", {
+    const io = resolvePluginVerificationIo("wsl", { distro: ctx.wslDistro });
+    const hookFile = grokDir ? `${grokDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}` : "";
+    return verifyStagedPluginAt(wsl.linuxBase, "wsl", {
       assets: GROK_VERIFY_ASSETS,
-      extraCheck: () => hookFile.length > 0 && hookFileMatchesPoracode(hookFile),
+      extraCheck: () => hookFile.length > 0 && hookFileMatchesPoracodeAsync(io, hookFile),
+      distro: ctx.wslDistro,
     });
   }
   const hookFile = join(nativeGlobalGrokDir(), GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
@@ -287,13 +282,18 @@ export function isGrokPluginInstalled(ctx?: AgentEnvContext): {
   });
 }
 
-export function uninstallGrokPlugin(ctx?: AgentEnvContext): void {
-  const hookDir = isWslPluginContext(ctx)
-    ? toWslUncPath(ctx.wslDistro, `${wslGlobalGrokDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`)
-    : join(nativeGlobalGrokDir(), GLOBAL_HOOK_DIR_NAME);
+export async function uninstallGrokPlugin(ctx?: AgentEnvContext): Promise<void> {
+  if (isWslPluginContext(ctx)) {
+    const hookDir = `${wslGlobalGrokDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`;
+    await removeManagedHookFileWsl(ctx.wslDistro, `${hookDir}/${GLOBAL_HOOK_FILENAME}`);
+    await removeManagedHookFileWsl(ctx.wslDistro, `${hookDir}/${LEGACY_GLOBAL_HOOK_FILENAME}`);
+    await removeStagedPluginDir("grok", ctx);
+    return;
+  }
+  const hookDir = join(nativeGlobalGrokDir(), GLOBAL_HOOK_DIR_NAME);
   removeManagedHookFile(join(hookDir, GLOBAL_HOOK_FILENAME));
   removeManagedHookFile(join(hookDir, LEGACY_GLOBAL_HOOK_FILENAME));
-  removeStagedPluginDir("grok", ctx);
+  await removeStagedPluginDir("grok", ctx);
 }
 
 /**
@@ -315,14 +315,46 @@ function removeManagedHookFile(path: string): void {
   }
 }
 
+async function removeManagedHookFileWsl(distro: string, linuxPath: string): Promise<void> {
+  try {
+    const raw = await readWslTextFile(distro, linuxPath);
+    if (raw !== null && hookContentMatches(raw, MANAGED_GROK_HOOK_RE)) {
+      await removeWslPath(distro, linuxPath);
+    }
+  } catch {
+    // best-effort cleanup
+  }
+}
+
 function hookFileMatchesPoracode(path: string): boolean {
   return hookFileMatches(path, PORACODE_GROK_HOOK_RE);
+}
+
+async function hookFileMatchesPoracodeAsync(
+  io: {
+    readTextFile(path: string): Promise<string | null>;
+  },
+  path: string,
+): Promise<boolean> {
+  try {
+    const raw = await io.readTextFile(path);
+    return raw !== null && hookContentMatches(raw, PORACODE_GROK_HOOK_RE);
+  } catch {
+    return false;
+  }
 }
 
 function hookFileMatches(path: string, pattern: RegExp): boolean {
   if (!existsSync(path)) return false;
   try {
-    const raw = readFileSync(path, "utf8");
+    return hookContentMatches(readFileSync(path, "utf8"), pattern);
+  } catch {
+    return false;
+  }
+}
+
+function hookContentMatches(raw: string, pattern: RegExp): boolean {
+  try {
     const parsed = JSON.parse(raw) as { hooks?: Record<string, unknown> };
     if (!parsed.hooks || typeof parsed.hooks !== "object") return false;
     for (const event of GROK_HOOK_EVENTS) {
@@ -384,6 +416,29 @@ export function renderGrokHookConfig(input: { command: string }): GrokHookConfig
     ];
   }
   return { hooks };
+}
+
+async function writeGrokHookFileIfChangedWsl(
+  distro: string,
+  linuxHookFilePath: string,
+  input: { command: string },
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const serialized = `${JSON.stringify(renderGrokHookConfig(input), null, 2)}\n`;
+  try {
+    const existing = await readWslTextFile(distro, linuxHookFilePath);
+    if (existing === serialized) return { ok: true };
+  } catch {
+    // file missing or unreadable; fall through to write
+  }
+  try {
+    await writeWslTextFile(distro, linuxHookFilePath, serialized);
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 function writeGrokHookFileIfChanged(

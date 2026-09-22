@@ -13,6 +13,8 @@ import type {
   McpLaunchSnapshot,
 } from "@/shared/contracts";
 import type { TranscriptBuffer } from "@/shared/transcriptBuffer";
+import type { HostResourceLease } from "./hostResourceAdmission";
+import type { StructuredDisposalCustody } from "./threadSession/structuredDisposalCustody";
 import type {
   AgentAdapter,
   AgentNativePlugin,
@@ -47,12 +49,30 @@ export interface PendingSteerSlot extends QueuedStructuredTurn {
   stagedAt: number;
 }
 
+/**
+ * Retained custody of a structured handle whose disposal is the one pending
+ * process effect for this session. Set by the force-stop watchdog (and by
+ * retirement itself); every later retirement joins this exact operation, so a
+ * cleared `structuredSession` can never be read as "retired".
+ */
+export interface PendingStructuredDisposal {
+  readonly handle: StructuredSessionHandle;
+  readonly custody: StructuredDisposalCustody;
+}
+
 export interface SessionRuntime {
   instanceId: string;
   threadId: string;
   agentKind: AgentKind;
   adapter: AgentAdapter;
   pty?: IPty;
+  /**
+   * Host execution-slot reservation for this session generation. Acquired
+   * before any process effect, activated when the runtime is published, and
+   * released only from observed retirement (PTY exit / structured close /
+   * confirmed disposal). Optional for harnesses that seed runtimes directly.
+   */
+  resourceLease?: HostResourceLease;
   /** User-visible project location before any provider execution fallback. */
   logicalProjectLocation?: ProjectLocation;
   projectLocation: ProjectLocation;
@@ -74,8 +94,16 @@ export interface SessionRuntime {
   launchPrompt: string;
   outputLength: number;
   structuredSession?: StructuredSessionHandle | undefined;
+  /**
+   * Confirmed structured-side retirement: its `dispose()` resolved or the
+   * transport reported `onClose`. Required (together with the PTY exit) for a
+   * mixed session to release capacity.
+   */
+  structuredRetired?: boolean | undefined;
+  /** See {@link PendingStructuredDisposal}. */
+  pendingStructuredDisposal?: PendingStructuredDisposal | undefined;
   /** Releases temporary resources created specifically for this PTY launch. */
-  launchCleanup?: (() => void) | undefined;
+  launchCleanup?: (() => void | Promise<void>) | undefined;
   /** Mode the thread was launched in. Preserved for restart / recovery flows. */
   presentationMode?: ThreadPresentationMode;
   ignoreExit?: boolean;
@@ -175,6 +203,8 @@ export interface ShellSessionRuntime {
   instanceId: string;
   shellId: string;
   pty: IPty;
+  /** Host execution-slot reservation for this shell generation. See SessionRuntime. */
+  resourceLease?: HostResourceLease;
   projectLocation: ProjectLocation;
   outputLength: number;
   outputTranscript: TranscriptBuffer;

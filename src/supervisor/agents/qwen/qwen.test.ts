@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { createAcpStructuredSession } from "../acp";
 import type { CreateStructuredSessionInput } from "../base";
@@ -12,6 +12,7 @@ import {
   qwenDetectionSpec,
 } from "./detection";
 import { detectQwenInvalidSessionRef } from "./session";
+import { primeWslLaunchEnvironment } from "../base";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
@@ -86,9 +87,9 @@ describe("createQwenAdapter", () => {
   const project: ProjectLocation = { kind: "windows", path: "C:\\demo" };
   const config: ThreadConfig = { model: QWEN_DEFAULT_MODEL_ID };
 
-  it("preassigns a stable session ID and resumes that exact ID", () => {
+  it("preassigns a stable session ID and resumes that exact ID", async () => {
     const adapter = createQwenAdapter();
-    const launch = adapter.buildLaunchArgv(project, config, "hello");
+    const launch = await adapter.buildLaunchArgv(project, config, "hello");
     const sessionIndex = launch.args.indexOf("--session-id");
     const sessionId = launch.args[sessionIndex + 1];
 
@@ -96,7 +97,7 @@ describe("createQwenAdapter", () => {
     expect(sessionId).toMatch(UUID_RE);
     expect(launch.sessionRef?.providerSessionId).toBe(sessionId);
 
-    const resume = adapter.buildResumeArgv(project, config, "again", launch.sessionRef!);
+    const resume = await adapter.buildResumeArgv(project, config, "again", launch.sessionRef!);
     expect(resume.args).toContain("--resume");
     expect(resume.args).toContain(sessionId);
     expect(resume.args).not.toContain("--session-id");
@@ -138,6 +139,10 @@ describe("buildQwenAcpSessionArgs", () => {
     expect(buildQwenAcpSessionArgs("0.21.14-nightly.20260822")).toEqual(["--acp"]);
     expect(buildQwenAcpSessionArgs(undefined)).toEqual(["--acp"]);
   });
+});
+
+beforeEach(() => {
+  primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
 });
 
 describe("Qwen ACP session spawn", () => {

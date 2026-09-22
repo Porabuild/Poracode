@@ -26,7 +26,20 @@ export type RemoteResponseWireKind =
 export type RemoteIdempotency =
   | "command-id-header"
   | "command-id-header-for-start-kind"
-  | "command-id-header-unless-ensure-running";
+  | "command-id-header-unless-ensure-running"
+  // The header is REQUIRED for the narrow catalog-mutation kinds
+  // (`reorder` / `set-workspace` on the thread route; `reorder` /
+  // `set-workspace` / `set-draft-config` on the project route): the host
+  // refuses such a command without it before any effect, because a relative
+  // move is only retry-safe under the caller's per-action id. Legacy kinds
+  // keep their historical optional/non-receipted dispatch. Separately, on the
+  // project route a request that declares the bounded result mode
+  // (`x-poracode-project-command-result: bounded-v1` — a per-request header
+  // not modeled by this descriptor) requires the id for EVERY kind, since the
+  // receipt is then the only retry-safety identity; there too the missing-id
+  // refusal happens before any effect.
+  | "command-id-header-for-start-and-catalog-kinds"
+  | "command-id-header-for-catalog-kinds";
 
 /** Protocol-level compatibility for unknown object fields on the wire. */
 export type RemoteProtocolUnknownFieldPolicy = "ignore" | "reject";

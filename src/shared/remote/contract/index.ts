@@ -16,6 +16,22 @@ export {
   assertRemoteContractComplete,
 } from "./registry";
 export { REMOTE_HTTP_ROUTES, type RemoteHttpRouteId } from "./routes";
+export {
+  ENVIRONMENT_MANAGEMENT_ROUTE_IDS,
+  type EnvironmentManagementRouteId,
+} from "./routes/environments";
+export {
+  remoteEnvironmentAdoptLegacyBodySchema,
+  remoteEnvironmentCreateBodySchema,
+  remoteEnvironmentExpectedRevisionBodySchema,
+  remoteEnvironmentListResultSchema,
+  remoteEnvironmentPairingResultSchema,
+  remoteEnvironmentResultSchema,
+  remoteEnvironmentTrustAcceptBodySchema,
+  remoteEnvironmentTrustProbeResultSchema,
+  remoteEnvironmentUpdateBodySchema,
+  remoteEnvironmentUpdatePatchSchema,
+} from "./environmentSchemas";
 export { BLOCKED_PROCEDURE_RESULTS, REMOTE_PROCEDURE_CONTRACTS } from "./procedures";
 export {
   buildRemoteProtocolManifest,

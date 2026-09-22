@@ -456,7 +456,7 @@ async function runWithCodexAppServer<T>(
   try {
     const wslNodePath =
       location.kind === "wsl" ? (await resolveNodeForDistro(location.distro)).nodePath : undefined;
-    const cmd = buildCodexAppServerCommand(location, {
+    const cmd = await buildCodexAppServerCommand(location, {
       ...(options?.wslExecPath !== undefined ? { wslExecPath: options.wslExecPath } : {}),
       ...(wslNodePath !== undefined ? { wslNodePath } : {}),
     });

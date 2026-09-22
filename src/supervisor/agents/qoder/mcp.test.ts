@@ -20,13 +20,13 @@ const server: ResolvedMcpServer = {
 describe("qoder MCP launch", () => {
   it.each(["", "initial prompt"])(
     "keeps launch and resume configs isolated with prompt %j",
-    (prompt) => {
+    async (prompt) => {
       const adapter = createQoderAdapter();
       const location = { kind: "posix" as const, path: "/project" };
-      const fresh = adapter.buildLaunchArgv(location, { model: "" }, prompt, undefined, {
+      const fresh = await adapter.buildLaunchArgv(location, { model: "" }, prompt, undefined, {
         mcpServers: [server],
       });
-      const resume = adapter.buildResumeArgv(
+      const resume = await adapter.buildResumeArgv(
         location,
         { model: "" },
         prompt,
@@ -56,16 +56,20 @@ describe("qoder MCP launch", () => {
           );
           expect(launch.args.includes(prompt)).toBe(Boolean(prompt));
         }
-        fresh.cleanup?.();
+        await fresh.cleanup?.();
         expect(existsSync(paths[0]!)).toBe(false);
         expect(existsSync(paths[1]!)).toBe(true);
         expect(adapter.capabilities.mcpScope?.terminal).toBe("launch");
         expect(
-          adapter.buildLaunchArgv(location, { model: "" }, "", undefined, { mcpServers: [] }).args,
+          (
+            await adapter.buildLaunchArgv(location, { model: "" }, "", undefined, {
+              mcpServers: [],
+            })
+          ).args,
         ).not.toContain("--mcp-config");
       } finally {
-        fresh.cleanup?.();
-        resume.cleanup?.();
+        await fresh.cleanup?.();
+        await resume.cleanup?.();
       }
     },
   );

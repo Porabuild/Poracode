@@ -13,7 +13,7 @@ import { HostOwnerLease } from "./hostOwnerLease";
 import { resolveHostRootPaths } from "./hostRootPaths";
 import { prepareOwnedHostRoot } from "./hostRootManifest";
 import { publishHostControlDiscovery } from "./hostControlDiscovery";
-import { callHostControl } from "./hostControlClient";
+import { callHostControl, HostControlUnsupportedOperationError } from "./hostControlClient";
 import { authenticateHostControlRequest, createHostControlResponseProof } from "./hostControlAuth";
 
 const cleanup: Array<() => Promise<void>> = [];
@@ -200,5 +200,105 @@ describe("owner control client", () => {
     await entered.promise;
     controller.abort();
     await expect(call).rejects.toThrow("cancelled");
+  });
+});
+
+describe("D4 status and admit client calls", () => {
+  const statusResult = (dataRoot: string, profileNamespace: string) => ({
+    profileNamespace,
+    dataRoot,
+    mode: "headless",
+    state: "starting",
+    admission: "held",
+    endpoint: null,
+    build: {
+      version: "1.8.1",
+      sourceRevision: null,
+      entrypointSha256: "d".repeat(64),
+      root: "/opt/poracode/releases/release-fixture",
+      layoutKind: "prefix",
+    },
+  });
+
+  it("classifies a pre-D4 empty authenticated 400 as an unsupported operation", async () => {
+    const test = await fixture((_request, response) => {
+      response.statusCode = 400;
+      response.end();
+    });
+    await expect(callHostControl(test.paths, "status")).rejects.toBeInstanceOf(
+      HostControlUnsupportedOperationError,
+    );
+  });
+
+  it("never treats a signed 400 as an unsupported operation", async () => {
+    const test = await fixture(async (request, response, secret) => {
+      const { authorization } = await receive(request, secret);
+      const bytes = Buffer.from("");
+      response.statusCode = 400;
+      response.setHeader(
+        "x-poracode-control-proof",
+        createHostControlResponseProof(secret, authorization, 400, bytes),
+      );
+      response.end(bytes);
+    });
+    await expect(callHostControl(test.paths, "status")).rejects.toThrow(
+      "Invalid or unavailable host control response.",
+    );
+  });
+
+  it("sends the admit expectation and verifies the signed status reply", async () => {
+    let admitted: unknown;
+    const test = await fixture(async (request, response, secret) => {
+      const { input, authorization } = await receive(request, secret);
+      admitted = input;
+      const bytes = Buffer.from(
+        JSON.stringify({
+          version: HOST_CONTROL_PROTOCOL_VERSION,
+          requestId: input.requestId,
+          ownerGeneration: input.ownerGeneration,
+          ok: true,
+          result: {
+            ...statusResult(test.paths.dataRoot, test.paths.profileNamespace),
+            admission: "open",
+          },
+        }),
+      );
+      response.setHeader(
+        "x-poracode-control-proof",
+        createHostControlResponseProof(secret, authorization, 200, bytes),
+      );
+      response.end(bytes);
+    });
+    const reply = await callHostControl(test.paths, "admit", {
+      payload: { expectedVersion: "1.8.1", expectedEntrypointSha256: "d".repeat(64) },
+    });
+    expect(admitted).toMatchObject({
+      operation: "admit",
+      payload: { expectedVersion: "1.8.1", expectedEntrypointSha256: "d".repeat(64) },
+    });
+    expect(reply.result).toMatchObject({ admission: "open" });
+  });
+
+  it("refuses a status reply that describes another profile", async () => {
+    const test = await fixture(async (request, response, secret) => {
+      const { input, authorization } = await receive(request, secret);
+      const bytes = Buffer.from(
+        JSON.stringify({
+          version: HOST_CONTROL_PROTOCOL_VERSION,
+          requestId: input.requestId,
+          ownerGeneration: input.ownerGeneration,
+          ok: true,
+          result: statusResult("/other.host-v1", "/other"),
+        }),
+      );
+      response.setHeader(
+        "x-poracode-control-proof",
+        createHostControlResponseProof(secret, authorization, 200, bytes),
+      );
+      response.end(bytes);
+    });
+    await expect(callHostControl(test.paths, "status")).rejects.toThrow(
+      "Invalid or unavailable host control response.",
+    );
   });
 });

@@ -52,14 +52,14 @@ export function createPiAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
-      const mcp = piMcpLaunch(location, options?.mcpServers);
+    async buildLaunchArgv(location, config, prompt, _sessionRef, options) {
+      const mcp = await piMcpLaunch(location, options?.mcpServers);
       void snapshotPiPreSpawnSessions(location);
       return { ...mcp, binary: "pi", args: [...mcp.args, ...buildPiArgs(config, prompt)] };
     },
 
-    buildResumeArgv(location, config, prompt, sessionRef, options) {
-      const mcp = piMcpLaunch(location, options?.mcpServers);
+    async buildResumeArgv(location, config, prompt, sessionRef, options) {
+      const mcp = await piMcpLaunch(location, options?.mcpServers);
       return {
         ...mcp,
         binary: "pi",

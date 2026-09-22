@@ -1,13 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ZodError } from "zod";
 import {
   isRemoteTransportFailure,
   isUnauthorizedRemoteError,
   RemoteClientError,
   RemoteDesktopClient,
+  remoteMutationMayHaveCommitted,
   type RemoteFetch,
 } from "./client";
 import { defaultSharedSettings } from "../settings";
-import { PORACODE_REMOTE_PROTOCOL_VERSION } from "./protocol";
+import type { RemoteThreadCommand } from "../contracts/thread";
+import {
+  hostSupportsProjectCommandResults,
+  hostSupportsThreadLaunchMetadata,
+  PORACODE_REMOTE_PROTOCOL_VERSION,
+} from "./protocol";
+import type { RemoteProjectCommand } from "./protocol/resources";
 
 describe("remote error classification", () => {
   it("separates transport failures from reachable application errors", () => {
@@ -129,8 +137,11 @@ describe("RemoteDesktopClient", () => {
       { onRequestSuccess, onRequestError },
     );
 
-    await expect(failureClient.websocketTicket()).rejects.toBe(transportError);
-    expect(onRequestError).toHaveBeenLastCalledWith(transportError);
+    const failure = await failureClient.websocketTicket().catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(RemoteClientError);
+    expect(failure).toMatchObject({ status: 0, code: "network", requestPhase: "dispatched" });
+    expect((failure as RemoteClientError).cause).toBe(transportError);
+    expect(onRequestError).toHaveBeenLastCalledWith(failure);
   });
 
   it("validates complete profile stats without stripping contract fields", async () => {
@@ -638,6 +649,244 @@ describe("RemoteDesktopClient", () => {
     expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-preallocated/command");
   });
 
+  it("forwards launch metadata and one retained operation id for startNewThread", async () => {
+    let requestUrl = "";
+    let requestBody: unknown;
+    const headers: Record<string, string>[] = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requestUrl = String(url);
+        requestBody = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown;
+        headers.push((init?.headers ?? {}) as Record<string, string>);
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    await expect(
+      client.startNewThread(
+        {
+          threadId: "thread-retained",
+          projectId: "project-1",
+          agentKind: "codex",
+          config: { model: "gpt-5" },
+          prompt: "go",
+          title: "Fork child",
+          groupId: "group-1",
+          groupName: "Group One",
+          parentThreadId: "parent-1",
+          prNumber: 7,
+          workspaceId: "workspace-1",
+          initialSize: { cols: 132, rows: 43 },
+        },
+        { commandId: "renderer-launch-op-7" },
+      ),
+    ).resolves.toEqual({ threadId: "thread-retained" });
+
+    expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-retained/command");
+    expect(headers[0]?.["x-poracode-command-id"]).toBe("renderer-launch-op-7");
+    expect(requestBody).toEqual({
+      kind: "start",
+      projectId: "project-1",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "go",
+      title: "Fork child",
+      groupId: "group-1",
+      groupName: "Group One",
+      parentThreadId: "parent-1",
+      prNumber: 7,
+      workspaceId: "workspace-1",
+      initialSize: { cols: 132, rows: 43 },
+    });
+
+    // Retaining one operation identity requires the same explicit target; a
+    // random per-call thread id would address a different thread on retry.
+    await expect(
+      client.startNewThread(
+        { projectId: "project-1", agentKind: "codex", config: { model: "gpt-5" }, prompt: "go" },
+        { commandId: "renderer-launch-op-8" },
+      ),
+    ).rejects.toThrow(/explicit threadId/);
+    expect(headers).toHaveLength(1);
+
+    // Omitting the option keeps the historical per-thread identity.
+    await client.startNewThread({
+      threadId: "thread-default-id",
+      projectId: "project-1",
+      agentKind: "codex",
+      config: { model: "gpt-5" },
+      prompt: "go",
+    });
+    expect(headers[1]?.["x-poracode-command-id"]).toBe("thread-start:thread-default-id");
+  });
+
+  it("declares the bounded project-command result mode, refuses a missing id and a complete response", async () => {
+    const requests: Array<{
+      readonly url: string;
+      readonly headers: Record<string, string>;
+      readonly body: unknown;
+    }> = [];
+    const boundedClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({
+          url: String(url),
+          headers: (init?.headers ?? {}) as Record<string, string>,
+          body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as unknown,
+        });
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            project: {
+              id: "p1",
+              name: "Renamed",
+              location: { kind: "posix", path: "/tmp/p1" },
+              createdAt: "2026-01-01T00:00:00.000Z",
+            },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      },
+    );
+
+    await expect(
+      boundedClient.projectCommand(
+        { kind: "update", projectId: "p1", patch: { name: "Renamed" } },
+        { commandId: "bounded-op-1", result: "bounded" },
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      project: expect.objectContaining({ id: "p1", name: "Renamed" }),
+    });
+    expect(requests[0]?.url).toBe("http://127.0.0.1:38987/api/projects/command");
+    expect(requests[0]?.headers["x-poracode-command-id"]).toBe("bounded-op-1");
+    expect(requests[0]?.headers["x-poracode-project-command-result"]).toBe("bounded-v1");
+    expect(requests[0]?.body).toEqual({
+      kind: "update",
+      projectId: "p1",
+      patch: { name: "Renamed" },
+    });
+
+    const missingId = await boundedClient
+      .projectCommand(
+        { kind: "update", projectId: "p1", patch: { name: "Renamed" } },
+        { result: "bounded" },
+      )
+      .catch((error: unknown) => error);
+    expect(missingId).toBeInstanceOf(Error);
+    expect((missingId as Error).message).toMatch(/requires an explicit per-operation commandId/);
+    // Caller validation happens before dispatch: definite, never uncertain.
+    expect(remoteMutationMayHaveCommitted(missingId)).toBe(false);
+    expect(requests).toHaveLength(1);
+
+    // An old host ignores the unknown header and answers the complete result:
+    // the client refuses instead of silently accepting the catalog. The 200
+    // proves the host executed the mutation, so the refusal must classify as
+    // may-have-committed (invalid_response at 500), never as definite.
+    const completeClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(JSON.stringify({ projects: [], project: undefined }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    const unhonored = await completeClient
+      .projectCommand(
+        { kind: "update", projectId: "p1", patch: { name: "Renamed" } },
+        { commandId: "bounded-op-2", result: "bounded" },
+      )
+      .catch((error: unknown) => error);
+    expect(unhonored).toBeInstanceOf(RemoteClientError);
+    expect(unhonored).toMatchObject({ status: 500, code: "invalid_response" });
+    expect((unhonored as Error).message).toMatch(
+      /did not honor the bounded project-command result declaration/,
+    );
+    expect(remoteMutationMayHaveCommitted(unhonored)).toBe(true);
+
+    // Capability gates: only a host that advertises version 1 may be declared.
+    expect(hostSupportsProjectCommandResults({ versions: [1] })).toBe(true);
+    expect(hostSupportsProjectCommandResults({ versions: [2] })).toBe(false);
+    expect(hostSupportsProjectCommandResults(undefined)).toBe(false);
+    expect(hostSupportsThreadLaunchMetadata({ versions: [1] })).toBe(true);
+    expect(hostSupportsThreadLaunchMetadata({ versions: [] })).toBe(false);
+    expect(hostSupportsThreadLaunchMetadata(undefined)).toBe(false);
+  });
+
+  it("classifies a malformed 200 project-command success as an ambiguous invalid response", async () => {
+    let dispatched = 0;
+    const malformedClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () => {
+        dispatched++;
+        return new Response(JSON.stringify({ ok: true, project: { id: "p1" } }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    // Bounded mode: the 200 proves the mutation executed, but the body matches
+    // neither result variant. The shape rejection must be the readable
+    // `invalid_response` classification (cause preserved), not a raw ZodError
+    // the caller would treat as a definite pre-effect failure.
+    const bounded = await malformedClient
+      .projectCommand(
+        { kind: "update", projectId: "p1", patch: { name: "Renamed" } },
+        { commandId: "malformed-op-1", result: "bounded" },
+      )
+      .catch((error: unknown) => error);
+    expect(bounded).toBeInstanceOf(RemoteClientError);
+    expect(bounded).toMatchObject({ status: 500, code: "invalid_response" });
+    expect((bounded as Error).message).toMatch(/unexpected project command response/);
+    expect((bounded as RemoteClientError).cause).toBeInstanceOf(ZodError);
+    expect(remoteMutationMayHaveCommitted(bounded)).toBe(true);
+    // Exactly one dispatch: a classified response failure is never retried.
+    expect(dispatched).toBe(1);
+
+    // Legacy mode without the bounded declaration reaches the same
+    // post-response schema check and must classify identically.
+    const legacy = await malformedClient
+      .projectCommand({ kind: "update", projectId: "p1", patch: { name: "Renamed" } })
+      .catch((error: unknown) => error);
+    expect(legacy).toMatchObject({ status: 500, code: "invalid_response" });
+    expect(remoteMutationMayHaveCommitted(legacy)).toBe(true);
+    expect(dispatched).toBe(2);
+
+    // A valid complete legacy success is unchanged.
+    const validClient = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async () =>
+        new Response(
+          JSON.stringify({
+            projects: [
+              {
+                id: "p1",
+                name: "Renamed",
+                location: { kind: "posix", path: "/tmp/p1" },
+                createdAt: "2026-01-01T00:00:00.000Z",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+    await expect(
+      validClient.projectCommand({ kind: "update", projectId: "p1", patch: { name: "Renamed" } }),
+    ).resolves.toEqual({
+      projects: [expect.objectContaining({ id: "p1", name: "Renamed" })],
+    });
+  });
+
   it("forwards goal controls to the paired desktop", async () => {
     let requestUrl = "";
     let requestBody: unknown;
@@ -1017,6 +1266,134 @@ describe("RemoteDesktopClient", () => {
       code: "git_procedure_not_allowed",
     });
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("carries a stable start identity on the startThread passthrough and nothing elsewhere", async () => {
+    const headers: Array<Record<string, string>> = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (_url, init) => {
+        headers.push((init?.headers ?? {}) as Record<string, string>);
+        const procedure = (JSON.parse(String(init?.body ?? "{}")) as { procedure?: string })
+          .procedure;
+        return new Response(
+          procedure === "gitPush" ? "{}" : JSON.stringify({ result: { threadId: "t1" } }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          },
+        );
+      },
+    );
+    const payload = {
+      threadId: "t1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "",
+      initialSize: { cols: 80, rows: 24 },
+    };
+
+    await client.callRemoteProcedure("startThread", payload);
+    await client.callRemoteProcedure("startThread", payload);
+    // Without an optimistic item id each launch is a fresh attempt: a stable
+    // per-thread id would replay a stale completion or conflict on a later
+    // resume/switch of the same thread.
+    expect(headers[0]?.["x-poracode-command-id"]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(headers[1]?.["x-poracode-command-id"]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(headers[0]?.["x-poracode-command-id"]).not.toBe(headers[1]?.["x-poracode-command-id"]);
+
+    await client.callRemoteProcedure("startThread", { ...payload, userMessageItemId: "user-1" });
+    expect(headers[2]?.["x-poracode-command-id"]).toBe("thread-start-item:user-1");
+
+    await client.callRemoteProcedure("startThread", { ...payload, userMessageItemId: "user-1" });
+    expect(headers[3]?.["x-poracode-command-id"]).toBe("thread-start-item:user-1");
+
+    await client.callRemoteProcedure("gitPush", {});
+    expect(headers[4]?.["x-poracode-command-id"]).toBeUndefined();
+  });
+
+  it("requires an explicit operation id for catalog commands and keeps legacy dispatch unchanged", async () => {
+    const requests: Array<{ readonly url: string; readonly headers: Record<string, string> }> = [];
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        requests.push({
+          url: String(url),
+          headers: (init?.headers ?? {}) as Record<string, string>,
+        });
+        return new Response(JSON.stringify({ projects: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+
+    // The type surface enforces the id; the runtime guard is the truthful
+    // backstop for untyped/JS callers. Both must reject before any request.
+    const untypedClient = client as unknown as {
+      projectCommand(
+        command: RemoteProjectCommand,
+        options?: { commandId?: string },
+      ): Promise<unknown>;
+      sendThreadCommand(
+        command: RemoteThreadCommand,
+        options?: { commandId?: string },
+      ): Promise<void>;
+    };
+    await expect(
+      untypedClient.projectCommand({
+        kind: "reorder",
+        projectId: "p1",
+        targetProjectId: "p2",
+        placement: "before",
+      }),
+    ).rejects.toThrow(/explicit per-operation commandId/);
+    await expect(
+      untypedClient.sendThreadCommand({
+        kind: "set-workspace",
+        threadId: "t1",
+        workspaceId: "w",
+      }),
+    ).rejects.toThrow(/explicit per-operation commandId/);
+    expect(requests).toHaveLength(0);
+
+    await client.projectCommand(
+      { kind: "reorder", projectId: "p1", targetProjectId: "p2", placement: "before" },
+      { commandId: "op-project-1" },
+    );
+    expect(requests[0]?.url).toContain("/api/projects/command");
+    expect(requests[0]?.headers["x-poracode-command-id"]).toBe("op-project-1");
+
+    await client.sendThreadCommand(
+      {
+        kind: "reorder",
+        threadId: "t1",
+        projectId: "p1",
+        threadIds: ["t1"],
+        targetThreadId: "t2",
+        placement: "before",
+      },
+      { commandId: "op-thread-1" },
+    );
+    expect(requests[1]?.headers["x-poracode-command-id"]).toBe("op-thread-1");
+
+    // Legacy kinds keep the historical optional header.
+    await client.sendThreadCommand({ kind: "rename", threadId: "t1", title: "Renamed" });
+    expect(requests[2]?.headers["x-poracode-command-id"]).toBeUndefined();
+
+    // `start` keeps its automatic stable identity.
+    await client.sendThreadCommand({
+      kind: "start",
+      threadId: "t9",
+      projectId: "p1",
+      agentKind: "codex",
+      config: { model: "m" },
+      prompt: "",
+    });
+    expect(requests[3]?.headers["x-poracode-command-id"]).toBe("thread-start:t9");
   });
 
   it.each(["gitPush", "waitMcpServerOauth"])(

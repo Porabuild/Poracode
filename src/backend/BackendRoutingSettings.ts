@@ -3,7 +3,7 @@ import {
   removeCrossagentRoutingOverride,
   upsertCrossagentRoutingOverride,
 } from "@/shared/crossagentRanking";
-import type { SupervisorClient } from "@/main/supervisor/SupervisorClient";
+import type { SupervisorClient } from "@/host/supervisor/SupervisorClient";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult } from "@/shared/settingsTransactions";

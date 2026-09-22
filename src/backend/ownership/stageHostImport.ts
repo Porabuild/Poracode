@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdtempSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync } from "node:fs";
+import { mkdtemp, rename, rm } from "node:fs/promises";
 import { isAbsolute, join, relative } from "node:path";
-import { writeFileAtomic } from "@/shared/atomicFile";
+import { writeFileAtomicAsync } from "@/shared/atomicFileAsync";
 import type { HostOwnerLease } from "./hostOwnerLease";
 import { canonicalHostPath, HOST_ROOT_MANIFEST_FILE, type HostRootPaths } from "./hostRootPaths";
 import {
@@ -11,7 +12,12 @@ import {
 } from "./hostRootManifest";
 import { OfflineImportDatabase } from "./hostImportDatabase";
 import { assertDistinctHostImportSource } from "./hostImportIdentity";
-import { copyImportFiles, hashImportFile, inventoryImportFiles } from "./hostImportFiles";
+import {
+  copyImportFiles,
+  hashImportFile,
+  inventoryImportFiles,
+  type InventoryImportFilesOptions,
+} from "./hostImportFiles";
 
 export const HOST_IMPORT_RECEIPT_VERSION = 1;
 
@@ -122,24 +128,23 @@ export async function stageHostImport(
   const database = OfflineImportDatabase.open(source);
   let staging: string | undefined;
   try {
-    staging = mkdtempSync(`${lease.paths.dataRoot}.import-`);
+    staging = await mkdtemp(`${lease.paths.dataRoot}.import-`);
     lease.setPhase("staging-import");
     // The automatic promotion's source is a live desktop root whose Electron
     // userData holds Chromium's runtime singleton symlinks; they are process
     // pointers, not data, so the promotion skips them (offline backups keep
     // the strict every-symlink-refused rule).
-    const inventoryOptions = promotingOwnNamespace
-      ? {
-          skipRuntimeSingletonSymlinks: true,
-          excludeChromiumCaches: true,
-          ...(request.onCopyProgress !== undefined
-            ? { onCopyProgress: request.onCopyProgress }
-            : {}),
-        }
-      : request.onCopyProgress !== undefined
-        ? { onCopyProgress: request.onCopyProgress }
-        : undefined;
-    const before = inventoryImportFiles(source, inventoryOptions);
+    const inventoryOptions: InventoryImportFilesOptions = {
+      // Every awaited file operation probes the live lease and the caller's
+      // cancellation signal; a lost owner or an abort stops the walk/copy at
+      // the next entry without ever publishing the staged directory.
+      assertActive: assertOperationActive,
+      ...(promotingOwnNamespace
+        ? { skipRuntimeSingletonSymlinks: true, excludeChromiumCaches: true }
+        : {}),
+      ...(request.onCopyProgress !== undefined ? { onCopyProgress: request.onCopyProgress } : {}),
+    };
+    const before = await inventoryImportFiles(source, inventoryOptions);
     request.onSizePreflight?.(before.bytes);
     const keyFiles = before.entries.filter((entry) => entry.path.startsWith("secret-key."));
     if (
@@ -159,8 +164,8 @@ export async function stageHostImport(
           ? "headless-file-unverified"
           : "unknown";
     await database.copyTo(join(staging, "state.sqlite"), assertOperationActive);
-    copyImportFiles(source, staging, before, inventoryOptions);
-    const after = inventoryImportFiles(source, inventoryOptions);
+    await copyImportFiles(source, staging, before, inventoryOptions);
+    const after = await inventoryImportFiles(source, inventoryOptions);
     const identityAfter = lstatSync(source);
     if (
       before.sha256 !== after.sha256 ||
@@ -180,7 +185,9 @@ export async function stageHostImport(
       ownerGeneration: generation,
       createdAt: new Date().toISOString(),
       databaseSchemaVersion: database.schemaVersion,
-      databaseSha256: hashImportFile(join(staging, "state.sqlite")),
+      databaseSha256: await hashImportFile(join(staging, "state.sqlite"), {
+        assertActive: assertOperationActive,
+      }),
       fileInventorySha256: before.sha256,
       files: before.files,
       fileBytes: before.bytes,
@@ -188,7 +195,7 @@ export async function stageHostImport(
       activation: "required",
     };
     const serializedReceipt = `${JSON.stringify(receipt, null, 2)}\n`;
-    writeFileAtomic(join(staging, HOST_IMPORT_RECEIPT_FILE), serializedReceipt, {
+    await writeFileAtomicAsync(join(staging, HOST_IMPORT_RECEIPT_FILE), serializedReceipt, {
       encoding: "utf8",
       mode: 0o600,
     });
@@ -197,18 +204,23 @@ export async function stageHostImport(
       activation: "required",
       receiptSha256: createHash("sha256").update(serializedReceipt).digest("hex"),
     });
-    writeFileAtomic(
+    await writeFileAtomicAsync(
       join(staging, HOST_ROOT_MANIFEST_FILE),
       `${JSON.stringify(manifest, null, 2)}\n`,
       { encoding: "utf8", mode: 0o600 },
     );
     // All asynchronous work has joined and the same owner still holds the lease.
     assertOperationActive();
-    renameSync(staging, lease.paths.dataRoot);
+    await rename(staging, lease.paths.dataRoot);
     return receipt;
   } finally {
     database.close();
-    if (staging) rmSync(staging, { recursive: true, force: true });
+    // Cleanup is awaited too: a failed copy can leave hundreds of megabytes
+    // behind, and deleting them synchronously would block the desktop exactly
+    // where this change removes blocking. If cleanup itself fails, the error
+    // propagates before `setPhase("preparing")`, so the owner record keeps the
+    // staging phase as recovery evidence instead of reporting a clean return.
+    if (staging) await rm(staging, { recursive: true, force: true, maxRetries: 3 });
     try {
       lease.setPhase("preparing");
     } catch {

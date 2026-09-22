@@ -107,7 +107,7 @@ async function installSharedServerPlugin(projectLocation: ProjectLocation): Prom
     if (projectLocation.kind === "wsl") {
       await resolveWslHomeDirectoryAsync(projectLocation.distro);
     }
-    const result = installOpenCodePlugin(ctx);
+    const result = await installOpenCodePlugin(ctx);
     if (!result.ok) {
       console.warn(`[opencode] failed to install shared-server plugin: ${result.reason}`);
     }

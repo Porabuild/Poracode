@@ -80,16 +80,16 @@ describe("createMuseAdapter shape", () => {
 describe("createMuseAdapter launch / resume argv", () => {
   const adapter = createMuseAdapter();
 
-  it("launches fresh without a sessionRef so discovery can run", () => {
-    const result = adapter.buildLaunchArgv(location, config, "hi");
+  it("launches fresh without a sessionRef so discovery can run", async () => {
+    const result = await adapter.buildLaunchArgv(location, config, "hi");
     expect(result.binary).toBe("muse");
     expect(result.sessionRef).toBeUndefined();
     expect(result.args).toEqual(["--trust-workspace", "--model", "muse-spark-1.3", "hi"]);
   });
 
-  it("resumes a discovered id with resume <uuid>", () => {
+  it("resumes a discovered id with resume <uuid>", async () => {
     const id = "966713f1-794f-480e-aa37-713e8387fe8e";
-    const result = adapter.buildResumeArgv(
+    const result = await adapter.buildResumeArgv(
       location,
       { ...config, approvalPolicy: "yolo", effort: "low" },
       "",

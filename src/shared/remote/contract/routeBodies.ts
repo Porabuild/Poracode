@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   checkpointRevertPayloadSchema,
+  remoteExperimentCommandSchema,
   remoteThreadCommandSchema,
   resolveThreadServerRequestPayloadSchema,
   sendThreadInputPayloadSchema,
@@ -52,6 +53,21 @@ export const threadCommandBodySchema = z.discriminatedUnion("kind", [
   ...threadCommandVariants.slice(2),
 ]);
 
+/**
+ * `/api/experiments/{experimentId}/command` bodies omit the path-injected
+ * `experimentId`. The record is the portable structural twin; the host
+ * re-parses it canonically before any effect.
+ */
+const experimentCommandVariants = remoteExperimentCommandSchema.options.map((variant) => {
+  const { experimentId: _experimentId, ...shape } = variant.shape;
+  return z.object(shape);
+});
+
+export const experimentCommandBodySchema = z.discriminatedUnion("kind", [
+  experimentCommandVariants[0]!,
+  ...experimentCommandVariants.slice(1),
+]);
+
 /** `/api/threads/start` requires an existing thread id. */
 // The HTTP inventory describes the portable structural boundary only. The host
 // reparses the body with startThreadPayloadSchema, which owns the cross-field
@@ -69,3 +85,13 @@ export const projectNotesReadResultSchema = z.object({
 
 /** Project identity is authoritative from `/api/projects/{projectId}/notes`. */
 export const projectNotesWriteBodySchema = projectNotesSchema.omit({ projectId: true });
+
+/**
+ * B1 runtime-gap recovery bodies/results (canonical definitions live in the
+ * notice protocol module; re-exported here so route handlers and the registry
+ * share one shape).
+ */
+export {
+  remoteRuntimeGapAcknowledgeBodySchema,
+  remoteRuntimeGapReadResultSchema,
+} from "../protocol";

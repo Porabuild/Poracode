@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { randomUUID } from "node:crypto";
 import { closeSync, lstatSync, openSync } from "node:fs";
-import { resolveBetterSqliteNativeBindingOptions } from "@/main/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
 
 export const HOST_DATA_FENCE_DATABASE_VERSION = 1;
 // Same brief concurrent first-open allowance as the kernel lease.
@@ -39,13 +39,32 @@ export class HostDataFenceInUseError extends Error {
  */
 export class HostDataFence {
   private released = false;
-  private generation: string;
+  /**
+   * Custody generation, fixed for the lifetime of the held fence. Exposed so a
+   * host composition can derive its {@link EnvironmentStoreLease}-style root
+   * capability from the live fence instead of re-acquiring the root.
+   */
+  readonly generation: string;
 
   private constructor(
     readonly dataFencePath: string,
     private readonly database: InstanceType<typeof Database>,
   ) {
     this.generation = randomUUID();
+  }
+
+  /**
+   * Throws when this fence no longer holds custody or the caller presents a
+   * different generation. This is the same active-custody proof the owner
+   * lease exposes, not a file-format or lock change.
+   */
+  assertActive(expectedGeneration?: string): void {
+    if (
+      this.released ||
+      (expectedGeneration !== undefined && expectedGeneration !== this.generation)
+    ) {
+      throw new Error("The Poracode data custody fence is no longer active.");
+    }
   }
 
   static acquire(dataFencePath: string): HostDataFence {

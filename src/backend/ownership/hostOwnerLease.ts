@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { closeSync, lstatSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { writeFileAtomic } from "@/shared/atomicFile";
-import { resolveBetterSqliteNativeBindingOptions } from "@/main/db/connection";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
 import { assertHostRootDirectories, type HostRootPaths } from "./hostRootPaths";
 
 export const HOST_OWNER_RECORD_VERSION = 1;

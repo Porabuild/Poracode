@@ -9,6 +9,12 @@ import { attachErrorDetails, errorDetail, msg } from "@/shared/messages";
 import { getProjectName } from "@/shared/wsl";
 import { sanitizeWorktreeBranchName, sanitizeWorktreePathSegment } from "@/shared/worktree";
 import type { WslBridgeClient, WslGitExecResult } from "../wsl/bridge/client";
+import {
+  admitGitProcess,
+  classifyGitProcess,
+  gitProcessAdmissionUsage,
+  type GitProcessClass,
+} from "./gitProcessAdmission";
 import { mkdir } from "node:fs/promises";
 
 const execFileAsync = promisify(execFile);
@@ -101,20 +107,52 @@ export async function execGitBatchWslBridge(
   location: ProjectLocation & { kind: "wsl" },
   commands: WslGitBatchCommand[],
   timeoutMs: number,
+  options?: { signal?: AbortSignal },
 ): Promise<WslGitExecResult[]> {
   const client = wslGitBridgeClient;
   if (!client) {
     throw new Error(`WSL bridge unavailable for Git in distro "${location.distro}"`);
   }
-  const result = await client.gitBatch(location, {
-    commands: commands.map((command) => ({
-      ...command,
-      args: withQuotePathDisabled(command.args),
-      ...(command.loginEnv === undefined ? { loginEnv: true } : {}),
-    })),
-    timeoutMs,
-  });
-  return result.results;
+  if (commands.length === 0) return [];
+
+  // The WSL bridge starts one child per command concurrently. Split an
+  // arbitrarily large caller batch into bounded, same-class chunks, admitting
+  // and releasing each chunk independently. This preserves positional result
+  // order, supports projects with many worktrees, and prevents one mixed batch
+  // from charging short reads to the long pool (or vice versa).
+  const results: WslGitExecResult[] = [];
+  let offset = 0;
+  while (offset < commands.length) {
+    const batchClass: GitProcessClass = classifyGitProcess(commands[offset]!.args);
+    const classLimit = gitProcessAdmissionUsage()[batchClass].limit;
+    const chunk: WslGitBatchCommand[] = [];
+    while (
+      offset + chunk.length < commands.length &&
+      chunk.length < classLimit &&
+      classifyGitProcess(commands[offset + chunk.length]!.args) === batchClass
+    ) {
+      chunk.push(commands[offset + chunk.length]!);
+    }
+    const ticket = await admitGitProcess(batchClass, {
+      units: chunk.length,
+      ...(options?.signal ? { signal: options.signal } : {}),
+    });
+    try {
+      const result = await client.gitBatch(location, {
+        commands: chunk.map((command) => ({
+          ...command,
+          args: withQuotePathDisabled(command.args),
+          ...(command.loginEnv === undefined ? { loginEnv: true } : {}),
+        })),
+        timeoutMs,
+      });
+      results.push(...result.results);
+    } finally {
+      ticket.release();
+    }
+    offset += chunk.length;
+  }
+  return results;
 }
 
 export async function ghVersionWslBridge(
@@ -145,6 +183,38 @@ export async function execGit(
     env?: Record<string, string>;
     input?: string;
     maxBuffer?: number;
+    /** Explicit admission class override; defaults to the declared subcommand policy. */
+    admissionClass?: GitProcessClass;
+    /** Cancels admission while queued; local children also honor it mid-run. */
+    signal?: AbortSignal;
+  },
+): Promise<string> {
+  // Admission runs outside the command try/catch: queue overflow, admission
+  // wait timeout and queued cancellation stay typed admission refusals and are
+  // never re-wrapped as Git command failures. The permit is released exactly
+  // once when the awaited command settles — the exec callback/reap boundary
+  // for local children, the bridge call settling for WSL.
+  const ticket = await admitGitProcess(options?.admissionClass ?? classifyGitProcess(args), {
+    ...(options?.signal ? { signal: options.signal } : {}),
+  });
+  try {
+    return await execGitAdmitted(location, args, options);
+  } finally {
+    ticket.release();
+  }
+}
+
+async function execGitAdmitted(
+  location: ProjectLocation,
+  args: string[],
+  options?: {
+    timeout?: number;
+    allowNonZeroExit?: boolean;
+    acceptedExitCodes?: readonly number[];
+    env?: Record<string, string>;
+    input?: string;
+    maxBuffer?: number;
+    signal?: AbortSignal;
   },
 ): Promise<string> {
   const timeout = options?.timeout ?? GIT_DEFAULT_TIMEOUT;
@@ -169,6 +239,7 @@ export async function execGit(
       timeout,
       maxBuffer,
       windowsHide: true,
+      ...(options?.signal ? { signal: options.signal } : {}),
     };
     const { stdout } =
       options?.input !== undefined
@@ -176,6 +247,13 @@ export async function execGit(
         : await execFileAsync("git", withQuotePathDisabled(args), execOptions);
     return stdout;
   } catch (error: unknown) {
+    if (
+      options?.signal?.aborted &&
+      error instanceof Error &&
+      (error.name === "AbortError" || (error as Error & { code?: string }).code === "ABORT_ERR")
+    ) {
+      throw error;
+    }
     if (
       options?.acceptedExitCodes &&
       error &&

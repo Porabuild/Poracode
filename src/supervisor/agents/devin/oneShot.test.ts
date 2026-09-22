@@ -29,7 +29,7 @@ it("loads a cold catalog before resolving utility effort and Fast", async () => 
       ],
     },
   ]);
-  mocks.prepare.mockReturnValue({
+  mocks.prepare.mockResolvedValue({
     spec: { command: "devin", args: [], cwd: "/tmp" },
     spawn: mocks.spawn,
   });

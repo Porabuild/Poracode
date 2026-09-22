@@ -33,11 +33,9 @@ import type {
   PrWatchStatusEvent,
   RemoteAccessTailscaleStatus,
   StartTailscaleResult,
-  SupervisorEvent,
   SupervisorProcedureName,
   SupervisorRequest,
 } from "./ipc";
-import type { LiveEventInterests } from "./liveEventInterests";
 import type { ManagedLoopbackBootstrap } from "./managedLoopback";
 import type { PoracodeChannel } from "./channel";
 
@@ -77,6 +75,22 @@ import type { PoracodeChannel } from "./channel";
 // sequence, and shedding recovers through `supervisor-event-gap` (unchanged).
 // A stale backend child that still speaks 13 fails the version gate in both
 // directions instead of half-serving a deleted operation.
+// Version 15 (V2 A2 / host correction): the backend→main BULK copy is gone.
+// `supervisor-event` and `supervisor-event-gap` are removed from this union
+// together with the `set-event-interests` request; live renderer content
+// crosses only the loopback WS, and main learns native sleep state through the
+// bounded, coalesced `native-thread-activity` projection. The same correction
+// removes the `projects-changed` native event: full `Project[]` rows no longer
+// cross the backend→main hop for the renderer mirror either — project
+// mutations publish the bounded `remote-projects-changed` membership event on
+// the loopback WS and main keeps only the `database-projection-changed` tray
+// refresh. A stale backend child that still emits removed vocabulary is
+// rejected by the version gate instead of being half-decoded.
+// Version 16 (V2): the legacy `dbPersistExperimentState` database call is
+// removed from the renderer-persistence subset — the renderer experiment
+// store is memory-only and the host experiment authority owns persistence.
+// A hop-15 backend child still dispatches the removed name, so the version
+// gate rejects that pairing instead of half-serving it.
 export const BACKEND_HOST_PROTOCOL_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export const BACKEND_DATABASE_PROCEDURE_NAMES = [
@@ -90,7 +104,6 @@ export const BACKEND_DATABASE_PROCEDURE_NAMES = [
   "dbDeleteProject",
   "dbSyncAll",
   "dbSyncChanges",
-  "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
   "dbGetThreadsPage",
@@ -121,8 +134,7 @@ export function isDirectRendererDatabaseProcedure(
 ): name is BackendDatabaseProcedureName {
   return (
     (BACKEND_DATABASE_PROCEDURE_NAMES as readonly string[]).includes(name) &&
-    name !== "dbDeleteThread" &&
-    name !== "dbPersistExperimentState"
+    name !== "dbDeleteThread"
   );
 }
 
@@ -159,6 +171,12 @@ export interface BackendHostInitializePayload {
      * main and the backend child ship in one bundle, so no protocol bump.
      */
     dataFencePath?: string;
+    /** Additive asset declaration. Older senders omit it and do not compose
+     * host-owned SSH environments; device-local SSH remains separate. */
+    environmentAssets?: {
+      agentPluginsDir: string;
+      preassembledArchiveDir?: string;
+    };
     /**
      * V6 C.2: host-declared service capabilities snapshot for GET
      * `/api/host/describe`. Additive same-build field.
@@ -166,8 +184,6 @@ export interface BackendHostInitializePayload {
     hostCapabilities?: import("./hostControlProtocol").HostServiceCapabilities;
   };
 }
-
-export type BackendEventInterests = LiveEventInterests;
 
 export const BACKEND_SETTINGS_PROCEDURE_NAMES = [
   "getSharedSettings",
@@ -320,7 +336,6 @@ export type BackendNativeEvent =
   | { type: "database-projection-changed" }
   | { type: "shared-settings-changed"; settings: SharedSettings }
   | { type: "remote-access-pairing-changed"; info: RemoteAccessPairingInfo }
-  | { type: "projects-changed"; projects: IpcProcedureResult<"dbGetProjects"> }
   | { type: "pr-watch-status"; event: PrWatchStatusEvent }
   | {
       type: "pr-watch-merged";
@@ -345,13 +360,7 @@ export type BackendHostRequest =
     })
   | (BackendHostRequestBase & {
       operation: "call-supervisor";
-      /**
-       * `originWindowId` is main-assigned from the authenticated IPC
-       * `event.sender.id` and scopes terminal-bootstrap retention to the
-       * requesting window. Absent means originless: the start must not widen
-       * any desktop window's bootstrap retention.
-       */
-      payload: SupervisorRequest & { originWindowId?: number };
+      payload: SupervisorRequest;
     })
   | (BackendHostRequestBase & {
       operation: "call-database";
@@ -364,10 +373,6 @@ export type BackendHostRequest =
   | (BackendHostRequestBase & {
       operation: "call-service";
       payload: BackendServiceCall;
-    })
-  | (BackendHostRequestBase & {
-      operation: "set-event-interests";
-      payload: BackendEventInterests;
     })
   | (BackendHostRequestBase & {
       operation: "resolve-native-request";
@@ -400,29 +405,24 @@ export type BackendHostReply =
       error: string;
     };
 
-/** Renderer-stream sequence range the desktop-IPC fallback lost to shedding; both ends inclusive. */
-export interface SupervisorEventGap {
-  fromSequence: number;
-  toSequence: number;
+/** One thread's native working-state transition in a coalesced activity batch. */
+export interface NativeThreadActivityChange {
+  threadId: string;
+  active: boolean;
 }
 
 export type BackendHostOutboundMessage =
   | BackendHostReply
   | {
       version: typeof BACKEND_HOST_PROTOCOL_VERSION;
-      kind: "supervisor-event";
-      event: SupervisorEvent;
+      kind: "native-thread-activity";
       /**
-       * Relay sequence of this event (host-lifetime monotonic). Desktop
-       * windows dedupe and gate rebuilds by it; the shed policy anchors
-       * `supervisor-event-gap` loss windows at it.
+       * Bounded, coalesced per-thread activity deltas (last writer wins). Main
+       * applies them to its sleep-blocker working set; the backend host never
+       * serializes transcript or terminal content across this hop.
        */
-      rendererSequence?: number;
+      changes: NativeThreadActivityChange[];
     }
-  | ({
-      version: typeof BACKEND_HOST_PROTOCOL_VERSION;
-      kind: "supervisor-event-gap";
-    } & SupervisorEventGap)
   | {
       version: typeof BACKEND_HOST_PROTOCOL_VERSION;
       kind: "supervisor-reset";
@@ -446,15 +446,12 @@ export type BackendHostOutboundMessage =
     };
 
 /**
- * Builds a `call-supervisor` request. `originWindowId` is the authenticated
- * requesting window when one exists (main-assigned from the IPC sender); it
- * scopes terminal-bootstrap retention to that window. Absent means originless.
+ * Builds a `call-supervisor` request.
  */
 export function createBackendSupervisorRequest<Name extends SupervisorProcedureName>(
   id: string,
   name: Name,
   payload: IpcProcedurePayload<Name>,
-  originWindowId?: number,
 ): BackendHostRequest {
   return {
     version: BACKEND_HOST_PROTOCOL_VERSION,
@@ -464,7 +461,6 @@ export function createBackendSupervisorRequest<Name extends SupervisorProcedureN
       id,
       type: name,
       payload,
-      ...(originWindowId !== undefined ? { originWindowId } : {}),
     } as SupervisorRequest,
   };
 }
@@ -545,11 +541,7 @@ export function isBackendHostRequest(message: unknown): message is BackendHostRe
       return (
         typeof message.payload.id === "string" &&
         typeof message.payload.type === "string" &&
-        "payload" in message.payload &&
-        (message.payload.originWindowId === undefined ||
-          (typeof message.payload.originWindowId === "number" &&
-            Number.isSafeInteger(message.payload.originWindowId) &&
-            message.payload.originWindowId > 0))
+        "payload" in message.payload
       );
     case "call-database":
       return (
@@ -572,12 +564,6 @@ export function isBackendHostRequest(message: unknown): message is BackendHostRe
         typeof message.payload.name === "string" &&
         (BACKEND_SERVICE_PROCEDURE_NAMES as readonly string[]).includes(message.payload.name) &&
         "payload" in message.payload
-      );
-    case "set-event-interests":
-      return (
-        isStringArray(message.payload.terminalThreadIds) &&
-        isStringArray(message.payload.runtimeThreadIds) &&
-        typeof message.payload.allRuntimeEvents === "boolean"
       );
     case "resolve-native-request":
       return (
@@ -611,20 +597,16 @@ export function isBackendHostOutboundMessage(
         typeof message.ok === "boolean" &&
         (message.ok || typeof message.error === "string")
       );
-    case "supervisor-event":
+    case "native-thread-activity":
       return (
-        isRecord(message.event) &&
-        typeof message.event.type === "string" &&
-        (message.rendererSequence === undefined ||
-          (typeof message.rendererSequence === "number" &&
-            Number.isSafeInteger(message.rendererSequence) &&
-            message.rendererSequence >= 0)) &&
-        // The targeted-delivery metadata was deleted with the renderer stream
-        // (V5 plan 2.5): an envelope carrying it is not a valid v14 message.
-        message.target === undefined
+        Array.isArray(message.changes) &&
+        message.changes.every(
+          (change) =>
+            isRecord(change) &&
+            typeof change.threadId === "string" &&
+            typeof change.active === "boolean",
+        )
       );
-    case "supervisor-event-gap":
-      return isSupervisorEventGap(message);
     case "supervisor-reset":
       return true;
     case "native-request":
@@ -655,7 +637,6 @@ export function isBackendHostOutboundMessage(
           "database-projection-changed",
           "shared-settings-changed",
           "remote-access-pairing-changed",
-          "projects-changed",
           "pr-watch-status",
           "pr-watch-merged",
           "git-state-changed",
@@ -673,23 +654,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/** Validates the gap range carried by `supervisor-event-gap` envelopes and renderer bridges. */
-export function isSupervisorEventGap(value: unknown): value is SupervisorEventGap {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.fromSequence === "number" &&
-    Number.isSafeInteger(value.fromSequence) &&
-    value.fromSequence >= 0 &&
-    typeof value.toSequence === "number" &&
-    Number.isSafeInteger(value.toSequence) &&
-    value.toSequence >= value.fromSequence
-  );
-}
-
 function isStringRecord(value: unknown): value is Record<string, string> {
   return isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }

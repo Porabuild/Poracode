@@ -9,98 +9,56 @@
  *      every supervisor boot so nvm version changes are picked up.
  *
  *   2. If no acceptable node is found, download the pinned LTS Node tarball
- *      from nodejs.org, verify SHA256, stage it via `\\wsl.localhost\` UNC,
- *      and extract inside the distro using its own `tar`.
+ *      from nodejs.org, verify SHA256, stage it through the per-distro
+ *      staging worker, and extract inside the distro using its own `tar`.
  *
  * In both cases the returned `nodePath` is an absolute Linux path baked
  * into hook commands and the bridge launch argv. /bin/sh -c never needs
  * to resolve `node` from PATH.
+ *
+ * Resolution is single-flight per distro: concurrent consumers (bridge
+ * start, MCP probe/filter, provider probes, plugin installs) share one
+ * probe/install instead of racing duplicate downloads. A caller with a
+ * stricter `minimumVersion` that joins a weaker in-flight resolution
+ * re-resolves rather than accepting a node below its floor.
  */
 
-import { execFile } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { promisify } from "node:util";
-import { compareVersions } from "@/shared/changelog";
 import { toWslUncPath } from "@/shared/wsl";
 import {
-  batchWslCommandsAsync,
-  execInWsl,
-  getWslCommand,
-  resolveWslHomeDirectoryAsync,
-} from "../../agents/base";
-import { pruneStaleRuntimeDirs, safeRm } from "../../runtime/cleanup";
-import { downloadToFile, verifySha256 } from "../../runtime/download";
-import {
-  PORACODE_PINNED_NODE_VERSION,
   MIN_ACCEPTED_NODE_MAJOR,
   NODE_TARBALL_CHECKSUMS,
-  nodeArchiveDirName,
-  nodeArchiveFileName,
-  nodeArchiveUrl,
-  parseNodeMajor,
-  type NodeTargetTriple as SharedNodeTargetTriple,
+  PORACODE_PINNED_NODE_VERSION,
 } from "../../runtime/pinnedNode";
-import { spawnAndAwaitExit } from "../../runtime/spawn";
+import { SingleFlight } from "../singleFlight";
+import { getWslStagingService } from "../staging";
+import { installRuntimeIntoDistro } from "./install";
+import { probeUserNode } from "./probe";
+import type { ResolveNodeOptions, ResolvedNode } from "./types";
+import {
+  assertManagedNodeSatisfiesMinimum,
+  nodeVersionIsAccepted,
+  parseMinimumNodeVersion,
+  type ParsedNodeVersion,
+} from "./version";
 
 export { PORACODE_PINNED_NODE_VERSION, MIN_ACCEPTED_NODE_MAJOR, NODE_TARBALL_CHECKSUMS };
-
-export type LinuxArch = "x64" | "arm64";
-/**
- * Subset of `NodeTargetTriple` that this WSL resolver actually downloads —
- * always glibc Linux tarballs. The wider native targets (darwin-*, win-*)
- * are handled by `src/supervisor/native/runtime`.
- */
-export type NodeTargetTriple = Extract<SharedNodeTargetTriple, "linux-x64" | "linux-arm64">;
-const execFileAsync = promisify(execFile);
-
-// ── Cache ────────────────────────────────────────────────────────────────
-
-export interface ResolvedNode {
-  /** Absolute Linux path to the node binary inside the distro. */
-  nodePath: string;
-  /** Version string, e.g. "22.11.0". */
-  nodeVersion: string;
-  /** Whether we found the user's node or installed our own. */
-  source: "user-installed" | "poracode-managed";
-}
+export { probeUserNode } from "./probe";
+export { installRuntimeIntoDistro } from "./install";
+export type { LinuxArch, NodeProbeOptions } from "./probe";
+export type {
+  NodeTargetTriple,
+  ResolvedNode,
+  ResolveNodeOptions,
+  RuntimeProgressEvent,
+  RuntimeProgressListener,
+} from "./types";
 
 /**
  * Cleared on supervisor restart so users picking up a new nvm default get
  * re-probed without manual action.
  */
 const distroNodeCache = new Map<string, ResolvedNode>();
-
-// ── Progress reporting ───────────────────────────────────────────────────
-
-export type RuntimeProgressEvent =
-  | { kind: "probe-start" }
-  | { kind: "probe-result"; resolved: "found" | "missing" | "too-old"; version?: string }
-  | {
-      kind: "download-start";
-      url: string;
-      target: NodeTargetTriple;
-      sizeBytes?: number;
-    }
-  | { kind: "download-progress"; bytesReceived: number; bytesTotal: number }
-  | { kind: "verify-start" }
-  | { kind: "extract-start" }
-  | { kind: "ready"; nodePath: string };
-
-export type RuntimeProgressListener = (event: RuntimeProgressEvent) => void;
-
-export interface ResolveNodeOptions {
-  /**
-   * Optional full semver floor for consumers with a stricter requirement
-   * than Poracode's general Node-major gate.
-   */
-  minimumVersion?: string;
-  onProgress?: RuntimeProgressListener;
-  useBridge?: boolean;
-}
-
-// ── Public API ───────────────────────────────────────────────────────────
+const distroFlights = new SingleFlight();
 
 /**
  * Resolve a usable Node binary inside `distro`. Probes once per supervisor
@@ -112,20 +70,82 @@ export async function resolveNodeForDistro(
   options?: ResolveNodeOptions,
 ): Promise<ResolvedNode> {
   const minimumVersion = parseMinimumNodeVersion(options?.minimumVersion);
-  const cached = distroNodeCache.get(distro);
+  const cached = await resolveCachedNode(distro, minimumVersion, options);
   if (cached) {
-    const pathIsAvailable =
-      cached.source === "user-installed" || existsSync(toWslUncPath(distro, cached.nodePath));
-    if (pathIsAvailable && nodeVersionIsAccepted(cached.nodeVersion, minimumVersion)) {
-      options?.onProgress?.({ kind: "ready", nodePath: cached.nodePath });
-      return cached;
+    options?.onProgress?.({ kind: "ready", nodePath: cached.nodePath });
+    return cached;
+  }
+
+  // A joined in-flight resolution may satisfy a weaker floor than this
+  // caller asked for; retry once with the stronger floor rather than
+  // returning a node below it.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const resolved = await distroFlights.run(
+      distro,
+      (signal) => resolveUncached(distro, options, signal),
+      options?.signal ? { signal: options.signal } : undefined,
+    );
+    if (nodeVersionIsAccepted(resolved.nodeVersion, minimumVersion)) {
+      options?.onProgress?.({ kind: "ready", nodePath: resolved.nodePath });
+      return resolved;
     }
     distroNodeCache.delete(distro);
   }
+  throw new Error(
+    `no Node ${options?.minimumVersion ?? ""} runtime could be resolved in WSL distro "${distro}"`,
+  );
+}
+
+async function resolveCachedNode(
+  distro: string,
+  minimumVersion: ParsedNodeVersion | undefined,
+  options: ResolveNodeOptions | undefined,
+  signal: AbortSignal | undefined = options?.signal,
+): Promise<ResolvedNode | undefined> {
+  const cached = distroNodeCache.get(distro);
+  if (!cached) return undefined;
+  if (!nodeVersionIsAccepted(cached.nodeVersion, minimumVersion)) {
+    distroNodeCache.delete(distro);
+    return undefined;
+  }
+  const staging = options?.staging ?? getWslStagingService();
+  const pathIsAvailable =
+    cached.source === "user-installed" ||
+    (await staging.pathExists(
+      distro,
+      toWslUncPath(distro, cached.nodePath),
+      signal ? { signal } : undefined,
+    ));
+  if (pathIsAvailable) return cached;
+  distroNodeCache.delete(distro);
+  return undefined;
+}
+
+async function resolveUncached(
+  distro: string,
+  options: ResolveNodeOptions | undefined,
+  flightSignal: AbortSignal,
+): Promise<ResolvedNode> {
+  const minimumVersion = parseMinimumNodeVersion(options?.minimumVersion);
+  // Caller-specific aborts are handled by the single-flight join; the task
+  // itself is cancelled only when every joined caller has gone away.
+  const signal = flightSignal;
+  signal.throwIfAborted();
+
+  // A successor may have waited for an uncooperative predecessor's
+  // settlement. If that predecessor completed an install, reuse it instead of
+  // repeating the work.
+  const cached = await resolveCachedNode(distro, minimumVersion, options, signal);
+  if (cached) return cached;
+  signal.throwIfAborted();
 
   options?.onProgress?.({ kind: "probe-start" });
   const useBridge = options?.useBridge !== false;
-  const probed = await probeUserNode(distro, { useBridge });
+  const probed = await probeUserNode(distro, {
+    useBridge,
+    ...(signal ? { signal } : {}),
+  });
+  signal.throwIfAborted();
 
   if (probed) {
     if (nodeVersionIsAccepted(probed.version, minimumVersion)) {
@@ -136,7 +156,6 @@ export async function resolveNodeForDistro(
         source: "user-installed",
       };
       distroNodeCache.set(distro, resolved);
-      options?.onProgress?.({ kind: "ready", nodePath: probed.nodePath });
       return resolved;
     }
     options?.onProgress?.({ kind: "probe-result", resolved: "too-old", version: probed.version });
@@ -145,251 +164,16 @@ export async function resolveNodeForDistro(
   }
 
   assertManagedNodeSatisfiesMinimum(options?.minimumVersion, minimumVersion);
-  const installed = await installRuntimeIntoDistro(distro, options);
+  const { signal: _callerSignal, ...sharedOptions } = options ?? {};
+  const installed = await installRuntimeIntoDistro(distro, {
+    ...sharedOptions,
+    signal: flightSignal,
+  });
   const resolved: ResolvedNode = {
     nodePath: installed.nodePath,
     nodeVersion: PORACODE_PINNED_NODE_VERSION,
     source: "poracode-managed",
   };
   distroNodeCache.set(distro, resolved);
-  options?.onProgress?.({ kind: "ready", nodePath: installed.nodePath });
   return resolved;
-}
-
-// ── Probe ────────────────────────────────────────────────────────────────
-
-/**
- * Run `command -v node && node --version` through the user's login shell.
- * Login shells source `.bashrc`/`.zshrc` which load nvm/fnm, so this
- * surfaces the user's nvm-default node even when /bin/sh's PATH wouldn't
- * find it. Returns null when no node is found.
- */
-export async function probeUserNode(
-  distro: string,
-  options?: { useBridge?: boolean },
-): Promise<{ nodePath: string; version: string } | null> {
-  const commands = ["command -v node", "node --version 2>/dev/null"];
-  const [pathResult, versionResult] =
-    options?.useBridge === false
-      ? await batchWslCommandsForBootstrap(distro, commands)
-      : await batchWslCommandsAsync(distro, commands);
-
-  const nodePath = (pathResult?.stdout ?? "").trim();
-  const versionRaw = (versionResult?.stdout ?? "").trim();
-  if (!nodePath || !nodePath.startsWith("/")) return null;
-  if (!versionRaw.startsWith("v")) return null;
-  const version = versionRaw.slice(1).split(/\s/)[0] ?? "";
-  if (!parseNodeMajor(version)) return null;
-  return { nodePath, version };
-}
-
-async function probeDistroArch(distro: string): Promise<LinuxArch | null> {
-  const [archResult] = await batchWslCommandsAsync(distro, ["uname -m"]);
-  const out = (archResult?.stdout ?? "").trim();
-  if (out === "x86_64" || out === "amd64") return "x64";
-  if (out === "aarch64" || out === "arm64") return "arm64";
-  return null;
-}
-
-async function probeDistroArchForBootstrap(distro: string): Promise<LinuxArch | null> {
-  const [archResult] = await batchWslCommandsForBootstrap(distro, ["uname -m"]);
-  const out = (archResult?.stdout ?? "").trim();
-  if (out === "x86_64" || out === "amd64") return "x64";
-  if (out === "aarch64" || out === "arm64") return "arm64";
-  return null;
-}
-
-async function batchWslCommandsForBootstrap(
-  distro: string,
-  commands: string[],
-): Promise<{ ok: boolean; stdout: string }[]> {
-  const sep = "---PORACODE_BOOTSTRAP_BATCH_SEP---";
-  const script = commands.map((cmd) => `(${cmd}) 2>/dev/null; printf '\\n${sep}\\n'`).join("\n");
-  try {
-    const { stdout } = await execFileAsync(
-      getWslCommand(),
-      ["-d", distro, "--", "/bin/bash", "-l", "-i", "-c", script],
-      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
-    );
-    const parts = stdout.split(sep);
-    return commands.map((_, index) => {
-      const raw = (parts[index] ?? "").trim();
-      return { ok: raw.length > 0, stdout: raw };
-    });
-  } catch {
-    return commands.map(() => ({ ok: false, stdout: "" }));
-  }
-}
-
-async function resolveWslHomeDirectoryForBootstrap(distro: string): Promise<string | undefined> {
-  try {
-    const { stdout } = await execFileAsync(
-      getWslCommand(),
-      ["-d", distro, "--", "sh", "-lc", 'printf %s "$HOME"'],
-      { encoding: "utf8", windowsHide: true, timeout: 5_000 },
-    );
-    const home = (stdout ?? "")
-      .split(/\r?\n/g)
-      .map((line) => line.trim())
-      .findLast((line) => line.length > 0);
-    return home;
-  } catch {
-    return undefined;
-  }
-}
-
-// ── Install ──────────────────────────────────────────────────────────────
-
-/**
- * Download and extract the pinned Node tarball into the distro. Throws
- * with a descriptive Error on failure (no arch, no checksum, network
- * failure, archive corruption, etc.). Only the official glibc tarballs
- * are supported here — Alpine/musl users are expected to surface their
- * own node via the probe.
- */
-export async function installRuntimeIntoDistro(
-  distro: string,
-  options?: ResolveNodeOptions,
-): Promise<{ nodePath: string }> {
-  const minimumVersion = parseMinimumNodeVersion(options?.minimumVersion);
-  assertManagedNodeSatisfiesMinimum(options?.minimumVersion, minimumVersion);
-  const useBridge = options?.useBridge !== false;
-  const arch = useBridge
-    ? await probeDistroArch(distro)
-    : await probeDistroArchForBootstrap(distro);
-  if (!arch) {
-    throw new Error(`could not detect architecture for WSL distro "${distro}"`);
-  }
-  const target: NodeTargetTriple = `linux-${arch}` as const;
-
-  const checksum = NODE_TARBALL_CHECKSUMS[target];
-  if (!checksum) {
-    throw new Error(
-      `poracode is missing the SHA256 checksum for Node ${PORACODE_PINNED_NODE_VERSION} ${target}; rerun scripts/refresh-node-checksums.mjs`,
-    );
-  }
-
-  const home = useBridge
-    ? await resolveWslHomeDirectoryAsync(distro)
-    : await resolveWslHomeDirectoryForBootstrap(distro);
-  if (!home) {
-    throw new Error(`could not resolve $HOME inside WSL distro "${distro}"`);
-  }
-
-  const linuxRuntimeDir = `${home}/.poracode/runtime`;
-  const versionedDirName = nodeArchiveDirName(target);
-  const linuxNodePath = `${linuxRuntimeDir}/${versionedDirName}/bin/node`;
-  const uncNodePath = toWslUncPath(distro, linuxNodePath);
-
-  if (existsSync(uncNodePath)) {
-    return { nodePath: linuxNodePath };
-  }
-
-  const tarballName = nodeArchiveFileName(target);
-  const url = nodeArchiveUrl(target);
-
-  options?.onProgress?.({ kind: "download-start", url, target });
-  const tmpTarball = join(tmpdir(), `poracode-node-${Date.now()}-${tarballName}`);
-  try {
-    await downloadToFile(url, tmpTarball, {
-      ...(options?.onProgress
-        ? {
-            onProgress: ({ bytesReceived, bytesTotal }) =>
-              options.onProgress?.({
-                kind: "download-progress",
-                bytesReceived,
-                bytesTotal,
-              }),
-          }
-        : {}),
-    });
-    options?.onProgress?.({ kind: "verify-start" });
-    await verifySha256(tmpTarball, checksum);
-
-    // Stage the tarball into the distro via UNC, then ask the distro's
-    // own tar to extract it (saves marshalling bytes back through wsl.exe
-    // stdin and lets us use tar's xz/strip-components flags directly).
-    const uncRuntimeDir = toWslUncPath(distro, linuxRuntimeDir);
-    mkdirSync(uncRuntimeDir, { recursive: true });
-    const stagedLinuxPath = `${linuxRuntimeDir}/${tarballName}`;
-    const stagedUncPath = toWslUncPath(distro, stagedLinuxPath);
-    copyFileSync(tmpTarball, stagedUncPath);
-
-    options?.onProgress?.({ kind: "extract-start" });
-    if (useBridge) {
-      await execInWsl(distro, "/", "tar", ["-xJf", stagedLinuxPath, "-C", linuxRuntimeDir], {
-        timeout: 60_000,
-      });
-    } else {
-      await spawnAndAwaitExit(getWslCommand(), [
-        "-d",
-        distro,
-        "--",
-        "tar",
-        "-xJf",
-        stagedLinuxPath,
-        "-C",
-        linuxRuntimeDir,
-      ]);
-    }
-
-    safeRm(stagedUncPath);
-
-    if (!existsSync(uncNodePath)) {
-      throw new Error(`Node binary not found at expected path after extraction: ${linuxNodePath}`);
-    }
-    pruneStaleRuntimeDirs(uncRuntimeDir, versionedDirName);
-    return { nodePath: linuxNodePath };
-  } finally {
-    safeRm(tmpTarball);
-  }
-}
-
-type ParsedNodeVersion = readonly [major: number, minor: number, patch: number];
-
-function parseMinimumNodeVersion(version: string | undefined): ParsedNodeVersion | undefined {
-  if (version === undefined) return undefined;
-  const parsed = parseNodeVersion(version);
-  if (!parsed) {
-    throw new Error(`invalid minimum Node version "${version}"; expected a semantic version`);
-  }
-  return parsed;
-}
-
-function parseNodeVersion(version: string): ParsedNodeVersion | undefined {
-  const match = /^v?(\d+)\.(\d+)(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?$/.exec(version.trim());
-  if (!match) return undefined;
-  return [Number(match[1]), Number(match[2]), Number(match[3] ?? 0)];
-}
-
-/**
- * `parseNodeVersion` already rejects malformed input, so the ordering itself
- * can reuse the shared numeric-segment comparison.
- */
-function compareNodeVersions(left: ParsedNodeVersion, right: ParsedNodeVersion): number {
-  return compareVersions(left.join("."), right.join("."));
-}
-
-function nodeVersionIsAccepted(
-  version: string,
-  minimumVersion: ParsedNodeVersion | undefined,
-): boolean {
-  if (minimumVersion) {
-    const parsed = parseNodeVersion(version);
-    return parsed !== undefined && compareNodeVersions(parsed, minimumVersion) >= 0;
-  }
-  const major = parseNodeMajor(version);
-  return major !== null && major >= MIN_ACCEPTED_NODE_MAJOR;
-}
-
-function assertManagedNodeSatisfiesMinimum(
-  requestedMinimum: string | undefined,
-  minimumVersion: ParsedNodeVersion | undefined,
-): void {
-  if (!minimumVersion) return;
-  const managedVersion = parseNodeVersion(PORACODE_PINNED_NODE_VERSION);
-  if (managedVersion && compareNodeVersions(managedVersion, minimumVersion) >= 0) return;
-  throw new Error(
-    `Poracode-managed Node ${PORACODE_PINNED_NODE_VERSION} does not satisfy the requested minimum ${requestedMinimum}.`,
-  );
 }

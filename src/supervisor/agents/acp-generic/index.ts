@@ -41,6 +41,7 @@ import {
 import {
   buildAgentCommand,
   batchWslCommandsAsync,
+  prepareAgentLocationEnvironment,
   quotePosixShellArg,
   type AcpSessionUpdateTransform,
   type AgentAdapter,
@@ -171,6 +172,7 @@ export function createAcpGenericAdapter(
       return undefined;
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildGenericCommand(input.projectLocation, cfg, instance);
       return createAcpStructuredSession(
         command,
@@ -193,6 +195,7 @@ export function createAcpGenericAdapter(
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildGenericCommand(location, cfg, instance);
     },
   };
@@ -207,6 +210,7 @@ export async function authenticateAcpGenericInstance(
 ): Promise<void> {
   const cfg = parseAcpGenericInstanceConfig(instance.config);
   const location = detectProbeLocation(ctx);
+  await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
   const command = buildGenericCommand(location, cfg, instance, authBrowserEnv(location));
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
   await authenticateAcpAgent(command.command, command.args, methodId, {
@@ -236,6 +240,7 @@ export async function logoutAcpGenericInstance(
 ): Promise<void> {
   const cfg = parseAcpGenericInstanceConfig(instance.config);
   const location = detectProbeLocation(ctx);
+  await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
   const command = buildGenericCommand(location, cfg, instance);
   const processCwd = resolveProbeSpawnCwd(location, command.cwd);
   await logoutAcpAgent(command.command, command.args, {
@@ -285,6 +290,7 @@ async function probeGenericCapabilities(
   onFailureDetail?: (reason: string) => void,
 ): Promise<AcpProbeResult | undefined> {
   const location = detectProbeLocation(ctx);
+  await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
   const command = buildGenericCommand(location, cfg, instance);
   // On posix, route into the contained probe dir (TCC-safe); on WSL the linux
   // path is required by the agent; on Windows, keep the project's native path.

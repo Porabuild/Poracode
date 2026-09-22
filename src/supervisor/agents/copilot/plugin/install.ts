@@ -2,7 +2,6 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toWslUncPath } from "@/shared/wsl";
 import { getCachedWslHomeDirectory, type AgentEnvContext } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
@@ -18,8 +17,12 @@ import {
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  readWslTextFile,
   removeStagedPluginDir,
+  removeWslPath,
+  resolvePluginVerificationIo,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   verifyStagedPluginAt,
   writeNativeHookWrapper,
   type PluginManifest,
@@ -50,7 +53,7 @@ export interface CopilotPluginPaths {
   /** Absolute path of the user-global hook config file written by install. */
   globalHookFilePath: string;
   /** Plugin semver from plugin.json. */
-  version: string;
+  version?: string;
 }
 
 const COPILOT_HOOK_EVENTS = [
@@ -110,19 +113,12 @@ function computeCopilotPluginPaths(ctx?: AgentEnvContext): CopilotPluginPaths {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "copilot");
     if (!wsl) return { pluginDir: "", globalHookFilePath: "", version: "0.0.0" };
-    let version = "0.0.0";
-    try {
-      version = readPluginManifest(wsl.uncBase).version;
-    } catch {
-      // staged manifest missing or distro unreachable
-    }
     const copilotDir = wslGlobalCopilotDir(ctx.wslDistro);
     return {
       pluginDir: wsl.linuxBase,
       globalHookFilePath: copilotDir
         ? `${copilotDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`
         : "",
-      version,
     };
   }
   const pluginDir = getNativePluginBaseDir("copilot", ctx?.baseDir);
@@ -164,10 +160,12 @@ export interface InstallCopilotPluginOptions {
   globalCopilotDirOverride?: string;
 }
 
-export function installCopilotPlugin(
+export async function installCopilotPlugin(
   ctx?: AgentEnvContext,
   options?: InstallCopilotPluginOptions,
-): { ok: true; paths: CopilotPluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<
+  { ok: true; paths: CopilotPluginPaths; version: string } | { ok: false; reason: string }
+> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -236,14 +234,16 @@ export function installCopilotPlugin(
   };
 }
 
-function installCopilotPluginWsl(
+async function installCopilotPluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
   globalCopilotDirOverride: string | undefined,
-): { ok: true; paths: CopilotPluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "copilot", {
+): Promise<
+  { ok: true; paths: CopilotPluginPaths; version: string } | { ok: false; reason: string }
+> {
+  const staged = await stagePluginAssetsToWsl(distro, sourceDir, "copilot", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
@@ -251,22 +251,21 @@ function installCopilotPluginWsl(
   const linuxForward = `${staged.linuxPluginDir}/forward.mjs`;
   const linuxCopilotDir = globalCopilotDirOverride ?? `${staged.deploy.home}/.copilot`;
   const linuxHookFilePath = `${linuxCopilotDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`;
-  const uncHookFilePath = toWslUncPath(distro, linuxHookFilePath);
 
   const bashCommand = buildWslHookCommandHead(resolvedNodePath, linuxForward);
 
-  const writeResult = writeCopilotHookFileIfChanged(uncHookFilePath, { bashCommand });
+  const writeResult = await writeCopilotHookFileIfChangedWsl(distro, linuxHookFilePath, {
+    bashCommand,
+  });
   if (!writeResult.ok) {
     return {
       ok: false,
       reason: `failed to write Copilot hook file at ${linuxHookFilePath} in wsl distro ${distro}: ${writeResult.reason}`,
     };
   }
-  removeHookFile(
-    toWslUncPath(
-      distro,
-      `${linuxCopilotDir}/${GLOBAL_HOOK_DIR_NAME}/${LEGACY_GLOBAL_HOOK_FILENAME}`,
-    ),
+  await removeHookFileWsl(
+    distro,
+    `${linuxCopilotDir}/${GLOBAL_HOOK_DIR_NAME}/${LEGACY_GLOBAL_HOOK_FILENAME}`,
   );
 
   console.log(
@@ -290,20 +289,21 @@ function installCopilotPluginWsl(
 
 const COPILOT_VERIFY_ASSETS = ["plugin.json", "forward.mjs", FORWARD_RUNTIME_FILE] as const;
 
-export function isCopilotPluginInstalled(ctx?: AgentEnvContext): {
-  installed: boolean;
-  version?: string;
-} {
+export async function isCopilotPluginInstalled(
+  ctx?: AgentEnvContext,
+): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "copilot");
     if (!wsl) return { installed: false };
     const copilotDir = wslGlobalCopilotDir(ctx.wslDistro);
+    const io = resolvePluginVerificationIo("wsl", { distro: ctx.wslDistro });
     const hookFile = copilotDir
-      ? toWslUncPath(ctx.wslDistro, `${copilotDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`)
+      ? `${copilotDir}/${GLOBAL_HOOK_DIR_NAME}/${GLOBAL_HOOK_FILENAME}`
       : "";
-    return verifyStagedPluginAt(wsl.uncBase, "wsl", {
+    return verifyStagedPluginAt(wsl.linuxBase, "wsl", {
       assets: COPILOT_VERIFY_ASSETS,
-      extraCheck: () => hookFile.length > 0 && existsSync(hookFile),
+      extraCheck: () => hookFile.length > 0 && io.pathExists(hookFile),
+      distro: ctx.wslDistro,
     });
   }
   const hookFile = join(nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
@@ -313,13 +313,18 @@ export function isCopilotPluginInstalled(ctx?: AgentEnvContext): {
   });
 }
 
-export function uninstallCopilotPlugin(ctx?: AgentEnvContext): void {
-  const hookDir = isWslPluginContext(ctx)
-    ? toWslUncPath(ctx.wslDistro, `${wslGlobalCopilotDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`)
-    : join(nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME);
+export async function uninstallCopilotPlugin(ctx?: AgentEnvContext): Promise<void> {
+  if (isWslPluginContext(ctx)) {
+    const hookDir = `${wslGlobalCopilotDir(ctx.wslDistro)}/${GLOBAL_HOOK_DIR_NAME}`;
+    await removeHookFileWsl(ctx.wslDistro, `${hookDir}/${GLOBAL_HOOK_FILENAME}`);
+    await removeHookFileWsl(ctx.wslDistro, `${hookDir}/${LEGACY_GLOBAL_HOOK_FILENAME}`);
+    await removeStagedPluginDir("copilot", ctx);
+    return;
+  }
+  const hookDir = join(nativeGlobalCopilotDir(), GLOBAL_HOOK_DIR_NAME);
   removeHookFile(join(hookDir, GLOBAL_HOOK_FILENAME));
   removeHookFile(join(hookDir, LEGACY_GLOBAL_HOOK_FILENAME));
-  removeStagedPluginDir("copilot", ctx);
+  await removeStagedPluginDir("copilot", ctx);
 }
 
 function removeHookFile(path: string): void {
@@ -328,6 +333,10 @@ function removeHookFile(path: string): void {
   } catch {
     // best-effort cleanup
   }
+}
+
+async function removeHookFileWsl(distro: string, linuxPath: string): Promise<void> {
+  await removeWslPath(distro, linuxPath);
 }
 
 // ── Hook config rendering / write ─────────────────────────────────────────
@@ -369,6 +378,29 @@ export function renderCopilotHookConfig(input: {
  * value. Idempotent: identical content means no write (and so no mtime bump),
  * matching the pattern used by Cursor and Codex installers.
  */
+async function writeCopilotHookFileIfChangedWsl(
+  distro: string,
+  linuxHookFilePath: string,
+  input: { bashCommand?: string | undefined; powershellCommand?: string | undefined },
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const serialized = `${JSON.stringify(renderCopilotHookConfig(input), null, 2)}\n`;
+  try {
+    const existing = await readWslTextFile(distro, linuxHookFilePath);
+    if (existing === serialized) return { ok: true };
+  } catch {
+    // file missing or unreadable; fall through to write
+  }
+  try {
+    await writeWslTextFile(distro, linuxHookFilePath, serialized);
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 function writeCopilotHookFileIfChanged(
   hookFilePath: string,
   input: { bashCommand?: string | undefined; powershellCommand?: string | undefined },

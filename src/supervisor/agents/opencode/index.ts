@@ -138,10 +138,10 @@ export function createOpenCodeAdapter(): AgentAdapter {
       // No node resolution needed — OpenCode runs the plugin under its own
       // runtime. Missing-distro WSL contexts are caught downstream by
       // `resolveOpenCodeWslPluginsDir → undefined`.
-      return installOpenCodePlugin(ctx);
+      return await installOpenCodePlugin(ctx);
     },
     async uninstallPlugin(ctx) {
-      uninstallOpenCodePlugin(ctx);
+      await uninstallOpenCodePlugin(ctx);
     },
     async pluginLaunchExtras() {
       // Plugin is auto-loaded from the plugins/ directory; no CLI flag or

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   durableOptions: [] as Array<Record<string, unknown>>,
   durableInstances: [] as Array<{
     startIngress: ReturnType<typeof vi.fn<() => Promise<void>>>;
+    startBackgroundServices: ReturnType<typeof vi.fn<() => void>>;
   }>,
   settingsAccessOptions: [] as Array<Record<string, unknown>>,
   settingsAccesses: [] as Array<{
@@ -36,14 +37,14 @@ const mocks = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock("@/main/db", () => ({
+vi.mock("@/host/db", () => ({
   dbGetProjects: vi.fn<() => never[]>(() => []),
   dbGetThreads: vi.fn<() => never[]>(() => []),
   dbMarkLiveThreadsInactive: vi.fn<() => void>(() => {}),
   onProjectThreadDataChanged: mocks.onProjectThreadDataChanged,
 }));
 
-vi.mock("@/main/remote/DesktopRemoteAccessController", () => ({
+vi.mock("@/backend/remote/DesktopRemoteAccessController", () => ({
   createDesktopRemoteAccessController: mocks.createDesktopRemoteAccessController,
 }));
 
@@ -51,7 +52,7 @@ vi.mock("@/host/remote/pairingInfo", () => ({
   getRemoteAccessPairingInfo: vi.fn<() => null>(() => null),
 }));
 
-vi.mock("@/main/profile", () => ({
+vi.mock("@/host/profile", () => ({
   getProfileCoreStats: vi.fn<() => null>(() => null),
   getProfileDevicesResponse: vi.fn<() => null>(() => null),
   getProfileIdentityResponse: vi.fn<() => null>(() => null),
@@ -59,7 +60,7 @@ vi.mock("@/main/profile", () => ({
   setProfileIdentityResponse: vi.fn<() => null>(() => null),
 }));
 
-vi.mock("@/main/sharedSettingsFile", () => ({
+vi.mock("@/host/sharedSettingsFile", () => ({
   readSharedSettingsFile: vi.fn<() => Record<string, never>>(() => ({})),
   writeSharedSettingsFile: vi.fn<() => void>(() => {}),
 }));
@@ -68,7 +69,7 @@ vi.mock("@/host/remote/identity", () => ({
   readOrCreateRemoteAccessIdentity: mocks.readOrCreateRemoteAccessIdentity,
 }));
 
-vi.mock("@/main/legacyDataMigration", () => ({
+vi.mock("@/host/legacyDataMigration", () => ({
   requestLegacyDataMigration: vi.fn<() => null>(() => null),
 }));
 
@@ -83,7 +84,7 @@ vi.mock("./BackendDurableServices", () => ({
       mocks.durableInstances.push(this as never);
     }
     getSupervisorExtraEnv = () => ({});
-    startBackgroundServices = () => {};
+    startBackgroundServices = vi.fn<() => void>(() => {});
     observeSupervisorEvent = () => {};
     dispose = () => {};
   },
@@ -121,10 +122,18 @@ import type {
   BackendHostInitializePayload,
   BackendNativeRequest,
 } from "@/shared/backendHostProtocol";
-import { writeSharedSettingsFile } from "@/main/sharedSettingsFile";
+import {
+  UNKNOWN_HOST_SERVICE_CAPABILITIES,
+  type HostServiceCapabilities,
+} from "@/shared/hostControlProtocol";
+import { writeSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
+import type { Project } from "@/shared/contracts";
 
-function initialize(desktop: boolean): BackendHostInitializePayload {
+function initialize(
+  desktop: boolean,
+  hostCapabilities?: HostServiceCapabilities,
+): BackendHostInitializePayload {
   return {
     baseDir: "/data",
     dbPath: "/data/state.sqlite",
@@ -136,7 +145,13 @@ function initialize(desktop: boolean): BackendHostInitializePayload {
       secretStorageKey: "secret",
     },
     ...(desktop
-      ? { desktop: { channel: "stable" as const, settingsPath: "/data/settings.json" } }
+      ? {
+          desktop: {
+            channel: "stable" as const,
+            settingsPath: "/data/settings.json",
+            ...(hostCapabilities ? { hostCapabilities } : {}),
+          },
+        }
       : {}),
   };
 }
@@ -335,5 +350,105 @@ describe("BackendDesktopServices supervisor preparation", () => {
     await services.prepareSupervisor();
     await services.prepareSupervisor();
     expect(durable.startIngress).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("BackendDesktopServices project membership publication", () => {
+  beforeEach(() => {
+    mocks.createDesktopRemoteAccessController.mockClear();
+  });
+
+  it("publishes host-local project rows through the declaration-aware membership publisher", () => {
+    const publishCatalogChanged = vi.fn<() => void>();
+    const publishCatalogChangedRows = vi.fn<(projects: readonly Project[]) => void>();
+    mocks.createDesktopRemoteAccessController.mockImplementationOnce((() => ({
+      getServer: () => ({ publishCatalogChanged, publishCatalogChangedRows }),
+      handleSupervisorEvent: () => {},
+      handleSupervisorReset: () => {},
+      updateGitSummaries: () => {},
+      startIfEnabled: () => Promise.resolve(),
+      dispose: () => Promise.resolve(),
+    })) as never);
+    const serviceOptions = options(true);
+    const services = new BackendDesktopServices(serviceOptions);
+    expect(services).toBeDefined();
+    const controllerOptions = mocks.createDesktopRemoteAccessController.mock.calls.at(-1)?.[0] as {
+      notifyProjectStateChanged(projects: readonly Project[]): void;
+    };
+    const project: Project = {
+      id: "p1",
+      name: "Project",
+      location: { kind: "posix", path: "/repo" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+
+    controllerOptions.notifyProjectStateChanged([project]);
+
+    // The rows are already in hand: the declaration-aware publisher receives
+    // them and decides whether a full wire event is needed at all.
+    expect(publishCatalogChangedRows).toHaveBeenCalledWith([project]);
+    expect(publishCatalogChanged).not.toHaveBeenCalled();
+    // The removed full-Project[] native relay is never emitted again.
+    expect(serviceOptions.emitNativeEvent).not.toHaveBeenCalled();
+  });
+});
+
+describe("BackendDesktopServices background services", () => {
+  beforeEach(() => {
+    mocks.durableOptions.length = 0;
+    mocks.durableInstances.length = 0;
+  });
+
+  it("starts the durable background services that own the host housekeeping sweep", async () => {
+    const services = new BackendDesktopServices(options(true));
+    await services.startBackgroundServices();
+    // Housekeeping is launched inside the durable layer's start (fire and
+    // forget, no readiness block) and is asserted end-to-end in
+    // BackendDurableServices.test.ts.
+    expect(mocks.durableInstances[0]!.startBackgroundServices).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("BackendDesktopServices environment composition (F-3)", () => {
+  beforeEach(() => {
+    mocks.createDesktopRemoteAccessController.mockClear();
+  });
+
+  function remoteOptionsOfLastCall(): {
+    environments?: unknown;
+    hostCapabilities?: { ssh?: boolean };
+  } {
+    const call = mocks.createDesktopRemoteAccessController.mock.calls.at(-1);
+    expect(call).toBeDefined();
+    return call![0] as { environments?: unknown; hostCapabilities?: { ssh?: boolean } };
+  }
+
+  it("passes the composed runtime and forces the declared ssh capability true", () => {
+    const environments = { start: vi.fn<() => Promise<void>>(async () => {}) };
+    const serviceOptions = options(true);
+    serviceOptions.initialize = initialize(true, {
+      ...UNKNOWN_HOST_SERVICE_CAPABILITIES,
+      ssh: false,
+    });
+    void new BackendDesktopServices({ ...serviceOptions, environments: environments as never });
+
+    const remoteOptions = remoteOptionsOfLastCall();
+    expect(remoteOptions.environments).toBe(environments);
+    // The declared capability is a statement about the actual composition,
+    // never the stale payload: an environment runtime present means `ssh`.
+    expect(remoteOptions.hostCapabilities?.ssh).toBe(true);
+  });
+
+  it("never upgrades the declared ssh capability without an environment runtime", () => {
+    const serviceOptions = options(true);
+    serviceOptions.initialize = initialize(true, {
+      ...UNKNOWN_HOST_SERVICE_CAPABILITIES,
+      ssh: true,
+    });
+    void new BackendDesktopServices(serviceOptions);
+
+    const remoteOptions = remoteOptionsOfLastCall();
+    expect(remoteOptions.environments).toBeUndefined();
+    expect(remoteOptions.hostCapabilities?.ssh).toBe(false);
   });
 });

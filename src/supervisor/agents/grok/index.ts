@@ -9,6 +9,7 @@ import {
   detectAgentInstall,
   detectProbeLocation,
   iterm2ProgressOscHint,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -114,12 +115,12 @@ export function createGrokAdapter(): AgentAdapter {
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installGrokPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installGrokPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallGrokPlugin(ctx);
+      await uninstallGrokPlugin(ctx);
     },
     // No `pluginLaunchExtras` env/args needed — Grok auto-loads
     // `~/.grok/hooks/poracode-status.json` written at install time, and
@@ -180,6 +181,7 @@ export function createGrokAdapter(): AgentAdapter {
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const acpArgs = buildGrokAcpArgs(withGrokCliModel(input.config, capabilities.fastModels));
       const command = buildGrokCommand(
         input.projectLocation,
@@ -203,6 +205,7 @@ export function createGrokAdapter(): AgentAdapter {
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildGrokCommand(
         location,
         ["--no-auto-update", "agent", "stdio"],
@@ -212,6 +215,7 @@ export function createGrokAdapter(): AgentAdapter {
 
     async buildAcpLogoutCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildGrokCommand(location, ["logout"], resolveAgentBinaryPath(location, "grok"));
     },
 

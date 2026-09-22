@@ -21,7 +21,7 @@ import {
   remotePortForwardResultSchema,
   remotePortUnforwardRequestSchema,
   remotePortsStateSchema,
-  remoteProjectCommandResultSchema,
+  remoteProjectCommandResponseSchema,
   remoteProjectCommandSchema,
   remoteProjectSettingsSchema,
   remotePushRegistrationResultSchema,
@@ -327,11 +327,21 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer",
     scopes: ["projects:manage"],
     audit: auditEvent("mutate"),
+    // Legacy kinds are dispatched directly (no receipt); the narrow
+    // catalog-mutation kinds REQUIRE the command-id header (refused before any
+    // effect without it) and run under the receipt. The per-request bounded
+    // result declaration (`x-poracode-project-command-result: bounded-v1`, like
+    // the command-id header not modeled by this descriptor) is a separate
+    // negotiation: under it EVERY kind requires the id and runs under the
+    // receipt, and a declared request without one is refused before any effect.
+    idempotency: "command-id-header-for-catalog-kinds",
     request: { bodyKind: "json", jsonSchema: remoteProjectCommandSchema },
     response: {
       wireKind: "json",
       status: 200,
-      jsonSchema: remoteProjectCommandResultSchema,
+      // Union: legacy kinds keep the complete result, catalog mutations
+      // answer with the bounded acknowledgement.
+      jsonSchema: remoteProjectCommandResponseSchema,
     },
   }),
   defineRoute({

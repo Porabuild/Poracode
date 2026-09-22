@@ -1,4 +1,6 @@
 import type { RemoteHttpRouteContract } from "../types";
+import { environmentManagementRoutes } from "./environments";
+import { experimentsRoutes } from "./experiments";
 import { opsRoutes } from "./ops";
 import { sessionRoutes } from "./session";
 import { threadRoutes } from "./threads";
@@ -8,6 +10,19 @@ import { workspaceRoutes } from "./workspace";
 const MANIFEST_ROUTE_IDS = [
   "environment",
   "environment-legacy",
+  "environment-list",
+  "environment-create",
+  "environment-get",
+  "environment-update",
+  "environment-delete",
+  "environment-connect",
+  "environment-disconnect",
+  "environment-pairing",
+  "environment-upgrade",
+  "environment-websocket-ticket",
+  "environment-trust-probe",
+  "environment-trust-accept",
+  "environment-adopt-legacy",
   "forward-enter",
   "token-exchange",
   "healthz",
@@ -23,6 +38,8 @@ const MANIFEST_ROUTE_IDS = [
   "provider-usage",
   "project-notes-read",
   "project-notes-write",
+  "project-list",
+  "catalog-membership",
   "local-image",
   "local-image-ticket",
   "runtime-image",
@@ -59,6 +76,7 @@ const MANIFEST_ROUTE_IDS = [
   "thread-list",
   "thread-history-items",
   "thread-history",
+  "thread-turns",
   "thread-start-existing",
   "terminal-start",
   "thread-runtime-truncate",
@@ -74,9 +92,20 @@ const MANIFEST_ROUTE_IDS = [
   "terminal-resize",
   "terminal-close",
   "request-resolve",
+  "thread-runtime-gap",
+  "thread-runtime-gap-acknowledge",
+  "experiment-state",
+  "experiment-command",
 ] as const;
 
-const unorderedRoutes = [...sessionRoutes, ...workspaceRoutes, ...threadRoutes, ...opsRoutes];
+const unorderedRoutes = [
+  ...sessionRoutes,
+  ...environmentManagementRoutes,
+  ...workspaceRoutes,
+  ...threadRoutes,
+  ...experimentsRoutes,
+  ...opsRoutes,
+];
 
 /**
  * The closed set of HTTP route ids. The HTTP router's handler table is keyed by

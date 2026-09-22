@@ -196,15 +196,15 @@ describe("Codex app-server pool", () => {
     expect(mocks.spawn).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps incompatible execution runtimes in separate pools", () => {
+  it("keeps incompatible execution runtimes in separate pools", async () => {
     const server = browserServer("local-a");
-    const windows = codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [server]);
-    const posix = codexAppServerPoolKey({ kind: "posix", path: "/repo" }, [server]);
-    const ubuntu = codexAppServerPoolKey(
+    const windows = await codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [server]);
+    const posix = await codexAppServerPoolKey({ kind: "posix", path: "/repo" }, [server]);
+    const ubuntu = await codexAppServerPoolKey(
       { kind: "wsl", distro: "Ubuntu", linuxPath: "/repo", uncPath: "\\\\wsl$\\Ubuntu\\repo" },
       [server],
     );
-    const debian = codexAppServerPoolKey(
+    const debian = await codexAppServerPoolKey(
       { kind: "wsl", distro: "Debian", linuxPath: "/repo", uncPath: "\\\\wsl$\\Debian\\repo" },
       [server],
     );
@@ -212,17 +212,23 @@ describe("Codex app-server pool", () => {
     expect(new Set([windows, posix, ubuntu, debian])).toHaveLength(4);
   });
 
-  it("reuses a pool across project roots within the same execution runtime", () => {
+  it("reuses a pool across project roots within the same execution runtime", async () => {
     expect(
-      codexAppServerPoolKey({ kind: "windows", path: "C:\\repo-a" }, [browserServer("local-a")]),
+      await codexAppServerPoolKey({ kind: "windows", path: "C:\\repo-a" }, [
+        browserServer("local-a"),
+      ]),
     ).toBe(
-      codexAppServerPoolKey({ kind: "windows", path: "D:\\repo-b" }, [browserServer("local-b")]),
+      await codexAppServerPoolKey({ kind: "windows", path: "D:\\repo-b" }, [
+        browserServer("local-b"),
+      ]),
     );
     expect(
-      codexAppServerPoolKey({ kind: "posix", path: "/repo-a" }, [browserServer("local-a")]),
-    ).toBe(codexAppServerPoolKey({ kind: "posix", path: "/repo-b" }, [browserServer("local-b")]));
+      await codexAppServerPoolKey({ kind: "posix", path: "/repo-a" }, [browserServer("local-a")]),
+    ).toBe(
+      await codexAppServerPoolKey({ kind: "posix", path: "/repo-b" }, [browserServer("local-b")]),
+    );
     expect(
-      codexAppServerPoolKey(
+      await codexAppServerPoolKey(
         {
           kind: "wsl",
           distro: "Ubuntu",
@@ -234,7 +240,7 @@ describe("Codex app-server pool", () => {
         "/usr/bin/node",
       ),
     ).toBe(
-      codexAppServerPoolKey(
+      await codexAppServerPoolKey(
         {
           kind: "wsl",
           distro: "Ubuntu",
@@ -248,7 +254,7 @@ describe("Codex app-server pool", () => {
     );
   });
 
-  it("keeps different WSL launch runtimes in separate pools", () => {
+  it("keeps different WSL launch runtimes in separate pools", async () => {
     const location = {
       kind: "wsl" as const,
       distro: "Ubuntu",
@@ -256,19 +262,19 @@ describe("Codex app-server pool", () => {
       uncPath: "\\\\wsl$\\Ubuntu\\repo",
     };
     const server = browserServer("local-a");
-    const baseline = codexAppServerPoolKey(location, [server], "wsl.exe", "/usr/bin/node");
+    const baseline = await codexAppServerPoolKey(location, [server], "wsl.exe", "/usr/bin/node");
 
-    expect(codexAppServerPoolKey(location, [server], "other-wsl.exe", "/usr/bin/node")).not.toBe(
-      baseline,
-    );
-    expect(codexAppServerPoolKey(location, [server], "wsl.exe", "/opt/node/bin/node")).not.toBe(
-      baseline,
-    );
+    expect(
+      await codexAppServerPoolKey(location, [server], "other-wsl.exe", "/usr/bin/node"),
+    ).not.toBe(baseline);
+    expect(
+      await codexAppServerPoolKey(location, [server], "wsl.exe", "/opt/node/bin/node"),
+    ).not.toBe(baseline);
   });
 
   it.each(["app-controls", "browser", "chrome", "computer-use"])(
     "normalizes thread-scoped query values for %s",
-    (id) => {
+    async (id) => {
       const first = httpServer(
         id,
         `http://127.0.0.1:9000/mcp?thread=local-a&title=first&disable=one&stable=yes`,
@@ -278,27 +284,27 @@ describe("Codex app-server pool", () => {
         `http://127.0.0.1:9000/mcp?thread=local-b&title=second&disable=two&stable=yes`,
       );
 
-      expect(codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [first])).toBe(
-        codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [second]),
+      expect(await codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [first])).toBe(
+        await codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [second]),
       );
     },
   );
 
-  it("does not normalize custom MCP query values", () => {
+  it("does not normalize custom MCP query values", async () => {
     const first = httpServer("custom", "http://127.0.0.1:9000/mcp?thread=local-a");
     const second = httpServer("custom", "http://127.0.0.1:9000/mcp?thread=local-b");
 
-    expect(codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [first])).not.toBe(
-      codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [second]),
+    expect(await codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [first])).not.toBe(
+      await codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [second]),
     );
   });
 
-  it("does not reuse a pool when MCP credentials differ", () => {
+  it("does not reuse a pool when MCP credentials differ", async () => {
     const first = httpServer("browser", "http://127.0.0.1:9000/mcp?thread=local-a", "token-a");
     const second = httpServer("browser", "http://127.0.0.1:9000/mcp?thread=local-b", "token-b");
 
-    expect(codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [first])).not.toBe(
-      codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [second]),
+    expect(await codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [first])).not.toBe(
+      await codexAppServerPoolKey({ kind: "windows", path: "C:\\repo" }, [second]),
     );
   });
 

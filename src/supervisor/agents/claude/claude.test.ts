@@ -7,6 +7,11 @@ import {
   overrideProfileCapabilities,
 } from "./index";
 import { claudeCapabilities } from "./detection";
+import {
+  clearExecutablePathCache,
+  primeWslLaunchEnvironment,
+  setWslProcessBridgeClient,
+} from "../base";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 
@@ -242,12 +247,51 @@ describe("createClaudeAdapter buildAcpLogoutCommand", () => {
     expect(rendered).toContain("auth");
     expect(rendered).toContain("logout");
   });
+
+  it("prepares the WSL distro instead of throwing on a cold cache", async () => {
+    const distro = `ClaudeLogout${process.pid}`;
+    clearExecutablePathCache();
+    const adapter = createClaudeAdapter();
+
+    await expect(
+      adapter.buildAcpLogoutCommand?.({ envKind: "wsl", wslDistro: distro }),
+    ).rejects.toMatchObject({ name: "WslLaunchEnvironmentUnpreparedError" });
+
+    primeWslLaunchEnvironment(distro, { shellPath: "/bin/bash", home: "/home/demo" });
+    const command = await adapter.buildAcpLogoutCommand?.({ envKind: "wsl", wslDistro: distro });
+    expect(command?.args?.slice(0, 2)).toEqual(["-d", distro]);
+    expect(command?.args?.join(" ")).toContain("auth");
+    expect(command?.args?.join(" ")).toContain("logout");
+  });
+
+  it("awaits the distro probe so a cold cache is not a hard failure", async () => {
+    const distro = `ClaudeLogoutProbe${process.pid}`;
+    clearExecutablePathCache();
+    setWslProcessBridgeClient({
+      processExec: async () => ({
+        ok: true,
+        stdout: "__PORACODE_WSL_ENV__\n/bin/bash\n/home/demo\n",
+        stderr: "",
+        exitCode: 0,
+      }),
+    } as never);
+    try {
+      const command = await createClaudeAdapter().buildAcpLogoutCommand?.({
+        envKind: "wsl",
+        wslDistro: distro,
+      });
+      expect(command?.args?.slice(0, 2)).toEqual(["-d", distro]);
+      expect(command?.args?.join(" ")).toContain("logout");
+    } finally {
+      setWslProcessBridgeClient(undefined);
+    }
+  });
 });
 
 describe("createClaudeProfileAdapter", () => {
   const projectLocation: ProjectLocation = { kind: "posix", path: "/repo" };
 
-  it("creates a distinct Claude adapter backed by a separate config directory", () => {
+  it("creates a distinct Claude adapter backed by a separate config directory", async () => {
     const adapter = createClaudeProfileAdapter({
       id: "work",
       driver: "claude",
@@ -262,21 +306,24 @@ describe("createClaudeProfileAdapter", () => {
 
     const expectedConfigDir = path.join(homedir(), ".poracode/claude-profiles/work");
     expect(
-      adapter.buildLaunchArgv(projectLocation, { model: "sonnet" }, "hello").env?.CLAUDE_CONFIG_DIR,
-    ).toBe(expectedConfigDir);
-    expect(
-      adapter.buildOneShotCommand?.("haiku", undefined, "Summarize", projectLocation)?.env
+      (await adapter.buildLaunchArgv(projectLocation, { model: "sonnet" }, "hello")).env
         ?.CLAUDE_CONFIG_DIR,
     ).toBe(expectedConfigDir);
     expect(
-      adapter.buildContextExtractionCommand?.(
-        { providerSessionId: "session-1", discoveredAt: "test" },
-        projectLocation,
+      (await adapter.buildOneShotCommand?.("haiku", undefined, "Summarize", projectLocation))?.env
+        ?.CLAUDE_CONFIG_DIR,
+    ).toBe(expectedConfigDir);
+    expect(
+      (
+        await adapter.buildContextExtractionCommand?.(
+          { providerSessionId: "session-1", discoveredAt: "test" },
+          projectLocation,
+        )
       )?.env?.CLAUDE_CONFIG_DIR,
     ).toBe(expectedConfigDir);
   });
 
-  it("merges the instance environment into the spawn env, with CLAUDE_CONFIG_DIR winning", () => {
+  it("merges the instance environment into the spawn env, with CLAUDE_CONFIG_DIR winning", async () => {
     const adapter = createClaudeProfileAdapter({
       id: "glm",
       driver: "claude",
@@ -291,7 +338,7 @@ describe("createClaudeProfileAdapter", () => {
       },
     });
 
-    const env = adapter.buildLaunchArgv(projectLocation, { model: "glm-5.2" }, "hello").env;
+    const env = (await adapter.buildLaunchArgv(projectLocation, { model: "glm-5.2" }, "hello")).env;
     const expectedConfigDir = path.join(homedir(), ".poracode/claude-profiles/glm");
     expect(env?.ANTHROPIC_BASE_URL).toBe("https://api.z.ai/api/anthropic");
     expect(env?.ANTHROPIC_AUTH_TOKEN).toBe("sk-test");

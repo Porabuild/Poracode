@@ -7,6 +7,7 @@ import { createAcpSubagentCoordinator } from "../acp/subagentCoordinator";
 import {
   detectAgentInstall,
   detectProbeLocation,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -131,6 +132,7 @@ export function createKimiAdapter(): AgentAdapter {
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
       await ensureKimiWorkspaceTrust(input.projectLocation);
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const acpArgs = buildKimiAcpArgs(input.config);
       const command = buildKimiCommand(
         input.projectLocation,
@@ -192,6 +194,7 @@ export function createKimiAdapter(): AgentAdapter {
     // `kimi acp --login` flow), while `logout` drives the real RPC logout.
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildKimiCommand(location, ["acp"], resolveAgentBinaryPath(location, "kimi"));
     },
 

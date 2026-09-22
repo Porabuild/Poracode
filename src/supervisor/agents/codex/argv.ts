@@ -110,17 +110,17 @@ export function codexExtraArgsPosition(
   return Math.max(args.length - trailingPositionals, args[0] === "resume" ? 1 : 0);
 }
 
-export function buildCodexArgvFor(
+export async function buildCodexArgvFor(
   location: ProjectLocation,
   config: ThreadConfig,
   prompt: string,
   sessionRef?: SessionRef,
   launchOptions?: AgentLaunchOptions,
-): AgentArgvSpec {
+): Promise<AgentArgvSpec> {
   const binary = resolveCodexWindowsLaunchBinary(location) ?? "codex";
   const mcpServers = launchOptions?.mcpServers ?? [];
   const mcp = buildCodexMcp(mcpServers);
-  const mcpArgs = [...buildCodexMcpSkillConflictArgs(location, mcpServers), ...mcp.args];
+  const mcpArgs = [...(await buildCodexMcpSkillConflictArgs(location, mcpServers)), ...mcp.args];
   const mcpEnv = mcp.env;
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const enableGoals = isCodexGoalsSupported(location);
@@ -167,7 +167,7 @@ export function buildCodexArgvFor(
   };
 }
 
-export function buildCodexAppServerCommand(
+export async function buildCodexAppServerCommand(
   location: ProjectLocation,
   options?: {
     wslExecPath?: string;
@@ -175,13 +175,13 @@ export function buildCodexAppServerCommand(
     mcpServers?: readonly ResolvedMcpServer[];
     includeMcpConfig?: boolean;
   },
-): CommandSpec {
+): Promise<CommandSpec> {
   const wslExecPath = options?.wslExecPath;
   const wslNodePath = options?.wslNodePath;
   const mcpServers = options?.mcpServers ?? [];
   const mcp = buildCodexMcp(mcpServers);
   const includeMcpConfig = options?.includeMcpConfig ?? true;
-  const mcpSkillConflictArgs = buildCodexMcpSkillConflictArgs(location, mcpServers);
+  const mcpSkillConflictArgs = await buildCodexMcpSkillConflictArgs(location, mcpServers);
   const mcpEnv = mcp.env;
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const args = [

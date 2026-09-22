@@ -8,6 +8,7 @@ import {
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -85,12 +86,12 @@ export function createQoderAdapter(): AgentAdapter {
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installQoderPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installQoderPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallQoderPlugin(ctx);
+      await uninstallQoderPlugin(ctx);
     },
     async pluginLaunchExtras(ctx) {
       const paths = getQoderPluginPaths(ctx);
@@ -103,8 +104,8 @@ export function createQoderAdapter(): AgentAdapter {
       return status;
     },
 
-    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
-      const mcp = qoderMcpLaunch(location, options?.mcpServers);
+    async buildLaunchArgv(location, config, prompt, _sessionRef, options) {
+      const mcp = await qoderMcpLaunch(location, options?.mcpServers);
       const sessionId = randomUUID();
       return {
         binary: "qodercli",
@@ -114,8 +115,8 @@ export function createQoderAdapter(): AgentAdapter {
       };
     },
 
-    buildResumeArgv(location, config, prompt, sessionRef, options) {
-      const mcp = qoderMcpLaunch(location, options?.mcpServers);
+    async buildResumeArgv(location, config, prompt, sessionRef, options) {
+      const mcp = await qoderMcpLaunch(location, options?.mcpServers);
       return {
         binary: "qodercli",
         ...mcp,
@@ -124,6 +125,7 @@ export function createQoderAdapter(): AgentAdapter {
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const command = buildQoderCommand(
         input.projectLocation,
         ["--acp"],
@@ -138,6 +140,7 @@ export function createQoderAdapter(): AgentAdapter {
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildQoderCommand(location, ["--acp"], resolveAgentBinaryPath(location, "qodercli"));
     },
 

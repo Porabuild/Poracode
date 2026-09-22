@@ -3,7 +3,7 @@ import {
   applyAgentSecretSetting,
   applyCreateProfile,
   applyProfileEnvironment,
-} from "@/main/sharedSettingsFile";
+} from "@/host/sharedSettingsFile";
 import { agentProfileDriver, isAgentProfileDriver } from "@/shared/contracts/agentProfiles";
 import { isSensitiveAgentSetting } from "@/shared/agentSecrets";
 import type { AgentInstanceEnvVar } from "@/shared/contracts";

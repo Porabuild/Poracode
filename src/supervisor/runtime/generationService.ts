@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type {
   AgentKind,
   ExtractContextPayload,
@@ -20,12 +21,19 @@ import { generatePrSummary } from "../prSummaryGenerator";
 import { generateTitle } from "../titleGenerator";
 import { judgeExperiment } from "../experimentJudge";
 import type { AgentAdapter } from "../agents/base";
+import type { HostResourceAdmission } from "./hostResourceAdmission";
 import type { WslBridgeClient } from "../wsl/bridge/client";
 
 export interface GenerationServiceDeps {
   adapters: Map<AgentKind, AgentAdapter>;
   readTerminalScrollback: (threadId: string) => string;
   wslBridgeClient: WslBridgeClient | undefined;
+  /**
+   * Optional: the supervisor's one host execution-slot owner. Generation
+   * one-shots are a documented bounded auxiliary class (`generation-helper`)
+   * on that owner, never an unbounded bypass around it.
+   */
+  hostResourceAdmission?: HostResourceAdmission;
 }
 
 /**
@@ -53,13 +61,15 @@ export class GenerationService {
   ): Promise<GenerateCommitMessageResult> {
     const adapter = this.requireAdapter(payload.agentKind);
     return {
-      message: await generateCommitMessage(
-        payload.projectLocation,
-        adapter,
-        payload.model,
-        payload.effort,
-        payload.language,
-        payload.fast,
+      message: await this.withHelperLease("commit-message", () =>
+        generateCommitMessage(
+          payload.projectLocation,
+          adapter,
+          payload.model,
+          payload.effort,
+          payload.language,
+          payload.fast,
+        ),
       ),
     };
   }
@@ -67,28 +77,32 @@ export class GenerationService {
   async generateTitle(payload: GenerateTitlePayload): Promise<GenerateTitleResult> {
     const adapter = this.requireAdapter(payload.agentKind);
     return {
-      title: await generateTitle(
-        payload.projectLocation,
-        adapter,
-        payload.prompt,
-        payload.model,
-        payload.effort,
-        payload.language,
-        payload.fast,
+      title: await this.withHelperLease("title", () =>
+        generateTitle(
+          payload.projectLocation,
+          adapter,
+          payload.prompt,
+          payload.model,
+          payload.effort,
+          payload.language,
+          payload.fast,
+        ),
       ),
     };
   }
 
   async generatePrSummary(payload: GeneratePrSummaryPayload): Promise<GeneratePrSummaryResult> {
     const adapter = this.requireAdapter(payload.agentKind);
-    return generatePrSummary(
-      payload.projectLocation,
-      adapter,
-      payload.branch,
-      payload.baseBranch,
-      payload.model,
-      payload.effort,
-      payload.language,
+    return this.withHelperLease("pr-summary", () =>
+      generatePrSummary(
+        payload.projectLocation,
+        adapter,
+        payload.branch,
+        payload.baseBranch,
+        payload.model,
+        payload.effort,
+        payload.language,
+      ),
     );
   }
 
@@ -98,19 +112,21 @@ export class GenerationService {
     this.judgeAbortControllers.get(payload.experimentId)?.abort();
     this.judgeAbortControllers.set(payload.experimentId, abortController);
     try {
-      return await judgeExperiment(
-        payload.projectLocation,
-        adapter,
-        payload.prompt,
-        payload.candidates,
-        payload.model,
-        payload.effort,
-        payload.fast,
-        {
-          signal: abortController.signal,
-          ...(this.deps.wslBridgeClient ? { wslClient: this.deps.wslBridgeClient } : {}),
-          ...(payload.mode ? { mode: payload.mode } : {}),
-        },
+      return await this.withHelperLease("judge-experiment", () =>
+        judgeExperiment(
+          payload.projectLocation,
+          adapter,
+          payload.prompt,
+          payload.candidates,
+          payload.model,
+          payload.effort,
+          payload.fast,
+          {
+            signal: abortController.signal,
+            ...(this.deps.wslBridgeClient ? { wslClient: this.deps.wslBridgeClient } : {}),
+            ...(payload.mode ? { mode: payload.mode } : {}),
+          },
+        ),
       );
     } finally {
       if (this.judgeAbortControllers.get(payload.experimentId) === abortController) {
@@ -133,35 +149,37 @@ export class GenerationService {
     this.extractionAbortControllers.set(payload.threadId, abortController);
 
     try {
-      try {
-        return await extractContextFn(
-          payload.projectLocation,
-          adapter,
-          payload.sessionRef,
-          payload.worktreePath,
-          payload.model,
-          payload.effort,
-          abortController.signal,
-        );
-      } catch {
-        const scrollback = this.deps.readTerminalScrollback(payload.threadId);
-        if (scrollback) {
-          return extractContextFromScrollback(
+      return await this.withHelperLease("extract-context", async () => {
+        try {
+          return await extractContextFn(
             payload.projectLocation,
             adapter,
-            scrollback,
-            payload.agentKind,
-            payload.sessionRef.providerSessionId,
+            payload.sessionRef,
             payload.worktreePath,
             payload.model,
             payload.effort,
             abortController.signal,
           );
+        } catch {
+          const scrollback = this.deps.readTerminalScrollback(payload.threadId);
+          if (scrollback) {
+            return extractContextFromScrollback(
+              payload.projectLocation,
+              adapter,
+              scrollback,
+              payload.agentKind,
+              payload.sessionRef.providerSessionId,
+              payload.worktreePath,
+              payload.model,
+              payload.effort,
+              abortController.signal,
+            );
+          }
+          throw new Error(
+            `Cannot extract context from ${adapter.label}: no session resume or scrollback available`,
+          );
         }
-        throw new Error(
-          `Cannot extract context from ${adapter.label}: no session resume or scrollback available`,
-        );
-      }
+      });
     } finally {
       this.extractionAbortControllers.delete(payload.threadId);
     }
@@ -172,6 +190,29 @@ export class GenerationService {
     if (controller) {
       controller.abort();
       this.extractionAbortControllers.delete(threadId);
+    }
+  }
+
+  /**
+   * Request-scoped slot for one agent-generation helper. The helper call is
+   * fully awaited, so the slot is released when it returns or throws (a
+   * cancelled helper kills its child before settling). With the class limit at
+   * its explicit unlimited pre-measurement default this never refuses; once a
+   * measured number lands it refuses promptly like every other class.
+   */
+  private async withHelperLease<T>(operation: string, run: () => Promise<T>): Promise<T> {
+    const admission = this.deps.hostResourceAdmission;
+    if (!admission) {
+      return run();
+    }
+    const lease = admission.tryAcquire({
+      resourceClass: "generation-helper",
+      key: `generation-helper:${operation}:${randomUUID()}`,
+    });
+    try {
+      return await run();
+    } finally {
+      lease.confirmExit();
     }
   }
 }
