@@ -211,7 +211,7 @@ class Android37WireLabFamilyInstrumentedTest {
         }
         if (
             !reusingRealPairing &&
-            waitForTextIfPresent(context.getString(R.string.confirm_pair_title))
+            waitForTextIfPresent(context.getString(R.string.confirm_pair_title), timeoutMs = 20_000L)
         ) {
             compose.onNodeWithText(context.getString(R.string.confirm_pair_button)).performClick()
         }

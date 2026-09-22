@@ -19,6 +19,8 @@ val rootPackageVersion = rootPackageMetadata["version"] as? String
     ?: error("Root package.json is missing a version")
 val mobileBuildNumber = (System.getenv("PORACODE_MOBILE_BUILD_NUMBER") ?: "1").toInt()
 val mobileVersionName = System.getenv("PORACODE_MOBILE_VERSION_NAME") ?: rootPackageVersion
+val clearPackageDataBetweenInstrumentedTests =
+    providers.gradleProperty("poracode.android.clearPackageData").orElse("true")
 val remoteV3NativeDirectory =
     rootProject.layout.projectDirectory.dir("../protocol/remote/v3/generated/native")
 val remoteV3KotlinDirectory = remoteV3NativeDirectory.dir("kotlin")
@@ -37,7 +39,8 @@ android {
         versionCode = mobileBuildNumber
         versionName = mobileVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        testInstrumentationRunnerArguments["clearPackageData"] = "true"
+        testInstrumentationRunnerArguments["clearPackageData"] =
+            clearPackageDataBetweenInstrumentedTests.get()
         vectorDrawables {
             useSupportLibrary = true
         }
