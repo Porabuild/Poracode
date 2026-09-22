@@ -8,14 +8,14 @@ import {
   initDatabase,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
-} from "@/main/db";
+} from "@/host/db";
 import type { Thread } from "@/shared/contracts";
 import { acquireRealHostFixtureRoot } from "../harness/realHostRoot";
 
 /**
  * Deterministic many-thread/long-history host workload for payload baselines
  * (M2-4). Seeds the host's own SQLite database — through the application's DB
- * layer (`@/main/db`), before the headless server boots — with one fixture
+ * layer (`@/host/db`), before the headless server boots — with one fixture
  * project plus 60 `inactive` threads, 10 of which carry 40-item runtime
  * histories. Real threads require real agent spawns, so a durable pre-seed is
  * the only way to measure the production snapshot/history serialization path
@@ -179,7 +179,7 @@ export async function seedLoadWorkload(profileNamespace: string): Promise<LoadWo
         updatedAt: createdAt,
       };
       dbUpsertThread(thread, LOAD_THREAD_SORT_ORDER_BASE + threadIndex);
-      dbReplaceThreadRuntimeSnapshot(
+      await dbReplaceThreadRuntimeSnapshot(
         threadId,
         buildItems(threadIndex, itemCount),
         buildTurns(threadIndex, itemCount, isLong ? 4 : 1),

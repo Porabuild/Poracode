@@ -1,0 +1,426 @@
+{
+  "id": "remote-v3-bounded-recovery-tape",
+  "format": "remote-v3-bounded-recovery-tape",
+  "protocolVersion": 12,
+  "versionBoundary": "fixture-only-additive",
+  "authority": "Client-local recovery-buffer bookkeeping (count/byte/age bounds and overflow recovery). No wire vocabulary, route, or generated artifact is defined here; every expectation is consumed directly by the TS reference evaluator and by the Swift/Kotlin production buffers under test.",
+  "semantics": {
+    "incremental": {
+      "appliesTo": "Ordered event/replay recovery buffers that hold every frame needed to replay over an in-flight authoritative snapshot (iOS ReplayInstallBuffer, Android ThreadHydrationCoordinator / RichChatLiveFrameBuffer, TS reference model).",
+      "retention": "append order; a bounded oldest-first window of the newest arrivals.",
+      "bounds": "count, retained estimated bytes, and retained age against the monotonic clock. Arrivals and the evaluation clock share one monotonic base; the tape's atMs values drive both. All three bounds are hard: a single oversized frame is not retained.",
+      "age": "a retained frame whose age (evaluation clock minus arrival) exceeds maxAgeMs is dropped: at append while the oldest head is expired, and again at commit before replay. A hung or quiet read can therefore never replay a frame retained past the budget, even with no new input.",
+      "eviction": "oldest-first until every bound holds; evicting or expiring any entry loses replay coverage.",
+      "overflow": "coverageLost=true; the attempted base/replay is invalid and the caller must request authoritative recovery. Never report a converged replay from a truncated or expired window.",
+      "replay": "retained frames with seq strictly greater than the committed snapshot sequence, in retained (ascending) order after expired frames are dropped; committing releases all retained state.",
+      "ownership": "a begin/open binds the buffer to an owner; a new owner discards the previous window, and a commit for a stale owner is rejected without mutating state.",
+      "expectedRetained": "expected.retainedSeqs / retainedBytes / coverageLost describe the retained window immediately before the first commit step; commit outcomes separately pin release behavior."
+    },
+    "replacement": {
+      "appliesTo": "Sequence-tagged replace-on-event state (iOS RichChatFollowUpQueueReplaySlot and the TS reference model).",
+      "retention": "exactly one state: the newest sequence; an equal sequence keeps the later arrival.",
+      "bounds": "count=1. A single replacement state may be large; it is bounded by the host WebSocket frame limit (1 MiB) and is never accumulated.",
+      "eviction": "supersede only. Dropping a superseded copy is lossless because the retained envelope is a complete replacement.",
+      "overflow": "never; supersede must not set coverageLost.",
+      "replay": "the retained state replaces the installed value only when its sequence is strictly greater than the snapshot sequence; committing releases the slot."
+    }
+  },
+  "incrementalCases": [
+    {
+      "id": "count-overflow-evicts-oldest-and-requires-recovery",
+      "policy": { "maxCount": 3, "maxBytes": 4096, "maxAgeMs": 600000 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 10, "atMs": 1 },
+        { "op": "append", "seq": 13, "bytes": 10, "atMs": 2 },
+        { "op": "append", "seq": 14, "bytes": 10, "atMs": 3 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [12, 13, 14],
+        "retainedBytes": 30,
+        "coverageLost": true,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [12, 13, 14],
+            "coverageLost": true,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "byte-overflow-evicts-oldest-and-requires-recovery",
+      "policy": { "maxCount": 8, "maxBytes": 250, "maxAgeMs": 600000 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 100, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 100, "atMs": 1 },
+        { "op": "append", "seq": 13, "bytes": 100, "atMs": 2 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [12, 13],
+        "retainedBytes": 200,
+        "coverageLost": true,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [12, 13],
+            "coverageLost": true,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "single-oversized-frame-is-never-retained",
+      "policy": { "maxCount": 8, "maxBytes": 200, "maxAgeMs": 600000 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 100, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 5000, "atMs": 1 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [],
+        "retainedBytes": 0,
+        "coverageLost": true,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [],
+            "coverageLost": true,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "retained-age-evicts-oldest-on-append",
+      "policy": { "maxCount": 8, "maxBytes": 100000, "maxAgeMs": 100 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 10, "atMs": 50 },
+        { "op": "append", "seq": 13, "bytes": 10, "atMs": 200 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [13],
+        "retainedBytes": 10,
+        "coverageLost": true,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [13],
+            "coverageLost": true,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "retained-age-at-the-boundary-is-retained",
+      "policy": { "maxCount": 8, "maxBytes": 100000, "maxAgeMs": 100 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 10, "atMs": 100 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [11, 12],
+        "retainedBytes": 20,
+        "coverageLost": false,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [11, 12],
+            "coverageLost": false,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "clock-advance-beyond-budget-without-input-cannot-replay-expired-frame",
+      "policy": { "maxCount": 8, "maxBytes": 100000, "maxAgeMs": 100 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 10, "atMs": 50 },
+        { "op": "advance", "atMs": 120 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [11, 12],
+        "retainedBytes": 20,
+        "coverageLost": false,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [12],
+            "coverageLost": true,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "clock-advance-to-the-boundary-still-replays",
+      "policy": { "maxCount": 8, "maxBytes": 100000, "maxAgeMs": 100 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "advance", "atMs": 100 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [11],
+        "retainedBytes": 10,
+        "coverageLost": false,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [11],
+            "coverageLost": false,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "fully-expired-window-replays-nothing-and-demands-recovery",
+      "policy": { "maxCount": 8, "maxBytes": 100000, "maxAgeMs": 100 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 10, "atMs": 50 },
+        { "op": "advance", "atMs": 500 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [11, 12],
+        "retainedBytes": 20,
+        "coverageLost": false,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [],
+            "coverageLost": true,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "within-bounds-replays-strictly-above-snapshot",
+      "policy": { "maxCount": 8, "maxBytes": 4096, "maxAgeMs": 600000 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 10, "atMs": 1 },
+        { "op": "append", "seq": 13, "bytes": 10, "atMs": 2 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 12 }
+      ],
+      "expected": {
+        "retainedSeqs": [11, 12, 13],
+        "retainedBytes": 30,
+        "coverageLost": false,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 12,
+            "outcome": "replayed",
+            "replaySeqs": [13],
+            "coverageLost": false,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "commit-releases-and-a-second-commit-is-stale",
+      "policy": { "maxCount": 8, "maxBytes": 4096, "maxAgeMs": 600000 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [11],
+        "retainedBytes": 10,
+        "coverageLost": false,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [11],
+            "coverageLost": false,
+            "released": true
+          },
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "stale",
+            "replaySeqs": [],
+            "coverageLost": false,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "reset-releases-without-replay",
+      "policy": { "maxCount": 8, "maxBytes": 4096, "maxAgeMs": 600000 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        { "op": "append", "seq": 12, "bytes": 10, "atMs": 1 },
+        {
+          "op": "reset",
+          "expectAfter": {
+            "retainedSeqs": [],
+            "retainedBytes": 0,
+            "coverageLost": false
+          }
+        },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [],
+        "retainedBytes": 0,
+        "coverageLost": false,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "stale",
+            "replaySeqs": [],
+            "coverageLost": false,
+            "released": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "reopen-discards-previous-window-and-rejects-stale-owner",
+      "policy": { "maxCount": 8, "maxBytes": 4096, "maxAgeMs": 600000 },
+      "steps": [
+        { "op": "begin", "owner": "owner-1" },
+        { "op": "append", "seq": 11, "bytes": 10, "atMs": 0 },
+        {
+          "op": "begin",
+          "owner": "owner-2",
+          "expectAfter": {
+            "retainedSeqs": [],
+            "retainedBytes": 0,
+            "coverageLost": false
+          }
+        },
+        { "op": "append", "seq": 12, "bytes": 10, "atMs": 1 },
+        { "op": "commit", "owner": "owner-1", "snapshotSeq": 10 },
+        { "op": "commit", "owner": "owner-2", "snapshotSeq": 10 }
+      ],
+      "expected": {
+        "retainedSeqs": [12],
+        "retainedBytes": 10,
+        "coverageLost": false,
+        "commits": [
+          {
+            "owner": "owner-1",
+            "snapshotSeq": 10,
+            "outcome": "stale",
+            "replaySeqs": [],
+            "coverageLost": false,
+            "released": false
+          },
+          {
+            "owner": "owner-2",
+            "snapshotSeq": 10,
+            "outcome": "replayed",
+            "replaySeqs": [12],
+            "coverageLost": false,
+            "released": true
+          }
+        ]
+      }
+    }
+  ],
+  "replacementCases": [
+    {
+      "id": "newest-sequence-wins-and-supersede-is-lossless",
+      "records": [
+        { "sequence": 5, "state": "queue-a" },
+        { "sequence": 6, "state": "queue-b" },
+        { "sequence": 6, "state": "queue-b2" }
+      ],
+      "expected": {
+        "retainedCount": 1,
+        "retainedSequence": 6,
+        "retainedState": "queue-b2",
+        "coverageLost": false,
+        "replays": [
+          { "over": "queue-snapshot", "snapshotSeq": 4, "state": "queue-b2" },
+          { "over": "queue-snapshot", "snapshotSeq": 6, "state": "queue-snapshot" }
+        ]
+      }
+    },
+    {
+      "id": "at-or-below-snapshot-never-replaces",
+      "records": [{ "sequence": 3, "state": "queue-old" }],
+      "expected": {
+        "retainedCount": 1,
+        "retainedSequence": 3,
+        "retainedState": "queue-old",
+        "coverageLost": false,
+        "replays": [{ "over": "queue-snapshot", "snapshotSeq": 3, "state": "queue-snapshot" }]
+      }
+    },
+    {
+      "id": "reset-releases-the-slot",
+      "records": [{ "sequence": 5, "state": "queue-a" }],
+      "reset": true,
+      "expected": {
+        "retainedCount": 0,
+        "retainedSequence": null,
+        "retainedState": null,
+        "coverageLost": false,
+        "replays": [{ "over": "queue-snapshot", "snapshotSeq": 4, "state": "queue-snapshot" }]
+      }
+    },
+    {
+      "id": "stale-target-cannot-replay",
+      "records": [{ "sequence": 5, "state": "queue-a" }],
+      "replayTarget": "target-2",
+      "expected": {
+        "retainedCount": 1,
+        "retainedSequence": 5,
+        "retainedState": "queue-a",
+        "coverageLost": false,
+        "replays": [{ "over": "queue-snapshot", "snapshotSeq": 4, "state": "queue-snapshot" }]
+      }
+    }
+  ]
+}

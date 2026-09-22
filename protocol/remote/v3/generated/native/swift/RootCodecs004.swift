@@ -1,11 +1,111 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DListU2EQuery: RemoteRootCodec<RoutethreadU2DListQuery_6e7f58a6ce> = .init(id: "route.thread-list.query", schema: RemoteSchemas.schema_6e7f58a6cea44491)
+  static let routeU2EThreadU2DCloseU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-close.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DListU2EResponse: RemoteRootCodec<RoutethreadU2DListResponse_9976947f7b> = .init(id: "route.thread-list.response", schema: RemoteSchemas.schema_9976947f7b6422f2)
+  static let routeU2EThreadU2DCloseU2ERequest: RemoteRootCodec<RoutehostU2DUpdateU2DInstallResponse_81055c9199> = .init(id: "route.thread-close.request", schema: RemoteSchemas.schema_81055c9199569630)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DCloseU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.thread-close.response", schema: RemoteSchemas.schema_badd682f3501e022)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DCommandU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-command.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DCommandU2ERequest: RemoteRootCodec<RoutethreadU2DCommandRequest_d32e4080ca> = .init(id: "route.thread-command.request", schema: RemoteSchemas.schema_d32e4080cad7f85d)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DCommandU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.thread-command.response", schema: RemoteSchemas.schema_badd682f3501e022)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DGoalU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-goal.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DGoalU2ERequest: RemoteRootCodec<RoutethreadU2DGoalRequest_54c8350637> = .init(id: "route.thread-goal.request", schema: RemoteSchemas.schema_54c83506378cf7c8)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DGoalU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.thread-goal.response", schema: RemoteSchemas.schema_badd682f3501e022)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DHistoryU2DItemsU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-history-items.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DHistoryU2DItemsU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryU2DItemsQuery_a0f0c9734c> = .init(id: "route.thread-history-items.query", schema: RemoteSchemas.schema_a0f0c9734c246725)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DHistoryU2DItemsU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryU2DItemsResponse_7b055156a7> = .init(id: "route.thread-history-items.response", schema: RemoteSchemas.schema_7b055156a726d1cc)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DHistoryU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-history.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DHistoryU2EQuery: RemoteRootCodec<RoutethreadU2DHistoryQuery_c94252b9b1> = .init(id: "route.thread-history.query", schema: RemoteSchemas.schema_c94252b9b19bd8f3)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DHistoryU2EResponse: RemoteRootCodec<RoutethreadU2DHistoryResponse_2140820cb8> = .init(id: "route.thread-history.response", schema: RemoteSchemas.schema_2140820cb8240229)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DInterruptU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-interrupt.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DInterruptU2ERequest: RemoteRootCodec<RoutehostU2DUpdateU2DInstallResponse_81055c9199> = .init(id: "route.thread-interrupt.request", schema: RemoteSchemas.schema_81055c9199569630)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DInterruptU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.thread-interrupt.response", schema: RemoteSchemas.schema_badd682f3501e022)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DListU2EQuery: RemoteRootCodec<RoutethreadU2DListQuery_64900cfb16> = .init(id: "route.thread-list.query", schema: RemoteSchemas.schema_64900cfb16aa539e)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DListU2EResponse: RemoteRootCodec<RoutethreadU2DListResponse_989c2d06cc> = .init(id: "route.thread-list.response", schema: RemoteSchemas.schema_989c2d06cc986156)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-runtime-gap-acknowledge.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EQuery: RemoteRootCodec<RoutethreadU2DRuntimeU2DGapU2DAcknowledgeQuery_3b681a533b> = .init(id: "route.thread-runtime-gap-acknowledge.query", schema: RemoteSchemas.schema_3b681a533b5fa621)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2ERequest: RemoteRootCodec<RoutethreadU2DRuntimeU2DGapU2DAcknowledgeRequest_d4605651db> = .init(id: "route.thread-runtime-gap-acknowledge.request", schema: RemoteSchemas.schema_d4605651dbf9d167)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EResponse: RemoteRootCodec<RoutethreadU2DRuntimeU2DGapU2DAcknowledgeResponse_3224b26610> = .init(id: "route.thread-runtime-gap-acknowledge.response", schema: RemoteSchemas.schema_3224b2661089874d)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DRuntimeU2DGapU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-runtime-gap.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DRuntimeU2DGapU2EQuery: RemoteRootCodec<RoutethreadU2DRuntimeU2DGapU2DAcknowledgeQuery_3b681a533b> = .init(id: "route.thread-runtime-gap.query", schema: RemoteSchemas.schema_3b681a533b5fa621)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DRuntimeU2DGapU2EResponse: RemoteRootCodec<RoutethreadU2DRuntimeU2DGapResponse_6da82c72b2> = .init(id: "route.thread-runtime-gap.response", schema: RemoteSchemas.schema_6da82c72b226f41d)
 }
 
 public extension RemoteRootCodecs {
@@ -17,7 +117,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DRuntimeU2DTruncateU2EResponse: RemoteRootCodec<RoutehealthzResponse_badd682f35> = .init(id: "route.thread-runtime-truncate.response", schema: RemoteSchemas.schema_badd682f3501e022)
+  static let routeU2EThreadU2DRuntimeU2DTruncateU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.thread-runtime-truncate.response", schema: RemoteSchemas.schema_badd682f3501e022)
 }
 
 public extension RemoteRootCodecs {
@@ -29,7 +129,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DSendU2EResponse: RemoteRootCodec<RoutehealthzResponse_badd682f35> = .init(id: "route.thread-send.response", schema: RemoteSchemas.schema_badd682f3501e022)
+  static let routeU2EThreadU2DSendU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.thread-send.response", schema: RemoteSchemas.schema_badd682f3501e022)
 }
 
 public extension RemoteRootCodecs {
@@ -49,7 +149,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DSteerU2DClearU2EResponse: RemoteRootCodec<RoutehealthzResponse_badd682f35> = .init(id: "route.thread-steer-clear.response", schema: RemoteSchemas.schema_badd682f3501e022)
+  static let routeU2EThreadU2DSteerU2DClearU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.thread-steer-clear.response", schema: RemoteSchemas.schema_badd682f3501e022)
 }
 
 public extension RemoteRootCodecs {
@@ -61,7 +161,19 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EThreadU2DSteerU2DSetU2EResponse: RemoteRootCodec<RoutehealthzResponse_badd682f35> = .init(id: "route.thread-steer-set.response", schema: RemoteSchemas.schema_badd682f3501e022)
+  static let routeU2EThreadU2DSteerU2DSetU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.thread-steer-set.response", schema: RemoteSchemas.schema_badd682f3501e022)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DTurnsU2EPath: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "route.thread-turns.path", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DTurnsU2EQuery: RemoteRootCodec<RoutethreadU2DTurnsQuery_cab926bfae> = .init(id: "route.thread-turns.query", schema: RemoteSchemas.schema_cab926bfae4fdbf9)
+}
+
+public extension RemoteRootCodecs {
+  static let routeU2EThreadU2DTurnsU2EResponse: RemoteRootCodec<RoutethreadU2DTurnsResponse_1f8c0bbd10> = .init(id: "route.thread-turns.response", schema: RemoteSchemas.schema_1f8c0bbd106d043e)
 }
 
 public extension RemoteRootCodecs {
@@ -73,7 +185,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EWebsocketU2DTicketU2EResponse: RemoteRootCodec<RoutelocalU2DImageU2DTicketResponse_b9dfb5a053> = .init(id: "route.websocket-ticket.response", schema: RemoteSchemas.schema_b9dfb5a053707da9)
+  static let routeU2EWebsocketU2DTicketU2EResponse: RemoteRootCodec<RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053> = .init(id: "route.websocket-ticket.response", schema: RemoteSchemas.schema_b9dfb5a053707da9)
 }
 
 public extension RemoteRootCodecs {

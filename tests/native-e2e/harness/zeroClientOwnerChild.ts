@@ -21,7 +21,7 @@ import { HostControlServer } from "@/backend/ownership/HostControlServer";
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
 import { SettingsAuthority } from "@/backend/settings/SettingsAuthority";
 import { SettingsCompatWriter } from "@/backend/settings/settingsCompatWrites";
-import { ScheduleService, type ScheduleStore } from "@/main/schedules/ScheduleService";
+import { ScheduleService, type ScheduleStore } from "@/host/schedules/ScheduleService";
 import { installShutdown } from "@/server/cliRuntime";
 import type { ScheduledTask } from "@/shared/contracts";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";

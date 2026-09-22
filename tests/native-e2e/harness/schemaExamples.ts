@@ -2,6 +2,11 @@ type JsonSchema = Readonly<Record<string, unknown>>;
 
 const FIXTURE_TIME = "2026-08-12T10:03:00.000Z";
 const FIXTURE_UUID = "123e4567-e89b-42d3-a456-426614174000";
+// Must satisfy `^SHA256:[A-Za-z0-9+/]{43}$` and `^[a-f0-9]{64}$` respectively:
+// the environment projection embeds both shapes, and the mock validates every
+// generated response against the authoritative Zod schema.
+const FIXTURE_FINGERPRINT = `SHA256:${"A".repeat(43)}`;
+const FIXTURE_RUNTIME_HASH = "a".repeat(64);
 
 const STRING_EXAMPLES: Readonly<Record<string, string>> = {
   absolutePath: "/tmp/native-e2e-fixture/README.md",
@@ -12,15 +17,19 @@ const STRING_EXAMPLES: Readonly<Record<string, string>> = {
   deviceToken: "device-token-fixture",
   directoryPath: "",
   filePath: "README.md",
+  fingerprint: FIXTURE_FINGERPRINT,
   flowId: "flow-fixture",
   forwardId: "forward-fixture",
   fwt: "forward-token-fixture",
+  hash: FIXTURE_RUNTIME_HASH,
   headBranch: "fixture-branch",
+  hostKeyFingerprint: FIXTURE_FINGERPRINT,
   itemId: "item-fixture-assistant",
   manifestPath: "/tmp/native-e2e-fixture/workflow.json",
   message: "fixture message",
   name: "fixture",
   nextName: "renamed-fixture",
+  observedFingerprint: FIXTURE_FINGERPRINT,
   parentItemId: "item-fixture-parent",
   path: "README.md",
   projectId: "project-fixture-001",

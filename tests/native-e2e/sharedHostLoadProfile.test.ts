@@ -6,13 +6,13 @@ import Database from "better-sqlite3";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../src/shared/remote/protocol.ts";
 import type { RuntimeEvent, Thread } from "../../src/shared/contracts.ts";
-import { closeDatabase, initDatabase } from "../../src/main/db/connection.ts";
+import { closeDatabase, initDatabase } from "../../src/host/db/connection.ts";
 import {
   dbApplyThreadRuntimeEvents,
   dbFlushThreadRuntimeWrites,
   dbGetThreadRuntimeItemsPage,
-} from "../../src/main/db/runtimeItems.ts";
-import { dbGetProjects, dbUpsertThread } from "../../src/main/db/projectsThreads.ts";
+} from "../../src/host/db/runtimeItems.ts";
+import { dbGetProjects, dbUpsertThread } from "../../src/host/db/projectsThreads.ts";
 import { collectRuntimeEventsFromSupervisoryMessage } from "../../src/renderer/state/remote/runtimeRequests.ts";
 import { LOOPBACK_HOST } from "./harness/constants.ts";
 import { detectHeadlessServerEntrypoint, findRepoRoot } from "./harness/paths.ts";
@@ -225,7 +225,11 @@ interface GuiThreadFixture {
 
 /** Appends `count` completed message items to a GUI thread through the
  * production DB writers (second WAL connection, as in the truncate test). */
-function appendGuiThreadItems(dbPath: string, fixture: GuiThreadFixture, count: number): string[] {
+async function appendGuiThreadItems(
+  dbPath: string,
+  fixture: GuiThreadFixture,
+  count: number,
+): Promise<string[]> {
   initDatabase(dbPath);
   try {
     const appended: string[] = [];
@@ -251,14 +255,14 @@ function appendGuiThreadItems(dbPath: string, fixture: GuiThreadFixture, count: 
       );
     }
     dbApplyThreadRuntimeEvents(fixture.threadId, events);
-    dbFlushThreadRuntimeWrites(fixture.threadId);
+    await dbFlushThreadRuntimeWrites(fixture.threadId);
     return appended;
   } finally {
     closeDatabase();
   }
 }
 
-function seedGuiThreads(dbPath: string, projectId: string): GuiThreadFixture[] {
+async function seedGuiThreads(dbPath: string, projectId: string): Promise<GuiThreadFixture[]> {
   initDatabase(dbPath);
   try {
     const now = new Date().toISOString();
@@ -422,10 +426,10 @@ describe.skipIf(!entrypoint)(
         }
       })();
       assert.strictEqual(seededProjectId, project.projectId, "fixture project identity");
-      guiThreadFixtures = seedGuiThreads(dbPath, seededProjectId);
+      guiThreadFixtures = await seedGuiThreads(dbPath, seededProjectId);
       // Initial transcript content on every GUI thread.
       for (const fixture of guiThreadFixtures) {
-        appendGuiThreadItems(dbPath, fixture, 4);
+        await appendGuiThreadItems(dbPath, fixture, 4);
       }
     }, 240_000);
 
@@ -593,7 +597,7 @@ describe.skipIf(!entrypoint)(
           const fixture = guiThreadFixtures[actingIndex]!;
 
           // Transcript churn while every agent streams.
-          const appended = appendGuiThreadItems(dbPath, fixture, 2);
+          const appended = await appendGuiThreadItems(dbPath, fixture, 2);
           await new Promise((resolve) => setTimeout(resolve, 250));
           const anchorItemId = appended[0]!;
           fixture.survivingItemIds.pop(); // The truncate removes the appended tail item.
@@ -847,9 +851,9 @@ describe.skipIf(!entrypoint)(
         initDatabase(dbPath);
         try {
           for (const fixture of guiThreadFixtures) {
-            const dbIds = dbGetThreadRuntimeItemsPage(fixture.threadId, undefined, 500).items.map(
-              (item) => item.id,
-            );
+            const dbIds = (
+              await dbGetThreadRuntimeItemsPage(fixture.threadId, undefined, 500)
+            ).items.map((item) => item.id);
             assert.deepStrictEqual(
               dbIds,
               fixture.survivingItemIds,

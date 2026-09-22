@@ -89,6 +89,141 @@
       "scopes": []
     },
     {
+      "auth": "bearer",
+      "id": "environment-list",
+      "method": "GET",
+      "path": "/api/environments",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-create",
+      "method": "POST",
+      "path": "/api/environments",
+      "scopes": [
+        "projects:manage",
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-get",
+      "method": "GET",
+      "path": "/api/environments/{environmentId}",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-update",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}",
+      "scopes": [
+        "projects:manage",
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-delete",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/delete",
+      "scopes": [
+        "projects:manage",
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-connect",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/connect",
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-disconnect",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/disconnect",
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-pairing",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/pairing",
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-upgrade",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/upgrade",
+      "scopes": [
+        "projects:manage",
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-websocket-ticket",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/websocket-ticket",
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-trust-probe",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/trust-probe",
+      "scopes": [
+        "projects:manage",
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-trust-accept",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/trust-accept",
+      "scopes": [
+        "projects:manage",
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-adopt-legacy",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/adopt-legacy",
+      "scopes": [
+        "projects:manage",
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
       "auth": "forward-enter-token",
       "id": "forward-enter",
       "method": "GET",
@@ -134,7 +269,13 @@
       "method": "GET",
       "path": "/api/snapshot",
       "queryParameters": [
-        "threadLimit"
+        "reads",
+        "threadLimit",
+        "order",
+        "projectLimit",
+        "summaries",
+        "maxBytes",
+        "maxDecodeBytes"
       ],
       "scopes": [
         "session:read"
@@ -222,6 +363,33 @@
       "path": "/api/projects/{projectId}/notes",
       "scopes": [
         "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "project-list",
+      "method": "GET",
+      "path": "/api/projects",
+      "queryParameters": [
+        "reads",
+        "cursor",
+        "mode",
+        "order",
+        "projectLimit",
+        "maxBytes",
+        "maxDecodeBytes"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "catalog-membership",
+      "method": "POST",
+      "path": "/api/catalog/membership",
+      "scopes": [
+        "session:read"
       ]
     },
     {
@@ -498,6 +666,7 @@
     {
       "auth": "bearer",
       "id": "project-command",
+      "idempotency": "command-id-header-for-catalog-kinds",
       "method": "POST",
       "path": "/api/projects/command",
       "scopes": [
@@ -546,8 +715,14 @@
       "method": "GET",
       "path": "/api/threads",
       "queryParameters": [
+        "reads",
         "cursor",
-        "limit"
+        "limit",
+        "order",
+        "mode",
+        "summaries",
+        "maxBytes",
+        "maxDecodeBytes"
       ],
       "scopes": [
         "session:read"
@@ -559,9 +734,13 @@
       "method": "GET",
       "path": "/api/threads/{threadId}/history/items",
       "queryParameters": [
+        "reads",
+        "notices",
         "beforePosition",
         "limit",
-        "targetTimelineEntryCount"
+        "targetTimelineEntryCount",
+        "maxBytes",
+        "maxDecodeBytes"
       ],
       "scopes": [
         "session:read"
@@ -573,9 +752,32 @@
       "method": "GET",
       "path": "/api/threads/{threadId}/history",
       "queryParameters": [
+        "reads",
+        "notices",
         "runtimePage",
         "targetTimelineEntryCount",
-        "omitScrollback"
+        "omitScrollback",
+        "completedTurnsLimit",
+        "maxBytes",
+        "maxDecodeBytes"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "thread-turns",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/turns",
+      "queryParameters": [
+        "reads",
+        "notices",
+        "cursor",
+        "limit",
+        "completedTurnsLimit",
+        "maxBytes",
+        "maxDecodeBytes"
       ],
       "scopes": [
         "session:read"
@@ -622,7 +824,7 @@
     {
       "auth": "bearer",
       "id": "thread-command",
-      "idempotency": "command-id-header-for-start-kind",
+      "idempotency": "command-id-header-for-start-and-catalog-kinds",
       "method": "POST",
       "path": "/api/threads/{threadId}/command",
       "scopes": [
@@ -718,6 +920,50 @@
       "path": "/api/threads/{threadId}/requests/resolve",
       "scopes": [
         "requests:resolve"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "thread-runtime-gap",
+      "method": "GET",
+      "path": "/api/threads/{threadId}/runtime/gap",
+      "queryParameters": [
+        "notices"
+      ],
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "thread-runtime-gap-acknowledge",
+      "idempotency": "command-id-header",
+      "method": "POST",
+      "path": "/api/threads/{threadId}/runtime/gap/acknowledge",
+      "queryParameters": [
+        "notices"
+      ],
+      "scopes": [
+        "session:operate"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "experiment-state",
+      "method": "GET",
+      "path": "/api/experiments",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "experiment-command",
+      "idempotency": "command-id-header",
+      "method": "POST",
+      "path": "/api/experiments/{experimentId}/command",
+      "scopes": [
+        "session:operate"
       ]
     }
   ],
@@ -1296,11 +1542,6 @@
       "scope": "session:operate"
     },
     {
-      "name": "revealProjectEntry",
-      "owner": "projectLocation",
-      "scope": "session:operate"
-    },
-    {
       "name": "startThread",
       "owner": "projectLocation",
       "scope": "session:operate"
@@ -1356,56 +1597,6 @@
       "scope": "session:operate"
     },
     {
-      "name": "dbDeleteThread",
-      "owner": "thread",
-      "scope": "session:operate"
-    },
-    {
-      "name": "dbDeleteProject",
-      "owner": "project",
-      "scope": "session:operate"
-    },
-    {
-      "name": "dbGetThreadRuntimeItems",
-      "owner": "thread",
-      "scope": "session:read"
-    },
-    {
-      "name": "dbGetLatestThreadGoalItem",
-      "owner": "thread",
-      "scope": "session:read"
-    },
-    {
-      "name": "dbGetThreadsPage",
-      "owner": "project",
-      "scope": "session:read"
-    },
-    {
-      "name": "dbReplaceThreadRuntimeItems",
-      "owner": "thread",
-      "scope": "session:operate"
-    },
-    {
-      "name": "dbGetThreadCompletedTurns",
-      "owner": "thread",
-      "scope": "session:read"
-    },
-    {
-      "name": "dbReplaceThreadCompletedTurns",
-      "owner": "thread",
-      "scope": "session:operate"
-    },
-    {
-      "name": "dbReplaceThreadRuntimeSnapshot",
-      "owner": "thread",
-      "scope": "session:operate"
-    },
-    {
-      "name": "dbGetThreadContextUsage",
-      "owner": "thread",
-      "scope": "session:read"
-    },
-    {
       "name": "readTerminalScrollback",
       "owner": "thread",
       "scope": "session:read"
@@ -1423,16 +1614,6 @@
     {
       "name": "readThreadBackgroundTasks",
       "owner": "thread",
-      "scope": "session:read"
-    },
-    {
-      "name": "detectProjectIcon",
-      "owner": "projectLocation",
-      "scope": "session:read"
-    },
-    {
-      "name": "listProjectIconFiles",
-      "owner": "projectLocation",
       "scope": "session:read"
     }
   ],
