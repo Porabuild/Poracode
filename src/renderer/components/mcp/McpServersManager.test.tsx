@@ -931,9 +931,7 @@ describe("McpServersManager", () => {
         onWorkspaceChange,
       }),
     );
-    await waitFor(() => expect(bridge.probeMcpServer).toHaveBeenCalled());
-
-    fireEvent.click(screen.getByRole("button", { name: "2 tools" }));
+    fireEvent.click(await screen.findByRole("button", { name: "2 tools" }));
     fireEvent.click(
       within(screen.getByRole("dialog", { name: "memory" })).getByRole("switch", {
         name: "Disable beta",
