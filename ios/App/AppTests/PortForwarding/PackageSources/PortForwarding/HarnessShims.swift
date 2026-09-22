@@ -7,6 +7,10 @@ import Foundation
 // bump (a stale value fails this package's contract tests).
 enum ProtocolConstants {
   static let remoteProtocolVersion = 12
+  /// Parent data-plane credential header (ADR §5), mirrored from
+  /// `ios/App/App/Protocol/ProtocolConstants.swift`. The child bearer stays in
+  /// `Authorization`; the parent access token travels in this header only.
+  static let environmentAuthorizationHeader = "x-poracode-environment-authorization"
 }
 
 /// Isolation-package stand-ins for the app TLS pin session types. Production

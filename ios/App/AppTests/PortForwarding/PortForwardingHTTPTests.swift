@@ -257,9 +257,98 @@ final class PortForwardingHTTPTests: XCTestCase {
   }
   #endif
 
+  // MARK: - Environment parent authority (portable parity)
+
+  /// A direct host — `.direct` or the nil context the transport source resolves
+  /// for one — sends no parent header at all, so a parent token can never leak
+  /// to a non-environment endpoint.
+  func testDirectAuthoritySendsNoParentHeader() async throws {
+    PortForwardingURLProtocol.handler = { _ in
+      (200, try PortForwardingTestValues.fixture("ports-read"), [:])
+    }
+    let nilContext = EnvironmentParentAuthority(context: nil)
+    let api = try makeAPI(
+      browser: PortForwardingBrowserRecorder(),
+      environmentAuthority: nilContext)
+    _ = try await api.remoteScan()
+
+    let requests = PortForwardingURLProtocol.requests
+    XCTAssertEqual(requests.count, 1)
+    XCTAssertFalse(EnvironmentParentAuthority.direct.isEnvironmentBound)
+    XCTAssertNil(requests[0].value(forHTTPHeaderField: "x-poracode-environment-authorization"))
+  }
+
+  /// An environment-bound client attaches the parent bearer to every dispatch
+  /// while the child bearer stays the client's own grant.
+  func testEnvironmentBoundAuthoritySendsParentHeaderOnEveryDispatch() async throws {
+    PortForwardingURLProtocol.handler = { request in
+      let path = request.url?.path ?? ""
+      switch path {
+      case "/relay/host/api/ports": return (200, try PortForwardingTestValues.fixture("ports-read"), [:])
+      case "/relay/host/api/ports/forward": return (200, try PortForwardingTestValues.fixture("port-forward"), [:])
+      default: throw URLError(.badURL)
+      }
+    }
+    let authority = EnvironmentParentAuthority(context: RemoteEnvironmentContext(
+      environmentId: "env-1",
+      expectedChildDesktopId: "desktop-1",
+      parentAuthorizationToken: { "parent-token" },
+      mintParentWebSocketTicket: {
+        // HTTP dispatches never mint parent WS tickets; this would fail the
+        // test loudly if one ever did.
+        throw RemoteClientError(
+          message: "unused", status: 401, code: "environment_parent_ticket_missing")
+      }))
+    let api = try makeAPI(
+      browser: PortForwardingBrowserRecorder(),
+      environmentAuthority: authority)
+    _ = try await api.remoteScan()
+    _ = try await api.remoteStart(port: 3000)
+
+    let requests = PortForwardingURLProtocol.requests
+    XCTAssertEqual(requests.count, 2)
+    XCTAssertTrue(authority.isEnvironmentBound)
+    for request in requests {
+      XCTAssertEqual(
+        request.value(forHTTPHeaderField: "x-poracode-environment-authorization"),
+        "Bearer parent-token")
+      XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access")
+    }
+  }
+
+  /// A missing or empty parent token fails closed with the typed
+  /// `environment_parent_not_paired` rejection before any dial — never a bare
+  /// child bearer to the proxy.
+  func testMissingOrEmptyParentTokenFailsClosedBeforeAnyDial() async throws {
+    PortForwardingURLProtocol.handler = { _ in
+      (200, try PortForwardingTestValues.fixture("ports-read"), [:])
+    }
+    for parentToken in [nil as String?, ""] {
+      let authority = EnvironmentParentAuthority(context: RemoteEnvironmentContext(
+        environmentId: "env-1",
+        expectedChildDesktopId: nil,
+        parentAuthorizationToken: { parentToken },
+        mintParentWebSocketTicket: {
+          throw RemoteClientError(
+            message: "unused", status: 401, code: "environment_parent_ticket_missing")
+        }))
+      let api = try makeAPI(
+        browser: PortForwardingBrowserRecorder(),
+        environmentAuthority: authority)
+      do {
+        _ = try await api.remoteScan()
+        XCTFail("Expected the fail-closed parent rejection")
+      } catch let error as PortForwardingTransportError {
+        XCTAssertEqual(error, .rejected(statusCode: 401, code: "environment_parent_not_paired"))
+      }
+    }
+    XCTAssertTrue(PortForwardingURLProtocol.requests.isEmpty)
+  }
+
   private func makeAPI(
     browser: PortForwardingBrowserRecorder,
-    maximumBytes: Int = PortForwardingURLSessionHTTPClient.defaultMaximumResponseBytes
+    maximumBytes: Int = PortForwardingURLSessionHTTPClient.defaultMaximumResponseBytes,
+    environmentAuthority: EnvironmentParentAuthority = .direct
   ) throws -> GeneratedPortForwardingRemoteAPI {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [PortForwardingURLProtocol.self]
@@ -268,7 +357,8 @@ final class PortForwardingHTTPTests: XCTestCase {
       endpoint: "https://relay.example/relay/host",
       token: "access",
       session: session,
-      maximumResponseBytes: maximumBytes)
+      maximumResponseBytes: maximumBytes,
+      environmentAuthority: environmentAuthority)
     return GeneratedPortForwardingRemoteAPI(
       http: http,
       browser: PortForwardingBrowserOpener { url in browser.record(url) })
