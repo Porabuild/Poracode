@@ -116,17 +116,17 @@ void test("native qualification preserves every existing contract, build, and fo
   ]);
   const script = /node - <<'NODE'\n([\s\S]*?)\nNODE/u.exec(jobs.native_gate.steps[0].run)?.[1];
   assert.ok(script, "Execute the native aggregate gate against scope fixtures");
-  const evaluate = ({ android, ios, shared }, overrides = {}) => {
+  const evaluate = ({ android, ios, shared, full }, overrides = {}) => {
     const required = {
       changes: true,
       remote_v3_contract: shared,
       android,
-      android_api34_runtime: android,
-      android_api37_runtime: android,
+      android_api34_runtime: android && full,
+      android_api37_runtime: android && full,
       ios,
-      ios_ui: ios,
+      ios_ui: ios && full,
       native_e2e_foundation: shared,
-      server_install_qualification: shared,
+      server_install_qualification: shared && full,
     };
     const results = Object.fromEntries(
       Object.entries(required).map(([name, needed]) => [
@@ -142,22 +142,28 @@ void test("native qualification preserves every existing contract, build, and fo
         ANDROID_REQUIRED: String(android),
         IOS_REQUIRED: String(ios),
         SHARED_REQUIRED: String(shared),
+        FULL_REQUIRED: String(full),
       },
     }).status;
   };
   for (const scope of [
-    { android: false, ios: false, shared: false },
-    { android: true, ios: false, shared: false },
-    { android: false, ios: true, shared: false },
-    { android: true, ios: true, shared: true },
+    { android: false, ios: false, shared: false, full: false },
+    { android: true, ios: false, shared: false, full: false },
+    { android: false, ios: true, shared: false, full: false },
+    { android: true, ios: true, shared: true, full: false },
+    { android: true, ios: true, shared: true, full: true },
   ]) {
     assert.equal(evaluate(scope), 0, JSON.stringify(scope));
   }
   assert.equal(
-    evaluate({ android: true, ios: false, shared: false }, { android_api37_runtime: "skipped" }),
+    evaluate(
+      { android: true, ios: false, shared: false, full: true },
+      { android_api37_runtime: "skipped" },
+    ),
     1,
   );
-  assert.equal(evaluate({ android: undefined, ios: false, shared: false }), 1);
+  assert.equal(evaluate({ android: undefined, ios: false, shared: false, full: false }), 1);
+  assert.equal(evaluate({ android: false, ios: false, shared: false, full: undefined }), 1);
 });
 
 void test("each portable Swift contract suite is required, isolated, and cannot hide failure behind tee", async () => {

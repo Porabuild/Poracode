@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 const DOCUMENTATION_PATH = /^(?:docs\/|.*\.md$)/u;
 const ANDROID_PATH = /^android\//u;
 const IOS_PATH = /^ios\//u;
+const NATIVE_IRRELEVANT_PATH = /^(?:branding\/|chrome-extension\/|src\/renderer\/|website\/)/u;
 
 function isDocumentation(path) {
   return DOCUMENTATION_PATH.test(path);
@@ -17,10 +18,17 @@ export function classifyChanges(paths) {
   const shared = changed.some(
     (path) => !isDocumentation(path) && !ANDROID_PATH.test(path) && !IOS_PATH.test(path),
   );
-  const nativeAndroid = shared || changed.some((path) => ANDROID_PATH.test(path));
-  const nativeIos = shared || changed.some((path) => IOS_PATH.test(path));
+  const nativeShared = changed.some(
+    (path) =>
+      !isDocumentation(path) &&
+      !ANDROID_PATH.test(path) &&
+      !IOS_PATH.test(path) &&
+      !NATIVE_IRRELEVANT_PATH.test(path),
+  );
+  const nativeAndroid = nativeShared || changed.some((path) => ANDROID_PATH.test(path));
+  const nativeIos = nativeShared || changed.some((path) => IOS_PATH.test(path));
 
-  return { core: shared, nativeAndroid, nativeIos, nativeShared: shared };
+  return { core: shared, nativeAndroid, nativeIos, nativeShared };
 }
 
 export function fullScope() {

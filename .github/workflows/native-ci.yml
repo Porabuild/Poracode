@@ -26,6 +26,7 @@ jobs:
       android: ${{ steps.scope.outputs.native_android }}
       ios: ${{ steps.scope.outputs.native_ios }}
       shared: ${{ steps.scope.outputs.native_shared }}
+      full: ${{ steps.mode.outputs.full }}
     steps:
       - name: Checkout complete history for PR diff
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -38,6 +39,22 @@ jobs:
           CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node scripts/ci-change-scope.mjs
+
+      - name: Select PR qualification depth
+        id: mode
+        env:
+          # Pull requests get the deterministic build, unit, contract, and
+          # real-host foundation lanes. Emulator UI, release-artifact, and
+          # sustained-load proof remain mandatory on pushes, manual runs, and
+          # reusable release calls. A manual run against a PR branch provides
+          # the complete graph before merge without making label changes
+          # cancel and restart otherwise healthy PR checks.
+          FULL_QUALIFICATION: ${{ github.event_name != 'pull_request' }}
+        run: |
+          case "$FULL_QUALIFICATION" in
+            true|false) printf 'full=%s\n' "$FULL_QUALIFICATION" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::native qualification mode is invalid"; exit 1 ;;
+          esac
 
   remote_v3_contract:
     name: Remote v3 generated artifacts
@@ -206,7 +223,7 @@ jobs:
   ios_ui:
     name: iOS XCUITest wire-lab journey
     needs: [changes, ios]
-    if: ${{ needs.changes.outputs.ios == 'true' }}
+    if: ${{ needs.changes.outputs.ios == 'true' && needs.changes.outputs.full == 'true' }}
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -308,7 +325,7 @@ jobs:
   android_api37_runtime:
     name: Android 17 emulator runtime
     needs: [changes, android]
-    if: ${{ needs.changes.outputs.android == 'true' }}
+    if: ${{ needs.changes.outputs.android == 'true' && needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -474,7 +491,7 @@ jobs:
   android_api34_runtime:
     name: Android 14 minimum-supported runtime
     needs: [changes, android]
-    if: ${{ needs.changes.outputs.android == 'true' }}
+    if: ${{ needs.changes.outputs.android == 'true' && needs.changes.outputs.full == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -605,6 +622,7 @@ jobs:
       # the rest of the suite parallel and isolate only this measured
       # resource-heavy pair; the n64 cell has its own hosted-runner allowance.
       - name: Run isolated native load qualifications
+        if: ${{ needs.changes.outputs.full == 'true' }}
         env:
           # Git burst n64 consistently finishes its cell near the old 360s
           # Vitest ceiling on hosted Linux. Give evidence finalization room;
@@ -666,7 +684,7 @@ jobs:
   server_install_qualification:
     name: Server install qualification
     needs: [changes, remote_v3_contract]
-    if: ${{ needs.changes.outputs.shared == 'true' }}
+    if: ${{ needs.changes.outputs.shared == 'true' && needs.changes.outputs.full == 'true' }}
     # Plan D3: qualification runs the one reusable artifact workflow, on the
     # exact bytes the release job promotes (release.yml calls the same file).
     uses: ./.github/workflows/_server-artifact.yml
@@ -695,22 +713,23 @@ jobs:
           ANDROID_REQUIRED: ${{ needs.changes.outputs.android }}
           IOS_REQUIRED: ${{ needs.changes.outputs.ios }}
           SHARED_REQUIRED: ${{ needs.changes.outputs.shared }}
+          FULL_REQUIRED: ${{ needs.changes.outputs.full }}
         run: |
           node - <<'NODE'
           const jobs = JSON.parse(process.env.JOB_RESULTS);
-          for (const name of ["ANDROID_REQUIRED", "IOS_REQUIRED", "SHARED_REQUIRED"]) {
+          for (const name of ["ANDROID_REQUIRED", "IOS_REQUIRED", "SHARED_REQUIRED", "FULL_REQUIRED"]) {
             if (!["true", "false"].includes(process.env[name])) throw new Error(`${name} change scope is missing`);
           }
           const expected = {
             changes: true,
             remote_v3_contract: process.env.SHARED_REQUIRED === "true",
             android: process.env.ANDROID_REQUIRED === "true",
-            android_api34_runtime: process.env.ANDROID_REQUIRED === "true",
-            android_api37_runtime: process.env.ANDROID_REQUIRED === "true",
+            android_api34_runtime: process.env.ANDROID_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",
+            android_api37_runtime: process.env.ANDROID_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",
             ios: process.env.IOS_REQUIRED === "true",
-            ios_ui: process.env.IOS_REQUIRED === "true",
+            ios_ui: process.env.IOS_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",
             native_e2e_foundation: process.env.SHARED_REQUIRED === "true",
-            server_install_qualification: process.env.SHARED_REQUIRED === "true",
+            server_install_qualification: process.env.SHARED_REQUIRED === "true" && process.env.FULL_REQUIRED === "true",
           };
           for (const [name, required] of Object.entries(expected)) {
             const result = jobs[name]?.result;
