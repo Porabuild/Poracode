@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 12
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:d50180d293521d315e1ec1d07dc81d45fbe8f1b7cedc087a47a4722d9524ea95"
+  public static let sourceHash = "sha256:fb9073c123729c295db093f24aca4ea0474ee9cf88e2f3dfcd52b304d848aa11"
   public static let manifestHash = "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -48,7 +48,7 @@ public enum RemoteContractMetadata {
     .init(id: "mcp-settings-command", method: "POST", path: "/api/settings/mcp-servers/command", auth: "bearer", scopes: ["projects:manage"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutemcpU2DSettingsU2DCommandRequest_f92ad486ec", responseType: "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", queryCodecs: []),
     .init(id: "mcp-settings-operation", method: "POST", path: "/api/settings/mcp-servers/operation", auth: "bearer", scopes: ["projects:manage"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb", responseType: "RoutemcpU2DSettingsU2DOperationResponse_20b48750f1", queryCodecs: []),
     .init(id: "mcp-settings-read", method: "GET", path: "/api/settings/mcp-servers", auth: "bearer", scopes: ["projects:manage"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", queryCodecs: []),
-    .init(id: "metrics", method: "GET", path: "/metrics", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutemetricsResponse_48bd6fd8c0", queryCodecs: []),
+    .init(id: "metrics", method: "GET", path: "/metrics", auth: "public", scopes: [], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RoutemetricsResponse_f983f1aded", queryCodecs: []),
     .init(id: "port-enter", method: "POST", path: "/api/ports/enter", auth: "bearer", scopes: ["ports:forward"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteportU2DEnterRequest_4067ad04bf", responseType: "RouteportU2DEnterResponse_72ce7899de", queryCodecs: []),
     .init(id: "port-forward", method: "POST", path: "/api/ports/forward", auth: "bearer", scopes: ["ports:forward"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteportU2DForwardRequest_a26f77dd4a", responseType: "RouteportU2DForwardResponse_04de8f3da1", queryCodecs: []),
     .init(id: "port-unforward", method: "POST", path: "/api/ports/unforward", auth: "bearer", scopes: ["ports:forward"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteportU2DEnterRequest_4067ad04bf", responseType: "RouteenvironmentU2DDeleteResponse_badd682f35", queryCodecs: []),

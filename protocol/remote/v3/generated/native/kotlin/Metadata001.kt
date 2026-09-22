@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 12
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:d50180d293521d315e1ec1d07dc81d45fbe8f1b7cedc087a47a4722d9524ea95"
+    const val sourceHash = "sha256:fb9073c123729c295db093f24aca4ea0474ee9cf88e2f3dfcd52b304d848aa11"
     const val manifestHash = "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -53,7 +53,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("mcp-settings-command", "POST", "/api/settings/mcp-servers/command", "bearer", listOf("projects:manage"), "json", "json", 200, "RoutemcpU2DSettingsU2DCommandRequest_f92ad486ec", "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", listOf()),
         RemoteRouteDescriptor("mcp-settings-operation", "POST", "/api/settings/mcp-servers/operation", "bearer", listOf("projects:manage"), "json", "json", 200, "RoutemcpU2DSettingsU2DOperationRequest_e8fbf0f2cb", "RoutemcpU2DSettingsU2DOperationResponse_20b48750f1", listOf()),
         RemoteRouteDescriptor("mcp-settings-read", "GET", "/api/settings/mcp-servers", "bearer", listOf("projects:manage"), "empty", "json", 200, "RemoteUnit", "RoutemcpU2DSettingsU2DCommandResponse_e761211b82", listOf()),
-        RemoteRouteDescriptor("metrics", "GET", "/metrics", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RoutemetricsResponse_48bd6fd8c0", listOf()),
+        RemoteRouteDescriptor("metrics", "GET", "/metrics", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RoutemetricsResponse_f983f1aded", listOf()),
         RemoteRouteDescriptor("port-enter", "POST", "/api/ports/enter", "bearer", listOf("ports:forward"), "json", "json", 200, "RouteportU2DEnterRequest_4067ad04bf", "RouteportU2DEnterResponse_72ce7899de", listOf()),
         RemoteRouteDescriptor("port-forward", "POST", "/api/ports/forward", "bearer", listOf("ports:forward"), "json", "json", 200, "RouteportU2DForwardRequest_a26f77dd4a", "RouteportU2DForwardResponse_04de8f3da1", listOf()),
         RemoteRouteDescriptor("port-unforward", "POST", "/api/ports/unforward", "bearer", listOf("ports:forward"), "json", "json", 200, "RouteportU2DEnterRequest_4067ad04bf", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
