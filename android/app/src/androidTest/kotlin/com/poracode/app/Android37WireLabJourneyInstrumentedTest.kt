@@ -100,15 +100,24 @@ class Android37WireLabJourneyInstrumentedTest {
         waitForText(context.getString(R.string.local_network_permission_title))
         compose.onNodeWithText(context.getString(R.string.local_network_permission_continue))
             .performClick()
-        val deny = device.wait(
-            Until.findObject(By.res(Pattern.compile(".*:id/permission_deny_button"))),
-            5_000,
-        ) ?: device.wait(
-            Until.findObject(By.text(Pattern.compile("(?i)don.?t allow|deny"))),
-            5_000,
-        )
+        val denyByResource = By.res(Pattern.compile(".*:id/permission_deny_button"))
+        val denyByText = By.text(Pattern.compile("(?i)don.?t allow|deny"))
+        val denyFromResource = device.wait(Until.findObject(denyByResource), 5_000)
+        val denySelector = if (denyFromResource != null) denyByResource else denyByText
+        val deny = denyFromResource ?: device.wait(Until.findObject(denyByText), 5_000)
         assertNotNull("Android 17 local-network denial action was not shown", deny)
         deny!!.click()
+        if (!device.wait(Until.gone(denySelector), 5_000)) {
+            // API 37's software-rendered permission controller occasionally
+            // accepts UiObject2.click() without dispatching it. Back dismisses
+            // the still-visible denial dialog and returns the same denied
+            // permission result to the pending Activity Result callback.
+            device.pressBack()
+            assertTrue(
+                "Android 17 local-network permission dialog did not dismiss",
+                device.wait(Until.gone(denySelector), 5_000),
+            )
+        }
         waitForText(context.getString(R.string.local_network_permission_denied_title))
         assertEquals(
             "denial blocks all production discovery I/O",
