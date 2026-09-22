@@ -1,4 +1,6 @@
 import type { RemoteAccessBindMode } from "@/host/remote/config";
+import type { HostBuildIdentity } from "@/shared/hostControlProtocol";
+import type { ServerUpgradePhase } from "./serverUpgradeJournal";
 
 export const SERVER_DOCTOR_REPORT_VERSION = 1;
 
@@ -84,9 +86,57 @@ export interface ServerDoctorReport {
             readonly ssh: boolean;
             readonly computerUse: boolean;
           };
+          /**
+           * D4: true when the owner answered the additive authenticated status
+           * operation. False means a pre-D4 owner: it can be drained, but its
+           * build identity is not provable.
+           */
+          readonly statusSupported: boolean;
+          readonly admission: "held" | "open" | null;
+          readonly build: HostBuildIdentity | null;
         }
       | { readonly reachable: false; readonly error: string };
   };
+  /**
+   * D4 migration rollback classification of THIS build's registry. The
+   * upgrader reads it from the candidate's `doctor --json` output instead of
+   * classifying a newer candidate from its own stale registry.
+   */
+  readonly migrations: {
+    readonly latestSchemaVersion: number;
+    readonly rollbackCompatibleThrough: number;
+    readonly forwardOnly: readonly { readonly version: number; readonly name: string }[];
+    readonly registry: readonly {
+      readonly version: number;
+      readonly name: string;
+      readonly rollback: string;
+    }[];
+  };
+  /**
+   * D4: the per-prefix upgrade journal. "absent" is the only state with no
+   * admission consequence; "ok" reports a readable phase, and
+   * "unreadable"/"invalid" means releases under the prefix hold admission
+   * until an operator resolves the journal.
+   */
+  readonly upgradeJournal:
+    | { readonly state: "absent" }
+    | {
+        readonly state: "ok";
+        readonly prefix: string;
+        readonly phase: ServerUpgradePhase;
+        readonly releaseId: string;
+        readonly releaseDir: string;
+        readonly updatedAt: string;
+        readonly expectedVersion: string | null;
+        readonly backupPath: string | null;
+        readonly forwardOnlyMigration: boolean;
+        readonly terminal: boolean;
+      }
+    | {
+        readonly state: "unreadable" | "invalid";
+        readonly path: string;
+        readonly reason: string;
+      };
   readonly hostServices: {
     readonly ssh: { readonly enabled: boolean; readonly reason: string };
     readonly computerUse: { readonly enabled: boolean; readonly reason: string };
@@ -96,6 +146,8 @@ export interface ServerDoctorReport {
     readonly platform: string;
     readonly arch: string;
     readonly appVersion: string;
+    /** Where `appVersion` came from: immutable artifact metadata wins. */
+    readonly versionSource: string;
     readonly remoteProtocolVersion: number;
     readonly hostControlProtocolVersion: number;
     readonly runtimeBuildSourceHash: string;

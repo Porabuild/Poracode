@@ -519,6 +519,8 @@ importers:
         specifier: 0.153.4
         version: 0.153.4
 
+  packages/poracode-cli: {}
+
   website:
     dependencies:
       '@heroui/react':

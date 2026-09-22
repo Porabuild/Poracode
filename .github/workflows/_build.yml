@@ -103,13 +103,7 @@ jobs:
       - name: Set package version
         env:
           RELEASE_VERSION: ${{ inputs.version }}
-        run: |
-          node -e "
-            const fs = require('fs');
-            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            p.version = process.env.RELEASE_VERSION;
-            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
-          "
+        run: node scripts/set-release-version.mjs "$RELEASE_VERSION"
         shell: bash
 
       - name: Cache Electron binary
@@ -146,6 +140,16 @@ jobs:
 
       - name: Prepare computer-use helper
         run: node scripts/prepare-computer-use-helper.mjs --platform "${{ matrix.platform }}" --require
+        shell: bash
+
+      - name: Build the immutable SSH runtime archive
+        # C3/S3: release-time preassembled SSH runtime from the same frozen
+        # closure helpers as the standalone server tarball (pinned installed
+        # versions + generated npm-shrinkwrap). Packaged as a resource so the
+        # utility prefers it instead of staging a semver-range bundle.
+        run: |
+          pnpm run prepare:package-assets
+          node scripts/build-ssh-runtime-archive.mjs
         shell: bash
 
       - name: Upload Sentry source maps
@@ -189,15 +193,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Assemble standalone server tarball
-        if: matrix.platform == 'linux'
-        run: |
-          pnpm run prepare:server-native
-          pnpm run assemble:server-tarball
-          mkdir -p release
-          cp dist/poracode-server-*.tar.gz release/
-          cp dist/poracode-server-*.tar.gz.sha256 release/
-        shell: bash
+      # The standalone server tarball is assembled, qualified and promoted by
+      # .github/workflows/_server-artifact.yml (plan D3). The desktop build no
+      # longer produces a second, unqualified server recipe.
 
       - name: Package macOS
         if: matrix.platform == 'mac'
@@ -314,7 +312,5 @@ jobs:
             release/latest*.yml
             release/nightly*.yml
             release/*.blockmap
-            release/poracode-server-*.tar.gz
-            release/poracode-server-*.tar.gz.sha256
           if-no-files-found: error
           retention-days: 7

@@ -9,10 +9,15 @@ RUN apt-get update \
 WORKDIR /opt/poracode
 
 COPY package.json ./
+COPY npm-shrinkwrap.json ./
+COPY LICENSE ./
 COPY lib ./lib
 COPY resources ./resources
+# The compatible web client (plan D2) is served by the same host.
+COPY renderer ./renderer
 COPY native-overlay ./native-overlay
 COPY scripts/server-native-overlay.mjs ./scripts/server-native-overlay.mjs
+COPY scripts/server-release-install.mjs ./scripts/server-release-install.mjs
 
 # Use the staged bindings; no compiler or install-time native build is needed.
 RUN npm install --omit=dev --ignore-scripts --no-audit --no-fund \

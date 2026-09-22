@@ -1,0 +1,27 @@
+{
+  "name": "poracode",
+  "version": "1.8.1",
+  "description": "Run the Poracode standalone server (foreground) from a version-pinned, checksum-verified runtime artifact.",
+  "homepage": "https://poracode.com/",
+  "license": "Apache-2.0",
+  "author": "Porabuild",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Porabuild/Poracode"
+  },
+  "bin": {
+    "poracode": "./bin/poracode.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "runtime-manifest.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=24.10.0"
+  },
+  "packageManager": "pnpm@12.3.4"
+}

@@ -19,7 +19,6 @@ import {
   installFatalErrorHandlers,
   installShutdown,
   reportFatalStartupError,
-  reportUnconfirmedShutdown,
 } from "./cliRuntime";
 import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
 import { HeadlessCompositionShutdownError } from "./headlessRemoteComposition";
@@ -37,13 +36,30 @@ import {
 } from "./serverConfig";
 import { serverLogFilePath, startServerLogFile } from "./serverLogFile";
 import { collectServerDoctorReport } from "./serverDoctor";
+import { resolveServerVersion } from "./serverVersion";
+import {
+  resolveRunningBuildIdentity,
+  RunningOwnerRefusedError,
+  RunningOwnerUnreachableError,
+} from "./serverUpgradeIdentity";
+import { resolveUpgradeStaging } from "./serverUpgradeJournal";
 import {
   resolveServerInstallLayout,
   resolveServerResourceDirs,
   WSL_HELPERS_DIR_ENV,
   type ServerInstallLayout,
 } from "./serverInstallLayout";
-import { parseUpgradeCliOptions, upgradeServerPrefix } from "./serverUpgrade";
+import {
+  parseUpgradeCliOptions,
+  upgradeServerPrefix,
+  UpgradeInProgressError,
+  UpgradeJournalUnreadableError,
+  UpgradeRecoveryRefusedError,
+  UpgradeRefusedError,
+} from "./serverUpgrade";
+import { abandonServerUpgrade, resumeServerUpgrade } from "./serverUpgradeRecovery";
+import { ServerUpgradeBusyError, ServerUpgradeLockUnreadableError } from "./serverUpgradeLock";
+import { ServerUpgradeServiceTargetError } from "./serverUpgradeRestart";
 import {
   requestHostStatusFromRunningServer,
   requestPairingFromRunningServer,
@@ -62,6 +78,7 @@ import {
   type PairCliOptions,
   type ServerCliCommand,
 } from "./cliParse";
+import { getRuntimePersistenceSample } from "@/host/db/runtimePersistenceRuntime";
 
 export type {
   ActivateCliOptions,
@@ -97,7 +114,7 @@ let performanceDiagnostics: NodePerformanceDiagnostics | undefined;
 let logFileSink: ReturnType<typeof startServerLogFile> | undefined;
 
 async function serve(options: ServeCliOptions = {}): Promise<void> {
-  // Published layout contract (docs/STANDALONE_SERVER.md §1): explicit asset
+  // Published layout contract (docs/STANDALONE_SERVER.md §3.1): explicit asset
   // declarations win; otherwise the layout is inferred from the running
   // bundle's directory. An arrangement outside the supported shapes fails
   // loudly here instead of silently misresolving resources — the one escape
@@ -113,7 +130,21 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
     env: process.env,
     ...(layout !== undefined ? { layout } : {}),
   });
-  performanceDiagnostics = startNodePerformanceDiagnostics("server");
+  // D4: the identity this process publishes on the authenticated status call,
+  // and whether an interrupted upgrade staged this exact release. A staged
+  // candidate holds remote admission until the upgrader proves its build.
+  const buildIdentity = resolveRunningBuildIdentity(
+    layout !== undefined ? { libDir: layout.libDir } : {},
+  );
+  const staging = resolveUpgradeStaging({
+    ...(layout !== undefined ? { layout } : {}),
+    env: process.env,
+  });
+  const version = resolveServerVersion(layout !== undefined ? { layout } : {});
+  performanceDiagnostics = startNodePerformanceDiagnostics("server", process.env, {
+    // B1: additive bounded-persistence evidence on the existing sample lines.
+    sampleRuntimePersistence: () => getRuntimePersistenceSample(),
+  });
   process.env.PORACODE_HEADLESS_SERVER = "1";
   // Operability configuration (plan item 4.9): optional JSON config file +
   // --host/--port/--config CLI flags, resolved with the documented precedence
@@ -170,7 +201,7 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
       host?.server.flushAuditSync();
     },
   });
-  const uninstallShutdown = installShutdown(
+  const shutdownControl = installShutdown(
     "[poracode-server]",
     async () => {
       cancellation.abort(new Error("Headless startup was cancelled by shutdown."));
@@ -187,11 +218,15 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
   let info;
   try {
     host = await createHeadlessRemoteHost({
-      appVersion: process.env.PORACODE_APP_VERSION?.trim() || "dev",
+      // Immutable artifact metadata first; `unknown` never masquerades as a
+      // version, and the `dev` placeholder is never trusted for identity.
+      appVersion: version.version,
       isDev: process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL),
       baseDir: profileNamespace(),
       supervisorPath: join(__dirname, "supervisor.cjs"),
       wslHelpersDir: resources.wslHelpersDir,
+      buildIdentity,
+      staging,
       ...(resources.bundledSkillsDir !== undefined
         ? { bundledSkillsDir: resources.bundledSkillsDir }
         : {}),
@@ -238,6 +273,11 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
     cancellation.signal.throwIfAborted();
   } catch (error) {
     let failure = error;
+    // A failed startup already attempted cleanup. Bound that join before
+    // awaiting it: a cleanup that hangs or refuses cannot hold the owner lease
+    // indefinitely without a signal. The bound is disarmed below only when the
+    // join confirms; exit status is already fatal either way.
+    shutdownControl.armFatalStartup();
     try {
       await closeHost();
     } catch (shutdownError) {
@@ -247,11 +287,15 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
       startup.reject(failure);
       // The signal handler owns error reporting during an intentional stop.
       if (cancellation.signal.aborted) return;
+      // Cleanup could not confirm. Report the bounded unconfirmed diagnostic
+      // once; the already-armed deadline owns the exit, and the forced exit
+      // releases the lease's kernel lock. Nothing is announced or released here.
+      shutdownControl.failStartup(failure);
       throw failure;
     }
     startup.resolve();
     if (cancellation.signal.aborted) return;
-    uninstallShutdown();
+    shutdownControl.uninstall();
     throw error;
   }
   startup.resolve();
@@ -379,7 +423,7 @@ async function activateStagedImport(options: ActivateCliOptions): Promise<void> 
 }
 
 /**
- * Read-only diagnostics (docs/STANDALONE_SERVER.md §5): the doctor never
+ * Read-only diagnostics (docs/STANDALONE_SERVER.md §8.1): the doctor never
  * acquires the owner lease and never writes. Named checks are printed and the
  * command fails when any check is an error.
  */
@@ -405,7 +449,7 @@ async function runDoctor(options: DoctorCliOptions): Promise<void> {
 }
 
 /**
- * Verified backup (docs/STANDALONE_SERVER.md §6): one consistent copy of the
+ * Verified backup (docs/STANDALONE_SERVER.md §8.2): one consistent copy of the
  * owned root, refused loudly instead of written partially; the receipt is the
  * disclosure of what was captured.
  */
@@ -432,7 +476,11 @@ async function runBackup(options: BackupCliOptions): Promise<void> {
 }
 
 async function runUpgrade(options: ReturnType<typeof parseUpgradeCliOptions>): Promise<void> {
-  const result = await upgradeServerPrefix(options);
+  const result = options.abandonJournal
+    ? await abandonServerUpgrade(options)
+    : options.resume
+      ? await resumeServerUpgrade(options)
+      : await upgradeServerPrefix(options);
   if (options.json) {
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } else {
@@ -443,9 +491,25 @@ async function runUpgrade(options: ReturnType<typeof parseUpgradeCliOptions>): P
   if (!result.ok) process.exitCode = 1;
 }
 
+/**
+ * Print the immutable artifact version (plan D1/D3). A layout whose metadata
+ * cannot be read reports `unknown` and fails; it never invents a version.
+ */
+function runVersion(): void {
+  const info = resolveServerVersion();
+  process.stdout.write(`${info.version}\n`);
+  if (info.source === "unknown") {
+    process.stderr.write(
+      "[poracode-server] could not read the installed artifact version " +
+        "(<layout>/package.json); set PORACODE_APP_VERSION to declare one explicitly.\n",
+    );
+    process.exitCode = 1;
+  }
+}
+
 function printHelp(): void {
   process.stdout.write(
-    "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status --json | --help]\n" +
+    "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status --json | --version | --help]\n" +
       "\nPORACODE_BASE_DIR selects a profile namespace. The server owns its .host-v1 sibling.\n" +
       "Running `serve` (the default) reads an optional JSON config file —\n" +
       "  <profile>/poracode-server.json, or the path given with --config — with fields:\n" +
@@ -466,7 +530,16 @@ function printHelp(): void {
       "Set PORACODE_SECRET_STORAGE_KEY for an explicit 32-byte base64 key, or use the owned key file.\n" +
       "Set PORACODE_REMOTE_ACCESS_HOST/PORT (or the config file's host/port) to configure the remote listener.\n" +
       "Run pair --json [--scope viewer|operator] with the same profile to request a pairing URL from its running owner.\n" +
-      "Run upgrade --from <tarball> [--prefix <path>] to stage, doctor, swap the current symlink, and roll back on failed health.\n" +
+      "Run upgrade --from <tarball> [--prefix <path>] to stage a distinct release, drain the authenticated owner,\n" +
+      "  capture a pre-migration backup when a forward-only migration is pending, swap the current symlink, then\n" +
+      "  qualify the candidate through its authenticated build identity before admission. A failed candidate is\n" +
+      "  rolled back only when the pending migrations are rollback-compatible and the schema is known; otherwise\n" +
+      "  the result is explicit recovery and the data plus backup are preserved.\n" +
+      "Run upgrade --resume [--from <tarball>] [--confirm] to continue an interrupted upgrade after the\n" +
+      "  authenticated owner/build evidence is re-verified; phases past the drain boundary require --confirm.\n" +
+      "Run upgrade --abandon-journal --confirm to remove an interrupted journal without touching data or\n" +
+      "  the current release; it refuses while the staged candidate is the active current release and was\n" +
+      "  not admitted.\n" +
       "Run status --json with the same profile to inspect the authenticated running owner.\n" +
       "Pairing credentials are printed only by that explicit command; PID signaling is unsupported.\n",
   );
@@ -481,6 +554,10 @@ export function runCli(): void {
   }
   if (command === "help") {
     printHelp();
+    return;
+  }
+  if (command === "version") {
+    runVersion();
     return;
   }
   const operation =
@@ -502,13 +579,24 @@ export function runCli(): void {
   operation.catch(async (error) => {
     await performanceDiagnostics?.stop();
     if (error instanceof HeadlessCompositionShutdownError) {
-      reportUnconfirmedShutdown("[poracode-server]", error);
+      // serve() already reported the unconfirmed cleanup and armed the bounded
+      // fatal-startup deadline through the installed shutdown control. Exiting
+      // here would release the owner while cleanup is unconfirmed.
       return;
     }
     if (
       error instanceof HostActivationCooperationRequiredError ||
       error instanceof HostStagedImportMissingError ||
-      error instanceof HostRootInUseError
+      error instanceof HostRootInUseError ||
+      error instanceof UpgradeInProgressError ||
+      error instanceof UpgradeJournalUnreadableError ||
+      error instanceof UpgradeRecoveryRefusedError ||
+      error instanceof UpgradeRefusedError ||
+      error instanceof ServerUpgradeBusyError ||
+      error instanceof ServerUpgradeLockUnreadableError ||
+      error instanceof ServerUpgradeServiceTargetError ||
+      error instanceof RunningOwnerRefusedError ||
+      error instanceof RunningOwnerUnreachableError
     ) {
       // A deliberate refusal, not a crash: no resources remain held (the
       // activation lease is released by its own entry), so report the

@@ -50,14 +50,28 @@ vi.mock("@/host/remote/push", async (importOriginal) => {
   return { ...actual, createPushGateway: () => h.sendPush };
 });
 
-// V6 F.1 moved the event-persistence chain (`runtimePersistence`,
-// `threadStatePersistence`, `usageLedger`, `terminalScrollbackPersistence`)
-// onto `@/host/db`, which a `@/main/db` mock no longer intercepts. Any DB
-// function the synthetic host could reach is inert: reads see an empty world
-// (persistence no-ops on a missing thread), writes record nothing.
+// The one deliberate mock for the host application database. The E1 import
+// migration collapsed two registrations onto the same specifier: the
+// `@/host/db` importOriginal proxy with its inert `db*` fallback (V6 F.1: any
+// DB function the synthetic host could reach is inert — reads see an empty
+// world, writes record nothing) and the fixed app-DB fixture the composition
+// calls (`initDatabase`/`closeDatabase` stay observable spies and the thread /
+// project / schedule / remote-command return values stay synthetic). This is
+// their union: a superset that keeps the fixture's empty world and the
+// lifecycle call assertions. The B1 durable attach / pre-launch hooks are
+// named explicitly as no-op unit dependencies because this fixture never opens
+// the real application SQLite handle; the real `HostPersistenceProducerControl`
+// still runs against them. The ownership lease keeps its real temporary SQLite
+// file through the unmocked `@/host/db/connection`.
 vi.mock("@/host/db", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/host/db")>();
   const overrides: Record<string, unknown> = {
+    initDatabase: (dbPath: string) => h.initDatabase(dbPath),
+    closeDatabase: () => h.closeDatabase(),
+    attachRuntimePersistenceDurableGapFromCurrentConnection: vi.fn<() => void>(),
+    armRuntimeThreadForLaunch: vi.fn<(threadId: string) => void>(),
+    addRuntimePersistenceHealthListener: vi.fn<() => () => void>(() => () => undefined),
+    setRuntimePersistenceInFlightWindowBytes: vi.fn<(bytes: number | null) => void>(),
     dbGetThread: () => null,
     dbGetThreads: () => h.threads,
     dbGetProjects: () => h.projects,
@@ -70,10 +84,41 @@ vi.mock("@/host/db", async (importOriginal) => {
           project.id === projectId,
       ) ?? null,
     dbGetProjectNotes: () => "",
+    dbUpdateProject: () => undefined,
+    dbUpsertProject: () => undefined,
+    dbDeleteProject: () => undefined,
     dbGetThreadRuntimeItems: () => [],
     dbGetThreadCompletedTurns: () => [],
     dbGetThreadContextUsage: () => null,
     dbGetLatestThreadRuntimeAnchorItemId: () => null,
+    dbAppendThreadCompletedTurn: () => undefined,
+    dbApplyThreadRuntimeEvents: () => undefined,
+    dbClaimRemoteCommand: () => ({ state: "claimed" }),
+    dbCompleteRemoteCommand: () => undefined,
+    dbFailRemoteCommand: () => undefined,
+    dbReplaceThreadRuntimeSnapshot: () => undefined,
+    dbUpsertThread: () => undefined,
+    dbMarkLiveThreadsInactive: () => undefined,
+    dbAppendThreadTerminalOutput: () => undefined,
+    dbClearThreadTerminalScrollback: () => undefined,
+    dbGetThreadTerminalScrollback: () => null,
+    dbDeleteThread: () => undefined,
+    dbArchiveDoneThreads: () => [],
+    dbSelectPurgeCandidateThreadIds: () => [],
+    dbIsThreadPurgeEligible: () => false,
+    dbGetSchedules: () => [],
+    dbGetSchedule: () => null,
+    dbUpsertSchedule: () => undefined,
+    dbDeleteSchedule: () => undefined,
+    dbInsertScheduleRun: () => undefined,
+    dbUpdateScheduleRun: () => undefined,
+    dbListScheduleRuns: () => [],
+    dbDeleteScheduleRuns: () => undefined,
+    dbInterruptScheduleRuns: () => undefined,
+    dbGetPrWatches: () => [],
+    dbGetPrWatch: () => null,
+    dbUpsertPrWatch: () => undefined,
+    dbDeletePrWatch: () => undefined,
   };
   return new Proxy(actual, {
     get(target, property, receiver) {
@@ -91,61 +136,7 @@ vi.mock("@/host/db", async (importOriginal) => {
   });
 });
 
-// BackendHostCore and RemoteAccessServer import the application database
-// through `@/main/db`. The ownership lease still uses a real temporary SQLite
-// file via `@/main/db/connection`; only the application database is mocked.
-vi.mock("@/main/db", () => ({
-  initDatabase: (dbPath: string) => h.initDatabase(dbPath),
-  closeDatabase: () => h.closeDatabase(),
-  dbGetProjects: vi.fn<() => unknown[]>(() => h.projects),
-  dbGetProject: vi.fn<(projectId: string) => unknown>(
-    (projectId) =>
-      h.projects.find(
-        (project) =>
-          typeof project === "object" &&
-          project !== null &&
-          "id" in project &&
-          project.id === projectId,
-      ) ?? null,
-  ),
-  dbGetProjectNotes: vi.fn<() => string>(() => ""),
-  dbUpdateProject: vi.fn<() => void>(),
-  dbUpsertProject: vi.fn<() => void>(),
-  dbDeleteProject: vi.fn<() => void>(),
-  dbGetPrWatches: vi.fn<() => unknown[]>(() => []),
-  dbGetPrWatch: vi.fn<() => unknown>(() => null),
-  dbUpsertPrWatch: vi.fn<() => void>(),
-  dbDeletePrWatch: vi.fn<() => void>(),
-  dbGetThreads: vi.fn<() => unknown[]>(() => h.threads),
-  dbGetThread: vi.fn<() => unknown>(() => null),
-  dbGetThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
-  dbGetThreadCompletedTurns: vi.fn<() => unknown[]>(() => []),
-  dbGetThreadContextUsage: vi.fn<() => unknown>(() => null),
-  dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
-  dbAppendThreadCompletedTurn: vi.fn<() => void>(),
-  dbApplyThreadRuntimeEvents: vi.fn<() => void>(),
-  dbClaimRemoteCommand: vi.fn<() => { state: "claimed" }>(() => ({ state: "claimed" })),
-  dbCompleteRemoteCommand: vi.fn<() => void>(),
-  dbFailRemoteCommand: vi.fn<() => void>(),
-  dbReplaceThreadRuntimeSnapshot: vi.fn<() => void>(),
-  dbUpsertThread: vi.fn<() => void>(),
-  dbMarkLiveThreadsInactive: vi.fn<() => void>(),
-  dbAppendThreadTerminalOutput: vi.fn<() => void>(),
-  dbClearThreadTerminalScrollback: vi.fn<() => void>(),
-  dbGetThreadTerminalScrollback: vi.fn<() => null>(() => null),
-  dbDeleteThread: vi.fn<() => void>(),
-  dbGetSchedules: vi.fn<() => unknown[]>(() => []),
-  dbGetSchedule: vi.fn<() => unknown>(() => null),
-  dbUpsertSchedule: vi.fn<() => void>(),
-  dbDeleteSchedule: vi.fn<() => void>(),
-  dbInsertScheduleRun: vi.fn<() => void>(),
-  dbUpdateScheduleRun: vi.fn<() => void>(),
-  dbListScheduleRuns: vi.fn<() => unknown[]>(() => []),
-  dbDeleteScheduleRuns: vi.fn<() => void>(),
-  dbInterruptScheduleRuns: vi.fn<() => void>(),
-}));
-
-vi.mock("@/main/supervisor/SupervisorClient", () => ({
+vi.mock("@/host/supervisor/SupervisorClient", () => ({
   SupervisorClient: class {
     start = h.supervisorStart;
     dispose = h.supervisorDispose;
@@ -436,6 +427,20 @@ describe("createHeadlessRemoteHost", () => {
       expect(existsSync(h.tmpBase)).toBe(false);
     } finally {
       vi.unstubAllEnvs();
+    }
+  });
+
+  it("starts the durable background services (host housekeeping) after the listener is up", async () => {
+    const startBackgroundServices = vi
+      .spyOn(BackendDurableServices.prototype, "startBackgroundServices")
+      .mockImplementation(() => {});
+    const host = await makeHost();
+    try {
+      await host.start();
+      expect(startBackgroundServices).toHaveBeenCalledTimes(1);
+    } finally {
+      startBackgroundServices.mockRestore();
+      await host.dispose();
     }
   });
 

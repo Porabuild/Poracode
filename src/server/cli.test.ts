@@ -56,6 +56,18 @@ describe("parseServerCliCommand", () => {
     expect(parseServerCliCommand(["upgrade", "--from", "/tmp/a.tar.gz", "--json"])).toBe("upgrade");
   });
 
+  it("recognizes the explicit upgrade recovery flags", () => {
+    expect(parseServerCliCommand(["upgrade", "--resume", "--from", "/tmp/a.tar.gz"])).toBe(
+      "upgrade",
+    );
+    expect(parseServerCliCommand(["upgrade", "--resume", "--confirm"])).toBe("upgrade");
+    expect(parseServerCliCommand(["upgrade", "--abandon-journal", "--confirm"])).toBe("upgrade");
+    expect(() => parseServerCliCommand(["upgrade", "--abandon-journal"])).toThrow(/Usage/u);
+    expect(() =>
+      parseServerCliCommand(["upgrade", "--resume", "--abandon-journal", "--confirm"]),
+    ).toThrow(/Usage/u);
+  });
+
   it("recognizes the verified backup command", () => {
     expect(parseServerCliCommand(["backup", "--to", "/tmp/backup"])).toBe("backup");
     expect(parseServerCliCommand(["backup", "--json", "--to", "/tmp/backup"])).toBe("backup");
@@ -64,6 +76,13 @@ describe("parseServerCliCommand", () => {
   it.each(["--help", "-h", "help"])("recognizes %s without starting an owner", (argument) => {
     expect(parseServerCliCommand([argument])).toBe("help");
   });
+
+  it.each(["--version", "-v", "version"])(
+    "recognizes %s without starting an owner (plan D1/D3)",
+    (argument) => {
+      expect(parseServerCliCommand([argument])).toBe("version");
+    },
+  );
 
   it("recognizes the serve command with operability flags", () => {
     expect(parseServerCliCommand(["serve"])).toBe("serve");

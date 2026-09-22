@@ -7,6 +7,8 @@ export interface InstallServerPrefixOptions {
   tarball: string;
   /** Prefix receiving `<prefix>/releases/<id>/` and the `<prefix>/current` symlink. */
   prefix: string;
+  /** Explicit release directory name; defaults to a timestamp id. */
+  releaseId?: string;
 }
 
 export interface InstallServerPrefixResult {

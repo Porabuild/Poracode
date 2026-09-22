@@ -1,6 +1,7 @@
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
+import type { HostBuildIdentity } from "@/shared/hostControlProtocol";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { ComposedHostServices } from "@/host/hostServices/composeHostServices";
 import type { RemoteAccessServer, RemoteAccessServerInfo } from "@/host/remote/RemoteAccessServer";
@@ -18,7 +19,7 @@ export { resolveLocalProxyBase } from "./headlessProxyBase";
  * **same** {@link RemoteAccessServer} the desktop uses. The desktop injects a browser
  * gateway and a renderer-dispatch callback; the headless host injects neither.
  * Both authorities compose the SAME host services
- * ({@link ../../main/hostServices/composeHostServices.ts}): SSH environments,
+ * ({@link ../../host/hostServices/composeHostServices.ts}): SSH environments,
  * the Chrome bridge and the computer-use ingress are Electron-free, so a
  * standalone server constructs them whenever its install ships the inputs;
  * only the WebContentsView browser panel and overlays stay desktop-only.
@@ -54,6 +55,21 @@ export interface HeadlessRemoteHostOptions {
   readonly computerUseHelperRoot?: string;
   /** Explicit base64 32-byte key injection; absence uses the owned key file. */
   readonly environmentKey?: string;
+  /**
+   * D4: immutable build identity published on the authenticated status call.
+   * Absent computes it from the running bundle's layout.
+   */
+  readonly buildIdentity?: HostBuildIdentity;
+  /**
+   * D4: start with remote admission held. The process opens its database (and
+   * runs pending migrations) and serves the local authenticated control
+   * surface, but does not start the remote listener until an authenticated
+   * `admit` proves the exact expected build. An upgrade candidate is started
+   * this way so a failed qualification can never have accepted user writes.
+   */
+  readonly staging?: boolean;
+  /** Bounded staging admission deadline; defaults to 15 minutes. */
+  readonly stagingDeadlineMs?: number;
   /** Profile namespace; the owned server root is its versioned sibling. */
   readonly baseDir?: string;
   readonly host?: string;

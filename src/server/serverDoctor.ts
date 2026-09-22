@@ -4,11 +4,20 @@ import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote/protocol";
 import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { resolveRemoteAccessBind } from "@/host/remote/config";
+import { describeMigrationRollbackPolicy } from "@/host/db/migrations";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
+import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { requestHostStatusFromRunningServer } from "./pairingControl";
 import { resolveServerInstallLayout, type ServerInstallLayout } from "./serverInstallLayout";
+import { resolveServerVersion } from "./serverVersion";
 import { buildChecks, describeHostServices } from "./serverDoctorChecks";
+import {
+  isTerminalUpgradePhase,
+  readServerUpgradeJournalState,
+  resolveUpgradePrefixForLayout,
+  type ServerUpgradeJournalRead,
+} from "./serverUpgradeJournal";
 import {
   isPidAlive,
   presentDirectory,
@@ -72,7 +81,11 @@ export async function collectServerDoctorReport(
     const status = await requestHostStatusFromRunningServer(namespaceInput, {
       timeoutMs: options.controlTimeoutMs ?? 2_000,
     });
-    liveStatus = {
+    type ReachableLiveStatus = Extract<
+      ServerDoctorReport["remoteAccess"]["liveStatus"],
+      { reachable: true }
+    >;
+    const reachable: { -readonly [K in keyof ReachableLiveStatus]: ReachableLiveStatus[K] } = {
       reachable: true,
       mode: status.description.mode,
       state: status.description.state,
@@ -82,7 +95,24 @@ export async function collectServerDoctorReport(
         ssh: status.description.capabilities.ssh,
         computerUse: status.description.capabilities.computerUse,
       },
+      statusSupported: false,
+      admission: null,
+      build: null,
     };
+    // D4 additive identity probe: a pre-D4 owner answers 400 and stays
+    // `statusSupported: false`; any other failure leaves the identity unknown
+    // rather than guessing.
+    try {
+      const live = await callHostControl(paths, "status", {
+        timeoutMs: options.controlTimeoutMs ?? 2_000,
+      });
+      reachable.statusSupported = true;
+      reachable.admission = live.result.admission;
+      reachable.build = live.result.build;
+    } catch {
+      // Pre-D4 owner or unavailable status: describe already reported liveness.
+    }
+    liveStatus = reachable;
   } catch (error) {
     liveStatus = {
       reachable: false,
@@ -125,6 +155,35 @@ export async function collectServerDoctorReport(
     env,
     layout,
     liveStatus,
+  });
+
+  // D4: this build's own rollback classification, published so an upgrader can
+  // classify the pending path of the candidate it is about to install.
+  const migrationRegistry = describeMigrationRollbackPolicy();
+  const forwardOnly = migrationRegistry.filter((entry) => entry.rollback === "forward-only");
+  const latestSchemaVersion = migrationRegistry.at(-1)?.version ?? 0;
+  const firstForwardOnly = forwardOnly[0]?.version;
+  const rollbackCompatibleThrough =
+    firstForwardOnly === undefined ? latestSchemaVersion : Math.max(0, firstForwardOnly - 1);
+  const migrations: ServerDoctorReport["migrations"] = {
+    latestSchemaVersion,
+    rollbackCompatibleThrough,
+    forwardOnly: forwardOnly.map(({ version, name }) => ({ version, name })),
+    registry: migrationRegistry,
+  };
+  const resolvedLayout = "error" in layout ? undefined : layout;
+  // D4: report the interrupted-upgrade journal for the prefix this bundle
+  // belongs to. A checkout has no prefix journal; a present-but-unreadable
+  // journal is surfaced as such instead of being treated as absent.
+  const upgradePrefix =
+    resolvedLayout === undefined ? null : resolveUpgradePrefixForLayout(resolvedLayout);
+  const upgradeJournal = describeUpgradeJournalReport(
+    upgradePrefix === null ? null : readServerUpgradeJournalState(upgradePrefix),
+    upgradePrefix,
+  );
+  const version = resolveServerVersion({
+    ...(resolvedLayout !== undefined ? { layout: resolvedLayout } : {}),
+    env,
   });
 
   return {
@@ -178,12 +237,15 @@ export async function collectServerDoctorReport(
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
-      appVersion: env.PORACODE_APP_VERSION?.trim() || "dev",
+      appVersion: version.version,
+      versionSource: version.source,
       remoteProtocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       hostControlProtocolVersion: HOST_CONTROL_PROTOCOL_VERSION,
       runtimeBuildSourceHash: RUNTIME_BUILD_SOURCE_HASH,
       layout,
     },
+    migrations,
+    upgradeJournal,
     hostServices,
     recentErrors,
     checks: buildChecks({
@@ -199,7 +261,30 @@ export async function collectServerDoctorReport(
       liveStatus,
       layout,
       hostServices,
+      migrations,
+      upgradeJournal,
       logSource: recentErrors.source,
     }),
+  };
+}
+
+function describeUpgradeJournalReport(
+  read: ServerUpgradeJournalRead | null,
+  upgradePrefix: string | null,
+): ServerDoctorReport["upgradeJournal"] {
+  if (read === null || read.state === "absent") return { state: "absent" };
+  if (read.state !== "ok") return { state: read.state, path: read.path, reason: read.reason };
+  const journal = read.journal;
+  return {
+    state: "ok",
+    prefix: journal.prefix.length > 0 ? journal.prefix : (upgradePrefix ?? ""),
+    phase: journal.phase,
+    releaseId: journal.releaseId,
+    releaseDir: journal.releaseDir,
+    updatedAt: journal.updatedAt,
+    expectedVersion: journal.expectedVersion,
+    backupPath: journal.backupPath,
+    forwardOnlyMigration: journal.forwardOnlyMigration,
+    terminal: isTerminalUpgradePhase(journal.phase),
   };
 }
