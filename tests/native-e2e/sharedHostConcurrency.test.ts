@@ -16,7 +16,9 @@ import {
   allocateLoopbackPort,
   closeProfileClients,
   createProfileClients,
+  type DeviceCredential,
 } from "./helpers/profileClientFactory.ts";
+import { DEFAULT_MAX_SOCKETS_PER_PRINCIPAL } from "../../src/host/remote/server/principalAdmission.ts";
 import { HostLoadSampler } from "./helpers/hostLoadSampler.ts";
 import { buildMetricsArtifact } from "./helpers/profileMetrics.ts";
 import {
@@ -42,10 +44,14 @@ import {
 /**
  * Shared-host concurrency experiment against ONE prebuilt production
  * `dist/main/server.cjs`, exercised by 1, 2, 8 and then 32 authenticated
- * connections (milestone order; no profile is skipped). Per profile the N
- * connections share ONE device credential — the production token-exchange
- * rate limit (`DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT`, 20/5min/IP) is respected,
- * so N counts concurrent connections, not provisioned devices.
+ * connections (milestone order; no profile is skipped). N counts concurrent
+ * event-stream connections. A profile wider than the B3 per-principal socket
+ * admission budget (`DEFAULT_MAX_SOCKETS_PER_PRINCIPAL`, 16 established
+ * sockets per device credential) spreads its connections across as many
+ * credentials as the budget requires — the intentional overload guard is
+ * respected, never bypassed, and the production token-exchange rate limit
+ * (`DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT`, 20/5min/IP) stays respected too
+ * (pairing is serialized and patient).
  *
  * Everything runs through the real API surface — pairing, bearer tokens,
  * one-use websocket tickets, the WS event stream, project/thread/settings
@@ -78,6 +84,13 @@ const PROFILE_SIZES = [1, 2, 8, 32] as const;
 const QUIET_ROUNDS_BY_SIZE: Record<number, number> = { 1: 4, 2: 4, 8: 2, 32: 1 };
 const SEED_PROJECT_NAME = "native-e2e-fixture";
 
+/** Device credentials a profile of `size` connections needs: derived from the
+ * production B3 per-principal socket budget so the suite adapts if the host
+ * re-tunes the limit. */
+function credentialsFor(size: number): number {
+  return Math.ceil(size / DEFAULT_MAX_SOCKETS_PER_PRINCIPAL);
+}
+
 const RUN_ENVIRONMENT = {
   concurrencyEvidence:
     "Concurrent host workload is sampled in hostLoad.json and each profile's " +
@@ -104,8 +117,23 @@ async function runConcurrencyProfile(size: number): Promise<{ snapshotSeq: numbe
   const quietRounds = QUIET_ROUNDS_BY_SIZE[size] ?? 1;
   const sizeTag = `n${size}`;
   const windowStartedAtMs = Date.now();
-  const { clients, credential } = await createProfileClients(host, size, sizeTag);
+  // B3 principal admission caps ONE device credential at
+  // DEFAULT_MAX_SOCKETS_PER_PRINCIPAL established event sockets, so a profile
+  // wider than the budget opens its connections in per-credential batches.
+  // Profiles within the budget keep the original shape: one credential.
+  const credentialsNeeded = credentialsFor(size);
+  const clients: ProfileClient[] = [];
+  const credentials: DeviceCredential[] = [];
   try {
+    for (let batch = 0; batch < credentialsNeeded; batch += 1) {
+      const batchTag = `${sizeTag}-d${String(batch + 1)}`;
+      const batchOffset = batch * DEFAULT_MAX_SOCKETS_PER_PRINCIPAL;
+      const batchSize = Math.min(DEFAULT_MAX_SOCKETS_PER_PRINCIPAL, size - batchOffset);
+      const credential = await acquireDeviceCredential(host, batchTag);
+      credentials.push(credential);
+      const opened = await createProfileClients(host, batchSize, batchTag, credential.accessToken);
+      clients.push(...opened.clients);
+    }
     // Ready cursors must be monotone: later clients may observe a higher seq.
     for (let index = 1; index < clients.length; index += 1) {
       const previous = clients[index - 1]?.metrics.readySeq ?? 0;
@@ -164,10 +192,16 @@ async function runConcurrencyProfile(size: number): Promise<{ snapshotSeq: numbe
         "negative values mean the event stream won the race against the response " +
         "(waiters are armed before the request).",
       pairing: {
-        deviceCredentials: 1,
+        deviceCredentials: credentialsNeeded,
         concurrentConnections: size,
-        tokenExchangeThrottleRetries: credential?.throttleRetries ?? 0,
-        tokenExchangeThrottleWaitMs: credential?.throttleWaitMs ?? 0,
+        tokenExchangeThrottleRetries: credentials.reduce(
+          (total, credential) => total + credential.throttleRetries,
+          0,
+        ),
+        tokenExchangeThrottleWaitMs: credentials.reduce(
+          (total, credential) => total + credential.throttleWaitMs,
+          0,
+        ),
       },
       windowFinishedAtMs,
       environment: RUN_ENVIRONMENT,
@@ -293,22 +327,22 @@ describe.skipIf(!entrypoint)(
       }
     }, 60_000);
 
-    it(`concurrent connections N=1 (1 device credential, quiet rounds ${String(QUIET_ROUNDS_BY_SIZE[1])}, burst ${String(BURST_OPS_PER_CLIENT)} ops)`, async () => {
+    it(`concurrent connections N=1 (${String(credentialsFor(1))} device credential, quiet rounds ${String(QUIET_ROUNDS_BY_SIZE[1])}, burst ${String(BURST_OPS_PER_CLIENT)} ops)`, async () => {
       const result = await runConcurrencyProfile(1);
       expect(result.snapshotSeq).toBeGreaterThan(0);
     }, 150_000);
 
-    it(`concurrent connections N=2 (1 device credential, quiet rounds ${String(QUIET_ROUNDS_BY_SIZE[2])}, burst ${String(BURST_OPS_PER_CLIENT)} ops)`, async () => {
+    it(`concurrent connections N=2 (${String(credentialsFor(2))} device credential, quiet rounds ${String(QUIET_ROUNDS_BY_SIZE[2])}, burst ${String(BURST_OPS_PER_CLIENT)} ops)`, async () => {
       const result = await runConcurrencyProfile(2);
       expect(result.snapshotSeq).toBeGreaterThan(0);
     }, 150_000);
 
-    it(`concurrent connections N=8 (1 device credential, quiet rounds ${String(QUIET_ROUNDS_BY_SIZE[8])}, burst ${String(BURST_OPS_PER_CLIENT)} ops)`, async () => {
+    it(`concurrent connections N=8 (${String(credentialsFor(8))} device credential, quiet rounds ${String(QUIET_ROUNDS_BY_SIZE[8])}, burst ${String(BURST_OPS_PER_CLIENT)} ops)`, async () => {
       const result = await runConcurrencyProfile(8);
       expect(result.snapshotSeq).toBeGreaterThan(0);
     }, 240_000);
 
-    it(`concurrent connections N=32 (1 device credential, quiet rounds ${String(QUIET_ROUNDS_BY_SIZE[32])}, burst ${String(BURST_OPS_PER_CLIENT)} ops)`, async () => {
+    it(`concurrent connections N=32 (${String(credentialsFor(32))} device credentials, quiet rounds ${String(QUIET_ROUNDS_BY_SIZE[32])}, burst ${String(BURST_OPS_PER_CLIENT)} ops)`, async () => {
       const result = await runConcurrencyProfile(32);
       expect(result.snapshotSeq).toBeGreaterThan(0);
     }, 420_000);
@@ -340,14 +374,22 @@ describe.skipIf(!entrypoint)(
         warmupColdGitStatusMs,
         protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
         connectionsVsDevices:
-          "Each profile opens N concurrent websocket connections sharing ONE device " +
-          "credential (the production token-exchange rate limit allows 20/5min/IP). " +
-          "N measures connection concurrency, not provisioned devices.",
+          "Each profile opens N concurrent websocket connections. Connections within " +
+          "the B3 per-principal socket budget share ONE device credential; wider " +
+          "profiles (N=32 > 16/principal) spread across the minimum number of " +
+          "credentials the budget requires. N measures connection concurrency, " +
+          "not provisioned devices.",
+        connectionAdmission: {
+          source: "src/host/remote/server/principalAdmission.ts DEFAULT_MAX_SOCKETS_PER_PRINCIPAL",
+          maxSocketsPerPrincipal: DEFAULT_MAX_SOCKETS_PER_PRINCIPAL,
+          behavior:
+            "Intentional overload guard: the 17th concurrent socket on one device " +
+            "credential is a typed 429 (principal_busy) with a Retry-After hint.",
+        },
         tokenExchangeRateLimit: {
-          source: "src/main/remote/server/security.ts DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT",
+          source: "src/host/remote/server/security.ts DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT",
           maxAttempts: 20,
           windowMs: 300_000,
-          firstFailureEvidence: "logs/first-failure.log",
         },
         hostWorkload: (await sampler?.summary()) ?? null,
         environment: RUN_ENVIRONMENT,

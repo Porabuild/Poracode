@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { findRepoRoot } from "./harness/paths.ts";
 import { ProcessCleanup } from "./harness/processCleanup.ts";
 import { startRealHost, type RealHostHandle } from "./harness/realHost.ts";
-import { ProfileClient, type ReceivedEvent } from "./helpers/concurrencyProfileClient.ts";
+import {
+  ProfileClient,
+  awaitDeliveredThrough,
+  type ReceivedEvent,
+} from "./helpers/concurrencyProfileClient.ts";
 import {
   acquireDeviceCredential,
   allocateLoopbackPort,
@@ -28,17 +32,26 @@ import { writeExperimentArtifact } from "./helpers/experimentArtifacts.ts";
  *
  *  1. Abrupt TCP reset (RST, not a clean close) while a second client keeps
  *     mutating. Reconnect with the pre-fault `lastSeenSeq` must replay
- *     EXACTLY the missed window — same seqs, identical event bodies — with no
- *     gaps and no `resync-required`.
+ *     EXACTLY the missed window — same seqs, contiguous, no `resync-required`.
  *  2. Reconnect racing an active mutation burst: whether each missed event
  *     arrives via replay or live fan-out is a race; the invariant (every
- *     mutation observed, contiguous seqs, cross-client body equality) must
- *     hold regardless of the race outcome.
+ *     mutation observed, contiguous seqs, cross-client seq parity) must hold
+ *     regardless of the race outcome.
  *  3. Host restart: `ctx.seq` is in-memory, so the reconnecting client's
  *     cursor is above the fresh stream's. The server must force
  *     `resync-required` ("Server event stream reset") instead of letting the
  *     client keep stale state, and a snapshot rebuild must converge with the
  *     durable pre-restart state intact.
+ *
+ * Catalog form (bounded catalog changes): scenarios 1 and 2 reconnect with the
+ * `catalogChanges=bounded-v1` declaration, exactly like the production
+ * web/mobile client. A declared connection receives catalog mutations as the
+ * bounded signal frame — live AND in replay (the replay buffer retains only the
+ * signal; an UNDECLARED reconnect would be per-socket `resync-required` instead,
+ * which scenario 3's stream-reset path demonstrates for stale cursors). The
+ * signal carries no project list, so rename content is proven two ways: seq
+ * parity against the undeclared witness's full-list frames (one shared seq
+ * space) and durable authoritative snapshots.
  *
  * Assertions are functional invariants only; evidence lands in
  * tmp/v2-production-review/shared-host/.
@@ -138,32 +151,42 @@ describe("fault-injected web reconnect (real host)", () => {
     return byName;
   }
 
-  /** Cross-client proof that the resumed stream delivered identical
-   * rename events at the same seqs the witness observed live. */
-  function assertRenameParity(
+  /** A declared connection must receive catalog mutations as the bounded
+   * signal — content-free by contract, live and replayed alike. */
+  function assertCatalogSignal(event: ReceivedEvent): void {
+    assert.deepStrictEqual(
+      event.event,
+      { type: "remote-projects-changed", mode: "signal" },
+      `catalog frame at seq ${String(event.seq)} must be the bounded signal on a declared connection`,
+    );
+  }
+
+  /** Cross-FORM parity: the declared client received the bounded signal at
+   * exactly the seq where the undeclared witness observed each full-list
+   * rename frame, in the same order. Both forms share one seq space — this is
+   * what ties "the signal frame" to "that specific rename". */
+  function assertCatalogSeqParity(
     witness: ProfileClient,
-    resumed: ProfileClient,
+    declared: ProfileClient,
     projectId: string,
     names: readonly string[],
   ): void {
     const witnessed = renameObservations(witness, projectId, names);
-    const resumedObservations = renameObservations(resumed, projectId, names);
-    for (const name of names) {
-      const fromWitness = witnessed.get(name);
-      const fromResumed = resumedObservations.get(name);
-      assert(fromWitness, `witness never observed rename to ${name}`);
-      assert(fromResumed, `resumed client never observed rename to ${name}`);
-      assert.strictEqual(
-        fromResumed.seq,
-        fromWitness.seq,
-        `rename to ${name} must arrive at the same seq on both clients`,
-      );
-      assert.deepStrictEqual(
-        fromResumed.event,
-        fromWitness.event,
-        `rename to ${name} must carry an identical event body on both clients`,
-      );
-    }
+    const expectedSeqs = names.map((name) => {
+      const observed = witnessed.get(name);
+      assert(observed, `witness never observed rename to ${name}`);
+      return observed.seq;
+    });
+    const declaredRenameSeqs = declared
+      .receivedEvents()
+      .filter((event) => event.type === "remote-projects-changed")
+      .map((event) => event.seq)
+      .filter((seq) => expectedSeqs.includes(seq));
+    assert.deepStrictEqual(
+      declaredRenameSeqs,
+      expectedSeqs,
+      "declared client's rename seqs must equal the witness's, in order",
+    );
   }
 
   it("replays exactly the missed window after an abrupt mid-stream socket reset", async () => {
@@ -203,38 +226,63 @@ describe("fault-injected web reconnect (real host)", () => {
       await renameProjectAndAwaitFanout(witness, [witness], project, name);
     }
 
-    // Reconnect with the pre-fault cursor.
+    // Reconnect with the pre-fault cursor, declaring the bounded catalog
+    // contract like the production web/mobile client.
     const resumed = await ProfileClient.create({
       handle,
       label: "recon-reset-resumed",
       accessToken: credential.accessToken,
       lastSeenSeq,
+      declareBoundedCatalogChanges: true,
     });
     clients.push(resumed);
-    for (const name of missedNames) {
-      const event = await resumed.awaitNextEvent(
-        (received: ReceivedEvent) =>
-          received.type === "remote-projects-changed" &&
-          JSON.stringify(received.event).includes(name),
-      );
-      assert(event.seq > lastSeenSeq, `replayed rename to ${name} must be past the cursor`);
-    }
 
     // The replay resumed exactly at the first missed event and stayed
     // contiguous. Nothing but the missed renames publishes in the window, so
-    // both the ready cursor and the replay count are exactly determined.
+    // both the ready cursor and the replay count are exactly determined. The
+    // replay pump runs after `ready`, so the window is awaited before any of
+    // its metrics are read.
+    const replayed = await awaitDeliveredThrough(resumed, resumed.metrics.readySeq ?? 0, 15_000);
     expect(resumed.metrics.firstEventSeq).toBe(lastSeenSeq + 1);
     expect(resumed.metrics.readySeq).toBe(lastSeenSeq + missedNames.length);
     expect(resumed.metrics.replayedEventCount).toBe(missedNames.length);
     expect(resumed.metrics.eventSeqGaps).toBe(0);
     expect(resumed.metrics.resyncRequiredCount).toBe(0);
-    assertRenameParity(witness, resumed, project.projectId, missedNames);
+    for (const event of replayed) assertCatalogSignal(event);
+    // Every missed rename occupied exactly one seq; the replayed signals sit
+    // at exactly those seqs, in order. The signal carries no list, so the
+    // rename itself is proven durably: the authoritative snapshot holds the
+    // last missed rename.
+    assertCatalogSeqParity(witness, resumed, project.projectId, missedNames);
+    const replaySnapshot = await resumed.fetchJson("snapshot-read", "/api/snapshot");
+    expectOk(replaySnapshot.status, "post-replay snapshot", replaySnapshot.body);
+    const replayedProjects =
+      (replaySnapshot.body as { projects?: Array<{ id?: string; name?: string }> }).projects ?? [];
+    assert.strictEqual(
+      replayedProjects.find((entry) => entry.id === project.projectId)?.name,
+      missedNames[missedNames.length - 1],
+      "post-replay snapshot must durably carry the last missed rename",
+    );
 
-    // The resumed client is a fully live participant again.
+    // The resumed client is a fully live participant again: its own rename is
+    // witnessed by the undeclared neighbor, and the declared connection
+    // receives the same mutation's live signal at the same seq.
     const liveName = `${runTag}-live-after-resume`;
-    await renameProjectAndAwaitFanout(resumed, [resumed, witness], project, liveName);
-    const snapshotSeq = await quiesceAndAssertConvergence([resumed, witness], "recon-reset");
-    assertRenameParity(witness, resumed, project.projectId, [liveName]);
+    const witnessSawLive = witness.awaitNextEvent(
+      (received: ReceivedEvent) =>
+        received.type === "remote-projects-changed" &&
+        JSON.stringify(received.event).includes(liveName),
+    );
+    await renameProject(resumed, project, liveName);
+    const liveEvent = await witnessSawLive;
+    const resumedLive = await resumed.awaitNextEvent(
+      (received: ReceivedEvent) =>
+        received.type === "remote-projects-changed" && received.seq === liveEvent.seq,
+    );
+    assertCatalogSignal(resumedLive);
+    const snapshotSeq = await quiesceAndAssertConvergence([witness, resumed], "recon-reset", {
+      assertProjectEventParity: false,
+    });
 
     writeExperimentArtifact(repoRoot, "web-reconnect-midstream-replay.json", {
       scenario: "abrupt TCP reset mid-stream, reconnect with pre-fault lastSeenSeq",
@@ -257,9 +305,10 @@ describe("fault-injected web reconnect (real host)", () => {
       scope:
         "Real headless host, real pairing/bearer/ticket surface, fixture project renames as " +
         "broadcast events. The victim socket was terminated (RST) mid-stream; the reconnected " +
-        "client replayed exactly the missed window (firstEventSeq = lastSeenSeq+1) with " +
-        "identical event bodies at identical seqs and zero gaps, then converged with the " +
-        "never-disconnected witness.",
+        "client declared bounded catalog changes (production client contract) and replayed " +
+        "exactly the missed window (firstEventSeq = lastSeenSeq+1) as bounded signal frames " +
+        "at the witness's full-list seqs, in order, with zero gaps and zero resync, then " +
+        "converged with the never-disconnected witness.",
     });
   }, 120_000);
 
@@ -305,6 +354,7 @@ describe("fault-injected web reconnect (real host)", () => {
       label: "recon-race-resumed",
       accessToken: credential.accessToken,
       lastSeenSeq,
+      declareBoundedCatalogChanges: true,
     });
     clients.push(resumed);
     await burst;
@@ -312,22 +362,25 @@ describe("fault-injected web reconnect (real host)", () => {
       throw burstError instanceof Error ? burstError : new Error(String(burstError));
     }
 
-    for (const name of burstNames) {
-      const event = await resumed.awaitNextEvent(
-        (received: ReceivedEvent) =>
-          received.type === "remote-projects-changed" &&
-          JSON.stringify(received.event).includes(name),
-      );
-      assert(event.seq > lastSeenSeq, `rename to ${name} must be past the cursor`);
-    }
+    // Every burst rename occupies exactly one seq; the declared client must
+    // have received each — replayed or live, the race under test — at the seq
+    // the witness observed, in order.
+    const witnessed = renameObservations(witness, project.projectId, burstNames);
+    const burstMaxSeq = Math.max(...burstNames.map((name) => witnessed.get(name)?.seq ?? 0));
+    await awaitDeliveredThrough(resumed, burstMaxSeq, 15_000);
     // Holds in every race outcome: the replay branch starts at cursor+1 and
     // the live branch's first publish after the cursor is cursor+1.
     expect(resumed.metrics.firstEventSeq).toBe(lastSeenSeq + 1);
     expect(resumed.metrics.eventSeqGaps).toBe(0);
     expect(resumed.metrics.resyncRequiredCount).toBe(0);
-    assertRenameParity(witness, resumed, project.projectId, burstNames);
+    for (const event of resumed.receivedEvents()) {
+      if (event.type === "remote-projects-changed") assertCatalogSignal(event);
+    }
+    assertCatalogSeqParity(witness, resumed, project.projectId, burstNames);
 
-    const snapshotSeq = await quiesceAndAssertConvergence([resumed, witness], "recon-race");
+    const snapshotSeq = await quiesceAndAssertConvergence([witness, resumed], "recon-race", {
+      assertProjectEventParity: false,
+    });
     writeExperimentArtifact(repoRoot, "web-reconnect-racing-burst.json", {
       scenario: "reconnect racing an active mutation burst (replay/live race)",
       victimLastSeenSeqAtFault: lastSeenSeq,
@@ -346,10 +399,11 @@ describe("fault-injected web reconnect (real host)", () => {
       },
       convergedSnapshotSeq: snapshotSeq,
       scope:
-        "Real headless host. The victim socket was terminated and reconnected WHILE the " +
-        "witness kept renaming the project; the race outcome (replay vs live delivery) is " +
-        "not fixed by the test. Every burst mutation arrived exactly once, contiguously, " +
-        "with cross-client body equality, and both clients converged on the host cursor.",
+        "Real headless host. The victim socket was terminated and reconnected (bounded " +
+        "catalog declared) WHILE the witness kept renaming the project; the race outcome " +
+        "(replay vs live delivery) is not fixed by the test. Every burst mutation arrived " +
+        "exactly once, contiguously, as a signal at the witness's full-list seq, and both " +
+        "clients converged on the host cursor.",
     });
   }, 120_000);
 

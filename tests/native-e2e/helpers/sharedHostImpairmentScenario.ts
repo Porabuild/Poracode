@@ -20,6 +20,11 @@ import { writeExperimentArtifact } from "./experimentArtifacts.ts";
  * disconnects and replays through `lastSeenSeq`. Functional invariants only —
  * both clients converge on identical terminal text and cursors, and the
  * replayer observes a contiguous, complete replay window.
+ *
+ * The replayer declares bounded catalog changes (the production client
+ * contract): replayed catalog mutations arrive as the content-free bounded
+ * signal form, so rename order is proven by seq parity against the healthy
+ * client's live full-list frames (one shared seq space).
  */
 
 const TERMINAL_PAYLOAD_LINES = 24_000;
@@ -228,6 +233,7 @@ export async function runImpairmentScenario(
       label: "replay-r2",
       accessToken: replayCredential.accessToken,
       lastSeenSeq: offlineCursor,
+      declareBoundedCatalogChanges: true,
     });
     try {
       assert(
@@ -252,21 +258,44 @@ export async function runImpairmentScenario(
         replayedEvents.length >= RENAMES_WHILE_REPLAYER_OFFLINE,
         "replay must cover every offline rename",
       );
-      const replayedTypes = replayedEvents.filter(
-        (event) => event.type === "remote-projects-changed",
-      );
-      for (const [index, event] of replayedTypes.entries()) {
-        assert(
-          JSON.stringify(event.event).includes(renames[index] ?? "missing-rename"),
-          `replayed rename ${String(index + 1)} must be in order`,
+      // Declared catalog contract: replayed catalog mutations are the
+      // content-free bounded signal; rename order is proven by seq parity
+      // against the healthy client's live full-list frames.
+      for (const event of replayedEvents) {
+        if (event.type !== "remote-projects-changed") continue;
+        assert.deepStrictEqual(
+          event.event,
+          { type: "remote-projects-changed", mode: "signal" },
+          `catalog replay frame at seq ${String(event.seq)} must be the bounded signal`,
         );
       }
+      const healthyRenameSeqs = renames.map((uniqueName) => {
+        const observed = healthy
+          .receivedEvents()
+          .filter(
+            (event) =>
+              event.type === "remote-projects-changed" &&
+              JSON.stringify(event.event).includes(uniqueName),
+          );
+        const seq = observed[observed.length - 1]?.seq;
+        assert(typeof seq === "number", `healthy client must have observed ${uniqueName} live`);
+        return seq;
+      });
+      const replayedRenameSeqs = replayedEvents
+        .filter((event) => event.type === "remote-projects-changed")
+        .map((event) => event.seq);
+      assert.deepStrictEqual(
+        replayedRenameSeqs,
+        healthyRenameSeqs,
+        "replay must carry every offline rename at its live seq, in order",
+      );
       assert.strictEqual(replayer2.metrics.eventSeqGaps, 0, "replay seq gaps");
       assert.strictEqual(replayer2.metrics.resyncRequiredCount, 0, "replay resync-required");
 
       const finalSnapshotSeq = await quiesceAndAssertConvergence(
         [healthy, slow, replayer2],
         "impairment",
+        { assertProjectEventParity: false },
       );
       const replayBytes = replayedEvents.reduce((total, event) => total + event.appBytes, 0);
       const path = writeExperimentArtifact(deps.repoRoot, "impairment.json", {
