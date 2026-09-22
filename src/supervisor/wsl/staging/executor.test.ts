@@ -125,12 +125,11 @@ describe("ProcessStagingExecutor", () => {
   it("dispose resolves only after the worker process has exited", async () => {
     const root = makeRoot();
     const pidFile = join(root, "worker.pid");
-    const executor = createProcessStagingExecutor(fixtureSpec("stall", pidFile));
-    await executor
-      .execute({ op: "exists", path: "/tmp/whatever" }, { timeoutMs: 100 })
-      .catch(() => {
-        // The stalled request is expected to time out; the pid file is written at boot.
-      });
+    const executor = createProcessStagingExecutor(fixtureSpec("echo", pidFile));
+    // A successful round-trip proves the worker completed boot and wrote the
+    // PID file. A short request timeout is not a readiness barrier under a
+    // loaded CI runner and made this disposal test race process startup.
+    await executor.execute({ op: "exists", path: "/tmp/whatever" }, { timeoutMs: 5_000 });
     const pid = Number(readFileSync(pidFile, "utf8"));
     expect(processIsAlive(pid)).toBe(true);
 
