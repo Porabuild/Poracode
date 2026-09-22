@@ -683,7 +683,15 @@ async function runAndroidRealJourney({ registerShutdown }) {
     // This real-peer class receives one deliberately one-use pairing URL for
     // its terminal + Git methods. Start the suite clean, then let Orchestrator
     // preserve the first method's stored host for the second method.
-    await runBuffered("adb", ["shell", "pm", "clear", "com.lightcodeapp.mobile"]);
+    const installedAppPath = await runBuffered("adb", [
+      "shell",
+      "pm",
+      "path",
+      "com.lightcodeapp.mobile",
+    ]);
+    if (installedAppPath.trim()) {
+      await runBuffered("adb", ["shell", "pm", "clear", "com.lightcodeapp.mobile"]);
+    }
     const status = await runStreaming(
       "./gradlew",
       [
