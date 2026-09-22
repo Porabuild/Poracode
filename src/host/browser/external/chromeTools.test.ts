@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { CdpSession } from "../../../main/browser/cdp/cdpClient";
+import type { CdpSession } from "../cdp/session";
 import type { ExternalChromeConnection } from "./ExternalChromeConnection";
 import { dispatchChromeTool } from "./chromeTools";
 

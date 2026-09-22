@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { EXPERIMENT_STORE_KEY, type Thread } from "@/shared/contracts";
+import {
+  EXPERIMENT_STORE_KEY,
+  type Experiment,
+  type ExperimentCandidateThreadCreation,
+  type Thread,
+} from "@/shared/contracts";
 import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { LATEST_SCHEMA_VERSION } from "./migrations";
 import {
@@ -25,7 +30,8 @@ import {
   dbCompleteRemoteCommand,
   dbFailRemoteCommand,
 } from "./remoteCommandReceipts";
-import { dbPersistExperimentState, dbSyncAll } from "./sync";
+import { dbSyncAll } from "./sync";
+import { dbApplyExperimentIntent } from "./experimentIntents";
 import {
   dbAppendThreadTerminalOutput,
   dbClearThreadTerminalScrollback,
@@ -256,7 +262,7 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(projectColumns.map((column) => column.name)).toContain("gh_account");
     expect(watchColumns.map((column) => column.name)).toContain("blocked_reason");
     expect(dbGetThread("thread-1")?.title).toBe("Test thread");
-    expect(dbGetState("schema_version")).toBe("46");
+    expect(dbGetState("schema_version")).toBe(String(LATEST_SCHEMA_VERSION));
   });
 
   it("round-trips and clears the thread archive timestamp", () => {
@@ -1000,31 +1006,92 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     expect(dbGetProject("v32-project")?.icon).toBeUndefined();
   });
 
-  it("persists candidate threads and the experiment record atomically", () => {
-    const existing = testThread({ id: "candidate-existing" });
-    dbPersistExperimentState({
-      upsertThreads: [{ thread: existing, sortOrder: 0 }],
-      deletedThreadIds: [],
-      experiments: {},
+  it("persists candidates with the record, refuses conflicts, and rolls back mid-write failures", () => {
+    // Migrated from the retired `dbPersistExperimentState` atomicity test
+    // (hop 16): the host experiment authority is the only experiment writer
+    // now, so the same invariant — candidate rows and the experiment record
+    // land together, and a refused write leaves prior rows and the raw store
+    // value byte-identical — is proven against `dbApplyExperimentIntent`.
+    const candidate = (threadId: string) => ({
+      threadId,
+      agentKind: "claude" as const,
+      worktreeBranch: `poracode/experiment-${threadId}`,
+      worktreeOwnerToken: "tok",
+      worktreeState: "pending" as const,
     });
-    const originalState = dbGetState(EXPERIMENT_STORE_KEY);
+    const record = (id: string, candidateIds: [string, string]): Experiment => ({
+      id,
+      projectId: "project-1",
+      title: `Experiment ${id}`,
+      prompt: "compare",
+      baseBranch: "main",
+      baseCommit: "a".repeat(40),
+      status: "running",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      candidates: candidateIds.map(candidate),
+    });
+    const spec = (experiment: Experiment, threadId: string): ExperimentCandidateThreadCreation => ({
+      threadId,
+      projectId: experiment.projectId,
+      title: `Candidate ${threadId}`,
+      agentKind: "claude",
+      config: { model: "sonnet" },
+      worktreeBranch: `poracode/experiment-${threadId}`,
+    });
+    const create = (experiment: Experiment) => ({
+      kind: "create" as const,
+      experimentId: experiment.id,
+      record: experiment,
+      threads: experiment.candidates.map(({ threadId }) => spec(experiment, threadId)),
+    });
 
-    expect(() =>
-      dbPersistExperimentState({
-        upsertThreads: [
-          {
-            thread: testThread({ id: "candidate-invalid", projectId: "missing-project" }),
-            sortOrder: 0,
-          },
-        ],
-        deletedThreadIds: [existing.id],
-        experiments: {},
-      }),
-    ).toThrow(/foreign key/i);
+    const applied = dbApplyExperimentIntent(create(record("E1", ["c1", "c2"])));
+    expect(applied).toMatchObject({ status: "applied", stage: "created" });
+    expect(dbGetThread("c1")).toBeDefined();
+    expect(dbGetThread("c2")).toBeDefined();
 
-    expect(dbGetThread(existing.id)).toBeDefined();
-    expect(dbGetThread("candidate-invalid")).toBeNull();
-    expect(dbGetState(EXPERIMENT_STORE_KEY)).toBe(originalState);
+    const rawStoreBefore = dbGetState(EXPERIMENT_STORE_KEY);
+    const rowsBefore = JSON.stringify([dbGetThread("c1"), dbGetThread("c2")]);
+
+    const refused = dbApplyExperimentIntent(create(record("E2", ["c1", "c3"])));
+    expect(refused).toEqual({ status: "thread_exists", threadIds: ["c1"] });
+
+    expect(dbGetThread("c3")).toBeNull();
+    expect(JSON.stringify([dbGetThread("c1"), dbGetThread("c2")])).toBe(rowsBefore);
+    expect(dbGetState(EXPERIMENT_STORE_KEY)).toBe(rawStoreBefore);
+
+    // Preserve the retired writer's stronger guarantee: a failure AFTER row
+    // mutations must roll those mutations back, not merely refuse preflight.
+    // The trigger verifies both candidates have already been deleted before
+    // failing the store update; without the enclosing transaction they stay gone.
+    if (applied.status !== "applied") throw new Error("Experiment create failed");
+    const sqlite = getSqlite();
+    sqlite.exec(`
+      CREATE TEMP TRIGGER fail_experiment_store_update
+      BEFORE UPDATE ON app_state WHEN NEW.key = '${EXPERIMENT_STORE_KEY}'
+      BEGIN
+        SELECT CASE
+          WHEN (SELECT count(*) FROM threads WHERE id IN ('c1', 'c2')) = 0
+          THEN RAISE(ABORT, 'forced failure after candidate deletion')
+          ELSE RAISE(ABORT, 'store write preceded candidate deletion')
+        END;
+      END;
+    `);
+    try {
+      expect(() =>
+        dbApplyExperimentIntent({
+          kind: "remove",
+          experimentId: "E1",
+          revision: applied.revision,
+          candidateDisposition: "delete",
+        }),
+      ).toThrow("forced failure after candidate deletion");
+      expect(JSON.stringify([dbGetThread("c1"), dbGetThread("c2")])).toBe(rowsBefore);
+      expect(dbGetState(EXPERIMENT_STORE_KEY)).toBe(rawStoreBefore);
+    } finally {
+      sqlite.exec("DROP TRIGGER fail_experiment_store_update");
+    }
   });
 
   it("notifies subscribers after single and bulk project or thread writes", () => {
@@ -1049,23 +1116,28 @@ describe("projectsThreads (real sqlite round-trip)", () => {
   });
 
   it("replays durable remote command receipts without reclaiming them", () => {
-    expect(dbClaimRemoteCommand("command-1", "/api/threads/start")).toEqual({
+    const identity = (route: string) => ({
+      route,
+      principalId: "session-1",
+      requestDigest: "digest-1",
+    });
+    expect(dbClaimRemoteCommand("command-1", identity("/api/threads/start"))).toEqual({
       state: "claimed",
     });
     dbCompleteRemoteCommand("command-1", { threadId: "thread-1" });
-    expect(dbClaimRemoteCommand("command-1", "/api/threads/start")).toEqual({
+    expect(dbClaimRemoteCommand("command-1", identity("/api/threads/start"))).toEqual({
       state: "completed",
       response: { threadId: "thread-1" },
     });
-    expect(dbClaimRemoteCommand("command-1", "/api/threads/thread-1/send")).toEqual({
+    expect(dbClaimRemoteCommand("command-1", identity("/api/threads/thread-1/send"))).toEqual({
       state: "conflict",
     });
 
-    expect(dbClaimRemoteCommand("command-2", "/api/threads/thread-1/send")).toEqual({
+    expect(dbClaimRemoteCommand("command-2", identity("/api/threads/thread-1/send"))).toEqual({
       state: "claimed",
     });
     dbFailRemoteCommand("command-2");
-    expect(dbClaimRemoteCommand("command-2", "/api/threads/thread-1/send")).toEqual({
+    expect(dbClaimRemoteCommand("command-2", identity("/api/threads/thread-1/send"))).toEqual({
       state: "failed",
     });
   });

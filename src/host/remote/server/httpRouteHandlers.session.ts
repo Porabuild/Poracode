@@ -26,16 +26,14 @@ import {
 import { RemoteHttpError } from "../auth";
 import { buildForwardEnterErrorPageHtml } from "../pairingPage";
 import { FORWARD_ORIGIN_UNAVAILABLE } from "../portForward/forwardOriginIdentity";
+import { handleCatalogMembership } from "./catalogMembership";
+import { handleCatalogProjectList } from "./catalogPages";
+import { handleLegacyAdmittedShellSnapshot } from "./legacyAdmittedReads";
 import { writeHtml, writeJson, writeNegotiatedJsonResponse } from "./httpResponses";
 import { requirePathParam, type HttpRouteHandlerTable } from "./httpRouteHandlers.shared";
 import { readJsonBody } from "./requestBody";
 import { DEFAULT_TOKEN_EXCHANGE_RATE_LIMIT } from "./security";
-import {
-  buildAgentSlashCommands,
-  buildAgentStatuses,
-  buildShellSnapshot,
-  descriptor,
-} from "./snapshots";
+import { buildAgentSlashCommands, buildAgentStatuses, descriptor } from "./snapshots";
 
 function mcpEndpointUrl(server: McpServer): string | null {
   switch (server.transport.type) {
@@ -54,6 +52,8 @@ type SessionRouteId =
   | "token-exchange"
   | "websocket-ticket"
   | "shell-snapshot"
+  | "project-list"
+  | "catalog-membership"
   | "agent-statuses"
   | "agent-slash-commands"
   | "host-update"
@@ -140,34 +140,15 @@ export const SESSION_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, SessionRouteId>
     writeJson(res, 200, ctx.auth.issueWebSocketTicket({ accessToken: bearerToken }));
   },
 
-  "shell-snapshot": async ({ ctx, req, res, url }) => {
-    // Gate 4 hazard #3: `threadLimit` opts the client into a bounded thread
-    // list (head page + threadsNextCursor); absent keeps the full list for
-    // clients that have not opted in.
-    const threadLimitRaw = url.searchParams.get("threadLimit");
-    let threadListLimit: number | undefined;
-    if (threadLimitRaw !== null) {
-      threadListLimit = Number(threadLimitRaw);
-      if (
-        threadLimitRaw === "" ||
-        !Number.isSafeInteger(threadListLimit) ||
-        threadListLimit < 1 ||
-        threadListLimit > 200
-      ) {
-        throw new RemoteHttpError(
-          "invalid_thread_limit",
-          "threadLimit must be an integer between 1 and 200.",
-          400,
-        );
-      }
-    }
-    await writeNegotiatedJsonResponse(
-      req,
-      res,
-      200,
-      buildShellSnapshot(ctx, threadListLimit !== undefined ? { threadListLimit } : {}),
-    );
-  },
+  // B4: the catalog handler keeps the legacy path byte-for-byte for undeclared
+  // clients (`threadLimit` opt-in unchanged) and serves the bounded
+  // `reads=bounded-v1` page otherwise. The undeclared full-list variant is
+  // wrapped by the explicit legacy bulk admission + stored-byte pre-check.
+  "shell-snapshot": handleLegacyAdmittedShellSnapshot,
+
+  "project-list": handleCatalogProjectList,
+
+  "catalog-membership": handleCatalogMembership,
 
   "agent-statuses": async ({ ctx, req, res, url }) => {
     const omitSlashCommands = url.searchParams.get("slashCommands") === "0";

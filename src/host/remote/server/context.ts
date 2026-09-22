@@ -13,11 +13,14 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { BackgroundTask } from "@/shared/contracts";
 import type { GitStateInterest } from "@/shared/gitState";
 import type { AuthenticatedRemoteSession, RemoteAuthStore } from "../auth";
+import type { EnvironmentProxyGatewayLike } from "../environments/types";
 import type { PortProxy } from "../portForward/portProxy";
 import type { RemoteBrowserGatewayLike } from "../RemoteBrowserGateway";
 import type { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 import type { RemoteAccessServerInfo, RemoteAccessServerOptions } from "../RemoteAccessServer";
 import type { RemoteServerSecurity } from "./security";
+import type { PrincipalAdmissionController } from "./principalAdmission";
+import type { LegacyBulkReadAdmission } from "./legacyBulkReadAdmission";
 import type { TerminalCursorSyncRegistry } from "./terminalCursorSync";
 import type { TerminalBaselineStreamScheduler } from "./terminalBaselineStream";
 
@@ -42,6 +45,13 @@ export interface BufferedSupervisorEvent {
    * per replaying client (serialize once at ingest).
    */
   readonly json: string;
+  /**
+   * Bounded catalog changes: this entry is the canonical signal form of a
+   * `remote-projects-changed` mutation (the full list is live-only and never
+   * retained). Replay answers an undeclared socket with `resync-required`
+   * instead of re-parsing the event.
+   */
+  readonly catalogChange?: "signal";
 }
 
 /**
@@ -56,6 +66,11 @@ export interface RemoteServerContext {
   readonly auth: RemoteAuthStore;
   readonly wss: WebSocketServer;
   readonly security: RemoteServerSecurity;
+  /** B3 post-authentication principal/session budgets. */
+  readonly principalAdmission: PrincipalAdmissionController;
+  /** B4 explicit admission for undeclared unbounded legacy reads (2 global /
+   * 1 per principal) plus the pre-materialization reservation refusal. */
+  readonly legacyBulkReadAdmission: LegacyBulkReadAdmission;
   readonly clients: Map<WebSocket, AuthenticatedRemoteSession>;
   readonly replayingClients: Set<WebSocket>;
   readonly clientLiveness: Map<WebSocket, boolean>;
@@ -70,6 +85,18 @@ export interface RemoteServerContext {
   /** Threads each connection wants live transcript content for. Absent entry =
    * the client never declared any, so it keeps receiving everything. */
   readonly itemInterests: Map<WebSocket, ReadonlySet<string>>;
+  /**
+   * B1: connections that declared `notices=v1` at upgrade. A connection not in
+   * this set receives emptied canonical runtime batches for notice threads
+   * (see `noticeGate.ts`) while every other frame passes unchanged.
+   */
+  readonly noticeCapableClients: Set<WebSocket>;
+  /**
+   * Connections that declared `catalogChanges=bounded-v1` at upgrade (with
+   * `session:read`). They receive bounded catalog-change signals instead of the
+   * full project list; every other connection keeps the legacy full event.
+   */
+  readonly boundedCatalogChangeClients: Set<WebSocket>;
   readonly eventBuffer: BufferedSupervisorEvent[];
   /** Latest replayable background-task level, updated synchronously with live events. */
   readonly backgroundTasksByThread: ReadonlyMap<string, readonly BackgroundTask[]>;
@@ -91,9 +118,21 @@ export interface RemoteServerContext {
   requireBrowserGateway(): RemoteBrowserGatewayLike;
   requirePortForwardGateway(): RemotePortForwardGateway;
   requirePortProxy(): PortProxy;
+  /** The composed C1 parent proxy gateway, or `null` when not composed. The
+   * data-plane prefix fails closed either way. */
+  readonly environmentProxy: EnvironmentProxyGatewayLike | null;
+  /** C1 parent proxy gateway (typed 503 when the host is not composed with it). */
+  requireEnvironmentProxyGateway(): EnvironmentProxyGatewayLike;
   requirePushRegistrations(): NonNullable<RemoteAccessServerOptions["pushRegistrations"]>;
   publishSupervisorEvent(event: RemoteBroadcastEvent): void;
   publishThreadsChanged(threadIds: readonly string[]): void;
+  /**
+   * Declaration-aware catalog membership publication (bounded catalog
+   * changes): reads the authoritative project rows only when an undeclared
+   * connection or the embedding `onProjectsChanged` callback consumes them;
+   * otherwise publishes the bounded signal alone.
+   */
+  publishCatalogChanged(): void;
   scopeEventForClient(event: RemoteBroadcastEvent, client: WebSocket): RemoteBroadcastEvent;
   send(ws: WebSocket, message: RemoteWebSocketServerMessage): void;
   sendRaw(ws: WebSocket, data: string, onSent?: (error?: Error) => void): boolean;

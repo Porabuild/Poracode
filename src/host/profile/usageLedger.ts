@@ -1,7 +1,10 @@
 import type { RuntimeEvent } from "@/shared/contracts";
-import { dbAppendUsageEvents, dbGetThread } from "../db";
+// Direct module imports (not the `../db` barrel): the runtime items writer
+// calls this from inside its own transaction, and routing through the barrel
+// would make that path cycle through `runtimeItems`.
+import { dbGetThread } from "../db/projectsThreads";
+import { dbAppendUsageEvents, type UsageEventInput } from "../db/usageEvents";
 import { getSqlite } from "../db/connection";
-import type { UsageEventInput } from "../db/usageEvents";
 
 /**
  * Main-process token ledger: turns canonical `usage.spent` events into durable

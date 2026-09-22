@@ -44,10 +44,14 @@ async function serializeRemoteThreadSwitch<Result>(
  * the threads table (its persist rewrites every column), so a late mirror is a
  * clobber window. The caller runs this inside its idempotent closure, so a
  * replayed command id returns the stored response without repeating any of it.
+ * `markDispatched` is invoked at the first real effect — after the pre-effect
+ * validation below, immediately before the row retarget — so a pure rejection
+ * never marks the command dispatched.
  */
 export async function applyRemoteThreadSwitch(
   ctx: RemoteServerContext,
   supervisorPayload: StartThreadPayload & { threadId: string },
+  markDispatched: () => void,
 ): Promise<StartThreadResult> {
   return serializeRemoteThreadSwitch(supervisorPayload.threadId, async () => {
     const current = dbGetThreads().find((thread) => thread.id === supervisorPayload.threadId);
@@ -69,6 +73,11 @@ export async function applyRemoteThreadSwitch(
       );
     }
 
+    // Validation is pure and stays inside the per-thread serialization; the
+    // dispatch marker belongs past it, at the first real effect — the durable
+    // row retarget below. The caller's receipt then records a rejected
+    // validation as a definite failure instead of an uncertain dispatch.
+    markDispatched();
     const { previous } = retargetRemoteThreadForSwitch(supervisorPayload.threadId, {
       agentKind: supervisorPayload.agentKind,
       config: supervisorPayload.config,

@@ -3,6 +3,7 @@ import { getSqlite } from "./connection";
 import { dbAssertNoRunningCheckpointRevert } from "./checkpointRevertOperations";
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
 import { notifyProjectThreadDataChanged } from "./projectThreadChanges";
+import { notifyThreadsDeleted } from "./deletedThreadNotifications";
 import {
   projectMutableRow,
   rowToProject,
@@ -11,6 +12,7 @@ import {
   type ThreadRow,
 } from "./rowMappers";
 import { dbDiscardThreadRuntimeWrites } from "./runtimeItems";
+import { forgetRuntimeThreadDurableGap } from "./runtimePersistenceRuntime";
 import {
   prepareProjectUpsertStatement,
   prepareThreadUpsertStatement,
@@ -39,6 +41,13 @@ export function dbGetThreads(): Thread[] {
     .prepare("SELECT * FROM threads ORDER BY sort_order ASC")
     .all() as ThreadRow[];
   return rows.map(rowToThread);
+}
+
+/** Id-only live-thread read for ownership checks (never full row hydration). */
+export function dbListThreadIds(): string[] {
+  return (getSqlite().prepare("SELECT id FROM threads").all() as { id: string }[]).map(
+    (row) => row.id,
+  );
 }
 
 /**
@@ -93,6 +102,13 @@ export interface DbThreadListPage {
   nextCursor: string | null;
 }
 
+/**
+ * The exact row order of {@link dbGetThreadsPage}. Exported so the legacy
+ * bulk-read charge measures the same page window the list reader materializes
+ * instead of carrying a second pagination plan.
+ */
+export const THREAD_PAGE_ORDER_SQL = "sort_order ASC, id ASC";
+
 export interface DbThreadListPageQuery {
   /** Page size; callers keep one page's reply inside the 64 KiB wire bound. */
   limit: number;
@@ -129,7 +145,7 @@ export function dbGetThreadsPage(query: DbThreadListPageQuery): DbThreadListPage
   // exactly exhausted", so the final page reports a null cursor instead of
   // sending the client to fetch a degenerate empty page.
   const rows = getSqlite()
-    .prepare(`SELECT * FROM threads${whereSql} ORDER BY sort_order ASC, id ASC LIMIT ?`)
+    .prepare(`SELECT * FROM threads${whereSql} ORDER BY ${THREAD_PAGE_ORDER_SQL} LIMIT ?`)
     .all(...params, query.limit + 1) as ThreadRow[];
   const hasMore = rows.length > query.limit;
   const threads = rows.slice(0, query.limit).map(rowToThread);
@@ -271,7 +287,15 @@ export function dbDeleteThread(threadId: string): void {
   // the delete refuses loudly until the operation settles.
   dbAssertNoRunningCheckpointRevert([threadId]);
   getSqlite().prepare("DELETE FROM threads WHERE id = ?").run(threadId);
+  // The single-statement delete has committed; announce it so the composition's
+  // reclaimer can retire the thread's attachment directory. A later bookkeeping
+  // failure must not suppress the notification.
+  notifyThreadsDeleted([threadId]);
   dbDiscardThreadRuntimeWrites(threadId);
+  // The delete cascades the durable gap/touch rows; drop the in-memory
+  // contamination, touch decision, and pending obligation too so a reused
+  // thread id cannot inherit stale evidence.
+  forgetRuntimeThreadDurableGap(threadId);
   forgetMainCreatedThread(threadId);
   notifyProjectThreadDataChanged();
 }
@@ -286,8 +310,17 @@ export function dbDeleteProject(projectId: string): void {
   // Same custody rule as dbDeleteProject's per-thread counterpart: any thread
   // of the project with a running revert blocks the whole project deletion.
   dbAssertNoRunningCheckpointRevert(threadIds);
-  sqlite.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
-  sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?").run(projectId);
-  for (const threadId of threadIds) dbDiscardThreadRuntimeWrites(threadId);
+  // Notes are not foreign-key cascaded. A failure in either deletion must
+  // retain the rows backing pending canonical events until a successful retry.
+  sqlite.transaction(() => {
+    sqlite.prepare("DELETE FROM projects WHERE id = ?").run(projectId);
+    sqlite.prepare("DELETE FROM project_notes WHERE project_id = ?").run(projectId);
+  })();
+  // The transaction (including the cascaded thread rows) has committed.
+  notifyThreadsDeleted(threadIds);
+  for (const threadId of threadIds) {
+    dbDiscardThreadRuntimeWrites(threadId);
+    forgetRuntimeThreadDurableGap(threadId);
+  }
   notifyProjectThreadDataChanged();
 }

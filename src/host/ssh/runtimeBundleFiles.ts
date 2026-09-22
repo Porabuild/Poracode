@@ -5,7 +5,7 @@ import { writeFileAtomic } from "@/shared/atomicFile";
 import { readBoundedRuntimeFileSync } from "@/shared/readBoundedRuntimeFile";
 import { runtimeDirectoryFiles } from "@/shared/runtimeResourceInventory";
 
-const MAX_ARCHIVE_FILE_BYTES = 8 * 1024 * 1024;
+export const MAX_ARCHIVE_FILE_BYTES = 8 * 1024 * 1024;
 
 /** Cache hits must not return a pipe or link as an uploadable archive. */
 export function regularArchiveExists(path: string): boolean {

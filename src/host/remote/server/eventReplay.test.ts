@@ -24,6 +24,7 @@ function fixture() {
   const sent: number[] = [];
   const context: Parameters<typeof replayEvents>[0] = {
     replayingClients: new Set([socket]),
+    boundedCatalogChangeClients: new Set(),
     eventBuffer: [entry(1), entry(2)],
     get seq() {
       return this.eventBuffer.at(-1)?.seq ?? 0;
@@ -87,4 +88,38 @@ it("terminates on asynchronous send failure instead of admitting live events aft
   expect(socket.terminate).toHaveBeenCalledOnce();
   expect(context.replayingClients.size).toBe(0);
   expect(sent).toEqual([1]);
+});
+
+function catalogEntry(seq: number): BufferedSupervisorEvent {
+  const event = { type: "remote-projects-changed", mode: "signal" } as const;
+  return { seq, bytes: 40, event, json: JSON.stringify(event), catalogChange: "signal" };
+}
+
+it("replays the canonical catalog signal frame to a declared socket", () => {
+  const { context, socket, sent, drain } = fixture();
+  context.eventBuffer.splice(0, 2, catalogEntry(1));
+  context.boundedCatalogChangeClients.add(socket);
+  replayEvents(context, socket, 0);
+  expect(sent).toEqual([1]);
+  drain();
+  expect(context.replayingClients.size).toBe(0);
+});
+
+it("resyncs an undeclared socket crossing a catalog signal and stops the pump", () => {
+  const { context, socket, sent, drain } = fixture();
+  context.eventBuffer.splice(0, 2, catalogEntry(1));
+  replayEvents(context, socket, 0);
+  expect(sent).toEqual([]);
+  expect(context.send).toHaveBeenCalledWith(
+    socket,
+    expect.objectContaining({ type: "resync-required", seq: 1 }),
+  );
+  expect(context.replayingClients.size).toBe(0);
+  // A later live frame is not blocked by the stopped replay pump.
+  context.eventBuffer.push(entry(2));
+  context.replayingClients.add(socket);
+  replayEvents(context, socket, 1);
+  expect(sent).toEqual([2]);
+  drain();
+  expect(context.replayingClients.size).toBe(0);
 });

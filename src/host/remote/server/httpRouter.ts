@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { RemoteHttpRouteContract, RemoteHttpRouteId } from "@/shared/remote/contract";
 import { REMOTE_HTTP_ROUTES } from "@/shared/remote/contract";
 import { RemoteHttpError, type AuthenticatedRemoteSession } from "../auth";
+import type { IngressReadClass, IngressWorkClass } from "../remoteAccessServerTypes";
 import type { ForwardOriginIdentity } from "../portForward/forwardOriginIdentity";
 import {
   buildLocalPairingIconSvg,
@@ -14,6 +15,7 @@ import {
   isLegacyClientPath,
   tryServeBuiltClientApp,
 } from "../staticClientApp";
+import { isSpaNavigationRequest } from "../bundledWebClient";
 import type { RemoteServerContext } from "./context";
 import { writeError, writeHtml, writeText } from "./httpResponses";
 import type { HttpRouteCall, HttpRouteHandler } from "./httpRouteHandlers";
@@ -86,6 +88,8 @@ export async function handleHttp(
   req: IncomingMessage,
   res: ServerResponse,
   forwardOrigin: ForwardOriginIdentity | null = ctx.options.forwardOrigin ?? null,
+  workClass: IngressWorkClass = "bulk",
+  readClass: IngressReadClass = "normal",
 ): Promise<void> {
   const corsAllowed = ctx.security.applyCors(req, res);
   if (req.method === "OPTIONS") {
@@ -113,11 +117,16 @@ export async function handleHttp(
       res.end();
       return;
     }
-    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+    // D2: the bundled web client is the entry whenever the install layout
+    // ships it; the pairing page is the truthful API-only fallback when it does
+    // not. Static reads accept HEAD too (headers-only); the pairing fallbacks
+    // below stay GET-only, exactly as before.
+    const staticRead = req.method === "GET" || req.method === "HEAD";
+    if (staticRead && (url.pathname === "/" || url.pathname === "/index.html")) {
       // The canonical Poracode app entry. Forwarded development servers are no
       // longer reachable on this (PWA/API) origin at all — they live on their
       // own isolated child origins, dispatched before this router runs.
-      if (ctx.options.devWebAppUrl) {
+      if (req.method === "GET" && ctx.options.devWebAppUrl) {
         const target = new URL(ctx.options.devWebAppUrl);
         target.pathname = "/";
         for (const [key, value] of url.searchParams) target.searchParams.set(key, value);
@@ -126,29 +135,42 @@ export async function handleHttp(
         res.end();
         return;
       }
-      if (tryServeBuiltClientApp(url.pathname, res)) {
+      if (await tryServeBuiltClientApp(url.pathname, req, res)) {
         return;
       }
-      writeHtml(
-        res,
-        200,
-        buildLocalPairingPageHtml({
-          httpBaseUrl: ctx.requireInfo().httpBaseUrl,
-          ...(ctx.options.tls?.fingerprint ? { certFingerprint: ctx.options.tls.fingerprint } : {}),
-        }),
-      );
-      return;
-    }
-    if (req.method === "GET" && isBuiltClientAssetPath(url.pathname)) {
-      if (tryServeBuiltClientApp(url.pathname, res)) {
+      if (req.method === "GET") {
+        writeHtml(
+          res,
+          200,
+          buildLocalPairingPageHtml({
+            httpBaseUrl: ctx.requireInfo().httpBaseUrl,
+            ...(ctx.options.tls?.fingerprint
+              ? { certFingerprint: ctx.options.tls.fingerprint }
+              : {}),
+          }),
+        );
         return;
       }
     }
+    if (staticRead && isBuiltClientAssetPath(url.pathname)) {
+      if (await tryServeBuiltClientApp(url.pathname, req, res)) {
+        return;
+      }
+    }
+    // Bundled build first, pairing artifact only when the install has no web
+    // client. A bundled build must never be shadowed by the fallback pairing
+    // manifest/service worker/icon.
     if (req.method === "GET" && url.pathname === "/manifest.webmanifest") {
+      if (await tryServeBuiltClientApp(url.pathname, req, res)) {
+        return;
+      }
       writeText(res, 200, buildLocalPairingManifestJson(), "application/manifest+json");
       return;
     }
     if (req.method === "GET" && url.pathname === "/service-worker.js") {
+      if (await tryServeBuiltClientApp(url.pathname, req, res)) {
+        return;
+      }
       writeText(
         res,
         200,
@@ -158,6 +180,9 @@ export async function handleHttp(
       return;
     }
     if (req.method === "GET" && url.pathname === "/app-icon.svg") {
+      if (await tryServeBuiltClientApp(url.pathname, req, res)) {
+        return;
+      }
       writeText(res, 200, buildLocalPairingIconSvg(), "image/svg+xml; charset=utf-8");
       return;
     }
@@ -173,10 +198,23 @@ export async function handleHttp(
       for (const name of paramNames) params[name] = match.groups?.[name] ?? "";
       let bearerToken: string | null = null;
       let session: AuthenticatedRemoteSession | null = null;
+      // B3: the authenticated principal whose post-auth budgets cover this
+      // request. Procedure-defined routes keep their handler-owned scope
+      // resolution but still resolve the session for principal accounting;
+      // ticket-only callers stay bounded by the transport semaphore alone.
+      let principalId: string | null = null;
       if (route.auth === "bearer" && route.scopeResolution !== "procedure-defined") {
         const authenticated = ctx.security.requireBearerSession(req, [...route.scopes]);
         bearerToken = authenticated.token;
         session = authenticated.session;
+        principalId = session.sessionId;
+      } else if (route.auth === "bearer") {
+        try {
+          principalId = ctx.security.requireBearerSession(req, []).session.sessionId;
+        } catch {
+          // The handler owns authentication for this route; no principal
+          // budget is reserved when it cannot be attributed.
+        }
       } else if (route.auth === "bearer-or-query") {
         // Ticket-only callers authenticate in the handler; a bearer header is
         // attributed here so dispatcher audit lines carry the session.
@@ -184,6 +222,7 @@ export async function handleHttp(
           const authenticated = ctx.security.requireBearerSession(req, [...route.scopes]);
           bearerToken = authenticated.token;
           session = authenticated.session;
+          principalId = session.sessionId;
         } catch {
           // Missing or ticket-only credentials are not a dispatcher failure.
         }
@@ -196,6 +235,7 @@ export async function handleHttp(
         forwardOrigin,
         bearerToken,
         session,
+        readClass,
         params,
       };
       if (route.audit.kind !== false) {
@@ -205,7 +245,28 @@ export async function handleHttp(
           path: route.path,
         });
       }
-      await handler(call);
+      // B3: non-waiting per-principal admission after authentication. The
+      // lease is released only when the handler settles, so a client that
+      // disconnects mid-request cannot free its quota while the work runs.
+      const lease = principalId
+        ? ctx.principalAdmission.tryAdmitWork(principalId, workClass)
+        : null;
+      try {
+        await handler(call);
+      } finally {
+        lease?.release();
+      }
+      return;
+    }
+    // D2: an unmatched navigation request gets the bundled app shell so a
+    // deep-link refresh (including a push-notification URL) still boots the
+    // app. The classifier excludes API/auth namespaces, static paths and
+    // non-navigation requests, so this can never shadow an API error, an auth
+    // flow or a missing file.
+    if (
+      isSpaNavigationRequest(req, url.pathname) &&
+      (await tryServeBuiltClientApp("/", req, res))
+    ) {
       return;
     }
     writeError(res, new RemoteHttpError("not_found", "Remote endpoint not found.", 404));

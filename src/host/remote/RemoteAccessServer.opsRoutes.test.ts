@@ -1,5 +1,6 @@
 import { networkInterfaces } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission";
 import { metricsResponseSchema } from "@/shared/remote/contract/routeSchemas";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "./RemoteAccessServer";
 import { detectLanIpv4Address } from "./config";
@@ -28,7 +29,10 @@ afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.dispose()));
 });
 
-function createServer(host = "127.0.0.1"): RemoteAccessServer {
+function createServer(
+  host = "127.0.0.1",
+  overrides: Partial<RemoteAccessServerOptions> = {},
+): RemoteAccessServer {
   const server = new RemoteAccessServer({
     truncateThreadRuntime: () => {},
     appVersion: "1.0.0",
@@ -37,6 +41,7 @@ function createServer(host = "127.0.0.1"): RemoteAccessServer {
     port: 0,
     callSupervisor: vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never),
     tls: null,
+    ...overrides,
   });
   servers.push(server);
   return server;
@@ -76,6 +81,90 @@ describe("RemoteAccessServer operability routes (item 4.9 rider)", () => {
     expect(
       (body as { remote: { lastEventSeq: number } }).remote.lastEventSeq,
     ).toBeGreaterThanOrEqual(0);
+  });
+
+  it("includes the on-demand admission snapshot when the supervisor answers", async () => {
+    const status: HostResourceAdmissionStatus = {
+      resolution: { kind: "configured" },
+      policy: {
+        maxActiveAgentSessions: 2,
+        maxActiveTerminalShells: 0,
+        maxActiveGenerationHelpers: 0,
+        overloadRetryAfterMs: 1_000,
+      },
+      usage: {
+        agentSessions: { active: 1, pending: 0, retiring: 0 },
+        terminalShells: { active: 0, pending: 0, retiring: 0 },
+        generationHelpers: { active: 0, pending: 0, retiring: 0 },
+        total: 1,
+        refusals: 3,
+      },
+    };
+    const peek = vi.fn<NonNullable<RemoteAccessServerOptions["peekResourceAdmissionStatus"]>>(
+      async () => ({ kind: "available", status }),
+    );
+    const server = createServer("127.0.0.1", { peekResourceAdmissionStatus: peek });
+    const info = await server.start();
+
+    const response = await fetch(new URL("/metrics", info.httpBaseUrl));
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as unknown;
+    const parsed = metricsResponseSchema.parse(body);
+    // The admission field is the supervisor's logical execution-slot snapshot
+    // (with its resolution and effective policy), not an OS/RSS count.
+    expect(parsed.hostResourceAdmission).toEqual(status);
+    expect(peek).toHaveBeenCalledTimes(1);
+  });
+
+  it("omits the admission field for a cold or unknown supervisor instead of faking zeroes", async () => {
+    // `supervisor-not-running` is the cold case; `supervisor-error` is what an
+    // older supervisor that does not know the internal status procedure
+    // produces (the peek degrades instead of inventing zeroes).
+    for (const reason of ["supervisor-not-running", "supervisor-error"] as const) {
+      const peek = vi.fn<NonNullable<RemoteAccessServerOptions["peekResourceAdmissionStatus"]>>(
+        async () => ({ kind: "unavailable", reason }),
+      );
+      const server = createServer("127.0.0.1", { peekResourceAdmissionStatus: peek });
+      const info = await server.start();
+
+      const response = await fetch(new URL("/metrics", info.httpBaseUrl));
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body).not.toHaveProperty("hostResourceAdmission");
+      expect(metricsResponseSchema.parse(body).hostResourceAdmission).toBeUndefined();
+      expect(peek).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("reports an unresolved fail-closed policy distinctly from zero usage", async () => {
+    const status: HostResourceAdmissionStatus = {
+      resolution: { kind: "unavailable", problem: "host-resource-admission-invalid" },
+      policy: {
+        maxActiveAgentSessions: 0,
+        maxActiveTerminalShells: 0,
+        maxActiveGenerationHelpers: 0,
+        overloadRetryAfterMs: 1_000,
+        refuseNewStarts: "host-resource-admission-invalid",
+      },
+      usage: {
+        agentSessions: { active: 0, pending: 0, retiring: 0 },
+        terminalShells: { active: 0, pending: 0, retiring: 0 },
+        generationHelpers: { active: 0, pending: 0, retiring: 0 },
+        total: 0,
+        refusals: 1,
+      },
+    };
+    const server = createServer("127.0.0.1", {
+      peekResourceAdmissionStatus: async () => ({ kind: "available", status }),
+    });
+    const info = await server.start();
+
+    const response = await fetch(new URL("/metrics", info.httpBaseUrl));
+    const body = (await response.json()) as { hostResourceAdmission: HostResourceAdmissionStatus };
+    expect(body.hostResourceAdmission.resolution).toEqual(status.resolution);
+    expect(body.hostResourceAdmission.policy.refuseNewStarts).toBe(
+      "host-resource-admission-invalid",
+    );
   });
 
   it("refuses /metrics from a non-loopback peer", async () => {

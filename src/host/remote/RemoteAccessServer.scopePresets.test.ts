@@ -15,6 +15,26 @@ vi.mock("@/host/db", () => {
   return {
     dbAppendThreadCompletedTurn: vi.fn<(...args: unknown[]) => unknown>(),
     dbApplyThreadRuntimeEvents: vi.fn<(...args: unknown[]) => unknown>(),
+    // B4 legacy bulk-read pre-check: empty reservations keep the legacy read
+    // inside the cap (these tests use no real SQLite).
+    dbMeasureLegacySnapshotCharge: vi.fn<
+      () => { threadsStoredBytes: number; projectsStoredBytes: number }
+    >(() => ({ threadsStoredBytes: 0, projectsStoredBytes: 0 })),
+    dbMeasureLegacyHistoryCharge: vi.fn<
+      () => {
+        itemsStoredBytes: number;
+        streamTailStoredBytes: number;
+        completedTurnsStoredBytes: number;
+        scrollbackStoredBytes: number;
+        contextUsageStoredBytes: number;
+      }
+    >(() => ({
+      itemsStoredBytes: 0,
+      streamTailStoredBytes: 0,
+      completedTurnsStoredBytes: 0,
+      scrollbackStoredBytes: 0,
+      contextUsageStoredBytes: 0,
+    })),
     dbClaimRemoteCommand: vi.fn<(...args: unknown[]) => unknown>(() => ({ state: "claimed" })),
     dbCompleteRemoteCommand: vi.fn<(...args: unknown[]) => unknown>(),
     dbFailRemoteCommand: vi.fn<(...args: unknown[]) => unknown>(),
@@ -28,15 +48,34 @@ vi.mock("@/host/db", () => {
     dbGetThreads: vi.fn<(...args: unknown[]) => unknown>(() => []),
     dbGetThreadCompletedTurns: vi.fn<(...args: unknown[]) => unknown>(() => []),
     dbGetThreadContextUsage: vi.fn<(...args: unknown[]) => unknown>(() => null),
-    dbGetLatestThreadGoalItem: vi.fn<(...args: unknown[]) => unknown>(() => null),
+    dbReadLatestThreadGoalItem: vi.fn<(...args: unknown[]) => unknown>(() => null),
     dbGetLatestThreadRuntimeAnchorItemId: vi.fn<(...args: unknown[]) => unknown>(() => null),
-    dbGetThreadRuntimeItem: vi.fn<(...args: unknown[]) => unknown>(() => undefined),
-    dbGetThreadRuntimeItems: vi.fn<(...args: unknown[]) => unknown>(() => []),
-    dbGetThreadRuntimeItemsPage: vi.fn<(...args: unknown[]) => unknown>(() => ({
+    dbGetThreadRuntimeItemCommitted: vi.fn<(...args: unknown[]) => unknown>(() => undefined),
+    dbReadThreadRuntimeItems: vi.fn<(...args: unknown[]) => unknown>(() => []),
+    dbReadThreadRuntimeItemsPage: vi.fn<(...args: unknown[]) => unknown>(() => ({
       items: [],
       nextCursor: null,
     })),
-    dbGetThreadRuntimeSummaries: vi.fn<(...args: unknown[]) => unknown>(() => ({})),
+    dbGetThreadRuntimeItemsPage: vi.fn<(...args: unknown[]) => unknown>(async () => ({
+      items: [],
+      nextCursor: null,
+    })),
+    beginRuntimeFence: vi.fn<(threadId: string) => unknown>((threadId) => ({
+      threadId,
+      throughPersistSeq: 0,
+      generation: 1,
+    })),
+    flushRuntimeFence: vi.fn<() => Promise<unknown>>(async () => ({
+      kind: "committed",
+      persistSeq: 0,
+      pendingEvents: 0,
+      pendingBytes: 0,
+    })),
+    readRuntimeFence: vi.fn<(token: unknown, read: () => unknown) => unknown>((_token, read) =>
+      read(),
+    ),
+    releaseRuntimeFence: vi.fn<() => void>(),
+    dbGetThreadRuntimeSummariesCommitted: vi.fn<(...args: unknown[]) => unknown>(() => ({})),
     dbGetThreadTerminalScrollback: vi.fn<(...args: unknown[]) => unknown>(() => ""),
     dbGetThreadTerminalScrollbackRecord: vi.fn<(...args: unknown[]) => unknown>(() => null),
     dbReplaceThreadRuntimeSnapshot: vi.fn<(...args: unknown[]) => unknown>(),
@@ -159,8 +198,11 @@ function splitBearerRoutes() {
  * viewer boundary) fails this suite until someone confirms the viewer preset
  * is supposed to deny it.
  */
-const EXPECTED_MUTATING_ROUTE_COUNT = 40;
-const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 19;
+const EXPECTED_MUTATING_ROUTE_COUNT = 53;
+// 21 pre-B4 + the three additive B4 read routes (project-list,
+// catalog-membership, thread-turns) + B1 thread-runtime-gap + the experiment
+// state read, all session:read and non-mutating.
+const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 26;
 
 /** The split must be an exact, disjoint partition of the bearer registry:
  * the partition itself is derived, so a route can only ever land in one

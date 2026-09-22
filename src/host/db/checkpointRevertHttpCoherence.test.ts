@@ -2,14 +2,22 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { closeDatabase, initDatabase } from "./connection";
-import { dbClaimRemoteCommand, dbCompleteRemoteCommand } from "./remoteCommandReceipts";
+import { closeDatabase, getSqlite, initDatabase } from "./connection";
+import {
+  dbClaimRemoteCommand,
+  dbCompleteRemoteCommand,
+  dbMarkRemoteCommandUncertain,
+} from "./remoteCommandReceipts";
 import {
   dbClaimCheckpointRevertOperation,
   dbGetCheckpointRevertOperation,
   dbUpdateCheckpointRevertPhases,
 } from "./checkpointRevertOperations";
 import { mapCheckpointRevertCompletedResponse } from "@/host/remote/server/httpRouter";
+import {
+  remoteCommandRequestDigest,
+  runRemoteCommand,
+} from "@/host/remote/server/remoteCommandIdempotency";
 import { nativeBindingEnv, sqliteAvailable } from "./runtimeItems.testFixtures";
 
 /**
@@ -54,7 +62,10 @@ describe.skipIf(!sqliteAvailable)("checkpoint revert HTTP receipt coherence", ()
   };
 
   const seedOuterCompleted = (commandId: string, route: string, response: unknown): void => {
-    expect(dbClaimRemoteCommand(commandId, route)).toEqual({ state: "claimed" });
+    // Pre-binding (legacy) outer row: no principal/digest attribution.
+    expect(
+      dbClaimRemoteCommand(commandId, { route, principalId: null, requestDigest: null }),
+    ).toEqual({ state: "claimed" });
     dbCompleteRemoteCommand(commandId, response);
   };
 
@@ -129,6 +140,21 @@ describe.skipIf(!sqliteAvailable)("checkpoint revert HTTP receipt coherence", ()
       cached,
     );
 
+    // B2: a bound retry must pass the route's journal validator; the legacy row
+    // stays unbound (never attributed to the retrying principal) and never
+    // starts a new mutation.
+    expect(
+      dbClaimRemoteCommand(
+        "checkpoint-revert:legacy-no-inner",
+        {
+          route: "/api/threads/thread-1/checkpoint-revert",
+          principalId: "session-1",
+          requestDigest: "digest-1",
+        },
+        { isLegacyCompletedResponseReplayable: () => true },
+      ),
+    ).toEqual({ state: "completed", response: cached });
+
     const replayed = mapCheckpointRevertCompletedResponse(
       {
         threadId: "thread-1",
@@ -140,5 +166,69 @@ describe.skipIf(!sqliteAvailable)("checkpoint revert HTTP receipt coherence", ()
     expect(replayed.replayed).toBe(true);
     expect(replayed.numTurns).toBe(2);
     expect(dbGetCheckpointRevertOperation("legacy-no-inner")).toBeNull();
+    expect(
+      getSqlite()
+        .prepare(
+          "SELECT principal_id, request_digest FROM remote_command_receipts WHERE command_id = ?",
+        )
+        .get("checkpoint-revert:legacy-no-inner"),
+    ).toEqual({ principal_id: null, request_digest: null });
+  });
+
+  it("resumes an interrupted post-upgrade revert through its journal instead of re-running it", async () => {
+    seedCompletedInner("op-resume");
+    const payload = {
+      threadId: "thread-1",
+      checkpointItemId: "checkpoint",
+      operationKey: "op-resume",
+    };
+    const route = "/api/threads/thread-1/checkpoint-revert";
+    const commandId = "checkpoint-revert:op-resume";
+    expect(
+      dbClaimRemoteCommand(commandId, {
+        route,
+        principalId: "session-1",
+        requestDigest: remoteCommandRequestDigest(payload),
+      }),
+    ).toEqual({ state: "claimed" });
+    // Crash before the outer completion write: the bound receipt is uncertain.
+    dbMarkRemoteCommandUncertain(commandId);
+
+    const journalClaims: string[] = [];
+    const result = await runRemoteCommand({
+      commandId,
+      route,
+      principalId: "session-1",
+      requestPayload: payload,
+      operation: async (markDispatched) => {
+        markDispatched();
+        const claim = dbClaimCheckpointRevertOperation({
+          ...payload,
+          projectLocationJson: null,
+          configJson: null,
+        });
+        journalClaims.push(claim.kind);
+        return { outcome: claim.row.outcome, replayed: claim.kind === "replay" };
+      },
+      reconcileUncertain: () => ({ kind: "resume" }),
+    });
+    // The journal proves the destructive provider phase already ran: the
+    // resume replays the frozen outcome and never starts a new mutation.
+    expect(journalClaims).toEqual(["replay"]);
+    expect(result).toEqual({ outcome: "completed", replayed: true });
+
+    // The outer receipt settles, so a later retry replays without touching the
+    // journal at all.
+    await expect(
+      runRemoteCommand({
+        commandId,
+        route,
+        principalId: "session-1",
+        requestPayload: payload,
+        operation: () => {
+          throw new Error("must not run");
+        },
+      }),
+    ).resolves.toEqual({ outcome: "completed", replayed: true });
   });
 });

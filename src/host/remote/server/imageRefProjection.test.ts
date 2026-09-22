@@ -166,29 +166,29 @@ describe.skipIf(!sqliteAvailable)("resolveImageRef", () => {
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
-  function persist(payload: unknown): void {
-    dbReplaceThreadRuntimeItems("thread-1", [
+  async function persist(payload: unknown): Promise<void> {
+    await dbReplaceThreadRuntimeItems("thread-1", [
       { id: "item-1", type: "image_view", state: "completed", payload, streams: {} },
     ]);
   }
 
-  it("resolves a projected reference back to the exact bytes", () => {
-    persist({ images: [bigPngDataUrl] });
+  it("resolves a projected reference back to the exact bytes", async () => {
+    await persist({ images: [bigPngDataUrl] });
     const resolved = resolveImageRef("thread-1", "item-1", ["images", 0]);
     expect(resolved?.mime).toBe("image/png");
     expect(resolved?.data.equals(Buffer.from(bigPngBase64, "base64"))).toBe(true);
   });
 
-  it("resolves bare base64 as well as data URLs", () => {
-    persist({ images: [bigPngBase64] });
+  it("resolves bare base64 as well as data URLs", async () => {
+    await persist({ images: [bigPngBase64] });
     expect(resolveImageRef("thread-1", "item-1", ["images", 0])?.data.byteLength).toBeGreaterThan(
       0,
     );
   });
 
-  it("round-trips a reference produced by the projection", () => {
+  it("round-trips a reference produced by the projection", async () => {
     const payload = { images: [bigPngDataUrl] };
-    persist(payload);
+    await persist(payload);
     const projected = projectRuntimeItemsImageRefs("thread-1", [
       { id: "item-1", type: "image_view", state: "completed", payload, streams: {} },
     ]);
@@ -199,32 +199,32 @@ describe.skipIf(!sqliteAvailable)("resolveImageRef", () => {
     );
   });
 
-  it("refuses to serve a filesystem path even though the payload holds one", () => {
+  it("refuses to serve a filesystem path even though the payload holds one", async () => {
     // The security boundary: `path` addresses a location in our own row, and the
     // value there is re-verified as an inline image. A tool result naming a local
     // file resolves to nothing rather than being read off disk.
-    persist({ images: ["/etc/passwd"], args: { path: "/etc/passwd" } });
+    await persist({ images: ["/etc/passwd"], args: { path: "/etc/passwd" } });
     expect(resolveImageRef("thread-1", "item-1", ["images", 0])).toBeNull();
     expect(resolveImageRef("thread-1", "item-1", ["args", "path"])).toBeNull();
   });
 
-  it("refuses to serve an agent-supplied http(s) or file URL", () => {
-    persist({ images: ["https://tracker.example/pixel.png", "file:///etc/hosts"] });
+  it("refuses to serve an agent-supplied http(s) or file URL", async () => {
+    await persist({ images: ["https://tracker.example/pixel.png", "file:///etc/hosts"] });
     expect(resolveImageRef("thread-1", "item-1", ["images", 0])).toBeNull();
     expect(resolveImageRef("thread-1", "item-1", ["images", 1])).toBeNull();
   });
 
-  it("returns null for an unknown thread, item, or path", () => {
-    persist({ images: [bigPngDataUrl] });
+  it("returns null for an unknown thread, item, or path", async () => {
+    await persist({ images: [bigPngDataUrl] });
     expect(resolveImageRef("nope", "item-1", ["images", 0])).toBeNull();
     expect(resolveImageRef("thread-1", "nope", ["images", 0])).toBeNull();
     expect(resolveImageRef("thread-1", "item-1", ["images", 9])).toBeNull();
     expect(resolveImageRef("thread-1", "item-1", ["missing"])).toBeNull();
   });
 
-  it("does not resolve a reference object left in place of the image", () => {
+  it("does not resolve a reference object left in place of the image", async () => {
     // Guards against a projected payload ever being persisted by mistake.
-    persist({
+    await persist({
       images: [
         remoteImageRef({
           threadId: "thread-1",

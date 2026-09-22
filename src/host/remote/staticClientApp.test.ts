@@ -26,4 +26,26 @@ describe("built canonical client", () => {
     expect(isBuiltClientAssetPath("/icons/icon-192.png")).toBe(true);
     expect(isBuiltClientAssetPath("/api/icons/icon-192.png")).toBe(false);
   });
+
+  it("serves the PWA root files and the embedded SSH runtime from the bundled client", () => {
+    expect(isBuiltClientAssetPath("/manifest.webmanifest")).toBe(true);
+    expect(isBuiltClientAssetPath("/service-worker.js")).toBe(true);
+    expect(isBuiltClientAssetPath("/app-icon.svg")).toBe(true);
+    expect(isBuiltClientAssetPath("/app-icon-nightly.svg")).toBe(true);
+    expect(isBuiltClientAssetPath("/notification.mp3")).toBe(true);
+    expect(isBuiltClientAssetPath("/robots.txt")).toBe(true);
+    expect(isBuiltClientAssetPath("/poracode-ssh-runtime/manifest.json")).toBe(true);
+    expect(isBuiltClientAssetPath("/poracode-ssh-runtime/runtime.bin")).toBe(true);
+  });
+
+  it("never widens the static surface to arbitrary files", () => {
+    expect(isBuiltClientAssetPath("/poracode-ssh-runtime/other.bin")).toBe(false);
+    expect(isBuiltClientAssetPath("/poracode-ssh-runtime/")).toBe(false);
+    expect(isBuiltClientAssetPath("/assets")).toBe(false);
+    expect(isBuiltClientAssetPath("/assets/")).toBe(false);
+    expect(isBuiltClientAssetPath("/icons")).toBe(false);
+    expect(isBuiltClientAssetPath("/secrets.json")).toBe(false);
+    expect(isBuiltClientAssetPath("/.well-known/assetlinks.json")).toBe(false);
+    expect(isBuiltClientAssetPath("/assets\\..\\secrets.json")).toBe(false);
+  });
 });

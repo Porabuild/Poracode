@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
 import { HEAD_CHARS } from "./runtimeStreamCap";
@@ -5,10 +6,25 @@ import { writeItemStreams } from "./runtimeStreamStore";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
+/**
+ * D4 rollback classification for one migration. `rollback-compatible` means the
+ * previous release's code can still serve the migrated database (additive
+ * tables/columns, index-only changes). `forward-only` means the migration
+ * rewrites persisted meaning that older code cannot interpret, so swapping the
+ * code symlink back is not a data rollback: the upgrader must capture a
+ * consistent backup before the forward migration runs and must not silently
+ * restore it over any accepted newer writes.
+ *
+ * Classification is metadata only; it never changes migration behavior.
+ */
+export type DatabaseMigrationRollbackClass = "rollback-compatible" | "forward-only";
+
 export interface DatabaseMigration {
   readonly version: number;
   readonly name: string;
   readonly migrate: (sqlite: SqliteDatabase) => void;
+  /** Defaults to `rollback-compatible`; see {@link DatabaseMigrationRollbackClass}. */
+  readonly rollback?: DatabaseMigrationRollbackClass;
 }
 
 function columnNames(sqlite: SqliteDatabase, table: string): Set<string> {
@@ -681,13 +697,188 @@ export const DATABASE_MIGRATIONS = [
       addColumnIfMissing(sqlite, "checkpoint_revert_operations", "provider_anchor_json", "TEXT");
     },
   },
+  {
+    version: 47,
+    name: "remote command receipt principal and request digest",
+    // D4 classification: forward-only. Rows preserved as `uncertain` are a
+    // state the pre-47 receipt reader does not know; a code symlink swap alone
+    // cannot undo this migration, so the upgrade path captures a consistent
+    // backup before the candidate runs it.
+    rollback: "forward-only",
+    // B2: bind each idempotency key to the stable remote session principal and
+    // the canonical validated request digest, and stop deleting interrupted
+    // receipts at startup. Pre-binding `in_progress` rows cannot be attributed
+    // to a principal or a validated body, so they are preserved as `uncertain`
+    // — a deterministic retry must return a typed ambiguous outcome (or be
+    // reconciled through a route journal) instead of blindly re-executing an
+    // external effect.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "remote_command_receipts", "principal_id", "TEXT");
+      addColumnIfMissing(sqlite, "remote_command_receipts", "request_digest", "TEXT");
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_remote_command_receipts_principal
+          ON remote_command_receipts (principal_id, updated_at);
+        UPDATE remote_command_receipts SET state = 'uncertain' WHERE state = 'in_progress';
+      `);
+    },
+  },
+  {
+    version: 48,
+    name: "runtime durable canonical-gap evidence",
+    // B1 classification: forward-only. The evidence tables describe a boot
+    // generation and surviving-touch protocol the pre-48 runtime does not
+    // know; a code symlink swap alone cannot undo the forward migration, so
+    // the upgrade path captures a consistent backup before the candidate runs
+    // it. `assertRequiredDatabaseSchema` refuses a pre-48 database opened in
+    // validate mode until a runtime owner migrates it once.
+    rollback: "forward-only",
+    // Durable canonical-gap evidence (B1). `runtime_persistence_epoch` is the
+    // singleton boot generation: `armed = 1` means the boot that owns `epoch`
+    // has not cleanly closed. A canonical event may be admitted only after
+    // that boot armed and `thread_runtime_epoch_touches` recorded the thread,
+    // so a crash or refused gap write always leaves durable evidence. Exact
+    // gap evidence in `thread_runtime_gaps` wins over touches in any epoch and
+    // is cleared only by an authoritative rebase (replace/reset/delete).
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS runtime_persistence_epoch (
+          id        INTEGER PRIMARY KEY CHECK (id = 1),
+          epoch     INTEGER NOT NULL DEFAULT 0,
+          armed     INTEGER NOT NULL DEFAULT 0,
+          armed_at  INTEGER
+        );
+        INSERT OR IGNORE INTO runtime_persistence_epoch (id, epoch, armed) VALUES (1, 0, 0);
+        CREATE TABLE IF NOT EXISTS thread_runtime_gaps (
+          thread_id       TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+          reason          TEXT NOT NULL,
+          refused_events  INTEGER NOT NULL DEFAULT 0,
+          refused_bytes   INTEGER NOT NULL DEFAULT 0,
+          epoch           INTEGER NOT NULL,
+          created_at      INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS thread_runtime_epoch_touches (
+          thread_id   TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+          epoch       INTEGER NOT NULL,
+          touched_at  INTEGER NOT NULL,
+          PRIMARY KEY (thread_id, epoch)
+        );
+      `);
+    },
+  },
+  {
+    version: 49,
+    name: "runtime history notice acknowledgement",
+    // B1 classification: forward-only. The acknowledgement semantics are
+    // invisible to pre-49 code (which would ignore the notice and treat an
+    // acknowledged thread's committed prefix as complete), and episode
+    // identities minted here cannot be reconstructed by an older writer, so a
+    // code symlink swap is not a data rollback. `assertRequiredDatabaseSchema`
+    // refuses a pre-49 database opened in validate mode until a runtime owner
+    // migrates it once.
+    rollback: "forward-only",
+    // GUI durable-gap recovery (B1). `thread_runtime_gaps.episode_id` is the
+    // persisted opaque episode identity: a random UUID allocated on the first
+    // insert of a gap row and preserved on accumulation, backfilled here for
+    // rows that predate this migration. `thread_runtime_gap_notices` is the
+    // one-row-per-thread durable history-incomplete notice: it survives normal
+    // turns, rebase, and truncation, and cascades with the thread. No episode
+    // ledger is added: the gap row's own UUID is the identity, and a new
+    // episode after acknowledgment/reset/delete mints a fresh UUID even under
+    // a frozen/backward clock.
+    migrate: (sqlite) => {
+      addColumnIfMissing(sqlite, "thread_runtime_gaps", "episode_id", "TEXT");
+      const rows = sqlite
+        .prepare("SELECT thread_id FROM thread_runtime_gaps WHERE episode_id IS NULL")
+        .all() as Array<{ thread_id: string }>;
+      const bind = sqlite.prepare(
+        "UPDATE thread_runtime_gaps SET episode_id = ? WHERE thread_id = ? AND episode_id IS NULL",
+      );
+      for (const row of rows) bind.run(randomUUID(), row.thread_id);
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS thread_runtime_gap_notices (
+          thread_id              TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+          acknowledged_token     TEXT NOT NULL,
+          source                 TEXT NOT NULL,
+          reason                 TEXT NOT NULL,
+          refused_events         INTEGER NOT NULL DEFAULT 0,
+          refused_bytes          INTEGER NOT NULL DEFAULT 0,
+          acknowledged_count     INTEGER NOT NULL DEFAULT 1,
+          first_acknowledged_at  INTEGER NOT NULL,
+          last_acknowledged_at   INTEGER NOT NULL
+        );
+      `);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
 
-export function validateMigrationRegistry(
-  migrations: readonly Pick<DatabaseMigration, "version" | "name">[] = DATABASE_MIGRATIONS,
+export interface MigrationRollbackPolicyEntry {
+  readonly version: number;
+  readonly name: string;
+  readonly rollback: DatabaseMigrationRollbackClass;
+}
+
+/**
+ * Every migration at or above this version must declare its rollback class
+ * explicitly. Versions 2–47 were reviewed when the classification landed
+ * (47 is `forward-only`; the earlier migrations are additive and keep the
+ * default). A new migration added without `rollback` would silently widen
+ * automatic code rollback, so the runtime registry validation and the doctor
+ * policy export refuse it instead of defaulting.
+ */
+export const MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM = 48;
+
+export function assertMigrationRollbackClassifications(
+  migrations: readonly Pick<
+    DatabaseMigration,
+    "version" | "name" | "rollback"
+  >[] = DATABASE_MIGRATIONS,
 ): void {
+  for (const migration of migrations) {
+    if (
+      migration.version >= MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM &&
+      migration.rollback === undefined
+    ) {
+      throw new Error(
+        `Migration ${migration.version} ("${migration.name}") does not declare its data ` +
+          `compatibility: add rollback: "rollback-compatible" or "forward-only" ` +
+          `(explicit classification is required from schema ` +
+          `${MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM}).`,
+      );
+    }
+  }
+}
+
+/**
+ * D4: the rollback classification of every migration, in version order. This
+ * is reported by `doctor --json` so an upgrader can classify the pending path
+ * of the candidate it is about to install without importing the candidate's
+ * code. Migrations below the review floor default to `rollback-compatible`;
+ * marking one `forward-only` is a deliberate review decision recorded beside
+ * it, and an unclassified migration at or above the floor is refused.
+ */
+export function describeMigrationRollbackPolicy(
+  migrations: readonly Pick<
+    DatabaseMigration,
+    "version" | "name" | "rollback"
+  >[] = DATABASE_MIGRATIONS,
+): readonly MigrationRollbackPolicyEntry[] {
+  assertMigrationRollbackClassifications(migrations);
+  return migrations.map(({ version, name, rollback }) => ({
+    version,
+    name,
+    rollback: rollback ?? "rollback-compatible",
+  }));
+}
+
+export function validateMigrationRegistry(
+  migrations: readonly Pick<
+    DatabaseMigration,
+    "version" | "name" | "rollback"
+  >[] = DATABASE_MIGRATIONS,
+): void {
+  assertMigrationRollbackClassifications(migrations);
   let previousVersion = 0;
   const names = new Set<string>();
   for (const migration of migrations) {
@@ -885,6 +1076,31 @@ const REQUIRED_COLUMNS = {
     "active_thread_id",
     "last_error",
     "blocked_reason",
+  ],
+  // B1 durable canonical-gap evidence (migration 48).
+  runtime_persistence_epoch: ["id", "epoch", "armed", "armed_at"],
+  thread_runtime_gaps: [
+    "thread_id",
+    "reason",
+    "refused_events",
+    "refused_bytes",
+    "epoch",
+    "created_at",
+    // B1 GUI durable-gap recovery (migration 49).
+    "episode_id",
+  ],
+  thread_runtime_epoch_touches: ["thread_id", "epoch", "touched_at"],
+  // B1 GUI durable-gap recovery notice (migration 49).
+  thread_runtime_gap_notices: [
+    "thread_id",
+    "acknowledged_token",
+    "source",
+    "reason",
+    "refused_events",
+    "refused_bytes",
+    "acknowledged_count",
+    "first_acknowledged_at",
+    "last_acknowledged_at",
   ],
 } as const;
 

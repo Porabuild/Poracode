@@ -41,6 +41,13 @@ export interface TerminalBaselineStreamDeps {
   ) => boolean;
   /** Send a pre-serialized chunk message. Returns false when the socket is gone. */
   readonly sendRaw: (ws: WebSocket, data: string) => boolean;
+  /**
+   * B3 accounting hook: a stream (active or queued) left the scheduler —
+   * completed, replaced, or the connection closed. Releases the principal's
+   * retained-baseline reservation at the exact settle point; the reservation
+   * itself is one-shot, so a later `clearConnection` cannot double-release.
+   */
+  readonly onStreamRemoved?: (ws: WebSocket, spec: TerminalBaselineStreamSpec) => void;
 }
 
 export interface TerminalBaselineStreamSpec {
@@ -138,6 +145,9 @@ export class TerminalBaselineStreamScheduler {
 
   /** Connection teardown: drop every stream and queued baseline. */
   clearConnection(ws: WebSocket): void {
+    for (const list of [this.active.get(ws), this.queued.get(ws)]) {
+      for (const stream of list ?? []) this.deps.onStreamRemoved?.(ws, stream.spec);
+    }
     this.active.delete(ws);
     this.queued.delete(ws);
     this.controlPending.delete(ws);
@@ -145,6 +155,9 @@ export class TerminalBaselineStreamScheduler {
 
   /** Full reset (server dispose): drop every connection's streams. */
   clearAll(): void {
+    for (const [ws, list] of [...this.active, ...this.queued]) {
+      for (const stream of list) this.deps.onStreamRemoved?.(ws, stream.spec);
+    }
     this.active.clear();
     this.queued.clear();
     this.controlPending.clear();
@@ -178,7 +191,8 @@ export class TerminalBaselineStreamScheduler {
   private removeActive(ws: WebSocket, index: number): void {
     const list = this.active.get(ws);
     if (!list) return;
-    list.splice(index, 1);
+    const [removed] = list.splice(index, 1);
+    if (removed) this.deps.onStreamRemoved?.(ws, removed.spec);
     if (list.length === 0) {
       this.active.delete(ws);
       this.controlPending.delete(ws);

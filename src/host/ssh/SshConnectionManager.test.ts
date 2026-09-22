@@ -21,12 +21,13 @@ import {
 } from "@/shared/sshRuntimeManifest";
 import { sshConnectionConfigSchema, type SshConnectionConfig } from "@/shared/ssh";
 import * as sshBootstrap from "@/shared/sshBootstrap";
-import { waitForRemoteEndpoint } from "@/shared/sshBootstrap";
+import { SshBootstrapRefusedError, waitForRemoteEndpoint } from "@/shared/sshBootstrap";
 import {
   buildScpArgs,
   buildSshBaseArgs,
   parseSshConfigHosts,
   SshConnectionManager,
+  sshTunnelConfigKey,
 } from "./SshConnectionManager";
 import { ensureSshRuntimeBundle } from "./runtimeBundle";
 import { RUNTIME_BUILD_SOURCE_HASH } from "@/shared/runtimeBuildIdentity";
@@ -176,11 +177,7 @@ function installTunnel(
     }
   ).tunnels;
   tunnels.set(remoteConnection.id, {
-    configKey: JSON.stringify({
-      target: remoteConnection.target,
-      port: remoteConnection.port ?? null,
-      identityFile: remoteConnection.identityFile ?? null,
-    }),
+    configKey: sshTunnelConfigKey(remoteConnection),
     connection: remoteConnection,
     endpoint: "http://127.0.0.1:49152/",
     localPort: 49152,
@@ -459,7 +456,12 @@ describe("SSH tunnel lifecycle", () => {
     const replacementChild = fakeTunnelChild();
     const remoteConnection = tunnelConnection();
     installTunnel(manager, remoteConnection, bundle.hash, staleChild);
-    const bootstrap = vi.spyOn(sshBootstrap, "bootstrapRemoteRuntime").mockResolvedValue(49154);
+    const bootstrap = vi.spyOn(sshBootstrap, "bootstrapRemoteRuntime").mockResolvedValue({
+      remotePort: 49154,
+      reusedOwner: false,
+      ownerRuntimeHash: bundle.hash,
+      ownerAppVersion: bundle.version,
+    });
     const openTunnel = vi
       .spyOn(
         manager as unknown as {
@@ -484,40 +486,60 @@ describe("SSH tunnel lifecycle", () => {
     await manager.dispose();
   });
 
-  it.each(["0.1.0", "f00ba47c0ffee"])(
-    "upgrades a reachable helper advertising stale version %s",
+  it.each(["0.1.0", "99.0.0", "f00ba47c0ffee"])(
+    "reuses a reachable helper advertising a different version %s without replacing it",
     async (remoteVersion) => {
       const options = createRuntimeFixture();
-      const bundle = ensureSshRuntimeBundle(options);
+      ensureSshRuntimeBundle(options);
       const manager = new SshConnectionManager({
         ...options,
         fetchImpl: descriptorEndpoint(remoteVersion),
       });
       const oldChild = fakeTunnelChild();
-      const replacementChild = fakeTunnelChild();
       const remoteConnection = tunnelConnection();
-      installTunnel(manager, remoteConnection, bundle.hash, oldChild);
-      const bootstrap = vi.spyOn(sshBootstrap, "bootstrapRemoteRuntime").mockResolvedValue(49154);
-      vi.spyOn(
-        manager as unknown as {
-          openTunnel(
-            connection: SshConnectionConfig,
-            localPort: number,
-            remotePort: number,
-            endpoint: string,
-          ): Promise<never>;
-        },
-        "openTunnel",
-      ).mockResolvedValue(replacementChild as never);
+      installTunnel(manager, remoteConnection, "b".repeat(64), oldChild);
+      const bootstrap = vi.spyOn(sshBootstrap, "bootstrapRemoteRuntime");
 
-      await manager.connect({ connection: remoteConnection });
+      const result = await manager.connect({ connection: remoteConnection });
 
-      expect(oldChild.kill).toHaveBeenCalledOnce();
-      expect(bootstrap).toHaveBeenCalledOnce();
+      // A runtime-hash or app-version difference is never permission to
+      // replace a live shared owner: no signal, no rebootstrap.
+      expect(oldChild.kill).not.toHaveBeenCalled();
+      expect(bootstrap).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        connectionId: remoteConnection.id,
+        endpoint: "http://127.0.0.1:49152/",
+        remotePort: 49153,
+      });
 
       await manager.dispose();
     },
   );
+
+  it("surfaces a typed bootstrap refusal after closing only the local tunnel", async () => {
+    const options = createRuntimeFixture();
+    const bundle = ensureSshRuntimeBundle(options);
+    const manager = new SshConnectionManager({
+      ...options,
+      fetchImpl: (async () => {
+        throw new Error("helper offline");
+      }) as typeof fetch,
+    });
+    const staleChild = fakeTunnelChild();
+    const remoteConnection = tunnelConnection();
+    installTunnel(manager, remoteConnection, bundle.hash, staleChild);
+    vi.spyOn(sshBootstrap, "bootstrapRemoteRuntime").mockRejectedValue(
+      new SshBootstrapRefusedError("owner-incompatible", "0.0.1", 99),
+    );
+
+    await expect(manager.connect({ connection: remoteConnection })).rejects.toMatchObject({
+      name: "SshBootstrapRefusedError",
+      code: "owner-incompatible",
+    });
+    expect(staleChild.kill).toHaveBeenCalledOnce();
+
+    await manager.dispose();
+  });
 });
 
 describe("SSH helper readiness", () => {

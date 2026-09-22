@@ -290,11 +290,20 @@ export function initDatabase(
   const receiptCutoff = Date.now() - REMOTE_COMMAND_RECEIPTS_RETENTION_DAYS * 86_400_000;
   sqlite.prepare("DELETE FROM remote_command_receipts WHERE updated_at < ?").run(receiptCutoff);
 
-  // No command can still be executing across a process restart, so every
-  // receipt left `in_progress` on disk is stale; keeping it would 409 every
-  // deterministic client retry until the retention cutoff. `failed` rows
-  // survive so callers keep their typed failure until retention expires.
-  sqlite.prepare("DELETE FROM remote_command_receipts WHERE state = 'in_progress'").run();
+  // No command can still be executing across a process restart, but an
+  // interrupted command may already have produced an external side effect.
+  // Deleting its receipt would turn a deterministic client retry into a second
+  // execution, so interrupted rows are preserved as `uncertain` (B2): a retry
+  // gets a typed ambiguous outcome and is reconciled through the operation's
+  // own durable journal where one exists. Refreshing `updated_at` keeps the
+  // unresolved row inside the retention window for that reconciliation.
+  sqlite
+    .prepare(
+      `UPDATE remote_command_receipts
+       SET state = 'uncertain', updated_at = ?
+       WHERE state = 'in_progress'`,
+    )
+    .run(Date.now());
 
   // Bound the revert journal: settled operations are replay history and age
   // out with the same retention window. `running` rows are kept regardless of

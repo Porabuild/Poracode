@@ -1,6 +1,7 @@
 import { realpathSync } from "node:fs";
 import { posix, win32 } from "node:path";
 import type {
+  CreateExperimentWorktreesPayload,
   Experiment,
   GitDeleteBranchPayload,
   GitMergeToSourcePayload,
@@ -19,7 +20,17 @@ import {
 } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
 import { buildWorktreeLocation } from "@/shared/worktree";
-import { dbGetProjects, dbGetState, dbGetThreads, dbSetState } from "@/host/db";
+import {
+  awaitProjectExperimentWorktreePreparations,
+  beginProjectExperimentWorktreePreparation,
+  dbGetProjects,
+  dbGetState,
+  dbGetThreads,
+  dbProjectExists,
+  dbRemoveProjectExperiments,
+  isProjectRemoving,
+  ProjectRemovingError,
+} from "@/host/db";
 import { RemoteHttpError } from "./auth";
 
 function unavailable(): never {
@@ -69,6 +80,24 @@ export function readPersistedExperiments(): Experiment[] {
   }
 }
 
+/**
+ * Project-removal experiment cleanup, run while the shared project-removal
+ * guard is held.
+ *
+ * The record ids are captured BEFORE the worktree await (exact-id removal, not
+ * "all records with this projectId"): a concurrent same-project commit is
+ * impossible because the guard refuses new experiment intents and the worktree
+ * preparation boundary for the whole span, and the removal helper re-reads and
+ * matches each parsed record's projectId inside its own transaction.
+ *
+ * In-flight experiment worktree preparation is drained before the teardown
+ * call: the removal guard refuses new preparations from this point, and a
+ * preparation that was already running is awaited so the teardown sees every
+ * worktree it may still be creating (a delayed create queued behind the
+ * serialized repository queue can otherwise produce an orphan after cleanup).
+ * A failed teardown still propagates and leaves the records in place for a
+ * retry.
+ */
 export async function discardPersistedProjectExperiments(
   project: Project,
   removeWorktrees: (
@@ -78,6 +107,10 @@ export async function discardPersistedProjectExperiments(
   const projectExperiments = readPersistedExperiments().filter(
     (experiment) => experiment.projectId === project.id,
   );
+  const recordIds = projectExperiments.map((experiment) => experiment.id);
+
+  await awaitProjectExperimentWorktreePreparations(project.id);
+
   for (const experiment of projectExperiments) {
     const candidates = experiment.candidates.filter(
       (candidate) => candidate.worktreeState !== "removed",
@@ -96,18 +129,68 @@ export async function discardPersistedProjectExperiments(
     if (failure?.error) throw new Error(failure.error);
   }
 
-  const experiments = Object.fromEntries(
-    readPersistedExperiments()
-      .filter((experiment) => experiment.projectId !== project.id)
-      .map((experiment) => [experiment.id, experiment]),
-  );
-  dbSetState(
-    EXPERIMENT_STORE_KEY,
-    JSON.stringify({
-      state: { experiments },
-      version: EXPERIMENT_STORE_VERSION,
-    }),
-  );
+  const removed = dbRemoveProjectExperiments(project.id, recordIds);
+  if (removed.status === "unavailable") unavailable();
+}
+
+/**
+ * Stale experiment worktree preparation refusal. A `createExperimentWorktrees`
+ * request is only legitimate while every named candidate is an ACTIVE
+ * (not-removed) candidate of a persisted experiment whose project still exists
+ * and is not being removed. The renderer persists the experiment before it
+ * invokes the worktree preparation, so a missing/retired ownership here is a
+ * delayed request whose record was removed — creating its worktrees would
+ * orphan them. Returns the owning project so the boundary can register the
+ * in-flight preparation with the project-removal guard.
+ */
+export function claimExperimentWorktreePreparation(payload: CreateExperimentWorktreesPayload): {
+  readonly experimentId: string;
+  readonly projectId: string;
+} {
+  const matches = readPersistedExperiments().flatMap((experiment) => {
+    const byOwnerToken = new Map(
+      experiment.candidates
+        .filter((candidate) => candidate.worktreeState !== "removed")
+        .map((candidate) => [candidate.worktreeOwnerToken, candidate]),
+    );
+    const covers = payload.candidates.every((requested) => {
+      const candidate = byOwnerToken.get(requested.ownerToken);
+      return (
+        candidate !== undefined &&
+        candidate.threadId === requested.threadId &&
+        candidate.worktreeBranch === requested.branch
+      );
+    });
+    return covers ? [{ experimentId: experiment.id, projectId: experiment.projectId }] : [];
+  });
+
+  const claim = matches[0];
+  if (!claim || matches.length !== 1) {
+    throw new Error(
+      "Experiment worktree preparation was refused: the requested candidates are not owned by a current experiment.",
+    );
+  }
+  if (isProjectRemoving(claim.projectId)) throw new ProjectRemovingError(claim.projectId);
+  if (!dbProjectExists(claim.projectId)) {
+    throw new Error(
+      `Experiment worktree preparation was refused: project "${claim.projectId}" no longer exists.`,
+    );
+  }
+  return claim;
+}
+
+/** Runs one experiment worktree preparation under the project-removal guard. */
+export async function runOwnedExperimentWorktreePreparation<Result>(
+  payload: CreateExperimentWorktreesPayload,
+  preparation: () => Promise<Result>,
+): Promise<Result> {
+  const claim = claimExperimentWorktreePreparation(payload);
+  const release = beginProjectExperimentWorktreePreparation(claim.projectId);
+  try {
+    return await preparation();
+  } finally {
+    release();
+  }
 }
 
 export function assertRemoteThreadCommandExperimentSafe(command: RemoteThreadCommand): void {

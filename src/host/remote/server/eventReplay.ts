@@ -7,9 +7,11 @@ import type { RemoteServerContext } from "./context";
  * serialization, and degrading to `resync-required` when the window expired.
  * Live fan-out excludes the client until caught up (the membership set).
  *
- * `frameFor` returns the wire frame for one entry, or null to terminate the
- * socket (a scoping error is fatal by policy). `resyncSeq` is the CURRENT
- * head sequence reported inside the resync frame. */
+ * `frameFor` returns the wire frame for one entry or `resync` to terminate the
+ * pump with the current head `resync-required` frame for THIS socket (the
+ * bounded-catalog undeclared case, exactly like window expiry — a scoping
+ * error is fatal by policy instead and throws). `resyncSeq` is the CURRENT head
+ * sequence reported inside the resync frame. */
 export function replayBoundedHistory<Entry extends { readonly seq: number }>(
   socket: WebSocket,
   lastSeenSeq: number,
@@ -27,12 +29,22 @@ export function replayBoundedHistory<Entry extends { readonly seq: number }>(
       onSendCompleted: (error: Error | null | undefined) => void,
     ) => boolean;
     readonly resync: { readonly seq: number; readonly reason: string };
-    frameFor(entry: Entry): string;
+    frameFor(
+      entry: Entry,
+    ): { readonly kind: "frame"; readonly data: string } | { readonly kind: "resync" };
   },
 ): void {
   let cursor = lastSeenSeq;
   const stop = (): void => {
     source.membership.delete(socket);
+  };
+  const requestResync = (): void => {
+    stop();
+    source.send(socket, {
+      type: "resync-required",
+      seq: source.resync.seq,
+      reason: source.resync.reason,
+    });
   };
   const pump = (): void => {
     if (!source.membership.has(socket)) return;
@@ -51,22 +63,26 @@ export function replayBoundedHistory<Entry extends { readonly seq: number }>(
     // buffer, so the index alone cannot prove contiguity — verify the entry
     // really is the next one before sending it.
     if (!entry || entry.seq !== cursor + 1) {
-      stop();
-      source.send(socket, {
-        type: "resync-required",
-        seq: source.resync.seq,
-        reason: source.resync.reason,
-      });
+      requestResync();
       return;
     }
-    let data: string;
+    let frame: { readonly kind: "frame"; readonly data: string } | { readonly kind: "resync" };
     try {
-      data = source.frameFor(entry);
+      frame = source.frameFor(entry);
     } catch {
       stop();
       socket.terminate();
       return;
     }
+    if (frame.kind === "resync") {
+      // The entry is not deliverable to THIS socket (an undeclared client
+      // crossing a bounded catalog signal): resync and stop, like window
+      // expiry, so the client refetches authoritative state and later live
+      // frames still reach it.
+      requestResync();
+      return;
+    }
+    const data = frame.data;
     const sent = source.sendRaw(socket, data, (error) => {
       if (error) {
         stop();
@@ -83,7 +99,13 @@ export function replayBoundedHistory<Entry extends { readonly seq: number }>(
 
 type ReplayContext = Pick<
   RemoteServerContext,
-  "replayingClients" | "seq" | "eventBuffer" | "send" | "sendRaw" | "scopeEventForClient"
+  | "replayingClients"
+  | "seq"
+  | "eventBuffer"
+  | "boundedCatalogChangeClients"
+  | "send"
+  | "sendRaw"
+  | "scopeEventForClient"
 >;
 
 /** Reads the shared bounded history one frame at a time, including events
@@ -91,7 +113,12 @@ type ReplayContext = Pick<
  *
  * WS5: the buffer is seq-contiguous, so each step seeks by index (`seq -
  * buffer[0].seq`) instead of scanning, and reuses the entry's ingest-time
- * serialization unless per-client scoping actually rewrote the event. */
+ * serialization unless per-client scoping actually rewrote the event.
+ *
+ * Bounded catalog changes: the retained entry is the canonical signal. A
+ * declared socket replays the signal frame; an undeclared socket gets one
+ * per-socket `resync-required` and the pump stops (the live full list was
+ * never retained). */
 export function replayEvents(ctx: ReplayContext, socket: WebSocket, lastSeenSeq: number): void {
   replayBoundedHistory(socket, lastSeenSeq, {
     membership: ctx.replayingClients,
@@ -109,10 +136,15 @@ export function replayEvents(ctx: ReplayContext, socket: WebSocket, lastSeenSeq:
       return { seq: ctx.seq, reason: "Event replay window expired; request a fresh snapshot." };
     },
     frameFor: (entry) => {
+      if (entry.catalogChange === "signal" && !ctx.boundedCatalogChangeClients.has(socket)) {
+        return { kind: "resync" };
+      }
       const scoped = ctx.scopeEventForClient(entry.event, socket);
-      return scoped === entry.event
-        ? `{"type":"event","seq":${entry.seq},"space":"loopback","event":${entry.json}}`
-        : JSON.stringify({ type: "event", seq: entry.seq, space: "loopback", event: scoped });
+      const data =
+        scoped === entry.event
+          ? `{"type":"event","seq":${entry.seq},"space":"loopback","event":${entry.json}}`
+          : JSON.stringify({ type: "event", seq: entry.seq, space: "loopback", event: scoped });
+      return { kind: "frame", data };
     },
   });
 }

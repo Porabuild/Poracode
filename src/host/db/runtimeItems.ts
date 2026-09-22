@@ -1,22 +1,47 @@
 import Database from "better-sqlite3";
-import type { RuntimeEvent, ThreadContextUsage, ToolCallPayload } from "@/shared/contracts";
+import type { RuntimeEvent, ThreadContextUsage } from "@/shared/contracts";
 import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
-import { inlineImagePayloadRenders } from "@/shared/inlineImagePayload";
 import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
-import { isSubAgentTool } from "@/shared/toolCallClassification";
-import { getSqlite, registerBeforeDatabaseClose } from "./connection";
+import { getSqlite } from "./connection";
 import { safeParse } from "./rowMappers";
+import { clearThreadStreamChunks, streamHasContent, writeItemStreams } from "./runtimeStreamStore";
 import {
-  appendStreamDelta,
-  assembleItemStreams,
-  clearThreadStreamChunks,
-  clearItemStream,
-  readStreamTails,
-  streamHasContent,
-  type ItemStreamTails,
-  writeItemStreams,
-} from "./runtimeStreamStore";
-import { RuntimeWriteQueue } from "./runtimeWriteQueue";
+  chunkValues,
+  classifyRuntimeTimelineEntry,
+  mapRuntimeItemRow,
+  mapRuntimeItemRows,
+  placeholders,
+  runtimeItemState,
+  selectRuntimePageRows,
+  type RuntimeTimelineItemRow,
+  type RuntimeTimelineKind,
+} from "./runtimeTimelineReads";
+import {
+  applyRuntimeEvents,
+  beginRuntimeFence,
+  discardRuntimeWrites,
+  flushRuntimeFence,
+  getRuntimeDurableGapRebaseEpoch,
+  hasPendingRuntimeWrites,
+  readRuntimeFence,
+  releaseRuntimeFence,
+  runThreadRuntimeMutation,
+  runtimePersistenceController,
+  tryRunThreadRuntimeMutation,
+} from "./runtimePersistenceRuntime";
+import { clearThreadDurableGapRowsInTransaction } from "./runtimeDurableGap";
+import {
+  readThreadContextUsageInSqlite,
+  replaceThreadContextUsageInSqlite,
+  threadExistsInSqlite,
+  withRuntimeBusyTimeout,
+} from "./runtimeItemsWriter";
+import {
+  RuntimePersistenceContaminatedError,
+  RuntimePersistenceDegradedError,
+  type RuntimeAdmission,
+  type RuntimeFenceResult,
+} from "./runtimePersistenceTypes";
 
 /**
  * Persisted canonical chat items per thread. Stored as a flat table keyed by
@@ -43,41 +68,12 @@ export interface ThreadRuntimeSummary {
 
 const SQLITE_IN_CHUNK_SIZE = 500;
 
-interface PersistedRuntimeItemRow {
-  item_id: string;
-  type: string;
-  state: string;
-  payload: string | null;
-  streams: string | null;
-  parent_item_id: string | null;
-}
+/** Row shape of the ordered-transcript reader; shared with the bounded reader. */
+type PersistedRuntimeItemRow = RuntimeTimelineItemRow;
 
 interface PositionedPersistedRuntimeItemRow extends PersistedRuntimeItemRow {
   position: number;
 }
-
-const RUNTIME_PAGE_BOUNDARY_SCAN_SIZE = 200;
-const RUNTIME_PAGE_MAX_RAW_ITEMS = 5_000;
-const RUNTIME_PAGE_HIDDEN_TYPES = new Set(["plan", "goal", "error", RUNTIME_REQUEST_ITEM_TYPE]);
-const RUNTIME_PAGE_NAMED_TOOL_TYPES = new Set([
-  "tool_call",
-  "mcp_tool_call",
-  "image_view",
-  "dynamic_tool_call",
-]);
-const RUNTIME_PAGE_GROUP_TYPES = new Set([
-  "tool_call",
-  "mcp_tool_call",
-  "image_view",
-  "dynamic_tool_call",
-  "command_execution",
-  "file_change",
-  "web_search",
-  "reasoning",
-]);
-
-/** Item id for a persisted open request, keyed by its request id. */
-const runtimeRequestItemId = (requestId: string) => `${RUNTIME_REQUEST_ITEM_TYPE}:${requestId}`;
 
 interface ThreadRuntimeSummaryStatementRunner {
   all(...values: string[]): unknown[];
@@ -85,55 +81,6 @@ interface ThreadRuntimeSummaryStatementRunner {
 
 interface ThreadRuntimeSummaryQueryRunner {
   prepare(sql: string): ThreadRuntimeSummaryStatementRunner;
-}
-
-function runtimeItemState(state: string): PersistedRuntimeItem["state"] {
-  return state === "completed" || state === "updated" ? state : "started";
-}
-
-function mapRuntimeItemRow(
-  row: PersistedRuntimeItemRow,
-  tails?: ItemStreamTails,
-): PersistedRuntimeItem {
-  const head = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
-  return {
-    id: row.item_id,
-    type: row.type,
-    state: runtimeItemState(row.state),
-    payload: row.payload ? safeParse(row.payload) : undefined,
-    streams: assembleItemStreams(head, tails),
-    ...(row.parent_item_id ? { parentItemId: row.parent_item_id } : {}),
-  };
-}
-
-/**
- * Map rows to items with their appended stream tails. Chunks are fetched for
- * the whole batch at once so a 500-row page costs one extra query, not 500.
- */
-function mapRuntimeItemRows(
-  sqlite: InstanceType<typeof Database>,
-  threadId: string,
-  rows: readonly PersistedRuntimeItemRow[],
-): PersistedRuntimeItem[] {
-  if (rows.length === 0) return [];
-  const tails = readStreamTails(
-    sqlite,
-    threadId,
-    rows.map((row) => row.item_id),
-  );
-  return rows.map((row) => mapRuntimeItemRow(row, tails.get(row.item_id)));
-}
-
-function chunkValues<T>(values: readonly T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let index = 0; index < values.length; index += size) {
-    chunks.push(values.slice(index, index + size));
-  }
-  return chunks;
-}
-
-function placeholders(count: number): string {
-  return Array.from({ length: count }, () => "?").join(", ");
 }
 
 /**
@@ -207,15 +154,80 @@ export function dbReadThreadRuntimeSummaries(
   return summaries;
 }
 
-export function dbGetThreadRuntimeSummaries(
+/**
+ * Committed-only projection for shell summaries. Summaries are not an ordered
+ * transcript: they deliberately do not flush pending canonical events, carry no
+ * cursor, and disclose lag. Callers that need a cursor-consistent transcript
+ * use the fence-based readers.
+ */
+export function dbGetThreadRuntimeSummariesCommitted(
   threadIds: readonly string[],
 ): Record<string, ThreadRuntimeSummary> {
-  for (const threadId of threadIds) runtimeWriteQueue.flush(threadId);
   return dbReadThreadRuntimeSummaries(getSqlite(), threadIds);
 }
 
-export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[] {
-  runtimeWriteQueue.flush(threadId);
+/**
+ * Run a cursor-bearing ordered-transcript read behind the asynchronous
+ * committed-prefix fence: pin the prefix, commit it in chunks, then read
+ * synchronously in the same turn the fence is held. Throws typed refusals for
+ * degraded, contaminated, cancelled, or deadline outcomes so a short
+ * transcript is never served as current.
+ */
+async function readThreadWithFence<T>(threadId: string, read: () => T): Promise<T> {
+  const token = beginRuntimeFence(threadId);
+  const result = await flushRuntimeFence(token);
+  if (result.kind !== "committed") throw fenceRefusalError(threadId, result);
+  return readRuntimeFence(token, read);
+}
+
+/** Maps a failed fence outcome to the typed read refusal. */
+export function fenceRefusalError(
+  threadId: string,
+  result: Exclude<RuntimeFenceResult, { kind: "committed" }>,
+): RuntimePersistenceDegradedError | RuntimePersistenceContaminatedError {
+  if (result.kind === "contaminated") {
+    return new RuntimePersistenceContaminatedError(
+      threadId,
+      result.reason,
+      result.refusedEvents,
+      result.refusedBytes,
+      250,
+    );
+  }
+  if (result.kind === "degraded") {
+    return new RuntimePersistenceDegradedError(
+      threadId,
+      0,
+      0,
+      result.errorClass,
+      250,
+      result.error,
+    );
+  }
+  return new RuntimePersistenceDegradedError(
+    threadId,
+    0,
+    0,
+    "retryable",
+    250,
+    new Error(
+      result.kind === "cancelled"
+        ? "Runtime fence was cancelled."
+        : "Runtime fence deadline elapsed.",
+    ),
+  );
+}
+
+/**
+ * Ordered canonical transcript for a thread. Fenced: the content is exactly
+ * the committed prefix at the request's pinned cursor, or a typed refusal.
+ */
+export function dbGetThreadRuntimeItems(threadId: string): Promise<PersistedRuntimeItem[]> {
+  return readThreadWithFence(threadId, () => dbReadThreadRuntimeItems(threadId));
+}
+
+/** Synchronous committed-prefix read. Only call behind a held fence. */
+export function dbReadThreadRuntimeItems(threadId: string): PersistedRuntimeItem[] {
   const sqlite = getSqlite();
   const rows = sqlite
     .prepare(
@@ -226,16 +238,14 @@ export function dbGetThreadRuntimeItems(threadId: string): PersistedRuntimeItem[
 }
 
 /**
- * Reads one runtime item by id. Exists so the remote image endpoint can resolve
- * a single inline image without loading a whole thread's payloads — a
- * screenshot-heavy transcript is hundreds of megabytes, so
- * `dbGetThreadRuntimeItems` is not an option on that path.
+ * Reads one runtime item by id from the committed prefix, without flushing and
+ * without claiming currency (no cursor). Exists so the remote image endpoint
+ * can resolve a single inline image without loading a whole thread's payloads.
  */
-export function dbGetThreadRuntimeItem(
+export function dbGetThreadRuntimeItemCommitted(
   threadId: string,
   itemId: string,
 ): PersistedRuntimeItem | null {
-  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   const row = sqlite
     .prepare(
@@ -245,9 +255,13 @@ export function dbGetThreadRuntimeItem(
   return row ? mapRuntimeItemRows(sqlite, threadId, [row])[0]! : null;
 }
 
-/** Reads the latest goal even when it precedes the paged transcript window. */
-export function dbGetLatestThreadGoalItem(threadId: string): PersistedRuntimeItem | null {
-  runtimeWriteQueue.flush(threadId);
+/** Fenced ordered-transcript read for the latest goal even when it precedes the page window. */
+export function dbGetLatestThreadGoalItem(threadId: string): Promise<PersistedRuntimeItem | null> {
+  return readThreadWithFence(threadId, () => dbReadLatestThreadGoalItem(threadId));
+}
+
+/** Synchronous committed-prefix read. Only call behind a held fence. */
+export function dbReadLatestThreadGoalItem(threadId: string): PersistedRuntimeItem | null {
   const sqlite = getSqlite();
   const row = sqlite
     .prepare(
@@ -261,13 +275,58 @@ export function dbGetLatestThreadGoalItem(threadId: string): PersistedRuntimeIte
   return row ? mapRuntimeItemRow(row) : null;
 }
 
+/** Fenced ordered-transcript page. Content is the committed prefix or typed refusal. */
 export function dbGetThreadRuntimeItemsPage(
   threadId: string,
   beforePosition: number | undefined,
   limit: number,
   targetTimelineEntryCount?: number,
+): Promise<PersistedRuntimePage> {
+  return readThreadWithFence(threadId, () =>
+    dbReadThreadRuntimeItemsPage(threadId, beforePosition, limit, targetTimelineEntryCount),
+  );
+}
+
+/**
+ * Every tool_call row that still reads as running, across all threads, with
+ * its parsed payload. Generic on purpose — no delegated-agent knowledge here —
+ * so boot-time maintenance (e.g. settling orphaned Crossagent runs when the
+ * run-owning supervisor process was replaced) can classify rows itself.
+ *
+ * Cost note: this is an unindexed scan (no index covers `type`/`state`), so
+ * it reads the whole table per call; callers are boot and supervisor reset
+ * only. The result set is small but not bounded by construction — native
+ * sub-agent rows whose terminal event never landed accumulate until the
+ * renderer's session-liveness reconcile settles their display. A partial
+ * index (`WHERE type = 'tool_call' AND state != 'completed'`) is the follow-up
+ * if these scans ever show up in boot profiles.
+ */
+export function dbReadRunningToolCallItems(): Array<{
+  threadId: string;
+  itemId: string;
+  payload: unknown;
+}> {
+  const rows = getSqlite()
+    .prepare(
+      `SELECT thread_id, item_id, payload
+       FROM thread_runtime_items
+       WHERE type = 'tool_call' AND state != 'completed'`,
+    )
+    .all() as Array<{ thread_id: string; item_id: string; payload: string | null }>;
+  return rows.map((row) => ({
+    threadId: row.thread_id,
+    itemId: row.item_id,
+    payload: row.payload === null ? undefined : safeParse(row.payload),
+  }));
+}
+
+/** Synchronous committed-prefix page read. Only call behind a held fence. */
+export function dbReadThreadRuntimeItemsPage(
+  threadId: string,
+  beforePosition: number | undefined,
+  limit: number,
+  targetTimelineEntryCount?: number,
 ): PersistedRuntimePage {
-  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   const childParentIds = new Set(
     (
@@ -297,96 +356,54 @@ export function dbGetThreadRuntimeItemsPage(
       ? readTailRows.all(threadId, rowLimit)
       : readOlderRows.all(threadId, cursor, rowLimit)) as PositionedPersistedRuntimeItemRow[];
 
-  const readPageRows = (cursor: number | undefined) => {
-    const rows = readRows(cursor, limit + 1);
-    const segmentRows = rows.slice(0, limit);
-    let lookaheadRows = rows.slice(limit);
-
-    // LegendList preserves the visible item by key when data is prepended. Keep
-    // any groupable run whole so loading an older page cannot change the key or
-    // contents of the first already-visible tool/reasoning group.
-    while (
-      segmentRows.length > 0 &&
-      isRuntimePageGroupItem(sqlite, threadId, segmentRows.at(-1)!, childParentIds) &&
-      lookaheadRows[0] &&
-      isRuntimePageGroupItem(sqlite, threadId, lookaheadRows[0], childParentIds)
-    ) {
-      const boundaryIndex = lookaheadRows.findIndex(
-        (row) => !isRuntimePageGroupItem(sqlite, threadId, row, childParentIds),
-      );
-      if (boundaryIndex >= 0) {
-        segmentRows.push(...lookaheadRows.slice(0, boundaryIndex));
-        lookaheadRows = lookaheadRows.slice(boundaryIndex);
-        break;
-      }
-      segmentRows.push(...lookaheadRows);
-      lookaheadRows = readRows(segmentRows.at(-1)!.position, RUNTIME_PAGE_BOUNDARY_SCAN_SIZE);
-    }
-
-    return { rows: segmentRows, hasMore: lookaheadRows.length > 0 };
-  };
+  const isTimelineGroup = (row: PositionedPersistedRuntimeItemRow): boolean =>
+    classifyRuntimeTimelineRow(sqlite, threadId, row, childParentIds) !== "item";
 
   if (targetTimelineEntryCount === undefined) {
-    const page = readPageRows(beforePosition);
+    const page = selectRuntimePageRows({
+      readRows,
+      isTimelineGroup,
+      classify: (row) => classifyRuntimeTimelineRow(sqlite, threadId, row, childParentIds),
+      ...(beforePosition !== undefined ? { beforePosition } : {}),
+      limit,
+    });
     return {
-      items: mapRuntimeItemRows(sqlite, threadId, page.rows.reverse()),
-      nextCursor: page.hasMore ? (page.rows[0]?.position ?? null) : null,
+      items: mapRuntimeItemRows(sqlite, threadId, [...page.rows].reverse()),
+      nextCursor: page.hasMore ? (page.rows.at(-1)?.position ?? null) : null,
     };
   }
 
-  const pageRows: PositionedPersistedRuntimeItemRow[] = [];
-  const timelineCount = { entries: 0, insideGroup: false };
-  let cursor = beforePosition;
-  let hasMore = false;
-  let completingTargetGroup = false;
-
-  pageScan: for (;;) {
-    const scanLimit = completingTargetGroup ? RUNTIME_PAGE_BOUNDARY_SCAN_SIZE : limit;
-    const rows = readRows(cursor, scanLimit + 1);
-    const scanRows = rows.slice(0, scanLimit);
-    const hasLookahead = rows.length > scanLimit;
-    if (scanRows.length === 0) break;
-
-    for (let index = 0; index < scanRows.length; index += 1) {
-      const row = scanRows[index]!;
-      if (completingTargetGroup && !isRuntimePageGroupItem(sqlite, threadId, row, childParentIds)) {
-        hasMore = true;
-        break pageScan;
-      }
-
-      pageRows.push(row);
-      cursor = row.position;
-      if (!completingTargetGroup) {
-        accumulateRuntimeTimelineEntryCount(sqlite, threadId, row, childParentIds, timelineCount);
-        if (timelineCount.entries >= targetTimelineEntryCount) {
-          completingTargetGroup = timelineCount.insideGroup;
-          if (!completingTargetGroup) {
-            hasMore = index < scanRows.length - 1 || hasLookahead;
-            break pageScan;
-          }
-        }
-      }
-    }
-
-    hasMore = hasLookahead;
-    if (!hasMore) break;
-    if (pageRows.length >= RUNTIME_PAGE_MAX_RAW_ITEMS && !completingTargetGroup) break;
-  }
-
-  const nextCursor = hasMore ? (pageRows.at(-1)?.position ?? null) : null;
+  const page = selectRuntimePageRows({
+    readRows,
+    isTimelineGroup,
+    classify: (row) => classifyRuntimeTimelineRow(sqlite, threadId, row, childParentIds),
+    ...(beforePosition !== undefined ? { beforePosition } : {}),
+    limit,
+    targetTimelineEntryCount,
+  });
   return {
-    items: mapRuntimeItemRows(sqlite, threadId, pageRows.reverse()),
-    nextCursor,
+    items: mapRuntimeItemRows(sqlite, threadId, [...page.rows].reverse()),
+    nextCursor: page.hasMore ? (page.rows.at(-1)?.position ?? null) : null,
   };
 }
 
-/** Read an exact page of conversational user/assistant messages, excluding tool and reasoning rows. */
+/** Fenced ordered-transcript page of conversational messages. */
 export function dbGetThreadConversationItemsPage(
   threadId: string,
   beforePosition: number | undefined,
   limit: number,
+): Promise<PersistedRuntimePage> {
+  return readThreadWithFence(threadId, () =>
+    dbReadThreadConversationItemsPage(threadId, beforePosition, limit),
+  );
+}
+
+/** Synchronous committed-prefix read. Only call behind a held fence. */
+export function dbReadThreadConversationItemsPage(
+  threadId: string,
+  beforePosition: number | undefined,
+  limit: number,
 ): PersistedRuntimePage {
-  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
   const rows = (
     beforePosition === undefined
@@ -419,355 +436,125 @@ export function dbGetThreadConversationItemsPage(
   };
 }
 
-function isRuntimePageGroupItem(
-  sqlite: InstanceType<typeof Database>,
-  threadId: string,
-  row: PositionedPersistedRuntimeItemRow,
-  childParentIds: ReadonlySet<string>,
-): boolean {
-  // Rows omitted from the top-level timeline do not break a visible tool run.
-  return classifyRuntimeTimelineRow(sqlite, threadId, row, childParentIds) !== "item";
-}
-
-function accumulateRuntimeTimelineEntryCount(
-  sqlite: InstanceType<typeof Database>,
-  threadId: string,
-  row: PositionedPersistedRuntimeItemRow,
-  childParentIds: ReadonlySet<string>,
-  state: { entries: number; insideGroup: boolean },
-): void {
-  const kind = classifyRuntimeTimelineRow(sqlite, threadId, row, childParentIds);
-  if (kind === "hidden") return;
-  if (kind === "group") {
-    if (!state.insideGroup) state.entries += 1;
-    state.insideGroup = true;
-    return;
-  }
-  state.entries += 1;
-  state.insideGroup = false;
-}
-
+/**
+ * Legacy adapter over the shared classifier: it supplies the two lazy text
+ * probes (parsed payload for named tools, stream content for completed
+ * reasoning) and nothing else. The hidden/group/item decision itself lives in
+ * `runtimeTimelineReads.ts` and is shared with the bounded history reader.
+ */
 function classifyRuntimeTimelineRow(
   sqlite: InstanceType<typeof Database>,
   threadId: string,
   row: PositionedPersistedRuntimeItemRow,
   childParentIds: ReadonlySet<string>,
-): "hidden" | "group" | "item" {
-  if (row.parent_item_id !== null || RUNTIME_PAGE_HIDDEN_TYPES.has(row.type)) return "hidden";
-  if (row.type === "reasoning" && row.state === "completed") {
-    const streams = row.streams ? safeParse(row.streams) : undefined;
-    const reasoningText =
-      streams && typeof streams === "object"
-        ? (streams as Record<string, unknown>).reasoning_text
+): RuntimeTimelineKind {
+  return classifyRuntimeTimelineEntry({
+    itemId: row.item_id,
+    type: row.type,
+    state: row.state,
+    parentItemId: row.parent_item_id,
+    childParentIds,
+    payload: () => {
+      const parsedPayload = row.payload ? safeParse(row.payload) : undefined;
+      return parsedPayload && typeof parsedPayload === "object"
+        ? (parsedPayload as Record<string, unknown>)
         : undefined;
-    if (
-      !streamHasContent(
+    },
+    reasoningHasContent: () => {
+      const streams = row.streams ? safeParse(row.streams) : undefined;
+      const reasoningText =
+        streams && typeof streams === "object"
+          ? (streams as Record<string, unknown>).reasoning_text
+          : undefined;
+      return streamHasContent(
         sqlite,
         threadId,
         row.item_id,
         "reasoning_text",
         typeof reasoningText === "string" ? reasoningText : undefined,
-      )
-    ) {
-      return "hidden";
-    }
-  }
-  let payload: Record<string, unknown> | undefined;
-  if (RUNTIME_PAGE_NAMED_TOOL_TYPES.has(row.type)) {
-    const parsedPayload = row.payload ? safeParse(row.payload) : undefined;
-    payload =
-      parsedPayload && typeof parsedPayload === "object"
-        ? (parsedPayload as Record<string, unknown>)
-        : undefined;
-    const name = payload && typeof payload.name === "string" ? payload.name : undefined;
-    if (!name?.trim()) return "hidden";
-  }
-  if (!RUNTIME_PAGE_GROUP_TYPES.has(row.type)) return "item";
-  if (childParentIds.has(row.item_id)) return "item";
-  if (
-    payload &&
-    (isSubAgentTool(payload as unknown as ToolCallPayload) || inlineImagePayloadRenders(payload))
-  ) {
-    return "item";
-  }
-  return "group";
+      );
+    },
+  });
 }
 
 /**
- * Buffered runtime writes. `dbApplyThreadRuntimeEvents` queues; the queue
- * coalesces each item's consecutive deltas and writes once per window, so a
- * streaming item costs a few row rewrites per second instead of one per chunk.
- * Every reader below drains the queue first, so nothing observes a stale
- * transcript.
- */
-const runtimeWriteQueue = new RuntimeWriteQueue((threadId, events) =>
-  applyThreadRuntimeEventsNow(threadId, events),
-);
-
-registerBeforeDatabaseClose(() => runtimeWriteQueue.flush());
-
-/**
- * Applies the supervisor's canonical runtime events to SQLite. This keeps the
- * main process as the durability owner without rewriting a thread's complete
- * transcript for every streaming batch.
+ * Applies the supervisor's canonical runtime events to SQLite through the
+ * bounded persistence controller. The controller owns admission, retry, and
+ * producer backpressure; the queue coalesces each item's consecutive deltas
+ * and writes once per window, so a streaming item costs a few row rewrites per
+ * second instead of one per chunk.
+ *
+ * The returned admission is the accepted/committed boundary: a refusal means
+ * the events were NOT accepted into host memory and the caller must treat the
+ * producer as backpressured, never as durable.
  */
 export function dbApplyThreadRuntimeEvents(
   threadId: string,
   events: readonly RuntimeEvent[],
-): void {
-  if (events.length === 0) return;
-  runtimeWriteQueue.enqueue(threadId, events);
+): RuntimeAdmission {
+  if (events.length === 0) {
+    return {
+      kind: "accepted",
+      persistSeq: 0,
+      estimatedBytes: 0,
+      acceptedEvents: 0,
+      refusedEvents: 0,
+      refusedBytes: 0,
+    };
+  }
+  return applyRuntimeEvents(threadId, events);
 }
 
 /**
- * Flush buffered runtime writes so a subsequent read sees them. Callers that
- * read or rewrite `thread_runtime_items` outside this module must go through
- * one of the exported readers, which already do this.
+ * Bounded asynchronous prefix flush for callers that need accepted runtime
+ * events committed before their own follow-up work. There is no synchronous
+ * "flush and claim latest" API left: the fence commits the pinned prefix in
+ * chunks and refuses typed instead of fabricating a complete result.
  */
-export function dbFlushThreadRuntimeWrites(threadId?: string): void {
-  runtimeWriteQueue.flush(threadId);
+export async function dbFlushThreadRuntimeWrites(threadId?: string): Promise<void> {
+  const threadIds =
+    threadId !== undefined ? [threadId] : runtimePersistenceController.pendingThreadIds();
+  for (const pendingThreadId of threadIds) {
+    const token = beginRuntimeFence(pendingThreadId);
+    const result = await flushRuntimeFence(token);
+    if (result.kind !== "committed") {
+      throw fenceRefusalError(pendingThreadId, result);
+    }
+    // This caller commits a prefix without reading behind it, so it owns the
+    // release: a held fence would pin the thread until its max-hold timer.
+    releaseRuntimeFence(token);
+  }
 }
 
 export function dbDiscardThreadRuntimeWrites(threadId: string): void {
-  runtimeWriteQueue.discard(threadId);
+  discardRuntimeWrites(threadId);
 }
 
-function applyThreadRuntimeEventsNow(threadId: string, events: readonly RuntimeEvent[]): void {
-  if (events.length === 0) return;
-  const sqlite = getSqlite();
-  sqlite
-    .transaction(() => {
-      if (!threadExistsInSqlite(sqlite, threadId)) return;
-
-      const getItem = sqlite.prepare(
-        "SELECT type, state, payload, streams FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
-      );
-      const nextPosition = sqlite.prepare(
-        "SELECT COALESCE(MAX(position), -1) + 1 AS position FROM thread_runtime_items WHERE thread_id = ?",
-      );
-      const insertItem = sqlite.prepare(
-        `INSERT OR IGNORE INTO thread_runtime_items
-         (thread_id, item_id, position, type, state, payload, streams, parent_item_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      );
-      const updateItem = sqlite.prepare(
-        `UPDATE thread_runtime_items
-       SET state = ?, payload = ?, streams = ?
-       WHERE thread_id = ? AND item_id = ?`,
-      );
-      const setItemState = sqlite.prepare(
-        "UPDATE thread_runtime_items SET state = ? WHERE thread_id = ? AND item_id = ?",
-      );
-      const deleteItem = sqlite.prepare(
-        "DELETE FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
-      );
-      const completeOpenRequests = sqlite.prepare(
-        `UPDATE thread_runtime_items SET state = 'completed'
-       WHERE thread_id = ? AND type = ? AND state != 'completed'`,
-      );
-
-      const readItem = (itemId: string) =>
-        getItem.get(threadId, itemId) as
-          | { type: string; state: string; payload: string | null; streams: string | null }
-          | undefined;
-      let nextItemPosition: number | undefined;
-      const appendItem = (item: PersistedRuntimeItem) => {
-        nextItemPosition ??= (nextPosition.get(threadId) as { position: number }).position;
-        insertItem.run(
-          threadId,
-          item.id,
-          nextItemPosition,
-          item.type,
-          item.state,
-          item.payload === undefined ? null : JSON.stringify(item.payload),
-          JSON.stringify(item.streams),
-          item.parentItemId ?? null,
-        );
-        nextItemPosition += 1;
-      };
-
-      for (const event of events) {
-        switch (event.type) {
-          case "item.started":
-            appendItem({
-              id: event.itemId,
-              type: event.itemType,
-              state: "started",
-              streams: {},
-              ...(event.payload !== undefined ? { payload: event.payload } : {}),
-              ...(event.parentItemId ? { parentItemId: event.parentItemId } : {}),
-            });
-            break;
-
-          case "item.updated": {
-            const row = readItem(event.itemId);
-            if (!row) break;
-            updateItem.run(
-              row.state === "completed" ? "completed" : "updated",
-              JSON.stringify(
-                mergePayload(row.payload ? safeParse(row.payload) : undefined, event.payload),
-              ),
-              row.streams ?? "{}",
-              threadId,
-              event.itemId,
-            );
-            break;
-          }
-
-          case "item.completed": {
-            const row = readItem(event.itemId);
-            if (!row) break;
-            const streams = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
-            if (
-              row.type === "reasoning" &&
-              !streamHasContent(
-                sqlite,
-                threadId,
-                event.itemId,
-                "reasoning_text",
-                streams.reasoning_text,
-              )
-            ) {
-              deleteItem.run(threadId, event.itemId);
-              break;
-            }
-            const previousPayload = row.payload ? safeParse(row.payload) : undefined;
-            const payload =
-              event.payload === undefined
-                ? previousPayload
-                : mergePayload(previousPayload, event.payload);
-            updateItem.run(
-              "completed",
-              payload === undefined ? null : JSON.stringify(payload),
-              row.streams ?? "{}",
-              threadId,
-              event.itemId,
-            );
-            break;
-          }
-
-          case "content.delta": {
-            const row = readItem(event.itemId);
-            if (!row) break;
-            const head = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
-            if (event.replace) {
-              clearItemStream(sqlite, threadId, event.itemId, event.stream);
-              head[event.stream] = "";
-            }
-            const appended = appendStreamDelta(sqlite, {
-              threadId,
-              itemId: event.itemId,
-              stream: event.stream,
-              delta: event.delta,
-              head: head[event.stream] ?? "",
-            });
-            const nextState = row.state === "completed" ? "completed" : "updated";
-            if (appended.head === undefined && !event.replace) {
-              // Content went entirely into the append-only tail, so the item row
-              // only needs its lifecycle state refreshed — no blob rewrite.
-              setItemState.run(nextState, threadId, event.itemId);
-              break;
-            }
-            updateItem.run(
-              nextState,
-              row.payload,
-              JSON.stringify({ ...head, [event.stream]: appended.head ?? "" }),
-              threadId,
-              event.itemId,
-            );
-            break;
-          }
-
-          case "context.updated": {
-            const previous = dbGetThreadContextUsageFromSqlite(sqlite, threadId);
-            replaceThreadContextUsageInSqlite(
-              sqlite,
-              threadId,
-              mergeContextUsage(previous, event.usage),
-            );
-            break;
-          }
-
-          case "turn.completed":
-            if (event.state === "interrupted" || event.state === "cancelled") {
-              pruneTrailingInterruptedReasoningItems(sqlite, threadId);
-            }
-            // A finished turn no longer blocks on an approval/question. Retire any
-            // request items left open (e.g. an interrupted turn that never emitted
-            // `request.resolved`) so a later snapshot cannot resurrect a stale
-            // pending request.
-            completeOpenRequests.run(threadId, RUNTIME_REQUEST_ITEM_TYPE);
-            break;
-
-          case "usage.spent":
-            // Token consumption is not a chat item; the usage ledger persists it
-            // (recordUsageSpentFromRuntimeEvents) alongside this function.
-            break;
-
-          case "request.opened": {
-            // Persist the open request so a remote client that missed the live
-            // broadcast can recover it from the thread snapshot. The payload shape
-            // mirrors what `requestsFromRuntimeItems` reads back on recovery.
-            const itemId = runtimeRequestItemId(event.requestId);
-            const payload = {
-              requestId: event.requestId,
-              requestType: event.requestType,
-              payload: event.payload,
-            };
-            const row = readItem(itemId);
-            if (row) {
-              updateItem.run(
-                "started",
-                JSON.stringify(payload),
-                row.streams ?? "{}",
-                threadId,
-                itemId,
-              );
-            } else {
-              appendItem({
-                id: itemId,
-                type: RUNTIME_REQUEST_ITEM_TYPE,
-                state: "started",
-                streams: {},
-                payload,
-              });
-            }
-            break;
-          }
-
-          case "request.resolved": {
-            const itemId = runtimeRequestItemId(event.requestId);
-            const row = readItem(itemId);
-            if (!row) break;
-            updateItem.run("completed", row.payload, row.streams ?? "{}", threadId, itemId);
-            break;
-          }
-
-          default:
-            break;
-        }
-      }
-    })
-    .immediate();
+export function dbHasPendingThreadRuntimeWrites(threadId?: string): boolean {
+  return hasPendingRuntimeWrites(threadId);
 }
 
-export function dbReplaceThreadRuntimeItems(threadId: string, items: PersistedRuntimeItem[]): void {
-  runtimeWriteQueue.discard(threadId);
-  const sqlite = getSqlite();
-  sqlite
-    .transaction(() => {
-      if (!threadExistsInSqlite(sqlite, threadId)) return;
-      replaceThreadRuntimeItemsInSqlite(sqlite, threadId, items);
-    })
-    .immediate();
-}
-
-function threadExistsInSqlite(sqlite: InstanceType<typeof Database>, threadId: string): boolean {
-  return (
-    (sqlite.prepare("SELECT 1 FROM threads WHERE id = ?").get(threadId) as
-      | { "1": number }
-      | undefined) !== undefined
-  );
+/**
+ * Wholesale runtime replacement. This is an authoritative rebase: the gate
+ * commits the accepted prefix for a clean thread, applies the replacement, and
+ * records an explicit supersede for a contaminated thread (the rebase is that
+ * thread's recovery).
+ */
+export async function dbReplaceThreadRuntimeItems(
+  threadId: string,
+  items: PersistedRuntimeItem[],
+): Promise<void> {
+  await runThreadRuntimeMutation(threadId, "replace", () => {
+    const sqlite = getSqlite();
+    withRuntimeBusyTimeout(() => {
+      sqlite
+        .transaction(() => {
+          if (!threadExistsInSqlite(sqlite, threadId)) return;
+          replaceThreadRuntimeItemsInSqlite(sqlite, threadId, items);
+        })
+        .immediate();
+    });
+  });
 }
 
 function replaceThreadRuntimeItemsInSqlite(
@@ -775,6 +562,12 @@ function replaceThreadRuntimeItemsInSqlite(
   threadId: string,
   items: PersistedRuntimeItem[],
 ): void {
+  // Authoritative rebase: clear exact gap evidence and older-epoch touches in
+  // the SAME transaction as the transcript replacement. The current boot's
+  // touch is preserved when it existed, so a live producer that was launched
+  // in this boot stays covered across the rebase (it re-enters through the
+  // mandatory admission touch, which is a no-op while that row survives).
+  clearThreadDurableGapRowsInTransaction(sqlite, threadId, getRuntimeDurableGapRebaseEpoch());
   // A wholesale replace supplies each item's complete stream text, so any
   // append-only tail left from streaming is stale and must go with it.
   const replace = sqlite.prepare(
@@ -817,9 +610,30 @@ function replaceThreadRuntimeItemsInSqlite(
   }
 }
 
-export function dbClearThreadRuntimeItems(threadId: string): void {
-  runtimeWriteQueue.discard(threadId);
-  getSqlite().prepare("DELETE FROM thread_runtime_items WHERE thread_id = ?").run(threadId);
+/**
+ * Deletion is an authoritative rebase: the gate cancels any active fence (its
+ * reader settles `cancelled`), explicitly discards the thread's buffered
+ * writes, and deletes the rows in one mutation. Contamination is cleared
+ * because the rows are gone.
+ */
+export async function dbClearThreadRuntimeItems(threadId: string): Promise<void> {
+  await runThreadRuntimeMutation(threadId, "delete", () => {
+    const sqlite = getSqlite();
+    withRuntimeBusyTimeout(() => {
+      sqlite
+        .transaction(() => {
+          sqlite.prepare("DELETE FROM thread_runtime_items WHERE thread_id = ?").run(threadId);
+          // Authoritative rebase: durable gap evidence goes with the transcript
+          // in the same transaction.
+          clearThreadDurableGapRowsInTransaction(
+            sqlite,
+            threadId,
+            getRuntimeDurableGapRebaseEpoch(),
+          );
+        })
+        .immediate();
+    });
+  });
 }
 
 /**
@@ -827,6 +641,12 @@ export function dbClearThreadRuntimeItems(threadId: string): void {
  * anchors from the same transaction. Unrelated orphan turns survive. Callers
  * publish a truncation only when rows were removed, so a no-op cannot later
  * replay as a destructive client event.
+ *
+ * Synchronous by contract (the checkpoint-revert boundary): the mutation gate
+ * grants it only when no fence/mutation is active for the thread; otherwise it
+ * throws typed busy instead of landing inside a fence's flush/read window.
+ * Truncate is not an authoritative rebase (it preserves a prefix), so a
+ * contaminated thread refuses typed rather than silently dropping the hole.
  */
 export function dbTruncateThreadRuntimeAfter(
   threadId: string,
@@ -835,47 +655,52 @@ export function dbTruncateThreadRuntimeAfter(
   truncated: boolean;
   removedCompletedTurnAnchors: string[];
 } {
-  runtimeWriteQueue.flush(threadId);
-  const sqlite = getSqlite();
-  let truncated = false;
-  let removedCompletedTurnAnchors: string[] = [];
-  sqlite
-    .transaction(() => {
-      const checkpoint = sqlite
-        .prepare("SELECT position FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")
-        .get(threadId, itemId) as { position: number } | undefined;
-      if (!checkpoint) return;
-      // Select and delete anchored turns before deleting their tail items;
-      // the shared subquery keeps both metadata and deletion scoped to this tail.
-      const removedTurnAnchors = (
-        sqlite
-          .prepare(
-            `SELECT anchor_item_id FROM thread_completed_turns
+  return tryRunThreadRuntimeMutation(threadId, "truncate", () => {
+    const sqlite = getSqlite();
+    let truncated = false;
+    let removedCompletedTurnAnchors: string[] = [];
+    withRuntimeBusyTimeout(() => {
+      sqlite
+        .transaction(() => {
+          const checkpoint = sqlite
+            .prepare(
+              "SELECT position FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
+            )
+            .get(threadId, itemId) as { position: number } | undefined;
+          if (!checkpoint) return;
+          // Select and delete anchored turns before deleting their tail items;
+          // the shared subquery keeps both metadata and deletion scoped to this tail.
+          const removedTurnAnchors = (
+            sqlite
+              .prepare(
+                `SELECT anchor_item_id FROM thread_completed_turns
              WHERE thread_id = ?
                AND anchor_item_id IN (
                  SELECT item_id FROM thread_runtime_items
                  WHERE thread_id = ? AND position > ?
                )`,
-          )
-          .all(threadId, threadId, checkpoint.position) as Array<{ anchor_item_id: string }>
-      ).map((row) => row.anchor_item_id);
-      sqlite
-        .prepare(
-          `DELETE FROM thread_completed_turns
+              )
+              .all(threadId, threadId, checkpoint.position) as Array<{ anchor_item_id: string }>
+          ).map((row) => row.anchor_item_id);
+          sqlite
+            .prepare(
+              `DELETE FROM thread_completed_turns
            WHERE thread_id = ? AND anchor_item_id IN (
              SELECT item_id FROM thread_runtime_items
              WHERE thread_id = ? AND position > ?
            )`,
-        )
-        .run(threadId, threadId, checkpoint.position);
-      const deletedItems = sqlite
-        .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND position > ?")
-        .run(threadId, checkpoint.position);
-      truncated = deletedItems.changes > 0;
-      removedCompletedTurnAnchors = [...new Set(removedTurnAnchors)];
-    })
-    .immediate();
-  return { truncated, removedCompletedTurnAnchors };
+            )
+            .run(threadId, threadId, checkpoint.position);
+          const deletedItems = sqlite
+            .prepare("DELETE FROM thread_runtime_items WHERE thread_id = ? AND position > ?")
+            .run(threadId, checkpoint.position);
+          truncated = deletedItems.changes > 0;
+          removedCompletedTurnAnchors = [...new Set(removedTurnAnchors)];
+        })
+        .immediate();
+    });
+    return { truncated, removedCompletedTurnAnchors };
+  });
 }
 
 /**
@@ -890,7 +715,8 @@ export interface PersistedCompletedTurn {
 }
 
 export function dbGetThreadCompletedTurns(threadId: string): PersistedCompletedTurn[] {
-  runtimeWriteQueue.flush(threadId);
+  // Committed-only projection used by control writes and snapshots; the
+  // control-op retry rebuilds it after a failed attempt.
   const sqlite = getSqlite();
   const rows = sqlite
     .prepare(
@@ -909,38 +735,40 @@ export function dbGetThreadCompletedTurns(threadId: string): PersistedCompletedT
 }
 
 export function dbAppendThreadCompletedTurn(threadId: string, turn: PersistedCompletedTurn): void {
-  runtimeWriteQueue.flush(threadId);
+  // Idempotent control write (dedupe by turn timestamps); runs through the
+  // controller's retrying control queue, never as a synchronous flush.
   const sqlite = getSqlite();
-  sqlite
-    .transaction(() => {
-      if (!threadExistsInSqlite(sqlite, threadId)) return;
-      const duplicate = sqlite
-        .prepare(
-          `SELECT 1 AS ok
-           FROM thread_completed_turns
-           WHERE thread_id = ? AND started_at = ? AND ended_at = ?
-           LIMIT 1`,
-        )
-        .get(threadId, turn.startedAt, turn.endedAt) as { ok: number } | undefined;
-      if (duplicate) return;
-      const row = sqlite
-        .prepare(
-          "SELECT COALESCE(MAX(idx), -1) + 1 AS idx FROM thread_completed_turns WHERE thread_id = ?",
-        )
-        .get(threadId) as { idx: number };
-      sqlite
-        .prepare(
-          `INSERT INTO thread_completed_turns
-           (thread_id, idx, started_at, ended_at, anchor_item_id)
-         VALUES (?, ?, ?, ?, ?)`,
-        )
-        .run(threadId, row.idx, turn.startedAt, turn.endedAt, turn.anchorItemId);
-    })
-    .immediate();
+  withRuntimeBusyTimeout(() => {
+    sqlite
+      .transaction(() => {
+        if (!threadExistsInSqlite(sqlite, threadId)) return;
+        const duplicate = sqlite
+          .prepare(
+            `SELECT 1 AS ok
+             FROM thread_completed_turns
+             WHERE thread_id = ? AND started_at = ? AND ended_at = ?
+             LIMIT 1`,
+          )
+          .get(threadId, turn.startedAt, turn.endedAt) as { ok: number } | undefined;
+        if (duplicate) return;
+        const row = sqlite
+          .prepare(
+            "SELECT COALESCE(MAX(idx), -1) + 1 AS idx FROM thread_completed_turns WHERE thread_id = ?",
+          )
+          .get(threadId) as { idx: number };
+        sqlite
+          .prepare(
+            `INSERT INTO thread_completed_turns
+             (thread_id, idx, started_at, ended_at, anchor_item_id)
+           VALUES (?, ?, ?, ?, ?)`,
+          )
+          .run(threadId, row.idx, turn.startedAt, turn.endedAt, turn.anchorItemId);
+      })
+      .immediate();
+  });
 }
 
 export function dbGetLatestThreadRuntimeAnchorItemId(threadId: string): string | null {
-  runtimeWriteQueue.flush(threadId);
   const row = getSqlite()
     .prepare(
       `SELECT item_id
@@ -960,104 +788,64 @@ export function dbReplaceThreadCompletedTurns(
   threadId: string,
   turns: PersistedCompletedTurn[],
 ): void {
-  runtimeWriteQueue.flush(threadId);
   const sqlite = getSqlite();
-  sqlite
-    .transaction(() => {
-      if (!threadExistsInSqlite(sqlite, threadId)) return;
-      replaceThreadCompletedTurnsInSqlite(sqlite, threadId, turns);
-    })
-    .immediate();
+  withRuntimeBusyTimeout(() => {
+    sqlite
+      .transaction(() => {
+        if (!threadExistsInSqlite(sqlite, threadId)) return;
+        replaceThreadCompletedTurnsInSqlite(sqlite, threadId, turns);
+      })
+      .immediate();
+  });
 }
 
-export function dbReplaceThreadRuntimeSnapshot(
+/**
+ * Apply a snapshot replacement without the per-thread gate. Only the
+ * controller's mutation gate may call this, from inside a granted `replace`/
+ * `reset` mutation, because the gate already committed the accepted prefix (or
+ * explicitly superseded it for a contaminated rebase).
+ */
+export function replaceThreadRuntimeSnapshotUnchecked(
   threadId: string,
   items: PersistedRuntimeItem[],
   turns: PersistedCompletedTurn[],
   contextUsage: ThreadContextUsage | null | undefined,
 ): void {
-  runtimeWriteQueue.discard(threadId);
   const sqlite = getSqlite();
-  sqlite
-    .transaction(() => {
-      if (!threadExistsInSqlite(sqlite, threadId)) return;
-      replaceThreadRuntimeItemsInSqlite(sqlite, threadId, items);
-      replaceThreadCompletedTurnsInSqlite(sqlite, threadId, turns);
-      if (contextUsage !== undefined) {
-        replaceThreadContextUsageInSqlite(sqlite, threadId, contextUsage);
-      }
-    })
-    .immediate();
+  withRuntimeBusyTimeout(() => {
+    sqlite
+      .transaction(() => {
+        if (!threadExistsInSqlite(sqlite, threadId)) return;
+        replaceThreadRuntimeItemsInSqlite(sqlite, threadId, items);
+        replaceThreadCompletedTurnsInSqlite(sqlite, threadId, turns);
+        if (contextUsage !== undefined) {
+          replaceThreadContextUsageInSqlite(sqlite, threadId, contextUsage);
+        }
+      })
+      .immediate();
+  });
+}
+
+/**
+ * Snapshot replacement. This is an authoritative rebase: the gate commits the
+ * accepted prefix for a clean thread, applies the replacement, and records an
+ * explicit supersede for a contaminated thread (the reset is that thread's
+ * recovery). A failed replacement keeps both the pending prefix and the
+ * contamination.
+ */
+export async function dbReplaceThreadRuntimeSnapshot(
+  threadId: string,
+  items: PersistedRuntimeItem[],
+  turns: PersistedCompletedTurn[],
+  contextUsage: ThreadContextUsage | null | undefined,
+): Promise<void> {
+  await runThreadRuntimeMutation(threadId, "replace", () =>
+    replaceThreadRuntimeSnapshotUnchecked(threadId, items, turns, contextUsage),
+  );
 }
 
 export function dbGetThreadContextUsage(threadId: string): ThreadContextUsage | null {
-  runtimeWriteQueue.flush(threadId);
-  return dbGetThreadContextUsageFromSqlite(getSqlite(), threadId);
-}
-
-function dbGetThreadContextUsageFromSqlite(
-  sqlite: InstanceType<typeof Database>,
-  threadId: string,
-): ThreadContextUsage | null {
-  const row = sqlite
-    .prepare("SELECT usage FROM thread_context_usage WHERE thread_id = ?")
-    .get(threadId) as { usage: string } | undefined;
-  if (!row) return null;
-  const parsed = safeParse(row.usage);
-  return parsed && typeof parsed === "object" ? (parsed as ThreadContextUsage) : null;
-}
-
-function mergePayload(prev: unknown, next: unknown): unknown {
-  if (!prev || typeof prev !== "object") return next;
-  if (!next || typeof next !== "object") return next;
-  return { ...(prev as Record<string, unknown>), ...(next as Record<string, unknown>) };
-}
-
-function mergeContextUsage(
-  prev: ThreadContextUsage | null,
-  usage: ThreadContextUsage,
-): ThreadContextUsage {
-  return { ...(prev ?? {}), ...usage };
-}
-
-function pruneTrailingInterruptedReasoningItems(
-  sqlite: InstanceType<typeof Database>,
-  threadId: string,
-): void {
-  sqlite
-    .prepare(
-      `DELETE FROM thread_runtime_items
-       WHERE thread_id = ?
-         AND type = 'reasoning'
-         AND parent_item_id IS NULL
-         AND position > COALESCE((
-           SELECT MAX(position)
-           FROM thread_runtime_items
-           WHERE thread_id = ?
-             AND parent_item_id IS NULL
-             AND type NOT IN ('reasoning', 'plan', 'error')
-         ), -1)`,
-    )
-    .run(threadId, threadId);
-}
-
-function replaceThreadContextUsageInSqlite(
-  sqlite: InstanceType<typeof Database>,
-  threadId: string,
-  usage: ThreadContextUsage | null,
-): void {
-  if (usage === null) {
-    sqlite.prepare("DELETE FROM thread_context_usage WHERE thread_id = ?").run(threadId);
-    return;
-  }
-  // Token usage is captured durably at the canonical-event layer (usage_events),
-  // not here — this row is only the live context-window snapshot for the UI.
-  sqlite
-    .prepare(
-      `INSERT INTO thread_context_usage (thread_id, usage) VALUES (?, ?)
-       ON CONFLICT(thread_id) DO UPDATE SET usage = excluded.usage`,
-    )
-    .run(threadId, JSON.stringify(usage));
+  return readThreadContextUsageInSqlite(getSqlite(), threadId);
 }
 
 function replaceThreadCompletedTurnsInSqlite(
