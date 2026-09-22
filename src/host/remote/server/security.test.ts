@@ -4,6 +4,7 @@ import {
   hasProxyForwardingHeaders,
   isDirectLoopbackPeer,
   RELAY_LOOPBACK_HOP_HEADER,
+  resolveRateLimitClient,
   resolvedTrustedProxies,
 } from "./security";
 
@@ -107,5 +108,34 @@ describe("resolvedTrustedProxies", () => {
   it("resolves to no proxies when neither options nor environment configure one", () => {
     vi.stubEnv("PORACODE_REMOTE_TRUSTED_PROXIES", "");
     expect(resolvedTrustedProxies({})).toEqual([]);
+  });
+});
+
+describe("resolveRateLimitClient", () => {
+  function proxied(xff: string | string[]): Parameters<typeof resolveRateLimitClient>[0] {
+    return {
+      headers: { "x-forwarded-for": xff },
+      socket: { remoteAddress: "127.0.0.1" },
+    } as unknown as Parameters<typeof resolveRateLimitClient>[0];
+  }
+
+  it("keys on the nearest untrusted hop, not a client-chosen leftmost entry", () => {
+    // An appending proxy turns a forged header into "forged, real".
+    expect(resolveRateLimitClient(proxied("198.51.100.7, 203.0.113.9"), ["127.0.0.1"])).toBe(
+      "203.0.113.9",
+    );
+    expect(
+      resolveRateLimitClient(proxied("198.51.100.8, 203.0.113.9, 10.0.0.2"), [
+        "127.0.0.1",
+        "10.0.0.0/8",
+      ]),
+    ).toBe("203.0.113.9");
+    expect(resolveRateLimitClient(proxied(["198.51.100.9", "203.0.113.9"]), ["127.0.0.1"])).toBe(
+      "203.0.113.9",
+    );
+  });
+
+  it("ignores forwarding claims from an untrusted socket", () => {
+    expect(resolveRateLimitClient(proxied("203.0.113.9"), [])).toBe("127.0.0.1");
   });
 });

@@ -129,7 +129,7 @@ export function resolvedTrustedProxies(options: {
  * `PORACODE_REMOTE_TRUSTED_PROXIES` (exact address or CIDR). A client-set
  * hop marker is stripped at ingress and never grants a budget (V6 A.6).
  */
-function resolveRateLimitClient(
+export function resolveRateLimitClient(
   req: IncomingMessage,
   trustedProxies: readonly string[] = [],
 ): string {
@@ -139,9 +139,16 @@ function resolveRateLimitClient(
     socketMatchesTrustedProxy(req.socket.remoteAddress, trustedProxies);
   if (!mayTrustXff) return remoteAddress;
   const forwarded = req.headers["x-forwarded-for"];
-  const rawForwarded = Array.isArray(forwarded) ? forwarded[0] : forwarded;
-  const firstHop = rawForwarded?.split(",")[0]?.trim();
-  return firstHop && firstHop.length > 0 ? firstHop : remoteAddress;
+  const hops = (Array.isArray(forwarded) ? forwarded.join(",") : (forwarded ?? ""))
+    .split(",")
+    .map((hop) => hop.trim())
+    .filter((hop) => hop.length > 0);
+  // Walk from the nearest hop outward and stop at the first address that is
+  // not itself a trusted proxy. The leftmost entry is whatever the client
+  // sent before any proxy appended to it, so keying on it would let a
+  // client mint a fresh bucket per request and bypass the limits.
+  const visitor = hops.findLast((hop) => !socketMatchesTrustedProxy(hop, trustedProxies));
+  return visitor ?? hops[0] ?? remoteAddress;
 }
 
 /**
