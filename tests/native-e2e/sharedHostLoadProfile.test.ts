@@ -34,6 +34,11 @@ import { ProcessMemorySampler } from "./helpers/processMemorySampler.ts";
 import { ProcessCpuSampler } from "./helpers/processCpuSampler.ts";
 import { buildMetricsArtifact } from "./helpers/profileMetrics.ts";
 import {
+  QUALIFICATION_STEER_ECHO_BOUND_MS,
+  QUALIFICATION_STEER_EXEC_BOUND_MS,
+  QUALIFICATION_TERMINAL_CLOSE_BOUND_MS,
+} from "./helpers/qualificationControlBounds.ts";
+import {
   expectOk,
   posixLocation,
   quiesceAndAssertConvergence,
@@ -98,10 +103,10 @@ const GUI_THREAD_IDS = Array.from(
 
 /** Loopback bounds — assertions, not SLAs. See the file doc comment. */
 const BOUND_TRUNCATE_FANOUT_MS = 2_000;
-const BOUND_STEER_ECHO_MS = 2_000;
-const BOUND_STEER_EXEC_MS = 30_000;
+const BOUND_STEER_ECHO_MS = QUALIFICATION_STEER_ECHO_BOUND_MS;
+const BOUND_STEER_EXEC_MS = QUALIFICATION_STEER_EXEC_BOUND_MS;
 const BOUND_AGENT_ALIVE_MS = 10_000;
-const BOUND_TERMINAL_CLOSE_MS = 5_000;
+const BOUND_TERMINAL_CLOSE_MS = QUALIFICATION_TERMINAL_CLOSE_BOUND_MS;
 /** Payload lines a healthy watcher may miss from the strict count because
  * steer-echo/control bytes split a line mid-stream (see the generator check). */
 const INTERLEAVE_TOLERANCE_LINES = 8;
