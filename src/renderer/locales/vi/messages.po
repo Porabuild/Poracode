@@ -7969,6 +7969,10 @@ msgstr "Nhãn mô hình"
 msgid "Model removed from favorites"
 msgstr "Đã xóa mô hình khỏi mục yêu thích"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Model rerouted from {fromModel} to {toModel}."
+msgstr "Mô hình đã được chuyển từ {fromModel} sang {toModel}."
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "Mức dùng mô hình"

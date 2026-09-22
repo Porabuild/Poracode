@@ -171,6 +171,7 @@ const messages = {
   "codex.compactUnavailableDuringTurn":
     "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes.",
   "codex.compactFailed": "Codex could not compact the conversation: {detail}",
+  "codex.modelRerouted": "Model rerouted from {fromModel} to {toModel}.",
 
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
