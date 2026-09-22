@@ -51,6 +51,9 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   ]) {
     assert.ok(names.includes(required), `${required} is required in _server-artifact.yml`);
   }
+  const rustCache = steps.find((step) => step.name === "Cache computer-use helper build");
+  assert.ok(rustCache.uses.startsWith("Swatinem/rust-cache@"));
+  assert.equal(rustCache.with.workspaces, "native/computer-use-helper");
 
   // The matrix must build and qualify macOS arm64+x64 and native Linux arm64,
   // not silently drop to one Linux tarball.

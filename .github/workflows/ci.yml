@@ -20,18 +20,38 @@ env:
   PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
 
 jobs:
+  changes:
+    name: Classify PR changes
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.scope.outputs.core }}
+    steps:
+      - name: Checkout complete history for PR diff
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Classify affected CI surfaces
+        id: scope
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-change-scope.mjs
+
   typecheck:
     name: Typecheck
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -47,16 +67,18 @@ jobs:
 
   lint:
     name: Lint
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -79,20 +101,20 @@ jobs:
           pnpm exec vitest run --config tests/native-e2e/vitest.config.ts helpers/managedAppSession.test.ts
 
       - name: Nightly qualification regression tests
-        run: node --test scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs scripts/server-gate-workflows.test.mjs scripts/verify-server-tarball-contents.test.mjs scripts/prepare-server-native.test.mjs scripts/server-release-install.test.mjs scripts/runtime-closure.test.mjs scripts/generate-runtime-manifest.test.mjs scripts/set-release-version.test.mjs scripts/build-ssh-runtime-archive.test.mjs scripts/poracode-cli-qualification.test.mjs scripts/publish-npm-package.test.mjs packages/poracode-cli/test/launcher.test.mjs
+        run: node --test scripts/ci-change-scope.test.mjs scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs scripts/server-gate-workflows.test.mjs scripts/verify-server-tarball-contents.test.mjs scripts/prepare-server-native.test.mjs scripts/server-release-install.test.mjs scripts/runtime-closure.test.mjs scripts/generate-runtime-manifest.test.mjs scripts/set-release-version.test.mjs scripts/build-ssh-runtime-archive.test.mjs scripts/poracode-cli-qualification.test.mjs scripts/publish-npm-package.test.mjs packages/poracode-cli/test/launcher.test.mjs
 
   fmt:
     name: Format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -105,16 +127,18 @@ jobs:
 
   web_build:
     name: Canonical web build
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -138,16 +162,18 @@ jobs:
 
   runtime_deps:
     name: Runtime dependencies
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -166,6 +192,8 @@ jobs:
 
   rust_helper:
     name: Rust helper (${{ matrix.os }})
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -176,16 +204,16 @@ jobs:
         working-directory: native/computer-use-helper
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: 1.98.1
           components: rustfmt, clippy
 
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: native/computer-use-helper
 
@@ -222,6 +250,8 @@ jobs:
 
   test_shard:
     name: Test shard (${{ matrix.shard }}/8)
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -239,13 +269,13 @@ jobs:
       ELECTRON_OVERRIDE_DIST_PATH: node_modules/electron/dist
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -277,6 +307,8 @@ jobs:
 
   test_perf:
     name: Perf suites (uncontended)
+    needs: changes
+    if: ${{ needs.changes.outputs.core == 'true' }}
     runs-on: ubuntu-latest
     # Absolute latency budgets are only meaningful on an unloaded runner, so
     # the perf suites are excluded from the sharded unit run and executed
@@ -287,13 +319,13 @@ jobs:
       ELECTRON_OVERRIDE_DIST_PATH: node_modules/electron/dist
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
           cache: pnpm
@@ -327,8 +359,8 @@ jobs:
 
   test:
     name: Test
-    if: ${{ always() }}
-    needs: test_shard
+    needs: [changes, test_shard]
+    if: ${{ needs.changes.outputs.core == 'true' && needs.test_shard.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Verify test shards
@@ -337,11 +369,36 @@ jobs:
   ci_gate:
     name: CI required gate
     if: ${{ always() }}
-    needs: [typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test_perf, test]
+    needs:
+      [
+        changes,
+        typecheck,
+        lint,
+        fmt,
+        web_build,
+        runtime_deps,
+        rust_helper,
+        test_shard,
+        test_perf,
+        test,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Require all core checks
         env:
           JOB_RESULTS: ${{ toJSON(needs) }}
-        run: node -e 'if (Object.values(JSON.parse(process.env.JOB_RESULTS)).some(job => job.result !== "success")) process.exit(1)'
+          CORE_REQUIRED: ${{ needs.changes.outputs.core }}
+        run: |
+          node - <<'NODE'
+          const jobs = JSON.parse(process.env.JOB_RESULTS);
+          if (!["true", "false"].includes(process.env.CORE_REQUIRED)) throw new Error("core change scope is missing");
+          const required = new Set(["changes", "fmt"]);
+          if (process.env.CORE_REQUIRED === "true") {
+            for (const name of ["typecheck", "lint", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf", "test"]) required.add(name);
+          }
+          for (const [name, job] of Object.entries(jobs)) {
+            const expected = required.has(name) ? "success" : "skipped";
+            if (job.result !== expected) throw new Error(`${name}: expected ${expected}, received ${job.result}`);
+          }
+          NODE

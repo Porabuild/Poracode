@@ -32,12 +32,16 @@ void test("core qualification has an unconditional gate covering every CI job", 
       .sort(),
   );
   const step = jobs.ci_gate.steps[0];
-  const script = /^node -e '(.*)'$/.exec(step.run)?.[1];
+  const script = /node - <<'NODE'\n([\s\S]*?)\nNODE/u.exec(step.run)?.[1];
   assert.ok(script, "Execute the actual aggregate gate against failure fixtures");
   const good = Object.fromEntries(jobs.ci_gate.needs.map((name) => [name, { result: "success" }]));
-  const evaluate = (results) =>
+  const evaluate = (results, coreRequired = true) =>
     spawnSync(process.execPath, ["-e", script], {
-      env: { ...process.env, JOB_RESULTS: JSON.stringify(results) },
+      env: {
+        ...process.env,
+        JOB_RESULTS: JSON.stringify(results),
+        CORE_REQUIRED: String(coreRequired),
+      },
     }).status;
   assert.equal(evaluate(good), 0);
   for (const name of jobs.ci_gate.needs) {
@@ -45,6 +49,14 @@ void test("core qualification has an unconditional gate covering every CI job", 
       assert.equal(evaluate({ ...good, [name]: { result } }), 1, `${name}: ${result}`);
     }
   }
+  const documentationOnly = Object.fromEntries(
+    jobs.ci_gate.needs.map((name) => [
+      name,
+      { result: name === "changes" || name === "fmt" ? "success" : "skipped" },
+    ]),
+  );
+  assert.equal(evaluate(documentationOnly, false), 0);
+  assert.equal(evaluate(documentationOnly, null), 1);
 });
 
 void test("nightly publication is triggered by qualification, with one serialized alias owner", async () => {
@@ -95,18 +107,57 @@ void test("native qualification preserves every existing contract, build, and fo
     "android",
     "android_api34_runtime",
     "android_api37_runtime",
+    "changes",
     "ios",
     "ios_ui",
     "native_e2e_foundation",
     "remote_v3_contract",
     "server_install_qualification",
   ]);
-  for (const prerequisite of jobs.native_gate.needs)
-    assert.ok(
-      jobs.native_gate.steps[0].run.includes(
-        `test "\u0024{{ needs.${prerequisite}.result }}" = "success"`,
-      ),
+  const script = /node - <<'NODE'\n([\s\S]*?)\nNODE/u.exec(jobs.native_gate.steps[0].run)?.[1];
+  assert.ok(script, "Execute the native aggregate gate against scope fixtures");
+  const evaluate = ({ android, ios, shared }, overrides = {}) => {
+    const required = {
+      changes: true,
+      remote_v3_contract: shared,
+      android,
+      android_api34_runtime: android,
+      android_api37_runtime: android,
+      ios,
+      ios_ui: ios,
+      native_e2e_foundation: shared,
+      server_install_qualification: shared,
+    };
+    const results = Object.fromEntries(
+      Object.entries(required).map(([name, needed]) => [
+        name,
+        { result: needed ? "success" : "skipped" },
+      ]),
     );
+    for (const [name, result] of Object.entries(overrides)) results[name] = { result };
+    return spawnSync(process.execPath, ["-e", script], {
+      env: {
+        ...process.env,
+        JOB_RESULTS: JSON.stringify(results),
+        ANDROID_REQUIRED: String(android),
+        IOS_REQUIRED: String(ios),
+        SHARED_REQUIRED: String(shared),
+      },
+    }).status;
+  };
+  for (const scope of [
+    { android: false, ios: false, shared: false },
+    { android: true, ios: false, shared: false },
+    { android: false, ios: true, shared: false },
+    { android: true, ios: true, shared: true },
+  ]) {
+    assert.equal(evaluate(scope), 0, JSON.stringify(scope));
+  }
+  assert.equal(
+    evaluate({ android: true, ios: false, shared: false }, { android_api37_runtime: "skipped" }),
+    1,
+  );
+  assert.equal(evaluate({ android: undefined, ios: false, shared: false }), 1);
 });
 
 void test("each portable Swift contract suite is required, isolated, and cannot hide failure behind tee", async () => {
