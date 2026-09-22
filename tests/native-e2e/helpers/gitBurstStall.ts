@@ -1,4 +1,4 @@
-import { createServer, type Server } from "node:net";
+import { createServer, type Server, type Socket } from "node:net";
 import assert from "node:assert/strict";
 import type { ProfileClient } from "./concurrencyProfileClient.ts";
 import {
@@ -37,7 +37,12 @@ export interface GitBurstBlackhole {
 
 /** Starts the connect-and-never-respond loopback listener. */
 export async function startBlackholeListener(): Promise<GitBurstBlackhole> {
-  const blackhole: Server = createServer((socket) => socket.resume());
+  const sockets = new Set<Socket>();
+  const blackhole: Server = createServer((socket) => {
+    sockets.add(socket);
+    socket.once("close", () => sockets.delete(socket));
+    socket.resume();
+  });
   await new Promise<void>((resolve, reject) => {
     blackhole.once("error", reject);
     blackhole.listen(0, "127.0.0.1", () => resolve());
@@ -46,7 +51,10 @@ export async function startBlackholeListener(): Promise<GitBurstBlackhole> {
     url: `http://127.0.0.1:${String((blackhole.address() as { port: number }).port)}/repo.git`,
     close: () =>
       new Promise<void>((resolve) => {
-        (blackhole as Server & { closeAllConnections?: () => void }).closeAllConnections?.();
+        // `closeAllConnections()` belongs to node:http, not node:net. Own the
+        // accepted sockets explicitly so a timed-out Git child cannot keep
+        // this raw TCP fixture (and therefore the qualification) alive.
+        for (const socket of sockets) socket.destroy();
         blackhole.close(() => resolve());
       }),
   };
