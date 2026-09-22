@@ -79,6 +79,14 @@ jobs:
       - name: Check committed remote-v3 bindings
         run: pnpm run protocol:remote:v3:check
 
+      # The operation map's manifestHash covers the generated inventory's
+      # sourceHash; regenerating protocol/remote/v3/generated/inventory.json
+      # without refreshing tests/native-e2e/harness/operation-map.json must
+      # fail here (cheap single-file lock) instead of late in the native
+      # foundation job.
+      - name: Lock the committed operation map to the inventory
+        run: pnpm exec vitest run --configLoader runner --config tests/native-e2e/vitest.config.ts operationMap.test.ts
+
       - name: Test the remote-v3 contract
         run: pnpm exec vitest run --configLoader runner protocol/remote/v3
 

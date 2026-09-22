@@ -86,6 +86,21 @@ creation (`project-command` kinds `create` and `clone`), which remains a truthfu
 501 because it would otherwise fake a provider or network integration. Other
 deterministic variants of that authoritative route positively cover the route.
 
+`operationMap.test.ts` locks the map's `manifestHash` over the live protocol
+manifest plus the generated inventory `sourceHash`. Regenerating
+`protocol/remote/v3/generated/inventory.json` changes that hash, so refresh the
+committed map in the same change:
+
+```
+node --experimental-transform-types --disable-warning=ExperimentalWarning \
+  tests/native-e2e/harness/refreshOperationMap.ts
+```
+
+The lock test fails with that same command when the hash drifts, and both the
+core `Lint` job (`.github/workflows/ci.yml`) and the native remote-v3 contract
+job (`.github/workflows/native-ci.yml`) run it, so drift fails where protocol
+changes are made instead of late in the native foundation job.
+
 ## Real host
 
 `pnpm native:e2e:real-host` starts `dist/main/server.cjs` with a disposable

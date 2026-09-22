@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { arch, cpus, freemem, homedir, loadavg, platform, release, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { AgentInstanceConfig } from "../../src/shared/contracts/agentInstance.ts";
 import type { RendererPerfSnapshot } from "../../src/renderer/diagnostics/rendererPerfDiagnostics.ts";
 import {
@@ -75,6 +75,10 @@ import {
   runTrustedInputProtocol,
   type TrustedInputProtocolResult,
 } from "./helpers/trustedInputProtocol.ts";
+import {
+  buildContaminationRecord,
+  buildPartialRunManifest,
+} from "./helpers/v2qPartialRunManifest.ts";
 import {
   captureElementScreenshot,
   captureRectScreenshot,
@@ -341,6 +345,12 @@ let terminalSurfaceEvidence: Awaited<ReturnType<typeof readTerminalSurface>> | u
 let terminalCommands: { readonly first: string; readonly second: string } | undefined;
 let paneTextEvidence: Awaited<ReturnType<typeof readVisiblePaneText>> | undefined;
 let paneScreenshots: Awaited<ReturnType<typeof captureElementScreenshot>>[] = [];
+// Set once the body writes the final run.json; afterAll writes a partial
+// manifest only when this is still false (a late abort must not lose the
+// sampler/contamination summaries).
+let runManifestWritten = false;
+// First error message(s) recorded from the failed cell body (see afterEach).
+let cellBodyFailure: string | null = null;
 
 function mark(name: string): void {
   timeline[name] = Date.now();
@@ -767,6 +777,18 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
     mark("settled");
   }, 900_000);
 
+  // The single cell body records its failure here so afterAll can write the
+  // partial manifest with the exact abort reason; vitest populates the task
+  // result (assertion errors included) before afterEach hooks run.
+  afterEach((context) => {
+    const result = context.task.result;
+    cellBodyFailure =
+      result?.state === "fail"
+        ? (result.errors ?? []).map((error) => error.message).join("; ") ||
+          "cell body failed without an error message"
+        : null;
+  });
+
   afterAll(async () => {
     const perfDir = join(OUT_DIR, "perf");
     const evidenceDir = join(OUT_DIR, "evidence");
@@ -863,6 +885,34 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
       );
     } catch {
       // Evidence write failures surface in the run summary below.
+    }
+    if (!runManifestWritten) {
+      // The cell body aborted before its final run.json write (a late abort).
+      // Record a partial manifest with the summaries that exist plus the
+      // failure message. Diagnostics only: no budget verdicts (they were never
+      // computed), no pass/fail semantics, budgets untouched — the final
+      // run.json remains the only qualified manifest.
+      try {
+        const contaminationSummary = hostLoad ? await hostLoad.summary() : null;
+        writeJson(
+          join(OUT_DIR, "run-partial.json"),
+          buildPartialRunManifest({
+            spec: requireCell(),
+            arm: armRecord ?? null,
+            failure: cellBodyFailure,
+            timeline,
+            clientAccounting: Object.fromEntries(
+              [...accounting.entries()].map(([label, value]) => [label, value.snapshot()]),
+            ),
+            contamination: buildContaminationRecord(contaminationSummary),
+            memory: memory?.summary() ?? null,
+            processCpu: cpu?.summary() ?? null,
+            nodePerf: summarizeNodePerfDirectory(join(OUT_DIR, "perf")),
+          }),
+        );
+      } catch {
+        // Best-effort partial manifest; never mask the original failure.
+      }
     }
     if (teardownError) throw teardownError;
   }, 180_000);
@@ -1903,20 +1953,7 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
 
       const memorySummary = memory?.summary() ?? null;
       const hostLoadSummary = hostLoad ? await hostLoad.summary() : null;
-      const contamination = hostLoadSummary
-        ? {
-            samples: hostLoadSummary.samples,
-            contaminatedSamples: hostLoadSummary.contaminatedSamples,
-            peakLoad1: hostLoadSummary.peakLoad1,
-            maxForeignBuildProcesses: hostLoadSummary.maxForeignBuildProcesses,
-            probeFailures: hostLoadSummary.probeFailures,
-            capacityClaimAllowed:
-              hostLoadSummary.contaminatedSamples === 0 &&
-              hostLoadSummary.peakLoad1 <= hostLoadSummary.cpuCount,
-            policy:
-              "no capacity claim is made from a contaminated window; timing figures are functional evidence only",
-          }
-        : null;
+      const contamination = buildContaminationRecord(hostLoadSummary);
       const runManifest = {
         cell: spec,
         arm: armRecord,
@@ -2146,6 +2183,7 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
       };
       const manifestPath = join(OUT_DIR, "run.json");
       writeJson(manifestPath, runManifest);
+      runManifestWritten = true;
       console.log(
         `[v2q:${spec.id}] producers=${String(spec.producers)} clients=${String(spec.clients)} ` +
           `steady=${String(spec.durationMs)}ms inputToPaint.p95=${String(interactionDuration.p95Ms)}ms ` +

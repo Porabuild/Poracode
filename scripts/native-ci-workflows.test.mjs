@@ -6,6 +6,38 @@ import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { parse } from "yaml";
 
+void test("the remote-v3 contract and core lint jobs lock the committed operation map", async () => {
+  const native = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const steps = native.jobs.remote_v3_contract.steps;
+  const checkIndex = steps.findIndex((step) => step.run === "pnpm run protocol:remote:v3:check");
+  const lockIndex = steps.findIndex(
+    (step) =>
+      step.run?.includes("tests/native-e2e/vitest.config.ts") &&
+      step.run?.includes("operationMap.test.ts"),
+  );
+  assert.ok(checkIndex >= 0, "the remote-v3 contract job must run the bindings check");
+  assert.ok(
+    lockIndex > checkIndex,
+    "the operation-map lock must run after the bindings check, before any expensive lane",
+  );
+  assert.match(
+    steps[lockIndex].run,
+    /operationMap\.test\.ts/u,
+    "the lock step runs the single drift-detector file",
+  );
+
+  // Protocol changes classify as core (core == shared in ci-change-scope), so
+  // core CI must run the same lock where protocol changes are made.
+  const core = parse(
+    await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+  );
+  const coreLock = core.jobs.lint.steps.find((step) => step.run?.includes("operationMap.test.ts"));
+  assert.ok(coreLock, "the core Lint job must run the operation-map lock");
+  assert.match(coreLock.run, /tests\/native-e2e\/vitest\.config\.ts/u);
+});
+
 void test("API 37 workflow preserves shell state, joins its harness, and propagates failures", async () => {
   const workflow = parse(
     await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
