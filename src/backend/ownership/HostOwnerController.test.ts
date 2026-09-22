@@ -104,10 +104,12 @@ async function externalContender(namespace: string) {
     else if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     const teardown = Promise.withResolvers<never>();
     const forceKill = setTimeout(() => child.kill("SIGKILL"), 1_000);
+    // SIGKILL lands at 1s; the wider bound only guards against a child that
+    // never exits, since a loaded runner can deliver the exit event late.
     const teardownTimeout = setTimeout(() => {
       child.kill("SIGKILL");
-      teardown.reject(new Error("Ownership contender did not exit within 2 seconds."));
-    }, 2_000);
+      teardown.reject(new Error("Ownership contender did not exit within 10 seconds."));
+    }, 10_000);
     try {
       await Promise.race([exited, teardown.promise]);
     } finally {
