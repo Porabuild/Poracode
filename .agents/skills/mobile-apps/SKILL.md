@@ -82,7 +82,7 @@ All clients must render the chat transcript the same way (same items, same group
 - When InjectionNext is already running, do not rebuild/relaunch after every eligible Swift or SwiftUI body edit. Save the change, allow injection to apply, then verify against the live app. Rebuild only for structural changes InjectionNext cannot load, an injection failure, or an explicit/final compile check.
 - `pnpm run dev:android` — same for the `poracode-pixel9-api37` emulator; Kotlin-only saves hot-apply via ART Apply Changes, structural changes fall back to incremental APK install. `-- --once` for a single run.
 - `pnpm run dev:web` — serves only the PWA on port **3101** against an already-running desktop app (desktop dev renderer stays on 3100). `pnpm run dev:web:server` — separate headless remote host when needed.
-- Toolchains: Xcode 26.6 (iOS 26.5 SDK; deployment target iOS 17); JDK 21 + `platforms;android-37.0` / `build-tools;37.0.0` (minSdk 26). Pairing, deep links, and dev-host env vars: see `docs/MOBILE_DEV.md`.
+- Toolchains: Xcode 26.6 (iOS 26.5 SDK; deployment target iOS 17); JDK 21 + `platforms;android-37.0` / `build-tools;37.0.0` (minSdk 34, Android 14 floor). Pairing, deep links, and dev-host env vars: see `docs/MOBILE_DEV.md`.
 - **Capacitor is fully removed** (dependencies, `cap:*` scripts, configs, shell code). Never reintroduce `@capacitor/*` packages or shell-era workflows. The one intentional legacy reference is the `capacitor://`/`ionic://` origin allowlist in `src/main/remote/server/security.ts`, kept only so already-installed shell builds keep pairing — leave it alone.
 
 ## Verification

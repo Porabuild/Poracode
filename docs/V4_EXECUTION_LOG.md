@@ -2671,3 +2671,60 @@ gates authoritative with the 63-step roadmap as reference/post-merge breadth;
 original core server/Electron/web/mobile-web stability + performance
 requirements unreduced; native iOS/Android UI stays development while shared
 contracts/build/tests remain gates.
+
+## 2026-09-21 — Android minimum SDK raised to API 34 (Android 14); API 26 runtime lane retired (uncommitted, no commit/push)
+
+**Change.** `android/app/build.gradle.kts` `minSdk` 26 → 34: Android 14 (API 34) is the oldest AOSP release still covered by the monthly Android Security
+Bulletin (the September 2026 bulletin updates 14–17), so API 26/Android 8 is
+no longer a supported floor. compile/target stay 37. The required
+`android_api26_runtime` job ("Android 8 minimum-SDK runtime") is replaced by
+`android_api34_runtime` ("Android 14 minimum-supported runtime"): API 34
+`google_apis` x86_64 emulator (Pixel 2 profile, RAM raised 2048M → 4096M for
+the Android 14 image), boots-Android-14-REL getprop asserts, and the same two
+required instrumentation classes — `MinimumSdkLaunchInstrumentedTest`
+(cold-launch pairing entry) and `transport.TlsPinPairingInstrumentedTest` —
+on the minSdk 34 APK; evidence artifact renamed `android-api34-runtime-*`;
+`native_gate` requires the new job (needs + per-need success assert).
+`MinimumSdkLaunchInstrumentedTest` retargets the floor
+(`@SdkSuppress(maxSdkVersion = 34)`, asserts `SDK_INT == 34`);
+`TlsPinPairingInstrumentedTest` is untouched. Both required-gate greps (native-ci.yml, release-mobile.yml) now
+pin `minSdk = 34` ("Require Android 17 with the Android 14 minimum").
+`scripts/ci-android-api37.sh` asserts `minSdk=34` in the installed package
+dumpsys and reports it in the runtime-evidence step summary.
+
+**Tests/docs.** `scripts/native-ci-workflows.test.mjs`: the API 37 harness's
+adb fixture emits `minSdk=34 targetSdk=37`, and a new guard test asserts the
+api34 lane boots level 34 and requires both minimum-floor classes plus the
+renamed evidence artifact. `scripts/nightly-pwa-workflows.test.mjs`: the
+native-gate needs list pins `android_api34_runtime`.
+`AndroidMultihostConfigTest.stableToolchainAndApiContractArePinned` pins
+`minSdk = 34`. Docs updated to the new floor: `docs/RELEASE_MOBILE.md`
+(baseline table, PR-gate description, release-workflow step, and an explicit
+supersession note for the recorded API 26-era release run — historical pass
+counts preserved, not fabricated forward),
+`docs/MOBILE_DEV.md` (toolchain floor + CI lane description),
+`docs/V3_ITERATION_PLAN.md` (dated update note on the 09-12 status item).
+
+**Scope/honesty.** Dated historical records are left intact (V3 item-1
+_Status 2026-09-12 sentence; V4_MERGE_GATES §1 baseline note "API 26+37";
+RELEASE_MOBILE final-run counts) — they describe runs that actually happened
+under the old floor and now carry dated supersession notes where current-state
+clarity requires them. `docs/V2_SERVER_ARCHITECTURE_PRODUCTION_PLAN.md` and
+`docs/V2_SERVER_ARCHITECTURE_EXECUTION_LOG.md` contain no API-26/minSdk
+support references — unchanged. The other agent's
+`transport/TlsPinPairingInstrumentedTest.kt` working-tree edits are not this
+lane's; coordinator reverts that file separately.
+
+**Validation.** `node --test scripts/native-ci-workflows.test.mjs
+scripts/nightly-pwa-workflows.test.mjs`: 7/7 pass (incl. the new api34 guard).
+Both workflows parse (`yaml`); `native_gate` needs list verified.
+`bash -n` clean on `ci-android-api37.sh`; `oxlint` clean and `oxfmt --check`
+pass on both touched `.mjs` files. Local Gradle
+`testDebugUnitTest --tests "com.poracode.app.AndroidMultihostConfigTest"` +
+`assembleDebugAndroidTest` on android-37.0: BUILD SUCCESSFUL —
+`AndroidMultihostConfigTest` 4 tests / 0 skipped / 0 failures / 0 errors
+(incl. the retargeted API-34 pin), and the retargeted
+`MinimumSdkLaunchInstrumentedTest` androidTest sources compile. NOT yet
+verified: the API 34 emulator boot/instrumentation run itself — that is
+exactly what CI (or a `workflow_dispatch` re-run of `android_api34_runtime`)
+must confirm at the boundary; no commit/push performed.

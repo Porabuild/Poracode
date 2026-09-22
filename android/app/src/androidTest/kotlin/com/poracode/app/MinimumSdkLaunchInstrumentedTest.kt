@@ -13,15 +13,15 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Keeps the declared Android 8/minSdk launch path covered independently of API 37 tests. */
+/** Keeps the declared Android 14/minSdk launch path covered independently of API 37 tests. */
 @RunWith(AndroidJUnit4::class)
-@SdkSuppress(maxSdkVersion = 26)
+@SdkSuppress(maxSdkVersion = 34)
 class MinimumSdkLaunchInstrumentedTest {
     @get:Rule val compose = createEmptyComposeRule()
 
     @Test
     fun coldLaunchShowsThePairingEntryPoint() {
-        assertEquals(26, Build.VERSION.SDK_INT)
+        assertEquals(34, Build.VERSION.SDK_INT)
         val context = InstrumentationRegistry.getInstrumentation().targetContext
 
         ActivityScenario.launch(MainActivity::class.java).use {

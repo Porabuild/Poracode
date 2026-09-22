@@ -80,11 +80,13 @@ jobs:
       - name: Install compile SDK
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
 
-      - name: Require Android 17 while preserving API 26 compatibility
+      - name: Require Android 17 with the Android 14 minimum
         run: |
           grep -Eq 'compileSdk = 37' android/app/build.gradle.kts
           grep -Eq 'targetSdk = 37' android/app/build.gradle.kts
-          grep -Eq 'minSdk = 26' android/app/build.gradle.kts
+          # Android 14 (API 34) is the oldest AOSP release still receiving
+          # monthly security bulletins (September 2026 bulletin covers 14-17).
+          grep -Eq 'minSdk = 34' android/app/build.gradle.kts
 
       - name: Test, assemble, and lint Android
         working-directory: android
@@ -461,11 +463,11 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-  android_api26_runtime:
-    name: Android 8 minimum-SDK runtime
+  android_api34_runtime:
+    name: Android 14 minimum-supported runtime
     needs: android
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -501,30 +503,34 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Boot Android 8 and run the minimum-SDK launch test
+      - name: Boot Android 14 and run the minimum-supported runtime tests
         uses: ReactiveCircus/android-emulator-runner@b530d96654c385303d652368551fb075bc2f0b6b # v2.35.0
         with:
-          api-level: 26
+          api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel_2
-          avd-name: poracode-pixel2-api26
+          avd-name: poracode-pixel2-api34
           cores: 2
-          ram-size: 2048M
-          heap-size: 384M
+          # The API 34 system image, the Gradle daemon, and the test APK share
+          # the runner; the API 26 image fit in 2048M, Android 14 needs more.
+          ram-size: 4096M
+          heap-size: 512M
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           working-directory: android
           script: |
-            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "26"
+            test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = "14"
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "34"
+            test "$(adb shell getprop ro.build.version.codename | tr -d '\r')" = "REL"
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.poracode.app.MinimumSdkLaunchInstrumentedTest,com.poracode.app.transport.TlsPinPairingInstrumentedTest --no-daemon --stacktrace
-            printf '%s\n' '### Android 8 minimum-SDK evidence' '' '- API 26 emulator booted.' '- The current APK launched and exposed the pairing entry point.' >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' '### Android 14 minimum-supported runtime evidence' '' '- API 34 emulator booted as Android 14 (REL).' '- The minSdk 34 APK launched and exposed the pairing entry point.' '- The minimum-SDK launch and TLS pin pairing tests passed.' >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload Android 8 runtime evidence
+      - name: Upload Android 14 minimum-supported runtime evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: android-api26-runtime-${{ github.run_attempt }}
+          name: android-api34-runtime-${{ github.run_attempt }}
           path: |
             android/app/build/outputs/androidTest-results/**
             android/app/build/reports/androidTests/**
@@ -651,7 +657,7 @@ jobs:
     needs:
       - remote_v3_contract
       - android
-      - android_api26_runtime
+      - android_api34_runtime
       - android_api37_runtime
       - ios
       - ios_ui
@@ -666,7 +672,7 @@ jobs:
           set -euo pipefail
           test "${{ needs.remote_v3_contract.result }}" = "success"
           test "${{ needs.android.result }}" = "success"
-          test "${{ needs.android_api26_runtime.result }}" = "success"
+          test "${{ needs.android_api34_runtime.result }}" = "success"
           test "${{ needs.android_api37_runtime.result }}" = "success"
           test "${{ needs.ios.result }}" = "success"
           test "${{ needs.ios_ui.result }}" = "success"

@@ -30,7 +30,9 @@ android {
 
     defaultConfig {
         applicationId = "com.lightcodeapp.mobile"
-        minSdk = 26
+        // Android 14 (API 34): the oldest AOSP release still covered by the
+        // monthly Android Security Bulletin (September 2026 bulletin covers 14-17).
+        minSdk = 34
         targetSdk = 37
         versionCode = mobileBuildNumber
         versionName = mobileVersionName

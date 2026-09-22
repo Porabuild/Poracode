@@ -128,11 +128,13 @@ jobs:
       - name: Install Android 17 SDK
         run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
 
-      - name: Require Android 17 while preserving API 26 compatibility
+      - name: Require Android 17 with the Android 14 minimum
         run: |
           grep -Eq 'compileSdk = 37' android/app/build.gradle.kts
           grep -Eq 'targetSdk = 37' android/app/build.gradle.kts
-          grep -Eq 'minSdk = 26' android/app/build.gradle.kts
+          # Android 14 (API 34) is the oldest AOSP release still receiving
+          # monthly security bulletins (September 2026 bulletin covers 14-17).
+          grep -Eq 'minSdk = 34' android/app/build.gradle.kts
 
       - name: Validate Android Firebase configuration
         shell: bash

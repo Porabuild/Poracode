@@ -20,11 +20,12 @@ watch/reload runners; append `-- --once` for a one-shot build/install/launch.
 | Client  | Build toolchain                   | Build target                    | Minimum OS |
 | ------- | --------------------------------- | ------------------------------- | ---------- |
 | iOS     | Xcode 26.6 with the iOS 26.5 SDK  | Swift 6 / native iPhone archive | iOS 17     |
-| Android | JDK 21, AGP 9.3.1, build-tools 37 | Android 17 / API 37             | API 26     |
+| Android | JDK 21, AGP 9.3.1, build-tools 37 | Android 17 / API 37             | API 34     |
 
 There is no iOS 26.6 SDK: Xcode 26.6 is intentionally paired with the iOS 26.5
-device and simulator SDKs. Android compiles and targets API 37 while retaining
-`minSdk = 26`.
+device and simulator SDKs. Android compiles and targets API 37 with
+`minSdk = 34` (Android 14, the oldest AOSP release still covered by the monthly
+Android Security Bulletin).
 
 ## Remote-v3 release status
 
@@ -184,7 +185,8 @@ requires:
 - 9 connected instrumentation tests, install, and cold launch on an Android
   17/API 37 emulator — the wire-lab UI journey covering pairing, thread
   send/stop, resync, notifications, and disconnect;
-- a dedicated minimum-SDK launch test on an Android 8/API 26 emulator;
+- a dedicated minimum-supported runtime lane on an Android 14/API 34 emulator
+  covering the cold-launch pairing-entry test and the TLS pin pairing test;
 - iOS `AppTests` on an iOS 26.5 simulator under Xcode 26.6 — including
   `TerminalRawKeyInputTests` for the interactive-terminal key encoding — plus
   the portable Swift contract suites;
@@ -197,8 +199,9 @@ requires:
 
 The Android emulator jobs run the native `androidTest` suite, including API 37
 `ACCESS_LOCAL_NETWORK` and `POST_NOTIFICATIONS` runtime-permission deny, grant,
-and revoke flows and push-extra consumption, plus a separate API 26 pairing-entry
-launch test. They verify install and cold launch. These gates consume a fresh checkout of the committed corpus; the
+and revoke flows and push-extra consumption, plus the Android 14/API 34
+minimum-supported runtime job (cold-launch pairing-entry and TLS pin pairing
+tests). They verify install and cold launch. These gates consume a fresh checkout of the committed corpus; the
 current working tree's native sources are not covered until they are committed.
 The native wire lab still does not drive complete SwiftUI or Compose feature
 journeys. Treat real-host native UI coverage as a separate release gate.
@@ -231,12 +234,15 @@ one send and one interrupt, 3 snapshots, 3 histories, WebSocket cursors
 `1 -> 4 -> 5`, and one `resync-required`; the second host recorded 8 operations
 and no send or interrupt. Secret scans were clean.
 
-The final Android run used an Android 17/API 37 emulator, with `minSdk = 26`.
+The final Android run used an Android 17/API 37 emulator while the previous
+`minSdk = 26` baseline still applied; the floor is now `minSdk = 34`.
 The complete JVM suite executed 910 tests: 910 passed, 0 failed, and 0 skipped.
 `compileDebugKotlin`, `compileDebugAndroidTestKotlin`, and `lintDebug` passed.
 Connected instrumentation executed 9 tests: 9 passed, 0 failed, and 0 skipped.
-The separate Android 8/API 26 minimum-SDK launch test also passed: 1 passed,
-0 failed, and 0 skipped.
+That run's separate Android 8/API 26 minimum-SDK launch test is retired; the
+required gate now runs a cold-launch pairing-entry test and the TLS pin pairing
+test on an Android 14/API 34 emulator, and its evidence regenerates with the
+next release run.
 The real native journey recorded exactly one send, one interrupt, 3 snapshots,
 4 histories, and 3 WebSocket connections with cursors `0 -> 8 -> 8`; it
 observed one `resync-required` and no collision-host operations. The journey
@@ -280,7 +286,7 @@ The `mobile-android` environment:
 
 1. installs Android 17/API 37, validates the Firebase client for
    `com.lightcodeapp.mobile`, and checks `compileSdk = 37`, `targetSdk = 37`, and
-   `minSdk = 26`;
+   `minSdk = 34`;
 2. runs the 910 JVM unit tests and release lint;
 3. builds a signed release AAB (the PR gate separately assembles a debug APK)
    and SHA-256 checksum; and

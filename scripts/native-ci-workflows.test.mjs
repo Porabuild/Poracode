@@ -52,7 +52,7 @@ case "$*" in
   'shell getprop ro.build.version.codename') echo REL;;
   'shell pm path '*) echo 'package:/data/app/android.apk';;
   'shell am get-current-user') echo 0;;
-  'shell dumpsys package '*) echo 'minSdk=26 targetSdk=37';;
+  'shell dumpsys package '*) echo 'minSdk=34 targetSdk=37';;
   'shell am start '*) echo 'Status: ok';;
   'shell pidof '*) echo 1234;;
   'shell dumpsys activity activities'*) echo 'mResumedActivity=ComponentInfo{com.poracode.app.MainActivity}'};;
@@ -192,4 +192,31 @@ if (process.argv[2] === 'assembleDebug') {
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
+});
+
+void test("API 34 minimum-supported runtime boots Android 14 and requires launch plus TLS pin evidence", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const job = workflow.jobs.android_api34_runtime;
+  assert.ok(job, "The API 26 lane must be replaced by a required Android 14/API 34 lane");
+  assert.equal(job.needs, "android");
+  const boot = job.steps.find(
+    (item) => item.name === "Boot Android 14 and run the minimum-supported runtime tests",
+  );
+  assert.ok(boot, "The minimum-supported runtime boot step must stay present");
+  assert.equal(boot.with["api-level"], 34);
+  assert.match(boot.with.script, /ro\.build\.version\.sdk \| tr -d '\\r'\)" = "34"/);
+  // Both minimum-floor classes stay required on the oldest supported release:
+  // the cold-launch pairing entry point and the TLS pin pairing test.
+  assert.ok(
+    boot.with.script.includes(
+      "-Pandroid.testInstrumentationRunnerArguments.class=com.poracode.app.MinimumSdkLaunchInstrumentedTest,com.poracode.app.transport.TlsPinPairingInstrumentedTest",
+    ),
+  );
+  const upload = job.steps.find(
+    (item) => item.name === "Upload Android 14 minimum-supported runtime evidence",
+  );
+  assert.ok(upload, "The minimum-supported runtime evidence upload must stay present");
+  assert.match(upload.with.name, /^android-api34-runtime-/);
 });
