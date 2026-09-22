@@ -14,7 +14,7 @@ Finish the existing shared-server architecture, without a rewrite: Electron auto
 
 Completion requires **correct behavior, measured responsiveness within a declared workload envelope, qualified artifacts, and a reviewed commit/push**. It does not mean moving native window/dialog operations out of Electron, promising unlimited processes, or splitting cohesive files to an arbitrary size. Every additional change must remove a demonstrated defect, duplicated responsibility, blocking operation or required evidence gap.
 
-Use Crossagents **z.ai GLM 5.3 Flash High** for independent research, disjoint implementation and verification. The coordinator validates results against actual files/tests/runtime; confident reports and wired CI jobs do not close gates. Preserve the active goal; this refinement changes its acceptance detail, not its intended product.
+Use Crossagents **z.ai GLM 5.3 FlashX High** for independent research, disjoint implementation and verification. The coordinator validates results against actual files/tests/runtime; confident reports and wired CI jobs do not close gates. Preserve the active goal; this refinement changes its acceptance detail, not its intended product.
 
 ### 0.2 Honest progress estimate
 
@@ -537,7 +537,7 @@ Long provider adapter files and `SkillsService.ts` also deserve responsibility r
 - Replace contradictory install/service instructions with one current path per supported mode. Move historical alternatives/decision records out of the primary runbook.
 - Generate/check defaults, artifact names, capability availability and target matrix from actual config/release sources where practical.
 - Mark “SSH composed” separately from “SSH remotely manageable and live-qualified.” Mark source-locale promotion progress and other remaining product gaps explicitly.
-- Keep the promotion dialog localization decision small: use an established main-side translation resource if introduced, or a localized renderer surface available at that lifecycle stage. Do not create a whole second i18n framework for two strings.
+- Preserve the implemented main-side promotion translation resource and its generated locale coverage. Do not replace it with a second i18n framework or move progress rendering merely for architectural symmetry.
 - **Benefit:** the supported product can be installed and operated without knowing this conversation or reading historical plans.
 - **Acceptance:** another person follows the documented clean-host recipe against released bytes; all commands work, unsupported modes are explicit, and no claimed gate is only wired-but-never-run.
 
