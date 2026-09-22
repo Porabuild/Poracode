@@ -5,8 +5,8 @@ import XCTest
 /// V6 E.2: device journeys for steer, permission, terminal keystroke, and git.
 ///
 /// The terminal and git journeys run against BOTH peers:
-///  - `mock` (default, CI-fast): the WireLab peer; assertions poll the mock
-///    operation journal.
+///  - `mock` (default, CI-fast): the WireLab peer; assertions poll its
+///    consolidated observed-operation set.
 ///  - `real` (env-gated: `NATIVE_E2E_PEER_MODE=real` + `NATIVE_E2E_PAIRING_URL`):
 ///    the production headless host. The real host has no scenario journal or
 ///    fixture threads, so the journey asserts in-UI completion against the real
@@ -116,7 +116,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     }
   }
 
-  func testGitFamilyStagesFromWorkspace() async throws {
+  func testGitFamilyReachesHostFromWorkspace() async throws {
     try await pairUntilHome()
     app.buttons["native-e2e.session-menu"].tap()
     let projects = app.buttons["native-e2e.more.projects"]
@@ -141,14 +141,22 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     } else {
       app.buttons["Git"].firstMatch.tap()
     }
+    if peerMode == .mock {
+      // WireLab has no mutable repository. Prove the native Git workspace
+      // reached the host through its real read procedures; the real-peer leg
+      // below performs gitStageAll and the TS harness checks the index effect.
+      for operationID in [
+        "procedure:getGitStatus",
+        "ws-client:git-state-interests",
+      ] {
+        try await waitForObservedOperation(hostID: "primary", operationID: operationID)
+      }
+      return
+    }
     // The workspace git screen keeps its action panel behind the toolbar
-    // ellipsis menu (→ "Git Operations"). The mock WireLab peer serves no git
-    // status, so the per-section stage/unstage menus never materialize in
-    // mock mode — drive the panel chrome's always-rendered git action
-    // instead (its buttons collapse into a "Quick Actions" menu when the
-    // HStack does not fit). The real peer has a live repo with changes, so it
-    // drives the exact staging procedure the observable-effects harness
-    // proves on the host side.
+    // ellipsis menu (→ "Git Operations"). The real peer has a live repo with
+    // changes, so it drives the exact staging procedure the observable-effects
+    // harness proves on the host side.
     let gitMenu = app.buttons["native-e2e.git.panel-menu"]
     if gitMenu.waitForExistence(timeout: 5) {
       gitMenu.tap()
@@ -156,23 +164,26 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       XCTAssertTrue(gitOperations.waitForExistence(timeout: 5))
       gitOperations.tap()
     }
-    let actionIdentifier =
-      peerMode == .real ? "native-e2e.git.gitStageAll" : "native-e2e.git.gitFetch"
-    var gitAction = app.buttons[actionIdentifier]
-    if !gitAction.waitForExistence(timeout: 5) {
+    let actionIdentifier = "native-e2e.git.gitStageAll"
+    var gitAction = await waitForHittableButton(identifier: actionIdentifier, timeout: 5)
+    if gitAction == nil {
       let quickActions = app.buttons["Quick Actions"]
       XCTAssertTrue(quickActions.waitForExistence(timeout: 5))
       quickActions.tap()
-      gitAction = app.buttons[actionIdentifier]
+      gitAction = await waitForHittableButton(identifier: actionIdentifier, timeout: 5)
     }
-    XCTAssertTrue(gitAction.waitForExistence(timeout: 15))
+    guard let gitAction else {
+      XCTFail("Git action never became hittable")
+      return
+    }
+    await fulfillment(
+      of: [XCTNSPredicateExpectation(
+        predicate: NSPredicate(format: "enabled == true"), object: gitAction)],
+      timeout: 15
+    )
+    XCTAssertTrue(gitAction.isEnabled, "Git action never became enabled")
     gitAction.tap()
-    switch peerMode {
-    case .mock:
-      try await waitForJournal(hostID: "primary", operationID: "procedure:gitFetch", count: 1)
-    case .real:
-      try await waitForRealPeerReached()
-    }
+    try await waitForRealPeerReached()
   }
 
   private func pairUntilHome() async throws {
@@ -276,6 +287,28 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     }
   }
 
+  private func waitForObservedOperation(hostID: String, operationID: String) async throws {
+    try await poll {
+      try await self.scenarioState().host(hostID).observedOperationIds.contains(operationID)
+    }
+  }
+
+  private func waitForHittableButton(
+    identifier: String,
+    timeout: TimeInterval
+  ) async -> XCUIElement? {
+    let deadline = Date().addingTimeInterval(timeout)
+    repeat {
+      if let button = app.buttons.matching(identifier: identifier).allElementsBoundByIndex
+        .first(where: { $0.exists && $0.isHittable })
+      {
+        return button
+      }
+      try? await Task.sleep(for: .milliseconds(100))
+    } while Date() < deadline
+    return nil
+  }
+
   private func poll(
     timeout: Duration = .seconds(20),
     condition: @escaping () async throws -> Bool
@@ -336,6 +369,7 @@ private struct FamilyScenarioState: Decodable {
 
 private struct FamilyScenarioHost: Decodable {
   let hostId: String
+  let observedOperationIds: [String]
   let operationJournal: [FamilyWireOperation]
 }
 

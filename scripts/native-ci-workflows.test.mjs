@@ -248,3 +248,26 @@ void test("iOS UI journeys keep the owned harness alive through a clean Xcode bu
   assert.equal(real?.env?.NATIVE_E2E_TEST_TIMEOUT_MS, "1800000");
   assert.ok(Number(mock.env.NATIVE_E2E_TEST_TIMEOUT_MS) < 60 * 60 * 1_000);
 });
+
+void test("native host load suites are isolated without serializing the whole foundation", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const steps = workflow.jobs.native_e2e_foundation.steps;
+  const foundation = steps.find(
+    (item) => item.name === "Run native foundation and production-host smoke",
+  );
+  const load = steps.find((item) => item.name === "Run isolated native load qualifications");
+  assert.ok(foundation && load);
+  assert.equal(workflow.jobs.native_e2e_foundation["timeout-minutes"], 35);
+  assert.doesNotMatch(foundation.run, /--no-file-parallelism/u);
+  assert.match(foundation.run, /--exclude='\*\*\/gitBurstQualification\.test\.ts'/u);
+  assert.match(foundation.run, /--exclude='\*\*\/sharedHostLoadProfile\.test\.ts'/u);
+  assert.match(load.run, /gitBurstQualification\.test\.ts/u);
+  assert.match(load.run, /sharedHostLoadProfile\.test\.ts/u);
+  assert.match(load.run, /--no-file-parallelism/u);
+  assert.equal(load.env.GIT_BURST_N64_TIMEOUT_MS, "600000");
+  assert.equal(load.env.NATIVE_E2E_TEST_TIMEOUT_MS, undefined);
+  const upload = steps.find((item) => item.name === "Upload native E2E evidence");
+  assert.match(upload.with.path, /native-load-junit\.xml/u);
+});

@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
+import { assertOutOfCheckoutCapabilities } from "./server-install-qualification.mjs";
 
 const workflowUrl = (name) => new URL(`../.github/workflows/${name}`, import.meta.url);
 
@@ -73,14 +74,26 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   const nativeEntries = workflow.jobs.native_qualification.strategy.matrix.include;
   assert.ok(
     nativeEntries.some(
-      (entry) => entry.target === "linux-arm64" && entry.os === "ubuntu-24.04-arm",
+      (entry) =>
+        entry.target === "linux-arm64" &&
+        entry.os === "ubuntu-24.04-arm" &&
+        entry.computer_use === false,
     ),
     "the native Linux arm64 qualification leg is required",
   );
   assert.ok(
-    nativeEntries.some((entry) => entry.target === "darwin-x64" && entry.os === "macos-15-intel"),
+    nativeEntries.some(
+      (entry) =>
+        entry.target === "darwin-x64" &&
+        entry.os === "macos-15-intel" &&
+        entry.computer_use === true,
+    ),
     "the native macOS x64 qualification leg is required",
   );
+  const nativeInstall = workflow.jobs.native_qualification.steps.find(
+    (step) => step.name === "Install and qualify the native target from the qualified tarball",
+  );
+  assert.match(String(nativeInstall.env.PORACODE_EXPECT_COMPUTER_USE), /matrix\.computer_use/u);
 
   const assemble = steps.find((step) => step.name === "Build and assemble the server artifact");
   // One web build feeds the bundled client (plan D2); the same recipe runs for
@@ -166,6 +179,28 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
       `${releaseName} must download the verified aggregate, not the per-leg builds`,
     );
   }
+});
+
+void test("out-of-checkout qualification requires each target's truthful optional capabilities", () => {
+  const doctor = (computerUse) => ({
+    hostServices: { ssh: { enabled: true }, computerUse: { enabled: computerUse } },
+  });
+  const capabilities = (computerUse) => ({ ssh: true, computerUse });
+
+  assert.doesNotThrow(() =>
+    assertOutOfCheckoutCapabilities(doctor(true), capabilities(true), true),
+  );
+  assert.doesNotThrow(() =>
+    assertOutOfCheckoutCapabilities(doctor(false), capabilities(false), false),
+  );
+  assert.throws(
+    () => assertOutOfCheckoutCapabilities(doctor(false), capabilities(false), true),
+    /computerUse:true/u,
+  );
+  assert.throws(
+    () => assertOutOfCheckoutCapabilities(doctor(true), capabilities(true), false),
+    /computerUse:false/u,
+  );
 });
 
 void test("the arm64 node-pty cross-build stages the installed node-addon-api sibling and proves it visible", async () => {

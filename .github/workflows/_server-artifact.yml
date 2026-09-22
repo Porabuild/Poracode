@@ -309,10 +309,14 @@ jobs:
             os: ubuntu-24.04-arm
             target: linux-arm64
             build_leg: linux
+            # Linux ARM64 is a supported server target, but the optional native
+            # computer-use helper currently has no ARM64 artifact.
+            computer_use: false
           - name: darwin-x64
             os: macos-15-intel
             target: darwin-x64
             build_leg: darwin
+            computer_use: true
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -336,6 +340,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
           QUALIFIED_DIR: ${{ runner.temp }}/qualified
+          PORACODE_EXPECT_COMPUTER_USE: ${{ matrix.computer_use }}
         run: |
           set -euo pipefail
           META="$QUALIFIED_DIR/server-artifact.json"

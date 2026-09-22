@@ -304,7 +304,10 @@ class Android37WireLabFamilyInstrumentedTest {
      * coroutine that must issue the operation being observed. */
     private fun waitForOperation(operation: String, timeoutMs: Long = 20_000L) {
         compose.waitUntil(timeoutMs) {
-            control.operationCount("primary", operation) >= 1
+            // Routes/WS frames have exact arrival entries in operationJournal,
+            // while procedure IDs are derived from the host coverage ledger.
+            // The consolidated observed set is the common causal surface.
+            operation in control.hostObserved("primary")
         }
     }
 
