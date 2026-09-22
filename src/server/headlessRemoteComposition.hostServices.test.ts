@@ -37,13 +37,13 @@ const drivers = vi.hoisted(() => {
   );
   return {
     createComputerUseDriver: vi.fn<() => unknown>(() => fakeDriver),
-    resolveComputerUseHelperBinaryPath: vi.fn<() => string>(() => "/fixture/poracode-computer-use"),
+    isComputerUseBackendAvailable: vi.fn<() => boolean>(() => true),
   };
 });
 
 vi.mock("@/host/computer-use/drivers", () => ({
   createComputerUseDriver: drivers.createComputerUseDriver,
-  resolveComputerUseHelperBinaryPath: drivers.resolveComputerUseHelperBinaryPath,
+  isComputerUseBackendAvailable: drivers.isComputerUseBackendAvailable,
 }));
 
 // Mutable state shared with the hoisted vi.mock factories (same harness as

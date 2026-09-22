@@ -115,6 +115,10 @@ class NoticeCapabilityInstallPathTest {
                 "fresh-pair first upgrade must declare notices=v1: ${fixture.wsUpgrades.single()}",
                 fixture.wsUpgrades.single().contains("notices=v1"),
             )
+            awaitCondition {
+                session.state.value.liveRuntimeHistoryNoticeVersions ==
+                    setOf(RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION)
+            }
             assertEquals(
                 setOf(RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION),
                 session.state.value.liveRuntimeHistoryNoticeVersions,
@@ -226,6 +230,10 @@ class NoticeCapabilityInstallPathTest {
                 "host-switch first upgrade must declare notices=v1: ${second.wsUpgrades.single()}",
                 second.wsUpgrades.single().contains("notices=v1"),
             )
+            awaitCondition {
+                session.state.value.liveRuntimeHistoryNoticeVersions ==
+                    setOf(RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION)
+            }
             assertEquals(
                 setOf(RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION),
                 session.state.value.liveRuntimeHistoryNoticeVersions,
@@ -314,6 +322,10 @@ class NoticeCapabilityInstallPathTest {
 
             assertTrue("a superseded preflight must not open a socket", first.wsUpgrades.isEmpty())
             assertEquals("B's first upgrade stays the only socket", 1, second.wsUpgrades.size)
+            awaitCondition {
+                harness.state.value.liveRuntimeHistoryNoticeVersions ==
+                    setOf(RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION)
+            }
             assertEquals(
                 "B's capable descriptor is the live authority; A's late future-only answer cannot replace it",
                 setOf(RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION),

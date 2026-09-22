@@ -37,6 +37,8 @@ export class GitBurstDiagnosticsUnavailable extends Error {
   }
 }
 
+const GIT_BURST_DIAGNOSTICS_TIMEOUT_MS = 5_000;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -76,8 +78,13 @@ function parseGitAdmission(body: unknown): GitBurstAdmissionUsage {
 
 /** Fetches one admission snapshot from the loopback metrics route. No bearer
  * token: the route is transport-gated to loopback peers by design. */
-export async function fetchGitAdmissionUsage(httpBaseUrl: string): Promise<GitBurstAdmissionUsage> {
-  const response = await fetch(new URL("/metrics", httpBaseUrl));
+export async function fetchGitAdmissionUsage(
+  httpBaseUrl: string,
+  timeoutMs = GIT_BURST_DIAGNOSTICS_TIMEOUT_MS,
+): Promise<GitBurstAdmissionUsage> {
+  const response = await fetch(new URL("/metrics", httpBaseUrl), {
+    signal: AbortSignal.timeout(timeoutMs),
+  });
   if (response.status !== 200) {
     throw new GitBurstDiagnosticsUnavailable(
       `/metrics answered HTTP ${String(response.status)} instead of 200`,
@@ -157,6 +164,7 @@ export class GitBurstGaugePoller {
   constructor(
     private readonly httpBaseUrl: string,
     private readonly intervalMs = 25,
+    private readonly requestTimeoutMs = GIT_BURST_DIAGNOSTICS_TIMEOUT_MS,
   ) {}
 
   start(): void {
@@ -180,7 +188,7 @@ export class GitBurstGaugePoller {
   private async poll(): Promise<void> {
     const atMs = Date.now();
     try {
-      const usage = await fetchGitAdmissionUsage(this.httpBaseUrl);
+      const usage = await fetchGitAdmissionUsage(this.httpBaseUrl, this.requestTimeoutMs);
       const git = usage.gitProcesses;
       const envs = git.environments;
       if (!envs) {
