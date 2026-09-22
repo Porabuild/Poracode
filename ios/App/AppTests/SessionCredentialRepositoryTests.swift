@@ -709,6 +709,11 @@ actor AsyncGate {
             }
             group.cancelAll()
             if !first {
+                // The observer and timer can both become runnable while the
+                // MainActor test is busy. Prefer the checkpoint that has
+                // already arrived over whichever completed child the task
+                // group happens to yield first.
+                if waitingCount > 0 { return }
                 throw TestAsyncTimeoutError.timedOut("AsyncGate.waitUntilWaiting")
             }
         }

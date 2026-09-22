@@ -698,7 +698,7 @@ async function runAndroidRealJourney({ registerShutdown }) {
       "./gradlew",
       [
         "connectedDebugAndroidTest",
-        "-Pandroid.testInstrumentationRunnerArguments.clearPackageData=false",
+        "-Pporacode.android.clearPackageData=false",
         "-Pandroid.testInstrumentationRunnerArguments.peerMode=real",
         `-Pandroid.testInstrumentationRunnerArguments.pairingUrl=${pairingUrl}`,
         `-Pandroid.testInstrumentationRunnerArguments.capability=${capability}`,

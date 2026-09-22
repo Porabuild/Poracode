@@ -45,13 +45,14 @@ final class BoundedCatalogSessionTests: XCTestCase {
 
     fixture.releaseWalks()
     // This is a correctness/scale fixture, not a latency budget. On shared CI
-    // simulators the 140 paged responses can take more than 30 seconds even
-    // though the same run completes locally in about 26 seconds. Wait once for
+    // simulators the hundreds of paint and inventory responses can take more
+    // than two minutes under transient runner contention even though focused
+    // runs complete locally in under a minute. Wait once for
     // the full state instead of recording cascading failures from three
     // sequential deadlines; production latency is qualified separately.
     await harness.waitUntil(
       "large catalog converges",
-      timeout: 120,
+      timeout: 180,
       diagnostics: {
         "threads=\(harness.session.snapshot?.threads.count ?? -1) "
           + "projects=\(harness.session.snapshot?.projects.count ?? -1) "
