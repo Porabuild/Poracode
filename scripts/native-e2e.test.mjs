@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  hasInstalledAndroidPackage,
   IOS_UI_MAX_RUN_DIRS,
   IOS_UI_SIMULATOR_NAME,
   selectFixedIosSimulator,
   selectPrunableIosRunDirs,
+  waitForAndroidFrameworkServices,
 } from "./native-e2e.mjs";
 
 function simctlList(entries) {
@@ -80,4 +82,31 @@ void test("run-dir pruning keeps the newest runs and never touches derived data"
   );
   // With at most `keep` runs there is nothing to prune.
   assert.deepEqual(selectPrunableIosRunDirs(["ios-ui-9-9", "ios-ui-8-8"]), []);
+});
+
+void test("android installed-package detection accepts only package-manager paths", () => {
+  assert.equal(hasInstalledAndroidPackage("package:/data/app/poracode/base.apk\n"), true);
+  assert.equal(hasInstalledAndroidPackage("Failed\n"), false);
+  assert.equal(hasInstalledAndroidPackage(""), false);
+});
+
+void test("android framework readiness uses direct adb commands and retries", async () => {
+  const calls = [];
+  let failures = 1;
+  await waitForAndroidFrameworkServices(
+    async (command, args) => {
+      calls.push([command, args]);
+      if (failures > 0) {
+        failures -= 1;
+        throw new Error("not ready");
+      }
+      return "ok";
+    },
+    { attempts: 2, delayMs: 0, sleep: async () => {} },
+  );
+  assert.deepEqual(calls, [
+    ["adb", ["shell", "pm", "path", "android"]],
+    ["adb", ["shell", "pm", "path", "android"]],
+    ["adb", ["shell", "am", "get-current-user"]],
+  ]);
 });
