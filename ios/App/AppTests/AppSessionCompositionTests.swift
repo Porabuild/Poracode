@@ -1319,7 +1319,10 @@ final class AppSessionCompositionTests: XCTestCase {
       await gate.wait()
     }
     // Owned task so a timeout can release the gate and join promptly.
-    // The 2s bound, background race, and end assertions are unchanged.
+    // The bound is a liveness guard for the failure path, not a latency
+    // assertion: on a loaded CI simulator the checkpoint closure can start
+    // (probe arrived) while its hop into `gate.wait()` is still queued past
+    // 2s, so allow 10s. The background race and end assertions are unchanged.
     let pairTask = Task { @MainActor in
       await session.pair(
         with: .init(manualBaseURL: "https://a1.test", manualToken: "pair-a1")
@@ -1327,7 +1330,7 @@ final class AppSessionCompositionTests: XCTestCase {
       probe.markPairFinished()
     }
     do {
-      try await gate.waitUntilWaiting(timeoutNanoseconds: 2_000_000_000)
+      try await gate.waitUntilWaiting(timeoutNanoseconds: 10_000_000_000)
     } catch {
       let waitElapsedMs =
         Double(DispatchTime.now().uptimeNanoseconds - pairStartNs) / 1_000_000
@@ -1341,7 +1344,7 @@ final class AppSessionCompositionTests: XCTestCase {
       let totalElapsedMs =
         Double(DispatchTime.now().uptimeNanoseconds - pairStartNs) / 1_000_000
       XCTFail(
-        "pairing did not reach the mutation checkpoint within 2s "
+        "pairing did not reach the mutation checkpoint within 10s "
           + "(waitElapsedMs=\(waitElapsedMs), "
           + "cleanupElapsedMs=\(totalElapsedMs - waitElapsedMs), "
           + "checkpointArrivedAtTimeout=\(timeoutSnapshot.arrived), "
