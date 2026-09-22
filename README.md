@@ -33,7 +33,7 @@ If you use more than one AI coding agent, you know the pain: separate terminals,
 
 ### Infinite Threads & Layouts
 
-Mix TUI and GUI agents in any configuration. Open as many threads as you need, arrange them in horizontal and vertical splits, and resize freely. The layout stays fast no matter how many sessions you have running.
+Mix TUI and GUI agents in any configuration. Arrange threads in horizontal and vertical splits, resize freely, and keep background sessions running while visible panes stay responsive.
 
 ### Unified Protocol GUI
 
@@ -98,6 +98,10 @@ Open web pages, attach browser context to agents, and keep research in the same 
 ### Remote Access
 
 Pair the Poracode web app with your desktop to follow live threads, read terminal output, send messages, and receive notifications from your phone or browser.
+
+### Standalone Server
+
+Run the same backend without Electron and connect desktop, browser, iOS, or Android clients to it. The version-pinned `poracode` launcher, release artifact, service, container, security, backup, and upgrade paths are documented in [Standalone server: run, install, operate](docs/STANDALONE_SERVER.md). Until an npm-enabled release publishes the launcher, use the verified release artifact described there.
 
 ### Remote Machines over SSH
 
