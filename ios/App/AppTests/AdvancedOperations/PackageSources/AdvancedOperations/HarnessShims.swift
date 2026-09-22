@@ -9,9 +9,7 @@ import Foundation
 // networking error type. This shim satisfies that single reference so the
 // isolated package can compile the real feature sources without pulling in the
 // app's transport graph. Nothing in the feature calls it.
-struct RemoteClientError: Error, Equatable, Sendable {
-  let message: String
-
+extension RemoteClientError {
   static func invalidResponse(_ message: String) -> RemoteClientError {
     RemoteClientError(message: message)
   }
@@ -24,6 +22,7 @@ enum ProtocolConstants {
   /// every protocol bump (a stale value fails the package contract tests).
   static let remoteProtocolVersion = 12
   static let bearerTokenType = "Bearer"
+  static let environmentAuthorizationHeader = "X-Poracode-Environment-Authorization"
 }
 
 enum RemoteRequestHeaders {
