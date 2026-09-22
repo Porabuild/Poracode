@@ -45,7 +45,10 @@ const WINDOW_BOUND_PASS_INTERVAL_MS = 5_000;
 const MAX_CACHED_COMPLETED_TURN_RECORDS = 500;
 
 const hydratedThreadRuntimeIds = new Set<string>();
-const pendingThreadRuntimeHydrations = new Map<string, Promise<boolean>>();
+const pendingThreadRuntimeHydrations = new Map<
+  string,
+  { cancelled: boolean; readonly promise: Promise<boolean> }
+>();
 const olderRuntimePageCursorByThread = new Map<string, number | null>();
 const pendingOlderRuntimePages = new Map<
   string,
@@ -438,8 +441,8 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
 export async function hydrateThreadRuntimeItems(threadId: string): Promise<void> {
   if (hydratedThreadRuntimeIds.has(threadId)) return;
   const pending = pendingThreadRuntimeHydrations.get(threadId);
-  if (pending) {
-    await pending;
+  if (pending && !pending.cancelled) {
+    await pending.promise;
     return;
   }
 
@@ -449,10 +452,15 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
   const isEmptyBefore =
     (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) === 0;
   if (isEmptyBefore) useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
-  const hydration = hydrateThreadRuntimeItemsFromDb(threadId);
-  pendingThreadRuntimeHydrations.set(threadId, hydration);
+  const request = { cancelled: false, promise: Promise.resolve(false) };
+  const hydration = hydrateThreadRuntimeItemsFromDb(threadId, request);
+  request.promise = hydration;
+  pendingThreadRuntimeHydrations.set(threadId, request);
   try {
     const completed = await hydration;
+    // A reset superseded this read mid-flight: it owns neither the hydration
+    // marker nor the visible status — the replacement read owns both.
+    if (request.cancelled) return;
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
       useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
@@ -462,17 +470,22 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
       useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
     }
   } finally {
-    pendingThreadRuntimeHydrations.delete(threadId);
+    if (pendingThreadRuntimeHydrations.get(threadId) === request) {
+      pendingThreadRuntimeHydrations.delete(threadId);
+    }
   }
 }
 
-async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolean> {
+async function hydrateThreadRuntimeItemsFromDb(
+  threadId: string,
+  request: { readonly cancelled: boolean },
+): Promise<boolean> {
   // The managed desktop's own threads read their transcript through the SAME
   // bounded HTTP contract remote threads use (items + completed turns +
   // `ct1.` cursor + durable notice) over the ONE loopback client. The ordinary
   // root path must never invoke the unbounded local completed-turns read.
   if (isManagedRootHistoryThread(threadId)) {
-    return hydrateManagedRootThreadRuntimeItems(threadId);
+    return hydrateManagedRootThreadRuntimeItems(threadId, request);
   }
   const bridge = readBridge();
   const [itemsResult, turnsResult, contextResult, latestGoalResult] = await Promise.allSettled([
@@ -487,6 +500,9 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
     Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
     Promise.resolve().then(() => bridge.dbGetLatestThreadGoalItem({ threadId })),
   ]);
+  // A reset superseded this read while it was in flight: install nothing and
+  // claim no cursor — the replacement read owns both.
+  if (request.cancelled) return false;
 
   if (itemsResult.status === "fulfilled") {
     olderRuntimePageCursorByThread.set(threadId, itemsResult.value.nextCursor);
@@ -593,7 +609,10 @@ function installHydratedRuntimeItems(
  * makes older-item pages and the `ct1.` walk continue over the same bounded
  * routes.
  */
-async function hydrateManagedRootThreadRuntimeItems(threadId: string): Promise<boolean> {
+async function hydrateManagedRootThreadRuntimeItems(
+  threadId: string,
+  request: { readonly cancelled: boolean },
+): Promise<boolean> {
   let page: Awaited<ReturnType<typeof readManagedRootHistoryPage>>;
   try {
     // The bounded history response already carries the latest goal, including
@@ -601,6 +620,10 @@ async function hydrateManagedRootThreadRuntimeItems(threadId: string): Promise<b
     // and dispatch a host-owned operation to the supervisor.
     page = await readManagedRootHistoryPage(threadId);
   } catch (error) {
+    // A reset superseded this read mid-flight: install nothing, seed no
+    // cursor, and surface no failure of its own (the replacement read owns
+    // the outcome).
+    if (request.cancelled) return false;
     if (isManagedRootThreadAbsentError(error)) {
       // An unpersisted or authoritatively removed row has no transcript to
       // lose. A later pass/pin fills the empty transcript when it is created.
@@ -617,6 +640,7 @@ async function hydrateManagedRootThreadRuntimeItems(threadId: string): Promise<b
     return false;
   }
 
+  if (request.cancelled) return false;
   if (page.runtimeItems.length > 0) {
     installHydratedRuntimeItems(threadId, page.runtimeItems);
   }
@@ -693,6 +717,11 @@ export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): P
   // An in-flight older page from before the reset must not prepend across the
   // reset boundary or write back its stale cursor after the fresh read.
   cancelPendingOlderRuntimePage(threadId);
+  // Same for an in-flight FIRST hydration: awaiting it would adopt the
+  // pre-reset read — installing pre-reset rows, re-seeding the pre-reset
+  // cursor, and marking the thread hydrated. Supersede it so a fresh read
+  // serves the rebuilt transcript instead.
+  cancelPendingThreadRuntimeHydration(threadId);
   // The non-item older level (bounded completed turns) follows the same reset.
   olderThreadHistoryInvalidation?.(threadId);
   await hydrateThreadRuntimeItems(threadId);
@@ -701,6 +730,11 @@ export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): P
 
 function cancelPendingOlderRuntimePage(threadId: string): void {
   const pending = pendingOlderRuntimePages.get(threadId);
+  if (pending) pending.cancelled = true;
+}
+
+function cancelPendingThreadRuntimeHydration(threadId: string): void {
+  const pending = pendingThreadRuntimeHydrations.get(threadId);
   if (pending) pending.cancelled = true;
 }
 

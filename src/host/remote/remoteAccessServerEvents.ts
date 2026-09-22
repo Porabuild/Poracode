@@ -43,9 +43,12 @@ export function attachDesktopInternalClient(
   host.desktopInternalClients.add(ws);
   if (lastDesktopSeq === null || lastDesktopSeq === host.desktopSeq) return;
   if (lastDesktopSeq > host.desktopSeq) {
+    // The resync cursor is the DESKTOP space's own head: these frames live on
+    // the ipc sequence, so the shared-loopback head would be a meaningless
+    // cursor that loops a future desktop-stream resume into permanent resyncs.
     send(host, ws, {
       type: "resync-required",
-      seq: host.seq,
+      seq: host.desktopSeq,
       reason: "Desktop event stream reset; request a fresh snapshot.",
     });
     return;
@@ -61,9 +64,6 @@ export function detachDesktopInternalClient(host: RemoteAccessServerHost, ws: We
 
 function desktopReplayContext(host: RemoteAccessServerHost): DesktopInternalReplayContext {
   return {
-    get seq() {
-      return host.seq;
-    },
     get desktopSeq() {
       return host.desktopSeq;
     },
@@ -400,9 +400,11 @@ function publishDesktopInternalEvent(
     host.options.onOversizedEventDropped?.({ type: event.type, bytes: capped.bytes });
     host.desktopReplayingClients.clear();
     for (const client of host.desktopInternalClients) {
+      // Same ipc-space cursor rule as every desktop-internal resync: the
+      // desktop head, never the shared-loopback head.
       send(host, client, {
         type: "resync-required",
-        seq: host.seq,
+        seq: host.desktopSeq,
         reason: "Desktop event too large for the live stream; request a fresh snapshot.",
       });
     }

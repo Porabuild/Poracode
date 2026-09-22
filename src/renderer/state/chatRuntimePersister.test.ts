@@ -1,4 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { RemoteClientError } from "@/shared/remote/client";
+import type { Thread } from "@/shared/contracts";
+import {
+  __resetRuntimeHistoryNoticeCapabilityForTest,
+  noteRuntimeHistoryNoticesCapability,
+} from "@/renderer/state/remote/historyNoticeCapability";
+import {
+  __resetThreadHistoryNoticeStoreForTest,
+  readThreadHistoryNotice,
+} from "@/renderer/state/remote/historyNoticeStore";
 import { useAppStore } from "./appStore";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
 import {
@@ -48,6 +58,31 @@ const { bridge } = vi.hoisted(() => ({
 }));
 
 vi.mock("../bridge", () => ({ readBridge: () => bridge }));
+
+/**
+ * Controlled managed-root classification for the root failure-path tests
+ * below. Both mocks pass everything else through to the real modules, so the
+ * non-managed tests keep exercising the production classification (which
+ * short-circuits to false without a managed desktop runtime).
+ */
+const managedRoot = vi.hoisted(() => ({
+  active: false,
+  activation: null as null | {
+    seq: number;
+    authority: string;
+    client: { boundedThreadHistory: (threadId: string, options?: unknown) => Promise<never> };
+  },
+}));
+
+vi.mock("@/renderer/hostTransport/loopbackHttpWsTransport", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  readManagedLoopbackActivation: () => (managedRoot.active ? managedRoot.activation : null),
+}));
+
+vi.mock("./managedRootCatalog/rootCatalogCommands", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  isManagedRootDesktopRuntime: () => managedRoot.active,
+}));
 
 function makeItem(
   input: Partial<RuntimeChatItem> & Pick<RuntimeChatItem, "id" | "type">,
@@ -682,6 +717,54 @@ describe("paged runtime hydration", () => {
     }
   });
 
+  it("supersedes an in-flight first hydration when a reset lands mid-read", async () => {
+    const threadId = "reset-inflight-hydration-thread";
+    let resolveStalePage: (page: {
+      items: RuntimeChatItem[];
+      nextCursor: number | null;
+    }) => void = () => undefined;
+    bridge.dbGetThreadRuntimeItemsPage.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStalePage = resolve;
+      }),
+    );
+
+    // ChatPane mounts the thread and the first (pre-reset) read parks in
+    // flight.
+    const staleHydration = hydrateThreadRuntimeItems(threadId);
+    expect(useAppStore.getState().runtimeHydrationStatus[threadId]).toBe("pending");
+
+    // The host rebuilds a loss range and the reducer re-reads while that first
+    // read is still parked. The rehydration must start a FRESH read, never
+    // await the pending pre-reset one.
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "post-reset", type: "assistant_message" })],
+      nextCursor: 321,
+    });
+    const recovery = rehydrateThreadRuntimeItemsAfterReset(threadId);
+
+    // The pre-reset read then lands with its stale rows and stale cursor.
+    resolveStalePage({
+      items: [makeItem({ id: "pre-reset", type: "assistant_message" })],
+      nextCursor: 999,
+    });
+    await Promise.all([staleHydration, recovery]);
+
+    // The stale read must install nothing: the post-reset tail and cursor win.
+    expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["post-reset"]);
+    expect(hasHydratedThreadRuntimeItems(threadId)).toBe(true);
+
+    // The older-page cursor follows the post-reset read, never the stale one.
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({ items: [], nextCursor: null });
+    await loadOlderThreadRuntimeItems(threadId);
+    expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenLastCalledWith({
+      threadId,
+      beforePosition: 321,
+      limit: 500,
+      targetTimelineEntryCount: 40,
+    });
+  });
+
   it("invalidates the non-item older-history continuation when a transcript is evicted", async () => {
     const invalidated: string[] = [];
     setOlderThreadHistoryInvalidation((threadId) => {
@@ -957,5 +1040,69 @@ describe("bounded visible window (live threads)", () => {
     // was re-applied; the bound pass over it must be clean either way.
     expect(ids.at(-1)).toBe("live-9");
     expect(ids).not.toContain("live--1");
+  });
+});
+
+/**
+ * §0.6: a managed-root transcript read that fails with a DEFINITE
+ * (non-transport) error on a healthy, notice-capable activation is the
+ * recovery-needed signal, while a transport failure never mints a notice —
+ * the paired-path primitives are covered in `historyNotice.test.ts`; this
+ * pins the classification through the persister's hydration failure path.
+ */
+describe("managed-root history failure classification", () => {
+  function activateRootAuthority(error: unknown): void {
+    managedRoot.active = true;
+    managedRoot.activation = {
+      seq: 1,
+      authority: "managed-history-authority",
+      client: {
+        boundedThreadHistory: () => Promise.reject(error) as Promise<never>,
+      },
+    };
+  }
+
+  function seedRootThread(threadId: string): void {
+    useAppStore.setState((state) => ({
+      ...state,
+      threads: [...state.threads, { id: threadId, remoteServerId: undefined } as Thread],
+    }));
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useAppStore.setState((state) => ({
+      ...state,
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+      runtimeStructuralVersionByThread: {},
+    }));
+  });
+
+  afterEach(() => {
+    managedRoot.active = false;
+    managedRoot.activation = null;
+    __resetThreadHistoryNoticeStoreForTest();
+    __resetRuntimeHistoryNoticeCapabilityForTest();
+  });
+
+  it("surfaces recovery-needed for a definite failure and never for a transport failure", async () => {
+    noteRuntimeHistoryNoticesCapability("managed-history-authority", true);
+
+    // Definite non-transport failure on a healthy activation: the load fails
+    // AND the explicit review path opens.
+    seedRootThread("root-notice-thread");
+    activateRootAuthority(new Error("history reader exploded"));
+    await hydrateThreadRuntimeItems("root-notice-thread");
+    expect(useAppStore.getState().runtimeHydrationStatus["root-notice-thread"]).toBe("failed");
+    expect(readThreadHistoryNotice("root-notice-thread")).toMatchObject({ needsReview: true });
+
+    // A transport failure keeps the truthful failed status but must NOT mint a
+    // recovery-needed notice (the leg is down, not the transcript lost).
+    seedRootThread("root-transport-thread");
+    activateRootAuthority(new RemoteClientError("loopback unreachable", 0, "network"));
+    await hydrateThreadRuntimeItems("root-transport-thread");
+    expect(useAppStore.getState().runtimeHydrationStatus["root-transport-thread"]).toBe("failed");
+    expect(readThreadHistoryNotice("root-transport-thread")).toBeUndefined();
   });
 });

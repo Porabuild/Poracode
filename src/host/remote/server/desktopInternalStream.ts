@@ -99,7 +99,11 @@ export function replayDesktopEvents(
     sendRaw: host.sendRaw,
     get resync() {
       return {
-        seq: host.seq,
+        // The resync cursor is the DESKTOP space's own head: these frames live
+        // on the ipc sequence, so the shared-loopback head would be a
+        // meaningless cursor that loops a future desktop-stream resume into
+        // permanent resyncs.
+        seq: host.desktopSeq,
         reason: "Desktop event replay window expired; request a fresh snapshot.",
       };
     },
@@ -112,8 +116,12 @@ export function replayDesktopEvents(
 
 /** The slice of `RemoteAccessServer` state the desktop replay pump reads. */
 export interface DesktopInternalReplayContext {
-  /** Shared-stream sequence, reported inside `resync-required` frames. */
-  readonly seq: number;
+  /**
+   * Desktop-stream head (`ipc` sequence space). This — never the shared
+   * `loopback` head — is the value reported inside the stream's
+   * `resync-required` frames, because a desktop-stream resume cursor is a
+   * `desktopSeq` cursor.
+   */
   readonly desktopSeq: number;
   readonly desktopEventBuffer: readonly BufferedSupervisorEvent[];
   readonly desktopReplayingClients: Set<WebSocket>;
