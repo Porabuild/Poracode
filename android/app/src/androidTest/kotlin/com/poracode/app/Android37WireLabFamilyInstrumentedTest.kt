@@ -185,7 +185,11 @@ class Android37WireLabFamilyInstrumentedTest {
             PackageManager.PERMISSION_GRANTED,
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_LOCAL_NETWORK),
         )
-        if (isRealPeer) {
+        val reusingRealPairing = isRealPeer &&
+            application.session.state.value.hostCatalog.selectedConnectionId != null
+        if (reusingRealPairing) {
+            launchMainActivity()
+        } else if (isRealPeer) {
             val link = InstrumentationRegistry.getArguments().getString("pairingUrl")
                 ?: error("a real-peer run requires the 'pairingUrl' instrumentation arg")
             launchDeepLink(link)
@@ -197,7 +201,10 @@ class Android37WireLabFamilyInstrumentedTest {
                     "#token=" + token,
             )
         }
-        if (waitForTextIfPresent(context.getString(R.string.confirm_pair_title))) {
+        if (
+            !reusingRealPairing &&
+            waitForTextIfPresent(context.getString(R.string.confirm_pair_title))
+        ) {
             compose.onNodeWithText(context.getString(R.string.confirm_pair_button)).performClick()
         }
         if (isRealPeer) {
@@ -274,6 +281,15 @@ class Android37WireLabFamilyInstrumentedTest {
     private fun launchDeepLink(link: String) {
         launchedActivity = instrumentation.startActivitySync(
             Intent(Intent.ACTION_VIEW, Uri.parse(link), context, MainActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+        ) as MainActivity
+        instrumentation.waitForIdleSync()
+    }
+
+    private fun launchMainActivity() {
+        launchedActivity = instrumentation.startActivitySync(
+            Intent(context, MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
         ) as MainActivity
         instrumentation.waitForIdleSync()
