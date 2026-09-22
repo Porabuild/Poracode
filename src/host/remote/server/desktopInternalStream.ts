@@ -1,5 +1,4 @@
 import { replayBoundedHistory } from "./eventReplay";
-import { isLoopbackSocketAddress } from "./security";
 import { WebSocket } from "ws";
 import type { RemoteWebSocketServerMessage } from "@/shared/remote";
 import type { BufferedSupervisorEvent, RemoteServerContext } from "./context";
@@ -24,19 +23,11 @@ import type { BufferedSupervisorEvent, RemoteServerContext } from "./context";
  * connection module (`wsConnections.ts`) resolves it through the registry.
  */
 
-/** A loopback peer address, normalized across IPv4, IPv6, and IPv4-mapped
- * IPv6 forms (`::1`, `127.x.x.x`, `::ffff:127.x.x.x`). Unix sockets report an
- * empty remote address; they are local by construction and count as loopback. */
-export function isLoopbackRemoteAddress(address: string | undefined): boolean {
-  // One classifier for every loopback gate (deep-review consolidation).
-  return isLoopbackSocketAddress(address);
-}
-
 const registrySessions = new WeakMap<RemoteServerContext, WeakSet<WebSocket>>();
 const registryHosts = new WeakMap<RemoteServerContext, DesktopInternalStreamHost>();
 
 /** Marks one live connection as desktop-internal. Only `wsConnections.ts`
- * calls this, and only after the loopback-address check passed. */
+ * calls this, and only after the direct-loopback peer check passed. */
 export function markDesktopInternalSession(ctx: RemoteServerContext, ws: WebSocket): void {
   let sessions = registrySessions.get(ctx);
   if (!sessions) {

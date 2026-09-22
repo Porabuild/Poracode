@@ -13,7 +13,7 @@ import {
   type HttpRouteHandlerTable,
 } from "./httpRouteHandlers.shared";
 import { readJsonBody } from "./requestBody";
-import { isDirectLoopbackPeer } from "./security";
+import { isDirectLoopbackPeer, resolvedTrustedProxies } from "./security";
 
 type ExperimentRouteId = "experiment-state" | "experiment-command";
 
@@ -29,12 +29,14 @@ export const EXPERIMENT_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, ExperimentRo
     // advertises no capability. Then the documented mutation LOCALITY gate:
     // only a DIRECT loopback peer may mutate host-local candidate ownership.
     // The relay adapter dials this server over loopback, so a relayed pair is
-    // excluded by the shared hop-marker classifier; a co-located paired client
-    // or an SSH forward can still satisfy it. This is locality, NOT an
-    // authentication guarantee — and every custody/validation rule below holds
-    // for any admitted caller.
+    // excluded by the shared direct-peer classifier — as is any dial from a
+    // configured trusted proxy or carrying proxy-forwarding headers, which
+    // arrive from loopback too; a plain co-located client or an SSH forward
+    // can still satisfy it. This is locality, NOT an authentication
+    // guarantee — and every custody/validation rule below holds for any
+    // admitted caller.
     requireExperimentAuthority(ctx);
-    if (!isDirectLoopbackPeer(req)) {
+    if (!isDirectLoopbackPeer(req, resolvedTrustedProxies(ctx.options))) {
       throw new RemoteHttpError(
         "experiments_desktop_local",
         "Experiment mutations are only accepted from a local client.",
