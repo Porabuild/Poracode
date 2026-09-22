@@ -11,6 +11,7 @@ describe("Git burst black-hole fixture", () => {
       socket.once("connect", resolve);
       socket.once("error", reject);
     });
+    await blackhole.accepted;
     const socketClosed = new Promise<void>((resolve) => socket.once("close", resolve));
 
     await expect(blackhole.close()).resolves.toBeUndefined();

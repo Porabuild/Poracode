@@ -32,14 +32,21 @@ const LONG_PERMIT_POLL_INTERVAL_MS = 25;
 export interface GitBurstBlackhole {
   /** Remote URL pointing at the connect-and-never-respond listener. */
   readonly url: string;
+  /** Resolves once the listener owns its first accepted socket. */
+  readonly accepted: Promise<void>;
   readonly close: () => Promise<void>;
 }
 
 /** Starts the connect-and-never-respond loopback listener. */
 export async function startBlackholeListener(): Promise<GitBurstBlackhole> {
   const sockets = new Set<Socket>();
+  let resolveAccepted!: () => void;
+  const accepted = new Promise<void>((resolve) => {
+    resolveAccepted = resolve;
+  });
   const blackhole: Server = createServer((socket) => {
     sockets.add(socket);
+    resolveAccepted();
     socket.once("close", () => sockets.delete(socket));
     socket.resume();
   });
@@ -49,6 +56,7 @@ export async function startBlackholeListener(): Promise<GitBurstBlackhole> {
   });
   return {
     url: `http://127.0.0.1:${String((blackhole.address() as { port: number }).port)}/repo.git`,
+    accepted,
     close: () =>
       new Promise<void>((resolve) => {
         // `closeAllConnections()` belongs to node:http, not node:net. Own the
