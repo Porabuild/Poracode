@@ -21,6 +21,10 @@ import { installServerPrefix } from "../../scripts/install-server-prefix.mjs";
 import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
 import { readReleaseBuildIdentity } from "./serverUpgradeIdentity";
 import { upgradeServerPrefix } from "./serverUpgrade";
+import {
+  parseCandidateMigrationPolicy,
+  type CandidateMigrationPolicy,
+} from "./serverUpgradeMigrationPolicy";
 
 /**
  * V6 D.4 round-1 follow-up plus D4: REAL upgrade integration tests against a
@@ -71,7 +75,12 @@ function findTarball(): string | null {
 /** A pre-D4 bundle cannot answer the authenticated status/admit operations. */
 function tarballSupportsD4(path: string): boolean {
   try {
-    const entrypoint = execFileSync("tar", ["-xzf", path, "-O", "lib/server.cjs"], {
+    const members = execFileSync("tar", ["-tzf", path], { encoding: "utf8" }).split(/\r?\n/u);
+    const entrypointMember = members.find(
+      (member) => member.replace(/^\.\//u, "") === "lib/server.cjs",
+    );
+    if (!entrypointMember) return false;
+    const entrypoint = execFileSync("tar", ["-xzf", path, "-O", entrypointMember], {
       encoding: "utf8",
       maxBuffer: 256 * 1024 * 1024,
     });
@@ -327,32 +336,47 @@ function pidAlive(pid: number): boolean {
 
 /**
  * doctor-passing but health-dead: runs forever, binds nothing. The synthetic
- * registry satisfies the upgrader's migration-policy gate (latest schema 47,
- * matching the running profile, so no migration is pending and the failure
- * takes the pre-admission rollback path this test asserts).
+ * registry mirrors the current migration policy, so no migration is pending
+ * and the failure takes the pre-admission rollback path this test asserts.
  */
-const BROKEN_SERVER_STUB = [
-  "const argv = process.argv.slice(2);",
-  'if (argv[0] === "doctor") {',
-  "  process.stdout.write(JSON.stringify({",
-  '    checks: [{ name: "stub", status: "ok" }],',
-  "    migrations: {",
-  "      latestSchemaVersion: 47,",
-  '      registry: [{ version: 47, name: "stub", rollback: "forward-only" }],',
-  "    },",
-  '  }) + "\\n");',
-  "  process.exit(0);",
-  "}",
-  "process.title = 'poracode-broken-upgrade';",
-  "setInterval(() => {}, 60_000);",
-  "",
-].join("\n");
+function readReleaseMigrationPolicy(releaseDir: string): CandidateMigrationPolicy {
+  const output = execFileSync(
+    process.execPath,
+    [join(releaseDir, "lib", "server.cjs"), "doctor", "--json"],
+    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 120_000 },
+  );
+  const policy = parseCandidateMigrationPolicy(
+    (JSON.parse(output) as { migrations?: unknown }).migrations,
+  );
+  if (!policy) throw new Error("release doctor did not report a valid migration policy");
+  return policy;
+}
+
+function brokenServerStub(policy: CandidateMigrationPolicy): string {
+  const doctorLine = JSON.stringify({
+    checks: [{ name: "stub", status: "ok" }],
+    migrations: policy,
+  });
+  return [
+    "const argv = process.argv.slice(2);",
+    'if (argv[0] === "doctor") {',
+    `  process.stdout.write(${JSON.stringify(`${doctorLine}\n`)});`,
+    "  process.exit(0);",
+    "}",
+    "process.title = 'poracode-broken-upgrade';",
+    "setInterval(() => {}, 60_000);",
+    "",
+  ].join("\n");
+}
 
 function buildBrokenTarball(sourceTarball: string): string {
   const stage = mkdtempSync(join(tmpdir(), "poracode-broken-stage-"));
   dirs.push(stage);
   execFileSync("tar", ["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
-  writeFileSync(join(stage, "lib", "server.cjs"), BROKEN_SERVER_STUB);
+  writeFileSync(
+    join(stage, "lib", "server.cjs"),
+    brokenServerStub(readReleaseMigrationPolicy(stage)),
+  );
   const brokenTarball = join(stage, "poracode-server-broken.tar.gz");
   execFileSync("tar", ["-czf", brokenTarball, "-C", stage, "."], { stdio: "pipe" });
   return brokenTarball;
@@ -582,6 +606,11 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
       // The current artifact is installed and started once so it owns the
       // profile and creates a real database; it is then stopped.
       installServerPrefix({ tarball: tarball!, prefix });
+      const sourceRelease = resolve(prefix, readlinkSync(join(prefix, "current")));
+      const candidatePolicy = readReleaseMigrationPolicy(sourceRelease);
+      const forwardOnlyAfter46 = candidatePolicy.registry
+        .filter((migration) => migration.version > 46 && migration.rollback === "forward-only")
+        .map((migration) => migration.version);
       const daemon = await startDaemon(prefix, profile, port);
       try {
         await waitForHealth(port, true, 30_000);
@@ -604,8 +633,8 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
         expect(result.outcome).toBe("upgraded");
         expect(result.migration).toMatchObject({
           currentSchemaVersion: 46,
-          latestSchemaVersion: 47,
-          forwardOnly: [47],
+          latestSchemaVersion: candidatePolicy.latestSchemaVersion,
+          forwardOnly: forwardOnlyAfter46,
         });
         // A consistent pre-migration backup was captured and retained.
         expect(result.backupPath).not.toBeNull();
@@ -649,7 +678,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
         } finally {
           database.close();
         }
-        expect(schemaVersion).toBe(47);
+        expect(schemaVersion).toBe(candidatePolicy.latestSchemaVersion);
 
         const currentRelease = resolve(prefix, readlinkSync(join(prefix, "current")));
         const expectedIdentity = readReleaseBuildIdentity(currentRelease);

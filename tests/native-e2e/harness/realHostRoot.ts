@@ -43,6 +43,17 @@ export async function prepareRealHostFixture(profileNamespace: string): Promise<
     const initialized = spawnSync("git", ["-C", fixtureDir, "init"], { stdio: "ignore" });
     if (initialized.error || initialized.status !== 0)
       throw new Error("Could not initialize the synthetic real-host Git fixture.");
+    for (const [key, value] of [
+      ["user.name", "Poracode Native E2E"],
+      ["user.email", "native-e2e@poracode.invalid"],
+    ] as const) {
+      const configured = spawnSync("git", ["-C", fixtureDir, "config", key, value], {
+        stdio: "ignore",
+      });
+      if (configured.error || configured.status !== 0) {
+        throw new Error(`Could not configure ${key} for the synthetic real-host Git fixture.`);
+      }
+    }
     return fixtureDir;
   } finally {
     await owner.close();
