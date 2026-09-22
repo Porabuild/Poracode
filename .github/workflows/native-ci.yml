@@ -576,7 +576,7 @@ jobs:
     needs: [changes, remote_v3_contract]
     if: ${{ needs.changes.outputs.shared == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -632,10 +632,32 @@ jobs:
         run: |
           pnpm exec vitest run \
             --config tests/native-e2e/vitest.config.ts \
-            --no-file-parallelism \
+            --exclude='**/gitBurstQualification.test.ts' \
+            --exclude='**/sharedHostLoadProfile.test.ts' \
             --reporter=default \
             --reporter=junit \
             --outputFile.junit="$RUNNER_TEMP/native-e2e-junit.xml"
+
+      # These production-host stress suites each saturate the runner. They were
+      # unstable inside the broad 76-file process even after file serialization,
+      # while a fresh dedicated process removes accumulated suite state. Keep
+      # the rest of the suite parallel and isolate only this measured
+      # resource-heavy pair; the n64 cell has its own hosted-runner allowance.
+      - name: Run isolated native load qualifications
+        env:
+          # Git burst n64 consistently finishes its cell near the old 360s
+          # Vitest ceiling on hosted Linux. Give evidence finalization room;
+          # the job-level timeout still bounds the complete qualification.
+          GIT_BURST_N64_TIMEOUT_MS: "600000"
+        run: |
+          pnpm exec vitest run \
+            --config tests/native-e2e/vitest.config.ts \
+            gitBurstQualification.test.ts \
+            sharedHostLoadProfile.test.ts \
+            --no-file-parallelism \
+            --reporter=default \
+            --reporter=junit \
+            --outputFile.junit="$RUNNER_TEMP/native-load-junit.xml"
 
       - name: Require real production-host evidence
         # The vitest step above runs against the server built two steps ago
@@ -674,7 +696,9 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: native-e2e-foundation-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/native-e2e-junit.xml
+          path: |
+            ${{ runner.temp }}/native-e2e-junit.xml
+            ${{ runner.temp }}/native-load-junit.xml
           if-no-files-found: warn
           retention-days: 7
 

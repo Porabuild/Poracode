@@ -264,15 +264,19 @@ async function pairAndAuthenticate(entry, profile, httpBase) {
   };
 }
 
-function assertOutOfCheckoutCapabilities(doctorReport, capabilities) {
-  if (capabilities.ssh !== true || capabilities.computerUse !== true) {
+export function assertOutOfCheckoutCapabilities(
+  doctorReport,
+  capabilities,
+  expectedComputerUse = true,
+) {
+  if (capabilities.ssh !== true || capabilities.computerUse !== expectedComputerUse) {
     throw new Error(
-      `C.1 out-of-checkout host must declare ssh:true and computerUse:true: ${JSON.stringify(capabilities)}`,
+      `C.1 out-of-checkout host must declare ssh:true and computerUse:${expectedComputerUse}: ${JSON.stringify(capabilities)}`,
     );
   }
   if (
     doctorReport.hostServices?.ssh?.enabled !== true ||
-    doctorReport.hostServices?.computerUse?.enabled !== true
+    doctorReport.hostServices?.computerUse?.enabled !== expectedComputerUse
   ) {
     throw new Error(
       `doctor hostServices not enabled: ${JSON.stringify(doctorReport.hostServices)}`,
@@ -357,7 +361,7 @@ async function runOneThreadTurn({ httpBase, token, shellId, ticket }) {
  * re-run doctor plus one authenticated request against the upgraded install,
  * and SIGTERM the upgraded daemon asserting the lease is released.
  */
-async function runUpgradePhase({ prefix, tarball, profile, port, httpBase }) {
+async function runUpgradePhase({ prefix, tarball, profile, port, httpBase, expectedComputerUse }) {
   const entry = join(prefix, "current", "lib", "server.cjs");
   const currentBefore = readlinkSync(join(prefix, "current"));
 
@@ -379,7 +383,7 @@ async function runUpgradePhase({ prefix, tarball, profile, port, httpBase }) {
 
   const doctorReport = assertDoctorOk(entry, profile, "upgraded-install");
   const { capabilities } = await pairAndAuthenticate(entry, profile, httpBase);
-  assertOutOfCheckoutCapabilities(doctorReport, capabilities);
+  assertOutOfCheckoutCapabilities(doctorReport, capabilities, expectedComputerUse);
 
   const pidPath = join(prefix, "poracode-server.pid");
   if (!existsSync(pidPath)) {
@@ -431,7 +435,11 @@ export async function qualifyServerInstall(options) {
     if (!envRes.ok) throw new Error(`environment ${envRes.status}`);
 
     const { token, capabilities } = await pairAndAuthenticate(entry, profile, httpBase);
-    assertOutOfCheckoutCapabilities(doctorReport, capabilities);
+    assertOutOfCheckoutCapabilities(
+      doctorReport,
+      capabilities,
+      options.expectedComputerUse ?? true,
+    );
 
     const add = await jsonRequest(`${httpBase}/api/projects/command`, {
       method: "POST",
@@ -478,6 +486,7 @@ export async function qualifyServerInstall(options) {
       profile,
       port,
       httpBase,
+      expectedComputerUse: options.expectedComputerUse ?? true,
     });
   }
 
@@ -513,6 +522,7 @@ async function main() {
     prefix,
     workRoot,
     tarball,
+    expectedComputerUse: readExpectedComputerUse(),
     ...(artifactPath ? { artifactPath: resolve(artifactPath) } : {}),
   });
   process.stdout.write(
@@ -524,6 +534,13 @@ async function main() {
       webClientPresent: result.webClient?.present === true,
     })}\n`,
   );
+}
+
+function readExpectedComputerUse() {
+  const configured = process.env.PORACODE_EXPECT_COMPUTER_USE;
+  if (configured === undefined || configured === "true") return true;
+  if (configured === "false") return false;
+  throw new Error("PORACODE_EXPECT_COMPUTER_USE must be true or false when set");
 }
 
 const invokedDirectly =

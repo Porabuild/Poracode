@@ -117,6 +117,13 @@ import {
 
 const repoRoot = findRepoRoot();
 const entrypoint = detectHeadlessServerEntrypoint(repoRoot);
+const gitBurstN64TimeoutMs = (() => {
+  const value = Number(process.env.GIT_BURST_N64_TIMEOUT_MS ?? 360_000);
+  if (!Number.isSafeInteger(value) || value < 360_000) {
+    throw new Error("GIT_BURST_N64_TIMEOUT_MS must be an integer of at least 360000");
+  }
+  return value;
+})();
 
 let cleanup: ProcessCleanup | undefined;
 let host: RealHostHandle | undefined;
@@ -481,7 +488,7 @@ describe.skipIf(!entrypoint)(
           `steerEcho=${String(steer?.echoWaitMs ?? -1)}ms lines=${String(stream?.deliveredPadLines ?? 0)} ` +
           `heartbeatPings=${String(heartbeatRecord?.pings ?? 0)}`,
       );
-    }, 360_000);
+    }, gitBurstN64TimeoutMs);
 
     it("records the run summary", async () => {
       if (!firstDiagnostics) throw new Error("admission diagnostics were not captured");
