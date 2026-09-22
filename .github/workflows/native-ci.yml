@@ -602,6 +602,7 @@ jobs:
         run: |
           pnpm exec vitest run \
             --config tests/native-e2e/vitest.config.ts \
+            --no-file-parallelism \
             --reporter=default \
             --reporter=junit \
             --outputFile.junit="$RUNNER_TEMP/native-e2e-junit.xml"

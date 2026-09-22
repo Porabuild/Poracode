@@ -369,15 +369,17 @@ function brokenServerStub(policy: CandidateMigrationPolicy): string {
   ].join("\n");
 }
 
-function buildBrokenTarball(sourceTarball: string): string {
+function buildBrokenTarball(
+  sourceTarball: string,
+  migrationPolicy: CandidateMigrationPolicy,
+): string {
   const stage = mkdtempSync(join(tmpdir(), "poracode-broken-stage-"));
   dirs.push(stage);
   execFileSync("tar", ["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
-  writeFileSync(
-    join(stage, "lib", "server.cjs"),
-    brokenServerStub(readReleaseMigrationPolicy(stage)),
-  );
-  const brokenTarball = join(stage, "poracode-server-broken.tar.gz");
+  writeFileSync(join(stage, "lib", "server.cjs"), brokenServerStub(migrationPolicy));
+  const archiveDir = mkdtempSync(join(tmpdir(), "poracode-broken-artifact-"));
+  dirs.push(archiveDir);
+  const brokenTarball = join(archiveDir, "poracode-server-broken.tar.gz");
   execFileSync("tar", ["-czf", brokenTarball, "-C", stage, "."], { stdio: "pipe" });
   return brokenTarball;
 }
@@ -397,7 +399,9 @@ function buildDistinctTarball(sourceTarball: string, version: string): string {
   writeFileSync(packagePath, `${JSON.stringify({ ...parsed, version }, null, 2)}\n`);
   const entry = join(stage, "lib", "server.cjs");
   writeFileSync(entry, `${readFileSync(entry, "utf8")}\n// distinct D4 artifact ${version}\n`);
-  const distinct = join(stage, `poracode-server-${version}.tar.gz`);
+  const archiveDir = mkdtempSync(join(tmpdir(), "poracode-distinct-artifact-"));
+  dirs.push(archiveDir);
+  const distinct = join(archiveDir, `poracode-server-${version}.tar.gz`);
   execFileSync("tar", ["-czf", distinct, "-C", stage, "."], { stdio: "pipe" });
   return distinct;
 }
@@ -560,7 +564,8 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
       const port = await allocateLoopbackPort();
       sandboxEnv(profile, port);
       installServerPrefix({ tarball: tarball!, prefix });
-      const brokenTarball = buildBrokenTarball(tarball!);
+      const sourceRelease = resolve(prefix, readlinkSync(join(prefix, "current")));
+      const brokenTarball = buildBrokenTarball(tarball!, readReleaseMigrationPolicy(sourceRelease));
 
       const daemon = await startDaemon(prefix, profile, port);
       const currentBefore = readlinkSync(join(prefix, "current"));

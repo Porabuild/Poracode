@@ -21,6 +21,7 @@ const STATEFUL_PROCEDURES = new Set<RemoteProcedureName>([
   "listFileCheckpoints",
   "listProjectTree",
   "getGitStatus",
+  "gitProjectSnapshot",
   "gitListWorktrees",
   "writeProjectFile",
 ]);
