@@ -389,6 +389,62 @@ describe("evaluateBlockedControl", () => {
     expect(policy.ok).toBe(true);
     expect(policy.queued.delayMs).toBe(360);
   });
+
+  it("fails the control with a named reason when the previous cycle's block end is unknown", () => {
+    // Cycle 2's recorder read failed, so its block end is unknown and the
+    // earlier-cycle floor cannot be established. The pairing cannot exclude
+    // the event cycle 2's block released; the control must fail loudly with
+    // `previous-block-end-unknown` instead of silently pairing across the
+    // unknown boundary.
+    const after = {
+      capturedAtMonotonicMs: 143_616,
+      recentEventTimings: [
+        {
+          name: "click",
+          interactionId: 11,
+          // Cycle 2's queued event, released by cycle 2's block (whose end is
+          // unknown) — without the floor it wins the max-delay sort again.
+          startMs: 143_111.1,
+          inputDelayMs: 250.4,
+          processingMs: 2,
+          interactionDurationMs: 248,
+        },
+        {
+          name: "click",
+          interactionId: 12,
+          // Cycle 3's queued event (block start 143363.9, end 143613.9).
+          startMs: 143_365,
+          inputDelayMs: 250.2,
+          processingMs: 2,
+          interactionDurationMs: 250,
+        },
+      ],
+    } as unknown as RendererPerfSnapshot;
+    const cycle3Block = {
+      armed: true,
+      blockMs: 250,
+      startMs: 143_363.9,
+      endMs: 143_613.9,
+      fired: true,
+      handlerType: "pointerdown",
+    };
+    const policy = evaluateBlockedControl({
+      window: phaseWindow(),
+      after,
+      block: cycle3Block,
+      phaseEvents: [],
+      idleMaxInputDelayMs: null,
+      idleMeasured: false,
+      minQueuedInputDelayMs: 150,
+      idleWindowStartMs: null,
+      earlierBlockEndMs: null,
+      earlierBlockEndUnknown: true,
+    });
+    expect(policy.ok).toBe(false);
+    expect(policy.reasons).toContain("previous-block-end-unknown");
+    // The untrusted pairing is still recorded as evidence for diagnosis.
+    expect(policy.queued.eventTiming?.startMs).toBe(143_111.1);
+  });
 });
 
 describe("resolveTrustedInputOptions / sliceRecorderEvents", () => {

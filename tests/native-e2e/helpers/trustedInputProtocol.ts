@@ -1391,6 +1391,14 @@ export interface BlockedControlInput {
    * created earlier was released by that earlier block.
    */
   readonly earlierBlockEndMs?: number | null;
+  /**
+   * True when a block cycle precedes the evaluated one but its end is unknown
+   * (that cycle's recorder read failed), so `earlierBlockEndMs` could not be
+   * established. The pairing then cannot exclude candidates the earlier block
+   * already released; the control must fail with a named reason instead of
+   * silently pairing across the unknown boundary.
+   */
+  readonly earlierBlockEndUnknown?: boolean;
 }
 
 /** Blocked-phase policy: a real scheduled DOM block task produced at least one
@@ -1439,6 +1447,12 @@ export function evaluateBlockedControl(input: BlockedControlInput): BlockedContr
     elevationOverIdleMaxMs,
     idlePopulationComplete: input.idlePopulationComplete ?? null,
   };
+  // A previous cycle whose block end is unknown removes the floor that keeps
+  // queued-event pairing from reaching past it; report that measurement loss
+  // as a named failure instead of silently pairing across the boundary.
+  if (input.earlierBlockEndUnknown === true) {
+    reasons.push("previous-block-end-unknown");
+  }
   if (longTask.status !== "supported") reasons.push(`long task observer is ${longTask.status}`);
   if (!(input.block?.fired ?? false)) reasons.push("the scheduled DOM block never fired");
   if (input.block?.handlerType !== "pointerdown") {
@@ -1548,6 +1562,9 @@ export async function runTrustedInputProtocol(input: {
     ...(input.evidenceDir === undefined ? {} : { evidenceDir: input.evidenceDir }),
   });
   const idleMeasured = (idle.window?.eventTimings.samples ?? 0) > 0;
+  // The immediately preceding block cycle, when the evaluated block is not
+  // the first cycle.
+  const previousCycle = blocked.cycles.length > 1 ? (blocked.cycles.at(-2) ?? null) : null;
   const blockedPolicy = evaluateBlockedControl({
     window: blocked.window,
     after: blocked.after,
@@ -1556,8 +1573,12 @@ export async function runTrustedInputProtocol(input: {
     // The evaluated block is the last cycle's; exclude queued-event candidates
     // the earlier cycles' blocks already released (sequential cycle loop, so
     // this block's queued event is always created after the previous end).
-    earlierBlockEndMs:
-      blocked.cycles.length > 1 ? (blocked.cycles.at(-2)?.blockEndMs ?? null) : null,
+    // When that previous cycle's recorder read failed, its block end is
+    // unknown and the floor cannot be applied — the policy must fail loudly
+    // with `previous-block-end-unknown` instead of silently pairing across
+    // the unknown boundary.
+    earlierBlockEndMs: previousCycle?.blockEndMs ?? null,
+    earlierBlockEndUnknown: previousCycle !== null && previousCycle.blockEndMs === null,
     idleMaxInputDelayMs: idleMeasured ? (idle.window?.eventTimings.inputDelay.maxMs ?? null) : null,
     idleP95InputDelayMs: idleMeasured ? (idle.window?.eventTimings.inputDelay.p95Ms ?? null) : null,
     // The p95 baseline is read from the (possibly lossy) union population;

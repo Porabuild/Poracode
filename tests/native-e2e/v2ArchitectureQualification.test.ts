@@ -1524,31 +1524,43 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
         if (client) {
           const lastSeenSeq = client.metrics.lastEventSeq ?? client.metrics.readySeq ?? 0;
           await client.close();
-          const recoveredAccounting = new FrameClassAccounting();
-          const recoveredLabel = `${client.label}-reconnect`;
-          accounting.set(recoveredLabel, recoveredAccounting);
-          const recovered = await ProfileClient.create({
-            handle: managedHandle,
-            label: recoveredLabel,
-            accessToken,
-            lastSeenSeq,
-            onMessage: (frame) =>
-              recoveredAccounting.record(frame.bytes, classifyServerFrame(frame.message)),
-          });
-          recoveredAccounting.setInterests([
-            ...fixture.chatThreadIds,
-            ...(fixture.structuredThreadId === null ? [] : [fixture.structuredThreadId]),
-            fixture.terminalThreadId,
-            ...buildProducerStreams(spec.producers).map((stream) => stream.shellId),
-          ]);
-          await recovered.watchTerminalReliable(
-            fixture.terminalThreadId,
-            `${recoveredLabel}-watch-visible-terminal`,
-          );
-          // The recovered connection takes the original's slot; the closed
-          // original can no longer answer pings, so it is retired instead.
-          clients.splice(reconnectIndex, 1, recovered);
+          // The closed original can no longer answer pings, so it leaves the
+          // live roster before any recovery step can throw — otherwise a dead
+          // socket stays in `clients` and resurfaces as the opaque "ping was
+          // never answered" instead of the real failure.
+          clients.splice(reconnectIndex, 1);
           retiredClients.push(client);
+          let recovered: ProfileClient | null = null;
+          try {
+            const recoveredAccounting = new FrameClassAccounting();
+            const recoveredLabel = `${client.label}-reconnect`;
+            accounting.set(recoveredLabel, recoveredAccounting);
+            recovered = await ProfileClient.create({
+              handle: managedHandle,
+              label: recoveredLabel,
+              accessToken,
+              lastSeenSeq,
+              onMessage: (frame) =>
+                recoveredAccounting.record(frame.bytes, classifyServerFrame(frame.message)),
+            });
+            recoveredAccounting.setInterests([
+              ...fixture.chatThreadIds,
+              ...(fixture.structuredThreadId === null ? [] : [fixture.structuredThreadId]),
+              fixture.terminalThreadId,
+              ...buildProducerStreams(spec.producers).map((stream) => stream.shellId),
+            ]);
+            await recovered.watchTerminalReliable(
+              fixture.terminalThreadId,
+              `${recoveredLabel}-watch-visible-terminal`,
+            );
+          } catch (cause) {
+            // A half-recovered socket is live but in no roster; close it so
+            // the failure does not leak a connection past this cell.
+            await recovered?.close().catch(() => {});
+            throw new Error(`reconnect probe could not recover: ${String(cause)}`, { cause });
+          }
+          // The recovered connection takes the original's slot.
+          clients.splice(reconnectIndex, 0, recovered);
           reconnectClientEvidence = {
             label: client.label,
             lastSeenSeq,
