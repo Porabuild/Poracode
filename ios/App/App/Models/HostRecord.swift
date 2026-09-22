@@ -18,8 +18,15 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
     var lastSelectedAt: Date?
     var certFingerprint: String?
     var hostCapabilities: HostServiceCapabilities?
+    /// Present only for a locally paired host-owned environment. A record with
+    /// `nil` here is a direct (`device-local`) pairing; an environment record
+    /// always points at an existing parent record through `parentConnectionId`.
+    var environment: EnvironmentHostReference?
 
     var id: ClientConnectionID { connectionId }
+
+    /// True for a direct host pairing (device-local SSH / remote desktop).
+    var isDirectConnection: Bool { environment == nil }
 
     init(
         connectionId: ClientConnectionID,
@@ -36,7 +43,8 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
         protocolVersion: Int = ProtocolConstants.remoteProtocolVersion,
         lastSelectedAt: Date? = nil,
         certFingerprint: String? = nil,
-        hostCapabilities: HostServiceCapabilities? = nil
+        hostCapabilities: HostServiceCapabilities? = nil,
+        environment: EnvironmentHostReference? = nil
     ) {
         self.connectionId = connectionId
         self.desktopId = desktopId
@@ -53,12 +61,14 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
         self.lastSelectedAt = lastSelectedAt
         self.certFingerprint = certFingerprint
         self.hostCapabilities = hostCapabilities
+        self.environment = environment
     }
 
     init(
         connectionId: ClientConnectionID,
         profile: ConnectionProfile,
-        lastSelectedAt: Date? = nil
+        lastSelectedAt: Date? = nil,
+        environment: EnvironmentHostReference? = nil
     ) {
         self.init(
             connectionId: connectionId,
@@ -75,7 +85,8 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
             protocolVersion: profile.protocolVersion,
             lastSelectedAt: lastSelectedAt,
             certFingerprint: profile.certFingerprint,
-            hostCapabilities: profile.hostCapabilities
+            hostCapabilities: profile.hostCapabilities,
+            environment: environment
         )
     }
 
@@ -104,9 +115,15 @@ struct HostRecord: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
-/// Application Support multi-host registry. Non-secret. `formatVersion` 2.
+/// Application Support multi-host registry. Non-secret.
+///
+/// `formatVersion` 3 adds the optional `environment` reference to a record.
+/// A version 2 (direct-only) document is read through an explicit in-memory
+/// migration in `HostRegistryStore`; the next durable write lands version 3.
 struct HostRegistryDocument: Codable, Sendable, Equatable {
-    static let formatVersion = 2
+    static let formatVersion = 3
+    /// The immediately previous on-disk generation (direct records only).
+    static let legacyDirectFormatVersion = 2
 
     var formatVersion: Int
     var selectedConnectionId: ClientConnectionID?
@@ -236,7 +253,9 @@ enum HostMutationResult: Sendable, Equatable {
 enum HostOperationKind: String, Sendable, Equatable {
     case recover
     case add
+    case addEnvironment
     case switchSelected
     case rename
+    case describeCapabilities
     case remove
 }

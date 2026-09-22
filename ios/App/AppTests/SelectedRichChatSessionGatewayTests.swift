@@ -270,6 +270,18 @@ private actor RichChatRemoteAPIFake: RichChatRemoteAPI {
     self.transportFailure = transportFailure
   }
 
+  func richRuntimeGap(threadID _: String) async throws -> RemoteHistoryGapRead {
+    throw RichChatTransportFailure.invalidRequest
+  }
+
+  func richAcknowledgeRuntimeGap(
+    threadID _: String,
+    episodeToken _: String,
+    commandID _: String
+  ) async throws -> RemoteHistoryGapAcknowledgeOutcome {
+    throw RichChatTransportFailure.invalidRequest
+  }
+
   func richSend(threadID _: String, input _: RichChatSendInput) async throws {
     calls += 1
     let waiters = startWaiters
@@ -312,6 +324,9 @@ extension RichChatRemoteAPI {
   fileprivate func richHistoryPage(
     threadID _: String, beforePosition _: Int?, limit _: Int, targetEntryCount _: Int?
   ) async throws -> RemoteRuntimeItemsPage { throw RichChatTransportFailure.invalidResponse }
+  fileprivate func richTurnsPage(
+    threadID _: String, cursor _: String, limit _: Int
+  ) async throws -> RemoteBoundedTurnsPage { throw RichChatTransportFailure.invalidResponse }
   fileprivate func richLocalImage(path _: String) async throws -> RichChatBinaryPayload {
     throw RichChatTransportFailure.invalidResponse
   }

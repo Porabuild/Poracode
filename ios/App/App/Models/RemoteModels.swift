@@ -34,6 +34,22 @@ struct RemoteEnvironmentDescriptor: Codable, Sendable, Equatable {
         /// Additive: cursor-sync versions the host advertises (v2 = chunked
         /// terminal baselines with ack credit). Absent on older hosts.
         var terminalCursorSync: VersionedCapability?
+        /// C1: host-owned environments v1. Emitted only when every environment
+        /// route is usable on the host; absent hides the feature.
+        var sshEnvironments: VersionedCapability?
+        /// B1: durable runtime history notices v1. Advertised only by a host
+        /// whose composition wires the durable gap/notice store; absence or an
+        /// unknown-only version list means "not advertised here".
+        var runtimeHistoryNotices: VersionedCapability?
+        /// Bounded catalog-change signals v1. A declared connection receives
+        /// `remote-projects-changed` as `{type, mode:"signal"}` with no rows
+        /// and refreshes through the bounded catalog reads.
+        var boundedCatalogChanges: VersionedCapability?
+        /// Bounded project-command results v1. Advertised only by a host whose
+        /// project-command route accepts the per-request result declaration;
+        /// absence or an unknown-only version list means "not advertised here"
+        /// and keeps the complete legacy result.
+        var projectCommandResults: VersionedCapability?
 
         struct VersionedCapability: Codable, Sendable, Equatable {
             var versions: [Int]
@@ -45,6 +61,12 @@ extension RemoteEnvironmentDescriptor {
     /// Frozen wire version for origin-bound browser forward entry
     /// (`/forward/<id>/enter?fwt=…` two-hop exchange on the current route).
     static let browserForwardEntryVersion = 1
+    /// Frozen wire version of the B1 durable history-notice capability.
+    static let runtimeHistoryNoticesVersion = 1
+    /// Frozen wire version of the bounded catalog-change signal capability.
+    static let boundedCatalogChangesVersion = 1
+    /// Frozen wire version of the bounded project-command result capability.
+    static let projectCommandResultsVersion = 1
 
     /// True only when the environment handshake advertises browser-origin
     /// forward entry at the supported version. A positive signal only: absence
@@ -54,6 +76,29 @@ extension RemoteEnvironmentDescriptor {
     var advertisesBrowserForwardEntry: Bool {
         capabilities?.browserForward?.versions
             .contains(Self.browserForwardEntryVersion) == true
+    }
+
+    /// True only when the handshake advertises durable history notices at the
+    /// supported version. Positive signal only; every failure/absence is "not
+    /// advertised" and leaves transcript reads undeclared.
+    var advertisesRuntimeHistoryNotices: Bool {
+        capabilities?.runtimeHistoryNotices?.versions
+            .contains(Self.runtimeHistoryNoticesVersion) == true
+    }
+
+    /// True only when the handshake advertises bounded catalog-change signals
+    /// at the supported version.
+    var advertisesBoundedCatalogChanges: Bool {
+        capabilities?.boundedCatalogChanges?.versions
+            .contains(Self.boundedCatalogChangesVersion) == true
+    }
+
+    /// True only when the handshake advertises bounded project-command results
+    /// at the supported version. Positive signal only; every failure/absence is
+    /// "not advertised" and keeps the complete legacy request/result.
+    var advertisesProjectCommandResults: Bool {
+        capabilities?.projectCommandResults?.versions
+            .contains(Self.projectCommandResultsVersion) == true
     }
 }
 
@@ -178,6 +223,11 @@ struct RemoteShellSnapshot: Codable, Sendable, Equatable {
     var gitSummariesByThread: JSONValue?
     /// Additive normalized host-owned Git/PR state. Absent on legacy hosts.
     var gitState: JSONValue?
+    /// B4 bounded-page carries. Absent on legacy hosts and absent in every
+    /// in-memory snapshot assembled from a legacy response.
+    var reads: String? = nil
+    var threadsNextCursor: String? = nil
+    var projectsNextCursor: String? = nil
 }
 
 extension RemoteShellSnapshot {
@@ -193,6 +243,53 @@ extension RemoteShellSnapshot {
         guard let gitState else { return nil }
         return try GitStateSnapshot(wire: gitState)
     }
+}
+
+// MARK: - B1 durable history notices
+
+/// The durable thread-level history-incomplete notice as the transcript
+/// renders it. Wire shape is the host's `remoteRuntimeHistoryNoticeSchema`;
+/// `refusedEvents`/`refusedBytes` are cumulative lower bounds, never exact
+/// loss totals, and the idempotence token is deliberately absent (it is a
+/// server-side key, never a client credential).
+struct RemoteHistoryNotice: Codable, Sendable, Equatable, Hashable {
+    var kind: String
+    var source: String
+    var reason: String
+    var refusedEvents: Int
+    var refusedBytes: Int
+    var acknowledgedCount: Int
+    var firstAcknowledgedAt: Int
+    var lastAcknowledgedAt: Int
+}
+
+/// The current unacknowledged episode's opaque precondition. `token` is echoed
+/// back to the acknowledge route; `suspect` episodes come from a surviving
+/// boot touch and carry a foreign boot epoch instead of a UUID.
+struct RemoteHistoryGapDescriptor: Codable, Sendable, Equatable, Hashable {
+    var token: String
+    var source: String
+    var reason: String
+    var refusedEvents: Int
+    var refusedBytes: Int
+    var createdAt: Int
+}
+
+/// `GET /api/threads/{threadId}/runtime/gap` result.
+struct RemoteHistoryGapRead: Equatable, Sendable {
+    var gap: RemoteHistoryGapDescriptor?
+    var notice: RemoteHistoryNotice?
+}
+
+/// The acknowledgement outcome projection. `applied` records the notice and
+/// clears the matching episode; `already` replays a previously recorded
+/// acknowledgement (zero writes); `stale` means the echoed token no longer
+/// matches the current episode — `current` is the truthful state, which may be
+/// clean (`nil`). A client never auto-acknowledges the replacement.
+enum RemoteHistoryGapAcknowledgeOutcome: Equatable, Sendable {
+    case applied(notice: RemoteHistoryNotice, supersededAcceptedEvents: Int)
+    case already(notice: RemoteHistoryNotice)
+    case stale(current: RemoteHistoryGapDescriptor?)
 }
 
 // MARK: - Thread history
@@ -225,10 +322,19 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
     /// projected queue); explicit null clears; an object carries queue state.
     var followUpQueue: JSONValue?
     var followUpQueuePresent: Bool = false
+    /// B4: `ct1.` continuation for older completed turns. Absent on legacy
+    /// hosts and on legacy responses; additive on declared hosts.
+    var completedTurnsNextCursor: String? = nil
+    /// B4 capability echo; present only on bounded declared-host responses.
+    var reads: String? = nil
+    /// B1 durable history notice. Optional on the wire and absent on hosts
+    /// without the feature; an omitted field never clears a retained notice.
+    var runtimeNotice: RemoteHistoryNotice? = nil
 
     private enum CodingKeys: String, CodingKey {
         case snapshotSeq, thread, runtimeItems, runtimeNextCursor, completedTurns
         case contextUsage, terminalScrollback, updatedAt, followUpQueue
+        case completedTurnsNextCursor, reads, runtimeNotice
     }
 
     init(
@@ -241,7 +347,10 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         terminalScrollback: String? = nil,
         updatedAt: String,
         followUpQueue: JSONValue? = nil,
-        followUpQueuePresent: Bool = false
+        followUpQueuePresent: Bool = false,
+        completedTurnsNextCursor: String? = nil,
+        reads: String? = nil,
+        runtimeNotice: RemoteHistoryNotice? = nil
     ) {
         self.snapshotSeq = snapshotSeq
         self.thread = thread
@@ -253,6 +362,9 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         self.updatedAt = updatedAt
         self.followUpQueue = followUpQueue
         self.followUpQueuePresent = followUpQueuePresent
+        self.completedTurnsNextCursor = completedTurnsNextCursor
+        self.reads = reads
+        self.runtimeNotice = runtimeNotice
     }
 
     init(from decoder: Decoder) throws {
@@ -272,6 +384,11 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
             followUpQueuePresent = false
             followUpQueue = nil
         }
+        completedTurnsNextCursor = try container.decodeIfPresent(
+            String.self, forKey: .completedTurnsNextCursor
+        )
+        reads = try container.decodeIfPresent(String.self, forKey: .reads)
+        runtimeNotice = try container.decodeIfPresent(RemoteHistoryNotice.self, forKey: .runtimeNotice)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -287,12 +404,18 @@ struct RemoteThreadSnapshot: Codable, Sendable, Equatable {
         if followUpQueuePresent {
             try container.encode(followUpQueue, forKey: .followUpQueue)
         }
+        try container.encodeIfPresent(completedTurnsNextCursor, forKey: .completedTurnsNextCursor)
+        try container.encodeIfPresent(reads, forKey: .reads)
+        try container.encodeIfPresent(runtimeNotice, forKey: .runtimeNotice)
     }
 }
 
 struct RemoteRuntimeItemsPage: Codable, Sendable, Equatable {
     var items: [PersistedRuntimeItem]
     var nextCursor: Int?
+    /// B1 additive notice carry on item pages. Absent leaves a retained notice
+    /// untouched; the turns page deliberately carries no notice field.
+    var runtimeNotice: RemoteHistoryNotice? = nil
 }
 
 // MARK: - WebSocket envelopes
@@ -375,6 +498,9 @@ struct RemoteClientError: LocalizedError, Sendable, Equatable {
     var message: String
     var status: Int
     var code: String
+    /// Allowlisted response headers captured for a failed request (C1 R1).
+    /// Only evidence a caller explicitly asked for is ever retained.
+    var responseEvidence: [String: String]?
 
     var errorDescription: String? { message }
 

@@ -70,7 +70,14 @@ final class RichChatRequestController {
 
   func acknowledgeAuthoritativeRefresh() {
     state.requiresAuthoritativeRefresh = false
-    if state.failure == .ambiguousOutcome { state.failure = nil }
+    // The acknowledgement runs only after a successful authoritative history
+    // read whose lease passed the read gate, so an `.offline` recorded by a
+    // gate-refused attempt (no operation was in flight) is provably stale by
+    // then. Domain, permission and ambiguous failures keep their existing
+    // semantics.
+    if state.failure == .ambiguousOutcome || state.failure == .offline {
+      state.failure = nil
+    }
   }
 
   @discardableResult

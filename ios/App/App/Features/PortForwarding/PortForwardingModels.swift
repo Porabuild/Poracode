@@ -28,6 +28,7 @@ struct PortForwardingHostCredentials: Sendable {
   let token: String
   let protocolVersion: Int
   let scopes: Set<String>
+  var environment: RemoteEnvironmentContext?
 }
 
 enum PortForwardingDetectedProtocol: String, Codable, Equatable, Sendable {

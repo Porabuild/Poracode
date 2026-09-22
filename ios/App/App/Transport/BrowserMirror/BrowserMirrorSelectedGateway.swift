@@ -15,7 +15,8 @@ protocol BrowserMirrorGateway: Sendable {
 
 actor BrowserMirrorSelectedGateway: BrowserMirrorGateway {
   typealias AccessProvider = @MainActor @Sendable () -> BrowserMirrorHostAccess?
-  typealias APIFactory = @Sendable (String, String) throws -> any BrowserMirrorRemoteAPI
+  typealias APIFactory =
+    @Sendable (String, String, RemoteEnvironmentContext?) throws -> any BrowserMirrorRemoteAPI
 
   private let credentials: any BrowserMirrorCredentialRepository
   private let accessProvider: AccessProvider
@@ -78,7 +79,7 @@ actor BrowserMirrorSelectedGateway: BrowserMirrorGateway {
     guard credential.scopes.contains(capability.rawValue) else {
       throw BrowserMirrorFailure.missingScope
     }
-    return try makeAPI(credential.endpoint, credential.token)
+    return try makeAPI(credential.endpoint, credential.token, credential.environment)
   }
 
   private func validateCurrent(

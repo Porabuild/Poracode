@@ -128,6 +128,43 @@ actor RichChatControllerGatewayFake: RichChatSessionGateway {
     return try pageResponse.get()
   }
 
+  // MARK: - B1 notices
+
+  var gapReadResponse: RichChatControllerTestResponse<RemoteHistoryGapRead>?
+  var ackResponses: [RichChatControllerTestResponse<RemoteHistoryGapAcknowledgeOutcome>] = []
+  private(set) var gapReadCount = 0
+  private(set) var ackCommandIDs: [String] = []
+  private(set) var ackTokens: [String] = []
+
+  func configureGapRead(_ response: RichChatControllerTestResponse<RemoteHistoryGapRead>) {
+    gapReadResponse = response
+  }
+
+  func configureAck(
+    _ responses: [RichChatControllerTestResponse<RemoteHistoryGapAcknowledgeOutcome>]
+  ) {
+    ackResponses = responses
+  }
+
+  func loadRichRuntimeGap(target _: RichChatThreadTarget) async throws -> RemoteHistoryGapRead {
+    gapReadCount += 1
+    calls.append("gap-read")
+    guard let gapReadResponse else { return RemoteHistoryGapRead(gap: nil, notice: nil) }
+    return try gapReadResponse.get()
+  }
+
+  func acknowledgeRichRuntimeGap(
+    target _: RichChatThreadTarget,
+    episodeToken: String,
+    commandID: String
+  ) async throws -> RemoteHistoryGapAcknowledgeOutcome {
+    ackTokens.append(episodeToken)
+    ackCommandIDs.append(commandID)
+    calls.append("gap-ack")
+    guard !ackResponses.isEmpty else { throw RichChatGatewayError.invalidResponse }
+    return try ackResponses.removeFirst().get()
+  }
+
   func loadLocalRichImage(
     target _: RichChatThreadTarget,
     path _: String

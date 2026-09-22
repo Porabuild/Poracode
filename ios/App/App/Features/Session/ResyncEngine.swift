@@ -76,17 +76,41 @@ struct ResyncEngine {
         }
 
         let apiEndpoint = await api.httpEndpoint
-        let openId = host.state.openThreadId
-        let openEpoch = host.state.openThreadEpoch
+        // A resync is a fresh authoritative read: it starts a new bounded walk
+        // generation so no pre-resync page or gate reply can publish.
+        host.catalog.beginAttempt()
+        // F2: the resync gap broke transcript continuity, so the retained
+        // older-turn level and both continuations are no longer provable and
+        // any held older page is fenced. The commit below refreshes the
+        // transcript authoritatively on the existing requester.
+        host.activeRichChatSuite?.transcript.invalidateForDeliveredReplacement(
+            requiresRefresh: false
+        )
 
         do {
-            let snap = try await api.snapshot()
+            // Declared hosts serve one bounded page 1 (never assembled); a
+            // genuine older host that omits the echo served its complete
+            // legacy snapshot in the same response.
+            var boundedPage = false
+            let snap: RemoteShellSnapshot
+            if let outcome = try await host.catalog.fetchFirstPage() {
+                switch outcome {
+                case .bounded(let page):
+                    boundedPage = true
+                    snap = page.asShellSnapshot()
+                case .legacy(let legacy):
+                    snap = legacy
+                }
+            } else {
+                snap = try await api.snapshot()
+            }
             // Decode the additive Git fields before anything is committed. A
             // malformed field is a host failure (retried), never a partial install.
-            var preparedReplay = try HostSnapshotInstall.prepare(
-                shell: snap,
-                existing: host.state.replay
-            )
+            var preparedReplay = try (boundedPage
+                ? HostSnapshotInstall.prepareMergingGitSummaries(
+                    shell: snap, existing: host.state.replay
+                )
+                : HostSnapshotInstall.prepare(shell: snap, existing: host.state.replay))
             // A resync runs exactly when replay was lost or gapped, and the
             // shell snapshot carries no agent statuses — reinstall the
             // authoritative base into the prepared copy. Live frames are gated
@@ -121,24 +145,6 @@ struct ResyncEngine {
                 return
             }
 
-            var history: RemoteThreadSnapshot?
-            if let openId {
-                history = try await host.threads.fetchThreadHistory(id: openId)
-                try Task.checkCancellation()
-                guard host.state.resyncAttemptId == attemptId,
-                      workGen == host.state.workGeneration
-                else {
-                    await releaseTerminal(
-                        attemptId: attemptId,
-                        workGen: workGen,
-                        capturedSocket: capturedSocket,
-                        capturedSocketID: capturedSocketID,
-                        outcome: .stale
-                    )
-                    return
-                }
-            }
-
             let currentEndpoint: String?
             if let active = host.state.api {
                 currentEndpoint = await active.httpEndpoint
@@ -148,18 +154,13 @@ struct ResyncEngine {
             let currentSocketID = host.state.webSocket.map { ObjectIdentifier($0 as AnyObject) }
             let transaction = ResyncTransaction(
                 workGeneration: workGen,
-                openThreadId: openId,
-                openThreadEpoch: openEpoch,
                 apiEndpoint: apiEndpoint,
                 socketObjectID: capturedSocketID,
-                shell: snap,
-                history: history
+                shell: snap
             )
             let decision = HostResyncPolicy.commitDecision(
                 transaction: transaction,
                 currentWorkGeneration: host.state.workGeneration,
-                currentOpenThreadId: host.state.openThreadId,
-                currentOpenThreadEpoch: host.state.openThreadEpoch,
                 currentAPIEndpoint: currentEndpoint,
                 currentSocketObjectID: currentSocketID,
                 isCancelled: Task.isCancelled
@@ -187,7 +188,7 @@ struct ResyncEngine {
                     outcome: host.state.liveLifecycle.isInBackground ? .background : .cancelled
                 )
                 return
-            case .commit(let reconnectSeq, let installHistory):
+            case .commit(let reconnectSeq):
                 guard host.state.resyncAttemptId == attemptId,
                       workGen == host.state.workGeneration
                 else {
@@ -201,9 +202,6 @@ struct ResyncEngine {
                     return
                 }
 
-                host.state.historyLoadGeneration += 1
-                host.state.hydrationBuffer.discard()
-
                 // One transactional replacement: shell lists, replayed Git/agent
                 // state, and the cursor move together or not at all.
                 host.state.snapshot = snap
@@ -211,18 +209,15 @@ struct ResyncEngine {
                 host.state.replayInstallBuffer.discard()
                 host.state.replayInstallGeneration &+= 1
                 host.state.lastSeenSeq = reconnectSeq
+                if boundedPage {
+                    host.catalog.onFirstPageCommitted(cursor: reconnectSeq)
+                } else {
+                    host.catalog.noteLegacyHost()
+                }
                 if snap.projects.isEmpty && snap.threads.isEmpty {
                     host.state.projectsLoadState = .empty
                 } else {
                     host.state.projectsLoadState = .loaded
-                }
-
-                if installHistory, let history, let openId, host.state.openThreadId == openId {
-                    host.threads.installThreadHistory(
-                        history,
-                        threadId: openId,
-                        workGeneration: workGen
-                    )
                 }
 
                 let success = host.state.resyncCoordinator.noteSuccess(appliedSeq: reconnectSeq)

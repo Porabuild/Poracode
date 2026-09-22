@@ -125,7 +125,7 @@ final class SettingsIntegrationsGatewayTests: XCTestCase {
     let source = SettingsIntegrationsExactHostTransportSource(
       credentials: repository,
       accessProvider: { accessBox.value },
-      makeAPI: { _, _ in SettingsIntegrationsAPIFake() }
+      makeAPI: { _, _, _ in SettingsIntegrationsAPIFake() }
     )
     let selection = try await source.selection(for: context)
     XCTAssertEqual(selection?.access.context, context)

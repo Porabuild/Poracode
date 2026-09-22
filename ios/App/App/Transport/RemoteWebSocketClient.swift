@@ -1,5 +1,12 @@
 import Foundation
 
+/// What one actual upgrade attempt declared, read from the request URL the
+/// socket built (never from a second sample of the mutable client state).
+struct RemoteSocketUpgradeDeclarations: Equatable, Sendable {
+    var notices: Bool
+    var catalogChanges: Bool
+}
+
 /// Event-stream WebSocket client: ticket auth, seq cursor, reconnect, health, interests.
 /// `ConnectionState` and the delegate protocol live in `RemoteWebSocketClientTypes.swift`.
 actor RemoteWebSocketClient {
@@ -30,6 +37,9 @@ actor RemoteWebSocketClient {
     private var pendingPingId: String?
     var generationGate = SocketGenerationGate()
     var readyReceived = false
+    /// The declarations of the most recent connect attempt, recorded from the
+    /// exact URL handed to `webSocketTask`. `nil` before any attempt.
+    private(set) var lastUpgradeDeclarations: RemoteSocketUpgradeDeclarations?
     /// Torn down for resync; no auto-reconnect until resume/recover/start.
     var resyncSuspended = false
     /// Out-of-band browser multiplexer sink. Browser traffic never touches the cursor.
@@ -56,6 +66,9 @@ actor RemoteWebSocketClient {
     var currentThreadItemInterests: [String] { interests.threadItemInterests }
 
     var currentGitStateInterests: [GitStateInterest] { interests.gitStateInterests }
+
+    /// Declarations of the actual upgrade attempt, or nil before one exists.
+    var upgradeDeclarations: RemoteSocketUpgradeDeclarations? { lastUpgradeDeclarations }
 
     func start(lastSeenSeq: Int?) {
         // Always establish a baseline. `nil` → 0 (replay-from-start), never omit on wire.
@@ -199,6 +212,17 @@ actor RemoteWebSocketClient {
                 lastSeenSeq: cursor.appliedSeq,
                 threadItemInterests: interests.threadItemInterests
             )
+            // Record what THIS upgrade declares, from the exact URL the task
+            // will send. A later reconciliation compares this against the
+            // authoritative descriptor instead of re-reading the client flag.
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            let queryValue = { (name: String) in
+                components?.queryItems?.first(where: { $0.name == name })?.value
+            }
+            lastUpgradeDeclarations = RemoteSocketUpgradeDeclarations(
+                notices: queryValue("notices") == "v1",
+                catalogChanges: queryValue("catalogChanges") == "bounded-v1"
+            )
 
             let (urlSession, delegate) = RemoteURLSessions.makeWebSocketSession(
                 connectTimeoutSeconds: RemoteSocketPolicy.connectTimeoutMs / 1000
@@ -224,7 +248,9 @@ actor RemoteWebSocketClient {
         } catch is CancellationError {
             return
         } catch let error as RemoteClientError where error.isUnauthorized {
-            await handleSessionExpired(reason: RemoteSocketPolicy.sessionExpiredReason)
+            await handleSessionExpired(
+                reason: error.environmentRepairMessage ?? RemoteSocketPolicy.sessionExpiredReason
+            )
         } catch {
             if Task.isCancelled { return }
             await publish(.failed(error.localizedDescription))

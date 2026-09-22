@@ -2,7 +2,10 @@ import Foundation
 
 /// Generated-contract-backed project HTTP surface used by the lease-owning gateway.
 protocol ProjectRemoteAPI: Sendable {
-  func remoteRunProjectCommand(_ command: ProjectCommand) async throws -> ProjectCommandResult
+  func remoteRunProjectCommand(
+    _ command: ProjectCommand,
+    operationId: String
+  ) async throws -> ProjectCommandOutcome
   func remoteLoadProjectSettings(projectId: String) async throws -> ProjectSettings
   func remoteBrowseHostDirectory(path: String) async throws -> BrowseHostDirectoryResult
   func remoteDetectSetupScript(location: ProjectLocation) async throws -> DetectSetupScriptResult
@@ -15,22 +18,55 @@ enum ProjectRemoteMutationError: Error, Sendable {
   case ambiguousOutcome
 }
 
+/// Decoded union of the generated project-command response root. The generated
+/// codec has already validated the union; this selects the declared shape and
+/// never re-interprets an absent list as an empty catalog.
+private struct ProjectCommandWireResult: Decodable {
+  var ok: Bool?
+  var projects: [RemoteProject]?
+  var project: RemoteProject?
+}
+
 extension RemoteAPIClient: ProjectRemoteAPI {
-  func remoteRunProjectCommand(_ command: ProjectCommand) async throws -> ProjectCommandResult {
+  func remoteRunProjectCommand(
+    _ command: ProjectCommand,
+    operationId: String
+  ) async throws -> ProjectCommandOutcome {
     let body = try GeneratedRemoteV3Contract.projectCommandRequest(
       JSONDecoding.encoder.encode(command)
     )
+    // The declaration is only ever sent to a host whose authoritative
+    // handshake advertised `projectCommandResults` v1 on this exact client; the
+    // per-operation command id is required by the host under it and is the
+    // receipt identity for this one operation.
+    var headers: [String: String] = [:]
+    if effectiveProjectCommandResultDeclaration {
+      headers[ProtocolConstants.projectCommandResultHeader] =
+        ProtocolConstants.projectCommandResultDeclaration
+      headers[ProtocolConstants.commandIdHeader] = operationId
+    }
     let response = try await mutationRequest(
-      path: "/api/projects/command", jsonBody: body
+      path: "/api/projects/command", jsonBody: body, extraHeaders: headers
     )
     do {
       let canonical = try GeneratedRemoteV3Contract.projectCommandResponse(response)
-      return try JSONDecoding.decode(ProjectCommandResult.self, from: canonical)
+      return try Self.decodeProjectCommandOutcome(canonical)
     } catch is CancellationError {
       throw CancellationError()
     } catch {
       throw ProjectRemoteMutationError.ambiguousOutcome
     }
+  }
+
+  static func decodeProjectCommandOutcome(_ data: Data) throws -> ProjectCommandOutcome {
+    let wire = try JSONDecoding.decode(ProjectCommandWireResult.self, from: data)
+    if wire.ok == true {
+      return .bounded(ProjectCommandBoundedResult(project: wire.project))
+    }
+    guard let projects = wire.projects else {
+      throw ProjectRemoteMutationError.ambiguousOutcome
+    }
+    return .complete(ProjectCommandResult(projects: projects, project: wire.project))
   }
 
   func remoteLoadProjectSettings(projectId: String) async throws -> ProjectSettings {
@@ -90,9 +126,15 @@ extension RemoteAPIClient: ProjectRemoteAPI {
     }
   }
 
-  private func mutationRequest(path: String, jsonBody: Data) async throws -> Data {
+  private func mutationRequest(
+    path: String,
+    jsonBody: Data,
+    extraHeaders: [String: String] = [:]
+  ) async throws -> Data {
     do {
-      return try await requestData(path: path, method: "POST", jsonBody: jsonBody)
+      return try await requestData(
+        path: path, method: "POST", jsonBody: jsonBody, extraHeaders: extraHeaders
+      )
     } catch is CancellationError {
       throw CancellationError()
     } catch let error as RemoteClientError

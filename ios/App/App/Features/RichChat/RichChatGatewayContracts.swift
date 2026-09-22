@@ -23,6 +23,11 @@ struct RichChatSessionAccess: Equatable, Sendable {
   let isOnline: Bool
   let isReady: Bool
   let capabilities: Set<RichChatCapability>
+  /// B1: the selected authority advertised durable runtime history notices on
+  /// its latest handshake and the client declared them. Gates the gap
+  /// descriptor read and the acknowledgement action only; transcript reads
+  /// carry the declaration independently.
+  var runtimeHistoryNotices = false
 }
 
 enum RichChatGatewayError: Error, Equatable, Sendable {
@@ -47,6 +52,15 @@ protocol RichChatHistoryGateway: Sendable {
     limit: Int,
     targetEntryCount: Int?
   ) async throws -> RemoteRuntimeItemsPage
+
+  /// B4: one `ct1.` older-completed-turn page. Declared-only: a host without
+  /// the capability is an `unavailable` terminal (no silent downgrade), and
+  /// the transcript simply keeps no older-turn continuation.
+  func loadRichTurns(
+    target: RichChatThreadTarget,
+    cursor: String,
+    limit: Int
+  ) async throws -> RemoteBoundedTurnsPage
 
   func loadLocalRichImage(
     target: RichChatThreadTarget,
@@ -127,6 +141,35 @@ protocol RichChatRequestGateway: Sendable {
   ) async throws
 }
 
+/// B1 durable history notices. Declared-only routes; a host without the
+/// capability throws `unavailable` and the surface shows nothing new.
+protocol RichChatNoticeGateway: Sendable {
+  /// Capability-gated descriptor read: the current unacknowledged episode plus
+  /// the retained durable notice. Never inferred, never preloaded.
+  func loadRichRuntimeGap(target: RichChatThreadTarget) async throws -> RemoteHistoryGapRead
+  /// Explicit acknowledgement of one exact episode. `commandID` is the
+  /// caller's stable idempotency key for an uncertain retry.
+  func acknowledgeRichRuntimeGap(
+    target: RichChatThreadTarget,
+    episodeToken: String,
+    commandID: String
+  ) async throws -> RemoteHistoryGapAcknowledgeOutcome
+}
+
+extension RichChatNoticeGateway {
+  func loadRichRuntimeGap(target _: RichChatThreadTarget) async throws -> RemoteHistoryGapRead {
+    throw RichChatGatewayError.unavailable
+  }
+
+  func acknowledgeRichRuntimeGap(
+    target _: RichChatThreadTarget,
+    episodeToken _: String,
+    commandID _: String
+  ) async throws -> RemoteHistoryGapAcknowledgeOutcome {
+    throw RichChatGatewayError.unavailable
+  }
+}
+
 protocol RichChatTerminalGateway: Sendable {
   func watchRichTerminal(
     target: RichChatThreadTarget,
@@ -148,6 +191,16 @@ protocol RichChatTerminalGateway: Sendable {
   func stopRichTerminalTransport(target: RichChatThreadTarget) async
 }
 
+extension RichChatHistoryGateway {
+  func loadRichTurns(
+    target _: RichChatThreadTarget,
+    cursor _: String,
+    limit _: Int
+  ) async throws -> RemoteBoundedTurnsPage {
+    throw RichChatGatewayError.unavailable
+  }
+}
+
 extension RichChatTerminalGateway {
   func richTerminalEvents(target _: RichChatThreadTarget) async throws
     -> AsyncStream<RichChatTerminalTransportEvent>
@@ -162,5 +215,6 @@ protocol RichChatSessionGateway:
   RichChatHistoryGateway,
   RichChatConversationGateway,
   RichChatRequestGateway,
-  RichChatTerminalGateway
+  RichChatTerminalGateway,
+  RichChatNoticeGateway
 {}

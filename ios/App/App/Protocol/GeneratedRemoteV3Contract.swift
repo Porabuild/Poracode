@@ -100,17 +100,19 @@ enum GeneratedRemoteV3Contract {
   }
 
   static func threadHistoryQuery(
-    targetTimelineEntryCount: Int?
+    targetTimelineEntryCount: Int?,
+    notices: Bool = false
   ) throws -> [URLQueryItem] {
     var object: [String: Any] = ["runtimePage": "1"]
     if let targetTimelineEntryCount {
       object["targetTimelineEntryCount"] = targetTimelineEntryCount
     }
+    if notices { object["notices"] = "v1" }
     let snapshot = try canonicalSnapshot(
       jsonData(object), codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery,
       boundary: "thread history query"
     )
-    return try queryItems(snapshot, order: ["runtimePage", "targetTimelineEntryCount"])
+    return try queryItems(snapshot, order: ["notices", "runtimePage", "targetTimelineEntryCount"])
   }
 
   static func threadHistoryResponse(_ data: Data) throws -> Data {
@@ -128,19 +130,20 @@ enum GeneratedRemoteV3Contract {
   }
 
   static func historyItemsQuery(
-    beforePosition: Int?, limit: Int, targetTimelineEntryCount: Int?
+    beforePosition: Int?, limit: Int, targetTimelineEntryCount: Int?, notices: Bool = false
   ) throws -> [URLQueryItem] {
     var object: [String: Any] = ["limit": limit]
     if let beforePosition { object["beforePosition"] = beforePosition }
     if let targetTimelineEntryCount {
       object["targetTimelineEntryCount"] = targetTimelineEntryCount
     }
+    if notices { object["notices"] = "v1" }
     let snapshot = try canonicalSnapshot(
       jsonData(object), codec: RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EQuery,
       boundary: "history items query"
     )
     return try queryItems(
-      snapshot, order: ["limit", "beforePosition", "targetTimelineEntryCount"]
+      snapshot, order: ["notices", "limit", "beforePosition", "targetTimelineEntryCount"]
     )
   }
 
@@ -267,6 +270,69 @@ enum GeneratedRemoteV3Contract {
     try canonicalData(
       data, codec: RemoteRootCodecs.routeU2EPushU2DUnregisterU2EResponse,
       boundary: "push unregister response"
+    )
+  }
+
+  // MARK: - B1 runtime gap routes
+
+  /// `GET /api/threads/{threadId}/runtime/gap` — declared-only (`notices=v1`).
+  static func runtimeGapPath(threadId: String) throws -> String {
+    try canonicalThreadId(
+      threadId, codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EPath,
+      boundary: "runtime gap path"
+    )
+  }
+
+  static func runtimeGapQuery() throws -> [URLQueryItem] {
+    try queryItems(
+      canonicalSnapshot(
+        jsonData(["notices": "v1"]), codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EQuery,
+        boundary: "runtime gap query"
+      ),
+      order: ["notices"]
+    )
+  }
+
+  static func runtimeGapResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EResponse,
+      boundary: "runtime gap response"
+    )
+  }
+
+  static func runtimeGapAcknowledgePath(threadId: String) throws -> String {
+    try canonicalThreadId(
+      threadId,
+      codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EPath,
+      boundary: "runtime gap acknowledge path"
+    )
+  }
+
+  static func runtimeGapAcknowledgeQuery() throws -> [URLQueryItem] {
+    try queryItems(
+      canonicalSnapshot(
+        jsonData(["notices": "v1"]),
+        codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EQuery,
+        boundary: "runtime gap acknowledge query"
+      ),
+      order: ["notices"]
+    )
+  }
+
+  static func runtimeGapAcknowledgeRequest(
+    threadId: String, episodeToken: String
+  ) throws -> Data {
+    try canonicalData(
+      jsonData(["threadId": threadId, "episodeToken": episodeToken]),
+      codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2ERequest,
+      boundary: "runtime gap acknowledge request"
+    )
+  }
+
+  static func runtimeGapAcknowledgeResponse(_ data: Data) throws -> Data {
+    try canonicalData(
+      data, codec: RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EResponse,
+      boundary: "runtime gap acknowledge response"
     )
   }
 

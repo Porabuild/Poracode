@@ -20,7 +20,8 @@ extension HostCatalog: RemoteIntegrationsCredentialRepository {
       endpoint: record.httpBaseURL,
       token: token,
       protocolVersion: record.protocolVersion,
-      scopes: Set(record.scopes)
+      scopes: Set(record.scopes),
+      environment: await environmentTransportContext(for: record)
     )
   }
 }
@@ -33,18 +34,32 @@ struct RemoteIntegrationsTransportSelection: Sendable {
 /// Resolves credentials only for the exact selected host and captured work generation.
 actor RemoteIntegrationsExactHostTransportSource {
   typealias AccessProvider = @MainActor @Sendable () -> RemoteIntegrationsHostAccess?
-  typealias APIFactory = @Sendable (String, String) -> any RemoteIntegrationsRemoteAPI
+  typealias APIFactory =
+    @Sendable (String, String, RemoteEnvironmentContext?) -> any RemoteIntegrationsRemoteAPI
 
   private let credentials: any RemoteIntegrationsCredentialRepository
   private let accessProvider: AccessProvider
   private let makeAPI: APIFactory
 
+  /// The one production factory: bound endpoint + child bearer + resolved
+  /// parent context. Tests inject a URLProtocol-backed session to capture the
+  /// exact headers this factory produces.
+  static func productionAPIFactory(session: URLSession? = nil) -> APIFactory {
+    { endpoint, token, environment in
+      RemoteAPIClient(
+        endpoint: endpoint,
+        accessToken: token,
+        session: session,
+        environment: environment
+      )
+    }
+  }
+
   init(
     credentials: any RemoteIntegrationsCredentialRepository,
     accessProvider: @escaping AccessProvider,
-    makeAPI: @escaping APIFactory = { endpoint, token in
-      RemoteAPIClient(endpoint: endpoint, accessToken: token)
-    }
+    makeAPI: @escaping APIFactory =
+      RemoteIntegrationsExactHostTransportSource.productionAPIFactory()
   ) {
     self.credentials = credentials
     self.accessProvider = accessProvider
@@ -84,7 +99,7 @@ actor RemoteIntegrationsExactHostTransportSource {
     )
     return RemoteIntegrationsTransportSelection(
       access: exactAccess,
-      api: makeAPI(credential.endpoint, credential.token)
+      api: makeAPI(credential.endpoint, credential.token, credential.environment)
     )
   }
 }

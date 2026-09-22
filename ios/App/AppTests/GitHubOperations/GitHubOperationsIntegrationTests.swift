@@ -161,7 +161,7 @@ final class GitHubOperationsIntegrationTests: XCTestCase {
     let source = GitHubOperationsExactHostTransportSource(
       credentials: credentials,
       contextProvider: { contextBox.context },
-      makeAPI: { endpoint, token in
+      makeAPI: { endpoint, token, _ in
         factory.endpoint = endpoint
         factory.token = token
         return GitHubNoopRemoteAPI()

@@ -44,6 +44,7 @@ struct RemoteIntegrationsHostCredentials: Sendable {
   let token: String
   let protocolVersion: Int
   let scopes: Set<String>
+  var environment: RemoteEnvironmentContext?
 }
 
 struct RemoteIntegrationsProjectOption: Equatable, Hashable, Identifiable, Sendable {

@@ -244,6 +244,161 @@ final class RichChatFollowUpQueueTests: XCTestCase {
     XCTAssertEqual(controller.state.followUpQueue?.items.map(\.id), ["queue-new"])
   }
 
+  // MARK: - B6 recovery-slot bounds
+
+  /// B6 acceptance: a delayed history read plus many queue changes retains one
+  /// replacement state; the newest sequence wins even when a stale broadcast
+  /// arrives afterward, and a retransmitted sequence keeps the later arrival.
+  func testDelayedHistoryRetainsOnlyTheNewestQueueReplacement() async throws {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(RichChatControllerTestValues.history(sequence: 10)), barrier: barrier)
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    for sequence in 11...60 {
+      controller.receiveFollowUpQueue(
+        RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-\(sequence)")),
+        sequence: sequence,
+        target: target
+      )
+    }
+    // A late stale broadcast must not downgrade the retained newest state.
+    controller.receiveFollowUpQueue(
+      RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-stale")),
+      sequence: 9,
+      target: target
+    )
+    // A retransmitted sequence keeps the later arrival.
+    controller.receiveFollowUpQueue(
+      RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-60-retransmit")),
+      sequence: 60,
+      target: target
+    )
+    await barrier.release()
+    await loading.value
+
+    XCTAssertEqual(controller.state.followUpQueue?.items.map(\.id), ["queue-60-retransmit"])
+  }
+
+  /// A buffered state at or below the snapshot baseline was already reflected
+  /// in the install and must drop; the snapshot value wins.
+  func testBufferedQueueAtOrBelowSnapshotCannotOverrideTheInstall() async throws {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    var history = RichChatControllerTestValues.history(sequence: 10)
+    history.followUpQueue = queueObject("queue-snapshot")
+    history.followUpQueuePresent = true
+    await gateway.configureHistory(.value(history), barrier: barrier)
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    controller.receiveFollowUpQueue(
+      RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-stale")),
+      sequence: 9,
+      target: target
+    )
+    controller.receiveFollowUpQueue(
+      RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-at-baseline")),
+      sequence: 10,
+      target: target
+    )
+    await barrier.release()
+    await loading.value
+
+    XCTAssertEqual(controller.state.followUpQueue?.items.map(\.id), ["queue-snapshot"])
+  }
+
+  /// Host switch and stale generations release or refuse the retained state: a
+  /// broadcast for another host/stale generation is dropped, and switching the
+  /// selected host before the delayed read returns clears the slot so the new
+  /// host's snapshot installs its own queue.
+  func testHostSwitchAndStaleGenerationCannotInstallBufferedQueue() async throws {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(RichChatControllerTestValues.history(sequence: 10)), barrier: barrier)
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    controller.receiveFollowUpQueue(
+      RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-host-a")),
+      sequence: 11,
+      target: target
+    )
+    // Wrong host and stale host generation broadcasts never reach the slot.
+    controller.receiveFollowUpQueue(
+      RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-host-b")),
+      sequence: 12,
+      target: RichChatControllerTestValues.target(host: RichChatControllerTestValues.hostB)
+    )
+    controller.receiveFollowUpQueue(
+      RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-stale-generation")),
+      sequence: 13,
+      target: RichChatControllerTestValues.target(generation: 99)
+    )
+
+    controller.activate(
+      access: RichChatControllerTestValues.access(host: RichChatControllerTestValues.hostB),
+      threadID: target.threadID
+    )
+    await barrier.release()
+    await loading.value
+
+    var fresh = RichChatControllerTestValues.history(sequence: 20)
+    fresh.followUpQueue = queueObject("queue-snapshot-b")
+    fresh.followUpQueuePresent = true
+    await gateway.configureHistory(.value(fresh))
+    await controller.loadHistory()
+
+    XCTAssertEqual(
+      controller.state.target?.lease.connectionID, RichChatControllerTestValues.hostB)
+    XCTAssertEqual(controller.state.followUpQueue?.items.map(\.id), ["queue-snapshot-b"])
+  }
+
+  /// Cancelling an in-flight history read releases the retained state, so a
+  /// later load cannot replay a queue captured for the abandoned read.
+  func testCancelledHistoryReleasesBufferedQueueState() async throws {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(RichChatControllerTestValues.history(sequence: 10)), barrier: barrier)
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: access, threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    controller.receiveFollowUpQueue(
+      RichFollowUpQueueEnvelope(threadID: target.threadID, queue: queue("queue-abandoned")),
+      sequence: 11,
+      target: target
+    )
+    controller.enterBackground()
+    await barrier.release()
+    await loading.value
+    controller.leaveBackground(access: access)
+
+    var fresh = RichChatControllerTestValues.history(sequence: 20)
+    fresh.followUpQueue = queueObject("queue-fresh")
+    fresh.followUpQueuePresent = true
+    await gateway.configureHistory(.value(fresh))
+    await controller.loadHistory()
+
+    XCTAssertEqual(controller.state.followUpQueue?.items.map(\.id), ["queue-fresh"])
+  }
+
   // MARK: - Conversation operations
 
   func testQueueOperationsRideTheConversationGateway() async {
@@ -277,5 +432,22 @@ final class RichChatFollowUpQueueTests: XCTestCase {
 
   private func pending(_ id: String) -> RichPendingSteer {
     RichPendingSteer(id: id, prompt: "Run the integration suite.", segments: nil, stagedAtMilliseconds: 1)
+  }
+
+  private func queue(_ id: String) -> RichFollowUpQueue {
+    RichFollowUpQueue(items: [pending(id)], paused: false)
+  }
+
+  private func queueObject(_ id: String) -> JSONValue {
+    .object([
+      "items": .array([
+        .object([
+          "id": .string(id),
+          "prompt": .string("Run the integration suite."),
+          "stagedAt": .number(1),
+        ])
+      ]),
+      "paused": .bool(false),
+    ])
   }
 }

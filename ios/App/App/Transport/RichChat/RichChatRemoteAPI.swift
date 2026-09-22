@@ -8,6 +8,21 @@ protocol RichChatRemoteAPI: Sendable {
     limit: Int,
     targetEntryCount: Int?
   ) async throws -> RemoteRuntimeItemsPage
+  func richTurnsPage(
+    threadID: String,
+    cursor: String,
+    limit: Int
+  ) async throws -> RemoteBoundedTurnsPage
+
+  /// B1: capability-gated current-gap descriptor read (declared-only route).
+  func richRuntimeGap(threadID: String) async throws -> RemoteHistoryGapRead
+  /// B1: explicit acknowledgement with the caller's idempotency command id.
+  func richAcknowledgeRuntimeGap(
+    threadID: String,
+    episodeToken: String,
+    commandID: String
+  ) async throws -> RemoteHistoryGapAcknowledgeOutcome
+
   func richLocalImage(path: String) async throws -> RichChatBinaryPayload
   func richRuntimeImage(_ reference: RichRemoteImageReference) async throws -> RichChatBinaryPayload
   func richListCheckpoints(
@@ -74,27 +89,67 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
     self.raw = raw
   }
 
+  /// B4: the authoritative transcript read is the negotiated bounded tail,
+  /// with the complete legacy response only as the explicit absent-echo
+  /// outcome of the same request (`boundedThreadHistory` never downgrades on a
+  /// declared-host violation). This is the only production path that can carry
+  /// a `ct1.` older-turn continuation, so the UI affordance is reachable.
   func richHistory(
     threadID: String,
     targetEntryCount: Int?
   ) async throws -> RemoteThreadSnapshot {
-    try await json.threadHistory(
+    let outcome = try await json.boundedThreadHistory(
       threadId: threadID,
+      completedTurnsLimit: RemoteBoundedReads.defaultCompletedTurnsLimit,
       targetTimelineEntryCount: targetEntryCount
     )
+    switch outcome {
+    case .bounded(let page): return page.snapshot
+    case .legacy(let snapshot): return snapshot
+    }
   }
 
+  /// B4: older runtime items go through the bounded items route, with the
+  /// legacy page only when that same response omitted the echo.
   func richHistoryPage(
     threadID: String,
     beforePosition: Int?,
     limit: Int,
     targetEntryCount: Int?
   ) async throws -> RemoteRuntimeItemsPage {
-    try await json.threadRuntimeItemsPage(
+    let outcome = try await json.boundedHistoryItems(
       threadId: threadID,
       beforePosition: beforePosition,
       limit: limit,
       targetTimelineEntryCount: targetEntryCount
+    )
+    switch outcome {
+    case .bounded(let page): return page.page
+    case .legacy(let page): return page
+    }
+  }
+
+  func richTurnsPage(
+    threadID: String,
+    cursor: String,
+    limit: Int
+  ) async throws -> RemoteBoundedTurnsPage {
+    try await json.boundedThreadTurns(threadId: threadID, cursor: cursor, limit: limit)
+  }
+
+  func richRuntimeGap(threadID: String) async throws -> RemoteHistoryGapRead {
+    try await json.runtimeHistoryGap(threadId: threadID)
+  }
+
+  func richAcknowledgeRuntimeGap(
+    threadID: String,
+    episodeToken: String,
+    commandID: String
+  ) async throws -> RemoteHistoryGapAcknowledgeOutcome {
+    try await json.acknowledgeRuntimeHistoryGap(
+      threadId: threadID,
+      episodeToken: episodeToken,
+      commandID: commandID
     )
   }
 

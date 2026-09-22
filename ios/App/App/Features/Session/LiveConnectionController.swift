@@ -164,17 +164,13 @@ struct LiveConnectionController {
                 await SessionDurableReconcile.reconcileLiveWithDurable(host: host)
             }
             let gen = host.state.workGeneration
-            // Rebind open-thread ownership so pagination/metadata work after background recovery.
-            if host.state.openThreadId != nil {
-                host.state.threadOwnership.rebindSessionGeneration(gen)
-                if let token = host.state.threadOwnership.currentToken() {
-                    host.state.openThreadEpoch = token.epoch
-                }
-            }
             host.schedulePoolForegroundResume(
                 startLiveSession: actions.startLiveSession,
                 generation: gen
             )
+            // Resume the bounded catalog from its retained cursors and re-arm
+            // the periodic reconciliation pass.
+            host.catalog.onForeground()
             if actions.rescheduleUnauthorizedRetry, host.state.phase == .sessionExpired {
                 host.scheduleUnauthorizedRetry(generation: gen)
             }
@@ -233,9 +229,15 @@ struct LiveConnectionController {
         let task = Task { @MainActor in
             defer { host.bootstrapNetworkTask.clearIfCurrent(installToken) }
             do {
-                // Discarded result: this handshake drives 401/compatibility
-                // phase handling only.
-                _ = try await host.state.api?.environment()
+                // This handshake drives 401/compatibility phase handling and,
+                // when it succeeds, records the host's capability
+                // advertisement on the same client the socket and reads use so
+                // the first upgrade can declare. A failed read is not an
+                // answer: the socket then starts undeclared and the Online
+                // descriptor reconciles through the authoritative barrier.
+                if let descriptor = try await host.state.api?.environment() {
+                    await host.noteEnvironmentCapabilities(descriptor)
+                }
                 guard host.state.operationOwner.isCurrent(ownerEpoch),
                       host.state.workGeneration == gen
                 else { return }
@@ -246,15 +248,36 @@ struct LiveConnectionController {
                 // retain authority.
                 try Task.checkCancellation()
                 await connectAndStart(generation: gen, ownerEpoch: ownerEpoch)
+                guard host.state.operationOwner.isCurrent(ownerEpoch),
+                      host.state.workGeneration == gen
+                else { return }
+                // F2: connect-time capability refresh is committed to the
+                // durable record so a host that gained host-owned environments
+                // after pairing surfaces them without re-pairing. A failed or
+                // stale read changes nothing.
+                await host.refreshStoredHostCapabilities(
+                    generation: gen,
+                    ownerEpoch: ownerEpoch
+                )
             } catch is CancellationError {
                 return
+            } catch let error as RemoteClientError where error.isEnvironmentIdentityChanged {
+                // Terminal on both connect paths: the proxied child no longer
+                // matches the recorded identity. Never proceed to snapshot or
+                // socket, never retry as a generic network error.
+                guard host.state.operationOwner.isCurrent(ownerEpoch),
+                      host.state.workGeneration == gen
+                else { return }
+                host.state.phase = .protocolIncompatible
+                host.state.socketState = .idle
+                host.state.globalError = error.localizedDescription
             } catch let error as RemoteClientError where error.isUnauthorized {
                 guard host.state.operationOwner.isCurrent(ownerEpoch),
                       host.state.workGeneration == gen
                 else { return }
                 await host.handleAuthenticatedFailure(
                     error,
-                    message: "Session expired. Pair again.",
+                    message: error.environmentRepairMessage ?? "Session expired. Pair again.",
                     generation: gen
                 )
             } catch let error as RemoteClientError where error.isCompatibilityFailure {
@@ -311,11 +334,14 @@ struct LiveConnectionController {
         }
         host.state.projectsLoadState = .loading
         let endpoint = await api.httpEndpoint
+        // A fresh connection attempt always starts a new bounded walk
+        // generation: no cursor, paint proof or pass survives it.
+        host.catalog.beginAttempt()
         // Open the boundary buffer before the fetch so a frame delivered while the
         // snapshot is in flight is replayed into the committed state, not dropped.
         let captured = host.beginReplayInstall(apiEndpoint: endpoint)
         do {
-            let snap = try await api.snapshot()
+            let boundedPage = try await host.catalog.fetchFirstPage()
             // The shell snapshot carries no agent statuses and the host's
             // bounded replay window may have already evicted the per-agent
             // history, so a fresh client fetches the authoritative base while
@@ -337,19 +363,52 @@ struct LiveConnectionController {
                     return
                 }
             }
-            guard await applyShellSnapshot(
-                snap,
-                captured: captured,
-                currentAPIEndpoint: endpoint,
-                isInitialBootstrap: true,
-                agentBase: agentBase
-            ) else { return }
+            let installed: Bool
+            switch boundedPage {
+            case nil:
+                // No bounded surface at all (pre-B4 API): assembled legacy path.
+                let snap = try await api.snapshot()
+                try Task.checkCancellation()
+                installed = await applyShellSnapshot(
+                    snap,
+                    captured: captured,
+                    currentAPIEndpoint: endpoint,
+                    agentBase: agentBase
+                )
+            case .legacy(let snap):
+                // Absent echo on the first response: a genuine older host.
+                // This full snapshot came from the same request, so no second
+                // read is issued.
+                installed = await applyShellSnapshot(
+                    snap,
+                    captured: captured,
+                    currentAPIEndpoint: endpoint,
+                    agentBase: agentBase
+                )
+                if installed { host.catalog.noteLegacyHost() }
+            case .bounded(let page):
+                installed = await applyBoundedShellPage(
+                    page,
+                    captured: captured,
+                    currentAPIEndpoint: endpoint,
+                    agentBase: agentBase
+                )
+            }
+            guard installed else { return }
             host.state.phase = .ready
             await startWebSocket(api: api, generation: gen)
         } catch is CancellationError {
             // Cancellation is not a network failure: abandon, never retry here.
             host.abortReplayInstall(captured)
             return
+        } catch let error as RemoteClientError where error.isEnvironmentIdentityChanged {
+            // Snapshot-path identity refusal is terminal too: no socket start,
+            // no generic retry.
+            host.abortReplayInstall(captured)
+            guard gen == host.state.workGeneration else { return }
+            host.state.phase = .protocolIncompatible
+            host.state.socketState = .idle
+            host.state.globalError = error.localizedDescription
         } catch let error as RemoteClientError where error.isUnauthorized {
             host.abortReplayInstall(captured)
             guard gen == host.state.workGeneration else { return }
@@ -386,11 +445,14 @@ struct LiveConnectionController {
         case .startNow:
             break
         }
+        // The bounded shell page has already committed on every connect path
+        // that reaches here, so a capable host's first upgrade declares the
+        // catalog-change signal on the same connection the walk uses.
+        await host.declareBoundedCatalogChangesIfReady()
         await host.sessionPool.startForCurrentHost(api: api, workGeneration: gen)
         guard gen == host.state.workGeneration, let socket = host.state.webSocket else { return }
         let socketID = ObjectIdentifier(socket as AnyObject)
-        let desired = host.state.openThreadId.map { [$0] }
-            ?? host.state.interestCoordinator.latestDesired
+        let desired = host.state.interestCoordinator.latestDesired
         let update = host.state.interestCoordinator.enqueue(
             threadIds: desired,
             socketObjectID: socketID
@@ -409,14 +471,15 @@ struct LiveConnectionController {
         guard let api = host.state.api else { return }
         let gen = host.state.workGeneration
         let endpoint = await api.httpEndpoint
-        let openId = host.state.openThreadId
-        let openEpoch = host.state.openThreadEpoch
         var installToken: UInt64 = 0
         let task = Task { @MainActor in
             defer { host.snapshotTask.clearIfCurrent(installToken) }
+            // A refresh is an authoritative read: it restarts the bounded walk
+            // generation so no pre-refresh page or gate reply can publish.
+            host.catalog.beginAttempt()
             let captured = host.beginReplayInstall(apiEndpoint: endpoint)
             do {
-                let snap = try await api.snapshot()
+                let boundedPage = try await host.catalog.fetchFirstPage()
                 try Task.checkCancellation()
                 guard gen == host.state.workGeneration else {
                     host.abortReplayInstall(captured)
@@ -432,26 +495,47 @@ struct LiveConnectionController {
                     host.abortReplayInstall(captured)
                     return
                 }
-                guard await applyShellSnapshot(
-                    snap,
-                    captured: captured,
-                    currentAPIEndpoint: currentEndpoint,
-                    isInitialBootstrap: false,
-                    preserveCursorIfOpenThread: openId != nil
-                ) else { return }
-                guard gen == host.state.workGeneration,
-                      host.state.openThreadId == openId,
-                      host.state.openThreadEpoch == openEpoch
-                else { return }
+                let installed: Bool
+                switch boundedPage {
+                case nil:
+                    let snap = try await api.snapshot()
+                    try Task.checkCancellation()
+                    installed = await applyShellSnapshot(
+                        snap,
+                        captured: captured,
+                        currentAPIEndpoint: currentEndpoint
+                    )
+                case .legacy(let snap):
+                    installed = await applyShellSnapshot(
+                        snap,
+                        captured: captured,
+                        currentAPIEndpoint: currentEndpoint
+                    )
+                    if installed { host.catalog.noteLegacyHost() }
+                case .bounded(let page):
+                    installed = await applyBoundedShellPage(
+                        page,
+                        captured: captured,
+                        currentAPIEndpoint: currentEndpoint
+                    )
+                }
+                guard installed else { return }
+                guard gen == host.state.workGeneration else { return }
             } catch is CancellationError {
                 host.abortReplayInstall(captured)
                 return
+            } catch let error as RemoteClientError where error.isEnvironmentIdentityChanged {
+                host.abortReplayInstall(captured)
+                guard !Task.isCancelled, gen == host.state.workGeneration else { return }
+                host.state.phase = .protocolIncompatible
+                host.state.socketState = .idle
+                host.state.globalError = error.localizedDescription
             } catch let error as RemoteClientError {
                 host.abortReplayInstall(captured)
                 guard !Task.isCancelled, gen == host.state.workGeneration else { return }
                 await host.handleAuthenticatedFailure(
                     error,
-                    message: "Session expired. Pair again.",
+                    message: error.environmentRepairMessage ?? "Session expired. Pair again.",
                     generation: gen
                 )
             } catch {
@@ -482,48 +566,52 @@ struct LiveConnectionController {
         _ snap: RemoteShellSnapshot,
         captured: ReplayInstallIdentity,
         currentAPIEndpoint: String?,
-        isInitialBootstrap: Bool,
-        preserveCursorIfOpenThread: Bool = true,
         agentBase: SessionAgentStatuses? = nil
     ) async -> Bool {
-        let hasOpen = host.state.openThreadId != nil
-        let decision = ShellRefreshCursorPolicy.decision(
-            hasOpenThread: hasOpen && preserveCursorIfOpenThread,
-            isInitialBootstrap: isInitialBootstrap
-        )
-        var prepared: PreparedReplayInstall
+        let coordinator = ShellInstallCoordinator(host: host)
+        let prepared: PreparedReplayInstall
         do {
-            prepared = try HostSnapshotInstall.prepare(shell: snap, existing: host.state.replay)
+            prepared = try coordinator.prepare(shell: snap, policy: .replace)
         } catch {
             // Malformed additive field: reject the whole install.
             host.abortReplayInstall(captured)
             host.state.globalError = error.localizedDescription
             return false
         }
-        if let agentBase {
-            AgentStatusHydration.install(agentBase, into: &prepared.replay)
-        }
-        guard let commit = host.commitReplayInstall(
-            prepared,
-            shell: snap,
+        // A shell refresh always advances the global cursor: the legacy
+        // open-thread surface that used to hold it back is gone, and the
+        // RichChat transcript tracks its own snapshot sequence.
+        let advanceCursor = true
+        guard
+            let commit = coordinator.commit(
+                prepared,
+                shell: snap,
+                captured: captured,
+                currentAPIEndpoint: currentAPIEndpoint,
+                advanceCursor: advanceCursor,
+                agentBase: agentBase
+            )
+        else { return false }
+        await coordinator.publish(commit, advanceCursor: advanceCursor)
+        return true
+    }
+
+    /// B4 bounded page-1 install. The catalog controller owns the transactional
+    /// install (same coordinator as the legacy path, page-sliced git-summary
+    /// merge) plus the walk-generation open.
+    @discardableResult
+    func applyBoundedShellPage(
+        _ page: RemoteBoundedShellPage,
+        captured: ReplayInstallIdentity,
+        currentAPIEndpoint: String?,
+        agentBase: SessionAgentStatuses? = nil
+    ) async -> Bool {
+        await host.catalog.installFirstPage(
+            page: page,
             captured: captured,
             currentAPIEndpoint: currentAPIEndpoint,
-            advanceCursor: decision == .advanceGlobalCursor,
-            isCancelled: Task.isCancelled
-        ) else { return false }
-
-        if let connectionID = host.state.selectedConnectionId {
-            host.state.hostSnapshots[connectionID] = snap
-        }
-
-        if decision == .advanceGlobalCursor {
-            await host.state.webSocket?.noteAuthoritativeSnapshot(commit.cursor)
-        }
-        if commit.requiresResync {
-            host.resync.trigger(reason: "replay boundary gap")
-        }
-        await flushGitStateInterests(generation: host.state.workGeneration)
-        return true
+            agentBase: agentBase
+        )
     }
 
     func threads(for projectId: String) -> [RemoteThread] {

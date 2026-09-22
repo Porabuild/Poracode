@@ -79,7 +79,7 @@ final class SettingsGatewayTests: XCTestCase {
     let source = SettingsExactHostTransportSource(
       credentials: repository,
       accessProvider: { accessBox.value },
-      makeAPI: { _, _ in api }
+      makeAPI: { _, _, _ in api }
     )
     let selection = try await source.selection(for: lease)
     XCTAssertEqual(selection?.access.lease, lease)
@@ -102,7 +102,7 @@ final class SettingsGatewayTests: XCTestCase {
     let source = SettingsExactHostTransportSource(
       credentials: repository,
       accessProvider: { accessBox.value },
-      makeAPI: { _, _ in SettingsRemoteAPIFake() }
+      makeAPI: { _, _, _ in SettingsRemoteAPIFake() }
     )
     let resolvedSelection = try await source.selection(for: lease)
     let selection = try XCTUnwrap(resolvedSelection)

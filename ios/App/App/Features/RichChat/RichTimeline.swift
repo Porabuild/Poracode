@@ -263,7 +263,7 @@ enum RichTimeline {
     node.children.isEmpty && RichItemType.groupable.contains(node.item.type)
   }
 
-  private static func epochMilliseconds(_ text: String) -> Int64? {
+  static func epochMilliseconds(_ text: String) -> Int64? {
     let parser = ISO8601DateFormatter()
     parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     guard let date = parser.date(from: text) else { return nil }

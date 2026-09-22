@@ -97,9 +97,14 @@ final class ProjectControllerCommandController {
     state.failure = nil
     state.setupFollowUpFailure = nil
 
-    let result: ProjectCommandResult
+    // One user operation = one command id. A negotiated bounded result is
+    // receipted under it; the controller never resubmits, so the id is never
+    // reused across operations (a retry is a new operation).
+    let outcome: ProjectCommandOutcome
     do {
-      result = try await gateway.runProjectCommand(command, lease: lease)
+      outcome = try await gateway.runProjectCommand(
+        command, operationId: UUID().uuidString, lease: lease
+      )
     } catch is CancellationError {
       finishSilentlyIfCurrent(revision: revision, lease: lease)
       return
@@ -107,19 +112,47 @@ final class ProjectControllerCommandController {
       guard owns(revision: revision, lease: lease) else { return }
       state.isExecuting = false
       state.failure = .map(error)
+      // A postresponse uncertainty may already have committed: reconcile
+      // through the existing bounded refresh without resubmitting.
+      if state.failure == .ambiguousOutcome {
+        await refreshScheduler.scheduleProjectRefresh(for: lease)
+      }
       return
     }
 
     guard owns(revision: revision, lease: lease) else { return }
-    state.projects = result.projects
+    let affected = apply(outcome)
     state.isExecuting = false
-    let setupProject = detectSetup && command.needsSetupDetection ? result.project : nil
+    let setupProject = detectSetup && command.needsSetupDetection ? affected : nil
     state.isRunningSetupFollowUp = setupProject != nil
     projectsChanged(lease)
     await refreshScheduler.scheduleProjectRefresh(for: lease)
 
     guard owns(revision: revision, lease: lease), let project = setupProject else { return }
     await runSetupFollowUp(for: project, revision: revision, lease: lease)
+  }
+
+  /// Applies one command outcome to the local projection. A bounded
+  /// acknowledgement is never an empty catalog: only the returned canonical
+  /// row is integrated and the existing bounded refresh converges the rest
+  /// (including removals). Returns the canonical affected row, if any.
+  private func apply(_ outcome: ProjectCommandOutcome) -> RemoteProject? {
+    switch outcome {
+    case .complete(let result):
+      state.projects = result.projects
+      return result.project
+    case .bounded(let result):
+      if let project = result.project { integrateCanonicalRow(project) }
+      return result.project
+    }
+  }
+
+  private func integrateCanonicalRow(_ project: RemoteProject) {
+    if let index = state.projects.firstIndex(where: { $0.id == project.id }) {
+      state.projects[index] = project
+    } else {
+      state.projects.insert(project, at: 0)
+    }
   }
 
   private func runSetupFollowUp(
@@ -162,9 +195,13 @@ final class ProjectControllerCommandController {
       patch: ProjectPatch(scripts: .set(scripts))
     )
     do {
-      let result = try await gateway.runProjectCommand(update, lease: lease)
+      // The follow-up is its own operation: a distinct command id, never the
+      // registration's receipt identity.
+      let outcome = try await gateway.runProjectCommand(
+        update, operationId: UUID().uuidString, lease: lease
+      )
       guard owns(revision: revision, lease: lease) else { return }
-      state.projects = result.projects
+      _ = apply(outcome)
       state.isRunningSetupFollowUp = false
       projectsChanged(lease)
       await refreshScheduler.scheduleProjectRefresh(for: lease)
@@ -172,6 +209,9 @@ final class ProjectControllerCommandController {
       finishSetupSilentlyIfCurrent(revision: revision, lease: lease)
     } catch {
       failSetupIfCurrent(error, revision: revision, lease: lease)
+      if state.setupFollowUpFailure == .ambiguousOutcome {
+        await refreshScheduler.scheduleProjectRefresh(for: lease)
+      }
     }
   }
 

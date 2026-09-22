@@ -34,25 +34,40 @@ struct SessionReplayEventRouter {
     case .known(let replayEvent):
       // An authoritative install is mid-flight: hold the frame so the commit
       // replays it on top of the freshly installed state instead of losing it.
-      if host.bufferReplayEventDuringInstall(seq: seq, event: replayEvent) {
+      // The estimate comes from the raw payload already in hand (WS7 P1-14
+      // bounds), not from re-serializing buffered history.
+      if host.bufferReplayEventDuringInstall(
+        seq: seq,
+        event: replayEvent,
+        estimatedByteCount: event.recoveryByteCount
+      ) {
         return .applied
       }
       ReplayEventApplier.apply(replayEvent, to: &host.state.replay)
-      afterApply(replayEvent)
+      afterApply(replayEvent, seq: seq)
       return .applied
     }
   }
 
   /// Side effects the shell surfaces depend on, once the transition is committed.
-  private func afterApply(_ event: SequencedReplayEvent) {
+  private func afterApply(_ event: SequencedReplayEvent, seq: Int) {
     switch event {
     case .threadReset(let threadId):
-      // Thread status / runtime rows changed on the host.
-      host.live.scheduleShellRefresh()
+      // Thread status / runtime rows changed on the host: a bounded host
+      // refreshes rows through a coalesced pass, a legacy host through the
+      // assembled shell refresh.
+      host.catalog.onRowRefreshNeeded()
+      // F2: the reset replaced this thread's runtime, so the viewed
+      // transcript's retained older-turn level and continuations are no longer
+      // provable. Invalidate through the RichChat suite the session already
+      // owns and demand one authoritative refresh on the existing requester.
+      if let suite = host.activeRichChatSuite, suite.scope.threadID == threadId {
+        suite.transcript.invalidateForDeliveredReplacement(requiresRefresh: true)
+      }
       // A watched live terminal drops the dead PTY generation and re-hydrates once.
       host.applyReplayTerminalTransition(.reset, threadID: threadId)
     case .threadExited(let threadId, let exitCode):
-      host.live.scheduleShellRefresh()
+      host.catalog.applyThreadExitedEvent(threadId: threadId, seq: seq)
       // Marked exited only — the authority never re-opens an exited terminal.
       host.applyReplayTerminalTransition(.exited(exitCode: exitCode), threadID: threadId)
     case .remoteGitSummaries, .remoteGitState, .agentStatusUpdated,

@@ -25,6 +25,9 @@ actor AdvancedOperationsHTTPClient: AdvancedOperationsHTTPExecuting {
   private let standardTimeout: TimeInterval
   private let longTimeout: TimeInterval
   private let maximumResponseBytes: Int
+  /// Parent authority when this transport is bound to a host-owned
+  /// environment; `.direct` for an ordinary host (no header at all).
+  private let authorization: EnvironmentParentAuthority
 
   init(
     endpoint: String,
@@ -32,7 +35,8 @@ actor AdvancedOperationsHTTPClient: AdvancedOperationsHTTPExecuting {
     session: URLSession? = nil,
     standardTimeout: TimeInterval = AdvancedOperationsHTTPClient.standardTimeoutSeconds,
     longTimeout: TimeInterval = AdvancedOperationsHTTPClient.longTimeoutSeconds,
-    maximumResponseBytes: Int = AdvancedOperationsHTTPClient.maximumResponseBytes
+    maximumResponseBytes: Int = AdvancedOperationsHTTPClient.maximumResponseBytes,
+    environmentAuthority: EnvironmentParentAuthority = .direct
   ) throws {
     guard !credential.isEmpty,
       standardTimeout > 0, longTimeout >= standardTimeout, longTimeout <= 600,
@@ -44,6 +48,7 @@ actor AdvancedOperationsHTTPClient: AdvancedOperationsHTTPExecuting {
     self.standardTimeout = standardTimeout
     self.longTimeout = longTimeout
     self.maximumResponseBytes = maximumResponseBytes
+    self.authorization = environmentAuthority
     self.session = session ?? RemoteURLSessions.makeAPISession(requestTimeout: longTimeout)
   }
 
@@ -67,6 +72,12 @@ actor AdvancedOperationsHTTPClient: AdvancedOperationsHTTPExecuting {
       RemoteRequestHeaders.authorizationValue(for: credential),
       forHTTPHeaderField: RemoteRequestHeaders.authorization
     )
+    do {
+      try await authorization.authorize(&request)
+    } catch let error as RemoteClientError {
+      // Missing/unreadable parent pairing fails closed before any dial.
+      throw AdvancedOperationsHTTPError.rejected(statusCode: error.status, code: error.code)
+    }
 
     let data: Data
     let response: URLResponse

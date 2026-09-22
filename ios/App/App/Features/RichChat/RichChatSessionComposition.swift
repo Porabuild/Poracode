@@ -36,7 +36,8 @@ extension AppSession {
       ),
       isOnline: online,
       isReady: ready,
-      capabilities: capabilities
+      capabilities: capabilities,
+      runtimeHistoryNotices: state.runtimeHistoryNoticesDeclared
     )
   }
 
@@ -69,13 +70,27 @@ extension AppSession {
       scheduleInterestFlush(threadIds: [target.threadID])
       return
     }
+    // The real GUI page is the open owner. Replacing a page for another thread
+    // releases that view's pin (a newer navigation for the same row stays
+    // pinned), and a successful navigation's pin for this target is handed
+    // over to the open owner instead of being retained by the navigation.
+    if let previous = activeRichChatSuite?.scope.threadID, previous != target.threadID {
+      catalog.releaseOpenPin(previous)
+    }
     activeRichChatSuite?.deselect()
     activeRichChatSuite = suite
+    catalog.pinThread(target.threadID, owner: .open)
+    catalog.releaseNavigationPin(target.threadID)
     scheduleInterestFlush(threadIds: [target.threadID])
   }
 
   func detachRichChatSuite(_ suite: RichChatControllerSuite) {
     guard activeRichChatSuite === suite else { return }
+    // View dismissal releases the open owner's pin; a pending navigation that
+    // still claims the row stays pinned through its own owner.
+    if let target = suite.scope.target {
+      catalog.releaseOpenPin(target.threadID)
+    }
     activeRichChatSuite = nil
     suite.deselect()
     scheduleInterestFlush(threadIds: [])

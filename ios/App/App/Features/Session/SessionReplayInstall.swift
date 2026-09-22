@@ -7,8 +7,6 @@ struct ReplayInstallIdentity: Sendable, Equatable {
   var workGeneration: Int
   var apiEndpoint: String?
   var socketObjectID: ObjectIdentifier?
-  var openThreadId: String?
-  var openThreadEpoch: Int
   var installGeneration: UInt64
 }
 
@@ -35,9 +33,6 @@ enum ReplayInstallPolicy {
     guard captured.workGeneration == current.workGeneration else { return .abortStale }
     guard captured.apiEndpoint == current.apiEndpoint else { return .abortStale }
     guard captured.socketObjectID == current.socketObjectID else { return .abortStale }
-    guard captured.openThreadId == current.openThreadId,
-      captured.openThreadEpoch == current.openThreadEpoch
-    else { return .abortStale }
     return .commit
   }
 }
@@ -61,8 +56,6 @@ extension AppSession {
       workGeneration: state.workGeneration,
       apiEndpoint: apiEndpoint,
       socketObjectID: state.webSocket.map { ObjectIdentifier($0 as AnyObject) },
-      openThreadId: state.openThreadId,
-      openThreadEpoch: state.openThreadEpoch,
       installGeneration: installGeneration
     )
   }
@@ -105,17 +98,18 @@ extension AppSession {
       abortReplayInstall(captured)
       return nil
     }
-    // Read before take: take consumes the exactly-once buffer and its flag.
-    let boundaryOverflowed = state.replayInstallBuffer.overflowed
-    guard let boundary = state.replayInstallBuffer.take(
+    guard let taken = state.replayInstallBuffer.take(
       installGeneration: captured.installGeneration
     ) else {
       return nil
     }
-    var commit = HostSnapshotInstall.commit(prepared, boundary: boundary, generation: minting)
-    // A capped boundary buffer dropped its oldest envelopes; the replay is
-    // incomplete and only a full resync re-establishes coverage (WS7 P1-14).
-    if boundaryOverflowed { commit.requiresResync = true }
+    var commit = HostSnapshotInstall.commit(
+      prepared, boundary: taken.envelopes, generation: minting
+    )
+    // A capped boundary buffer dropped its oldest envelopes (count/byte
+    // eviction or age expiry at take); the replay is incomplete and only a
+    // full resync re-establishes coverage (WS7 P1-14).
+    if taken.coverageLost { commit.requiresResync = true }
     // Single transactional replacement.
     state.snapshot = shell
     state.replay = commit.replay
@@ -132,11 +126,20 @@ extension AppSession {
 
   /// Buffers a decoded replay event while an install is in flight.
   /// Returns true when the caller must not apply it yet.
-  func bufferReplayEventDuringInstall(seq: Int, event: SequencedReplayEvent) -> Bool {
+  ///
+  /// `estimatedByteCount` is the raw frame's conservative encoded-size estimate
+  /// (the caller already holds the payload); the buffer never re-serializes for
+  /// accounting.
+  func bufferReplayEventDuringInstall(
+    seq: Int,
+    event: SequencedReplayEvent,
+    estimatedByteCount: Int
+  ) -> Bool {
     state.replayInstallBuffer.bufferIfInstalling(
       installGeneration: state.replayInstallGeneration,
       seq: seq,
-      event: event
+      event: event,
+      estimatedByteCount: estimatedByteCount
     )
   }
 

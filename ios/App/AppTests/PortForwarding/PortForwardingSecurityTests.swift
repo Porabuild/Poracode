@@ -56,7 +56,7 @@ final class PortForwardingSecurityTests: XCTestCase {
     let source = PortForwardingExactHostTransportSource(
       credentials: repository,
       accessProvider: { box.selection?.access },
-      makeAPI: { _, _ in PortForwardingRemoteAPISpy() })
+      makeAPI: { _, _, _ in PortForwardingRemoteAPISpy() })
     let task = Task { try await source.selection(for: PortForwardingTestValues.lease()) }
     while !(await repository.isWaiting()) { await Task.yield() }
     box.selection = .init(

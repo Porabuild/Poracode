@@ -321,6 +321,11 @@ struct PairingCoordinator {
         host.state.noteBrowserForwardEntry(environment, connectionID: connectionId)
         host.state.accessToken = tokenResult.accessToken
         host.state.api = host.deps.makeAPI(endpoint, tokenResult.accessToken)
+        // Same-authority preflight on the client the socket will use, so the
+        // first paired upgrade declares the capabilities this pairing
+        // handshake already proved. A failed read changes nothing (undeclared
+        // until the Online descriptor reconciles).
+        await host.noteEnvironmentCapabilities(environment)
         host.state.lastSeenSeq = 0
         host.state.bootstrapCompleted = true
         let snapshot = try await host.deps.hostCatalog.snapshot()
@@ -329,9 +334,6 @@ struct PairingCoordinator {
         else { return .durableAppliedNotInstalled }
         host.applyCatalogSnapshot(snapshot)
         host.sessionPool.installCache(.host(connectionId))
-        host.state.clearThreadSurface()
-        host.state.threadOwnership.invalidate()
-        host.state.openThreadEpoch = host.state.threadOwnership.epoch
         if let pairingDigest { host.state.pairingTracker.markSucceeded(pairingDigest) }
         // Exactly one new live session for the committed credentials.
         await host.live.connectAndStart(generation: gen, ownerEpoch: ownerEpoch)
@@ -405,9 +407,12 @@ struct PairingCoordinator {
         let began = host.state.operationOwner.begin(.unpair)
         host.cancelUnauthorizedRetry()
         // Repair clears every host: drop the pins of the endpoints we know.
-        for record in host.state.hosts {
+        // Environment records share their parent host:port and never carry a
+        // child pin, so their endpoint is skipped.
+        for record in host.state.hosts where record.isDirectConnection {
             TlsCertPinStore.remove(endpoint: record.httpBaseURL)
         }
+        EnvironmentConnectionRegistry.shared.clearAll()
 
         var failed = false
         var credentialActivated = false

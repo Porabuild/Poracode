@@ -77,8 +77,9 @@ extension ProjectOperationFailure {
 protocol ProjectSessionGateway: Sendable {
   func runProjectCommand(
     _ command: ProjectCommand,
+    operationId: String,
     lease: ProjectControllerHostLease
-  ) async throws -> ProjectCommandResult
+  ) async throws -> ProjectCommandOutcome
 
   func loadProjectSettings(
     for identity: ProjectIdentity,
