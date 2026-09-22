@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { MUSE_GOAL_THREAD_TITLE_COMMAND } from "@/shared/agents/museGoalCommand";
 import { stripAnsi } from "@/shared/ansi";
 import type { AgentCapability, AgentTerminalAuthMethod, ProjectLocation } from "@/shared/contracts";
 import {
@@ -84,6 +85,9 @@ export const museDefaultCapabilities: AgentCapability = {
   bypassPermissions: { approvalPolicy: "yolo" },
   mcpScope: { terminal: "none", gui: "none" },
   settingDefs: [],
+  // `/goal <objective>` starts goal-driven work; title such threads from the
+  // objective rather than the raw command.
+  threadTitleCommands: [MUSE_GOAL_THREAD_TITLE_COMMAND],
   ...contextCaps,
 };
 

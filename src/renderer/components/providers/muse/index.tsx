@@ -11,8 +11,6 @@ import { registerCommitGenDefaults } from "../commitGen";
 import { registerConflictResolverDefaults } from "../conflictResolver";
 import { registerTitleGenDefaults } from "../titleGen";
 import { registerGuiSlashCommands } from "../providerSlashCommands";
-import { registerThreadTitlePrompt } from "../threadTitlePrompt";
-import { parseMuseGoalCommand } from "@/shared/agents/museGoalCommand";
 import {
   buildStandardGuiSlashCommands,
   guiSlashCommand,
@@ -64,12 +62,4 @@ registerGuiSlashCommands(PROVIDER_KIND, {
     if (action?.kind === "set-mode" || action?.kind === "toggle-fast") return null;
     return action;
   },
-});
-
-// A thread started with `/goal <objective>` is titled from the objective, not
-// the raw command text. Other gestures (`/goal pause`, bare `/goal`) keep the
-// prompt as typed.
-registerThreadTitlePrompt(PROVIDER_KIND, (prompt) => {
-  const command = parseMuseGoalCommand(prompt);
-  return command?.kind === "set" || command?.kind === "edit" ? command.objective : undefined;
 });

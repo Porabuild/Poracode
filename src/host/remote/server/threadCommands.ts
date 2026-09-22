@@ -37,6 +37,7 @@ import {
 import { RemoteHttpError } from "../auth";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
+import { resolveHostThreadTitlePrompt } from "@/host/threads/threadLaunchConfig";
 import { discardPersistedProjectExperiments } from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
@@ -317,7 +318,16 @@ async function startRemoteThread(
   const threads = dbGetThreads();
   const now = new Date().toISOString();
   const presentationMode = command.presentationMode ?? "terminal";
-  const titlePrompt = titlePromptFromSegments(command.prompt, command.segments);
+  // An explicit title wins below, so only a derived title reads agent statuses.
+  const titlePrompt =
+    command.title !== undefined
+      ? ""
+      : await resolveHostThreadTitlePrompt(
+          (wslDistros) => ctx.options.callSupervisor("getAgentStatuses", { wslDistros }),
+          command.agentKind,
+          project.location,
+          titlePromptFromSegments(command.prompt, command.segments),
+        );
   const thread: Thread = {
     id: command.threadId,
     projectId: command.projectId,

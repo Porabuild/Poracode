@@ -104,7 +104,9 @@ const execFileAsync = promisify(execFile);
 // v37 rebuilds Cursor ACP GUI capabilities: parameterized model picker
 // exposes bare model ids plus Effort / Fast / Context / Thinking controls.
 // v38 refreshes derived model catalogs and their declared Fast capabilities.
-export const STATUS_CACHE_VERSION = 38;
+// v39 adds provider-declared `threadTitleCommands` (Muse `/goal <objective>`),
+// so cached statuses without them would keep titling goal threads raw.
+export const STATUS_CACHE_VERSION = 39;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

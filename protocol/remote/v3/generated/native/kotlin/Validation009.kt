@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_d0b10c04efa78c87: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_a59d7f7afd3350b1, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_d0ecd43b5f1b261a: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("name", "path", "type"), properties = mapOf("name" to schema_bf0b727f7b1c6d07, "path" to schema_bf0b727f7b1c6d07, "type" to schema_8d3732b59a0dd026), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -167,6 +171,10 @@ internal val schema_d8ae5c3a60a788cd: RemoteSchema by lazy {
 
 internal val schema_d8b225d7de9ceec5: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("terminal-output")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_d8d587b6ae054cb6: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_bb13bb64426d7821, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_d8eb2e4656d10170: RemoteSchema by lazy {
@@ -439,12 +447,4 @@ internal val schema_ea993e5b2d87f77f: RemoteSchema by lazy {
 
 internal val schema_eaed5114fa77917e: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("pinned")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_eaf8a91849801b20: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("status"), properties = mapOf("content" to schema_bf0b727f7b1c6d07, "modifiedAtMs" to schema_f696f11685898ba7, "status" to schema_949f0ec1c2b67829), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_eb12aad2875e1908: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("projectLocation", "runId"), properties = mapOf("ghAccount" to schema_5646cf57ff3aebe0, "projectLocation" to schema_080f9cc154af9e27, "runId" to schema_f58a8b771657d037), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

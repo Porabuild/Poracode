@@ -5,6 +5,14 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_2d677fb04187d46b: RemoteSchema by lazy {
+    RemoteSchema(type = "object", defaultValue = JsonObject(mapOf("crossagents" to JsonPrimitive(true))), additionalSchema = schema_feeb8bb50144d96d, propertyNames = schema_bf0b727f7b1c6d07, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_2d8274eae552cc51: RemoteSchema by lazy {
+    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("wsl")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_2d862d697d08c085: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("pause"), JsonPrimitive("resume"), JsonPrimitive("clear")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -91,10 +99,6 @@ internal val schema_32e268a4ad7c1c3d: RemoteSchema by lazy {
 
 internal val schema_3328521e00056564: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("kind"), properties = mapOf("kind" to schema_0138c350a16e9103, "url" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_334a3e37f018e30d: RemoteSchema by lazy {
-    RemoteSchema(type = "array", items = schema_efded54eafac0a12, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_338293a42e7115a2: RemoteSchema by lazy {
@@ -443,8 +447,4 @@ internal val schema_452971469565c49c: RemoteSchema by lazy {
 
 internal val schema_452c70feefa496c6: RemoteSchema by lazy {
     RemoteSchema(unionKind = "anyOf", options = listOf(schema_a4457c545e0e0489, schema_b7c373d0981a5441), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_458a4508393abce2: RemoteSchema by lazy {
-    RemoteSchema(type = "object", required = setOf("branches", "current"), properties = mapOf("branches" to schema_6b97469fe43177d6, "current" to schema_bf0b727f7b1c6d07), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

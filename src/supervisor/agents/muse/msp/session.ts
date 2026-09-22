@@ -160,6 +160,7 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
   private activated = false;
   private disposed = false;
   private disposePromise: Promise<void> | undefined;
+  private releaseHostPromise: Promise<void> | undefined;
   private transportErrorReported = false;
   private transportCloseReported = false;
   private pendingCompact: { turnId: string; timer: NodeJS.Timeout } | undefined;
@@ -642,6 +643,27 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     }
     this.pendingRequests.clear();
     if (this.activeTurnId) this.completeTurn(this.activeTurnId, "cancelled");
+    await this.releaseHost();
+    this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "disposed" });
+    this.listener.onClose();
+  }
+
+  /**
+   * Tear down everything the host owned: the client (failing its pending
+   * requests), the local process group, and on WSL the Linux-side host a dead
+   * `wsl.exe` wrapper can leave behind. Shared by `dispose` and an unexpected
+   * transport close, so a crash cleans up even when nothing disposes the
+   * retired handle; a failed attempt clears the memo so a later call retries.
+   */
+  private releaseHost(): Promise<void> {
+    this.releaseHostPromise ??= this.releaseHostOnce().catch((error: unknown) => {
+      this.releaseHostPromise = undefined;
+      throw error;
+    });
+    return this.releaseHostPromise;
+  }
+
+  private async releaseHostOnce(): Promise<void> {
     this.client.dispose();
     const stops = await Promise.allSettled([
       awaitProcessTermination(this.child, { ownedProcessGroup: process.platform !== "win32" }),
@@ -654,8 +676,6 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
         "Muse MSP shutdown failed.",
       );
     }
-    this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "disposed" });
-    this.listener.onClose();
   }
 
   /**
@@ -1188,5 +1208,10 @@ export class MuseMspStructuredSession implements StructuredSessionHandle {
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "exited" });
     this.listener.onError(`Muse MSP server exited unexpectedly (${detail}).`);
     this.listener.onClose();
+    // The runtime retires this handle on close without disposing it, so the
+    // crash path owns the host teardown (process group, surviving WSL host).
+    void this.releaseHost().catch((error: unknown) => {
+      console.warn("[muse-msp] host cleanup after unexpected exit failed:", error);
+    });
   }
 }

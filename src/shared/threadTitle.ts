@@ -1,4 +1,4 @@
-import type { PromptSegment } from "./contracts";
+import type { PromptSegment, ThreadTitleCommand } from "./contracts";
 import { inlinePromptSegmentText } from "./promptContent";
 
 /**
@@ -28,4 +28,49 @@ export function makeThreadTitle(prompt: string): string {
     return normalized;
   }
   return `${normalized.slice(0, 117)}...`;
+}
+
+/** Whether a prompt starts with a slash command (the only shape a title command can match). */
+export function isSlashCommandPrompt(prompt: string): boolean {
+  return /^\/\S/u.test(prompt.trim());
+}
+
+function matchWord(word: string, text: string): string | undefined {
+  const head = text.slice(0, word.length);
+  if (head.toLowerCase() !== word.toLowerCase()) return undefined;
+  const rest = text.slice(word.length);
+  if (rest.length > 0 && !/^\s/u.test(rest)) return undefined;
+  return rest.trim();
+}
+
+/**
+ * The text a new thread's title derives from. A first prompt that invokes one
+ * of the provider's declared title commands (`/<command> <argument>`) titles
+ * the thread from its argument; anything else — including bare control verbs
+ * and commands the provider did not declare — keeps the prompt itself.
+ * Provider-agnostic: providers declare the commands in their capabilities.
+ */
+export function resolveThreadTitlePrompt(
+  prompt: string,
+  commands: readonly ThreadTitleCommand[] | undefined,
+): string {
+  if (!commands?.length || !isSlashCommandPrompt(prompt)) return prompt;
+  const body = prompt.trim().slice(1);
+  for (const rule of commands) {
+    let argument = matchWord(rule.command, body);
+    if (argument === undefined) continue;
+    const subcommand = rule.argumentSubcommands?.find(
+      (verb) => matchWord(verb, argument!) !== undefined,
+    );
+    if (subcommand) argument = matchWord(subcommand, argument)!;
+    if (!argument) return prompt;
+    // Control verbs are only whole arguments of the command itself; after a
+    // content subcommand (`/goal edit pause`) the word is the content.
+    const normalized = argument.toLowerCase();
+    if (!subcommand && rule.controlArguments?.some((verb) => verb.toLowerCase() === normalized)) {
+      return prompt;
+    }
+    return argument;
+  }
+  return prompt;
 }

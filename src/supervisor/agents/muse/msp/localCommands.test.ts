@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { resolveThreadTitlePrompt } from "@/shared/threadTitle";
+import { museDefaultCapabilities } from "../detection";
 
 import { isMuseCompactCommand, museGoalCommandMethod, parseMuseGoalCommand } from "./localCommands";
 
@@ -75,4 +77,38 @@ describe("museGoalCommandMethod", () => {
     expect(museGoalCommandMethod("view")).toBeUndefined();
     expect(museGoalCommandMethod("editUsage")).toBeUndefined();
   });
+});
+
+describe("Muse /goal thread titles", () => {
+  const prompts = [
+    "/goal Reply with a haiku",
+    "/GOAL   reply with a haiku ",
+    "/goal edit Ship the fix",
+    "/goal edit pause",
+    "/goal pause for thought",
+    "/goal editorial pass",
+    "/goal",
+    "/goal edit",
+    "/goal pause",
+    "/goal Resume",
+    "/goal clear",
+    "/goal reset",
+    "/goal off",
+    "/goal none",
+    "/goals are nice",
+    "/compact",
+    "Explain the build",
+  ];
+
+  it.each(prompts)(
+    "titles %j from exactly what the goal parser treats as the objective",
+    (prompt) => {
+      const command = parseMuseGoalCommand(prompt);
+      const expected =
+        command?.kind === "set" || command?.kind === "edit" ? command.objective : prompt;
+      expect(resolveThreadTitlePrompt(prompt, museDefaultCapabilities.threadTitleCommands)).toBe(
+        expected,
+      );
+    },
+  );
 });

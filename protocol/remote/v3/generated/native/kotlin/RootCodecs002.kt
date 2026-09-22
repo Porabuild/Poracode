@@ -176,8 +176,8 @@ val RemoteRootCodecs.routeU2EAgentU2DSlashU2DCommandsU2EResponse: RemoteRootCode
 val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EQuery: RemoteRootCodec<RouteagentU2DStatusesQuery_b09b259cd2>
     get() = RemoteRootCodec("route.agent-statuses.query", serializer<RouteagentU2DStatusesQuery_b09b259cd2>(), schema_b09b259cd2bbc25d)
 
-val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_858154dd17>
-    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_858154dd17>(), schema_858154dd1760868f)
+val RemoteRootCodecs.routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_7e8fc11537>
+    get() = RemoteRootCodec("route.agent-statuses.response", serializer<RouteagentU2DStatusesResponse_7e8fc11537>(), schema_7e8fc11537a79bb6)
 
 val RemoteRootCodecs.routeU2EAttachmentU2DUploadU2EQuery: RemoteRootCodec<RouteattachmentU2DUploadQuery_f22a438b83>
     get() = RemoteRootCodec("route.attachment-upload.query", serializer<RouteattachmentU2DUploadQuery_f22a438b83>(), schema_f22a438b8392693b)

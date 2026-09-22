@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_197c2b8c01d7f4ed = RemoteSchema(type: "object", properties: ["authMethod": RemoteSchemas.schema_36fea325bf1aca70, "authenticatedAs": RemoteSchemas.schema_36fea325bf1aca70, "connectedProviders": RemoteSchemas.schema_7fdc1b397391e8f3, "organization": RemoteSchemas.schema_36fea325bf1aca70, "plan": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_1994cc63e450a4bd = RemoteSchema(unionKind: "anyOf", options: [RemoteSchemas.schema_bf0b727f7b1c6d07, RemoteSchemas.schema_80c415b6e27c6ebd, RemoteSchemas.schema_feeb8bb50144d96d], unknownPolicy: .strip)
 }
 
@@ -257,6 +261,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_26510965c22ad8c1 = RemoteSchema(type: "object", additionalSchema: RemoteSchemas.schema_a3c1d8ca01e5a432, propertyNames: RemoteSchemas.schema_36fea325bf1aca70, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_265118ebb211fa8f = RemoteSchema(type: "object", required: Set(["projects"]), properties: ["project": RemoteSchemas.schema_e21c843ae3810760, "projects": RemoteSchemas.schema_522de926415fa8bc], additionalAllowed: true, unknownPolicy: .strip)
 }
 
@@ -438,12 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_2d8274eae552cc51 = RemoteSchema(type: "string", literals: [.string("wsl")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_2d862d697d08c085 = RemoteSchema(type: "string", literals: [.string("pause"), .string("resume"), .string("clear")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_2e4d2aaed030369e = RemoteSchema(type: "object", required: Set(["kind", "title"]), properties: ["kind": RemoteSchemas.schema_356ae1fc455ec4c8, "title": RemoteSchemas.schema_36fea325bf1aca70], additionalAllowed: true, unknownPolicy: .strip)
 }
