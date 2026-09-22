@@ -967,14 +967,25 @@ export class ManagedCdpClient {
     options?: { readonly assertInsertion?: boolean },
   ): Promise<TrustedTypingEvidence> {
     const assertInsertion = options?.assertInsertion ?? true;
-    const focus = await this.evaluate<string>(
-      `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
-        ` if (!el) return "missing";` +
-        ` if (!(el instanceof HTMLElement)) return "not-html";` +
-        ` if (!el.isContentEditable && !(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement)) return "not-editable";` +
-        ` el.scrollIntoView({ block: "center" }); el.focus();` +
-        ` return document.activeElement === el ? "focused" : "not-focusable"; })()`,
-    );
+    // A sustained cell can hit a brief React replacement between its last
+    // screenshot/barrier and the first input batch. Require the real editable
+    // to return within a small bound rather than converting that render race
+    // into a 30-minute false negative. A genuinely absent/disabled composer
+    // still fails with the final observed reason after five seconds.
+    const deadline = Date.now() + 5_000;
+    let focus = "missing";
+    do {
+      focus = await this.evaluate<string>(
+        `(() => { const el = document.querySelector(${JSON.stringify(selector)});` +
+          ` if (!el) return "missing";` +
+          ` if (!(el instanceof HTMLElement)) return "not-html";` +
+          ` if (!el.isContentEditable && !(el instanceof HTMLInputElement) && !(el instanceof HTMLTextAreaElement)) return "not-editable";` +
+          ` el.scrollIntoView({ block: "center" }); el.focus();` +
+          ` return document.activeElement === el ? "focused" : "not-focusable"; })()`,
+      );
+      if (focus === "focused" || Date.now() >= deadline) break;
+      await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+    } while (Date.now() < deadline);
     if (focus !== "focused") throw new Error(`cannot type into ${selector}: ${focus}`);
     const beforeText = await this.readEditableText(selector);
     if (assertInsertion && beforeText === null) {
