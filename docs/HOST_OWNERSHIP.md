@@ -270,10 +270,16 @@ closes the database and owner. Push timers cannot restart work after stop and a
 late rejection cannot remove a replacement credential. Failed or unconfirmed
 joins keep ownership. The CLI registers SIGINT/SIGTERM before calling the factory,
 forwards startup cancellation, and starts available runtime disposal while joining
-construction/start. It reports failure without forcing exit
-when partial construction or shutdown cannot confirm those joins. Full provider/
-PTY descendant termination and the cross-platform outer process escalation remain
-separate F11 acceptance work.
+construction/start. A failed or unconfirmed join reports failure and keeps the
+hard deadline armed: the process force-exits 1 at the declared bound instead of
+leaving a wedged owner alive, and that exit is what releases the lease. The
+deadline is an in-process timer, so it cannot fire while the event loop is
+blocked; the external stop bound for that case is the service manager
+(`TimeoutStopSec`, launchd stop), and a direct foreground CLI run has no such
+watchdog. The managed host announces its own stop to connected clients with a
+WebSocket going-away close (RFC 6455 1001) before the transport grace terminates
+sockets that ignore it. Full provider/PTY descendant termination and the
+cross-platform outer process escalation remain separate F11 acceptance work.
 
 Control discovery removal is best effort only after its listener, connections and
 handlers have actually joined. A failure reports a fixed diagnostic without the

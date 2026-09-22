@@ -17,6 +17,7 @@ import { finalizeManualOutcomes, recordManualGate } from "./smoke-gate-outcomes.
 import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
 import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 import { mockLiveVoiceGate } from "./smoke-live-voice.mjs";
+import { runSettingsScenario } from "./smoke-settings.mjs";
 import { mockQuickComposerGate } from "./smoke-quick-composer.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -195,6 +196,14 @@ async function runSmoke(plan) {
   try {
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    // Electron can keep the managed main window hidden after overlay checks.
+    // Hidden documents suspend exit animations and retain closed modal content.
+    await evaluate(client, "window.poracode.focusWindow()", true);
+    await waitForValue(
+      () => evaluate(client, "document.visibilityState"),
+      (visibility) => visibility === "visible",
+      "visible main window",
+    );
     await runScenario(report, "welcome-dismissal", () => welcomeDismissalScenario(client));
     await installWindowErrorCollector(client);
     await runScenario(report, "baseline", () => baselineScenario(client));
@@ -380,136 +389,18 @@ async function welcomeDismissalScenario(client) {
 }
 
 async function settingsScenario(client) {
-  const mcpFixture = await startMcpProbeFixture();
-  const configuredMcpServers = [
-    {
-      id: "smoke-mcp-connected",
-      name: "smoke-connected",
-      description: "Deterministic MCP probe fixture",
-      enabled: true,
-      timeoutMs: 30_000,
-      transport: { type: "http", url: `${mcpFixture.origin}/mcp`, headers: {} },
-    },
-    {
-      id: "smoke-mcp-auth",
-      name: "smoke-auth",
-      description: "Deterministic OAuth challenge fixture",
-      enabled: true,
-      timeoutMs: 30_000,
-      transport: { type: "http", url: `${mcpFixture.origin}/auth`, headers: {} },
-    },
-  ];
-  await evaluate(
+  return runSettingsScenario({
     client,
-    `window.__poracodeDev.stores.sharedSettings.getState().setMcpServers(${JSON.stringify(configuredMcpServers)})`,
-  );
-  const sections = [
-    "profile",
-    "general",
-    "audio",
-    "appearance",
-    "terminal",
-    "threads",
-    "git",
-    "worktrees",
-    "notifications",
-    "ai",
-    "search",
-    "shortcuts",
-    "remoteAccess",
-    "remoteServers",
-    "agentsGeneral",
-    "skills",
-    "mcpServers",
-    "plugins",
-    "browser",
-    "usage",
-    "archived",
-    "changelog",
-    "about",
-  ];
-  let mcpListScreenshotPath;
-  let mcpScreenshotPath;
-  let mcpImportScreenshotPath;
-  let pluginsScreenshotPath;
-  let skillsScreenshotPath;
-  let skillsImportScreenshotPath;
-  let skillsImportDestinationsScreenshotPath;
-  let skillsMarketplaceScreenshotPath;
-  let skillsTargetsScreenshotPath;
-  for (const section of sections) {
-    await evaluate(
-      client,
-      `window.__poracodeDev.openSettings(${JSON.stringify(section)}); new Promise((resolve) => setTimeout(resolve, 200))`,
-      true,
-    );
-    const state = await waitForValue(
-      () =>
-        evaluate(
-          client,
-          `(() => ({
-            hasContent: Boolean(document.querySelector('[data-settings-scroll-area="true"]')),
-            textLength: document.body.innerText.length,
-            crash: /renderer crash|rendered more hooks/i.test(document.body.innerText),
-          }))()`,
-        ),
-      (candidate) => candidate.hasContent && candidate.textLength > 0,
-      `settings section ${section}`,
-    );
-    assert(state.hasContent && state.textLength > 0, `settings section ${section} did not render`);
-    assert(!state.crash, `settings section ${section} rendered a crash screen`);
-    if (section === "skills") {
-      await waitForValue(
-        () =>
-          evaluate(
-            client,
-            `(() => ({
-              hasSearch: Boolean(document.querySelector('[aria-label="Search skills"]')),
-              text: document.body.innerText,
-            }))()`,
-          ),
-        (result) => result.hasSearch && (mode === "real" || result.text.includes("smoke-global")),
-        "skills settings fixture",
-      );
-      if (mode === "mock") {
-        ({
-          skillsImportScreenshotPath,
-          skillsImportDestinationsScreenshotPath,
-          skillsMarketplaceScreenshotPath,
-          skillsTargetsScreenshotPath,
-        } = await skillsSectionDeepDive(client));
-      }
-      skillsScreenshotPath = join(outDir, "smoke-02-skills.png");
-      await screenshot(client, skillsScreenshotPath);
-    }
-    if (section === "mcpServers") {
-      if (mode === "mock") {
-        ({ mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath } =
-          await mcpServersSectionDeepDive(client, mcpFixture));
-      }
-    }
-    if (section === "plugins") {
-      ({ pluginsScreenshotPath } = await pluginsSectionDeepDive(client));
-    }
-  }
-  const screenshotPath = join(outDir, "smoke-02-settings.png");
-  await screenshot(client, screenshotPath);
-  await evaluate(client, "window.__poracodeDev.closeSettings()");
-  await evaluate(client, "window.__poracodeDev.stores.sharedSettings.getState().setMcpServers([])");
-  await mcpFixture.close();
-  return {
-    sections,
-    screenshotPath,
-    ...(mcpListScreenshotPath ? { mcpListScreenshotPath } : {}),
-    ...(mcpScreenshotPath ? { mcpScreenshotPath } : {}),
-    ...(mcpImportScreenshotPath ? { mcpImportScreenshotPath } : {}),
-    ...(pluginsScreenshotPath ? { pluginsScreenshotPath } : {}),
-    ...(skillsScreenshotPath ? { skillsScreenshotPath } : {}),
-    ...(skillsImportScreenshotPath ? { skillsImportScreenshotPath } : {}),
-    ...(skillsImportDestinationsScreenshotPath ? { skillsImportDestinationsScreenshotPath } : {}),
-    ...(skillsMarketplaceScreenshotPath ? { skillsMarketplaceScreenshotPath } : {}),
-    ...(skillsTargetsScreenshotPath ? { skillsTargetsScreenshotPath } : {}),
-  };
+    evaluate,
+    waitForValue,
+    screenshot,
+    outDir,
+    mode,
+    startMcpProbeFixture,
+    skillsSectionDeepDive,
+    mcpServersSectionDeepDive,
+    pluginsSectionDeepDive,
+  });
 }
 
 async function pluginsSectionDeepDive(client) {
@@ -1075,11 +966,23 @@ async function mcpServersSectionDeepDive(client, mcpFixture) {
     () =>
       evaluate(
         client,
-        `document.body.innerText.includes("smoke_external") && document.body.innerText.includes("Workspace")`,
+        `!document.body.innerText.includes("Import external agent MCP servers") && Boolean(document.querySelector('button[aria-label="Delete smoke_external"]')?.getClientRects().length)`,
       ),
     Boolean,
     "MCP project import persistence",
   );
+  const persisted = await evaluate(
+    client,
+    `(async () => {
+    const { loopback } = await window.__poracodeDev.loadHostDiagnostics();
+    const activation = loopback.readManagedLoopbackActivation();
+    if (!activation) throw new Error("Managed host is not active for MCP persistence verification");
+    const settings = await activation.client.projectSettings("smoke-project");
+    return settings.mcpServers?.some(server => server.name === "smoke_external") === true;
+  })()`,
+    true,
+  );
+  assert(persisted, "MCP import was visible but absent from authoritative project settings");
   await evaluate(
     client,
     `document.querySelector('button[aria-label="Delete smoke_external"]')?.click()`,

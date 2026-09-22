@@ -154,7 +154,15 @@ export async function mockQuickComposerGate({
         `quick composer ${mode} presentation control`,
       );
     }
-    await overlay(`${editor}.focus()`);
+    await overlay(`(() => {
+      const input = ${editor};
+      input.focus();
+      const range = document.createRange();
+      range.selectNodeContents(input);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    })()`);
     await overlayClient.send("Input.insertText", { text: prompt });
     await waitForValue(
       () => overlay(`Boolean(${button("Launch thread")} && !${button("Launch thread")}.disabled)`),
