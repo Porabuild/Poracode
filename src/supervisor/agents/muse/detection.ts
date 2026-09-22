@@ -36,7 +36,15 @@ const MUSE_STATIC_MODELS: Array<{ id: string; label: string }> = [
 
 const MUSE_MODEL_IDS: string[] = MUSE_STATIC_MODELS.map((model) => model.id);
 
-/** Static effort ladder (also the MSP `ReasoningEffort` closed enum — see msp/schemaFixture.test.ts). */
+/**
+ * Static effort ladder: the fallback when the `--help` probe yields nothing.
+ * It must stay a subset of the pinned fixture's `ReasoningEffort` enum (see
+ * msp/schemaFixture.test.ts) — never the other way round. Additive host
+ * growth (1.3.0 shipped `max`) is adopted at runtime by the help probe,
+ * which only takes ladders that keep every entry here; baking a new rung
+ * into the static list would offer it to pre-growth hosts whose closed enum
+ * rejects it.
+ */
 export const MUSE_EFFORTS = ["none", "minimal", "low", "medium", "high", "xhigh", "ultra"] as const;
 
 // Muse approval modes: untrusted | on-request | never (CLI default on-request).

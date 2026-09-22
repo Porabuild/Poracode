@@ -654,7 +654,6 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{visibleCount} of {totalCount} usable"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount} of {totalCount} visible"
@@ -6298,7 +6297,6 @@ msgid "Hide {label} circle in sidebar"
 msgstr "Hide {label} circle in sidebar"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "Hide all"
@@ -8450,6 +8448,10 @@ msgstr "Next tab"
 msgid "No active browser tab"
 msgstr "No active browser tab"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No active goal in this session."
+msgstr "No active goal in this session."
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "No active session"
 #~ msgstr "No active session"
@@ -8731,7 +8733,6 @@ msgstr "No microphone found."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "No models found"
 msgstr "No models found"
 
@@ -12040,13 +12041,11 @@ msgid "Search MCP servers..."
 msgstr "Search MCP servers..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Search models"
 msgstr "Search models"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Search models..."
 msgstr "Search models..."
 
@@ -12310,6 +12309,10 @@ msgstr "Set group color"
 msgid "Set or view an experimental goal"
 msgstr "Set or view an experimental goal"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Set or view the session goal"
+msgstr "Set or view the session goal"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "Set shortcut"
@@ -12397,7 +12400,6 @@ msgstr "Show a projectless Home scope for OS-level agent sessions."
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "Show all"
@@ -13268,7 +13270,6 @@ msgstr "Support:"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Supports Fast mode"
 msgstr "Supports Fast mode"
 
@@ -13719,6 +13720,10 @@ msgstr "The GitHub account \"{login}\" belongs to {host}, which does not match t
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "the global {0} WSL scope"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The goal can't do that in its current state."
+msgstr "The goal can't do that in its current state."
 
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
@@ -14203,6 +14208,10 @@ msgstr "This thread switched provider without transferring context: {agent} star
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
+msgstr "This version of Muse Code does not support session goals. Update Muse Code and try again."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -15269,6 +15278,10 @@ msgstr "Usage settings"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "Usage unknown"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Usage: /goal edit <objective>"
+msgstr "Usage: /goal edit <objective>"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."

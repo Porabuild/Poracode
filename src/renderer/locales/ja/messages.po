@@ -648,7 +648,6 @@ msgid "{visibleCount} of {totalCount} usable"
 msgstr "{visibleCount}/{totalCount}が使用可能"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "{visibleCount} of {totalCount} visible"
 msgstr "{visibleCount}/{totalCount}が表示されます"
@@ -6288,7 +6287,6 @@ msgid "Hide {label} circle in sidebar"
 msgstr "サイドバーで {label} のリングを非表示にする"
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Hide all"
 msgstr "すべて隠す"
@@ -8439,6 +8437,10 @@ msgstr "次のタブ"
 msgid "No active browser tab"
 msgstr "アクティブなブラウザタブがありません"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "No active goal in this session."
+msgstr "このセッションにアクティブな目標がありません。"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 #~ msgid "No active session"
 #~ msgstr "アクティブなセッションがありません"
@@ -8720,7 +8722,6 @@ msgstr "マイクが見つかりません。"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "No models found"
 msgstr "モデルが見つかりません"
 
@@ -12029,13 +12030,11 @@ msgid "Search MCP servers..."
 msgstr "MCPサーバーを検索..."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Search models"
 msgstr "モデルを検索する"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Search models..."
 msgstr "モデルを検索..."
 
@@ -12299,6 +12298,10 @@ msgstr "グループの色を設定"
 msgid "Set or view an experimental goal"
 msgstr "実験目標を設定または表示する"
 
+#: src/renderer/components/providers/muse/index.tsx
+msgid "Set or view the session goal"
+msgstr "セッションの目標を設定または表示する"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Set shortcut"
 msgstr "ショートカットを設定"
@@ -12386,7 +12389,6 @@ msgstr "OS レベルのエージェント セッション用に、プロジェ�
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SidebarShortcutsSelector.tsx
 msgid "Show all"
 msgstr "すべて表示"
@@ -13257,7 +13259,6 @@ msgstr "サポート:"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
-#: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
 msgid "Supports Fast mode"
 msgstr "高速モードに対応"
 
@@ -13708,6 +13709,10 @@ msgstr "GitHub アカウント「{login}」は {host} のアカウントで、�
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the global {0} WSL scope"
 msgstr "{0} のグローバル WSL スコープ"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The goal can't do that in its current state."
+msgstr "現在のゴールの状態ではこの操作はできません。"
 
 #: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
 #: src/renderer/state/remote/historyNoticeActions.ts
@@ -14192,6 +14197,10 @@ msgstr "このスレッドはコンテキストを引き継がずにプロバイ
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "このスレッドはコンテキストを引き継がずにフォークされました。{agent} は Poracode の read_thread ツールなしで起動したため、元の会話を読み取れません。app-controls の MCP ツールを再度有効にするか、必要な内容を要約してください。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This version of Muse Code does not support session goals. Update Muse Code and try again."
+msgstr "このバージョンの Muse Code はセッション目標をサポートしていません。Muse Code を更新して再試行してください。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -15254,6 +15263,10 @@ msgstr "利用設定"
 #: src/renderer/components/thread/ThreadContextDock.tsx
 msgid "Usage unknown"
 msgstr "使用量不明"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Usage: /goal edit <objective>"
+msgstr "使用法: /goal edit <objective>"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."

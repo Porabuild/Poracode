@@ -210,6 +210,11 @@ const messages = {
 
   // ── Thread runtime notices ────────────────────────────────
   "thread.compact.noop": "Nothing to compact yet — the conversation is still small.",
+  "thread.goal.none": "No active goal in this session.",
+  "thread.goal.invalidState": "The goal can't do that in its current state.",
+  "thread.goal.editUsage": "Usage: /goal edit <objective>",
+  "thread.goal.unsupported":
+    "This version of Muse Code does not support session goals. Update Muse Code and try again.",
   "desktop.promotion.progress.title": "Poracode",
   "desktop.promotion.progress.body": "Promoting this profile into the owned data root…",
 } as const;
