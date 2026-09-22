@@ -680,6 +680,7 @@ async function runAndroidRealJourney({ registerShutdown }) {
 
     await runBuffered("adb", ["reverse", `tcp:${controlPort}`, `tcp:${controlPort}`]);
     await runBuffered("adb", ["reverse", `tcp:${productionPort}`, `tcp:${productionPort}`]);
+    await waitForAndroidFrameworkServices();
     // This real-peer class receives one deliberately one-use pairing URL for
     // its terminal + Git methods. Start the suite clean, then let Orchestrator
     // preserve the first method's stored host for the second method.
@@ -689,7 +690,7 @@ async function runAndroidRealJourney({ registerShutdown }) {
       "-c",
       "pm path com.lightcodeapp.mobile || true",
     ]);
-    if (installedAppPath.trim()) {
+    if (installedAppPath.split(/\r?\n/).some((line) => line.startsWith("package:"))) {
       await runBuffered("adb", ["shell", "pm", "clear", "com.lightcodeapp.mobile"]);
     }
     const status = await runStreaming(
@@ -733,6 +734,29 @@ async function runAndroidRealJourney({ registerShutdown }) {
     ]);
     if (!exited) killHarnessGroup("SIGKILL");
   }
+}
+
+async function waitForAndroidFrameworkServices() {
+  let lastError = null;
+  for (let attempt = 1; attempt <= 60; attempt += 1) {
+    try {
+      await runBuffered("adb", [
+        "shell",
+        "sh",
+        "-c",
+        "pm path android >/dev/null && am get-current-user >/dev/null",
+      ]);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < 60) await new Promise((resolve) => setTimeout(resolve, 2_000));
+    }
+  }
+  throw new Error(
+    `Android package/activity services did not become ready: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`,
+  );
 }
 
 function injectXCTestEnvironment(plist, environment) {
