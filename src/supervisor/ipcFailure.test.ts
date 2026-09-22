@@ -8,6 +8,7 @@ import {
   HostResourcePolicyUnavailableError,
 } from "./runtime/hostResourceAdmission";
 import { handleSupervisorIpcFailure } from "./ipcFailure";
+import { GIT_ADMISSION_QUEUE_FULL_CODE, GitProcessAdmissionError } from "./git/gitProcessAdmission";
 
 describe("handleSupervisorIpcFailure", () => {
   it("preserves the caller rejection while reporting the original failure for classification", () => {
@@ -62,6 +63,21 @@ describe("handleSupervisorIpcFailure", () => {
       ok: false,
       error: error.message,
       errorCode: HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
+    });
+  });
+
+  it("carries Git admission pressure across the supervisor reply", () => {
+    const error = new GitProcessAdmissionError(
+      GIT_ADMISSION_QUEUE_FULL_CODE,
+      { gitClass: "short", units: 1, limit: 8, active: 8, queued: 64, retryAfterMs: 500 },
+      "Git short admission queue is full.",
+    );
+    expect(handleSupervisorIpcFailure(error, "getGitStatus", "request-5", () => {})).toEqual({
+      replyTo: "request-5",
+      ok: false,
+      error: error.message,
+      errorCode: GIT_ADMISSION_QUEUE_FULL_CODE,
+      retryAfterMs: 500,
     });
   });
 });

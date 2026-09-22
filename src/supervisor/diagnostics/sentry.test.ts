@@ -8,6 +8,10 @@ import {
   classifySupervisorIpcFailure,
   initializeSupervisorSentry,
 } from "./sentry";
+import {
+  GIT_ADMISSION_QUEUE_FULL_CODE,
+  GitProcessAdmissionError,
+} from "../git/gitProcessAdmission";
 
 type ClassificationCase = {
   operation: string;
@@ -290,6 +294,21 @@ describe("supervisor Sentry policy", () => {
     [
       "host-resource-policy-unavailable",
       new HostResourcePolicyUnavailableError("host-resource-admission-invalid"),
+    ],
+    [
+      "git-admission-refusal",
+      new GitProcessAdmissionError(
+        GIT_ADMISSION_QUEUE_FULL_CODE,
+        {
+          gitClass: "short",
+          units: 1,
+          limit: 8,
+          active: 8,
+          queued: 64,
+          retryAfterMs: 1_000,
+        },
+        "Git short admission queue is full.",
+      ),
     ],
   ])("treats a typed admission refusal as expected operational: %s", (errorClass, error) => {
     expect(classifySupervisorIpcFailure(error, "startThread")).toEqual({

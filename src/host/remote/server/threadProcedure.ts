@@ -140,14 +140,14 @@ export async function runRemoteProcedure(
 const FILE_SAVE_PROCEDURES = new Set<string>(["writeProjectFile", "writeExternalFile"]);
 
 /**
- * Supervisor IPC deliberately serializes failures as plain `error.message`
- * strings (see `handleSupervisorIpcFailure`), so this passthrough receives no
- * typed errors. For the editor-save procedures only, the save-conflict domain
- * message is recognized by exact equality with the canonical constant and
- * re-emitted as an actionable `409 file_save_conflict`. Every other failure —
- * any other procedure, near-miss messages included — is returned untouched so
- * `writeError` keeps redacting it as a generic 500; supervisor internals must
- * never leak through this boundary.
+ * Supervisor IPC preserves typed admission refusals and otherwise serializes
+ * failures as plain `error.message` strings (see `handleSupervisorIpcFailure`).
+ * Typed admission errors pass through for the central HTTP mapper. For the
+ * editor-save procedures only, the save-conflict domain message is recognized
+ * by exact equality with the canonical constant and re-emitted as an
+ * actionable `409 file_save_conflict`. Every other failure is returned
+ * untouched so `writeError` keeps redacting it as a generic 500; supervisor
+ * internals must never leak through this boundary.
  */
 function mapSupervisorProcedureError(procedure: string, error: unknown): unknown {
   if (

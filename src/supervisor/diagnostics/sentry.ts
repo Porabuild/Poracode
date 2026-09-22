@@ -19,6 +19,7 @@ import {
   isHostResourceBusyError,
   isHostResourcePolicyUnavailableError,
 } from "@/shared/hostResourceAdmission";
+import { isGitProcessAdmissionRefusal } from "@/shared/gitProcessAdmission";
 
 type SupervisorSentryModule = typeof import("@sentry/node");
 
@@ -321,6 +322,13 @@ function knownSupervisorIpcClassification(
       failureClass: "expected-operational",
       domain: "supervisor.ipc",
       errorClass: "host-resource-policy-unavailable",
+    };
+  }
+  if (isGitProcessAdmissionRefusal(error)) {
+    return {
+      failureClass: "expected-operational",
+      domain: "supervisor.ipc",
+      errorClass: "git-admission-refusal",
     };
   }
   const message = errorMessage(error);

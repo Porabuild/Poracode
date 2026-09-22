@@ -3,6 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeDatabase, initDatabase } from "@/host/db";
+import {
+  GIT_ADMISSION_QUEUE_FULL_CODE,
+  GitProcessAdmissionRefusalError,
+} from "@/shared/gitProcessAdmission";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import {
   RemoteAccessServer,
@@ -105,5 +109,22 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
     const response = await call("readThreadBackgroundTasks", { threadId: "t1" });
     expect(response.status).toBe(200);
     expect(callSupervisor).toHaveBeenCalledWith("readThreadBackgroundTasks", { threadId: "t1" });
+  });
+
+  it("returns Git admission pressure as a typed retryable response", async () => {
+    callSupervisor.mockRejectedValueOnce(
+      new GitProcessAdmissionRefusalError("Git short admission queue is full.", {
+        code: GIT_ADMISSION_QUEUE_FULL_CODE,
+        retryAfterMs: 1_500,
+      }),
+    );
+    const response = await call("getGitStatus", {
+      projectLocation: { kind: "posix", path: "/tmp/repo" },
+    });
+    expect(response.status).toBe(503);
+    expect(response.headers.get("retry-after")).toBe("2");
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: GIT_ADMISSION_QUEUE_FULL_CODE },
+    });
   });
 });
