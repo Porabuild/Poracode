@@ -217,11 +217,9 @@ async function runAndroidReal() {
   process.exit(0);
 }
 
-// Build/simctl children of the ios-ui journey, so a programmatic shutdown can
+// Build/simctl children of the native journeys, so a programmatic shutdown can
 // kill the whole tree (an interactive SIGINT reaches them via the terminal
-// process group, `kill <pid>` does not). Declared before the entry guard
-// below: top-level `await main()` pauses module evaluation, so anything the
-// journey touches must be initialized before it.
+// process group, `kill <pid>` does not).
 const liveChildProcesses = new Set();
 
 function trackChildProcess(processHandle) {
@@ -238,10 +236,6 @@ function killTrackedChildren(signal) {
       // already gone
     }
   }
-}
-
-if (process.argv[1] && resolvePath(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  await main();
 }
 
 /**
@@ -803,4 +797,11 @@ function runStreaming(command, args, env, exactSecret, cwd = repoRoot) {
     processHandle.stderr?.on("data", writer);
     processHandle.once("exit", (code) => resolve(code ?? 1));
   });
+}
+
+// Initialize every journey constant and helper before dispatching. A top-level
+// await earlier in this module pauses evaluation, which previously left the
+// Android real-peer class name in its temporal dead zone when main called it.
+if (process.argv[1] && resolvePath(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
 }
