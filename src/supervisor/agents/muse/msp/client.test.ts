@@ -1,5 +1,5 @@
 import { EventEmitter } from "node:events";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { MuseMspClient, spawnMuseServeHost } from "./client";
@@ -50,6 +50,12 @@ class FakeTransport implements MuseMspTransport {
     this.listener?.onMessage(message);
   }
 }
+
+import { primeWslLaunchEnvironment } from "../../base";
+
+beforeEach(() => {
+  primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
+});
 
 describe("MuseMspClient", () => {
   it("handshakes with initialize then the bare initialized notification", async () => {

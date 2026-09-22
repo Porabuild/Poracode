@@ -40,7 +40,7 @@ export async function prepareMcpToolFilters<T extends ResolvedMcpServer>(
   const baseEnv = process.versions.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {};
   if (location.kind === "wsl") {
     const node = await resolveNodeForDistro(location.distro);
-    const deployed = deployFilesToWslTempBase(
+    const deployed = await deployFilesToWslTempBase(
       location.distro,
       `poracode-mcp-filter-${process.pid}`,
       sources.map((source) => ({ src: source.path, relDest: `mcp-filter/${source.name}` })),

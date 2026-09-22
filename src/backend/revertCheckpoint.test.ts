@@ -15,7 +15,7 @@ const supervisorHarness = vi.hoisted(() => {
   return state;
 });
 
-vi.mock("@/main/supervisor/SupervisorClient", () => ({
+vi.mock("@/host/supervisor/SupervisorClient", () => ({
   SupervisorClient: class {
     start = vi.fn<() => void>();
     dispose = vi.fn<() => void>();
@@ -28,19 +28,19 @@ vi.mock("@/main/supervisor/SupervisorClient", () => ({
   },
 }));
 
-import { closeDatabase, dbClaimCheckpointRevertOperation, initDatabase } from "@/main/db";
+import { closeDatabase, dbClaimCheckpointRevertOperation, initDatabase } from "@/host/db";
 import {
   BackendHostCore,
   RevertCheckpointRefusedError,
   type RevertCheckpointResult,
 } from "./BackendHostCore";
-import { nativeBindingEnv, sqliteAvailable, testThread } from "@/main/db/runtimeItems.testFixtures";
+import { nativeBindingEnv, sqliteAvailable, testThread } from "@/host/db/runtimeItems.testFixtures";
 import {
   dbAppendThreadCompletedTurn,
   dbApplyThreadRuntimeEvents,
   dbGetThreadRuntimeItems,
-} from "@/main/db/runtimeItems";
-import { dbUpsertProject, dbUpsertThread, dbGetThread } from "@/main/db/projectsThreads";
+} from "@/host/db/runtimeItems";
+import { dbUpsertProject, dbUpsertThread, dbGetThread } from "@/host/db/projectsThreads";
 import type { ProviderRevertAnchor, Thread } from "@/shared/contracts";
 import type { ProjectLocation } from "@/shared/contracts/common";
 
@@ -441,7 +441,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
       expect(supervisorHarness.calls).toHaveLength(callsBeforeRetry);
       expect(events.length).toBe(eventsBeforeRetry);
       expect(truncateEvents()).toHaveLength(1);
-      const itemIds = dbGetThreadRuntimeItems("thread-1").map((item) => item.id);
+      const itemIds = (await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id);
       expect(itemIds).toContain("late-1");
       expect(itemIds).toContain("late-2");
 
@@ -451,7 +451,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
       expect(deliberate.replayed).toBe(false);
       expect(deliberate.outcome).toBe("completed");
       expect(deliberate.numTurns).toBe(1);
-      const afterIds = dbGetThreadRuntimeItems("thread-1").map((item) => item.id);
+      const afterIds = (await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id);
       expect(afterIds).not.toContain("late-1");
       expect(afterIds).not.toContain("late-2");
       expect(truncateEvents()).toHaveLength(2);
@@ -489,7 +489,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
 
     // Simulate a pre-upgrade DB that already holds a retired `#N` supersession
     // row for the same base key (created by the removed heuristic).
-    const sqlite = (await import("@/main/db/connection")).getSqlite();
+    const sqlite = (await import("@/host/db/connection")).getSqlite();
     const now = Date.now();
     sqlite
       .prepare(
@@ -524,7 +524,7 @@ describe.skipIf(!sqliteAvailable)("BackendHostCore.revertCheckpoint", () => {
     // no new `#N` row is created.
     expect(replay.numTurns).toBe(first.numTurns);
     expect(supervisorHarness.calls).toHaveLength(callsBefore);
-    const itemIds = dbGetThreadRuntimeItems("thread-1").map((item) => item.id);
+    const itemIds = (await dbGetThreadRuntimeItems("thread-1")).map((item) => item.id);
     expect(itemIds).toContain("late-1");
     expect(itemIds).toContain("late-2");
     const keys = sqlite

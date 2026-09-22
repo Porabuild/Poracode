@@ -11,7 +11,11 @@ import type { ProjectLocation } from "@/shared/contracts";
 import { createLspRootUri, type LspSessionStatus } from "@/shared/lsp";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { getProjectFsPath } from "@/shared/wsl";
-import { buildAgentCommand, primeProjectShellEnv } from "../agents/base";
+import {
+  buildAgentCommand,
+  prepareAgentLocationEnvironment,
+  primeProjectShellEnv,
+} from "../agents/base";
 import { captureSupervisorException } from "../diagnostics/sentry";
 import type { LanguageServerConfig } from "./serverRegistry";
 
@@ -76,6 +80,7 @@ export class ServerInstance {
 
     for (const candidate of this.config.commands) {
       try {
+        await prepareAgentLocationEnvironment(this.projectLocation);
         const command =
           this.projectLocation.kind === "wsl"
             ? resolveWslCommand(candidate.command, this.projectLocation.linuxPath)

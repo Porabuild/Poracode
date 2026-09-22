@@ -86,7 +86,6 @@ describe("ipcProcedureMap", () => {
           statusCachePath: "C:\\tmp\\status-cache.json",
         }) as never,
       updatePowerSaveBlocker: vi.fn<() => void>(),
-      setRendererEventInterests: vi.fn<() => Promise<void>>(async () => {}),
       autoUpdater: {
         initialize: vi.fn<() => void>(),
         getStatus: vi.fn<() => null>(() => null),

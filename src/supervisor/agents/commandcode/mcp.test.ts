@@ -6,17 +6,13 @@ import type { ResolvedMcpServer } from "@/shared/contracts";
 import { createCommandCodeAdapter } from "./index";
 import { commandCodeMcpLaunch } from "./mcp";
 import { SkillsService } from "../../skills/SkillsService";
-import { deployFilesToWslTempBase } from "../../wsl/wslDeploy";
+import { deployFilesToWslTempBase, removeWslStagedPath } from "../../wsl/wslDeploy";
 import { toWslUncPath } from "@/shared/wsl";
-
-vi.mock("node:fs", async (importOriginal) => {
-  const fs = await importOriginal<typeof import("node:fs")>();
-  return { ...fs, rmSync: vi.fn<typeof fs.rmSync>(fs.rmSync) };
-});
 
 vi.mock("../../wsl/wslDeploy", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../wsl/wslDeploy")>()),
   deployFilesToWslTempBase: vi.fn<typeof deployFilesToWslTempBase>(),
+  removeWslStagedPath: vi.fn<typeof removeWslStagedPath>(),
 }));
 
 const roots: string[] = [];
@@ -46,14 +42,14 @@ const server: ResolvedMcpServer = {
 };
 
 describe("Command Code launch integrations", () => {
-  it("passes independent MCP configurations on launch and resume without persisting secrets", () => {
+  it("passes independent MCP configurations on launch and resume without persisting secrets", async () => {
     const root = fixture();
     const adapter = createCommandCodeAdapter();
     const location = { kind: "posix" as const, path: root };
-    const fresh = adapter.buildLaunchArgv(location, { model: "" }, "hello", undefined, {
+    const fresh = await adapter.buildLaunchArgv(location, { model: "" }, "hello", undefined, {
       mcpServers: [server],
     });
-    const resumed = adapter.buildResumeArgv(
+    const resumed = await adapter.buildResumeArgv(
       location,
       { model: "" },
       "next",
@@ -73,12 +69,12 @@ describe("Command Code launch integrations", () => {
     expect(decode(fresh.env!.PORACODE_COMMANDCODE_MCP!)).toEqual({ version: 1, servers: [server] });
     expect(decode(resumed.env!.PORACODE_COMMANDCODE_MCP!).servers[0].name).toBe("other");
     expect(readFileSync(join(root, "commandcode-mcp-mod.mjs"), "utf8")).not.toContain("private");
-    expect(commandCodeMcpLaunch(location)).toEqual({ args: [] });
+    await expect(commandCodeMcpLaunch(location)).resolves.toEqual({ args: [] });
   });
 
-  it("stages independent WSL launches, returns Linux paths and cleans up their own directories", () => {
+  it("stages independent WSL launches, returns Linux paths and cleans up their own directories", async () => {
     fixture();
-    vi.mocked(deployFilesToWslTempBase).mockImplementation((_distro, name) => ({
+    vi.mocked(deployFilesToWslTempBase).mockImplementation(async (_distro, name) => ({
       linuxBaseDir: `/tmp/${name}`,
     }));
     const location = {
@@ -87,29 +83,28 @@ describe("Command Code launch integrations", () => {
       linuxPath: "/workspace",
       uncPath: toWslUncPath("Ubuntu", "/workspace"),
     };
-    const first = commandCodeMcpLaunch(location, [server]);
-    const second = commandCodeMcpLaunch(location, [server]);
+    const first = await commandCodeMcpLaunch(location, [server]);
+    const second = await commandCodeMcpLaunch(location, [server]);
     expect(first.args[1]).toMatch(/^\/tmp\/poracode-commandcode-[\w-]+\/commandcode-mcp-mod\.mjs$/);
     expect(first.args[1]).not.toBe(second.args[1]);
     expect(first.env).toEqual(second.env);
-    const remove = vi
-      .mocked(rmSync)
-      .mockClear()
-      .mockImplementationOnce(() => undefined);
-    first.cleanup!();
+    const remove = vi.mocked(removeWslStagedPath).mockClear();
+    await first.cleanup!();
     expect(remove).toHaveBeenCalledExactlyOnceWith(
-      toWslUncPath("Ubuntu", first.args[1]!.replace("/commandcode-mcp-mod.mjs", "")),
-      { recursive: true, force: true },
+      "Ubuntu",
+      first.args[1]!.replace("/commandcode-mcp-mod.mjs", ""),
     );
-    vi.mocked(deployFilesToWslTempBase).mockReturnValue(null);
-    expect(() => commandCodeMcpLaunch(location, [server])).toThrow("could not be deployed to WSL");
+    vi.mocked(deployFilesToWslTempBase).mockResolvedValue(null);
+    await expect(commandCodeMcpLaunch(location, [server])).rejects.toThrow(
+      "could not be deployed to WSL",
+    );
   });
 
-  it("fails explicitly if MCPs are selected but the shipped mod is absent", () => {
+  it("fails explicitly if MCPs are selected but the shipped mod is absent", async () => {
     vi.stubEnv("PORACODE_WSL_HELPERS_DIR", "/missing");
-    expect(() => commandCodeMcpLaunch({ kind: "posix", path: "/project" }, [server])).toThrow(
-      "is unavailable",
-    );
+    await expect(
+      commandCodeMcpLaunch({ kind: "posix", path: "/project" }, [server]),
+    ).rejects.toThrow("is unavailable");
   });
 
   it("keeps native skill invocations and rewrites external plugin skills to readable paths", async () => {

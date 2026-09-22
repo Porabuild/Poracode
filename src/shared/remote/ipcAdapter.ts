@@ -25,6 +25,14 @@ export const REMOTE_IPC_ADAPTER_SPECS = {
   syncPrWatchAgent: "project",
   dbGetThreadRuntimeItemsPage: "thread",
   dbTruncateThreadRuntimeAfter: "thread",
+  // R1: the bounded thread-history derived reads. Each maps onto the EXISTING
+  // bounded `/history` route (goal item, context usage) plus the `ct1.`
+  // older-turn walk — never onto a raw/unbounded database read. A walk that
+  // would exceed its budget refuses typed instead of returning a partial tail
+  // as complete.
+  dbGetLatestThreadGoalItem: "thread",
+  dbGetThreadCompletedTurns: "thread",
+  dbGetThreadContextUsage: "thread",
   revertCheckpoint: "thread",
   sendThreadInput: "thread",
   interruptThread: "thread",
@@ -65,6 +73,9 @@ type RemoteIpcAdapterClient = Pick<
   | "syncPrWatchAgent"
   | "threadRuntimeItemsPage"
   | "truncateThreadRuntimeAfter"
+  | "latestThreadGoalItem"
+  | "threadCompletedTurns"
+  | "threadContextUsage"
   | "checkpointRevert"
   | "sendThreadInput"
   | "interruptThread"
@@ -111,6 +122,16 @@ export function invokeRemoteIpcProcedure(
       return client.truncateThreadRuntimeAfter(
         payload as Parameters<RemoteDesktopClient["truncateThreadRuntimeAfter"]>[0],
       );
+    case "dbGetLatestThreadGoalItem":
+      return client.latestThreadGoalItem(
+        String((payload as { readonly threadId: string }).threadId),
+      );
+    case "dbGetThreadCompletedTurns":
+      return client.threadCompletedTurns(
+        String((payload as { readonly threadId: string }).threadId),
+      );
+    case "dbGetThreadContextUsage":
+      return client.threadContextUsage(String((payload as { readonly threadId: string }).threadId));
     case "revertCheckpoint":
       return client.checkpointRevert(
         payload as Parameters<RemoteDesktopClient["checkpointRevert"]>[0],

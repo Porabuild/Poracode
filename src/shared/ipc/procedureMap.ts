@@ -85,11 +85,16 @@ export type IpcProcedureName = keyof IpcProcedureMap;
  * which forces the compat review even when the version itself stays.
  *
  * Version 1 was the map as first versioned. V6 B.5 collapsed the renderer→host
- * hop so this constant aliases `CLIENT_HOST_HOP_VERSION` (14). Previously
- * published map version 1 is an old reader. Peers that cannot declare a
- * version (legacy attach handshakes) count as version 0 and are rejected
- * typed by {@link assertIpcProcedureMapVersion} — a mismatch must surface as
- * a typed rejection, never as guessed semantics or a silent drop.
+ * hop so this constant aliases `CLIENT_HOST_HOP_VERSION` (16). Version 15
+ * (V2 A2) removed `setRendererEventInterests`: the managed loopback WS reads
+ * the renderer's retained interests locally, so no IPC interest sync remains.
+ * Version 16 (V2) removed `dbPersistExperimentState`: the renderer experiment
+ * store is a memory-only projection of the host's durable experiment
+ * authority, so no renderer→host experiment persist remains. Previously
+ * published map version 1 is an old reader. Peers that cannot
+ * declare a version (legacy attach handshakes) count as version 0 and are
+ * rejected typed by {@link assertIpcProcedureMapVersion} — a mismatch must
+ * surface as a typed rejection, never as guessed semantics or a silent drop.
  */
 export const IPC_PROCEDURE_MAP_VERSION = CLIENT_HOST_HOP_VERSION;
 
@@ -171,7 +176,6 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "getKeybindings",
   "setKeybindings",
   "setGlobalShortcutsSuspended",
-  "setRendererEventInterests",
   "getRemoteAccessPairing",
   "getManagedLoopbackBootstrap",
   "probeTlsCertificateFingerprint",
@@ -208,7 +212,6 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "dbDeleteProject",
   "dbSyncAll",
   "dbSyncChanges",
-  "dbPersistExperimentState",
   "dbGetThreadRuntimeItems",
   "dbGetThreadRuntimeItemsPage",
   "dbGetThreadsPage",

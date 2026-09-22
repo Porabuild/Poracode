@@ -14,6 +14,22 @@ function output(
   return { type: "thread-output", threadId, data, outputLength, terminalInstanceId };
 }
 
+function runtimeEvent(threadId: string, text: string): SupervisorEvent {
+  return {
+    type: "thread-runtime-events",
+    threadId,
+    events: [
+      {
+        type: "content.delta",
+        threadId,
+        itemId: "item-1",
+        stream: "command_output",
+        delta: text,
+      } as never,
+    ],
+  };
+}
+
 describe("SupervisorIpcSender", () => {
   afterEach(() => vi.useRealTimers());
 
@@ -179,6 +195,10 @@ describe("SupervisorIpcSender", () => {
       onError: vi.fn<(error: Error) => void>(),
       onFatalError,
       maxQueuedMessages: 2,
+      // Replies are control-lane; with no reserve they share the bulk bound,
+      // which is the pre-lane fail-closed behavior this test pins.
+      controlReserveMessages: 0,
+      controlReserveBytes: 0,
     });
 
     sender.reply({ replyTo: "one", ok: true, data: null });
@@ -187,7 +207,7 @@ describe("SupervisorIpcSender", () => {
     sender.reply({ replyTo: "four", ok: true, data: null });
 
     expect(onFatalError).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ message: expect.stringContaining("exceeded its limit") }),
+      expect.objectContaining({ message: expect.stringContaining("control reserve exceeded") }),
     );
     release?.(null);
   });
@@ -268,15 +288,25 @@ describe("SupervisorIpcSender", () => {
     flushBatch();
     sender.emit(output("t3", "newest", 6));
     flushBatch();
+    // The reply occupies the control lane, so one more bulk message fits
+    // before the bulk bound binds: the oldest bulk entries are shed first.
+    sender.emit(output("t4", "newest-plus", 12));
+    flushBatch();
 
     expect(onFatalError).not.toHaveBeenCalled();
-    expect(onMessagesShed).toHaveBeenCalledExactlyOnceWith({ count: 2, bytes: 267 });
+    // Thread-output estimates are data bytes + 128: "oldest" (6) and "newer" (5).
+    expect(onMessagesShed).toHaveBeenCalledExactlyOnceWith({ count: 2, bytes: 134 + 133 });
     expect(sent).toEqual([output("t0", "in-flight", 9)]);
 
     release?.(null);
     // The recovery signal occupies the oldest shed entry's position, ahead
     // of the non-sheddable reply and every event queued behind it.
-    expect(sent.slice(1)).toEqual([output("t1", "shed", 4), reply, output("t3", "newest", 6)]);
+    expect(sent.slice(1)).toEqual([
+      output("t1", "shed", 4),
+      reply,
+      output("t3", "newest", 6),
+      output("t4", "newest-plus", 12),
+    ]);
   });
 
   it("eager-sheds incoming rebuildable output while downstream pressure is signaled", () => {
@@ -347,8 +377,9 @@ describe("SupervisorIpcSender", () => {
   });
 
   it("still fails closed when overflow survives shedding", () => {
+    type Message = { kind: "bulk"; label: string };
     const onFatalError = vi.fn<(error: Error) => void>();
-    const sender = new SupervisorIpcSender({
+    const sender = new SupervisorIpcSender<Message>({
       send: () => false,
       onError: vi.fn<(error: Error) => void>(),
       onFatalError,
@@ -362,10 +393,10 @@ describe("SupervisorIpcSender", () => {
       },
     });
 
-    sender.reply({ replyTo: "one", ok: true, data: null });
-    sender.reply({ replyTo: "two", ok: true, data: null });
-    sender.reply({ replyTo: "three", ok: true, data: null });
-    sender.reply({ replyTo: "four", ok: true, data: null });
+    sender.sendMessage({ kind: "bulk", label: "one" });
+    sender.sendMessage({ kind: "bulk", label: "two" });
+    sender.sendMessage({ kind: "bulk", label: "three" });
+    sender.sendMessage({ kind: "bulk", label: "four" });
 
     expect(onFatalError).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ message: expect.stringContaining("exceeded its limit") }),
@@ -521,13 +552,14 @@ describe("SupervisorIpcSender shed recovery signals", () => {
     drainAll(callbacks);
 
     expect(onFatalError).not.toHaveBeenCalled();
-    // At a three-slot bound the stall regime stabilizes at one critical slot,
-    // one marker slot, and the newest bulk: each further bulk is announced by
-    // the merged marker and delivered in order. Nothing is lost silently.
+    // At a three-slot bulk bound, the sheddable bulks are announced by one
+    // merged marker; the non-sheddable critical traffic and the newest bulks
+    // keep their order. Every shed bulk is covered by the marker range.
     expect(sent).toEqual([
       { kind: "bulk", seq: 1 },
       { kind: "critical", label: "main-only" },
-      { kind: "gap", from: 2, to: 7 },
+      { kind: "gap", from: 2, to: 6 },
+      { kind: "bulk", seq: 7 },
       { kind: "bulk", seq: 8 },
     ]);
   });
@@ -549,8 +581,10 @@ describe("SupervisorIpcSender shed recovery signals", () => {
       shedPolicy: rangePolicy(),
     });
     const assertWithinBounds = (): void => {
-      expect(sender.queueDepth.messages).toBeLessThanOrEqual(4);
-      expect(sender.queueDepth.bytes).toBeLessThanOrEqual(1_600);
+      // Bulk traffic is bounded by the configured bulk caps; recovery signals
+      // ride the control reserve and can never be consumed by bulk.
+      expect(sender.queueDepthByLane.bulk.messages).toBeLessThanOrEqual(4);
+      expect(sender.queueDepthByLane.bulk.bytes).toBeLessThanOrEqual(1_600);
     };
 
     sender.sendMessage({ kind: "bulk", seq: 1, label: "b".repeat(300) });
@@ -561,20 +595,22 @@ describe("SupervisorIpcSender shed recovery signals", () => {
     }
     sender.sendMessage({ kind: "critical", label: "c2" });
     assertWithinBounds();
-    // Large candidate: no amount of shedding can make its bytes fit beside
-    // the signal, so it is shed itself and announced by the merged marker.
+    // A 1.5 KiB candidate fits the bulk byte budget only after the oldest bulk
+    // is shed into the existing marker; the marker carries the loss and the
+    // candidate is delivered within the bound.
     sender.sendMessage({ kind: "bulk", seq: 5, label: "B".repeat(1_500) });
     assertWithinBounds();
 
     expect(onFatalError).not.toHaveBeenCalled();
-    expect(sender.queueDepth.messages).toBeLessThanOrEqual(4);
-    expect(sender.queueDepth.bytes).toBeLessThanOrEqual(1_600);
+    expect(sender.queueDepthByLane.bulk.messages).toBeLessThanOrEqual(4);
+    expect(sender.queueDepthByLane.bulk.bytes).toBeLessThanOrEqual(1_600);
     drainAll(callbacks);
     expect(sent).toEqual([
       { kind: "bulk", seq: 1, label: "b".repeat(300) },
       { kind: "critical", label: "c1" },
-      { kind: "gap", from: 2, to: 5 },
+      { kind: "gap", from: 2, to: 4 },
       { kind: "critical", label: "c2" },
+      { kind: "bulk", seq: 5, label: "B".repeat(1_500) },
     ]);
   });
 
@@ -599,7 +635,7 @@ describe("SupervisorIpcSender shed recovery signals", () => {
       sender.sendMessage({ kind: "critical", label: `c${round}` });
       sender.sendMessage({ kind: "bulk", seq: (sequence += 1) });
       sender.sendMessage({ kind: "bulk", seq: (sequence += 1) });
-      expect(sender.queueDepth.messages).toBeLessThanOrEqual(16);
+      expect(sender.queueDepthByLane.bulk.messages).toBeLessThanOrEqual(16);
       expect(onFatalError).not.toHaveBeenCalled();
     }
 
@@ -625,5 +661,209 @@ describe("SupervisorIpcSender shed recovery signals", () => {
     for (let seq = 1; seq <= sequence; seq += 1) {
       expect(covered(seq)).toBe(true);
     }
+  });
+});
+
+describe("SupervisorIpcSender canonical overflow (B1)", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("stops producers from a deferred hook instead of failing fatally when canonical envelopes overflow", async () => {
+    const onFatalError = vi.fn<(error: Error) => void>();
+    const onCanonicalOverflow = vi.fn<(error: Error, message: SupervisorEvent) => void>();
+    const onCanonicalDropped = vi.fn<(info: { bytes: number; type: string }) => void>();
+    const sender = new SupervisorIpcSender({
+      send: () => false, // never drains: the queue stays full
+      onError: vi.fn<(error: Error) => void>(),
+      onFatalError,
+      maxQueuedMessages: 1,
+      maxQueuedBytes: 10_000_000,
+      onCanonicalOverflow,
+      onCanonicalDropped,
+    });
+
+    sender.emit(runtimeEvent("t1", "first"));
+    sender.emit(runtimeEvent("t2", "second"));
+    sender.emit(runtimeEvent("t3", "third"));
+
+    expect(onFatalError).not.toHaveBeenCalled();
+    // F3: never synchronously inside `emit` — the stop path would re-enter the
+    // saturated sender and could kill the whole supervisor.
+    expect(onCanonicalOverflow).not.toHaveBeenCalled();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(onFatalError).not.toHaveBeenCalled();
+    expect(onCanonicalOverflow).toHaveBeenCalledTimes(1);
+    expect(onCanonicalOverflow.mock.calls[0]![1]).toMatchObject({ threadId: "t3" });
+    expect(onCanonicalDropped).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps fail-closed behavior for non-canonical bulk overflow", () => {
+    const onFatalError = vi.fn<(error: Error) => void>();
+    const sender = new SupervisorIpcSender({
+      send: () => false,
+      onError: vi.fn<(error: Error) => void>(),
+      onFatalError,
+      maxQueuedMessages: 1,
+      maxQueuedBytes: 10_000_000,
+      onCanonicalOverflow: vi.fn<(error: Error, message: SupervisorEvent) => void>(),
+    });
+
+    sender.emit({ type: "git-changed", projectId: "p1" });
+    sender.emit({ type: "git-changed", projectId: "p2" });
+    sender.emit({ type: "git-changed", projectId: "p3" });
+
+    expect(onFatalError).toHaveBeenCalledOnce();
+  });
+});
+
+describe("SupervisorIpcSender canonical credit (B1)", () => {
+  it("charges bytes already handed to the channel until the host acks", () => {
+    const onCanonicalCapacityChange = vi.fn<(remaining: number) => void>();
+    const sender = new SupervisorIpcSender({
+      send: () => true, // accepted into the Node/kernel channel; callback still pending
+      onError: vi.fn<(error: Error) => void>(),
+      onCanonicalCapacityChange,
+    });
+    const generation = sender.getCanonicalFlowGeneration();
+
+    expect(sender.setCanonicalCredit({ windowBytes: 1_000, generation: "stale-generation" })).toBe(
+      false,
+    );
+    expect(sender.isCanonicalCreditActive()).toBe(false);
+    expect(sender.canonicalCreditRemaining()).toBe(Number.POSITIVE_INFINITY);
+
+    expect(sender.setCanonicalCredit({ windowBytes: 1_000, generation })).toBe(true);
+    expect(sender.canonicalCreditRemaining()).toBe(1_000);
+
+    sender.emit(runtimeEvent("t1", "a"), { estimatedBytes: 300 });
+    // Queue capacity alone is not the bound: this envelope is already on the
+    // wire (send accepted) and still charged to the window.
+    expect(sender.queueDepth.messages).toBe(0);
+    expect(sender.canonicalCreditRemaining()).toBe(700);
+
+    sender.emit(runtimeEvent("t2", "b"), { estimatedBytes: 300 });
+    expect(sender.canonicalCreditRemaining()).toBe(400);
+    // Emitting does not re-enter the producer callback; the buffer re-reads
+    // `canonicalCreditRemaining()` before each envelope instead.
+    expect(onCanonicalCapacityChange).toHaveBeenLastCalledWith(1_000);
+
+    // A stale-generation ack never frees this boot's ledger.
+    expect(sender.acknowledgeCanonicalFlow(1, "stale-generation")).toBe(false);
+    expect(sender.canonicalCreditRemaining()).toBe(400);
+    // An ack beyond anything this boot emitted is ignored outright.
+    expect(sender.acknowledgeCanonicalFlow(99, generation)).toBe(false);
+    expect(sender.canonicalCreditRemaining()).toBe(400);
+
+    expect(sender.acknowledgeCanonicalFlow(1, generation)).toBe(true);
+    expect(sender.canonicalCreditRemaining()).toBe(700);
+    expect(onCanonicalCapacityChange).toHaveBeenLastCalledWith(700);
+
+    expect(sender.acknowledgeCanonicalFlow(2, generation)).toBe(true);
+    expect(sender.canonicalCreditRemaining()).toBe(1_000);
+    // Repeated/delayed acks are idempotent.
+    expect(sender.acknowledgeCanonicalFlow(2, generation)).toBe(true);
+    expect(sender.canonicalCreditRemaining()).toBe(1_000);
+  });
+
+  it("releases a locally dropped sequence once without double-counting a later ack", async () => {
+    const sender = new SupervisorIpcSender({
+      send: () => false,
+      onError: vi.fn<(error: Error) => void>(),
+      onCanonicalOverflow: vi.fn<(error: Error, message: SupervisorEvent) => void>(),
+      onCanonicalDropped: vi.fn<(info: { bytes: number; type: string }) => void>(),
+      maxQueuedMessages: 8,
+      maxQueuedBytes: 400,
+    });
+    const generation = sender.getCanonicalFlowGeneration();
+    sender.setCanonicalCredit({ windowBytes: 1_000, generation });
+
+    for (let index = 0; index < 5; index += 1) {
+      sender.emit(runtimeEvent(`t${index}`, "queued"), { estimatedBytes: 100 });
+    }
+    expect(sender.canonicalCreditRemaining()).toBe(500);
+    // Skipped sequence: the sixth envelope is refused locally (canonical
+    // overflow) and its credit is released immediately, never waiting for an
+    // ack the host could not send.
+    sender.emit(runtimeEvent("t5", "dropped"), { estimatedBytes: 100 });
+    expect(sender.canonicalCreditRemaining()).toBe(500);
+
+    // A later cumulative ack must not subtract the dropped sequence twice.
+    expect(sender.acknowledgeCanonicalFlow(6, generation)).toBe(true);
+    expect(sender.canonicalCreditRemaining()).toBe(1_000);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  });
+
+  it("keeps control traffic alive through a canonical episode and is fatal only when the control reserve is exhausted", () => {
+    const onFatalError = vi.fn<(error: Error) => void>();
+    const onCanonicalDropped = vi.fn<(info: { bytes: number; type: string }) => void>();
+    const sender = new SupervisorIpcSender({
+      send: () => false,
+      onError: vi.fn<(error: Error) => void>(),
+      onFatalError,
+      onCanonicalOverflow: vi.fn<(error: Error, message: SupervisorEvent) => void>(),
+      onCanonicalDropped,
+      maxQueuedMessages: 1,
+      maxQueuedBytes: 1_000_000,
+      controlReserveMessages: 2,
+      controlReserveBytes: 10_000,
+    });
+
+    sender.emit(runtimeEvent("t1", "canonical"));
+    sender.emit(runtimeEvent("t2", "queued"));
+    sender.emit(runtimeEvent("t3", "overflowed"));
+    expect(onCanonicalDropped).toHaveBeenCalledTimes(1);
+
+    // Replies and lifecycle events must survive the saturated bulk lane.
+    sender.reply({ replyTo: "r1", ok: true, data: null });
+    sender.emit({
+      type: "thread-state",
+      threadId: "t1",
+      status: "error",
+      attention: "error",
+      canResumeWithConfig: false,
+    });
+    expect(onFatalError).not.toHaveBeenCalled();
+
+    // Only exhaustion of the control reserve itself is fatal.
+    sender.reply({ replyTo: "r2", ok: true, data: null });
+    sender.reply({ replyTo: "r3", ok: true, data: null });
+    expect(onFatalError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ message: expect.stringContaining("control reserve exceeded") }),
+    );
+  });
+
+  it("notifies producers when a stalled channel drains, even without a credit window", () => {
+    let release: ((error: Error | null) => void) | undefined;
+    const onCanonicalCapacityChange = vi.fn<(remaining: number) => void>();
+    const sender = new SupervisorIpcSender({
+      send: (_message, callback) => {
+        release ??= callback;
+        return false;
+      },
+      onError: vi.fn<(error: Error) => void>(),
+      onCanonicalCapacityChange,
+    });
+
+    sender.emit(runtimeEvent("t1", "held"));
+    expect(sender.canonicalCreditRemaining()).toBe(Number.POSITIVE_INFINITY);
+    expect(onCanonicalCapacityChange).not.toHaveBeenCalled();
+
+    release?.(null);
+    expect(onCanonicalCapacityChange).toHaveBeenLastCalledWith(Number.POSITIVE_INFINITY);
+  });
+
+  it("does not tag canonical envelopes without a negotiated window (legacy host)", () => {
+    const sent: SupervisorEvent[] = [];
+    const sender = new SupervisorIpcSender({
+      send: (message) => {
+        sent.push(message as SupervisorEvent);
+        return true;
+      },
+      onError: vi.fn<(error: Error) => void>(),
+    });
+
+    expect(sender.isCanonicalCreditActive()).toBe(false);
+    sender.emit(runtimeEvent("t1", "legacy"));
+    expect(sent).toHaveLength(1);
+    expect((sent[0] as { flowSeq?: number }).flowSeq).toBeUndefined();
   });
 });

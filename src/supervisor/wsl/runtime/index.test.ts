@@ -13,6 +13,9 @@ const execInWslMock = vi.hoisted(() =>
   vi.fn<(distro: string, cwd: string, command: string, args: string[]) => Promise<string>>(),
 );
 const getWslCommandMock = vi.hoisted(() => vi.fn<() => string>(() => "wsl.exe"));
+const pathExistsMock = vi.hoisted(() =>
+  vi.fn<(distro: string, path: string) => Promise<boolean>>(),
+);
 
 vi.mock("../../agents/base", () => ({
   batchWslCommandsAsync: batchWslCommandsAsyncMock,
@@ -20,6 +23,19 @@ vi.mock("../../agents/base", () => ({
   resolveWslHomeDirectory: resolveWslHomeDirectoryMock,
   resolveWslHomeDirectoryAsync: resolveWslHomeDirectoryAsyncMock,
   getWslCommand: getWslCommandMock,
+}));
+
+vi.mock("../staging", () => ({
+  getWslStagingService: () => ({
+    pathExists: pathExistsMock,
+    readTextFile: async () => null,
+    resolveHome: async () => undefined,
+    deployHome: async () => ({ filesWritten: 0 }),
+    deployTemp: async () => ({ linuxBaseDir: "/tmp/staging" }),
+    stageFile: async () => undefined,
+    remove: async () => undefined,
+    pruneRuntimeDirs: async () => undefined,
+  }),
 }));
 
 type RuntimeModule = typeof import("./index");
@@ -46,6 +62,7 @@ beforeEach(() => {
   resolveWslHomeDirectoryAsyncMock.mockReset();
   execInWslMock.mockReset();
   getWslCommandMock.mockReturnValue("wsl.exe");
+  pathExistsMock.mockReset().mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -283,5 +300,113 @@ describe("installRuntimeIntoDistro rejection paths", () => {
     const { installRuntimeIntoDistro } = await loadRuntime();
 
     await expect(installRuntimeIntoDistro("Ubuntu")).rejects.toThrow(/could not resolve \$HOME/);
+  });
+});
+
+describe("resolveNodeForDistro single-flight", () => {
+  it("shares one probe across concurrent callers", async () => {
+    setProbe("Ubuntu", [
+      { ok: true, stdout: "/usr/bin/node" },
+      { ok: true, stdout: "v22.4.0" },
+    ]);
+    const { resolveNodeForDistro } = await loadRuntime();
+
+    const [first, second] = await Promise.all([
+      resolveNodeForDistro("Ubuntu"),
+      resolveNodeForDistro("Ubuntu"),
+    ]);
+
+    expect(second).toEqual(first);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps other distros independent", async () => {
+    setProbe("Ubuntu", [
+      { ok: true, stdout: "/usr/bin/node" },
+      { ok: true, stdout: "v22.4.0" },
+    ]);
+    const { resolveNodeForDistro } = await loadRuntime();
+
+    await Promise.all([resolveNodeForDistro("Ubuntu"), resolveNodeForDistro("Ubuntu")]);
+    batchWslCommandsAsyncMock.mockImplementation(async (distro) => {
+      if (distro !== "Debian") throw new Error(`unexpected distro ${distro}`);
+      return [
+        { ok: true, stdout: "/usr/local/bin/node" },
+        { ok: true, stdout: "v22.5.0" },
+      ];
+    });
+    const debian = await resolveNodeForDistro("Debian");
+
+    expect(debian.nodePath).toBe("/usr/local/bin/node");
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("shares one install across concurrent callers", async () => {
+    resolveWslHomeDirectoryMock.mockReturnValue("/home/u");
+    resolveWslHomeDirectoryAsyncMock.mockResolvedValue("/home/u");
+    setProbe(
+      "Ubuntu",
+      [
+        { ok: false, stdout: "" },
+        { ok: false, stdout: "" },
+      ],
+      [{ ok: true, stdout: "x86_64" }],
+    );
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("network down")));
+    const { resolveNodeForDistro } = await loadRuntime();
+
+    const results = await Promise.allSettled([
+      resolveNodeForDistro("Ubuntu"),
+      resolveNodeForDistro("Ubuntu"),
+    ]);
+
+    expect(results.map((result) => result.status)).toEqual(["rejected", "rejected"]);
+    expect(
+      results.every(
+        (result) =>
+          result.status === "rejected" &&
+          result.reason instanceof Error &&
+          result.reason.message === "network down",
+      ),
+    ).toBe(true);
+    expect(batchWslCommandsAsyncMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets one caller abort without sabotaging a joined caller", async () => {
+    let releaseProbe: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseProbe = resolve;
+    });
+    batchWslCommandsAsyncMock.mockImplementation(async () => {
+      await gate;
+      return [
+        { ok: true, stdout: "/usr/bin/node" },
+        { ok: true, stdout: "v22.4.0" },
+      ];
+    });
+    const { resolveNodeForDistro } = await loadRuntime();
+    const controller = new AbortController();
+
+    const aborting = resolveNodeForDistro("Ubuntu", { signal: controller.signal });
+    const joined = resolveNodeForDistro("Ubuntu");
+    controller.abort(new Error("user cancelled"));
+    await expect(aborting).rejects.toThrow("user cancelled");
+    releaseProbe?.();
+
+    await expect(joined).resolves.toMatchObject({
+      nodePath: "/usr/bin/node",
+      nodeVersion: "22.4.0",
+    });
+  });
+
+  it("rejects a caller whose signal is already aborted without probing", async () => {
+    const { resolveNodeForDistro } = await loadRuntime();
+    const controller = new AbortController();
+    controller.abort(new Error("already cancelled"));
+
+    await expect(resolveNodeForDistro("Ubuntu", { signal: controller.signal })).rejects.toThrow(
+      "already cancelled",
+    );
+    expect(batchWslCommandsAsyncMock).not.toHaveBeenCalled();
   });
 });

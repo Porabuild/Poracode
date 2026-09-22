@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { ProjectLocation } from "@/shared/contracts";
 import { terminateChildProcessTree } from "@/shared/processTree";
 import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
-import { buildAgentCommand } from "../../base";
+import { buildAgentCommand, prepareAgentLocationEnvironment } from "../../base";
 import { resolveProbeSpawnCwd } from "../../probeCwd";
 import { classifyMuseServeExit } from "./exitClassification";
 import {
@@ -63,6 +63,7 @@ export async function spawnMuseServeHost(
 }> {
   const tag = options.label ?? "[muse-serve]";
   const hostCookie = randomUUID();
+  await prepareAgentLocationEnvironment(location);
   const cmd = buildAgentCommand(location, "muse", options.serveArgs, options.executablePath, {
     ...options.extraEnv,
     PORACODE_MUSE_HOST_COOKIE: hostCookie,

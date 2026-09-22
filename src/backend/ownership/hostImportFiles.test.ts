@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
@@ -11,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { copyImportFiles, inventoryImportFiles } from "./hostImportFiles";
+import { copyImportFiles, hashImportFile, inventoryImportFiles } from "./hostImportFiles";
 
 const roots: string[] = [];
 
@@ -59,10 +60,10 @@ function seedPromotionSource(): string {
 }
 
 describe("inventoryImportFiles excludeChromiumCaches", () => {
-  it("excludes caches at the userData root and Partitions/*/Cache, and copies everything else", () => {
+  it("excludes caches at the userData root and Partitions/*/Cache, and copies everything else", async () => {
     const source = seedPromotionSource();
-    const full = inventoryImportFiles(source);
-    const scoped = inventoryImportFiles(source, { excludeChromiumCaches: true });
+    const full = await inventoryImportFiles(source);
+    const scoped = await inventoryImportFiles(source, { excludeChromiumCaches: true });
 
     // The full (offline-backup) inventory keeps everything…
     expect(full.entries.map((entry) => entry.path)).toContain("userData/Cache/data_0");
@@ -89,13 +90,13 @@ describe("inventoryImportFiles excludeChromiumCaches", () => {
     expect(scoped.bytes).toBeLessThan(full.bytes);
   });
 
-  it("skips the runtime singleton symlinks only at the userData root", () => {
+  it("skips the runtime singleton symlinks only at the userData root", async () => {
     const source = seedPromotionSource();
     symlinkSync("poracode-1000.sock", join(source, "userData", "SingletonLock"));
     // A nested regular file that shares the name stays in the inventory.
     writeFileSync(join(source, "projects", "demo", "userData", "SingletonLock"), "user-lock");
 
-    const scoped = inventoryImportFiles(source, {
+    const scoped = await inventoryImportFiles(source, {
       skipRuntimeSingletonSymlinks: true,
       excludeChromiumCaches: true,
     });
@@ -103,24 +104,84 @@ describe("inventoryImportFiles excludeChromiumCaches", () => {
     expect(paths).not.toContain("userData/SingletonLock");
     expect(paths).toContain("projects/demo/userData/SingletonLock");
     // With the skip off, the root singleton is refused like any symlink.
-    expect(() =>
+    await expect(
       inventoryImportFiles(source, {
         skipRuntimeSingletonSymlinks: false,
         excludeChromiumCaches: true,
       }),
-    ).toThrow(/symbolic link/u);
+    ).rejects.toThrow(/symbolic link/u);
+  });
+});
+
+describe("inventory digest stability", () => {
+  it("keeps the promotion inventory digest stable across the async I/O migration", async () => {
+    // Pinned value captured from the synchronous implementation before the
+    // async rewrite. A receipt written by an older app version re-validates
+    // only if traversal order, entry shape and digest derivation stay
+    // byte-identical; this fails loudly on any drift.
+    const source = seedPromotionSource();
+    const inventory = await inventoryImportFiles(source, {
+      skipRuntimeSingletonSymlinks: true,
+      excludeChromiumCaches: true,
+    });
+    expect(inventory.sha256).toBe(
+      "0c796088528166b1c8dc748152a646dc3de53c6ba1b917c28e77b20e2e0d88b3",
+    );
+  });
+});
+
+describe("hashImportFile", () => {
+  it("streams a file to the same digest as a one-shot hash", async () => {
+    const path = join(scratch(), "blob.bin");
+    const bytes = Buffer.alloc(200_000, 9);
+    writeFileSync(path, bytes);
+    await expect(hashImportFile(path)).resolves.toBe(
+      createHash("sha256").update(bytes).digest("hex"),
+    );
+  });
+
+  it("refuses a source file that disappears between the walk and the hash", async () => {
+    const source = join(scratch(), "namespace");
+    mkdirSync(source);
+    writeFileSync(join(source, "a.txt"), "a");
+    writeFileSync(join(source, "b.txt"), "b");
+    let probes = 0;
+    await expect(
+      inventoryImportFiles(source, {
+        assertActive: () => {
+          probes += 1;
+          // Two walk probes (a.txt, b.txt), then the first hash probe.
+          if (probes === 3) rmSync(join(source, "a.txt"));
+        },
+      }),
+    ).rejects.toThrow(/ENOENT/u);
+  });
+
+  it("probes cancellation between chunks and stops reading a large file", async () => {
+    const path = join(scratch(), "blob.bin");
+    writeFileSync(path, Buffer.alloc(200_000, 3));
+    let calls = 0;
+    await expect(
+      hashImportFile(path, {
+        assertActive: () => {
+          calls += 1;
+          if (calls === 3) throw new Error("owner lost during hash");
+        },
+      }),
+    ).rejects.toThrow(/owner lost during hash/u);
+    expect(calls).toBe(3);
   });
 });
 
 describe("copyImportFiles", () => {
-  it("copies exactly the scoped inventory and the copy re-inventories identically", () => {
+  it("copies exactly the scoped inventory and the copy re-inventories identically", async () => {
     const source = seedPromotionSource();
     const options = { excludeChromiumCaches: true } as const;
-    const inventory = inventoryImportFiles(source, options);
+    const inventory = await inventoryImportFiles(source, options);
     const destination = join(scratch(), "staged");
 
     const progress: Array<[number, number]> = [];
-    copyImportFiles(source, destination, inventory, {
+    await copyImportFiles(source, destination, inventory, {
       ...options,
       onCopyProgress: (copied, total) => progress.push([copied, total]),
     });
@@ -140,11 +201,71 @@ describe("copyImportFiles", () => {
         "utf8",
       ),
     ).toBe("user-partition");
+    expect(progress.length).toBe(inventory.files);
     expect(progress.at(-1)?.[0]).toBe(inventory.bytes);
     expect(progress.at(-1)?.[1]).toBe(inventory.bytes);
     // Root bookkeeping entries never enter the inventory (the database
     // migrates through the SQLite backup API instead).
     expect(paths).not.toContain("state.sqlite");
     expect(existsSync(join(destination, "state.sqlite"))).toBe(false);
+  });
+
+  it("delivers progress incrementally while another macrotask can run", async () => {
+    const source = seedPromotionSource();
+    const options = { excludeChromiumCaches: true } as const;
+    const inventory = await inventoryImportFiles(source, options);
+    const destination = join(scratch(), "staged");
+    let deferredRan = false;
+    let progressCount = 0;
+    await copyImportFiles(source, destination, inventory, {
+      ...options,
+      onCopyProgress: () => {
+        progressCount += 1;
+        if (!deferredRan) setImmediate(() => (deferredRan = true));
+      },
+    });
+    // A synchronous copy would finish before `setImmediate` could ever run.
+    expect(progressCount).toBe(inventory.files);
+    expect(deferredRan).toBe(true);
+  });
+
+  it("honors the cancellation probe and never completes a cancelled copy", async () => {
+    const source = seedPromotionSource();
+    const options = { excludeChromiumCaches: true } as const;
+    const inventory = await inventoryImportFiles(source, options);
+    const destination = join(scratch(), "staged");
+    const progress: number[] = [];
+    let probes = 0;
+    await expect(
+      copyImportFiles(source, destination, inventory, {
+        ...options,
+        assertActive: () => {
+          probes += 1;
+          if (probes === 6) throw new Error("owner lost during copy");
+        },
+        onCopyProgress: (copied) => progress.push(copied),
+      }),
+    ).rejects.toThrow(/owner lost during copy/u);
+    expect(progress.length).toBeGreaterThan(0);
+    expect(progress.length).toBeLessThan(inventory.files);
+  });
+
+  it("refuses a destination that changed while files were copied", async () => {
+    const source = seedPromotionSource();
+    const options = { excludeChromiumCaches: true } as const;
+    const inventory = await inventoryImportFiles(source, options);
+    const destination = join(scratch(), "staged");
+    let corrupted = false;
+    await expect(
+      copyImportFiles(source, destination, inventory, {
+        ...options,
+        onCopyProgress: () => {
+          if (corrupted) return;
+          corrupted = true;
+          writeFileSync(join(destination, "projects", "demo", "Cache", "keep-me"), "corrupted");
+        },
+      }),
+    ).rejects.toThrow(/changed while its files were copied/u);
+    expect(corrupted).toBe(true);
   });
 });

@@ -110,7 +110,13 @@ export const hostDescriptionSchema = z.strictObject({
   dataRoot: rootSchema,
   mode: z.enum(["headless", "desktop"]),
   state: z.enum(["starting", "ready", "stopping"]),
-  /** Management operations this control surface serves (closed list). */
+  /**
+   * Management operations this control surface serves (closed list). Kept at
+   * the historical two entries on purpose (D4): a newer owner also answers
+   * `status`/`admit`, but an older local peer parses this strict list, so the
+   * additive operations are discovered by attempting them, never by widening
+   * this array under the same wire version.
+   */
   operations: z.array(z.enum(["describe", "issue-pairing"])).max(2),
   /** Host-declared service availability; see {@link hostServiceCapabilitiesSchema}. */
   capabilities: hostServiceCapabilitiesSchema,
@@ -118,6 +124,52 @@ export const hostDescriptionSchema = z.strictObject({
   endpoint: endpointSchema.nullable(),
 });
 export type HostDescription = z.infer<typeof hostDescriptionSchema>;
+
+/**
+ * Authenticated upgrade identity (D4). The running owner reports the immutable
+ * artifact identity it was started from so an upgrader can qualify the exact
+ * candidate instead of trusting an unauthenticated `/healthz` answer.
+ */
+export const hostBuildIdentitySchema = z.strictObject({
+  /** Artifact version (`<layout>/package.json`); never a `dev` placeholder. */
+  version: z.string().min(1).max(128),
+  /** Source revision recorded by assembly, when the artifact carries one. */
+  sourceRevision: z.string().max(128).nullable(),
+  /** sha256 of the running server entrypoint; null when it cannot be read. */
+  entrypointSha256: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/u)
+    .nullable(),
+  /** Install-layout root the running bundle resolved (release dir or checkout). */
+  root: rootSchema,
+  /** Layout kind; a checkout is never a valid upgrade candidate. */
+  layoutKind: z.enum(["prefix", "checkout"]),
+});
+export type HostBuildIdentity = z.infer<typeof hostBuildIdentitySchema>;
+
+/** Authenticated `status` result (D4, additive operation on control version 2). */
+export const hostControlStatusResultSchema = z.strictObject({
+  profileNamespace: rootSchema,
+  dataRoot: rootSchema,
+  mode: z.enum(["headless", "desktop"]),
+  state: z.enum(["starting", "ready", "stopping"]),
+  /**
+   * Staging admission: `held` means the process has opened its database (and
+   * therefore run pending migrations) but has not started the remote listener,
+   * so no user write can be accepted before an authenticated `admit`.
+   */
+  admission: z.enum(["held", "open"]),
+  endpoint: endpointSchema.nullable(),
+  build: hostBuildIdentitySchema,
+});
+export type HostControlStatusResult = z.infer<typeof hostControlStatusResultSchema>;
+
+/** The small authenticated operation that releases staging admission. */
+export const hostControlAdmitPayloadSchema = z.strictObject({
+  expectedVersion: z.string().min(1).max(128),
+  expectedEntrypointSha256: z.string().regex(/^[0-9a-f]{64}$/u),
+});
+export type HostControlAdmitPayload = z.infer<typeof hostControlAdmitPayloadSchema>;
 
 const requestBase = {
   version: z.literal(HOST_CONTROL_PROTOCOL_VERSION),
@@ -137,6 +189,20 @@ export const hostControlRequestSchema = z.discriminatedUnion("operation", [
       preset: z.enum(["operator", "viewer"]).optional(),
     }),
   }),
+  // D4 additive read-only identity probe. A version-2 owner that predates D4
+  // authenticates the request (same MAC domain) and then answers HTTP 400 for
+  // the unknown operation; the caller treats that as "no build identity" only
+  // after it has verified the owner through `describe`.
+  z.strictObject({
+    ...requestBase,
+    operation: z.literal("status"),
+    payload: z.strictObject({}),
+  }),
+  z.strictObject({
+    ...requestBase,
+    operation: z.literal("admit"),
+    payload: hostControlAdmitPayloadSchema,
+  }),
 ]);
 export type HostControlRequest = z.infer<typeof hostControlRequestSchema>;
 
@@ -150,6 +216,10 @@ export const hostControlErrorCodeSchema = z.enum([
   "stopping",
   "capacity",
   "unavailable",
+  /** `admit` expected a different build than this process is running. */
+  "identity-mismatch",
+  /** `admit` on an owner that was not started for upgrade staging. */
+  "not-staging",
 ]);
 const replyBase = {
   version: z.literal(HOST_CONTROL_PROTOCOL_VERSION),
@@ -160,7 +230,11 @@ export const hostControlReplySchema = z.discriminatedUnion("ok", [
   z.strictObject({
     ...replyBase,
     ok: z.literal(true),
-    result: z.union([hostDescriptionSchema, hostControlPairingResultSchema]),
+    result: z.union([
+      hostDescriptionSchema,
+      hostControlPairingResultSchema,
+      hostControlStatusResultSchema,
+    ]),
   }),
   z.strictObject({
     ...replyBase,

@@ -240,7 +240,7 @@ describe.skipIf(process.platform === "win32")("sentinel proof at the launch funn
       const onSettle =
         vi.fn<(result: { status: "completed" | "failed"; errorMessage?: string }) => void>();
       const deltas: string[] = [];
-      runOneShotChild({
+      await runOneShotChild({
         adapter: {
           label: "Fixture",
           buildSubagentOneShotCommand: () => ({

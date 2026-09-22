@@ -308,7 +308,7 @@ describe("createAntigravityAdapter", () => {
     });
   });
 
-  it("does not project custom MCP servers into workspace config", () => {
+  it("does not project custom MCP servers into workspace config", async () => {
     const projectDir = mkdtempSync(join(tmpdir(), "antigravity-mcp-"));
     try {
       const location = { kind: "windows", path: projectDir } as ProjectLocation;
@@ -323,8 +323,8 @@ describe("createAntigravityAdapter", () => {
       } satisfies McpServer;
       const adapter = createAntigravityAdapter();
 
-      adapter.buildLaunchArgv(location, config, "", undefined, { mcpServers: [server] });
-      adapter.buildResumeArgv(
+      await adapter.buildLaunchArgv(location, config, "", undefined, { mcpServers: [server] });
+      await adapter.buildResumeArgv(
         location,
         config,
         "",
@@ -435,12 +435,12 @@ describe("createAntigravityAdapter", () => {
     expect(resolveSubagentExecution(adapter)).toBe("structured");
   }, 70_000);
 
-  it("leaves Home launches on agy's projectless default", () => {
+  it("leaves Home launches on agy's projectless default", async () => {
     const home: ProjectLocation = { kind: "windows", path: "C:\\Users\\demo" };
     const adapter = createAntigravityAdapter();
     const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
 
-    expect(adapter.buildLaunchArgv(home, config, "hi").args).not.toContain("--new-project");
+    expect((await adapter.buildLaunchArgv(home, config, "hi")).args).not.toContain("--new-project");
     expect(
       adapter.buildSubagentOneShotCommand?.({
         model: ANTIGRAVITY_DEFAULT_MODEL_ID,
@@ -450,7 +450,7 @@ describe("createAntigravityAdapter", () => {
     ).not.toContain("--new-project");
   });
 
-  it("binds linked-worktree launches and subagents to a dedicated agy project", () => {
+  it("binds linked-worktree launches and subagents to a dedicated agy project", async () => {
     const projectDir = mkdtempSync(join(tmpdir(), "poracode-antigravity-worktree-"));
     writeFileSync(join(projectDir, ".git"), "gitdir: /repo/.git/worktrees/feature\n");
     const location: ProjectLocation = { kind: "posix", path: projectDir };
@@ -458,12 +458,14 @@ describe("createAntigravityAdapter", () => {
     const config: ThreadConfig = { model: ANTIGRAVITY_DEFAULT_MODEL_ID };
 
     try {
-      expect(adapter.buildLaunchArgv(location, config, "hi").args[0]).toBe("--new-project");
+      expect((await adapter.buildLaunchArgv(location, config, "hi")).args[0]).toBe("--new-project");
       expect(
-        adapter.buildResumeArgv(location, config, "continue", {
-          providerSessionId: "conversation-id",
-          discoveredAt: "2026-08-12T00:00:00.000Z",
-        }).args,
+        (
+          await adapter.buildResumeArgv(location, config, "continue", {
+            providerSessionId: "conversation-id",
+            discoveredAt: "2026-08-12T00:00:00.000Z",
+          })
+        ).args,
       ).not.toContain("--new-project");
       expect(
         adapter.buildSubagentOneShotCommand?.({

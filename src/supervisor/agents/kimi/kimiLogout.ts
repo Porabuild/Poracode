@@ -1,4 +1,9 @@
-import { detectProbeLocation, quotePowerShellLiteral, type AgentEnvContext } from "../base";
+import {
+  detectProbeLocation,
+  prepareAgentLocationEnvironment,
+  quotePowerShellLiteral,
+  type AgentEnvContext,
+} from "../base";
 import { buildKimiCommand } from "./detection";
 import { nativeKimiOAuthCredentialPath } from "./paths";
 
@@ -18,8 +23,9 @@ import { nativeKimiOAuthCredentialPath } from "./paths";
  * itself, which meant merely asking the adapter for its logout spec signed the
  * user out — a unit test doing exactly that wiped a real session.
  */
-export function buildKimiLogoutCommand(ctx?: AgentEnvContext) {
+export async function buildKimiLogoutCommand(ctx?: AgentEnvContext) {
   const location = detectProbeLocation(ctx);
+  await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
   if (location.kind === "windows") {
     return {
       command: "powershell.exe",

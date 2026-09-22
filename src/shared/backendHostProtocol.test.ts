@@ -5,7 +5,6 @@ import {
   createBackendServiceRequest,
   isBackendHostRequest,
   isBackendHostOutboundMessage,
-  isSupervisorEventGap,
 } from "./backendHostProtocol";
 
 describe("backendHostProtocol", () => {
@@ -87,18 +86,6 @@ describe("backendHostProtocol", () => {
       }),
     ).toBe(false);
     expect(
-      isBackendHostRequest({
-        version: BACKEND_HOST_PROTOCOL_VERSION,
-        id: "id",
-        operation: "set-event-interests",
-        payload: {
-          terminalThreadIds: ["thread-1"],
-          runtimeThreadIds: [1],
-          allRuntimeEvents: false,
-        },
-      }),
-    ).toBe(false);
-    expect(
       isBackendHostOutboundMessage({
         version: BACKEND_HOST_PROTOCOL_VERSION,
         kind: "reply",
@@ -108,47 +95,79 @@ describe("backendHostProtocol", () => {
     ).toBe(false);
   });
 
-  it("accepts sequenced renderer fallback events and rejects invalid cursors", () => {
-    const event = { type: "git-changed", projectId: "project" };
+  it("accepts bounded native thread-activity batches and rejects malformed changes", () => {
+    const batch = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-thread-activity",
+      changes: [
+        { threadId: "thread-1", active: true },
+        { threadId: "thread-2", active: false },
+      ],
+    };
+    expect(isBackendHostOutboundMessage(batch)).toBe(true);
+    expect(isBackendHostOutboundMessage({ ...batch, changes: [] })).toBe(true);
+    expect(isBackendHostOutboundMessage({ ...batch, changes: [{ threadId: "thread-1" }] })).toBe(
+      false,
+    );
     expect(
-      isBackendHostOutboundMessage({
-        version: BACKEND_HOST_PROTOCOL_VERSION,
-        kind: "supervisor-event",
-        event,
-        rendererSequence: 42,
-      }),
-    ).toBe(true);
+      isBackendHostOutboundMessage({ ...batch, changes: [{ threadId: 1, active: true }] }),
+    ).toBe(false);
     expect(
-      isBackendHostOutboundMessage({
-        version: BACKEND_HOST_PROTOCOL_VERSION,
-        kind: "supervisor-event",
-        event,
-        rendererSequence: 1.5,
-      }),
+      isBackendHostOutboundMessage({ ...batch, changes: [{ threadId: "t", active: "yes" }] }),
+    ).toBe(false);
+    expect(isBackendHostOutboundMessage({ ...batch, changes: "thread-1" })).toBe(false);
+    expect(
+      isBackendHostOutboundMessage({ ...batch, version: BACKEND_HOST_PROTOCOL_VERSION - 1 }),
     ).toBe(false);
   });
 
-  it("accepts shed-recovery gap signals only at the current protocol version", () => {
-    // The gap kind is the desktop-IPC shed recovery contract. A reader that
-    // predates it would silently drop the unknown kind and re-open the
-    // silent-loss window, so stale-version envelopes are rejected loudly.
+  it("rejects the removed bulk relay vocabulary at every version (A2)", () => {
+    // The relay, its renderer sequence, and its shed-gap recovery kind are
+    // gone. A stale backend child still emitting them is rejected by the
+    // version gate instead of having its bulk half-decoded and dropped.
+    const relayed = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "supervisor-event",
+      event: { type: "thread-state", threadId: "t1", status: "working" },
+      rendererSequence: 42,
+    };
+    expect(isBackendHostOutboundMessage(relayed)).toBe(false);
     const gap = {
       version: BACKEND_HOST_PROTOCOL_VERSION,
       kind: "supervisor-event-gap",
       fromSequence: 12,
       toSequence: 40,
     };
-    expect(isBackendHostOutboundMessage(gap)).toBe(true);
+    expect(isBackendHostOutboundMessage(gap)).toBe(false);
+    const interests = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      id: "id",
+      operation: "set-event-interests",
+      payload: { terminalThreadIds: [], runtimeThreadIds: [], allRuntimeEvents: false },
+    };
+    expect(isBackendHostRequest(interests)).toBe(false);
+    // The project mirror relay's native event is removed with the same
+    // correction: full `Project[]` no longer crosses this hop, and a stale
+    // child still emitting it is rejected rather than half-relayed to main.
+    const projectsChanged = {
+      version: BACKEND_HOST_PROTOCOL_VERSION,
+      kind: "native-event",
+      event: { type: "projects-changed", projects: [] },
+    };
+    expect(isBackendHostOutboundMessage(projectsChanged)).toBe(false);
+    // The bounded tray refresh stays valid.
     expect(
-      isBackendHostOutboundMessage({ ...gap, version: BACKEND_HOST_PROTOCOL_VERSION - 1 }),
-    ).toBe(false);
-    expect(isBackendHostOutboundMessage({ ...gap, fromSequence: 41 })).toBe(false);
-    expect(isBackendHostOutboundMessage({ ...gap, toSequence: 12.5 })).toBe(false);
-    expect(isBackendHostOutboundMessage({ ...gap, fromSequence: -1 })).toBe(false);
-    expect(isBackendHostOutboundMessage({ ...gap, toSequence: "40" })).toBe(false);
-    expect(isSupervisorEventGap({ fromSequence: 0, toSequence: 0 })).toBe(true);
-    expect(isSupervisorEventGap({ fromSequence: 5 })).toBe(false);
-    expect(isSupervisorEventGap(null)).toBe(false);
+      isBackendHostOutboundMessage({
+        version: BACKEND_HOST_PROTOCOL_VERSION,
+        kind: "native-event",
+        event: { type: "database-projection-changed" },
+      }),
+    ).toBe(true);
+    for (const version of [5, 13, 14]) {
+      expect(isBackendHostOutboundMessage({ ...relayed, version })).toBe(false);
+      expect(isBackendHostOutboundMessage({ ...gap, version })).toBe(false);
+      expect(isBackendHostRequest({ ...interests, version })).toBe(false);
+    }
   });
 
   it("rejects the deleted renderer-stream leg at the current protocol version", () => {
@@ -180,21 +199,7 @@ describe("backendHostProtocol", () => {
     }
   });
 
-  it("rejects targeted delivery metadata on supervisor-event envelopes", () => {
-    // The targeted copy contract was deleted with the stream: an envelope
-    // pretending to address one window is no longer a valid message.
-    expect(
-      isBackendHostOutboundMessage({
-        version: BACKEND_HOST_PROTOCOL_VERSION,
-        kind: "supervisor-event",
-        event: { type: "git-changed", projectId: "project" },
-        rendererSequence: 1,
-        target: { windowId: 3, generation: 1 },
-      }),
-    ).toBe(false);
-  });
-
-  it("validates the call-supervisor origin window", () => {
+  it("validates the call-supervisor request shape", () => {
     const request = (payload: Record<string, unknown>): unknown => ({
       version: BACKEND_HOST_PROTOCOL_VERSION,
       id: "id",
@@ -202,25 +207,8 @@ describe("backendHostProtocol", () => {
       payload,
     });
     expect(isBackendHostRequest(request({ id: "r1", type: "startShell", payload: {} }))).toBe(true);
-    expect(
-      isBackendHostRequest(
-        request({ id: "r1", type: "startShell", payload: {}, originWindowId: 7 }),
-      ),
-    ).toBe(true);
-    expect(
-      isBackendHostRequest(
-        request({ id: "r1", type: "startShell", payload: {}, originWindowId: 0 }),
-      ),
-    ).toBe(false);
-    expect(
-      isBackendHostRequest(
-        request({ id: "r1", type: "startShell", payload: {}, originWindowId: -3 }),
-      ),
-    ).toBe(false);
-    expect(
-      isBackendHostRequest(
-        request({ id: "r1", type: "startShell", payload: {}, originWindowId: "7" }),
-      ),
-    ).toBe(false);
+    expect(isBackendHostRequest(request({ id: "r1", payload: {} }))).toBe(false);
+    expect(isBackendHostRequest(request({ type: "startShell", payload: {} }))).toBe(false);
+    expect(isBackendHostRequest(request({ id: "r1", type: "startShell" }))).toBe(false);
   });
 });

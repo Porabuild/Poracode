@@ -36,7 +36,11 @@ import {
 import { buildCodexTurnInput } from "./acpTurn";
 import { CodexStdioTransport } from "./stdioTransport";
 import { CodexSubAgentRouter } from "./subAgentRouting";
-import type { StructuredSessionUpdate } from "../base";
+import {
+  clearExecutablePathCache,
+  primeWslLaunchEnvironment,
+  type StructuredSessionUpdate,
+} from "../base";
 
 /** These focused fixtures bypass the private constructor; install owned helpers centrally. */
 function createSessionShell(): Record<string, unknown> {
@@ -3461,6 +3465,33 @@ describe("createCodexAdapter buildAcpLogoutCommand", () => {
       : `${command?.command ?? ""} ${args.join(" ")}`;
     expect(rendered).toMatch(/codex/i);
     expect(rendered).toContain("logout");
+  });
+});
+
+describe("createCodexAdapter pluginLaunchExtras", () => {
+  it("points CODEX_HOME at the private WSL home once the home is resolved", async () => {
+    const distro = `PoracodeCodexHome${process.pid}`;
+    clearExecutablePathCache();
+    primeWslLaunchEnvironment(distro, { shellPath: "/bin/bash", home: "/home/probe" });
+
+    const extras = await createCodexAdapter().pluginLaunchExtras?.({
+      envKind: "wsl",
+      wslDistro: distro,
+    });
+
+    expect(extras?.env?.CODEX_HOME).toBe("/home/probe/.poracode/agent-plugins/codex/home");
+  });
+
+  it("never pins an empty CODEX_HOME when the WSL home cannot be resolved", async () => {
+    const distro = `PoracodeCodexCold${process.pid}`;
+    clearExecutablePathCache();
+
+    const extras = await createCodexAdapter().pluginLaunchExtras?.({
+      envKind: "wsl",
+      wslDistro: distro,
+    });
+
+    expect(extras?.env?.CODEX_HOME).toBeUndefined();
   });
 });
 

@@ -9,6 +9,7 @@ import {
   InvalidSessionRecoveryCoordinator,
   type InvalidSessionRecoveryContext,
 } from "./invalidSessionRecovery";
+import { SessionRetirement } from "./sessionRetirement";
 
 const THREAD_ID = "thread-recover";
 const PROJECT_LOCATION = { kind: "posix", path: "/repo" } as const;
@@ -130,7 +131,11 @@ function createHarness() {
   const resolveLaunchSpec = vi.fn<InvalidSessionRecoveryContext["resolveLaunchSpec"]>(
     (_location, argv) => {
       events.push("resolve");
-      return { command: argv.binary, args: argv.args };
+      return {
+        command: argv.binary,
+        args: argv.args,
+        ...(argv.cleanup ? { cleanup: argv.cleanup } : {}),
+      };
     },
   );
 
@@ -146,6 +151,14 @@ function createHarness() {
     } as unknown as InvalidSessionRecoveryContext["cliHookPlugin"],
     outputPipeline: { clearSessionTimers },
     ptyLifecycle: { kill },
+    retirement: new SessionRetirement(
+      {
+        kill,
+        killShell: () => undefined,
+        waitForExit: async () => true,
+      },
+      settleAfterStructuredDispose,
+    ),
     isCurrentSession: (candidate) => currentSession?.instanceId === candidate.instanceId,
     failStructuredSession,
     settleAfterStructuredDispose,
@@ -162,6 +175,7 @@ function createHarness() {
     spawnThread,
     resolveMcpServersForLaunch,
     resolveCliHookPluginExtras,
+    resolveLaunchSpec,
     settleAfterStructuredDispose,
     primeProjectShellEnv,
     kill,
@@ -218,8 +232,7 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     const second = harness.coordinator.recover(harness.session);
 
     expect(second).toBe(first);
-    await Promise.resolve();
-    expect(finishSettle).toBeTypeOf("function");
+    await vi.waitFor(() => expect(finishSettle).toBeTypeOf("function"));
     finishSettle?.();
     await first;
     expect(harness.spawnThread).toHaveBeenCalledTimes(1);
@@ -275,6 +288,58 @@ describe("InvalidSessionRecoveryCoordinator", () => {
     expect(harness.buildLaunchArgv).toHaveBeenCalledTimes(1);
     expect(harness.primeProjectShellEnv).toHaveBeenCalledTimes(1);
     expect(harness.spawnThread).not.toHaveBeenCalled();
+  });
+
+  it("disposes staged launch files when the session was replaced before spawn", async () => {
+    const harness = createHarness();
+    harness.session.logicalProjectLocation = PROJECT_LOCATION;
+    harness.session.projectLocation = PROJECT_LOCATION;
+    const cleanup = vi.fn<() => Promise<void>>(async () => {});
+    harness.buildLaunchArgv.mockResolvedValue({
+      binary: "recover-test",
+      args: ["--fresh"],
+      cleanup,
+    });
+    harness.primeProjectShellEnv.mockImplementation(async () => {
+      harness.setCurrentSession(undefined);
+    });
+
+    await harness.coordinator.recover(harness.session);
+
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(harness.spawnThread).not.toHaveBeenCalled();
+  });
+
+  it("disposes staged launch files when resolveLaunchSpec rejects", async () => {
+    const harness = createHarness();
+    const cleanup = vi.fn<() => Promise<void>>(async () => {});
+    harness.buildLaunchArgv.mockResolvedValue({
+      binary: "recover-test",
+      args: ["--fresh"],
+      cleanup,
+    });
+    harness.resolveLaunchSpec.mockRejectedValue(new Error("unprepared WSL environment"));
+
+    await expect(harness.coordinator.recover(harness.session)).rejects.toThrow(
+      "unprepared WSL environment",
+    );
+    expect(cleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it("disposes command cleanup when spawnThread throws", async () => {
+    const harness = createHarness();
+    const cleanup = vi.fn<() => Promise<void>>(async () => {});
+    harness.buildLaunchArgv.mockResolvedValue({
+      binary: "recover-test",
+      args: ["--fresh"],
+      cleanup,
+    });
+    harness.spawnThread.mockImplementation(() => {
+      throw new Error("pty spawn failed");
+    });
+
+    await expect(harness.coordinator.recover(harness.session)).rejects.toThrow("pty spawn failed");
+    expect(cleanup).toHaveBeenCalledTimes(1);
   });
 
   it("exposes launch failures through the awaitable recovery", async () => {

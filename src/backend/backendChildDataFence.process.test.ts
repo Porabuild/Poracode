@@ -12,7 +12,7 @@ import {
   type BackendHostRequest,
 } from "@/shared/backendHostProtocol";
 import { HostDataFence, HostDataFenceInUseError } from "./ownership/hostDataFence";
-import { sqliteAvailable } from "@/main/db/runtimeItems.testFixtures";
+import { sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 
 /** The real backend child entry is forked in-process-tree so the initialize
  * wire contract is exercised end to end: the desktop payload's dataFencePath

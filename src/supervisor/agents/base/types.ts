@@ -30,13 +30,22 @@ import type {
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 
+/**
+ * A value an adapter/installer may produce synchronously or through awaited
+ * orchestration. Adapters stay free to keep synchronous implementations; the
+ * runtime always awaits, so WSL staging (an async worker operation) can flow
+ * through a signature that was previously synchronous without a provider
+ * branch anywhere in shared code.
+ */
+export type Awaitable<T> = T | Promise<T>;
+
 export interface CommandSpec {
   command: string;
   args: string[];
   cwd?: string;
   sessionRef?: SessionRef;
   /** Best-effort cleanup for per-launch resources such as temporary MCP configs. */
-  cleanup?: () => void;
+  cleanup?: () => Awaitable<void>;
   /**
    * Environment variables that should be set for the agent process.
    * For WSL commands these are baked into the shell script as `export` statements
@@ -345,7 +354,7 @@ export interface AgentArgvSpec {
   env?: Record<string, string>;
   sessionRef?: SessionRef;
   preferShell?: boolean;
-  cleanup?: () => void;
+  cleanup?: () => Awaitable<void>;
 }
 
 export interface DetectProbeCtx {
@@ -462,20 +471,25 @@ export interface AgentMetadata {
 }
 
 export interface AgentLauncher {
+  /**
+   * May be synchronous or async; the runtime awaits. An adapter that stages
+   * launch helpers (e.g. WSL MCP extensions) returns a promise instead of
+   * blocking the supervisor control loop.
+   */
   buildLaunchArgv(
     location: ProjectLocation,
     config: ThreadConfig,
     prompt: string,
     sessionRef?: SessionRef,
     launchOptions?: AgentLaunchOptions,
-  ): AgentArgvSpec;
+  ): Awaitable<AgentArgvSpec>;
   buildResumeArgv(
     location: ProjectLocation,
     config: ThreadConfig,
     prompt: string,
     sessionRef: SessionRef,
     launchOptions?: AgentLaunchOptions,
-  ): AgentArgvSpec;
+  ): Awaitable<AgentArgvSpec>;
   /**
    * Index at which hook-launch extra CLI args are inserted into the argv.
    * Omit to append at the end. Adapters whose CLIs read trailing tokens as
@@ -665,7 +679,7 @@ export interface AgentOneShotRunner {
     location?: ProjectLocation,
     fast?: boolean,
     options?: OneShotGenerationOptions,
-  ): OneShotGenerationCommand | undefined;
+  ): Awaitable<OneShotGenerationCommand | undefined>;
   runOneShot?(input: RunOneShotInput): Promise<string>;
   /**
    * Build a provider-enforced text-only one-shot invocation. Unlike the
@@ -678,14 +692,16 @@ export interface AgentOneShotRunner {
     prompt?: string,
     location?: ProjectLocation,
     fast?: boolean,
-  ): OneShotGenerationCommand | undefined;
+  ): Awaitable<OneShotGenerationCommand | undefined>;
   /** Run a provider-enforced text-only one-shot through a structured runtime. */
   runTextOnlyOneShot?(input: RunOneShotInput): Promise<string>;
   buildContextExtractionCommand?(
     sessionRef: SessionRef,
     location: ProjectLocation,
     model?: string,
-  ): { command: string; args: string[]; stdin?: string; env?: Record<string, string> } | undefined;
+  ): Awaitable<
+    { command: string; args: string[]; stdin?: string; env?: Record<string, string> } | undefined
+  >;
 }
 
 /**

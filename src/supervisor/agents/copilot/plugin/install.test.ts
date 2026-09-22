@@ -81,9 +81,9 @@ describe("installCopilotPlugin (native, global hook write)", () => {
     return { baseDir, copilotDir, ctx: { envKind, baseDir } };
   }
 
-  it("writes ${COPILOT_HOME}/hooks/poracode-status.json at install time", () => {
+  it("writes ${COPILOT_HOME}/hooks/poracode-status.json at install time", async () => {
     const { copilotDir, ctx } = makeNativeCtx();
-    const result = installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir });
+    const result = await installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const expected = join(copilotDir, GLOBAL_HOOK_DIR_NAME, GLOBAL_HOOK_FILENAME);
@@ -103,37 +103,39 @@ describe("installCopilotPlugin (native, global hook write)", () => {
     ).toBe(process.platform === "win32" ? true : undefined);
   });
 
-  it("removes the legacy Lightcode global hook after install", () => {
+  it("removes the legacy Lightcode global hook after install", async () => {
     const { copilotDir, ctx } = makeNativeCtx();
     const legacyPath = join(copilotDir, GLOBAL_HOOK_DIR_NAME, "lightcode-status.json");
     mkdirSync(join(copilotDir, GLOBAL_HOOK_DIR_NAME), { recursive: true });
     writeFileSync(legacyPath, "{}\n");
 
-    expect(installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir }).ok).toBe(true);
+    expect((await installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir })).ok).toBe(
+      true,
+    );
     expect(existsSync(legacyPath)).toBe(false);
   });
 
   it("is idempotent — re-install with identical inputs does not bump mtime", async () => {
     const { copilotDir, ctx } = makeNativeCtx();
-    const first = installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir });
+    const first = await installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
     const firstMtime = statSync(first.paths.globalHookFilePath).mtimeMs;
 
     await new Promise((r) => setTimeout(r, 20));
 
-    const second = installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir });
+    const second = await installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir });
     expect(second.ok).toBe(true);
     if (!second.ok) return;
     expect(statSync(second.paths.globalHookFilePath).mtimeMs).toBe(firstMtime);
   });
 
-  it("does not touch any project-level paths", () => {
+  it("does not touch any project-level paths", async () => {
     const { copilotDir, ctx } = makeNativeCtx();
     const projectDir = mkdtempSync(join(tmpdir(), "poracode-copilot-proj-"));
     mkdirSync(join(projectDir, ".github"), { recursive: true });
 
-    const result = installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir });
+    const result = await installCopilotPlugin(ctx, { globalCopilotDirOverride: copilotDir });
     expect(result.ok).toBe(true);
 
     expect(existsSync(join(projectDir, ".github", "hooks"))).toBe(false);
@@ -180,18 +182,18 @@ describe("isCopilotPluginInstalled", () => {
     return { baseDir, ctx: { envKind: "posix" as const, baseDir } };
   }
 
-  it("returns installed:false when staging assets are missing", () => {
+  it("returns installed:false when staging assets are missing", async () => {
     expect(
-      isCopilotPluginInstalled(stage({ forward: true, runtime: true, wrapper: true }).ctx),
+      await isCopilotPluginInstalled(stage({ forward: true, runtime: true, wrapper: true }).ctx),
     ).toEqual({ installed: false });
     expect(
-      isCopilotPluginInstalled(stage({ manifest: true, runtime: true, wrapper: true }).ctx),
+      await isCopilotPluginInstalled(stage({ manifest: true, runtime: true, wrapper: true }).ctx),
     ).toEqual({ installed: false });
     expect(
-      isCopilotPluginInstalled(stage({ manifest: true, forward: true, wrapper: true }).ctx),
+      await isCopilotPluginInstalled(stage({ manifest: true, forward: true, wrapper: true }).ctx),
     ).toEqual({ installed: false });
     expect(
-      isCopilotPluginInstalled(stage({ manifest: true, forward: true, runtime: true }).ctx),
+      await isCopilotPluginInstalled(stage({ manifest: true, forward: true, runtime: true }).ctx),
     ).toEqual({ installed: false });
   });
 });

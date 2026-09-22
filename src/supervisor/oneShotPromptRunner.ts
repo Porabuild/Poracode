@@ -174,7 +174,7 @@ async function runOneShotPromptWithFallbackImpl(
     if (!buildOneShotCommand) {
       throw new Error(`${options.adapter.label} does not support ${generationLabel}`);
     }
-    const cmd = buildOneShotCommand.call(
+    const cmd = await buildOneShotCommand.call(
       options.adapter,
       options.model,
       options.effort,
@@ -194,7 +194,7 @@ async function runOneShotPromptWithFallbackImpl(
     // Every Poracode-made spawn of this CLI carries the provider's base env
     // (updater/telemetry opt-outs); a command-specific `env` wins on conflict.
     const effectiveCommand = withCommandBaseSpawnEnv(baseCommand, options.adapter.baseSpawnEnv);
-    const { spec: spawnSpec, spawn } = prepareOneShot(executionLocation, effectiveCommand);
+    const { spec: spawnSpec, spawn } = await prepareOneShot(executionLocation, effectiveCommand);
 
     if (hasNextAttempt && isArgvLikelyTooLong(spawnSpec)) {
       console.warn(

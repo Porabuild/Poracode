@@ -1,8 +1,18 @@
 import type { ProjectLocation, RuntimeEvent, SessionRef } from "@/shared/contracts";
+import { toError } from "@/shared/errorMessage";
 import {
   resolveAgentProjectLocation,
   type StructuredSessionHandle,
 } from "@/supervisor/agents/base";
+import type {
+  HostResourceAdmission,
+  HostResourceLease,
+} from "@/supervisor/runtime/hostResourceAdmission";
+import {
+  settlesWithin,
+  STRUCTURED_DISPOSAL_TIMEOUT_MS,
+  StructuredDisposalCustody,
+} from "@/supervisor/runtime/threadSession/structuredDisposalCustody";
 import { runOneShotChild, type OneShotChildHandle } from "./oneShotChild";
 import type { PreparedSubagentRun, ResolvedSpawnAttempt } from "./spawnPlan";
 import type { SubagentRunHost, SubagentRunStatus } from "./types";
@@ -14,6 +24,16 @@ export interface AttemptExecutionState {
   plan: PreparedSubagentRun;
   handle: StructuredSessionHandle | undefined;
   oneShot: OneShotChildHandle | undefined;
+  /**
+   * Retained custody of this attempt's structured handle: one pending
+   * disposal operation that later teardown calls join or retry. Kept on the
+   * state so custody survives manager map eviction.
+   */
+  pendingDisposal?:
+    | { handle: StructuredSessionHandle; custody: StructuredDisposalCustody }
+    | undefined;
+  /** Host execution slot for this attempt's child process, if admitted. */
+  resourceLease?: HostResourceLease;
   cancelRequested: boolean;
   turnStarted: boolean;
   turnDispatched: boolean;
@@ -40,8 +60,18 @@ export class SubagentAttemptRunner {
     Promise<StructuredSessionHandle | undefined>
   >();
   private readonly startups = new WeakMap<AttemptExecutionState, Promise<void>>();
+  /**
+   * Custody for attempts whose teardown did not confirm: keyed by the child's
+   * resource key, bounded by the admission owner (one entry per unreleased
+   * reservation), pruned as soon as the lease is released.
+   */
+  private readonly retainedRetirements = new Map<string, AttemptExecutionState>();
 
-  constructor(private readonly host: SubagentRunHost) {}
+  constructor(
+    private readonly host: SubagentRunHost,
+    private readonly admission?: HostResourceAdmission,
+    private readonly structuredDisposalTimeoutMs: number = STRUCTURED_DISPOSAL_TIMEOUT_MS,
+  ) {}
 
   run(
     state: AttemptExecutionState,
@@ -56,6 +86,7 @@ export class SubagentAttemptRunner {
     return Boolean(
       state.handle ||
       state.oneShot ||
+      (state.resourceLease && state.resourceLease.state !== "released") ||
       this.creations.has(state) ||
       this.startups.has(state) ||
       this.teardowns.has(state),
@@ -71,22 +102,65 @@ export class SubagentAttemptRunner {
         // Wait only for handle creation: waiting for runStructured would deadlock its teardown.
         await this.creations.get(state)?.catch(() => undefined);
         const oneShot = state.oneShot;
+        const handle = state.handle;
         if (oneShot) {
           oneShot.cancel();
-          await oneShot.closed;
+          // Exit is the only release signal. The join is bounded so a stuck
+          // child cannot block a caller forever; the handle stays retained
+          // and a later retry joins the same `closed` promise.
+          if (!(await settlesWithin(oneShot.closed, this.structuredDisposalTimeoutMs))) {
+            throw new Error(`Subagent ${state.childThreadId} did not confirm exit.`);
+          }
           if (state.oneShot === oneShot) state.oneShot = undefined;
+          // Exit-derived settlement resolved `closed`: the process effect is gone.
+          state.resourceLease?.confirmExit();
         }
-        const handle = state.handle;
         if (handle) {
+          // A rejected/hung disposal retains the lease (`retiring`, still
+          // counted); the one pending operation stays joinable through
+          // `retryRetirements`, and its eventual completion releases.
           await this.disposeHandle(state, handle);
           if (state.handle === handle) state.handle = undefined;
+          state.resourceLease?.confirmExit();
+        }
+        if (!oneShot && !handle) {
+          // Nothing was ever created for this attempt: release pre-effect.
+          state.resourceLease?.cancel();
         }
       })
       .finally(() => {
         this.teardowns.delete(state);
+        if (this.hasLiveResources(state)) {
+          this.retainedRetirements.set(state.childThreadId, state);
+        } else if (this.retainedRetirements.get(state.childThreadId) === state) {
+          this.retainedRetirements.delete(state.childThreadId);
+        }
       });
     this.teardowns.set(state, teardown);
     return teardown;
+  }
+
+  /**
+   * Join/retry every child retirement that still holds capacity. Each join is
+   * bounded; a still-hanging disposal keeps its custody instead of being
+   * cancelled, so its eventual completion releases the slot exactly once.
+   */
+  async retryRetirements(): Promise<void> {
+    let firstError: unknown;
+    for (const [childThreadId, state] of [...this.retainedRetirements]) {
+      if (!this.hasLiveResources(state)) {
+        if (this.retainedRetirements.get(childThreadId) === state) {
+          this.retainedRetirements.delete(childThreadId);
+        }
+        continue;
+      }
+      try {
+        await this.teardown(state);
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+    if (firstError !== undefined) throw toError(firstError);
   }
 
   private async runResolved(
@@ -95,14 +169,22 @@ export class SubagentAttemptRunner {
     attempt: ResolvedSpawnAttempt,
     callbacks: AttemptCallbacks,
   ): Promise<void> {
+    // Admit before any provider process: pending counts against the class
+    // limit, so held starts cannot overshoot it. A refusal settles this
+    // attempt as failed without launching anything.
     try {
+      const lease = this.admission?.tryAcquire({
+        resourceClass: "agent-session",
+        key: state.childThreadId,
+      });
+      if (lease) state.resourceLease = lease;
       const projectLocation = await resolveAgentProjectLocation(
         state.plan.projectLocation,
         attempt.config.executionEnvironment,
       );
       if (!callbacks.isActive() || state.cancelRequested) return;
       if (attempt.execution === "one-shot") {
-        this.runOneShot(state, attemptIndex, attempt, projectLocation, callbacks);
+        await this.runOneShot(state, attemptIndex, attempt, projectLocation, callbacks);
         return;
       }
       await this.runStructured(state, attempt, projectLocation, callbacks);
@@ -111,7 +193,19 @@ export class SubagentAttemptRunner {
         state.cancelRequested ? "cancelled" : "failed",
         error instanceof Error ? error.message : String(error),
       );
+    } finally {
+      // Early returns before handle creation must never strand a pending slot.
+      this.releaseUnstartedLease(state);
     }
+  }
+
+  private releaseUnstartedLease(state: AttemptExecutionState): void {
+    const lease = state.resourceLease;
+    if (!lease || lease.state === "released") return;
+    if (state.handle || state.oneShot || this.creations.has(state) || this.teardowns.has(state)) {
+      return;
+    }
+    lease.cancel();
   }
 
   private async runStructured(
@@ -158,14 +252,25 @@ export class SubagentAttemptRunner {
         callbacks.onSettle("failed", "Failed to create subagent session");
         return;
       }
+      // The child process effect now exists: activate its admitted slot.
+      state.resourceLease?.activate();
       if (!callbacks.isActive() || state.cancelRequested) {
         await this.teardown(state);
         return;
       }
 
       handle.setListener({
-        onClose: () =>
-          callbacks.onSettle("failed", "Subagent session closed before the turn completed"),
+        onClose: () => {
+          // Transport close is the child's logical retirement signal: the
+          // lease is released, so no disposal custody is needed any more.
+          state.resourceLease?.confirmExit();
+          if (state.handle === handle) state.handle = undefined;
+          if (state.pendingDisposal?.handle === handle) state.pendingDisposal = undefined;
+          if (this.retainedRetirements.get(state.childThreadId) === state) {
+            this.retainedRetirements.delete(state.childThreadId);
+          }
+          callbacks.onSettle("failed", "Subagent session closed before the turn completed");
+        },
         onError: (message) => callbacks.onSettle("failed", message),
         onUpdate: (update) => {
           if (callbacks.isActive() && update.sessionRef) state.sessionRef = update.sessionRef;
@@ -218,13 +323,13 @@ export class SubagentAttemptRunner {
     }
   }
 
-  private runOneShot(
+  private async runOneShot(
     state: AttemptExecutionState,
     attemptIndex: number,
     attempt: ResolvedSpawnAttempt,
     projectLocation: ProjectLocation,
     callbacks: AttemptCallbacks,
-  ): void {
+  ): Promise<void> {
     const { adapter, config } = attempt;
     const itemId = `attempt-${attemptIndex + 1}-oneshot-out`;
     let opened = false;
@@ -239,7 +344,7 @@ export class SubagentAttemptRunner {
       });
     };
 
-    const handle = runOneShotChild({
+    const handle = await runOneShotChild({
       adapter,
       projectLocation,
       model: config.model,
@@ -269,6 +374,10 @@ export class SubagentAttemptRunner {
 
     state.turnDispatched = true;
     state.oneShot = handle;
+    // `runOneShotChild` returns a handle for the spawned child (or a no-op
+    // handle after a synchronous spawn failure); activate uniformly and let
+    // teardown's `closed` join release it.
+    state.resourceLease?.activate();
     if (state.cancelRequested) handle.cancel();
   }
 
@@ -297,6 +406,36 @@ export class SubagentAttemptRunner {
     // Startup may still acquire a process or session; dispose only after it settles.
     // startTurn is deliberately excluded: interruption/disposal ends that lifetime.
     await this.startups.get(state)?.catch(() => undefined);
-    await handle.dispose();
+    let pending = state.pendingDisposal;
+    if (!pending || pending.handle !== handle) {
+      const custody = new StructuredDisposalCustody(() => handle.dispose(), {
+        timeoutMs: this.structuredDisposalTimeoutMs,
+        onConfirmed: () => {
+          // The disposal settled after any caller timeout: drop the handle
+          // and release the slot at the real completion, not at the deadline.
+          if (state.handle === handle) state.handle = undefined;
+          if (state.pendingDisposal?.custody === custody) state.pendingDisposal = undefined;
+          state.resourceLease?.confirmExit();
+          if (this.retainedRetirements.get(state.childThreadId) === state) {
+            this.retainedRetirements.delete(state.childThreadId);
+          }
+        },
+        onFailure: (error) => {
+          console.warn(
+            `[supervisor] failed to dispose subagent session ${state.childThreadId}; its execution slot stays counted:`,
+            error,
+          );
+        },
+      });
+      pending = { handle, custody };
+      state.pendingDisposal = pending;
+    }
+    const outcome = await pending.custody.settle();
+    if (outcome !== "confirmed") {
+      throw toError(
+        pending.custody.error ??
+          new Error(`Subagent ${state.childThreadId} disposal did not confirm.`),
+      );
+    }
   }
 }

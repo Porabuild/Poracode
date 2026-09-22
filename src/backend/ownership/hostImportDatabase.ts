@@ -1,8 +1,8 @@
 import Database from "better-sqlite3";
 import { chmodSync, lstatSync } from "node:fs";
 import { join } from "node:path";
-import { resolveBetterSqliteNativeBindingOptions } from "@/main/db/connection";
-import { LATEST_SCHEMA_VERSION } from "@/main/db/migrations";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 
 /**
  * A lock on an explicitly offline BACKUP, never the original profile. SQLite

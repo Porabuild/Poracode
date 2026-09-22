@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import type { ProjectLocation } from "@/shared/contracts";
 import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import { terminateChildProcessTree } from "@/shared/processTree";
-import { buildAgentCommand } from "../base";
+import { buildAgentCommand, prepareAgentLocationEnvironment } from "../base";
 import {
   resolveNodeForDistro,
   type ResolvedNode,
@@ -90,7 +90,7 @@ export interface CursorSdkWorkerClientDependencies {
     distro: string,
     baseName: string,
     files: readonly WslDeployFile[],
-  ) => { linuxBaseDir: string } | null;
+  ) => { linuxBaseDir: string } | null | Promise<{ linuxBaseDir: string } | null>;
 }
 
 export type CursorSdkWorkerEventListener = (event: CursorSdkWorkerEvent) => void;
@@ -584,7 +584,7 @@ async function spawnWslWorker(
   const deploy =
     dependencies.deploy ??
     ((distro, baseName, files) => deployFilesToWslTempBase(distro, baseName, files));
-  const deployed = deploy(location.distro, `poracode-cursor-sdk-${process.pid}`, [
+  const deployed = await deploy(location.distro, `poracode-cursor-sdk-${process.pid}`, [
     { src: workerSource, relDest: "cursor-sdk/cursor-sdk-worker.mjs" },
   ]);
   if (!deployed) {
@@ -592,6 +592,7 @@ async function spawnWslWorker(
   }
   const workerPath = `${deployed.linuxBaseDir}/cursor-sdk/cursor-sdk-worker.mjs`;
   const safeEnv = stripApiKey(options.env);
+  await prepareAgentLocationEnvironment(location);
   const command = buildAgentCommand(location, node.nodePath, [workerPath], node.nodePath, safeEnv);
   const useProcessGroup = process.platform !== "win32";
   const child = spawnProcess(command.command, command.args, {

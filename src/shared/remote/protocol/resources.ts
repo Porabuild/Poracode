@@ -1,9 +1,12 @@
 import { z } from "zod";
+import { catalogReorderPlacementSchema } from "../../catalogOrder";
+import { CATALOG_READS_CAPABILITY } from "../catalogReadContract";
 import {
   agentSlashCommandSchema,
   agentStatusSchema,
   backgroundTaskSchema,
   cloneRepoSourceSchema,
+  projectDraftConfigSchema,
   projectSchema,
   scheduledTaskIdPayloadSchema,
   scheduledTaskInputSchema,
@@ -22,6 +25,7 @@ import {
   remoteRuntimeSummarySchema,
   remoteGitSummariesSchema,
 } from "./core";
+import { remoteRuntimeHistoryNoticeSchema } from "./runtimeHistoryNotice";
 
 /**
  * Remote project management. Lets a paired client add/clone/remove projects on
@@ -74,6 +78,35 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     path: z.string().min(1),
   }),
   z.object({ kind: z.literal("remove"), projectId: z.string().min(1) }),
+  // ── Narrow catalog mutations (capabilities.catalogMutations v1) ──────
+  // These kinds require the advertised capability: a host that predates them
+  // rejects the unknown discriminator as an invalid request. They answer with
+  // `remoteProjectCommandBoundedResultSchema` (never the full project list).
+  //
+  // Relative move of one project over the host's complete `(sort_order, id)`
+  // project order. Every project the caller did not name keeps its relative
+  // order, so a partial client projection can never reindex the catalog.
+  z.object({
+    kind: z.literal("reorder"),
+    projectId: z.string().min(1),
+    targetProjectId: z.string().min(1),
+    placement: catalogReorderPlacementSchema,
+  }),
+  // Single-column nullable workspace assignment (`null` clears).
+  z.object({
+    kind: z.literal("set-workspace"),
+    projectId: z.string().min(1),
+    workspaceId: z.string().min(1).nullable(),
+  }),
+  // Narrow project draft-config persistence (`null` clears). Deliberately a
+  // dedicated kind instead of an `update.patch` key: an older host strips
+  // unknown patch keys silently, which would report success without
+  // persisting; the unknown kind fails loudly instead.
+  z.object({
+    kind: z.literal("set-draft-config"),
+    projectId: z.string().min(1),
+    lastDraftConfig: projectDraftConfigSchema.nullable(),
+  }),
 ]);
 export type RemoteProjectCommand = z.infer<typeof remoteProjectCommandSchema>;
 
@@ -91,6 +124,35 @@ export const remoteProjectCommandResultSchema = z.object({
   project: remoteProjectSchema.optional(),
 });
 export type RemoteProjectCommandResult = z.infer<typeof remoteProjectCommandResultSchema>;
+
+/**
+ * Bounded result for the narrow catalog mutations: the command is
+ * acknowledged without echoing the catalog. `project` is present for
+ * row-scoped mutations (workspace/draft config) and absent for order changes.
+ *
+ * Boundedness is negotiated by command kind, not by a request flag: every
+ * pre-existing kind keeps the complete result above, so a client that only
+ * knows those kinds is never handed a shape it cannot parse, and an older host
+ * rejects the new kinds before any effect.
+ */
+export const remoteProjectCommandBoundedResultSchema = z.object({
+  ok: z.literal(true),
+  project: remoteProjectSchema.optional(),
+});
+export type RemoteProjectCommandBoundedResult = z.infer<
+  typeof remoteProjectCommandBoundedResultSchema
+>;
+
+/**
+ * Complete wire response of `POST /api/projects/command`. Old clients always
+ * receive `remoteProjectCommandResultSchema`; catalog-mutation callers receive
+ * the bounded variant.
+ */
+export const remoteProjectCommandResponseSchema = z.union([
+  remoteProjectCommandResultSchema,
+  remoteProjectCommandBoundedResultSchema,
+]);
+export type RemoteProjectCommandResponse = z.infer<typeof remoteProjectCommandResponseSchema>;
 
 export const remoteScheduleCommandSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("create"), task: scheduledTaskInputSchema }),
@@ -112,12 +174,42 @@ export const remoteScheduleRunsResponseSchema = z.object({
 });
 export type RemoteScheduleRunsResponse = z.infer<typeof remoteScheduleRunsResponseSchema>;
 
-/** Broadcast on the WS event stream after a project change so clients refresh
- * the shell snapshot. Rides the same stream as supervisor/git events. */
-export const remoteProjectsChangedEventSchema = z.object({
-  type: z.literal("remote-projects-changed"),
-  projects: z.array(remoteProjectSchema),
-});
+/**
+ * Broadcast on the WS event stream after a project change so clients refresh
+ * the shell snapshot. Rides the same stream as supervisor/git events.
+ *
+ * Declaration-aware (bounded catalog changes): a connection that declared
+ * `catalogChanges=bounded-v1` receives the signal form
+ * (`{type, mode:"signal"}`, no `projects`) and refreshes through the bounded
+ * catalog reads. Undeclared connections receive the full form, byte-identical
+ * to the historical event. The discriminator is unchanged, so replay-type
+ * lists, the generated manifest's event names and native routers are
+ * untouched; an explicit marker beats `projects: []` because an empty list is
+ * a legal catalog state.
+ */
+export const remoteProjectsChangedEventSchema = z
+  .object({
+    type: z.literal("remote-projects-changed"),
+    /** Declared connections only: bounded change signal, never a payload. */
+    mode: z.literal("signal").optional(),
+    projects: z.array(remoteProjectSchema).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.mode === "signal" && value.projects !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A signal catalog event must not carry projects.",
+        path: ["projects"],
+      });
+    }
+    if (value.mode === undefined && value.projects === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A full catalog event must carry projects.",
+        path: ["projects"],
+      });
+    }
+  });
 export type RemoteProjectsChangedEvent = z.infer<typeof remoteProjectsChangedEventSchema>;
 
 /** Broadcast after durable thread metadata changes so remote clients refresh
@@ -459,6 +551,18 @@ export const remoteShellSnapshotSchema = z.object({
    * list), so clients that never opt in never see this field.
    */
   threadsNextCursor: z.string().nullable().optional(),
+  /**
+   * B4 bounded-reads echo (`reads=bounded-v1`). Absent for undeclared/legacy
+   * responses; declared clients use its absence as the only older-host
+   * downgrade signal.
+   */
+  reads: z.literal(CATALOG_READS_CAPABILITY).optional(),
+  /**
+   * B4 project page continuation, emitted only by declared hosts. Absent (not
+   * null) on legacy hosts and on undeclared responses, exactly like
+   * `threadsNextCursor`.
+   */
+  projectsNextCursor: z.string().nullable().optional(),
   runtimeSummariesByThread: z.record(z.string(), remoteRuntimeSummarySchema),
   /** Absent on desktops that predate git summaries. */
   gitSummariesByThread: remoteGitSummariesSchema.optional(),
@@ -481,6 +585,14 @@ export const remoteThreadListPageSchema = z.object({
   gitSummariesByThread: remoteGitSummariesSchema.optional(),
   /** Cursor for the next page; null after the final page. */
   nextCursor: z.string().nullable(),
+  /** B4 bounded-reads echo; absent for undeclared/legacy responses. */
+  reads: z.literal(CATALOG_READS_CAPABILITY).optional(),
+  /**
+   * B4 inventory-walk observability: the page-1 frontier of an id-ascending
+   * membership walk. The cursor carries the authoritative copy; this field is
+   * echoed on page 1 only and never on continuation pages.
+   */
+  inventoryFrontier: z.string().min(1).optional(),
 });
 export type RemoteThreadListPage = z.infer<typeof remoteThreadListPageSchema>;
 
@@ -507,6 +619,14 @@ export const remoteThreadSnapshotSchema = z.object({
   /** Cursor for older runtime items when the server returned a tail page. */
   runtimeNextCursor: z.number().int().nonnegative().nullable().optional(),
   completedTurns: z.array(persistedCompletedTurnSchema),
+  /** B4 bounded-reads echo; absent for undeclared/legacy responses. */
+  reads: z.literal(CATALOG_READS_CAPABILITY).optional(),
+  /**
+   * B4 completed-turn continuation (`ct1.<idx>` of the oldest returned turn)
+   * when older turns remain; null when the tail is complete. Emitted by
+   * declared hosts only, so an old reader never sees it.
+   */
+  completedTurnsNextCursor: z.string().min(1).nullable().optional(),
   contextUsage: threadContextUsageSchema.nullable(),
   /** Authoritative live background work. Absent on legacy hosts. */
   backgroundTasks: z.array(backgroundTaskSchema).optional(),
@@ -514,6 +634,12 @@ export const remoteThreadSnapshotSchema = z.object({
   terminalSize: terminalSizeSchema.optional(),
   /** Absent when the host predates queued follow-up snapshots. */
   followUpQueue: threadFollowUpQueueStateSchema.nullable().optional(),
+  /**
+   * B1 durable history-incomplete notice. Present only on a host that composed
+   * the notice store and only for a thread with an acknowledged gap; capable
+   * clients render it, and old readers ignore the additive optional field.
+   */
+  runtimeNotice: remoteRuntimeHistoryNoticeSchema.optional(),
   updatedAt: z.string().min(1),
 });
 export type RemoteThreadSnapshot = z.infer<typeof remoteThreadSnapshotSchema>;

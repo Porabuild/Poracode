@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({
   dispose: vi.fn<() => Promise<void>>(),
   options: null as { onEvent(event: SupervisorEvent): void } | null,
 }));
-vi.mock("@/main/db", () => ({
+vi.mock("@/host/db", () => ({
   initDatabase: () => {
     state.closed = false;
   },
@@ -15,15 +15,25 @@ vi.mock("@/main/db", () => ({
     state.closed = true;
     state.close();
   },
+  attachRuntimePersistenceDurableGapFromCurrentConnection: vi.fn<() => void>(),
+  armRuntimeThreadForLaunch: vi.fn<(threadId: string) => void>(),
+  getRuntimeThreadGapDescriptor: vi.fn<() => null>(() => null),
+  acknowledgeRuntimeThreadGap: vi.fn<() => Promise<never>>(),
+  addRuntimePersistenceHealthListener: vi.fn<() => () => void>(() => () => undefined),
+  getRuntimePersistenceShutdownReport: vi.fn<() => null>(() => null),
+  setRuntimePersistenceInFlightWindowBytes: vi.fn<(bytes: number | null) => void>(),
   dbAppendThreadTerminalOutput: vi.fn<() => void>(),
   dbClearThreadTerminalScrollback: vi.fn<() => void>(),
+  dbGetProjects: vi.fn<() => { id: string }[]>(() => []),
+  dbUpsertProject: vi.fn<() => void>(),
 }));
 vi.mock("@/host/remote/server/runtimePersistence", () => ({
-  persistSupervisorEvent: () => {
+  persistSupervisorEvent: (event: SupervisorEvent) => {
     if (state.closed) throw new Error("write after database close");
+    return { kind: "publish", event };
   },
 }));
-vi.mock("@/main/supervisor/SupervisorClient", () => ({
+vi.mock("@/host/supervisor/SupervisorClient", () => ({
   SupervisorClient: class {
     dispose = state.dispose;
     constructor(options: typeof state.options) {

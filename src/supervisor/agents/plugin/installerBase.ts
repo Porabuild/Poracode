@@ -14,17 +14,38 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { readFile, stat as statFile } from "node:fs/promises";
+import { dirname, join, posix as posixJoin, resolve } from "node:path";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { toWslUncPath } from "@/shared/wsl";
 import { detectPowerShell } from "../../shellPreference";
+import type { WslStagingService } from "../../wsl/staging/service";
 import {
   getCachedWslHomeDirectory,
   resolveExecutablePath,
   resolveWslHomeDirectoryAsync,
   type AgentEnvContext,
+  type Awaitable,
 } from "../base";
 import { deployFilesToWslHome, type WslHomeDeployResult } from "../../wsl/wslDeploy";
+import {
+  readWslTextFile,
+  removeWslPath,
+  resolveWslHomePath,
+  wslPathExists,
+  type WslFileIoOptions,
+} from "./wslStaging";
+
+export {
+  copyWslFile,
+  ensureWslDirectory,
+  readWslTextFile,
+  removeWslPath,
+  resolveWslHomePath,
+  wslPathExists,
+  writeWslTextFile,
+  type WslFileIoOptions,
+} from "./wslStaging";
 
 /**
  * Shared plumbing for provider hook plugin installers (claude/codex/gemini).
@@ -248,17 +269,39 @@ export function getWslPluginBaseDirs(distro: string, kind: string): WslPluginBas
   return { home, linuxBase, uncBase: toWslUncPath(distro, linuxBase) };
 }
 
+/**
+ * Home-resolving variant of {@link getWslPluginBaseDirs}. Install/uninstall
+ * paths use this so a cold home probe runs through the staging worker (async)
+ * instead of a synchronous `wsl.exe` spawn.
+ */
+export async function resolveWslPluginBaseDirs(
+  distro: string,
+  kind: string,
+  options?: WslFileIoOptions,
+): Promise<WslPluginBaseDirs | undefined> {
+  const home = await resolveWslHomePath(distro, options);
+  if (!home) return undefined;
+  const linuxBase = `${home}/.poracode/agent-plugins/${kind}`;
+  return { home, linuxBase, uncBase: toWslUncPath(distro, linuxBase) };
+}
+
 export function getNativePluginBaseDir(kind: string, baseDir?: string): string {
   const paths = resolvePoracodePaths(baseDir);
   return join(paths.agentPluginsDir, kind);
 }
 
-export function removeStagedPluginDir(kind: string, ctx?: AgentEnvContext): void {
-  const dir = isWslPluginContext(ctx)
-    ? getWslPluginBaseDirs(ctx.wslDistro, kind)?.uncBase
-    : getNativePluginBaseDir(kind, ctx?.baseDir);
-  if (!dir) return;
-  removeWithoutFollowingSymlinks(dir);
+export async function removeStagedPluginDir(
+  kind: string,
+  ctx?: AgentEnvContext,
+  options?: WslFileIoOptions,
+): Promise<void> {
+  if (isWslPluginContext(ctx)) {
+    const dirs = await resolveWslPluginBaseDirs(ctx.wslDistro, kind, options);
+    if (!dirs) return;
+    await removeWslPath(ctx.wslDistro, dirs.linuxBase, options);
+    return;
+  }
+  removeWithoutFollowingSymlinks(getNativePluginBaseDir(kind, ctx?.baseDir));
 }
 
 // `fs.rmSync({ recursive: true, force: true })` is unreliable here because
@@ -608,6 +651,22 @@ export function parseExistingHooksJson(path: string): unknown | null {
   }
 }
 
+/**
+ * Parse a hooks document that already arrived as decoded text (the staging
+ * worker reads file bytes back as UTF-8). Mirrors {@link parseExistingHooksJson}
+ * for callers that cannot use a synchronous UNC handle.
+ */
+export function parseHooksJsonText(text: string | null): unknown | null {
+  if (text === null) return null;
+  const stripped = stripLeadingJsonPadding(text);
+  if (stripped.trim() === "") return {};
+  try {
+    return JSON.parse(stripped) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 function hooksJsonTextCandidates(buffer: Buffer): string[] {
   const candidates = [stripLeadingJsonPadding(buffer.toString("utf8"))];
 
@@ -789,7 +848,91 @@ export function getForwarderWslDeployFiles(
 
 // ── Shared install-verification ──────────────────────────────────────────
 
-export interface VerifyStagedPluginOptions {
+/**
+ * Path IO for install verification. Native verification touches the host
+ * filesystem directly; WSL verification routes every read through the
+ * per-distro staging worker (bounded, cancellable) instead of a synchronous
+ * UNC handle that can pin the supervisor on a stalled distro.
+ */
+export interface StagedPluginIo {
+  /** Join segments in the path space this IO speaks (native vs posix). */
+  joinPath(dir: string, ...segments: readonly string[]): string;
+  pathExists(path: string): Promise<boolean>;
+  /** `null` when the path does not exist; throws when it exists but is unreadable. */
+  readTextFile(path: string): Promise<string | null>;
+}
+
+export interface PluginVerificationTarget {
+  distro?: string;
+  staging?: WslStagingService;
+  signal?: AbortSignal;
+}
+
+const nativePluginIo: StagedPluginIo = {
+  joinPath: (dir, ...segments) => join(dir, ...segments),
+  async pathExists(path) {
+    try {
+      await statFile(path);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  async readTextFile(path) {
+    try {
+      return await readFile(path, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  },
+};
+
+const wslPluginIoCache = new Map<string, StagedPluginIo>();
+
+function wslPluginIo(distro: string, options?: PluginVerificationTarget): StagedPluginIo {
+  const key = `${distro}\u0000${options?.staging ? "seam" : "shared"}`;
+  const cached = options?.staging ? undefined : wslPluginIoCache.get(key);
+  if (cached) return cached;
+  const ioOptions: WslFileIoOptions = {
+    ...(options?.staging ? { staging: options.staging } : {}),
+    ...(options?.signal ? { signal: options.signal } : {}),
+  };
+  const io: StagedPluginIo = {
+    joinPath: (dir, ...segments) => posixJoin.join(dir, ...segments),
+    pathExists: (path) => wslPathExists(distro, path, ioOptions),
+    readTextFile: (path) => readWslTextFile(distro, path, ioOptions),
+  };
+  if (!options?.staging) wslPluginIoCache.set(key, io);
+  return io;
+}
+
+/**
+ * Resolve the verification IO for a target. WSL verification requires the
+ * distro so reads run through that distro's worker; a missing distro is a
+ * programming error (there is no synchronous fallback).
+ */
+export function resolvePluginVerificationIo(
+  target: "native" | "wsl",
+  options?: PluginVerificationTarget,
+): StagedPluginIo {
+  if (target === "native") return nativePluginIo;
+  if (!options?.distro) {
+    throw new Error("WSL plugin verification requires the distro for worker-backed reads");
+  }
+  return wslPluginIo(options.distro, options);
+}
+
+export async function readPluginManifestWith(
+  io: StagedPluginIo,
+  dir: string,
+): Promise<PluginManifest> {
+  const raw = await io.readTextFile(io.joinPath(dir, "plugin.json"));
+  if (raw === null) throw new Error(`plugin.json missing in ${dir}`);
+  return JSON.parse(raw) as PluginManifest;
+}
+
+export interface VerifyStagedPluginOptions extends PluginVerificationTarget {
   /**
    * Asset list whose existence is required for "installed" to be true.
    * Defaults to `PLUGIN_ASSET_FILES` (plugin.json + forward.mjs). Providers
@@ -810,7 +953,7 @@ export interface VerifyStagedPluginOptions {
    * Used by Cursor (hooks.json must contain a Poracode entry) and OpenCode
    * (dropped files must byte-match the staging dir).
    */
-  extraCheck?: () => boolean;
+  extraCheck?: () => Awaitable<boolean>;
 }
 
 /**
@@ -819,23 +962,28 @@ export interface VerifyStagedPluginOptions {
  * asset, missing wrapper (native + required), failing extra check, or
  * unreadable manifest. On success, includes the manifest version.
  */
-export function verifyStagedPluginAt(
+export async function verifyStagedPluginAt(
   readableDir: string,
   target: "native" | "wsl",
   options?: VerifyStagedPluginOptions,
-): { installed: boolean; version?: string } {
+): Promise<{ installed: boolean; version?: string }> {
+  const io = resolvePluginVerificationIo(target, options);
   const assets = options?.assets ?? PLUGIN_ASSET_FILES;
   for (const asset of assets) {
-    if (!existsSync(join(readableDir, asset))) return { installed: false };
+    if (!(await io.pathExists(io.joinPath(readableDir, asset)))) return { installed: false };
   }
   const requireWrapper = options?.requireNativeWrapper ?? true;
-  if (requireWrapper && !hasNativeHookWrapper(readableDir, target)) {
+  if (
+    requireWrapper &&
+    target === "native" &&
+    !(await io.pathExists(io.joinPath(readableDir, getNativeHookWrapperFilename())))
+  ) {
     return { installed: false };
   }
-  if (options?.extraCheck && !options.extraCheck()) return { installed: false };
+  if (options?.extraCheck && !(await options.extraCheck())) return { installed: false };
   try {
-    const version = readPluginManifest(readableDir).version;
-    return { installed: true, version };
+    const manifest = await readPluginManifestWith(io, readableDir);
+    return { installed: true, version: manifest.version };
   } catch {
     return { installed: false };
   }
@@ -856,6 +1004,8 @@ export interface StagePluginAssetsToWslOptions {
    * cursor) pass true; OpenCode (in-process plugin, no forwarder) passes false.
    */
   includeForwardRuntime?: boolean;
+  /** Cancels the staging request (e.g. install aborted by the coordinator). */
+  signal?: AbortSignal;
 }
 
 /**
@@ -866,14 +1016,14 @@ export interface StagePluginAssetsToWslOptions {
  * across copilot/cursor/opencode (and matches the shape used by claude/codex
  * /gemini callers, even though those have extra steps after staging).
  */
-export function stagePluginAssetsToWsl(
+export async function stagePluginAssetsToWsl(
   distro: string,
   sourceDir: string,
   kind: string,
   options?: StagePluginAssetsToWslOptions | readonly string[],
-):
-  | { ok: true; deploy: WslHomeDeployResult; linuxPluginDir: string }
-  | { ok: false; reason: string } {
+): Promise<
+  { ok: true; deploy: WslHomeDeployResult; linuxPluginDir: string } | { ok: false; reason: string }
+> {
   let opts: StagePluginAssetsToWslOptions;
   if (Array.isArray(options)) {
     opts = { assets: options as readonly string[] };
@@ -893,7 +1043,11 @@ export function stagePluginAssetsToWsl(
       relDest: `agent-plugins/${kind}/${FORWARD_RUNTIME_FILE}`,
     });
   }
-  const deploy = deployFilesToWslHome(distro, files);
+  const deploy = await deployFilesToWslHome(
+    distro,
+    files,
+    opts.signal ? { signal: opts.signal } : undefined,
+  );
   if (!deploy) {
     return { ok: false, reason: `failed to stage ${kind} plugin into wsl distro ${distro}` };
   }

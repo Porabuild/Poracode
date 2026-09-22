@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { catalogReorderPlacementSchema } from "../catalogOrder";
 import { agentSlashCommandSchema } from "./agent";
 import { agentInstanceIdSchema } from "./agentInstance";
 import {
@@ -543,6 +544,20 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
     prNumber: z.number().int().min(1).optional(),
     isNewWorktree: z.boolean().optional(),
     /**
+     * Workspace the new thread belongs to (Home threads carry the workspace
+     * they were created in; real projects scope through the project row).
+     * New in `capabilities.threadLaunchMetadata` v1: an older host strips the
+     * unknown key and answers success, so a client must not send it unless the
+     * capability is advertised.
+     */
+    workspaceId: z.string().min(1).optional(),
+    /**
+     * Exact PTY geometry for the launch (initial terminal dimensions). New in
+     * `capabilities.threadLaunchMetadata` v1, same gate as `workspaceId`: an
+     * older host ignores it and launches at the host default.
+     */
+    initialSize: terminalSizeSchema.optional(),
+    /**
      * Desktop-renderer hint. Remote clients send `start` to the HTTP server;
      * the server creates metadata and launches the supervisor directly, then
      * forwards the command with this set to false so the renderer mirrors the
@@ -623,6 +638,28 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("archive"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("unarchive"), threadId: z.string().min(1) }),
   z.object({ kind: z.literal("delete"), threadId: z.string().min(1) }),
+  // ── Narrow catalog mutations (capabilities.catalogMutations v1) ──────
+  // Host-authoritative relative move of a contiguous block (one thread = a
+  // one-entry block) within its project. The host applies the move over its
+  // own complete `(sort_order, id)` order, so every thread the caller did not
+  // name keeps its relative order. The path id is the block's first entry and
+  // must equal `threadIds[0]`; the host refuses a mismatch before any effect.
+  z.object({
+    kind: z.literal("reorder"),
+    threadId: z.string().min(1),
+    projectId: z.string().min(1),
+    threadIds: z.array(z.string().min(1)).min(1),
+    targetThreadId: z.string().min(1),
+    placement: catalogReorderPlacementSchema,
+  }),
+  // Single-column nullable workspace assignment (`null` clears). The host
+  // writes only `workspace_id`; status, session, sort order, group, and config
+  // are untouched.
+  z.object({
+    kind: z.literal("set-workspace"),
+    threadId: z.string().min(1),
+    workspaceId: z.string().min(1).nullable(),
+  }),
 ]);
 export type RemoteThreadCommand = z.infer<typeof remoteThreadCommandSchema>;
 
@@ -656,6 +693,18 @@ export const closeThreadPayloadSchema = z.object({
   threadId: z.string().min(1),
 });
 export type CloseThreadPayload = z.infer<typeof closeThreadPayloadSchema>;
+
+/**
+ * Result of the confirmed-retirement close: `confirmed` is true only when the
+ * thread's live runtime is verifiably gone (every owned process effect of a
+ * PTY/structured session observed retired), or when there was no live runtime
+ * to retire. Destructive callers (host housekeeping) must not delete a row
+ * whose retirement is unconfirmed — an unconfirmed kill may still be alive.
+ */
+export const closeThreadConfirmedResultSchema = z.object({
+  confirmed: z.boolean(),
+});
+export type CloseThreadConfirmedResult = z.infer<typeof closeThreadConfirmedResultSchema>;
 
 export const threadServerRequestIdSchema = z.union([z.string().min(1), z.number()]);
 export type ThreadServerRequestId = z.infer<typeof threadServerRequestIdSchema>;

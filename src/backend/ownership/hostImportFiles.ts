@@ -1,14 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  chmodSync,
-  closeSync,
-  copyFileSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  readSync,
-  readdirSync,
-} from "node:fs";
+import { chmod, copyFile, lstat, mkdir, open, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { HOST_CONTROL_DISCOVERY_FILE } from "@/shared/hostControlProtocol";
 import { HOST_KEY_ADOPTION_OFFER_FILE } from "./nativeSecretKey";
@@ -45,19 +36,52 @@ export interface ImportFileInventory {
   readonly bytes: number;
 }
 
-/** Do not call this on an inode whose SQLite lock this process owns. */
-export function hashImportFile(path: string): string {
-  const descriptor = openSync(path, "r");
+/**
+ * Cancellation / lease-loss probe threaded through the asynchronous file
+ * operations. It is called before every directory entry and every hash chunk
+ * or file copy; throwing aborts the operation at the next safe boundary with
+ * the staging directory still unpublished. The caller keeps owning custody:
+ * these helpers never release a lease or clean up on their own.
+ */
+export interface ImportFileOperationGuard {
+  readonly assertActive?: () => void;
+}
+
+/** Hash chunk size; unchanged from the synchronous implementation. */
+const HASH_CHUNK_BYTES = 65_536;
+
+/**
+ * Files hashed concurrently during one inventory walk. The walk itself stays
+ * sequential so entry order — and the composite digest — is byte-identical to
+ * the previous synchronous implementation; only the independent file reads
+ * overlap, which keeps many-small-file profiles close to their old duration
+ * without ever blocking the event loop.
+ */
+const INVENTORY_HASH_CONCURRENCY = 8;
+
+/**
+ * Stream one file into a SHA-256 digest. The read loop yields to the event
+ * loop between chunks and probes `assertActive`, so a slow or large file never
+ * blocks a desktop window and a lease loss stops the read promptly.
+ *
+ * Do not call this on an inode whose SQLite lock this process owns.
+ */
+export async function hashImportFile(
+  path: string,
+  guard: ImportFileOperationGuard = {},
+): Promise<string> {
+  const descriptor = await open(path, "r");
   try {
     const digest = createHash("sha256");
-    const buffer = Buffer.allocUnsafe(65_536);
+    const buffer = Buffer.allocUnsafe(HASH_CHUNK_BYTES);
     for (;;) {
-      const bytes = readSync(descriptor, buffer, 0, buffer.length, null);
-      if (bytes === 0) return digest.digest("hex");
-      digest.update(buffer.subarray(0, bytes));
+      guard.assertActive?.();
+      const { bytesRead } = await descriptor.read(buffer, 0, buffer.length, null);
+      if (bytesRead === 0) return digest.digest("hex");
+      digest.update(buffer.subarray(0, bytesRead));
     }
   } finally {
-    closeSync(descriptor);
+    await descriptor.close();
   }
 }
 
@@ -75,7 +99,7 @@ const RUNTIME_SINGLETON_SYMLINK_NAMES = new Set([
   "SingletonSocket",
 ]);
 
-export interface InventoryImportFilesOptions {
+export interface InventoryImportFilesOptions extends ImportFileOperationGuard {
   /** Skip (do not copy) the Chromium runtime singleton symlinks instead of
    * refusing them; declared by the automatic desktop promotion, whose source
    * is a live desktop root that legitimately contains them. */
@@ -126,18 +150,29 @@ function shouldSkipRuntimeSingleton(relative: string, name: string): boolean {
   return isChromiumUserDataRoot(relative) && RUNTIME_SINGLETON_SYMLINK_NAMES.has(name);
 }
 
-/** SQLite uses its backup API; ephemeral owner control credentials never migrate. */
-export function inventoryImportFiles(
+/**
+ * SQLite uses its backup API; ephemeral owner control credentials never migrate.
+ *
+ * The walk is asynchronous and probes the guard before every entry, so an
+ * arbitrarily large source keeps the event loop serviceable. Traversal order,
+ * entry shape and the composite digest stay byte-identical to the previous
+ * synchronous implementation: receipts written by an older app version are
+ * still valid and re-validate after the migration.
+ */
+export async function inventoryImportFiles(
   root: string,
   options: InventoryImportFilesOptions = {},
-): ImportFileInventory {
-  const entries: ImportEntry[] = [];
-  function visit(relative: string): void {
-    for (const name of readdirSync(join(root, relative)).sort()) {
+): Promise<ImportFileInventory> {
+  const entries: MutableImportEntry[] = [];
+  const pendingHashes: Array<{ readonly index: number; readonly absolute: string }> = [];
+  async function visit(relative: string): Promise<void> {
+    const names = (await readdir(join(root, relative))).sort();
+    for (const name of names) {
+      options.assertActive?.();
       if (!relative && EXCLUDED_ROOT_ENTRIES.has(name)) continue;
       const path = relative ? `${relative}/${name}` : name;
       const absolute = join(root, path);
-      const metadata = lstatSync(absolute);
+      const metadata = await lstat(absolute);
       if (
         options.excludeChromiumCaches &&
         metadata.isDirectory() &&
@@ -167,12 +202,16 @@ export function inventoryImportFiles(
         kind: metadata.isDirectory() ? "directory" : "file",
         bytes: metadata.isFile() ? metadata.size : 0,
         mode: metadata.isDirectory() ? 0o700 : metadata.mode & 0o700,
-        sha256: metadata.isFile() ? hashImportFile(absolute) : null,
+        sha256: null,
       });
-      if (metadata.isDirectory()) visit(path);
+      if (metadata.isFile()) {
+        pendingHashes.push({ index: entries.length - 1, absolute });
+      }
+      if (metadata.isDirectory()) await visit(path);
     }
   }
-  visit("");
+  await visit("");
+  await hashPendingFiles(entries, pendingHashes, options);
   const files = entries.filter((entry) => entry.kind === "file");
   return {
     entries,
@@ -182,26 +221,78 @@ export function inventoryImportFiles(
   };
 }
 
-export function copyImportFiles(
+interface MutableImportEntry {
+  path: string;
+  kind: "file" | "directory";
+  bytes: number;
+  mode: number;
+  sha256: string | null;
+}
+
+/**
+ * Hash the files collected by one walk with bounded concurrency. Workers stop
+ * claiming new files after the first failure but drain in-flight reads before
+ * the failure is rethrown, so the returned promise resolves only once no read
+ * of this walk is still outstanding (staging cleanup races stay impossible).
+ */
+async function hashPendingFiles(
+  entries: MutableImportEntry[],
+  pending: readonly { readonly index: number; readonly absolute: string }[],
+  guard: ImportFileOperationGuard,
+): Promise<void> {
+  let next = 0;
+  let failure: Error | undefined;
+  const worker = async (): Promise<void> => {
+    while (failure === undefined) {
+      const item = pending[next];
+      if (item === undefined) return;
+      next += 1;
+      try {
+        guard.assertActive?.();
+        entries[item.index]!.sha256 = await hashImportFile(item.absolute, guard);
+      } catch (error) {
+        if (failure === undefined) {
+          failure =
+            error instanceof Error
+              ? error
+              : new Error(`Inventory hashing failed: ${String(error)}`);
+        }
+      }
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(INVENTORY_HASH_CONCURRENCY, pending.length) }, worker),
+  );
+  if (failure !== undefined) throw failure;
+}
+
+/**
+ * Copy exactly the inventoried entries, then verify the destination against
+ * the same inventory digest. Every filesystem operation is awaited, so the
+ * caller's event loop keeps running and `onCopyProgress` fires incrementally
+ * while the copied bytes are still being written.
+ */
+export async function copyImportFiles(
   source: string,
   destination: string,
   inventory: ImportFileInventory,
   options: InventoryImportFilesOptions = {},
-): void {
+): Promise<void> {
   let copiedBytes = 0;
   const totalBytes = inventory.bytes;
   for (const entry of inventory.entries) {
+    options.assertActive?.();
     const target = join(destination, entry.path);
     if (entry.kind === "directory") {
-      mkdirSync(target, { recursive: true, mode: 0o700 });
+      await mkdir(target, { recursive: true, mode: 0o700 });
     } else {
-      copyFileSync(join(source, entry.path), target);
-      chmodSync(target, entry.mode);
+      await copyFile(join(source, entry.path), target);
+      await chmod(target, entry.mode);
       copiedBytes += entry.bytes;
       options.onCopyProgress?.(copiedBytes, totalBytes);
     }
   }
-  const copied = inventoryImportFiles(destination, options);
+  const copied = await inventoryImportFiles(destination, options);
   if (copied.sha256 !== inventory.sha256) {
     throw new Error("Offline backup changed while its files were copied; staged data was refused.");
   }

@@ -7,9 +7,12 @@ import {
   HOST_CONTROL_PROTOCOL_VERSION,
   hostControlPairingResultSchema,
   hostControlRequestSchema,
+  hostControlStatusResultSchema,
   hostDescriptionSchema,
+  type HostControlAdmitPayload,
   type HostControlReply,
   type HostControlRequest,
+  type HostControlStatusResult,
   type HostDescription,
 } from "@/shared/hostControlProtocol";
 import { AsyncWorkTracker } from "@/shared/asyncWorkTracker";
@@ -34,12 +37,33 @@ export interface HostControlContext {
   readonly pairingPreset?: "operator" | "viewer";
 }
 
+/** D4 authenticated status source: identity, state and staging admission. */
+export interface HostControlStatusSource {
+  readonly state: HostControlStatusResult["state"];
+  readonly admission: HostControlStatusResult["admission"];
+  readonly endpoint: HostControlStatusResult["endpoint"];
+  readonly build: HostControlStatusResult["build"];
+}
+
 interface HostControlServerOptions {
   lease: HostOwnerLease;
   describe(): Pick<
     HostDescription,
     "state" | "remoteProtocolVersion" | "endpoint" | "capabilities"
   >;
+  /**
+   * D4: when composed, the owner answers the additive authenticated `status`
+   * operation. A host without this source rejects `status` exactly like a
+   * pre-D4 owner (HTTP 400), which the upgrader may treat as a legacy owner
+   * only after it has verified the owner through `describe`.
+   */
+  status?(): HostControlStatusSource;
+  /**
+   * D4: release staging admission. The server itself compares the caller's
+   * expected build with the reported identity before invoking this callback,
+   * so the callback only performs the state transition.
+   */
+  admit?(context: HostControlContext, expected: HostControlAdmitPayload): void | Promise<void>;
   issuePairing(context: HostControlContext): string | Promise<string>;
   reportError?(error: unknown): void;
   receiptNow?(): number;
@@ -247,6 +271,19 @@ export class HostControlServer {
         return;
       }
       const input = parsed.data;
+      // A host that predates an additive operation answers exactly like a
+      // pre-D4 owner (authenticated request, then HTTP 400): the caller may
+      // only conclude "operation unsupported" after a verified describe.
+      if (input.operation === "status" && !this.options.status) {
+        response.writeHead(400, { connection: "close" });
+        response.end();
+        return;
+      }
+      if (input.operation === "admit" && !this.options.admit) {
+        response.writeHead(400, { connection: "close" });
+        response.end();
+        return;
+      }
       const outcome: Outcome =
         input.ownerGeneration !== this.generation
           ? { ok: false, error: { code: "generation-mismatch" } }
@@ -279,6 +316,21 @@ export class HostControlServer {
     }
   }
 
+  private statusResult(): HostControlStatusResult {
+    const source = this.options.status;
+    if (!source) throw new Error("Host control status is not composed.");
+    const current = source();
+    return hostControlStatusResultSchema.parse({
+      profileNamespace: this.options.lease.paths.profileNamespace,
+      dataRoot: this.options.lease.paths.dataRoot,
+      mode: this.options.lease.kind,
+      state: current.state,
+      admission: current.admission,
+      endpoint: current.endpoint,
+      build: current.build,
+    });
+  }
+
   private async dispatch(input: HostControlRequest, context: HostControlContext): Promise<Outcome> {
     const now = this.options.receiptNow?.() ?? Date.now();
     for (const [id, receipt] of this.receipts)
@@ -297,22 +349,57 @@ export class HostControlServer {
         }),
       };
     }
+    // Read-only identity probe: available in every state, including while
+    // staging admission is held and before the remote listener binds.
+    if (input.operation === "status") {
+      if (existing) return { ok: false, error: { code: "invalid-request" } };
+      return { ok: true, result: this.statusResult() };
+    }
     if (existing) return existing.result;
     if (this.receipts.size >= MAX_RECEIPTS) return { ok: false, error: { code: "capacity" } };
+    if (input.operation === "admit") {
+      const source = this.options.status?.();
+      const admit = this.options.admit;
+      if (!source || !admit) return { ok: false, error: { code: "not-staging" } };
+      // The expected identity is compared before any state transition: a
+      // caller that names a different build can never release admission.
+      if (
+        source.build.version !== input.payload.expectedVersion ||
+        source.build.entrypointSha256 !== input.payload.expectedEntrypointSha256
+      )
+        return { ok: false, error: { code: "identity-mismatch" } };
+      // A retried admit after a lost reply is idempotent once admission is open.
+      if (source.admission === "open") return { ok: true, result: this.statusResult() };
+      return this.recordMutation(input, context, async () => {
+        await admit(context, input.payload);
+        return { ok: true, result: this.statusResult() };
+      });
+    }
     if (this.options.describe().state !== "ready")
       return { ok: false, error: { code: "not-ready" } };
+    return this.recordMutation(input, context, async () => {
+      const pairingUrl = await this.options.issuePairing({
+        ...context,
+        ...(input.payload.preset ? { pairingPreset: input.payload.preset } : {}),
+      });
+      this.assertActive();
+      return { ok: true, result: hostControlPairingResultSchema.parse({ pairingUrl }) };
+    });
+  }
+
+  /** Run one admitted mutation behind the deduplicating receipt window. */
+  private recordMutation(
+    input: HostControlRequest,
+    context: HostControlContext,
+    operation: () => Promise<Outcome>,
+  ): Promise<Outcome> {
     const barrier = Promise.withResolvers<Outcome>();
     const receipt = { expiresAt: null as number | null, result: barrier.promise };
     this.receipts.set(input.requestId, receipt);
     void this.work
       .run(async (): Promise<Outcome> => {
         context.assertActive();
-        const pairingUrl = await this.options.issuePairing({
-          ...context,
-          ...(input.payload.preset ? { pairingPreset: input.payload.preset } : {}),
-        });
-        this.assertActive();
-        return { ok: true, result: hostControlPairingResultSchema.parse({ pairingUrl }) };
+        return operation();
       })
       .catch((): Outcome => ({
         ok: false,

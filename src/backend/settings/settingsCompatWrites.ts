@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { mergeManagedSharedSettings } from "@/main/sharedSettingsFile";
+import { mergeManagedSharedSettings } from "@/host/sharedSettingsFile";
 import type { SharedSettings, SharedSettingsInput } from "@/shared/settings";
 import {
   SETTINGS_TRANSACTION_VERSION,

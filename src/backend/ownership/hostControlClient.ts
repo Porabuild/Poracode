@@ -6,9 +6,11 @@ import {
   hostControlPairingResultSchema,
   hostControlReplySchema,
   hostControlRequestSchema,
+  hostControlStatusResultSchema,
   hostDescriptionSchema,
   type HostControlRequest,
   type HostControlReply,
+  type HostControlStatusResult,
   type HostDescription,
 } from "@/shared/hostControlProtocol";
 import { readBoundedNodeRequestBody } from "@/shared/http";
@@ -19,19 +21,40 @@ import { createHostControlRequestProof, verifyHostControlResponse } from "./host
 type ControlOperation = HostControlRequest["operation"];
 type ControlResult<Name extends ControlOperation> = Name extends "describe"
   ? HostDescription
-  : { pairingUrl: string };
+  : Name extends "issue-pairing"
+    ? { pairingUrl: string }
+    : HostControlStatusResult;
+/** Operation payloads are validated per operation by the request schema. */
+export type HostControlCallPayload =
+  | { readonly preset?: "operator" | "viewer" }
+  | { readonly expectedVersion: string; readonly expectedEntrypointSha256: string }
+  | Record<string, never>;
 
 export interface HostControlCallOptions {
   requestId?: string;
   timeoutMs?: number;
   signal?: AbortSignal;
   /** V6 A.5: viewer/operator grant for issue-pairing. Empty keeps operator. */
-  payload?: { readonly preset?: "operator" | "viewer" };
+  payload?: HostControlCallPayload;
 }
 
 export class HostControlRefusedError extends Error {
   constructor(readonly code: Extract<HostControlReply, { ok: false }>["error"]["code"]) {
     super(`Host control request refused: ${code}.`);
+  }
+}
+
+/**
+ * An authenticated version-2 owner that predates an additive operation parses
+ * the request and answers HTTP 400 without a response proof. Callers may treat
+ * this as "operation unsupported" only after the same owner has answered a
+ * verified `describe`; it must never be used as a fallback for a failed
+ * authentication or an unverifiable reply on a core operation.
+ */
+export class HostControlUnsupportedOperationError extends Error {
+  constructor(readonly statusCode: number) {
+    super(`Host control operation is not supported by this owner (HTTP ${statusCode}).`);
+    this.name = "HostControlUnsupportedOperationError";
   }
 }
 
@@ -105,16 +128,24 @@ export async function callHostControl<Name extends ControlOperation>(
           () => new Error("Host control response exceeded its size limit."),
         )
           .then((bytes) => {
+            const status = incoming.statusCode ?? 0;
             if (
               !verifyHostControlResponse(
                 discovery.token,
                 authorization,
-                incoming.statusCode ?? 0,
+                status,
                 bytes,
                 incoming.headers["x-poracode-control-proof"],
               )
-            )
+            ) {
+              // A pre-D4 owner authenticates the request (same MAC domain) and
+              // then rejects the unknown operation with an empty 400 before it
+              // can sign a reply. This classification is deliberately narrow:
+              // any other unverified response is an invalid peer.
+              if ((status === 400 || status === 404 || status === 405) && bytes.length === 0)
+                throw new HostControlUnsupportedOperationError(status);
               throw new Error("Invalid host control peer proof.");
+            }
             const reply = hostControlReplySchema.parse(JSON.parse(bytes.toString("utf8")));
             if (
               reply.requestId !== input.requestId ||
@@ -122,11 +153,13 @@ export async function callHostControl<Name extends ControlOperation>(
             )
               throw new Error("Host control response did not match the requested owner.");
             if (!reply.ok) throw new HostControlRefusedError(reply.error.code);
-            if (incoming.statusCode !== 200) throw new Error("Invalid host control status.");
+            if (status !== 200) throw new Error("Invalid host control status.");
             const value =
               operation === "describe"
                 ? hostDescriptionSchema.parse(reply.result)
-                : hostControlPairingResultSchema.parse(reply.result);
+                : operation === "issue-pairing"
+                  ? hostControlPairingResultSchema.parse(reply.result)
+                  : hostControlStatusResultSchema.parse(reply.result);
             if (
               "dataRoot" in value &&
               (value.dataRoot !== paths.dataRoot ||
@@ -137,7 +170,8 @@ export async function callHostControl<Name extends ControlOperation>(
           })
           .catch((error: unknown) =>
             finish(
-              error instanceof HostControlRefusedError
+              error instanceof HostControlRefusedError ||
+                error instanceof HostControlUnsupportedOperationError
                 ? error
                 : new Error("Invalid or unavailable host control response."),
             ),

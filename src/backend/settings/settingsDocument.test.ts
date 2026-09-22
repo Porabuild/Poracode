@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { defaultSharedSettings } from "@/shared/settings";
-import { decodeSettingsDocument } from "./settingsDocument";
+import { SettingsDocumentError, decodeSettingsDocument } from "./settingsDocument";
 
 describe("settings document migration", () => {
   it("migrates valid legacy fields before filling canonical defaults and retains unknown values", () => {
@@ -78,5 +78,87 @@ describe("settings document migration", () => {
     // Absence still fills the whole default map.
     const absent = decodeSettingsDocument({});
     expect(absent.settings.searchExclude).toEqual(defaultSharedSettings.searchExclude);
+  });
+
+  it("fills absent host resource admission keys for a valid partial object", () => {
+    const document = decodeSettingsDocument({
+      hostResourceAdmission: { maxActiveAgentSessions: 8 },
+    });
+    expect(document.settings.hostResourceAdmission).toEqual({
+      maxActiveAgentSessions: 8,
+      maxActiveTerminalShells: 0,
+      maxActiveGenerationHelpers: 0,
+    });
+    // The filled document keeps the same shape a later write will store.
+    expect(document.raw.hostResourceAdmission).toEqual({
+      maxActiveAgentSessions: 8,
+      maxActiveTerminalShells: 0,
+      maxActiveGenerationHelpers: 0,
+    });
+  });
+
+  it("keeps unknown host resource admission sub-keys byte-wise for newer writers", () => {
+    const document = decodeSettingsDocument({
+      hostResourceAdmission: {
+        maxActiveAgentSessions: 4,
+        maxActiveTerminalShells: 2,
+        maxActiveGenerationHelpers: 1,
+        futureClass: 9,
+      },
+    });
+    expect(document.settings.hostResourceAdmission).toEqual({
+      maxActiveAgentSessions: 4,
+      maxActiveTerminalShells: 2,
+      maxActiveGenerationHelpers: 1,
+    });
+    expect(document.raw.hostResourceAdmission).toEqual({
+      maxActiveAgentSessions: 4,
+      maxActiveTerminalShells: 2,
+      maxActiveGenerationHelpers: 1,
+      futureClass: 9,
+    });
+  });
+
+  it("accepts safe integers with no arbitrary ceiling", () => {
+    const document = decodeSettingsDocument({
+      hostResourceAdmission: {
+        maxActiveAgentSessions: Number.MAX_SAFE_INTEGER,
+        maxActiveTerminalShells: 512,
+        maxActiveGenerationHelpers: 512,
+      },
+    });
+    expect(document.settings.hostResourceAdmission.maxActiveAgentSessions).toBe(
+      Number.MAX_SAFE_INTEGER,
+    );
+  });
+
+  it("refuses a present invalid admission value instead of repairing it", () => {
+    const invalidAdmissions: unknown[] = [
+      { maxActiveAgentSessions: -1, maxActiveTerminalShells: 0, maxActiveGenerationHelpers: 0 },
+      { maxActiveAgentSessions: 1.5, maxActiveTerminalShells: 0, maxActiveGenerationHelpers: 0 },
+      {
+        maxActiveAgentSessions: Number.MAX_SAFE_INTEGER + 1,
+        maxActiveTerminalShells: 0,
+        maxActiveGenerationHelpers: 0,
+      },
+      { maxActiveAgentSessions: "4", maxActiveTerminalShells: 0, maxActiveGenerationHelpers: 0 },
+      { maxActiveAgentSessions: null, maxActiveTerminalShells: 0, maxActiveGenerationHelpers: 0 },
+      { maxActiveAgentSessions: 0, maxActiveTerminalShells: "0", maxActiveGenerationHelpers: 0 },
+      { maxActiveAgentSessions: 0, maxActiveTerminalShells: 0, maxActiveGenerationHelpers: -0.5 },
+    ];
+    for (const hostResourceAdmission of invalidAdmissions) {
+      expect(() => decodeSettingsDocument({ hostResourceAdmission })).toThrow(
+        SettingsDocumentError,
+      );
+    }
+  });
+
+  it("keeps the transitional defaults for legacy documents without the field", () => {
+    const document = decodeSettingsDocument({ themeMode: "dark" });
+    expect(document.settings.hostResourceAdmission).toEqual({
+      maxActiveAgentSessions: 0,
+      maxActiveTerminalShells: 0,
+      maxActiveGenerationHelpers: 0,
+    });
   });
 });

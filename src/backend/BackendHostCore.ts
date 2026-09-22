@@ -9,22 +9,31 @@ import {
   dbGetCheckpointRevertOperation,
   dbHasThreadRuntimeItem,
   dbUpdateCheckpointRevertPhases,
+  acknowledgeRuntimeThreadGap,
+  attachRuntimePersistenceDurableGapFromCurrentConnection,
+  armRuntimeThreadForLaunch,
+  getRuntimeThreadGapDescriptor,
   type CheckpointRevertFilesPhase,
   type CheckpointRevertOperationRow,
   type CheckpointRevertOutcome,
   type CheckpointRevertProviderPhase,
   type CheckpointRevertTruncatePhase,
-} from "@/main/db";
-import { SupervisorClient, type SupervisorClientOptions } from "@/main/supervisor/SupervisorClient";
+  getRuntimePersistenceShutdownReport,
+  type RuntimeProducerSignal,
+  type RuntimeShutdownReport,
+} from "@/host/db";
+import type {
+  RuntimeHistoryGapAcknowledgeResult,
+  RuntimeHistoryGapDescriptor,
+} from "@/shared/runtimeHistoryNotice";
+import { SupervisorClient, type SupervisorClientOptions } from "@/host/supervisor/SupervisorClient";
+import { ensureHomeProjectRow } from "@/host/schedules/homeProject";
 import { HostDataFence } from "@/backend/ownership/hostDataFence";
 import { persistSupervisorEvent } from "@/host/remote/server/runtimePersistence";
 import { TerminalScrollbackPersistence } from "@/host/remote/server/terminalScrollbackPersistence";
+import { HostPersistenceProducerControl } from "@/backend/hostPersistenceProducerControl";
+import { settleOrphanedCrossagentRuns } from "@/backend/crossagentBootSettle";
 import type { SupervisorEvent } from "@/shared/ipc";
-import type { BackendEventInterests } from "@/shared/backendHostProtocol";
-import {
-  filterRuntimeEventsForLiveInterest,
-  isBulkRuntimeContentEvent,
-} from "@/shared/liveEventInterests";
 import type { ProjectLocation } from "@/shared/contracts/common";
 import type { ThreadConfig } from "@/shared/contracts/config";
 import type { ProviderRevertAnchor } from "@/shared/contracts";
@@ -81,6 +90,17 @@ export interface RevertCheckpointResult {
   removedCompletedTurnAnchors: string[];
 }
 
+/** Narrow retryable handle to a database a failed construction could not close. */
+export interface RetainedStartupCustody {
+  /**
+   * Retry the refused close. While the before-close hook still refuses this
+   * throws and custody is retained (`closeDatabase` keeps the handle open);
+   * after a successful close it is a no-op, so a composition can join it from
+   * a retryable dispose barrier.
+   */
+  retryCloseDatabase(): void;
+}
+
 export interface BackendHostCoreOptions {
   baseDir: string;
   dbPath: string;
@@ -95,6 +115,17 @@ export interface BackendHostCoreOptions {
    * omit it: the owner process holds the lease directly.
    */
   dataFencePath?: string;
+  /**
+   * Failed-startup custody handoff. When the constructor's cleanup close is
+   * refused (its drain hook threw; the handle stays open and the fence, if
+   * any, stays held), this callback receives the only retryable path to that
+   * close. In-process compositions that own the root directly register it on
+   * their dispose barrier so a transient refusal can still close cleanly
+   * before the owner lease is released; a refusal that persists keeps the
+   * lease with the owner until process death. Compositions that retire the
+   * failed process instead (desktop backend child) omit it.
+   */
+  onStartupCustodyRetained?(custody: RetainedStartupCustody): void;
   supervisor: Omit<SupervisorClientOptions, "baseDir" | "onEvent" | "onReset" | "onOutputShed">;
   onEvent(event: SupervisorEvent): void;
   onReset(): void;
@@ -106,134 +137,14 @@ export interface BackendHostCoreOptions {
    * be silent.
    */
   onSupervisorOutputShed?(threadIds: string[]): void;
-}
-
-/**
- * Keeps high-volume live payloads behind explicit client interest while the
- * backend still persists every event before this projection is evaluated.
- */
-export function filterSupervisorEventForInterests(
-  event: SupervisorEvent,
-  interests: BackendEventInterests,
-  hiddenShellActivityAt?: Map<string, number>,
-  now = Date.now(),
-): SupervisorEvent | null {
-  if (event.type === "thread-output") {
-    if (interests.terminalThreadIds.includes(event.threadId)) return event;
-    if (!event.threadId.startsWith("shell:") || !hiddenShellActivityAt) return null;
-    const lastActivityAt = hiddenShellActivityAt.get(event.threadId) ?? -Infinity;
-    if (now - lastActivityAt < 500) return null;
-    hiddenShellActivityAt.set(event.threadId, now);
-    return { ...event, data: "" };
-  }
-  if (event.type === "thread-reset" || event.type === "thread-exited") {
-    hiddenShellActivityAt?.delete(event.threadId);
-  }
-  if (interests.allRuntimeEvents) return event;
-  if (event.type === "thread-runtime-event") {
-    return interests.runtimeThreadIds.includes(event.threadId) ||
-      !isBulkRuntimeContentEvent(event.event)
-      ? event
-      : null;
-  }
-  if (event.type === "thread-runtime-events") {
-    const events = filterRuntimeEventsForLiveInterest(
-      event.events,
-      interests.runtimeThreadIds.includes(event.threadId),
-    );
-    return events.length === 0
-      ? null
-      : events === event.events
-        ? event
-        : { ...event, events: [...events] };
-  }
-  if (event.type === "thread-runtime-events-multi") {
-    const wanted = new Set(interests.runtimeThreadIds);
-    let changed = false;
-    const batches = event.batches.flatMap((batch) => {
-      const events = filterRuntimeEventsForLiveInterest(batch.events, wanted.has(batch.threadId));
-      if (events.length === 0) {
-        changed = true;
-        return [];
-      }
-      if (events === batch.events) return [batch];
-      changed = true;
-      return [{ ...batch, events: [...events] }];
-    });
-    return batches.length === 0 ? null : changed ? { ...event, batches } : event;
-  }
-  return event;
-}
-
-/**
- * Owns the backend's live projection state, including the short bootstrap
- * window that prevents initial PTY output from racing the renderer's first
- * interest acknowledgement.
- */
-export class BackendEventRouter {
-  private interests: BackendEventInterests = {
-    terminalThreadIds: [],
-    runtimeThreadIds: [],
-    allRuntimeEvents: false,
-  };
-  /** Retained bootstrap threads with the authenticated request origin window. */
-  private readonly terminalBootstrapInterests = new Map<
-    string,
-    { timer: ReturnType<typeof setTimeout>; originWindowId?: number }
-  >();
-  private readonly hiddenShellActivityAt = new Map<string, number>();
-
   /**
-   * `originWindowId` is the authenticated requesting window: only its
-   * per-window fallback copy may fail open for the retained thread's first
-   * output. Originless starts (server, remote, background) widen no window;
-   * the legacy union {@link filter} keeps treating any retained thread as
-   * wanted so the pre-table mainWindow relay parity is unchanged.
+   * B1 GUI durable-gap recovery post-commit hook: an acknowledgement applied
+   * (the durable notice exists and the matching episode evidence is cleared).
+   * Composition roots use this to mark the thread in their live/replay scoping
+   * gate and broadcast `resync-required`. It runs after the commit, only on
+   * `applied`, and a throwing hook never fails the acknowledgement.
    */
-  retainTerminalBootstrap(threadId: string, originWindowId?: number): void {
-    this.clearTerminalBootstrap(threadId);
-    const entry = {
-      timer: setTimeout(() => this.terminalBootstrapInterests.delete(threadId), 10_000),
-      ...(originWindowId !== undefined ? { originWindowId } : {}),
-    };
-    entry.timer.unref?.();
-    this.terminalBootstrapInterests.set(threadId, entry);
-  }
-
-  clearTerminalBootstrap(threadId: string): void {
-    const entry = this.terminalBootstrapInterests.get(threadId);
-    if (entry) clearTimeout(entry.timer);
-    this.terminalBootstrapInterests.delete(threadId);
-  }
-
-  /**
-   * True when THIS window may fail open for the retained thread: only the
-   * authenticated request's origin window is ever widened.
-   */
-  isTerminalBootstrapRetainedFor(windowId: number, threadId: string): boolean {
-    const entry = this.terminalBootstrapInterests.get(threadId);
-    return entry !== undefined && entry.originWindowId === windowId;
-  }
-
-  setInterests(interests: BackendEventInterests): void {
-    this.interests = interests;
-    for (const threadId of interests.terminalThreadIds) {
-      this.clearTerminalBootstrap(threadId);
-    }
-  }
-
-  filter(event: SupervisorEvent): SupervisorEvent | null {
-    if (event.type === "thread-output" && this.terminalBootstrapInterests.has(event.threadId)) {
-      return event;
-    }
-    return filterSupervisorEventForInterests(event, this.interests, this.hiddenShellActivityAt);
-  }
-
-  dispose(): void {
-    for (const entry of this.terminalBootstrapInterests.values()) clearTimeout(entry.timer);
-    this.terminalBootstrapInterests.clear();
-    this.hiddenShellActivityAt.clear();
-  }
+  onRuntimeGapAcknowledged?(threadId: string): void;
 }
 
 /**
@@ -244,7 +155,8 @@ export class BackendEventRouter {
  */
 export class BackendHostCore {
   readonly supervisorClient: SupervisorClient;
-  private readonly terminalScrollbackPersistence = new TerminalScrollbackPersistence();
+  private readonly terminalScrollbackPersistence: TerminalScrollbackPersistence;
+  private persistenceProducerControl: HostPersistenceProducerControl | null = null;
   private databaseOpen = false;
   private closing = false;
   private supervisorJoined = false;
@@ -269,26 +181,255 @@ export class BackendHostCore {
       } else {
         initDatabase(options.dbPath);
       }
+      if (options.databaseSchemaMode !== "validate") {
+        // Eager runtime-owned durable-gap arm: one write per boot, committed
+        // before any canonical event can be admitted. Storage failure is
+        // classified into the typed degraded state (every canonical batch is
+        // then refused) instead of silently succeeding unarmed. A validate-only
+        // open never arms; offline imports and validate/seed opens never call
+        // this entry point.
+        attachRuntimePersistenceDurableGapFromCurrentConnection();
+        // Settle Crossagent run rows orphaned by the previous supervisor
+        // process before any supervisor exists: a fresh supervisor tracks
+        // nothing, so a row still reading "running" belonged to a run that
+        // died without a settle tile. Keeping the database honest here is
+        // what lets renderer hydration treat a running Crossagent row as
+        // alive instead of force-failing it.
+        this.settleOrphanedCrossagentRuns("boot");
+      }
       if (options.markLiveThreadsInactiveOnOpen) dbMarkLiveThreadsInactive();
+      if (options.databaseSchemaMode !== "validate") {
+        // Canonical Home row before this host can serve its first catalog or
+        // launch: a managed root launches Home threads against
+        // `startRemoteThread`, which refuses HOME_PROJECT_ID while the row is
+        // absent. The existing helper reuses any row a renderer already
+        // created (same fixed id/shape) and never mints a renderer-random id;
+        // a validate-only/offline open writes nothing.
+        ensureHomeProjectRow();
+      }
 
+      this.terminalScrollbackPersistence = new TerminalScrollbackPersistence({
+        onOverflow: (threadIds) => options.onSupervisorOutputShed?.(threadIds),
+      });
       this.supervisorClient = new SupervisorClient({
         ...options.supervisor,
         baseDir: options.baseDir,
+        // B1 pre-launch bridge: every host launch funnels through
+        // `SupervisorClient.call` for `startThread`/`ensureThreadRunning`, and
+        // this hook runs before the request is built and sent. It composes any
+        // existing preparation callback and then commits the durable per-thread
+        // touch; an unknown thread or storage failure rejects the call before
+        // `child.send`, so no provider process can run without a durable
+        // marker.
+        prepareStartThread: (payload) => {
+          const prepared = options.supervisor.prepareStartThread
+            ? options.supervisor.prepareStartThread(payload)
+            : payload;
+          // A launch that lets the supervisor allocate the id (no threadId yet)
+          // cannot be touched before dispatch; its first canonical event still
+          // arms and touches before acceptance through admission.
+          const threadId = prepared.threadId;
+          if (typeof threadId === "string" && threadId.length > 0) {
+            armRuntimeThreadForLaunch(threadId);
+          }
+          return prepared;
+        },
         onEvent: (event) => {
-          this.terminalScrollbackPersistence.handle(event);
-          persistSupervisorEvent(event);
-          options.onEvent(event);
+          // Persistence must never throw into the supervisor IPC handler: the
+          // bounded controller classifies storage failures and raises producer
+          // backpressure instead. This try/catch is the last line of defense.
+          try {
+            this.terminalScrollbackPersistence.handle(event);
+            const outcome = persistSupervisorEvent(event, {
+              publishDeferredEvent: (deferred) => {
+                // Resets are withheld until their durable rebase completes.
+                // The remote persistence API also accepts non-supervisor
+                // events; only its reset completion belongs to this callback.
+                if (deferred.type === "thread-reset") options.onEvent(deferred);
+              },
+            });
+            // The original envelope's credit is resolved even on an explicit
+            // refusal. Publication uses only the accepted envelope/prefix.
+            this.persistenceProducerControl?.acknowledgeCanonicalFlow(event);
+            if (outcome.kind !== "withhold") options.onEvent(outcome.event);
+          } catch (error) {
+            console.error("[backend] supervisor event persistence failed:", error);
+          }
         },
         onOutputShed: (threadIds) => options.onSupervisorOutputShed?.(threadIds),
-        onReset: options.onReset,
+        onReset: () => {
+          // The supervisor process that owned every Crossagent run just died;
+          // its replacement spawns with an empty run tracker. Settle the
+          // orphaned running rows now — before the respawn accepts a
+          // startThread, with every pending prefix committed so the dying
+          // generation's last admitted events cannot land after the sweep.
+          this.settleOrphanedCrossagentRuns("supervisor-reset");
+          options.onReset();
+        },
+        // Reserve the advertised in-flight headroom before granting credit,
+        // and re-raise current storage pressure for each supervisor generation.
+        onFlowControlReady: () => this.persistenceProducerControl?.refreshPeerCapabilities(),
       });
+      // Producer backpressure plane: persistence health -> supervisor control.
+      // SupervisorClient only sends the negotiated control to a peer that
+      // advertised the capability, so a legacy supervisor is never misread.
+      this.persistenceProducerControl = new HostPersistenceProducerControl(this.supervisorClient);
     } catch (error) {
-      closeDatabase();
+      // A refused close (its drain hook threw; see `closeDatabase`) keeps the
+      // SQLite handle open and writable, so this failed construction must keep
+      // custody: `databaseOpen` stays true and the fence stays held, exactly
+      // like the instance `closeDatabase()` below. The composition that owns a
+      // failed backend child retires it with the bounded SIGTERM -> SIGKILL ->
+      // confirmed-exit join (`BackendHostClient.retireChild`) and admits a
+      // successor only after that exit; process death releases the fence. Until
+      // then a successor acquisition must be refused instead of writing the
+      // still-open root.
+      try {
+        closeDatabase();
+      } catch (closeError) {
+        console.error(
+          "[backend] database close refused during failed startup; custody retained:",
+          getRuntimePersistenceShutdownReport() ?? closeError,
+        );
+        // Hand the composition the only retryable path to the still-open
+        // handle. A thrown handoff registration must never replace the
+        // original construction failure.
+        let retained = true;
+        const custody: RetainedStartupCustody = {
+          retryCloseDatabase: () => {
+            if (!retained) return;
+            closeDatabase();
+            retained = false;
+            this.databaseOpen = false;
+            this.dataFence?.release();
+            this.dataFence = null;
+          },
+        };
+        try {
+          options.onStartupCustodyRetained?.(custody);
+        } catch (handoffError) {
+          console.error("[backend] failed-startup custody handoff failed:", handoffError);
+        }
+        throw error;
+      }
       this.databaseOpen = false;
       this.dataFence?.release();
       this.dataFence = null;
       throw error;
     }
+  }
+
+  /** Last persistence producer signal, for diagnostics and tests. */
+  getPersistenceSignal(): RuntimeProducerSignal | null {
+    return this.persistenceProducerControl?.getLastSignal() ?? null;
+  }
+
+  /**
+   * Run the orphaned-Crossagent-run settle pass. Called at boot (after the
+   * durable-gap arm, before the first supervisor spawn) and on every
+   * supervisor reset (after the old process is gone, before the respawn
+   * accepts requests) — the only two moments when "running in the database"
+   * provably means "owned by a dead supervisor generation". The pass commits
+   * each pending thread's accepted prefix first, so the dying generation's
+   * last admitted events cannot resurrect a running row after the sweep. The
+   * settle events are forwarded like any canonical event (the durable effect
+   * is the settle write itself, so like the truncate control path they
+   * deliberately bypass persistSupervisorEvent) so attached local and remote
+   * clients converge without waiting for a snapshot. A failure must never
+   * take the host down: the rows stay running, which is the pre-sweep status
+   * quo, and the next pass retries.
+   */
+  private settleOrphanedCrossagentRuns(when: "boot" | "supervisor-reset"): void {
+    try {
+      const report = settleOrphanedCrossagentRuns();
+      if (report.items > 0) {
+        console.info(
+          `[backend] settled ${report.items} orphaned Crossagent run row(s) across ${report.threads} thread(s) on ${when}`,
+        );
+        for (const batch of report.settledBatches) {
+          this.options.onEvent({
+            type: "thread-runtime-events",
+            threadId: batch.threadId,
+            events: batch.events,
+          });
+        }
+      }
+    } catch (error) {
+      console.warn(`[backend] Crossagent orphan settle failed on ${when}:`, error);
+    }
+  }
+
+  /** Read-only custody capability for services sharing this backend's root.
+   * The core remains the sole owner of acquisition and release. */
+  getDataCustody(): Pick<HostDataFence, "generation" | "assertActive"> | null {
+    const fence = this.dataFence;
+    return fence
+      ? {
+          generation: fence.generation,
+          assertActive: (expectedGeneration) => fence.assertActive(expectedGeneration),
+        }
+      : null;
+  }
+
+  /** Shutdown drain outcome from the last close attempt, if any. */
+  getPersistenceShutdownReport(): RuntimeShutdownReport | null {
+    return getRuntimePersistenceShutdownReport();
+  }
+
+  /**
+   * B1 GUI durable-gap recovery: ordinary read-only descriptor of a thread's
+   * current unacknowledged canonical episode, or null when the thread is
+   * clean. Throws typed (fail closed) when the durable state is unavailable or
+   * an episode identity is malformed; never writes and never arms.
+   */
+  getThreadRuntimeGap(threadId: string): RuntimeHistoryGapDescriptor | null {
+    if (this.closing) throw new Error("Backend host is shutting down.");
+    return getRuntimeThreadGapDescriptor(threadId);
+  }
+
+  /**
+   * B1 GUI durable-gap recovery: acknowledge the exact/suspect episode token a
+   * client read from `getThreadRuntimeGap`.
+   *
+   * Ordering: the supervisor per-thread dispatch lock (`runThreadMutation`)
+   * orders this against launches/sends/compound operations, and the
+   * persistence controller's per-thread mutation gate orders it against
+   * fences/truncates/rebases. The episode precondition plus the
+   * delete-matching-evidence + notice transaction is one synchronous SQL step;
+   * the accepted-but-uncommitted prefix is superseded only on `applied` (its
+   * count is folded into the notice), and committed transcript bytes are never
+   * rewritten.
+   *
+   * On `applied` only: the GUI `thread-reset` (clients discard local gapped
+   * state and re-hydrate) then the composition post-commit hook (live/replay
+   * notice scoping + resync). `already`/`stale` return zero-write outcomes.
+   */
+  async acknowledgeThreadRuntimeGap(
+    threadId: string,
+    token: string,
+  ): Promise<RuntimeHistoryGapAcknowledgeResult> {
+    if (this.closing) throw new Error("Backend host is shutting down.");
+    const result = await this.supervisorClient.runThreadMutation(threadId, () =>
+      acknowledgeRuntimeThreadGap(threadId, token),
+    );
+    if (result.outcome === "applied") {
+      // The durable acknowledgement is committed; publication is best-effort
+      // and each callback is guarded INDEPENDENTLY, so a throwing reset fan-out
+      // cannot skip the composition hook (or vice versa), and neither can turn
+      // committed success into a client-visible rejection. A retry after such
+      // a failure would return `already` and never reach this branch again.
+      try {
+        this.options.onEvent({ type: "thread-reset", threadId });
+      } catch (error) {
+        console.error("[backend] runtime gap acknowledgement reset publication failed:", error);
+      }
+      try {
+        this.options.onRuntimeGapAcknowledged?.(threadId);
+      } catch (error) {
+        console.error("[backend] runtime gap acknowledgement hook failed:", error);
+      }
+    }
+    return result;
   }
 
   /**
@@ -754,8 +895,23 @@ export class BackendHostCore {
     if (!this.supervisorJoined)
       throw new Error("Cannot close the database before supervisor work has joined.");
     this.terminalScrollbackPersistence.flush();
+    // Runs the runtime persistence drain hook. When accepted events remain
+    // uncommitted the hook throws a typed error, `closeDatabase` keeps the
+    // handle open (its documented failed-hook contract), and the report is
+    // available through `getPersistenceShutdownReport()`; this method must not
+    // mark the database closed or release custody in that case.
+    try {
+      closeDatabase();
+    } catch (error) {
+      console.error(
+        "[backend] database close did not commit all accepted runtime events; custody retained:",
+        getRuntimePersistenceShutdownReport() ?? error,
+      );
+      throw error;
+    }
     this.databaseOpen = false;
-    closeDatabase();
+    this.persistenceProducerControl?.dispose();
+    this.persistenceProducerControl = null;
     // The fence outlives the database handle on purpose: custody ends only
     // when nothing can write anymore. Process death also releases it.
     this.dataFence?.release();

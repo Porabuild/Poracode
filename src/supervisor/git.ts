@@ -52,6 +52,7 @@ import {
 } from "./git/statusParsing";
 import { GitExperimentService } from "./git/experimentService";
 import { GitStatusService } from "./git/statusService";
+import { isGitProcessAdmissionError } from "./git/gitProcessAdmission";
 import {
   GitWorktreeService,
   buildBranchListArgs,
@@ -205,7 +206,8 @@ export class GitService {
             detail === "summary"
               ? await this.statusService.getStatusSummary(wtLocation)
               : await this.statusService.getStatus(wtLocation);
-        } catch {
+        } catch (error) {
+          if (isGitProcessAdmissionError(error)) throw error;
           // Worktrees whose status fetch fails are silently dropped.
         }
       }

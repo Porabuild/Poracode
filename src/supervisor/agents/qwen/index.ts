@@ -9,6 +9,7 @@ import {
   detectAgentInstall,
   detectProbeLocation,
   iterm2ProgressOscHint,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
   type AgentEnvContext,
   type CreateStructuredSessionInput,
@@ -93,8 +94,8 @@ export function createQwenAdapter(): AgentAdapter {
       }
     },
 
-    buildLaunchArgv(location, config, prompt, _sessionRef, options) {
-      const mcp = qwenMcpLaunch(location, options?.mcpServers);
+    async buildLaunchArgv(location, config, prompt, _sessionRef, options) {
+      const mcp = await qwenMcpLaunch(location, options?.mcpServers);
       const sessionId = randomUUID();
       return {
         binary: "qwen",
@@ -104,8 +105,8 @@ export function createQwenAdapter(): AgentAdapter {
       };
     },
 
-    buildResumeArgv(location, config, prompt, sessionRef, options) {
-      const mcp = qwenMcpLaunch(location, options?.mcpServers);
+    async buildResumeArgv(location, config, prompt, sessionRef, options) {
+      const mcp = await qwenMcpLaunch(location, options?.mcpServers);
       return {
         binary: "qwen",
         ...mcp,
@@ -114,6 +115,7 @@ export function createQwenAdapter(): AgentAdapter {
     },
 
     async createStructuredSession(input: CreateStructuredSessionInput) {
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const acpBridge = createQwenAcpSessionBridge();
       const command = buildQwenCommand(
         input.projectLocation,
@@ -130,6 +132,7 @@ export function createQwenAdapter(): AgentAdapter {
 
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildQwenCommand(location, ["--acp"], resolveAgentBinaryPath(location, "qwen"));
     },
 

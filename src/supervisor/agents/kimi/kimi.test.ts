@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import { resolveSharedUpdateCommand } from "@/shared/agents/updateResolver";
-import { createKnownSessionRef } from "../base";
+import { createKnownSessionRef, primeWslLaunchEnvironment } from "../base";
 import { createKimiAdapter, resolveKimiEmptyResponseError } from "./index";
 import { buildKimiLogoutCommand } from "./kimiLogout";
 
@@ -106,8 +106,8 @@ describe("buildKimiLogoutCommand", () => {
   const isWindows = process.platform === "win32";
   const hostEnvKind = isWindows ? "windows" : "posix";
 
-  it("builds the credential-file cleanup spec without any side effect", () => {
-    const logout = buildKimiLogoutCommand({ envKind: hostEnvKind });
+  it("builds the credential-file cleanup spec without any side effect", async () => {
+    const logout = await buildKimiLogoutCommand({ envKind: hostEnvKind });
     expect(logout.args).toContain(isWindows ? "-NoLogo" : "-c");
     expect(logout.args.join(" ")).toContain(isWindows ? "Remove-Item" : "rm -f");
     expect(logout.args.join(" ")).toContain(
@@ -115,8 +115,9 @@ describe("buildKimiLogoutCommand", () => {
     );
   });
 
-  it("removes the managed OAuth token inside the selected WSL distro", () => {
-    const logout = buildKimiLogoutCommand({ envKind: "wsl", wslDistro: "Ubuntu" });
+  it("removes the managed OAuth token inside the selected WSL distro", async () => {
+    primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
+    const logout = await buildKimiLogoutCommand({ envKind: "wsl", wslDistro: "Ubuntu" });
     expect(logout.command.toLowerCase()).toContain("wsl");
     expect(logout.args).toContain("Ubuntu");
     expect(logout.args.join(" ")).toContain("credentials/kimi-code.json");
@@ -137,19 +138,24 @@ describe("buildKimiLogoutCommand", () => {
 describe("createKimiAdapter launch / resume argv", () => {
   const adapter = createKimiAdapter();
 
-  it("launches fresh without a sessionRef so discovery can run", () => {
-    const result = adapter.buildLaunchArgv(location, config, "", undefined, {});
+  it("launches fresh without a sessionRef so discovery can run", async () => {
+    const result = await adapter.buildLaunchArgv(location, config, "", undefined, {});
     expect(result.binary).toBe("kimi");
     expect(result.sessionRef).toBeUndefined();
   });
 
-  it("resumes a discovered id with --session", () => {
-    const result = adapter.buildResumeArgv(location, config, "", createKnownSessionRef("sess-123"));
+  it("resumes a discovered id with --session", async () => {
+    const result = await adapter.buildResumeArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef("sess-123"),
+    );
     expect(result.args.slice(0, 2)).toEqual(["--session", "sess-123"]);
   });
 
-  it("falls back to --continue when the ref carries no session id", () => {
-    const result = adapter.buildResumeArgv(location, config, "", {
+  it("falls back to --continue when the ref carries no session id", async () => {
+    const result = await adapter.buildResumeArgv(location, config, "", {
       providerSessionId: "",
       discoveredAt: "",
     });

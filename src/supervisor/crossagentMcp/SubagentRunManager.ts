@@ -11,6 +11,7 @@ import type {
   ToolCallPayload,
 } from "@/shared/contracts";
 import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/base";
+import type { HostResourceAdmission } from "@/supervisor/runtime/hostResourceAdmission";
 import { ForwardedRuntimeItemTracker } from "./ForwardedRuntimeItemTracker";
 import { SubagentAttemptRunner, type AttemptExecutionState } from "./SubagentAttemptRunner";
 import { SubagentSpawnError } from "./errors";
@@ -42,11 +43,22 @@ export interface SubagentRunManagerDeps {
   adapters: Map<AgentKind, AgentAdapter>;
   host: SubagentRunHost;
   /**
+   * Optional: the supervisor's one host execution-slot owner. Every child
+   * attempt (structured and one-shot) holds one `agent-session` slot from
+   * before its process starts until disposal/exit is observed.
+   */
+  admission?: HostResourceAdmission;
+  /**
    * Settings-filtered provider capabilities from the same status pipeline that
    * serves the roster. `null` explicitly denies a provider; `undefined` falls
    * back to live adapter capabilities when no cached status exists.
    */
   getStatusCapabilities?: (kind: AgentKind) => AgentCapability | null | undefined;
+  /**
+   * Optional bounded disposal-join deadline for child teardown. Production
+   * uses the shared lifecycle constant; focused harnesses tighten it.
+   */
+  structuredDisposalTimeoutMs?: number;
 }
 
 interface OutputSegment {
@@ -196,7 +208,20 @@ export class SubagentRunManager {
   private readonly attemptRunner: SubagentAttemptRunner;
 
   constructor(private readonly deps: SubagentRunManagerDeps) {
-    this.attemptRunner = new SubagentAttemptRunner(deps.host);
+    this.attemptRunner = new SubagentAttemptRunner(
+      deps.host,
+      deps.admission,
+      deps.structuredDisposalTimeoutMs,
+    );
+  }
+
+  /**
+   * Join/retry every child retirement still holding capacity (bounded per
+   * child). Used by cancellation retries and supervisor shutdown; custody is
+   * retained, never cancelled, when a disposal is still hanging.
+   */
+  async retryRetirements(): Promise<void> {
+    await this.attemptRunner.retryRetirements();
   }
 
   /** Validate every workflow stage before any process is launched. */
@@ -596,7 +621,12 @@ export class SubagentRunManager {
 
   /**
    * Cancel every live child of a parent and evict all of its run records.
-   * Called on parent thread interrupt and close.
+   * Called on parent thread close.
+   *
+   * A record whose teardown has not confirmed still keeps reachable
+   * {lease, handle/cleanup} custody: the attempt runner retains the attempt
+   * state (including its one pending disposal) by child key, so a later
+   * `retryRetirements`/shutdown joins it and releases exactly once.
    */
   cancelAllForThread(parentThreadId: string): void {
     this.lifecycle.emit(parentThreadId, "closed");

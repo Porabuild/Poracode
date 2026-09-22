@@ -11,13 +11,34 @@ export const REMOTE_SOCKET_POLICY = {
 
 export const REMOTE_ACCESS_SESSION_EXPIRED_REASON = "Remote access session expired";
 
+/**
+ * The managed desktop's co-located loopback leg: recovery is local and cheap,
+ * so the cadence is quicker than a paired remote host's. The caller owns the
+ * escalation after a bounded number of local attempts (see the intake).
+ */
+export const REMOTE_LOCAL_SOCKET_POLICY = {
+  reconnectBaseMs: 250,
+  reconnectMaxMs: 5_000,
+  connectTimeoutMs: 10_000,
+  requestTimeoutMs: 10_000,
+  healthPingIntervalMs: 15_000,
+  healthPingTimeoutMs: 5_000,
+} as const;
+
+export interface RemoteSocketReconnectPolicyOptions {
+  readonly baseMs?: number;
+  readonly maxMs?: number;
+}
+
 export class RemoteSocketReconnectPolicy {
   private attempt = 0;
 
+  constructor(private readonly options: RemoteSocketReconnectPolicyOptions = {}) {}
+
   nextDelay(): number {
     const delay = reconnectBackoffDelay(this.attempt, {
-      baseMs: REMOTE_SOCKET_POLICY.reconnectBaseMs,
-      maxMs: REMOTE_SOCKET_POLICY.reconnectMaxMs,
+      baseMs: this.options.baseMs ?? REMOTE_SOCKET_POLICY.reconnectBaseMs,
+      maxMs: this.options.maxMs ?? REMOTE_SOCKET_POLICY.reconnectMaxMs,
     });
     this.attempt += 1;
     return delay;
@@ -33,6 +54,8 @@ interface RemoteSocketHealthMonitorOptions<Socket> {
   readonly isOpen: (socket: Socket) => boolean;
   readonly send: (socket: Socket, payload: string) => void;
   readonly onDead: (socket: Socket) => void;
+  /** Pong timeout; defaults to the paired-session policy. */
+  readonly timeoutMs?: number;
 }
 
 /** Shared correlated ping/pong timeout policy for remote event sockets. */
@@ -65,7 +88,7 @@ export class RemoteSocketHealthMonitor<Socket> {
       this.timeout = null;
       if (!this.options.isCurrent(socket)) return;
       this.options.onDead(socket);
-    }, REMOTE_SOCKET_POLICY.healthPingTimeoutMs);
+    }, this.options.timeoutMs ?? REMOTE_SOCKET_POLICY.healthPingTimeoutMs);
   }
 
   acceptPong(id: string | undefined): boolean {

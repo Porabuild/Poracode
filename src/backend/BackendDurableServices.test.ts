@@ -1,16 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { readSharedSettingsFile, writeSharedSettingsFile } from "@/main/sharedSettingsFile";
+import { readSharedSettingsFile, writeSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { RoutingOverridePersistence } from "@/supervisor/crossagentMcp/RoutingOverridePersistence";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { defaultSharedSettings } from "@/shared/settings";
 import type { SettingsMutationResult } from "@/shared/settingsTransactions";
 import { BackendDurableServices } from "./BackendDurableServices";
 import type { BackendDurableServicesOptions } from "./BackendDurableServices";
-import { dbUpsertThread } from "@/main/db";
-import { agentStatusesResponseSchema, type ScheduledTask } from "@/shared/contracts";
+import {
+  dbArchiveDoneThreads,
+  dbDeleteThread,
+  dbIsThreadPurgeEligible,
+  dbSelectPurgeCandidateThreadIds,
+  dbUpsertThread,
+} from "@/host/db";
+import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
+import { agentStatusesResponseSchema, type ScheduledTask, type Thread } from "@/shared/contracts";
 
 const mocks = vi.hoisted(() => ({
   ingressInstances: [] as Array<{
@@ -18,22 +25,38 @@ const mocks = vi.hoisted(() => ({
     start: ReturnType<typeof vi.fn<() => Promise<{ url: string; token: string }>>>;
   }>,
   runScheduleTask: null as ((task: ScheduledTask) => Promise<string>) | null,
+  threadsDeletedListeners: [] as Array<(threadIds: readonly string[]) => void>,
+  liveThreadIds: [] as string[],
 }));
 
-vi.mock("@/main/db", () => ({
-  dbDeleteThread: vi.fn<() => undefined>(),
+vi.mock("@/host/db", () => ({
+  dbArchiveDoneThreads: vi.fn<() => string[]>(() => []),
+  dbDeleteThread: vi.fn<(threadId: string) => void>(),
   dbGetProject: vi.fn<() => undefined>(),
   dbGetProjectNotes: vi.fn<() => undefined>(),
   dbGetProjects: vi.fn<() => never[]>(() => []),
+  dbGetState: vi.fn<() => string | null>(() => null),
   dbGetThread: vi.fn<() => undefined>(),
   dbGetThreads: vi.fn<() => never[]>(() => []),
   dbInsertScheduleRun: vi.fn<() => undefined>(),
   dbInterruptScheduleRuns: vi.fn<() => undefined>(),
+  dbIsThreadPurgeEligible: vi.fn<() => boolean>(() => false),
+  dbListThreadIds: vi.fn<() => string[]>(() => mocks.liveThreadIds),
+  dbSelectPurgeCandidateThreadIds: vi.fn<() => string[]>(() => []),
   dbUpdateScheduleRun: vi.fn<() => undefined>(),
   dbUpsertThread: vi.fn<() => undefined>(),
+  onThreadsDeleted: vi.fn<(listener: (threadIds: readonly string[]) => void) => () => void>(
+    (listener) => {
+      mocks.threadsDeletedListeners.push(listener);
+      return () => {
+        const index = mocks.threadsDeletedListeners.indexOf(listener);
+        if (index >= 0) mocks.threadsDeletedListeners.splice(index, 1);
+      };
+    },
+  ),
 }));
 
-vi.mock("@/main/app-controls", () => ({
+vi.mock("@/host/app-controls", () => ({
   AppControlsMcpIngress: class {
     info: { url: string; token: string } | null = null;
     start = vi.fn<() => Promise<{ url: string; token: string }>>(() =>
@@ -57,7 +80,7 @@ vi.mock("@/main/app-controls", () => ({
   createAppControlsSupervisorCaller: (call: unknown) => call,
 }));
 
-vi.mock("@/main/gitState", () => ({
+vi.mock("@/host/gitState", () => ({
   createGitStateExecutor: () => ({}),
   GitStateService: class {
     start = () => {};
@@ -67,7 +90,7 @@ vi.mock("@/main/gitState", () => ({
   },
 }));
 
-vi.mock("@/main/prWatch", () => ({
+vi.mock("@/host/prWatch", () => ({
   buildPrWatchExecutionDeps: () => ({}),
   createDevicePrWatchService: () => ({
     start: () => {},
@@ -76,8 +99,8 @@ vi.mock("@/main/prWatch", () => ({
   }),
 }));
 
-vi.mock("@/main/schedules", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/main/schedules")>();
+vi.mock("@/host/schedules", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/host/schedules")>();
   return {
     ScheduleRunCoordinator: actual.ScheduleRunCoordinator,
     createDeviceScheduleService: (options: { runTask(task: ScheduledTask): Promise<string> }) => {
@@ -285,6 +308,227 @@ describe("headless routing durability", () => {
   });
 });
 
+describe("BackendDurableServices host-local invalidation", () => {
+  it("publishes the scheduled run's thread id and created home project through the narrow callbacks", async () => {
+    const publishThreadsChanged = vi.fn<(threadIds: readonly string[]) => void>();
+    const publishProjectsChanged = vi.fn<() => void>();
+    const call = vi.fn<(name: string, payload: unknown) => Promise<unknown>>(async (name) =>
+      name === "getAgentStatuses"
+        ? agentStatusesResponseSchema.parse({ fromCache: true, windows: [], wsl: [] })
+        : null,
+    );
+    const durable = createDurable({
+      supervisor: { call } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => defaultSharedSettings,
+      publishThreadsChanged,
+      publishProjectsChanged,
+    });
+    const task: ScheduledTask = {
+      id: "fixture-schedule",
+      name: "Fixture",
+      prompt: "Synthetic task",
+      agentKind: "fixture-agent",
+      config: { model: "fixture-model" },
+      recurrence: { kind: "hourly", minute: 0 },
+      enabled: true,
+      nextRunAt: null,
+      lastRunAt: null,
+      lastCompletedAt: null,
+      lastStatus: "never",
+      lastResult: null,
+      lastError: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    try {
+      const completion = mocks.runScheduleTask!(task);
+      void completion.catch(() => undefined);
+      await vi.waitFor(() => expect(dbUpsertThread).toHaveBeenCalledOnce());
+      const created = vi.mocked(dbUpsertThread).mock.calls[0]![0] as Thread;
+      expect(publishThreadsChanged).toHaveBeenCalledExactlyOnceWith([created.id]);
+      // The Home row did not exist, so its creation is published too.
+      expect(publishProjectsChanged).toHaveBeenCalledTimes(1);
+
+      durable.observeSupervisorEvent({
+        type: "thread-state",
+        threadId: created.id,
+        status: "working",
+        attention: "none",
+        canResumeWithConfig: false,
+      });
+      durable.observeSupervisorEvent({
+        type: "thread-state",
+        threadId: created.id,
+        status: "idle",
+        attention: "none",
+        canResumeWithConfig: false,
+      });
+      await expect(completion).resolves.toBe("");
+    } finally {
+      await durable.dispose();
+    }
+  });
+});
+
+describe("BackendDurableServices thread housekeeping", () => {
+  it("runs exactly one host-policy sweep when background services start", async () => {
+    vi.mocked(dbSelectPurgeCandidateThreadIds).mockReturnValue([]);
+    const durable = createDurable({
+      supervisor: {
+        call: vi.fn<(name: string, payload: unknown) => Promise<null>>(async () => null),
+        runThreadMutation: <T>(_threadId: string, operation: () => Promise<T>) => operation(),
+      } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => defaultSharedSettings,
+    });
+    try {
+      durable.startBackgroundServices();
+      durable.startBackgroundServices();
+      await vi.waitFor(() => expect(dbArchiveDoneThreads).toHaveBeenCalledTimes(1));
+      expect(dbSelectPurgeCandidateThreadIds).toHaveBeenCalledTimes(1);
+    } finally {
+      await durable.dispose();
+    }
+  });
+
+  it("purges through the confirmed close, custody delete, and bounded publication", async () => {
+    vi.mocked(dbSelectPurgeCandidateThreadIds).mockReturnValue(["t-old"]);
+    vi.mocked(dbIsThreadPurgeEligible).mockReturnValue(true);
+    const call = vi.fn<(name: string, payload: unknown) => Promise<unknown>>(async (name) =>
+      name === "closeThreadConfirmed" ? { confirmed: true } : null,
+    );
+    const runThreadMutation = vi.fn<
+      (threadId: string, operation: () => Promise<unknown>) => Promise<unknown>
+    >((_threadId, operation) => operation());
+    const publishThreadsChanged = vi.fn<(threadIds: readonly string[]) => void>();
+    const durable = createDurable({
+      supervisor: {
+        call,
+        runThreadMutation,
+      } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => defaultSharedSettings,
+      publishThreadsChanged,
+    });
+    try {
+      durable.startThreadHousekeeping();
+      await vi.waitFor(() => expect(dbDeleteThread).toHaveBeenCalledWith("t-old"));
+      expect(runThreadMutation).toHaveBeenCalledWith("t-old", expect.any(Function));
+      expect(call).toHaveBeenCalledWith(
+        "closeThreadConfirmed",
+        { threadId: "t-old" },
+        {
+          startIfNeeded: false,
+        },
+      );
+      expect(publishThreadsChanged).toHaveBeenCalledExactlyOnceWith(["t-old"]);
+    } finally {
+      await durable.dispose();
+    }
+  });
+
+  it("purges with no supervisor running and never starts one (H2)", async () => {
+    vi.mocked(dbSelectPurgeCandidateThreadIds).mockReturnValue(["t-cold"]);
+    vi.mocked(dbIsThreadPurgeEligible).mockReturnValue(true);
+    const call = vi.fn<() => Promise<never>>(async () => {
+      throw new SupervisorUnavailableError();
+    });
+    const isSupervisorProvenAbsent = vi.fn<() => boolean>(() => true);
+    const durable = createDurable({
+      supervisor: {
+        call,
+        runThreadMutation: <T>(_threadId: string, operation: () => Promise<T>) => operation(),
+        isSupervisorProvenAbsent,
+      } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => defaultSharedSettings,
+    });
+    try {
+      durable.startThreadHousekeeping();
+      await vi.waitFor(() => expect(dbDeleteThread).toHaveBeenCalledWith("t-cold"));
+      expect(call).toHaveBeenCalledWith(
+        "closeThreadConfirmed",
+        { threadId: "t-cold" },
+        {
+          startIfNeeded: false,
+        },
+      );
+      expect(isSupervisorProvenAbsent).toHaveBeenCalled();
+    } finally {
+      await durable.dispose();
+    }
+  });
+
+  it("skips purge when a disconnected child or transition cannot prove absence (H2)", async () => {
+    vi.mocked(dbSelectPurgeCandidateThreadIds).mockReturnValue(["t-transition"]);
+    vi.mocked(dbIsThreadPurgeEligible).mockReturnValue(true);
+    const publishThreadsChanged = vi.fn<(threadIds: readonly string[]) => void>();
+    const reportError = vi.fn<(error: unknown) => void>();
+    const durable = createDurable({
+      supervisor: {
+        call: vi.fn<() => Promise<never>>(async () => {
+          throw new SupervisorUnavailableError();
+        }),
+        runThreadMutation: <T>(_threadId: string, operation: () => Promise<T>) => operation(),
+        isSupervisorProvenAbsent: () => false,
+      } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => defaultSharedSettings,
+      publishThreadsChanged,
+      reportError,
+    });
+    try {
+      durable.startThreadHousekeeping();
+      await vi.waitFor(() => expect(reportError).toHaveBeenCalled());
+      expect(dbDeleteThread).not.toHaveBeenCalled();
+      expect(publishThreadsChanged).not.toHaveBeenCalled();
+    } finally {
+      await durable.dispose();
+    }
+  });
+
+  it("cancels and joins a held retirement before disposal resolves, with no later DB touch (H4)", async () => {
+    vi.mocked(dbSelectPurgeCandidateThreadIds).mockReturnValue(["t-held"]);
+    vi.mocked(dbIsThreadPurgeEligible).mockReturnValue(true);
+    const entered = Promise.withResolvers<void>();
+    const held = Promise.withResolvers<{ confirmed: boolean }>();
+    const call = vi.fn<(name: string, payload: unknown) => Promise<unknown>>(async () => {
+      entered.resolve();
+      return held.promise;
+    });
+    const publishThreadsChanged = vi.fn<(threadIds: readonly string[]) => void>();
+    const eligibleCallsBeforeDispose = vi.mocked(dbIsThreadPurgeEligible).mock.calls.length;
+    const durable = createDurable({
+      supervisor: {
+        call,
+        runThreadMutation: <T>(_threadId: string, operation: () => Promise<T>) => operation(),
+        isSupervisorProvenAbsent: () => false,
+      } as unknown as BackendDurableServicesOptions["supervisor"],
+      getSharedSettings: () => defaultSharedSettings,
+      publishThreadsChanged,
+    });
+    durable.startThreadHousekeeping();
+    await entered.promise;
+    const deletesBefore = vi.mocked(dbDeleteThread).mock.calls.length;
+    const readsWhileHeld = vi.mocked(dbIsThreadPurgeEligible).mock.calls.length;
+
+    let disposed = false;
+    const disposal = durable.dispose().then(() => {
+      disposed = true;
+    });
+    await Promise.resolve();
+    // The owner joins the held retirement instead of closing underneath it.
+    expect(disposed).toBe(false);
+
+    held.resolve({ confirmed: true });
+    await disposal;
+    expect(disposed).toBe(true);
+    // Cancellation won after the await: no eligibility re-read, no delete, no publication.
+    expect(vi.mocked(dbIsThreadPurgeEligible).mock.calls.length).toBe(readsWhileHeld);
+    expect(vi.mocked(dbDeleteThread).mock.calls.length).toBe(deletesBefore);
+    expect(publishThreadsChanged).not.toHaveBeenCalled();
+    expect(vi.mocked(dbIsThreadPurgeEligible).mock.calls.length).toBeGreaterThan(
+      eligibleCallsBeforeDispose,
+    );
+  });
+});
+
 describe("BackendDurableServices startIngress", () => {
   it("cancels a schedule waiting for capabilities and joins its continuation before disposal resolves", async () => {
     const lookup = Promise.withResolvers<ReturnType<typeof agentStatusesResponseSchema.parse>>();
@@ -429,5 +673,38 @@ describe("BackendDurableServices startIngress", () => {
       PORACODE_APP_CONTROLS_MCP_URL: "http://127.0.0.1:0/mcp",
       PORACODE_APP_CONTROLS_MCP_TOKEN: "token",
     });
+  });
+});
+
+describe("BackendDurableServices attachment reclamation", () => {
+  it("reclaims a deleted thread's attachment directory through the DB seam and unsubscribes on dispose", async () => {
+    const root = mkdtempSync(join(tmpdir(), "reclaim-wiring-"));
+    try {
+      const attachmentsDir = join(root, "attachments");
+      mkdirSync(join(attachmentsDir, "gone-12"), { recursive: true });
+      writeFileSync(join(attachmentsDir, "gone-12", "a.png"), "a");
+      mocks.liveThreadIds = [];
+      const durable = createDurable({ attachmentsDir });
+      expect(mocks.threadsDeletedListeners.length).toBeGreaterThan(0);
+      const listener = mocks.threadsDeletedListeners.at(-1)!;
+      listener(["gone-12"]);
+      await vi.waitFor(() => expect(existsSync(join(attachmentsDir, "gone-12"))).toBe(false));
+      // Dispose owns the subscription: a late seam notification is a no-op.
+      await durable.dispose();
+      const listenersBefore = mocks.threadsDeletedListeners.length;
+      listener(["gone-12"]);
+      expect(mocks.threadsDeletedListeners.length).toBe(listenersBefore);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("stays unsubscribed when no attachments root is wired", async () => {
+    const durable = createDurable();
+    try {
+      expect(mocks.threadsDeletedListeners).toHaveLength(0);
+    } finally {
+      await durable.dispose();
+    }
   });
 });

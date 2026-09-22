@@ -239,7 +239,6 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   gitWatchProject: undefined,
   gitWatchWorktrees: undefined,
   gitUnwatchProject: undefined,
-  revealProjectEntry: undefined,
   startThread: { threadId: "t1" },
   ensureThreadRunning: { threadId: "t1" },
   createRevertAnchor: { anchor: { version: 1 as const, data: { cursor: 1 } } },
@@ -256,16 +255,6 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
   connectThreadVoice: { answerSdp: "v=0" },
   disconnectThreadVoice: undefined,
   lspStart: undefined,
-  dbDeleteThread: undefined,
-  dbDeleteProject: undefined,
-  dbGetThreadRuntimeItems: [],
-  dbGetLatestThreadGoalItem: null,
-  dbGetThreadsPage: { threads: [], nextCursor: null },
-  dbReplaceThreadRuntimeItems: undefined,
-  dbGetThreadCompletedTurns: [],
-  dbReplaceThreadCompletedTurns: undefined,
-  dbReplaceThreadRuntimeSnapshot: undefined,
-  dbGetThreadContextUsage: { usedTokens: 1, maxTokens: 100 },
   readTerminalScrollback: "",
   readTerminalSize: { cols: 120, rows: 30 },
   readTerminalSnapshot: {
@@ -277,8 +266,6 @@ export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
     terminalSize: { cols: 120, rows: 30 },
   },
   readThreadBackgroundTasks: [],
-  detectProjectIcon: null,
-  listProjectIconFiles: [],
 } as const satisfies Record<RemoteProcedureName, unknown>;
 
 export function omittedProcedureNames(): RemoteProcedureName[] {

@@ -5,6 +5,7 @@ import {
   checkpointRevertResultSchema,
   clearPendingSteerPayloadSchema,
   controlThreadGoalPayloadSchema,
+  closeThreadConfirmedResultSchema,
   closeThreadPayloadSchema,
   createRevertAnchorPayloadSchema,
   createRevertAnchorResultSchema,
@@ -58,6 +59,7 @@ import type {
   ControlThreadGoalPayload,
   CheckpointRevertPayload,
   CheckpointRevertResult,
+  CloseThreadConfirmedResult,
   CloseThreadPayload,
   CreateRevertAnchorPayload,
   CreateRevertAnchorResult,
@@ -100,6 +102,10 @@ import type {
 } from "../../contracts";
 import type { CrossagentRoutingState } from "../../crossagentRanking";
 import type { AvailableWindowsShell } from "../../settings";
+import {
+  hostResourceAdmissionStatusSchema,
+  type HostResourceAdmissionStatus,
+} from "../../hostResourceAdmission";
 import {
   defineIpcProcedure,
   defineNoArgProcedure,
@@ -213,6 +219,17 @@ export const threadProcedures = {
   getThreadSnapshots: defineNoArgProcedure<ThreadRuntimeSnapshot[], "supervisor">(
     "getThreadSnapshots",
     "supervisor",
+  ),
+  /**
+   * Additive on-demand host-resource-admission diagnostics (effective policy,
+   * resolution state, live usage). Internal supervisor procedure only: not in
+   * `REMOTE_PROCEDURE_SPECS`, so no remote allowlist/codegen change. Callers
+   * must treat an old or unavailable supervisor as unavailable, never as zero.
+   */
+  getResourceAdmissionStatus: defineNoArgProcedure<HostResourceAdmissionStatus, "supervisor">(
+    "getResourceAdmissionStatus",
+    "supervisor",
+    hostResourceAdmissionStatusSchema,
   ),
   getTerminalShellSnapshots: defineNoArgProcedure<TerminalShellSnapshot[], "supervisor">(
     "getTerminalShellSnapshots",
@@ -393,6 +410,23 @@ export const threadProcedures = {
     "closeThread",
     "supervisor",
     closeThreadPayloadSchema,
+  ),
+  /**
+   * Confirmed-retirement close for destructive host policy (housekeeping
+   * purge): unlike `closeThread`, it reports whether every owned process
+   * effect is verifiably retired. Additive name: a peer that predates it
+   * loud-rejects the name, and the caller treats that as "not confirmed" and
+   * keeps the row.
+   */
+  closeThreadConfirmed: definePayloadProcedure<
+    CloseThreadPayload,
+    CloseThreadConfirmedResult,
+    "supervisor"
+  >(
+    "closeThreadConfirmed",
+    "supervisor",
+    closeThreadPayloadSchema,
+    closeThreadConfirmedResultSchema,
   ),
   startShell: definePayloadProcedure<StartShellPayload, void, "supervisor">(
     "startShell",

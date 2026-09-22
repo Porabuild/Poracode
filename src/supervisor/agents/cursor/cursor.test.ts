@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Logout command tests only assert argv wrapping; skip WSL PATH probes that
 // hang when the full suite spawns many wsl.exe processes in parallel.
@@ -34,6 +34,7 @@ import {
 } from "./index";
 import { buildCursorArgs } from "./argv";
 import { CursorSdkSession } from "./sdkSession";
+import { primeWslLaunchEnvironment } from "../base";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
@@ -99,7 +100,7 @@ describe("createCursorAdapter capabilities", () => {
     ).toThrow("Cursor profiles require a CURSOR_API_KEY");
   });
 
-  it("does not pass SDK-local session ids to cursor-agent context extraction", () => {
+  it("does not pass SDK-local session ids to cursor-agent context extraction", async () => {
     const adapter = createCursorAdapter();
     const location = { kind: "posix" as const, path: "/repo" };
     expect(
@@ -112,12 +113,14 @@ describe("createCursorAdapter capabilities", () => {
       ),
     ).toBeUndefined();
     expect(
-      adapter.buildContextExtractionCommand?.(
-        {
-          providerSessionId: "cli-chat-123",
-          discoveredAt: "2026-07-27T00:00:00.000Z",
-        },
-        location,
+      (
+        await adapter.buildContextExtractionCommand?.(
+          {
+            providerSessionId: "cli-chat-123",
+            discoveredAt: "2026-07-27T00:00:00.000Z",
+          },
+          location,
+        )
       )?.args,
     ).toContain("--resume=cli-chat-123");
   });
@@ -717,6 +720,10 @@ describe("buildCursorProbeSpec", () => {
       expect(cmdArgs).toEqual(["--list-models"]);
     },
   );
+});
+
+beforeEach(() => {
+  primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
 });
 
 describe("Cursor logout support", () => {

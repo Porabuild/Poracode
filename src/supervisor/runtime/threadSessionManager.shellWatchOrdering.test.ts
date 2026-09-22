@@ -10,15 +10,25 @@ vi.mock("../agents/base", async (importOriginal) => ({
   primeProjectShellEnv: async () => undefined,
 }));
 vi.mock("node-pty", () => ({
-  spawn: () => ({
-    pid: process.pid,
-    cols: 80,
-    rows: 24,
-    kill: () => undefined,
-    onData: () => undefined,
-    onExit: () => undefined,
-    write: () => undefined,
-  }),
+  spawn: () => {
+    const exitHandlers: Array<(event: { exitCode: number | null }) => void> = [];
+    return {
+      pid: process.pid,
+      cols: 80,
+      rows: 24,
+      // A well-behaved PTY: kill delivers the asynchronous exit the same way
+      // the real native callback does. The replacement gate now requires that
+      // exit before a same-id successor may start.
+      kill: () => {
+        for (const handler of [...exitHandlers]) handler({ exitCode: 0 });
+      },
+      onData: () => undefined,
+      onExit: (handler: (event: { exitCode: number | null }) => void) => {
+        exitHandlers.push(handler);
+      },
+      write: () => undefined,
+    };
+  },
 }));
 
 import { ThreadSessionManager } from "./threadSessionManager";

@@ -34,7 +34,7 @@ function run(adapter: AgentAdapter): Promise<{
 }> {
   return new Promise((resolve) => {
     let output = "";
-    runOneShotChild({
+    void runOneShotChild({
       adapter,
       projectLocation: PROJECT,
       model: "m",
@@ -86,18 +86,17 @@ describe("runOneShotChild", () => {
       args: ["-e", "setTimeout(() => {}, 30000)"],
       stdin: "",
     }));
-    const settled = new Promise<"completed" | "failed">((resolve) => {
-      const handle = runOneShotChild({
-        adapter,
-        projectLocation: PROJECT,
-        model: "m",
-        effort: undefined,
-        prompt: "hi",
-        onTextDelta: () => {},
-        onSettle: ({ status }) => resolve(status),
-      });
-      setTimeout(() => handle.cancel(), 50);
+    const { promise: settled, resolve: settle } = Promise.withResolvers<"completed" | "failed">();
+    const handle = await runOneShotChild({
+      adapter,
+      projectLocation: PROJECT,
+      model: "m",
+      effort: undefined,
+      prompt: "hi",
+      onTextDelta: () => {},
+      onSettle: ({ status }) => settle(status),
     });
+    setTimeout(() => handle.cancel(), 50);
     // A killed process never exits 0 → the driver reports a non-completed settle.
     expect(await settled).toBe("failed");
   });
@@ -106,7 +105,7 @@ describe("runOneShotChild", () => {
     const ready = Promise.withResolvers<void>();
     const terminating = Promise.withResolvers<void>();
     const onSettle = vi.fn<OneShotChildParams["onSettle"]>();
-    const handle = runOneShotChild({
+    const handle = await runOneShotChild({
       adapter: nodeAdapter(() => ({
         command: process.execPath,
         args: [
@@ -150,7 +149,7 @@ describe("runOneShotChild", () => {
   it("escalates to SIGKILL when a child ignores SIGTERM", async () => {
     const ready = Promise.withResolvers<void>();
     const onSettle = vi.fn<OneShotChildParams["onSettle"]>();
-    const handle = runOneShotChild({
+    const handle = await runOneShotChild({
       adapter: nodeAdapter(() => ({
         command: process.execPath,
         args: [
@@ -174,7 +173,7 @@ describe("runOneShotChild", () => {
 
   it("returns an already closed handle when no command can be spawned", async () => {
     const onSettle = vi.fn<OneShotChildParams["onSettle"]>();
-    const handle = runOneShotChild({
+    const handle = await runOneShotChild({
       adapter: nodeAdapter(() => undefined),
       projectLocation: PROJECT,
       model: "m",

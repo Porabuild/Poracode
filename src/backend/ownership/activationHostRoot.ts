@@ -202,7 +202,7 @@ export async function activateStagedHostRoot(
     }
   }
   const receipt = readPendingReceiptFromPaths(paths);
-  revalidateStagedEvidence(paths, receipt);
+  await revalidateStagedEvidence(paths, receipt);
   const stagedKey = readStagedKeyFile(paths, receipt);
 
   const plan = await resolveCredentialPlan(stagedKey, options);
@@ -219,7 +219,7 @@ export async function activateStagedHostRoot(
         "The staged import changed during activation; nothing was changed. Re-stage the backup.",
       );
     }
-    revalidateStagedEvidence(paths, authoritative);
+    await revalidateStagedEvidence(paths, authoritative);
     const currentKey = readStagedKeyFile(paths, authoritative);
     if (currentKey.name !== stagedKey.name || currentKey.value !== stagedKey.value) {
       throw new Error(
@@ -450,7 +450,9 @@ async function completeInterruptedActivation(
         "the staged receipt no longer matches the interrupted attempt.",
       );
     }
-    if (hashImportFile(join(lease.paths.dataRoot, "state.sqlite")) !== receipt.databaseSha256) {
+    if (
+      (await hashImportFile(join(lease.paths.dataRoot, "state.sqlite"))) !== receipt.databaseSha256
+    ) {
       throw new HostActivationInterruptedError(
         "the staged database no longer matches its verified hash.",
       );
@@ -615,10 +617,14 @@ function readPendingReceiptFromPaths(paths: HostRootPaths): HostImportReceipt {
  * the copied file inventory (the two owned-root markers post-date the staged
  * inventory and are excluded, mirroring the staging-time copy verification).
  * Also reused by the automatic desktop promotion, whose redo path re-runs it
- * while no custody side effect has landed yet.
+ * while no custody side effect has landed yet. The reads are asynchronous, so
+ * a large staged root never blocks the desktop main process.
  */
-export function revalidateStagedEvidence(paths: HostRootPaths, receipt: HostImportReceipt): void {
-  const inventory = inventoryImportFiles(paths.dataRoot);
+export async function revalidateStagedEvidence(
+  paths: HostRootPaths,
+  receipt: HostImportReceipt,
+): Promise<void> {
+  const inventory = await inventoryImportFiles(paths.dataRoot);
   const stagedEntries = inventory.entries.filter(
     (entry) =>
       entry.path !== HOST_IMPORT_RECEIPT_FILE &&
@@ -640,7 +646,7 @@ export function revalidateStagedEvidence(paths: HostRootPaths, receipt: HostImpo
     );
   }
   const databasePath = join(paths.dataRoot, "state.sqlite");
-  if (hashImportFile(databasePath) !== receipt.databaseSha256) {
+  if ((await hashImportFile(databasePath)) !== receipt.databaseSha256) {
     throw new Error(
       "The staged database no longer matches its verified hash; activation was refused " +
         "and nothing was changed. Re-stage the offline backup.",

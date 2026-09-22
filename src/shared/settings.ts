@@ -28,6 +28,10 @@ import {
   machineScopeModesSchema,
   machineSettingsEntrySchema,
 } from "./machineSettings";
+import {
+  DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS,
+  hostResourceAdmissionSettingsSchema,
+} from "./hostResourceAdmission";
 import { parseMachineKey } from "./machines";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
@@ -683,6 +687,16 @@ export const sharedSettingsSchema = z.object({
   /** Provider usage tracking (auto-refresh cadence, per-provider opt-out, cost). */
   usage: usageSettingsSchema,
   /**
+   * Supervisor execution-slot bounds. Each value is a nonnegative finite safe
+   * integer with no arbitrary ceiling; `0` is explicitly unlimited and is the
+   * pre-measurement transitional default, not a validated protective number.
+   * The count bounds supervisor execution slots (agent sessions, user terminal
+   * shells, short-lived generation helpers), never provider descendants, OS
+   * processes or RSS. The supervisor reads the raw document through its own
+   * settings cache; a present invalid value never becomes unlimited.
+   */
+  hostResourceAdmission: hostResourceAdmissionSettingsSchema,
+  /**
    * Free-text routing instructions appended to the Crossagents MCP server
    * `instructions`, guiding how an agent picks which connected agent/model to
    * delegate to when spawning subagents (e.g. "Codex GPT-5.5 fast for quick
@@ -853,6 +867,7 @@ export const defaultSharedSettings: SharedSettings = {
     collapsedProviders: [],
     selectedRingGroups: {},
   },
+  hostResourceAdmission: { ...DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS },
   crossagentRoutingGuide: "",
 };
 

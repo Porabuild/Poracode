@@ -12,16 +12,19 @@ import { primeAgentBinaryPath, resolveAgentBinaryPath } from "../binaryResolver"
 import {
   batchWslCommandsAsync,
   getCachedWslHomeDirectory,
+  getCachedWslShellPath,
   getPrimedPosixEnv,
   getProjectShellEnv,
   getWindowsPathOverrideEnv,
   extractWindowsCmdShimScript,
   isWslInteropBinaryPath,
+  prepareWslDistroEnvironment,
   readCommandOutputAsync,
   readWslLoginShellCommandOutputAsync,
   resolveExecutablePath,
   resolveExecutablePathAsync,
-  resolveWslShellPath,
+  WslLaunchEnvironmentUnpreparedError,
+  type WslDistroEnvironmentOptions,
 } from "./processRuntime";
 import {
   buildPosixExportPrefix,
@@ -68,6 +71,7 @@ export type {
   AgentUpdater,
   AgentUpdaterCommand,
   AuthProbe,
+  Awaitable,
   CapabilitiesProbeResult,
   CommandSpec,
   CreateStructuredSessionInput,
@@ -136,26 +140,42 @@ export function injectWslEnv(
   return { ...spec, args };
 }
 
+/**
+ * Build the `wsl.exe … --exec <loginShell> -l -i -c <script>` command line from
+ * the prepared launch environment. Pure and non-blocking: when the environment
+ * is cold this throws {@link WslLaunchEnvironmentUnpreparedError} instead of
+ * probing synchronously. Production callers await
+ * {@link prepareAgentLocationEnvironment} (or `prepareWslDistroEnvironment`)
+ * first.
+ */
 export function buildWslLoginShellCommand(
   distro: string,
   cwd: string,
   script: string,
+  shellPath?: string,
 ): CommandSpec {
+  const resolvedShell = shellPath ?? getCachedWslShellPath(distro);
+  if (!resolvedShell) {
+    throw new WslLaunchEnvironmentUnpreparedError(distro);
+  }
   return {
     command: getWslCommand(),
-    args: [
-      "-d",
-      distro,
-      "--cd",
-      cwd,
-      "--exec",
-      resolveWslShellPath(distro),
-      "-l",
-      "-i",
-      "-c",
-      script,
-    ],
+    args: ["-d", distro, "--cd", cwd, "--exec", resolvedShell, "-l", "-i", "-c", script],
   };
+}
+
+/**
+ * Await the authoritative preparation behind every WSL command builder for a
+ * location. A no-op for native locations. Every production path that reaches
+ * `buildAgentCommand` with a WSL location must await this first; the builder
+ * then reads the prepared cache synchronously.
+ */
+export async function prepareAgentLocationEnvironment(
+  location: ProjectLocation,
+  options?: WslDistroEnvironmentOptions,
+): Promise<void> {
+  if (location.kind !== "wsl") return;
+  await prepareWslDistroEnvironment(location.distro, options);
 }
 
 /**
@@ -396,7 +416,11 @@ export function buildAgentCommand(
  * forwards the optional `sessionRef`. Adapters stay free of shell/platform
  * concerns — all branching lives here.
  */
-export function resolveLaunchSpec(location: ProjectLocation, argv: AgentArgvSpec): CommandSpec {
+export async function resolveLaunchSpec(
+  location: ProjectLocation,
+  argv: AgentArgvSpec,
+): Promise<CommandSpec> {
+  await prepareAgentLocationEnvironment(location);
   const resolvedExecPath =
     argv.preferShell && location.kind === "posix"
       ? undefined
@@ -462,6 +486,7 @@ export function configFileAuthProbe(
 export function cliSubcommandAuthProbe(args: string[]): AuthProbe {
   return async (ctx) => {
     if (!ctx.executablePath) return undefined;
+    await prepareAgentLocationEnvironment(ctx.location, { signal: ctx.signal });
     const spec = buildAgentCommand(ctx.location, ctx.executablePath, args, ctx.executablePath);
     const result = await readCommandOutputAsync(spec.command, spec.args, {
       ...(spec.cwd ? { cwd: spec.cwd } : {}),
@@ -501,6 +526,7 @@ export function buildAgentLogoutCommand(
 ): (ctx?: AgentEnvContext) => Promise<CommandSpec> {
   return async (ctx) => {
     const location = detectProbeLocation(ctx);
+    await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
     return buildAgentCommand(location, binary, args, resolveAgentBinaryPath(location, binary));
   };
 }
@@ -755,6 +781,10 @@ export async function detectAgentInstall(
 ): Promise<AgentStatus> {
   ctx?.signal?.throwIfAborted();
   const location = detectProbeLocation(ctx);
+  // Provider probes build WSL login-shell commands after the binary resolves;
+  // prepare the launch environment once here so every probe reads a warm cache
+  // instead of ever probing synchronously.
+  await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
   const executablePath = await resolveDetectedBinary(ctx, spec);
   ctx?.signal?.throwIfAborted();
 

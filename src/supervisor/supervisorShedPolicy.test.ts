@@ -31,6 +31,7 @@ describe("createSupervisorOutputShedPolicy", () => {
     onFatalError: (error: Error) => void;
     onMessagesShed?: (shed: { count: number; bytes: number }) => void;
     maxQueuedMessages?: number;
+    maxQueuedBytes?: number;
   }) {
     const sent: Outbound[] = [];
     let release: ((error: Error | null) => void) | undefined;
@@ -48,6 +49,7 @@ describe("createSupervisorOutputShedPolicy", () => {
       onFatalError: options.onFatalError,
       ...(options.onMessagesShed ? { onMessagesShed: options.onMessagesShed } : {}),
       ...(options.maxQueuedMessages ? { maxQueuedMessages: options.maxQueuedMessages } : {}),
+      ...(options.maxQueuedBytes ? { maxQueuedBytes: options.maxQueuedBytes } : {}),
       backpressureTimeoutMs: null,
       shedPolicy: createSupervisorOutputShedPolicy(),
     });
@@ -70,6 +72,9 @@ describe("createSupervisorOutputShedPolicy", () => {
       onFatalError,
       onMessagesShed,
       maxQueuedMessages: 4,
+      // Bulk byte budget binds first, so the final terminal batch triggers the
+      // shed while the protected reply/state ride the control lane.
+      maxQueuedBytes: 300,
     });
     const reply: SupervisorReply = { replyTo: "r", ok: true, data: null };
     const flushBatch = () => vi.advanceTimersByTime(8);
@@ -170,10 +175,11 @@ describe("createSupervisorOutputShedPolicy", () => {
       shedPolicy: createSupervisorOutputShedPolicy(),
     });
 
-    sender.reply({ replyTo: "one", ok: true, data: null });
-    sender.reply({ replyTo: "two", ok: true, data: null });
-    sender.reply({ replyTo: "three", ok: true, data: null });
-    sender.reply({ replyTo: "four", ok: true, data: null });
+    // Bulk, non-sheddable traffic: nothing the policy may drop.
+    sender.emit({ type: "git-changed", projectId: "p1" });
+    sender.emit({ type: "git-changed", projectId: "p2" });
+    sender.emit({ type: "git-changed", projectId: "p3" });
+    sender.emit({ type: "git-changed", projectId: "p4" });
 
     expect(onFatalError).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ message: expect.stringContaining("exceeded its limit") }),

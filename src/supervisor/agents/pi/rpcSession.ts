@@ -110,7 +110,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   private readonly openToolItems = new Map<string, string>();
   private readonly unsubscribeEvents: () => void;
   private readonly unsubscribeExit: () => void;
-  private readonly cleanupMcp: (() => void) | undefined;
+  private readonly cleanupMcp: (() => Promise<void>) | undefined;
   private dialogSequence = 0;
   private itemSequence = 0;
   private turnSequence = 0;
@@ -145,7 +145,7 @@ export class PiRpcSession implements StructuredSessionHandle {
   private constructor(
     private readonly input: CreateStructuredSessionInput,
     client: PiRpcClient,
-    cleanupMcp?: () => void,
+    cleanupMcp?: () => Promise<void>,
   ) {
     this.launchOptions = {
       ...(input.agentSettings ? { agentSettings: input.agentSettings } : {}),
@@ -168,7 +168,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     }
     const cwd = input.projectLocation.path;
     const binary = options?.binary ?? resolveAgentBinaryPath(input.projectLocation, "pi") ?? "pi";
-    const mcp = piMcpLaunch(input.projectLocation, input.mcpServers);
+    const mcp = await piMcpLaunch(input.projectLocation, input.mcpServers);
 
     const args = ["--mode", "rpc", "--approve"];
     const resumeId = input.sessionRef?.providerSessionId;
@@ -193,7 +193,7 @@ export class PiRpcSession implements StructuredSessionHandle {
       return new PiRpcSession(input, client, mcp.cleanup);
     } catch (error) {
       await client.close();
-      mcp.cleanup?.();
+      await mcp.cleanup?.();
       throw error;
     }
   }
@@ -337,7 +337,7 @@ export class PiRpcSession implements StructuredSessionHandle {
     this.unsubscribeEvents();
     this.unsubscribeExit();
     await this.client.close();
-    this.cleanupMcp?.();
+    await this.cleanupMcp?.();
     this.emit({ type: "session.exited", threadId: this.input.threadId, reason: "disposed" });
     this.listener.onClose();
   }

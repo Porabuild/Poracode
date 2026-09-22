@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import Database from "better-sqlite3";
 import { existsSync, lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { resolveBetterSqliteNativeBindingOptions } from "@/main/db/connection";
-import { preparePoracodeDataRoot } from "@/main/poracodeData";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { preparePoracodeDataRoot } from "@/host/poracodeData";
 import type { PoracodePaths } from "@/shared/poracodePaths";
 import type { HostCredentialMode } from "./hostCredentialState";
 import { secretKeyFingerprint, writeHostCredentialState } from "./hostCredentialState";
@@ -398,7 +398,7 @@ async function settlePromotionCustody(
     // credential state landed (resume forward: the state write is
     // deterministic, so re-deriving it cannot duplicate anything).
     const stateApplied = existsSync(join(paths.dataRoot, "host-credentials.json"));
-    if (!stateApplied) revalidateStagedEvidence(paths, receipt);
+    if (!stateApplied) await revalidateStagedEvidence(paths, receipt);
     markHostOperationPhase(lease, {
       operation: "promotion",
       operationId: running.operationId,

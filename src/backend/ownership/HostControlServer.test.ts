@@ -8,8 +8,13 @@ import { readBoundedNodeRequestBody } from "@/shared/http";
 import {
   HOST_CONTROL_DISCOVERY_FILE,
   HOST_CONTROL_PROTOCOL_VERSION,
+  type HostControlAdmitPayload,
 } from "@/shared/hostControlProtocol";
-import { HostControlServer, type HostControlContext } from "./HostControlServer";
+import {
+  HostControlServer,
+  type HostControlContext,
+  type HostControlStatusSource,
+} from "./HostControlServer";
 import { HostOwnerLease, HostRootInUseError } from "./hostOwnerLease";
 import { resolveHostRootPaths } from "./hostRootPaths";
 import { prepareOwnedHostRoot } from "./hostRootManifest";
@@ -24,6 +29,11 @@ async function fixture(
     issuePairing?: (context: HostControlContext) => string | Promise<string>;
     start?: boolean;
     reportError?: (error: unknown) => void;
+    status?: () => HostControlStatusSource;
+    admit?: (
+      context: HostControlContext,
+      expected: HostControlAdmitPayload,
+    ) => void | Promise<void>;
   } = {},
 ) {
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-owner-control-")));
@@ -54,6 +64,8 @@ async function fixture(
     }),
     receiptNow: () => now,
     ...(options.reportError ? { reportError: options.reportError } : {}),
+    ...(options.status ? { status: options.status } : {}),
+    ...(options.admit ? { admit: options.admit } : {}),
   });
   cleanup.push(async () => {
     await control.dispose();
@@ -367,4 +379,111 @@ describe("live owner control", () => {
       }
     },
   );
+});
+
+describe("D4 authenticated upgrade identity", () => {
+  const expectedBuild = {
+    version: "1.8.1",
+    sourceRevision: null,
+    entrypointSha256: "b".repeat(64),
+    root: "/opt/poracode/releases/release-fixture",
+    layoutKind: "prefix" as const,
+  };
+
+  function stagedFixture() {
+    const state = { admission: "held" as "held" | "open", admitted: 0 };
+    return {
+      state,
+      fixture: fixture({
+        status: () => ({
+          state: "starting",
+          admission: state.admission,
+          endpoint: null,
+          build: expectedBuild,
+        }),
+        admit: () => {
+          state.admitted += 1;
+          state.admission = "open";
+        },
+      }),
+    };
+  }
+
+  it("answers status while admission is held and releases it only for the exact build", async () => {
+    const { state, fixture: create } = stagedFixture();
+    const test = await create;
+    const status = await callHostControl(test.paths, "status");
+    expect(status.result).toMatchObject({
+      profileNamespace: test.paths.profileNamespace,
+      dataRoot: test.paths.dataRoot,
+      mode: "headless",
+      state: "starting",
+      admission: "held",
+      build: expectedBuild,
+    });
+    // The strict describe list stays old-peer compatible: status/admit are
+    // discovered by attempting them, never advertised.
+    const described = await callHostControl(test.paths, "describe");
+    expect(described.result.operations).toEqual(["describe", "issue-pairing"]);
+
+    await expect(
+      callHostControl(test.paths, "admit", {
+        payload: { expectedVersion: "1.8.1", expectedEntrypointSha256: "c".repeat(64) },
+      }),
+    ).rejects.toMatchObject({ code: "identity-mismatch" });
+    await expect(
+      callHostControl(test.paths, "admit", {
+        payload: {
+          expectedVersion: "9.9.9",
+          expectedEntrypointSha256: expectedBuild.entrypointSha256,
+        },
+      }),
+    ).rejects.toMatchObject({ code: "identity-mismatch" });
+    expect(state.admitted).toBe(0);
+
+    const admitted = await callHostControl(test.paths, "admit", {
+      payload: {
+        expectedVersion: expectedBuild.version,
+        expectedEntrypointSha256: expectedBuild.entrypointSha256,
+      },
+    });
+    expect(admitted.result).toMatchObject({ admission: "open" });
+    expect(state.admitted).toBe(1);
+    // A retried admit after a lost reply is idempotent, not a second release.
+    await callHostControl(test.paths, "admit", {
+      payload: {
+        expectedVersion: expectedBuild.version,
+        expectedEntrypointSha256: expectedBuild.entrypointSha256,
+      },
+    });
+    expect(state.admitted).toBe(1);
+  });
+
+  it("rejects status and admit exactly like a pre-D4 owner when not composed", async () => {
+    const test = await fixture();
+    expect(await rawCall(test, { payload: { operation: "status", payload: {} } })).toBe(400);
+    expect(
+      await rawCall(test, {
+        payload: {
+          operation: "admit",
+          payload: {
+            expectedVersion: "1.8.1",
+            expectedEntrypointSha256: expectedBuild.entrypointSha256,
+          },
+        },
+      }),
+    ).toBe(400);
+    expect(test.issuePairing).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unauthenticated status request without leaking identity", async () => {
+    const { fixture: create } = stagedFixture();
+    const test = await create;
+    expect(
+      await rawCall(test, {
+        headers: { authorization: "Bearer fixture-remote-access-token" },
+        payload: { operation: "status", payload: {} },
+      }),
+    ).toBe(401);
+  });
 });

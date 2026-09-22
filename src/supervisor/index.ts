@@ -1,8 +1,10 @@
-import type {
-  SupervisorFlowControl,
-  SupervisorOutputShedSignal,
-  SupervisorReply,
-  SupervisorRequest,
+import {
+  isSupervisorFlowControl,
+  SUPERVISOR_EVENT_BACKPRESSURE_VERSION,
+  type SupervisorFlowControlCapabilities,
+  type SupervisorOutputShedSignal,
+  type SupervisorReply,
+  type SupervisorRequest,
 } from "@/shared/ipc";
 import { startNodePerformanceDiagnostics } from "@/shared/diagnostics/nodePerformanceDiagnostics";
 import {
@@ -17,6 +19,7 @@ import { createSupervisorIpcHandlers } from "./ipcHandlers";
 import { createSupervisorOutputShedPolicy } from "./supervisorShedPolicy";
 import { SupervisorRuntime } from "./supervisorRuntime";
 import { configureSecretStorageKey } from "./secretStorage";
+import { RUNTIME_EVENT_MAX_SINGLE_EVENT_BYTES } from "./runtime/threadSession/runtimeEventBuffer";
 import { SupervisorIpcSender } from "./supervisorIpcSender";
 
 const performanceDiagnostics = startNodePerformanceDiagnostics("supervisor");
@@ -42,7 +45,11 @@ delete process.env.PORACODE_SECRET_STORAGE_KEY;
 let shedLogCount = 0;
 let shedLogBytes = 0;
 let shedLogAt = 0;
-const ipcSender = new SupervisorIpcSender<SupervisorOutputShedSignal>({
+let canonicalDroppedCount = 0;
+let canonicalDroppedBytes = 0;
+const ipcSender = new SupervisorIpcSender<
+  SupervisorOutputShedSignal | SupervisorFlowControlCapabilities
+>({
   ...(performanceDiagnostics ? { queueDiagnostics: performanceDiagnostics.queueCapture } : {}),
   send: (message, callback) => {
     if (!process.connected || !process.send) {
@@ -71,11 +78,58 @@ const ipcSender = new SupervisorIpcSender<SupervisorOutputShedSignal>({
     shedLogCount = 0;
     shedLogBytes = 0;
   },
+  // B1: canonical runtime envelopes must not kill every session on the host's
+  // IPC overflow. Stop only the affected producers; the explicit stop plus the
+  // dropped-envelope diagnostic is the reported failure.
+  onCanonicalOverflow: (error, message) => {
+    console.error(
+      `[supervisor] canonical runtime envelope overflow: ${error.message}; stopping affected sessions.`,
+    );
+    runtime.threadSessionManager.handleCanonicalSenderOverflow(message);
+  },
+  onCanonicalDropped: ({ bytes, type }) => {
+    canonicalDroppedCount += 1;
+    canonicalDroppedBytes += bytes;
+    if (canonicalDroppedCount === 1 || canonicalDroppedCount % 100 === 0) {
+      console.error(
+        `[supervisor] dropped ${canonicalDroppedCount} canonical envelope(s) (${canonicalDroppedBytes} bytes) after stopping their producers; last type "${type}".`,
+      );
+    }
+  },
+  // Credit/ack changed (grant, ack, local drop, channel drain): producers held
+  // by an exhausted window flush exactly the bytes that now fit.
+  onCanonicalCapacityChange: (remainingBytes) => {
+    if (!runtimeReady) return;
+    runtime.threadSessionManager.setCanonicalCreditCapacity(remainingBytes);
+  },
 });
 performanceDiagnostics?.observeIpcQueue("supervisor-to-host", () =>
   ipcSender.getQueueDiagnostics(),
 );
-const runtime = new SupervisorRuntime((event) => ipcSender.emit(event));
+let runtimeReady = false;
+const runtime = new SupervisorRuntime((event, meta) => ipcSender.emit(event, meta), {
+  canonicalCapacity: () => ipcSender.canonicalCreditRemaining(),
+});
+runtimeReady = true;
+
+// B1 compatibility boundary: advertise the flow-control vocabulary this build
+// understands before the host may send `set-event-backpressure`. The host only
+// sends that control to a peer that advertised version 1, so a legacy
+// supervisor never misreads it as terminal-output pressure. The canonical
+// fields describe the true retained bound for the host's pause arithmetic and
+// the credit-accounting capability; the boot generation fences stale acks.
+const senderLimits = ipcSender.configuredLimits;
+ipcSender.sendMessage({
+  kind: "supervisor-flow-control-capabilities",
+  versions: [SUPERVISOR_EVENT_BACKPRESSURE_VERSION],
+  maxInFlightBytes:
+    senderLimits.bulkBytes +
+    senderLimits.controlReserveBytes +
+    RUNTIME_EVENT_MAX_SINGLE_EVENT_BYTES,
+  maxEnvelopeBytes: RUNTIME_EVENT_MAX_SINGLE_EVENT_BYTES,
+  supportsCanonicalCredit: true,
+  canonicalFlowGeneration: ipcSender.getCanonicalFlowGeneration(),
+});
 
 const handlers = createSupervisorIpcHandlers(runtime);
 
@@ -119,22 +173,68 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
   return handler(request.payload as never);
 }
 
-process.on("message", (message: SupervisorRequest | SupervisorFlowControl) => {
-  if ("control" in message) {
-    // P1-2: downstream pressure sheds rebuildable terminal output at the
-    // source; PTYs keep running so agent processes never stall on a full
-    // kernel buffer behind a slow consumer.
-    ipcSender.setEagerShed(message.paused);
+process.on("message", (message: SupervisorRequest | unknown) => {
+  if (isSupervisorFlowControl(message)) {
+    switch (message.control) {
+      case "set-output-backpressure":
+        // P1-2: downstream pressure sheds rebuildable terminal output at the
+        // source; PTYs keep running so agent processes never stall on a full
+        // kernel buffer behind a slow consumer.
+        ipcSender.setEagerShed(message.paused);
+        return;
+      case "set-event-backpressure":
+        // B1: host persistence health. Canonical runtime envelopes are held in
+        // the bounded per-thread buffer; sessions whose buffer reaches its cap
+        // stop explicitly (no silent drop, no whole-supervisor failure).
+        if (message.canonicalCreditBytes !== undefined) {
+          ipcSender.setCanonicalCredit({
+            windowBytes: message.canonicalCreditBytes,
+            ...(message.canonicalAckSeq !== undefined &&
+            message.canonicalFlowGeneration !== undefined
+              ? { ackSeq: message.canonicalAckSeq, generation: message.canonicalFlowGeneration }
+              : {}),
+          });
+        } else if (
+          message.canonicalAckSeq !== undefined &&
+          message.canonicalFlowGeneration !== undefined
+        ) {
+          ipcSender.acknowledgeCanonicalFlow(
+            message.canonicalAckSeq,
+            message.canonicalFlowGeneration,
+          );
+        }
+        runtime.threadSessionManager.setCanonicalEventBackpressure(
+          message.paused,
+          message.threadIds,
+        );
+        return;
+      case "ack-canonical-flow":
+        // Only sent to a credit-capable peer; a generation mismatch ignores the
+        // ack rather than freeing ledger bytes this boot never emitted.
+        ipcSender.acknowledgeCanonicalFlow(message.ackSeq, message.generation);
+        return;
+      default:
+        // Unknown control from a newer parent: ignore rather than misapply.
+        return;
+    }
+  }
+  if (
+    typeof message !== "object" ||
+    message === null ||
+    !("id" in message) ||
+    !("type" in message)
+  ) {
     return;
   }
-  void handleRequest(message)
+  const request = message as SupervisorRequest;
+  void handleRequest(request)
     .then((data): SupervisorReply => ({
-      replyTo: message.id,
+      replyTo: request.id,
       ok: true,
       data,
     }))
     .catch((error: unknown): SupervisorReply => {
-      return handleSupervisorIpcFailure(error, message.type, message.id);
+      return handleSupervisorIpcFailure(error, request.type, request.id);
     })
     .then((reply) => ipcSender.reply(reply));
 });

@@ -1,7 +1,13 @@
 import { remoteHttpErrorSchema } from "@/shared/remote";
 import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
 import { readBoundedResponseBody } from "@/shared/http";
-import { RemoteClientError } from "./clientErrors";
+import {
+  REMOTE_REQUEST_CANCELLED_STATUS,
+  RemoteClientError,
+  isAmbiguousRemoteMutationFailure,
+  type RemoteClientErrorOptions,
+  type RemoteRequestPhase,
+} from "./clientErrors";
 import { parseJsonResponse, parseResponse } from "./clientParse";
 import { RemoteClientPinCore, remoteCertificateMismatchError } from "./clientPin";
 import {
@@ -33,6 +39,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
   protected readonly maxResponseBodyBytes: number;
   protected readonly onRequestSuccess: (() => void) | undefined;
   protected readonly onRequestError: ((error: unknown) => void) | undefined;
+  private readonly responseEvidenceHeaders: readonly string[] | undefined;
   protected tokenLifecycle: RemoteTokenLifecycle | undefined;
   protected accessToken: string | undefined;
 
@@ -91,6 +98,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     this.maxResponseBodyBytes = options.maxResponseBodyBytes ?? DEFAULT_REMOTE_RESPONSE_MAX_BYTES;
     this.onRequestSuccess = options.onRequestSuccess;
     this.onRequestError = options.onRequestError;
+    this.responseEvidenceHeaders = options.responseEvidenceHeaders;
     this.tokenLifecycle = options.tokenLifecycle;
   }
 
@@ -232,6 +240,33 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
     }
     const effectiveTimeoutMs = init.timeoutMs ?? this.requestTimeoutMs;
     const controller = new AbortController();
+    const externalSignal = init.signal;
+    // A signal already aborted before dispatch is a presend refusal: the
+    // caller cancelled locally, so a mutation behind it never reached the host.
+    const preAborted = externalSignal?.aborted === true;
+    let externalAbortRequested = preAborted;
+    const abortFromExternal = () => {
+      externalAbortRequested = true;
+      controller.abort(externalSignal?.reason);
+    };
+    if (externalSignal) {
+      if (preAborted) abortFromExternal();
+      else externalSignal.addEventListener("abort", abortFromExternal, { once: true });
+    }
+    // A caller-cancelled request never reaches the transport; keep the refusal
+    // in the presend phase and out of the connection-health signal.
+    if (preAborted) {
+      throw this.attachRequestFailureEvidence(
+        new RemoteClientError(
+          "Remote request was cancelled.",
+          REMOTE_REQUEST_CANCELLED_STATUS,
+          "cancelled",
+          { ...(externalSignal?.reason !== undefined ? { cause: externalSignal.reason } : {}) },
+        ),
+        false,
+        init.mutation === true,
+      );
+    }
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const timeoutError = new RemoteClientError(
       `Remote request timed out after ${effectiveTimeoutMs}ms.`,
@@ -244,19 +279,27 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
         reject(timeoutError);
       }, effectiveTimeoutMs);
     });
+    // Phase evidence: anything that can fail before the fetch is handed the
+    // request (URL derivation, body serialization) is a presend failure and
+    // can never be ambiguous for a mutation.
+    let dispatched = false;
 
     try {
+      const url = endpointUrl(this.endpoint, path);
+      const requestBody =
+        init.body !== undefined
+          ? JSON.stringify(init.body)
+          : init.rawBody !== undefined
+            ? init.rawBody
+            : undefined;
+      dispatched = true;
       const response = await Promise.race([
-        this.fetchImpl(endpointUrl(this.endpoint, path), {
+        this.fetchImpl(url, {
           method: init.method ?? "GET",
           headers,
           signal: controller.signal,
           certFingerprint: this.pinnedCertFingerprint ?? null,
-          ...(init.body !== undefined
-            ? { body: JSON.stringify(init.body) }
-            : init.rawBody
-              ? { body: init.rawBody }
-              : {}),
+          ...(requestBody !== undefined ? { body: requestBody } : {}),
         }),
         timeoutPromise,
       ]);
@@ -313,6 +356,7 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
           error.success ? error.data.error.message : "Remote request failed.",
           response.status,
           error.success ? error.data.error.code : "request_failed",
+          this.responseEvidenceFor(response),
         );
       }
       if (method === "GET") {
@@ -330,8 +374,16 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
       this.onRequestSuccess?.();
       return parsed;
     } catch (error) {
-      const requestError =
-        controller.signal.aborted && error !== timeoutError
+      const cancelled = externalAbortRequested;
+      const abortedLocally = !cancelled && controller.signal.aborted && error !== timeoutError;
+      const normalized = cancelled
+        ? new RemoteClientError(
+            "Remote request was cancelled.",
+            REMOTE_REQUEST_CANCELLED_STATUS,
+            "cancelled",
+            { ...(error !== undefined ? { cause: error } : {}) },
+          )
+        : abortedLocally
           ? new RemoteClientError(
               `Remote request timed out after ${effectiveTimeoutMs}ms.`,
               0,
@@ -339,10 +391,78 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
               { cause: error },
             )
           : error;
+      const requestError = this.attachRequestFailureEvidence(
+        normalized,
+        dispatched && !preAborted,
+        init.mutation === true,
+      );
       this.onRequestError?.(requestError);
       throw requestError;
     } finally {
       if (timeout) clearTimeout(timeout);
+      externalSignal?.removeEventListener("abort", abortFromExternal);
     }
+  }
+
+  /**
+   * Captures only the allowlisted response headers off a definite HTTP error
+   * response. Keys are lowercased; an absent header is simply not recorded, so
+   * the caller sees exactly what the server sent.
+   */
+  private responseEvidenceFor(response: Response): RemoteClientErrorOptions {
+    const allowed = this.responseEvidenceHeaders;
+    if (!allowed || allowed.length === 0) return {};
+    const evidence: Record<string, string> = {};
+    for (const name of allowed) {
+      const value = response.headers.get(name);
+      if (value !== null) evidence[name.toLowerCase()] = value;
+    }
+    return Object.keys(evidence).length > 0 ? { responseEvidence: evidence } : {};
+  }
+
+  /**
+   * Normalizes any transport failure into a {@link RemoteClientError} carrying
+   * {@link RemoteRequestPhase} evidence and, for a declared mutation, the
+   * composed may-have-committed verdict. An already-classified error (a pin
+   * refusal, a native transport wrapper) keeps its own verdict; a raw
+   * transport drop or decoding failure becomes a status-0 `network` error
+   * whose cause is the original failure.
+   */
+  private attachRequestFailureEvidence(
+    error: unknown,
+    dispatched: boolean,
+    mutation: boolean,
+  ): RemoteClientError {
+    const requestPhase: RemoteRequestPhase = dispatched ? "dispatched" : "presend";
+    if (error instanceof RemoteClientError) {
+      if (error.requestPhase !== undefined || error.requestMayHaveCommitted !== undefined) {
+        return error;
+      }
+      return new RemoteClientError(error.message, error.status, error.code, {
+        ...(error.cause !== undefined ? { cause: error.cause } : {}),
+        requestPhase,
+        // The composed verdict is the shared mutation rule, not a local copy:
+        // a dispatched `cancelled` (caller abort mid-flight) may already have
+        // committed, while a presend refusal is definite even at status 502.
+        requestMayHaveCommitted:
+          mutation &&
+          dispatched &&
+          isAmbiguousRemoteMutationFailure(error.status, error.code, requestPhase),
+        // Evidence is not a verdict: carry what the response actually said.
+        ...(error.responseEvidence !== undefined
+          ? { responseEvidence: error.responseEvidence }
+          : {}),
+      });
+    }
+    return new RemoteClientError(
+      error instanceof Error ? error.message : "Remote request failed.",
+      0,
+      "network",
+      {
+        ...(error !== undefined ? { cause: error } : {}),
+        requestPhase,
+        requestMayHaveCommitted: mutation && dispatched,
+      },
+    );
   }
 }

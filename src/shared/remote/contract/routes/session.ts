@@ -4,6 +4,9 @@ import { defineRoute } from "../helpers";
 import { auditEvent, noAudit } from "../../auditKinds";
 import { remoteHostDescribeSchema } from "../../../hostControlProtocol";
 import {
+  catalogMembershipRequestSchema,
+  catalogMembershipResponseSchema,
+  catalogProjectListPageSchema,
   emptyJsonObjectSchema,
   profileCoreStatsSchema,
   profileDevicesResponseSchema,
@@ -11,6 +14,7 @@ import {
   profileIdentitySchema,
   profileStatsRequestSchema,
   profileTokenStatsSchema,
+  projectListQuerySchema,
   projectNotesReadResultSchema,
   projectNotesWriteBodySchema,
   providerUsageResponseSchema,
@@ -118,7 +122,18 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
     // Gate 4 hazard #3 payload split: `threadLimit` bounds the thread list to
     // its first rows plus `threadsNextCursor`; clients that omit it keep the
     // historical full list and never see the cursor field.
-    queryParameters: ["threadLimit"],
+    //
+    // B4 adds the declared-client bundle (`reads`, `order`, `projectLimit`,
+    // `summaries`, byte caps); all of it is ignored without the `reads` echo.
+    queryParameters: [
+      "reads",
+      "threadLimit",
+      "order",
+      "projectLimit",
+      "summaries",
+      "maxBytes",
+      "maxDecodeBytes",
+    ],
     request: { bodyKind: "empty", querySchema: shellSnapshotQuerySchema },
     response: {
       wireKind: "json",
@@ -257,6 +272,48 @@ export const sessionRoutes: readonly RemoteHttpRouteContract[] = [
       wireKind: "json",
       status: 200,
       jsonSchema: emptyJsonObjectSchema,
+    },
+  }),
+  defineRoute({
+    id: "project-list",
+    method: "GET",
+    path: "/api/projects",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    // B4 `reads=bounded-v1` only: declared clients page projects in paint
+    // (`pj1.` sort-order cursor) or walk exact membership (`pi1.` id frontier).
+    // An undeclared request is a protocol error, never a silent legacy read.
+    queryParameters: [
+      "reads",
+      "cursor",
+      "mode",
+      "order",
+      "projectLimit",
+      "maxBytes",
+      "maxDecodeBytes",
+    ],
+    request: { bodyKind: "empty", querySchema: projectListQuerySchema },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: catalogProjectListPageSchema,
+    },
+  }),
+  defineRoute({
+    id: "catalog-membership",
+    method: "POST",
+    path: "/api/catalog/membership",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    // B4 authoritative existence set behind the client's deletion gate: one
+    // bounded (≤200 ids per list) read-only membership confirmation, no writes.
+    request: { bodyKind: "json", jsonSchema: catalogMembershipRequestSchema },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: catalogMembershipResponseSchema,
     },
   }),
   defineRoute({

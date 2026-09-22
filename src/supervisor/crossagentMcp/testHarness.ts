@@ -108,6 +108,7 @@ export function makeHarness(options?: {
     sessionId: string;
     open?: (handle: FakeHandle, sessionRef: SessionRef | undefined) => Promise<string>;
   };
+  admission?: import("@/supervisor/runtime/hostResourceAdmission").HostResourceAdmission;
 }): Harness {
   const handles: FakeHandle[] = [];
   const inputs: CreateStructuredSessionInput[] = [];
@@ -204,6 +205,7 @@ export function makeHarness(options?: {
   const manager = new SubagentRunManager({
     adapters: new Map([["codex" as never, adapter]]),
     ...(hasStatusCapabilities ? { getStatusCapabilities: () => statusCapabilities } : {}),
+    ...(options?.admission ? { admission: options.admission } : {}),
     host,
   });
   return { manager, handles, inputs, appended, mcpTargets, mcpLocations, releaseCreate };

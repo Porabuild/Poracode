@@ -13,7 +13,6 @@
 import type { MainLocalProcedureName } from "./procedureMap";
 
 export const ATTACH_DEVICE_PROCEDURES: ReadonlySet<MainLocalProcedureName> = new Set([
-  "setRendererEventInterests",
   "probeTlsCertificateFingerprint",
   "getKeybindings",
   "setKeybindings",

@@ -1,13 +1,21 @@
+import { dbGetThreads, dbMarkLiveThreadsInactive, onProjectThreadDataChanged } from "@/host/db";
+import { resolvePoracodePaths } from "@/shared/poracodePaths";
+import { runOwnedExperimentWorktreePreparation } from "@/host/remote/experimentOwnership";
+import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
+import type {
+  IpcProcedurePayload,
+  IpcProcedureResult,
+  SupervisorEvent,
+  SupervisorProcedureName,
+} from "@/shared/ipc";
 import {
-  dbGetProjects,
-  dbGetThreads,
-  dbMarkLiveThreadsInactive,
-  onProjectThreadDataChanged,
-} from "@/main/db";
+  RUNTIME_GAP_ACKNOWLEDGED_RESYNC_REASON,
+  createRuntimeHistoryGapPort,
+} from "@/host/remote/runtimeHistoryGapComposition";
 import {
   createDesktopRemoteAccessController,
   type DesktopRemoteAccessController,
-} from "@/main/remote/DesktopRemoteAccessController";
+} from "@/backend/remote/DesktopRemoteAccessController";
 import { RemoteHttpError } from "@/host/remote/auth";
 import { getRemoteAccessPairingInfo } from "@/host/remote/pairingInfo";
 import {
@@ -16,13 +24,16 @@ import {
   getProfileIdentityResponse,
   getProfileTokenStats,
   setProfileIdentityResponse,
-} from "@/main/profile";
-import { readSharedSettingsFile } from "@/main/sharedSettingsFile";
+} from "@/host/profile";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
-import { requestLegacyDataMigration } from "@/main/legacyDataMigration";
-import { isThreadTurnActive, type RemoteThreadCommand } from "@/shared/contracts";
-import type { SupervisorEvent } from "@/shared/ipc";
-import { remoteProjectCommandResultSchema, type RemoteHostUpdateStatus } from "@/shared/remote";
+import { requestLegacyDataMigration } from "@/host/legacyDataMigration";
+import {
+  isThreadTurnActive,
+  type CreateExperimentWorktreesPayload,
+  type RemoteThreadCommand,
+} from "@/shared/contracts";
+import { type RemoteHostUpdateStatus } from "@/shared/remote";
 import type {
   BackendHostInitializePayload,
   BackendDatabaseCall,
@@ -40,20 +51,30 @@ import { generateBackendImagePreview } from "./BackendImagePreview";
 import { joinRuntimeShutdown } from "./joinRuntimeShutdown";
 import { createBackendSettingsAccess, type BackendSettingsAccess } from "./BackendSettingsService";
 import { type BackendSettingsNotifications } from "./BackendSettingsNotifications";
+import type { EnvironmentRuntimeService } from "@/host/environments/environmentRuntimeService";
 
 export interface BackendDesktopServicesOptions {
   initialize: BackendHostInitializePayload;
   host: BackendHostCore;
+  /** Backend composition owns its disposal and data custody. */
+  environments?: EnvironmentRuntimeService;
   requestNative(request: BackendNativeRequest): Promise<unknown>;
   emitNativeEvent(event: BackendNativeEvent): void;
   reportError(
     error: unknown,
     tags?: import("@/shared/diagnostics/sentryPrivacy").PoracodeDiagnosticTags,
   ): void;
-  setRemoteEventInterests(
-    interests: import("@/shared/liveEventInterests").LiveEventInterests,
-  ): void;
 }
+
+/**
+ * A2 interim: the remote server still reports its per-client interest union to
+ * its composition, but nothing consumes it once the backend→main relay is
+ * gone. The callback stays wired and this sink deliberately ignores it; the
+ * remote-side removal belongs to the B3-owned `RemoteAccessServer` /
+ * `remoteAccessServerWs` slice and is recorded as a remaining follow-up — it
+ * is not claimed done.
+ */
+function ignoreRemoteEventInterests(): void {}
 
 const SHELL_PROJECTION_DATABASE_CALLS: ReadonlySet<BackendDatabaseCall["name"]> = new Set([
   "dbUpsertProject",
@@ -62,7 +83,6 @@ const SHELL_PROJECTION_DATABASE_CALLS: ReadonlySet<BackendDatabaseCall["name"]> 
   "dbDeleteThread",
   "dbSyncAll",
   "dbSyncChanges",
-  "dbPersistExperimentState",
 ]);
 
 export function affectsShellProjection(name: BackendDatabaseCall["name"]): boolean {
@@ -87,6 +107,35 @@ export class BackendDesktopServices {
     const { initialize, host } = options;
     const desktop = initialize.desktop;
     const supervisor = host.supervisorClient;
+    // Experiment authority: composed ONLY for the embedded desktop backend,
+    // which owns the local-shell experiment worktree driver. The port reuses
+    // the existing supervisor seams; its presence is the capability gate, so a
+    // composition without it (headless/helper) advertises nothing and answers
+    // 501 — never a `hostMode` branch.
+    const experimentAuthority = desktop
+      ? {
+          runThreadMutation: <Result>(threadId: string, operation: () => Promise<Result>) =>
+            supervisor.runThreadMutation(threadId, operation),
+          retireThread: async (threadId: string): Promise<boolean> => {
+            try {
+              const result = await supervisor.call(
+                "closeThreadConfirmed",
+                { threadId },
+                { startIfNeeded: false },
+              );
+              return result.confirmed;
+            } catch (error) {
+              if (
+                error instanceof SupervisorUnavailableError &&
+                supervisor.isSupervisorProvenAbsent()
+              ) {
+                return true;
+              }
+              throw error;
+            }
+          },
+        }
+      : undefined;
     const settingsNotifications: BackendSettingsNotifications = {
       onChanged: (settings) =>
         options.emitNativeEvent({ type: "shared-settings-changed", settings }),
@@ -115,23 +164,32 @@ export class BackendDesktopServices {
       return true;
     };
     const publishProjectsChanged = (): void => {
-      const projects = dbGetProjects();
-      this.remote?.getServer()?.publishSupervisorEvent({
-        type: "remote-projects-changed",
-        projects: remoteProjectCommandResultSchema.parse({ projects }).projects,
-      });
-      options.emitNativeEvent({ type: "projects-changed", projects });
+      // The project data plane is the server's own `remote-projects-changed`
+      // membership event (the desktop consumes its loopback WS); there is no
+      // second bulk copy across the backend→main→renderer hop. The server
+      // decides once whether the catalog must actually be read: with no legacy
+      // subscriber it publishes the bounded signal alone.
+      this.remote?.getServer()?.publishCatalogChanged();
     };
 
     this.durable = new BackendDurableServices({
       appVersion: initialize.supervisor.appVersion,
       hostId: readOrCreateRemoteAccessIdentity(initialize.baseDir).desktopId,
       supervisor,
+      // The local attachments root this backend child owns (the same promoted
+      // root main writes into on managed): its durable services run the one
+      // deleted-thread attachment reclaimer for it.
+      attachmentsDir: resolvePoracodePaths(initialize.baseDir).attachmentsDir,
       sendThreadCommand,
       emitRemoteThreadCommand: dispatchThreadCommand,
       getSharedSettings,
       reportError: options.reportError,
       publishProjectsChanged,
+      publishThreadsChanged: (threadIds) => {
+        // H3: the server's shared publisher bounds the membership batches, so
+        // even an all-id host-local projection cannot emit an over-cap event.
+        this.remote?.getServer()?.publishThreadsChanged(threadIds);
+      },
       writeSharedSettings: (next) => {
         if (!desktop) return;
         // Routed through the settings authority as scoped CAS edits; the
@@ -218,11 +276,23 @@ export class BackendDesktopServices {
           channel: desktop.channel,
           paths: { baseDir: initialize.baseDir, settingsPath: desktop.settingsPath },
           ...(desktop.devServerUrl ? { devServerUrl: desktop.devServerUrl } : {}),
-          ...(desktop.hostCapabilities ? { hostCapabilities: desktop.hostCapabilities } : {}),
+          ...(desktop.hostCapabilities
+            ? {
+                hostCapabilities: {
+                  ...desktop.hostCapabilities,
+                  ssh: Boolean(options.environments),
+                },
+              }
+            : {}),
+          ...(options.environments ? { environments: options.environments } : {}),
           callSupervisor: (name, payload) => supervisor.call(name, payload),
+          peekResourceAdmissionStatus: () => supervisor.peekResourceAdmissionStatus(),
           truncateThreadRuntime: (threadId, itemId) => {
             host.truncateThreadRuntime(threadId, itemId);
           },
+          // B1: the desktop backend host owns the durable gap/notice store, so
+          // the remote server advertises the capability and serves real state.
+          runtimeHistoryGap: createRuntimeHistoryGapPort(host),
           revertCheckpoint: async (input) => {
             try {
               return await host.revertCheckpoint(input);
@@ -233,6 +303,7 @@ export class BackendDesktopServices {
               throw error;
             }
           },
+          ...(experimentAuthority ? { experimentAuthority } : {}),
           dispatchThreadCommand,
           browser: this.browser,
           // The controller's settings patches commit through the same authority
@@ -244,11 +315,18 @@ export class BackendDesktopServices {
           },
           notifyRemoteAccessPairingChanged: (info) =>
             options.emitNativeEvent({ type: "remote-access-pairing-changed", info }),
-          notifyProjectStateChanged: (projects) =>
-            options.emitNativeEvent({ type: "projects-changed", projects: [...projects] }),
+          // Host-local project writes that do not pass through the HTTP command
+          // routes (project-scoped MCP settings) publish the same bounded
+          // membership event every other project mutation uses. The rows are
+          // already in hand, so the declaration-aware publisher avoids a
+          // duplicate read and skips the wire parse when nothing consumes the
+          // full list. No full Project[] crosses the backend→main hop.
+          notifyProjectStateChanged: (projects) => {
+            this.remote?.getServer()?.publishCatalogChangedRows(projects);
+          },
           notifyUserNotification: (notification) =>
             options.emitNativeEvent({ type: "user-notification", notification }),
-          notifyEventInterestsChanged: options.setRemoteEventInterests,
+          notifyEventInterestsChanged: ignoreRemoteEventInterests,
           imagePreviewGenerator: generateBackendImagePreview,
           reportError: options.reportError,
           scheduleService: this.durable.scheduleService,
@@ -299,6 +377,9 @@ export class BackendDesktopServices {
 
   async startBackgroundServices(): Promise<void> {
     this.durable.startBackgroundServices();
+    // Reconnection is host-owned and bounded by the runtime, but unreachable
+    // children must not hold the local listener or renderer startup hostage.
+    void this.options.environments?.start().catch(this.options.reportError);
     await this.remote?.startIfEnabled();
   }
 
@@ -315,6 +396,34 @@ export class BackendDesktopServices {
    */
   handleSupervisorReset(): void {
     this.remote?.handleSupervisorReset();
+  }
+
+  /**
+   * The supervisor shed terminal-output batches in transit, so those bytes
+   * never persisted. Remote clients resync from the supervisor's
+   * authoritative PTY scrollback through the WS `resync-required` path —
+   * headless parity. There is no main-side consumer to notify: the former
+   * `thread-scrollback-resync` relay event was dead after V6 B.6 and was
+   * deleted with the relay (A2).
+   */
+  handleSupervisorOutputShed(): void {
+    this.remote
+      ?.getServer()
+      ?.broadcastResyncRequired(
+        "Terminal output was shed under backpressure; resynchronize from the host.",
+      );
+  }
+
+  /**
+   * B1: an applied runtime-gap acknowledgement committed in this backend host.
+   * Publication only — the durable acknowledgement already cleared the episode,
+   * the local renderer receives the core's `thread-reset`, and connected
+   * remote clients are told to resync authoritative history (capable clients
+   * render the notice; incapable readers are refused 409). This NEVER re-enters
+   * supervisor-event persistence, so committed transcript bytes are untouched.
+   */
+  handleRuntimeGapAcknowledged(_threadId: string): void {
+    this.remote?.getServer()?.broadcastResyncRequired(RUNTIME_GAP_ACKNOWLEDGED_RESYNC_REASON);
   }
 
   publishBrowserEvent(event: import("@/shared/backendHostProtocol").BackendBrowserEvent): void {
@@ -355,22 +464,37 @@ export class BackendDesktopServices {
       call.name === "dbUpsertThread" ||
       call.name === "dbDeleteThread" ||
       call.name === "dbSyncAll" ||
-      call.name === "dbPersistExperimentState" ||
       (call.name === "dbSyncChanges" &&
         (call.payload.threads.length > 0 || call.payload.deletedThreadIds.length > 0));
     if (changedProjects) {
-      const projects = dbGetProjects();
-      this.remote?.getServer()?.publishSupervisorEvent({
-        type: "remote-projects-changed",
-        projects: remoteProjectCommandResultSchema.parse({ projects }).projects,
-      });
+      this.remote?.getServer()?.publishCatalogChanged();
     }
     if (changedThreads) {
-      this.remote?.getServer()?.publishSupervisorEvent({
-        type: "remote-threads-changed",
-        threadIds: dbGetThreads().map((thread) => thread.id),
-      });
+      this.remote?.getServer()?.publishThreadsChanged(dbGetThreads().map((thread) => thread.id));
     }
+  }
+
+  /**
+   * Guarded pass-through for renderer-initiated supervisor calls. The only
+   * guarded procedure is the experiment worktree preparation: the renderer
+   * persists the experiment record before invoking it, so an ownership check
+   * refuses a DELAYED preparation whose record was removed (creating its
+   * worktrees would orphan them), registers an IN-FLIGHT preparation with the
+   * project-removal guard (so a concurrent removal drains it before its own
+   * worktree teardown), and refuses a preparation for a project already being
+   * removed. Everything else is a plain supervisor call.
+   */
+  callSupervisor<Name extends SupervisorProcedureName>(
+    name: Name,
+    payload: IpcProcedurePayload<Name>,
+  ): Promise<IpcProcedureResult<Name>> {
+    const dispatch = (): Promise<IpcProcedureResult<Name>> =>
+      this.options.host.supervisorClient.call(name, payload);
+    if (name !== "createExperimentWorktrees") return dispatch();
+    return runOwnedExperimentWorktreePreparation(
+      payload as CreateExperimentWorktreesPayload,
+      dispatch,
+    );
   }
 
   call<Name extends BackendServiceProcedureName>(

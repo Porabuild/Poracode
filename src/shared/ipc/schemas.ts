@@ -1,7 +1,6 @@
 import { z } from "zod";
 import {
   agentKindSchema,
-  experimentSchema,
   promptSegmentSchema,
   projectLocationSchema,
   projectNotesSchema,
@@ -185,17 +184,6 @@ export const dbSyncChangesPayloadSchema = z.object({
   threadOrder: z.array(z.string().min(1)).optional(),
   viewJson: z.string(),
 });
-export const dbPersistExperimentStatePayloadSchema = z.object({
-  upsertThreads: z.array(
-    z.object({
-      thread: persistedThreadSchema,
-      sortOrder: z.number().int().nonnegative(),
-    }),
-  ),
-  deletedThreadIds: z.array(z.string().min(1)),
-  experiments: z.record(z.string(), experimentSchema),
-});
-export type DbPersistExperimentStatePayload = z.infer<typeof dbPersistExperimentStatePayloadSchema>;
 
 /**
  * Bounded thread-list read (Gate 4 hazard #3): `dbGetThreads` returns every row

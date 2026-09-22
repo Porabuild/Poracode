@@ -1,8 +1,7 @@
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toWslUncPath } from "@/shared/wsl";
 import type { AgentEnvContext } from "../../base";
 import { getCachedWslHomeDirectory } from "../../base";
 import {
@@ -20,12 +19,18 @@ import {
   parseExistingHooksJson,
   readBundledPluginVersion,
   readPluginManifest,
+  parseHooksJsonText,
+  readWslTextFile,
   removeStagedPluginDir,
+  resolvePluginVerificationIo,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   verifyStagedPluginAt,
   writeHooksJsonFile,
   writeNativeHookWrapper,
   type PluginManifest,
+  type PluginVerificationTarget,
+  type StagedPluginIo,
 } from "../../plugin/installerBase";
 
 /**
@@ -208,10 +213,12 @@ export interface InstallCommandCodePluginOptions {
   globalCommandCodeDirOverride?: string;
 }
 
-export function installCommandCodePlugin(
+export async function installCommandCodePlugin(
   ctx?: AgentEnvContext,
   options?: InstallCommandCodePluginOptions,
-): { ok: true; paths: CommandCodePluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<
+  { ok: true; paths: CommandCodePluginPaths; version: string } | { ok: false; reason: string }
+> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -285,14 +292,16 @@ export function installCommandCodePlugin(
   };
 }
 
-function installCommandCodePluginWsl(
+async function installCommandCodePluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
   globalCommandCodeDirOverride: string | undefined,
-): { ok: true; paths: CommandCodePluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "commandcode", {
+): Promise<
+  { ok: true; paths: CommandCodePluginPaths; version: string } | { ok: false; reason: string }
+> {
+  const staged = await stagePluginAssetsToWsl(distro, sourceDir, "commandcode", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
@@ -301,10 +310,10 @@ function installCommandCodePluginWsl(
   const linuxSettingsPath = globalCommandCodeDirOverride
     ? `${globalCommandCodeDirOverride}/settings.json`
     : `${staged.deploy.home}/.commandcode/settings.json`;
-  const uncSettings = toWslUncPath(distro, linuxSettingsPath);
 
-  const existing = parseExistingHooksJson(uncSettings);
-  if (existing === null && existsSync(uncSettings)) {
+  const raw = await readWslTextFile(distro, linuxSettingsPath);
+  const existing = raw === null ? null : parseHooksJsonText(raw);
+  if (existing === null && raw !== null) {
     return {
       ok: false,
       reason: `malformed Command Code settings.json at ${linuxSettingsPath} in wsl distro ${distro}`,
@@ -314,7 +323,8 @@ function installCommandCodePluginWsl(
   const commandHead = buildWslHookCommandHead(resolvedNodePath, linuxForward);
 
   try {
-    writeHooksJsonFile(uncSettings, mergeCommandCodeSettings(existing, commandHead));
+    const merged = mergeCommandCodeSettings(existing, commandHead);
+    await writeWslTextFile(distro, linuxSettingsPath, `${JSON.stringify(merged, null, 2)}\n`);
   } catch (error) {
     return {
       ok: false,
@@ -335,43 +345,58 @@ function installCommandCodePluginWsl(
   };
 }
 
-export function isCommandCodePluginInstalled(
+export async function isCommandCodePluginInstalled(
   ctx?: AgentEnvContext,
 ): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "commandcode");
-    if (!wsl) return Promise.resolve({ installed: false });
-    const settingsPath = toWslUncPath(
-      ctx.wslDistro,
+    if (!wsl) return { installed: false };
+    return verifyCommandCodeInstallAt(
+      wsl.linuxBase,
+      "wsl",
       wslGlobalCommandCodeSettingsPath(ctx.wslDistro),
+      { distro: ctx.wslDistro },
     );
-    return Promise.resolve(verifyCommandCodeInstallAt(wsl.uncBase, "wsl", settingsPath));
   }
   const settingsPath = join(nativeGlobalCommandCodeDir(), "settings.json");
-  return Promise.resolve(
-    verifyCommandCodeInstallAt(
-      getNativePluginBaseDir("commandcode", ctx?.baseDir),
-      "native",
-      settingsPath,
-    ),
+  return verifyCommandCodeInstallAt(
+    getNativePluginBaseDir("commandcode", ctx?.baseDir),
+    "native",
+    settingsPath,
   );
 }
 
-export function uninstallCommandCodePlugin(ctx?: AgentEnvContext): void {
-  const settingsPath = isWslPluginContext(ctx)
-    ? toWslUncPath(ctx.wslDistro, wslGlobalCommandCodeSettingsPath(ctx.wslDistro))
-    : join(nativeGlobalCommandCodeDir(), "settings.json");
+export async function uninstallCommandCodePlugin(ctx?: AgentEnvContext): Promise<void> {
+  if (isWslPluginContext(ctx)) {
+    const linuxSettingsPath = wslGlobalCommandCodeSettingsPath(ctx.wslDistro);
+    const raw = await readWslTextFile(ctx.wslDistro, linuxSettingsPath);
+    if (raw !== null) {
+      const existing = parseHooksJsonText(raw);
+      await writeWslTextFile(
+        ctx.wslDistro,
+        linuxSettingsPath,
+        `${JSON.stringify(removeCommandCodeHooks(existing), null, 2)}\n`,
+      );
+    }
+    await removeStagedPluginDir("commandcode", ctx);
+    return;
+  }
+  const settingsPath = join(nativeGlobalCommandCodeDir(), "settings.json");
   const existing = parseExistingHooksJson(settingsPath);
   if (existing !== null || existsSync(settingsPath)) {
     writeHooksJsonFile(settingsPath, removeCommandCodeHooks(existing));
   }
-  removeStagedPluginDir("commandcode", ctx);
+  await removeStagedPluginDir("commandcode", ctx);
 }
 
-function settingsJsonHasPoracodeEntry(settingsPath: string): boolean {
-  if (!existsSync(settingsPath)) return false;
+async function settingsJsonHasPoracodeEntry(
+  io: StagedPluginIo,
+  settingsPath: string,
+): Promise<boolean> {
   try {
-    const doc = JSON.parse(readFileSync(settingsPath, "utf8")) as {
+    const raw = await io.readTextFile(settingsPath);
+    if (raw === null) return false;
+    const doc = JSON.parse(raw) as {
       hooks?: Record<string, unknown>;
     };
     if (!doc.hooks || typeof doc.hooks !== "object") return false;
@@ -392,9 +417,12 @@ function verifyCommandCodeInstallAt(
   readableDir: string,
   target: "native" | "wsl",
   settingsPath: string,
-): { installed: boolean; version?: string } {
+  options?: PluginVerificationTarget,
+): Promise<{ installed: boolean; version?: string }> {
+  const io = resolvePluginVerificationIo(target, options);
   return verifyStagedPluginAt(readableDir, target, {
     assets: COMMANDCODE_VERIFY_ASSETS,
-    extraCheck: () => settingsJsonHasPoracodeEntry(settingsPath),
+    extraCheck: () => settingsJsonHasPoracodeEntry(io, settingsPath),
+    ...options,
   });
 }

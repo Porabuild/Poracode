@@ -14,14 +14,21 @@ import {
   threadSteerSetBodySchema,
 } from "../routeBodies";
 import {
+  historyTurnPageSchema,
+  remoteRuntimeGapAcknowledgeBodySchema,
+  remoteRuntimeGapAcknowledgeResultSchema,
+  remoteRuntimeGapReadResultSchema,
   remoteRuntimeItemsPageSchema,
   remoteThreadListPageSchema,
   remoteThreadSnapshotSchema,
+  runtimeGapAcknowledgeQuerySchema,
+  runtimeGapQuerySchema,
   startShellPayloadSchema,
   startThreadResultSchema,
   threadHistoryItemsQuerySchema,
   threadHistoryQuerySchema,
   threadListQuerySchema,
+  threadTurnsQuerySchema,
 } from "../routeSchemas";
 import { checkpointRevertResultSchema } from "../../../contracts";
 import type { RemoteHttpRouteContract } from "../types";
@@ -37,7 +44,21 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     // Gate 4 hazard #3: continuation pages for a threadLimit-bounded shell
     // snapshot. Clients only reach this route after the snapshot returned a
     // threadsNextCursor, so hosts without it are never called.
-    queryParameters: ["cursor", "limit"],
+    //
+    // B4 widens this route additively: `reads=bounded-v1` selects paint order
+    // (`order`), exact-membership inventory mode (`mode=inventory`), the
+    // summaries opt-in and per-response byte caps. Undeclared requests keep the
+    // existing `tp1.` cursor and required `limit`.
+    queryParameters: [
+      "reads",
+      "cursor",
+      "limit",
+      "order",
+      "mode",
+      "summaries",
+      "maxBytes",
+      "maxDecodeBytes",
+    ],
     request: { bodyKind: "empty", querySchema: threadListQuerySchema },
     response: {
       wireKind: "json",
@@ -52,7 +73,15 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer",
     scopes: ["session:read"],
     audit: noAudit("read"),
-    queryParameters: ["beforePosition", "limit", "targetTimelineEntryCount"],
+    queryParameters: [
+      "reads",
+      "notices",
+      "beforePosition",
+      "limit",
+      "targetTimelineEntryCount",
+      "maxBytes",
+      "maxDecodeBytes",
+    ],
     request: { bodyKind: "empty", querySchema: threadHistoryItemsQuerySchema },
     response: {
       wireKind: "json",
@@ -67,12 +96,47 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer",
     scopes: ["session:read"],
     audit: noAudit("read"),
-    queryParameters: ["runtimePage", "targetTimelineEntryCount", "omitScrollback"],
+    queryParameters: [
+      "reads",
+      "notices",
+      "runtimePage",
+      "targetTimelineEntryCount",
+      "omitScrollback",
+      "completedTurnsLimit",
+      "maxBytes",
+      "maxDecodeBytes",
+    ],
     request: { bodyKind: "empty", querySchema: threadHistoryQuerySchema },
     response: {
       wireKind: "json",
       status: 200,
       jsonSchema: remoteThreadSnapshotSchema,
+    },
+  }),
+  defineRoute({
+    id: "thread-turns",
+    method: "GET",
+    path: "/api/threads/{threadId}/turns",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    // B4 declared-only completed-turn continuation: `ct1.<idx>` pages older
+    // turns than the bounded history tail, newest-first `completedTurnsLimit`
+    // then exclusive-older pages. Undeclared requests are a protocol error.
+    queryParameters: [
+      "reads",
+      "notices",
+      "cursor",
+      "limit",
+      "completedTurnsLimit",
+      "maxBytes",
+      "maxDecodeBytes",
+    ],
+    request: { bodyKind: "empty", querySchema: threadTurnsQuerySchema },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: historyTurnPageSchema,
     },
   }),
   defineRoute({
@@ -140,7 +204,12 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
     auth: "bearer",
     scopes: ["session:operate"],
     audit: auditEvent("mutate"),
-    idempotency: "command-id-header-for-start-kind",
+    // `start` keeps its stable automatic receipt identity; the narrow
+    // catalog-mutation kinds (`reorder`, `set-workspace`) REQUIRE the
+    // command-id header (refused before any effect without it) and run under
+    // the receipt. Other metadata kinds keep their historical non-receipted
+    // dispatch.
+    idempotency: "command-id-header-for-start-and-catalog-kinds",
     request: { bodyKind: "json", jsonSchema: threadCommandBodySchema },
     response: {
       wireKind: "json",
@@ -287,6 +356,45 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
       wireKind: "json",
       status: 200,
       jsonSchema: remoteOkResponseSchema,
+    },
+  }),
+  // B1 declared-only durable-gap recovery: the descriptor precondition read
+  // and the explicit acknowledgement. `notices=v1` is required on BOTH routes
+  // (a writer is always a client that declared it can render the notice), and
+  // the acknowledgement carries the standard command-id receipt.
+  defineRoute({
+    id: "thread-runtime-gap",
+    method: "GET",
+    path: "/api/threads/{threadId}/runtime/gap",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    queryParameters: ["notices"],
+    request: { bodyKind: "empty", querySchema: runtimeGapQuerySchema },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: remoteRuntimeGapReadResultSchema,
+    },
+  }),
+  defineRoute({
+    id: "thread-runtime-gap-acknowledge",
+    method: "POST",
+    path: "/api/threads/{threadId}/runtime/gap/acknowledge",
+    auth: "bearer",
+    scopes: ["session:operate"],
+    audit: auditEvent("mutate"),
+    idempotency: "command-id-header",
+    queryParameters: ["notices"],
+    request: {
+      bodyKind: "json",
+      jsonSchema: remoteRuntimeGapAcknowledgeBodySchema,
+      querySchema: runtimeGapAcknowledgeQuerySchema,
+    },
+    response: {
+      wireKind: "json",
+      status: 200,
+      jsonSchema: remoteRuntimeGapAcknowledgeResultSchema,
     },
   }),
 ];

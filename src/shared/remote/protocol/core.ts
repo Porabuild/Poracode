@@ -180,10 +180,139 @@ export const remoteBrowserForwardCapabilitySchema = z.object({
 });
 export type RemoteBrowserForwardCapability = z.infer<typeof remoteBrowserForwardCapabilitySchema>;
 
+/**
+ * C1 server-owned environments capability (ADR §7). The host advertises this
+ * ONLY when the environment gateway is composed and every management route is
+ * usable; absent means clients hide the feature. Additive: older clients strip
+ * the unknown key, and no host emits it until its composition wires the
+ * runtime, so this schema addition advertises nothing on its own.
+ */
+export const REMOTE_SSH_ENVIRONMENTS_VERSION = 1 as const;
+export const remoteSshEnvironmentsCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteSshEnvironmentsCapability = z.infer<typeof remoteSshEnvironmentsCapabilitySchema>;
+
+/**
+ * B1 durable history-incomplete notices capability. The host advertises this
+ * ONLY when its composition wires the durable gap/notice store (same
+ * composed-only rule as `sshEnvironments`): a client shows the recovery action
+ * only when it is advertised, and an old client strips the unknown key.
+ */
+export const remoteRuntimeHistoryNoticesCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteRuntimeHistoryNoticesCapability = z.infer<
+  typeof remoteRuntimeHistoryNoticesCapabilitySchema
+>;
+
+/**
+ * Narrow catalog-mutation capability (managed-root mirror removal). Version 1
+ * covers relative project/thread reorder, nullable project/thread workspace
+ * assignment, and project `lastDraftConfig` persistence, all carried by the
+ * existing project-command / thread-command routes.
+ *
+ * Hosts that advertise it execute the new command kinds and answer them with
+ * the bounded mutation response; a host that predates the kinds rejects them
+ * as an invalid request body (and strips an unknown `patch` key silently), so
+ * a client MUST treat an absent capability as "keep the catalog local" and
+ * never send these intents to that host. Old clients strip the unknown key.
+ */
+export const REMOTE_CATALOG_MUTATIONS_VERSION = 1 as const;
+export const remoteCatalogMutationsCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteCatalogMutationsCapability = z.infer<
+  typeof remoteCatalogMutationsCapabilitySchema
+>;
+
+/**
+ * Bounded catalog-change notifications (managed-root catalog fix). Version 1
+ * lets a connection declare (`catalogChanges=bounded-v1` on the WS upgrade)
+ * that it consumes the membership event as a bounded signal and refreshes its
+ * catalog through the bounded read routes. The capability is advertised
+ * separately from `catalogMutations`: authority to mutate a catalog and the
+ * ability to process its change notifications are independent, and the
+ * declaration is per connection, not per token.
+ */
+export const REMOTE_BOUNDED_CATALOG_CHANGES_VERSION = 1 as const;
+export const remoteBoundedCatalogChangesCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteBoundedCatalogChangesCapability = z.infer<
+  typeof remoteBoundedCatalogChangesCapabilitySchema
+>;
+
+/**
+ * Managed-root thread-launch metadata capability. Version 1 means a `start`
+ * thread command's `workspaceId`, `initialSize`, `parentThreadId` and
+ * `prNumber` fields are persisted on the durable row and honored by the
+ * supervisor launch. A host that predates this strips those unknown object
+ * keys silently and answers success, so a client MUST gate sending them on the
+ * advertised capability instead of assuming they took effect.
+ */
+export const REMOTE_THREAD_LAUNCH_METADATA_VERSION = 1 as const;
+export const remoteThreadLaunchMetadataCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteThreadLaunchMetadataCapability = z.infer<
+  typeof remoteThreadLaunchMetadataCapabilitySchema
+>;
+
+/**
+ * Bounded project-command result capability (managed-root catalog fix).
+ * Version 1 lets a client declare the bounded result mode on the existing
+ * project-command HTTP route (exact declaration header) and receive only the
+ * acknowledgement plus the affected row instead of the complete project list.
+ * Advertised capability + exact per-request declaration are independent gates:
+ * an old host ignores the unknown header and answers the complete legacy
+ * result, so a client that needs the bounded guarantee must refuse that
+ * fallback explicitly rather than claim it.
+ */
+export const REMOTE_PROJECT_COMMAND_RESULTS_VERSION = 1 as const;
+export const remoteProjectCommandResultsCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteProjectCommandResultsCapability = z.infer<
+  typeof remoteProjectCommandResultsCapabilitySchema
+>;
+
+/**
+ * Experiment authority capability (desktop embedded authority only). Version 1
+ * covers the `/api/experiments` state read and the three create/replace/remove
+ * intents (atomic insert-only create without launch, narrow candidate-row
+ * updates under custody, store-wide content-hash CAS).
+ *
+ * Advertised ONLY when the composition wires the experiment authority port —
+ * the embedded desktop backend that owns the local-shell experiment worktree
+ * driver. A headless/helper composition does not compose it: the routes answer
+ * 501 and no capability is advertised. A client MUST treat an absent
+ * capability as "experiments unsupported on this host" and refuse before any
+ * local mutation, never falling back to a whole-map local writer. Old clients
+ * strip the unknown key.
+ *
+ * The mutation locality rule (loopback peer check) is a documented LOCALITY
+ * gate, not an authentication guarantee: an SSH forward/proxy or a co-located
+ * paired client can satisfy it. All custody and input validation is correct
+ * for any admitted authenticated caller.
+ */
+export const REMOTE_EXPERIMENTS_VERSION = 1 as const;
+export const remoteExperimentsCapabilitySchema = z.object({
+  versions: remoteCapabilityVersionsSchema,
+});
+export type RemoteExperimentsCapability = z.infer<typeof remoteExperimentsCapabilitySchema>;
+
 export const remoteEnvironmentCapabilitiesSchema = z.object({
   terminalCursorSync: remoteTerminalCursorSyncCapabilitySchema.optional(),
   pushRouting: remotePushRoutingCapabilitySchema.optional(),
   browserForward: remoteBrowserForwardCapabilitySchema.optional(),
+  sshEnvironments: remoteSshEnvironmentsCapabilitySchema.optional(),
+  runtimeHistoryNotices: remoteRuntimeHistoryNoticesCapabilitySchema.optional(),
+  catalogMutations: remoteCatalogMutationsCapabilitySchema.optional(),
+  boundedCatalogChanges: remoteBoundedCatalogChangesCapabilitySchema.optional(),
+  threadLaunchMetadata: remoteThreadLaunchMetadataCapabilitySchema.optional(),
+  projectCommandResults: remoteProjectCommandResultsCapabilitySchema.optional(),
+  experiments: remoteExperimentsCapabilitySchema.optional(),
 });
 export type RemoteEnvironmentCapabilities = z.infer<typeof remoteEnvironmentCapabilitiesSchema>;
 

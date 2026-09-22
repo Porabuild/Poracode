@@ -11,6 +11,7 @@ import {
   createKnownSessionRef,
   detectAgentInstall,
   detectProbeLocation,
+  prepareAgentLocationEnvironment,
   type AgentAdapter,
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
@@ -107,6 +108,7 @@ export function createDevinAdapter(): AgentAdapter {
         { remoteViaStdio: true },
       );
       const overlay = await prepareDevinMcpConfig(input.projectLocation, mcpServers);
+      await prepareAgentLocationEnvironment(input.projectLocation);
       try {
         const command = buildDevinCommand(
           input.projectLocation,
@@ -142,10 +144,12 @@ export function createDevinAdapter(): AgentAdapter {
     },
     async buildAcpAuthCommand(ctx) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildDevinCommand(location, ["acp"], resolveAgentBinaryPath(location, "devin"));
     },
     async buildAcpLogoutCommand(ctx) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildDevinCommand(
         location,
         ["auth", "logout"],

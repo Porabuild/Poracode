@@ -6,6 +6,7 @@
 // and the bounded admission wait.
 
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -87,6 +88,19 @@ describe("host data custody fence", () => {
     const path = fencePath();
     hold(path);
     await expect(acquireHostDataFenceWithWait(path, 3, 5)).rejects.toThrow(HostDataFenceInUseError);
+  });
+
+  it("exposes a stable custody generation and refuses once released", () => {
+    const path = fencePath();
+    const fence = hold(path);
+    const generation = fence.generation;
+    expect(generation).toMatch(/^[0-9a-f-]{36}$/u);
+    expect(() => fence.assertActive()).not.toThrow();
+    expect(() => fence.assertActive(generation)).not.toThrow();
+    expect(() => fence.assertActive(randomUUID())).toThrow(/no longer active/u);
+    fence.release();
+    expect(() => fence.assertActive()).toThrow(/no longer active/u);
+    expect(() => fence.assertActive(generation)).toThrow(/no longer active/u);
   });
 
   it("does not overwrite an unsupported future fence format", () => {

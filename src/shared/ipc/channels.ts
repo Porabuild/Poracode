@@ -9,7 +9,6 @@ export const IPC_EVENT_CHANNELS = {
   remoteThreadCommand: createChannel("remoteThreadCommand"),
   remoteAccessPairingChanged: createChannel("remoteAccessPairingChanged"),
   sharedSettingsChanged: createChannel("sharedSettingsChanged"),
-  projectStateChanged: createChannel("projectStateChanged"),
   gitStateChanged: createChannel("gitStateChanged"),
   userNotification: createChannel("userNotification"),
   prWatchMerged: createChannel("prWatchMerged"),
@@ -18,11 +17,11 @@ export const IPC_EVENT_CHANNELS = {
   quickComposerSubmit: createChannel("quickComposerSubmit"),
   quickComposerDismissRequested: createChannel("quickComposerDismissRequested"),
   quickComposerShown: createChannel("quickComposerShown"),
-  backendSupervisorEventGap: createChannel("backendSupervisorEventGap"),
   /**
-   * Backend reset (V5 2.5): the desktop-IPC relay sequence space restarts
-   * with a new backend child, so renderer windows drop their dedupe cursor
-   * and rebuild subscribed state.
+   * Backend reset (V5 2.5; A2): a new backend child restarts the loopback
+   * sequence spaces, so renderer windows drop their dedupe cursors and rebuild
+   * subscribed state. The removed desktop-IPC bulk relay's gap channel
+   * (`backendSupervisorEventGap`) went with the relay.
    */
   backendSupervisorReset: createChannel("backendSupervisorReset"),
 } as const;

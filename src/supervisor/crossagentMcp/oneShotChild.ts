@@ -97,7 +97,7 @@ type SpawnSpec = {
  * One-shot children carry no parent MCP config. Native delegation tools may
  * still exist; the prepared worker prompt gives scheduling to the coordinator.
  */
-export function runOneShotChild(params: OneShotChildParams): OneShotChildHandle {
+export async function runOneShotChild(params: OneShotChildParams): Promise<OneShotChildHandle> {
   const cmd = params.adapter.buildSubagentOneShotCommand?.({
     model: params.model,
     effort: params.effort,
@@ -113,9 +113,14 @@ export function runOneShotChild(params: OneShotChildParams): OneShotChildHandle 
   }
 
   const childCommand = withCommandBaseSpawnEnv(cmd, params.adapter.baseSpawnEnv);
-  const spec = buildOneShotSpec(params.projectLocation, childCommand.command, childCommand.args, {
-    ...(childCommand.env ? { env: childCommand.env } : {}),
-  });
+  const spec = await buildOneShotSpec(
+    params.projectLocation,
+    childCommand.command,
+    childCommand.args,
+    {
+      ...(childCommand.env ? { env: childCommand.env } : {}),
+    },
+  );
   const input = childCommand.stdin ?? params.prompt;
   const maxLifetimeMs = params.maxLifetimeMs ?? ONE_SHOT_CHILD_MAX_LIFETIME_MS;
 

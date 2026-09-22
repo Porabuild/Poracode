@@ -5,6 +5,30 @@ import {
   type HostServiceCapabilities,
 } from "@/shared/hostControlProtocol";
 import {
+  catalogMembershipRequestSchema,
+  catalogMembershipRequestUniquenessIssue,
+  type CatalogMembershipRequest,
+  type CatalogMembershipResponse,
+} from "./catalogReadContract";
+import {
+  REMOTE_BOUNDED_MAX_LIMIT,
+  REMOTE_BOUNDED_PROJECT_DEFAULT_LIMIT,
+  REMOTE_BOUNDED_READS_CAPABILITY,
+  REMOTE_BOUNDED_THREAD_DEFAULT_LIMIT,
+  appendRemoteBoundedReadBudget,
+  assertRemoteBoundedProjectCursor,
+  boundedReadLimit,
+  invalidReadsRequest,
+  parseBoundedMembershipResponse,
+  parseBoundedProjectListPage,
+  parseBoundedShellSnapshot,
+  performRemoteBoundedRead,
+  type RemoteBoundedProjectListPage,
+  type RemoteBoundedProjectPageOptions,
+  type RemoteBoundedShellSnapshotOptions,
+  type RemoteBoundedShellSnapshotResult,
+} from "./clientBoundedReads";
+import {
   remoteAgentSlashCommandsSchema,
   remoteAgentStatusesSchema,
   remoteBrowserStateSchema,
@@ -68,6 +92,10 @@ export abstract class RemoteClientHostApi extends RemoteClientAuth {
    * complete assembled snapshot so callers keep a single unchanged contract.
    * A host that predates the pagination ignores the query parameter and
    * returns no `threadsNextCursor`, which ends the loop after one response.
+   *
+   * This is the explicit genuine-older-host fallback. Declared B4 callers use
+   * {@link boundedShellSnapshot} (one page, no assembly); this method is not
+   * called by any bounded path.
    */
   async snapshot(options: { threadListPageLimit?: number } = {}): Promise<RemoteShellSnapshot> {
     const limit = options.threadListPageLimit;
@@ -117,6 +145,137 @@ export abstract class RemoteClientHostApi extends RemoteClientAuth {
       ...(gitSummariesByThread !== undefined ? { gitSummariesByThread } : {}),
       threadsNextCursor: null,
     };
+  }
+
+  /**
+   * B4 declared read: exactly ONE bounded `shell-snapshot` page. It never
+   * assembles the thread-list continuation, so the caller paints immediately
+   * and walks page by page. The result carries the negotiation verdict: an
+   * absent `reads` echo is the ONLY older-host signal, and a genuine older
+   * host should then use the explicit {@link snapshot} assembled fallback.
+   * A malformed echo or a missing bounded field rejects with
+   * {@link RemoteBoundedReadProtocolError}, never a silent downgrade.
+   */
+  async boundedShellSnapshot(
+    options: RemoteBoundedShellSnapshotOptions = {},
+  ): Promise<RemoteBoundedShellSnapshotResult> {
+    const search = new URLSearchParams();
+    search.set("reads", REMOTE_BOUNDED_READS_CAPABILITY);
+    search.set("order", options.order ?? "manual");
+    search.set(
+      "threadLimit",
+      String(
+        boundedReadLimit(
+          options.threadLimit,
+          REMOTE_BOUNDED_THREAD_DEFAULT_LIMIT,
+          REMOTE_BOUNDED_MAX_LIMIT,
+          "threadLimit",
+        ),
+      ),
+    );
+    search.set(
+      "projectLimit",
+      String(
+        boundedReadLimit(
+          options.projectLimit,
+          REMOTE_BOUNDED_PROJECT_DEFAULT_LIMIT,
+          REMOTE_BOUNDED_MAX_LIMIT,
+          "projectLimit",
+        ),
+      ),
+    );
+    search.set("summaries", options.summaries === true ? "1" : "0");
+    appendRemoteBoundedReadBudget(search, options);
+    return performRemoteBoundedRead({
+      what: "shell snapshot",
+      declaredOnly: false,
+      send: () =>
+        this.requestJson(
+          `/api/snapshot?${search.toString()}`,
+          options.signal !== undefined ? { signal: options.signal } : {},
+        ),
+      parse: parseBoundedShellSnapshot,
+    });
+  }
+
+  /**
+   * B4 declared read: one bounded project paint (`pj1.`) or exact-membership
+   * inventory (`pi1.`) page. The route exists only on declared hosts, so a
+   * missing route is a protocol error the caller resolves by falling back to
+   * the projects carried by the shell snapshot — never by silently swapping
+   * routes. Continuation uses the response's `projectsNextCursor`.
+   */
+  async boundedProjectListPage(
+    options: RemoteBoundedProjectPageOptions = {},
+  ): Promise<RemoteBoundedProjectListPage> {
+    const mode = options.mode ?? "page";
+    if (options.cursor !== undefined) assertRemoteBoundedProjectCursor(options.cursor, mode);
+    const search = new URLSearchParams();
+    search.set("reads", REMOTE_BOUNDED_READS_CAPABILITY);
+    search.set("mode", mode);
+    if (mode === "page") search.set("order", "manual");
+    search.set(
+      "projectLimit",
+      String(
+        boundedReadLimit(
+          options.projectLimit,
+          REMOTE_BOUNDED_PROJECT_DEFAULT_LIMIT,
+          REMOTE_BOUNDED_MAX_LIMIT,
+          "projectLimit",
+        ),
+      ),
+    );
+    if (options.cursor !== undefined) search.set("cursor", options.cursor);
+    appendRemoteBoundedReadBudget(search, options);
+    return performRemoteBoundedRead({
+      what: "project list page",
+      declaredOnly: true,
+      send: () =>
+        this.requestJson(
+          `/api/projects?${search.toString()}`,
+          options.signal !== undefined ? { signal: options.signal } : {},
+        ),
+      parse: (body) =>
+        parseBoundedProjectListPage(body, {
+          mode,
+          cursorProvided: options.cursor !== undefined,
+        }),
+    });
+  }
+
+  /**
+   * B4 authoritative membership confirmation behind the client deletion gate.
+   * This `POST` is a READ (`session:read`, no audit kind, no writes): it is
+   * never marked `mutation`, never carries a command id, and a lost response
+   * is simply retried as a fresh read — there is no uncertain-mutation
+   * classification to replay. Both id lists are bounded to 200 unique ids.
+   */
+  async boundedCatalogMembership(
+    request: CatalogMembershipRequest,
+    options: { readonly signal?: AbortSignal } = {},
+  ): Promise<CatalogMembershipResponse> {
+    const parsed = catalogMembershipRequestSchema.safeParse(request);
+    if (!parsed.success) {
+      throw invalidReadsRequest(
+        "A catalog membership request accepts at most 200 threadIds and 200 projectIds.",
+        "invalid_request",
+      );
+    }
+    const duplicateField = catalogMembershipRequestUniquenessIssue(parsed.data);
+    if (duplicateField !== null) {
+      throw invalidReadsRequest(`${duplicateField} must be unique.`, "invalid_request");
+    }
+    return performRemoteBoundedRead({
+      what: "catalog membership",
+      declaredOnly: true,
+      send: () =>
+        this.requestJson("/api/catalog/membership", {
+          method: "POST",
+          body: parsed.data,
+          ...(options.signal !== undefined ? { signal: options.signal } : {}),
+        }),
+      parse: (body) => parseBoundedMembershipResponse(body, parsed.data),
+    });
   }
 
   async agentStatuses(options: { omitSlashCommands?: boolean } = {}): Promise<RemoteAgentStatuses> {

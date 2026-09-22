@@ -374,6 +374,16 @@ function resolveWindowsCmdExeTarget(path: string | undefined): string | undefine
 
 const wslHomeCache = new Map<string, string>();
 
+/**
+ * Distros whose launch environment (login shell + home) has been resolved by
+ * {@link prepareWslDistroEnvironment}. Kept separate from the value caches so a
+ * distro with a resolved shell and an empty `$HOME` is not re-probed.
+ */
+const wslEnvPrepared = new Set<string>();
+/** Bumped whenever the caches are cleared so an in-flight probe cannot repopulate them. */
+let wslEnvGeneration = 0;
+const wslEnvFlights = new Map<string, Promise<WslLaunchEnvironment | undefined>>();
+
 function makeWslBridgeLocation(distro: string, cwd = "/"): WslLocation {
   return {
     kind: "wsl",
@@ -399,67 +409,217 @@ function bridgeBatchFallback(count: number): { ok: boolean; stdout: string }[] {
   return Array.from({ length: count }, () => ({ ok: false, stdout: "" }));
 }
 
-export function resolveWslShellPath(distro: string): string {
-  const cached = wslShellPathCache.get(distro);
-  if (cached) {
-    return cached;
-  }
+/** The distro facts a launch needs before it can build a `wsl.exe` command line. */
+export interface WslLaunchEnvironment {
+  /** Absolute login shell inside the distro (never an assumed `/bin/bash`). */
+  shellPath: string;
+  /** The distro user's home directory, when the probe could read it. */
+  home: string | undefined;
+}
 
-  try {
-    const result = spawnSync(
-      getWslCommand(),
-      ["-d", distro, "--", "sh", "-lc", 'getent passwd "$(id -un)" | cut -d: -f7'],
-      {
-        encoding: "utf8",
-        shell: false,
-        windowsHide: true,
-        timeout: 3_000,
-      },
+export interface WslDistroEnvironmentOptions {
+  /** Aborts this caller's wait; the shared bounded probe keeps running for joiners. */
+  signal?: AbortSignal | undefined;
+}
+
+/**
+ * Thrown by {@link buildWslLoginShellCommand} when a WSL launch environment was
+ * never prepared. This is a fail-closed guard, not a fallback: callers on a
+ * production path must `await prepareWslDistroEnvironment()` first. Nothing here
+ * spawns a process or assumes a shell — an unprepared distro cannot block the
+ * supervisor control loop.
+ */
+export class WslLaunchEnvironmentUnpreparedError extends Error {
+  constructor(readonly distro: string) {
+    super(
+      `WSL launch environment for "${distro}" was not prepared; ` +
+        "await prepareWslDistroEnvironment(distro) before building a WSL command.",
     );
-    if (!result.error && result.status === 0) {
-      const shellPath = parseCommandOutputLine(`${result.stdout ?? ""}`);
-      if (shellPath) {
-        wslShellPathCache.set(distro, shellPath);
-        return shellPath;
-      }
-    }
-  } catch {
-    // Fall through to bash so rc files (nvm/fnm/asdf) still get sourced.
+    this.name = "WslLaunchEnvironmentUnpreparedError";
   }
+}
 
-  const fallback = "/bin/bash";
-  wslShellPathCache.set(distro, fallback);
-  return fallback;
+const WSL_ENV_PROBE_MARKER = "__PORACODE_WSL_ENV__";
+/**
+ * Bound for the direct `wsl.exe` fallback probe. A stopped distro may need to
+ * boot before `sh` answers, so this matches the bridge probe's 10 s rather
+ * than the old 3 s synchronous shell probe.
+ */
+const WSL_ENV_PROBE_TIMEOUT_MS = 10_000;
+
+/**
+ * One bounded `sh -lc` round trip that reads the distro user's login shell and
+ * home. The shell comes from the passwd entry; only when `getent` is missing
+ * (non-glibc distro) does it fall back to the first shell that actually exists —
+ * never to an assumed `bash`.
+ */
+const WSL_ENV_PROBE_SCRIPT = [
+  'shell="$(getent passwd "$(id -un)" 2>/dev/null | cut -d: -f7)"',
+  '[ -n "$shell" ] || shell="$(command -v bash 2>/dev/null)"',
+  '[ -n "$shell" ] || shell="$(command -v sh 2>/dev/null)"',
+  `printf '%s\\n' '${WSL_ENV_PROBE_MARKER}'`,
+  'printf \'%s\\n\' "$shell" "$HOME"',
+].join("; ");
+
+function parseWslEnvProbeOutput(stdout: string): { shellPath?: string; home?: string } {
+  const lines = stdout.split(/\r?\n/g);
+  const markerIdx = lines.findIndex((line) => line.trim() === WSL_ENV_PROBE_MARKER);
+  if (markerIdx < 0) return {};
+  const shellPath = lines[markerIdx + 1]?.trim();
+  const home = lines[markerIdx + 2]?.trim();
+  return {
+    ...(shellPath ? { shellPath } : {}),
+    ...(home ? { home } : {}),
+  };
+}
+
+function recordWslLaunchEnvironment(
+  distro: string,
+  env: { shellPath?: string | undefined; home?: string | undefined },
+  generation: number,
+): void {
+  if (generation !== wslEnvGeneration) return;
+  if (env.shellPath) wslShellPathCache.set(distro, env.shellPath);
+  if (env.home) wslHomeCache.set(distro, env.home);
+  wslEnvPrepared.add(distro);
+}
+
+async function probeWslLaunchEnvironment(
+  distro: string,
+): Promise<{ shellPath?: string; home?: string }> {
+  // The in-distro bridge is the cheapest channel when it is live; the direct
+  // bounded `wsl.exe` probe covers a cold distro the bridge has not reached yet.
+  const bridged = await readWslCommandOutputAsync(distro, "sh", ["-lc", WSL_ENV_PROBE_SCRIPT]);
+  if (bridged.ok) {
+    const parsed = parseWslEnvProbeOutput(bridged.stdout);
+    if (parsed.shellPath) return parsed;
+  }
+  const direct = await readCommandOutputAsync(
+    getWslCommand(),
+    ["-d", distro, "--", "sh", "-lc", WSL_ENV_PROBE_SCRIPT],
+    { timeout: WSL_ENV_PROBE_TIMEOUT_MS },
+  );
+  return direct.ok ? parseWslEnvProbeOutput(direct.stdout) : {};
+}
+
+/**
+ * Seed the prepared launch environment for `distro` from facts already read
+ * out of band (bridge handshake, tests). This marks the distro prepared so
+ * {@link prepareWslDistroEnvironment} serves it without spawning; it is not a
+ * fallback for a cold production path — callers must still `await` preparation
+ * before building a WSL command line.
+ */
+export function primeWslLaunchEnvironment(distro: string, env: WslLaunchEnvironment): void {
+  recordWslLaunchEnvironment(distro, env, wslEnvGeneration);
+}
+
+/** The last prepared launch environment for `distro`, or undefined when cold. */
+export function getWslLaunchEnvironment(distro: string): WslLaunchEnvironment | undefined {
+  if (!wslEnvPrepared.has(distro)) return undefined;
+  const shellPath = wslShellPathCache.get(distro);
+  if (!shellPath) return undefined;
+  return { shellPath, home: wslHomeCache.get(distro) };
+}
+
+/** Synchronous, cache-only login-shell read. Never spawns and never blocks. */
+export function getCachedWslShellPath(distro: string): string | undefined {
+  return wslShellPathCache.get(distro);
 }
 
 export function getCachedWslHomeDirectory(distro: string): string | undefined {
   return wslHomeCache.get(distro);
 }
 
-export function resolveWslHomeDirectory(distro: string): string | undefined {
-  const cached = wslHomeCache.get(distro);
-  if (cached) {
-    return cached;
+function awaitWithSignal<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise;
+  if (signal.aborted) {
+    return Promise.reject(signal.reason ?? new Error("WSL environment preparation aborted"));
   }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      reject(signal.reason ?? new Error("WSL environment preparation aborted"));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
 
-  const result = spawnSync(
-    getWslCommand(),
-    ["-d", distro, "--", "sh", "-lc", 'printf %s "$HOME"'],
-    {
-      encoding: "utf8",
-      shell: false,
-      windowsHide: true,
-      timeout: 5_000,
-    },
-  );
-  if (result.error || result.status !== 0) {
-    return undefined;
+/**
+ * Resolve — at most once per distro — the login shell and home directory every
+ * WSL command builder needs, through one bounded async round trip. This is the
+ * authoritative preparation behind the pure `getCachedWslShellPath` /
+ * `getCachedWslHomeDirectory` reads: a cold production path awaits this before
+ * building, so a stopped or stalled distro never pins the event loop.
+ *
+ * Returns `undefined` when the probe could not read a shell (distro stopped,
+ * probe timed out). Callers that require a shell surface that as an error;
+ * callers that only want the home treat it as "unavailable".
+ */
+export function prepareWslDistroEnvironment(
+  distro: string,
+  options?: WslDistroEnvironmentOptions,
+): Promise<WslLaunchEnvironment | undefined> {
+  const prepared = getWslLaunchEnvironment(distro);
+  if (prepared) return Promise.resolve(prepared);
+
+  let flight = wslEnvFlights.get(distro);
+  if (!flight) {
+    const generation = wslEnvGeneration;
+    flight = (async () => {
+      try {
+        const probed = await probeWslLaunchEnvironment(distro);
+        recordWslLaunchEnvironment(distro, probed, generation);
+        return generation === wslEnvGeneration ? getWslLaunchEnvironment(distro) : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    wslEnvFlights.set(distro, flight);
+    void flight.finally(() => {
+      if (wslEnvFlights.get(distro) === flight) wslEnvFlights.delete(distro);
+    });
   }
-  const home = parseCommandOutputLine(`${result.stdout ?? ""}`);
-  if (home) {
-    wslHomeCache.set(distro, home);
+  return awaitWithSignal(flight, options?.signal);
+}
+
+/**
+ * Async login-shell resolution: awaits {@link prepareWslDistroEnvironment} and
+ * fails when no shell could be read. Use this when a shell is required; use
+ * {@link getCachedWslShellPath} only after awaiting preparation.
+ */
+export async function resolveWslShellPath(
+  distro: string,
+  options?: WslDistroEnvironmentOptions,
+): Promise<string> {
+  const env = await prepareWslDistroEnvironment(distro, options);
+  if (!env?.shellPath) {
+    throw new Error(`Unable to resolve the login shell inside WSL distro "${distro}".`);
   }
-  return home;
+  return env.shellPath;
+}
+
+/**
+ * Async home resolution for paths that translate `~` inside a distro. Returns
+ * `undefined` when the probe could not read it (callers keep their prior
+ * "cannot expand" behavior). Never falls back to a guessed home.
+ */
+export async function resolveWslHomeDirectory(
+  distro: string,
+  options?: WslDistroEnvironmentOptions,
+): Promise<string | undefined> {
+  const cached = getCachedWslHomeDirectory(distro);
+  if (cached) return cached;
+  const env = await prepareWslDistroEnvironment(distro, options);
+  return env?.home;
 }
 
 /**
@@ -513,6 +673,13 @@ export function clearExecutablePathCache(): void {
   invalidateExecutablePathCache();
   wslShellPathCache.clear();
   wslHomeCache.clear();
+  // Invalidate in-flight probes: a probe started before this clear must not
+  // repopulate the caches after the caller asked for fresh resolution. Drop
+  // the flights too, so a caller arriving after the clear starts a fresh
+  // probe instead of joining the pre-clear flight and receiving `undefined`.
+  wslEnvGeneration += 1;
+  wslEnvFlights.clear();
+  wslEnvPrepared.clear();
   primedPosixEnv = undefined;
   projectShellEnvCache.clear();
   projectShellEnvResolved.clear();
@@ -1060,17 +1227,9 @@ export async function execInWsl(
   throw error;
 }
 
-export async function resolveWslHomeDirectoryAsync(distro: string): Promise<string | undefined> {
-  const cached = wslHomeCache.get(distro);
-  if (cached) {
-    return cached;
-  }
-
-  const result = await readWslCommandOutputAsync(distro, "sh", ["-lc", 'printf %s "$HOME"']);
-  const home = result.ok ? result.stdout.trim() : "";
-  if (!home) {
-    return undefined;
-  }
-  wslHomeCache.set(distro, home);
-  return home;
+export async function resolveWslHomeDirectoryAsync(
+  distro: string,
+  options?: WslDistroEnvironmentOptions,
+): Promise<string | undefined> {
+  return resolveWslHomeDirectory(distro, options);
 }

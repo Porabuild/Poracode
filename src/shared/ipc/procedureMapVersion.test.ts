@@ -22,7 +22,24 @@ import { PREVIOUS_IPC_PROCEDURE_MAP_VERSION } from "../clientHostHop";
 // every peer loud-rejects unknown names, so the version stays 1; the
 // fingerprint moves to force exactly this review). Optional viewer preset on
 // `refreshRemoteAccessPairing` is payload-only and does not change the map.
-const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:ab542739be52c9ef37b6b12a37eb4a3cd5b781396d9a8eb735d08e6a63b9ce88`;
+// V2 A2: `setRendererEventInterests` removed with the backend relay; the
+// renderer's loopback WS reads its own registry, so the IPC sync is gone and
+// the hop moved to 15 (a version-14 peer still speaks the removed procedure).
+// Resource admission PHASE1: additive internal supervisor procedure
+// `getResourceAdmissionStatus` (not in the remote allowlist and not part of
+// any renderer call path). Every peer loud-rejects unknown names, so the map
+// version stays 15; the fingerprint moved to force this review.
+// V2 host correction: additive internal supervisor procedure
+// `closeThreadConfirmed` (confirmed-retirement close used by host housekeeping;
+// an older supervisor loud-rejects the name and the caller keeps the row). No
+// existing name, payload, or transport changed, so the map version stays 15.
+// V2 experiment writer retirement: `dbPersistExperimentState` removed — the
+// renderer experiment store is a memory-only projection and the host
+// experiment authority (capabilities.experiments v1) owns persistence. The
+// renderer had no live caller left. A published hop-15 peer still dispatches
+// the removed main-local name, so the hop moved 15→16 and the fingerprint
+// moved with the removal (see `clientHostHop.test.ts` hop-15 regression).
+const HOP_PIN = `${IPC_PROCEDURE_MAP_VERSION}:885c27234391c14e3e3ee1b2b77b5c72a8495c5bd4b3bcd24a74f38932a4927e`;
 
 describe("IPC procedure map versioning", () => {
   it("keeps the procedure-map fingerprint pinned so any map change forces a compat review", () => {

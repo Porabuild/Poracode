@@ -22,7 +22,7 @@ vi.mock("@/shared/diagnostics/nodePerformanceDiagnostics", () => ({
   startNodePerformanceDiagnostics: () => undefined,
 }));
 vi.mock("@/shared/secretStorage", () => ({ configureSecretStorageKey() {} }));
-vi.mock("@/main/db/databaseRpc", () => ({ callDatabaseRpc: () => null }));
+vi.mock("@/host/db/databaseRpc", () => ({ callDatabaseRpc: () => null }));
 vi.mock("./BackendHostCore", () => ({
   BackendEventRouter: class {
     dispose() {}
@@ -49,6 +49,7 @@ vi.mock("./BackendDesktopServices", () => ({
       state.requestNative = options.requestNative;
     }
     call = state.service;
+    callSupervisor = state.supervisor;
     dispose = state.stopServices;
     async prepareSupervisor() {}
   },

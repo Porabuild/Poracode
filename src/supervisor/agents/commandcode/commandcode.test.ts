@@ -186,11 +186,11 @@ describe("createCommandCodeAdapter", () => {
     expect(adapter.update?.npm).toBe("command-code");
   });
 
-  it("launches without a sessionRef so the runtime discovers the real id", () => {
+  it("launches without a sessionRef so the runtime discovers the real id", async () => {
     // The synthetic ref is gone: returning no ref is what lets the runtime's
     // discoverSessionRef path run and capture command-code's real session id.
     const adapter = createCommandCodeAdapter();
-    const launch = adapter.buildLaunchArgv(project, { model: "gpt-5.5" }, "hi");
+    const launch = await adapter.buildLaunchArgv(project, { model: "gpt-5.5" }, "hi");
 
     expect(launch.binary).toBe("command-code");
     expect(launch.args).toEqual([
@@ -208,9 +208,9 @@ describe("createCommandCodeAdapter", () => {
     expect(adapter.watchSessionRef).toBeTypeOf("function");
   });
 
-  it("resumes a discovered session id with --resume", () => {
+  it("resumes a discovered session id with --resume", async () => {
     const adapter = createCommandCodeAdapter();
-    const resume = adapter.buildResumeArgv(project, { model: "gpt-5.5" }, "next", {
+    const resume = await adapter.buildResumeArgv(project, { model: "gpt-5.5" }, "next", {
       providerSessionId: "af75c40e-44dd-4369-a187-571745a01df2",
       discoveredAt: "2026-05-20T00:00:00.000Z",
     });
@@ -220,12 +220,12 @@ describe("createCommandCodeAdapter", () => {
     expect(resume.args).not.toContain("--continue");
   });
 
-  it("falls back to --continue for a non-uuid (legacy/synthetic) ref", () => {
+  it("falls back to --continue for a non-uuid (legacy/synthetic) ref", async () => {
     // A non-UUID ref can't be a real command-code session id, so resume can't
     // target one — it uses --continue and never passes the bogus id. A stale
     // *uuid* ref instead goes through --resume and the runtime recovers it.
     const adapter = createCommandCodeAdapter();
-    const resume = adapter.buildResumeArgv(project, { model: "gpt-5.5" }, "next", {
+    const resume = await adapter.buildResumeArgv(project, { model: "gpt-5.5" }, "next", {
       providerSessionId: "synthetic-id",
       discoveredAt: "2026-05-20T00:00:00.000Z",
     });
@@ -254,9 +254,9 @@ describe("createCommandCodeAdapter", () => {
     });
   });
 
-  it("lets each CLI location choose its own default for an empty one-shot model", () => {
+  it("lets each CLI location choose its own default for an empty one-shot model", async () => {
     const adapter = createCommandCodeAdapter();
-    const command = adapter.buildOneShotCommand?.("", undefined, "summarize");
+    const command = await adapter.buildOneShotCommand?.("", undefined, "summarize");
     expect(command?.args).not.toContain("--model");
 
     const subagent = adapter.buildSubagentOneShotCommand?.({

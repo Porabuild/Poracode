@@ -1,7 +1,7 @@
 import {
   migrateLegacyDataOnLaunch,
   type LegacyDataMigrationOptions,
-} from "@/main/legacyDataMigration";
+} from "@/host/legacyDataMigration";
 
 try {
   const encoded = process.argv[2];
