@@ -12,6 +12,13 @@ export interface AssembleServerTarballOptions {
   overlaySource?: string;
   /** Canonical web build output copied to `renderer/` (default `dist/web`). */
   webDir?: string;
+  /**
+   * Root holding the required resource trees (`wsl-helpers`, `agent-plugins`,
+   * `computer-use-helper`) staged into `resources/`. Defaults to the
+   * repository `resources/` directory; tests inject a hermetic fixture root
+   * because those trees are generated and gitignored.
+   */
+  resourceRoot?: string;
   /** Advertised machine shapes; defaults to the packaging host's own. */
   targets?: readonly string[];
   /** Build an explicit API-only artifact without a bundled web client. */

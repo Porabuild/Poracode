@@ -236,12 +236,16 @@ export async function ensureRuntime(input) {
         });
       }
 
-      validateRuntimeArchive({ tarball: tarballPath, ...(input.run ? { run: input.run } : {}) });
+      const archiveNames = validateRuntimeArchive({
+        tarball: tarballPath,
+        ...(input.run ? { run: input.run } : {}),
+      });
       const bootstrapDir = join(stagingRoot, "bootstrap");
       extractArchiveMembers({
         tarball: tarballPath,
         destination: bootstrapDir,
         members: SHARED_INSTALL_SCRIPTS,
+        names: archiveNames,
         ...(input.run ? { run: input.run } : {}),
       });
       const installModulePath = join(bootstrapDir, "scripts", "server-release-install.mjs");

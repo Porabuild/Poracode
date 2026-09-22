@@ -20,7 +20,11 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { validateRuntimeArchive } from "../lib/archive.mjs";
+import {
+  extractArchiveMembers,
+  resolveArchiveMembers,
+  validateRuntimeArchive,
+} from "../lib/archive.mjs";
 import { downloadArtifact } from "../lib/artifact.mjs";
 import { acquireInstallLock, readReadyMarker } from "../lib/cache.mjs";
 import { execServer, launcherVersion, resolveRuntimeDir, runCli } from "../lib/launcher.mjs";
@@ -926,6 +930,165 @@ void test("validateRuntimeArchive refuses traversal and link entries", () => {
     () => validateRuntimeArchive({ tarball, run: hermeticRun }),
     /link entry is not allowed/u,
   );
+});
+
+void test("the ./-prefixed production shape keeps traversal and link entries refused", () => {
+  const dottedTraversalRun = (command, args) => {
+    if (args[0] === "-tzf") return "./\n./scripts/\n./../escape\nlib/server.cjs\n";
+    return (
+      "-rw-r--r--  0 0 0 1 Jan  1 00:00 ./\n" +
+      "-rw-r--r--  0 0 0 1 Jan  1 00:00 ./scripts/\n" +
+      "-rw-r--r--  0 0 0 1 Jan  1 00:00 ./../escape\n" +
+      "-rw-r--r--  0 0 0 1 Jan  1 00:00 lib/server.cjs\n"
+    );
+  };
+  assert.throws(
+    () => validateRuntimeArchive({ tarball: "unused.tar.gz", run: dottedTraversalRun }),
+    /entry escapes the install directory/u,
+  );
+
+  const dottedLinkRun = (command, args) => {
+    if (args[0] === "-tzf") return "./\n./link\n";
+    return "lrwxr-xr-x  0 0 0 0 Jan  1 00:00 ./link -> /etc/hostname\n";
+  };
+  assert.throws(
+    () => validateRuntimeArchive({ tarball: "unused.tar.gz", run: dottedLinkRun }),
+    /link entry is not allowed/u,
+  );
+});
+
+void test("resolveArchiveMembers maps canonical requests to stored spellings and refuses gaps", () => {
+  assert.deepEqual(
+    resolveArchiveMembers(
+      ["./", "./scripts/", "./scripts/a.mjs", "lib/b.cjs"],
+      ["scripts/a.mjs", "./lib/b.cjs"],
+    ),
+    ["./scripts/a.mjs", "lib/b.cjs"],
+  );
+  assert.deepEqual(
+    resolveArchiveMembers(["./scripts/a.mjs", "scripts/a.mjs"], ["scripts/a.mjs"]),
+    ["./scripts/a.mjs"],
+    "duplicate stored spellings resolve deterministically to the first entry",
+  );
+  assert.throws(
+    () => resolveArchiveMembers(["./lib/x.cjs"], ["../escape"]),
+    (error) =>
+      error.name === "UnsafeRuntimeArchiveError" && /requested member escapes/u.test(error.message),
+    "a requested member is held to the same containment rule as archive entries",
+  );
+});
+
+/** Member names exactly as the host tar stored them (a directory walk keeps `./`). */
+function storedArchiveNames(tarball) {
+  return execFileSync("tar", ["-tzf", tarball], { encoding: "utf8" })
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/**
+ * A run shim that reproduces GNU tar's extraction contract on any host: a
+ * requested member must match the archive's stored spelling verbatim, or the
+ * extract fails with "Not found in archive". bsdtar matches canonically, so
+ * without this shim the `./`-prefix defect is invisible on a macOS host.
+ */
+function gnuStrictTarRun(storedNames) {
+  return (command, args, options) => {
+    if (command === "npm") return Buffer.from("");
+    if (command === "tar" && args[0] === "-xzf") {
+      const destinationFlag = args.indexOf("-C");
+      for (const member of args.slice(destinationFlag + 2)) {
+        if (!storedNames.includes(member)) {
+          throw new Error(`tar: ${member}: Not found in archive`);
+        }
+      }
+    }
+    return execFileSync(command, args, options);
+  };
+}
+
+void test("extraction resolves members against the archive's stored ./-prefixed spelling", async () => {
+  const root = tempDir("poracode-cli-dotted-");
+  const { tarball, sha256: artifactSha } = buildRuntimeTarball(root);
+  const storedNames = storedArchiveNames(tarball);
+  // The production archive shape: a directory walk stores "./"-prefixed names
+  // (GNU tar and bsdtar both do), and GNU tar refuses canonical requests.
+  assert.ok(
+    storedNames.includes("./scripts/server-release-install.mjs"),
+    `the fixture must reproduce the ./-prefixed shape: ${storedNames.join(", ")}`,
+  );
+  const installed = await ensureRuntime({
+    version: "9.9.9",
+    target: "test-x64",
+    entry: { url: "https://example.invalid/runtime.tar.gz", sha256: artifactSha },
+    cacheRoot: join(root, "cache"),
+    resolveArtifact: async () => tarball,
+    run: gnuStrictTarRun(storedNames),
+  });
+  assert.ok(readFileSync(join(installed, "lib", "server.cjs"), "utf8").includes("stub"));
+});
+
+void test("a member missing from the archive fails closed before any extraction", () => {
+  const root = tempDir("poracode-cli-member-missing-");
+  const stage = join(root, "stage");
+  mkdirSync(join(stage, "scripts"), { recursive: true });
+  mkdirSync(join(stage, "lib"), { recursive: true });
+  cpSync(
+    join(repoRoot, "scripts", "server-release-install.mjs"),
+    join(stage, "scripts", "server-release-install.mjs"),
+  );
+  writeFileSync(join(stage, "lib", "server.cjs"), STUB_SERVER);
+  writeFileSync(join(stage, "package.json"), "{}\n");
+  const tarball = join(root, "runtime.tar.gz");
+  execFileSync("tar", ["-czf", tarball, "-C", stage, "."], { stdio: "pipe" });
+
+  const destination = join(root, "bootstrap");
+  assert.throws(
+    () =>
+      extractArchiveMembers({
+        tarball,
+        destination,
+        members: [
+          "scripts/server-release-install.mjs",
+          "scripts/server-native-overlay.mjs", // not shipped in this artifact
+        ],
+        names: validateRuntimeArchive({ tarball }),
+      }),
+    (error) =>
+      error.code === "PORACODE_RUNTIME_ARCHIVE_MEMBER_MISSING" &&
+      /server-native-overlay\.mjs/u.test(error.message),
+  );
+  assert.equal(
+    existsSync(destination),
+    false,
+    "resolution must fail before the destination is created",
+  );
+});
+
+void test("member extraction reuses the validated listing instead of listing the archive again", () => {
+  const root = tempDir("poracode-cli-listing-reuse-");
+  const { tarball } = buildRuntimeTarball(root);
+  const calls = [];
+  const countingRun = (command, args, options) => {
+    if (command === "tar") calls.push(args[0]);
+    return execFileSync(command, args, options);
+  };
+  const names = validateRuntimeArchive({ tarball, run: countingRun });
+  assert.deepEqual(calls, ["-tzf", "-tvzf"]);
+  const destination = join(root, "bootstrap");
+  extractArchiveMembers({
+    tarball,
+    destination,
+    members: ["scripts/server-release-install.mjs", "scripts/server-native-overlay.mjs"],
+    names,
+    run: countingRun,
+  });
+  assert.deepEqual(
+    calls.filter((flag) => flag === "-tzf" || flag === "-tvzf"),
+    ["-tzf", "-tvzf"],
+    "extraction must not list the archive again",
+  );
+  assert.ok(existsSync(join(destination, "scripts", "server-release-install.mjs")));
 });
 
 void test("runCli answers --version and --help without touching the cache", async () => {
