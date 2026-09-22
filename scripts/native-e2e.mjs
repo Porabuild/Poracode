@@ -698,6 +698,8 @@ async function runAndroidRealJourney({ registerShutdown }) {
       "./gradlew",
       [
         "connectedDebugAndroidTest",
+        // Preserve the first method's redeemed host for the second method;
+        // build.gradle.kts keeps Orchestrator cleanup enabled by default.
         "-Pporacode.android.clearPackageData=false",
         "-Pandroid.testInstrumentationRunnerArguments.peerMode=real",
         `-Pandroid.testInstrumentationRunnerArguments.pairingUrl=${pairingUrl}`,
