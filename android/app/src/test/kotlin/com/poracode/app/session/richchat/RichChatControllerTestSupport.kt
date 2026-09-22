@@ -33,7 +33,8 @@ internal fun richLease(
     ),
     online: Boolean = true,
     ready: Boolean = true,
-) = RichChatHostLease(connectionId, generation, scopes, online, ready)
+    noticesSupported: Boolean = false,
+) = RichChatHostLease(connectionId, generation, scopes, online, ready, noticesSupported = noticesSupported)
 
 internal fun richSnapshot(
     lease: RichChatHostLease = richLease(),
@@ -57,6 +58,8 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
         { lease, threadId -> richSnapshot(lease, threadId) }
     var olderHandler: suspend (RichChatHostLease, String, Int) -> RichChatHistoryPage =
         { _, _, _ -> RichChatHistoryPage(emptyList(), null) }
+    var olderTurnsHandler: suspend (RichChatHostLease, String, String) -> RichChatTurnsPage =
+        { _, _, _ -> RichChatTurnsPage(emptyList(), null) }
     var unitHandler: suspend (String) -> Unit = {}
     var checkpointHandler: suspend (String) -> RichCheckpoint = {
         RichCheckpoint("thread-a", "item-a", "refs/a", "abc", "2026-08-12T00:00:00Z")
@@ -82,6 +85,39 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
     ): RichChatHistoryPage {
         calls += "older"
         return olderHandler(lease, threadId, beforePosition)
+    }
+
+    override suspend fun olderTurns(
+        lease: RichChatHostLease,
+        threadId: String,
+        cursor: String,
+        limit: Int,
+    ): RichChatTurnsPage {
+        calls += "older-turns"
+        return olderTurnsHandler(lease, threadId, cursor)
+    }
+
+    var runtimeGapHandler: suspend (RichChatHostLease, String) -> com.poracode.app.model.RemoteRuntimeGapRead =
+        { _, _ -> com.poracode.app.model.RemoteRuntimeGapRead() }
+    var acknowledgeGapHandler: suspend (String, String, String) -> com.poracode.app.model.RemoteRuntimeGapAck =
+        { _, _, _ -> error("unexpected gap acknowledgement") }
+
+    override suspend fun runtimeGap(
+        lease: RichChatHostLease,
+        threadId: String,
+    ): com.poracode.app.model.RemoteRuntimeGapRead {
+        calls += "runtime-gap"
+        return runtimeGapHandler(lease, threadId)
+    }
+
+    override suspend fun acknowledgeRuntimeGap(
+        lease: RichChatHostLease,
+        threadId: String,
+        episodeToken: String,
+        commandId: String,
+    ): com.poracode.app.model.RemoteRuntimeGapAck {
+        calls += "runtime-gap-ack"
+        return acknowledgeGapHandler(threadId, episodeToken, commandId)
     }
 
     override suspend fun send(

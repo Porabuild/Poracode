@@ -166,4 +166,270 @@ class AgentStatusesBootstrapTest {
             replay.state.mergedByUpdate[AgentStatusEntry.identityKey("codex", "posix", "")]?.label,
         )
     }
+
+    @Test
+    fun transitionCountOverflowVoidsAttemptAndSeedRequiresRecovery() {
+        val cache = HostStateCache(
+            agentBaseBounds = HostStateCache.AgentBaseBounds(
+                maxTransitions = 2,
+                maxBytes = 1_000_000,
+                maxAgeMs = 60_000,
+            ),
+        )
+        val replay = SequencedReplayController(cache)
+        replay.seedAgentStatusesBase(listOf(native("codex", "Codex")), emptyList())
+        replay.beginAgentStatusesBase()
+        replay.handle(updatedEvent("a", "A"))
+        replay.handle(updatedEvent("b", "B"))
+        // The third transition exceeds the queue bound: the attempt is void
+        // (deltas must not be trimmed), and the transition applies directly
+        // instead of being silently dropped.
+        val third = replay.handle(updatedEvent("c", "C"))
+        assertTrue(third.applied)
+        assertFalse(cache.agentStatusesBasePending)
+
+        val install = replay.seedAgentStatusesBase(
+            listOf(native("codex", "Codex base")),
+            emptyList(),
+        )
+        assertTrue(install.requiresAuthoritativeRecovery)
+        // The void base was not installed; live state is untouched.
+        assertEquals(
+            "Codex",
+            replay.state.mergedByUpdate[AgentStatusEntry.identityKey("codex", "posix", "")]?.label,
+        )
+        assertEquals(
+            "C",
+            replay.state.mergedByUpdate[AgentStatusEntry.identityKey("c", "posix", "")]?.label,
+        )
+    }
+
+    @Test
+    fun transitionByteOverflowVoidsAttempt() {
+        val cache = HostStateCache(
+            agentBaseBounds = HostStateCache.AgentBaseBounds(
+                maxTransitions = 512,
+                maxBytes = 1,
+                maxAgeMs = 60_000,
+            ),
+        )
+        val replay = SequencedReplayController(cache)
+        replay.beginAgentStatusesBase()
+        val outcome = replay.handle(updatedEvent("a", "A"))
+        assertTrue(outcome.applied)
+        assertFalse(cache.agentStatusesBasePending)
+        assertTrue(
+            replay.seedAgentStatusesBase(emptyList(), emptyList()).requiresAuthoritativeRecovery
+        )
+    }
+
+    @Test
+    fun transitionRetainedAgeOverflowVoidsAttempt() {
+        var now = 0L
+        val cache = HostStateCache(
+            agentBaseBounds = HostStateCache.AgentBaseBounds(
+                maxTransitions = 8,
+                maxBytes = 1_000_000,
+                maxAgeMs = 500,
+            ),
+            arrivalClockMs = { now },
+        )
+        val replay = SequencedReplayController(cache)
+        replay.beginAgentStatusesBase()
+        now = 0
+        replay.handle(updatedEvent("a", "A"))
+        now = 1_000
+        replay.handle(updatedEvent("b", "B"))
+        assertFalse(cache.agentStatusesBasePending)
+        assertTrue(
+            replay.seedAgentStatusesBase(emptyList(), emptyList()).requiresAuthoritativeRecovery
+        )
+    }
+
+    @Test
+    fun hostSwitchReleasesPendingBaseBoundary() {
+        val cache = HostStateCache()
+        val replay = SequencedReplayController(cache)
+        replay.bindHost("host-a")
+        replay.beginAgentStatusesBase()
+        replay.handle(updatedEvent("a", "A"))
+        assertTrue(cache.agentStatusesBasePending)
+
+        replay.bindHost("host-b")
+        assertFalse(cache.agentStatusesBasePending)
+        val install = replay.seedAgentStatusesBase(emptyList(), emptyList())
+        assertFalse(install.requiresAuthoritativeRecovery)
+        assertTrue("no cross-host transition leaked", replay.state.mergedByUpdate.isEmpty())
+    }
+
+    // MARK: - F2 reopen semantics (attempt token)
+
+    private fun key(kind: String) = AgentStatusEntry.identityKey(kind, "posix", "")
+
+    @Test
+    fun repeatedBeginStartsFreshBoundaryAndSupersedesOlderAttempt() {
+        val cache = HostStateCache()
+        val replay = SequencedReplayController(cache)
+        val first = replay.beginAgentStatusesBase()
+        replay.handle(updatedEvent("a", "A"))
+        val second = replay.beginAgentStatusesBase()
+        assertTrue("each open gets a fresh attempt token", second != first)
+        assertTrue(cache.agentStatusesBasePending)
+        replay.handle(updatedEvent("b", "B"))
+
+        // A slower fetch from the superseded attempt installs nothing and
+        // consumes nothing: the newer boundary stays open for its own fetch.
+        val stale = replay.seedAgentStatusesBase(
+            listOf(native("codex", "Codex base")),
+            emptyList(),
+            first,
+        )
+        assertTrue(stale.stale)
+        assertFalse(stale.requiresAuthoritativeRecovery)
+        assertTrue(cache.agentStatusesBasePending)
+
+        // The current attempt's seed installs its authoritative base and
+        // replays only the transitions queued under its own boundary. The
+        // pre-reopen transition is covered by the newer read, so it must not
+        // re-apply (stale value) over the base.
+        val install = replay.seedAgentStatusesBase(
+            listOf(native("codex", "Codex base")),
+            emptyList(),
+            second,
+        )
+        assertFalse(install.stale)
+        assertFalse(install.requiresAuthoritativeRecovery)
+        assertFalse(cache.agentStatusesBasePending)
+        assertEquals("Codex base", replay.state.mergedByUpdate[key("codex")]?.label)
+        assertEquals("B", replay.state.mergedByUpdate[key("b")]?.label)
+        assertFalse(replay.state.mergedByUpdate.containsKey(key("a")))
+    }
+
+    @Test
+    fun repeatedBeginResetsRetainedByteAndAgeAccounting() {
+        var now = 0L
+        val cache = HostStateCache(
+            agentBaseBounds = HostStateCache.AgentBaseBounds(
+                maxTransitions = 8,
+                maxBytes = 1_000_000,
+                maxAgeMs = 500,
+            ),
+            arrivalClockMs = { now },
+        )
+        val replay = SequencedReplayController(cache)
+        val first = replay.beginAgentStatusesBase()
+        now = 0
+        replay.handle(updatedEvent("a", "A"))
+        val firstBytes = cache.agentStatusesBaseBufferedBytes()
+        assertTrue(firstBytes > 0)
+
+        // Reopen: the fresh boundary owns no transitions and no accounting.
+        val second = replay.beginAgentStatusesBase()
+        assertTrue(second != first)
+        assertEquals(0L, cache.agentStatusesBaseBufferedBytes())
+
+        // A quiet read that would have outlived the age budget under the old
+        // (unreset) oldest arrival must not void the fresh boundary.
+        now = 1_000
+        replay.handle(updatedEvent("b", "B"))
+        assertEquals(firstBytes, cache.agentStatusesBaseBufferedBytes())
+        assertTrue(cache.agentStatusesBasePending)
+
+        val install = replay.seedAgentStatusesBase(emptyList(), emptyList(), second)
+        assertFalse(install.stale)
+        assertFalse(install.requiresAuthoritativeRecovery)
+        assertEquals("B", replay.state.mergedByUpdate[key("b")]?.label)
+    }
+
+    @Test
+    fun concurrentReadsOnlyCurrentAttemptSeedInstalls() {
+        val cache = HostStateCache()
+        val replay = SequencedReplayController(cache)
+        val first = replay.beginAgentStatusesBase()
+        replay.handle(updatedEvent("a", "A"))
+        val second = replay.beginAgentStatusesBase()
+        replay.handle(updatedEvent("b", "B"))
+
+        // The newer fetch lands first; the older fetch then lands and is
+        // ignored instead of overwriting the newer base or draining its queue.
+        val installSecond = replay.seedAgentStatusesBase(
+            listOf(native("codex", "Base two")),
+            emptyList(),
+            second,
+        )
+        assertFalse(installSecond.stale)
+        val installFirst = replay.seedAgentStatusesBase(
+            listOf(native("codex", "Base one")),
+            emptyList(),
+            first,
+        )
+        assertTrue(installFirst.stale)
+        assertEquals("Base two", replay.state.mergedByUpdate[key("codex")]?.label)
+        assertEquals("B", replay.state.mergedByUpdate[key("b")]?.label)
+        assertFalse(replay.state.mergedByUpdate.containsKey(key("a")))
+    }
+
+    @Test
+    fun handoffInvalidatesOldAttemptTokenAndStartsClean() {
+        val cache = HostStateCache()
+        val replay = SequencedReplayController(cache)
+        replay.bindHost("host-a")
+        val oldAttempt = replay.beginAgentStatusesBase()
+        replay.handle(updatedEvent("a", "A"))
+        replay.bindHost("host-b")
+        assertFalse(cache.agentStatusesBasePending)
+
+        val stale = replay.seedAgentStatusesBase(
+            listOf(native("codex", "Old host")),
+            emptyList(),
+            oldAttempt,
+        )
+        assertTrue(stale.stale)
+        assertTrue(replay.state.mergedByUpdate.isEmpty())
+
+        val newAttempt = replay.beginAgentStatusesBase()
+        replay.handle(updatedEvent("b", "B"))
+        val install = replay.seedAgentStatusesBase(
+            listOf(native("codex", "New host")),
+            emptyList(),
+            newAttempt,
+        )
+        assertFalse(install.stale)
+        assertFalse(install.requiresAuthoritativeRecovery)
+        assertEquals("New host", replay.state.mergedByUpdate[key("codex")]?.label)
+        assertEquals("B", replay.state.mergedByUpdate[key("b")]?.label)
+    }
+
+    @Test
+    fun retainedAgeExpiryAtSeedVoidsAttemptWithoutNewInput() {
+        var now = 0L
+        val cache = HostStateCache(
+            agentBaseBounds = HostStateCache.AgentBaseBounds(
+                maxTransitions = 8,
+                maxBytes = 1_000_000,
+                maxAgeMs = 500,
+            ),
+            arrivalClockMs = { now },
+        )
+        val replay = SequencedReplayController(cache)
+        replay.seedAgentStatusesBase(listOf(native("codex", "Codex base")), emptyList())
+        val attempt = replay.beginAgentStatusesBase()
+        now = 0
+        replay.handle(updatedEvent("a", "A"))
+        assertTrue(cache.agentStatusesBasePending)
+
+        // Quiet: the fetch outlives the age budget with no new transitions.
+        now = 1_000
+        val install = replay.seedAgentStatusesBase(
+            listOf(native("other", "Other base")),
+            emptyList(),
+            attempt,
+        )
+        assertTrue(install.requiresAuthoritativeRecovery)
+        assertFalse(install.stale)
+        // The expired attempt installed nothing and released its queue.
+        assertEquals("Codex base", replay.state.mergedByUpdate[key("codex")]?.label)
+        assertFalse(replay.state.mergedByUpdate.containsKey(key("a")))
+        assertFalse(cache.agentStatusesBasePending)
+    }
 }

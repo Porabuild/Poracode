@@ -15,22 +15,26 @@ class SequencedReplayController(private val cache: HostStateCache) {
         val transition = SequencedEventApplier.decode(event) ?: return ReplayOutcome.NOT_HANDLED
         if (cache.agentStatusesBasePending && isAgentStatusesTransition(transition)) {
             // Base fetch in flight: queue instead of applying, so the HTTP base
-            // lands first and the live update wins afterwards. The transition is
-            // durably queued, so the sequenced cursor may advance.
-            cache.bufferAgentStatusesTransition(transition)
-            return ReplayOutcome(
-                handled = true,
-                applied = true,
-                transition = transition,
-                gitStateChanged = false,
-                resetThreadIds = emptySet(),
-                freshBaselineThreadIds = emptySet(),
-                agentWindowsLoadedChanged = transition is SequencedEventApplier.Transition.WindowsAgentStatuses,
-                agentWslLoadedChanged = transition is SequencedEventApplier.Transition.WslAgentStatuses,
-                agentMergedChanged = transition is SequencedEventApplier.Transition.AgentStatusUpdated,
-                gitSummariesChanged = false,
-                threadExitedId = null,
-            )
+            // lands first and the live update wins afterwards. Only a durably
+            // queued transition may advance the sequenced cursor; when a bound
+            // invalidated the attempt (ordered replay is impossible) the
+            // transition applies directly instead of being dropped.
+            val buffered = cache.bufferAgentStatusesTransition(transition)
+            if (buffered == HostStateCache.AgentTransitionBufferResult.Buffered) {
+                return ReplayOutcome(
+                    handled = true,
+                    applied = true,
+                    transition = transition,
+                    gitStateChanged = false,
+                    resetThreadIds = emptySet(),
+                    freshBaselineThreadIds = emptySet(),
+                    agentWindowsLoadedChanged = transition is SequencedEventApplier.Transition.WindowsAgentStatuses,
+                    agentWslLoadedChanged = transition is SequencedEventApplier.Transition.WslAgentStatuses,
+                    agentMergedChanged = transition is SequencedEventApplier.Transition.AgentStatusUpdated,
+                    gitSummariesChanged = false,
+                    threadExitedId = null,
+                )
+            }
         }
         val result = SequencedEventApplier.apply(cache.state, transition)
         cache.replace(result.state)
@@ -54,16 +58,30 @@ class SequencedReplayController(private val cache: HostStateCache) {
         cache.seedFromShell(shell, authoritative)
     }
 
-    /** Open the agent-statuses base install-buffer boundary (bootstrap/resync hydration). */
-    fun beginAgentStatusesBase() = cache.beginAgentStatusesBase()
+    /**
+     * Open the agent-statuses base install-buffer boundary (bootstrap/resync
+     * hydration). Returns the attempt token the matching seed must present.
+     */
+    fun beginAgentStatusesBase(): Long = cache.beginAgentStatusesBase()
 
-    /** Install the authoritative HTTP agent-statuses base, then drain buffered live transitions. */
+    /**
+     * Install the authoritative HTTP agent-statuses base, then drain buffered
+     * live transitions. A voided attempt reports
+     * [HostStateCache.AgentBaseInstall.requiresAuthoritativeRecovery] instead
+     * of silently installing a stale base; a superseded attempt reports
+     * [HostStateCache.AgentBaseInstall.stale] and installs nothing.
+     */
     fun seedAgentStatusesBase(
         native: List<com.poracode.app.model.AgentStatusEntry>,
         wsl: List<com.poracode.app.model.AgentStatusEntry>,
-    ) {
-        cache.seedAgentStatusesBase(native, wsl)
-    }
+        generation: Long,
+    ): HostStateCache.AgentBaseInstall = cache.seedAgentStatusesBase(native, wsl, generation)
+
+    /** Seed with whatever boundary is current (tests / boundary-less seeds). */
+    fun seedAgentStatusesBase(
+        native: List<com.poracode.app.model.AgentStatusEntry>,
+        wsl: List<com.poracode.app.model.AgentStatusEntry>,
+    ): HostStateCache.AgentBaseInstall = cache.seedAgentStatusesBase(native, wsl)
 
     private fun isAgentStatusesTransition(transition: SequencedEventApplier.Transition): Boolean =
         transition is SequencedEventApplier.Transition.AgentStatusUpdated ||

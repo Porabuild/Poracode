@@ -3,6 +3,7 @@ package com.poracode.app.transport
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteHttpErrorPayload
 import com.poracode.app.model.RemoteJson
+import com.poracode.app.transport.environments.EnvironmentProtocol
 import okhttp3.Response
 import okhttp3.ResponseBody
 import okio.Buffer
@@ -72,11 +73,13 @@ internal class RemoteResponseDecoder(private val maxBytes: Long) {
         val payload = runCatching {
             RemoteJson.decodeFromString(RemoteHttpErrorPayload.serializer(), body)
         }.getOrNull()
+        val authority = response.header(EnvironmentProtocol.AUTH_AUTHORITY_HEADER)
         if (payload != null) {
             throw RemoteClientException(
                 payload.error.message,
                 status = response.code,
                 code = payload.error.code,
+                environmentAuthAuthority = authority,
             )
         }
         val htmlLike = body.trimStart().startsWith("<")
@@ -89,6 +92,7 @@ internal class RemoteResponseDecoder(private val maxBytes: Long) {
             },
             status = response.code,
             code = "request_failed",
+            environmentAuthAuthority = authority,
         )
     }
 

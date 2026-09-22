@@ -140,4 +140,24 @@
     <string name="rich_chat_queue_resume">Возобновить</string>
     <string name="rich_chat_queue_edit_title">Изменить сообщение в очереди</string>
     <string name="rich_chat_queue_save">Сохранить</string>
+    <string name="rich_chat_history_notice_title">История неполная</string>
+    <string name="rich_chat_history_notice_body">Некоторые события не были сохранены. Подтверждение позволяет продолжить с неполной историей; отсутствующее содержимое не восстанавливается, и это не подтверждает остановку источника.</string>
+    <string name="rich_chat_history_notice_detail">Не сохранено: как минимум %1$d (%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">Подтвердить</string>
+    <string name="rich_chat_history_notice_ack_in_flight">Подтверждение…</string>
+    <string name="rich_chat_history_notice_check_failed">Не удалось прочитать сведения о восстановлении.</string>
+    <string name="rich_chat_history_notice_source_exact">подтверждённая потеря</string>
+    <string name="rich_chat_history_notice_source_suspect">предполагаемая потеря</string>
+    <string name="rich_chat_history_notice_source_unknown">потеря</string>
+    <string name="rich_chat_history_notice_reason_thread_events">лимит событий треда</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">лимит размера треда</string>
+    <string name="rich_chat_history_notice_reason_global_events">общий лимит событий</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">общий лимит размера</string>
+    <string name="rich_chat_history_notice_reason_oversize">слишком большое событие</string>
+    <string name="rich_chat_history_notice_reason_age">удалено по возрасту</string>
+    <string name="rich_chat_history_notice_reason_degraded">деградация хранилища</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">отброшено при rebase</string>
+    <string name="rich_chat_history_notice_reason_shutdown">аварийное завершение</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">некорректная сессия</string>
+    <string name="rich_chat_history_notice_reason_unknown">лимит хранилища</string>
 </resources>

@@ -29,16 +29,21 @@ data class HostUiCatalog(
         emptyMap(),
 )
 
-/** Legacy stores may hold several rows per endpoint; show one, most recent first. */
+/**
+ * Legacy **direct** stores may hold several rows per endpoint; show one, most
+ * recent first. Environment records are never compacted or hidden: two
+ * different environment grants may normalize to one endpoint (A4), and the
+ * fail-closed conflict is surfaced rather than one row silently disappearing.
+ */
 internal fun compactHostsByEndpoint(snapshot: HostCatalogSnapshot): HostCatalogSnapshot {
-    if (snapshot.hosts.map { it.httpBaseUrl }.distinct().size == snapshot.hosts.size) {
-        return snapshot
-    }
+    val directEndpoints = snapshot.hosts.filter { it.environment == null }
+        .map { it.httpBaseUrl }
+    if (directEndpoints.distinct().size == directEndpoints.size) return snapshot
     val byId = snapshot.hosts.associateBy { it.connectionId }
     val ordered = snapshot.lru.mapNotNull(byId::get) +
         snapshot.hosts.filter { it.connectionId !in snapshot.lru }
     val seen = mutableSetOf<String>()
-    val hosts = ordered.filter { host -> seen.add(host.httpBaseUrl) }
+    val hosts = ordered.filter { host -> host.environment != null || seen.add(host.httpBaseUrl) }
     val ids = hosts.mapTo(mutableSetOf()) { it.connectionId }
     return HostCatalogSnapshot(
         snapshot.document.copy(
@@ -46,7 +51,38 @@ internal fun compactHostsByEndpoint(snapshot: HostCatalogSnapshot): HostCatalogS
             lru = snapshot.lru.filter { it in ids },
         ),
         snapshot.registryExists,
+        snapshot.revision,
     )
+}
+
+/**
+ * Presents environment records with the endpoint derived from the **current**
+ * parent record (residual 2). The stored URL on an environment record is only a
+ * pairing-time snapshot. A missing/nested parent keeps the record visible with
+ * its stored endpoint; every credential and authority read still fails closed
+ * before any fetch, and no stale URL is ever dialed in its place.
+ */
+internal fun deriveEnvironmentEndpoints(snapshot: HostCatalogSnapshot): HostCatalogSnapshot {
+    if (snapshot.hosts.none { it.environment != null }) return snapshot
+    val byId = snapshot.hosts.associateBy { it.connectionId }
+    val hosts = snapshot.hosts.map { host ->
+        val reference = host.environment ?: return@map host
+        val parent = byId[reference.parentConnectionId] ?: return@map host
+        if (parent.environment != null) return@map host
+        val endpoint = com.poracode.app.model.EnvironmentEndpoints
+            .proxyEndpoint(parent, reference.environmentId) ?: return@map host
+        val wsEndpoint = com.poracode.app.protocol.PairingUrl.toWebSocketBaseUrl(endpoint)
+        if (host.httpBaseUrl == endpoint && host.wsBaseUrl == wsEndpoint) {
+            host
+        } else {
+            host.copy(httpBaseUrl = endpoint, wsBaseUrl = wsEndpoint)
+        }
+    }
+    return if (hosts == snapshot.hosts) {
+        snapshot
+    } else {
+        snapshot.copy(document = snapshot.document.copy(hosts = hosts))
+    }
 }
 
 /** Safe host receipt/selection/removal/rename coordinator; all stale generations no-op. */
@@ -67,6 +103,9 @@ class HostSessionController(
     private val beforeRemove: suspend (ClientConnectionId, SessionCredentials) -> Unit = { _, _ -> },
 ) {
     private val repository = repository as? MultiHostCredentialRepository
+    private val capabilityRefresh = this.repository?.let {
+        HostCapabilityRefresh(it, apiFactory, ioDispatcher, isForeground, hasEndpointPermission)
+    }
 
     suspend fun refreshCatalog(): HostCatalogSnapshot? {
         val snapshot = readCatalog() ?: return null
@@ -81,9 +120,35 @@ class HostSessionController(
         val credentials = withContext(ioDispatcher) {
             repository.credentialsFor(selected.connectionId)
         } ?: return surfaceStoreError()
+        // The environment endpoint is derived from the current parent, so a
+        // parent re-pair/base-URL/port change moves this record's endpoint. Drop
+        // the warm socket for the old endpoint before installing the new client:
+        // the reconnect never reuses a client pointed at the old authority.
+        val installed = state().profile
+        if (installed != null && installed.httpBaseUrl != credentials.profile.httpBaseUrl) {
+            pool.forget(SessionPoolKey.Host(selected.connectionId))
+        }
         installSelected(credentials)
         warmSecondary(snapshot)
         refreshHostSnapshots(snapshot)
+        refreshSelectedCapabilities()
+    }
+
+    /**
+     * C1 capability freshness on connect: observes the live descriptor and
+     * persists missing/additional capabilities through an identity-fenced
+     * metadata mutation. A failed fetch changes nothing.
+     */
+    suspend fun refreshSelectedCapabilities() {
+        val refresher = capabilityRefresh ?: return
+        val store = this.repository ?: return
+        val snapshot = readCatalog() ?: return
+        val selected = snapshot.selected ?: return
+        val credentials = withContext(ioDispatcher) {
+            store.credentialsFor(selected.connectionId)
+        } ?: return
+        if (!refresher.refresh(selected.connectionId, credentials)) return
+        publish(readCatalog() ?: return)
     }
 
     fun select(connectionId: ClientConnectionId) {
@@ -110,6 +175,7 @@ class HostSessionController(
                 installSelected(credentials)
                 warmSecondary(snapshot)
                 refreshHostSnapshots(snapshot)
+                refreshSelectedCapabilities()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -127,7 +193,12 @@ class HostSessionController(
             try {
                 withContext(ioDispatcher) { repository.credentialsFor(connectionId) }
                     ?.let { credentials ->
-                        TlsCertPinStore.remove(credentials.profile.httpBaseUrl)
+                        // Environment records share the parent endpoint's host:port:
+                        // their removal must never drop the parent's pin. The parent
+                        // cascade removes the pin through the parent record itself.
+                        if (credentials.profile.environment == null) {
+                            TlsCertPinStore.remove(credentials.profile.httpBaseUrl)
+                        }
                         beforeRemove(connectionId, credentials)
                     }
                 val result = withContext(ioDispatcher) {
@@ -293,10 +364,15 @@ class HostSessionController(
 
     private fun publish(snapshot: HostCatalogSnapshot) {
         pool.updatePolicy(snapshot.selectedConnectionId, snapshot.lru)
-        val canonical = compactHostsByEndpoint(snapshot)
+        val canonical = compactHostsByEndpoint(deriveEnvironmentEndpoints(snapshot))
         val retained = canonical.hosts.mapTo(mutableSetOf()) { it.connectionId }
         for (host in canonical.hosts) {
-            TlsCertPinStore.register(host.httpBaseUrl, host.certFingerprint)
+            // Pins are owned by the direct parent record: an environment record
+            // resolves the same host:port, so re-registering its (possibly stale)
+            // copy could evict the live parent pin. Parent endpoint TLS pin only.
+            if (host.environment == null) {
+                TlsCertPinStore.register(host.httpBaseUrl, host.certFingerprint)
+            }
         }
         updateState {
             it.copy(

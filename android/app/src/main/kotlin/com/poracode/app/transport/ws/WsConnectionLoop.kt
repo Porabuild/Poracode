@@ -1,6 +1,8 @@
 package com.poracode.app.transport.ws
 
+import com.poracode.app.model.RemoteBoundedCatalogChangeCodes
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.RemoteHistoryNoticeCodes
 import com.poracode.app.protocol.RemoteSocketDecisions
 import com.poracode.app.protocol.RemoteSocketPolicy
 import com.poracode.app.protocol.SocketGenerationGate
@@ -87,6 +89,8 @@ class WsConnectionLoop(
         val gen = state.generationGate.invalidate()
         state.tearDownSocket()
         state.readyReceived.set(false)
+        state.upgradeDeclaredNotices.set(null)
+        state.upgradeDeclaredCatalogChanges.set(null)
         state.publish(RemoteWebSocketClient.ConnectionState.Connecting)
 
         try {
@@ -109,8 +113,20 @@ class WsConnectionLoop(
                 lastSeenSeq = lastSeen,
                 threadItemInterests = state.threadItemInterests.get(),
             )
-
             val request = Request.Builder().url(url).build()
+            // Record what THIS upgrade actually declares, read from the exact
+            // request okhttp will send. A second sample of the mutable client
+            // flag the URL was built from can disagree with the URL when an
+            // environment() answer lands mid-connect, which would silently
+            // suppress the Online reconciliation for an incapable URL.
+            state.upgradeDeclaredNotices.set(
+                request.url.queryParameter("notices") == RemoteHistoryNoticeCodes.DECLARATION,
+            )
+            state.upgradeDeclaredCatalogChanges.set(
+                request.url.queryParameter(RemoteBoundedCatalogChangeCodes.WS_PARAM) ==
+                    RemoteBoundedCatalogChangeCodes.DECLARATION,
+            )
+
             // Register cancellable placeholder BEFORE newWebSocket to close the
             // post-ticket foreground race: background cancel hits the placeholder.
             val placeholder = networkGate.registerSocketPlaceholder()

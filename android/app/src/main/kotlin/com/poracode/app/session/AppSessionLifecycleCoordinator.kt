@@ -1,5 +1,6 @@
 package com.poracode.app.session
 
+import com.poracode.app.session.catalog.CatalogSyncController
 import com.poracode.app.storage.StoredProtocolUpgrade
 import com.poracode.app.transport.ForegroundNetworkGate
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +20,8 @@ internal class AppSessionLifecycleCoordinator(
     private val updateState: (((AppSession.UiState) -> AppSession.UiState) -> Unit),
     private val hasEndpointPermission: (String) -> Boolean,
     private val bootstrap: () -> Unit,
+    /** Bounded catalog: fresh inventory passes + reconciliation timer on foreground. */
+    private val catalog: CatalogSyncController,
 ) {
     fun onBackground() {
         networkGate.closeAndCancelAll()
@@ -47,6 +50,7 @@ internal class AppSessionLifecycleCoordinator(
         }
         networkGate.openForForeground()
         live.openLifecycleGate()
+        catalog.onForeground()
         hosts.onForeground()
         if (StoredProtocolUpgrade.isEligibleStoredProtocol(profile?.protocolVersion) && live.api == null) {
             bootstrap()
@@ -81,6 +85,7 @@ internal class AppSessionLifecycleCoordinator(
         val token = live.accessToken ?: return
         networkGate.openForForeground()
         live.openLifecycleGate()
+        catalog.onForeground()
         hosts.onForeground()
         val job = scope.launch { live.connectWithStoredSession(profile, token) }
         jobs.replace(SessionLifecycleJobs.LIVE_START, job)

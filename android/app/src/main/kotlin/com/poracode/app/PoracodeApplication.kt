@@ -21,6 +21,8 @@ import com.poracode.app.push.RepositoryPushHostSource
 import com.poracode.app.session.AppSession
 import com.poracode.app.session.HeavyReviewInterestSource
 import com.poracode.app.session.advancedops.AdvancedOpsProductionComposition
+import com.poracode.app.session.environments.EnvironmentManagementController
+import com.poracode.app.session.environments.EnvironmentPairingCoordinator
 import com.poracode.app.session.browsermirror.BrowserMirrorComposition
 import com.poracode.app.session.projects.ProjectSessionRuntime
 import com.poracode.app.session.ports.PortForwardRuntime
@@ -35,6 +37,8 @@ import com.poracode.app.storage.SharedPreferencesDeviceSettingsDocumentStore
 import com.poracode.app.storage.SharedPreferencesProjectSyncDocumentStore
 import com.poracode.app.transport.ProjectRemoteApiClient
 import com.poracode.app.transport.ProjectRemoteGatewayFactory
+import com.poracode.app.transport.environments.CatalogEnvironmentAuthorityFactory
+import com.poracode.app.transport.environments.StoreEnvironmentAuthorityRegistrar
 import com.poracode.app.transport.ProjectWorkspaceRemoteApiClient
 import com.poracode.app.transport.ProjectWorkspaceRemoteGatewayFactory
 import com.poracode.app.transport.ports.PortForwardRemoteApiClient
@@ -84,7 +88,15 @@ class PoracodeApplication : Application() {
         deviceSettings = DeviceSettingsPreferences(
             SharedPreferencesDeviceSettingsDocumentStore(this),
         )
-        val repository = HostCatalogCredentialRepository(HostCatalog(this))
+        val hostCatalog = HostCatalog(this)
+        val environmentAuthorityFactory = CatalogEnvironmentAuthorityFactory(
+            parentRecord = { id -> hostCatalog.snapshot().document.host(id) },
+            parentToken = { id -> hostCatalog.token(id)?.takeIf(String::isNotBlank) },
+        )
+        val repository = HostCatalogCredentialRepository(
+            hostCatalog,
+            environmentAuthorities = StoreEnvironmentAuthorityRegistrar(environmentAuthorityFactory),
+        )
         val pushDirectory = noBackupFilesDir.resolve("push").apply { mkdirs() }
         val pushStateStore = PushClientStateStore(
             pushDirectory.resolve(PushClientStateStore.FILE_NAME),
@@ -95,8 +107,8 @@ class PoracodeApplication : Application() {
             tokenVault = PushTokenVault(pushDirectory.resolve(PushTokenVault.FILE_NAME)),
             outbox = PushUnregisterOutbox(pushDirectory.resolve(PushUnregisterOutbox.FILE_NAME)),
             hosts = RepositoryPushHostSource(repository),
-            clientFactory = PushHostGatewayFactory { endpoint, token ->
-                PushHostClient(endpoint, token)
+            clientFactory = PushHostGatewayFactory { endpoint, token, parentAuthority ->
+                PushHostClient(endpoint, token, parentAuthority = parentAuthority)
             },
             appVersion = BuildConfig.VERSION_NAME,
             hasEndpointPermission = { endpoint -> hasEndpointPermission(endpoint) },
@@ -162,6 +174,16 @@ class PoracodeApplication : Application() {
             repository = repository,
             scope = runtimeScope,
             ioDispatcher = Dispatchers.IO,
+            environments = EnvironmentManagementController(
+                repository = repository,
+                pairingCoordinator = EnvironmentPairingCoordinator(
+                    repository = repository,
+                    authorityFactory = environmentAuthorityFactory,
+                    ioDispatcher = Dispatchers.IO,
+                ),
+                scope = runtimeScope,
+                ioDispatcher = Dispatchers.IO,
+            ),
         )
         remoteIntegrations = RemoteIntegrationsComposition(
             appState = session.state,

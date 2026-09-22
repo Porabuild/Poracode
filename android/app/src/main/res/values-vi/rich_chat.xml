@@ -145,4 +145,24 @@
     <string name="rich_chat_queue_resume">Tiếp tục</string>
     <string name="rich_chat_queue_edit_title">Chỉnh sửa tin nhắn đang chờ</string>
     <string name="rich_chat_queue_save">Lưu</string>
+    <string name="rich_chat_history_notice_title">Lịch sử chưa đầy đủ</string>
+    <string name="rich_chat_history_notice_body">Một số sự kiện chưa được lưu. Xác nhận cho phép tiếp tục với lịch sử chưa đầy đủ; thao tác này không khôi phục nội dung bị thiếu và không xác nhận rằng nguồn đã dừng.</string>
+    <string name="rich_chat_history_notice_detail">Chưa lưu: ít nhất %1$d (%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">Xác nhận</string>
+    <string name="rich_chat_history_notice_ack_in_flight">Đang xác nhận…</string>
+    <string name="rich_chat_history_notice_check_failed">Không đọc được chi tiết khôi phục.</string>
+    <string name="rich_chat_history_notice_source_exact">mất mát đã xác nhận</string>
+    <string name="rich_chat_history_notice_source_suspect">mất mát nghi ngờ</string>
+    <string name="rich_chat_history_notice_source_unknown">mất mát</string>
+    <string name="rich_chat_history_notice_reason_thread_events">giới hạn sự kiện của luồng</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">giới hạn kích thước luồng</string>
+    <string name="rich_chat_history_notice_reason_global_events">giới hạn sự kiện toàn cục</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">giới hạn kích thước toàn cục</string>
+    <string name="rich_chat_history_notice_reason_oversize">sự kiện quá lớn</string>
+    <string name="rich_chat_history_notice_reason_age">bị xóa do quá cũ</string>
+    <string name="rich_chat_history_notice_reason_degraded">lưu trữ suy giảm</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">bị loại bỏ khi rebase</string>
+    <string name="rich_chat_history_notice_reason_shutdown">tắt không sạch</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">phiên không sạch</string>
+    <string name="rich_chat_history_notice_reason_unknown">giới hạn lưu trữ</string>
 </resources>

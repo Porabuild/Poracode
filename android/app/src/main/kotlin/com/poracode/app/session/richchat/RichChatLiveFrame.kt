@@ -57,11 +57,33 @@ internal data class RichChatBufferedReplay(
 /**
  * Pending live frames plus the per-thread sequence watermark. All access is
  * confined to the controller's synchronized methods, so no internal locking.
+ *
+ * Bounded by count, estimated retained bytes, and retained age against the
+ * monotonic clock. The oldest frames are evicted oldest-first until every bound
+ * holds, matching the other incremental recovery buffers and the shared
+ * bounded-recovery tape: the retained window is the newest one, never the
+ * oldest. Any eviction raises [overflow], and expiry is re-checked when the
+ * window is consumed (a quiet stream that outlives the budget is released
+ * there) so a stale frame is never replayed. The controller folds [overflow]
+ * into `needsAuthoritativeRefresh`: the replay is incomplete, so it must be
+ * repaired by an authoritative snapshot rather than silently claimed
+ * converged. A single frame may be large; the host caps every WebSocket frame
+ * at 1 MiB, and a frame larger than the byte budget is evicted, not retained.
  */
 internal class RichChatLiveFrameBuffer(
     private val maxFrames: Int = MAX_BUFFERED_LIVE_FRAMES,
+    private val maxBytes: Long = MAX_BUFFERED_LIVE_BYTES,
+    private val maxAgeMs: Long = MAX_BUFFERED_LIVE_AGE_MS,
+    private val arrivalClockMs: () -> Long = { System.nanoTime() / 1_000_000L },
 ) {
-    private val frames = ArrayDeque<RichChatLiveFrame>()
+    private data class Retained(
+        val frame: RichChatLiveFrame,
+        val estimatedBytes: Long,
+        val arrivalMs: Long,
+    )
+
+    private val retained = ArrayDeque<Retained>()
+    private var bufferedBytes: Long = 0L
     var overflow: Boolean = false
         private set
     var lastAcceptedSequence: Int? = null
@@ -72,19 +94,45 @@ internal class RichChatLiveFrameBuffer(
         sequence != null && lastAcceptedSequence?.let { sequence <= it } == true
 
     fun buffer(frame: RichChatLiveFrame) {
-        if (frames.size == maxFrames) {
-            overflow = true
-            return
+        val arrivalMs = arrivalClockMs()
+        retained.addLast(
+            Retained(
+                frame = frame,
+                estimatedBytes = frame.estimatedRecoveryBytes(),
+                arrivalMs = arrivalMs,
+            )
+        )
+        bufferedBytes += retained.last().estimatedBytes
+        var evicted = false
+        while (retained.isNotEmpty()) {
+            val head = retained.first()
+            val overCount = retained.size > maxFrames
+            val overBytes = bufferedBytes > maxBytes
+            val overAge = arrivalMs - head.arrivalMs > maxAgeMs
+            if (!overCount && !overBytes && !overAge) break
+            retained.removeFirst()
+            bufferedBytes -= head.estimatedBytes
+            evicted = true
         }
-        frames.addLast(frame)
+        if (evicted) overflow = true
     }
 
     fun markAccepted(sequence: Int?) {
         if (sequence != null) lastAcceptedSequence = sequence
     }
 
+    /** Retained frame count (accounting; exposed for tests). */
+    internal fun bufferedCount(): Int = retained.size
+
+    /** Retained estimated bytes (accounting; exposed for tests). */
+    internal fun bufferedEstimatedBytes(): Long = bufferedBytes
+
+    /** Retained sequence numbers in arrival order (accounting; exposed for tests). */
+    internal fun bufferedSequences(): List<Int?> = retained.map { it.frame.sequence }
+
     fun reset() {
-        frames.clear()
+        retained.clear()
+        bufferedBytes = 0L
         overflow = false
         lastAcceptedSequence = null
     }
@@ -97,14 +145,26 @@ internal class RichChatLiveFrameBuffer(
      * not clobber buffered frames. Checked incrementally per replayed frame
      * so a later frame pruning an earlier checkpoint cannot false-positive an
      * already-correct apply.
+     *
+     * Expired frames are dropped before replay against the monotonic clock and
+     * report [RichChatBufferedReplay.hadOverflow], so a hung/quiet read
+     * releases its payload and demands the existing authoritative refresh
+     * instead of replaying an arbitrarily stale frame.
      */
     fun replayAfterSnapshot(
         snapshot: RichChatHistorySnapshot,
         base: RichThreadState = snapshot.state,
     ): RichChatBufferedReplay {
-        val replay = frames.toList()
-        val hadOverflow = overflow
-        frames.clear()
+        val now = arrivalClockMs()
+        var hadOverflow = overflow
+        while (retained.isNotEmpty() && now - retained.first().arrivalMs > maxAgeMs) {
+            val expired = retained.removeFirst()
+            bufferedBytes -= expired.estimatedBytes
+            hadOverflow = true
+        }
+        val replay = retained.map { it.frame }
+        retained.clear()
+        bufferedBytes = 0L
         overflow = false
         var transcript = base
         var truncationCatchup = false
@@ -125,5 +185,19 @@ internal class RichChatLiveFrameBuffer(
 
     companion object {
         const val MAX_BUFFERED_LIVE_FRAMES = 512
+
+        /** Estimated-byte bound over retained frames (host frames ≤ 1 MiB). */
+        const val MAX_BUFFERED_LIVE_BYTES = 8L * 1024 * 1024
+
+        /** Retained-age bound; a read stalling longer than this recovers. */
+        const val MAX_BUFFERED_LIVE_AGE_MS = 120_000L
     }
 }
+
+/**
+ * Conservative decoded-payload estimate for accounting only. `toString`
+ * renders this frame's decoded content once (never retained history), and
+ * UTF-16 length × 3 upper-bounds its UTF-8 size.
+ */
+internal fun RichChatLiveFrame.estimatedRecoveryBytes(): Long =
+    toString().length.toLong() * 3L + 64L

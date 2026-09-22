@@ -203,6 +203,7 @@ internal fun SettingsDestinationContent(
         },
         onOpenPrivacy = { openExternalUrl("https://poracode.com/privacy") },
         onOpenSupport = { openExternalUrl("https://poracode.com/support") },
+        onUseEnvironmentHost = session::selectHost,
         archivedThreads = { archivedModifier ->
             ArchivedThreadsPane(
                 threads = session.unifiedThreads().filter {

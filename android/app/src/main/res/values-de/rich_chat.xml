@@ -140,4 +140,24 @@
     <string name="rich_chat_queue_resume">Fortsetzen</string>
     <string name="rich_chat_queue_edit_title">Wartende Nachricht bearbeiten</string>
     <string name="rich_chat_queue_save">Speichern</string>
+    <string name="rich_chat_history_notice_title">Verlauf unvollständig</string>
+    <string name="rich_chat_history_notice_body">Einige Ereignisse wurden nicht gespeichert. Mit der Bestätigung kann mit unvollständigem Verlauf fortgefahren werden; fehlende Inhalte werden nicht wiederhergestellt und es wird nicht bestätigt, dass die Quelle beendet ist.</string>
+    <string name="rich_chat_history_notice_detail">Nicht gespeichert: mindestens %1$d (%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">Bestätigen</string>
+    <string name="rich_chat_history_notice_ack_in_flight">Wird bestätigt…</string>
+    <string name="rich_chat_history_notice_check_failed">Wiederherstellungsdetails konnten nicht gelesen werden.</string>
+    <string name="rich_chat_history_notice_source_exact">bestätigter Verlust</string>
+    <string name="rich_chat_history_notice_source_suspect">vermuteter Verlust</string>
+    <string name="rich_chat_history_notice_source_unknown">Verlust</string>
+    <string name="rich_chat_history_notice_reason_thread_events">Thread-Ereignislimit</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">Thread-Größenlimit</string>
+    <string name="rich_chat_history_notice_reason_global_events">globales Ereignislimit</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">globales Größenlimit</string>
+    <string name="rich_chat_history_notice_reason_oversize">zu großes Ereignis</string>
+    <string name="rich_chat_history_notice_reason_age">wegen Alters entfernt</string>
+    <string name="rich_chat_history_notice_reason_degraded">beeinträchtigter Speicher</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">durch Rebase verworfen</string>
+    <string name="rich_chat_history_notice_reason_shutdown">unsauberes Herunterfahren</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">unsaubere Sitzung</string>
+    <string name="rich_chat_history_notice_reason_unknown">Speicherlimit</string>
 </resources>

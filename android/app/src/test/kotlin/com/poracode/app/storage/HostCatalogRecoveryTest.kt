@@ -3,6 +3,7 @@ package com.poracode.app.storage
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.HostRecord
+import com.poracode.app.model.HostRegistryDocument
 import java.io.File
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertArrayEquals
@@ -218,12 +219,22 @@ class HostCatalogRecoveryTest {
     }
 
     @Test
-    fun registryRequiresExplicitCurrentFormatVersion() {
+    fun registryMigratesKnownFormatsAndRefusesFutureOnes() {
         val directory = temporary.newFolder("registry-version")
         val store = HostRegistryStore(directory)
         store.writeExact("{\"hosts\":[]}".toByteArray())
         assertThrows(IllegalStateException::class.java) { store.load() }
-        store.writeExact("{\"formatVersion\":3,\"hosts\":[]}".toByteArray())
+        // Format 2 is the shipped direct-record format: the reader migrates it
+        // to 3 without inventing an environment binding.
+        store.writeExact(
+            "{\"formatVersion\":2,\"selectedConnectionId\":null,\"lru\":[],\"hosts\":[]}"
+                .toByteArray(),
+        )
+        assertEquals(HostRegistryDocument.FORMAT_VERSION, store.load()?.formatVersion)
+        store.writeExact(
+            "{\"formatVersion\":4,\"selectedConnectionId\":null,\"lru\":[],\"hosts\":[]}"
+                .toByteArray(),
+        )
         assertThrows(IllegalArgumentException::class.java) { store.load() }
     }
 

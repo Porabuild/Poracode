@@ -140,4 +140,24 @@
     <string name="rich_chat_queue_resume">恢复</string>
     <string name="rich_chat_queue_edit_title">编辑排队消息</string>
     <string name="rich_chat_queue_save">保存</string>
+    <string name="rich_chat_history_notice_title">历史记录不完整</string>
+    <string name="rich_chat_history_notice_body">部分事件未能保存。确认后可以继续使用不完整的历史记录；这不会恢复缺失的内容，也不表示来源已停止。</string>
+    <string name="rich_chat_history_notice_detail">未保存：至少有 %1$d（%2$s） · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">确认</string>
+    <string name="rich_chat_history_notice_ack_in_flight">正在确认…</string>
+    <string name="rich_chat_history_notice_check_failed">无法读取恢复详情。</string>
+    <string name="rich_chat_history_notice_source_exact">已确认的丢失</string>
+    <string name="rich_chat_history_notice_source_suspect">疑似丢失</string>
+    <string name="rich_chat_history_notice_source_unknown">丢失</string>
+    <string name="rich_chat_history_notice_reason_thread_events">会话事件上限</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">会话大小上限</string>
+    <string name="rich_chat_history_notice_reason_global_events">全局事件上限</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">全局大小上限</string>
+    <string name="rich_chat_history_notice_reason_oversize">事件过大</string>
+    <string name="rich_chat_history_notice_reason_age">因过期被移除</string>
+    <string name="rich_chat_history_notice_reason_degraded">存储降级</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">因变基被丢弃</string>
+    <string name="rich_chat_history_notice_reason_shutdown">异常关闭</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">会话异常</string>
+    <string name="rich_chat_history_notice_reason_unknown">存储上限</string>
 </resources>

@@ -12,6 +12,7 @@ enum class SettingsPane {
     Profile,
     Preferences,
     Workspace,
+    Environments,
 }
 
 data class SettingsUiAccess(

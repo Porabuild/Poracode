@@ -23,7 +23,15 @@ internal fun lease(
     scopes: Set<String> = setOf("session:read", "session:operate", "projects:manage"),
     online: Boolean = true,
     ready: Boolean = true,
-) = ProjectHostLease(connectionId, generation, scopes, online, ready)
+    projectCommandResultVersions: Set<Int> = emptySet(),
+) = ProjectHostLease(
+    connectionId,
+    generation,
+    scopes,
+    online,
+    ready,
+    projectCommandResultVersions = projectCommandResultVersions,
+)
 
 internal fun project(
     id: String,
@@ -54,7 +62,7 @@ internal class FakeProjectGateway : ProjectSessionGateway {
     val notesWrites = mutableListOf<Triple<ProjectHostLease, ProjectIdentity, ProjectNotesWriteBody>>()
 
     var commandHandler: suspend (ProjectHostLease, ProjectCommand) -> ProjectCommandResult =
-        { _, _ -> ProjectCommandResult(emptyList()) }
+        { _, _ -> ProjectCommandResult.Complete(emptyList()) }
     var settingsHandler: suspend (ProjectHostLease, ProjectIdentity) -> ProjectSettings =
         { _, _ -> ProjectSettings() }
     var directoryHandler: suspend (ProjectHostLease, String) -> BrowseHostDirectoryResult =

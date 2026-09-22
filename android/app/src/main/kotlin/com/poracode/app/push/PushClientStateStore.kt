@@ -104,13 +104,21 @@ class PushClientStateStore(
     companion object {
         const val FILE_NAME = "push_client_state.json"
 
+        /**
+         * Fingerprint of one host registration. [endpoint] is included so an
+         * environment record whose parent-derived proxy endpoint moved (parent
+         * re-pair/base-URL/port change) re-registers against the current parent
+         * instead of trusting a fingerprint earned at the old endpoint.
+         */
         fun registrationFingerprint(
             token: String,
             route: PushRegistrationRouteV1,
             appVersion: String,
+            endpoint: String = "",
         ): String {
             val digest = MessageDigest.getInstance("SHA-256")
-            listOf(token, route.clientConnectionId, route.desktopId, appVersion).forEach {
+            listOf(token, route.clientConnectionId, route.desktopId, appVersion, endpoint)
+                .forEach {
                 val bytes = it.toByteArray(Charsets.UTF_8)
                 digest.update(bytes.size.toString().toByteArray(Charsets.UTF_8))
                 digest.update(0)

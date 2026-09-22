@@ -361,6 +361,39 @@ class GeneratedRichChatRemoteTransportTest {
     }
 
     @Test
+    fun explicitUncertainReceipt409IsAmbiguousWhileOrdinary409IsDefinite() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse().setResponseCode(409).setBody(
+                """{"error":{"code":"command_outcome_uncertain","message":"uncertain"}}""",
+            ),
+        )
+        server.enqueue(
+            MockResponse().setResponseCode(409).setBody(
+                """{"error":{"code":"command_id_conflict","message":"conflict"}}""",
+            ),
+        )
+        server.start()
+        try {
+            val transport = transport(server)
+            val uncertain = runCatching { transport.clearSteer("thread") }.exceptionOrNull()
+            assertTrue(
+                "explicit uncertain receipt must be an unknown mutation outcome",
+                uncertain is RichChatMutationOutcomeUnknownException,
+            )
+            val definite = runCatching { transport.clearSteer("thread") }.exceptionOrNull()
+            assertTrue(
+                "ordinary 409 must stay a definite rejection",
+                definite is RichChatRemoteRejectedException,
+            )
+            assertEquals(409, (definite as RichChatRemoteRejectedException).status)
+            assertEquals("no automatic resend", 2, server.requestCount)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
     fun readFailuresStayDefiniteFor503AndInvalidBodies() = runBlocking {
         val listRequest = fixture("checkpoint-turn-sequences.json").getValue("listRequest").jsonObject
 
@@ -388,6 +421,42 @@ class GeneratedRichChatRemoteTransportTest {
             assertEquals(1, malformed.requestCount)
         } finally {
             malformed.shutdown()
+        }
+    }
+
+    @Test
+    fun transportDeadlinesKeepMutationsAmbiguousAndReadsDefiniteWithoutResend() = runBlocking {
+        val mutationServer = MockWebServer()
+        mutationServer.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        mutationServer.start()
+        try {
+            val transport = transport(mutationServer, deadlineClient())
+            val error = runCatching { transport.clearSteer("thread") }.exceptionOrNull()
+            assertTrue(
+                "a dispatched mutation whose response deadline expires may have committed: $error",
+                error is RichChatMutationOutcomeUnknownException,
+            )
+            assertEquals("the timed-out mutation must not be resent", 1, mutationServer.requestCount)
+        } finally {
+            mutationServer.shutdown()
+        }
+
+        val readServer = MockWebServer()
+        readServer.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        readServer.start()
+        try {
+            val listRequest = fixture("checkpoint-turn-sequences.json").getValue("listRequest").jsonObject
+            val transport = transport(readServer, deadlineClient())
+            val error = runCatching {
+                transport.listFileCheckpoints(listRequest)
+            }.exceptionOrNull()
+            assertTrue(
+                "a read deadline must be a definite transport failure: $error",
+                error is RichChatTransportUnavailableException,
+            )
+            assertEquals("the timed-out read must not be resent", 1, readServer.requestCount)
+        } finally {
+            readServer.shutdown()
         }
     }
 
@@ -497,10 +566,23 @@ class GeneratedRichChatRemoteTransportTest {
     private fun transport(server: MockWebServer): GeneratedRichChatRemoteTransport =
         GeneratedRichChatRemoteTransport(remoteClient(server))
 
-    private fun remoteClient(server: MockWebServer): RemoteApiClient = RemoteApiClient(
+    private fun transport(
+        server: MockWebServer,
+        client: OkHttpClient,
+    ): GeneratedRichChatRemoteTransport =
+        GeneratedRichChatRemoteTransport(remoteClient(server, client))
+
+    /** Short injected production seam: the same callTimeout that ships at 60 s. */
+    private fun deadlineClient(): OkHttpClient =
+        OkHttpClient.Builder().callTimeout(300, TimeUnit.MILLISECONDS).build()
+
+    private fun remoteClient(
+        server: MockWebServer,
+        client: OkHttpClient = OkHttpClient(),
+    ): RemoteApiClient = RemoteApiClient(
         endpoint = server.url("/base").toString(),
         accessToken = "access-secret",
-        client = OkHttpClient(),
+        client = client,
         networkGate = ForegroundNetworkGate(),
     )
 

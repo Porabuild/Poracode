@@ -38,6 +38,20 @@ class WsClientState {
     val snapshotSucceeded = AtomicBoolean(false)
     /** Generation that already saw a sync failure/close before install completed. */
     val failedGeneration = AtomicInteger(-1)
+    /**
+     * B1: declaration state of the most recent upgrade attempt actually built
+     * on this socket (`null` until a URL is built). Read by the session layer
+     * to reconcile a capable descriptor with a connection that omitted
+     * `notices=v1`.
+     */
+    val upgradeDeclaredNotices = AtomicReference<Boolean?>(null)
+    /**
+     * Bounded catalog changes: declaration state of the most recent upgrade
+     * attempt actually built on this socket (`null` until a URL is built).
+     * Read by the session layer to reconcile a capable descriptor with a
+     * connection that omitted `catalogChanges=bounded-v1`.
+     */
+    val upgradeDeclaredCatalogChanges = AtomicReference<Boolean?>(null)
 
     val cursor = EventStreamCursor()
     /** Serializes disposition → deliver → markApplied so cursor never races. */

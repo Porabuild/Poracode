@@ -4,6 +4,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.HostCatalogSnapshot
 import com.poracode.app.model.HostRegistryDocument
+import com.poracode.app.model.ThreadConfig
 import com.poracode.app.protocol.ProtocolConstants
 import com.poracode.app.storage.CredentialMutationOutcome
 import com.poracode.app.storage.DurableOperationToken
@@ -23,7 +24,9 @@ import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RepositoryRichChatGatewayProviderCommandTest {
@@ -80,6 +83,63 @@ class RepositoryRichChatGatewayProviderCommandTest {
         } finally {
             otherServer.shutdown()
             selectedServer.shutdown()
+        }
+    }
+
+    @Test
+    fun hostCoded409ReachesTheGatewayAsAmbiguousWhileOrdinary409StaysDefinite() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse().setResponseCode(409).setBody(
+                """{"error":{"code":"command_outcome_uncertain","message":"uncertain"}}""",
+            ),
+        )
+        server.enqueue(
+            MockResponse().setResponseCode(409).setBody(
+                """{"error":{"code":"command_id_conflict","message":"conflict"}}""",
+            ),
+        )
+        server.start()
+        try {
+            val id = connectionId(3)
+            val repository = CommandCredentialRepository(
+                mapOf(id to credentials(server, "token")),
+            )
+            val lease = RichChatHostLease(
+                connectionId = id,
+                generation = 7,
+                scopes = setOf("session:operate"),
+                online = true,
+                ready = true,
+            )
+            val provider = RepositoryRichChatGatewayProvider(
+                repository = repository,
+                ioDispatcher = Dispatchers.IO,
+                client = OkHttpClient(),
+                networkGate = ForegroundNetworkGate(),
+            )
+            val gateway = GeneratedRichChatSessionGateway(MutableStateFlow(lease), provider)
+
+            val uncertain = runCatching {
+                gateway.send(lease, "thread-a", "hello", ThreadConfig(), null, "message-a")
+            }.exceptionOrNull()
+            assertTrue(
+                "explicit uncertain receipt must stay ambiguous at the gateway",
+                uncertain is RichChatGatewayException,
+            )
+            assertTrue((uncertain as RichChatGatewayException).requestMayHaveCommitted)
+            assertEquals("command_outcome_uncertain", uncertain.code)
+            assertEquals(409, uncertain.statusCode)
+
+            val definite = runCatching {
+                gateway.send(lease, "thread-a", "hello", ThreadConfig(), null, "message-a")
+            }.exceptionOrNull()
+            assertTrue(definite is RichChatGatewayException)
+            assertFalse((definite as RichChatGatewayException).requestMayHaveCommitted)
+            assertEquals(409, definite.statusCode)
+            assertEquals("no automatic resend", 2, server.requestCount)
+        } finally {
+            server.shutdown()
         }
     }
 

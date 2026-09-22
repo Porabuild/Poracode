@@ -140,4 +140,24 @@
     <string name="rich_chat_queue_resume">Reanudar</string>
     <string name="rich_chat_queue_edit_title">Editar mensaje en cola</string>
     <string name="rich_chat_queue_save">Guardar</string>
+    <string name="rich_chat_history_notice_title">Historial incompleto</string>
+    <string name="rich_chat_history_notice_body">Algunos eventos no se guardaron. Confirmar permite continuar con un historial incompleto; no restaura el contenido que falta ni confirma que la fuente se haya detenido.</string>
+    <string name="rich_chat_history_notice_detail">Sin guardar: al menos %1$d (%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">Confirmar</string>
+    <string name="rich_chat_history_notice_ack_in_flight">Confirmando…</string>
+    <string name="rich_chat_history_notice_check_failed">No se pudieron leer los detalles de recuperación.</string>
+    <string name="rich_chat_history_notice_source_exact">pérdida confirmada</string>
+    <string name="rich_chat_history_notice_source_suspect">pérdida sospechada</string>
+    <string name="rich_chat_history_notice_source_unknown">pérdida</string>
+    <string name="rich_chat_history_notice_reason_thread_events">límite de eventos del hilo</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">límite de tamaño del hilo</string>
+    <string name="rich_chat_history_notice_reason_global_events">límite global de eventos</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">límite global de tamaño</string>
+    <string name="rich_chat_history_notice_reason_oversize">evento demasiado grande</string>
+    <string name="rich_chat_history_notice_reason_age">eliminado por antigüedad</string>
+    <string name="rich_chat_history_notice_reason_degraded">almacenamiento degradado</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">descartado por rebase</string>
+    <string name="rich_chat_history_notice_reason_shutdown">apagado incorrecto</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">sesión incorrecta</string>
+    <string name="rich_chat_history_notice_reason_unknown">límite de almacenamiento</string>
 </resources>

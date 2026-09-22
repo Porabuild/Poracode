@@ -78,6 +78,11 @@ internal class SessionBootstrapController(
                         return@launch
                     }
                     live.connectWithStoredSession(loaded.profile, loaded.accessToken)
+                    if (!owner.isCurrent(token)) return@launch
+                    // C1 freshness: a connect is the reachable live gate for a
+                    // stored capability snapshot that may predate a server
+                    // upgrade. Failure leaves the stored capabilities untouched.
+                    hosts.refreshSelectedCapabilities()
                 }
 
                 is SessionCredentialLoadOutcome.Rejected.ProtocolMismatch -> {
@@ -107,6 +112,7 @@ internal class SessionBootstrapController(
                         if (!owner.isCurrent(token)) return@launch
                         live.accessToken = upgraded.accessToken
                         live.connectWithStoredSession(upgraded.profile, upgraded.accessToken)
+                        if (owner.isCurrent(token)) hosts.refreshSelectedCapabilities()
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {

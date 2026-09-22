@@ -22,15 +22,27 @@ class HostRegistryStore(
 
     fun load(): HostRegistryDocument? = raw()?.let(::decode)
 
+    /**
+     * Explicit format migration: a v2 document is decoded with the current
+     * reader (its records have no `environment` field and default to `null`),
+     * then stamped to [HostRegistryDocument.FORMAT_VERSION] in memory before
+     * validation. The on-disk bytes are never rewritten here — the next
+     * mutation writes the migrated document through the journal. Future or
+     * unknown versions refuse without touching the file.
+     */
     fun decode(bytes: ByteArray): HostRegistryDocument {
         val raw = bytes.toString(Charsets.UTF_8)
         val version = RemoteJson.parseToJsonElement(raw)
             .jsonObject["formatVersion"]?.jsonPrimitive?.int
             ?: error("Missing host registry version")
-        require(version == HostRegistryDocument.FORMAT_VERSION) {
+        require(version <= HostRegistryDocument.FORMAT_VERSION) {
             "Unsupported host registry version"
         }
-        return RemoteJson.decodeFromString<HostRegistryDocument>(raw).requireValid()
+        require(version >= HostRegistryDocument.OLDEST_READABLE_VERSION) {
+            "Unsupported host registry version"
+        }
+        val decoded = RemoteJson.decodeFromString<HostRegistryDocument>(raw)
+        return decoded.copy(formatVersion = HostRegistryDocument.FORMAT_VERSION).requireValid()
     }
 
     fun encode(document: HostRegistryDocument): ByteArray {

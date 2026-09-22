@@ -21,7 +21,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -57,6 +56,12 @@ class SessionEventRouter(
         RemoteUserNotificationEvent,
         Boolean,
     ) -> Unit = { _, _ -> },
+    /**
+     * Bounded catalog owner. Membership events schedule catalog passes and
+     * `thread-state`/`thread-exited` update rows in place; a null catalog keeps
+     * the legacy assembled-refresh behavior for tests that do not need one.
+     */
+    private val catalog: com.poracode.app.session.catalog.CatalogSyncController? = null,
 ) {
     /** Reader-thread writes, Main reads — see the volatile note on lastSeenSeq. */
     @Volatile
@@ -133,7 +138,7 @@ class SessionEventRouter(
                         }
                     }
                 }
-                applyLiveEvent(message.event)
+                applyLiveEvent(message.event, message.seq.toLong())
                 setLastSeenSeq(message.seq)
             }
             is RemoteWebSocketServerMessage.ResyncRequired -> {
@@ -146,7 +151,41 @@ class SessionEventRouter(
         }
     }
 
-    fun applyLiveEvent(event: JsonElement) {
+    fun applyLiveEvent(event: JsonElement, seq: Long = 0L) {
+        val objectMap = event.asObjectOrNull() ?: return
+        val type = objectMap.string("type")
+
+        // Catalog-scoped events: membership schedules bounded passes; thread
+        // state/exit update the row in place so no full catalog refetch runs.
+        when (type) {
+            "remote-threads-changed" -> {
+                if (catalog != null) catalog.onMembershipChanged(threads = true)
+                else scheduleShellRefresh()
+                return
+            }
+            "remote-projects-changed" -> {
+                if (catalog != null) catalog.onMembershipChanged(projects = true)
+                else scheduleShellRefresh()
+                return
+            }
+            "thread-state", "thread-exited" -> {
+                if (catalog != null) {
+                    catalog.applyThreadEvent(objectMap, seq)
+                    // Only the open thread has a metadata surface to refresh.
+                    val openId = state().openThreadId
+                    val target = objectMap.string("threadId")
+                    if (type == "thread-state" &&
+                        (openId == null || target == null || target == openId)
+                    ) {
+                        scheduleOpenThreadMetadataRefresh()
+                    }
+                } else {
+                    scheduleShellRefresh()
+                }
+                return
+            }
+        }
+
         val batches = RuntimeEventReducer.collectRuntimeEvents(event)
         if (batches.isNotEmpty()) {
             updateState { s ->
@@ -181,40 +220,14 @@ class SessionEventRouter(
             if (RuntimeEventReducer.shouldRefreshOpenThreadMetadata(event)) {
                 scheduleOpenThreadMetadataRefresh()
             }
-            if (RuntimeEventReducer.shouldRefreshShell(event)) {
-                scheduleShellRefresh()
-            }
-            return
-        }
-
-        val objectMap = event.asObjectOrNull() ?: return
-        val type = objectMap.string("type")
-
-        if (type == "remote-projects-changed" || type == "remote-threads-changed") {
-            scheduleShellRefresh()
             return
         }
 
         val openId = state().openThreadId
-        if (openId == null) {
-            if (type == "thread-state" ||
-                type?.startsWith("turn.") == true ||
-                type?.startsWith("session.") == true ||
-                type?.startsWith("item.") == true ||
-                type?.startsWith("request.") == true
-            ) {
-                scheduleShellRefresh()
-            }
-            return
-        }
+        if (openId == null) return
         val threadId = objectMap.string("threadId")
             ?: objectMap.obj("thread")?.string("id")
-        if (threadId != null && threadId != openId) {
-            if (type == "thread-state" || type == "remote-threads-changed") {
-                scheduleShellRefresh()
-            }
-            return
-        }
+        if (threadId != null && threadId != openId) return
 
         val itemObject = objectMap.obj("item")
             ?: objectMap.obj("runtimeItem")
@@ -262,7 +275,6 @@ class SessionEventRouter(
             type?.startsWith("request.") == true
         ) {
             scheduleOpenThreadMetadataRefresh()
-            scheduleShellRefresh()
         }
     }
 
@@ -294,12 +306,22 @@ class SessionEventRouter(
             return
         }
         try {
-            val history = withContext(ioDispatcher) {
-                client.threadHistory(threadId = openId, targetTimelineEntryCount = 1)
-            }
+            val history = com.poracode.app.session.history.loadThreadHistoryTail(
+                api = client,
+                threadId = openId,
+                targetTimelineEntryCount = 1,
+                bounded = state().catalog.negotiated && !state().catalog.legacy,
+                ioDispatcher = ioDispatcher,
+            )
             if (!isForeground() || state().openThreadId != openId) return
-            updateState { it.copy(threadSnapshot = history) }
-            scheduleShellRefresh()
+            updateState { s ->
+                s.copy(
+                    threadSnapshot = com.poracode.app.session.history.mergeRefreshedHistory(
+                        s.threadSnapshot,
+                        history,
+                    ),
+                )
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: com.poracode.app.model.RemoteClientException) {
@@ -415,18 +437,21 @@ class SessionEventRouter(
         lastSeededSnapshotSeq = shell.snapshotSeq
     }
 
-    /** Open the agent-statuses base install-buffer boundary before the HTTP fetch. */
-    fun beginAgentStatusesBase() {
-        replayController.beginAgentStatusesBase()
-    }
+    /**
+     * Open the agent-statuses base install-buffer boundary before the HTTP
+     * fetch. Returns the attempt token the matching seed must present.
+     */
+    fun beginAgentStatusesBase(): Long = replayController.beginAgentStatusesBase()
 
     /** Install the authoritative GET agent-statuses base, then drain buffered live transitions. */
     fun seedAgentStatusesBase(
         native: List<com.poracode.app.model.AgentStatusEntry>,
         wsl: List<com.poracode.app.model.AgentStatusEntry>,
-    ) {
-        replayController.seedAgentStatusesBase(native, wsl)
+        generation: Long,
+    ): com.poracode.app.session.replay.HostStateCache.AgentBaseInstall {
+        val install = replayController.seedAgentStatusesBase(native, wsl, generation)
         mirrorReplayCacheIntoState()
+        return install
     }
 
     /**

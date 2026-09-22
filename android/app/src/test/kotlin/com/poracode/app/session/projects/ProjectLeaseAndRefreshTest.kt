@@ -32,9 +32,30 @@ class ProjectLeaseAndRefreshTest {
         assertFalse(source.state.value!!.browserEntrySupported)
     }
 
+    /**
+     * The bounded project-command result authority is read from the live
+     * descriptor only: the persisted profile has no such field, an unknown
+     * future version never unlocks the declaration, and clearing the live
+     * value (reconnect/background) revokes it.
+     */
     @Test
-    fun capabilityChangeWithinGenerationKeepsLeaseKeyStableSoGatesMustCompareCapability() {
+    fun projectCommandResultAuthorityComesFromTheLiveDescriptorOnly() {
         val state = appState(connectionA, profile(connectionA), AppSession.Phase.Ready, online = true)
+        val source = SelectedProjectHostLeaseSource(state)
+        assertFalse(source.state.value!!.projectCommandResultsSupported)
+
+        source.update(state.copy(liveProjectCommandResultVersions = setOf(1)))
+        assertTrue(source.state.value!!.projectCommandResultsSupported)
+
+        source.update(state.copy(liveProjectCommandResultVersions = setOf(2)))
+        assertFalse(source.state.value!!.projectCommandResultsSupported)
+
+        source.update(state.copy(liveProjectCommandResultVersions = emptySet()))
+        assertFalse(source.state.value!!.projectCommandResultsSupported)
+    }
+
+    @Test
+    fun capabilityChangeWithinGenerationKeepsLeaseKeyStableSoGatesMustCompareCapability() {        val state = appState(connectionA, profile(connectionA), AppSession.Phase.Ready, online = true)
         val source = SelectedProjectHostLeaseSource(
             state.copy(liveBrowserForwardVersions = setOf(1)),
         )

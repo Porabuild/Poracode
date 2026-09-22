@@ -25,6 +25,8 @@ internal object LiveSessionStateTransitions {
         detail: String?,
     ): AppSession.UiState = current.copy(
         liveBrowserForwardVersions = emptySet(),
+        liveRuntimeHistoryNoticeVersions = emptySet(),
+        liveProjectCommandResultVersions = emptySet(),
         socketState = state,
         socketDetail = detail,
         sessionExpired = state == RemoteWebSocketClient.ConnectionState.SessionExpired ||
@@ -163,7 +165,7 @@ internal object LiveSessionStateTransitions {
             commit.openThreadId != null &&
             current.openThreadId == commit.openThreadId
         ) {
-            val hydrated = ThreadController.hydrateFromHistory(
+            val hydrated = hydrateFromHistory(
                 history = commit.history,
                 threadId = commit.openThreadId,
             )

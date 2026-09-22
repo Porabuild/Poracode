@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.Call
 import okhttp3.EventListener
+import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
@@ -68,6 +69,30 @@ class ForegroundNetworkGateTest {
         gate.closeAndCancelAll()
         assertTrue(placeholder.isCancelled)
         assertEquals(0, gate.activeSocketCountForTests())
+    }
+
+    @Test
+    fun gateCancellationIntentSurvivesReopenAndDoesNotMarkNewCalls() {
+        val gate = ForegroundNetworkGate()
+        val client = OkHttpClient()
+        fun call() = client.newCall(Request.Builder().url("http://127.0.0.1:1/").build())
+
+        val first = call()
+        val firstRegistration = gate.registerCall(first)
+        assertTrue(firstRegistration != null)
+        gate.closeAndCancelAll()
+        gate.openForForeground()
+
+        assertTrue(first.isCanceled())
+        assertTrue(firstRegistration!!.isGateCancelled)
+
+        val second = call()
+        val secondRegistration = gate.registerCall(second)
+        assertTrue(secondRegistration != null)
+        assertFalse(secondRegistration!!.isGateCancelled)
+        assertFalse(second.isCanceled())
+        gate.unregisterCall(second)
+        assertEquals(0, gate.activeCallCountForTests())
     }
 
     @Test

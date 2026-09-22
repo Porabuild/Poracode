@@ -15,11 +15,11 @@ class ProjectDomainFixturesTest {
     fun commandResponsesPreserveLocationsAndAffectedProjectOptionality() {
         val cases = readProjectFixture("project-command-responses.json")["cases"]!!.jsonArray
         val withAffected = RemoteJson.decodeFromJsonElement(
-            ProjectCommandResult.serializer(),
+            ProjectCommandResult.Complete.serializer(),
             cases[0].jsonObject["response"]!!,
         )
         val withoutAffected = RemoteJson.decodeFromJsonElement(
-            ProjectCommandResult.serializer(),
+            ProjectCommandResult.Complete.serializer(),
             cases[1].jsonObject["response"]!!,
         )
 

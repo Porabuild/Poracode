@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.ColorLens
 import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.Commit
 import androidx.compose.material.icons.outlined.CreateNewFolder
+import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
@@ -69,6 +70,7 @@ internal enum class SettingsRoute {
     Profile,
     Preferences,
     Workspace,
+    Environments,
     GlobalMcp,
     ArchivedThreads,
 }
@@ -80,6 +82,7 @@ internal fun SettingsPane.route(): SettingsRoute = when (this) {
     SettingsPane.Profile -> SettingsRoute.Profile
     SettingsPane.Preferences -> SettingsRoute.Preferences
     SettingsPane.Workspace -> SettingsRoute.Workspace
+    SettingsPane.Environments -> SettingsRoute.Environments
 }
 
 internal fun SettingsRoute.pane(): SettingsPane? = when (this) {
@@ -89,6 +92,7 @@ internal fun SettingsRoute.pane(): SettingsPane? = when (this) {
     SettingsRoute.Profile -> SettingsPane.Profile
     SettingsRoute.Preferences -> SettingsPane.Preferences
     SettingsRoute.Workspace -> SettingsPane.Workspace
+    SettingsRoute.Environments -> SettingsPane.Environments
     else -> null
 }
 
@@ -179,6 +183,8 @@ internal fun DesktopSettingsIndex(
     onOpenIntegrations: () -> Unit,
     onOpenAdvanced: () -> Unit,
     onOpenBrowser: () -> Unit,
+    environmentsAvailable: Boolean = false,
+    onOpenEnvironments: () -> Unit = {},
 ) {
     SettingsIndexList {
         item {
@@ -225,6 +231,13 @@ internal fun DesktopSettingsIndex(
             R.string.settings_global_mcp_title,
             R.string.settings_global_mcp_description,
         ) { onOpen(SettingsRoute.GlobalMcp) }
+        if (environmentsAvailable) {
+            SettingsIndexRow(
+                Icons.Outlined.Dns,
+                R.string.environments_settings_title,
+                R.string.environments_settings_description,
+            ) { onOpenEnvironments() }
+        }
         SettingsIndexSection(R.string.settings_configuration_section)
         SettingsIndexRow(
             Icons.Outlined.Archive,

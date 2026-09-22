@@ -47,6 +47,37 @@ data class RemoteEnvironmentDescriptor(
          * raw-TCP unavailability or as origin isolation.
          */
         val browserForward: VersionedCapability? = null,
+        /**
+         * Host-owned environments (`versions` contains
+         * [SSH_ENVIRONMENTS_VERSION]). Emitted only when the host composed the
+         * environment management routes and every route is usable; absence
+         * hides the feature and means zero environment calls, never a fallback.
+         */
+        val sshEnvironments: VersionedCapability? = null,
+        /**
+         * Durable runtime-history-notice support (`versions` contains
+         * [RUNTIME_HISTORY_NOTICES_VERSION]). Emitted only when the host
+         * composed the durable store; absence means zero notice declarations
+         * and no gap-route calls, never a fallback read.
+         */
+        val runtimeHistoryNotices: VersionedCapability? = null,
+        /**
+         * Bounded catalog-change notifications (`versions` contains
+         * [BOUNDED_CATALOG_CHANGES_VERSION]). Emitted only when the host
+         * canonicalizes catalog changes to the bounded signal; absence means no
+         * `catalogChanges=bounded-v1` upgrade declaration, never a fallback
+         * declaration.
+         */
+        val boundedCatalogChanges: VersionedCapability? = null,
+        /**
+         * Bounded project-command results (`versions` contains
+         * [PROJECT_COMMAND_RESULTS_VERSION]). Emitted only when the host can
+         * answer `POST /api/projects/command` with the bounded acknowledgement
+         * under `x-poracode-project-command-result: bounded-v1`; absence means
+         * the legacy complete-list result is kept, never a speculative
+         * declaration.
+         */
+        val projectCommandResults: VersionedCapability? = null,
     )
 
     @Serializable
@@ -60,6 +91,18 @@ data class RemoteEnvironmentDescriptor(
          * entry path guaranteed to be origin-bound and isolated.
          */
         const val BROWSER_FORWARD_ENTRY_VERSION = 1
+
+        /** App-side pin of the host's `REMOTE_SSH_ENVIRONMENTS_VERSION`. */
+        const val SSH_ENVIRONMENTS_VERSION = 1
+
+        /** App-side pin of the host's `REMOTE_RUNTIME_HISTORY_NOTICES_VERSION`. */
+        const val RUNTIME_HISTORY_NOTICES_VERSION = 1
+
+        /** App-side pin of the host's `REMOTE_BOUNDED_CATALOG_CHANGES_VERSION`. */
+        const val BOUNDED_CATALOG_CHANGES_VERSION = 1
+
+        /** App-side pin of the host's `REMOTE_PROJECT_COMMAND_RESULTS_VERSION`. */
+        const val PROJECT_COMMAND_RESULTS_VERSION = 1
     }
 }
 
@@ -233,6 +276,15 @@ data class RemoteShellSnapshot(
     val gitSummariesByThread: JsonElement? = null,
     /** Optional normalized host-owned Git/PR state. Absent on legacy hosts. */
     val gitState: JsonElement? = null,
+    /**
+     * `reads=bounded-v1` echo. Absent (null) on legacy responses; the bounded
+     * negotiation reads the raw key presence, never this nullable default.
+     */
+    val reads: String? = null,
+    /** Bounded shell page 1 paint continuation cursor; null at the end. */
+    val threadsNextCursor: String? = null,
+    /** Bounded shell page 1 project paint continuation cursor; null at the end. */
+    val projectsNextCursor: String? = null,
     val updatedAt: String,
 )
 
@@ -262,10 +314,18 @@ data class RemoteThreadSnapshot(
     val runtimeItems: List<PersistedRuntimeItem> = emptyList(),
     val runtimeNextCursor: Int? = null,
     val completedTurns: List<JsonElement> = emptyList(),
+    /** Bounded history tail: `ct1.` cursor of the oldest returned turn, or null. */
+    val completedTurnsNextCursor: String? = null,
     val contextUsage: JsonElement? = null,
     val terminalScrollback: String? = null,
     /** Authoritative follow-up queue for GUI threads; absent on old hosts. */
     val followUpQueue: JsonElement? = null,
+    /**
+     * B1 durable history notice, present only when this read declared
+     * `notices=v1` and the host has a notice for the thread. Absence on a
+     * later page never clears an already-projected notice.
+     */
+    val runtimeNotice: RemoteRuntimeHistoryNotice? = null,
     val updatedAt: String,
 )
 
@@ -273,6 +333,8 @@ data class RemoteThreadSnapshot(
 data class RemoteRuntimeItemsPage(
     val items: List<PersistedRuntimeItem> = emptyList(),
     val nextCursor: Int? = null,
+    /** B1 item-page notice projection; absence never clears a notice. */
+    val runtimeNotice: RemoteRuntimeHistoryNotice? = null,
 )
 
 // MARK: - WebSocket envelopes
@@ -354,13 +416,62 @@ class RemoteClientException(
     message: String,
     val status: Int,
     val code: String,
+    /**
+     * Value of the trusted parent-origin response marker
+     * (`x-poracode-environment-auth-authority`) when the server set it. Only
+     * the parent proxy's own authentication-step rejections carry `"parent"`;
+     * the proxy strips the whole reserved namespace from child responses, so a
+     * client must never infer authority from status alone (R1).
+     */
+    val environmentAuthAuthority: String? = null,
 ) : Exception(message) {
     val isUnauthorized: Boolean get() = status == 401 || status == 403
     val isNotFound: Boolean get() = status == 404
     val isTransportFailure: Boolean
         get() = status == 0 || status == 502 || status == 504 || code == "timeout" || code == "network"
 
+    /** True when the trusted marker proves the parent authority rejected this dispatch. */
+    val isEnvironmentParentRejection: Boolean
+        get() = environmentAuthAuthority == ENVIRONMENT_AUTH_AUTHORITY_PARENT
+
     companion object {
+        /** Trusted parent-origin marker value. */
+        const val ENVIRONMENT_AUTH_AUTHORITY_PARENT = "parent"
+
+        /** Typed repair codes; the UI localizes by code, never by message. */
+        const val ENVIRONMENT_PARENT_NEEDS_REPAIR = "environment_parent_needs_repair"
+
+        /**
+         * Two local environment records derive the same normalized proxy
+         * endpoint with different `(parent, environmentId)` grants (endpoint
+         * aliases, e.g. base URLs that differ only by a trailing slash). The
+         * client refuses to pick a winner: every dispatch for that endpoint
+         * fails closed before dialing and the records stay visible for the user
+         * to resolve explicitly.
+         */
+        const val ENVIRONMENT_AUTHORITY_CONFLICT = "environment_authority_conflict"
+
+        /**
+         * Marker-proven parent 401. Native ships without a refresh grant (ADR
+         * §13): the only recovery is re-pairing the parent, so this is a typed
+         * repair state, never an invented refresh.
+         */
+        fun environmentParentNeedsRepair(cause: RemoteClientException? = null) =
+            RemoteClientException(
+                "The paired server that owns this environment must be re-paired from the desktop.",
+                401,
+                ENVIRONMENT_PARENT_NEEDS_REPAIR,
+                environmentAuthAuthority = cause?.environmentAuthAuthority
+                    ?: ENVIRONMENT_AUTH_AUTHORITY_PARENT,
+            )
+
+        /** Typed fail-closed refusal for aliased environment endpoints; no grant is guessed. */
+        fun environmentAuthorityConflict() = RemoteClientException(
+            "Two paired hosts share this environment endpoint. Remove one pairing and pair again.",
+            409,
+            ENVIRONMENT_AUTHORITY_CONFLICT,
+        )
+
         fun invalidResponse(message: String) =
             RemoteClientException(message, 500, "invalid_response")
 

@@ -22,6 +22,14 @@ data class ProjectHostLease(
     val ready: Boolean,
     /** Capability from this live connection's handshake; cleared while reconnecting. */
     val browserForwardVersions: Set<Int> = emptySet(),
+    /**
+     * Live `capabilities.projectCommandResults.versions` for THIS connection
+     * generation; empty = undeclared. Read only from the live app session (the
+     * connection's authoritative descriptor) — never from a persisted host
+     * record, so a capability observed for one host can never authorize a
+     * request on another.
+     */
+    val projectCommandResultVersions: Set<Int> = emptySet(),
 ) {
     val key: ProjectSessionKey get() = ProjectSessionKey(connectionId, generation)
 
@@ -29,6 +37,12 @@ data class ProjectHostLease(
     val browserEntrySupported: Boolean
         get() =
             RemoteEnvironmentDescriptor.BROWSER_FORWARD_ENTRY_VERSION in browserForwardVersions
+
+    /** True when this connection advertised the bounded project-command result mode. */
+    val projectCommandResultsSupported: Boolean
+        get() =
+            RemoteEnvironmentDescriptor.PROJECT_COMMAND_RESULTS_VERSION in
+                projectCommandResultVersions
 }
 
 data class ProjectSessionKey(

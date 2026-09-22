@@ -11,9 +11,19 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
-/** Secret-bearing, encrypted transaction journal with exact target bytes. */
+/**
+ * Secret-bearing, encrypted transaction journal with exact target bytes.
+ *
+ * Version 3 adds [Record.deleteVaultAccounts] so one atomic removal can retire
+ * a parent record together with its dependent environment records and their
+ * child credential vault accounts. Version 1/2 records stay readable: the new
+ * list defaults to empty and [Record.deleteVaultAccount] keeps its exact
+ * single-account meaning. A version bump here is a persisted-boundary change:
+ * the pre-upgrade fixture in `HostTransactionJournalTest` pins that an old
+ * journal still decodes and recovers.
+ */
 object HostTransactionJournal {
-    const val VERSION = 2
+    const val VERSION = 3
     private const val OLDEST_SUPPORTED_VERSION = 1
 
     @Serializable
@@ -33,6 +43,11 @@ object HostTransactionJournal {
         val targetVaultAccount: String? = null,
         val targetVaultBase64: String? = null,
         val deleteVaultAccount: String? = null,
+        /**
+         * Additional vault accounts retired by this transaction (dependent
+         * environment child grants on a parent removal cascade). Version 3+.
+         */
+        val deleteVaultAccounts: List<String> = emptyList(),
         val clearLegacySource: Boolean = false,
         val importReceiptBase64: String? = null,
     ) {
@@ -58,6 +73,7 @@ object HostTransactionJournal {
         targetVaultAccount: String? = null,
         targetVaultBytes: ByteArray? = null,
         deleteVaultAccount: String? = null,
+        deleteVaultAccounts: List<String> = emptyList(),
         clearLegacySource: Boolean = false,
         importReceiptBytes: ByteArray? = null,
     ): Record = Record(
@@ -69,6 +85,7 @@ object HostTransactionJournal {
         targetVaultAccount = targetVaultAccount,
         targetVaultBase64 = targetVaultBytes?.let(Base64.getEncoder()::encodeToString),
         deleteVaultAccount = deleteVaultAccount,
+        deleteVaultAccounts = deleteVaultAccounts,
         clearLegacySource = clearLegacySource,
         importReceiptBase64 = importReceiptBytes?.let(Base64.getEncoder()::encodeToString),
     )
@@ -106,6 +123,18 @@ object HostTransactionJournal {
         require(targetVaultAccount == null || deleteVaultAccount == null) {
             "Conflicting vault mutation"
         }
+        require(deleteVaultAccounts.size == deleteVaultAccounts.distinct().size) {
+            "Duplicate deleted vault account"
+        }
+        require(deleteVaultAccounts.none { it == targetVaultAccount }) {
+            "Conflicting cascade vault mutation"
+        }
+        require(deleteVaultAccounts.none { it == deleteVaultAccount }) {
+            "Duplicate deleted vault account"
+        }
+        require(deleteVaultAccounts.all(::isVaultAccount)) {
+            "Unexpected cascade vault account"
+        }
         val expectedAccount = HostVault.account(connectionId)
         require(targetVaultAccount == null || targetVaultAccount == expectedAccount) {
             "Unexpected target vault account"
@@ -117,4 +146,9 @@ object HostTransactionJournal {
         importReceiptBase64?.let { Base64.getDecoder().decode(it) }
         return this
     }
+
+    private val VAULT_ACCOUNT_PATTERN = Regex("^host-vault\\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+    private fun isVaultAccount(account: String): Boolean =
+        VAULT_ACCOUNT_PATTERN.matches(account)
 }

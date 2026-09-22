@@ -143,6 +143,39 @@ class LiveConnectionCapabilitySerializationTest {
         }
 
     @Test
+    fun onlinePublicationCarriesNoticesFromTheSameDescriptorWithoutBrowserForward() {
+        val h = Harness()
+        h.pauseNextSupported.set(false)
+        try {
+            h.api.environmentResponse = FakeApiGateway.defaultEnvironment().let {
+                it.copy(
+                    capabilities = RemoteEnvironmentDescriptor.Capabilities(
+                        runtimeHistoryNotices = RemoteEnvironmentDescriptor.VersionedCapability(
+                            listOf(RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION),
+                        ),
+                    ),
+                )
+            }
+            val controller = h.controller()
+            controller.installApi("https://host-a.test", "t")
+            runBlocking { controller.startLiveSession() }
+            val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (h.state.value.liveRuntimeHistoryNoticeVersions != setOf(1) &&
+                System.nanoTime() < deadline
+            ) {
+                Thread.sleep(10)
+            }
+            assertEquals(setOf(1), h.state.value.liveRuntimeHistoryNoticeVersions)
+            assertTrue(
+                "a notice-only descriptor must not claim browser entry",
+                h.state.value.liveBrowserForwardVersions.isEmpty(),
+            )
+        } finally {
+            h.close()
+        }
+    }
+
+    @Test
     fun callbackAdmittedBeforeSocketSwapCannotOverwriteReplacementState() {
         val h = Harness()
         h.pauseNextSupported.set(false)

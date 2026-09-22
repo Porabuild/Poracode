@@ -16,11 +16,43 @@ import kotlinx.serialization.json.JsonElement
  * frames whose seq > history.snapshotSeq in order. Thread switch / cancel /
  * generation bump discards the stale buffer.
  */
-class ThreadHydrationCoordinator {
+class ThreadHydrationCoordinator(
+    private val bounds: Bounds = Bounds(),
+    private val arrivalClockMs: () -> Long = { System.nanoTime() / 1_000_000L },
+) {
+    /**
+     * Count/byte/age bounds over the buffered replay window. All three are
+     * hard: the oldest frames are evicted oldest-first until the window fits,
+     * and any eviction means the replay lost coverage. A single frame larger
+     * than [maxBytes] is never retained.
+     *
+     * [maxAgeMs] is retained age against the monotonic [arrivalClockMs], not an
+     * arrival span: expiry is checked at append and again when history
+     * completes, so a hung or quiet read cannot replay a frame retained past
+     * the budget.
+     */
+    data class Bounds(
+        val maxFrames: Int = MAX_BUFFERED_FRAMES,
+        val maxBytes: Long = MAX_BUFFERED_BYTES,
+        val maxAgeMs: Long = MAX_BUFFERED_AGE_MS,
+    )
+
     data class BufferedFrame(
         val seq: Int,
         val threadId: String,
         val event: JsonElement,
+        val estimatedBytes: Long = 0L,
+        /** Monotonic arrival; shares its base with [arrivalClockMs]. */
+        val arrivalMs: Long = 0L,
+    )
+
+    /**
+     * Outcome of consuming the buffer when history lands. [coverageLost] covers
+     * every eviction, including frames dropped for expiry at completion.
+     */
+    data class Completion(
+        val replay: List<BufferedFrame>,
+        val coverageLost: Boolean,
     )
 
     enum class LiveDisposition {
@@ -60,6 +92,11 @@ class ThreadHydrationCoordinator {
 
     private val buffer = ArrayList<BufferedFrame>()
     private val lock = Any()
+    private var bufferedBytes: Long = 0L
+
+    /** Any eviction lost replay coverage; the caller must request recovery. */
+    @Volatile
+    private var coverageLost: Boolean = false
 
     val isHydrating: Boolean
         get() = hydrating
@@ -70,7 +107,15 @@ class ThreadHydrationCoordinator {
     val activeThread: String?
         get() = activeThreadId
 
+    val overflowed: Boolean
+        get() = coverageLost
+
     fun bufferedCount(): Int = synchronized(lock) { buffer.size }
+
+    fun bufferedBytes(): Long = synchronized(lock) { bufferedBytes }
+
+    /** Retained seqs in arrival order (accounting; exposed for tests). */
+    fun bufferedSeqs(): List<Int> = synchronized(lock) { buffer.map { it.seq } }
 
     /**
      * Begin opening [threadId]. Bumps generation, clears any prior buffer, and
@@ -84,7 +129,7 @@ class ThreadHydrationCoordinator {
         hydrating = true
         parked = false
         failed = false
-        buffer.clear()
+        clearBuffer()
         activeGeneration
     }
 
@@ -96,7 +141,14 @@ class ThreadHydrationCoordinator {
         hydrating = false
         parked = false
         failed = false
+        clearBuffer()
+    }
+
+    /** Caller holds [lock]. */
+    private fun clearBuffer() {
         buffer.clear()
+        bufferedBytes = 0L
+        coverageLost = false
     }
 
     /** Background: keep accepted buffered seqs; restart history on foreground. */
@@ -108,7 +160,7 @@ class ThreadHydrationCoordinator {
         hydrating = false
         parked = false
         failed = true
-        buffer.clear()
+        clearBuffer()
     }
 
     fun needsHistoryRestart(): Boolean = synchronized(lock) {
@@ -162,30 +214,67 @@ class ThreadHydrationCoordinator {
         threadId: String,
         event: JsonElement,
         openGeneration: Int,
+        arrivalMs: Long = arrivalClockMs(),
     ): BufferResult = synchronized(lock) {
         if (openGeneration != activeGeneration) return BufferResult.Rejected
         if (!hydrating || activeThreadId != threadId) return BufferResult.Rejected
-        if (buffer.size >= MAX_BUFFERED_FRAMES) {
-            hydrating = false
-            parked = false
-            failed = true
-            buffer.clear()
+        val frame = BufferedFrame(
+            seq = seq,
+            threadId = threadId,
+            event = event,
+            estimatedBytes = estimateJsonBytes(event),
+            arrivalMs = arrivalMs,
+        )
+        buffer.add(frame)
+        bufferedBytes += frame.estimatedBytes
+        var evicted = false
+        while (buffer.isNotEmpty()) {
+            val head = buffer.first()
+            val overCount = buffer.size > bounds.maxFrames
+            val overBytes = bufferedBytes > bounds.maxBytes
+            // Retained age against the append-time monotonic clock, not the
+            // arrival span: an old head is dropped even if no newer frame has
+            // arrived to widen a span.
+            val overAge = arrivalMs - head.arrivalMs > bounds.maxAgeMs
+            if (!overCount && !overBytes && !overAge) break
+            buffer.removeAt(0)
+            bufferedBytes -= head.estimatedBytes
+            evicted = true
+        }
+        if (evicted) {
+            // Oldest-first eviction lost replay coverage: keep the bounded
+            // newest window (so a later install can still replay what
+            // survived) but report overflow so the caller requests an
+            // authoritative refresh. Never claim a converged replay.
+            coverageLost = true
             return BufferResult.Overflow
         }
-        buffer.add(BufferedFrame(seq = seq, threadId = threadId, event = event))
         BufferResult.Accepted
     }
+
+    /**
+     * Conservative decoded-payload estimate: `toString` renders this element's
+     * JSON once (never retained history), and UTF-16 length × 3 upper-bounds
+     * its UTF-8 size. Computed once per arrival for accounting only.
+     */
+    private fun estimateJsonBytes(element: JsonElement): Long =
+        element.toString().length.toLong() * 3L + 32L
 
     /**
      * History arrived for [threadId]/[openGeneration].
      * Returns frames with seq > [snapshotSeq] in ascending seq order for replay,
      * or null when the open was cancelled/switched (caller must not install).
+     *
+     * Expired frames are dropped first against the monotonic clock: a read that
+     * outlived [Bounds.maxAgeMs] releases its payload and reports coverage loss
+     * so the caller runs the existing authoritative recovery instead of
+     * replaying an arbitrarily stale frame.
      */
     fun completeHistory(
         threadId: String,
         openGeneration: Int,
         snapshotSeq: Int,
-    ): List<BufferedFrame>? = synchronized(lock) {
+    ): Completion? = synchronized(lock) {
         if (openGeneration != activeGeneration) return null
         if (activeThreadId != threadId) return null
         if (!hydrating) {
@@ -193,16 +282,29 @@ class ThreadHydrationCoordinator {
             return null
         }
         hydrating = false
+        val now = arrivalClockMs()
+        while (buffer.isNotEmpty() && now - buffer.first().arrivalMs > bounds.maxAgeMs) {
+            val expired = buffer.removeAt(0)
+            bufferedBytes -= expired.estimatedBytes
+            coverageLost = true
+        }
         val replay = buffer
             .filter { it.threadId == threadId && it.seq > snapshotSeq }
             .sortedBy { it.seq }
-        buffer.clear()
-        replay
+        val completion = Completion(replay = replay, coverageLost = coverageLost)
+        clearBuffer()
+        completion
     }
 
     /** Pure helper: which buffered frames survive a history snapshot. */
     companion object {
         const val MAX_BUFFERED_FRAMES = 256
+
+        /** Host WebSocket frames are capped at 1 MiB; this bounds retention. */
+        const val MAX_BUFFERED_BYTES = 4L * 1024 * 1024
+
+        /** Retained-age bound; a read stalling longer than this recovers. */
+        const val MAX_BUFFERED_AGE_MS = 120_000L
 
         fun framesAfterSnapshot(
             frames: List<BufferedFrame>,
@@ -231,6 +333,12 @@ object GlobalCursorPolicy {
 
     /** Initial full bootstrap may establish the global cursor from shell.snapshotSeq. */
     fun bootstrapAdvancesGlobalCursor(): Boolean = true
+
+    /** A bounded shell first page IS the authoritative baseline; only it may advance. */
+    fun boundedFirstPageAdvancesGlobalCursor(): Boolean = true
+
+    /** Bounded paint/inventory continuation pages never advance the global cursor. */
+    fun boundedContinuationAdvancesGlobalCursor(): Boolean = false
 
     /**
      * After a successful resync transaction, reconnect from the shell snapshot

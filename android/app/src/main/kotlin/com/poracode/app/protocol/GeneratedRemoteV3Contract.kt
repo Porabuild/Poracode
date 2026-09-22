@@ -1,6 +1,7 @@
 package com.poracode.app.protocol
 
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.RemoteHistoryNoticeCodes
 import com.poracode.remote.v3.generated.RemoteContractMetadata
 import com.poracode.remote.v3.generated.RemoteQueryCodec
 import com.poracode.remote.v3.generated.RemoteRootCodec
@@ -22,6 +23,13 @@ import com.poracode.remote.v3.generated.routeU2EThreadU2DHistoryU2EResponse
 import com.poracode.remote.v3.generated.routeU2EThreadU2DInterruptU2EPath
 import com.poracode.remote.v3.generated.routeU2EThreadU2DInterruptU2ERequest
 import com.poracode.remote.v3.generated.routeU2EThreadU2DInterruptU2EResponse
+import com.poracode.remote.v3.generated.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EPath
+import com.poracode.remote.v3.generated.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EQuery
+import com.poracode.remote.v3.generated.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2ERequest
+import com.poracode.remote.v3.generated.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EResponse
+import com.poracode.remote.v3.generated.routeU2EThreadU2DRuntimeU2DGapU2EPath
+import com.poracode.remote.v3.generated.routeU2EThreadU2DRuntimeU2DGapU2EQuery
+import com.poracode.remote.v3.generated.routeU2EThreadU2DRuntimeU2DGapU2EResponse
 import com.poracode.remote.v3.generated.routeU2EThreadU2DSendU2EPath
 import com.poracode.remote.v3.generated.routeU2EThreadU2DSendU2ERequest
 import com.poracode.remote.v3.generated.routeU2EThreadU2DSendU2EResponse
@@ -128,6 +136,7 @@ object GeneratedRemoteV3Contract {
     fun threadHistoryRoute(
         threadId: String,
         targetTimelineEntryCount: Int?,
+        noticesCapable: Boolean = false,
     ): RouteParameters {
         val path = canonicalObject(
             RemoteRootCodecs.routeU2EThreadU2DHistoryU2EPath,
@@ -136,6 +145,7 @@ object GeneratedRemoteV3Contract {
         val queryInput = buildJsonObject {
             put("runtimePage", "1")
             targetTimelineEntryCount?.let { put("targetTimelineEntryCount", it) }
+            if (noticesCapable) put("notices", RemoteHistoryNoticeCodes.DECLARATION)
         }
         val query = canonicalObject(
             RemoteRootCodecs.routeU2EThreadU2DHistoryU2EQuery,
@@ -148,6 +158,7 @@ object GeneratedRemoteV3Contract {
                 query["targetTimelineEntryCount"]?.jsonPrimitive?.int?.let {
                     add("targetTimelineEntryCount" to RemoteQueryCodec.encodeInt(it.toLong()))
                 }
+                query["notices"]?.jsonPrimitive?.content?.let { add("notices" to it) }
             },
         )
     }
@@ -160,6 +171,7 @@ object GeneratedRemoteV3Contract {
         beforePosition: Int?,
         limit: Int,
         targetTimelineEntryCount: Int?,
+        noticesCapable: Boolean = false,
     ): RouteParameters {
         val path = canonicalObject(
             RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EPath,
@@ -169,6 +181,7 @@ object GeneratedRemoteV3Contract {
             beforePosition?.let { put("beforePosition", it) }
             put("limit", limit)
             targetTimelineEntryCount?.let { put("targetTimelineEntryCount", it) }
+            if (noticesCapable) put("notices", RemoteHistoryNoticeCodes.DECLARATION)
         }
         val query = canonicalObject(
             RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EQuery,
@@ -176,16 +189,64 @@ object GeneratedRemoteV3Contract {
         )
         return RouteParameters(
             threadId = path.requiredString("threadId"),
-            query = listOf("limit", "beforePosition", "targetTimelineEntryCount").mapNotNull {
-                name -> query[name]?.jsonPrimitive?.int?.let {
-                    name to RemoteQueryCodec.encodeInt(it.toLong())
-                }
+            query = buildList {
+                listOf("limit", "beforePosition", "targetTimelineEntryCount").mapNotNull {
+                    name -> query[name]?.jsonPrimitive?.int?.let {
+                        name to RemoteQueryCodec.encodeInt(it.toLong())
+                    }
+                }.forEach(::add)
+                query["notices"]?.jsonPrimitive?.content?.let { add("notices" to it) }
             },
         )
     }
 
     fun historyItemsResponse(raw: String): String =
         canonical(RemoteRootCodecs.routeU2EThreadU2DHistoryU2DItemsU2EResponse, raw)
+
+    // --- B1 durable history-notice recovery (declared-only routes) ---
+
+    /** `GET .../runtime/gap?notices=v1`: the acknowledgement precondition read. */
+    fun runtimeGapRoute(threadId: String): RouteParameters {
+        val path = canonicalObject(
+            RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EPath,
+            buildJsonObject { put("threadId", threadId) },
+        )
+        val query = canonicalObject(
+            RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EQuery,
+            buildJsonObject { put("notices", RemoteHistoryNoticeCodes.DECLARATION) },
+        )
+        return RouteParameters(
+            threadId = path.requiredString("threadId"),
+            query = query["notices"]?.jsonPrimitive?.content?.let { listOf("notices" to it) }.orEmpty(),
+        )
+    }
+
+    fun runtimeGapResponse(raw: String): String =
+        canonical(RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2EResponse, raw)
+
+    fun runtimeGapAcknowledgePath(threadId: String): String = canonicalThreadId(
+        RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EPath,
+        threadId,
+    )
+
+    fun runtimeGapAcknowledgeQuery(): List<Pair<String, String>> {
+        val query = canonicalObject(
+            RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EQuery,
+            buildJsonObject { put("notices", RemoteHistoryNoticeCodes.DECLARATION) },
+        )
+        return query["notices"]?.jsonPrimitive?.content?.let { listOf("notices" to it) }.orEmpty()
+    }
+
+    fun runtimeGapAcknowledgeRequest(threadId: String, episodeToken: String): String = canonical(
+        RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2ERequest,
+        buildJsonObject {
+            put("episodeToken", episodeToken)
+            put("threadId", threadId)
+        }.toString(),
+    )
+
+    fun runtimeGapAcknowledgeResponse(raw: String): String =
+        canonical(RemoteRootCodecs.routeU2EThreadU2DRuntimeU2DGapU2DAcknowledgeU2EResponse, raw)
 
     fun threadSendPath(threadId: String): String = canonicalThreadId(
         RemoteRootCodecs.routeU2EThreadU2DSendU2EPath,

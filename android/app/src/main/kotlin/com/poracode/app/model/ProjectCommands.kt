@@ -198,8 +198,25 @@ data class RelocateProject(
 @SerialName("remove")
 data class RemoveProject(val projectId: String) : ProjectCommand
 
-@Serializable
-data class ProjectCommandResult(
-    val projects: List<RemoteProject>,
-    val project: RemoteProject? = null,
-)
+/**
+ * Decoded `POST /api/projects/command` response union.
+ *
+ * [Complete] is the legacy result: the full updated catalog list plus the
+ * affected row when the command names one. [Bounded] is the declared
+ * (`x-poracode-project-command-result: bounded-v1`) acknowledgement: it
+ * carries at most the affected row and is NEVER an empty catalog — callers
+ * must not replace list contents with it.
+ */
+sealed interface ProjectCommandResult {
+    @Serializable
+    data class Complete(
+        val projects: List<RemoteProject>,
+        val project: RemoteProject? = null,
+    ) : ProjectCommandResult
+
+    @Serializable
+    data class Bounded(
+        val ok: Boolean = true,
+        val project: RemoteProject? = null,
+    ) : ProjectCommandResult
+}

@@ -145,4 +145,24 @@
     <string name="rich_chat_queue_resume">Wznów</string>
     <string name="rich_chat_queue_edit_title">Edytuj wiadomość w kolejce</string>
     <string name="rich_chat_queue_save">Zapisz</string>
+    <string name="rich_chat_history_notice_title">Historia jest niekompletna</string>
+    <string name="rich_chat_history_notice_body">Niektóre zdarzenia nie zostały zapisane. Potwierdzenie pozwala kontynuować z niekompletną historią; nie przywraca brakującej treści ani nie potwierdza, że źródło zostało zatrzymane.</string>
+    <string name="rich_chat_history_notice_detail">Nie zapisano: co najmniej %1$d (%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">Potwierdź</string>
+    <string name="rich_chat_history_notice_ack_in_flight">Potwierdzanie…</string>
+    <string name="rich_chat_history_notice_check_failed">Nie udało się odczytać szczegółów odzyskiwania.</string>
+    <string name="rich_chat_history_notice_source_exact">potwierdzona utrata</string>
+    <string name="rich_chat_history_notice_source_suspect">podejrzewana utrata</string>
+    <string name="rich_chat_history_notice_source_unknown">utrata</string>
+    <string name="rich_chat_history_notice_reason_thread_events">limit zdarzeń wątku</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">limit rozmiaru wątku</string>
+    <string name="rich_chat_history_notice_reason_global_events">globalny limit zdarzeń</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">globalny limit rozmiaru</string>
+    <string name="rich_chat_history_notice_reason_oversize">zdarzenie o zbyt dużym rozmiarze</string>
+    <string name="rich_chat_history_notice_reason_age">usunięte z powodu wieku</string>
+    <string name="rich_chat_history_notice_reason_degraded">obniżona jakość magazynu</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">odrzucone przez rebase</string>
+    <string name="rich_chat_history_notice_reason_shutdown">nieczyste zamknięcie</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">nieczysta sesja</string>
+    <string name="rich_chat_history_notice_reason_unknown">limit magazynu</string>
 </resources>

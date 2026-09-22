@@ -10,9 +10,11 @@ import com.poracode.app.model.ProjectNotesReadResult
 import com.poracode.app.model.ProjectNotesWriteBody
 import com.poracode.app.model.ProjectSettings
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.transport.ProjectCommandDispatch
 import com.poracode.app.transport.ProjectRemoteGateway
 import com.poracode.app.transport.ProjectRemoteGatewayProvider
 import com.poracode.app.transport.RemoteMutationClassification
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.StateFlow
 
@@ -25,7 +27,25 @@ class GeneratedProjectSessionGateway(
         lease: ProjectHostLease,
         command: ProjectCommand,
     ): ProjectCommandResult = invoke(lease, ProjectCapability.Manage, mutation = true) {
-        projectCommand(command)
+        projectCommand(command, dispatchFor(lease))
+    }
+
+    /**
+     * Per-operation dispatch for THIS lease. The bounded result mode is only
+     * declared when the live connection advertised
+     * `capabilities.projectCommandResults` v1; every other case keeps the
+     * historical complete-result request (no id, no declaration). The command
+     * id is minted per operation and never reused for another body. No retry
+     * surface exists today; if a same-operation retry is ever exposed it MUST
+     * reuse the exact id/body/mode, and nothing here replays a request
+     * automatically.
+     */
+    private fun dispatchFor(lease: ProjectHostLease): ProjectCommandDispatch? {
+        if (!lease.projectCommandResultsSupported) return null
+        return ProjectCommandDispatch(
+            commandId = UUID.randomUUID().toString(),
+            boundedResult = true,
+        )
     }
 
     override suspend fun projectSettings(

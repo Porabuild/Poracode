@@ -144,12 +144,12 @@ class ThreadHydrationCoordinatorTest {
             snapshotSeq = 100,
         )
         assertFalse(coord.isHydrating)
-        assertEquals(3, replay!!.size)
-        assertEquals(listOf(101, 102, 103), replay.map { it.seq })
+        assertEquals(3, replay!!.replay.size)
+        assertEquals(listOf(101, 102, 103), replay.replay.map { it.seq })
 
         // Install history then replay — final items retain both, exactly once.
         val items = historyItems.toMutableList()
-        for (frame in replay) {
+        for (frame in replay.replay) {
             val batches = RuntimeEventReducer.collectRuntimeEvents(frame.event)
             for (batch in batches) {
                 RuntimeEventReducer.apply(batch.events, items)
@@ -226,7 +226,7 @@ class ThreadHydrationCoordinatorTest {
     }
 
     @Test
-    fun bufferOverflowTerminatesHydration() {
+    fun countOverflowEvictsOldestAndFlagsRecovery() {
         val coord = ThreadHydrationCoordinator()
         val gen = coord.beginOpen("t")
         repeat(ThreadHydrationCoordinator.MAX_BUFFERED_FRAMES) { i ->
@@ -249,8 +249,144 @@ class ThreadHydrationCoordinatorTest {
                 openGeneration = gen,
             ),
         )
+        // The bounded newest window survives (oldest evicted) and the caller
+        // is told coverage was lost so it requests authoritative recovery.
+        assertTrue(coord.overflowed)
+        assertTrue(coord.isHydrating)
+        assertEquals(ThreadHydrationCoordinator.MAX_BUFFERED_FRAMES, coord.bufferedCount())
+        val replay = coord.completeHistory("t", gen, snapshotSeq = 0)!!
+        assertEquals(ThreadHydrationCoordinator.MAX_BUFFERED_FRAMES, replay.replay.size)
+        assertEquals("the oldest frame was evicted", 2, replay.replay.first().seq)
+        assertEquals(10_000, replay.replay.last().seq)
+        assertFalse(coord.overflowed)
+    }
+
+    @Test
+    fun byteBudgetEvictsOldestAndFlagsRecovery() {
+        val coord = ThreadHydrationCoordinator(
+            bounds = ThreadHydrationCoordinator.Bounds(
+                maxFrames = 8,
+                maxBytes = 250,
+                maxAgeMs = 600_000,
+            ),
+        )
+        val gen = coord.beginOpen("t")
+        val payload = buildJsonObject { put("pad", "x".repeat(13)) }
+        assertEquals(
+            ThreadHydrationCoordinator.BufferResult.Accepted,
+            coord.bufferFrame(11, "t", payload, gen),
+        )
+        assertEquals(
+            ThreadHydrationCoordinator.BufferResult.Accepted,
+            coord.bufferFrame(12, "t", payload, gen),
+        )
+        assertEquals(
+            ThreadHydrationCoordinator.BufferResult.Overflow,
+            coord.bufferFrame(13, "t", payload, gen),
+        )
+        assertTrue(coord.overflowed)
+        assertEquals(listOf(12, 13), coord.completeHistory("t", gen, 10)!!.replay.map { it.seq })
+    }
+
+    @Test
+    fun retainedAgeBudgetEvictsOldestAndFlagsRecovery() {
+        var now = 0L
+        val coord = ThreadHydrationCoordinator(
+            bounds = ThreadHydrationCoordinator.Bounds(
+                maxFrames = 8,
+                maxBytes = 1_000_000,
+                maxAgeMs = 100,
+            ),
+            arrivalClockMs = { now },
+        )
+        val gen = coord.beginOpen("t")
+        val payload = buildJsonObject { put("n", 1) }
+        now = 0
+        coord.bufferFrame(11, "t", payload, gen, arrivalMs = 0)
+        now = 50
+        coord.bufferFrame(12, "t", payload, gen, arrivalMs = 50)
+        now = 200
+        assertEquals(
+            ThreadHydrationCoordinator.BufferResult.Overflow,
+            coord.bufferFrame(13, "t", payload, gen, arrivalMs = 200),
+        )
+        assertTrue(coord.overflowed)
+        assertEquals(listOf(13), coord.completeHistory("t", gen, 10)!!.replay.map { it.seq })
+    }
+
+    @Test
+    fun expiredWindowWithoutNewInputIsDroppedAtCompleteAndFlagsRecovery() {
+        var now = 0L
+        val coord = ThreadHydrationCoordinator(
+            bounds = ThreadHydrationCoordinator.Bounds(
+                maxFrames = 8,
+                maxBytes = 1_000_000,
+                maxAgeMs = 100,
+            ),
+            arrivalClockMs = { now },
+        )
+        val gen = coord.beginOpen("t")
+        val payload = buildJsonObject { put("n", 1) }
+        coord.bufferFrame(11, "t", payload, gen, arrivalMs = 0)
+        coord.bufferFrame(12, "t", payload, gen, arrivalMs = 50)
+        assertFalse(coord.overflowed)
+
+        // Quiet stream: the read outlives the age budget with no new input.
+        now = 120
+        val completion = coord.completeHistory("t", gen, snapshotSeq = 10)!!
+        assertEquals("the expired head is never replayed", listOf(12), completion.replay.map { it.seq })
+        assertTrue(completion.coverageLost)
         assertEquals(0, coord.bufferedCount())
-        assertTrue(coord.needsHistoryRestart())
+        assertEquals(0, coord.bufferedBytes())
+    }
+
+    @Test
+    fun fullyExpiredWindowWithoutNewInputReplaysNothingAndFlagsRecovery() {
+        var now = 0L
+        val coord = ThreadHydrationCoordinator(
+            bounds = ThreadHydrationCoordinator.Bounds(
+                maxFrames = 8,
+                maxBytes = 1_000_000,
+                maxAgeMs = 100,
+            ),
+            arrivalClockMs = { now },
+        )
+        val gen = coord.beginOpen("t")
+        val payload = buildJsonObject { put("n", 1) }
+        coord.bufferFrame(11, "t", payload, gen, arrivalMs = 0)
+        coord.bufferFrame(12, "t", payload, gen, arrivalMs = 50)
+        now = 500
+        val completion = coord.completeHistory("t", gen, snapshotSeq = 10)!!
+        assertEquals(emptyList<Int>(), completion.replay.map { it.seq })
+        assertTrue(completion.coverageLost)
+    }
+
+    @Test
+    fun cancelAndReopenReleaseBufferAndOverflowFlag() {
+        val coord = ThreadHydrationCoordinator(
+            bounds = ThreadHydrationCoordinator.Bounds(maxFrames = 1, maxBytes = 1_000_000, maxAgeMs = 1000),
+            arrivalClockMs = { 0L },
+        )
+        val gen = coord.beginOpen("t")
+        val payload = buildJsonObject { put("n", 1) }
+        coord.bufferFrame(1, "t", payload, gen, arrivalMs = 0)
+        coord.bufferFrame(2, "t", payload, gen, arrivalMs = 1)
+        assertTrue(coord.overflowed)
+
+        coord.cancel()
+        assertFalse(coord.overflowed)
+        assertEquals(0, coord.bufferedCount())
+        assertEquals(0, coord.bufferedBytes())
+
+        val next = coord.beginOpen("t")
+        assertFalse(coord.overflowed)
+        assertEquals(0, coord.bufferedCount())
+        assertNull("stale generation cannot complete", coord.completeHistory("t", gen, 0))
+        assertEquals(
+            ThreadHydrationCoordinator.BufferResult.Accepted,
+            coord.bufferFrame(3, "t", payload, next, arrivalMs = 10),
+        )
+        assertEquals(listOf(3), coord.completeHistory("t", next, 2)!!.replay.map { it.seq })
     }
 
     @Test
@@ -263,7 +399,7 @@ class ThreadHydrationCoordinatorTest {
         assertTrue(coord.needsHistoryRestart())
         coord.noteHistoryRestarting()
         val replay = coord.completeHistory("t", gen, snapshotSeq = 2)
-        assertEquals(listOf(3), replay!!.map { it.seq })
+        assertEquals(listOf(3), replay!!.replay.map { it.seq })
     }
 
     @Test

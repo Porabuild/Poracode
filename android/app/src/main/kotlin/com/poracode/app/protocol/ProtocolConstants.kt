@@ -12,6 +12,15 @@ object ProtocolConstants {
      */
     const val REMOTE_PROTOCOL_VERSION = 12
     const val COMMAND_ID_HEADER = "x-poracode-command-id"
+    /**
+     * Per-request bounded project-command result declaration, mirroring
+     * `REMOTE_PROJECT_COMMAND_RESULT_HEADER` / `_DECLARATION` in
+     * `src/shared/remote/protocol/projectCommandResults.ts`. Only the exact
+     * value counts (the host fails closed); a declared request requires the
+     * command-id header too.
+     */
+    const val PROJECT_COMMAND_RESULT_HEADER = "x-poracode-project-command-result"
+    const val PROJECT_COMMAND_RESULT_DECLARATION = "bounded-v1"
     const val BEARER_TOKEN_TYPE = "Bearer"
 
     /** All seven standard scopes requested at pairing. Generated pairing-machine

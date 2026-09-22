@@ -62,7 +62,7 @@ class PushStorageTest {
         val recovered = PushUnregisterOutbox(file, cipher, clock = { now })
             .load() as PushOutboxLoadResult.Loaded
         assertEquals(
-            PushUnregisterEntryV1(
+            PushUnregisterEntryV2(
                 "entry-1",
                 "https://desktop.example/base",
                 "access-secret",
@@ -78,16 +78,71 @@ class PushStorageTest {
     }
 
     @Test
+    fun environmentEntryKeepsTheParentGrantInsideTheEncryptedEnvelope() {
+        val file = temporary.newFile("outbox-environment").apply { delete() }
+        val proxy = "https://parent.example/api/environments/env-1/proxy"
+        val outbox = PushUnregisterOutbox(file, cipher, id = { "entry-env" })
+        val entry = requireNotNull(
+            outbox.enqueue(
+                endpoint = proxy,
+                accessToken = "child-secret",
+                deviceId = deviceId,
+                route = route,
+                parentEndpoint = proxy,
+                parentAccessToken = "parent-secret",
+            ),
+        )
+        assertEquals("parent-secret", entry.parentAccessToken)
+        val raw = file.readText()
+        assertFalse(raw.contains("child-secret"))
+        assertFalse(raw.contains("parent-secret"))
+        assertTrue(raw.startsWith("v2:"))
+    }
+
+    @Test
+    fun legacyV1OutboxDocumentStillLoadsAsDirectEntries() {
+        val file = temporary.newFile("outbox-v1").apply {
+            val legacy = """
+                {"version":1,"entries":[{"id":"legacy-1","endpoint":"https://desktop.example",
+                "accessToken":"old-secret","deviceId":"$deviceId","route":
+                {"version":1,"clientConnectionId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                "desktopId":"desktop"},"createdAtEpochMs":5}]}
+            """.trimIndent().replace("\n", "")
+            writeText("v1:${cipher.encrypt(legacy)}")
+        }
+        val loaded = PushUnregisterOutbox(file, cipher).load() as PushOutboxLoadResult.Loaded
+        assertEquals("legacy-1", loaded.entries.single().id)
+        assertEquals("old-secret", loaded.entries.single().accessToken)
+        assertEquals(null, loaded.entries.single().parentAccessToken)
+    }
+
+    @Test
+    fun corruptParentGrantPairIsRefusedRatherThanSent() {
+        val file = temporary.newFile("outbox-mixed").apply {
+            val mixed = """
+                {"version":2,"entries":[{"id":"bad-1","endpoint":"https://direct.example",
+                "accessToken":"secret","deviceId":"$deviceId","route":
+                {"version":1,"clientConnectionId":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                "desktopId":"desktop"},"createdAtEpochMs":5,"parentEndpoint":null,
+                "parentAccessToken":"parent-secret"}]}
+            """.trimIndent().replace("\n", "")
+            writeText("v2:${cipher.encrypt(mixed)}")
+        }
+        assertEquals(PushOutboxLoadResult.Corrupt, PushUnregisterOutbox(file, cipher).load())
+    }
+
+    @Test
     fun futureEncryptedStoreEnvelopesAreNeverOverwritten() {
         val tokenFile = temporary.newFile("future-token").apply { writeText("v2:opaque") }
-        val outboxFile = temporary.newFile("future-outbox").apply { writeText("v2:opaque") }
+        val outboxFile = temporary.newFile("future-outbox").apply { writeText("v3:opaque") }
         val token = PushTokenVault(tokenFile, cipher)
         val outbox = PushUnregisterOutbox(outboxFile, cipher)
         assertEquals(PushTokenLoadResult.FutureVersion, token.load())
         assertFalse(token.save("new-secret"))
         assertEquals(null, outbox.enqueue("https://host", "secret", deviceId, route))
         assertEquals("v2:opaque", tokenFile.readText())
-        assertEquals("v2:opaque", outboxFile.readText())
+        assertEquals("v3:opaque", outboxFile.readText())
+        assertEquals(PushOutboxLoadResult.FutureVersion, outbox.load())
     }
 }
 
