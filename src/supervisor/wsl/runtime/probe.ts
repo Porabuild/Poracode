@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
 import { parseNodeMajor } from "../../runtime/pinnedNode";
 import { batchWslCommandsAsync, getWslCommand } from "../../agents/base";
@@ -57,8 +58,14 @@ export async function batchWslCommandsForBootstrap(
   commands: string[],
   signal?: AbortSignal,
 ): Promise<{ ok: boolean; stdout: string }[]> {
-  const sep = "---PORACODE_BOOTSTRAP_BATCH_SEP---";
-  const script = commands.map((cmd) => `(${cmd}) 2>/dev/null; printf '\\n${sep}\\n'`).join("\n");
+  const token = `__PORACODE_BOOTSTRAP_${randomUUID().replaceAll("-", "")}__`;
+  const script = commands
+    .map(
+      (cmd, index) =>
+        `printf '\\n%s\\n' '${token}:${String(index)}:start'; ` +
+        `(${cmd}) 2>/dev/null; printf '\\n%s\\n' '${token}:${String(index)}:end'`,
+    )
+    .join("\n");
   try {
     const { stdout } = await execFileAsync(
       getWslCommand(),
@@ -70,14 +77,36 @@ export async function batchWslCommandsForBootstrap(
         ...(signal ? { signal } : {}),
       },
     );
-    const parts = stdout.split(sep);
-    return commands.map((_, index) => {
-      const raw = (parts[index] ?? "").trim();
-      return { ok: raw.length > 0, stdout: raw };
-    });
+    return parseBootstrapBatchOutput(stdout, token, commands.length);
   } catch {
     return commands.map(() => ({ ok: false, stdout: "" }));
   }
+}
+
+/**
+ * Parse only bytes between command-specific markers. Interactive login shells
+ * may print arbitrary rc-file banners before the first command; treating that
+ * noise as command zero can corrupt architecture and Node probes.
+ */
+export function parseBootstrapBatchOutput(
+  stdout: string,
+  token: string,
+  commandCount: number,
+): { ok: boolean; stdout: string }[] {
+  const lines = stdout.split(/\r?\n/u);
+  return Array.from({ length: commandCount }, (_, index) => {
+    const start = `${token}:${String(index)}:start`;
+    const end = `${token}:${String(index)}:end`;
+    const startIndex = lines.findIndex((line) => line.trim() === start);
+    if (startIndex < 0) return { ok: false, stdout: "" };
+    const endOffset = lines.slice(startIndex + 1).findIndex((line) => line.trim() === end);
+    if (endOffset < 0) return { ok: false, stdout: "" };
+    const raw = lines
+      .slice(startIndex + 1, startIndex + 1 + endOffset)
+      .join("\n")
+      .trim();
+    return { ok: raw.length > 0, stdout: raw };
+  });
 }
 
 export async function resolveWslHomeDirectoryForBootstrap(
