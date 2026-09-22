@@ -63,12 +63,20 @@ const CHEAP_NAME_HINTS = ["haiku", "mini", "flash-lite", "flash", "lite", "small
 
 // First-run interactive prompts we know how to answer in the test. The
 // scrollback contains ANSI escapes (cursor positioning, colors), so the
-// matcher only looks at decoded text fragments. Each entry sends its keystroke
-// once and is then disarmed for the rest of the run.
+// matcher only looks at decoded text fragments. Note that CLIs often paint
+// modal text word-by-word with cursor-position escapes, so the decoded text
+// has no spaces between those words — needles join words with `\s*` (zero or
+// more) rather than `\s+`.
 interface DialogResponder {
   needle: RegExp;
   response: string;
   reason: string;
+  // The test relaunches the CLI for the resume leg, and each launch starts a
+  // fresh PTY transcript. Gates that reappear on every launch (claude
+  // re-runs onboarding; a dialog whose acceptance wasn't persisted) must be
+  // answerable again, so a fired responder re-arms once its needle
+  // disappears from the decoded scrollback, up to maxFires (default 1).
+  maxFires?: number;
 }
 
 const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
@@ -78,9 +86,35 @@ const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
   // always see this prompt; auto-select "2. Trust all and continue".
   codex: [
     {
-      needle: /Hooks\s+need\s+review/i,
+      needle: /Hooks\s*need\s*review/i,
       response: "2\r",
       reason: "codex: accept hooks trust dialog",
+      maxFires: 2,
+    },
+    {
+      // Codex 0.155+ blocks startup on a model-retirement modal while the
+      // pinned model is being retired ("GPT-5.5 retires on October 14, 2026.
+      // … › 1. Try new model  2. Use existing model"). Answering "2" keeps
+      // the configured model instead of switching the CLI's default.
+      needle: /retires\s*on|Choose\s*how\s*you'd\s*like\s*Codex\s*to\s*proceed/i,
+      response: "2\r",
+      reason: "codex: keep configured model on retirement modal",
+      maxFires: 2,
+    },
+  ],
+  // Claude 2.1.280 re-runs first-run onboarding on interactive TUI launches
+  // when the stored onboarding version lags the CLI — dir-independent and
+  // unaffected by adapter flags. The captured probe only reaches the opening
+  // theme screen ("Let's get started. / Choose the text style…"), whose
+  // cursor already sits on the default ("2. Dark mode ✔"), so a single Enter
+  // accepts it. Later onboarding screens are not visible in the probe and may
+  // need their own responders if a launch stalls pre-prompt again.
+  claude: [
+    {
+      needle: /Choose\s*the\s*text\s*style/i,
+      response: "\r",
+      reason: "claude: accept default theme on first-run onboarding",
+      maxFires: 3,
     },
   ],
 };
@@ -121,7 +155,12 @@ function armDialogAutoResponder(
   threadId: string,
   kind: string,
 ): () => void {
-  const responders = (KIND_DIALOG_RESPONDERS[kind] ?? []).map((r) => ({ ...r, fired: false }));
+  const responders = (KIND_DIALOG_RESPONDERS[kind] ?? []).map((r) => ({
+    ...r,
+    maxFires: r.maxFires ?? 1,
+    fires: 0,
+    armed: true,
+  }));
   if (responders.length === 0) return () => undefined;
   const state = { stopped: false };
   void (async () => {
@@ -130,8 +169,10 @@ function armDialogAutoResponder(
         runtime.threadSessionManager.readTerminalScrollback(threadId),
       );
       for (const r of responders) {
-        if (!r.fired && r.needle.test(text)) {
-          r.fired = true;
+        const matched = r.needle.test(text);
+        if (matched && r.armed) {
+          r.armed = false;
+          r.fires += 1;
           try {
             await runtime.threadSessionManager.writeTerminal({ threadId, data: r.response });
             // eslint-disable-next-line no-console
@@ -139,9 +180,13 @@ function armDialogAutoResponder(
           } catch {
             // PTY may have closed; ignore.
           }
+        } else if (!matched && !r.armed) {
+          // The needle left the fresh-per-launch transcript, so the next
+          // launch (resume leg) can be answered again.
+          r.armed = true;
         }
       }
-      if (responders.every((r) => r.fired)) return;
+      if (responders.every((r) => r.fires >= r.maxFires)) return;
       await sleep(500);
     }
   })();

@@ -29,6 +29,9 @@ export type DevinModelFamily = {
   variants: Variant[];
 };
 const effortOrder = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+// The catalog reloads on every launch; one warning per tier keeps a new
+// upstream tier from spamming the log.
+const warnedUnknownEffortTiers = new Set<string>();
 
 /** Family membership comes from the CLI, never from opaque model IDs. */
 export function parseDevinModelCatalog(raw: string): DevinModelFamily[] {
@@ -56,12 +59,22 @@ export function parseDevinModelCatalog(raw: string): DevinModelFamily[] {
       const context = /\b1M\b/i.test(suffix) ? "1m" : "default";
       suffix = suffix.replace(/\b(Fast|1M)\b/gi, "").trim();
       const thinking = /^Thinking$/i.test(suffix);
-      const effort = suffix
+      let effort = suffix
         .replace(/No Thinking/i, "none")
         .replace(/\s*Thinking$/i, "")
         .replace(/[-\s]/g, "")
         .toLowerCase();
-      if (effort && !effortOrder.includes(effort)) throw new Error("Unknown Devin effort tier");
+      if (effort && !effortOrder.includes(effort)) {
+        // Sibling adapters degrade instead of throwing on unknown provider
+        // values (muse falls back to CLI defaults; grok keeps unknown tiers).
+        // effortOrder is canonical, so an unrecognized tier cannot join the
+        // pickers — treat it like the effort-less variants and warn once.
+        if (!warnedUnknownEffortTiers.has(effort)) {
+          warnedUnknownEffortTiers.add(effort);
+          console.warn(`[devin] ignoring unknown effort tier "${effort}" in the model catalog`);
+        }
+        effort = "";
+      }
       return { id: variant.model_uid, effort, fast, thinking, context };
     }),
   }));
