@@ -104,6 +104,11 @@ jobs:
         with:
           toolchain: 1.98.1
 
+      - name: Cache computer-use helper build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: native/computer-use-helper
+
       - name: Build native dependencies for the tarball
         run: |
           for attempt in 1 2 3; do
@@ -322,7 +327,7 @@ jobs:
           node-version: "24"
 
       - name: Download the build leg's exact bytes
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: ${{ inputs.artifact_name }}-build-${{ matrix.build_leg }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/qualified
@@ -370,7 +375,7 @@ jobs:
           node-version: "24"
 
       - name: Download every build leg
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: ${{ inputs.artifact_name }}-build-*-${{ github.run_attempt }}
           path: ${{ runner.temp }}/legs

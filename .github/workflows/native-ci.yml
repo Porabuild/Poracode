@@ -19,8 +19,30 @@ env:
   PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
 
 jobs:
+  changes:
+    name: Classify PR changes
+    runs-on: ubuntu-latest
+    outputs:
+      android: ${{ steps.scope.outputs.native_android }}
+      ios: ${{ steps.scope.outputs.native_ios }}
+      shared: ${{ steps.scope.outputs.native_shared }}
+    steps:
+      - name: Checkout complete history for PR diff
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Classify affected native surfaces
+        id: scope
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/ci-change-scope.mjs
+
   remote_v3_contract:
     name: Remote v3 generated artifacts
+    needs: changes
+    if: ${{ needs.changes.outputs.shared == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -50,6 +72,8 @@ jobs:
 
   android:
     name: Android Compose build and tests
+    needs: changes
+    if: ${{ needs.changes.outputs.android == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -107,6 +131,8 @@ jobs:
 
   ios:
     name: iOS SwiftUI build and AppTests
+    needs: changes
+    if: ${{ needs.changes.outputs.ios == 'true' }}
     runs-on: macos-26
     timeout-minutes: 30
     env:
@@ -179,7 +205,8 @@ jobs:
 
   ios_ui:
     name: iOS XCUITest wire-lab journey
-    needs: ios
+    needs: [changes, ios]
+    if: ${{ needs.changes.outputs.ios == 'true' }}
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -292,7 +319,8 @@ jobs:
 
   android_api37_runtime:
     name: Android 17 emulator runtime
-    needs: android
+    needs: [changes, android]
+    if: ${{ needs.changes.outputs.android == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -470,7 +498,8 @@ jobs:
 
   android_api34_runtime:
     name: Android 14 minimum-supported runtime
-    needs: android
+    needs: [changes, android]
+    if: ${{ needs.changes.outputs.android == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -544,7 +573,8 @@ jobs:
 
   native_e2e_foundation:
     name: Native wire and real-host foundation
-    needs: remote_v3_contract
+    needs: [changes, remote_v3_contract]
+    if: ${{ needs.changes.outputs.shared == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -650,7 +680,8 @@ jobs:
 
   server_install_qualification:
     name: Server install qualification
-    needs: remote_v3_contract
+    needs: [changes, remote_v3_contract]
+    if: ${{ needs.changes.outputs.shared == 'true' }}
     # Plan D3: qualification runs the one reusable artifact workflow, on the
     # exact bytes the release job promotes (release.yml calls the same file).
     uses: ./.github/workflows/_server-artifact.yml
@@ -661,6 +692,7 @@ jobs:
     name: Native required gate
     if: ${{ always() }}
     needs:
+      - changes
       - remote_v3_contract
       - android
       - android_api34_runtime
@@ -673,14 +705,31 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Require native build evidence
-        shell: bash
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+          ANDROID_REQUIRED: ${{ needs.changes.outputs.android }}
+          IOS_REQUIRED: ${{ needs.changes.outputs.ios }}
+          SHARED_REQUIRED: ${{ needs.changes.outputs.shared }}
         run: |
-          set -euo pipefail
-          test "${{ needs.remote_v3_contract.result }}" = "success"
-          test "${{ needs.android.result }}" = "success"
-          test "${{ needs.android_api34_runtime.result }}" = "success"
-          test "${{ needs.android_api37_runtime.result }}" = "success"
-          test "${{ needs.ios.result }}" = "success"
-          test "${{ needs.ios_ui.result }}" = "success"
-          test "${{ needs.native_e2e_foundation.result }}" = "success"
-          test "${{ needs.server_install_qualification.result }}" = "success"
+          node - <<'NODE'
+          const jobs = JSON.parse(process.env.JOB_RESULTS);
+          for (const name of ["ANDROID_REQUIRED", "IOS_REQUIRED", "SHARED_REQUIRED"]) {
+            if (!["true", "false"].includes(process.env[name])) throw new Error(`${name} change scope is missing`);
+          }
+          const expected = {
+            changes: true,
+            remote_v3_contract: process.env.SHARED_REQUIRED === "true",
+            android: process.env.ANDROID_REQUIRED === "true",
+            android_api34_runtime: process.env.ANDROID_REQUIRED === "true",
+            android_api37_runtime: process.env.ANDROID_REQUIRED === "true",
+            ios: process.env.IOS_REQUIRED === "true",
+            ios_ui: process.env.IOS_REQUIRED === "true",
+            native_e2e_foundation: process.env.SHARED_REQUIRED === "true",
+            server_install_qualification: process.env.SHARED_REQUIRED === "true",
+          };
+          for (const [name, required] of Object.entries(expected)) {
+            const result = jobs[name]?.result;
+            const wanted = required ? "success" : "skipped";
+            if (result !== wanted) throw new Error(`${name}: expected ${wanted}, received ${result}`);
+          }
+          NODE

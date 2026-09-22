@@ -214,7 +214,7 @@ void test("API 34 minimum-supported runtime boots Android 14 and requires launch
   );
   const job = workflow.jobs.android_api34_runtime;
   assert.ok(job, "The API 26 lane must be replaced by a required Android 14/API 34 lane");
-  assert.equal(job.needs, "android");
+  assert.deepEqual(job.needs, ["changes", "android"]);
   const boot = job.steps.find(
     (item) => item.name === "Boot Android 14 and run the minimum-supported runtime tests",
   );
