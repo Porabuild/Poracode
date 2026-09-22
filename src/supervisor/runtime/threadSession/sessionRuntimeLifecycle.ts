@@ -284,6 +284,11 @@ export class SessionRuntimeLifecycle {
   }
 
   private handleStructuredSessionClosed(session: SessionRuntime): void {
+    // The transport is gone, so the handle can never accept another turn.
+    // Detach it: the send path relaunches (and resumes via `sessionRef`) only
+    // when no live structured session is attached. Leaving the dead handle in
+    // place routes every later submit into its closed transport.
+    session.structuredSession = undefined;
     if (session.status === "inactive") return;
     this.context.followUpQueue?.onSessionClosing(session.threadId, session);
     // onError is the authoritative non-clean boundary. A derivative transport

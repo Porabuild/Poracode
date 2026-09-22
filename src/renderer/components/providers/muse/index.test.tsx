@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import type { AgentCapability, ThreadConfig } from "@/shared/contracts";
 import { getComposerControls } from "../providerComposer";
+import { resolveThreadTitlePrompt } from "../threadTitlePrompt";
 import "./index";
 
 const capabilities: AgentCapability = {
@@ -63,5 +64,18 @@ describe("Muse composer controls", () => {
 
     permission?.onChange?.("yolo");
     expect(onConfigChange).toHaveBeenCalledWith({ approvalPolicy: "yolo" });
+  });
+});
+
+describe("Muse thread title prompt", () => {
+  it("titles a /goal-started thread from its objective", () => {
+    expect(resolveThreadTitlePrompt("muse", "/goal Reply with a haiku")).toBe("Reply with a haiku");
+    expect(resolveThreadTitlePrompt("muse", "/goal edit Ship the fix")).toBe("Ship the fix");
+  });
+
+  it("keeps the typed prompt for goal verbs and ordinary messages", () => {
+    expect(resolveThreadTitlePrompt("muse", "/goal pause")).toBe("/goal pause");
+    expect(resolveThreadTitlePrompt("muse", "/goal")).toBe("/goal");
+    expect(resolveThreadTitlePrompt("muse", "Explain the build")).toBe("Explain the build");
   });
 });

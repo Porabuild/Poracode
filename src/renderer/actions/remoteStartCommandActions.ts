@@ -2,6 +2,7 @@ import { msg as linguiMsg } from "@lingui/core/macro";
 import type { RemoteThreadCommand } from "@/shared/contracts";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
 import { titlePromptFromSegments } from "@/shared/threadTitle";
+import { resolveThreadTitlePrompt } from "@/renderer/components/providers/threadTitlePrompt";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { generateTitleAsync } from "@/renderer/utils/titleGen";
@@ -57,8 +58,10 @@ export function applyRemoteThreadStartCommand(command: RemoteStartCommand): void
   const project = store.projects.find((p) => p.id === command.projectId);
   if (!project) return;
   const titlePrompt =
-    titlePromptFromSegments(command.prompt, command.segments).trim() ||
-    i18n._(linguiMsg`New thread`);
+    resolveThreadTitlePrompt(
+      command.agentKind,
+      titlePromptFromSegments(command.prompt, command.segments),
+    ).trim() || i18n._(linguiMsg`New thread`);
   const thread = store.createThread({
     threadId: command.threadId,
     projectId: project.id,
