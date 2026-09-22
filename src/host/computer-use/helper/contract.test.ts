@@ -4,7 +4,10 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { COMPUTER_USE_HELPER_PROTOCOL_VERSION } from "@/shared/contracts/computerUse";
-import { resolveComputerUseHelperBinaryPath } from "../drivers/helperBinary";
+import {
+  isComputerUseBackendAvailable,
+  resolveComputerUseHelperBinaryPath,
+} from "../drivers/helperBinary";
 import {
   COMPUTER_USE_ELEMENT_ACTIONS,
   COMPUTER_USE_INVOKABLE_ELEMENT_ACTIONS,
@@ -79,6 +82,10 @@ describe("computer-use helper contract", () => {
         );
       }
       expect(resolveComputerUseHelperBinaryPath(helperRoot, "linux", "arm64")).toBeNull();
+      expect(isComputerUseBackendAvailable(helperRoot, "linux", "arm64")).toBe(false);
+      expect(isComputerUseBackendAvailable(helperRoot, "linux", "x64")).toBe(true);
+      expect(isComputerUseBackendAvailable(helperRoot, "darwin", "arm64")).toBe(true);
+      expect(isComputerUseBackendAvailable(helperRoot, "win32", "arm64")).toBe(true);
 
       const prepareSource = readFileSync(
         join(process.cwd(), "scripts", "prepare-computer-use-helper.mjs"),

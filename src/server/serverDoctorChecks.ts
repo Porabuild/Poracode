@@ -1,4 +1,5 @@
 import { resolveRemoteAccessBind } from "@/host/remote/config";
+import { isComputerUseBackendAvailable } from "@/host/computer-use/drivers";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { resolveServerResourceDirs, type ServerInstallLayout } from "./serverInstallLayout";
 import { describeUpgradeJournalRemediation } from "./serverUpgradeJournal";
@@ -31,11 +32,7 @@ export function describeHostServices(input: {
     agentPluginsDir,
     "PORACODE_AGENT_PLUGINS_DIR",
   );
-  const layoutComputerUse = describeStagedCapability(
-    "computer-use helper",
-    computerUseHelperRoot,
-    "PORACODE_COMPUTER_USE_HELPER_ROOT",
-  );
+  const layoutComputerUse = describeComputerUseCapability(computerUseHelperRoot);
   if (input.liveStatus.reachable) {
     return {
       ssh: {
@@ -53,6 +50,26 @@ export function describeHostServices(input: {
     };
   }
   return { ssh: layoutSsh, computerUse: layoutComputerUse };
+}
+
+function describeComputerUseCapability(helperRoot: string | undefined): {
+  readonly enabled: boolean;
+  readonly reason: string;
+} {
+  if (helperRoot === undefined) {
+    return describeStagedCapability(
+      "computer-use helper",
+      undefined,
+      "PORACODE_COMPUTER_USE_HELPER_ROOT",
+    );
+  }
+  if (isComputerUseBackendAvailable(helperRoot)) {
+    return { enabled: true, reason: `computer-use backend available at ${helperRoot}` };
+  }
+  return {
+    enabled: false,
+    reason: `computer-use helper has no runnable target for ${process.platform}-${process.arch} at ${helperRoot}`,
+  };
 }
 
 function describeStagedCapability(

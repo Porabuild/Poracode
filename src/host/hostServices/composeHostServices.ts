@@ -34,7 +34,7 @@ import {
   ComputerUseMcpIngress,
   type ComputerUseActivityEvent,
 } from "../computer-use/ComputerUseMcpIngress";
-import { resolveComputerUseHelperBinaryPath } from "../computer-use/drivers";
+import { isComputerUseBackendAvailable } from "../computer-use/drivers";
 import { SshConnectionManager } from "../ssh/SshConnectionManager";
 
 export interface HostServicesCore {
@@ -165,10 +165,7 @@ export function composeHostServices(
   // every agent launch, so skip it entirely and let supervisorExtraEnv
   // yield nothing because getInfo() stays null.
   const computerUseSupported =
-    core.computerUse !== null &&
-    (process.platform === "win32" ||
-      process.platform === "darwin" ||
-      resolveComputerUseHelperBinaryPath(core.computerUse.helperRootDir) !== null);
+    core.computerUse !== null && isComputerUseBackendAvailable(core.computerUse.helperRootDir);
   const overlayHooks = nativeShell?.computerUse;
   const computerUseMcpIngress =
     computerUseSupported && core.computerUse

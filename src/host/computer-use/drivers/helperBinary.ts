@@ -43,3 +43,15 @@ export function resolveComputerUseHelperBinaryPath(
   );
   return isFile(binary) ? binary : null;
 }
+
+export function isComputerUseBackendAvailable(
+  helperRootDir: string,
+  platform: NodeJS.Platform = process.platform,
+  arch: string = process.arch,
+): boolean {
+  return (
+    platform === "win32" ||
+    platform === "darwin" ||
+    resolveComputerUseHelperBinaryPath(helperRootDir, platform, arch) !== null
+  );
+}

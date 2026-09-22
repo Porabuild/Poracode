@@ -44,4 +44,4 @@ export function createComputerUseDriver(
 
 export { CompositeComputerUseDriver } from "./composite";
 export { HelperComputerUseDriver } from "./helper";
-export { resolveComputerUseHelperBinaryPath } from "./helperBinary";
+export { isComputerUseBackendAvailable, resolveComputerUseHelperBinaryPath } from "./helperBinary";
