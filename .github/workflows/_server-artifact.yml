@@ -110,19 +110,7 @@ jobs:
           workspaces: native/computer-use-helper
 
       - name: Build native dependencies for the tarball
-        run: |
-          for attempt in 1 2 3; do
-            if pnpm rebuild node-pty; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::Native dependency rebuild failed after $attempt attempts."
-              exit 1
-            fi
-            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
-            sleep $((attempt * 10))
-          done
-        shell: bash
+        run: scripts/ci-rebuild-node-pty.sh
 
       - name: Enable arm64 container emulation
         if: matrix.cross_build
