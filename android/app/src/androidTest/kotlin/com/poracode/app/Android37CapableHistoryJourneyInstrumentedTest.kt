@@ -50,9 +50,7 @@ import org.junit.runner.RunWith
  *      stand-in -> reconnect that keeps the notice and the content.
  *
  * This test never accepts `capable == declared == false`: a host that does not
- * advertise `runtimeHistoryNotices` v1 fails immediately. The pre-B1
- * pair-only check (`Android37NoticeCapabilityInstrumentedTest`) is not a
- * substitute for this journey.
+ * advertise `runtimeHistoryNotices` v1 fails immediately.
  *
  * Instrumentation args:
  *   pairingUrl            required; one-time real-host pairing link

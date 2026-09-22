@@ -178,6 +178,20 @@ if (process.argv[2] === 'assembleDebug') {
             "-Pandroid.testInstrumentationRunnerArguments.capability=fixture-capability",
           ),
         );
+        const classFilter = instrumentation.args.find((argument) =>
+          argument.startsWith("-Pandroid.testInstrumentationRunnerArguments.class="),
+        );
+        assert.equal(
+          classFilter,
+          "-Pandroid.testInstrumentationRunnerArguments.class=" +
+            [
+              "com.poracode.app.Android37MultihostInstrumentedTest",
+              "com.poracode.app.Android37WireLabFamilyInstrumentedTest",
+              "com.poracode.app.Android37WireLabJourneyInstrumentedTest",
+              "com.poracode.app.Android37WireLabSmokeInstrumentedTest",
+            ].join(","),
+        );
+        assert.doesNotMatch(classFilter, /CapableHistory|NoticeCapability/u);
         assert.equal(await readFile(join(evidence, "harness-stopped"), "utf8"), "joined");
       }
       if (failureStage === "none") {
@@ -219,4 +233,18 @@ void test("API 34 minimum-supported runtime boots Android 14 and requires launch
   );
   assert.ok(upload, "The minimum-supported runtime evidence upload must stay present");
   assert.match(upload.with.name, /^android-api34-runtime-/);
+});
+
+void test("iOS UI journeys keep the owned harness alive through a clean Xcode build", async () => {
+  const workflow = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+  const steps = workflow.jobs.ios_ui.steps.filter(
+    (item) => item.name?.includes("iOS") && item.name?.includes("journey"),
+  );
+  const mock = steps.find((item) => item.name.includes("mock peer"));
+  const real = steps.find((item) => item.name.includes("real host"));
+  assert.equal(mock?.env?.NATIVE_E2E_TEST_TIMEOUT_MS, "1800000");
+  assert.equal(real?.env?.NATIVE_E2E_TEST_TIMEOUT_MS, "1800000");
+  assert.ok(Number(mock.env.NATIVE_E2E_TEST_TIMEOUT_MS) < 60 * 60 * 1_000);
 });
