@@ -73,6 +73,8 @@ void test("the hosted NAT leg stays on windows-latest, time-bounded, NAT-only", 
   assert.match(provision.run, /--with-sshd/u);
   assert.match(provision.run, /--rootfs-sha256 "\$WSL_ROOTFS_SHA256"/u);
   assert.equal(job.env.WSL_ROOTFS_SHA256, "${{ vars.WSL_ROOTFS_SHA256 }}");
+  assert.equal(provision.env.WSL_LAB_EVIDENCE_DIR, "${{ runner.temp }}/windows-wsl-lab-evidence");
+  assert.equal(provision.env.WSL_LAB_STATE_DIR, "${{ runner.temp }}/windows-wsl-lab-state");
   assert.match(provision.run, /--out "\$WSL_LAB_EVIDENCE_DIR"/u);
   assert.match(provision.run, /--state "\$WSL_LAB_STATE_DIR"/u);
   assert.match(provision.run, /set -euo pipefail/u);
@@ -110,6 +112,8 @@ void test("the mirrored leg is manual-only on the labeled self-hosted Windows 11
   assert.match(provision.run, /--mode mirrored\b/u);
   assert.match(provision.run, /--rootfs-sha256 "\$WSL_ROOTFS_SHA256"/u);
   assert.equal(job.env.WSL_ROOTFS_SHA256, "${{ vars.WSL_ROOTFS_SHA256 }}");
+  assert.equal(provision.env.WSL_LAB_EVIDENCE_DIR, "${{ runner.temp }}/windows-wsl-lab-evidence");
+  assert.equal(provision.env.WSL_LAB_STATE_DIR, "${{ runner.temp }}/windows-wsl-lab-state");
 });
 
 void test("both legs drive the fail-closed suite with the lab manifest wired in", async () => {
@@ -125,6 +129,7 @@ void test("both legs drive the fail-closed suite with the lab manifest wired in"
       suite.env.PORACODE_WSL_LAB_JSON,
       "${{ runner.temp }}/windows-wsl-lab-evidence/lab.json",
     );
+    assert.equal(suite.env.WSL_LAB_EVIDENCE_DIR, "${{ runner.temp }}/windows-wsl-lab-evidence");
   }
 });
 
@@ -165,6 +170,7 @@ void test("both legs clean up only lab-owned state", async () => {
       "cleanup runs after success, failure, and cancellation",
     );
     assert.match(cleanup.run, /--state "\$WSL_LAB_STATE_DIR"/u);
+    assert.equal(cleanup.env.WSL_LAB_STATE_DIR, "${{ runner.temp }}/windows-wsl-lab-state");
   }
 });
 

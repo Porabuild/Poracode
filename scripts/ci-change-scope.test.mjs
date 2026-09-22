@@ -96,14 +96,17 @@ void test("required gates remain present and validate intentionally skipped jobs
   assert.match(native.jobs.native_gate.steps.at(-1).run, /const wanted = required/u);
 });
 
-void test("pull requests keep release-grade native lanes opt-in while full runs retain them", async () => {
+void test("integration heads stay fast while master and release runs retain full proof", async () => {
   const native = parse(
     await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
   );
 
   assert.equal(native.jobs.changes.outputs.full, "${{ steps.mode.outputs.full }}");
   const mode = native.jobs.changes.steps.find((step) => step.id === "mode");
-  assert.match(mode.env.FULL_QUALIFICATION, /github\.event_name != 'pull_request'/u);
+  assert.match(mode.env.FULL_QUALIFICATION, /github\.ref == 'refs\/heads\/master'/u);
+  assert.match(mode.env.FULL_QUALIFICATION, /github\.event_name == 'workflow_dispatch'/u);
+  assert.match(mode.env.FULL_QUALIFICATION, /github\.event_name == 'workflow_call'/u);
+  assert.doesNotMatch(mode.env.FULL_QUALIFICATION, /event_name != 'pull_request'/u);
   assert.doesNotMatch(mode.env.FULL_QUALIFICATION, /labels/u);
 
   for (const name of [

@@ -40,16 +40,14 @@ jobs:
           CI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node scripts/ci-change-scope.mjs
 
-      - name: Select PR qualification depth
+      - name: Select qualification depth
         id: mode
         env:
-          # Pull requests get the deterministic build, unit, contract, and
-          # real-host foundation lanes. Emulator UI, release-artifact, and
-          # sustained-load proof remain mandatory on pushes, manual runs, and
-          # reusable release calls. A manual run against a PR branch provides
-          # the complete graph before merge without making label changes
-          # cancel and restart otherwise healthy PR checks.
-          FULL_QUALIFICATION: ${{ github.event_name != 'pull_request' }}
+          # PR events and pushes to integration branches get deterministic
+          # build, unit, contract, and real-host foundation lanes. Full proof
+          # runs on master, manual dispatches, and reusable release calls.
+          # This keeps a PR fast even when its head checks arrive as push runs.
+          FULL_QUALIFICATION: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call' || github.ref == 'refs/heads/master' }}
         run: |
           case "$FULL_QUALIFICATION" in
             true|false) printf 'full=%s\n' "$FULL_QUALIFICATION" >> "$GITHUB_OUTPUT" ;;
@@ -606,15 +604,23 @@ jobs:
 
       - name: Run native foundation and production-host smoke
         env:
+          FULL_QUALIFICATION: ${{ needs.changes.outputs.full }}
           NATIVE_E2E_TEST_TIMEOUT_MS: "180000"
         run: |
-          pnpm exec vitest run \
-            --config tests/native-e2e/vitest.config.ts \
-            --exclude='**/gitBurstQualification.test.ts' \
-            --exclude='**/sharedHostLoadProfile.test.ts' \
-            --reporter=default \
-            --reporter=junit \
+          args=(
+            --config tests/native-e2e/vitest.config.ts
+            --exclude='**/gitBurstQualification.test.ts'
+            --exclude='**/sharedHostLoadProfile.test.ts'
+            --reporter=default
+            --reporter=junit
             --outputFile.junit="$RUNNER_TEMP/native-e2e-junit.xml"
+          )
+          # The 32 Kbps payload case takes about four minutes by design. Keep
+          # it in master/release proof and out of per-commit qualification.
+          if [ "$FULL_QUALIFICATION" != "true" ]; then
+            args+=(--exclude='**/largePayloadCompression.test.ts')
+          fi
+          pnpm exec vitest run "${args[@]}"
 
       # These production-host stress suites each saturate the runner. They were
       # unstable inside the broad 76-file process even after file serialization,

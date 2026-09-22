@@ -263,6 +263,9 @@ void test("native host load suites are isolated without serializing the whole fo
   assert.doesNotMatch(foundation.run, /--no-file-parallelism/u);
   assert.match(foundation.run, /--exclude='\*\*\/gitBurstQualification\.test\.ts'/u);
   assert.match(foundation.run, /--exclude='\*\*\/sharedHostLoadProfile\.test\.ts'/u);
+  assert.match(foundation.run, /--exclude='\*\*\/largePayloadCompression\.test\.ts'/u);
+  assert.match(foundation.run, /FULL_QUALIFICATION/u);
+  assert.equal(foundation.env.FULL_QUALIFICATION, "${{ needs.changes.outputs.full }}");
   assert.match(load.run, /gitBurstQualification\.test\.ts/u);
   assert.match(load.run, /sharedHostLoadProfile\.test\.ts/u);
   assert.match(load.run, /--no-file-parallelism/u);

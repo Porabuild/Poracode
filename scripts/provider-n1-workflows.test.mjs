@@ -152,11 +152,12 @@ void test("the N-1 cell runs self-tests first and fails closed on the real gate"
   assert.match(gate.run, /scripts\/server-n1-qualification\.mjs/u);
   assert.match(gate.run, /--candidate-tarball "\$N1_EVIDENCE_DIR\/candidate\.tar\.gz"/u);
   assert.match(gate.run, /--out-dir "\$N1_EVIDENCE_DIR"/u);
-  assert.equal(job.env.GH_TOKEN, undefined);
+  assert.equal(job.env?.GH_TOKEN, undefined);
   assert.equal(gate.env.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
   const download = job.steps.find((step) => step.name === "Download the candidate tarball");
   assert.equal(download.env.GH_TOKEN, "${{ secrets.GITHUB_TOKEN }}");
-  assert.equal(job.env.N1_EVIDENCE_DIR, "${{ runner.temp }}/n1-qualification-evidence");
+  assert.equal(download.env.N1_EVIDENCE_DIR, "${{ runner.temp }}/n1-qualification-evidence");
+  assert.equal(gate.env.N1_EVIDENCE_DIR, "${{ runner.temp }}/n1-qualification-evidence");
 });
 
 void test("no token or pairing secret can reach a log through the workflow", async () => {
