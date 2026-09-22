@@ -74,6 +74,8 @@ function activationFor(seq: number, projectSettings: unknown): ManagedLoopbackAc
   return {
     seq,
     endpoint: `http://127.0.0.1:${9000 + seq}`,
+    // Opaque to this suite: the real authority is minted inside hostTransport.
+    authority: `managed-root:test-authority:${seq}`,
     client: { projectSettings } as unknown as ManagedLoopbackActivationSnapshot["client"],
   };
 }

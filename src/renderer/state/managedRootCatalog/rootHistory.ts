@@ -14,10 +14,7 @@ import {
   type ManagedLoopbackActivationSnapshot,
 } from "@/renderer/hostTransport/loopbackHttpWsTransport";
 import { useAppStore } from "@/renderer/state/appStore";
-import {
-  hostSupportsRuntimeHistoryNoticesForConnection,
-  managedRootNoticeAuthority,
-} from "@/renderer/state/remote/historyNoticeCapability";
+import { hostSupportsRuntimeHistoryNoticesForConnection } from "@/renderer/state/remote/historyNoticeCapability";
 import {
   noteThreadHistoryRecoveryNeeded,
   recordThreadHistoryNoticeRead,
@@ -94,11 +91,7 @@ export async function readManagedRootHistoryPage(
     throw new Error(i18n._(msg`This server does not support the bounded history read.`));
   }
   recordManagedRootBoundedHistoryTail({ threadId, page: result.page });
-  recordThreadHistoryNoticeRead(
-    threadId,
-    managedRootNoticeAuthority(activation.seq),
-    result.page.runtimeNotice,
-  );
+  recordThreadHistoryNoticeRead(threadId, activation.authority, result.page.runtimeNotice);
   return result.page;
 }
 
@@ -142,7 +135,7 @@ export function isManagedRootThreadAbsentError(error: unknown): boolean {
 export function managedRootSupportsRuntimeHistoryNotices(): boolean {
   const activation = managedRootHistoryActivation();
   if (!activation) return false;
-  return hostSupportsRuntimeHistoryNoticesForConnection(managedRootNoticeAuthority(activation.seq));
+  return hostSupportsRuntimeHistoryNoticesForConnection(activation.authority);
 }
 
 /**
@@ -154,7 +147,7 @@ export function managedRootSupportsRuntimeHistoryNotices(): boolean {
 export function noteManagedRootHistoryFailure(threadId: string, error: unknown): void {
   const activation = managedRootHistoryActivation();
   if (!activation) return;
-  const authority = managedRootNoticeAuthority(activation.seq);
+  const authority = activation.authority;
   if (!hostSupportsRuntimeHistoryNoticesForConnection(authority)) return;
   if (isRemoteTransportFailure(error)) return;
   noteThreadHistoryRecoveryNeeded(threadId, authority);

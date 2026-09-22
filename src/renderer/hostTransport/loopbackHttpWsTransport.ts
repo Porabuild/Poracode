@@ -29,11 +29,10 @@ import {
   resetLiveStreamCapacityStore,
   useLiveStreamCapacityStore,
 } from "@/renderer/state/liveStreamCapacityStore";
-import { MANAGED_LOOPBACK_DESKTOP_ID } from "./managedIdentity";
+import { MANAGED_LOOPBACK_DESKTOP_ID, managedLoopbackNoticeAuthority } from "./managedIdentity";
 import {
   environmentAdvertisesRuntimeHistoryNotices,
   forgetRuntimeHistoryNoticesCapability,
-  managedRootNoticeAuthority,
   noteRuntimeHistoryNoticesCapability,
 } from "@/renderer/state/remote/historyNoticeCapability";
 import {
@@ -263,6 +262,13 @@ export interface ManagedLoopbackActivationSnapshot {
   readonly seq: number;
   readonly endpoint: string;
   readonly client: RemoteDesktopClient;
+  /**
+   * Opaque per-activation notice authority (C1 identity custody), minted by
+   * this module from the process-managed identity. Consumers carry it
+   * opaquely — as a history-notice ownership stamp and capability key — and
+   * never re-derive it from the identity, which stays inside `hostTransport/`.
+   */
+  readonly authority: string;
 }
 
 let managedLoopbackActivation: ManagedLoopbackActivationSnapshot | null = null;
@@ -363,7 +369,7 @@ async function runManagedParentDescriptorResolution(
       // this descriptor; the managed root's bounded reads declare `notices=v1`
       // and its explicit recovery actions run only when this is true.
       noteRuntimeHistoryNoticesCapability(
-        managedRootNoticeAuthority(activation.seq),
+        managedLoopbackNoticeAuthority(activation.seq),
         environmentAdvertisesRuntimeHistoryNotices(descriptor),
       );
       // boundedCatalogChanges v1: re-record the endpoint verdict from the
@@ -650,6 +656,7 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
             seq: activation.seq,
             endpoint,
             client,
+            authority: managedLoopbackNoticeAuthority(activation.seq),
           });
           void resolveManagedParentDescriptor(activation);
         }
@@ -662,7 +669,7 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
         // successor: a restarted leg proves it again from its own descriptor.
         const retiring = managedParentActivation;
         if (retiring) {
-          forgetRuntimeHistoryNoticesCapability(managedRootNoticeAuthority(retiring.seq));
+          forgetRuntimeHistoryNoticesCapability(managedLoopbackNoticeAuthority(retiring.seq));
         }
         // F5: neither is its bounded-catalog adoption — the successor proves
         // the capability again from its own preflight before it may declare.

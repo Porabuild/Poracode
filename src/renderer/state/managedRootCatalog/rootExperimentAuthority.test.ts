@@ -70,6 +70,8 @@ function activate(seq: number, title: string) {
   transport.activation = {
     seq,
     endpoint: `http://localhost:${seq}`,
+    // Opaque to this suite: the real authority is minted inside hostTransport.
+    authority: `managed-root:test-authority:${seq}`,
     client: client as unknown as ManagedLoopbackActivationSnapshot["client"],
   };
   return client;
