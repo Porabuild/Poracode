@@ -95,7 +95,7 @@ function createFakeQuery(initCommands: Array<Record<string, string>> = []) {
   const getContextUsage = vi
     .fn<() => Promise<SDKControlGetContextUsageResponse>>()
     .mockResolvedValue({
-      categories: [{ name: "Messages", tokens: 42_000, color: "#3366ff" }],
+      categories: [{ name: "Messages", tokens: 42_000, color: "#3366ff", kind: "used" }],
       totalTokens: 42_000,
       maxTokens: 1_000_000,
       rawMaxTokens: 1_000_000,
@@ -1240,7 +1240,7 @@ describe("ClaudeSdkSession", () => {
     try {
       const fake = createFakeQuery();
       fake.getContextUsage.mockResolvedValue({
-        categories: [{ name: "Messages", tokens: 238_000, color: "#3366ff" }],
+        categories: [{ name: "Messages", tokens: 238_000, color: "#3366ff", kind: "used" }],
         totalTokens: 238_000,
         maxTokens: 1_000_000,
         rawMaxTokens: 1_000_000,
