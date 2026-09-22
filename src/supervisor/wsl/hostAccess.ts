@@ -26,8 +26,9 @@
  */
 
 import { execFile } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { promisify } from "node:util";
+import { getWslCommand } from "../agents/base/shellBasics";
+import { getWslStagingService } from "./staging";
 
 const execFileAsync = promisify(execFile);
 
@@ -59,6 +60,11 @@ interface CacheEntry {
   expiresAt: number;
 }
 
+export interface WslHostAccessDependencies {
+  probe?: (distro: string) => Promise<WslHostAccess | undefined>;
+  readTextFile?: (distro: string, path: string) => Promise<string | null>;
+}
+
 const cache = new Map<string, CacheEntry>();
 
 /** Test hook: drop the per-distro cache. */
@@ -80,12 +86,16 @@ export async function resolveWslHostAccess(distro: string): Promise<WslHostAcces
   return value;
 }
 
-async function computeWslHostAccess(distro: string): Promise<WslHostAccess | undefined> {
-  const viaProbe = await probeWslHostAccess(distro);
+export async function computeWslHostAccess(
+  distro: string,
+  dependencies: WslHostAccessDependencies = {},
+): Promise<WslHostAccess | undefined> {
+  const viaProbe = await (dependencies.probe ?? probeWslHostAccess)(distro);
   if (viaProbe) return viaProbe;
   // Fallback: the distro may be unreachable via `wsl.exe` (rare) but its
-  // resolv.conf readable over UNC. Treat a plausible nameserver as the gateway.
-  const ip = readResolvConfNameserver(distro);
+  // resolv.conf readable over UNC. The read stays in the bounded staging
+  // worker: an unhealthy distro must never stall the supervisor event loop.
+  const ip = await readResolvConfNameserver(distro, dependencies.readTextFile);
   if (ip) return { kind: "gateway", ip };
   return undefined;
 }
@@ -99,7 +109,7 @@ async function probeWslHostAccess(distro: string): Promise<WslHostAccess | undef
   let stdout: string;
   try {
     const result = await execFileAsync(
-      "wsl.exe",
+      getWslCommand(),
       [
         "-d",
         distro,
@@ -120,10 +130,15 @@ async function probeWslHostAccess(distro: string): Promise<WslHostAccess | undef
   return undefined;
 }
 
-function readResolvConfNameserver(distro: string): string | undefined {
+async function readResolvConfNameserver(
+  distro: string,
+  readTextFile = (targetDistro: string, path: string) =>
+    getWslStagingService().readTextFile(targetDistro, path),
+): Promise<string | undefined> {
   try {
     const uncPath = `\\\\wsl.localhost\\${distro}\\etc\\resolv.conf`;
-    return parseResolvConfNameserver(readFileSync(uncPath, "utf8"));
+    const contents = await readTextFile(distro, uncPath);
+    return contents === null ? undefined : parseResolvConfNameserver(contents);
   } catch {
     return undefined;
   }
