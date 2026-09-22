@@ -4,6 +4,7 @@ import {
   HOST_RESOURCE_BUSY_CODE,
   HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
   HostResourceAdmissionRefusalError,
+  gitProcessAdmissionDiagnosticsSchema,
   hostResourceAdmissionSettingsSchema,
   hostResourceRetryAfterMsOf,
   isHostResourceAdmissionRefusal,
@@ -207,5 +208,72 @@ describe("host resource admission refusal helpers", () => {
     expect(error.code).toBe(HOST_RESOURCE_BUSY_CODE);
     expect(error.retryAfterMs).toBe(1000);
     expect(isHostResourceBusyError(error)).toBe(true);
+  });
+});
+
+describe("git process admission diagnostics schema", () => {
+  const legacyReport = {
+    short: { limit: 8, active: 0, queued: 0, maxActive: 0 },
+    long: { limit: 2, active: 0, queued: 0, maxActive: 0 },
+    admitted: 0,
+    queueFullRefusals: 0,
+    waitTimeoutRefusals: 0,
+    cancellations: 0,
+  };
+
+  it("parses an older peer report without the additive timing fields", () => {
+    expect(gitProcessAdmissionDiagnosticsSchema.parse(legacyReport)).toEqual(legacyReport);
+  });
+
+  it("accepts and preserves the additive timing, slow-fetch and environment fields", () => {
+    const report = {
+      ...legacyReport,
+      short: {
+        ...legacyReport.short,
+        queueWaitMs: 0,
+        maxQueueWaitMs: 0,
+        executionMs: 1.5,
+        maxExecutionMs: 1.5,
+      },
+      long: {
+        ...legacyReport.long,
+        queueWaitMs: 250,
+        maxQueueWaitMs: 250,
+        executionMs: 10_001,
+        maxExecutionMs: 10_001,
+      },
+      slowFetches: 1,
+      environments: {
+        posix: { active: 0, queued: 0 },
+        windows: { active: 0, queued: 0 },
+        wsl: { active: 5, queued: 2 },
+      },
+    };
+    expect(gitProcessAdmissionDiagnosticsSchema.parse(report)).toEqual(report);
+  });
+
+  it("rejects negative timings and malformed environment gauges", () => {
+    expect(
+      gitProcessAdmissionDiagnosticsSchema.safeParse({
+        ...legacyReport,
+        short: { ...legacyReport.short, queueWaitMs: -1 },
+      }).success,
+    ).toBe(false);
+    expect(
+      gitProcessAdmissionDiagnosticsSchema.safeParse({
+        ...legacyReport,
+        environments: {
+          posix: { active: -1, queued: 0 },
+          windows: { active: 0, queued: 0 },
+          wsl: { active: 0, queued: 0 },
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      gitProcessAdmissionDiagnosticsSchema.safeParse({
+        ...legacyReport,
+        environments: { posix: { active: 0, queued: 0 }, windows: { active: 0, queued: 0 } },
+      }).success,
+    ).toBe(false);
   });
 });

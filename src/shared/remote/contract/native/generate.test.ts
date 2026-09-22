@@ -56,7 +56,9 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        sourceHash: "sha256:d50180d293521d315e1ec1d07dc81d45fbe8f1b7cedc087a47a4722d9524ea95",
+        // B7.1 git admission diagnostics timing/environment fields moved both
+        // the source fingerprint and the structural-type count (2 new roots).
+        sourceHash: "sha256:fb9073c123729c295db093f24aca4ea0474ee9cf88e2f3dfcd52b304d848aa11",
         manifestHash: "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
         counts: {
           routes: 88,
@@ -67,7 +69,7 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 405,
-          structuralTypes: 920,
+          structuralTypes: 922,
           semanticValidators: 18,
           swiftFiles: 57,
           kotlinFiles: 50,
