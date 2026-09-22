@@ -35,11 +35,7 @@
  */
 
 import { spawn, spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { createRequire } from "node:module";
-import { createServer } from "node:net";
 import {
-  createWriteStream,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -48,742 +44,78 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pipeline } from "node:stream/promises";
 import { installServerPrefix } from "./install-server-prefix.mjs";
 import { readServerArtifactMetadata } from "./server-artifact-metadata.mjs";
+import {
+  NoPublishedServerN1Error,
+  TYPED_EXIT_CODES,
+} from "./server-n1-qualification/typed-failures.mjs";
+import {
+  assertTarballChecksum,
+  n1TarballAssetName,
+  parsePlainSemver,
+  parseTarget,
+  selectN1Release,
+} from "./server-n1-qualification/selection.mjs";
+import { redactSecrets } from "./server-n1-qualification/redaction.mjs";
+import { classifyDowngradeRefusalPlan } from "./server-n1-qualification/downgrade-plan.mjs";
+import { downloadAsset, fetchAllReleases } from "./server-n1-qualification/github-releases.mjs";
+import {
+  allocateLoopbackPort,
+  healthOk,
+  parseLastJsonLine,
+  runServerCli,
+  serverEnv,
+  startPtyWatch,
+  stopChild,
+  stopPidFileDaemon,
+  waitForOwnerPhase,
+  waitForText,
+} from "./server-n1-qualification/server-process.mjs";
+import {
+  assertDoctorOk,
+  jsonRequest,
+  listRoute,
+  pairAndAuthenticate,
+  readRunningStatus,
+} from "./server-n1-qualification/server-session.mjs";
+import {
+  assertPrefixOutsideCheckout,
+  gitInit,
+  makeProjectLocation,
+  sha256File,
+} from "./server-n1-qualification/workspace.mjs";
+import {
+  readCandidateVersionFromTarball,
+  resolveRepo,
+} from "./server-n1-qualification/candidate-artifact.mjs";
+import {
+  fingerprintPayloads,
+  openProfileDatabase,
+  seedReceipt,
+} from "./server-n1-qualification/sqlite-payloads.mjs";
+
+// Re-export the unit-tested surface: scripts/server-n1-qualification.test.mjs
+// imports it from this entrypoint. The implementations live in the focused
+// modules under ./server-n1-qualification/ — typed failures, pure selection,
+// redaction, downgrade planning, process/session/GitHub/sqlite helpers.
+export {
+  NoPublishedServerN1Error,
+  TYPED_EXIT_CODES,
+  parsePlainSemver,
+  parseTarget,
+  n1TarballAssetName,
+  selectN1Release,
+  assertTarballChecksum,
+  redactSecrets,
+  classifyDowngradeRefusalPlan,
+};
+export { compareSemver, serverArtifactAssetName } from "./server-n1-qualification/selection.mjs";
+export { pairingCredentialFromCliOutput } from "./server-n1-qualification/server-process.mjs";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-
-// ── Typed failures ───────────────────────────────────────────────────────
-
-export class NoPublishedServerN1Error extends Error {
-  constructor(message, evidence) {
-    super(message);
-    this.name = "NoPublishedServerN1Error";
-    this.code = "NO_PUBLISHED_SERVER_N1";
-    this.evidence = evidence;
-  }
-}
-
-export const TYPED_EXIT_CODES = {
-  QUALIFICATION_FAILED: 1,
-  NO_PUBLISHED_SERVER_N1: 3,
-  RELEASE_LIST_UNAVAILABLE: 4,
-  N1_ARTIFACT_INVALID: 5,
-  CANDIDATE_INVALID: 6,
-  SQLITE_UNAVAILABLE: 7,
-};
-
-// ── Pure selection / version logic (unit-tested, no network, no fs) ─────
-
-const PLAIN_SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
-
-/** Plain X.Y.Z only — the repo's only published version shape. Null otherwise. */
-export function parsePlainSemver(value) {
-  if (typeof value !== "string") return null;
-  const raw = value.startsWith("v") ? value.slice(1) : value;
-  if (!PLAIN_SEMVER.test(raw)) return null;
-  const [major, minor, patch] = raw.split(".").map(Number);
-  return { major, minor, patch, raw };
-}
-
-/** -1 / 0 / 1 on plain X.Y.Z versions. */
-export function compareSemver(a, b) {
-  for (const field of ["major", "minor", "patch"]) {
-    if (a[field] !== b[field]) return a[field] > b[field] ? 1 : -1;
-  }
-  return 0;
-}
-
-export function parseTarget(target) {
-  const index = target.indexOf("-");
-  if (index <= 0) throw new Error(`invalid server target "${target}" (expected <platform>-<arch>)`);
-  return { platform: target.slice(0, index), arch: target.slice(index + 1) };
-}
-
-export function serverArtifactAssetName(target) {
-  return `server-artifact-${target}.json`;
-}
-
-export function n1TarballAssetName(version, target) {
-  return `poracode-server-${version}-${target}.tar.gz`;
-}
-
-/**
- * Pick the N-1 release: the newest stable (non-draft, non-prerelease, plain
- * X.Y.Z tag) published release STRICTLY below the candidate version whose
- * asset list carries the target's `server-artifact-<target>.json`. Releases
- * that fail any requirement are recorded in the evidence with the reason, so
- * a `NO_PUBLISHED_SERVER_N1` verdict is auditable rather than a shrug.
- */
-export function selectN1Release({ releases, candidateVersion, target }) {
-  const candidate = parsePlainSemver(candidateVersion);
-  if (!candidate) throw new Error(`candidate version is not plain X.Y.Z: "${candidateVersion}"`);
-  const wantedMetadata = serverArtifactAssetName(target);
-
-  const evidence = [];
-  let best = null;
-  for (const release of releases ?? []) {
-    const tag =
-      typeof release?.tag_name === "string" ? release.tag_name : String(release?.tag_name);
-    const entry = { tag, decision: null, reason: null };
-    const ignore = (reason) => {
-      entry.decision = "ignored";
-      entry.reason = reason;
-      evidence.push(entry);
-    };
-    if (release?.draft === true) {
-      ignore("draft");
-      continue;
-    }
-    if (release?.prerelease === true) {
-      ignore("prerelease");
-      continue;
-    }
-    const version = parsePlainSemver(tag);
-    if (!version) {
-      ignore("tag is not plain X.Y.Z");
-      continue;
-    }
-    entry.version = version.raw;
-    if (compareSemver(version, candidate) >= 0) {
-      ignore(`version ${version.raw} is not below candidate ${candidate.raw}`);
-      continue;
-    }
-    const assetNames = (release.assets ?? []).map((asset) => asset?.name).filter(Boolean);
-    if (!assetNames.includes(wantedMetadata)) {
-      ignore(`no ${wantedMetadata} asset (assets: ${assetNames.join(", ") || "none"})`);
-      continue;
-    }
-    entry.decision = "candidate";
-    evidence.push(entry);
-    if (best === null || compareSemver(version, best) > 0) best = { ...version, release };
-  }
-
-  if (best === null) {
-    throw new NoPublishedServerN1Error(
-      `No published stable release strictly below ${candidate.raw} publishes ` +
-        `${wantedMetadata} — there is no compatible server N-1 to upgrade from.`,
-      {
-        candidateVersion: candidate.raw,
-        target,
-        wantedMetadataAsset: wantedMetadata,
-        releasesConsidered: evidence.length,
-        releases: evidence,
-      },
-    );
-  }
-  const chosen = evidence.find((entry) => entry.version === best.raw);
-  chosen.decision = "selected";
-  return {
-    tag: best.release.tag_name,
-    version: best.raw,
-    metadataAssetName: wantedMetadata,
-    evidence,
-  };
-}
-
-/**
- * Fail-closed checksum verification: the published metadata is the only
- * authority for what the N-1 bytes must hash to. A missing file or a
- * mismatch throws with both digests; a release without usable checksum
- * metadata must never qualify.
- */
-export function assertTarballChecksum({ tarballPath, expectedSha256 }) {
-  if (typeof expectedSha256 !== "string" || !/^[0-9a-f]{64}$/u.test(expectedSha256)) {
-    throw new Error(`published metadata carries no valid sha256 (got ${expectedSha256})`);
-  }
-  if (!existsSync(tarballPath)) throw new Error(`downloaded tarball is missing: ${tarballPath}`);
-  const actual = createHash("sha256").update(readFileSync(tarballPath)).digest("hex");
-  if (actual !== expectedSha256) {
-    throw new Error(
-      `published N-1 tarball checksum mismatch: expected ${expectedSha256}, got ${actual} ` +
-        `(${tarballPath})`,
-    );
-  }
-}
-
-// ── Secret redaction ─────────────────────────────────────────────────────
-
-const PAIRING_URL_PATTERN = /(pairingUrl["']?\s*[:=]\s*["']?)(https?:\/\/[^\s"',}\]]+)/gi;
-const QUERY_SECRET_PATTERN = /([?&#](?:token|ticket|credential)=)[^\s&"',}\]]+/gi;
-const BEARER_PATTERN = /(Bearer\s+)[A-Za-z0-9._~+/=-]{8,}/gi;
-const JSON_SECRET_PATTERN =
-  /("(?:accessToken|refreshToken|token|credential|password|api[_-]?key)"\s*:\s*")([^"]+)(")/gi;
-
-/** Redact pairing URLs, query-token values, bearer tokens, and token fields. */
-export function redactSecrets(text) {
-  if (typeof text !== "string") return text;
-  return text
-    .replace(PAIRING_URL_PATTERN, "$1[redacted-pairing-url]")
-    .replace(QUERY_SECRET_PATTERN, "$1[redacted]")
-    .replace(BEARER_PATTERN, "$1[redacted]")
-    .replace(JSON_SECRET_PATTERN, "$1[redacted]$3");
-}
-
-// ── Downgrade-refusal planning ───────────────────────────────────────────
-
-/**
- * The candidate refuses a downgrade only through the schema registry: an
- * install whose recorded schema advanced past the N-1 artifact's registry
- * must refuse the N-1 bytes. When the candidate did not advance the schema
- * there is nothing to refuse by design, so the assertion is recorded as
- * planned-out instead of being silently dropped.
- */
-export function classifyDowngradeRefusalPlan({ candidateLatestSchema, n1LatestSchema }) {
-  if (!Number.isSafeInteger(candidateLatestSchema) || !Number.isSafeInteger(n1LatestSchema)) {
-    return {
-      assertRefusal: false,
-      reason: `schema registries unreadable (candidate=${candidateLatestSchema}, n1=${n1LatestSchema})`,
-    };
-  }
-  if (candidateLatestSchema > n1LatestSchema) {
-    return {
-      assertRefusal: true,
-      reason: `candidate schema ${candidateLatestSchema} is above the N-1 registry ${n1LatestSchema}`,
-    };
-  }
-  return {
-    assertRefusal: false,
-    reason:
-      `candidate schema ${candidateLatestSchema} did not advance past the N-1 registry ` +
-      `${n1LatestSchema}; the schema downgrade guard has nothing to refuse by design`,
-  };
-}
-
-// ── Impure orchestration (network, processes, fs) ────────────────────────
-
-function sha256File(path) {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
-}
-
-function assertPrefixOutsideCheckout(prefix, repoRoot) {
-  const resolvedPrefix = resolve(prefix);
-  const resolvedRoot = resolve(repoRoot);
-  const rel = relative(resolvedRoot, resolvedPrefix);
-  if (!isAbsolute(resolvedPrefix) || rel === "" || !rel.startsWith(`..${sep}`)) {
-    throw new Error(
-      `install prefix must live outside the checkout: ${resolvedPrefix} is inside ${resolvedRoot}`,
-    );
-  }
-}
-
-/** Run an installed-server CLI command; every failure output is redacted. */
-function runServerCli(entry, args, env, { timeoutMs = 300_000 } = {}) {
-  const run = spawnSync(process.execPath, [entry, ...args], {
-    encoding: "utf8",
-    env,
-    timeout: timeoutMs,
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  const stdout = run.stdout ?? "";
-  const stderr = run.stderr ?? "";
-  if (run.status !== 0) {
-    throw new Error(
-      `server CLI ${args[0]} exited ${run.status}: ${redactSecrets(stdout).trim()} ${redactSecrets(stderr).trim()}`.trim(),
-    );
-  }
-  return { status: run.status, stdout, stderr };
-}
-
-function parseLastJsonLine(output) {
-  const line = output.trim().split("\n").at(-1);
-  return JSON.parse(line);
-}
-
-/** Extract the one-use pairing credential from raw `pair --json` output. */
-export function pairingCredentialFromCliOutput(output) {
-  const pairing = parseLastJsonLine(output);
-  const credential = new URLSearchParams(new URL(pairing.pairingUrl).hash.replace(/^#/, "")).get(
-    "token",
-  );
-  if (!credential) throw new Error("pair --json output carries no credential token");
-  return credential;
-}
-
-function allocateLoopbackPort() {
-  return new Promise((resolvePort, reject) => {
-    const server = createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      if (!address || typeof address === "string") {
-        server.close();
-        reject(new Error("failed to allocate port"));
-        return;
-      }
-      const port = address.port;
-      server.close((error) => (error ? reject(error) : resolvePort(port)));
-    });
-  });
-}
-
-/** Environment for a spawned server/CLI step. `port === null` selects a
- * read-only one-shot command (doctor, pair, status) that must not bind. */
-function serverEnv(profile, port) {
-  const inherited = { ...process.env };
-  // The qualification process needs these for GitHub release downloads; the
-  // installed server and the real PTY it launches do not. Keep workflow
-  // credentials out of child environments entirely.
-  delete inherited.GH_TOKEN;
-  delete inherited.GITHUB_TOKEN;
-  return {
-    ...inherited,
-    PORACODE_BASE_DIR: profile,
-    PORACODE_HEADLESS_SERVER: "1",
-    PORACODE_SECRET_STORAGE_KEY:
-      process.env.PORACODE_SECRET_STORAGE_KEY ?? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
-    ...(port === null
-      ? {}
-      : { PORACODE_REMOTE_ACCESS_HOST: "127.0.0.1", PORACODE_REMOTE_ACCESS_PORT: String(port) }),
-  };
-}
-
-async function jsonRequest(fetchImpl, url, { method = "GET", token, body } = {}) {
-  const headers = { "content-type": "application/json" };
-  if (token) headers.authorization = `Bearer ${token}`;
-  const response = await fetchImpl(url, {
-    method,
-    headers,
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  const text = redactSecrets(await response.text());
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    parsed = text;
-  }
-  return { status: response.status, body: parsed };
-}
-
-async function downloadAsset(fetchImpl, asset, destination, token) {
-  // Authenticated downloads must go through the API asset URL with an
-  // octet-stream accept; unauthenticated ones use the browser URL. The token
-  // only travels in headers and is never logged.
-  const useApiUrl = Boolean(token) && Number.isSafeInteger(asset.id);
-  const url = useApiUrl
-    ? `https://api.github.com/repos/${asset.repo}/releases/assets/${asset.id}`
-    : asset.browser_download_url;
-  if (!url) throw new Error(`release asset ${asset.name} has no downloadable URL`);
-  const response = await fetchImpl(url, {
-    headers: {
-      "user-agent": "poracode-n1-qualification",
-      ...(useApiUrl ? { accept: "application/octet-stream" } : {}),
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-    signal: AbortSignal.timeout(600_000),
-  });
-  if (!response.ok || !response.body) {
-    throw new Error(
-      `download of ${asset.name} failed: HTTP ${response.status} (repo asset, not an auth echo)`,
-    );
-  }
-  await pipeline(response.body, createWriteStream(destination));
-  return destination;
-}
-
-async function fetchAllReleases(fetchImpl, repo, token) {
-  const pages = [];
-  for (let page = 1; page <= 3; page += 1) {
-    const response = await fetchImpl(
-      `https://api.github.com/repos/${repo}/releases?per_page=100&page=${page}`,
-      {
-        headers: {
-          accept: "application/vnd.github+json",
-          "user-agent": "poracode-n1-qualification",
-          "x-github-api-version": "2022-11-28",
-          ...(token ? { authorization: `Bearer ${token}` } : {}),
-        },
-        signal: AbortSignal.timeout(30_000),
-      },
-    );
-    if (!response.ok) {
-      const detail = redactSecrets(await response.text().catch(() => ""));
-      const error = new Error(
-        `GitHub release list for ${repo} returned HTTP ${response.status}` +
-          (response.status === 403 && response.headers.get("x-ratelimit-remaining") === "0"
-            ? " (rate limited; set GITHUB_TOKEN)"
-            : "") +
-          (detail ? `: ${detail.slice(0, 300)}` : ""),
-      );
-      error.code = "RELEASE_LIST_UNAVAILABLE";
-      throw error;
-    }
-    const batch = await response.json();
-    pages.push(...(Array.isArray(batch) ? batch : []));
-    if (!Array.isArray(batch) || batch.length < 100) break;
-  }
-  return pages;
-}
-
-function gitInit(dir) {
-  mkdirSync(dir, { recursive: true });
-  const run = (args) => spawnSync("git", args, { cwd: dir, encoding: "utf8", timeout: 60_000 });
-  if (run(["init"]).status !== 0) throw new Error(`git init failed in ${dir}`);
-  writeFileSync(join(dir, "README.md"), "n1 qualification\n");
-  run(["add", "README.md"]);
-  const commit = run([
-    "-c",
-    "user.email=n1qual@poracode.local",
-    "-c",
-    "user.name=n1qual",
-    "commit",
-    "-m",
-    "init",
-  ]);
-  if (commit.status !== 0) throw new Error(`git commit failed in ${dir}`);
-}
-
-function makeProjectLocation(cwd) {
-  return process.platform === "win32"
-    ? { kind: "windows", path: cwd }
-    : { kind: "posix", path: cwd };
-}
-
-function waitForText(stream, needle, timeoutMs) {
-  return new Promise((resolveWait, reject) => {
-    let buffer = "";
-    const timer = setTimeout(() => reject(new Error(`timed out waiting for ${needle}`)), timeoutMs);
-    const onData = (chunk) => {
-      buffer += chunk.toString("utf8");
-      if (buffer.includes(needle)) {
-        clearTimeout(timer);
-        stream.off("data", onData);
-        resolveWait(buffer);
-      }
-    };
-    stream.on("data", onData);
-  });
-}
-
-async function healthOk(port) {
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/healthz`, {
-      signal: AbortSignal.timeout(2_000),
-    });
-    return response.ok || response.status === 401;
-  } catch {
-    return false;
-  }
-}
-
-function startPtyWatch(wsUrl, shellId) {
-  const ws = new WebSocket(wsUrl);
-  let buffer = "";
-  const opened = new Promise((resolveOpened, reject) => {
-    ws.addEventListener("open", () => {
-      ws.send(JSON.stringify({ type: "terminal-watch", id: shellId }));
-      resolveOpened();
-    });
-    ws.addEventListener("error", () => reject(new Error("terminal watch failed to connect")));
-  });
-  return {
-    opened,
-    waitFor(needle, timeoutMs) {
-      return new Promise((resolveFrame, reject) => {
-        const timer = setTimeout(
-          () => reject(new Error(`timed out waiting for PTY output ${needle}`)),
-          timeoutMs,
-        );
-        const onMessage = (event) => {
-          let frame;
-          try {
-            frame = JSON.parse(String(event.data));
-          } catch {
-            return;
-          }
-          if (frame?.type === "terminal-output" && typeof frame.data === "string") {
-            buffer += frame.data;
-            if (buffer.includes(needle)) {
-              clearTimeout(timer);
-              ws.removeEventListener("message", onMessage);
-              resolveFrame(true);
-            }
-          }
-        };
-        if (buffer.includes(needle)) {
-          clearTimeout(timer);
-          resolveFrame(true);
-          return;
-        }
-        ws.addEventListener("message", onMessage);
-      });
-    },
-    close() {
-      try {
-        ws.close();
-      } catch {
-        // already closed
-      }
-    },
-  };
-}
-
-async function stopChild(child) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  child.kill("SIGTERM");
-  await new Promise((resolveExit) => {
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      resolveExit();
-    }, 20_000);
-    child.once("exit", () => {
-      clearTimeout(timer);
-      resolveExit();
-    });
-  });
-}
-
-function readOwnerRecord(profile) {
-  const path = `${profile}.host-owner.json`;
-  if (!existsSync(path)) return null;
-  return JSON.parse(readFileSync(path, "utf8"));
-}
-
-async function waitForOwnerPhase(profile, phase, timeoutMs) {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    const record = readOwnerRecord(profile);
-    let holderGone = true;
-    if (record && Number.isSafeInteger(record.pid) && record.pid > 0) {
-      try {
-        process.kill(record.pid, 0);
-        holderGone = false;
-      } catch {
-        holderGone = true;
-      }
-    }
-    if (record?.phase === phase && holderGone) return record;
-    if (Date.now() >= deadline) {
-      throw new Error(
-        `owner lease did not reach phase=${phase}: ${JSON.stringify(readOwnerRecord(profile))}`,
-      );
-    }
-    await new Promise((resolveWait) => setTimeout(resolveWait, 250));
-  }
-}
-
-/**
- * Stop a daemon this script does not own as a child — the upgrade CLI
- * respawns the candidate detached and records its pid at
- * `<prefix>/poracode-server.pid`. Without this the respawned daemon would
- * outlive the gate still holding the lease and the port.
- */
-async function stopPidFileDaemon(prefix, profile) {
-  const pidPath = join(prefix, "poracode-server.pid");
-  if (!existsSync(pidPath)) return;
-  const pid = Number(readFileSync(pidPath, "utf8").trim());
-  if (Number.isSafeInteger(pid) && pid > 0) {
-    try {
-      process.kill(pid, "SIGTERM");
-    } catch {
-      // already gone
-    }
-  }
-  await waitForOwnerPhase(profile, "stopped", 30_000);
-}
-
-/** Pair against the running daemon; the pairing URL never survives an error. */
-async function pairAndAuthenticate(runCli, entry, env, httpBase, fetchImpl) {
-  // Parse the credential from the in-memory raw result. Redaction belongs at
-  // log/evidence sinks; redacting before this point would destroy the URL the
-  // gate itself must exchange.
-  const credential = pairingCredentialFromCliOutput(runCli(entry, ["pair", "--json"], env).stdout);
-
-  const token = await jsonRequest(fetchImpl, `${httpBase}/oauth/token`, {
-    method: "POST",
-    body: {
-      grantType: "pairing-token",
-      credential,
-      scopes: [
-        "session:read",
-        "session:operate",
-        "projects:manage",
-        "terminal:operate",
-        "terminal:read",
-      ],
-      client: { label: "n1-qualify", deviceType: "desktop" },
-    },
-  });
-  if (token.status !== 200) throw new Error(`pairing token exchange failed: ${token.status}`);
-  return token.body.accessToken;
-}
-
-function assertDoctorOk(runCli, entry, env, label) {
-  const report = parseLastJsonLine(runCli(entry, ["doctor", "--json"], env).stdout);
-  if ((report.checks ?? []).some((check) => check.status === "error")) {
-    throw new Error(`${label} doctor failed: ${JSON.stringify(report).slice(0, 2_000)}`);
-  }
-  return report;
-}
-
-/** Authenticated status of the running owner (build identity + roots). */
-function readRunningStatus(runCli, entry, env) {
-  const reply = parseLastJsonLine(runCli(entry, ["status", "--json"], env).stdout);
-  if (!reply?.result?.build?.version) {
-    throw new Error(
-      `status --json returned no build identity: ${JSON.stringify(reply).slice(0, 500)}`,
-    );
-  }
-  return reply.result;
-}
-
-/** Tolerant read of a list route: modern bounded reads first, plain fallback. */
-async function listRoute(fetchImpl, url, token, modernQuery, fallbackQuery) {
-  const modern = await jsonRequest(fetchImpl, `${url}${modernQuery}`, { token });
-  if (modern.status === 200) return { status: 200, body: modern.body, via: modernQuery };
-  const plain = await jsonRequest(fetchImpl, `${url}${fallbackQuery}`, { token });
-  return { ...plain, via: fallbackQuery, modernStatus: modern.status };
-}
-
-// ── sqlite seeding + fingerprints ────────────────────────────────────────
-
-function openProfileDatabase(dataRoot) {
-  let Database;
-  try {
-    Database = createRequire(join(REPO_ROOT, "package.json"))("better-sqlite3");
-  } catch (error) {
-    const failure = new Error(
-      `better-sqlite3 is not loadable from the checkout (${error?.message ?? error}); ` +
-        "install dependencies first — payload assertions must never be skipped",
-    );
-    failure.code = "SQLITE_UNAVAILABLE";
-    throw failure;
-  }
-  const path = join(dataRoot, "state.sqlite");
-  if (!existsSync(path)) {
-    const failure = new Error(`profile database is missing at ${path}`);
-    failure.code = "SQLITE_UNAVAILABLE";
-    throw failure;
-  }
-  return { database: new Database(path), path };
-}
-
-/**
- * Seed an interrupted command receipt directly into the N-1 profile database
- * (the same narrow extraction the upgrade integration tests use). Runs ONCE,
- * on the N-1 install only — the post-upgrade pass fingerprints read-only, so
- * a surviving row can never be confused with one this script re-inserted.
- */
-function seedReceipt({ database, shellId, receiptId }) {
-  const tableRow = database
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'remote_command_receipts'",
-    )
-    .get();
-  if (!tableRow) return { seeded: false, reason: "remote_command_receipts table absent on N-1" };
-  const columns = database.prepare("PRAGMA table_info(remote_command_receipts)").all();
-  const names = new Set(columns.map((column) => column.name));
-  const hasBaseColumns = [
-    "command_id",
-    "route",
-    "state",
-    "response",
-    "created_at",
-    "updated_at",
-  ].every((name) => names.has(name));
-  if (!hasBaseColumns) {
-    return { seeded: false, reason: `receipt columns unusable: ${[...names].sort().join(",")}` };
-  }
-  database
-    .prepare(
-      "INSERT OR REPLACE INTO remote_command_receipts " +
-        "(command_id, route, state, response, created_at, updated_at) VALUES (?, ?, ?, NULL, ?, ?)",
-    )
-    .run(
-      receiptId,
-      `/api/threads/${shellId}/checkpoint-revert`,
-      "in_progress",
-      Date.now(),
-      Date.now(),
-    );
-  return { seeded: true, commandId: receiptId };
-}
-
-/** Read-only fingerprint of every seeded payload family (never mutates). */
-function fingerprintPayloads({ database, shellId, projectPath, receiptId, goalMarker }) {
-  const tableExists = (name) =>
-    database
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
-      .get(name) !== undefined;
-  const fingerprint = {
-    schemaVersion:
-      database.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get()?.value ??
-      null,
-    project: database
-      .prepare("SELECT id, name, location_path FROM projects WHERE location_path = ?")
-      .get(projectPath),
-    thread: database
-      .prepare("SELECT id, agent_kind, status FROM threads WHERE id = ?")
-      .get(shellId),
-    scrollbackMarker: tableExists("thread_terminal_scrollback")
-      ? database
-          .prepare(
-            "SELECT instr(transcript, ?) AS hit FROM thread_terminal_scrollback WHERE thread_id = ?",
-          )
-          .get(SHELL_MARKER_OUTPUT, shellId)?.hit
-      : null,
-    receipt: tableExists("remote_command_receipts")
-      ? database
-          .prepare("SELECT command_id, state FROM remote_command_receipts WHERE command_id = ?")
-          .get(receiptId)
-      : null,
-    goalItem: null,
-  };
-  if (goalMarker && tableExists("thread_runtime_items")) {
-    // Goals persist as runtime items on the shapes this repo ships; the LIKE
-    // scan is tolerant to payload-shape drift between N-1 and candidate.
-    fingerprint.goalItem = database
-      .prepare(
-        "SELECT item_id, type, state FROM thread_runtime_items WHERE thread_id = ? AND payload LIKE ?",
-      )
-      .get(shellId, `%${goalMarker}%`);
-  }
-  return fingerprint;
-}
-
-// ── Candidate helpers ────────────────────────────────────────────────────
-
-/** Read package.json out of the candidate tarball without extracting it. */
-function readCandidateVersionFromTarball(tarball) {
-  for (const member of ["package.json", "./package.json"]) {
-    const run = spawnSync("tar", ["-xzOf", tarball, member], {
-      encoding: "utf8",
-      timeout: 120_000,
-      maxBuffer: 16 * 1024 * 1024,
-    });
-    if (run.status === 0 && run.stdout) {
-      const parsed = JSON.parse(run.stdout);
-      if (typeof parsed.version === "string" && parsed.version.length > 0) return parsed.version;
-    }
-  }
-  const failure = new Error(
-    `candidate tarball ${tarball} carries no readable package.json version`,
-  );
-  failure.code = "CANDIDATE_INVALID";
-  throw failure;
-}
-
-function resolveRepo(options) {
-  if (options.repo) return options.repo;
-  if (process.env.GITHUB_REPOSITORY) return process.env.GITHUB_REPOSITORY;
-  const remote = spawnSync("git", ["remote", "get-url", "origin"], {
-    encoding: "utf8",
-    cwd: REPO_ROOT,
-  });
-  const url = (remote.stdout ?? "").trim();
-  const ssh = url.match(/^git@[^:]+:([^/]+)\/(.+?)(?:\.git)?$/u);
-  const https = url.match(/github\.com[/:]([^/]+)\/(.+?)(?:\.git)?$/u);
-  const match = ssh ?? https;
-  if (match) return `${match[1]}/${match[2]}`;
-  throw new Error(
-    "cannot resolve the GitHub repository: pass --repo owner/name or set GITHUB_REPOSITORY",
-  );
-}
 
 // ── Main flow ────────────────────────────────────────────────────────────
 
@@ -1103,6 +435,7 @@ async function runN1QualificationInner(options, evidence) {
         projectPath: project,
         receiptId: RECEIPT_ID,
         goalMarker: evidence.seeded.goal.seeded ? GOAL_MARKER : null,
+        scrollbackMarker: SHELL_MARKER_OUTPUT,
       });
       evidence.preUpgradeFingerprint = { database: databasePath, ...preFingerprint };
       if (preFingerprint.schemaVersion === null)
@@ -1240,6 +573,7 @@ async function runN1QualificationInner(options, evidence) {
         projectPath: project,
         receiptId: RECEIPT_ID,
         goalMarker: evidence.seeded.goal.seeded ? GOAL_MARKER : null,
+        scrollbackMarker: SHELL_MARKER_OUTPUT,
       });
       const survived = {
         schemaVersion: Number(
