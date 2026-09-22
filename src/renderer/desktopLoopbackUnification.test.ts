@@ -44,6 +44,10 @@ import {
   subscribeManagedLoopbackActivation,
 } from "./hostTransport/loopbackHttpWsTransport";
 import {
+  __resetRuntimeHistoryNoticeCapabilityForTest,
+  hostSupportsRuntimeHistoryNoticesForConnection,
+} from "./state/remote/historyNoticeCapability";
+import {
   readRegisteredRemoteProcedureHost,
   registerRemoteProcedureHost,
   remoteTerminalOwner,
@@ -222,6 +226,20 @@ function fixtureSchedules(): NonNullable<RemoteAccessServerOptions["schedules"]>
   };
 }
 
+/** B1 opt-in: the durable gap/notice port whose presence alone makes the
+ * descriptor advertise `capabilities.runtimeHistoryNotices`. No fixture route
+ * exercises the reads; the acknowledgement path is never reached. */
+function fixtureRuntimeHistoryGap(): NonNullable<RemoteAccessServerOptions["runtimeHistoryGap"]> {
+  return {
+    read: () => null,
+    readNotice: () => null,
+    lookupNotice: () => ({ kind: "clean" }),
+    acknowledge: async () => {
+      throw new Error("not used by the unification fixture");
+    },
+  };
+}
+
 /** Declared child trust for the environment fixture: never touches real SSH. */
 function fixtureTrustAuthority(): EnvironmentTrustAuthority {
   const observation = {
@@ -266,6 +284,8 @@ async function startEnvironmentFixtureServer(
     readonly port?: number;
     readonly dataRoot?: string;
     readonly child?: RemoteAccessServer;
+    /** Advertise `capabilities.runtimeHistoryNotices` in the descriptor (B1). */
+    readonly noticesCapability?: boolean;
   } = {},
 ): Promise<EnvironmentFixture> {
   const dataRoot = options.dataRoot ?? (await mkdtemp(join(tmpdir(), "poracode-managed-parent-")));
@@ -322,6 +342,9 @@ async function startEnvironmentFixtureServer(
     onEventInterestsChanged: vi.fn<() => void>(),
     callSupervisor: fixtureCallSupervisor as unknown as RemoteAccessServerOptions["callSupervisor"],
     schedules: fixtureSchedules(),
+    ...(options.noticesCapability === true
+      ? { runtimeHistoryGap: fixtureRuntimeHistoryGap() }
+      : {}),
     ...configured,
   });
   servers.push(server);
@@ -1227,6 +1250,68 @@ describe("managed parent authority publication (C1 managed parent)", () => {
     expect(afterRelease.hostDesktopId).toBe("managed-host-b");
     expect(isManagedLoopbackRequestRoutingActive()).toBe(true);
   }, 30_000);
+});
+
+describe("managed root notice-authority teardown on leg replacement (B1)", () => {
+  it("forgets the retired activation's notice capability and makes the replacement leg re-prove it", async () => {
+    __resetRuntimeHistoryNoticeCapabilityForTest();
+    const fixture = await startEnvironmentFixtureServer({ noticesCapability: true });
+    const realFetch = globalThis.fetch.bind(globalThis);
+    let descriptorCalls = 0;
+    let releaseHeld: (() => void) | null = null;
+    const heldGate = new Promise<void>((resolve) => {
+      releaseHeld = resolve;
+    });
+    // Descriptor reads through the loopback HTTP leg: call 1 is the boot
+    // preflight, call 2 the first activation's resolution. After the socket
+    // sever and the local retry, call 3 is the re-activation preflight and
+    // call 4 the replacement activation's resolution — held until the test has
+    // observed the handover state.
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (urlOfDescriptor(input).includes("/.well-known/poracode/environment")) {
+        descriptorCalls += 1;
+        if (descriptorCalls === 4) await heldGate;
+      }
+      return realFetch(input as RequestInfo, init as RequestInit);
+    });
+
+    await bootUnified(fixture.server, { descriptorRetryMs: 10 });
+    const first = readManagedLoopbackActivation();
+    expect(first).not.toBeNull();
+    const retiredKey = first!.authority;
+    await waitForManagedAuthority();
+    // The first leg's own descriptor proved the capability under ITS authority.
+    expect(hostSupportsRuntimeHistoryNoticesForConnection(retiredKey)).toBe(true);
+
+    // Replace the leg: sever the socket; the intake retries locally and the
+    // retry publishes a NEW activation (fresh per-activation authority).
+    const seqBefore = first!.seq;
+    liveSockets.at(-1)!.close();
+    await vi.waitFor(() => {
+      expect(readManagedLoopbackActivation()?.seq).toBeGreaterThan(seqBefore);
+    });
+    const nextKey = readManagedLoopbackActivation()!.authority;
+    expect(nextKey).not.toBe(retiredKey);
+
+    // While the replacement's own descriptor read is still in flight, the
+    // retired capability must be FORGOTTEN (it never survives the leg it was
+    // minted for) and the successor must have inherited nothing.
+    await vi.waitFor(() => expect(descriptorCalls).toBe(4), { timeout: 5_000 });
+    expect(hostSupportsRuntimeHistoryNoticesForConnection(retiredKey)).toBe(false);
+    expect(hostSupportsRuntimeHistoryNoticesForConnection(nextKey)).toBe(false);
+
+    // The successor re-proves the capability from its OWN descriptor.
+    releaseHeld!();
+    await vi.waitFor(() =>
+      expect(hostSupportsRuntimeHistoryNoticesForConnection(nextKey)).toBe(true),
+    );
+    expect(getManagedParentAuthorityState().status).toBe("ready");
+  }, 30_000);
+
+  function urlOfDescriptor(input: RequestInfo | URL): string {
+    if (typeof input === "string") return input;
+    return input instanceof URL ? input.toString() : input.url;
+  }
 });
 
 describe("managed desktop environments through its own server (C1 managed parent)", () => {
