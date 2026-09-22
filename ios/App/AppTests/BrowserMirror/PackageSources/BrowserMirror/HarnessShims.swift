@@ -7,6 +7,7 @@ import Foundation
 // bump (a stale value fails this package's contract tests).
 enum ProtocolConstants {
   static let remoteProtocolVersion = 12
+  static let environmentAuthorizationHeader = "X-Poracode-Environment-Authorization"
 }
 
 /// Isolation-package stand-in for the app TLS pin evaluator. The shared
