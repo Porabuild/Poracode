@@ -27,6 +27,33 @@ device and simulator SDKs. Android compiles and targets API 37 with
 `minSdk = 34` (Android 14, the oldest AOSP release still covered by the monthly
 Android Security Bulletin).
 
+### Android support-window policy
+
+Poracode supports maintained Android releases, rather than preserving an old
+install floor indefinitely:
+
+- `minSdk` is the oldest Android major version that still receives fixes in the
+  current [Android Security Bulletin](https://source.android.com/docs/security/bulletin/asb-overview)
+  and remains supported by the pinned AndroidX, Compose, Firebase, networking,
+  and storage dependencies. A dependency advertising an older minimum does not
+  make that older OS a Poracode-supported platform.
+- `targetSdk` and `compileSdk` use the latest stable Android API supported by
+  the pinned build toolchain and dependencies, and must meet the current
+  [Google Play target API requirement](https://support.google.com/googleplay/android-developer/answer/11926878).
+- CI runs the minimum supported runtime and the current target runtime. We do
+  not carry compatibility branches, emulator lanes, or release promises for
+  Android versions below `minSdk`.
+- Re-evaluate the floor before each mobile release and whenever Google removes
+  the current floor from the updated AOSP versions in a security bulletin. A
+  floor change updates Gradle, both CI/release guards, the minimum-runtime lane,
+  and these release docs together.
+
+As of September 2026, the supported window is Android 14–17 (API 34–37). The
+September 2026 bulletin still publishes fixes for Android 14, while Google Play
+requires new apps and updates to target API 36 or newer. API 37 is stable and
+supported by the pinned toolchain, so Poracode compiles and targets API 37 while
+retaining API 34 as the maintained install floor.
+
 ## Remote-v3 release status
 
 `protocol/remote/v3/generated/manifest.json` is the canonical cross-client
