@@ -47,6 +47,24 @@ describe("git/call procedure fixtures", () => {
     expect((result.body.result as { branch: string }).branch).toBe("main");
   });
 
+  it("serves an operable project snapshot for native Git journeys", async () => {
+    harness = await startLab();
+    const { accessToken } = await pairAndAuth(harness, ["session:read"]);
+    const result = await callProcedure(
+      harness.httpBaseUrl,
+      accessToken,
+      "gitProjectSnapshot",
+      PROCEDURE_REQUEST_FIXTURES.gitProjectSnapshot,
+    );
+    expect(result.status).toBe(200);
+    expect(result.body.result).toMatchObject({
+      status: { branch: "main" },
+      branches: { current: "main" },
+      ghAvailable: true,
+    });
+    expect((result.body.result as { worktrees: unknown }).worktrees).toEqual([]);
+  });
+
   it("returns {} for a configured void procedure and requires follow-up evidence", async () => {
     harness = await startLab();
     const { accessToken } = await pairAndAuth(harness, ["session:read", "session:operate"]);
