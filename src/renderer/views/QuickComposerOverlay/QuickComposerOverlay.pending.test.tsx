@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "@heroui/react";
 import type { AgentStatus, Project } from "@/shared/contracts";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 
-const { bridge } = vi.hoisted(() => ({
+const { bridge, fixtureModel } = vi.hoisted(() => ({
   bridge: {
     platform: "win32",
     windowKind: "quickComposer",
@@ -28,6 +29,8 @@ const { bridge } = vi.hoisted(() => ({
     dbGetThreads: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
     dbGetState: vi.fn<() => Promise<null>>().mockResolvedValue(null),
   },
+  // Mutable so individual tests can submit with an empty draft model.
+  fixtureModel: { value: "fixture-model" },
 }));
 
 vi.mock("@/renderer/bridge", () => ({
@@ -50,6 +53,11 @@ vi.mock("@/renderer/components/thread/ThreadComposer", () => ({
       <output data-testid="submit-pending">{String(props.submitPending)}</output>
       <button type="button" disabled={props.submitDisabled} onClick={props.onSubmit}>
         Submit fixture
+      </button>
+      {/* Mirrors ThreadComposer's Enter path, which invokes onSubmit
+          regardless of submitDisabled. */}
+      <button type="button" onClick={props.onSubmit}>
+        Keyboard submit
       </button>
     </div>
   ),
@@ -82,7 +90,7 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", async () => {
           project={props.project}
           selectedAgent={props.agentStatuses[0]!}
           controls={[]}
-          config={{ model: "fixture-model" }}
+          config={{ model: fixtureModel.value }}
           compact={false}
           paneCount={1}
           gitBranch={undefined}
@@ -133,6 +141,7 @@ const status: AgentStatus = {
 describe("quick composer pending intent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    fixtureModel.value = "fixture-model";
     bridge.getAgentStatuses.mockResolvedValue({ windows: [status], wsl: [], fromCache: true });
     useAgentStatusesStore.getState().hydrateFromCache({ windows: [status], wsl: [] });
     useAppStore.setState({
@@ -153,6 +162,7 @@ describe("quick composer pending intent", () => {
     async (outcome, externalReplacement) => {
       let resolve!: () => void;
       let reject!: (error: Error) => void;
+      const toastDanger = vi.spyOn(toast, "danger");
       bridge.submitQuickComposer.mockReturnValueOnce(
         new Promise<void>((yes, no) => {
           resolve = yes;
@@ -232,6 +242,51 @@ describe("quick composer pending intent", () => {
       await new Promise((done) => setTimeout(done, 250));
       expect(current.textContent).toBe("A newer editable intent");
       expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
+      // The refusal surfaces exactly once (in the overlay); the shared
+      // composer catch must not add a duplicate toast.
+      expect(toastDanger.mock.calls).toEqual(
+        outcome === "failure" ? [["Fixture native handoff refused"]] : [],
+      );
+      toastDanger.mockRestore();
     },
   );
+
+  it("keeps a chosen model launchable", async () => {
+    const { container } = render(<QuickComposerOverlay />);
+    const editor = container.querySelector<HTMLElement>('[contenteditable="true"]')!;
+    expect(editor).not.toBeNull();
+    act(() => {
+      editor.textContent = "Valid model draft";
+      fireEvent.input(editor);
+    });
+    const submit = screen.getByRole("button", { name: "Submit fixture" });
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.click(submit);
+    await waitFor(() => expect(bridge.submitQuickComposer).toHaveBeenCalledOnce());
+  });
+
+  it("refuses an empty-model submission without launching or clearing the draft", async () => {
+    fixtureModel.value = "";
+    const { container } = render(<QuickComposerOverlay />);
+    const editor = container.querySelector<HTMLElement>('[contenteditable="true"]')!;
+    expect(editor).not.toBeNull();
+    act(() => {
+      editor.textContent = "Guarded draft";
+      fireEvent.input(editor);
+    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Submit fixture" })).toBeDisabled(),
+    );
+    // Click and keyboard paths funnel into the same submit handler; neither
+    // may launch, dismiss, or clear the typed draft.
+    fireEvent.click(screen.getByRole("button", { name: "Submit fixture" }));
+    fireEvent.click(screen.getByRole("button", { name: "Keyboard submit" }));
+    expect(bridge.submitQuickComposer).not.toHaveBeenCalled();
+    expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
+    const saved = useAppStore.getState().draftContents[project.id]?.segments ?? [];
+    expect(
+      saved.some((segment) => segment.kind === "text" && segment.content === "Guarded draft"),
+    ).toBe(true);
+    expect(container.querySelector('[contenteditable="true"]')).toBe(editor);
+  });
 });

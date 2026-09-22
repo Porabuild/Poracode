@@ -24,6 +24,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useProjectTreeStore } from "@/renderer/state/projectTreeStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import {
   buildFileEditorContext,
   openFileInEditor,
@@ -33,6 +34,7 @@ import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
+import { ThreadHistoryNoticeBanner } from "./parts/HistoryNoticeBanner";
 import {
   ChatConnectingFooter,
   ChatTurnElapsedFooter,
@@ -239,6 +241,7 @@ export function ChatPane(props: ChatPaneProps) {
             },
             remoteImageRefUrl: (ref) =>
               useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref),
+            remoteImageReadiness: environmentImageReadinessFor(thread.remoteServerId!),
           }
         : {}),
     };
@@ -456,6 +459,7 @@ export function ChatPane(props: ChatPaneProps) {
               <Trans>Server offline — this conversation may be out of date.</Trans>
             </div>
           ) : null}
+          <ThreadHistoryNoticeBanner threadId={threadId} />
           <MessageList
             key={threadId}
             threadId={threadId}

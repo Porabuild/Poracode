@@ -64,6 +64,7 @@ import {
   RemoteAccessSidebarTooltip,
 } from "./parts/RemoteAccessSidebarIcon";
 import { DeferredSettingsOverlay } from "@/renderer/deferredFeatures";
+import { ManagedRootCatalogStatusNotice } from "@/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice";
 import { MobileHomeActions } from "./parts/MobileHomeActions";
 
 function prewarmSettings(): void {
@@ -387,15 +388,19 @@ export function Sidebar() {
             className={`${sidebarBodyScrollClass()} flex items-center justify-center`}
             style={scrollFadeStyle}
           >
-            <p className="text-center text-sm text-muted">
-              {hiddenProjectCount > 0 ? (
-                // Distinguish "you own no projects" from "this workspace is
-                // empty but others aren't" — otherwise the sidebar looks broken.
-                <Trans>No projects in this workspace</Trans>
-              ) : (
-                <Trans>Add a project to start</Trans>
-              )}
-            </p>
+            <ManagedRootCatalogStatusNotice
+              fallback={
+                <p className="text-center text-sm text-muted">
+                  {hiddenProjectCount > 0 ? (
+                    // Distinguish "you own no projects" from "this workspace is
+                    // empty but others aren't" — otherwise the sidebar looks broken.
+                    <Trans>No projects in this workspace</Trans>
+                  ) : (
+                    <Trans>Add a project to start</Trans>
+                  )}
+                </p>
+              }
+            />
           </div>
         ) : effectiveListLayout === "flat" ? (
           // The flat list pins its filter/new-thread head above the thread

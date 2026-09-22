@@ -10,7 +10,7 @@ import type {
   ProjectWorktreeLocation,
 } from "@/shared/contracts";
 import { deriveLocationFromPath } from "@/shared/createProject";
-import { friendlyError } from "@/shared/messages";
+import { friendlyError, msg as resolveMessage } from "@/shared/messages";
 import type { RemoteProjectCommand } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -22,8 +22,13 @@ import { refreshGitProject } from "@/renderer/state/gitRefresh";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
+import {
+  isApplyingHostOriginatedManagedRootMutation,
+  managedRootOwner,
+  sendManagedRootProjectCommand,
+} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import { discardExperiment } from "./experimentActions";
 
 // The home dir doesn't change at runtime, so cache the single IPC roundtrip
 // and reuse it across callers (MainView mount effect + WelcomeOverlay
@@ -34,21 +39,41 @@ type RemoteProjectPatch = Extract<RemoteProjectCommand, { kind: "update" }>["pat
 
 const remoteGhAccountMutationQueues = new Map<string, Promise<boolean>>();
 
+/**
+ * Routes one project content intent to the owner: a projected remote project
+ * through the paired client, a root project through the managed loopback
+ * client as an explicit host command. A host-forwarded mirror command never
+ * echoes (it belongs to the local path).
+ */
 function dispatchRemoteProjectMutation(
   project: Project,
   patch: RemoteProjectPatch,
   apply: () => void,
 ): boolean {
   const owner = remoteOwner(project);
-  if (!owner) return false;
-  void useRemoteServersStore
-    .getState()
-    .runProjectCommand(owner.desktopId, {
-      kind: "update",
-      projectId: owner.remoteId,
-      patch,
+  if (owner) {
+    void useRemoteServersStore
+      .getState()
+      .runProjectCommand(owner.desktopId, {
+        kind: "update",
+        projectId: owner.remoteId,
+        patch,
+      })
+      .then(apply)
+      .catch((error) => toast.danger(friendlyError(error)));
+    return true;
+  }
+  const rootOwner = managedRootOwner(project);
+  if (!rootOwner || isApplyingHostOriginatedManagedRootMutation()) return false;
+  void sendManagedRootProjectCommand({
+    kind: "update",
+    projectId: rootOwner.threadId,
+    patch,
+  })
+    .then(() => {
+      apply();
+      refreshManagedRootCatalogSoon();
     })
-    .then(apply)
     .catch((error) => toast.danger(friendlyError(error)));
   return true;
 }
@@ -57,6 +82,20 @@ export function renameProject(projectId: string, name: string): void {
   const store = useAppStore.getState();
   const project = store.projects.find((candidate) => candidate.id === projectId);
   if (!project) return;
+  const rootOwner = managedRootOwner(project);
+  if (rootOwner && !isApplyingHostOriginatedManagedRootMutation()) {
+    void sendManagedRootProjectCommand({
+      kind: "update",
+      projectId: rootOwner.threadId,
+      patch: { name },
+    })
+      .then(() => {
+        useAppStore.getState().renameProject(projectId, name);
+        refreshManagedRootCatalogSoon();
+      })
+      .catch((error) => toast.danger(friendlyError(error)));
+    return;
+  }
   store.renameProject(projectId, name);
   const owner = remoteOwner(project);
   if (owner) {
@@ -109,20 +148,50 @@ export function updateProjectWorktreeLocation(
   apply();
 }
 
-export function updateProjectMcpServers(projectId: string, mcpServers: McpServer[]): void {
-  const store = useAppStore.getState();
-  const project = store.projects.find((candidate) => candidate.id === projectId);
-  if (!project) return;
+/**
+ * Persist one project's MCP server list, resolving only after its owner has
+ * confirmed the save: a remote-project save awaits the host command (the local
+ * row is patched only on acceptance), a root-project save awaits the managed
+ * loopback command, a local project applies immediately. Rejects with the
+ * transport's error, so a caller that sequences another write after this one —
+ * moving a server between destinations must not delete the source copy until
+ * the destination save is confirmed — can refuse to continue when the save did
+ * not land. Owner resolution and the host-originated fence are read
+ * synchronously before the first await, exactly like
+ * `dispatchRemoteProjectMutation`.
+ */
+export async function saveProjectMcpServers(
+  projectId: string,
+  mcpServers: McpServer[],
+): Promise<void> {
+  const project = useAppStore.getState().projects.find((candidate) => candidate.id === projectId);
+  if (!project) throw new Error(resolveMessage("remote.project.notFound"));
   const apply = () => useAppStore.getState().updateProjectMcpServers(projectId, mcpServers);
-  if (
-    dispatchRemoteProjectMutation(
-      project,
-      { mcpServers: mcpServers.length > 0 ? mcpServers : null },
-      apply,
-    )
-  )
+  const patch: RemoteProjectPatch = { mcpServers: mcpServers.length > 0 ? mcpServers : null };
+  const owner = remoteOwner(project);
+  if (owner) {
+    await useRemoteServersStore.getState().runProjectCommand(owner.desktopId, {
+      kind: "update",
+      projectId: owner.remoteId,
+      patch,
+    });
+    apply();
     return;
+  }
+  const rootOwner = managedRootOwner(project);
+  if (!rootOwner || isApplyingHostOriginatedManagedRootMutation()) {
+    apply();
+    return;
+  }
+  await sendManagedRootProjectCommand({ kind: "update", projectId: rootOwner.threadId, patch });
   apply();
+  refreshManagedRootCatalogSoon();
+}
+
+export function updateProjectMcpServers(projectId: string, mcpServers: McpServer[]): void {
+  void saveProjectMcpServers(projectId, mcpServers).catch((error) =>
+    toast.danger(friendlyError(error)),
+  );
 }
 
 export function updateProjectGhAccount(
@@ -314,17 +383,48 @@ async function deleteProjectAsync(projectId: string): Promise<void> {
       .catch((error) => toast.danger(friendlyError(error)));
     return;
   }
-  const experimentIds = Object.values(useExperimentStore.getState().experiments)
-    .filter((experiment) => experiment.projectId === projectId)
-    .map((experiment) => experiment.id);
-  for (const experimentId of experimentIds) {
-    if (!(await discardExperiment(experimentId))) return;
+  const rootOwner = managedRootOwner(remoteProject ?? { id: projectId });
+  if (rootOwner && !isApplyingHostOriginatedManagedRootMutation()) {
+    // The host cascades its threads and broadcasts membership; the catalog
+    // deletion gate removes the rows. Local renderer surfaces close after the
+    // host confirmed the delete.
+    const cleanup = () => {
+      const store = useAppStore.getState();
+      for (const threadId of store.threads
+        .filter((thread) => thread.projectId === projectId)
+        .map((thread) => thread.id)) {
+        void readBridge()
+          .closeThread({ threadId })
+          .catch(() => undefined);
+      }
+      const termStore = useDevTerminalStore.getState();
+      for (const tabId of termStore.removeTabsForProject(projectId)) {
+        void readBridge()
+          .closeThread({ threadId: tabId })
+          .catch(() => undefined);
+      }
+      if (termStore.isOpen && termStore.activeProjectId === projectId) {
+        termStore.closePanel();
+      }
+      useGitStore.getState().clearStatus(projectId);
+      refreshManagedRootCatalogSoon();
+    };
+    try {
+      await sendManagedRootProjectCommand({ kind: "remove", projectId: rootOwner.threadId });
+      cleanup();
+    } catch (error) {
+      toast.danger(friendlyError(error));
+    }
+    return;
   }
-
   const store = useAppStore.getState();
   const projectThreadIds = store.threads.filter((t) => t.projectId === projectId).map((t) => t.id);
 
   store.deleteProject(projectId);
+  // Local project removal (no experiment authority on this runtime): reconcile
+  // the in-memory projection only. The host-owned path above already cascades
+  // experiment records host-side.
+  useExperimentStore.getState().removeProjectExperiments(projectId);
 
   for (const threadId of projectThreadIds) {
     void readBridge()

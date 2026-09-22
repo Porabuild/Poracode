@@ -10,6 +10,7 @@ import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { isRemoteProjectStatusUnreachable } from "@/renderer/state/remoteServers/reachability";
 import { shouldPollProject } from "@/renderer/state/wslBackgroundActivity";
@@ -56,11 +57,11 @@ export function useGitRefresh(storeHydrated: boolean) {
       .filter(
         (server) =>
           !isRemoteProjectStatusUnreachable(
-            { remoteServerId: server.desktopId },
-            state.runtime[server.desktopId]?.status,
+            { remoteServerId: remoteConnectionKey(server) },
+            state.runtime[remoteConnectionKey(server)]?.status,
           ),
       )
-      .map((server) => server.desktopId)
+      .map((server) => remoteConnectionKey(server))
       .sort()
       .join("\u0000"),
   );

@@ -54,7 +54,6 @@ describe("remote bridge", () => {
 
     expect(window.poracode.homeDir).toBeUndefined();
     expect(window.poracode.windowKind).toBe("main");
-    expect(window.poracode.onProjectStateChanged(() => undefined)).toBeTypeOf("function");
     expect(window.poracode.onRemoteAccessPairingChanged(() => undefined)).toBeTypeOf("function");
     expect(window.poracode.onQuickComposerSubmit(() => undefined)).toBeTypeOf("function");
     expect(window.poracode.onQuickComposerDismissRequested(() => undefined)).toBeTypeOf("function");
@@ -147,14 +146,7 @@ describe("remote bridge", () => {
     // (the selected thread's tail arrives with its snapshot) and browser app
     // state from createDbStorage — those overrides are asserted by their own
     // tests, so the generic-route sweep skips them.
-    const locallyServiced = new Set([
-      "dbGetThreadRuntimeItems",
-      "dbGetLatestThreadGoalItem",
-      "dbGetThreadCompletedTurns",
-      "dbGetThreadContextUsage",
-      "dbGetThreadsPage",
-      "readTerminalScrollback",
-    ]);
+    const locallyServiced = new Set(["dbGetThreadsPage", "readTerminalScrollback"]);
     const forwarded = Object.keys(REMOTE_PROCEDURE_SPECS).filter(
       (procedure) => !locallyServiced.has(procedure),
     );
@@ -164,6 +156,36 @@ describe("remote bridge", () => {
     expect(callRemoteProcedure.mock.calls).toEqual(
       forwarded.map((procedure) => [procedure, { procedure }]),
     );
+  });
+
+  it("refuses the unbounded transcript read instead of serving empty data as success (R1)", async () => {
+    setRemoteBridgeClient({} as unknown as RemoteDesktopClient, "linux");
+    installRemoteBridge();
+    await expect(window.poracode.dbGetThreadRuntimeItems("t1")).rejects.toThrow(
+      /not available in a remote session/u,
+    );
+  });
+
+  it("forwards the bounded thread-history reads through the adapter client (R1)", async () => {
+    const latestThreadGoalItem = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
+    const threadCompletedTurns = vi.fn<(threadId: string) => Promise<unknown>>(async () => []);
+    const threadContextUsage = vi.fn<(threadId: string) => Promise<unknown>>(async () => null);
+    setRemoteBridgeClient(
+      {
+        latestThreadGoalItem,
+        threadCompletedTurns,
+        threadContextUsage,
+      } as unknown as RemoteDesktopClient,
+      "linux",
+    );
+    installRemoteBridge();
+
+    await expect(window.poracode.dbGetLatestThreadGoalItem({ threadId: "t1" })).resolves.toBeNull();
+    await expect(window.poracode.dbGetThreadCompletedTurns("t1")).resolves.toEqual([]);
+    await expect(window.poracode.dbGetThreadContextUsage("t1")).resolves.toBeNull();
+    expect(latestThreadGoalItem).toHaveBeenCalledWith("t1");
+    expect(threadCompletedTurns).toHaveBeenCalledWith("t1");
+    expect(threadContextUsage).toHaveBeenCalledWith("t1");
   });
 
   it("forwards PR automation to the paired desktop", async () => {

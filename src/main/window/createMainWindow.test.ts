@@ -52,7 +52,7 @@ vi.mock("electron", () => ({
   },
 }));
 
-vi.mock("../db", () => ({
+vi.mock("@/host/db", () => ({
   dbGetState,
   dbSetState,
 }));

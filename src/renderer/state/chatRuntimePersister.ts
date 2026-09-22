@@ -5,7 +5,16 @@ import { captureRendererException } from "../diagnostics/sentry";
 import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "../components/thread/ChatPane/chatPaneSelectors";
 import { readBridge } from "../bridge";
+import { hasClientCapability } from "../clientRuntime";
 import { useAppStore } from "./appStore";
+import {
+  isManagedRootHistoryThread,
+  isManagedRootThreadAbsentError,
+  loadManagedRootRuntimeItemsPage,
+  noteManagedRootHistoryFailure,
+  readManagedRootHistoryPage,
+} from "./managedRootCatalog/rootHistory";
+import { toCompletedTurnRecords } from "./remoteServers/catalog/boundedHistory";
 import {
   toRuntimeChatItem,
   type CompletedTurnRecord,
@@ -62,6 +71,23 @@ interface ThreadWindowLedger {
 }
 
 const threadWindowLedgers = new Map<string, ThreadWindowLedger>();
+
+/**
+ * Reconcile options for DB hydration paths. Against the local backend the
+ * same-build host settles orphaned Crossagent rows itself at boot and on
+ * every supervisor reset, so a running Crossagent row in that database is a
+ * live run of the currently attached supervisor — terminating it at
+ * hydration is exactly the false "Failed" the reconcile exists to prevent,
+ * so such rows are preserved outright. Non-local sources (remote hosts,
+ * which may predate the sweep) keep the terminate-and-self-heal behavior:
+ * an orphaned row there is settled by nothing, and a live one recovers on
+ * its next progress frame.
+ */
+function hydrationReconcileOptions(): { preserveObservedLive: true; preserveCrossagent?: boolean } {
+  return hasClientCapability("localBackend")
+    ? { preserveObservedLive: true, preserveCrossagent: true }
+    : { preserveObservedLive: true };
+}
 
 function estimateRuntimeItemBytes(item: RuntimeChatItem | undefined): number {
   if (!item) return 0;
@@ -291,6 +317,38 @@ export function hasHydratedThreadRuntimeItems(threadId: string): boolean {
   return hydratedThreadRuntimeIds.has(threadId);
 }
 
+/**
+ * Optional older-history continuation for threads whose transcript is not fed
+ * by the local DB (remote/pairing surfaces register one). Invoked alongside
+ * the local older-items load, so reaching the top of a remote transcript also
+ * continues any non-item older level (B4 `ct1.` completed turns).
+ */
+export type OlderThreadHistoryContinuation = (threadId: string) => Promise<boolean> | boolean;
+
+let olderThreadHistoryContinuation: OlderThreadHistoryContinuation | null = null;
+
+export function setOlderThreadHistoryContinuation(
+  continuation: OlderThreadHistoryContinuation | null,
+): void {
+  olderThreadHistoryContinuation = continuation;
+}
+
+/**
+ * Optional invalidation for a thread's non-item older-history continuation
+ * (remote/pairing surfaces register one). Called when the local timeline is
+ * reset or evicted so a continuation cursor into the replaced transcript
+ * cannot survive and append stale older history.
+ */
+export type OlderThreadHistoryInvalidation = (threadId: string) => void;
+
+let olderThreadHistoryInvalidation: OlderThreadHistoryInvalidation | null = null;
+
+export function setOlderThreadHistoryInvalidation(
+  invalidation: OlderThreadHistoryInvalidation | null,
+): void {
+  olderThreadHistoryInvalidation = invalidation;
+}
+
 export function retainThreadRuntimeItems(threadId: string): void {
   retainedThreadRuntimeCounts.set(threadId, (retainedThreadRuntimeCounts.get(threadId) ?? 0) + 1);
   inactiveThreadRuntimeLru.delete(threadId);
@@ -310,6 +368,12 @@ export function releaseThreadRuntimeItems(threadId: string): void {
 }
 
 export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boolean> {
+  // A registered continuation may extend a different older-history level
+  // (remote completed turns) even when this thread has no older item cursor.
+  const historyContinuation = olderThreadHistoryContinuation;
+  if (historyContinuation) {
+    void Promise.resolve(historyContinuation(threadId)).catch(() => false);
+  }
   const cursor = olderRuntimePageCursorByThread.get(threadId);
   if (cursor === undefined || cursor === null) return false;
   const pending = pendingOlderRuntimePages.get(threadId);
@@ -317,12 +381,23 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
 
   const request = { cancelled: false, promise: Promise.resolve(false) };
   const load = (async () => {
-    const page = await readBridge().dbGetThreadRuntimeItemsPage({
-      threadId,
-      beforePosition: cursor,
-      limit: RUNTIME_PAGE_SCAN_SIZE,
-      targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
-    });
+    const managedRootPage = isManagedRootHistoryThread(threadId);
+    const page = managedRootPage
+      ? await loadManagedRootRuntimeItemsPage({
+          threadId,
+          beforePosition: cursor,
+          limit: RUNTIME_PAGE_SCAN_SIZE,
+          targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
+        })
+      : await readBridge().dbGetThreadRuntimeItemsPage({
+          threadId,
+          beforePosition: cursor,
+          limit: RUNTIME_PAGE_SCAN_SIZE,
+          targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
+        });
+    // A root thread without a live bounded tail has no bounded source: this is
+    // a truthful stop, never a fallback to the local-DB page read.
+    if (page === undefined) return false;
     if (request.cancelled || !hydratedThreadRuntimeIds.has(threadId)) {
       return false;
     }
@@ -330,7 +405,7 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
     if (page.items.length === 0) return false;
     const items = compactRuntimeItemsForHydration(page.items.map(toRuntimeChatItem));
     useAppStore.getState().prependThreadRuntimeItems(threadId, items);
-    useAppStore.getState().reconcileStaleSubAgents(threadId, { preserveObservedLive: true });
+    useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
     // The user explicitly loaded this page: protect it from the window bound
     // (byte-capped) and re-bound the window since the tail may have grown
     // while the read was in flight.
@@ -392,6 +467,13 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
 }
 
 async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolean> {
+  // The managed desktop's own threads read their transcript through the SAME
+  // bounded HTTP contract remote threads use (items + completed turns +
+  // `ct1.` cursor + durable notice) over the ONE loopback client. The ordinary
+  // root path must never invoke the unbounded local completed-turns read.
+  if (isManagedRootHistoryThread(threadId)) {
+    return hydrateManagedRootThreadRuntimeItems(threadId);
+  }
   const bridge = readBridge();
   const [itemsResult, turnsResult, contextResult, latestGoalResult] = await Promise.allSettled([
     Promise.resolve().then(() =>
@@ -410,30 +492,7 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
     olderRuntimePageCursorByThread.set(threadId, itemsResult.value.nextCursor);
   }
   if (itemsResult.status === "fulfilled" && itemsResult.value.items.length > 0) {
-    // Persisted rows can contain raw tool runs or legacy synthetic summaries;
-    // normalize both forms during hydration.
-    const persistedItems = itemsResult.value.items.map(toRuntimeChatItem);
-    const state = useAppStore.getState();
-    const existingItemIds = state.runtimeItemIdsByThread[threadId] ?? [];
-    if (existingItemIds.length === 0) {
-      state.hydrateThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(persistedItems));
-    } else {
-      const existingItemIdSet = new Set(existingItemIds);
-      const overlapIndex = persistedItems.findIndex((item) => existingItemIdSet.has(item.id));
-      const persistedPrefix =
-        overlapIndex < 0 ? persistedItems : persistedItems.slice(0, overlapIndex);
-      state.prependThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(persistedPrefix));
-    }
-    // Any sub-agent tool_call that was mid-flight when the prior session
-    // ended will hydrate here as still "running" and show up in the active
-    // sub-agent dock forever. Reconcile in place so those rows render as
-    // terminated immediately instead of waiting for a live event that will
-    // never come. Crossagent rows observed live earlier in this app session
-    // are kept: their runs are supervisor-owned and may still be working.
-    // A run whose start this renderer never saw (mid-run attach) can be
-    // mis-terminated here; its next live progress frame re-marks it and
-    // self-heals the payload back to running.
-    useAppStore.getState().reconcileStaleSubAgents(threadId, { preserveObservedLive: true });
+    installHydratedRuntimeItems(threadId, itemsResult.value.items);
   } else if (itemsResult.status === "rejected") {
     console.warn(
       "[chat] failed to hydrate runtime items for thread %s",
@@ -497,6 +556,94 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
 }
 
 /**
+ * Persisted rows can contain raw tool runs or legacy synthetic summaries;
+ * normalize both forms during hydration. An existing transcript keeps the
+ * already-loaded prefix and prepends only the disjoint part.
+ */
+function installHydratedRuntimeItems(
+  threadId: string,
+  persistedItems: readonly PersistedRuntimeItem[],
+): void {
+  const items = persistedItems.map(toRuntimeChatItem);
+  const state = useAppStore.getState();
+  const existingItemIds = state.runtimeItemIdsByThread[threadId] ?? [];
+  if (existingItemIds.length === 0) {
+    state.hydrateThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(items));
+  } else {
+    const existingItemIdSet = new Set(existingItemIds);
+    const overlapIndex = items.findIndex((item) => existingItemIdSet.has(item.id));
+    const persistedPrefix = overlapIndex < 0 ? items : items.slice(0, overlapIndex);
+    state.prependThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(persistedPrefix));
+  }
+  // Any sub-agent tool_call that was mid-flight when the prior session ended
+  // will hydrate here as still "running" and show up in the active sub-agent
+  // dock forever. Reconcile in place so those rows render as terminated
+  // immediately instead of waiting for a live event that will never come.
+  // Crossagent rows are kept whole against the local backend (see
+  // hydrationReconcileOptions); a run whose start this renderer never saw then
+  // stays running until its authoritative settle tile, and one mis-terminated
+  // against a non-local source self-heals on its next live progress frame.
+  useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
+}
+
+/**
+ * Managed-root hydration from ONE bounded history read. The page carries the
+ * transcript tail, the newest completed turns with a `ct1.` continuation
+ * cursor, context usage and the durable notice; recording the tail is what
+ * makes older-item pages and the `ct1.` walk continue over the same bounded
+ * routes.
+ */
+async function hydrateManagedRootThreadRuntimeItems(threadId: string): Promise<boolean> {
+  let page: Awaited<ReturnType<typeof readManagedRootHistoryPage>>;
+  try {
+    // The bounded history response already carries the latest goal, including
+    // goals before the tail window. A separate DB read would duplicate work
+    // and dispatch a host-owned operation to the supervisor.
+    page = await readManagedRootHistoryPage(threadId);
+  } catch (error) {
+    if (isManagedRootThreadAbsentError(error)) {
+      // An unpersisted or authoritatively removed row has no transcript to
+      // lose. A later pass/pin fills the empty transcript when it is created.
+      olderRuntimePageCursorByThread.set(threadId, null);
+      return true;
+    }
+    console.warn(
+      "[chat] failed to hydrate the managed root transcript for thread %s",
+      threadId,
+      error,
+    );
+    captureRendererException(error, { featureArea: "runtime-persistence" });
+    noteManagedRootHistoryFailure(threadId, error);
+    return false;
+  }
+
+  if (page.runtimeItems.length > 0) {
+    installHydratedRuntimeItems(threadId, page.runtimeItems);
+  }
+  const existingItemIds = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
+  seedOlderThreadRuntimeItemsCursor(threadId, page.runtimeNextCursor ?? null, {
+    preserveExistingCursor: runtimePageOverlapsExistingTranscript(
+      page.runtimeItems,
+      existingItemIds,
+    ),
+  });
+  const records = toCompletedTurnRecords(page.completedTurns).slice(
+    -MAX_CACHED_COMPLETED_TURN_RECORDS,
+  );
+  if (page.completedTurnsNextCursor === null) {
+    // A complete tail replaces the level, so reverted turns can be dropped.
+    useAppStore.getState().replaceThreadCompletedTurns(threadId, records);
+  } else {
+    // A tail with older history merges losslessly with already-loaded pages.
+    useAppStore.getState().hydrateThreadCompletedTurns(threadId, records);
+  }
+  if (page.contextUsage) {
+    useAppStore.getState().hydrateThreadContextUsage(threadId, page.contextUsage);
+  }
+  return true;
+}
+
+/**
  * Prepends the thread's latest persisted goal item when the loaded window has
  * none. The item is older than everything in the tail window, so prepending
  * keeps insertion order; later older-page loads that contain the same item id
@@ -525,6 +672,9 @@ function evictThreadRuntimeItems(threadId: string): void {
   hydratedThreadRuntimeIds.delete(threadId);
   olderRuntimePageCursorByThread.delete(threadId);
   cancelPendingOlderRuntimePage(threadId);
+  // The transcript is gone: its non-item older-history continuation must not
+  // survive to feed a future hydration with pre-eviction cursors.
+  olderThreadHistoryInvalidation?.(threadId);
   forgetThreadWindowLedger(threadId);
   clearRuntimeItemStoreSelectorCacheForThread(threadId);
   useAppStore.getState().evictThreadRuntimeItems(threadId);
@@ -543,6 +693,8 @@ export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): P
   // An in-flight older page from before the reset must not prepend across the
   // reset boundary or write back its stale cursor after the fresh read.
   cancelPendingOlderRuntimePage(threadId);
+  // The non-item older level (bounded completed turns) follows the same reset.
+  olderThreadHistoryInvalidation?.(threadId);
   await hydrateThreadRuntimeItems(threadId);
   return useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed";
 }

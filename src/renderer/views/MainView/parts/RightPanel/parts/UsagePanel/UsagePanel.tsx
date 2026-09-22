@@ -1,3 +1,4 @@
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { startTransition, useEffect, useRef, useState } from "react";
 import { PointerActivationConstraints } from "@dnd-kit/dom";
 import { DragDropProvider, KeyboardSensor, PointerSensor, type DragEndEvent } from "@dnd-kit/react";
@@ -87,10 +88,15 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
 
   const browserRuntime = isBrowserClientRuntime();
   const browserServer = defaultBrowserServer ?? servers[0];
-  const requestedServer = servers.find((server) => server.desktopId === requestedDesktopId);
+  const requestedServer = servers.find(
+    (server) => remoteConnectionKey(server) === requestedDesktopId,
+  );
   const scopedServer = requestedServer ?? (browserRuntime ? browserServer : undefined);
-  const effectiveDesktopId =
-    requestedServer?.desktopId ?? (browserRuntime ? (browserServer?.desktopId ?? null) : null);
+  const effectiveDesktopId = requestedServer
+    ? remoteConnectionKey(requestedServer)
+    : browserRuntime && browserServer
+      ? remoteConnectionKey(browserServer)
+      : null;
 
   useEffect(
     () => () => {
@@ -107,7 +113,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   useEffect(() => {
     let cancelled = false;
     const usageRequest = scopedServer
-      ? withClient(scopedServer.desktopId, (client) => client.providerUsage())
+      ? withClient(remoteConnectionKey(scopedServer), (client) => client.providerUsage())
       : compact
         ? readBridge().refreshProviderUsage({ force: true })
         : refreshVersion > 0

@@ -3,7 +3,7 @@ import type { BrowserPanelManager } from "./BrowserPanelManager";
 import {
   StreamableHttpMcpIngress,
   type StreamableHttpMcpIngressInfo,
-} from "../mcp/StreamableHttpMcpIngress";
+} from "@/host/mcp/StreamableHttpMcpIngress";
 import {
   BROWSER_MCP_INSTRUCTIONS,
   TOOLS,

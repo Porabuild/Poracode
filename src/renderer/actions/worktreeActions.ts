@@ -13,6 +13,17 @@ import { useGitStore } from "@/renderer/state/gitStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  isApplyingHostOriginatedManagedRootMutation,
+  managedRootOwner,
+  sendManagedRootThreadCommand,
+} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import {
+  dropPendingManagedRootLaunch,
+  pinManagedRootThread,
+} from "@/renderer/state/managedRootCatalog/rootCatalogStore";
+import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
+import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useWorktreeDeleteStore } from "@/renderer/state/worktreeDeleteStore";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads, runShellScriptToCompletion } from "@/renderer/utils/shellUtils";
@@ -160,7 +171,11 @@ export function forgetRemovedWorktreeGroup(
 ): void {
   const project = useAppStore.getState().projects.find((entry) => entry.id === projectId);
   if (project) cancelQueuedWorktreeSetup(project, worktreePath);
-  for (const threadId of threadIds) useAppStore.getState().deleteThread(threadId);
+  for (const threadId of threadIds) {
+    dropPendingManagedRootLaunch(threadId);
+    clearThreadHistoryNotice(threadId);
+    useAppStore.getState().deleteThread(threadId);
+  }
   dismissWorktreeUi(worktreePath);
 }
 
@@ -178,7 +193,6 @@ export function deleteWorktreeGroup(
   const groupThreads = app.threads.filter((thread) => threadIdSet.has(thread.id));
   const sampleThread = groupThreads.find((thread) => thread.worktreeBranch);
 
-  const deleteThread = app.deleteThread;
   const owner = remoteOwner(project);
   if (owner) {
     const remoteThreadIds = groupThreads
@@ -203,8 +217,36 @@ export function deleteWorktreeGroup(
       });
     return;
   }
+  // A root worktree group is removed by the SAME host command the remote path
+  // uses: the host closes the threads, runs cleanup and removes the worktree/
+  // branch. The renderer only dismisses local surfaces from the host's
+  // confirmation — a renderer-only slice delete would leave durable rows
+  // pointing at a deleted worktree (and the next page would restore them).
+  const rootOwner = managedRootOwner(project);
+  if (rootOwner && !isApplyingHostOriginatedManagedRootMutation()) {
+    const releases = threadIds.map((threadId) => pinManagedRootThread(threadId));
+    void sendManagedRootThreadCommand({
+      kind: "delete-worktree-group",
+      threadId: threadIds[0]!,
+      projectId: project.id,
+      worktreePath,
+      threadIds,
+    })
+      .then(() => {
+        forgetRemovedWorktreeGroup(projectId, worktreePath, threadIds);
+        refreshManagedRootCatalogSoon();
+      })
+      .catch((error) => {
+        toast.danger(errorDetail(error) || i18n._(msg`Unable to remove worktree.`));
+        refreshManagedRootCatalogSoon();
+      })
+      .finally(() => {
+        for (const release of releases) release();
+      });
+    return;
+  }
   for (const threadId of threadIds) {
-    deleteThread(threadId);
+    app.deleteThread(threadId);
   }
 
   void (async () => {

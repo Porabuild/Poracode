@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { remoteImageRef } from "@/shared/remote/imageRef";
+import type { RemoteImageRefValue } from "@/shared/remote";
+import type { RemoteServerRecord, RemoteServersState } from "@/renderer/state/remoteServers/types";
 import {
   buildGalleryResolversFromState,
+  collectThreadGallery,
   collectThreadGalleryImages,
   extractMarkdownGalleryImages,
+  selectRemoteGalleryRevision,
 } from "./threadGalleryImages";
 import type { RuntimeChatItem } from "@/renderer/state/slices/runtimeEventSlice";
 
@@ -332,5 +337,72 @@ describe("threadGalleryImages", () => {
       "t1",
     );
     expect(local.projectRoot).toBe("E:\\work\\project");
+  });
+});
+
+describe("threadGalleryImages host-held readiness (C1 R3/F8)", () => {
+  const ENV_KEY = "conn-child";
+  const CHILD_DESKTOP = "child-desktop";
+
+  function hostRef(): RemoteImageRefValue {
+    return {
+      threadId: "t",
+      itemId: "i",
+      path: ["images", 0],
+      mime: "image/png",
+      bytes: 1,
+      width: 4,
+      height: 4,
+    };
+  }
+
+  function refBlock(): unknown {
+    return { kind: "image", dataUrl: remoteImageRef(hostRef()), name: "host.png" };
+  }
+
+  const environment: RemoteServerRecord = {
+    connectionId: ENV_KEY,
+    desktopId: CHILD_DESKTOP,
+    label: "Child",
+    endpoint: "http://127.0.0.1:49153/api/environments/x/proxy/",
+    accessToken: "child-access",
+    scopes: ["session:read"],
+    transport: {
+      kind: "environment",
+      parentConnectionId: "conn-parent",
+      environmentId: "e1",
+      childDesktopId: CHILD_DESKTOP,
+    },
+  } as RemoteServerRecord;
+
+  it("reports a pending host-held ref separately instead of dropping or painting it", () => {
+    const collection = collectThreadGallery([assistantItem("a1", [refBlock()])], {
+      remoteImageRefUrl: () => "",
+    });
+    expect(collection.images).toHaveLength(0);
+    expect(collection.pendingRemoteRefs).toHaveLength(1);
+    expect(collection.pendingRemoteRefs[0]?.itemId).toBe("i");
+  });
+
+  it("includes the host-held ref once its resolver is ready", () => {
+    const collection = collectThreadGallery([assistantItem("a1", [refBlock()])], {
+      remoteImageRefUrl: () => "blob:ready",
+    });
+    expect(collection.images).toHaveLength(1);
+    expect(collection.images[0]?.src).toBe("blob:ready");
+    expect(collection.pendingRemoteRefs).toHaveLength(0);
+  });
+
+  it("keys the gallery revision by the environment connection key", () => {
+    const state = {
+      servers: [environment],
+      runtime: { [ENV_KEY]: { status: "online" as const } },
+    } as unknown as RemoteServersState;
+    const revision = selectRemoteGalleryRevision(state, ENV_KEY);
+    expect(revision).toContain(environment.endpoint);
+    expect(revision).toContain("child-access");
+    expect(revision).toContain("online");
+    // The child host identity alone must no longer match the record.
+    expect(selectRemoteGalleryRevision(state, CHILD_DESKTOP)).not.toContain(environment.endpoint);
   });
 });

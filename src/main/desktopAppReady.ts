@@ -39,7 +39,10 @@ import {
   createDesktopBackendHost,
   type DesktopBrowserNativeControl,
 } from "./desktopAppBackendHost";
-import { createDesktopHostServices } from "./desktopAppHostServices";
+import {
+  createDesktopHostServices,
+  resolvePreassembledSshRuntimeArchiveDir,
+} from "./desktopAppHostServices";
 import { QuickComposerLifecycle } from "./window/quickComposerLifecycle";
 import { registerDesktopIpc } from "./desktopAppIpc";
 import {
@@ -90,6 +93,7 @@ export async function startDesktopApp(): Promise<void> {
   if (!ownerFencePath) {
     throw new Error("The desktop host owner lease is required before the backend forks.");
   }
+  const preassembledArchiveDir = resolvePreassembledSshRuntimeArchiveDir();
   const backend = createDesktopBackendHost({
     backendHostPath: dirs.backendHostPath,
     initialize: buildDesktopBackendInitialize({
@@ -99,8 +103,16 @@ export async function startDesktopApp(): Promise<void> {
       settingsPath: shell.paths.settingsPath,
       devServerUrl: process.env.VITE_DEV_SERVER_URL,
       dataFencePath: ownerFencePath,
+      environmentAssets: {
+        agentPluginsDir: dirs.agentPluginsDir,
+        ...(preassembledArchiveDir ? { preassembledArchiveDir } : {}),
+      },
       hostCapabilities: hostServiceCapabilities({
-        ssh: true,
+        // ADR-ENV-5: the host-service `ssh` flag means "this host serves
+        // server-owned SSH environment routes". Device-local SSH is a device
+        // capability owned by the utility process. The backend replaces this
+        // false value only after composing its own environment authority.
+        ssh: false,
         browserPanel: true,
         chromeBridge: true,
         computerUse: process.platform === "win32" || process.platform === "darwin",
@@ -152,8 +164,7 @@ export async function startDesktopApp(): Promise<void> {
     backendHost,
   });
   browserControl = hostShell.browser;
-  const sshConnectionManager = hostShell.services.sshConnectionManager;
-  if (!sshConnectionManager) throw new Error("The desktop host always ships SSH environments.");
+  const ssh = hostShell.ssh;
 
   desktopApp.quickComposerShortcutManager = new QuickComposerShortcutManager(
     globalShortcut,
@@ -193,14 +204,13 @@ export async function startDesktopApp(): Promise<void> {
 
   registerDesktopIpc({
     backendHost,
-    rendererEventInterests: backend.rendererEventInterests,
-    sshConnectionManager,
+    ssh,
     autoUpdater: autoUpdaterController,
     quickComposerShortcutManager: desktopApp.quickComposerShortcutManager,
     quickComposerLifecycle: desktopApp.quickComposerLifecycle,
   });
 
-  const initialMainWindow = ensureMainWindow(shell.showMainWindowOnReady);
+  ensureMainWindow(shell.showMainWindowOnReady);
 
   await createDesktopTray(backend.trayFeed);
 
@@ -226,10 +236,9 @@ export async function startDesktopApp(): Promise<void> {
   registerDesktopAppLifecycle({
     backendHost,
     shellState: backend.shellState,
-    sshConnectionManager,
+    ssh,
     disposeBrowserGateway: hostShell.disposeBrowserGateway,
     autoUpdater: autoUpdaterController,
-    initialMainWindow,
     supervisorPath: dirs.supervisorPath,
   });
 }

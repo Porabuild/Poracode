@@ -10,7 +10,13 @@ import {
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { getRemoteServerEventSocketEntry } from "./eventSocketRegistry";
-import type { RemoteServerRecord, RemoteServersState, RemoteSocketLike } from "./types";
+import { environmentSessionForServer } from "./environmentSessions";
+import {
+  remoteConnectionKey,
+  type RemoteServerRecord,
+  type RemoteServersState,
+  type RemoteSocketLike,
+} from "./types";
 
 let desktopBrowserBridgeServerId: string | null = null;
 let desktopBrowserBridgeClientKey: string | null = null;
@@ -24,7 +30,7 @@ export function selectBrowserBridgeServer(
   state: RemoteServersState,
 ): RemoteServerRecord | undefined {
   const onlineServers = state.servers.filter(
-    (server) => state.runtime[server.desktopId]?.status === "online",
+    (server) => state.runtime[remoteConnectionKey(server)]?.status === "online",
   );
   const sameOriginServer = onlineServers.find((server) => {
     try {
@@ -34,7 +40,7 @@ export function selectBrowserBridgeServer(
     }
   });
   const currentServer = onlineServers.find(
-    (server) => server.desktopId === desktopBrowserBridgeServerId,
+    (server) => remoteConnectionKey(server) === desktopBrowserBridgeServerId,
   );
   return currentServer ?? sameOriginServer ?? onlineServers[0];
 }
@@ -51,7 +57,7 @@ function selectBrowserBridgeClientServer(
 ): RemoteServerRecord | undefined {
   return (
     selectBrowserBridgeServer(state) ??
-    state.servers.find((server) => server.desktopId === desktopBrowserBridgeServerId)
+    state.servers.find((server) => remoteConnectionKey(server) === desktopBrowserBridgeServerId)
   );
 }
 
@@ -77,14 +83,17 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
   const server = selectBrowserBridgeClientServer(state);
   applyNegotiatedHostCapabilities(server?.hostCapabilities ?? UNKNOWN_HOST_CAPABILITIES);
   const socket = server
-    ? (getRemoteServerEventSocketEntry(server.desktopId)?.socket ?? null)
+    ? (getRemoteServerEventSocketEntry(remoteConnectionKey(server))?.socket ?? null)
     : null;
   if (desktopBrowserMirrorSocket !== socket) {
     desktopBrowserMirrorSocket = socket;
     setBrowserSocketSender(
       socket?.send
         ? (message) => {
-            if (getRemoteServerEventSocketEntry(server?.desktopId ?? "")?.socket !== socket) {
+            if (
+              getRemoteServerEventSocketEntry(server ? remoteConnectionKey(server) : "")?.socket !==
+              socket
+            ) {
               return false;
             }
             try {
@@ -106,16 +115,25 @@ export function syncDesktopBrowserBridgeClient(state: RemoteServersState): void 
     useAgentStatusesStore.getState().setWslAgentStatuses([]);
     return;
   }
-  const agentStatuses = state.runtime[server.desktopId]?.agentStatuses;
+  const connectionKey = remoteConnectionKey(server);
+  const agentStatuses = state.runtime[connectionKey]?.agentStatuses;
   if (agentStatuses) {
     useAgentStatusesStore.getState().setAgentStatuses(agentStatuses.windows);
     useAgentStatusesStore.getState().setWslAgentStatuses(agentStatuses.wsl);
   }
-  const clientKey = `${server.desktopId}\0${server.endpoint}\0${server.accessToken}\0${server.platform ?? ""}`;
+  const clientKey = `${connectionKey}\0${server.endpoint}\0${server.accessToken}\0${server.platform ?? ""}`;
   if (desktopBrowserBridgeClientKey === clientKey) return;
-  desktopBrowserBridgeServerId = server.desktopId;
+  desktopBrowserBridgeServerId = connectionKey;
   desktopBrowserBridgeClientKey = clientKey;
-  const client = state.clientFactory(server.endpoint, server.accessToken);
+  const environmentSession =
+    server.transport?.kind === "environment" ? environmentSessionForServer(server) : undefined;
+  if (server.transport?.kind === "environment" && !environmentSession) {
+    setRemoteBridgeClient(null);
+    resetDesktopSettings();
+    return;
+  }
+  const client =
+    environmentSession?.client ?? state.clientFactory(server.endpoint, server.accessToken);
   setRemoteBridgeClient(client, server.platform ?? null);
   resetDesktopSettings();
   void client

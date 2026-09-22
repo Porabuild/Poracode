@@ -1,4 +1,33 @@
 import { PerfRingBuffer } from "./perfRingBuffer";
+import {
+  adaptEventTimingEntry,
+  adaptLongTaskEntry,
+  type EventTimingEntryLike,
+  type LongTaskEntryLike,
+  type RendererPerfEventTimingRecord,
+  type RendererPerfLongTaskRecord,
+} from "./performanceEntryAdapters";
+import {
+  installPerformanceObservers,
+  resolveEventTimingDurationThresholdMs,
+  type EventTimingDurationThreshold,
+  type RendererPerfEventTimingObserverState,
+  type RendererPerfLongTaskObserverState,
+} from "./performanceObserverInstall";
+
+export type {
+  EventTimingEntryLike,
+  LongTaskEntryLike,
+  RendererPerfEventTimingRecord,
+  RendererPerfLongTaskRecord,
+} from "./performanceEntryAdapters";
+export type {
+  EventTimingDurationThreshold,
+  PerformanceObserverSink,
+  RendererPerfEventTimingObserverState,
+  RendererPerfLongTaskObserverState,
+  RendererPerfObserverStatus,
+} from "./performanceObserverInstall";
 
 /**
  * Renderer-side performance diagnostics for the Gate 4 measurement sessions
@@ -13,12 +42,26 @@ import { PerfRingBuffer } from "./perfRingBuffer";
  *   CDP evaluation reads {@link RendererPerfDiagnostics.snapshot} after the
  *   measured window closes.
  *
- * Time convention matches the node-side perf NDJSON contract
- * (tmp/v4-stream-runtime-harness/lib/perfAnalyze.mjs header): record
- * timestamps are `performance.now()` monotonic values and the snapshot
- * carries `performance.timeOrigin` so the harness derives
- * `epochMs = timeOriginEpochMs + monotonicMs`. `startedMonotonicMs`-style
- * offsets are deliberately not used anywhere.
+ * Measurement format boundary (audited for A0): the snapshot is read live
+ * over CDP from `window.__poracodePerfDiagnostics`. No product state is
+ * persisted from it, but the CDP qualification harness reads the live
+ * snapshot and may save it as run evidence, so readers must treat unknown
+ * fields as optional. `formatVersion` stays 2: the A0 observer-state and
+ * event-duration fields are additions within that format.
+ *
+ * Sampling semantics (must travel with every report):
+ * - Event Timing samples are event-level and censored. The platform delivers
+ *   an entry only when its `duration` meets the effective `durationThreshold`,
+ *   so delivered samples never cover all interactions and
+ *   `sampleCount === 0` means "nothing delivered", not zero latency.
+ * - Samples retain `name` and `interactionId` where the platform provides
+ *   them. Interaction-level maxima (INP-style) require grouping by
+ *   `interactionId`; a percentile over delivered events is not a percentile
+ *   over interactions.
+ * - Record timestamps are `performance.now()` monotonic values and the
+ *   snapshot carries `performance.timeOrigin` so a consumer derives
+ *   `epochMs = timeOriginEpochMs + monotonicMs`. `startedMonotonicMs`-style
+ *   offsets are not used anywhere.
  */
 
 /** Query parameter that opts a renderer into the diagnostics (`?poracodePerfDiag=1`). */
@@ -26,6 +69,8 @@ export const RENDERER_PERF_DIAG_QUERY_KEY = "poracodePerfDiag";
 /** localStorage flag that keeps the diagnostics enabled across reloads (`poracode-perf-diag=1`). */
 export const RENDERER_PERF_DIAG_STORAGE_KEY = "poracode-perf-diag";
 
+/** Snapshot shape version; bump for any field or semantics change. */
+export const RENDERER_PERF_DIAG_FORMAT_VERSION = 2;
 /** 120 Hz frame opportunity budget (S4 gate reference). */
 export const RENDERER_FRAME_BUDGET_MS = 1000 / 120;
 const DEFAULT_SPAN_CAPACITY = 512;
@@ -43,17 +88,6 @@ export interface RendererPerfSpanRecord {
   readonly detail?: Readonly<Record<string, number | string | boolean>>;
 }
 
-export interface RendererPerfEventTimingRecord {
-  readonly startMs: number;
-  readonly inputDelayMs: number;
-  readonly processingMs: number;
-}
-
-export interface RendererPerfLongTaskRecord {
-  readonly startMs: number;
-  readonly durationMs: number;
-}
-
 export interface RendererPerfSlowFrameRecord {
   readonly atMs: number;
   readonly deltaMs: number;
@@ -64,18 +98,33 @@ export interface RendererPerfPhaseAggregate {
   onTimeFrames: number;
   maxFrameDeltaMs: number | null;
   spans: Record<string, { count: number; totalMs: number; maxMs: number }>;
-  eventTimings: { count: number; maxInputDelayMs: number | null };
+  eventTimings: {
+    count: number;
+    maxInputDelayMs: number | null;
+    maxProcessingMs: number | null;
+    /**
+     * Max delivered entry `duration`: event-level and threshold-censored, not
+     * an interaction percentile. The name is retained for recorded-evidence
+     * compatibility; group `recentEventTimings` by `interactionId` for
+     * interaction-level figures.
+     */
+    maxInteractionDurationMs: number | null;
+  };
   longTasks: { count: number; maxDurationMs: number | null };
 }
 
 export interface RendererPerfSnapshot {
-  readonly formatVersion: 1;
+  readonly formatVersion: typeof RENDERER_PERF_DIAG_FORMAT_VERSION;
   readonly phase: string;
   readonly frameBudgetMs: number;
   readonly timeOriginEpochMs: number | null;
   readonly startedMonotonicMs: number;
   readonly capturedAtMonotonicMs: number;
   readonly phases: Record<string, RendererPerfPhaseAggregate>;
+  readonly observers: {
+    readonly eventTiming: RendererPerfEventTimingObserverState;
+    readonly longTask: RendererPerfLongTaskObserverState;
+  };
   readonly recentSpans: RendererPerfSpanRecord[];
   readonly droppedSpans: number;
   readonly recentEventTimings: RendererPerfEventTimingRecord[];
@@ -96,6 +145,14 @@ export interface RendererPerfDiagnosticsOptions {
   readonly eventTimingCapacity?: number;
   readonly longTaskCapacity?: number;
   readonly slowFrameCapacity?: number;
+  /**
+   * Event Timing `durationThreshold` request. Non-finite values fall back to
+   * the 16 ms floor; the effective value is rounded up to an 8 ms multiple by
+   * this module's own conservative normalization (the spec quantizes entry
+   * durations, not the requested threshold), and the snapshot publishes both
+   * the requested and effective values.
+   */
+  readonly eventTimingDurationThresholdMs?: number;
   /** Monotonic clock; defaults to `performance.now()` when available. */
   readonly now?: () => number;
   /** Animation-frame scheduler; the callback receives the frame timestamp. */
@@ -109,8 +166,15 @@ interface PhaseFrameState {
   maxFrameDeltaMs: number | null;
 }
 
+type Mutable<T> = { -readonly [Key in keyof T]: T[Key] };
+
+function maxOrNull(current: number | null, value: number): number {
+  return current === null ? value : Math.max(current, value);
+}
+
 export class RendererPerfDiagnostics {
   private readonly frameBudgetMs: number;
+  readonly eventTimingDurationThresholds: EventTimingDurationThreshold;
   private readonly nowFn: () => number;
   private readonly scheduleFrameFn: ((callback: (now: number) => void) => number) | undefined;
   private readonly cancelFrameFn: ((handle: number) => void) | undefined;
@@ -120,6 +184,18 @@ export class RendererPerfDiagnostics {
   private readonly slowFrameRing: PerfRingBuffer<RendererPerfSlowFrameRecord>;
   private readonly phases = new Map<string, RendererPerfPhaseAggregate>();
   private readonly frameState = new Map<string, PhaseFrameState>();
+  private readonly eventTimingObserver: Mutable<RendererPerfEventTimingObserverState> = {
+    status: "not-installed",
+    requestedDurationThresholdMs: null,
+    durationThresholdMs: null,
+    sampleCount: 0,
+    skippedEntryCount: 0,
+  };
+  private readonly longTaskObserver: Mutable<RendererPerfLongTaskObserverState> = {
+    status: "not-installed",
+    sampleCount: 0,
+    skippedEntryCount: 0,
+  };
   private phase = DEFAULT_PHASE;
   private readonly startedAtMs: number;
   private lastFrameAtMs: number | null = null;
@@ -128,6 +204,9 @@ export class RendererPerfDiagnostics {
 
   constructor(options: RendererPerfDiagnosticsOptions = {}) {
     this.frameBudgetMs = options.frameBudgetMs ?? RENDERER_FRAME_BUDGET_MS;
+    this.eventTimingDurationThresholds = resolveEventTimingDurationThresholdMs(
+      options.eventTimingDurationThresholdMs,
+    );
     this.nowFn = options.now ?? defaultMonotonicNow;
     this.scheduleFrameFn = options.scheduleFrame;
     this.cancelFrameFn = options.cancelFrame;
@@ -147,8 +226,8 @@ export class RendererPerfDiagnostics {
   /**
    * Names the phase subsequent observations belong to (the harness sets this
    * over CDP before each measured window). Phases are retained up to
-   * {@link MAX_TRACKED_PHASES} names; the oldest phase aggregate is dropped
-   * beyond that so a pathological caller cannot grow the snapshot.
+   * {@link MAX_TRACKED_PHASES} names; the oldest aggregate is dropped beyond
+   * that so a pathological caller cannot grow the snapshot.
    */
   setPhase(name: string): void {
     const normalized = name.length > 0 ? name : DEFAULT_PHASE;
@@ -230,30 +309,110 @@ export class RendererPerfDiagnostics {
 
   // ── Event timing / long tasks ─────────────────────────────────
 
-  recordEventTiming(startMs: number, processingStartMs: number, processingMs: number): void {
+  /**
+   * Direct Event Timing recording from standards timestamps. Validation and
+   * clamping match the observer path ({@link adaptEventTimingEntry}), so a
+   * malformed call is counted as skipped instead of entering the snapshot as
+   * `NaN`. Direct calls carry no entry `name`/`interactionId`; prefer
+   * {@link recordEventTimingEntries} for platform entries.
+   */
+  recordEventTiming(
+    startMs: number,
+    processingStartMs: number,
+    processingEndMs: number,
+    durationMs: number | null = null,
+  ): void {
     if (this.disposed) return;
-    this.eventTimingRing.push({
-      startMs,
-      inputDelayMs: Math.max(0, processingStartMs - startMs),
-      processingMs: Math.max(0, processingMs),
+    this.acceptEventTimingEntry({
+      startTime: startMs,
+      processingStart: processingStartMs,
+      processingEnd: processingEndMs,
+      duration: durationMs,
     });
-    const phase = this.ensurePhase(this.phase);
-    phase.eventTimings.count += 1;
-    phase.eventTimings.maxInputDelayMs =
-      phase.eventTimings.maxInputDelayMs === null
-        ? Math.max(0, processingStartMs - startMs)
-        : Math.max(phase.eventTimings.maxInputDelayMs, Math.max(0, processingStartMs - startMs));
   }
 
+  /** Feeds a batch of standards-shaped Event Timing entries (observer callback path). */
+  recordEventTimingEntries(entries: readonly EventTimingEntryLike[]): void {
+    if (this.disposed) return;
+    for (const entry of entries) this.acceptEventTimingEntry(entry);
+  }
+
+  private acceptEventTimingEntry(entry: EventTimingEntryLike): void {
+    const record = adaptEventTimingEntry(entry);
+    if (!record) {
+      this.eventTimingObserver.skippedEntryCount += 1;
+      return;
+    }
+    this.pushEventTimingRecord(record);
+  }
+
+  private pushEventTimingRecord(record: RendererPerfEventTimingRecord): void {
+    this.eventTimingRing.push(record);
+    this.eventTimingObserver.sampleCount += 1;
+    const phase = this.ensurePhase(this.phase);
+    phase.eventTimings.count += 1;
+    phase.eventTimings.maxInputDelayMs = maxOrNull(
+      phase.eventTimings.maxInputDelayMs,
+      record.inputDelayMs,
+    );
+    phase.eventTimings.maxProcessingMs = maxOrNull(
+      phase.eventTimings.maxProcessingMs,
+      record.processingMs,
+    );
+    if (record.interactionDurationMs !== null) {
+      phase.eventTimings.maxInteractionDurationMs = maxOrNull(
+        phase.eventTimings.maxInteractionDurationMs,
+        record.interactionDurationMs,
+      );
+    }
+  }
+
+  /** Direct long-task recording; malformed calls are counted, never coerced. */
   recordLongTask(startMs: number, durationMs: number): void {
     if (this.disposed) return;
-    this.longTaskRing.push({ startMs, durationMs });
+    this.acceptLongTaskEntry({ startTime: startMs, duration: durationMs });
+  }
+
+  /** Feeds a batch of standards-shaped `longtask` entries. */
+  recordLongTaskEntries(entries: readonly LongTaskEntryLike[]): void {
+    if (this.disposed) return;
+    for (const entry of entries) this.acceptLongTaskEntry(entry);
+  }
+
+  private acceptLongTaskEntry(entry: LongTaskEntryLike): void {
+    const record = adaptLongTaskEntry(entry);
+    if (!record) {
+      this.longTaskObserver.skippedEntryCount += 1;
+      return;
+    }
+    this.pushLongTaskRecord(record);
+  }
+
+  private pushLongTaskRecord(record: RendererPerfLongTaskRecord): void {
+    this.longTaskRing.push(record);
+    this.longTaskObserver.sampleCount += 1;
     const phase = this.ensurePhase(this.phase);
     phase.longTasks.count += 1;
-    phase.longTasks.maxDurationMs =
-      phase.longTasks.maxDurationMs === null
-        ? durationMs
-        : Math.max(phase.longTasks.maxDurationMs, durationMs);
+    phase.longTasks.maxDurationMs = maxOrNull(phase.longTasks.maxDurationMs, record.durationMs);
+  }
+
+  /**
+   * Installation result wiring for {@link installPerformanceObservers}; public
+   * so the snapshot can distinguish unsupported, no-sample and measured zero.
+   */
+  markEventTimingObserver(
+    status: "supported" | "unsupported",
+    thresholds: EventTimingDurationThreshold | null,
+  ): void {
+    this.eventTimingObserver.status = status;
+    const effective = status === "supported" ? thresholds : null;
+    this.eventTimingObserver.requestedDurationThresholdMs = effective?.requestedMs ?? null;
+    this.eventTimingObserver.durationThresholdMs = effective?.effectiveMs ?? null;
+  }
+
+  /** Installation result wiring for {@link installPerformanceObservers}. */
+  markLongTaskObserver(status: "supported" | "unsupported"): void {
+    this.longTaskObserver.status = status;
   }
 
   /** Zero-duration point event (e.g. large-reply completion) at the current time. */
@@ -281,13 +440,17 @@ export class RendererPerfDiagnostics {
       };
     }
     return {
-      formatVersion: 1,
+      formatVersion: RENDERER_PERF_DIAG_FORMAT_VERSION,
       phase: this.phase,
       frameBudgetMs: this.frameBudgetMs,
       timeOriginEpochMs: defaultTimeOriginEpochMs(),
       startedMonotonicMs: this.startedAtMs,
       capturedAtMonotonicMs,
       phases,
+      observers: {
+        eventTiming: { ...this.eventTimingObserver },
+        longTask: { ...this.longTaskObserver },
+      },
       recentSpans: this.spanRing.toArray(),
       droppedSpans: this.spanRing.droppedCount,
       recentEventTimings: this.eventTimingRing.toArray(),
@@ -319,7 +482,12 @@ export class RendererPerfDiagnostics {
         onTimeFrames: 0,
         maxFrameDeltaMs: null,
         spans: {},
-        eventTimings: { count: 0, maxInputDelayMs: null },
+        eventTimings: {
+          count: 0,
+          maxInputDelayMs: null,
+          maxProcessingMs: null,
+          maxInteractionDurationMs: null,
+        },
         longTasks: { count: 0, maxDurationMs: null },
       };
       this.phases.set(name, phase);
@@ -449,71 +617,33 @@ export function startRendererPerfDiagnostics(
   if (!requested || active) return undefined;
   const diagnostics = new RendererPerfDiagnostics(options);
   active = diagnostics;
-  installPerformanceObservers(diagnostics);
+  const disconnectObservers = installPerformanceObservers(
+    diagnostics,
+    diagnostics.eventTimingDurationThresholds,
+  );
   diagnostics.startFrameMonitor();
   const target = (options.target ?? (typeof window !== "undefined" ? window : undefined)) as
     | { __poracodePerfDiagnostics?: unknown }
     | undefined;
-  if (target) {
-    target.__poracodePerfDiagnostics = {
-      snapshot: () => diagnostics.snapshot(),
-      setPhase: (name: string) => diagnostics.setPhase(name),
-    };
-  }
+  const exposedHandle = {
+    snapshot: () => diagnostics.snapshot(),
+    setPhase: (name: string) => diagnostics.setPhase(name),
+  };
+  if (target) target.__poracodePerfDiagnostics = exposedHandle;
   return {
     diagnostics,
     dispose: () => {
+      // Idempotent and identity-safe: only this controller's own handle is
+      // removed, so re-disposing a stale controller cannot unpublish a newer
+      // active one.
       if (active === diagnostics) active = undefined;
+      disconnectObservers();
       diagnostics.dispose();
-      if (target) delete target.__poracodePerfDiagnostics;
+      if (target && target.__poracodePerfDiagnostics === exposedHandle) {
+        delete target.__poracodePerfDiagnostics;
+      }
     },
   };
-}
-
-/**
- * EventTiming + longtask observers; both optional browser features, so each
- * install is guarded. Event-timing fields are read through a structural shape
- * (the DOM lib may not carry every EventTiming member this TypeScript lib
- * targets); malformed entries are skipped, never coerced.
- */
-function installPerformanceObservers(diagnostics: RendererPerfDiagnostics): void {
-  if (typeof PerformanceObserver !== "function") return;
-  try {
-    const eventObserver = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        const timing = entry as unknown as {
-          startTime?: unknown;
-          processingStart?: unknown;
-          processingDuration?: unknown;
-        };
-        if (
-          typeof timing.startTime !== "number" ||
-          typeof timing.processingStart !== "number" ||
-          typeof timing.processingDuration !== "number"
-        )
-          continue;
-        diagnostics.recordEventTiming(
-          timing.startTime,
-          timing.processingStart,
-          timing.processingDuration,
-        );
-      }
-    });
-    eventObserver.observe({ type: "event", buffered: false });
-  } catch {
-    // EventTiming is unavailable (or the entry type is unsupported): the
-    // remaining monitors stay authoritative.
-  }
-  try {
-    const longTaskObserver = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        diagnostics.recordLongTask(entry.startTime, entry.duration);
-      }
-    });
-    longTaskObserver.observe({ type: "longtask", buffered: false });
-  } catch {
-    // Same: longtask attribution is best-effort.
-  }
 }
 
 declare global {

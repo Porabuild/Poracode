@@ -31,6 +31,7 @@ import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
 import { useRunningProjectActionIds } from "@/renderer/hooks/uiSelectors";
 import { isRemoteSession } from "@/renderer/bridge";
+import { dispatchManagedRootProjectWorkspace } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 
 /**
  * The project context menu: entries plus their action dispatcher, shared by
@@ -179,9 +180,10 @@ export function useProjectMenu(
     if (key.startsWith("stop-action:")) {
       stopProjectAction(project.id, key.slice("stop-action:".length));
     }
-    applyWorkspaceMenuChoice(key, (workspaceId) =>
-      useAppStore.getState().setProjectWorkspace(project.id, workspaceId),
-    );
+    applyWorkspaceMenuChoice(key, (workspaceId) => {
+      useAppStore.getState().setProjectWorkspace(project.id, workspaceId);
+      dispatchManagedRootProjectWorkspace(project.id, workspaceId);
+    });
   };
 
   return { items, onAction };

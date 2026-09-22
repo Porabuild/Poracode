@@ -1,6 +1,7 @@
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { handleBrowserServerMessage } from "@/renderer/browser/browserMirror";
 import { releaseRemoteTerminal, remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
+import { measuredRawBytes } from "@/renderer/state/remote/engine";
 import {
   applyThreadSnapshot,
   collectRuntimeEventsFromSupervisoryMessage,
@@ -33,6 +34,14 @@ import {
 import { noteShellExited } from "@/renderer/utils/shellStartRegistry";
 import { getDesktopBrowserMirrorSocket } from "./browserBridge";
 import { markRemoteServerRowResyncPending } from "./connectionRefresh";
+import {
+  noteBoundedCatalogMembershipEvent,
+  resetBoundedCatalogForResync,
+} from "./catalog/boundedCatalogController";
+import {
+  forgetBoundedHistoryForServer,
+  forgetBoundedHistoryThread,
+} from "./catalog/boundedHistoryRegistry";
 import type { EventSocketConnectionContext } from "./eventSocketContext";
 import {
   bumpRemoteServerSnapshotSeq,
@@ -53,41 +62,33 @@ import {
 import { syncRemoteGitStatePatch } from "./gitState";
 import { syncRemoteGitSummaries } from "./gitSummaries";
 import { cachedThreadIds } from "./rowReuse";
+import { remoteConnectionKey } from "./types";
 
 const MAX_RECOVERY_QUEUED_EVENTS = 512;
 const MAX_RECOVERY_QUEUED_BYTES = 2 * 1024 * 1024;
-const recoveryTextEncoder = new TextEncoder();
 
 export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () => void {
-  const {
-    server,
-    entry,
-    socket,
-    client,
-    engine,
-    get,
-    isCurrent,
-    noteClientDetectedLoss,
-    recovery,
-  } = ctx;
+  const { server, entry, socket, client, get, isCurrent, noteClientDetectedLoss, recovery } = ctx;
+  const connectionKey = remoteConnectionKey(server);
 
   const requestTruncateAuthoritativeReload = (
     targetRemoteThreadId: string,
     eventSeq: number,
   ): void => {
-    if (get().runtime[server.desktopId]?.status !== "online") return;
-    if (!get().servers.some((candidate) => candidate.desktopId === server.desktopId)) {
+    if (get().runtime[connectionKey]?.status !== "online") return;
+    if (!get().servers.some((candidate) => remoteConnectionKey(candidate) === connectionKey)) {
       return;
     }
-    noteTruncateNeeded(server.desktopId, targetRemoteThreadId, eventSeq);
-    const lease = tryBeginTruncateReload(server.desktopId, targetRemoteThreadId);
+    noteTruncateNeeded(connectionKey, targetRemoteThreadId, eventSeq);
+    const lease = tryBeginTruncateReload(connectionKey, targetRemoteThreadId);
     if (!lease) return;
+    // The authoritative replacement renumbers completed turns: the recorded
+    // `ct1.` continuation proof is stale whether the fetch succeeds or not.
+    forgetBoundedHistoryThread(connectionKey, targetRemoteThreadId);
     void (async () => {
       let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
       try {
-        snapshot = await get()
-          .clientFactory(server.endpoint, server.accessToken)
-          .threadHistory(targetRemoteThreadId);
+        snapshot = await client.threadHistory(targetRemoteThreadId);
       } catch {
         finishTruncateReload(lease, null);
         return;
@@ -98,26 +99,26 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
       }
       if (!isTruncateReloadLeaseCurrent(lease)) return;
       const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
-        projectRemoteThreadSnapshot(server.desktopId, snapshot),
+        projectRemoteThreadSnapshot(connectionKey, snapshot),
         {
           fromServer: true,
-          lastSeenEventSeq: remoteThreadAppliedSeq(server.desktopId, targetRemoteThreadId),
+          lastSeenEventSeq: remoteThreadAppliedSeq(connectionKey, targetRemoteThreadId),
         },
       );
       if (applied.installedAuthoritativeHistory) {
         recordAuthoritativeHistoryInstall(
-          server.desktopId,
+          connectionKey,
           targetRemoteThreadId,
           snapshot.snapshotSeq,
         );
       }
-      bumpRemoteServerSnapshotSeq(server.desktopId, snapshot.snapshotSeq);
+      bumpRemoteServerSnapshotSeq(connectionKey, snapshot.snapshotSeq);
       const outcome = finishTruncateReload(lease, {
         installed: applied.installedAuthoritativeHistory,
         snapshotSeq: snapshot.snapshotSeq,
       });
       if (!outcome.stale && !outcome.covered) {
-        const needed = getTruncateNeededSeq(server.desktopId, targetRemoteThreadId);
+        const needed = getTruncateNeededSeq(connectionKey, targetRemoteThreadId);
         if (needed !== undefined) {
           requestTruncateAuthoritativeReload(targetRemoteThreadId, needed);
         }
@@ -130,15 +131,15 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     // outstanding baseline through the same bounded gate, but only
     // for threads that still have a live subscription.
     if (!isCurrent() || entry.socket !== socket) return;
-    if (get().runtime[server.desktopId]?.status !== "online") return;
-    if (!get().servers.some((candidate) => candidate.desktopId === server.desktopId)) {
+    if (get().runtime[connectionKey]?.status !== "online") return;
+    if (!get().servers.some((candidate) => remoteConnectionKey(candidate) === connectionKey)) {
       return;
     }
     const open = get().openThread;
-    const interests = currentRemoteServerThreadItemInterests(server.desktopId);
+    const interests = currentRemoteServerThreadItemInterests(connectionKey);
     const subscribed = new Set<string>(interests);
-    if (open?.desktopId === server.desktopId) subscribed.add(open.threadId);
-    for (const pending of listPendingTruncateReloads(server.desktopId)) {
+    if (open?.desktopId === connectionKey) subscribed.add(open.threadId);
+    for (const pending of listPendingTruncateReloads(connectionKey)) {
       if (!subscribed.has(pending.remoteThreadId)) continue;
       requestTruncateAuthoritativeReload(pending.remoteThreadId, pending.neededSeq);
     }
@@ -146,18 +147,22 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
 
   ctx.dispatchForwardEvent = (forward, sequence, recoveryReplay = false): void => {
     for (const threadId of supervisorEventThreadIds(forward)) {
-      recordRemoteThreadAppliedSeq(server.desktopId, threadId, sequence);
+      recordRemoteThreadAppliedSeq(connectionKey, threadId, sequence);
     }
-    dispatchRemoteSupervisorEvent(projectRemoteThreadEvent(server.desktopId, forward), {
-      onGitSummaries: (summaries) => syncRemoteGitSummaries(server.desktopId, summaries),
-      onGitState: (patch) => syncRemoteGitStatePatch(server.desktopId, patch),
+    dispatchRemoteSupervisorEvent(projectRemoteThreadEvent(connectionKey, forward), {
+      onGitSummaries: (summaries) => syncRemoteGitSummaries(connectionKey, summaries),
+      onGitState: (patch) => syncRemoteGitStatePatch(connectionKey, patch),
       onRuntimeQueueOverflow: (_threadIds, resume) => ctx.recoverInterestedThreads(resume),
       ...(recoveryReplay ? { deliverRuntimeEventsImmediately: true } : {}),
     });
     for (const batch of collectRuntimeEventsFromSupervisoryMessage(forward)) {
       for (const evt of batch.events) {
         if (evt.type !== "runtime.truncated") continue;
-        const projectedId = remoteThreadId(server.desktopId, batch.threadId);
+        // An applied (live or replay) truncation deletes the thread's tail:
+        // any recorded bounded `ct1.` cursor points into the pre-truncation
+        // sequence and must not append rows to the rebuilt transcript.
+        forgetBoundedHistoryThread(connectionKey, batch.threadId);
+        const projectedId = remoteThreadId(connectionKey, batch.threadId);
         if (isTruncateCheckpointLoaded(projectedId, evt.itemId)) continue;
         requestTruncateAuthoritativeReload(batch.threadId, sequence);
       }
@@ -173,7 +178,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           entry.health?.acceptPong(message.id);
           return;
         }
-        if (handleRemoteTerminalServerMessage(server.desktopId, message)) {
+        if (handleRemoteTerminalServerMessage(connectionKey, message)) {
           return;
         }
         if (getDesktopBrowserMirrorSocket() === socket && handleBrowserServerMessage(message)) {
@@ -189,27 +194,27 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           // by design, so gap checks are suppressed there.
           if (
             recovery.threadIds.size === 0 &&
-            message.seq > remoteServerSnapshotSeq(server.desktopId) + 1
+            message.seq > remoteServerSnapshotSeq(connectionKey) + 1
           ) {
             noteClientDetectedLoss();
             return;
           }
           const open = get().openThread;
           const appState = useAppStore.getState();
-          const runtimeThreadIds = cachedThreadIds(get().runtime[server.desktopId]?.threads ?? []);
+          const runtimeThreadIds = cachedThreadIds(get().runtime[connectionKey]?.threads ?? []);
           const additionalRemoteThreadIds = new Set<string>();
           if (Object.keys(appState.provisioningWorktreeThreadIds).length > 0) {
             for (const thread of appState.threads) {
               if (
                 appState.provisioningWorktreeThreadIds[thread.id] === true &&
-                thread.remoteServerId === server.desktopId &&
+                thread.remoteServerId === connectionKey &&
                 thread.remoteId
               ) {
                 additionalRemoteThreadIds.add(thread.remoteId);
               }
             }
           }
-          if (open?.desktopId === server.desktopId) {
+          if (open?.desktopId === connectionKey) {
             additionalRemoteThreadIds.add(open.threadId);
           }
           // Background visible panes keep independent live subscriptions
@@ -218,7 +223,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           // (multipane split): without this, a cold multipane restore
           // would drop every background pane's events until its row
           // arrived in the runtime list.
-          for (const interest of currentRemoteServerThreadItemInterests(server.desktopId)) {
+          for (const interest of currentRemoteServerThreadItemInterests(connectionKey)) {
             additionalRemoteThreadIds.add(interest);
           }
           const remoteThreadIds: ThreadIdMatcher = {
@@ -234,17 +239,16 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
             typeof terminalEvent.threadId === "string" ? terminalEvent.threadId : null;
           const isKnownRemoteTerminal =
             terminalId !== null &&
-            (remoteThreadIds.has(terminalId) ||
-              remoteTerminalOwner(terminalId) === server.desktopId);
+            (remoteThreadIds.has(terminalId) || remoteTerminalOwner(terminalId) === connectionKey);
           if (terminalId && isKnownRemoteTerminal && terminalEvent.type === "thread-reset") {
-            emitRemoteTerminalReset(server.desktopId, terminalId);
+            emitRemoteTerminalReset(connectionKey, terminalId);
           } else if (
             terminalId &&
             isKnownRemoteTerminal &&
             terminalEvent.type === "thread-exited"
           ) {
             emitRemoteTerminalExited(
-              server.desktopId,
+              connectionKey,
               terminalId,
               typeof terminalEvent.exitCode === "number" ? terminalEvent.exitCode : null,
             );
@@ -278,7 +282,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
                 const keptEvents = batch.events.filter((evt) => {
                   if (evt.type !== "runtime.truncated") return true;
                   return !shouldSuppressTruncatedReplay(
-                    server.desktopId,
+                    connectionKey,
                     batch.threadId,
                     message.seq as number,
                   );
@@ -316,16 +320,21 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
                 batches: recoveringBatches,
               };
               queuedForRecovery = true;
-              const eventBytes = recoveryTextEncoder.encode(
-                JSON.stringify(recoveryEvent),
-              ).byteLength;
+              // A3: the size is measured from the raw wire frame that carried
+              // this event (UTF-16 upper bound), not re-serialized here. It is
+              // a conservative upper bound for a filtered sub-event.
+              const eventBytes = measuredRawBytes(raw.length);
               if (
                 recovery.queuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
                 recovery.queuedBytes + eventBytes > MAX_RECOVERY_QUEUED_BYTES
               ) {
                 recovery.overflowed = true;
               } else {
-                recovery.queuedEvents.push({ seq: message.seq, event: recoveryEvent });
+                recovery.queuedEvents.push({
+                  seq: message.seq,
+                  event: recoveryEvent,
+                  bytes: eventBytes,
+                });
                 recovery.queuedBytes += eventBytes;
               }
               const liveBatches = batches.filter(
@@ -339,14 +348,14 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
               supervisorEventThreadIds(forward).some((threadId) => recovery.threadIds.has(threadId))
             ) {
               queuedForRecovery = true;
-              const eventBytes = recoveryTextEncoder.encode(JSON.stringify(forward)).byteLength;
+              const eventBytes = measuredRawBytes(raw.length);
               if (
                 recovery.queuedEvents.length >= MAX_RECOVERY_QUEUED_EVENTS ||
                 recovery.queuedBytes + eventBytes > MAX_RECOVERY_QUEUED_BYTES
               ) {
                 recovery.overflowed = true;
               } else {
-                recovery.queuedEvents.push({ seq: message.seq, event: forward });
+                recovery.queuedEvents.push({ seq: message.seq, event: forward, bytes: eventBytes });
                 recovery.queuedBytes += eventBytes;
               }
               forward = null;
@@ -363,13 +372,21 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
             // can omit an otherwise valid queue event during initial
             // open. Apply it so an in-flight history response cannot
             // replace the live queue with its older snapshot.
-            dispatchRemoteSupervisorEvent(
-              projectRemoteThreadEvent(server.desktopId, message.event),
-            );
+            dispatchRemoteSupervisorEvent(projectRemoteThreadEvent(connectionKey, message.event));
           }
           if (shouldRefreshRemoteServerAfterEvent(message.event)) {
+            // A membership-changing event schedules a bounded catalog pass in
+            // addition to the snapshot refresh; a project event also schedules
+            // the thread pass because the host cascades project deletes.
+            const eventType =
+              message.event && typeof message.event === "object"
+                ? (message.event as { type?: unknown }).type
+                : undefined;
+            if (typeof eventType === "string") {
+              noteBoundedCatalogMembershipEvent(connectionKey, eventType);
+            }
             // Debounced so a burst of events yields one snapshot GET.
-            get().scheduleServerRefresh(server.desktopId, {
+            get().scheduleServerRefresh(connectionKey, {
               includeAgentStatuses: shouldRefreshRemoteAgentStatusesAfterEvent(message.event),
             });
           }
@@ -379,7 +396,7 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
             // filtered out — never on receipt. A dropped frame therefore
             // reconnects from the last applied seq and the server replays
             // exactly the missing range.
-            bumpRemoteServerSnapshotSeq(server.desktopId, message.seq);
+            bumpRemoteServerSnapshotSeq(connectionKey, message.seq);
           }
         }
         if (message.type === "resync-required") {
@@ -387,42 +404,51 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
           // process. Accept its lower cursor before the authoritative
           // snapshots advance it again, or every reconnect will ask
           // for an impossible pre-restart sequence forever.
-          setRemoteServerSnapshotSeq(server.desktopId, message.seq);
+          setRemoteServerSnapshotSeq(connectionKey, message.seq);
           // Pre-restart per-thread marks would refuse every fresh
           // (lower-seq) snapshot forever; re-baseline them too.
-          clearRemoteThreadAppliedSeqs(server.desktopId);
+          clearRemoteThreadAppliedSeqs(connectionKey);
           // Old-epoch authoritative baselines and bounded reload
           // budgets are meaningless after a restart.
-          resetTruncateRecoveryEpoch(server.desktopId);
-          markRemoteServerRowResyncPending(server.desktopId);
-          get().scheduleServerRefresh(server.desktopId);
+          resetTruncateRecoveryEpoch(connectionKey);
+          markRemoteServerRowResyncPending(connectionKey);
+          // A new event epoch invalidates every in-memory walk cursor.
+          resetBoundedCatalogForResync(connectionKey);
+          // ...and every bounded history proof from the old epoch.
+          forgetBoundedHistoryForServer(connectionKey);
+          get().scheduleServerRefresh(connectionKey);
           void ctx.recoverInterestedThreads();
         }
       } catch {
         // HTTP snapshots remain authoritative; ignore malformed frames.
       }
     };
-    if (engine.isWorkerActive()) {
-      void engine
-        .decodeRemote(raw)
-        .then((result) => {
-          if (!isCurrent() || entry.socket !== socket || !result.ok) return;
-          dispatchParsed(result.message as ReturnType<RemoteDesktopClient["parseSocketMessage"]>);
-        })
-        .catch(() => {
-          // The engine rejected this frame in flight (overflow/reset):
-          // it is silently lost unless the session reacts. Mark the loss
-          // and resync from the last applied seq instead of swallowing it.
-          if (!isCurrent() || entry.socket !== socket) return;
-          noteClientDetectedLoss();
-        });
+    if (ctx.decodeInline) {
+      // Platform capability: there is no Worker global at all, so the frame is
+      // consumed inline at receive time exactly as the pre-A3 client did. A
+      // worker that exists is never bypassed this way.
+      try {
+        dispatchParsed(
+          client.parseSocketMessage(raw) as ReturnType<RemoteDesktopClient["parseSocketMessage"]>,
+        );
+      } catch {
+        // HTTP snapshots remain authoritative; ignore malformed frames.
+      }
       return;
     }
-    try {
-      dispatchParsed(client.parseSocketMessage(raw));
-    } catch {
-      // HTTP snapshots remain authoritative; ignore malformed frames.
-    }
+    void ctx
+      .decodeFrame(raw)
+      .then((result) => {
+        if (!isCurrent() || entry.socket !== socket || !result.ok) return;
+        dispatchParsed(result.message as ReturnType<RemoteDesktopClient["parseSocketMessage"]>);
+      })
+      .catch(() => {
+        // Typed engine rejection (worker unavailable, lane overflow, timeout,
+        // protocol mismatch): the frame is lost, so resync from the last
+        // APPLIED seq. Bulk frames are never parsed on the UI thread here.
+        if (!isCurrent() || entry.socket !== socket) return;
+        noteClientDetectedLoss();
+      });
   };
 
   return resumePendingTruncateReloads;

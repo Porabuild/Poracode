@@ -32,6 +32,27 @@ export function installDevBridge(): void {
     // Vite HMR. CDP scripts must not depend on Vite's /src module URL namespace.
     loadLiveVoice: () => import("./speech/liveVoice"),
     loadBrowserAttachInbox: () => import("./state/browserAttachInbox"),
+    // The frozen renderer has no Vite module URLs. Read the actual dispatcher
+    // modules for diagnostics without installing a second listener or command.
+    loadCommandDiagnostics: async () => {
+      const [store, capture, registry, matcher] = await Promise.all([
+        import("./commands/keybindingStore"),
+        import("./commands/keybindingCapture"),
+        import("./commands/registry"),
+        import("./commands/keybindingMatcher"),
+      ]);
+      return { store, capture, registry, matcher };
+    },
+    // Inspect normal managed/paired bootstrap; smoke drivers must use the
+    // existing store actions, never install replacement transport adapters.
+    loadHostDiagnostics: async () => {
+      const [loopback, rootCatalog, remoteServers] = await Promise.all([
+        import("./hostTransport/loopbackHttpWsTransport"),
+        import("./state/managedRootCatalog/rootCatalogStore"),
+        import("./state/remoteServersStore"),
+      ]);
+      return { loopback, rootCatalog, remoteServers };
+    },
     /** Raw Zustand stores — call `.getState()` / `.setState()` to inspect or drive any state. */
     stores: {
       update: useUpdateStore,

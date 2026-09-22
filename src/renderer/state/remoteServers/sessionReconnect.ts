@@ -4,6 +4,27 @@ import { toast } from "@heroui/react";
 import { friendlyError, msg as sharedMsg } from "@/shared/messages";
 import { RemoteClientError } from "@/shared/remote/client";
 import { REMOTE_BROWSER_FORWARD_VERSION } from "@/shared/remote/protocol";
+import {
+  environmentAdvertisesRuntimeHistoryNotices,
+  forgetRuntimeHistoryNoticesCapability,
+  noteRuntimeHistoryNoticesCapability,
+} from "@/renderer/state/remote/historyNoticeCapability";
+import { clearThreadHistoryNoticesForAuthority } from "@/renderer/state/remote/historyNoticeStore";
+import {
+  environmentAdvertisesBoundedCatalogChanges,
+  forgetBoundedCatalogChangesCapability,
+  noteBoundedCatalogChangesCapability,
+} from "@/renderer/state/remote/boundedCatalogChangesCapability";
+import {
+  environmentAdvertisesProjectCommandResults,
+  forgetProjectCommandResultsCapability,
+  noteProjectCommandResultsCapability,
+} from "@/renderer/state/remote/projectCommandResultsCapability";
+import {
+  environmentAdvertisesCatalogMutations,
+  forgetCatalogMutationsCapability,
+  noteCatalogMutationsCapability,
+} from "@/renderer/state/remote/catalogMutationsCapability";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
 import { remoteThreadId } from "@/renderer/state/remoteProjection";
@@ -27,6 +48,11 @@ import {
 } from "./eventSocketRegistry";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import {
+  beginBoundedCatalogAttempt,
+  disposeBoundedCatalog,
+} from "./catalog/boundedCatalogController";
+import { forgetBoundedHistoryForServer } from "./catalog/boundedHistory";
+import {
   clearRemoteServerRefreshTimer,
   deleteRemoteHostUpdateRequestSeq,
   invalidateRemoteServerRefresh,
@@ -44,12 +70,39 @@ import {
 } from "./terminalCapabilities";
 import { forgetCertPin, normalizeEndpoint } from "./pairing";
 import { deleteRefreshTokenFromVault } from "./refreshTokens";
+import {
+  disposeEnvironmentParentSession,
+  disposeEnvironmentSession,
+  disposeEnvironmentSessionsForParent,
+  environmentChildGrantSubject,
+  environmentParentEndpointFor,
+  environmentProxyEndpoint,
+} from "./environmentSessions";
+import {
+  environmentParentRef,
+  environmentTransportHasParent,
+  remoteConnectionKey,
+  type EnvironmentParentRef,
+  type RemoteServerRecord,
+} from "./types";
 import type {
   RemoteServerClientBindings,
   RemoteServersStoreApi,
   StartRemoteServerEventStream,
 } from "./storeClient";
-import type { RemoteServerRecord } from "./types";
+
+/**
+ * Thrown by `removeServer` when a direct/ssh record still owns host-owned
+ * environment records and the caller did not pass the explicit
+ * `cascadeEnvironments: true` confirmation. Host-side environments are never
+ * deleted by the cascade — only this device's records and child grants.
+ */
+export class EnvironmentCascadeConfirmationRequiredError extends Error {
+  readonly code = "environment_cascade_confirmation_required";
+  constructor(readonly dependentConnectionKeys: readonly string[]) {
+    super("Removing this connection also removes its host-owned environment records.");
+  }
+}
 
 export function closeRemoteServerEventSocket(
   desktopId: string,
@@ -128,10 +181,14 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     set((state) => {
       const runtime = { ...state.runtime };
       for (const server of servers) {
-        const current = state.runtime[server.desktopId];
-        runtime[server.desktopId] = {
+        // Every runtime/app row is keyed by the connection key, never the host
+        // identity: an environment record's desktopId is the child host, and a
+        // direct pairing of that child has its own row.
+        const connectionKey = remoteConnectionKey(server);
+        const current = state.runtime[connectionKey];
+        runtime[connectionKey] = {
           status: "connecting",
-          projects: current?.projects ?? state.lastKnownProjects[server.desktopId] ?? [],
+          projects: current?.projects ?? state.lastKnownProjects[connectionKey] ?? [],
           threads: current?.threads ?? [],
           ...(current?.agentStatuses ? { agentStatuses: current.agentStatuses } : {}),
         };
@@ -140,8 +197,12 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     });
     syncDesktopBrowserBridgeClient(get());
     for (const server of servers) {
-      const runtime = get().runtime[server.desktopId];
-      if (runtime) syncRemoteAppRows(server.desktopId, runtime.projects);
+      const connectionKey = remoteConnectionKey(server);
+      // A connect/reconnect always restarts the bounded catalog walks; a
+      // cursor from the previous session must not be resumed across the gap.
+      beginBoundedCatalogAttempt(connectionKey);
+      const runtime = get().runtime[connectionKey];
+      if (runtime) syncRemoteAppRows(connectionKey, runtime.projects);
     }
   };
 
@@ -153,13 +214,38 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     shouldContinue: () => boolean = () => true,
     options: { readonly resyncInterestedThreads?: boolean } = {},
   ): Promise<void> => {
-    const reconnectGeneration = remoteHostUpdateReconnectSeq(persistedServer.desktopId);
+    const connectionKey = remoteConnectionKey(persistedServer);
+    const reconnectGeneration = remoteHostUpdateReconnectSeq(connectionKey);
     const canContinue = () =>
-      remoteHostUpdateReconnectSeq(persistedServer.desktopId) === reconnectGeneration &&
-      shouldContinue();
+      remoteHostUpdateReconnectSeq(connectionKey) === reconnectGeneration && shouldContinue();
     let server = persistedServer;
     let initialTerminalCapabilities: TerminalConnectionCapabilities | undefined;
-    if (server.transport?.kind === "ssh") {
+    if (server.transport?.kind === "environment") {
+      // The environment endpoint is the parent proxy prefix, re-derived from
+      // the CURRENT parent authority on every connect (a remote parent record
+      // may have moved endpoints, e.g. an SSH tunnel restart; the managed
+      // parent endpoint comes from the live loopback descriptor).
+      const ref = environmentParentRef(server.transport);
+      const parentEndpoint = ref ? environmentParentEndpointFor(ref) : undefined;
+      if (parentEndpoint === undefined) {
+        setRemoteServerFailure(
+          connectionKey,
+          "offline",
+          i18n._(msg`The paired server that owns this environment is not connected.`),
+        );
+        return;
+      }
+      server = {
+        ...server,
+        endpoint: environmentProxyEndpoint(parentEndpoint, server.transport.environmentId),
+      };
+      const updated = server;
+      set((state) => ({
+        servers: state.servers.map((candidate) =>
+          remoteConnectionKey(candidate) === connectionKey ? updated : candidate,
+        ),
+      }));
+    } else if (server.transport?.kind === "ssh") {
       try {
         const launched = await readBridge().sshConnect({
           connection: server.transport.connection,
@@ -169,14 +255,14 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         const updated = server;
         set((state) => ({
           servers: state.servers.map((candidate) =>
-            candidate.desktopId === updated.desktopId ? updated : candidate,
+            remoteConnectionKey(candidate) === connectionKey ? updated : candidate,
           ),
         }));
       } catch (error) {
         if (!canContinue()) return;
         const message = friendlyError(error) || i18n._(msg`SSH connection failed.`);
         toast.danger(message);
-        setRemoteServerFailure(server.desktopId, "offline", message);
+        setRemoteServerFailure(connectionKey, "offline", message);
         return;
       }
     }
@@ -185,11 +271,36 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     // keep their classification below; the concurrent refreshServer owns
     // visible snapshot errors either way.
     const environmentPromise = clientForServer(server).environment();
-    const refreshPromise = get().refreshServer(server.desktopId);
+    const refreshPromise = get().refreshServer(connectionKey);
     try {
       const environment = await environmentPromise;
       if (!canContinue()) return;
       initialTerminalCapabilities = terminalCapabilitiesFromEnvironment(environment);
+      // B1: the notices capability is negotiated from the fresh descriptor on
+      // every connect; an old host clears any stale declaration.
+      noteRuntimeHistoryNoticesCapability(
+        connectionKey,
+        environmentAdvertisesRuntimeHistoryNotices(environment),
+      );
+      // boundedCatalogChanges / projectCommandResults are the same kind of
+      // per-connection fact: re-proven from this descriptor and cleared when
+      // the host stops advertising (or predates) them.
+      noteBoundedCatalogChangesCapability(
+        connectionKey,
+        environmentAdvertisesBoundedCatalogChanges(environment),
+      );
+      noteProjectCommandResultsCapability(
+        connectionKey,
+        environmentAdvertisesProjectCommandResults(environment),
+      );
+      // Narrow catalog mutations (reorder / workspace / draft config) ride the
+      // same descriptor fact: a host that does not advertise them keeps the
+      // paired sidebar's intents local instead of receiving a command it
+      // cannot persist.
+      noteCatalogMutationsCapability(
+        connectionKey,
+        environmentAdvertisesCatalogMutations(environment),
+      );
       const keepsLocalAlias =
         server.remoteLabel !== undefined && server.label !== server.remoteLabel;
       server = {
@@ -217,13 +328,13 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       const updated = server;
       set((state) => ({
         servers: state.servers.map((candidate) =>
-          candidate.desktopId === updated.desktopId ? updated : candidate,
+          remoteConnectionKey(candidate) === connectionKey ? updated : candidate,
         ),
       }));
     } catch (error) {
       if (!canContinue()) return;
       if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
-        setRemoteServerFailure(server.desktopId, "error", friendlyError(error));
+        setRemoteServerFailure(connectionKey, "error", friendlyError(error));
         return;
       }
       // refreshServer above owns other visible connection errors.
@@ -239,9 +350,10 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
     expectedVersion: string,
     reconnectSeq: number,
   ): Promise<void> => {
+    const persistedKey = remoteConnectionKey(persistedServer);
     const isCurrent = () =>
-      remoteHostUpdateReconnectSeq(persistedServer.desktopId) === reconnectSeq &&
-      get().servers.some((server) => server.desktopId === persistedServer.desktopId);
+      remoteHostUpdateReconnectSeq(persistedKey) === reconnectSeq &&
+      get().servers.some((server) => remoteConnectionKey(server) === persistedKey);
     const outcome = await waitForHostUpdateReconnect({
       isCurrent,
       isTerminalError: (error) =>
@@ -250,54 +362,49 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         const environment = await clientForServer(persistedServer).environment();
         if (environment.appVersion !== expectedVersion) return false;
         const current = get().servers.find(
-          (server) => server.desktopId === persistedServer.desktopId,
+          (server) => remoteConnectionKey(server) === persistedKey,
         );
         if (!current || !isCurrent()) return false;
         await connectServer(current, () => isCurrent());
         if (
           isCurrent() &&
-          get().runtime[persistedServer.desktopId]?.status === "online" &&
-          get().servers.find((server) => server.desktopId === persistedServer.desktopId)
+          get().runtime[persistedKey]?.status === "online" &&
+          get().servers.find((server) => remoteConnectionKey(server) === persistedKey)
             ?.appVersion === expectedVersion
         ) {
           return true;
         }
-        closeRemoteServerEventSocket(persistedServer.desktopId);
-        const latest = get().servers.find(
-          (server) => server.desktopId === persistedServer.desktopId,
-        );
+        closeRemoteServerEventSocket(persistedKey);
+        const latest = get().servers.find((server) => remoteConnectionKey(server) === persistedKey);
         if (latest && isCurrent()) setServersConnecting([latest]);
         return false;
       },
     });
     if (outcome.type === "cancelled" || !isCurrent()) {
       set((state) => {
-        const { [persistedServer.desktopId]: _stale, ...hostUpdateRestarts } =
-          state.hostUpdateRestarts;
+        const { [persistedKey]: _stale, ...hostUpdateRestarts } = state.hostUpdateRestarts;
         return { hostUpdateRestarts };
       });
       return;
     }
-    setRemoteHostUpdateReconnectSeq(persistedServer.desktopId, nextRemoteHostUpdateSequence());
+    setRemoteHostUpdateReconnectSeq(persistedKey, nextRemoteHostUpdateSequence());
     if (outcome.type === "connected") {
       set((state) => {
-        const { [persistedServer.desktopId]: _finished, ...hostUpdateRestarts } =
-          state.hostUpdateRestarts;
+        const { [persistedKey]: _finished, ...hostUpdateRestarts } = state.hostUpdateRestarts;
         return { hostUpdateRestarts };
       });
       return;
     }
-    invalidateRemoteServerRefresh(persistedServer.desktopId);
-    closeRemoteServerEventSocket(persistedServer.desktopId);
+    invalidateRemoteServerRefresh(persistedKey);
+    closeRemoteServerEventSocket(persistedKey);
     const status = outcome.type === "terminal-error" ? "error" : "offline";
     const message =
       outcome.type === "terminal-error"
         ? friendlyError(outcome.error)
         : sharedMsg("remote.server.unreachable");
-    setRemoteServerFailure(persistedServer.desktopId, status, message);
+    setRemoteServerFailure(persistedKey, status, message);
     set((state) => {
-      const { [persistedServer.desktopId]: _finished, ...hostUpdateRestarts } =
-        state.hostUpdateRestarts;
+      const { [persistedKey]: _finished, ...hostUpdateRestarts } = state.hostUpdateRestarts;
       return { hostUpdateRestarts };
     });
   };
@@ -322,11 +429,13 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
         const connectPass = async (forceTransportReconnect: boolean): Promise<void> => {
           connectAllInFlightForce = forceTransportReconnect;
           const servers = get().servers.filter(
-            (server) => get().hostUpdateRestarts[server.desktopId] === undefined,
+            (server) => get().hostUpdateRestarts[remoteConnectionKey(server)] === undefined,
           );
           if (forceTransportReconnect) {
             for (const server of servers) {
-              closeRemoteServerEventSocket(server.desktopId, { preserveReplayState: true });
+              closeRemoteServerEventSocket(remoteConnectionKey(server), {
+                preserveReplayState: true,
+              });
             }
           }
           setServersConnecting(servers);
@@ -353,109 +462,172 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       return connectAllInFlight;
     },
 
-    reconnectServer: async (desktopId: string) => {
-      if (get().hostUpdateRestarts[desktopId] !== undefined) return;
-      const server = get().servers.find((entry) => entry.desktopId === desktopId);
+    reconnectServer: async (connectionKey: string) => {
+      if (get().hostUpdateRestarts[connectionKey] !== undefined) return;
+      const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
       if (!server) return;
       setServersConnecting([server]);
       await connectServer(server);
     },
 
-    removeServer: (desktopId: string) => {
-      const removed = get().servers.find((server) => server.desktopId === desktopId);
-      setRemoteHostUpdateReconnectSeq(desktopId, nextRemoteHostUpdateSequence());
-      deleteRemoteHostUpdateRequestSeq(desktopId);
-      invalidateRemoteServerRefresh(desktopId);
-      closeRemoteServerEventSocket(desktopId);
-      resetTruncateRecoveryEpoch(desktopId);
-      bumpRemoteServerGeneration(desktopId);
-      // The host session is gone: its Crossagent runs died with it, so their
-      // live-observation records must not outlive the connection and keep
-      // those tiles preserved as "running" on a future attach.
-      pruneLiveObservedCrossagentItems((threadId) =>
-        threadId.startsWith(remoteThreadId(desktopId, "")),
+    removeServer: (
+      connectionKey: string,
+      options: { readonly cascadeEnvironments?: boolean } = {},
+    ) => {
+      const removed = get().servers.find((server) => remoteConnectionKey(server) === connectionKey);
+      const connectionParentRef: EnvironmentParentRef = {
+        kind: "connection",
+        connectionId: connectionKey,
+      };
+      // Only a persisted connection's OWN children are dependents: a managed
+      // child's parent is the ephemeral authority, so removing any persisted
+      // record never cascades into it.
+      const dependents = get().servers.filter(
+        (server) =>
+          server.transport?.kind === "environment" &&
+          environmentTransportHasParent(server.transport, connectionParentRef),
       );
-      // If the open live-chat thread belongs to this server, tear it (and its
-      // socket) down first so it isn't left orphaned with no way to interact.
-      if (get().openThread?.desktopId === desktopId) {
-        get().closeRemoteThread();
+      if (dependents.length > 0 && options.cascadeEnvironments !== true) {
+        throw new EnvironmentCascadeConfirmationRequiredError(
+          dependents.map((server) => remoteConnectionKey(server)),
+        );
       }
-      forgetRemoteServerThreadItemInterests(desktopId);
-      // Gate 6 items 4.2/4.6: the record is gone — its certificate pin and
-      // its refresh-token half go with it, so a stale pin or a dead
-      // refresh token can never attach to a future server with the same id.
-      forgetCertPin(desktopId);
-      void deleteRefreshTokenFromVault(desktopId);
-      set((state) => {
-        const { [desktopId]: _removed, ...runtime } = state.runtime;
-        const { [desktopId]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
-        const { [desktopId]: _removedRestart, ...hostUpdateRestarts } = state.hostUpdateRestarts;
-        return {
-          servers: state.servers.filter((server) => server.desktopId !== desktopId),
-          runtime,
-          hostUpdates,
-          hostUpdateRestarts,
-          lastKnownProjects: removeCachedProjects(state.lastKnownProjects, desktopId),
-        };
-      });
-      releaseRemoteTerminalsForServer(desktopId);
-      clearRemoteGitState(desktopId);
-      removeRemoteAppRows(desktopId);
-      if (removed?.transport?.kind === "ssh") {
-        void readBridge()
-          .sshDisconnect({ connectionId: removed.transport.connection.id })
-          .catch(() => undefined);
+
+      const removeRecord = (server: RemoteServerRecord | undefined, key: string) => {
+        setRemoteHostUpdateReconnectSeq(key, nextRemoteHostUpdateSequence());
+        deleteRemoteHostUpdateRequestSeq(key);
+        invalidateRemoteServerRefresh(key);
+        closeRemoteServerEventSocket(key);
+        resetTruncateRecoveryEpoch(key);
+        bumpRemoteServerGeneration(key);
+        // The connection is gone: its bounded walks, cursors and history
+        // continuation proofs must not survive a future re-pair.
+        disposeBoundedCatalog(key);
+        forgetBoundedHistoryForServer(key);
+        // The negotiated notice capability dies with the connection record: a
+        // future re-pair must prove it again from the new descriptor. Its
+        // retained notice entries go with it (authoritative server removal).
+        forgetRuntimeHistoryNoticesCapability(key);
+        forgetBoundedCatalogChangesCapability(key);
+        forgetProjectCommandResultsCapability(key);
+        forgetCatalogMutationsCapability(key);
+        clearThreadHistoryNoticesForAuthority(key);
+        // The host session is gone: its Crossagent runs died with it, so their
+        // live-observation records must not outlive the connection and keep
+        // those tiles preserved as "running" on a future attach.
+        pruneLiveObservedCrossagentItems((threadId) =>
+          threadId.startsWith(remoteThreadId(key, "")),
+        );
+        // If the open live-chat thread belongs to this server, tear it (and its
+        // socket) down first so it isn't left orphaned with no way to interact.
+        if (get().openThread?.desktopId === key) {
+          get().closeRemoteThread();
+        }
+        forgetRemoteServerThreadItemInterests(key);
+        disposeEnvironmentSession(key);
+        // Gate 6 items 4.2/4.6: the record is gone — its certificate pin and
+        // its refresh-token half go with it, so a stale pin or a dead
+        // refresh token can never attach to a future server with the same id.
+        // An environment's own pin map entry is empty by construction (the
+        // parent pin is keyed by the parent connection); its child grant is
+        // parent-scoped and removed below.
+        forgetCertPin(key);
+        if (server?.transport?.kind === "environment") {
+          // Subject-derived slot: remote grants live at
+          // `environmentRefresh.<parent>.<envId>`, managed grants at
+          // `managedEnvironment.<hostDesktopId>.<envId>`. An old reader's
+          // `refresh.<key>` delete cannot touch either root.
+          const grantSubject = environmentChildGrantSubject(server.transport);
+          if (grantSubject) void deleteRefreshTokenFromVault(grantSubject);
+        } else {
+          // A removed direct/ssh record's long-lived parent session goes with
+          // it, and `deleteRefreshTokenFromVault` below revokes the connection
+          // incarnation, so its delayed rotation is inert (no memory or vault
+          // resurrection of the deleted grant).
+          disposeEnvironmentParentSession(key);
+          void deleteRefreshTokenFromVault({ kind: "connection", connectionId: key });
+        }
+        set((state) => {
+          const { [key]: _removed, ...runtime } = state.runtime;
+          const { [key]: _removedUpdate, ...hostUpdates } = state.hostUpdates;
+          const { [key]: _removedRestart, ...hostUpdateRestarts } = state.hostUpdateRestarts;
+          return {
+            servers: state.servers.filter((candidate) => remoteConnectionKey(candidate) !== key),
+            runtime,
+            hostUpdates,
+            hostUpdateRestarts,
+            lastKnownProjects: removeCachedProjects(state.lastKnownProjects, key),
+          };
+        });
+        releaseRemoteTerminalsForServer(key);
+        clearRemoteGitState(key);
+        removeRemoteAppRows(key);
+        if (server?.transport?.kind === "ssh") {
+          void readBridge()
+            .sshDisconnect({ connectionId: server.transport.connection.id })
+            .catch(() => undefined);
+        }
+      };
+
+      // Local records and grants only: a host-owned environment is never
+      // deleted from the host by removing this device's parent pairing.
+      for (const dependent of dependents) removeRecord(dependent, remoteConnectionKey(dependent));
+      if (dependents.length > 0) {
+        disposeEnvironmentSessionsForParent(connectionParentRef);
       }
+      // Key-based cleanup always runs (a stale/absent record must not leave
+      // event sockets, queues, or projections behind).
+      removeRecord(removed, connectionKey);
       syncDesktopBrowserBridgeClient(get());
     },
 
-    getHostUpdateState: async (desktopId: string) => {
+    getHostUpdateState: async (connectionKey: string) => {
       const requestSeq = nextRemoteHostUpdateSequence();
-      setRemoteHostUpdateRequestSeq(desktopId, requestSeq);
-      const update = await withClient(desktopId, (client) => client.hostUpdateState());
-      if (remoteHostUpdateRequestSeq(desktopId) !== requestSeq) return update;
-      set((state) => ({ hostUpdates: { ...state.hostUpdates, [desktopId]: update } }));
+      setRemoteHostUpdateRequestSeq(connectionKey, requestSeq);
+      const update = await withClient(connectionKey, (client) => client.hostUpdateState());
+      if (remoteHostUpdateRequestSeq(connectionKey) !== requestSeq) return update;
+      set((state) => ({ hostUpdates: { ...state.hostUpdates, [connectionKey]: update } }));
       return update;
     },
 
-    checkHostUpdate: async (desktopId: string) => {
+    checkHostUpdate: async (connectionKey: string) => {
       const requestSeq = nextRemoteHostUpdateSequence();
-      setRemoteHostUpdateRequestSeq(desktopId, requestSeq);
-      const update = await withClient(desktopId, (client) => client.checkHostUpdate());
-      if (remoteHostUpdateRequestSeq(desktopId) !== requestSeq) return update;
-      set((state) => ({ hostUpdates: { ...state.hostUpdates, [desktopId]: update } }));
+      setRemoteHostUpdateRequestSeq(connectionKey, requestSeq);
+      const update = await withClient(connectionKey, (client) => client.checkHostUpdate());
+      if (remoteHostUpdateRequestSeq(connectionKey) !== requestSeq) return update;
+      set((state) => ({ hostUpdates: { ...state.hostUpdates, [connectionKey]: update } }));
       return update;
     },
 
-    installHostUpdate: async (desktopId: string) => {
-      if (get().hostUpdateRestarts[desktopId] !== undefined) return;
-      const server = get().servers.find((entry) => entry.desktopId === desktopId);
-      const status = get().hostUpdates[desktopId]?.status;
+    installHostUpdate: async (connectionKey: string) => {
+      if (get().hostUpdateRestarts[connectionKey] !== undefined) return;
+      const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+      const status = get().hostUpdates[connectionKey]?.status;
       if (!server || status?.type !== "downloaded") {
-        await withClient(desktopId, (client) => client.installHostUpdate());
+        await withClient(connectionKey, (client) => client.installHostUpdate());
         return;
       }
 
-      const reconnectGeneration = remoteHostUpdateReconnectSeq(desktopId);
-      await withClient(desktopId, (client) => client.installHostUpdate());
-      if (remoteHostUpdateReconnectSeq(desktopId) !== reconnectGeneration) {
+      const reconnectGeneration = remoteHostUpdateReconnectSeq(connectionKey);
+      await withClient(connectionKey, (client) => client.installHostUpdate());
+      if (remoteHostUpdateReconnectSeq(connectionKey) !== reconnectGeneration) {
         return;
       }
-      setRemoteHostUpdateRequestSeq(desktopId, nextRemoteHostUpdateSequence());
+      setRemoteHostUpdateRequestSeq(connectionKey, nextRemoteHostUpdateSequence());
       const reconnectSeq = nextRemoteHostUpdateSequence();
-      setRemoteHostUpdateReconnectSeq(desktopId, reconnectSeq);
-      invalidateRemoteServerRefresh(desktopId);
-      closeRemoteServerEventSocket(desktopId);
+      setRemoteHostUpdateReconnectSeq(connectionKey, reconnectSeq);
+      invalidateRemoteServerRefresh(connectionKey);
+      closeRemoteServerEventSocket(connectionKey);
       // The host process restarts to install the update: every run it owned
       // dies, and reconnect snapshots must be free to settle their rows.
       pruneLiveObservedCrossagentItems((threadId) =>
-        threadId.startsWith(remoteThreadId(desktopId, "")),
+        threadId.startsWith(remoteThreadId(connectionKey, "")),
       );
       set((state) => {
-        const { [desktopId]: _installed, ...hostUpdates } = state.hostUpdates;
+        const { [connectionKey]: _installed, ...hostUpdates } = state.hostUpdates;
         return {
           hostUpdates,
-          hostUpdateRestarts: { ...state.hostUpdateRestarts, [desktopId]: status.version },
+          hostUpdateRestarts: { ...state.hostUpdateRestarts, [connectionKey]: status.version },
         };
       });
       setServersConnecting([server]);

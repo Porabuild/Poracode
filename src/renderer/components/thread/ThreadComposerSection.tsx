@@ -57,6 +57,7 @@ import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { useBrowserAttachInbox } from "@/renderer/state/browserAttachInbox";
 import {
   useComposerInputInbox,
@@ -273,6 +274,11 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const remoteDesktopId = thread.remoteServerId;
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
+    : undefined;
+  // Host-owned environment attachments resolve through the keyed readiness
+  // subscription; direct/ssh keep their synchronous endpoint URL.
+  const remoteImageReadiness = remoteDesktopId
+    ? environmentImageReadinessFor(remoteDesktopId)
     : undefined;
   // Unsent composer content survives leaving this thread. The primary GUI pane
   // keeps this section mounted across thread switches; restore before paint
@@ -1054,6 +1060,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         {...(attachmentImageUrlForPath
                           ? { imageUrlForPath: attachmentImageUrlForPath }
                           : {})}
+                        remoteImageReadiness={remoteImageReadiness}
                       />
                     }
                     inputContent={

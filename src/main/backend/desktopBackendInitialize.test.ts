@@ -29,6 +29,10 @@ describe("buildDesktopBackendInitialize", () => {
       settingsPath: join(leasePaths.dataRoot, "settings.json"),
       devServerUrl: undefined,
       dataFencePath: leasePaths.dataFencePath,
+      environmentAssets: {
+        agentPluginsDir: "/assets/agent-plugins",
+        preassembledArchiveDir: "/assets/ssh-runtime-archive",
+      },
       supervisor: {
         appVersion: "1.0.0",
         isDev: false,
@@ -46,6 +50,10 @@ describe("buildDesktopBackendInitialize", () => {
     expect(payload.baseDir).toBe(leasePaths.dataRoot);
     expect(payload.dbPath).toBe(join(leasePaths.dataRoot, "state.sqlite"));
     expect(payload.supervisor.secretStorageKey).toBe("fixture");
+    expect(payload.desktop?.environmentAssets).toEqual({
+      agentPluginsDir: "/assets/agent-plugins",
+      preassembledArchiveDir: "/assets/ssh-runtime-archive",
+    });
   });
 
   it("carries the dev server URL only when one is set", async () => {

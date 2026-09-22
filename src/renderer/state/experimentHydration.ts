@@ -1,9 +1,14 @@
-import type { Experiment, ExperimentCandidate } from "@/shared/contracts";
+import type {
+  Experiment,
+  ExperimentCandidate,
+  ExperimentCandidateRowUpdate,
+} from "@/shared/contracts";
 import { normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
+import { commitManagedExperimentChange } from "@/renderer/state/managedRootCatalog/rootExperimentAuthority";
 
 interface ResolvedCandidateWorktree {
   readonly branch: string;
@@ -121,29 +126,60 @@ async function recoverCandidateWorktrees(
       };
     }),
   }));
-  useExperimentStore.setState((state) => ({
-    experiments: Object.fromEntries(
-      Object.entries(state.experiments).map(([experimentId, experiment]) => [
-        experimentId,
-        {
-          ...experiment,
-          candidates: experiment.candidates.map((candidate) => {
+  // The repair is durable only through the host authority, and only when it
+  // actually changes the authoritative record: the planner re-runs against the
+  // host's current record on every conflict rebase, never resurrects a
+  // candidate the host already removed, and projects the confirmed record.
+  await Promise.all(
+    experiments.map(async (experiment) => {
+      if (!experiment.candidates.some((candidate) => resolvedByThreadId.has(candidate.threadId))) {
+        return;
+      }
+      try {
+        await commitManagedExperimentChange(experiment.id, (record) => {
+          const rows: ExperimentCandidateRowUpdate[] = [];
+          let changed = false;
+          const candidates = record.candidates.map((candidate) => {
             const resolved = resolvedByThreadId.get(candidate.threadId);
             if (!resolved) return candidate;
-            const { worktreePath: _worktreePath, ...candidateWithoutPath } = candidate;
-            if (resolved.path) {
-              return {
-                ...candidateWithoutPath,
-                worktreePath: resolved.path,
-                worktreeState: resolved.state,
-              };
+            if (candidate.worktreeState === "removed" && resolved.state !== "removed") {
+              return candidate;
             }
-            return resolved.preserveCandidatePath
-              ? { ...candidate, worktreeState: resolved.state }
-              : { ...candidateWithoutPath, worktreeState: resolved.state };
-          }),
-        },
-      ]),
-    ),
-  }));
+            if (
+              candidate.worktreePath === resolved.path &&
+              candidate.worktreeState === resolved.state
+            ) {
+              return candidate;
+            }
+            changed = true;
+            if (!resolved.path && resolved.preserveCandidatePath && candidate.worktreePath) {
+              // A worktree is still registered at the recorded path but not on
+              // the candidate branch: keep the recorded path and repair only
+              // the state (the resolver refuses the branch mismatch later).
+              return { ...candidate, worktreeState: resolved.state };
+            }
+            if (resolved.path) {
+              rows.push({
+                threadId: candidate.threadId,
+                worktree: { path: resolved.path, branch: resolved.branch },
+              });
+            } else if (candidate.worktreePath) {
+              rows.push({ threadId: candidate.threadId, worktree: null });
+            }
+            const { worktreePath: _worktreePath, ...candidateWithoutPath } = candidate;
+            return {
+              ...candidateWithoutPath,
+              ...(resolved.path ? { worktreePath: resolved.path } : {}),
+              worktreeState: resolved.state,
+            };
+          });
+          return changed
+            ? { record: { ...record, candidates, updatedAt: new Date().toISOString() }, rows }
+            : null;
+        });
+      } catch (error) {
+        captureRendererException(error, { featureArea: "hydration" });
+      }
+    }),
+  );
 }

@@ -4,7 +4,12 @@ import type { StorageValue } from "zustand/middleware";
 import type { RemoteServerRecord } from "./types";
 
 import { createSecureRemoteServersStorage } from "./secureStorage";
-import { __resetTokenVaultForTest, deleteDesktopToken } from "./tokenVault";
+import {
+  __resetTokenVaultForTest,
+  deleteDesktopToken,
+  getDesktopToken,
+  setDesktopToken,
+} from "./tokenVault";
 
 interface PersistedState {
   servers: RemoteServerRecord[];
@@ -23,6 +28,44 @@ function server(desktopId: string, accessToken: string): RemoteServerRecord {
 
 function value(record: RemoteServerRecord): StorageValue<PersistedState> {
   return { state: { servers: [record], marker: "kept" }, version: 1 };
+}
+
+function stateValue(servers: RemoteServerRecord[]): StorageValue<PersistedState> {
+  return { state: { servers, marker: "kept" }, version: 2 };
+}
+
+/** A direct pairing of the child host: connection key === host identity. */
+function directChild(accessToken: string): RemoteServerRecord {
+  return {
+    connectionId: "child-desktop",
+    desktopId: "child-desktop",
+    label: "Direct child",
+    endpoint: "https://child.example",
+    accessToken,
+    scopes: [],
+    transport: { kind: "direct" },
+  };
+}
+
+/** The same child host reached through a parent-owned environment. */
+function environmentChild(
+  accessToken: string,
+  overrides: { readonly connectionId?: string; readonly parentConnectionId?: string } = {},
+): RemoteServerRecord {
+  return {
+    connectionId: overrides.connectionId ?? "conn-env",
+    desktopId: "child-desktop",
+    label: "Environment child",
+    endpoint: "https://child.example/api/environments/e1/proxy/",
+    accessToken,
+    scopes: [],
+    transport: {
+      kind: "environment",
+      parentConnectionId: overrides.parentConnectionId ?? "conn-parent",
+      environmentId: "e1",
+      childDesktopId: "child-desktop",
+    },
+  };
 }
 
 async function createLegacyDexieVault(): Promise<void> {
@@ -63,6 +106,10 @@ afterEach(async () => {
     deleteDesktopToken("web-1"),
     deleteDesktopToken("legacy-1"),
     deleteDesktopToken("legacy-db-1"),
+    deleteDesktopToken("child-desktop"),
+    deleteDesktopToken("conn-env"),
+    deleteDesktopToken("conn-env-a"),
+    deleteDesktopToken("conn-env-b"),
   ]);
   vi.restoreAllMocks();
 });
@@ -141,6 +188,85 @@ describe("secure remote-server persistence", () => {
     expect(restored?.state.servers[0]?.accessToken).toBe("legacy-database-secret");
     expect(restored?.state.marker).toBe("migrated");
     expect(localStorage.getItem("servers")).not.toContain("legacy-database-secret");
+  });
+
+  it("isolates the access token per connection for the same child host (C1 F7)", async () => {
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    await storage.setItem(
+      "servers",
+      stateValue([directChild("direct-token"), environmentChild("environment-token")]),
+    );
+    __resetTokenVaultForTest();
+
+    const restored = await storage.getItem("servers");
+    expect(restored?.state.servers.map((entry) => entry.accessToken)).toEqual([
+      "direct-token",
+      "environment-token",
+    ]);
+  });
+
+  it("keeps two parents' environments of the same copied child identity isolated (C1 F7)", async () => {
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    await storage.setItem(
+      "servers",
+      stateValue([
+        environmentChild("token-a", { connectionId: "conn-env-a", parentConnectionId: "parent-a" }),
+        environmentChild("token-b", { connectionId: "conn-env-b", parentConnectionId: "parent-b" }),
+      ]),
+    );
+    __resetTokenVaultForTest();
+
+    const restored = await storage.getItem("servers");
+    expect(restored?.state.servers.map((entry) => entry.accessToken)).toEqual([
+      "token-a",
+      "token-b",
+    ]);
+  });
+
+  it("never copies a shared legacy slot into two connections of one child host (C1 F7)", async () => {
+    await setDesktopToken("child-desktop", "shared-bearer");
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    await storage.setItem("servers", stateValue([directChild(""), environmentChild("")]));
+    __resetTokenVaultForTest();
+
+    const restored = await storage.getItem("servers");
+    // The direct pairing owns the `token.<desktopId>` slot; the environment
+    // connection must not inherit the shared bearer from it.
+    expect(restored?.state.servers[0]?.accessToken).toBe("shared-bearer");
+    expect(restored?.state.servers[1]?.accessToken).toBe("");
+  });
+
+  it("recovers a unique-claim legacy slot for an environment record (C1 F7)", async () => {
+    await setDesktopToken("child-desktop", "legacy-child-bearer");
+    localStorage.setItem("servers", JSON.stringify(stateValue([environmentChild("")])));
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+
+    const restored = await storage.getItem("servers");
+    expect(restored?.state.servers[0]?.accessToken).toBe("legacy-child-bearer");
+  });
+
+  it("purges vault slots by connection key, not host identity (C1 F7)", async () => {
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    await storage.setItem(
+      "servers",
+      stateValue([directChild("direct-token"), environmentChild("environment-token")]),
+    );
+    await storage.setItem("servers", stateValue([directChild("direct-token")]));
+    __resetTokenVaultForTest();
+
+    expect(await getDesktopToken("conn-env")).toBeNull();
+    expect(await getDesktopToken("child-desktop")).toBe("direct-token");
+  });
+
+  it("purges a stale legacy shared slot once no record claims the child identity (C1 F7)", async () => {
+    const storage = createSecureRemoteServersStorage<PersistedState>();
+    await storage.setItem("servers", stateValue([environmentChild("environment-token")]));
+    await setDesktopToken("child-desktop", "legacy-shared");
+    await storage.setItem("servers", stateValue([]));
+    __resetTokenVaultForTest();
+
+    expect(await getDesktopToken("conn-env")).toBeNull();
+    expect(await getDesktopToken("child-desktop")).toBeNull();
   });
 
   it("never falls back to plaintext localStorage when the secure vault is unavailable", async () => {

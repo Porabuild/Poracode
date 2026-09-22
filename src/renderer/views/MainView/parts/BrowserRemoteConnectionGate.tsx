@@ -1,3 +1,4 @@
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { Fragment } from "react";
 import { Button } from "@heroui/react";
 import { Trans } from "@lingui/react/macro";
@@ -19,7 +20,9 @@ export function BrowserRemoteConnectionGate(props: {
   const selectedServer = useRemoteServersStore(selectBrowserBridgeServer);
   const savedServer = useRemoteServersStore((state) => state.servers[0]);
   const connecting = useRemoteServersStore((state) =>
-    state.servers.some((server) => state.runtime[server.desktopId]?.status === "connecting"),
+    state.servers.some(
+      (server) => state.runtime[remoteConnectionKey(server)]?.status === "connecting",
+    ),
   );
 
   if (!isBrowserClientRuntime()) return props.children;
@@ -31,7 +34,7 @@ export function BrowserRemoteConnectionGate(props: {
     );
   }
   const server = selectedServer ?? (props.allowOffline ? savedServer : undefined);
-  if (server) return <Fragment key={server.desktopId}>{props.children}</Fragment>;
+  if (server) return <Fragment key={remoteConnectionKey(server)}>{props.children}</Fragment>;
   if (props.fallback) return props.fallback;
 
   return (

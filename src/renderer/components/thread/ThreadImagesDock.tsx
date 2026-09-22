@@ -14,7 +14,14 @@ import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./Thr
  * Clicking any tile opens the fullscreen lightbox at that image with prev/next
  * across the whole thread.
  */
-export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryImage[] }) {
+export function ThreadImagesDock({
+  gallery,
+  threadId,
+}: {
+  gallery: readonly ThreadGalleryImage[];
+  /** Enables live gallery updates in the open lightbox when provided. */
+  threadId?: string | undefined;
+}) {
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(false);
   if (gallery.length === 0) return null;
@@ -56,7 +63,7 @@ export function ThreadImagesDock({ gallery }: { gallery: readonly ThreadGalleryI
                     aria-label={t`Open image ${index + 1} of ${gallery.length}`}
                     title={img.alt || t`Open image preview`}
                     className="group relative block h-16 w-24 overflow-hidden rounded-3xl border border-[color:var(--border)] bg-[var(--composer-surface)] focus-visible:outline-2 focus-visible:outline-accent"
-                    onClick={() => openThreadGallery(gallery, undefined, index)}
+                    onClick={() => openThreadGallery(gallery, undefined, index, threadId)}
                   >
                     <DownsampledThumb
                       src={img.src}

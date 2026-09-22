@@ -25,6 +25,8 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { dispatchManagedRootProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
 import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
 import type { ProviderModelPreference } from "@/shared/settings";
@@ -214,7 +216,11 @@ export function ThreadDraftView(props: {
   const remoteConnection = useRemoteServersStore((state) => {
     const { remoteServerId } = project;
     if (!remoteServerId) return "local";
-    if (!state.servers.some((server) => server.desktopId === remoteServerId)) return "missing";
+    // Projected projects carry the CONNECTION key, which for a host-owned
+    // environment is the locally minted id, not the child host identity.
+    if (!state.servers.some((server) => remoteConnectionKey(server) === remoteServerId)) {
+      return "missing";
+    }
     return state.runtime[remoteServerId]?.status ?? "connecting";
   });
   const hostUpdateRestarting = useRemoteServersStore((state) =>
@@ -337,7 +343,18 @@ export function ThreadDraftView(props: {
   }, [effectiveAgentKind]);
 
   // --- Per-provider config memory (app-wide via shared settings) ---
-  const updateProjectDraftConfig = useAppStore((s) => s.updateProjectDraftConfig);
+  // Root projects persist `lastDraftConfig` host-side as an explicit narrow
+  // intent; the store write keeps the local paint immediate, and a failed
+  // command is surfaced while the next authoritative pass restores the host
+  // value. The ref keeps the wrapper identity stable for effect deps.
+  const updateProjectDraftConfigStore = useAppStore((s) => s.updateProjectDraftConfig);
+  const updateProjectDraftConfigRef = useRef(
+    (projectId: string, draftConfig: ProjectDraftConfig) => {
+      updateProjectDraftConfigStore(projectId, draftConfig);
+      dispatchManagedRootProjectDraftConfig(projectId, draftConfig);
+    },
+  );
+  const updateProjectDraftConfig = updateProjectDraftConfigRef.current;
   const setProviderConfig = useSharedSettings((s) => s.setProviderConfig);
   const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
   const effectiveAgentKindRef = useRef(effectiveAgentKind);

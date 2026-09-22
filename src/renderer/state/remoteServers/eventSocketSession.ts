@@ -11,11 +11,12 @@ import {
   RemoteSocketHealthMonitor,
   RemoteSocketReconnectPolicy,
 } from "@/shared/remote/socketPolicy";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { getRemoteSocketEngine } from "@/renderer/state/remote/engine";
 import { resetTruncateReloadBackoff } from "@/renderer/state/remote/truncateRecovery";
 import { setRemoteTerminalSocketSender } from "@/renderer/state/remoteTerminalFeed";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
-import { bindRemoteEngineOverflowListener } from "./eventSocketEngine";
+import { bindRemoteEngineLaneOverflow } from "./eventSocketEngine";
 import {
   createEventSocketRecoveryState,
   type EventSocketConnectionContext,
@@ -36,6 +37,13 @@ import {
   type RemoteServerEventSocketEntry,
 } from "./eventSocketRegistry";
 import { bindEventSocketResync } from "./eventSocketResync";
+import { withRuntimeHistoryNoticesDeclaration } from "@/renderer/state/remote/historyNoticeCapability";
+import {
+  declaresBoundedCatalogChangesForConnection,
+  noteBoundedCatalogChangesCapability,
+  withBoundedCatalogChangesDeclaration,
+} from "@/renderer/state/remote/boundedCatalogChangesCapability";
+import { remoteConnectionKey } from "./types";
 import {
   prepareTerminalConnection,
   type TerminalConnectionCapabilities,
@@ -72,6 +80,7 @@ export interface StartRemoteServerEventStreamDeps {
     socket: RemoteSocketLike,
     capabilities: TerminalConnectionCapabilities,
   ) => void;
+  readonly clientForServer: (server: RemoteServerRecord) => RemoteDesktopClient;
   readonly buildOpenThread: (
     desktopId: string,
     snapshot: {
@@ -95,19 +104,25 @@ export async function startRemoteServerEventStream(
     closeRemoteServerEventSocket,
     activateRemoteTerminalFeed,
     rememberTerminalConnection,
+    clientForServer,
     buildOpenThread,
   } = deps;
 
+  const connectionKey = remoteConnectionKey(server);
   const serverKey = `${server.endpoint}\0${server.accessToken}`;
-  // This session's consumer-scoped decode engine (V5 2.2): independent of the
-  // desktop renderer-stream and persist engines, so their resets and overflows
+  // This session's consumer-scoped decode engine (V5 2.2) and its per-host lane
+  // (A3): independent of the desktop renderer-stream and persist engines, and
+  // isolated from every other paired host's flood, so their resets/overflows
   // cannot reject this session's in-flight decodes.
   const engine = getRemoteSocketEngine();
-  const existing = getRemoteServerEventSocketEntry(server.desktopId);
+  const existing = getRemoteServerEventSocketEntry(connectionKey);
   if (existing?.serverKey === serverKey && !options.resyncInterestedThreads) return;
+  // Creating the lane supersedes a previous session's lane for this desktop:
+  // its pending callbacks reject typed and its late results are fenced.
+  const decodeLane = engine.createLane({ key: `event-socket:${connectionKey}` });
 
   closeRemoteServerEventSocket(
-    server.desktopId,
+    connectionKey,
     options.resyncInterestedThreads ? { preserveReplayState: true } : undefined,
   );
   const entry: RemoteServerEventSocketEntry = {
@@ -120,7 +135,7 @@ export async function startRemoteServerEventStream(
     healthPingInterval: null,
     health: null,
   };
-  setRemoteServerEventSocketEntry(server.desktopId, entry);
+  setRemoteServerEventSocketEntry(connectionKey, entry);
   /** Socket the in-flight resync promise belongs to. A recovery must never be
    * reused across connections: a dead socket's recovery resolving `false`
    * would force-reconnect a healthy replacement and report a false offline. */
@@ -136,17 +151,17 @@ export async function startRemoteServerEventStream(
   let resyncRequired = false;
 
   const isCurrent = () =>
-    getRemoteServerEventSocketEntry(server.desktopId) === entry &&
-    get().servers.some((candidate) => candidate.desktopId === server.desktopId);
+    getRemoteServerEventSocketEntry(connectionKey) === entry &&
+    get().servers.some((candidate) => remoteConnectionKey(candidate) === connectionKey);
 
   const setSocketStatus = (status: "connecting" | "online") => {
     set((state) => {
-      const current = state.runtime[server.desktopId];
+      const current = state.runtime[connectionKey];
       if (!current || (current.status === status && current.message === undefined)) return {};
       return {
         runtime: {
           ...state.runtime,
-          [server.desktopId]: {
+          [connectionKey]: {
             status,
             projects: current.projects,
             threads: current.threads,
@@ -160,7 +175,7 @@ export async function startRemoteServerEventStream(
 
   const scheduleReconnect = (minimumDelayMs = 0) => {
     if (!isCurrent()) return;
-    if (get().runtime[server.desktopId]?.status === "online") {
+    if (get().runtime[connectionKey]?.status === "online") {
       setSocketStatus("connecting");
     }
     if (entry.reconnectTimer) clearTimeout(entry.reconnectTimer);
@@ -176,8 +191,8 @@ export async function startRemoteServerEventStream(
     entry.socket = null;
     clearRemoteServerEventSocketConnectTimeout(entry);
     clearRemoteServerEventSocketHealth(entry);
-    forgetRemoteServerCursorSyncV2(server.desktopId);
-    setRemoteTerminalSocketSender(server.desktopId, null);
+    forgetRemoteServerCursorSyncV2(connectionKey);
+    setRemoteTerminalSocketSender(connectionKey, null);
     syncDesktopBrowserBridgeClient(get());
     scheduleReconnect();
   };
@@ -207,7 +222,7 @@ export async function startRemoteServerEventStream(
     if (current) forceReconnect(current);
   };
 
-  bindRemoteEngineOverflowListener(engine, () => {
+  bindRemoteEngineLaneOverflow(decodeLane, () => {
     if (!isCurrent()) return;
     noteClientDetectedLoss();
   });
@@ -239,18 +254,35 @@ export async function startRemoteServerEventStream(
     if (!isCurrent() || entry.connecting || entry.socket) return;
     entry.connecting = true;
     try {
-      const client = get().clientFactory(server.endpoint, server.accessToken);
+      const client = clientForServer(server);
       const seed = connectionCapabilitiesSeed;
       connectionCapabilitiesSeed = undefined;
       const { ticket, capabilities } = await prepareTerminalConnection(client, seed);
       if (!isCurrent()) return;
-      const lastSeenSeq = remoteServerSnapshotSeq(server.desktopId);
+      // The fresh descriptor verdict for THIS connection: recorded before the
+      // upgrade so the declaration gate reads the same fact every consumer
+      // sees. An old host clears any earlier support.
+      noteBoundedCatalogChangesCapability(
+        connectionKey,
+        capabilities.boundedCatalogChanges === true,
+      );
+      const lastSeenSeq = remoteServerSnapshotSeq(connectionKey);
       const openThread = get().openThread;
       const threadItemInterests =
-        getRemoteServerThreadItemInterests(server.desktopId) ??
-        (openThread?.desktopId === server.desktopId ? [openThread.threadId] : []);
+        getRemoteServerThreadItemInterests(connectionKey) ??
+        (openThread?.desktopId === connectionKey ? [openThread.threadId] : []);
       const socket = get().socketFactory(
-        client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+        // B1: declare notice capability at upgrade only because the renderer
+        // renders and can acknowledge the durable notice. boundedCatalogChanges
+        // rides the same upgrade only when this descriptor advertised it AND
+        // the bounded controller (which refreshes through bounded reads on the
+        // payload-less signal) is installed for this connection.
+        withBoundedCatalogChangesDeclaration(
+          withRuntimeHistoryNoticesDeclaration(
+            client.websocketUrl(ticket, lastSeenSeq, { threadItemInterests }),
+          ),
+          declaresBoundedCatalogChangesForConnection(connectionKey),
+        ),
       );
       if (!isCurrent()) {
         try {
@@ -262,6 +294,10 @@ export async function startRemoteServerEventStream(
       }
       rememberTerminalConnection(socket, capabilities);
       entry.socket = socket;
+      // A3 generation fence: a new connection supersedes the old lane
+      // generation; pending decodes from the previous socket reject typed and
+      // can never be applied to this one.
+      decodeLane.renew();
       entry.connectTimeout = setTimeout(() => {
         forceReconnect(socket);
       }, REMOTE_SOCKET_POLICY.connectTimeoutMs);
@@ -270,7 +306,6 @@ export async function startRemoteServerEventStream(
         entry,
         socket,
         client,
-        engine,
         get,
         set,
         buildOpenThread,
@@ -278,6 +313,8 @@ export async function startRemoteServerEventStream(
         isCurrent,
         forceReconnect,
         noteClientDetectedLoss,
+        decodeFrame: (raw) => decodeLane.decodeRemote(raw),
+        decodeInline: !engine.isWorkerSupported(),
         recovery,
         resyncSlots,
         dispatchForwardEvent: () => {},
@@ -289,18 +326,18 @@ export async function startRemoteServerEventStream(
         if (!isCurrent() || entry.socket !== socket) return;
         clearRemoteServerEventSocketConnectTimeout(entry);
         entry.reconnectPolicy.reset();
-        activateRemoteTerminalFeed(server.desktopId, socket);
+        activateRemoteTerminalFeed(connectionKey, socket);
         syncDesktopBrowserBridgeClient(get());
         const currentThreadItemInterests =
-          getRemoteServerThreadItemInterests(server.desktopId) ?? threadItemInterests;
+          getRemoteServerThreadItemInterests(connectionKey) ?? threadItemInterests;
         if (sameRemoteServerThreadItemInterests(currentThreadItemInterests, threadItemInterests)) {
-          rememberRemoteServerThreadItemInterests(server.desktopId, currentThreadItemInterests);
+          rememberRemoteServerThreadItemInterests(connectionKey, currentThreadItemInterests);
         } else {
-          setRemoteServerThreadItemInterests(server.desktopId, currentThreadItemInterests, true);
+          setRemoteServerThreadItemInterests(connectionKey, currentThreadItemInterests, true);
         }
         startHealthProbe(socket);
-        if (get().runtime[server.desktopId]?.status !== "online") {
-          resetTruncateReloadBackoff(server.desktopId);
+        if (get().runtime[connectionKey]?.status !== "online") {
+          resetTruncateReloadBackoff(connectionKey);
         }
         setSocketStatus("online");
         resumePendingTruncateReloads();
@@ -318,9 +355,9 @@ export async function startRemoteServerEventStream(
           entry.socket = null;
           clearRemoteServerEventSocketConnectTimeout(entry);
           clearRemoteServerEventSocketHealth(entry);
-          forgetRemoteServerCursorSyncV2(server.desktopId);
-          setRemoteTerminalSocketSender(server.desktopId, null);
-          setRemoteServerFailure(server.desktopId, "error", sharedMsg("remote.session.expired"));
+          forgetRemoteServerCursorSyncV2(connectionKey);
+          setRemoteTerminalSocketSender(connectionKey, null);
+          setRemoteServerFailure(connectionKey, "error", sharedMsg("remote.session.expired"));
           scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
           return;
         }
@@ -336,22 +373,22 @@ export async function startRemoteServerEventStream(
     } catch (error) {
       if (!isCurrent()) return;
       if (error instanceof RemoteClientError && error.code === "protocol_version_mismatch") {
-        setRemoteServerFailure(server.desktopId, "error", friendlyError(error));
+        setRemoteServerFailure(connectionKey, "error", friendlyError(error));
         // Stop automatic attempts, but retain terminal listeners so a
         // later explicit reconnect can install a fresh supported stream.
-        deleteRemoteServerEventSocketEntry(server.desktopId);
-        forgetRemoteServerCursorSyncV2(server.desktopId);
-        setRemoteTerminalSocketSender(server.desktopId, null);
+        deleteRemoteServerEventSocketEntry(connectionKey);
+        forgetRemoteServerCursorSyncV2(connectionKey);
+        setRemoteTerminalSocketSender(connectionKey, null);
         return;
       }
       if (isUnauthorizedRemoteError(error)) {
-        setRemoteServerFailure(server.desktopId, "error", sharedMsg("remote.session.expired"));
+        setRemoteServerFailure(connectionKey, "error", sharedMsg("remote.session.expired"));
         scheduleReconnect(REMOTE_SOCKET_POLICY.unauthorizedReconnectMs);
         return;
       }
       const transportFailure = isRemoteTransportFailure(error);
       setRemoteServerFailure(
-        server.desktopId,
+        connectionKey,
         transportFailure ? "offline" : "error",
         transportFailure ? sharedMsg("remote.server.unreachable") : friendlyError(error),
       );

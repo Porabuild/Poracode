@@ -1,8 +1,13 @@
 import { BrowserWindow } from "electron";
 import { PROMOTION_PROGRESS_THRESHOLD_BYTES } from "@/backend/ownership/hostImportFiles";
-import { msg } from "@/shared/messages";
+import { SOURCE_LOCALE } from "@/shared/locale";
+import {
+  promotionProgressStringsFor,
+  type DesktopPromotionProgressStrings,
+} from "./i18n/promotionProgressLocale";
 
 export { PROMOTION_PROGRESS_THRESHOLD_BYTES };
+export type { DesktopPromotionProgressStrings };
 
 export interface DesktopPromotionProgressWindow {
   update(copiedBytes: number, totalBytes: number): void;
@@ -13,17 +18,38 @@ function formatMib(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
 }
 
+/** Escape translated text before it is interpolated into the window document. */
+function escapeHtmlText(text: string): string {
+  return text.replace(/[&<>"']/gu, (char) => {
+    switch (char) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      default:
+        return "&#39;";
+    }
+  });
+}
+
 /**
  * V6 C.4: a small progress window shown only when a desktop promotion copy
  * exceeds {@link PROMOTION_PROGRESS_THRESHOLD_BYTES}. Admission runs after
  * `app.whenReady`; failures to open a window never block the copy.
  *
- * The strings are cataloged in `src/shared/messages.ts` + the 12 renderer
- * catalogs; like `showUserNotificationFallback` (G2.4), main does not load the
- * renderer i18n catalogs, so this window renders the source (English) strings.
+ * The window runs before the renderer i18n runtime exists, so the caller
+ * resolves the saved locale up front and passes its strings here (see
+ * `i18n/promotionProgressLocale.ts`). The default is the English source so the
+ * window still renders if a caller has no locale context. Translated text is
+ * escaped before interpolation; the window title is a native option, not HTML.
  */
 export function openDesktopPromotionProgress(
   totalBytes: number,
+  strings: DesktopPromotionProgressStrings = promotionProgressStringsFor(SOURCE_LOCALE),
 ): DesktopPromotionProgressWindow | undefined {
   if (totalBytes < PROMOTION_PROGRESS_THRESHOLD_BYTES) return undefined;
   let window: BrowserWindow;
@@ -37,13 +63,13 @@ export function openDesktopPromotionProgress(
       minimizable: false,
       maximizable: false,
       fullscreenable: false,
-      title: msg("desktop.promotion.progress.title"),
+      title: strings.title,
     });
     ready = window
       .loadURL(
         `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html>
 <html><body style="font:13px sans-serif;margin:20px;color:#111">
-<p>${msg("desktop.promotion.progress.body")}</p>
+<p>${escapeHtmlText(strings.body)}</p>
 <p id="status">0 / ${formatMib(totalBytes)}</p>
 <progress id="bar" max="${totalBytes}" value="0" style="width:100%"></progress>
 </body></html>`)}`,

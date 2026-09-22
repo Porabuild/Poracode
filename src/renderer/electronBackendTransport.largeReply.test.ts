@@ -28,7 +28,6 @@ function install(invoke: (name: string, args: unknown[]) => Promise<unknown>) {
     arch: "x64",
     platform: "darwin",
     onSupervisorEvent: () => () => {},
-    onSupervisorEventGap: () => () => {},
     onBackendSupervisorReset: () => () => {},
     ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
     invokeProcedure: (name: string, args: unknown[]) => invoke(name, args),

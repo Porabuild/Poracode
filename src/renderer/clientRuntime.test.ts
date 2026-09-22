@@ -43,7 +43,6 @@ function electronHost(arch: string): ElectronHostBridge {
     platform: "win32",
     hostCapabilities: DESKTOP_HOST_CAPABILITIES,
     onSupervisorEvent: () => () => {},
-    onSupervisorEventGap: () => () => {},
     onBackendSupervisorReset: () => () => {},
     ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
     invokeProcedure: async () => undefined,
@@ -57,7 +56,7 @@ describe("client runtime", () => {
     Reflect.deleteProperty(window, "poracodeHost");
   });
 
-  it.each([undefined, 6, 7, 8, 9, 10, 11, 12, 13])(
+  it.each([undefined, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])(
     "refuses an old preload host version %s before creating its transport",
     (version) => {
       const host = {

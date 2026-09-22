@@ -5,6 +5,7 @@
 // Electron-free services (SSH, Chrome bridge, computer-use ingress) are
 // composed by the shared module exactly like the standalone server does.
 
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { app } from "electron";
 import type { PoracodePaths } from "@/shared/poracodePaths";
@@ -13,13 +14,18 @@ import type { BackendHostClient } from "./backend/BackendHostClient";
 import { BrowserPanelManager, BrowserMcpIngress } from "./browser";
 import { RemoteBrowserGateway } from "@/host/remote/RemoteBrowserGateway";
 import { ComputerUseDesktopOverlay } from "./computer-use";
-import { composeHostServices, type ComposedHostServices } from "./hostServices/composeHostServices";
+import {
+  composeHostServices,
+  type ComposedHostServices,
+} from "@/host/hostServices/composeHostServices";
 import type { DesktopBrowserNativeControl } from "./desktopAppBackendHost";
 import type { DesktopResourceDirs } from "./desktopAppShell";
 import { safeStorageHealth } from "./safeStorageHealth";
 import { desktopApp, requirePoracodePaths } from "./desktopAppState";
-import { readSharedSettingsFile } from "./sharedSettingsFile";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { focusBrowserExtractWindow } from "./desktopAppWindows";
+import { SshEnvironmentSupervisor } from "./ssh/sshEnvironmentSupervisor";
+import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 
 export interface DesktopHostServicesDeps {
   readonly paths: PoracodePaths;
@@ -31,10 +37,41 @@ export interface DesktopHostServicesDeps {
 
 export interface DesktopHostServices {
   readonly services: ComposedHostServices;
+  /** Device-local SSH: main only invokes the utility and presents results. */
+  readonly ssh: SshEnvironmentController;
   /** Browser-panel control consumed by the backend host native handlers. */
   readonly browser: DesktopBrowserNativeControl;
   /** Joins the browser watch stop and the remote gateway dispose (quit). */
   disposeBrowserGateway(): Promise<void>;
+}
+
+/**
+ * Resolve the immutable release archive the artifact pipeline may ship
+ * (`resources/ssh-runtime-archive/{manifest.json,<archive>}`). A development
+ * checkout has none; the utility then stages the bundle in its worker.
+ */
+export function resolvePreassembledSshRuntimeArchiveDir(): string | undefined {
+  const dir = app.isPackaged
+    ? join(process.resourcesPath, "ssh-runtime-archive")
+    : join(__dirname, "..", "..", "resources", "ssh-runtime-archive");
+  return existsSync(join(dir, "manifest.json")) ? dir : undefined;
+}
+
+function createDesktopSshEnvironment(dirs: DesktopResourceDirs): SshEnvironmentController {
+  const preassembledArchiveDir = resolvePreassembledSshRuntimeArchiveDir();
+  return new SshEnvironmentSupervisor({
+    utilityPath: join(dirs.mainBundleDir, "sshEnvironmentWorker.cjs"),
+    isPackaged: app.isPackaged,
+    config: {
+      mainBundleDir: dirs.mainBundleDir,
+      agentPluginsDir: dirs.agentPluginsDir,
+      wslHelpersDir: dirs.wslHelpersDir,
+      bundledSkillsDir: dirs.bundledSkillsDir,
+      bundledPluginsDir: dirs.bundledPluginsDir,
+      cacheDir: join(requirePoracodePaths().baseDir, "ssh-runtime-bundles"),
+      ...(preassembledArchiveDir ? { preassembledArchiveDir } : {}),
+    },
+  });
 }
 
 export function createDesktopHostServices(deps: DesktopHostServicesDeps): DesktopHostServices {
@@ -78,13 +115,11 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
     {
       baseDir: deps.paths.baseDir,
       getSharedSettings: () => readSharedSettingsFile(requirePoracodePaths().settingsPath),
-      ssh: {
-        mainBundleDir: deps.dirs.mainBundleDir,
-        agentPluginsDir: deps.dirs.agentPluginsDir,
-        wslHelpersDir: deps.dirs.wslHelpersDir,
-        bundledSkillsDir: deps.dirs.bundledSkillsDir,
-        bundledPluginsDir: deps.dirs.bundledPluginsDir,
-      },
+      // Device-local SSH is not a host service: the desktop runs it in a
+      // utility process (main only invokes and presents), while the shared
+      // composition keeps constructing the host-owned manager for
+      // backend/headless authorities that orchestrate SSH in-process.
+      ssh: null,
       computerUse: {
         helperRootDir: deps.dirs.computerUseHelperRoot,
         stateDir: join(app.getPath("userData"), "computer-use"),
@@ -113,6 +148,8 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
   desktopApp.chromeBridgeServer = services.chromeBridgeServer;
   desktopApp.chromeMcpIngress = services.chromeMcpIngress;
 
+  const ssh = createDesktopSshEnvironment(deps.dirs);
+
   let watchStop: (() => void) | null = null;
   let gatewayDisposed: Promise<void> | null = null;
   const browser: DesktopBrowserNativeControl = {
@@ -140,6 +177,7 @@ export function createDesktopHostServices(deps: DesktopHostServicesDeps): Deskto
 
   return {
     services,
+    ssh,
     browser,
     disposeBrowserGateway: () => {
       gatewayDisposed ??= (async () => {

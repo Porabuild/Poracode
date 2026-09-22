@@ -118,7 +118,7 @@ export function ThreadDocksPanel({
       summary.backgroundTaskCount > 0 ? (
         <ThreadBackgroundTasksDock threadId={threadId} placement="right" />
       ) : null,
-    images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} /> : null,
+    images: gallery.length > 0 ? <ThreadImagesDock gallery={gallery} threadId={threadId} /> : null,
   };
   const labels: Record<ThreadDockKind, string> = {
     goal: t`Goal`,

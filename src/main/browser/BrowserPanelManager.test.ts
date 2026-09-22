@@ -9,12 +9,12 @@ vi.mock("electron", () => ({
   shell: { openExternal: vi.fn<(url: string) => Promise<void>>() },
 }));
 
-vi.mock("../db", () => ({
+vi.mock("@/host/db", () => ({
   dbGetState: vi.fn<(key: string) => string | null>(),
   dbSetState: vi.fn<(key: string, value: string) => void>(),
 }));
 
-vi.mock("../sharedSettingsFile", () => ({
+vi.mock("@/host/sharedSettingsFile", () => ({
   readSharedSettingsFile: vi.fn<(path: string) => unknown>(),
 }));
 

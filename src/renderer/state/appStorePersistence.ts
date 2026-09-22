@@ -1,3 +1,4 @@
+import type { Project, Thread } from "@/shared/contracts";
 import type { AppStoreState } from "./slices/shared";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 
@@ -5,7 +6,20 @@ type Inputs = Pick<
   AppStoreState,
   "projects" | "threads" | "view" | "groupLayouts" | "provisioningWorktreeThreadIds"
 >;
-type PersistedAppState = Pick<AppStoreState, "projects" | "threads" | "view" | "groupLayouts">;
+
+/**
+ * The desktop persists preferences only: the catalog is host-owned and
+ * arrives over the managed loopback bounded walk, so the persisted payload
+ * OMITS `projects`/`threads` entirely. Omitting is load-bearing: a persisted
+ * `threads: []` would be selected by the persist merge (`state.threads ??
+ * current`) and wipe rows the catalog installed while hydration was in flight.
+ * Browser/PWA clients keep persisting their catalog (they hydrate from the
+ * remote bridge and own no host DB).
+ */
+type PersistedAppState = Pick<AppStoreState, "view" | "groupLayouts"> & {
+  readonly projects?: Project[];
+  readonly threads?: Thread[];
+};
 
 /** Preserve references so transient updates don't serialize the full app state. */
 export function createAppStorePartializer() {
@@ -39,24 +53,19 @@ export function createAppStorePartializer() {
           (thread) => thread.id === paneId && state.provisioningWorktreeThreadIds[thread.id],
         ),
       );
-    const value: PersistedAppState = {
-      projects: persistRemoteRows
-        ? state.projects
-        : state.projects.filter((project) => !project.remoteServerId),
-      // Worktree-provisioning rows are renderer-only placeholders. If one
-      // survived a restart, `launching` would hydrate as `inactive` and
-      // reopening it would launch the agent in the base checkout.
-      threads: state.threads.filter(
-        (thread) =>
-          (persistRemoteRows || !thread.remoteServerId) &&
-          !state.provisioningWorktreeThreadIds[thread.id],
-      ),
-      view:
-        (!persistRemoteRows && hasRemoteView) || hasPendingWorktreeView
-          ? { kind: "home" as const }
-          : view,
-      groupLayouts: state.groupLayouts,
-    };
+    const value: PersistedAppState = persistRemoteRows
+      ? {
+          projects: state.projects,
+          threads: state.threads.filter(
+            (thread) => !state.provisioningWorktreeThreadIds[thread.id],
+          ),
+          view: hasPendingWorktreeView ? { kind: "home" as const } : view,
+          groupLayouts: state.groupLayouts,
+        }
+      : {
+          view: hasRemoteView || hasPendingWorktreeView ? { kind: "home" as const } : view,
+          groupLayouts: state.groupLayouts,
+        };
     previous = {
       input: {
         projects: state.projects,

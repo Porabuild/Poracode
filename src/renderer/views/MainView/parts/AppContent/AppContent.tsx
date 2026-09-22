@@ -41,6 +41,7 @@ import {
 } from "@/renderer/components/layout/SplitPaneContainer";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import { ThreadDraftView } from "@/renderer/components/thread/ThreadDraftView";
+import { LiveStreamCapacityAlert } from "@/renderer/components/thread/LiveStreamCapacityAlert";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
 import { useDraftEnvironment } from "@/renderer/hooks/uiSelectors";
 import { HomeView } from "@/renderer/views/HomeView";
@@ -87,7 +88,6 @@ export function AppContent() {
   const draftProjectId = view.kind === "draft" ? view.projectId : undefined;
   const draftProject = useProjectWithoutDraftConfig(draftProjectId);
   const draftLastDraftConfig = useInitialProjectDraftConfig(draftProjectId);
-  const createThread = useAppStore((state) => state.createThread);
   const queueThreadLaunch = useAppStore((state) => state.queueThreadLaunch);
   const focusedPaneId = useAppStore((state) => state.focusedPaneId);
   const compactLayout = useCompactLayout();
@@ -205,7 +205,7 @@ export function AppContent() {
       }
     }
 
-    const thread = createThread({
+    const thread = useAppStore.getState().createThread({
       projectId: project.id,
       agentKind: targetAgentKind,
       config: targetConfig,
@@ -412,6 +412,7 @@ export function AppContent() {
             </button>
           </div>
         )}
+        <LiveStreamCapacityAlert />
         <div className="min-h-0 flex-1">
           <SplitPaneContainer
             layout={paneLayout}

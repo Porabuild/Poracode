@@ -24,7 +24,12 @@ const configurationFiles = [
   "package.json",
   "pnpm-lock.yaml",
   "scripts/prepare-agent-plugins.mjs",
+  // The one native-overlay implementation and the shared release-install
+  // contract it imports are bundled into the server entry
+  // (`src/server/serverNativeOverlay.ts` re-exports both), so both are real
+  // first-party build inputs and must be declared.
   "scripts/server-native-overlay.mjs",
+  "scripts/server-release-install.mjs",
 ];
 const MAX_RUNTIME_INPUT_BYTES = 8 * 1024 * 1024;
 

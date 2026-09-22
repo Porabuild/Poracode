@@ -13,7 +13,7 @@ import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/re
 import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Experiment, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
+import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import type {
   QuickComposerSubmission,
   SupervisorEvent,
@@ -36,7 +36,6 @@ import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 const {
   bridge,
   quickComposerSubmitListeners,
-  projectStateChangedListeners,
   remoteThreadCommandListeners,
   runWorktreeSetupScript,
   sharedSettingsState,
@@ -47,7 +46,6 @@ const {
   const quickListeners: Array<(submission: QuickComposerSubmission) => void> = [];
   const supervisorListeners: Array<(event: SupervisorEvent) => void> = [];
   const threadOpenListeners: Array<(event: ThreadOpenRequestedEvent) => void> = [];
-  const projectListeners: Array<(event: { projects: unknown[] }) => void> = [];
   return {
     remoteThreadCommandListeners: listeners,
     runWorktreeSetupScript: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -68,7 +66,6 @@ const {
     quickComposerSubmitListeners: quickListeners,
     supervisorEventListeners: supervisorListeners,
     threadOpenRequestedListeners: threadOpenListeners,
-    projectStateChangedListeners: projectListeners,
     bridge: {
       windowKind: "main",
       pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -221,15 +218,6 @@ const {
         };
       }),
       onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
-      onProjectStateChanged: vi.fn<
-        (listener: (event: { projects: unknown[] }) => void) => () => void
-      >((listener) => {
-        projectListeners.push(listener);
-        return () => {
-          const index = projectListeners.indexOf(listener);
-          if (index >= 0) projectListeners.splice(index, 1);
-        };
-      }),
       onGitStateChanged: vi.fn<() => () => void>(() => () => undefined),
       onUserNotification: vi.fn<() => () => void>(() => () => undefined),
       onPrWatchMerged: vi.fn<() => () => void>(() => () => undefined),
@@ -526,7 +514,6 @@ describe("App", () => {
     if (remoteThreadCommandListeners.length > 1) remoteThreadCommandListeners.splice(1);
     if (threadOpenRequestedListeners.length > 1) threadOpenRequestedListeners.splice(1);
     if (quickComposerSubmitListeners.length > 1) quickComposerSubmitListeners.splice(1);
-    if (projectStateChangedListeners.length > 1) projectStateChangedListeners.splice(1);
     // Runtime batcher module state must not bleed across tests: a leftover
     // pending frame would suppress the next test's schedule (handle already
     // non-null) and hide its `applyRuntimeEventBatches` call.
@@ -694,6 +681,21 @@ describe("App", () => {
       accessToken: "acc-token",
       scopes: ["session:read", "projects:manage"],
     };
+    const remoteThreadHistory = async () => ({
+      snapshotSeq: 1,
+      thread: remoteThreadRow,
+      runtimeItems: [],
+      completedTurns: [],
+      contextUsage: null,
+      updatedAt: "now",
+    });
+    const remoteSnapshot = async () => ({
+      snapshotSeq: 1,
+      projects: [remoteProjectRow],
+      threads: [remoteThreadRow],
+      runtimeSummariesByThread: {},
+      updatedAt: "now",
+    });
     const remoteClient = {
       // The store pushes the rotating-token lifecycle onto its client at
       // connect (V5 4.6); this mock has no refresh behavior to drive.
@@ -716,20 +718,19 @@ describe("App", () => {
         },
       }),
       agentStatuses: async () => ({ windows: [], wsl: [], updatedAt: "now" }),
-      snapshot: async () => ({
-        snapshotSeq: 1,
-        projects: [remoteProjectRow],
-        threads: [remoteThreadRow],
-        runtimeSummariesByThread: {},
-        updatedAt: "now",
+      snapshot: remoteSnapshot,
+      // The startup refresh probes the B4 bounded shell read first; this older
+      // host negotiates `legacy` and the assembled snapshot paints.
+      boundedShellSnapshot: async () => ({
+        negotiation: "legacy" as const,
+        page: await remoteSnapshot(),
       }),
-      threadHistory: async () => ({
-        snapshotSeq: 1,
-        thread: remoteThreadRow,
-        runtimeItems: [],
-        completedTurns: [],
-        contextUsage: null,
-        updatedAt: "now",
+      threadHistory: remoteThreadHistory,
+      // Production opens a restored remote thread through the B4 bounded
+      // read; this older host negotiates `legacy` with the same snapshot.
+      boundedThreadHistory: async () => ({
+        negotiation: "legacy" as const,
+        page: await remoteThreadHistory(),
       }),
       websocketTicket: async () => "ticket-1",
       websocketUrl: (
@@ -1210,48 +1211,6 @@ describe("App", () => {
     expect(runWorktreeSetupScript).not.toHaveBeenCalled();
   });
 
-  it("adopts project changes made outside the renderer before the next store sync", () => {
-    const project = {
-      id: "mcp-project-1",
-      name: "MCP project",
-      location: { kind: "windows" as const, path: "C:\\mcp-project" },
-      createdAt: "2026-07-21T00:00:00.000Z",
-    };
-    useAppStore.setState({ projects: [] });
-    render(<App />);
-
-    act(() => {
-      projectStateChangedListeners.at(-1)?.({ projects: [project] });
-    });
-
-    expect(useAppStore.getState().projects).toEqual([project]);
-    act(() => {
-      useExperimentStore.setState({
-        experiments: {
-          "experiment-1": {
-            id: "experiment-1",
-            projectId: project.id,
-            title: "Experiment",
-            prompt: "Test project reconciliation",
-            baseBranch: "main",
-            baseCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            candidates: [],
-            status: "running",
-            createdAt: "2026-07-21T00:00:00.000Z",
-            updatedAt: "2026-07-21T00:00:00.000Z",
-          } satisfies Experiment,
-        },
-      });
-    });
-    expect(useExperimentStore.getState().experiments).toHaveProperty("experiment-1");
-
-    act(() => {
-      projectStateChangedListeners.at(-1)?.({ projects: [] });
-    });
-
-    expect(useExperimentStore.getState().experiments).toEqual({});
-  });
-
   it("creates and launches the thread submitted by the quick composer", async () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
@@ -1294,7 +1253,8 @@ describe("App", () => {
       agentKind: "codex",
       presentationMode: "gui",
     });
-    expect(screen.getByText("sent from overlay")).toHaveAttribute(
+    // The launch bridge call can precede React's first non-loading render.
+    expect(await screen.findByText("sent from overlay")).toHaveAttribute(
       "data-pending-launch",
       "__none__",
     );

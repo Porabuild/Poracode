@@ -11,25 +11,15 @@ import { hasClientCapability } from "./clientRuntime";
 import { showUserNotification } from "./notifications";
 
 import { useAppStore } from "./state/appStore";
-import { useExperimentStore } from "./state/experimentStore";
 import { useGitReadModelStore } from "./state/gitReadModelStore";
-import {
-  acknowledgeThread,
-  archiveThread,
-  deleteThread,
-  openThread,
-  renameThread,
-  toggleMarkThreadDone,
-  toggleStarThread,
-} from "./actions/threadActions";
-import { forgetRemovedWorktreeGroup } from "./actions/worktreeActions";
+import { openThread } from "./actions/threadActions";
+import { applyForwardedRemoteThreadCommand } from "./actions/remoteThreadCommandApplication";
 import { isProjectedRemoteEntityId } from "./state/remoteProjection";
 import { pruneLiveObservedCrossagentItems } from "./state/slices/staleSubAgents";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
 import { normalizeSharedSettings } from "@/shared/settings";
-import { applyRemoteThreadStartCommand } from "@/renderer/actions/remoteStartCommandActions";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
@@ -54,7 +44,6 @@ import { AppProvider } from "./components/ui/provider";
 import { ImageLightboxHost } from "./components/composer/ImageLightbox";
 import { MainView } from "@/renderer/views/MainView/MainView";
 import { startThreadFromDraft } from "@/renderer/actions/threadLaunchActions";
-import { primeWorktreeGitState } from "@/renderer/actions/worktreeLaunchActions";
 import { useCommandPaletteStore } from "@/renderer/commands/commandPaletteStore";
 import { captureAppStarted, installProductAnalytics } from "@/renderer/analytics/posthog";
 import { flushProductAnalytics } from "@/renderer/analytics/productAnalytics";
@@ -284,111 +273,16 @@ const mainWindowCleanups: Array<() => void> = isMainWindow
         : []),
       supervisorReducer.installScheduling(),
       ...(hasClientCapability("nativeAppUpdates") ? [installUpdateStatusSync()] : []),
-      // Thread-metadata commands issued from paired remote clients (mobile PWA).
-      // They run through the same actions as local edits so persistence and
-      // side effects (unload on archive, …) stay identical.
+      // Thread-metadata commands issued from paired remote clients (mobile PWA)
+      // and commands the co-located host applied. The callback is PROJECTION:
+      // it runs inside the host-origin fence so it never echoes a command back.
       readBridge().onRemoteThreadCommand((command) => {
-        if (command.kind === "delete-worktree-group") {
-          forgetRemovedWorktreeGroup(command.projectId, command.worktreePath, command.threadIds);
-          return;
-        }
-        if (command.kind === "prepare-worktree") {
-          const project = useAppStore
-            .getState()
-            .projects.find((entry) => entry.id === command.projectId);
-          if (!project) return;
-          void primeWorktreeGitState(project, command.worktreePath);
-          return;
-        }
-        if (command.kind === "start") {
-          applyRemoteThreadStartCommand(command);
-          return;
-        }
-        const thread = useAppStore.getState().threads.find((t) => t.id === command.threadId);
-        if (!thread) return;
-        switch (command.kind) {
-          case "acknowledge":
-            acknowledgeThread(command.threadId);
-            break;
-          case "rename":
-            renameThread(command.threadId, command.title);
-            break;
-          case "set-done":
-            if (thread.done !== command.done) toggleMarkThreadDone(command.threadId);
-            break;
-          case "set-starred":
-            if ((thread.starred ?? false) !== command.starred) toggleStarThread(command.threadId);
-            break;
-          // Orchestrator grouping: pulls the parent thread into the sidebar
-          // group its children are created in.
-          case "set-group":
-            useAppStore.setState((state) => ({
-              threads: state.threads.map((t) =>
-                t.id === command.threadId
-                  ? { ...t, groupId: command.groupId, groupName: command.groupName }
-                  : t,
-              ),
-            }));
-            break;
-          case "clear-group":
-            useAppStore.setState((state) => {
-              const groupId = state.threads.find((t) => t.id === command.threadId)?.groupId;
-              let threads = state.threads.map((candidate) =>
-                candidate.id === command.threadId
-                  ? { ...candidate, groupId: undefined, groupName: undefined }
-                  : candidate,
-              );
-              if (groupId) {
-                const remainder = threads.filter((candidate) => candidate.groupId === groupId);
-                if (remainder.length === 1) {
-                  threads = threads.map((candidate) =>
-                    candidate.id === remainder[0]!.id
-                      ? { ...candidate, groupId: undefined, groupName: undefined }
-                      : candidate,
-                  );
-                }
-              }
-              return { threads };
-            });
-            break;
-          case "set-worktree": {
-            useAppStore
-              .getState()
-              .setThreadWorktree(command.threadId, command.worktreePath, command.worktreeBranch);
-            if (command.isNewWorktree) {
-              const project = useAppStore
-                .getState()
-                .projects.find((p) => p.id === thread.projectId);
-              if (project) {
-                void primeWorktreeGitState(project, command.worktreePath);
-              }
-            }
-            break;
-          }
-          case "archive":
-            archiveThread(command.threadId);
-            break;
-          case "unarchive":
-            useAppStore.getState().unarchiveThread(command.threadId);
-            break;
-          case "delete":
-            // Thread-only delete: remote clients never trigger worktree removal.
-            deleteThread(command.threadId);
-            break;
-        }
+        applyForwardedRemoteThreadCommand(command);
       }),
       // Settings rewritten outside this renderer (remote clients editing desktop
       // settings over the remote API) — apply without echoing a persist.
       readBridge().onSharedSettingsChanged((settings) => {
         applyExternalSharedSettings(normalizeSharedSettings(settings));
-      }),
-      // Main-process project mutations must reach this whole-store snapshot
-      // before its next dbSyncAll persistence write.
-      readBridge().onProjectStateChanged(({ projects }) => {
-        useAppStore.setState({ projects });
-        useExperimentStore
-          .getState()
-          .reconcileExperiments(new Set(projects.map((project) => project.id)));
       }),
       readBridge().onGitStateChanged((patch) => {
         useGitReadModelStore.getState().applyPatch(patch);

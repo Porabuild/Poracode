@@ -1,3 +1,4 @@
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import {
   selectBrowserBridgeServer,
@@ -13,14 +14,15 @@ export function BrowserRuntimeServices() {
 function ConnectedBrowserRuntimeServices() {
   const server = useRemoteServersStore(selectBrowserBridgeServer);
   const connected = useRemoteServersStore(
-    (state) => server !== undefined && state.runtime[server.desktopId]?.status === "online",
+    (state) =>
+      server !== undefined && state.runtime[remoteConnectionKey(server)]?.status === "online",
   );
 
   usePushLifecycle({
     connected,
     activeDesktop: server
       ? {
-          desktopId: server.desktopId,
+          desktopId: remoteConnectionKey(server),
           endpoint: server.endpoint,
           accessToken: server.accessToken,
         }

@@ -123,12 +123,19 @@ export function terminateSubAgentItem(item: RuntimeChatItem): RuntimeChatItem {
  * supervisor has already cancelled the runs — provider switch tears the thread
  * down through `closeThread`, which runs `cancelAllForThread`. Rows hydrated
  * from the DB were never observed live; their runs died with the previous
- * supervisor session and they always terminate.
+ * supervisor session and they always terminate — UNLESS `preserveCrossagent`
+ * is set, for data sources whose host settles orphaned Crossagent rows itself
+ * (boot and supervisor-reset sweeps), which makes a hydrated running row a
+ * live run of the currently attached supervisor.
  */
 export function terminateStaleSubAgentItems(
   threadId: string,
   items: Readonly<Record<string, RuntimeChatItem>>,
-  options?: { preserveObservedLive?: boolean; force?: boolean },
+  options?: {
+    preserveObservedLive?: boolean;
+    force?: boolean;
+    preserveCrossagent?: boolean;
+  },
 ): Record<string, RuntimeChatItem> | undefined {
   let nextItems: Record<string, RuntimeChatItem> | undefined;
   for (const [id, item] of Object.entries(items)) {
@@ -138,7 +145,7 @@ export function terminateStaleSubAgentItems(
     if (
       options?.force !== true &&
       payload?.isCrossagent === true &&
-      isLiveObservedCrossagentItem(threadId, id)
+      (options?.preserveCrossagent === true || isLiveObservedCrossagentItem(threadId, id))
     )
       continue;
     nextItems ??= { ...items };

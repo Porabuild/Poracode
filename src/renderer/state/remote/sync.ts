@@ -179,6 +179,13 @@ export function applyThreadSnapshot(
     // Active remote threads legitimately have running delegated-agent rows;
     // terminating them paints a false "session ended" error while the host is
     // still working. Inactive threads keep the reconcile (orphaned rows).
+    // Known residual: a background Crossagent run of a turn-inactive thread
+    // is live-observed only by clients that saw it stream; a fresh client's
+    // reconcile can flash it failed until the run's next progress frame
+    // re-marks and self-heals it. Closing that needs a host-declared
+    // capability ("I settle orphaned Crossagent rows"), which is a wire
+    // change; until then only hydration from the local backend is exempt
+    // (chatRuntimePersister's preserveCrossagent).
     if (!threadActive) {
       state.reconcileStaleSubAgents(threadId);
     }

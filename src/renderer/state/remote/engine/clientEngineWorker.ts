@@ -5,7 +5,12 @@ import {
   type ClientEngineResponse,
   type ClientEngineWorkRequest,
 } from "./protocol";
-import { decodeRemoteSocketFrame, parseJsonValue, stringifyJsonValue } from "./decode";
+import {
+  decodeDesktopFrame,
+  decodeRemoteSocketFrame,
+  parseJsonValue,
+  stringifyJsonValue,
+} from "./decode";
 
 let generation = 0;
 const unanswered = new Set<number>();
@@ -62,6 +67,12 @@ function handleWork(request: ClientEngineWorkRequest): ClientEngineResponse {
     return result.ok
       ? { ...base, type: "parse-json", ok: true, value: result.value }
       : { ...base, type: "parse-json", ok: false, error: "invalid" };
+  }
+  if (request.type === "decode-desktop-frame") {
+    const result = decodeDesktopFrame(request.raw);
+    return result.ok
+      ? { ...base, type: "decode-desktop-frame", ok: true, frame: result.frame }
+      : { ...base, type: "decode-desktop-frame", ok: false, error: "invalid" };
   }
   const result = stringifyJsonValue(request.value);
   return result.ok

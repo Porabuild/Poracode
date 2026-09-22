@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GitHubAccountRef, McpServer, Project, ProjectScripts } from "@/shared/contracts";
 import { useAppStore } from "@/renderer/state/appStore";
 import {
+  saveProjectMcpServers,
   setProjectDisabled,
   updateProjectGhAccount,
   updateProjectIcon,
@@ -108,6 +109,75 @@ describe("remote project actions", () => {
       projectId: "remote-project",
       patch: { mcpServers },
     });
+  });
+
+  it("saveProjectMcpServers resolves only after the host confirms the change", async () => {
+    let accept: (() => void) | undefined;
+    runProjectCommand.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          accept = resolve;
+        }),
+    );
+    const mcpServers: McpServer[] = [
+      {
+        id: "memory-id",
+        name: "memory-server",
+        description: "Memory tools",
+        enabled: true,
+        timeoutMs: 30_000,
+        transport: { type: "stdio", command: "node", args: ["server.js"], env: {} },
+      },
+    ];
+
+    let settled = false;
+    const request = saveProjectMcpServers(project.id, mcpServers).then(() => {
+      settled = true;
+    });
+    await vi.waitFor(() => expect(runProjectCommand).toHaveBeenCalledOnce());
+
+    // The seam is real: while the host command is in flight the save has not
+    // resolved and the row is untouched — a sequenced follow-up write (the
+    // source half of a move) can safely wait on this.
+    expect(settled).toBe(false);
+    expect(useAppStore.getState().projects[0]?.mcpServers).toBeUndefined();
+
+    accept?.();
+    await request;
+    expect(settled).toBe(true);
+    expect(useAppStore.getState().projects[0]?.mcpServers).toEqual(mcpServers);
+  });
+
+  it("refuses a save when the destination project disappeared instead of confirming a no-op", async () => {
+    useAppStore.setState({ projects: [] });
+    await expect(saveProjectMcpServers(project.id, [])).rejects.toThrow("Project not found.");
+    expect(runProjectCommand).not.toHaveBeenCalled();
+  });
+
+  it("saveProjectMcpServers rejects when the host refuses and leaves the row untouched", async () => {
+    runProjectCommand.mockRejectedValueOnce(
+      new Error("mcp_redaction_without_existing_secret: The MCP server change is invalid."),
+    );
+
+    await expect(saveProjectMcpServers(project.id, [])).rejects.toThrow(
+      "mcp_redaction_without_existing_secret",
+    );
+    expect(useAppStore.getState().projects[0]?.mcpServers).toBeUndefined();
+    expect(runProjectCommand).toHaveBeenCalledWith("desktop-1", {
+      kind: "update",
+      projectId: "remote-project",
+      patch: { mcpServers: null },
+    });
+  });
+
+  it("keeps the fire-and-forget MCP save fully handled: refusal toasts once and keeps the row", async () => {
+    runProjectCommand.mockRejectedValueOnce(new Error("remote server offline"));
+
+    updateProjectMcpServers(project.id, []);
+
+    await vi.waitFor(() => expect(toast.danger).toHaveBeenCalledWith("remote server offline"));
+    expect(toast.danger).toHaveBeenCalledOnce();
+    expect(useAppStore.getState().projects[0]?.mcpServers).toBeUndefined();
   });
 
   it("persists the GitHub account on the remote host before applying it locally", async () => {
@@ -243,6 +313,23 @@ describe("local project icon action", () => {
 
     updateProjectIcon(localProject.id, undefined);
     expect(useAppStore.getState().projects[0]?.icon).toBeUndefined();
+    expect(runProjectCommand).not.toHaveBeenCalled();
+  });
+
+  it("saves local MCP servers immediately and resolves without a host command", async () => {
+    const mcpServers: McpServer[] = [
+      {
+        id: "local-memory",
+        name: "local-memory",
+        description: "",
+        enabled: true,
+        timeoutMs: 30_000,
+        transport: { type: "stdio", command: "node", args: ["server.js"], env: {} },
+      },
+    ];
+
+    await expect(saveProjectMcpServers(localProject.id, mcpServers)).resolves.toBeUndefined();
+    expect(useAppStore.getState().projects[0]?.mcpServers).toEqual(mcpServers);
     expect(runProjectCommand).not.toHaveBeenCalled();
   });
 });

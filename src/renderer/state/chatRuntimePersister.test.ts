@@ -9,8 +9,10 @@ import {
   hydrateThreadRuntimeItems,
   loadOlderThreadRuntimeItems,
   releaseThreadRuntimeItems,
+  rehydrateThreadRuntimeItemsAfterReset,
   retainThreadRuntimeItems,
   seedOlderThreadRuntimeItemsCursor,
+  setOlderThreadHistoryInvalidation,
 } from "./chatRuntimePersister";
 
 const { bridge } = vi.hoisted(() => ({
@@ -659,6 +661,48 @@ describe("paged runtime hydration", () => {
     await hydrateThreadRuntimeItems(threadId);
 
     expect(useAppStore.getState().runtimeItemIdsByThread[threadId]).toEqual(["assistant-recent"]);
+  });
+
+  it("invalidates the non-item older-history continuation on a timeline reset", async () => {
+    const invalidated: string[] = [];
+    setOlderThreadHistoryInvalidation((threadId) => {
+      invalidated.push(threadId);
+    });
+    try {
+      bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+        items: [makeItem({ id: "reset-tail", type: "assistant_message" })],
+        nextCursor: null,
+      });
+
+      await rehydrateThreadRuntimeItemsAfterReset("reset-history-thread");
+
+      expect(invalidated).toEqual(["reset-history-thread"]);
+    } finally {
+      setOlderThreadHistoryInvalidation(null);
+    }
+  });
+
+  it("invalidates the non-item older-history continuation when a transcript is evicted", async () => {
+    const invalidated: string[] = [];
+    setOlderThreadHistoryInvalidation((threadId) => {
+      invalidated.push(threadId);
+    });
+    try {
+      const threadId = "evicted-history-thread";
+      bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+        items: Array.from({ length: 5_001 }, (_, index) =>
+          makeItem({ id: `history-${index}`, type: "assistant_message" }),
+        ),
+        nextCursor: 1,
+      });
+      retainThreadRuntimeItems(threadId);
+      await hydrateThreadRuntimeItems(threadId);
+      releaseThreadRuntimeItems(threadId);
+
+      expect(invalidated).toEqual([threadId]);
+    } finally {
+      setOlderThreadHistoryInvalidation(null);
+    }
   });
 });
 

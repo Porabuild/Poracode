@@ -104,11 +104,6 @@ export function registerStandaloneAttachIpc(deps: StandaloneAttachIpcDeps): Auto
         throw new Error(`Client procedure '${name}' is not available in standalone attach.`);
       }
       switch (name) {
-        // No local event registry exists in attach (remote sockets own events):
-        // validate the payload shape, then accept and no-op.
-        case "setRendererEventInterests":
-          parseIpcProcedureArgs("setRendererEventInterests", request.args);
-          return;
         case "getKeybindings":
           return readKeybindingsFile(keybindingsPath);
         case "setKeybindings": {

@@ -93,4 +93,47 @@ describe("RuntimeEventQueue", () => {
       { threadId: "thread", events: [event("loopback-1")] },
     ]);
   });
+
+  it("budgets a large drain into ordered units and reports remaining work", () => {
+    const queue = new RuntimeEventQueue({
+      maxEvents: 2_000,
+      maxBytes: 10_000_000,
+      maxThreadBytes: 10_000_000,
+    });
+    const events = Array.from({ length: 1_200 }, (_, index) => event(`item-${index}`));
+    queue.enqueue("thread", events);
+
+    const first = queue.drainBudgeted(() => true, 0);
+    expect(first.hasMore).toBe(true);
+    expect(first.batches).toHaveLength(1);
+    expect(first.batches[0]!.events).toHaveLength(512);
+
+    const second = queue.drainBudgeted(() => true, 0);
+    expect(second.hasMore).toBe(true);
+    expect(second.batches[0]!.events).toHaveLength(512);
+
+    const third = queue.drainBudgeted(() => true, 0);
+    expect(third.hasMore).toBe(false);
+    expect(third.batches[0]!.events).toHaveLength(176);
+
+    // Order is preserved across the slice boundaries.
+    expect([
+      ...first.batches[0]!.events,
+      ...second.batches[0]!.events,
+      ...third.batches[0]!.events,
+    ]).toEqual(events);
+    expect(queue.getDiagnostics()).toMatchObject({ queuedEvents: 0, queuedBytes: 0 });
+  });
+
+  it("keeps whole-thread batches atomic for the synchronous drain", () => {
+    const queue = new RuntimeEventQueue({
+      maxEvents: 2_000,
+      maxBytes: 10_000_000,
+      maxThreadBytes: 10_000_000,
+    });
+    const events = Array.from({ length: 1_200 }, (_, index) => event(`item-${index}`));
+    queue.enqueue("thread", events);
+    const drained = queue.drain(() => true);
+    expect(drained).toEqual([{ threadId: "thread", events }]);
+  });
 });

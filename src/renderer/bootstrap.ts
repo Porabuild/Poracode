@@ -5,6 +5,9 @@ import {
   resolveElectronAttachBootstrap,
   startDesktopLoopbackEventIntake,
 } from "./clientRuntime";
+import { installManagedParentRuntime } from "./state/remoteServers/managedParentRuntime";
+import { installManagedRootCatalogRuntime } from "./state/managedRootCatalog/rootCatalogAdapter";
+import { installManagedExperimentAuthorityRuntime } from "./state/managedRootCatalog/rootExperimentAuthority";
 import { msg } from "@lingui/core/macro";
 import { normalizePairingEndpoint, parsePairingUrlParts } from "@/shared/remote/pairingUrl";
 import {
@@ -117,6 +120,17 @@ if (window.poracodeHost) {
     installElectronClientRuntime(window.poracodeHost);
     // V5 plan 2.5 / V6 B.6: the co-located remote server is the event
     // data plane. Fire-and-forget; discovery retries until it is up.
+    // The managed-parent subscription keeps persisted children aligned with
+    // the live loopback authority (reconnect on publish, offline on clear).
+    installManagedParentRuntime();
+    // B4: the root catalog is a bounded projection of the co-located server,
+    // driven by the same loopback client. Installed before intake start so the
+    // activation that paints the shell is observed.
+    installManagedRootCatalogRuntime();
+    // The experiment store is a memory-only projection of the co-located
+    // host's canonical experiment authority; installed before intake start so
+    // the first activation hydrates it.
+    installManagedExperimentAuthorityRuntime();
     void startDesktopLoopbackEventIntake();
   }
   const { readBridge } = await import("./bridge");

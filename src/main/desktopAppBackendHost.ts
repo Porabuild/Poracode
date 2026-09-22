@@ -21,12 +21,11 @@ import type { AutoUpdaterController } from "./updates/autoUpdater";
 import { BackendHostClient } from "./backend/BackendHostClient";
 import { buildDesktopBackendInitialize } from "./backend/desktopBackendInitialize";
 import { BackendStateStore } from "./backend/BackendStateStore";
-import { RendererEventInterestsWiring } from "./backend/rendererEventInterestsWiring";
-import { createRendererEventDispatcher } from "./backend/rendererEventDispatch";
 import { openThreadFromTray } from "./desktopAppWindows";
 import {
+  applyThreadActivity,
   handleSharedSettingsChanged,
-  handleSupervisorEventForSleep,
+  resetThreadActivity,
   updatePowerSaveBlocker,
 } from "./desktopAppShell";
 
@@ -58,7 +57,6 @@ export interface DesktopTrayFeed {
 export interface DesktopBackendHost {
   readonly backendHost: BackendHostClient;
   readonly shellState: BackendStateStore;
-  readonly rendererEventInterests: RendererEventInterestsWiring;
   readonly trayFeed: DesktopTrayFeed;
   /**
    * Load the renderer stream info, preload the persisted window/browser
@@ -149,11 +147,6 @@ function createNativeEventHandler(trayFeed: DesktopTrayFeed): (event: BackendNat
           event.info,
         );
         return;
-      case "projects-changed":
-        desktopApp.mainWindow?.webContents.send(IPC_EVENT_CHANNELS.projectStateChanged, {
-          projects: event.projects,
-        });
-        return;
       case "pr-watch-status":
         desktopApp.mainWindow?.webContents.send(IPC_EVENT_CHANNELS.prWatchStatus, event.event);
         return;
@@ -185,20 +178,6 @@ function createNativeEventHandler(trayFeed: DesktopTrayFeed): (event: BackendNat
  * preloads shell state via {@link DesktopBackendHost.preloadShellState}.
  */
 export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopBackendHost {
-  // Per-window renderer event interests and the delivery-ownership
-  // authority: main mints grants keyed by the authoritative webContents
-  // id, shares the binding secret only with that window's renderer, and
-  // drops a destroyed/reloaded window's grant so a stale socket can never
-  // hold ownership across a new generation. Identity and generation are
-  // allocated synchronously before a window's interests are published, and
-  // the wiring republishes the per-window table for every interest or
-  // identity change even when the merged union does not move.
-  const rendererEventInterests = new RendererEventInterestsWiring({
-    pushUnionInterests: (interests) => backendHost.setEventInterests(interests),
-    onError: (error) => {
-      captureMainException(error, { "poracode.feature_area": "live-event-routing" });
-    },
-  });
   let trayProjects: Project[] = [];
   let trayThreads: Thread[] = [];
   const trayFeed: DesktopTrayFeed = {
@@ -212,15 +191,12 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
       desktopApp.tray?.refreshMenu();
     },
   };
-  const dispatchBackendSupervisorEvent = createRendererEventDispatcher({
-    applyNativeState: handleSupervisorEventForSleep,
-  });
   const handleBackendReset = (): void => {
-    desktopApp.workingThreads.clear();
-    updatePowerSaveBlocker();
-    // Backend reset (V5 2.5): the relay sequence space restarts with the new
-    // child, so renderer windows must drop their dedupe cursor and rebuild
-    // subscribed state over the desktop-IPC event path.
+    // A new backend child restarts the loopback sequence spaces, so windows
+    // must drop their dedupe cursors and rebuild subscribed state. The child
+    // only emits transitions, so main's working set is cleared here — a
+    // restart can never leave a stale active flag behind.
+    resetThreadActivity();
     for (const window of [
       desktopApp.mainWindow,
       desktopApp.quickComposerWindow,
@@ -246,20 +222,7 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
     reportError: (error, tags) => {
       captureMainException(error, tags);
     },
-    onEvent: dispatchBackendSupervisorEvent,
-    onSupervisorEventGap: (gap) => {
-      // Desktop events cross only this IPC channel now (V5 2.5), so every
-      // renderer window rebuilds from persisted state on this signal.
-      for (const window of [
-        desktopApp.mainWindow,
-        desktopApp.quickComposerWindow,
-        desktopApp.browserExtractWindow,
-      ]) {
-        if (window && !window.isDestroyed()) {
-          window.webContents.send(IPC_EVENT_CHANNELS.backendSupervisorEventGap, gap);
-        }
-      }
-    },
+    onThreadActivity: (changes) => applyThreadActivity(changes),
     onReset: handleBackendReset,
     handleNativeRequest: createNativeRequestHandler(() => backendHost, deps),
     onNativeEvent: createNativeEventHandler(trayFeed),
@@ -267,13 +230,6 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
   desktopApp.performanceDiagnostics?.observeIpcQueue("main-to-backend", () =>
     backendHost.getQueueDiagnostics(),
   );
-  desktopApp.clearRendererEventInterests = (senderId?: number) => {
-    if (senderId === undefined) {
-      rendererEventInterests.releaseAll();
-    } else {
-      rendererEventInterests.release(senderId);
-    }
-  };
   desktopApp.backendHostClient = backendHost;
   // Managed-local path holds no external owner: the renderer bootstrap
   // treats absence (or a rejected invoke on older builds) as managed.
@@ -282,7 +238,6 @@ export function createDesktopBackendHost(deps: DesktopBackendHostDeps): DesktopB
   return {
     backendHost,
     shellState,
-    rendererEventInterests,
     trayFeed,
     preloadShellState: async () => {
       await shellState.preload([

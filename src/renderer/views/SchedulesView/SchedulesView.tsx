@@ -36,6 +36,7 @@ import { openThread } from "@/renderer/actions/threadActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useProjectIdsHiddenByWorkspace } from "@/renderer/state/workspaceSelectors";
 import { SettingsPage } from "@/renderer/views/SettingsOverlay/parts/SettingsForm";
@@ -115,7 +116,9 @@ export function SchedulesView(
   const remoteServers = allRemoteServers.filter((server) => server.scopes.includes("session:read"));
   // A removed server must not leave a dead machine selected (label would fall
   // back to local while every op still targeted the gone host).
-  const machineId = remoteServers.some((server) => server.desktopId === selectedMachineId)
+  const machineId = remoteServers.some(
+    (server) => remoteConnectionKey(server) === selectedMachineId,
+  )
     ? selectedMachineId
     : "local";
   const isRemoteMachine = !compact && machineId !== "local";
@@ -592,8 +595,8 @@ export function SchedulesView(
               <span className="max-w-40 truncate">
                 {machineId === "local"
                   ? t`This desktop`
-                  : (remoteServers.find((server) => server.desktopId === machineId)?.label ??
-                    t`This desktop`)}
+                  : (remoteServers.find((server) => remoteConnectionKey(server) === machineId)
+                      ?.label ?? t`This desktop`)}
               </span>
               <ChevronDown className="size-3.5" />
             </Dropdown.Trigger>
@@ -619,8 +622,8 @@ export function SchedulesView(
                 </Dropdown.Item>
                 {remoteServers.map((server) => (
                   <Dropdown.Item
-                    key={server.desktopId}
-                    id={server.desktopId}
+                    key={remoteConnectionKey(server)}
+                    id={remoteConnectionKey(server)}
                     textValue={server.label}
                   >
                     <Label>{server.label}</Label>

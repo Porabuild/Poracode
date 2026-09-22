@@ -1,14 +1,10 @@
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import { UNKNOWN_HOST_SERVICE_CAPABILITIES } from "@/shared/hostControlProtocol";
-import {
-  parseIpcProcedureArgs,
-  type IpcProcedureName,
-  type IpcProcedurePayload,
-  type SupervisorEvent,
-} from "@/shared/ipc";
+import type { IpcProcedureName, SupervisorEvent } from "@/shared/ipc";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import { isRemoteRoutableProcedure } from "@/renderer/remoteProcedureRoutes";
+import { snapshotRendererEventInterests } from "@/renderer/state/rendererEventInterests";
 import {
   HOST_TRANSPORT_VERSION,
   type HostEventListener,
@@ -16,15 +12,14 @@ import {
   type HostTransport,
 } from "./types";
 
-/** The interests payload this window publishes to main (`setRendererEventInterests`). */
-type RendererInterests = IpcProcedurePayload<"setRendererEventInterests">;
-
 /**
  * V6 B.6: preload IPC is bootstrap + `local-shell` only. Live
  * `supervisor-event` / `thread-output` envelopes do not cross this
  * channel — the loopback HTTP+WS leg is the data plane. Backend-child
  * reset still rebuilds subscribed threads so a new sequence space does
- * not strand open transcripts.
+ * not strand open transcripts. A2: the interest list is read from the
+ * renderer's own registry at rebuild time instead of being mirrored here
+ * from the removed `setRendererEventInterests` IPC sync.
  */
 export class PreloadIpcTransport implements HostTransport {
   readonly version = HOST_TRANSPORT_VERSION;
@@ -33,7 +28,6 @@ export class PreloadIpcTransport implements HostTransport {
   private readonly listeners = new Set<
     (event: SupervisorEvent, seq?: number, space?: EventSequenceSpace) => void
   >();
-  private interests: RendererInterests = { terminalThreadIds: [], runtimeThreadIds: [] };
   private loopbackActive = false;
 
   constructor(
@@ -59,9 +53,6 @@ export class PreloadIpcTransport implements HostTransport {
   }
 
   request(name: IpcProcedureName, args: unknown[]): Promise<unknown> {
-    if (name === "setRendererEventInterests") {
-      return this.setEventInterests(parseIpcProcedureArgs(name, args));
-    }
     if (isRemoteRoutableProcedure(name)) {
       return Promise.reject(
         new Error(`IPC data plane removed for ${name}; loopback HTTP is required`),
@@ -106,21 +97,14 @@ export class PreloadIpcTransport implements HostTransport {
     this.dispatchRebuildForInterests(lostThreadIds);
   }
 
-  async setEventInterests(interests: RendererInterests): Promise<void> {
-    this.interests = {
-      terminalThreadIds: [...new Set(interests.terminalThreadIds)],
-      runtimeThreadIds: [...new Set(interests.runtimeThreadIds)],
-    };
-    await this.host.invokeProcedure("setRendererEventInterests", [this.interests]);
-  }
-
   private dispatchRebuildForInterests(lostThreadIds?: ReadonlySet<string>): void {
     const inScope = (threadId: string): boolean =>
       lostThreadIds === undefined || lostThreadIds.has(threadId);
-    for (const threadId of this.interests.terminalThreadIds) {
+    const interests = snapshotRendererEventInterests();
+    for (const threadId of interests.terminalThreadIds) {
       if (inScope(threadId)) this.dispatch({ type: "thread-scrollback-resync", threadId });
     }
-    for (const threadId of this.interests.runtimeThreadIds) {
+    for (const threadId of interests.runtimeThreadIds) {
       if (inScope(threadId)) this.dispatch({ type: "thread-reset", threadId });
     }
   }

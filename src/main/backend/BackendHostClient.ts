@@ -10,7 +10,6 @@ import {
   createBackendSupervisorRequest,
   type RevertCheckpointHostCall,
   isBackendHostOutboundMessage,
-  type BackendEventInterests,
   type BackendBrowserEvent,
   type BackendHostInitializePayload,
   type BackendHostRequest,
@@ -20,7 +19,7 @@ import {
   type BackendServicePayload,
   type BackendServiceProcedureName,
   type BackendServiceResult,
-  type SupervisorEventGap,
+  type NativeThreadActivityChange,
 } from "@/shared/backendHostProtocol";
 import type { CheckpointRevertResult } from "@/shared/contracts";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
@@ -28,10 +27,9 @@ import type { IpcQueueCapture, IpcQueueSample } from "@/shared/diagnostics/ipcQu
 import type {
   IpcProcedurePayload,
   IpcProcedureResult,
-  SupervisorEvent,
   SupervisorProcedureName,
 } from "@/shared/ipc";
-import { terminateChildProcessTree } from "@/shared/processTree";
+import { awaitProcessTermination } from "@/shared/awaitProcessTermination";
 import { SupervisorIpcSender } from "@/supervisor/supervisorIpcSender";
 
 const REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
@@ -44,6 +42,16 @@ const RESTART_MAX_DELAY_MS = 8_000;
 // Five failed attempts allow 15s of backoff; five hung attempts take at most 315s.
 const MAX_INITIALIZATION_FAILURES = 5;
 const DISPOSE_TIMEOUT_MS = 1_000;
+/**
+ * Bound between SIGTERM and SIGKILL for a backend child that cannot run its
+ * own SIGTERM handler (a synchronously blocked event loop). It also gives a
+ * healthy child room to finish its own bounded shutdown (including its 1s IPC
+ * flush) before the forced kill. `disposeAsync` reserves twice this value
+ * inside an explicit caller budget — the grace plus the bounded join after the
+ * forced kill — so a blocked child cannot outlive the caller's shutdown
+ * deadline still holding the profile lease.
+ */
+const DISPOSE_FORCE_KILL_GRACE_MS = 3_000;
 // Covers one 60s hung attempt, its 1s backoff, and 29s of replacement startup.
 export const BACKEND_HOST_INIT_WAIT_TIMEOUT_MS = 90_000;
 
@@ -67,10 +75,13 @@ export interface BackendHostClientOptions {
   initWaitTimeoutMs?: number;
   /** Opt-in local evidence; no payloads or delivery acknowledgments are collected. */
   queueDiagnostics?: IpcQueueCapture;
-  /** Untargeted sequenced desktop event (the sole desktop event path, V5 2.5). */
-  onEvent(event: SupervisorEvent, rendererSequence?: number): void;
-  /** Relay sequences the desktop-IPC channel lost to host shedding; windows must rebuild. */
-  onSupervisorEventGap?(gap: SupervisorEventGap): void;
+  /**
+   * Bounded, coalesced native thread-activity deltas (A2). This is the ONLY
+   * supervisor-derived state crossing backend→main; live renderer content
+   * rides the loopback WS. Main applies the deltas to its sleep-blocker
+   * working set. A supervisor restart follows with `onReset`.
+   */
+  onThreadActivity?(changes: readonly NativeThreadActivityChange[]): void;
   onReset(): void;
   handleNativeRequest?(request: BackendNativeRequest): Promise<unknown> | unknown;
   onNativeEvent?(event: BackendNativeEvent): void;
@@ -99,6 +110,12 @@ function pipeChildStreamsToParent(child: ChildProcess): void {
  * issues at most one `start-supervisor`: a lifecycle caller parked across a
  * recovery shares the respawn's automatic restart instead of double-starting
  * the supervisor.
+ *
+ * A failed or fatally stuck generation is retired with the same bounded
+ * SIGTERM → SIGKILL → actual-exit join that disposal uses, and its handle stays
+ * reachable until that exit is confirmed: no successor is admitted while a
+ * predecessor may still hold the data fence or its port, and a failed join
+ * keeps the handle for a later disposal retry.
  */
 export class BackendHostClient {
   private child: ChildProcess | null = null;
@@ -117,17 +134,24 @@ export class BackendHostClient {
   private fatalInitializationError: Error | null = null;
   /** Child terminated because its initialization failed; its exit is expected, not a crash. */
   private dismissedChild: ChildProcess | null = null;
+  /**
+   * A generation whose termination was requested but whose exit is not yet
+   * confirmed. `this.child` may still point at it, or disposal may have
+   * detached the routing reference. While set, no successor may be spawned:
+   * the survivor can still own the data fence and its port. A failed bounded
+   * join keeps this handle, so a later `disposeAsync` retries the escalation
+   * instead of dropping the last reference to a live process.
+   */
+  private retiringChild: ChildProcess | null = null;
+  /** In-flight bounded retirement for {@link retiringChild}, shared by overlapping callers. */
+  private retirementPromise: Promise<void> | null = null;
+  /** Shared join for overlapping `disposeAsync` callers; retryable after a retained join. */
+  private disposalPromise: Promise<void> | null = null;
   private currentExtraEnv: Record<string, string> = {};
   private supervisorStarted = false;
   /** Settled or in-flight start-supervisor for {@link supervisorStartFlightChild}. */
   private supervisorStartFlight: Promise<unknown> | null = null;
   private supervisorStartFlightChild: ChildProcess | null = null;
-  private eventInterests: BackendEventInterests = {
-    terminalThreadIds: [],
-    runtimeThreadIds: [],
-    allRuntimeEvents: false,
-  };
-  private syncedEventInterestsKey: string | null = null;
   private disposed = false;
   private restartTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -144,7 +168,9 @@ export class BackendHostClient {
   }
 
   private spawn(): void {
-    if (this.disposed) return;
+    // A successor may never replace a generation that has not confirmed its
+    // exit: a live predecessor still holds its custody (data fence/port).
+    if (this.disposed || this.child || this.retiringChild) return;
     let child: ChildProcess | null;
     try {
       child = fork(this.options.backendHostPath, [], {
@@ -162,7 +188,6 @@ export class BackendHostClient {
       return;
     }
     this.child = child;
-    this.syncedEventInterestsKey = null;
     pipeChildStreamsToParent(child);
 
     let assignmentPromise = Promise.resolve();
@@ -191,7 +216,10 @@ export class BackendHostClient {
       onError: (error) => this.reportProcessError(error),
       onFatalError: (error) => {
         this.rejectPendingRequests(error);
-        if (this.child === child) terminateChildProcessTree(child);
+        // The channel is permanently gone, so the child is retired with the
+        // bounded escalation instead of SIGTERM only: a blocked or
+        // SIGTERM-ignoring child must not outlive its replacement.
+        if (this.child === child) void this.retireChild(child).catch(() => undefined);
       },
     });
     this.sender = sender;
@@ -221,8 +249,8 @@ export class BackendHostClient {
     child: ChildProcess,
     assignmentPromise: Promise<void>,
   ): Promise<unknown> {
-    // Cover PID assignment and interest synchronization as well as the initial reply.
-    // Late settlements must not revive an expired attempt or count its failure twice.
+    // Cover PID assignment as well as the initial reply. Late settlements must
+    // not revive an expired attempt or count its failure twice.
     let failureHandled = false;
     const deadline = Promise.withResolvers<never>();
     const deadlineError = new Error(
@@ -250,10 +278,6 @@ export class BackendHostClient {
       ]);
       // An expired attempt is dead even while this.child still points at the
       // terminated child during the respawn backoff.
-      if (this.disposed || failureHandled || this.child !== child) return result;
-      await this.syncEventInterests(true);
-      // The deadline can fire while the interests sync is in flight; a reply
-      // that races the kill must not mark the failed attempt ready.
       if (this.disposed || failureHandled || this.child !== child) return result;
       this.initializationSucceeded = true;
       this.initializationFailures = 0;
@@ -284,9 +308,47 @@ export class BackendHostClient {
       // race against the terminated child's exit, whose handler would
       // otherwise never see them.
       this.rejectPendingRequests(error);
-      terminateChildProcessTree(child);
+      // Retire with the bounded SIGTERM -> SIGKILL -> actual-exit join. The
+      // parked respawn below is released only when this exit is confirmed
+      // (scheduleSpawnRetry admits nothing while a handle is retained), so a
+      // blocked or SIGTERM-ignoring child can never be left behind holding the
+      // data fence or a port under a successor.
+      void this.retireChild(child).catch(() => undefined);
     }
     this.countInitializationFailureAndRecover(error);
+  }
+
+  /**
+   * Bounded retirement for one backend generation: SIGTERM, a bounded SIGKILL,
+   * and the join on its actual exit. Single-flight per retained generation so
+   * an initialization failure, an IPC-fatal callback, and a disposal that
+   * overlap share one escalation instead of racing duplicates. A confirmed
+   * exit clears the retained handle; a failed join keeps it, and no successor
+   * may be admitted while it remains (see {@link spawn}).
+   */
+  private retireChild(child: ChildProcess): Promise<void> {
+    if (this.retiringChild === child && this.retirementPromise) return this.retirementPromise;
+    this.retiringChild = child;
+    const retirement = awaitProcessTermination(child, { graceMs: DISPOSE_FORCE_KILL_GRACE_MS });
+    this.retirementPromise = retirement;
+    void retirement.then(
+      () => {
+        if (this.retiringChild === child) this.retiringChild = null;
+        if (this.retirementPromise === retirement) this.retirementPromise = null;
+      },
+      (error: unknown) => {
+        if (this.retirementPromise === retirement) this.retirementPromise = null;
+        this.reportProcessError(error);
+      },
+    );
+    return retirement;
+  }
+
+  /** Retry the bounded join for a generation retained by a failed escalation. */
+  private async retireRetainedChild(): Promise<void> {
+    const child = this.retiringChild;
+    if (!child) return;
+    await this.retireChild(child).catch(() => undefined);
   }
 
   private countInitializationFailureAndRecover(lastError: Error): void {
@@ -322,11 +384,8 @@ export class BackendHostClient {
         else pending.reject(new Error(message.error));
         return;
       }
-      case "supervisor-event":
-        this.options.onEvent(message.event, message.rendererSequence);
-        return;
-      case "supervisor-event-gap":
-        this.options.onSupervisorEventGap?.(message);
+      case "native-thread-activity":
+        this.options.onThreadActivity?.(message.changes);
         return;
       case "supervisor-reset":
         this.options.onReset();
@@ -357,6 +416,11 @@ export class BackendHostClient {
   }
 
   private handleExit(child: ChildProcess, code: number | null): void {
+    // An exit is the only evidence that retires a retained generation:
+    // whatever requested its termination, the handle leaves the retry slot.
+    if (this.retiringChild === child) this.retiringChild = null;
+    const dismissed = this.dismissedChild === child;
+    if (dismissed) this.dismissedChild = null;
     if (this.child !== child) return;
     this.child = null;
     this.sender = null;
@@ -364,13 +428,14 @@ export class BackendHostClient {
     const error = new Error(`Backend host exited with code ${code ?? "unknown"}.`);
     this.rejectPendingRequests(error);
     this.options.onReset();
-    if (this.dismissedChild === child) {
-      // Deliberately terminated after a failed initialization — recovery is
-      // already owned (and bounded) by the initialization failure path.
-      this.dismissedChild = null;
+    if (this.disposed) return;
+    if (dismissed) {
+      // Deliberately terminated after a failed initialization. The failure was
+      // already counted; this confirmed exit is what releases the parked
+      // respawn (a no-op once recovery gave up or disposal began).
+      this.scheduleSpawnRetry();
       return;
     }
-    if (this.disposed) return;
     this.reportProcessError(error);
     this.scheduleSpawnRetry();
   }
@@ -389,7 +454,11 @@ export class BackendHostClient {
   }
 
   private scheduleSpawnRetry(): void {
-    if (this.disposed || this.fatalInitializationError) return;
+    // Respawn eligibility requires a confirmed predecessor retirement: a
+    // retained or current generation may still hold the data fence/port.
+    if (this.disposed || this.fatalInitializationError || this.child || this.retiringChild) {
+      return;
+    }
     this.clearRestartTimer();
     const backoffExponent = Math.max(this.initializationFailures - 1, 0);
     const delay = Math.min(RESTART_DELAY_MS * 2 ** backoffExponent, RESTART_MAX_DELAY_MS);
@@ -524,44 +593,6 @@ export class BackendHostClient {
     }).catch((error) => this.reportProcessError(error));
   }
 
-  private syncEventInterests(skipEmpty = false): Promise<unknown> {
-    const interests: BackendEventInterests = {
-      terminalThreadIds: [...this.eventInterests.terminalThreadIds],
-      runtimeThreadIds: [...this.eventInterests.runtimeThreadIds],
-      allRuntimeEvents: this.eventInterests.allRuntimeEvents,
-    };
-    if (
-      skipEmpty &&
-      interests.terminalThreadIds.length === 0 &&
-      interests.runtimeThreadIds.length === 0 &&
-      !interests.allRuntimeEvents
-    ) {
-      return Promise.resolve(null);
-    }
-    const key = JSON.stringify(interests);
-    if (this.syncedEventInterestsKey === key) return Promise.resolve(null);
-    this.syncedEventInterestsKey = key;
-    return this.request({
-      version: BACKEND_HOST_PROTOCOL_VERSION,
-      id: randomUUID(),
-      operation: "set-event-interests",
-      payload: interests,
-    }).catch((error: unknown) => {
-      if (this.syncedEventInterestsKey === key) this.syncedEventInterestsKey = null;
-      throw error;
-    });
-  }
-
-  async setEventInterests(interests: BackendEventInterests): Promise<void> {
-    this.eventInterests = {
-      terminalThreadIds: [...new Set(interests.terminalThreadIds)].sort(),
-      runtimeThreadIds: [...new Set(interests.runtimeThreadIds)].sort(),
-      allRuntimeEvents: interests.allRuntimeEvents,
-    };
-    await this.waitUntilInitialized();
-    await this.syncEventInterests();
-  }
-
   /**
    * Sends `start-supervisor` at most once per child generation and shares the
    * flight with every requester for that child: the respawn hook and a
@@ -608,16 +639,13 @@ export class BackendHostClient {
   async call<Name extends SupervisorProcedureName>(
     name: Name,
     payload: IpcProcedurePayload<Name>,
-    originWindowId?: number,
   ): Promise<IpcProcedureResult<Name>> {
     return this.withNormalRequest(async () => {
       await this.startedGate;
       await this.waitUntilInitialized();
-      // `originWindowId` is main-assigned from the authenticated IPC sender;
-      // the backend scopes terminal-bootstrap retention to it.
-      return this.request(
-        createBackendSupervisorRequest(randomUUID(), name, payload, originWindowId),
-      ) as Promise<IpcProcedureResult<Name>>;
+      return this.request(createBackendSupervisorRequest(randomUUID(), name, payload)) as Promise<
+        IpcProcedureResult<Name>
+      >;
     });
   }
 
@@ -669,17 +697,57 @@ export class BackendHostClient {
     void this.disposeAsync();
   }
 
-  async disposeAsync(options: { timeoutMs?: number } = {}): Promise<void> {
-    if (this.disposed) return;
+  /**
+   * Idempotent for overlapping callers: they share one disposal join. The
+   * shared promise is dropped when a generation stays retained after a failed
+   * bounded join, so a later call retries the escalation on that handle.
+   */
+  disposeAsync(options: { timeoutMs?: number } = {}): Promise<void> {
+    if (this.disposalPromise) return this.disposalPromise;
+    const disposal = this.performDisposal(options).then(
+      () => this.settleDisposal(),
+      (error: unknown) => {
+        this.settleDisposal();
+        throw error;
+      },
+    );
+    this.disposalPromise = disposal;
+    return disposal;
+  }
+
+  private settleDisposal(): void {
+    if (this.retiringChild) this.disposalPromise = null;
+  }
+
+  private async performDisposal(options: { timeoutMs?: number }): Promise<void> {
+    const child = this.child;
+    if (this.disposed) {
+      // Disposal already ran. A retained generation means its bounded join
+      // could not confirm the exit, so this call retries that join on the
+      // handle the earlier attempt kept reachable.
+      await this.retireRetainedChild();
+      return;
+    }
     this.disposed = true;
     this.resolveStartedGate();
     this.settleInitializationWaiters((waiter) =>
       waiter.reject(new Error("Backend host disposed.")),
     );
     this.clearRestartTimer();
-    const child = this.child;
-    if (!child) return;
+    if (!child) {
+      await this.retireRetainedChild();
+      return;
+    }
 
+    // The caller's budget also has to cover the forced-kill escalation below;
+    // otherwise a blocked child survives the caller's own shutdown deadline.
+    // The default window stays the full graceful window because its callers
+    // (non-quit disposal) have no outer deadline to fit inside.
+    const explicitBudgetMs = options.timeoutMs;
+    const drainMs =
+      explicitBudgetMs === undefined
+        ? DISPOSE_TIMEOUT_MS
+        : Math.max(0, explicitBudgetMs - DISPOSE_FORCE_KILL_GRACE_MS * 2);
     try {
       await Promise.race([
         this.initializePromise
@@ -692,17 +760,22 @@ export class BackendHostClient {
             }),
           )
           .catch(() => undefined),
-        new Promise<void>((resolve) =>
-          setTimeout(resolve, options.timeoutMs ?? DISPOSE_TIMEOUT_MS),
-        ),
+        new Promise<void>((resolve) => setTimeout(resolve, drainMs)),
       ]);
     } finally {
       if (this.child === child) {
         this.child = null;
         this.sender = null;
         this.rejectPendingRequests(new Error("Backend host disposed."));
-        terminateChildProcessTree(child);
       }
+      // SIGTERM first, then a bounded SIGKILL: the backend host installs a
+      // SIGTERM handler, so a synchronously blocked loop can neither run the
+      // handler nor exit, and SIGTERM alone would leave the child — and the
+      // profile lease it owns — alive after the app is gone. Joining the
+      // actual exit is the evidence that the owned resources were released.
+      // The handle stays retained until that exit is confirmed, so a failed
+      // join is retried by a later disposal instead of being dropped.
+      await this.retireChild(child).catch(() => undefined);
     }
   }
 }

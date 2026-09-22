@@ -94,6 +94,7 @@ function makeClient(opts: {
   websocketUrl?: RemoteDesktopClient["websocketUrl"];
   threadHistory?: RemoteDesktopClient["threadHistory"];
 }): RemoteDesktopClient {
+  const threadHistory = opts.threadHistory ?? (async () => remoteThreadSnapshot());
   return {
     environment: async () => ({
       protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
@@ -122,7 +123,14 @@ function makeClient(opts: {
         runtimeSummariesByThread: {},
         updatedAt: "now",
       })),
-    threadHistory: opts.threadHistory ?? (async () => remoteThreadSnapshot()),
+    threadHistory,
+    // Production opens a restored remote thread through the B4 bounded read;
+    // a host that does not echo the bounded capability negotiates `legacy`,
+    // and the page is the same history snapshot this mock provides.
+    boundedThreadHistory: async (threadId: string) => ({
+      negotiation: "legacy" as const,
+      page: await threadHistory(threadId),
+    }),
     websocketTicket: async () => "ticket-1",
     websocketUrl: opts.websocketUrl ?? (() => "ws://192.168.1.9:38987/ws?ticket=ticket-1"),
     checkHostUpdate: async () => ({

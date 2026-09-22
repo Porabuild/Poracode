@@ -952,6 +952,57 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     });
   });
 
+  it("keeps unobserved Crossagent rows when the source host settles orphans itself", () => {
+    // The local backend sweeps orphaned Crossagent rows at boot and on every
+    // supervisor reset, so a running row hydrated from its database is a
+    // live run — the hydration reconcile must keep it (native rows still go).
+    store.getState().hydrateThreadRuntimeItems("t1", [
+      {
+        id: "sub:run-honest-source",
+        type: "tool_call",
+        state: "updated",
+        payload: {
+          name: "Crossagent · swept source",
+          status: "running",
+          isCrossagent: true,
+          crossagentStatus: "running",
+        },
+        streams: {},
+      },
+      {
+        id: "native-honest-source",
+        type: "tool_call",
+        state: "started",
+        payload: { name: "Task", status: "running", isSubAgent: true },
+        streams: {},
+      },
+    ]);
+
+    store
+      .getState()
+      .reconcileStaleSubAgents("t1", { preserveObservedLive: true, preserveCrossagent: true });
+
+    const items = store.getState().runtimeItemsByIdByThread["t1"]!;
+    expect(items["sub:run-honest-source"]).toMatchObject({
+      payload: { status: "running", crossagentStatus: "running" },
+    });
+    expect(items["native-honest-source"]).toMatchObject({
+      state: "completed",
+      payload: { status: "error" },
+    });
+
+    // The force path (provider switch, supervisor reset) still wins: those
+    // paths cancelled the runs for real.
+    store
+      .getState()
+      .reconcileAllStaleSubAgents({ force: true, matchesThread: (threadId) => threadId === "t1" });
+    expect(
+      store.getState().runtimeItemsByIdByThread["t1"]?.["sub:run-honest-source"],
+    ).toMatchObject({
+      payload: { crossagentStatus: "failed" },
+    });
+  });
+
   it("opens and resolves runtime requests", () => {
     apply("t1", {
       type: "request.opened",

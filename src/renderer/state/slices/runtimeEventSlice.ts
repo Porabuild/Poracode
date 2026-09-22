@@ -162,10 +162,16 @@ export interface RuntimeEventSlice {
    * supervisor still owns those runs and their settle tile ends them
    * authoritatively. `force` is for paths that already tore the owning
    * supervisor session down (provider switch, backend supervisor reset).
+   * `preserveCrossagent` keeps unobserved Crossagent rows too, for data
+   * sources whose host settles orphaned runs itself (see terminateStaleSubAgentItems).
    */
   reconcileStaleSubAgents(
     threadId: string,
-    options?: { readonly preserveObservedLive?: boolean; readonly force?: boolean },
+    options?: {
+      readonly preserveObservedLive?: boolean;
+      readonly force?: boolean;
+      readonly preserveCrossagent?: boolean;
+    },
   ): void;
   /**
    * `reconcileStaleSubAgents` for every thread with items in memory, in one
@@ -177,6 +183,7 @@ export interface RuntimeEventSlice {
   reconcileAllStaleSubAgents(options?: {
     readonly preserveObservedLive?: boolean;
     readonly force?: boolean;
+    readonly preserveCrossagent?: boolean;
     readonly matchesThread?: (threadId: string) => boolean;
   }): void;
   /** Replace the persisted item list for a thread (used during DB hydration). */

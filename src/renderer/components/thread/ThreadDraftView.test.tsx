@@ -843,47 +843,84 @@ describe("ThreadDraftView", () => {
     );
   });
 
-  it("defaults experiment worktrees to the tracking branch when the local branch is behind", async () => {
-    useGitStore.setState({
-      statuses: {
-        [project.id]: {
-          isRepo: true,
-          branch: "main",
-          tracking: "origin/main",
-          hasRemote: true,
-          remoteInfo: null,
-          ahead: 0,
-          behind: 4,
-          staged: [],
-          unstaged: [],
-          totalInsertions: 0,
-          totalDeletions: 0,
+  it.each([false, true])(
+    "keeps configured experiment targets runnable after model catalog refresh (empty: %s)",
+    async (emptyCatalog) => {
+      useGitStore.setState({
+        statuses: {
+          [project.id]: {
+            isRepo: true,
+            branch: "main",
+            tracking: "origin/main",
+            hasRemote: true,
+            remoteInfo: null,
+            ahead: 0,
+            behind: 4,
+            staged: [],
+            unstaged: [],
+            totalInsertions: 0,
+            totalDeletions: 0,
+          },
         },
-      },
-    });
-    render(<ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />);
+      });
+      const { rerender } = render(
+        <ThreadDraftView project={project} agentStatuses={[codexStatus]} onStart={() => {}} />,
+      );
 
-    const initialComposer = composerSpy.mock.lastCall?.[0] as {
-      afterControls: ReactElement<{ experiment?: { onToggle: (enabled: boolean) => void } }>;
-    };
-    act(() => initialComposer.afterControls.props.experiment?.onToggle(true));
-    expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent("origin/main");
+      const initialComposer = composerSpy.mock.lastCall?.[0] as {
+        afterControls: ReactElement<{ experiment?: { onToggle: (enabled: boolean) => void } }>;
+      };
+      act(() => initialComposer.afterControls.props.experiment?.onToggle(true));
+      expect(screen.getByRole("button", { name: "Select branch" })).toHaveTextContent(
+        "origin/main",
+      );
 
-    for (let index = 0; index < 2; index += 1) {
-      const composer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
-      const targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
-      if (!targets) throw new Error("Expected experiment targets");
-      act(targets.props.onAdd as () => void);
-    }
-    fireEvent.click(screen.getByText("set-prompt"));
-    fireEvent.click(screen.getByText("submit"));
+      for (let index = 0; index < 2; index += 1) {
+        const composer = composerSpy.mock.lastCall?.[0] as { fixedContent: ReactNode };
+        const targets = findElementByTypeName(composer.fixedContent, "ExperimentDraftTargets");
+        if (!targets) throw new Error("Expected experiment targets");
+        act(targets.props.onAdd as () => void);
+      }
+      rerender(
+        <ThreadDraftView
+          project={project}
+          agentStatuses={[
+            {
+              ...codexStatus,
+              capabilities: {
+                ...codexStatus.capabilities,
+                models: emptyCatalog ? [] : codexStatus.capabilities.models,
+              },
+            },
+          ]}
+          onStart={() => {}}
+        />,
+      );
+      fireEvent.click(screen.getByText("set-prompt"));
+      const contentProps = composerSpy.mock.lastCall?.[0] as { inputContent: ReactElement };
+      const inputRender = render(contentProps.inputContent);
+      const editor = inputRender.container.querySelector<HTMLElement>('[contenteditable="true"]');
+      if (!editor) throw new Error("Expected experiment draft editor");
+      act(() => {
+        editor.textContent = "hello world";
+        fireEvent.input(editor);
+      });
+      const refreshedComposer = composerSpy.mock.lastCall?.[0] as { submitDisabled: boolean };
+      expect(refreshedComposer.submitDisabled).toBe(false);
+      fireEvent.click(screen.getByText("submit"));
 
-    await waitFor(() =>
-      expect(launchExperimentMock).toHaveBeenCalledWith(
-        expect.objectContaining({ baseBranch: "origin/main" }),
-      ),
-    );
-  });
+      await waitFor(() =>
+        expect(launchExperimentMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            baseBranch: "origin/main",
+            candidates: expect.arrayContaining([
+              expect.objectContaining({ config: expect.objectContaining({ model: "gpt-5.4" }) }),
+            ]),
+          }),
+        ),
+      );
+    },
+  );
 
   it("reserves the worktree control row for Home drafts", () => {
     const { container } = render(
@@ -1251,6 +1288,47 @@ describe("ThreadDraftView", () => {
       screen.getByText("This app version is incompatible with that server."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/remote server is offline/i)).not.toBeInTheDocument();
+  });
+
+  it("starts a draft for an online host-owned environment project (C1 F4)", () => {
+    useRemoteServersStore.setState({
+      servers: [
+        {
+          connectionId: "conn-child",
+          desktopId: "child-desktop",
+          label: "Child",
+          endpoint: "http://127.0.0.1:49153/api/environments/x/proxy/",
+          accessToken: "child-token",
+          scopes: ["session:read"],
+          transport: {
+            kind: "environment",
+            parentConnectionId: "conn-parent",
+            environmentId: "11111111-1111-4111-8111-111111111111",
+            childDesktopId: "child-desktop",
+          },
+        },
+      ],
+      runtime: {
+        "conn-child": { status: "online", projects: [], threads: [] },
+      },
+    });
+    const environmentProject: Project = {
+      ...project,
+      id: "environment-project",
+      remoteServerId: "conn-child",
+      remoteId: "project-1",
+    };
+
+    render(
+      <ThreadDraftView
+        project={environmentProject}
+        agentStatuses={[codexStatus]}
+        onStart={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText("Connection error")).not.toBeInTheDocument();
+    expect(composerSpy).toHaveBeenCalled();
   });
 
   it("shows the remote connecting state instead of the missing-agent message", () => {

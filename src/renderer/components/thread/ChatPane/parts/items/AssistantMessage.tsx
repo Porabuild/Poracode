@@ -12,7 +12,7 @@ import {
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { CopyTextButton } from "./CopyTextButton";
-import { ImageCard } from "./ImageCard";
+import { RemoteImageCard } from "./RemoteImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
 
@@ -63,9 +63,13 @@ export const AssistantMessage = memo(function AssistantMessage({
     () =>
       (payload?.content ?? [])
         .filter((b) => b.kind === "image")
-        .map((b) => imageViewSourceFromImageBlock(b, actions?.remoteImageRefUrl))
+        .map((b) =>
+          imageViewSourceFromImageBlock(b, actions?.remoteImageRefUrl, {
+            pendingAsPlaceholder: actions?.remoteImageReadiness !== undefined,
+          }),
+        )
         .filter((s): s is NonNullable<typeof s> => s !== null),
-    [actions?.remoteImageRefUrl, payload?.content],
+    [actions?.remoteImageRefUrl, actions?.remoteImageReadiness, payload?.content],
   );
   const showCopyButton = finalAnswerStatus === "confirmed" && !isStreaming && rawText.length > 0;
   // The tail answer's copy action becomes available only once its turn
@@ -82,7 +86,10 @@ export const AssistantMessage = memo(function AssistantMessage({
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
             {imageSources.map((source, index) => (
-              <ImageCard key={`${source.src.slice(0, 64)}:${index}`} source={source} />
+              <RemoteImageCard
+                key={`${source.remoteRef ? JSON.stringify(source.remoteRef.path) : source.src.slice(0, 64)}:${index}`}
+                source={source}
+              />
             ))}
           </div>
         ) : null}

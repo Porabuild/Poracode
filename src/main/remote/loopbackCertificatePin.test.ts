@@ -1,55 +1,26 @@
-import { chromiumCertificateVerdict } from "./remoteCertificatePins";
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { generateSelfSignedTlsMaterial } from "@/host/remote/server/tlsMaterial";
+import { chromiumCertificateVerdict } from "./remoteCertificatePins";
 import {
-  CERTIFICATE_VERIFY_CHROMIUM,
-  CERTIFICATE_VERIFY_FAIL,
-  CERTIFICATE_VERIFY_OK,
-  decideLoopbackCertificateTrust,
   installLoopbackCertificatePin,
-  readManagedLoopbackCertificatePin,
-  setManagedLoopbackCertificatePin,
+  isLoopbackCertificateHostname,
 } from "./loopbackCertificatePin";
 
-describe("loopback certificate pin (V6 B.3)", () => {
-  afterEach(() => {
-    setManagedLoopbackCertificatePin(null);
+describe("loopback hostname classification", () => {
+  it("accepts only exact loopback spellings", () => {
+    for (const host of ["127.0.0.1", "localhost", "::1", "[::1]", "LOCALHOST"]) {
+      expect(isLoopbackCertificateHostname(host)).toBe(true);
+    }
+    for (const host of ["example.test", "192.168.1.5", "127.1.2.3", "0.0.0.0"]) {
+      expect(isLoopbackCertificateHostname(host)).toBe(false);
+    }
   });
+});
 
-  it("accepts the pinned self-signed leaf on loopback and refuses a swapped cert", () => {
+describe("installLoopbackCertificatePin", () => {
+  it("never caches trust: every handshake returns an error and records the verdict", () => {
     const trusted = generateSelfSignedTlsMaterial();
-    const swapped = generateSelfSignedTlsMaterial();
-    expect(
-      decideLoopbackCertificateTrust({
-        hostname: "127.0.0.1",
-        certificatePem: trusted.cert,
-        pinnedFingerprint: trusted.fingerprint,
-      }),
-    ).toBe(CERTIFICATE_VERIFY_OK);
-    expect(
-      decideLoopbackCertificateTrust({
-        hostname: "localhost",
-        certificatePem: swapped.cert,
-        pinnedFingerprint: trusted.fingerprint,
-      }),
-    ).toBe(CERTIFICATE_VERIFY_FAIL);
-  });
-
-  it("leaves non-loopback hosts to Chromium even when a pin is set", () => {
-    const trusted = generateSelfSignedTlsMaterial();
-    expect(
-      decideLoopbackCertificateTrust({
-        hostname: "example.test",
-        certificatePem: trusted.cert,
-        pinnedFingerprint: trusted.fingerprint,
-      }),
-    ).toBe(CERTIFICATE_VERIFY_CHROMIUM);
-  });
-
-  it("installs a session verify proc that reads the live pin", () => {
-    const trusted = generateSelfSignedTlsMaterial();
-    setManagedLoopbackCertificatePin(trusted.fingerprint);
-    expect(readManagedLoopbackCertificatePin()).toBe(trusted.fingerprint);
+    const reviewed = generateSelfSignedTlsMaterial();
     const decisions: number[] = [];
     const session = {
       setCertificateVerifyProc: (
@@ -62,14 +33,14 @@ describe("loopback certificate pin (V6 B.3)", () => {
           decisions.push(result),
         );
         proc(
-          { hostname: "evil.example", certificate: { data: trusted.cert }, errorCode: 0 },
+          { hostname: "example.test", certificate: { data: reviewed.cert }, errorCode: 0 },
           (result) => decisions.push(result),
         );
       },
     };
     installLoopbackCertificatePin(session);
     expect(decisions).toEqual([-202, -202]);
-    expect(chromiumCertificateVerdict(session, "https://evil.example", trusted.cert)).toBe(true);
+    expect(chromiumCertificateVerdict(session, "https://example.test", reviewed.cert)).toBe(true);
     expect(chromiumCertificateVerdict(session, "https://127.0.0.1", trusted.cert)).toBe(false);
   });
 });

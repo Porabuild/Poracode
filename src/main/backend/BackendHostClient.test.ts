@@ -5,13 +5,13 @@ import {
   type BackendNativeEvent,
   type BackendNativeRequest,
   type BackendHostRequest,
+  type NativeThreadActivityChange,
 } from "@/shared/backendHostProtocol";
-import type { SupervisorEvent } from "@/shared/ipc";
 import type { IpcQueueCapture } from "@/shared/diagnostics/ipcQueueSample";
 
 const forkMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 const setPriorityMock = vi.hoisted(() => vi.fn<(pid: number, priority: number) => void>());
-const terminateMock = vi.hoisted(() => vi.fn<() => void>());
+const awaitTerminationMock = vi.hoisted(() => vi.fn<() => Promise<void>>(async () => undefined));
 
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
@@ -23,7 +23,12 @@ vi.mock("node:os", async (importOriginal) => {
   return { ...actual, setPriority: setPriorityMock };
 });
 
-vi.mock("@/shared/processTree", () => ({ terminateChildProcessTree: terminateMock }));
+// Fake children have no `kill`; the real forced-kill escalation is covered by
+// BackendHostClient.watchdog.test.ts and BackendHostClient.retirement.test.ts
+// with actual forked processes.
+vi.mock("@/shared/awaitProcessTermination", () => ({
+  awaitProcessTermination: awaitTerminationMock,
+}));
 
 import {
   BACKEND_HOST_INITIALIZATION_DEADLINE_MS,
@@ -93,7 +98,7 @@ function createClient(
   assignPid = vi.fn<(pid: number) => Promise<void>>(async () => undefined),
   options: { initWaitTimeoutMs?: number; queueDiagnostics?: IpcQueueCapture } = {},
 ) {
-  const onEvent = vi.fn<(event: SupervisorEvent, rendererSequence?: number) => void>();
+  const onThreadActivity = vi.fn<(changes: readonly NativeThreadActivityChange[]) => void>();
   const onReset = vi.fn<() => void>();
   const reportError = vi.fn<(error: unknown, tags?: Record<string, string>) => void>();
   const handleNativeRequest = vi.fn<(request: BackendNativeRequest) => Promise<unknown>>(
@@ -123,12 +128,12 @@ function createClient(
     reportError,
     handleNativeRequest,
     onNativeEvent,
-    onEvent,
+    onThreadActivity,
     onReset,
   });
   return {
     client,
-    onEvent,
+    onThreadActivity,
     onReset,
     reportError,
     handleNativeRequest,
@@ -145,8 +150,8 @@ async function startClient(
   const start = client.startSupervisor();
   await vi.waitFor(() => expect(requests(child)).toHaveLength(1));
   reply(child, requestFor(child, "initialize"), initializeResult);
-  // The post-initialization ownership/interests syncs race the supervisor
-  // start; wait for the request itself instead of a fixed position.
+  // The automatic supervisor start races the initialize reply; wait for the
+  // request itself instead of a fixed position.
   await vi.waitFor(() =>
     expect(requests(child).some((r) => r.operation === "start-supervisor")).toBe(true),
   );
@@ -158,7 +163,6 @@ describe("BackendHostClient", () => {
   beforeEach(() => {
     forkMock.mockReset();
     setPriorityMock.mockReset();
-    terminateMock.mockReset();
   });
 
   afterEach(() => {
@@ -244,7 +248,7 @@ describe("BackendHostClient", () => {
   it("forwards supervisor calls and lifecycle messages", async () => {
     const child = makeFakeChild();
     forkMock.mockReturnValue(child);
-    const { client, onEvent, onReset, reportError } = createClient();
+    const { client, onThreadActivity, onReset, reportError } = createClient();
     await startClient(client, child);
 
     const call = client.call("getAgentStatuses", { wslDistros: [] });
@@ -259,11 +263,14 @@ describe("BackendHostClient", () => {
     reply(child, databaseRequest, [{ id: "project" }]);
     await expect(databaseCall).resolves.toEqual([{ id: "project" }]);
 
-    const event: SupervisorEvent = { type: "git-changed", projectId: "project" };
+    const changes: NativeThreadActivityChange[] = [
+      { threadId: "thread-1", active: true },
+      { threadId: "thread-2", active: false },
+    ];
     child.emit("message", {
       version: BACKEND_HOST_PROTOCOL_VERSION,
-      kind: "supervisor-event",
-      event,
+      kind: "native-thread-activity",
+      changes,
     });
     child.emit("message", {
       version: BACKEND_HOST_PROTOCOL_VERSION,
@@ -275,7 +282,7 @@ describe("BackendHostClient", () => {
       message: "worker warning",
     });
 
-    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, undefined);
+    expect(onThreadActivity).toHaveBeenCalledExactlyOnceWith(changes);
     expect(onReset).toHaveBeenCalledOnce();
     expect(reportError).toHaveBeenCalledWith(
       expect.objectContaining({ message: "worker warning" }),
@@ -340,37 +347,40 @@ describe("BackendHostClient", () => {
     await expect(settled).resolves.toHaveLength(BACKEND_HOST_MAX_PENDING_REQUESTS);
   });
 
-  it("forwards renderer sequence metadata with fallback events", async () => {
+  it("routes bounded native thread-activity batches to onThreadActivity", async () => {
     const child = makeFakeChild();
     forkMock.mockReturnValue(child);
-    const { client, onEvent } = createClient();
+    const { client, onThreadActivity } = createClient();
     await startClient(client, child);
-    const event: SupervisorEvent = { type: "git-changed", projectId: "project" };
+    const changes: NativeThreadActivityChange[] = [{ threadId: "thread-1", active: true }];
 
     child.emit("message", {
       version: BACKEND_HOST_PROTOCOL_VERSION,
-      kind: "supervisor-event",
-      event,
-      rendererSequence: 42,
+      kind: "native-thread-activity",
+      changes,
     });
 
-    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, 42);
+    expect(onThreadActivity).toHaveBeenCalledExactlyOnceWith(changes);
   });
 
-  it("routes the untargeted sequenced event envelope to onEvent (collapsed single path)", async () => {
+  it("reports and drops removed bulk-relay envelopes from a stale child", async () => {
     const child = makeFakeChild();
     forkMock.mockReturnValue(child);
-    const { client, onEvent } = createClient();
+    const { client, onThreadActivity, reportError } = createClient();
     await startClient(client, child);
-    const event: SupervisorEvent = { type: "git-changed", projectId: "project" };
 
     child.emit("message", {
       version: BACKEND_HOST_PROTOCOL_VERSION,
       kind: "supervisor-event",
-      event,
+      event: { type: "git-changed", projectId: "stale" },
+      rendererSequence: 7,
     });
-    // An unsequenced envelope (recovery/bootstrap event) applies ungated.
-    expect(onEvent).toHaveBeenCalledExactlyOnceWith(event, undefined);
+
+    expect(onThreadActivity).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Received an invalid backend-host IPC message." }),
+      { "poracode.feature_area": "backend-host" },
+    );
   });
 
   it("routes typed services and native callbacks across the backend boundary", async () => {
@@ -538,80 +548,6 @@ describe("BackendHostClient", () => {
     );
   });
 
-  it("sends deduplicated live-event interests to the backend", async () => {
-    const child = makeFakeChild();
-    forkMock.mockReturnValue(child);
-    const { client } = createClient();
-    await startClient(client, child);
-
-    const update = client.setEventInterests({
-      terminalThreadIds: ["terminal-1", "terminal-1"],
-      runtimeThreadIds: ["chat-1"],
-      allRuntimeEvents: false,
-    });
-    await vi.waitFor(() => expect(requests(child)).toHaveLength(3));
-    const request = requestFor(child, "set-event-interests");
-    expect(request.payload).toEqual({
-      terminalThreadIds: ["terminal-1"],
-      runtimeThreadIds: ["chat-1"],
-      allRuntimeEvents: false,
-    });
-    reply(child, request);
-    await update;
-
-    const clear = client.setEventInterests({
-      terminalThreadIds: [],
-      runtimeThreadIds: [],
-      allRuntimeEvents: false,
-    });
-    await vi.waitFor(() => expect(requests(child)).toHaveLength(4));
-    const clearRequest = requests(child)[3]!;
-    expect(clearRequest).toMatchObject({
-      operation: "set-event-interests",
-      payload: {
-        terminalThreadIds: [],
-        runtimeThreadIds: [],
-        allRuntimeEvents: false,
-      },
-    });
-    reply(child, clearRequest);
-    await clear;
-  });
-
-  it("restores event interests before restarting the supervisor after a crash", async () => {
-    vi.useFakeTimers();
-    const first = makeFakeChild(1);
-    const second = makeFakeChild(2);
-    forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
-    const { client } = createClient();
-    await startClient(client, first);
-
-    const update = client.setEventInterests({
-      terminalThreadIds: ["terminal-1"],
-      runtimeThreadIds: ["chat-1"],
-      allRuntimeEvents: false,
-    });
-    await vi.waitFor(() => expect(requests(first)).toHaveLength(3));
-    reply(first, requests(first)[2]!);
-    await update;
-
-    first.emit("exit", 1);
-    await vi.advanceTimersByTimeAsync(1_000);
-    await vi.waitFor(() => expect(requests(second)).toHaveLength(1));
-    reply(second, requestFor(second, "initialize"));
-    await vi.waitFor(() => expect(requests(second)).toHaveLength(2));
-    expect(requests(second)[1]).toMatchObject({
-      operation: "set-event-interests",
-      payload: {
-        terminalThreadIds: ["terminal-1"],
-        runtimeThreadIds: ["chat-1"],
-      },
-    });
-    reply(second, requests(second)[1]!);
-    await vi.waitFor(() => expect(requests(second)).toHaveLength(3));
-    expect(requests(second)[2]).toMatchObject({ operation: "start-supervisor" });
-  });
-
   it("recreates and restarts the backend after a crash", async () => {
     vi.useFakeTimers();
     const first = makeFakeChild(1);
@@ -692,12 +628,18 @@ describe("BackendHostClient", () => {
     // default budget spans the initialization deadline, so it stays parked
     // instead of failing before the hung attempt can recover.
     await vi.advanceTimersByTimeAsync(BACKEND_HOST_INITIALIZATION_DEADLINE_MS);
-    expect(terminateMock).toHaveBeenCalledExactlyOnceWith(second);
+    expect(awaitTerminationMock).toHaveBeenCalledExactlyOnceWith(second, { graceMs: 3_000 });
     expect(reportError).toHaveBeenCalledWith(
       expect.objectContaining({ message: expect.stringContaining("did not complete within") }),
       expect.objectContaining({ "poracode.feature_area": "backend-host" }),
     );
 
+    // No successor is admitted while the failed generation's exit is
+    // unconfirmed, even past the backoff window.
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(forkMock).toHaveBeenCalledTimes(2);
+
+    second.emit("exit", 1);
     await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(requests(third)).toHaveLength(1));
     reply(third, requestFor(third, "initialize"));
@@ -729,11 +671,15 @@ describe("BackendHostClient", () => {
     // The initialize reply settled, but the whole initialization is bounded:
     // a hung assignment must not wedge the child past the deadline.
     await vi.advanceTimersByTimeAsync(BACKEND_HOST_INITIALIZATION_DEADLINE_MS - 1_000);
-    expect(terminateMock).not.toHaveBeenCalled();
+    expect(awaitTerminationMock).not.toHaveBeenCalled();
     expect(requests(first)).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(terminateMock).toHaveBeenCalledExactlyOnceWith(first);
+    expect(awaitTerminationMock).toHaveBeenCalledExactlyOnceWith(first, { graceMs: 3_000 });
 
+    // The replacement is admitted only after the failed child's exit.
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(forkMock).toHaveBeenCalledTimes(1);
+    first.emit("exit", 1);
     await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(requests(second)).toHaveLength(1));
     reply(second, requestFor(second, "initialize"));
@@ -753,48 +699,20 @@ describe("BackendHostClient", () => {
     await disposal;
   });
 
-  it("does not complete an expired interests sync before the child exits", async () => {
-    vi.useFakeTimers();
-    const first = makeFakeChild(1);
-    const second = makeFakeChild(2);
-    forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+  it("marks initialization ready from the initialize reply alone", async () => {
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
     const { client } = createClient();
-    const interests = client.setEventInterests({
-      terminalThreadIds: ["shell"],
-      runtimeThreadIds: [],
-      allRuntimeEvents: false,
-    });
     const call = client.callDatabase("dbGetProjects", {});
-    reply(first, requestFor(first, "initialize"));
-    await vi.advanceTimersByTimeAsync(0);
-    const sync = requestFor(first, "set-event-interests");
+    reply(child, requestFor(child, "initialize"));
 
-    await vi.advanceTimersByTimeAsync(BACKEND_HOST_INITIALIZATION_DEADLINE_MS);
-    expect(terminateMock).toHaveBeenCalledExactlyOnceWith(first);
-    // The process has not emitted exit yet; its late reply must remain inert.
-    reply(first, sync);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(requests(first).map((request) => request.operation)).toEqual([
-      "initialize",
-      "set-event-interests",
-    ]);
-
-    await vi.advanceTimersByTimeAsync(1_000);
-    reply(second, requestFor(second, "initialize"));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(requests(second).map((request) => request.operation)).toEqual([
-      "initialize",
-      "set-event-interests",
-    ]);
-    reply(second, requestFor(second, "set-event-interests"));
-    await vi.advanceTimersByTimeAsync(0);
-    reply(second, requestFor(second, "call-database"), [{ id: "project" }]);
+    // A2 removed the post-initialize interest sync: no further request gates
+    // readiness, so the queued call reaches the child immediately.
+    await vi.waitFor(() => expect(requestFor(child, "call-database")).toBeDefined());
+    reply(child, requestFor(child, "call-database"), [{ id: "project" }]);
     await expect(call).resolves.toEqual([{ id: "project" }]);
-    await interests;
 
-    const disposal = client.disposeAsync();
-    await vi.advanceTimersByTimeAsync(1_000);
-    await disposal;
+    await client.disposeAsync({ timeoutMs: 0 });
   });
 
   it("stops the initialization deadline on disposal", async () => {
@@ -812,11 +730,108 @@ describe("BackendHostClient", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await disposal;
     await expect(start).rejects.toThrow("Backend host disposed.");
-    expect(terminateMock).toHaveBeenCalledExactlyOnceWith(first);
+    expect(awaitTerminationMock).toHaveBeenCalledExactlyOnceWith(first, { graceMs: 3_000 });
 
     await vi.advanceTimersByTimeAsync(BACKEND_HOST_INITIALIZATION_DEADLINE_MS + 10 * 60_000);
     expect(forkMock).toHaveBeenCalledTimes(1);
-    expect(terminateMock).toHaveBeenCalledExactlyOnceWith(first);
+    expect(awaitTerminationMock).toHaveBeenCalledExactlyOnceWith(first, { graceMs: 3_000 });
+  });
+
+  it("reserves the forced-kill escalation inside the disposal budget", async () => {
+    vi.useFakeTimers();
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client } = createClient();
+    await startClient(client, child);
+
+    const disposal = client.disposeAsync({ timeoutMs: 10_000 });
+    // Flush the microtask that sends the dispose request without advancing the
+    // drain timer (`vi.waitFor` would advance fake timers past the reserve).
+    await vi.advanceTimersByTimeAsync(0);
+    expect(requestFor(child, "dispose")).toBeDefined();
+    // The drain window is the caller's budget minus the escalation reserve
+    // (SIGTERM grace plus the bounded join after the forced kill).
+    await vi.advanceTimersByTimeAsync(3_999);
+    expect(awaitTerminationMock).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    await disposal;
+    expect(awaitTerminationMock).toHaveBeenCalledExactlyOnceWith(child, { graceMs: 3_000 });
+  });
+
+  it("escalates only after the draining backend answers its own dispose request", async () => {
+    vi.useFakeTimers();
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client } = createClient();
+    await startClient(client, child);
+
+    const disposal = client.disposeAsync({ timeoutMs: 10_000 });
+    await vi.advanceTimersByTimeAsync(0);
+    const disposeRequest = requestFor(child, "dispose");
+    expect(awaitTerminationMock).not.toHaveBeenCalled();
+
+    // The backend's own drain answer releases disposal before the caller's
+    // budget expires: admitted work is joined first, then the child is retired.
+    reply(child, disposeRequest);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(awaitTerminationMock).toHaveBeenCalledExactlyOnceWith(child, { graceMs: 3_000 });
+    await disposal;
+  });
+
+  it("retains a failed generation and parks the respawn when the bounded join fails", async () => {
+    vi.useFakeTimers();
+    const first = makeFakeChild(1);
+    const second = makeFakeChild(2);
+    forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const { client } = createClient();
+    await vi.waitFor(() => expect(requests(first)).toHaveLength(1));
+
+    awaitTerminationMock.mockRejectedValueOnce(new Error("exit was not confirmed"));
+    replyFailure(first, requestFor(first, "initialize"), "database is locked");
+    await vi.waitFor(() => expect(awaitTerminationMock).toHaveBeenCalledTimes(1));
+
+    // An unconfirmed generation blocks successor admission...
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(forkMock).toHaveBeenCalledTimes(1);
+
+    // ...and it stays reachable: the next disposal retries the bounded join.
+    const disposal = client.disposeAsync({ timeoutMs: 0 });
+    await vi.waitFor(() => expect(awaitTerminationMock).toHaveBeenCalledTimes(2));
+    expect(forkMock).toHaveBeenCalledTimes(1);
+    await disposal;
+  });
+
+  it("escalates an IPC-fatal child and shares one retirement with disposal", async () => {
+    vi.useFakeTimers();
+    const child = makeFakeChild();
+    forkMock.mockReturnValue(child);
+    const { client } = createClient();
+    await startClient(client, child);
+
+    const retirementGate = Promise.withResolvers<void>();
+    awaitTerminationMock.mockReturnValueOnce(retirementGate.promise);
+    child.send.mockImplementation((_message: unknown, callback?: SendCallback) => {
+      callback?.(new Error("EPIPE"));
+      return true;
+    });
+    const call = client.callDatabase("dbGetProjects", {});
+    await expect(call).rejects.toThrow("Supervisor IPC send failed permanently: EPIPE");
+    expect(awaitTerminationMock).toHaveBeenCalledExactlyOnceWith(child, { graceMs: 3_000 });
+
+    // A fatally stuck child is retained; no successor is admitted while its
+    // exit is unconfirmed.
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(forkMock).toHaveBeenCalledTimes(1);
+
+    // Disposal joins the same retirement instead of racing a second one.
+    const disposal = client.disposeAsync({ timeoutMs: 0 });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(awaitTerminationMock).toHaveBeenCalledTimes(1);
+
+    child.emit("exit", 1);
+    retirementGate.resolve();
+    await disposal;
+    expect(forkMock).toHaveBeenCalledTimes(1);
   });
 
   it("rejects an in-flight request when the backend exits", async () => {
@@ -847,8 +862,11 @@ describe("BackendHostClient", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(requests(second)).toHaveLength(1));
     replyFailure(second, requestFor(second, "initialize"), "schema validation failed");
-    await vi.waitFor(() => expect(terminateMock).toHaveBeenCalledExactlyOnceWith(second));
+    await vi.waitFor(() =>
+      expect(awaitTerminationMock).toHaveBeenCalledWith(second, { graceMs: 3_000 }),
+    );
 
+    second.emit("exit", 1);
     await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(requests(third)).toHaveLength(1));
     reply(third, requestFor(third, "initialize"));
@@ -871,7 +889,9 @@ describe("BackendHostClient", () => {
 
     await vi.waitFor(() => expect(requests(first)).toHaveLength(1));
     replyFailure(first, requestFor(first, "initialize"), "database is locked");
-    await vi.waitFor(() => expect(terminateMock).toHaveBeenCalledExactlyOnceWith(first));
+    await vi.waitFor(() =>
+      expect(awaitTerminationMock).toHaveBeenCalledWith(first, { graceMs: 3_000 }),
+    );
 
     first.emit("exit", 1);
     await vi.advanceTimersByTimeAsync(1_000);
@@ -916,7 +936,11 @@ describe("BackendHostClient", () => {
       if (index > 0) await vi.advanceTimersByTimeAsync(2 ** (index - 1) * 1_000);
       await vi.waitFor(() => expect(requests(child)).toHaveLength(1));
       replyFailure(child, requestFor(child, "initialize"), `failure ${index + 1}`);
-      await vi.waitFor(() => expect(terminateMock).toHaveBeenCalledWith(child));
+      await vi.waitFor(() =>
+        expect(awaitTerminationMock).toHaveBeenCalledWith(child, { graceMs: 3_000 }),
+      );
+      // Only a confirmed exit releases the parked respawn.
+      child.emit("exit", 1);
     }
 
     await expect(call).rejects.toThrow("failed to initialize after 5 consecutive attempts");
@@ -942,6 +966,10 @@ describe("BackendHostClient", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(requests(children[1]!)).toHaveLength(1));
     replyFailure(children[1]!, requestFor(children[1]!, "initialize"), "transient");
+    await vi.waitFor(() =>
+      expect(awaitTerminationMock).toHaveBeenCalledWith(children[1]!, { graceMs: 3_000 }),
+    );
+    children[1]!.emit("exit", 1);
     await vi.advanceTimersByTimeAsync(1_000);
     await vi.waitFor(() => expect(requests(children[2]!)).toHaveLength(1));
     reply(children[2]!, requestFor(children[2]!, "initialize"));
@@ -962,7 +990,7 @@ describe("BackendHostClient", () => {
     const first = makeFakeChild(1);
     const second = makeFakeChild(2);
     forkMock.mockReturnValueOnce(first).mockReturnValueOnce(second);
-    const { client, onEvent } = createClient();
+    const { client, onThreadActivity } = createClient();
     await startClient(client, first);
 
     first.emit("exit", 1);
@@ -976,10 +1004,10 @@ describe("BackendHostClient", () => {
     reply(first, requestFor(first, "initialize"));
     first.emit("message", {
       version: BACKEND_HOST_PROTOCOL_VERSION,
-      kind: "supervisor-event",
-      event: { type: "git-changed", projectId: "stale" } satisfies SupervisorEvent,
+      kind: "native-thread-activity",
+      changes: [{ threadId: "stale", active: true }] satisfies NativeThreadActivityChange[],
     });
-    expect(onEvent).not.toHaveBeenCalled();
+    expect(onThreadActivity).not.toHaveBeenCalled();
 
     const disposal = client.disposeAsync();
     await vi.advanceTimersByTimeAsync(1_000);
@@ -987,7 +1015,7 @@ describe("BackendHostClient", () => {
 
     await expect(call).rejects.toThrow("Backend host disposed.");
     expect(forkMock).toHaveBeenCalledTimes(2);
-    expect(terminateMock).toHaveBeenLastCalledWith(second);
+    expect(awaitTerminationMock).toHaveBeenLastCalledWith(second, { graceMs: 3_000 });
 
     await vi.advanceTimersByTimeAsync(30_000);
     expect(forkMock).toHaveBeenCalledTimes(2);

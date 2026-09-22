@@ -772,6 +772,10 @@ msgstr "Kilitli ekran tüm masaüstü denetimini durdurur; bu nedenle Bilgisayar
 msgid "A message deletion could not be confirmed. Refresh to resync this conversation."
 msgstr "İleti silme onaylanamadı. Bu konuşmayı yeniden eşitlemek için yenileyin."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
+msgstr "Bu bağlantıya bir Poracode Helper sahip ancak yanıt vermiyor. Uzak helper'ı durdurun ve yeniden bağlanın."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
 msgstr "Bu ada sahip bir profil zaten var."
@@ -820,6 +824,10 @@ msgstr "Her İki Değişikliği de Kabul Et"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Current Change"
 msgstr "Mevcut Değişikliği Kabul Et"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Accept host key"
+msgstr "Ana makine anahtarını kabul et"
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Incoming Change"
@@ -1134,6 +1142,18 @@ msgstr "Her yeni terminal paneli kabuğuna aktarılan ek bağımsız değişkenl
 #~ msgid "Additional arguments passed to each new Windows shell. Quote values containing spaces."
 #~ msgstr "Her yeni Windows kabuğuna aktarılan ek bağımsız değişkenler. Boşluk içeren değerleri tırnak içine alın."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt"
+msgstr "Devral"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt legacy"
+msgstr "Eski bağlantıyı devral"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Adopt legacy connection"
+msgstr "Eski bağlantıyı devral"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik için boş bırakın."
@@ -1434,6 +1454,14 @@ msgstr "Başka bir sohbet de aynı ağacı kullanıyor. Dosya geri yükleme, soh
 #: src/renderer/actions/experimentOperationState.ts
 msgid "Another operation for this experiment is still running."
 msgstr "Bu deney için başka bir işlem hâlâ devam ediyor."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode client is preparing this connection. Try again in a moment."
+msgstr "Başka bir Poracode istemcisi bu bağlantıyı hazırlıyor. Birazdan yeniden deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect."
+msgstr "Başka bir Poracode sahibi bu bağlantının veri kökünü zaten tutuyor. Uzak ana makinede durdurun ve yeniden bağlanın."
 
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/ThreadRuntimeRequestPanel.tsx
 msgid "Answer every question to submit"
@@ -1980,6 +2008,33 @@ msgstr "Yer imleri"
 msgid "Bottom"
 msgstr "Alt"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Bu ana makinede aynı anda çalışabilecek ajan oturumu sayısını sınırlar. İşletim sistemi süreçlerini veya belleği değil, mantıksal yürütme yuvalarını sayar. 0 = sınırsız; ölçülmüş bir sınır henüz uygulanmıyor."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Bu ana makinede aynı anda çalışabilecek ajan oturumu sayısını sınırlar. İşletim sistemi süreçlerini veya belleği değil, mantıksal yürütme yuvalarını sayar. 0 = sınırsız."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Bu ana makinede aynı anda çalışabilecek kısa ömürlü üretim yardımcılarının (konu başlıkları, commit mesajları, çakışma çözümü) sayısını sınırlar. İşletim sistemi süreçlerini veya belleği değil, mantıksal yürütme yuvalarını sayar. 0 = sınırsız; ölçülmüş bir sınır henüz uygulanmıyor."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Bu ana makinede aynı anda çalışabilecek kısa ömürlü üretim yardımcılarının (konu başlıkları, commit mesajları, çakışma çözümü) sayısını sınırlar. İşletim sistemi süreçlerini veya belleği değil, mantıksal yürütme yuvalarını sayar. 0 = sınırsız."
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#~ msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 = unlimited; no measured limit is enforced yet."
+#~ msgstr "Bu ana makinede aynı anda çalışabilecek terminal kabuğu sayısını sınırlar. İşletim sistemi süreçlerini veya belleği değil, mantıksal yürütme yuvalarını sayar. 0 = sınırsız; ölçülmüş bir sınır henüz uygulanmıyor."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited."
+msgstr "Bu ana makinede aynı anda çalışabilecek terminal kabuğu sayısını sınırlar. İşletim sistemi süreçlerini veya belleği değil, mantıksal yürütme yuvalarını sayar. 0 = sınırsız."
+
 #: src/renderer/components/thread/WorktreeModeSelect.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 msgid "Branch"
@@ -2237,6 +2292,8 @@ msgstr "Uzak sunucuya ulaşılamıyor. Çevrimiçi olduğunu doğrulayıp yenide
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -2794,6 +2851,10 @@ msgstr "Düzenleyiciyi kapat"
 msgid "Close Editor Tab"
 msgstr "Düzenleyici Sekmesini Kapat"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Close environment actions"
+msgstr "Ortam eylemlerini kapat"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Close experiment"
 msgstr "Deneyi kapat"
@@ -3297,6 +3358,7 @@ msgstr "Yönetilen bir beceriyle çakışıyor"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/PairingChrome.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
@@ -3356,6 +3418,7 @@ msgstr "Uzak sunucuya bağlan"
 #: src/renderer/bootstrap.ts
 #: src/renderer/components/mcp/McpServersManager.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Connected"
 msgstr "Bağlı"
 
@@ -3376,6 +3439,7 @@ msgstr "Bağlanıyor..."
 #: src/renderer/components/thread/ChatPane/ChatTurnElapsed.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3478,6 +3542,14 @@ msgstr "Şurada devam et..."
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Continue on the desktop address"
 #~ msgstr "Masaüstü adresinde devam et"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Continue with incomplete history"
+msgstr "Eksik geçmişle devam et"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Continuing will keep the remaining history and mark this episode acknowledged; it does not restore the missing content."
+msgstr "Devam etmek kalan geçmişi korur ve bu bölümü onaylandı olarak işaretler; eksik içerik geri yüklenmez."
 
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 msgid "Control an external Chrome browser."
@@ -3690,6 +3762,14 @@ msgstr "GitHub hesabı \"{login}\" hesabına erişilemedi. \"gh auth login\" kom
 msgid "Couldn't clone the repository."
 msgstr "Depo klonlanamadı."
 
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "Couldn't confirm the experiment change with the host. It may still have been applied — reload the experiment before trying again."
+msgstr "Deney değişikliği ana makinede doğrulanamadı. Değişiklik zaten uygulanmış olabilir. Yeniden denemeden önce deneyi yeniden yükleyin."
+
+#: src/renderer/actions/threadCommandOutcomeActions.ts
+msgid "Couldn't confirm this command with the host. It may still have been applied — check the thread before trying again."
+msgstr "Ana makine bu komutu doğrulayamadı. Zaten uygulanmış olabilir — yeniden denemeden önce konuyu kontrol edin."
+
 #: src/renderer/actions/threadLaunchActions.ts
 msgid "Couldn't copy your uncommitted changes into the new worktree — they remain on the current branch."
 msgstr "Taahhüt edilmemiş değişiklikleriniz yeni çalışma ağacına kopyalanamadı; bunlar mevcut dalda kalıyor."
@@ -3727,6 +3807,10 @@ msgstr "Değişiklik günlüğü yüklenemedi. Bağlantını kontrol et ya da Gi
 #: src/renderer/components/skills/SkillViewModal.tsx
 msgid "Couldn't load the skill."
 msgstr "Beceri yüklenemedi."
+
+#: src/renderer/state/projectSettings/projectSettingsLoader.ts
+msgid "Couldn't load this project's MCP server settings, so the change was not saved."
+msgstr "Bu projenin MCP sunucu ayarları yüklenemediğinden değişiklik kaydedilmedi."
 
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Couldn't load your profile stats."
@@ -3778,6 +3862,7 @@ msgstr "Beceri güncellenemedi."
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteProjectsSheet.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Create"
@@ -3884,6 +3969,10 @@ msgstr "PR oluşturuluyor…"
 #: src/renderer/components/thread/TerminalThreadContent.tsx
 msgid "Creating worktree…"
 msgstr "Çalışma ağacı oluşturuluyor…"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Credential missing"
+msgstr "Kimlik bilgisi eksik"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Credentials are configured."
@@ -4229,6 +4318,7 @@ msgstr "İşi diğer yapay zeka aracılarına devredin."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4284,6 +4374,10 @@ msgstr "Şube silinsin mi?"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadRow.tsx
 msgid "Delete done threads"
 msgstr "Tamamlanan iş parçacıklarını sil"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Delete environment"
+msgstr "Ortamı sil"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Delete file"
@@ -4551,6 +4645,10 @@ msgstr "Bilgisayar Kullanımını Devre Dışı Bırak"
 msgid "Disable Crossagents"
 msgstr "Crossagents'i devre dışı bırak"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disable on host"
+msgstr "Ana makinede devre dışı bırak"
+
 #: src/renderer/views/MainView/parts/Sidebar/parts/useProjectMenu.tsx
 msgid "Disable Project"
 msgstr "Projeyi Devre Dışı Bırak"
@@ -4623,9 +4721,17 @@ msgstr "{path} dosyasındaki kaydedilmemiş değişiklikler silinsin mi?"
 msgid "Discard unsaved editor changes?"
 msgstr "Kaydedilmemiş düzenleyici değişiklikleri silinsin mi?"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disconnect"
+msgstr "Bağlantıyı kes"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Disconnect server"
 #~ msgstr "Sunucu bağlantısını kes"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Disconnected"
+msgstr "Bağlantı kesildi"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
@@ -4806,6 +4912,7 @@ msgstr "örneğin İş"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProfileSettings.tsx
 msgid "Edit"
 msgstr "Düzenle"
@@ -4813,6 +4920,10 @@ msgstr "Düzenle"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Edit {serverName}"
 msgstr "{serverName} sunucusunu düzenle"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Edit environment"
+msgstr "Ortamı düzenle"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 msgid "Edit file"
@@ -4937,6 +5048,10 @@ msgstr "Sistem ayarlarınızdan mikrofon erişimini etkinleştirin ve tekrar den
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Enable notifications"
 msgstr "Bildirimleri etkinleştir"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Enable on host"
+msgstr "Ana makinede etkinleştir"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Enable plugin"
@@ -5080,6 +5195,10 @@ msgstr "Geçerli bir JSON girin."
 msgid "Environment"
 msgstr "Ortam"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Environment name"
+msgstr "Ortam adı"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Environment variable name"
 msgstr "Ortam değişkeni adı"
@@ -5111,6 +5230,7 @@ msgstr "hata"
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/components/ui/toastContent.ts
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Error"
@@ -5317,6 +5437,10 @@ msgstr "Deney hakeminin kazananı 1 ile {candidateCount} arasında olmalıdır"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Experiment prompt must not be blank"
 msgstr "Deney istemi boş olmamalıdır"
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "Experiments are unavailable on this host. The change was not saved."
+msgstr "Bu ana makinede deneyler kullanılamıyor. Değişiklik kaydedilmedi."
 
 #: src/renderer/actions/experimentActions.ts
 msgid "Experiments run on the machine hosting the project. Open the project on its host to run an experiment."
@@ -6247,9 +6371,25 @@ msgstr "Ana kapsam"
 msgid "Homepage"
 msgstr "Ana sayfa"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host credential reference"
+msgstr "Ana makine kimlik bilgisi referansı"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host credential reference (optional)"
+msgstr "Ana makine kimlik bilgisi referansı (isteğe bağlı)"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host is up to date."
 msgstr "Ana bilgisayar güncel."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host key mismatch"
+msgstr "Ana makine anahtarı uyuşmuyor"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Host key trust accepted."
+msgstr "Ana makine anahtarı güveni kabul edildi."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
@@ -6262,6 +6402,15 @@ msgstr "Ana bilgisayar güncellenemedi."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "Host version: {currentVersion}"
 msgstr "Ana bilgisayar sürümü: {currentVersion}"
+
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Host-owned environment"
+msgstr "Ana makineye ait ortam"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
+msgid "Host-owned environments"
+msgstr "Ana makineye ait ortamlar"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "host.com, alias, or user@host.com"
@@ -6307,6 +6456,10 @@ msgstr "Tanımlayıcı"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Identity and usage stats"
 msgstr "Kimlik ve kullanım istatistikleri"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Identity changed"
+msgstr "Kimlik değişti"
 
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Identity file"
@@ -6930,6 +7083,14 @@ msgstr "Yorum bırak"
 #~ msgid "Leave empty to use the repository default branch."
 #~ msgstr "Deponun varsayılan dalını kullanmak için boş bırakın."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Leave the credential reference empty to keep the current one."
+msgstr "Mevcut referansı korumak için kimlik bilgisi referansını boş bırakın."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Legacy connection id"
+msgstr "Eski bağlantı kimliği"
+
 #: src/renderer/views/ProfileOverlay/parts/ActivityHeatmap.tsx
 msgid "Less"
 msgstr "Az"
@@ -6999,6 +7160,10 @@ msgstr "Görevleri listele"
 #~ msgid "Live {0}"
 #~ msgstr "Canlı {0}"
 
+#: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
+msgid "Live updates are paused for {droppedRuntimeThreadCount, plural, one {# thread} other {# threads}} because this window exceeds the {MANAGED_ITEM_INTERESTS_MAX}-thread live streaming limit. Close or reopen a thread to resume the paused ones."
+msgstr "Bu pencere {MANAGED_ITEM_INTERESTS_MAX} konu canlı akış sınırını aştığı için {droppedRuntimeThreadCount, plural, one {# konu} other {# konu}} için canlı güncellemeler duraklatıldı. Duraklatılanları sürdürmek için bir konuyu kapatın veya yeniden açın."
+
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Live voice"
 msgstr "Canlı sesli sohbet"
@@ -7031,6 +7196,10 @@ msgstr "Fark yükleniyor..."
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "Loading editor…"
 msgstr "Düzenleyici yükleniyor…"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Loading environments…"
+msgstr "Ortamlar yükleniyor…"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
@@ -7399,6 +7568,33 @@ msgstr "Büyük/küçük harf eşleştir"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Match your system, or force light or dark."
 msgstr "Sisteminizle eşleştirin veya açık veya koyu olanı zorlayın."
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active agent sessions"
+msgstr "Maksimum etkin ajan oturumu"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active agent sessions, 0 for unlimited"
+msgstr "Maksimum etkin ajan oturumu, 0 sınırsız"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active generation helpers"
+msgstr "Maksimum etkin üretim yardımcısı"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active generation helpers, 0 for unlimited"
+msgstr "Maksimum etkin üretim yardımcısı, 0 sınırsız"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Max active terminal shells"
+msgstr "Maksimum etkin terminal kabuğu"
+
+#: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
+msgid "Max active terminal shells, 0 for unlimited"
+msgstr "Maksimum etkin terminal kabuğu, 0 sınırsız"
 
 #: src/renderer/components/layout/UnifiedRightPanel.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
@@ -7866,6 +8062,10 @@ msgstr "En çok kullanılan akıl yürütme"
 msgid "Move"
 msgstr "Taşı"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Move an existing device-local SSH connection onto this environment by its connection id. Keys are never uploaded."
+msgstr "Mevcut cihaza yerel SSH bağlantısını bağlantı kimliğiyle bu ortama taşıyın. Anahtarlar hiçbir zaman yüklenmez."
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 msgid "Move browser back to main window"
 msgstr "Tarayıcıyı ana pencereye geri taşı"
@@ -8023,6 +8223,10 @@ msgstr "Dikkat Edilmesi Gerekiyor · Yanıt gerekli"
 msgid "Needs attention on {0}"
 msgstr "{0} üzerinde ilgi gerekiyor"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Needs repair"
+msgstr "Onarım gerekiyor"
+
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 msgid "Needs reply"
 msgstr "Yanıt gerekiyor"
@@ -8066,6 +8270,10 @@ msgstr "Yeni Cursor profili API anahtarı"
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #~ msgid "New Cursor profile name"
 #~ msgstr "Yeni Cursor profili adı"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "New environment"
+msgstr "Yeni ortam"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "New experiment"
@@ -8423,6 +8631,10 @@ msgstr "GitHub CLI hesabı bulunamadı. <0>gh auth login</0> ile oturum açın v
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "No history yet"
 msgstr "Henüz geçmiş yok"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "No host-owned environments on this server yet."
+msgstr "Bu sunucuda henüz ana makineye ait ortam yok."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "No icons found"
@@ -8810,6 +9022,10 @@ msgstr "Beni bilgilendir"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "npx"
 msgstr "npx"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Observed"
+msgstr "Gözlemlendi"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/SearchSection.tsx
 msgid "off"
@@ -9329,6 +9545,10 @@ msgstr "{conflict} kısayolunu geçersiz kılar"
 msgid "Overriding the global setting for this project."
 msgstr "Bu proje için genel ayar geçersiz kılınıyor."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Owner unverified"
+msgstr "Sahip doğrulanmadı"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Package"
 msgstr "Paket"
@@ -9374,6 +9594,10 @@ msgstr "Bir telefonu, tableti veya tarayıcıyı bu masaüstüyle eşleştirin."
 #~ msgid "Pair again"
 #~ msgstr "Tekrar eşleştir"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Pair this device"
+msgstr "Bu cihazı eşleştir"
+
 #: src/renderer/views/MainView/parts/BrowserRemoteConnectionGate.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
@@ -9383,6 +9607,11 @@ msgstr "Poracode ile eşleştir"
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/parts/DesktopPairing.tsx
 msgid "Pair with Poracode on your desktop to sync threads, projects, and settings."
 msgstr "Konuları, projeleri ve ayarları eşitlemek için masaüstündeki Poracode ile eşleştir."
+
+#. placeholder {0}: record.label
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Paired {0} on this device."
+msgstr "{0} bu cihazda eşleştirildi."
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Paired devices"
@@ -9446,6 +9675,14 @@ msgstr "Üst klasör"
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "Parent folder, e.g. /home/me/projects"
 #~ msgstr "Üst klasör, örn. /home/me/projects"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Part of this conversation's history may be missing on the server. Review the recovery options before continuing."
+msgstr "Bu konuşmanın geçmişinin bir kısmı sunucuda eksik olabilir. Devam etmeden önce kurtarma seçeneklerini inceleyin."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Part of this conversation's history was lost on the server and could not be shown. At least {refusedEvents} events / {refusedBytes} bytes are affected."
+msgstr "Bu konuşmanın geçmişinin bir kısmı sunucuda kayboldu ve gösterilemedi. En az {refusedEvents} olay / {refusedBytes} bayt etkilendi."
 
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Partially checked"
@@ -9657,6 +9894,7 @@ msgid "Pink"
 msgstr "Pembe"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/SortableThreadItem/parts/ThreadItemSuffix.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Pinned"
 msgstr "Sabitlendi"
 
@@ -9834,6 +10072,7 @@ msgstr "Poracode'un yerleşik tarayıcı araçları."
 #~ msgstr "poracode/my-branch"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Port"
 msgstr "Port"
 
@@ -10002,6 +10241,10 @@ msgstr "Gizlilik Politikası"
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Private key"
 #~ msgstr "Özel anahtar"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Probe host key"
+msgstr "Ana makine anahtarını yokla"
 
 #. placeholder {0}: updateAllProgress.agentLabel
 #. placeholder {1}: updateAllProgress.current
@@ -10802,6 +11045,11 @@ msgstr "{0}. adayı kaldır"
 msgid "Remove connection"
 msgstr "Bağlantıyı kaldır"
 
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove connection and environments"
+msgstr "Bağlantıyı ve ortamları kaldır"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 #~ msgid "Remove Cursor profile"
 #~ msgstr "Cursor profilini kaldır"
@@ -10891,6 +11139,11 @@ msgstr "Projeyi kaldırmadan önce projenin deneylerini kaldırın."
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 msgid "Remove the saved credential for this provider? You can connect it again from Add provider."
 msgstr "Bu sağlayıcının kayıtlı kimlik bilgileri kaldırılsın mı? “Sağlayıcı ekle” ile yeniden bağlayabilirsiniz."
+
+#: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "Remove this connection?"
+msgstr "Bu bağlantı kaldırılsın mı?"
 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "Remove worktree?"
@@ -11169,10 +11422,12 @@ msgstr "Kuyruktaki takip mesajlarını sürdür"
 #: src/renderer/components/skills/SkillsManager.tsx
 #: src/renderer/components/thread/ChatPane/ChatPane.tsx
 #: src/renderer/i18n/sharedMessages.ts
+#: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/useSourceBranchData.ts
 #: src/renderer/views/GitReviewOverlay/parts/GitStackedDiff.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
+#: src/renderer/views/SettingsOverlay/parts/ManagedHostEnvironmentsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/PluginsSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
@@ -11314,6 +11569,10 @@ msgstr "{0} için PR #{prNumber}'ı inceleyin"
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Review presentation"
 msgstr "İnceleme görünümü"
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "Review recovery"
+msgstr "Kurtarmayı incele"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Reviewing"
@@ -11469,6 +11728,10 @@ msgstr "Bir çalışma ağacı kaldırılmadan önce çalışır (ör. <0>rm -rf
 msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 msgstr "Yeni bir çalışma ağacı oluşturulduktan sonra terminalde çalışır (örneğin, <0>pnpm install</0>)."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Runs on this server. Credentials stay on the server."
+msgstr "Bu sunucuda çalışır. Kimlik bilgileri sunucuda kalır."
+
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Runs out early"
 msgstr "Erken tükeniyor"
@@ -11514,6 +11777,7 @@ msgstr "Doygunluk ve parlaklık"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/MobileFileEditorActions.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Save"
@@ -12523,6 +12787,10 @@ msgstr "Kaybeden adayların bazı çalışma ağaçları kaldırılamadı."
 msgid "Some provider folders couldn't be scanned. Successfully loaded skills are still shown."
 msgstr "Bazı sağlayıcı klasörleri taranamadı. Başarıyla yüklenen beceriler gösterilmeye devam ediyor."
 
+#: src/renderer/components/thread/LiveStreamCapacityAlert.tsx
+msgid "Some threads are paused"
+msgstr "Bazı konular duraklatıldı"
+
 #: src/mobile/QrScanner.tsx
 #~ msgid "Something went wrong starting the camera. Enter the endpoint and token below to pair instead."
 #~ msgstr "Kamera başlatılırken bir sorun oluştu. Bunun yerine eşleştirmek için endpoint ve token'ı aşağıya girin."
@@ -12600,6 +12868,7 @@ msgstr "SSH bağlantısı başarısız oldu."
 msgid "SSH hostname"
 msgstr "SSH ana bilgisayar adı"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "SSH port"
 msgstr "SSH bağlantı noktası"
@@ -12608,9 +12877,9 @@ msgstr "SSH bağlantı noktası"
 msgid "SSH port (optional)"
 msgstr "SSH bağlantı noktası (isteğe bağlı)"
 
-#: src/mobile/views/DesktopsView.tsx
-#~ msgid "SSH target"
-#~ msgstr "SSH hedefi"
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "SSH target"
+msgstr "SSH hedefi"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictFileCard.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ConflictGroup.tsx
@@ -12760,6 +13029,10 @@ msgstr "Kamera başlatılıyor…"
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Starting remotely…"
 #~ msgstr "Uzaktan başlatılıyor…"
+
+#: src/renderer/state/managedRootCatalog/ManagedRootCatalogStatusNotice.tsx
+msgid "Starting the desktop's own server…"
+msgstr "Masaüstünün kendi sunucusu başlatılıyor…"
 
 #: src/renderer/components/composer/VoiceInputButton.tsx
 msgid "Starting voice input"
@@ -13318,6 +13591,10 @@ msgstr "Bu uzak oturum zaten yoktu."
 #~ msgid "the {0} WSL user"
 #~ msgstr "{0} WSL kullanıcısı"
 
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The acknowledgement failed."
+msgstr "Onay başarısız oldu."
+
 #: src/renderer/components/thread/ThreadComposerSection.tsx
 msgid "the agent"
 msgstr "aracı"
@@ -13363,6 +13640,41 @@ msgstr "Aşağıda kendi aralığı ayarlanmamış sağlayıcılar için kullan�
 msgid "The desktop server is still coming online."
 msgstr "Masaüstü sunucusu hâlâ başlatılıyor."
 
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+msgid "The desktop's own catalog read failed."
+msgstr "Masaüstünün kendi kataloğu okunamadı."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "The desktop's own server is not connected yet."
+msgstr "Masaüstünün kendi sunucusu henüz bağlı değil."
+
+#: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/managedParentRuntime.ts
+msgid "The desktop's own server is not connected."
+msgstr "Masaüstünün kendi sunucusu bağlı değil."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The desktop's own server is not connected. The experiment change was not saved."
+msgstr "Masaüstü uygulamasının kendi sunucusuna bağlı değil. Deney değişikliği kaydedilmedi."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+#: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+msgid "The desktop's own server is not connected. Your change was not saved."
+msgstr "Masaüstünün kendi sunucusu bağlı değil. Değişikliğiniz kaydedilmedi."
+
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "The desktop's own server reconnected before the history read completed."
+msgstr "Masaüstünün kendi sunucusu geçmiş okuması tamamlanmadan yeniden bağlandı."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogCommands.ts
+msgid "The desktop's own server refused the change."
+msgstr "Masaüstünün kendi sunucusu değişikliği reddetti."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The environment changed on the host. Refresh and try again."
+msgstr "Ortam ana makinede değişti. Yenileyip tekrar deneyin."
+
 #: src/renderer/actions/experimentDecisionActions.ts
 #: src/renderer/actions/experimentWorktreeActions.ts
 #: src/renderer/i18n/sharedMessages.ts
@@ -13370,9 +13682,25 @@ msgstr "Masaüstü sunucusu hâlâ başlatılıyor."
 msgid "The experiment candidate worktree is unavailable."
 msgstr "Deney adayının çalışma ağacı kullanılamıyor."
 
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment changed on the host while it was being saved. Reload and try again."
+msgstr "Deney kaydedilirken ana makinede değiştirildi. Yeniden yükleyip tekrar deneyin."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment no longer exists on the host."
+msgstr "Deney artık ana makinede bulunmuyor."
+
 #: src/renderer/actions/experimentActions.ts
 msgid "The experiment prompt is too long."
 msgstr "Deney istemi çok uzun."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment state could not be verified."
+msgstr "Deneyin durumu doğrulanamadı."
+
+#: src/renderer/state/managedRootCatalog/rootExperimentAuthority.ts
+msgid "The experiment state is too large to load or change safely."
+msgstr "Deneyin durumu güvenli bir şekilde yüklenemeyecek veya değiştirilemeyecek kadar büyük."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The GitHub account \"{login}\" belongs to {host}, which does not match this project's GitHub remote."
@@ -13383,10 +13711,31 @@ msgstr "GitHub hesabı \"{login}\", {host} ana makinesine ait ve bu projenin Git
 msgid "the global {0} WSL scope"
 msgstr "genel {0} WSL kapsamı"
 
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+#: src/renderer/state/remote/historyNoticeActions.ts
+msgid "The history notice could not be read from the server."
+msgstr "Geçmiş bildirimi sunucudan okunamadı."
+
 #: src/renderer/components/thread/RemoteHostUpdateDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostUpdateControl.tsx
 msgid "The host is restarting to install the update."
 msgstr "Güncellemeyi yüklemek için ana bilgisayar yeniden başlatılıyor."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The host rejected the request."
+msgstr "Ana makine isteği reddetti."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "The host returned an invalid environment pairing endpoint."
+msgstr "Ana makine geçersiz bir ortam eşleştirme uç noktası döndürdü."
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "The host stops and restarts this environment's owner with the bundled runtime. The child's data directory is not touched."
+msgstr "Ana makine bu ortamın sahibini paketlenmiş çalışma zamanıyla durdurup yeniden başlatır. Alt öğenin veri dizinine dokunulmaz."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The incomplete-history notice changed on the server. Review the updated details before continuing."
+msgstr "Eksik geçmiş bildirimi sunucuda değişti. Devam etmeden önce güncellenen ayrıntıları inceleyin."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the Linux user"
@@ -13407,6 +13756,28 @@ msgstr "MCP sunucusu geçersiz."
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "Normal uygulama kabuğu oluşturulamadı. Arızanın araştırılabilmesi için aşağıdaki teşhisler yeniden yüklemeden önce gösterilir."
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/sessionReconnect.ts
+#: src/renderer/state/remoteServers/storeClient.ts
+msgid "The paired server that owns this environment is not connected."
+msgstr "Bu ortamın sahibi olan eşleştirilmiş sunucu bağlı değil."
+
+#: src/renderer/state/remoteServers/snapshotProjection.ts
+msgid "The remote catalog read failed."
+msgstr "Uzak katalog okunamadı."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again."
+msgstr "Uzak helper kapatma penceresi içinde durmadı ve çalışmaya devam ediyor. Uzak ana makinede durdurun ve yeniden deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect."
+msgstr "Uzak ana makinede bu istemcinin doğrulayamadığı bir Poracode Helper var. Uzak helper'ı durdurun ve yeniden bağlanın."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version."
+msgstr "Uzak ana makine uyumsuz bir Poracode Helper ({version}) çalıştırıyor. Uzak helper'ı durdurun ve bu uygulamanın sürümünü yüklemek için yeniden bağlanın."
 
 #: src/mobile/useRemoteDesktop.ts
 #~ msgid "The remote Poracode server returned no pairing credential."
@@ -13447,6 +13818,10 @@ msgstr "Seçilen model, her adayın değişikliklerinin anlık görüntülerini 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server configuration is invalid."
 msgstr "Sunucu yapılandırması geçersiz."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "The server could not confirm the acknowledgement. Retry to continue."
+msgstr "Sunucu onayı doğrulayamadı. Devam etmek için yeniden deneyin."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "The server returned an invalid MCP response."
@@ -13584,6 +13959,10 @@ msgstr "Bu API anahtarı, bu profilin SDK sohbetlerini ve kullanım kartını ki
 msgid "This browser does not support system notifications here; you will still see in-app toasts."
 msgstr "Bu tarayıcı burada sistem bildirimlerini desteklemiyor; uygulama içi bildirimleri yine de göreceksiniz."
 
+#: src/renderer/actions/experimentResponseReads.ts
+msgid "This candidate's response is too large to compare. Split the experiment or shorten the transcript."
+msgstr "Bu adayın yanıtı karşılaştırmak için çok büyük. Deneyi bölün veya konuşma dökümünü kısaltın."
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "This catalog manages downloads through its website."
 #~ msgstr "Bu katalog indirmeleri web sitesi üzerinden yönetir."
@@ -13608,6 +13987,10 @@ msgstr "Bu bilgisayar"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "Bu bağlantı projeleri görüntüleyebilir ancak yönetemez. Etkinleştirmek için yeniden eşleştirin."
 
+#: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
+msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
+msgstr "Bu bağlantı, bu cihazdaki ana makineye ait ortam kayıtlarının sahibidir. Kaldırılması bu yerel kayıtları ve cihaz izinlerini de kaldırır. Ana makine ortamlarını korur."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This desktop"
 msgstr "Bu masaüstü"
@@ -13627,6 +14010,14 @@ msgstr "Bu cihazda kullanılabilir kamera yok. Bunun yerine eşleştirme bağlan
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "this environment"
 msgstr "bu ortam"
+
+#: src/renderer/state/remoteServers/environmentManagement.ts
+msgid "This environment's host identity changed. Re-pair it explicitly from the host."
+msgstr "Bu ortamın ana makine kimliği değişti. Ana makineden açıkça yeniden eşleştirin."
+
+#: src/renderer/components/thread/ChatPane/parts/HistoryNoticeBanner.tsx
+msgid "This episode has been acknowledged; the missing content is not restored."
+msgstr "Bu bölüm onaylandı; eksik içerik geri yüklenmedi."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
 msgid "This file is too large for the built-in editor."
@@ -13744,6 +14135,10 @@ msgstr "Bu kuyruğa alınan takip mesajı zaten gönderiliyor."
 msgid "This removes later messages and restores files when a checkpoint snapshot is available."
 msgstr "Bu, daha sonraki mesajları kaldırır ve bir denetim noktası anlık görüntüsü mevcut olduğunda dosyaları geri yükler."
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "This removes the environment from the host. The server's child workspace is not deleted."
+msgstr "Bu, ortamı ana makineden kaldırır. Sunucunun alt çalışma alanı silinmez."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "This removes the schedule and its latest result from this device."
 msgstr "Zamanlamayı ve en son sonucunu bu cihazdan kaldırır."
@@ -13758,6 +14153,14 @@ msgstr "Bu, \"{0}\" üzerindeki çalışma ağacını kaldırır ve {1, plural, 
 #: src/renderer/components/common/BranchSelector/BranchSelector.tsx
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "Bu, \"{0}\" üzerindeki çalışma ağacını kaldırır, ardından dalı siler."
+
+#: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
+msgid "This server does not support the bounded catalog read."
+msgstr "Bu sunucu sınırlı katalog okumayı desteklemiyor."
+
+#: src/renderer/state/managedRootCatalog/rootHistory.ts
+msgid "This server does not support the bounded history read."
+msgstr "Bu sunucu sınırlı geçmiş okumayı desteklemiyor."
 
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "This server requires authentication before Poracode can check it."
@@ -14444,6 +14847,10 @@ msgstr "Genel URL güncellenemedi."
 #~ msgid "Unable to update the thread."
 #~ msgstr "İş parçacığı güncellenemiyor."
 
+#: src/renderer/hostTransport/loopbackHttpWsTransport.ts
+msgid "Unable to verify the desktop's own server."
+msgstr "Masaüstünün kendi sunucusu doğrulanamadı."
+
 #: src/renderer/views/HomeView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unassigned"
@@ -14604,6 +15011,10 @@ msgstr "hazırlanmamış"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/HookPluginSettings.tsx
 msgid "Unsupported"
 msgstr "Desteklenmiyor"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Unverified"
+msgstr "Doğrulanmadı"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -14801,6 +15212,18 @@ msgstr "Bu terminalde güncelleniyor. Tamamlandığında kapanır."
 msgid "Updating to v{0}"
 msgstr "v{0} sürümüne güncelleniyor"
 
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade"
+msgstr "Yükselt"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade environment owner"
+msgstr "Ortam sahibini yükselt"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "Upgrade owner"
+msgstr "Sahibi yükselt"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/structuredElicitation.tsx
 msgid "URL"
@@ -14935,6 +15358,10 @@ msgstr "Yeni etkileşimli terminal paneli oturumları için kullanılır."
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "user@example.com"
 #~ msgstr "user@example.com"
+
+#: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+msgid "user@host"
+msgstr "user@host"
 
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."

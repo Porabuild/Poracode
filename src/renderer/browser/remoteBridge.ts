@@ -35,6 +35,10 @@ import type { SharedSettingsInput } from "@/shared/settings";
 import { pickAndUploadBrowserFiles } from "@/renderer/utils/browserFilePicker";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { applyCachedSlashCommandCatalogs } from "@/renderer/state/remoteServers/slashCommandCatalogs";
+import { invokeBoundedRuntimeItemsPage } from "@/renderer/state/remoteServers/catalog/boundedHistoryRegistry";
+import { selectBrowserBridgeServer } from "@/renderer/state/remoteServers/browserBridge";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useBrowserMirrorStore } from "./browserMirror";
 import { readCachedBrowserThreadSnapshot } from "./offlineThreadCache";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
@@ -341,17 +345,26 @@ const remoteBridgeOverrides = {
   },
   getAgentHookPluginStatuses: () => Promise.resolve([]),
 
-  // Runtime history hydration is fed by the remote sync layer instead of the
-  // local DB. The selected thread's tail arrives with its snapshot; older
-  // pages are fetched lazily when ChatPane reaches the start.
-  dbGetThreadRuntimeItems: () => Promise.resolve([]),
+  // Runtime history hydration pages the paired host's bounded routes instead
+  // of the local DB. The selected thread's tail arrives with its snapshot;
+  // older pages are fetched lazily when ChatPane reaches the start. R1: the
+  // goal/turns/usage reads and the unbounded transcript read have NO browser
+  // override — they dispatch through the shared bounded adapter (and the
+  // unbounded read refuses typed), so a remote leg can never silently consume
+  // an empty or partial transcript as success.
   dbGetThreadRuntimeItemsPage: async (payload: RemoteRuntimeItemsPageRequest) => {
     if (payload.beforePosition !== undefined) {
-      return invokeRemoteIpcProcedure(
-        await waitForClient(),
-        "dbGetThreadRuntimeItemsPage",
-        payload,
-      );
+      const client = await waitForClient();
+      const server = selectBrowserBridgeServer(useRemoteServersStore.getState());
+      if (server) {
+        const bounded = await invokeBoundedRuntimeItemsPage(
+          client,
+          remoteConnectionKey(server),
+          payload,
+        );
+        if (bounded) return bounded;
+      }
+      return invokeRemoteIpcProcedure(client, "dbGetThreadRuntimeItemsPage", payload);
     }
     const snapshot = await readCachedBrowserThreadSnapshot(payload.threadId);
     return {
@@ -359,14 +372,6 @@ const remoteBridgeOverrides = {
       nextCursor: snapshot?.runtimeNextCursor ?? null,
     };
   },
-  dbGetLatestThreadGoalItem: async ({ threadId }: { threadId: string }) => {
-    const items = (await readCachedBrowserThreadSnapshot(threadId))?.runtimeItems ?? [];
-    return items.findLast((item) => item.type === "goal") ?? null;
-  },
-  dbGetThreadCompletedTurns: async (threadId: string) =>
-    (await readCachedBrowserThreadSnapshot(threadId))?.completedTurns ?? [],
-  dbGetThreadContextUsage: async (threadId: string) =>
-    (await readCachedBrowserThreadSnapshot(threadId))?.contextUsage ?? null,
 
   // Browser app state is persisted locally by createDbStorage. The remote host
   // remains authoritative and refreshes these cached rows after reconnect.
@@ -438,7 +443,6 @@ const remoteBridgeOverrides = {
   onRemoteThreadCommand: () => () => undefined,
   onRemoteAccessPairingChanged: () => () => undefined,
   onSharedSettingsChanged: () => () => undefined,
-  onProjectStateChanged: () => () => undefined,
   onThreadOpenRequested: () => () => undefined,
   onQuickComposerSubmit: () => () => undefined,
   onQuickComposerDismissRequested: () => () => undefined,

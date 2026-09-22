@@ -17,7 +17,6 @@ function managedHost(): ElectronHostBridge {
     arch: "x64",
     platform: "darwin",
     onSupervisorEvent: () => () => {},
-    onSupervisorEventGap: () => () => {},
     onBackendSupervisorReset: () => () => {},
     ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
     invokeProcedure: async () => undefined,

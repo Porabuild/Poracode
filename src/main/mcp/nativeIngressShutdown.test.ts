@@ -2,8 +2,8 @@ import { setImmediate as nextTurn } from "node:timers/promises";
 import { expect, it } from "vitest";
 import { BrowserMcpIngress } from "../browser/BrowserMcpIngress";
 import type { BrowserPanelManager } from "../browser/BrowserPanelManager";
-import { ChromeMcpIngress } from "../browser/external/ChromeMcpIngress";
-import type { ExternalChromeConnection } from "../browser/external/ExternalChromeConnection";
+import { ChromeMcpIngress } from "@/host/browser/external/ChromeMcpIngress";
+import type { ExternalChromeConnection } from "@/host/browser/external/ExternalChromeConnection";
 
 it.each(["browser", "chrome"] as const)(
   "%s facade joins an admitted native continuation after its HTTP socket closes",

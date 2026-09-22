@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PerfRingBuffer } from "./perfRingBuffer";
 import {
   RENDERER_FRAME_BUDGET_MS,
+  RENDERER_PERF_DIAG_FORMAT_VERSION,
   RendererPerfDiagnostics,
   beginRendererPerfSpan,
   isRendererPerfDiagnosticsRequested,
@@ -96,17 +97,134 @@ describe("RendererPerfDiagnostics", () => {
     });
   });
 
-  it("derives input delay from event timing and aggregates long tasks", () => {
+  it("derives input delay, handler time and event duration from event timing", () => {
     const diagnostics = new RendererPerfDiagnostics({ now: () => 0 });
-    diagnostics.recordEventTiming(1_000, 1_040, 12);
+    diagnostics.recordEventTiming(1_000, 1_040, 1_052, 90);
     diagnostics.recordLongTask(2_000, 90);
     const snapshot = diagnostics.snapshot();
     expect(snapshot.recentEventTimings).toEqual([
-      { startMs: 1_000, inputDelayMs: 40, processingMs: 12 },
+      {
+        name: null,
+        interactionId: null,
+        startMs: 1_000,
+        inputDelayMs: 40,
+        processingMs: 12,
+        interactionDurationMs: 90,
+      },
     ]);
-    expect(snapshot.phases.session?.eventTimings).toEqual({ count: 1, maxInputDelayMs: 40 });
+    expect(snapshot.phases.session?.eventTimings).toEqual({
+      count: 1,
+      maxInputDelayMs: 40,
+      maxProcessingMs: 12,
+      maxInteractionDurationMs: 90,
+    });
     expect(snapshot.phases.session?.longTasks).toEqual({ count: 1, maxDurationMs: 90 });
     expect(snapshot.recentLongTasks).toEqual([{ startMs: 2_000, durationMs: 90 }]);
+  });
+
+  it("records observer-shaped event entries with identity and counts malformed batches", () => {
+    const diagnostics = new RendererPerfDiagnostics({ now: () => 0 });
+    diagnostics.recordEventTimingEntries([
+      {
+        name: "click",
+        startTime: 1_000,
+        processingStart: 1_040,
+        processingEnd: 1_075,
+        duration: 96,
+        interactionId: 7,
+      },
+      {
+        name: "keydown",
+        startTime: 2_000,
+        processingStart: 2_004,
+        processingEnd: 2_004,
+        duration: 0,
+        interactionId: 0,
+      },
+      { startTime: 3_000, processingStart: 3_010 },
+    ]);
+    const snapshot = diagnostics.snapshot();
+    expect(snapshot.recentEventTimings).toEqual([
+      {
+        name: "click",
+        interactionId: 7,
+        startMs: 1_000,
+        inputDelayMs: 40,
+        processingMs: 35,
+        interactionDurationMs: 96,
+      },
+      {
+        name: "keydown",
+        interactionId: 0,
+        startMs: 2_000,
+        inputDelayMs: 4,
+        processingMs: 0,
+        interactionDurationMs: 0,
+      },
+    ]);
+    expect(snapshot.observers.eventTiming).toMatchObject({
+      sampleCount: 2,
+      skippedEntryCount: 1,
+    });
+    expect(snapshot.phases.session?.eventTimings).toEqual({
+      count: 2,
+      maxInputDelayMs: 40,
+      maxProcessingMs: 35,
+      maxInteractionDurationMs: 96,
+    });
+  });
+
+  it("records long-task batches and counts malformed entries", () => {
+    const diagnostics = new RendererPerfDiagnostics({ now: () => 0 });
+    diagnostics.recordLongTaskEntries([
+      { startTime: 5_000, duration: 137 },
+      { startTime: 6_000, duration: "bad" },
+      { startTime: 7_000, duration: -4 },
+    ]);
+    const snapshot = diagnostics.snapshot();
+    expect(snapshot.recentLongTasks).toEqual([{ startMs: 5_000, durationMs: 137 }]);
+    expect(snapshot.observers.longTask).toMatchObject({ sampleCount: 1, skippedEntryCount: 2 });
+  });
+
+  it("validates direct record calls with the same adapter as observer entries", () => {
+    const diagnostics = new RendererPerfDiagnostics({ now: () => 0 });
+    diagnostics.recordEventTiming(Number.NaN, 1, 2);
+    diagnostics.recordEventTiming(1_000, 1_040, 1_030);
+    diagnostics.recordLongTask(1, Number.NaN);
+    const snapshot = diagnostics.snapshot();
+    expect(snapshot.recentEventTimings).toEqual([]);
+    expect(snapshot.recentLongTasks).toEqual([]);
+    expect(snapshot.observers.eventTiming.skippedEntryCount).toBe(2);
+    expect(snapshot.observers.longTask.skippedEntryCount).toBe(1);
+  });
+
+  it("reports observer availability separately from sample counts", () => {
+    const diagnostics = new RendererPerfDiagnostics({ now: () => 0 });
+    expect(diagnostics.snapshot().observers).toEqual({
+      eventTiming: {
+        status: "not-installed",
+        requestedDurationThresholdMs: null,
+        durationThresholdMs: null,
+        sampleCount: 0,
+        skippedEntryCount: 0,
+      },
+      longTask: { status: "not-installed", sampleCount: 0, skippedEntryCount: 0 },
+    });
+  });
+
+  it("normalizes the configured Event Timing threshold to a finite 8 ms multiple", () => {
+    expect(new RendererPerfDiagnostics({ now: () => 0 }).eventTimingDurationThresholds).toEqual({
+      requestedMs: 16,
+      effectiveMs: 16,
+    });
+    expect(
+      new RendererPerfDiagnostics({ now: () => 0, eventTimingDurationThresholdMs: 20 })
+        .eventTimingDurationThresholds,
+    ).toEqual({ requestedMs: 20, effectiveMs: 24 });
+    expect(
+      new RendererPerfDiagnostics({ now: () => 0, eventTimingDurationThresholdMs: Number.NaN })
+        .eventTimingDurationThresholds,
+    ).toEqual({ requestedMs: 16, effectiveMs: 16 });
   });
 
   it("runs the frame monitor on the injected scheduler until stopped", () => {
@@ -129,7 +247,7 @@ describe("RendererPerfDiagnostics", () => {
     expect(scheduled[1]).toBeUndefined();
   });
 
-  it("retains nothing for spans recorded after dispose", () => {
+  it("retains nothing for observations recorded after dispose", () => {
     let nowMs = 0;
     const diagnostics = new RendererPerfDiagnostics({ now: () => nowMs });
     const span = diagnostics.beginSpan("x");
@@ -137,7 +255,12 @@ describe("RendererPerfDiagnostics", () => {
     nowMs = 10;
     span.end();
     diagnostics.recordSpan("x", 0, 1);
-    expect(diagnostics.snapshot().recentSpans).toEqual([]);
+    diagnostics.recordEventTiming(1_000, 1_040, 1_052, 90);
+    diagnostics.recordLongTask(2_000, 90);
+    const snapshot = diagnostics.snapshot();
+    expect(snapshot.recentSpans).toEqual([]);
+    expect(snapshot.recentEventTimings).toEqual([]);
+    expect(snapshot.recentLongTasks).toEqual([]);
   });
 });
 
@@ -172,7 +295,7 @@ describe("module-level hooks", () => {
     expect(handle).toBeDefined();
     handle?.setPhase("C-bulk");
     const snapshot = handle?.snapshot();
-    expect(snapshot?.formatVersion).toBe(1);
+    expect(snapshot?.formatVersion).toBe(RENDERER_PERF_DIAG_FORMAT_VERSION);
     expect(snapshot?.phase).toBe("C-bulk");
     expect(typeof snapshot?.timeOriginEpochMs).toBe("number");
     controller?.dispose();
@@ -181,6 +304,28 @@ describe("module-level hooks", () => {
     const second = startRendererPerfDiagnostics({ requested: true, now: () => 0, target: window });
     expect(second).toBeDefined();
     second?.dispose();
+  });
+
+  it("does not let a stale controller dispose unpublish a newer controller's handle", () => {
+    const first = startRendererPerfDiagnostics({ requested: true, now: () => 0, target: window });
+    expect(first).toBeDefined();
+    expect(window.__poracodePerfDiagnostics).toBeDefined();
+    first?.dispose();
+    expect(window.__poracodePerfDiagnostics).toBeUndefined();
+
+    const second = startRendererPerfDiagnostics({ requested: true, now: () => 0, target: window });
+    expect(second).toBeDefined();
+    const secondHandle = window.__poracodePerfDiagnostics;
+    expect(secondHandle).toBeDefined();
+
+    // Re-disposing the dead controller must not delete the live controller's handle.
+    first?.dispose();
+    expect(window.__poracodePerfDiagnostics).toBe(secondHandle);
+    expect(window.__poracodePerfDiagnostics?.snapshot().formatVersion).toBe(
+      RENDERER_PERF_DIAG_FORMAT_VERSION,
+    );
+    second?.dispose();
+    expect(window.__poracodePerfDiagnostics).toBeUndefined();
   });
 
   it("enables via the localStorage flag", () => {

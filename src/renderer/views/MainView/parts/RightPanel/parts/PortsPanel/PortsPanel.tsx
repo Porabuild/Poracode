@@ -1,3 +1,4 @@
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { useEffect, useRef, useState } from "react";
 import { Button, Input, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -222,7 +223,7 @@ export function PortsPanel() {
 
   function load(attempt = 0) {
     if (!server || !canUse) return;
-    const desktopId = server.desktopId;
+    const desktopId = remoteConnectionKey(server);
     const generation = ++loadGeneration.current;
     setLoading(true);
     usePortsPanelChromeStore.getState().setLoading(true);
@@ -260,7 +261,7 @@ export function PortsPanel() {
     // The selected desktop and its scope are the lifecycle boundary. `load`
     // intentionally stays local so explicit refreshes share the same race guard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [server?.desktopId, canUse]);
+  }, [server ? remoteConnectionKey(server) : undefined, canUse]);
 
   useEffect(() => {
     if (refreshVersion === 0) return;
@@ -302,7 +303,7 @@ export function PortsPanel() {
   function startForward(targetPort: number): void {
     if (!server) return;
     setBusyPort(targetPort);
-    void withClient(server.desktopId, (client) => client.startPortForward(targetPort))
+    void withClient(remoteConnectionKey(server), (client) => client.startPortForward(targetPort))
       .then((result) => {
         loadGeneration.current++;
         setForwards((current) => [
@@ -321,7 +322,7 @@ export function PortsPanel() {
   function stopForward(forward: ActivePortForward): void {
     if (!server) return;
     setStoppingForwardId(forward.id);
-    void withClient(server.desktopId, (client) => client.stopPortForward(forward.id))
+    void withClient(remoteConnectionKey(server), (client) => client.stopPortForward(forward.id))
       .then(() => {
         loadGeneration.current++;
         setForwards((current) => current.filter((entry) => entry.id !== forward.id));
@@ -339,7 +340,7 @@ export function PortsPanel() {
       return;
     }
     setOpeningForwardId(forward.id);
-    void withClient(server.desktopId, (client) => client.enterPortForward(forward.id))
+    void withClient(remoteConnectionKey(server), (client) => client.enterPortForward(forward.id))
       .then((result) => openForwardTarget(result.enterPath))
       .catch((error: unknown) => {
         if (error instanceof RemoteClientError && error.code === "forward_not_found") {
@@ -362,7 +363,7 @@ export function PortsPanel() {
       return;
     }
     setCopyingForwardId(forward.id);
-    void withClient(server.desktopId, (client) => client.enterPortForward(forward.id))
+    void withClient(remoteConnectionKey(server), (client) => client.enterPortForward(forward.id))
       .then((result) =>
         navigator.clipboard.writeText(buildEnterUrl(server.endpoint, result.enterPath)),
       )
@@ -389,7 +390,9 @@ export function PortsPanel() {
   function copyRawForwardAddress(forward: ActivePortForward): void {
     if (!server) return;
     setCopyingForwardId(forward.id);
-    void withClient(server.desktopId, (client) => client.startPortForward(forward.targetPort))
+    void withClient(remoteConnectionKey(server), (client) =>
+      client.startPortForward(forward.targetPort),
+    )
       .then((result) =>
         navigator.clipboard.writeText(
           `${buildRawTcpUrl(host, forward.listenPort)}\n${result.connectTicket}`,

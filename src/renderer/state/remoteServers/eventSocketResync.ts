@@ -14,20 +14,70 @@ import {
   remoteThreadAppliedSeq,
   supervisorEventThreadIds,
 } from "./eventSocketRegistry";
+import { forgetBoundedHistoryThread } from "./catalog/boundedHistoryRegistry";
+import { remoteConnectionKey } from "./types";
 import type { EventSocketConnectionContext } from "./eventSocketContext";
+
+/** A3: replay is budgeted in safe ordered units. One queued frame (including a
+ * `runtime.truncated` frame and its own payload) is the unit; the loop yields
+ * to the event loop between units once the budget is spent, so a large recovery
+ * tail cannot monopolize a task. Per-thread order and the baseline-cursor
+ * ordering stay exactly as they were in the single synchronous loop. */
+const RECOVERY_REPLAY_BUDGET_MS = 4;
+
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+async function replayRecoveryQueue(ctx: EventSocketConnectionContext): Promise<void> {
+  const { server, recovery } = ctx;
+  const connectionKey = remoteConnectionKey(server);
+  const queuedEvents = [...recovery.queuedEvents].sort((left, right) => left.seq - right.seq);
+  let budgetStartedAt = performance.now();
+  for (const queued of queuedEvents) {
+    if (!ctx.isCurrent() || ctx.entry.socket !== ctx.socket) return;
+    const batches = collectRuntimeEventsFromSupervisoryMessage(queued.event);
+    const keptBatches = batches.filter(
+      (batch) => queued.seq > (recovery.baselineSeqByThread.get(batch.threadId) ?? -Infinity),
+    );
+    const replay =
+      batches.length > 0
+        ? keptBatches.length > 0
+          ? { type: "thread-runtime-events-multi", batches: keptBatches }
+          : null
+        : supervisorEventThreadIds(queued.event).some(
+              (threadId) => queued.seq > (recovery.baselineSeqByThread.get(threadId) ?? -Infinity),
+            )
+          ? queued.event
+          : null;
+    if (replay !== null) {
+      ctx.dispatchForwardEvent(replay, queued.seq, true);
+      // Replay is the moment a recovery-queued frame is finally APPLIED:
+      // only here may the resume cursor pass its seq.
+      bumpRemoteServerSnapshotSeq(connectionKey, queued.seq);
+    }
+    if (performance.now() - budgetStartedAt >= RECOVERY_REPLAY_BUDGET_MS) {
+      await yieldToEventLoop();
+      budgetStartedAt = performance.now();
+    }
+  }
+}
 
 export function resyncOpenThread(
   ctx: EventSocketConnectionContext,
   beforeReplay?: () => void,
 ): Promise<boolean> {
   const { server, entry, socket, client, get, set, buildOpenThread, isCurrent, recovery } = ctx;
+  // The socket/registry/projection key is the record's connection key, never
+  // the host identity: an environment record's `desktopId` is the child host.
+  const connectionKey = remoteConnectionKey(server);
   // Dedupe only within the SAME connection: a stale recovery from a
   // dead socket must not be handed to the replacement connection.
   if (ctx.resyncSlots.promise && ctx.resyncSlots.socket === socket) return ctx.resyncSlots.promise;
   const open = get().openThread;
-  const interests = currentRemoteServerThreadItemInterests(server.desktopId);
+  const interests = currentRemoteServerThreadItemInterests(connectionKey);
   const threadIds = new Set<string>();
-  if (open?.desktopId === server.desktopId) threadIds.add(open.threadId);
+  if (open?.desktopId === connectionKey) threadIds.add(open.threadId);
   for (const interest of interests) threadIds.add(interest);
   if (threadIds.size === 0) return Promise.resolve(true);
   recovery.threadIds = new Set(threadIds);
@@ -41,14 +91,14 @@ export function resyncOpenThread(
       // Fetch all interested threads concurrently (N−1 RTTs saved on
       // server-restart resync), then apply in the original order so
       // per-thread state transitions stay deterministic.
-      const omitScrollback = hasRemoteServerCursorSyncV2(server.desktopId);
+      const omitScrollback = hasRemoteServerCursorSyncV2(connectionKey);
       const fetched = await Promise.all(
         [...threadIds].map(async (threadId) => {
           try {
             return {
               threadId,
               followUpQueueSnapshotGuard: captureThreadFollowUpQueueSnapshot(
-                remoteThreadId(server.desktopId, threadId),
+                remoteThreadId(connectionKey, threadId),
               ),
               snapshot: await client.threadHistory(
                 threadId,
@@ -71,24 +121,28 @@ export function resyncOpenThread(
           break;
         }
         const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
-          projectRemoteThreadSnapshot(server.desktopId, nextSnapshot),
+          projectRemoteThreadSnapshot(connectionKey, nextSnapshot),
           {
             fromServer: true,
             followUpQueueSnapshotGuard,
-            lastSeenEventSeq: remoteThreadAppliedSeq(server.desktopId, threadId),
+            lastSeenEventSeq: remoteThreadAppliedSeq(connectionKey, threadId),
           },
         );
         if (applied.installedAuthoritativeHistory) {
           recovery.baselineSeqByThread.set(threadId, nextSnapshot.snapshotSeq);
-          recordAuthoritativeHistoryInstall(server.desktopId, threadId, nextSnapshot.snapshotSeq);
+          recordAuthoritativeHistoryInstall(connectionKey, threadId, nextSnapshot.snapshotSeq);
+          // The baseline may postdate a truncation that renumbered completed
+          // turns while this client was disconnected; any recorded `ct1.`
+          // continuation proof is stale and must not append to the rebuild.
+          forgetBoundedHistoryThread(connectionKey, threadId);
         } else {
           restored = false;
         }
-        bumpRemoteServerSnapshotSeq(server.desktopId, nextSnapshot.snapshotSeq);
+        bumpRemoteServerSnapshotSeq(connectionKey, nextSnapshot.snapshotSeq);
         const currentOpen = get().openThread;
-        if (currentOpen?.desktopId === server.desktopId && currentOpen.threadId === threadId) {
+        if (currentOpen?.desktopId === connectionKey && currentOpen.threadId === threadId) {
           set({
-            openThread: buildOpenThread(server.desktopId, nextSnapshot),
+            openThread: buildOpenThread(connectionKey, nextSnapshot),
           });
         }
       }
@@ -99,30 +153,7 @@ export function resyncOpenThread(
         // replaying the transport recovery buffer so those
         // sequenced events cannot be discarded by the UI gate.
         beforeReplay?.();
-        const queuedEvents = [...recovery.queuedEvents].sort((left, right) => left.seq - right.seq);
-        for (const queued of queuedEvents) {
-          const batches = collectRuntimeEventsFromSupervisoryMessage(queued.event);
-          const keptBatches = batches.filter(
-            (batch) => queued.seq > (recovery.baselineSeqByThread.get(batch.threadId) ?? -Infinity),
-          );
-          const replay =
-            batches.length > 0
-              ? keptBatches.length > 0
-                ? { type: "thread-runtime-events-multi", batches: keptBatches }
-                : null
-              : supervisorEventThreadIds(queued.event).some(
-                    (threadId) =>
-                      queued.seq > (recovery.baselineSeqByThread.get(threadId) ?? -Infinity),
-                  )
-                ? queued.event
-                : null;
-          if (replay !== null) {
-            ctx.dispatchForwardEvent(replay, queued.seq, true);
-            // Replay is the moment a recovery-queued frame is finally
-            // APPLIED: only here may the resume cursor pass its seq.
-            bumpRemoteServerSnapshotSeq(server.desktopId, queued.seq);
-          }
-        }
+        await replayRecoveryQueue(ctx);
       }
     } catch {
       restored = false;
@@ -153,7 +184,7 @@ export async function recoverInterestedThreads(
   if (!ctx.isCurrent() || ctx.entry.socket !== ctx.socket) return false;
   ctx.forceReconnect(ctx.socket);
   ctx.setRemoteServerFailure(
-    ctx.server.desktopId,
+    remoteConnectionKey(ctx.server),
     "offline",
     sharedMsg("remote.server.unreachable"),
   );

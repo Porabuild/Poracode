@@ -56,10 +56,14 @@ vi.mock("@/renderer/actions/worktreeActions", () => ({
   deleteWorktreeGroup,
 }));
 
-vi.mock("@/renderer/state/chatRuntimePersister", () => ({
-  hasHydratedThreadRuntimeItems,
-  hydrateThreadRuntimeItems,
-}));
+vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>();
+  return {
+    ...actual,
+    hasHydratedThreadRuntimeItems,
+    hydrateThreadRuntimeItems,
+  };
+});
 
 describe("threadActions", () => {
   beforeEach(() => {

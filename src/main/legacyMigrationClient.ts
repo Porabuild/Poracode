@@ -1,6 +1,9 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import type { LegacyDataMigrationOptions, LegacyDataMigrationResult } from "./legacyDataMigration";
+import type {
+  LegacyDataMigrationOptions,
+  LegacyDataMigrationResult,
+} from "@/host/legacyDataMigration";
 
 /** Runs SQLite-touching legacy import outside Electron's latency-sensitive main process. */
 export function migrateLegacyDataOutOfProcess(

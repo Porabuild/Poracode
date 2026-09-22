@@ -39,12 +39,16 @@ const { legendScrollToEnd, legendScrollToIndex, mockLegendSizes } = vi.hoisted((
   mockLegendSizes: new Map<string, number>(),
 }));
 
-vi.mock("@/renderer/state/chatRuntimePersister", () => ({
-  hydrateThreadRuntimeItems,
-  loadOlderThreadRuntimeItems,
-  releaseThreadRuntimeItems,
-  retainThreadRuntimeItems,
-}));
+vi.mock("@/renderer/state/chatRuntimePersister", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/renderer/state/chatRuntimePersister")>();
+  return {
+    ...actual,
+    hydrateThreadRuntimeItems,
+    loadOlderThreadRuntimeItems,
+    releaseThreadRuntimeItems,
+    retainThreadRuntimeItems,
+  };
+});
 
 vi.mock("@/renderer/state/fileCheckpointActions", () => ({
   hydrateFileCheckpoints,

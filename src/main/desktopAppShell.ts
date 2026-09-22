@@ -17,21 +17,44 @@ import { captureMainException } from "./diagnostics/sentry";
 import { installLocalFileProtocolHandler } from "./attachments/localFiles";
 import { installPickerProtocolHandler } from "./browser";
 import { startUsageLoginCookieMirror } from "./usageLogin/UsageLoginCookieMirror";
-import { readSharedSettingsFile } from "./sharedSettingsFile";
+import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { shouldStartMinimized, syncWindowsStartupRegistration } from "./startupSettings";
 import { shouldPreventSystemSleep } from "./sleepPolicy";
 import { readOrCreateSafeStorageSecretKey } from "./secretStorageKey";
 import { desktopApp, isDev, requirePoracodePaths } from "./desktopAppState";
-import type { SupervisorEvent } from "@/shared/ipc";
+import type { NativeThreadActivityChange } from "@/shared/backendHostProtocol";
 
 // setLoginItemSettings writes the HKCU Run registry key on Windows; skip it
 // when launchAtStartup hasn't changed so routine settings saves stay cheap.
 let lastAppliedLaunchAtStartup: boolean | null = null;
 
+// Committed-settings read model (V2 A5). The settings authority
+// (`src/backend/settings/`) remains the only writer; this cache is main's read
+// model, seeded once from the parsed initial settings at native-shell
+// preparation and repointed at the parsed object on every settings-changed
+// event. Hot paths — above all the per-thread-state sleep reaction — must never
+// touch the settings file, so the file is read at most once and only when the
+// shell cache is still cold (startup order).
+let committedSharedSettings: SharedSettings | null = null;
+
+// Last values applied to the native power surfaces. A working-thread or
+// settings-event storm that leaves the derived values unchanged is a no-op.
+let lastAppliedPreventSleep: boolean | null = null;
+let lastAppliedComputerUseKeepAwake: boolean | null = null;
+
+function resolveCommittedSharedSettings(): SharedSettings {
+  if (committedSharedSettings) return committedSharedSettings;
+  if (!desktopApp.poracodePaths) return defaultSharedSettings;
+  // Startup order: no committed event has arrived yet, so read once and adopt
+  // the result as the committed cache instead of re-reading on later calls.
+  committedSharedSettings = readSharedSettingsFile(desktopApp.poracodePaths.settingsPath);
+  return committedSharedSettings;
+}
+
 function syncStartupSettings(settings?: SharedSettings): void {
   if (!desktopApp.poracodePaths) return;
   try {
-    const s = settings ?? readSharedSettingsFile(desktopApp.poracodePaths.settingsPath);
+    const s = settings ?? resolveCommittedSharedSettings();
     if (s.launchAtStartup === lastAppliedLaunchAtStartup) return;
     syncWindowsStartupRegistration(app, s, process.platform, isDev);
     lastAppliedLaunchAtStartup = s.launchAtStartup;
@@ -41,38 +64,57 @@ function syncStartupSettings(settings?: SharedSettings): void {
 }
 
 export function updatePowerSaveBlocker(): void {
-  if (!desktopApp.poracodePaths) {
-    desktopApp.sleepInhibitor.setActive(desktopApp.workingThreads.size > 0);
-    desktopApp.computerUseWakeLock.setEnabled(defaultSharedSettings.computerUseKeepAwake);
-    return;
+  const settings = resolveCommittedSharedSettings();
+  const preventSleep = shouldPreventSystemSleep(settings, desktopApp.workingThreads.size);
+  if (preventSleep !== lastAppliedPreventSleep) {
+    lastAppliedPreventSleep = preventSleep;
+    desktopApp.sleepInhibitor.setActive(preventSleep);
   }
-  const settings = readSharedSettingsFile(desktopApp.poracodePaths.settingsPath);
-  desktopApp.sleepInhibitor.setActive(
-    shouldPreventSystemSleep(settings, desktopApp.workingThreads.size),
-  );
   // Every settings write funnels through here, so toggling the setting off
   // releases an already-held wake lock immediately.
-  desktopApp.computerUseWakeLock.setEnabled(settings.computerUseKeepAwake);
+  if (settings.computerUseKeepAwake !== lastAppliedComputerUseKeepAwake) {
+    lastAppliedComputerUseKeepAwake = settings.computerUseKeepAwake;
+    desktopApp.computerUseWakeLock.setEnabled(settings.computerUseKeepAwake);
+  }
 }
 
-export function handleSupervisorEventForSleep(event: SupervisorEvent): void {
-  if (event.type === "thread-state") {
-    const active = event.status === "working" || event.status === "launching";
-    if (active) {
-      desktopApp.workingThreads.add(event.threadId);
-    } else {
-      desktopApp.workingThreads.delete(event.threadId);
+/**
+ * Applies one coalesced `native-thread-activity` batch (A2). Main's working
+ * set changes only by these deltas; the native power surface is re-derived
+ * once per batch that actually moved the set. {@link resetThreadActivity}
+ * clears the set on a child/supervisor restart, so a batch can never leave a
+ * stale active flag behind.
+ */
+export function applyThreadActivity(changes: readonly NativeThreadActivityChange[]): void {
+  let changed = false;
+  for (const change of changes) {
+    if (change.active) {
+      if (desktopApp.workingThreads.has(change.threadId)) continue;
+      desktopApp.workingThreads.add(change.threadId);
+      changed = true;
+    } else if (desktopApp.workingThreads.delete(change.threadId)) {
+      changed = true;
     }
-    updatePowerSaveBlocker();
-    return;
   }
-  if (event.type === "thread-exited") {
-    desktopApp.workingThreads.delete(event.threadId);
-    updatePowerSaveBlocker();
-  }
+  if (changed) updatePowerSaveBlocker();
+}
+
+/**
+ * Backend/supervisor reset (A2): the new child starts with an empty working
+ * set and only emits transitions, so main must drop every previously active
+ * thread here. Without this a restart could keep a stale sleep blocker.
+ */
+export function resetThreadActivity(): void {
+  desktopApp.workingThreads.clear();
+  updatePowerSaveBlocker();
 }
 
 export function handleSharedSettingsChanged(settings: SharedSettings): void {
+  // Adopt the committed object before any reaction reads it: the backend host
+  // announces a commit after the authority wrote it, and its preceding
+  // `updatePowerSaveBlocker()` call still saw the previous cache.
+  committedSharedSettings = settings;
+  updatePowerSaveBlocker();
   // Browser allow gates live on the composed host services (embedded browser
   // + external Chrome bridge share the same settings gates).
   desktopApp.hostServices?.applyBrowserAllowFlags(settings);
@@ -142,6 +184,7 @@ export function prepareDesktopNativeShell(): DesktopNativeShellBootstrap {
   // console) don't age out of the one snapshot taken at sign-in.
   startUsageLoginCookieMirror({ cacheDir: paths.cacheDir, session: browserSession });
   const initialSettings = readSharedSettingsFile(paths.settingsPath);
+  committedSharedSettings = initialSettings;
   syncStartupSettings(initialSettings);
   const showMainWindowOnReady = !shouldStartMinimized(
     initialSettings,

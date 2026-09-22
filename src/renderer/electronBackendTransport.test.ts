@@ -2,11 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { ElectronBackendTransport } from "./hostTransport";
+import {
+  __resetRendererEventInterestsForTest,
+  retainRendererEventInterest,
+} from "./state/rendererEventInterests";
 
 /**
  * V6 B.6: preload IPC is no longer a live event data plane. Sequenced
  * supervisor-event / thread-output envelopes from main are ignored; loopback
- * dispatch is the only live path. Bootstrap still publishes interests.
+ * dispatch is the only live path. A2: interests live in the renderer registry
+ * (the loopback WS owner) — no IPC interest sync remains.
  */
 
 type SupervisorListener = (event: SupervisorEvent, rendererSequence?: number) => void;
@@ -20,7 +25,6 @@ function makeHost() {
       supervisorListeners.add(listener);
       return () => supervisorListeners.delete(listener);
     },
-    onSupervisorEventGap: () => () => {},
     onBackendSupervisorReset: (listener: () => void) => {
       resetListeners.add(listener);
       return () => resetListeners.delete(listener);
@@ -59,10 +63,12 @@ describe("ElectronBackendTransport (loopback-only data plane)", () => {
   beforeEach(() => {
     received = [];
     unsubscribe = null;
+    __resetRendererEventInterestsForTest();
   });
 
   afterEach(() => {
     unsubscribe?.();
+    __resetRendererEventInterestsForTest();
     vi.restoreAllMocks();
   });
 
@@ -107,14 +113,14 @@ describe("ElectronBackendTransport (loopback-only data plane)", () => {
     expect(received[0]!.type).toBe("thread-scrollback-resync");
   });
 
-  it("rebuilds every subscribed thread on a backend reset and restarts the loopback cursor", () => {
+  it("rebuilds every registered thread on a backend reset and restarts the loopback cursor", () => {
     const { host, emitReset } = makeHost();
     const transport = new ElectronBackendTransport(host);
     subscribe(transport);
-    void transport.setEventInterests({
-      terminalThreadIds: ["s-1"],
-      runtimeThreadIds: ["r-1"],
-    });
+    // A2: rebuild reads the renderer's own registry (the loopback WS owner);
+    // there is no interest IPC sync anymore.
+    const terminalLease = retainRendererEventInterest("terminal", "s-1");
+    const runtimeLease = retainRendererEventInterest("runtime", "r-1");
     transport.dispatchLoopbackEvent(output("s-1", "a"), 10);
     received.length = 0;
 
@@ -127,6 +133,8 @@ describe("ElectronBackendTransport (loopback-only data plane)", () => {
 
     transport.dispatchLoopbackEvent(output("s-1", "b"), 1);
     expect(received.at(-1)).toMatchObject({ type: "thread-output", data: "b" });
+    terminalLease.release();
+    runtimeLease.release();
   });
 
   it("keeps two windows' loopback sequence spaces independent (multi-window)", () => {
@@ -195,20 +203,16 @@ describe("ElectronBackendTransport (loopback-only data plane)", () => {
     expect(events).toEqual(["old-desktop", "old-shared", "new-desktop", "new-shared"]);
   });
 
-  it("publishes deduplicated interests to main through the procedure invoke", async () => {
+  it("sends no interest IPC when rebuild runs (A2 removed the sync)", () => {
     const { host, invoked } = makeHost();
     const transport = new ElectronBackendTransport(host);
+    subscribe(transport);
+    const lease = retainRendererEventInterest("terminal", "s-1");
 
-    await transport.setEventInterests({
-      terminalThreadIds: ["s-1", "s-1", "s-2"],
-      runtimeThreadIds: [],
-    });
-    expect(invoked).toEqual([
-      {
-        name: "setRendererEventInterests",
-        args: [{ terminalThreadIds: ["s-1", "s-2"], runtimeThreadIds: [] }],
-      },
-    ]);
+    transport.rebuildSubscribedState();
+
+    expect(invoked).toEqual([]);
+    lease.release();
   });
 
   it("refuses non-shell remote-routable requests over IPC", async () => {

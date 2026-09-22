@@ -30,6 +30,7 @@ import { recordThreadStarted } from "../usageRecorder";
 import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { noteRendererCreatedThreadIntent } from "../managedRootCatalog/rootCreateIntent";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -68,7 +69,13 @@ export interface ThreadSlice {
    */
   mcpLaunchCustomServerNamesByThreadId: Record<string, readonly string[]>;
   setThreadMcpLaunchCustomServerNames: (threadId: string, names: readonly string[]) => void;
-  markThreadsInactiveOnLaunch: () => void;
+  /**
+   * Ephemeral session-map reset at renderer start. `preserveHostOwnedRootRows`
+   * excludes every host-owned root row (no projection marker) from the status
+   * sweep: on the managed desktop those rows are the co-located server's, and
+   * a renderer start must not rewrite their status (F12).
+   */
+  markThreadsInactiveOnLaunch: (options?: { readonly preserveHostOwnedRootRows?: boolean }) => void;
   createThread: (input: {
     threadId?: string;
     projectId: string;
@@ -85,6 +92,12 @@ export interface ThreadSlice {
     worktreePath?: string;
     worktreeBranch?: string;
     worktreeProvisioning?: boolean;
+    /**
+     * Internal: this producer persists the row through its own host intent and
+     * must not be marked as a pending managed-root create+launch (experiment
+     * candidates; see `rootCreateIntent.ts`).
+     */
+    suppressHostCreateIntent?: boolean;
     groupId?: string;
     groupName?: string;
     replacePaneId?: string;
@@ -161,6 +174,7 @@ export interface ThreadSlice {
   reconcileRuntimeSnapshots: (
     snapshots: ThreadRuntimeSnapshot[],
     requestedThreadIds?: ReadonlySet<string>,
+    options?: { readonly preserveHostOwnedRootRows?: boolean },
   ) => void;
   reorderThreads: (sourceId: string, targetId: string, placement: ReorderPlacement) => void;
   reorderThreadBlock: (blockIds: string[], targetId: string, placement: ReorderPlacement) => void;
@@ -187,11 +201,25 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         [threadId]: names,
       },
     })),
-  markThreadsInactiveOnLaunch: () =>
+  markThreadsInactiveOnLaunch: (options) =>
     set((state) => {
       let changed = false;
 
+      // Server-owned rows keep the host's status: the host normalizes live
+      // rows at boot and owns every later transition. A renderer startup must
+      // never rewrite a projected remote row, a server-sourced row, or (on the
+      // managed desktop) an unprojected root row — terminal root rows carry no
+      // `threadStatusSource` marker, and their live state belongs to the host.
+      const preserveHostOwnedRootRows = options?.preserveHostOwnedRootRows === true;
       const threads = state.threads.map((thread) => {
+        const isHostOwnedRootRow = preserveHostOwnedRootRows && thread.remoteServerId === undefined;
+        if (
+          thread.remoteServerId !== undefined ||
+          thread.threadStatusSource === "server" ||
+          isHostOwnedRootRow
+        ) {
+          return thread;
+        }
         if (thread.status === "inactive" || thread.status === "error") {
           return thread;
         }
@@ -229,6 +257,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     worktreePath,
     worktreeBranch,
     worktreeProvisioning,
+    suppressHostCreateIntent,
     groupId,
     groupName,
     replacePaneId: replacePaneIdParam,
@@ -302,6 +331,15 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
     // Durable "thread started" usage fact (survives later delete/archive).
     recordThreadStarted(thread);
+    // Central managed-root create intent: the managed desktop records that this
+    // unprojected row still needs a host create+launch (or an explicit
+    // exemption). See managedRootCatalog/rootCreateIntent.ts.
+    noteRendererCreatedThreadIntent({
+      id: thread.id,
+      ...(remoteServerId !== undefined ? { remoteServerId } : {}),
+      ...(worktreeProvisioning !== undefined ? { worktreeProvisioning } : {}),
+      ...(suppressHostCreateIntent !== undefined ? { suppressHostCreateIntent } : {}),
+    });
     return thread;
   },
   applyProviderSwitch: (threadId, input) =>
@@ -956,7 +994,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       }
       return changed ? { lastViewedAtByThreadId: next } : {};
     }),
-  reconcileRuntimeSnapshots: (snapshots, requestedThreadIds) =>
+  reconcileRuntimeSnapshots: (snapshots, requestedThreadIds, options) =>
     set((state) => {
       const snapshotsById = new Map(snapshots.map((snapshot) => [snapshot.threadId, snapshot]));
       const runtimeLaunchConfigByThreadId = Object.fromEntries(
@@ -1063,6 +1101,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         }
 
         if (
+          thread.remoteServerId !== undefined ||
+          thread.threadStatusSource === "server" ||
+          (options?.preserveHostOwnedRootRows === true && thread.remoteServerId === undefined) ||
           (requestedThreadIds !== undefined && !requestedThreadIds.has(thread.id)) ||
           thread.status === "inactive" ||
           thread.status === "error" ||

@@ -1,5 +1,6 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "@heroui/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -78,12 +79,16 @@ vi.mock("@/renderer/components/thread/ThreadDraftView", () => ({
       </button>
       <button
         type="button"
+        // The real shared composer catch swallows non-voice submission
+        // errors; mirror that so the rethrown refusal is not unhandled.
         onClick={() =>
-          void props.onStart({
-            agentKind: "codex",
-            config: { model: "gpt-5.4" },
-            prompt: "sent from overlay",
-          })
+          void Promise.resolve(
+            props.onStart({
+              agentKind: "codex",
+              config: { model: "gpt-5.4" },
+              prompt: "sent from overlay",
+            }),
+          ).catch(() => undefined)
         }
       >
         Send overlay
@@ -164,6 +169,31 @@ describe("QuickComposerOverlay", () => {
     expect(bridge.dismissQuickComposer).toHaveBeenCalledOnce();
     expect(container.querySelector(".quick-composer-drag-handle")).not.toBeInTheDocument();
     expect(container.querySelector(".quick-composer-frame")).toBeInTheDocument();
+  });
+
+  it("surfaces a refused submission exactly once and recovers to idle", async () => {
+    const toastDanger = vi.spyOn(toast, "danger");
+    bridge.submitQuickComposer.mockRejectedValueOnce(new Error("Fixture native handoff refused"));
+    const { container } = render(<QuickComposerOverlay />);
+    await act(async () => {
+      vi.advanceTimersByTime(220);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Send overlay" }));
+    expect(container.querySelector(".quick-composer-root--sending")).toBeInTheDocument();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(toastDanger).toHaveBeenCalledExactlyOnceWith("Fixture native handoff refused");
+    expect(container.querySelector(".quick-composer-root--idle")).toBeInTheDocument();
+    expect(bridge.dismissQuickComposer).not.toHaveBeenCalled();
+
+    // The draft surface stayed recoverable: an immediate retry goes through.
+    fireEvent.click(screen.getByRole("button", { name: "Send overlay" }));
+    expect(bridge.submitQuickComposer).toHaveBeenCalledTimes(2);
+    expect(container.querySelector(".quick-composer-root--sending")).toBeInTheDocument();
+    toastDanger.mockRestore();
   });
 
   it("reopens after native hide/show without a DOM visibility or focus transition", async () => {

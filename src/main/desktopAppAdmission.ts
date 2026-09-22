@@ -23,6 +23,7 @@ import {
   type DesktopOsSealedKeyCodec,
 } from "@/backend/ownership/promoteDesktopRoot";
 import { openDesktopPromotionProgress } from "./desktopPromotionProgress";
+import { resolvePromotionProgressStrings } from "./i18n/promotionProgressLocale";
 import {
   channel,
   desktopApp,
@@ -49,6 +50,19 @@ function desktopOsSealedKeyCodec(): DesktopOsSealedKeyCodec | undefined {
   return {
     unseal: async (sealed) => safeStorage.decryptString(Buffer.from(sealed, "base64")),
   };
+}
+
+/**
+ * Locale fallback for the promotion window: the OS preferred languages.
+ * Guarded so a missing or throwing platform API can never block the promotion
+ * copy (the strings then fall back to the source locale).
+ */
+function preferredSystemLanguages(): readonly string[] {
+  try {
+    return app.getPreferredSystemLanguages();
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -160,12 +174,19 @@ export async function admitDesktopStartup(): Promise<DesktopStartupAdmission> {
     const lease = desktopApp.desktopOwnerLease;
     if (lease === null) throw new Error("The desktop host owner lease was not acquired.");
     const osSealedKey = desktopOsSealedKeyCodec();
+    // Resolve the promotion window's strings once, from the profile the user
+    // was just using, before the copy starts: progress updates reuse these
+    // strings and never touch settings again.
+    const promotionStrings = await resolvePromotionProgressStrings(
+      { sourceRoot: lease.paths.profileNamespace, ownedRoot: lease.paths.dataRoot },
+      preferredSystemLanguages(),
+    );
     let promotionProgress: ReturnType<typeof openDesktopPromotionProgress> | undefined;
     try {
       desktopApp.poracodePaths = await ensureDesktopOwnedRoot(lease, {
         ...(osSealedKey === undefined ? {} : { osSealedKey }),
         onSizePreflight: (bytes) => {
-          promotionProgress = openDesktopPromotionProgress(bytes);
+          promotionProgress = openDesktopPromotionProgress(bytes, promotionStrings);
         },
         onCopyProgress: (copied, total) => promotionProgress?.update(copied, total),
       });

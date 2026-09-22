@@ -20,7 +20,7 @@ import {
   isRemoteProjectSynced,
   selectableRemoteProjects,
 } from "@/renderer/state/remoteServers/projectSync";
-import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
+import { remoteConnectionKey, type RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 import { cloneFolderNameFromUrl } from "@/shared/createProject";
 import { desktopTitle } from "@/shared/remote/desktopLabel";
 import type { Project } from "@/shared/contracts";
@@ -239,7 +239,7 @@ function MobileRemoteProjectsSurface(
 ) {
   const { t } = useLingui();
   const excluded = useRemoteServersStore(
-    (state) => state.excludedProjectIds[props.server.desktopId],
+    (state) => state.excludedProjectIds[remoteConnectionKey(props.server)],
   );
   const setRemoteProjectSynced = useRemoteServersStore((state) => state.setRemoteProjectSynced);
   const runProjectCommand = useRemoteServersStore((state) => state.runProjectCommand);
@@ -356,7 +356,11 @@ function MobileRemoteProjectsSurface(
               className="m-sheet-action"
               onClick={() => {
                 const synced = isRemoteProjectSynced(actionProject.id, excluded);
-                setRemoteProjectSynced(props.server.desktopId, actionProject.id, !synced);
+                setRemoteProjectSynced(
+                  remoteConnectionKey(props.server),
+                  actionProject.id,
+                  !synced,
+                );
                 setActionProject(null);
               }}
             >
@@ -409,11 +413,13 @@ function MobileRemoteProjectsSurface(
               onClick={() => {
                 const projectId = removeProject.id;
                 setRemoveProject(null);
-                void runProjectCommand(props.server.desktopId, { kind: "remove", projectId }).catch(
-                  (removeError: unknown) =>
-                    toast.danger(
-                      removeError instanceof Error ? removeError.message : String(removeError),
-                    ),
+                void runProjectCommand(remoteConnectionKey(props.server), {
+                  kind: "remove",
+                  projectId,
+                }).catch((removeError: unknown) =>
+                  toast.danger(
+                    removeError instanceof Error ? removeError.message : String(removeError),
+                  ),
                 );
               }}
             >
@@ -426,7 +432,7 @@ function MobileRemoteProjectsSurface(
 
       {addOpen ? (
         <MobileAddProjectSheet
-          desktopId={props.server.desktopId}
+          desktopId={remoteConnectionKey(props.server)}
           onClose={() => setAddOpen(false)}
         />
       ) : null}

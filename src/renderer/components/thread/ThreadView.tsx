@@ -15,6 +15,7 @@ import { DEFAULT_TERMINAL_SIZE as DEFAULT_HIDDEN_TERMINAL_SIZE } from "@/shared/
 
 import { useAppStore } from "@/renderer/state/appStore";
 import { TuxIcon } from "@/renderer/components/common/TuxIcon";
+import { isRemoteCommandOutcomeUncertainError } from "@/renderer/actions/threadCommandOutcomeActions";
 import { performInitialThreadLaunch } from "@/renderer/actions/threadLaunchActions";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import type { RemoteTerminalTransport, TerminalPaneHandle } from "./TerminalPane";
@@ -308,6 +309,10 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
       });
     })()
       .catch((error) => {
+        // Uncertain: the launch may have committed. The launch action already
+        // reconciled once and explained it, so keep the launch key set (never
+        // re-drive the same start) and paint no definite failure.
+        if (isRemoteCommandOutcomeUncertainError(error)) return;
         launchRequestRef.current = null;
         onLaunchFailed?.(formatLaunchError(error, t`Thread failed to start.`));
       })

@@ -1,7 +1,8 @@
 import type { NativeImage } from "electron";
-import { captureScreenshotPng, evalJs, queryFirstDocumentRect } from "../../cdp/tools";
-import { withCursorOverlayHidden } from "../../cursorOverlay";
-import { clampInteger, requireTab } from "./helpers";
+import { captureScreenshotPng, evalJs, queryFirstDocumentRect } from "@/host/browser/cdp/tools";
+import { withCursorOverlayHidden } from "@/host/browser/cursorOverlay";
+import { clampInteger } from "@/host/browser/mcp/tools/helpers";
+import { requireTab } from "./helpers";
 import type { ToolContext } from "./types";
 
 const MAX_SCREENSHOT_BYTES = 6 * 1024 * 1024;

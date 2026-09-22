@@ -361,6 +361,31 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     keywords: "confirm delete thread worktree remove ask warning",
     desktopOnly: true,
   },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveAgentSessions",
+    title: msg`Max active agent sessions`,
+    description: msg`Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords: "resource admission execution slots limit concurrency capacity host agent sessions",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveTerminalShells",
+    title: msg`Max active terminal shells`,
+    description: msg`Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords: "resource admission execution slots limit concurrency capacity host terminal shells",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveGenerationHelpers",
+    title: msg`Max active generation helpers`,
+    description: msg`Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords:
+      "resource admission execution slots limit concurrency capacity host generation helpers titles commits conflict resolution",
+    desktopOnly: true,
+  },
 
   // Git
   {

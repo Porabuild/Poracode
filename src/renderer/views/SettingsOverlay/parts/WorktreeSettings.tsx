@@ -1,3 +1,4 @@
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { startTransition } from "react";
 import { useLingui } from "@lingui/react/macro";
 import type { WorktreeStorageMode } from "@/shared/contracts";
@@ -23,7 +24,11 @@ export function WorktreeSettings() {
   const wslBasePath = useSharedSettings((s) => s.wslWorktreeBasePath);
   const setWslBasePath = useSharedSettings((s) => s.setWslWorktreeBasePath);
   const selectedRemoteDesktopId = useRemoteServersStore((state) =>
-    isBrowserClientRuntime() ? selectBrowserBridgeServer(state)?.desktopId : undefined,
+    isBrowserClientRuntime()
+      ? selectBrowserBridgeServer(state)
+        ? remoteConnectionKey(selectBrowserBridgeServer(state)!)
+        : undefined
+      : undefined,
   );
   const hasWslProject = useAppStore((s) =>
     Boolean(

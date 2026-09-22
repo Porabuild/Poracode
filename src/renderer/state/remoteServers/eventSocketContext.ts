@@ -1,6 +1,6 @@
 import type { TerminalSize, Thread } from "@/shared/contracts";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
-import type { ClientEngineHost } from "@/renderer/state/remote/engine";
+import type { DecodeFrameResult } from "@/renderer/state/remote/engine";
 import type { RemoteServerEventSocketEntry } from "./eventSocketRegistry";
 import type {
   OpenRemoteThread,
@@ -11,7 +11,10 @@ import type {
 
 export interface EventSocketRecoveryState {
   threadIds: Set<string>;
-  queuedEvents: Array<{ readonly seq: number; readonly event: unknown }>;
+  /** Queued recovery frames carry the measured size of the RAW wire frame
+   * (UTF-16 upper bound), so recovery accounting never re-serializes an event
+   * just to size it. */
+  queuedEvents: Array<{ readonly seq: number; readonly event: unknown; readonly bytes: number }>;
   queuedBytes: number;
   overflowed: boolean;
   baselineSeqByThread: Map<string, number>;
@@ -39,7 +42,6 @@ export interface EventSocketConnectionContext {
   readonly entry: RemoteServerEventSocketEntry;
   readonly socket: RemoteSocketLike;
   readonly client: RemoteDesktopClient;
-  readonly engine: ClientEngineHost;
   readonly get: () => RemoteServersState;
   readonly set: (
     partial:
@@ -63,6 +65,14 @@ export interface EventSocketConnectionContext {
   readonly isCurrent: () => boolean;
   readonly forceReconnect: (socket: RemoteSocketLike) => void;
   readonly noteClientDetectedLoss: () => void;
+  /** A3: decode one raw socket frame through this connection's engine lane.
+   * Bulk frames never fall back to a synchronous UI parse on failure; the
+   * typed rejection drives the client-detected-loss resync below. */
+  readonly decodeFrame: (raw: string) => Promise<DecodeFrameResult>;
+  /** Platform has no Worker global at all (some embeds, jsdom tests): frames
+   * are consumed inline at receive time, exactly as the pre-A3 client did.
+   * This is a capability, never a failure fallback. */
+  readonly decodeInline: boolean;
   readonly recovery: EventSocketRecoveryState;
   readonly resyncSlots: {
     promise: Promise<boolean> | null;
