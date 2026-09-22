@@ -100,6 +100,14 @@ jobs:
           node --test .agents/skills/interactive-testing/scripts/*.test.mjs
           pnpm exec vitest run --config tests/native-e2e/vitest.config.ts helpers/managedAppSession.test.ts
 
+      # Protocol changes classify as core, so the operation map's
+      # manifestHash lock over the generated inventory runs in core CI too:
+      # a regenerated protocol/remote/v3/generated/inventory.json without a
+      # refreshed tests/native-e2e/harness/operation-map.json fails here
+      # (cheap single-file lock) instead of only in the native foundation job.
+      - name: Protocol inventory operation-map lock
+        run: pnpm exec vitest run --config tests/native-e2e/vitest.config.ts operationMap.test.ts
+
       - name: Nightly qualification regression tests
         run: node --test scripts/ci-change-scope.test.mjs scripts/qualify-nightly-pwa.test.mjs scripts/nightly-pwa-workflows.test.mjs scripts/native-ci-workflows.test.mjs scripts/qualify-release-pwa.test.mjs scripts/server-gate-workflows.test.mjs scripts/verify-server-tarball-contents.test.mjs scripts/prepare-server-native.test.mjs scripts/server-release-install.test.mjs scripts/runtime-closure.test.mjs scripts/generate-runtime-manifest.test.mjs scripts/set-release-version.test.mjs scripts/build-ssh-runtime-archive.test.mjs scripts/poracode-cli-qualification.test.mjs scripts/publish-npm-package.test.mjs packages/poracode-cli/test/launcher.test.mjs
 
