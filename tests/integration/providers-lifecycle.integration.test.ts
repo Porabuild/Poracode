@@ -15,6 +15,11 @@ import type { SupervisorEvent } from "@/shared/ipc";
 import type { AgentAdapter } from "@/supervisor/agents/base";
 import { createAgentRegistry } from "@/supervisor/agents/registry";
 import { SupervisorRuntime } from "@/supervisor/supervisorRuntime";
+import {
+  LIVE_PROVIDERS_REQUIRED_ENV,
+  parseRequiredLiveProviders,
+  skipOrThrowRequired,
+} from "./helpers/liveProvidersRequired";
 
 // Live-CLI integration: for each adapter in `createAgentRegistry()`, this test
 // starts a real thread with a cheap model, waits for sessionRef discovery,
@@ -22,6 +27,12 @@ import { SupervisorRuntime } from "@/supervisor/supervisorRuntime";
 // the resumed PTY's terminal scrollback. Providers that aren't installed or
 // authenticated are skipped — the test fails only when an installed +
 // authenticated provider loses the initial message across close/resume.
+//
+// Strict mode: set PORACODE_LIVE_PROVIDERS_REQUIRED to a comma-separated list
+// of provider kinds that MUST run (e.g. "claude,codex"). Every named kind must
+// be a known registry kind, and none of them may silently skip — a missing
+// binary, credential, or model fails the named provider's test instead of
+// skipping it. Unset, the suite keeps its ordinary skip-for-absent behavior.
 
 const PROMPT_TOKEN = `poracode-int-${randomUUID().slice(0, 8)}`;
 const PROMPT = `Reply with the single word OK. (token: ${PROMPT_TOKEN})`;
@@ -345,17 +356,30 @@ afterEach(() => {
 
 const REGISTRY_KINDS = createAgentRegistry().map((a) => a.kind);
 
+// Validated once at module load: an invalid list fails the whole file with an
+// actionable error before any provider is started.
+const REQUIRED_PROVIDERS = parseRequiredLiveProviders(
+  process.env[LIVE_PROVIDERS_REQUIRED_ENV],
+  REGISTRY_KINDS,
+);
+
 describe("provider lifecycle: create → unload → resume → initial message visible", () => {
   for (const kind of REGISTRY_KINDS) {
     it(`${kind}`, async (testCtx) => {
+      // Strict mode converts every skip below into a hard failure for the
+      // named kinds only; all other providers keep ordinary skip behavior.
+      const isRequired = REQUIRED_PROVIDERS.names.includes(kind);
+      const skipOrThrow = (reason: string) =>
+        skipOrThrowRequired(testCtx, isRequired, kind, reason);
+
       const adapter = ctx.adapters.find((a) => a.kind === kind);
       if (!adapter) {
-        testCtx.skip(`adapter ${kind} not in registry`);
+        skipOrThrow(`adapter ${kind} not in registry`);
         return;
       }
 
       if (!adapter.capabilities.supportsResume) {
-        testCtx.skip(`${kind}: adapter does not support resume`);
+        skipOrThrow(`${kind}: adapter does not support resume`);
         return;
       }
 
@@ -363,23 +387,23 @@ describe("provider lifecycle: create → unload → resume → initial message v
         adapter.capabilities.presentationMode,
       ];
       if (!presentationModes.includes("terminal")) {
-        testCtx.skip(`${kind}: adapter does not support terminal presentation`);
+        skipOrThrow(`${kind}: adapter does not support terminal presentation`);
         return;
       }
 
       const status = await adapter.detectInstall();
       if (!status.installed) {
-        testCtx.skip(`${kind}: CLI not installed`);
+        skipOrThrow(`${kind}: CLI not installed`);
         return;
       }
       if (status.authState !== "authenticated") {
-        testCtx.skip(`${kind}: authState=${status.authState} (need "authenticated")`);
+        skipOrThrow(`${kind}: authState=${status.authState} (need "authenticated")`);
         return;
       }
 
       const model = pickCheapModel(adapter, status);
       if (!model) {
-        testCtx.skip(`${kind}: no model available in capabilities`);
+        skipOrThrow(`${kind}: no model available in capabilities`);
         return;
       }
       // eslint-disable-next-line no-console
