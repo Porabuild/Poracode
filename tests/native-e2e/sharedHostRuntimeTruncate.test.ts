@@ -3,15 +3,15 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "no
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { expect, it } from "vitest";
-import { closeDatabase, initDatabase } from "../../src/main/db/connection.ts";
+import { closeDatabase, initDatabase } from "../../src/host/db/connection.ts";
 import {
   dbAppendThreadCompletedTurn,
   dbApplyThreadRuntimeEvents,
   dbFlushThreadRuntimeWrites,
   dbGetThreadCompletedTurns,
   dbGetThreadRuntimeItemsPage,
-} from "../../src/main/db/runtimeItems.ts";
-import { dbGetProjects, dbUpsertThread } from "../../src/main/db/projectsThreads.ts";
+} from "../../src/host/db/runtimeItems.ts";
+import { dbGetProjects, dbUpsertThread } from "../../src/host/db/projectsThreads.ts";
 import type { Thread } from "../../src/shared/contracts.ts";
 import { collectRuntimeEventsFromSupervisoryMessage } from "../../src/renderer/state/remote/runtimeRequests.ts";
 import { ProcessCleanup } from "./harness/processCleanup.ts";
@@ -178,8 +178,8 @@ it("a runtime truncate on one client reaches a second connected client as runtim
       endedAt: "2026-09-08T00:03:00.000Z",
       anchorItemId: itemIds[2]!,
     });
-    dbFlushThreadRuntimeWrites(THREAD_ID);
-    expect(dbGetThreadRuntimeItemsPage(THREAD_ID, undefined, 500).items).toHaveLength(4);
+    await dbFlushThreadRuntimeWrites(THREAD_ID);
+    expect((await dbGetThreadRuntimeItemsPage(THREAD_ID, undefined, 500)).items).toHaveLength(4);
     closeDatabase();
 
     const observerCredential = await acquireDeviceCredential(host, "truncate-observer");
@@ -293,7 +293,7 @@ it("a runtime truncate on one client reaches a second connected client as runtim
     // completed-turn cleanup scoped to the removed tail.
     initDatabase(dbPath);
     try {
-      const dbItemsAfter = dbGetThreadRuntimeItemsPage(THREAD_ID, undefined, 500).items;
+      const dbItemsAfter = (await dbGetThreadRuntimeItemsPage(THREAD_ID, undefined, 500)).items;
       expect(dbItemsAfter.map((item) => item.id)).toEqual([itemIds[0]!, itemIds[1]!]);
       expect(dbGetThreadCompletedTurns(THREAD_ID)).toEqual([
         {

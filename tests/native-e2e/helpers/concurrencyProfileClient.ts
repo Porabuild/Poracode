@@ -68,6 +68,15 @@ export interface FetchResult {
   readonly elapsedMs: number;
 }
 
+/** Every parsed inbound WS frame with its application byte length; the
+ * qualification harness classifies frames through this hook (see
+ * `frameClassification.ts`). Observers attach before the socket opens. */
+export interface ProfileClientFrame {
+  readonly type: string;
+  readonly bytes: number;
+  readonly message: Record<string, unknown>;
+}
+
 interface EventWaiter {
   accept: (event: ReceivedEvent) => boolean;
   resolve: (event: ReceivedEvent) => void;
@@ -110,6 +119,7 @@ export class ProfileClient {
     label: string,
     accessToken: string,
     ws: WebSocket,
+    private readonly onMessage: ((frame: ProfileClientFrame) => void) | undefined,
   ) {
     this.accessToken = accessToken;
     this.ws = ws;
@@ -178,6 +188,7 @@ export class ProfileClient {
     readonly label: string;
     readonly accessToken: string;
     readonly lastSeenSeq?: number | undefined;
+    readonly onMessage?: ((frame: ProfileClientFrame) => void) | undefined;
   }): Promise<ProfileClient> {
     const { handle, label } = input;
     const ticket = await issueTicket(
@@ -202,6 +213,7 @@ export class ProfileClient {
       new WebSocket(url, {
         ...(handle.originHostHeader ? { headers: { host: handle.originHostHeader } } : {}),
       }),
+      input.onMessage,
     );
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
@@ -440,6 +452,11 @@ export class ProfileClient {
     }
     if (typeof parsed !== "object" || parsed === null) return;
     const message = parsed as Record<string, unknown>;
+    this.onMessage?.({
+      type: typeof message.type === "string" ? message.type : "unknown",
+      bytes: buffer.length,
+      message,
+    });
     const type = message.type;
     if (type === "ready" && typeof message.seq === "number") {
       this.metrics.readySeq = message.seq;

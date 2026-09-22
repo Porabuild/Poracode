@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 interface InventoryFile {
+  readonly protocolVersion: number;
+  readonly bindingFormatVersion: number;
   readonly inventory: {
     readonly routes: number;
     readonly procedures: number;
@@ -32,6 +34,12 @@ describe("contract counts in docs (V6 F.3)", () => {
     expect(architecture).toContain(
       `- ${String(webSocketServerMessages)} server-to-client WebSocket messages`,
     );
+    expect(architecture).toContain(
+      "`protocolVersion` (currently " + String(inventory.protocolVersion) + ")",
+    );
+    expect(architecture).toContain(
+      "binding format currently " + String(inventory.bindingFormatVersion),
+    );
 
     const mobile = readFileSync(join(repoRoot, "docs/RELEASE_MOBILE.md"), "utf8");
     expect(mobile).toContain(
@@ -41,10 +49,8 @@ describe("contract counts in docs (V6 F.3)", () => {
       `all ${String(routes)} routes, ${String(procedures)} procedures, and ${String(wsTotal)} WebSocket`,
     );
 
-    const v5 = readFileSync(join(repoRoot, "docs/V5_CLIENT_SERVER_HARDENING_PLAN.md"), "utf8");
-    expect(v5).toContain(`(${String(routes)} routes)`);
-
-    const v4 = readFileSync(join(repoRoot, "docs/V4_MERGE_GATES.md"), "utf8");
-    expect(v4).toContain(`${String(routes)} routes, operation-map`);
+    // V4/V5 plans are dated execution histories. Their quoted counts describe
+    // those revisions and must not be rewritten whenever today's registry grows.
+    // Only the live architecture/release docs above track the current inventory.
   });
 });

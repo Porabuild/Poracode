@@ -3,11 +3,11 @@
   "contract": "poracode.remote",
   "protocolVersion": 12,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:62087e45baf9b61cccc09daf6338758073d6f41cdf7ddd269426a6ddfade1e59",
-  "keyCount": 259,
+  "manifestHash": "sha256:85823b3d2bbc0f9ec01515238aee1bd48fe8ee0eba0f7f14de246ea1873f7362",
+  "keyCount": 266,
   "counts": {
-    "route": 68,
-    "procedure": 139,
+    "route": 88,
+    "procedure": 126,
     "ws-client": 9,
     "ws-server": 11,
     "replay": 16,
@@ -50,46 +50,6 @@
       "kind": "procedure",
       "id": "createRevertAnchor"
     },
-    "procedure:dbDeleteProject": {
-      "kind": "procedure",
-      "id": "dbDeleteProject"
-    },
-    "procedure:dbDeleteThread": {
-      "kind": "procedure",
-      "id": "dbDeleteThread"
-    },
-    "procedure:dbGetLatestThreadGoalItem": {
-      "kind": "procedure",
-      "id": "dbGetLatestThreadGoalItem"
-    },
-    "procedure:dbGetThreadCompletedTurns": {
-      "kind": "procedure",
-      "id": "dbGetThreadCompletedTurns"
-    },
-    "procedure:dbGetThreadContextUsage": {
-      "kind": "procedure",
-      "id": "dbGetThreadContextUsage"
-    },
-    "procedure:dbGetThreadRuntimeItems": {
-      "kind": "procedure",
-      "id": "dbGetThreadRuntimeItems"
-    },
-    "procedure:dbGetThreadsPage": {
-      "kind": "procedure",
-      "id": "dbGetThreadsPage"
-    },
-    "procedure:dbReplaceThreadCompletedTurns": {
-      "kind": "procedure",
-      "id": "dbReplaceThreadCompletedTurns"
-    },
-    "procedure:dbReplaceThreadRuntimeItems": {
-      "kind": "procedure",
-      "id": "dbReplaceThreadRuntimeItems"
-    },
-    "procedure:dbReplaceThreadRuntimeSnapshot": {
-      "kind": "procedure",
-      "id": "dbReplaceThreadRuntimeSnapshot"
-    },
     "procedure:deleteProjectEntry": {
       "kind": "procedure",
       "id": "deleteProjectEntry"
@@ -97,10 +57,6 @@
     "procedure:deleteSkill": {
       "kind": "procedure",
       "id": "deleteSkill"
-    },
-    "procedure:detectProjectIcon": {
-      "kind": "procedure",
-      "id": "detectProjectIcon"
     },
     "procedure:detectSetupScript": {
       "kind": "procedure",
@@ -418,10 +374,6 @@
       "kind": "procedure",
       "id": "listFileCheckpoints"
     },
-    "procedure:listProjectIconFiles": {
-      "kind": "procedure",
-      "id": "listProjectIconFiles"
-    },
     "procedure:listProjectTree": {
       "kind": "procedure",
       "id": "listProjectTree"
@@ -505,10 +457,6 @@
     "procedure:resumeThreadFollowUps": {
       "kind": "procedure",
       "id": "resumeThreadFollowUps"
-    },
-    "procedure:revealProjectEntry": {
-      "kind": "procedure",
-      "id": "revealProjectEntry"
     },
     "procedure:rollbackThreadConversation": {
       "kind": "procedure",
@@ -654,13 +602,77 @@
       "kind": "route",
       "id": "browser-state"
     },
+    "route:catalog-membership": {
+      "kind": "route",
+      "id": "catalog-membership"
+    },
     "route:environment": {
       "kind": "route",
       "id": "environment"
     },
+    "route:environment-adopt-legacy": {
+      "kind": "route",
+      "id": "environment-adopt-legacy"
+    },
+    "route:environment-connect": {
+      "kind": "route",
+      "id": "environment-connect"
+    },
+    "route:environment-create": {
+      "kind": "route",
+      "id": "environment-create"
+    },
+    "route:environment-delete": {
+      "kind": "route",
+      "id": "environment-delete"
+    },
+    "route:environment-disconnect": {
+      "kind": "route",
+      "id": "environment-disconnect"
+    },
+    "route:environment-get": {
+      "kind": "route",
+      "id": "environment-get"
+    },
     "route:environment-legacy": {
       "kind": "route",
       "id": "environment-legacy"
+    },
+    "route:environment-list": {
+      "kind": "route",
+      "id": "environment-list"
+    },
+    "route:environment-pairing": {
+      "kind": "route",
+      "id": "environment-pairing"
+    },
+    "route:environment-trust-accept": {
+      "kind": "route",
+      "id": "environment-trust-accept"
+    },
+    "route:environment-trust-probe": {
+      "kind": "route",
+      "id": "environment-trust-probe"
+    },
+    "route:environment-update": {
+      "kind": "route",
+      "id": "environment-update"
+    },
+    "route:environment-upgrade": {
+      "kind": "route",
+      "id": "environment-upgrade"
+    },
+    "route:environment-websocket-ticket": {
+      "kind": "route",
+      "id": "environment-websocket-ticket"
+    },
+    "route:experiment-command": {
+      "kind": "route",
+      "id": "experiment-command"
+    },
+    "route:experiment-state": {
+      "kind": "route",
+      "id": "experiment-state"
     },
     "route:forward-enter": {
       "kind": "route",
@@ -770,6 +782,10 @@
       "kind": "route",
       "id": "project-command"
     },
+    "route:project-list": {
+      "kind": "route",
+      "id": "project-list"
+    },
     "route:project-notes-read": {
       "kind": "route",
       "id": "project-notes-read"
@@ -878,6 +894,14 @@
       "kind": "route",
       "id": "thread-list"
     },
+    "route:thread-runtime-gap": {
+      "kind": "route",
+      "id": "thread-runtime-gap"
+    },
+    "route:thread-runtime-gap-acknowledge": {
+      "kind": "route",
+      "id": "thread-runtime-gap-acknowledge"
+    },
     "route:thread-runtime-truncate": {
       "kind": "route",
       "id": "thread-runtime-truncate"
@@ -897,6 +921,10 @@
     "route:thread-steer-set": {
       "kind": "route",
       "id": "thread-steer-set"
+    },
+    "route:thread-turns": {
+      "kind": "route",
+      "id": "thread-turns"
     },
     "route:token-exchange": {
       "kind": "route",

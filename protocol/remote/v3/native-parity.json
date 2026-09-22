@@ -67,6 +67,331 @@
         }
       },
       {
+        "id": "environment-list",
+        "scopes": ["session:read"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-create",
+        "scopes": ["projects:manage", "session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-get",
+        "scopes": ["session:read"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-update",
+        "scopes": ["projects:manage", "session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-delete",
+        "scopes": ["projects:manage", "session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-connect",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-disconnect",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-pairing",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-upgrade",
+        "scopes": ["projects:manage", "session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-websocket-ticket",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-trust-probe",
+        "scopes": ["projects:manage", "session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-trust-accept",
+        "scopes": ["projects:manage", "session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
+        "id": "environment-adopt-legacy",
+        "scopes": ["projects:manage", "session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        }
+      },
+      {
         "id": "forward-enter",
         "scopes": [],
         "batch": "projects",
@@ -516,6 +841,80 @@
             "note": "No checked-in device journey exercises this surface yet (no screen-registry entry, no device-test evidence); the ui story is asserted from the cited production source only."
           }
         }
+      },
+      {
+        "id": "project-list",
+        "scopes": ["session:read"],
+        "batch": "projects",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedTransport.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedSessionAPI.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Session/BoundedCatalogController.swift"
+            ],
+            "note": "The production native consumer and focused session/history suites are implemented. Independent large-catalog and older-turn device qualification remains pending; source and unit evidence alone do not complete this UI gate."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedReadClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedContract.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation."
+      },
+      {
+        "id": "catalog-membership",
+        "scopes": ["session:read"],
+        "batch": "projects",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedTransport.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedSessionAPI.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Session/BoundedCatalogController.swift"
+            ],
+            "note": "The production native consumer and focused session/history suites are implemented. Independent large-catalog and older-turn device qualification remains pending; source and unit evidence alone do not complete this UI gate."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedReadClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedContract.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation."
       },
       {
         "id": "local-image",
@@ -1514,6 +1913,7 @@
         "id": "project-command",
         "scopes": ["projects:manage"],
         "batch": "projects",
+        "note": "The additive catalogMutations v1 kinds (relative reorder, nullable workspace, draft-config persistence) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -1700,24 +2100,36 @@
         "batch": "thread-lifecycle",
         "ios": {
           "wire": {
-            "disposition": "planned",
-            "evidence": []
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedTransport.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedSessionAPI.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Session/BoundedCatalogController.swift"
+            ],
+            "note": "The production native consumer and focused session/history suites are implemented. Independent large-catalog and older-turn device qualification remains pending; source and unit evidence alone do not complete this UI gate."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedReadClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedContract.kt"
+            ]
           },
           "ui": {
             "disposition": "planned",
             "evidence": []
           }
         },
-        "android": {
-          "wire": {
-            "disposition": "planned",
-            "evidence": []
-          },
-          "ui": {
-            "disposition": "planned",
-            "evidence": []
-          }
-        }
+        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation."
       },
       {
         "id": "thread-history-items",
@@ -1782,6 +2194,41 @@
             ]
           }
         }
+      },
+      {
+        "id": "thread-turns",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedTransport.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedSessionAPI.swift",
+              "ios/App/App/Features/BoundedCatalog/Transport/RemoteBoundedContract.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "partial",
+            "evidence": ["ios/App/App/Features/RichChat/Controllers/RichChatOlderPaging.swift"],
+            "note": "The production native consumer and focused session/history suites are implemented. Independent large-catalog and older-turn device qualification remains pending; source and unit evidence alone do not complete this UI gate."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedReadClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteTransport.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteBoundedContract.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": []
+          }
+        },
+        "note": "B4 bounded catalog/history transport is implemented in the handwritten Android and iOS clients through generated codecs. Native UI and large-catalog device qualification remain separate from wire implementation."
       },
       {
         "id": "thread-start-existing",
@@ -1941,7 +2388,7 @@
         "id": "thread-command",
         "scopes": ["session:operate"],
         "batch": "thread-lifecycle",
-        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping.",
+        "note": "iOS exposes the additive clear-group command from Home, project, and thread-detail actions; the host also clears a one-member remainder. Kotlin bindings include the variant, while Android's native action UI does not yet expose ungrouping. The additive catalogMutations v1 kinds (relative thread reorder, nullable workspace) are host-authority source evidence only: neither native transport has been taught the new discriminators yet, so the platform dispositions below describe the pre-existing kinds and make no claim about them.",
         "ios": {
           "wire": {
             "disposition": "implemented",
@@ -2387,6 +2834,144 @@
           }
         },
         "note": "Loopback-gated host operability endpoint (V5 batch 4 item 4.9): served by the host for local ops only; no native client is expected to consume it on either platform."
+      },
+      {
+        "id": "thread-runtime-gap",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/RichChat/Notices/RichChatNoticeTransport.swift",
+              "ios/App/App/Features/RichChat/Notices/RichChatNoticeController.swift",
+              "ios/App/App/Transport/RemoteAPIClient.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/RichChat/Notices/RichChatNoticeBanner.swift",
+              "ios/App/NativeE2ETests/NativeCapableHistoryJourneyUITests.swift"
+            ],
+            "note": "Verified on an owned iOS 26.5 simulator against the qualified B1 host snapshot: fresh pairing, explicit acknowledgement, both visible retained prefixes, live append, background/foreground recovery with the offline band cleared, and a freshly driven second-turn response visible after foregrounding. XCUITest passes; screenshots and host TCP samples corroborate the journey. Physical-device and final-current-release qualification remain separate."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryNoticeClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteV3TransportAdapters.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/RemoteHistoryNoticeModels.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatHistoryNoticeController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatHistoryNoticeBanner.kt",
+              "android/app/src/androidTest/kotlin/com/poracode/app/Android37CapableHistoryJourneyInstrumentedTest.kt"
+            ],
+            "note": "Verified on an owned API 37 emulator against the qualified B1 host snapshot: explicit acknowledgement, both rendered prefixes, exact live completion text, and session background/foreground suspension/resume returning Online with retained notice/content. Physical-device and final-release qualification remain separate."
+          }
+        },
+        "note": "B1 declared-only history-gap reads and command-id acknowledgements are implemented in both handwritten native transports. Both platforms have executed visible recovery and foreground/reconnect journeys; iOS additionally proves a fresh second-turn response after foregrounding. See the V2 execution log for exact artifacts and qualification limits."
+      },
+      {
+        "id": "thread-runtime-gap-acknowledge",
+        "scopes": ["session:operate"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/RichChat/Notices/RichChatNoticeTransport.swift",
+              "ios/App/App/Features/RichChat/Notices/RichChatNoticeController.swift",
+              "ios/App/App/Transport/RemoteAPIClient.swift"
+            ]
+          },
+          "ui": {
+            "disposition": "implemented",
+            "evidence": [
+              "ios/App/App/Features/RichChat/Notices/RichChatNoticeBanner.swift",
+              "ios/App/NativeE2ETests/NativeCapableHistoryJourneyUITests.swift"
+            ],
+            "note": "Verified on an owned iOS 26.5 simulator against the qualified B1 host snapshot: fresh pairing, explicit acknowledgement, both visible retained prefixes, live append, background/foreground recovery with the offline band cleared, and a freshly driven second-turn response visible after foregrounding. XCUITest passes; screenshots and host TCP samples corroborate the journey. Physical-device and final-current-release qualification remain separate."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteHistoryNoticeClient.kt",
+              "android/app/src/main/kotlin/com/poracode/app/transport/RemoteV3TransportAdapters.kt",
+              "android/app/src/main/kotlin/com/poracode/app/model/RemoteHistoryNoticeModels.kt"
+            ]
+          },
+          "ui": {
+            "disposition": "implemented",
+            "evidence": [
+              "android/app/src/main/kotlin/com/poracode/app/session/richchat/RichChatHistoryNoticeController.kt",
+              "android/app/src/main/kotlin/com/poracode/app/ui/richchat/RichChatHistoryNoticeBanner.kt",
+              "android/app/src/androidTest/kotlin/com/poracode/app/Android37CapableHistoryJourneyInstrumentedTest.kt"
+            ],
+            "note": "Verified on an owned API 37 emulator against the qualified B1 host snapshot: explicit acknowledgement, both rendered prefixes, exact live completion text, and session background/foreground suspension/resume returning Online with retained notice/content. Physical-device and final-release qualification remain separate."
+          }
+        },
+        "note": "B1 declared-only history-gap reads and command-id acknowledgements are implemented in both handwritten native transports. Both platforms have executed visible recovery and foreground/reconnect journeys; iOS additionally proves a fresh second-turn response after foregrounding. See the V2 execution log for exact artifacts and qualification limits."
+      },
+      {
+        "id": "experiment-state",
+        "scopes": ["session:read"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "unsupported-by-wire",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "unsupported-by-wire",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "unsupported-by-wire",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "unsupported-by-wire",
+            "evidence": []
+          }
+        },
+        "note": "Desktop-only experiment authority (capabilities.experiments v1): the embedded desktop backend owns the experiment store and the local-shell experiment worktree driver, and every mutating intent is additionally gated on the documented loopback LOCALITY check (not an authentication guarantee). No native client composes the authority or exposes an experiment UI, so both routes are deliberately unsupported on iOS and Android; the desktop renderer consumes them over its managed loopback session."
+      },
+      {
+        "id": "experiment-command",
+        "scopes": ["session:operate"],
+        "batch": "thread-lifecycle",
+        "ios": {
+          "wire": {
+            "disposition": "unsupported-by-wire",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "unsupported-by-wire",
+            "evidence": []
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "unsupported-by-wire",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "unsupported-by-wire",
+            "evidence": []
+          }
+        },
+        "note": "Desktop-only experiment authority (capabilities.experiments v1): the embedded desktop backend owns the experiment store and the local-shell experiment worktree driver, and every mutating intent is additionally gated on the documented loopback LOCALITY check (not an authentication guarantee). No native client composes the authority or exposes an experiment UI, so both routes are deliberately unsupported on iOS and Android; the desktop renderer consumes them over its managed loopback session."
       }
     ],
     "procedures": [
@@ -6297,31 +6882,6 @@
         "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
       },
       {
-        "id": "revealProjectEntry",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/projectTree.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/projectTree.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/projectTree.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/projectTree.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
         "id": "startThread",
         "batch": "explicitly-desktop-only",
         "ios": {
@@ -6667,306 +7227,6 @@
           "ui": {
             "disposition": "desktop-only",
             "evidence": ["src/shared/ipc/procedures/lsp.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbDeleteThread",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbDeleteProject",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbGetThreadRuntimeItems",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbGetLatestThreadGoalItem",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbGetThreadsPage",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbReplaceThreadRuntimeItems",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbGetThreadCompletedTurns",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbReplaceThreadCompletedTurns",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbReplaceThreadRuntimeSnapshot",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "dbGetThreadContextUsage",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/db.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "detectProjectIcon",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/app.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/app.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/app.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/app.ts"]
-          }
-        },
-        "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."
-      },
-      {
-        "id": "listProjectIconFiles",
-        "batch": "explicitly-desktop-only",
-        "ios": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/app.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/app.ts"]
-          }
-        },
-        "android": {
-          "wire": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/app.ts"]
-          },
-          "ui": {
-            "disposition": "desktop-only",
-            "evidence": ["src/shared/ipc/procedures/app.ts"]
           }
         },
         "note": "V6 B.2: loopback HTTP passthrough for the desktop data plane. Native clients do not surface this procedure; they use dedicated HTTP routes or stay on the desktop catalog."

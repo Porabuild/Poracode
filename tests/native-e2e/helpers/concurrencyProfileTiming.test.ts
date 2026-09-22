@@ -187,6 +187,56 @@ describe("ProfileClient timing clocks", () => {
   });
 });
 
+describe("ProfileClient frame hook", () => {
+  it("delivers every parsed frame with its application bytes before state routing", async () => {
+    const frames: Array<{ type: string; bytes: number; message: Record<string, unknown> }> = [];
+    const hooked = await ProfileClient.create({
+      handle,
+      label: "c-hook",
+      accessToken: "token",
+      onMessage: (frame) => frames.push(frame),
+    });
+    try {
+      const hookedSocket = sockets.list.at(-1)!;
+      const readyBytes = Buffer.byteLength(JSON.stringify({ type: "ready", seq: 41 }));
+      const eventFrame = Buffer.from(
+        JSON.stringify({
+          type: "event",
+          seq: 42,
+          event: { type: "remote-projects-changed" },
+        }),
+      );
+      const terminalFrame = Buffer.from(
+        JSON.stringify({ type: "terminal-output", id: "term-1", data: "tick" }),
+      );
+      hookedSocket.receive(eventFrame);
+      hookedSocket.receive(terminalFrame);
+      hookedSocket.receive(Buffer.from(JSON.stringify({ type: "resync-required" })));
+      // Malformed frames are counted at the socket layer but never delivered.
+      hookedSocket.receive(Buffer.from("{not json"));
+
+      expect(frames.map((frame) => frame.type)).toEqual([
+        "ready",
+        "event",
+        "terminal-output",
+        "resync-required",
+      ]);
+      expect(frames[0]?.bytes).toBe(readyBytes);
+      expect(frames[1]?.bytes).toBe(eventFrame.length);
+      expect(frames[1]?.message.seq).toBe(42);
+      expect(frames[2]?.bytes).toBe(terminalFrame.length);
+      expect(frames[3]?.type).toBe("resync-required");
+      // The hook is observational: the client's own state routing still runs.
+      expect(hooked.metrics.readySeq).toBe(41);
+      expect(hooked.metrics.lastEventSeq).toBe(42);
+      expect(hooked.metrics.resyncRequiredCount).toBe(1);
+      expect(hooked.metrics.framesReceived).toBe(5);
+    } finally {
+      await hooked.close();
+    }
+  });
+});
+
 describe("renameProjectAndAwaitFanout propagation timing", () => {
   it("yields exact fractional negative propagation when the stream beats the response", async () => {
     const clock = { value: 0 };

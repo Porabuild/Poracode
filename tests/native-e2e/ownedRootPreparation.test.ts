@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
-import { closeDatabase, dbGetThreads, initDatabase } from "@/main/db";
+import { closeDatabase, dbGetThreads, initDatabase } from "@/host/db";
 import { seedLoadWorkload } from "./helpers/loadWorkloadSeed";
 import {
   prepareRealHostFixture,

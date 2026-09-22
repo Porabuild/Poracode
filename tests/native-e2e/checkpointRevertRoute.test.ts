@@ -3,14 +3,14 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Thread } from "../../src/shared/contracts";
-import { closeDatabase, initDatabase } from "../../src/main/db/connection";
+import { closeDatabase, initDatabase } from "../../src/host/db/connection";
 import {
   dbApplyThreadRuntimeEvents,
   dbAppendThreadCompletedTurn,
   dbFlushThreadRuntimeWrites,
   dbGetThreadRuntimeItemsPage,
-} from "../../src/main/db/runtimeItems";
-import { dbGetProjects, dbUpsertThread } from "../../src/main/db/projectsThreads";
+} from "../../src/host/db/runtimeItems";
+import { dbGetProjects, dbUpsertThread } from "../../src/host/db/projectsThreads";
 import { ProcessCleanup } from "./harness/processCleanup";
 import { startRealHost, type RealHostHandle } from "./harness/realHost";
 import { findRepoRoot } from "./harness/paths";
@@ -85,7 +85,7 @@ describe("compound checkpoint revert route (real host)", () => {
     closeDatabase();
   });
 
-  function seedGuiThread(dbPath: string): void {
+  async function seedGuiThread(dbPath: string): Promise<void> {
     initDatabase(dbPath);
     try {
       const projectId = dbGetProjects()[0]!.id;
@@ -135,7 +135,7 @@ describe("compound checkpoint revert route (real host)", () => {
         endedAt: "2026-09-10T00:01:30.000Z",
         anchorItemId: "revert-item-4",
       });
-      dbFlushThreadRuntimeWrites(THREAD_ID);
+      await dbFlushThreadRuntimeWrites(THREAD_ID);
     } finally {
       closeDatabase();
     }
@@ -149,7 +149,7 @@ describe("compound checkpoint revert route (real host)", () => {
       baseDirRoot: join(repoRoot, "tmp", ".tmp", "checkpoint-revert-qa"),
     });
     const dbPath = join(host.baseDir, "state.sqlite");
-    seedGuiThread(dbPath);
+    await seedGuiThread(dbPath);
 
     const credential = await acquireDeviceCredential(host, "revert-route");
     const client = await ProfileClient.create({
@@ -206,7 +206,7 @@ describe("compound checkpoint revert route (real host)", () => {
     // The host database agrees with the served history.
     initDatabase(dbPath);
     try {
-      const dbIds = dbGetThreadRuntimeItemsPage(THREAD_ID, undefined, 500).items.map(
+      const dbIds = (await dbGetThreadRuntimeItemsPage(THREAD_ID, undefined, 500)).items.map(
         (item) => item.id,
       );
       expect(dbIds).toEqual(servedIds);

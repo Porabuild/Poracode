@@ -66,6 +66,8 @@ const routeSchema = z
         "command-id-header",
         "command-id-header-for-start-kind",
         "command-id-header-unless-ensure-running",
+        "command-id-header-for-start-and-catalog-kinds",
+        "command-id-header-for-catalog-kinds",
       ])
       .optional(),
   })
@@ -318,7 +320,6 @@ const EXPECTED_PROCEDURE_NAMES = [
   "gitWatchProject",
   "gitWatchWorktrees",
   "gitUnwatchProject",
-  "revealProjectEntry",
   "startThread",
   "ensureThreadRunning",
   "createRevertAnchor",
@@ -330,22 +331,10 @@ const EXPECTED_PROCEDURE_NAMES = [
   "connectThreadVoice",
   "disconnectThreadVoice",
   "lspStart",
-  "dbDeleteThread",
-  "dbDeleteProject",
-  "dbGetThreadRuntimeItems",
-  "dbGetLatestThreadGoalItem",
-  "dbGetThreadsPage",
-  "dbReplaceThreadRuntimeItems",
-  "dbGetThreadCompletedTurns",
-  "dbReplaceThreadCompletedTurns",
-  "dbReplaceThreadRuntimeSnapshot",
-  "dbGetThreadContextUsage",
   "readTerminalScrollback",
   "readTerminalSize",
   "readTerminalSnapshot",
   "readThreadBackgroundTasks",
-  "detectProjectIcon",
-  "listProjectIconFiles",
 ] as const;
 
 function routeKey(route: { readonly method: string; readonly path: string }): string {
@@ -410,7 +399,7 @@ describe("language-neutral remote protocol v3 contract", () => {
   it("keeps the complete generic procedure inventory and metadata aligned", () => {
     const manifestNames = manifest.procedures.map((procedure) => procedure.name);
     const authoritativeNames = Object.keys(REMOTE_PROCEDURE_SPECS);
-    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(139);
+    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(126);
     expect(new Set(EXPECTED_PROCEDURE_NAMES).size).toBe(EXPECTED_PROCEDURE_NAMES.length);
     expect(new Set(manifestNames).size).toBe(manifestNames.length);
     expect(manifestNames).toEqual([...EXPECTED_PROCEDURE_NAMES]);

@@ -1,8 +1,11 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { ENVIRONMENT_MANAGEMENT_ROUTE_IDS } from "../../../src/shared/remote/contract/routes/environments";
+
+import { iosSourceIsCompiled, isNativeDeviceTest } from "./native-source-evidence";
 
 const contractDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(contractDirectory, "../../..");
@@ -33,6 +36,7 @@ const BATCHES = [
   "terminal",
   "settings-integrations",
   "push-system",
+  "environments",
   "explicitly-desktop-only",
 ] as const;
 
@@ -53,8 +57,8 @@ const UI_DISPOSITIONS = [
 ] as const;
 
 const EXPECTED_COUNTS = {
-  httpRoutes: 68,
-  procedures: 139,
+  httpRoutes: 88,
+  procedures: 126,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 11,
@@ -252,14 +256,20 @@ const PLANNED_ABSENCE_TOKENS: Record<
   string,
   ReadonlyArray<{ platform: Platform; token: string }>
 > = {
-  // Gate 4 hazard #3 bounded thread-list pages: contracted for web clients,
-  // not yet implemented natively. The tokens are the generated binding type
-  // names, so a native implementation trips the absence check until the
-  // disposition is flipped with production evidence.
-  "thread-list": [
-    { platform: "ios", token: "RemoteThreadListPage" },
-    { platform: "android", token: "RemoteThreadListPage" },
-  ],
+  // C1 server-owned environments: managed through the parent proxy by all
+  // clients, but no native transport/UI exists yet (native clients land after
+  // the client slice). The route id is the token a native implementation must
+  // contain to address the route descriptor, so finding it fails this check
+  // until the disposition is flipped with production evidence.
+  ...Object.fromEntries(
+    ENVIRONMENT_MANAGEMENT_ROUTE_IDS.map((id) => [
+      id,
+      [
+        { platform: "ios" as Platform, token: id },
+        { platform: "android" as Platform, token: id },
+      ],
+    ]),
+  ),
   // B5b one-time image tickets: contracted for the web client's <img> flow,
   // not yet implemented natively (natives still use the legacy query-token
   // GET, which remains on the wire). The tokens are the generated binding
@@ -325,23 +335,34 @@ function expectEvidence(
   if (claim.disposition === "implemented") {
     assertLedger(claim.evidence.length > 0, `${platform} ${entry.id} needs production evidence`);
     const sourceRoot = platform === "ios" ? "ios/" : "android/";
+    let productionEvidence = claim.evidence.some(
+      (path) =>
+        path === `screen:${platform}.${entry.id}` &&
+        screenRegistryIds.has(path.slice("screen:".length)),
+    );
     for (const relativePath of claim.evidence) {
       if (relativePath.startsWith("screen:")) continue;
       assertLedger(
         relativePath.startsWith(sourceRoot),
         `${platform} ${column} evidence must be native source`,
       );
+      if (column === "ui" && isNativeDeviceTest(relativePath, platform)) continue;
       assertLedger(
         !/(?:^|\/)(?:generated|[^/]*(?:test|tests))\//i.test(relativePath),
         `${platform} ${column} evidence cannot be generated or test-only`,
       );
       if (platform === "ios" && relativePath.endsWith(".swift")) {
         assertLedger(
-          iosProject.includes(`${basename(relativePath)} in Sources`),
+          iosSourceIsCompiled(iosProject, relativePath),
           `ios ${entry.id} ${column} evidence is not compiled by an Xcode source phase: ${relativePath}`,
         );
       }
+      productionEvidence = true;
     }
+    assertLedger(
+      productionEvidence,
+      `${platform} ${entry.id} needs production evidence beyond device tests`,
+    );
   }
   if (claim.disposition === "desktop-only") {
     assertLedger(claim.evidence.length > 0, `${platform} ${entry.id} desktop-only needs evidence`);
@@ -432,21 +453,13 @@ function validateUiClaim(entry: LedgerEntry, platform: Platform, ui: UiClaim): v
  * borrow another entry's screen), or a device-test source file that exists in
  * this repository.
  */
-const DEVICE_TEST_EVIDENCE_ROOTS = [
-  "ios/App/NativeE2ETests/",
-  "android/app/src/androidTest/",
-] as const;
-
 function uiClaimHasIndependentEvidence(ui: UiClaim, platform: Platform, id: string): boolean {
   const ownScreenId = `screen:${platform}.${id}`;
   return ui.evidence.some((path) => {
     if (path.startsWith("screen:")) {
       return path === ownScreenId && screenRegistryIds.has(path.slice("screen:".length));
     }
-    return (
-      DEVICE_TEST_EVIDENCE_ROOTS.some((root) => path.startsWith(root)) &&
-      existsSync(join(repositoryRoot, path))
-    );
+    return isNativeDeviceTest(path, platform) && existsSync(join(repositoryRoot, path));
   });
 }
 
@@ -461,6 +474,26 @@ describe("remote v3 native parity planning ledger", () => {
     replayableEventTypes: manifest.webSocket.replayableEventTypes,
     runtimeEventTypes: manifest.webSocket.runtimeEventTypes,
   };
+
+  it("allows device evidence only alongside a production UI or owned screen", () => {
+    const entry = ledger.entries.httpRoutes.find((item) => item.id === "thread-runtime-gap")!;
+    const device =
+      "android/app/src/androidTest/kotlin/com/poracode/app/Android37CapableHistoryJourneyInstrumentedTest.kt";
+    expect(() => expectEvidence(entry, "android", "ui", entry.android.ui)).not.toThrow();
+    expect(() =>
+      expectEvidence(entry, "android", "ui", { disposition: "implemented", evidence: [device] }),
+    ).toThrow(/needs production evidence beyond device tests/);
+    expect(() =>
+      expectEvidence(entry, "android", "wire", { disposition: "implemented", evidence: [device] }),
+    ).toThrow(/cannot be generated or test-only/);
+    expect(
+      uiClaimHasIndependentEvidence(
+        { disposition: "implemented", evidence: [device] },
+        "ios",
+        entry.id,
+      ),
+    ).toBe(false);
+  });
 
   it("rejects a ui claim that merely mirrors wire without independent evidence", () => {
     const entry = {
