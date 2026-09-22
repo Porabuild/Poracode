@@ -3020,6 +3020,14 @@ msgstr "Код скопирован. "
 msgid "Codex"
 msgstr "Codex"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes."
+msgstr "Codex не может сжать беседу, пока выполняется ход. Отправьте /compact ещё раз, когда он завершится."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Codex could not compact the conversation: {detail}"
+msgstr "Codex не удалось сжать беседу: {detail}"
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx

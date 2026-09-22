@@ -13,6 +13,8 @@ import type {
   SkillsListParams,
   SkillsListResponse,
   McpServerRefreshResponse,
+  ThreadCompactStartParams,
+  ThreadCompactStartResponse,
   ThreadForkParams,
   ThreadForkResponse,
   ThreadGoalClearParams,
@@ -58,6 +60,8 @@ export type {
   ModelListResponse,
   SkillsListParams,
   SkillsListResponse,
+  ThreadCompactStartParams,
+  ThreadCompactStartResponse,
   ThreadForkParams,
   ThreadForkResponse,
   ThreadGoalClearParams,
@@ -100,6 +104,10 @@ export interface CodexClientRequestMap {
   "thread/fork": { params: ThreadForkParams; result: ThreadForkResponse };
   "thread/unsubscribe": { params: ThreadUnsubscribeParams; result: ThreadUnsubscribeResponse };
   "thread/rollback": { params: ThreadRollbackParams; result: ThreadRollbackResponse };
+  "thread/compact/start": {
+    params: ThreadCompactStartParams;
+    result: ThreadCompactStartResponse;
+  };
   "thread/settings/update": {
     params: ThreadSettingsUpdateParams;
     result: ThreadSettingsUpdateResponse;

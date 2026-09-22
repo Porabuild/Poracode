@@ -68,6 +68,7 @@ import {
   readCodexInitCommands,
 } from "./probe";
 import { CodexSubAgentRouter } from "./subAgentRouting";
+import { isCodexCompactCommand, runCodexCompactCommand } from "./compactCommand";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
@@ -748,6 +749,23 @@ export class CodexStructuredSession implements StructuredSessionHandle {
       { type: "item.completed", threadId: this.threadId, itemId: userItemId },
     ];
 
+    if (isCodexCompactCommand(prompt)) {
+      return runCodexCompactCommand(
+        {
+          localThreadId: this.threadId,
+          hasActiveTurn: () => this.activeTurnId !== undefined || this.activeTurnIds.size > 0,
+          startCompaction: () => this.rpc.request("thread/compact/start", { threadId }),
+          emitRuntimeEvents: (events) => this.emitRuntimeEvents(events),
+          markWorking: () => {
+            this.currentThreadStatus = { type: "active", activeFlags: [] };
+            this.emitUpdate({ status: "working", attention: "working" });
+          },
+          settleWithoutTurn: () => this.settleGoalCommandStatus(),
+        },
+        userEvents,
+      );
+    }
+
     if (goalCommand) {
       const canStartModelTurn = goalCommand.kind === "set" || goalCommand.kind === "resume";
       const expectsModelTurn = canStartModelTurn && config.mode !== "plan";
@@ -832,7 +850,8 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     // Goal slash-commands keep their control-flow semantics (goal RPC +
     // settle accounting); delivering them as literal steer text would hand
     // "/goal pause" to the model instead of pausing the goal.
-    if (parseCodexGoalCommand(prompt)) {
+    // `/compact` likewise runs a control RPC, and refuses a running turn.
+    if (parseCodexGoalCommand(prompt) || isCodexCompactCommand(prompt)) {
       return this.startTurn(prompt, config, segments, options);
     }
     const expectedTurnId = this.activeTurnId;

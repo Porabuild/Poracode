@@ -229,6 +229,13 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "opencode.retryFallback": msg({
     message: "OpenCode request failed, retrying...",
   }),
+  "codex.compactUnavailableDuringTurn": msg({
+    message:
+      "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes.",
+  }),
+  "codex.compactFailed": msg({
+    message: "Codex could not compact the conversation: {detail}",
+  }),
   "acp.authenticationUnverified": msg({
     message:
       "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
