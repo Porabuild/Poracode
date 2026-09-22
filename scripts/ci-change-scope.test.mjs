@@ -136,3 +136,19 @@ void test("core gate consumes test shards directly without a no-op runner hop", 
   assert.ok(core.jobs.ci_gate.needs.includes("test_shard"));
   assert.ok(!core.jobs.ci_gate.needs.includes("test"));
 });
+
+void test("native compiler fixtures run only in the scoped contract lane", async () => {
+  const [core, native] = await Promise.all(
+    ["ci.yml", "native-ci.yml"].map(async (name) =>
+      parse(await readFile(new URL(`../.github/workflows/${name}`, import.meta.url), "utf8")),
+    ),
+  );
+  const coreTest = core.jobs.test_shard.steps.find((step) => step.name === "Test shard");
+  assert.match(coreTest.run, /--exclude=.*native\/runtime\.test\.ts/u);
+
+  const nativeCompile = native.jobs.remote_v3_contract.steps.find(
+    (step) => step.name === "Compile generated Swift and Kotlin runtime fixtures",
+  );
+  assert.match(nativeCompile.run, /native\/runtime\.test\.ts/u);
+  assert.match(native.jobs.remote_v3_contract.if, /outputs\.shared == 'true'/u);
+});

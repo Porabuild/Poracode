@@ -82,6 +82,9 @@ jobs:
       - name: Test the remote-v3 contract
         run: pnpm exec vitest run --configLoader runner protocol/remote/v3
 
+      - name: Compile generated Swift and Kotlin runtime fixtures
+        run: pnpm exec vitest run --configLoader runner src/shared/remote/contract/native/runtime.test.ts
+
       - name: Reject generated changes
         run: git diff --exit-code -- protocol/remote/v3/generated
 
