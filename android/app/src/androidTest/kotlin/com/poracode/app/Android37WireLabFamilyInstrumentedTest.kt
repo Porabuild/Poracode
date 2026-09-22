@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import androidx.test.platform.app.InstrumentationRegistry
+import com.poracode.app.session.AppSession
 import com.poracode.app.wirelab.WireLabArgs
 import com.poracode.app.wirelab.WireLabControl
 import java.io.FileInputStream
@@ -185,15 +186,22 @@ class Android37WireLabFamilyInstrumentedTest {
             PackageManager.PERMISSION_GRANTED,
             ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_LOCAL_NETWORK),
         )
-        val reusingRealPairing = isRealPeer &&
-            application.session.state.value.hostCatalog.selectedConnectionId != null
-        if (reusingRealPairing) {
+        val reusingRealPairing = if (isRealPeer) {
             launchMainActivity()
-        } else if (isRealPeer) {
+            compose.waitUntil(30_000) {
+                val state = application.session.state.value
+                state.hostCatalog.selectedConnectionId != null ||
+                    state.phase == AppSession.Phase.NeedsPairing
+            }
+            application.session.state.value.hostCatalog.selectedConnectionId != null
+        } else {
+            false
+        }
+        if (isRealPeer && !reusingRealPairing) {
             val link = InstrumentationRegistry.getArguments().getString("pairingUrl")
                 ?: error("a real-peer run requires the 'pairingUrl' instrumentation arg")
             launchDeepLink(link)
-        } else {
+        } else if (!isRealPeer) {
             val pairing = control.pairingUrl("primary")
             val token = Uri.parse(pairing.getString("pairingUrl")).fragment!!.removePrefix("token=")
             launchDeepLink(
