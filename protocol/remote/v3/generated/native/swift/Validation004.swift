@@ -1,6 +1,10 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteSchemas {
+  static let schema_4655073d71f8e50b = RemoteSchema(type: "object", required: Set(["cursorSync", "id", "type"]), properties: ["cursorSync": RemoteSchemas.schema_c533fb875972ec60, "id": RemoteSchemas.schema_36fea325bf1aca70, "type": RemoteSchemas.schema_07971608588bb2db], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_4659e6d395f41e16 = RemoteSchema(type: "string", literals: [.string("bounded-v1")], unknownPolicy: .strip)
 }
 
@@ -54,6 +58,10 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_4878a3657a97dce6 = RemoteSchema(type: "object", required: Set(["role"]), properties: ["role": RemoteSchemas.schema_7e386bfca48a8819, "text": RemoteSchemas.schema_bf0b727f7b1c6d07, "timestamp": RemoteSchemas.schema_bf0b727f7b1c6d07, "title": RemoteSchemas.schema_bf0b727f7b1c6d07], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
+  static let schema_4886facc92937666 = RemoteSchema(type: "string", literals: [.string("notice")], unknownPolicy: .strip)
 }
 
 public extension RemoteSchemas {
@@ -438,12 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_61fc4b3eaedeba13 = RemoteSchema(type: "string", literals: [.string("oauth-clear")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_620971ca171eff87 = RemoteSchema(type: "string", literals: [.string("ready"), .string("binary"), .string("too_large"), .string("unsupported")], unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_62392c6d6ccb4368 = RemoteSchema(type: "array", items: RemoteSchemas.schema_bb42560f34ae61e9, unknownPolicy: .strip)
 }

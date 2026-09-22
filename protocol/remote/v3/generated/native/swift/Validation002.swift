@@ -245,6 +245,10 @@ public extension RemoteSchemas {
 }
 
 public extension RemoteSchemas {
+  static let schema_24dedf2b27c7ed4e = RemoteSchema(type: "object", required: Set(["history"]), properties: ["history": RemoteSchemas.schema_c042d97856b6c5aa], additionalAllowed: true, unknownPolicy: .strip)
+}
+
+public extension RemoteSchemas {
   static let schema_2556bf4896893601 = RemoteSchema(type: "string", literals: [.string("authentication"), .string("tool-restrictions"), .string("sensitive-values")], unknownPolicy: .strip)
 }
 
@@ -442,8 +446,4 @@ public extension RemoteSchemas {
 
 public extension RemoteSchemas {
   static let schema_2d677fb04187d46b = RemoteSchema(type: "object", defaultValue: .object(["crossagents": .bool(true)]), additionalSchema: RemoteSchemas.schema_feeb8bb50144d96d, propertyNames: RemoteSchemas.schema_bf0b727f7b1c6d07, unknownPolicy: .strip)
-}
-
-public extension RemoteSchemas {
-  static let schema_2d8274eae552cc51 = RemoteSchema(type: "string", literals: [.string("wsl")], unknownPolicy: .strip)
 }

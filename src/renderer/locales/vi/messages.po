@@ -3098,6 +3098,10 @@ msgstr "Thu gọn trình soạn thảo thiết bị đầu cuối"
 msgid "Collapse todo dock"
 msgstr "Thu gọn thanh việc cần làm"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Collapse warning"
+msgstr "Thu gọn cảnh báo"
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -4765,6 +4769,10 @@ msgstr "Loại bỏ"
 msgid "Dismiss error"
 msgstr "Loại bỏ lỗi"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Dismiss warning"
+msgstr "Loại bỏ cảnh báo"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "dismissed review"
 msgstr "đánh giá bị loại bỏ"
@@ -5369,6 +5377,10 @@ msgstr "Mở rộng để xem xét hoặc thu hồi quyền truy cập."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Mở rộng dock việc cần làm"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Expand warning"
+msgstr "Mở rộng cảnh báo"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Expected branch {branch} at {expected}, but found {actual}"
@@ -15615,6 +15627,14 @@ msgstr "Đang khởi động các môi trường shell..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Đang khởi động môi trường shell WSL…"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Warning"
+msgstr "Cảnh báo"
+
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+msgid "Warnings"
+msgstr "Cảnh báo"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

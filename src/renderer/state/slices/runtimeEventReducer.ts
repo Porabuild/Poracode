@@ -1,6 +1,7 @@
 import { applyBackgroundTaskReduce } from "@/shared/remote/contract/backgroundTaskReduce";
 import type {
   BackgroundTask,
+  ErrorItemPayload,
   RuntimeEvent,
   ThreadContextUsage,
   ToolCallPayload,
@@ -496,6 +497,9 @@ function eventAffectsStructuralVersion(event: RuntimeEvent): boolean {
     case "runtime.truncated":
     case "error":
       return true;
+    case "warning":
+      // A notice appends an item; a hidden warning changes nothing.
+      return event.presentation === "notice";
     default:
       return false;
   }
@@ -515,9 +519,15 @@ function applyRuntimeEventToRuntimeState(
       return applyRuntimeTruncation(state, threadId, event);
 
     case "session.started":
-    case "warning":
       // No item state to mutate. Status flows through the existing thread-state channel.
       return {};
+
+    case "warning":
+      // Warnings stay out of the thread unless the producer asks for a notice;
+      // a notice reuses the error item (and its dock) with a warning severity.
+      return event.presentation === "notice"
+        ? appendErrorItem(state, threadId, { message: event.message, severity: "warning" })
+        : {};
 
     case "session.exited":
       // Background work dies with the agent process; nothing will ever report
@@ -596,31 +606,39 @@ function applyRuntimeEventToRuntimeState(
       };
     }
 
-    case "error": {
-      const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
-      const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
-      const item: RuntimeChatItem = {
-        id: `err-${crypto.randomUUID()}`,
-        type: "error",
-        state: "completed",
-        payload: { message: event.message },
-        streams: {},
-      };
-      return {
-        runtimeItemIdsByThread: {
-          ...state.runtimeItemIdsByThread,
-          [threadId]: [...existingIds, item.id],
-        },
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: { ...existingItems, [item.id]: item },
-        },
-      };
-    }
+    case "error":
+      return appendErrorItem(state, threadId, { message: event.message });
 
     default:
       return {};
   }
+}
+
+/** Append a completed `error` item (an error, or a notice with warning severity). */
+function appendErrorItem(
+  state: RuntimeEventState,
+  threadId: string,
+  payload: ErrorItemPayload,
+): Partial<RuntimeEventState> {
+  const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
+  const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
+  const item: RuntimeChatItem = {
+    id: `err-${crypto.randomUUID()}`,
+    type: "error",
+    state: "completed",
+    payload,
+    streams: {},
+  };
+  return {
+    runtimeItemIdsByThread: {
+      ...state.runtimeItemIdsByThread,
+      [threadId]: [...existingIds, item.id],
+    },
+    runtimeItemsByIdByThread: {
+      ...state.runtimeItemsByIdByThread,
+      [threadId]: { ...existingItems, [item.id]: item },
+    },
+  };
 }
 
 /** REPLACE the thread's live background task list; an empty list drops the key. */

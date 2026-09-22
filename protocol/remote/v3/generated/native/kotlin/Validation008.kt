@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_b50a220194f2fc5b: RemoteSchema by lazy {
+    RemoteSchema(type = "object", required = setOf("numTurns", "threadId"), properties = mapOf("config" to schema_023567f0898d4d6d, "numTurns" to schema_56aa0e45cbdce0d0, "threadId" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_b5c1f44eaf04477b: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("assistant_text"), JsonPrimitive("reasoning_text"), JsonPrimitive("plan_text"), JsonPrimitive("command_output"), JsonPrimitive("file_change_output")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -163,6 +167,10 @@ internal val schema_bf3a4ed0e5798352: RemoteSchema by lazy {
 
 internal val schema_bfc0c020a52f85b3: RemoteSchema by lazy {
     RemoteSchema(type = "string", defaultValue = JsonPrimitive("origin"), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
+internal val schema_c042d97856b6c5aa: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_e990bf4d50a35396, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
 internal val schema_c04b1452d18edb3f: RemoteSchema by lazy {
@@ -439,12 +447,4 @@ internal val schema_cdd89e732d29ca0e: RemoteSchema by lazy {
 
 internal val schema_ce6e21bdeb9c2f10: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("kind"), properties = mapOf("kind" to schema_66d66ce0fd3d9001), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_cff1242509563941: RemoteSchema by lazy {
-    RemoteSchema(type = "object", additionalSchema = schema_2b4ffb830b606cf1, propertyNames = schema_bf0b727f7b1c6d07, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_d06f3ce55df8317d: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("configured"), JsonPrimitive("none")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

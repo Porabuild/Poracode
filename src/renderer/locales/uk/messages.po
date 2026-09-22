@@ -3098,6 +3098,10 @@ msgstr "Згорнути поле вводу термінала"
 msgid "Collapse todo dock"
 msgstr "Згорнути панель завдань"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Collapse warning"
+msgstr "Згорнути попередження"
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -4765,6 +4769,10 @@ msgstr "Закрити"
 msgid "Dismiss error"
 msgstr "Закрити помилку"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Dismiss warning"
+msgstr "Закрити попередження"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "dismissed review"
 msgstr "перевірку відхилено"
@@ -5369,6 +5377,10 @@ msgstr "Розгорніть, щоб переглянути або відкли�
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Розгорнути панель завдань"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Expand warning"
+msgstr "Розгорнути попередження"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Expected branch {branch} at {expected}, but found {actual}"
@@ -15615,6 +15627,14 @@ msgstr "Підготовка середовищ оболонки..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Підготовка середовища оболонки WSL…"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Warning"
+msgstr "Попередження"
+
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+msgid "Warnings"
+msgstr "Попередження"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

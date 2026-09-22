@@ -3098,6 +3098,10 @@ msgstr "折叠终端输入框"
 msgid "Collapse todo dock"
 msgstr "折叠待办事项面板"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Collapse warning"
+msgstr "折叠警告"
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -4765,6 +4769,10 @@ msgstr "关闭"
 msgid "Dismiss error"
 msgstr "忽略错误"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Dismiss warning"
+msgstr "忽略警告"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "dismissed review"
 msgstr "驳回审查"
@@ -5369,6 +5377,10 @@ msgstr "展开以查看或撤销访问权限。"
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "展开待办事项停靠栏"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Expand warning"
+msgstr "展开警告"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Expected branch {branch} at {expected}, but found {actual}"
@@ -15614,6 +15626,14 @@ msgstr "正在预热 shell 环境..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "正在预热 WSL shell 环境..."
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Warning"
+msgstr "警告"
+
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+msgid "Warnings"
+msgstr "警告"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

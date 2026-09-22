@@ -327,6 +327,12 @@ export type WebSearchPayload = z.infer<typeof webSearchPayloadSchema>;
 
 export const errorItemPayloadSchema = z.object({
   message: z.string(),
+  /**
+   * `"warning"` marks an advisory notice rather than a failure (a `warning`
+   * event with `presentation: "notice"`). Absent means an error. Readers that
+   * predate the field show such an item as an error.
+   */
+  severity: z.enum(["error", "warning"]).optional(),
 });
 export type ErrorItemPayload = z.infer<typeof errorItemPayloadSchema>;
 
@@ -660,6 +666,14 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     type: z.literal("warning"),
     threadId: z.string(),
     message: z.string(),
+    /**
+     * How the warning reaches the user. Absent (the default, e.g. transient
+     * retry statuses): not shown. `"notice"`: shown beside the thread's
+     * errors in the composer notice dock with a warning treatment, for
+     * advisories the user should read. Optional and additive: older readers
+     * ignore it and keep the warning hidden.
+     */
+    presentation: z.literal("notice").optional(),
   }),
   z.object({
     type: z.literal("error"),
