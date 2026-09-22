@@ -2727,7 +2727,7 @@ describe("CodexStructuredSession", () => {
     expect(updates).toContainEqual({ status: "idle", attention: "none" });
   });
 
-  it("skips internal compaction and sleep items without synthesizing rows", () => {
+  it("renders contextCompaction as a ContextCompaction row across its internal turn", () => {
     const { onMessage, runtimeEvents } = makeNotificationSession();
 
     onMessage({
@@ -2735,19 +2735,60 @@ describe("CodexStructuredSession", () => {
       method: "item/started",
       params: {
         threadId: "provider-thread",
-        turnId: "turn-a",
+        turnId: "turn-compact",
         item: { id: "compact-1", type: "contextCompaction" },
       },
+    });
+    // The internal compaction turn settles before the item completes.
+    onMessage({
+      jsonrpc: "2.0",
+      method: "turn/completed",
+      params: { threadId: "provider-thread", turn: { id: "turn-compact", status: "completed" } },
     });
     onMessage({
       jsonrpc: "2.0",
       method: "item/completed",
       params: {
         threadId: "provider-thread",
-        turnId: "turn-a",
+        turnId: "turn-compact",
         item: { id: "compact-1", type: "contextCompaction" },
       },
     });
+
+    const itemEvents = runtimeEvents.filter((event) => event.type.startsWith("item."));
+    expect(itemEvents).toHaveLength(2);
+    const [started, completed] = itemEvents;
+    expect(started).toMatchObject({
+      type: "item.started",
+      itemType: "tool_call",
+      payload: { name: "ContextCompaction", status: "running" },
+    });
+    expect(completed).toMatchObject({
+      type: "item.completed",
+      itemId: (started as Extract<RuntimeEvent, { type: "item.started" }>).itemId,
+      payload: { name: "ContextCompaction", status: "success" },
+    });
+  });
+
+  it("synthesizes one completed ContextCompaction row when the start was missed", () => {
+    const { onMessage, runtimeEvents } = makeNotificationSession();
+    onMessage({
+      jsonrpc: "2.0",
+      method: "item/completed",
+      params: {
+        threadId: "provider-thread",
+        turnId: "turn-a",
+        item: { id: "compact-2", type: "contextCompaction" },
+      },
+    });
+
+    const itemEvents = runtimeEvents.filter((event) => event.type.startsWith("item."));
+    expect(itemEvents.map((event) => event.type)).toEqual(["item.started", "item.completed"]);
+    expect(itemEvents[1]).toMatchObject({ payload: { name: "ContextCompaction" } });
+  });
+
+  it("skips internal sleep items without synthesizing rows", () => {
+    const { onMessage, runtimeEvents } = makeNotificationSession();
     onMessage({
       jsonrpc: "2.0",
       method: "item/completed",
