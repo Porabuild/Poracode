@@ -5,6 +5,10 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+internal val schema_195974ed118a4217: RemoteSchema by lazy {
+    RemoteSchema(type = "array", items = schema_9fe1fe9bbcff3ecd, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_197c2b8c01d7f4ed: RemoteSchema by lazy {
     RemoteSchema(type = "object", properties = mapOf("authMethod" to schema_36fea325bf1aca70, "authenticatedAs" to schema_36fea325bf1aca70, "connectedProviders" to schema_7fdc1b397391e8f3, "organization" to schema_36fea325bf1aca70, "plan" to schema_36fea325bf1aca70), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -265,6 +269,10 @@ internal val schema_25e47114d380c1fb: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("thread-item-interests")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
 
+internal val schema_26510965c22ad8c1: RemoteSchema by lazy {
+    RemoteSchema(type = "object", additionalSchema = schema_a3c1d8ca01e5a432, propertyNames = schema_36fea325bf1aca70, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
+}
+
 internal val schema_265118ebb211fa8f: RemoteSchema by lazy {
     RemoteSchema(type = "object", required = setOf("projects"), properties = mapOf("project" to schema_e21c843ae3810760, "projects" to schema_522de926415fa8bc), additionalAllowed = true, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }
@@ -439,12 +447,4 @@ internal val schema_2d2a48957e54670a: RemoteSchema by lazy {
 
 internal val schema_2d52ff1140653b18: RemoteSchema by lazy {
     RemoteSchema(type = "string", literals = listOf(JsonPrimitive("oauth"), JsonPrimitive("bearer"), JsonPrimitive("other"), JsonPrimitive("unknown")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_2d677fb04187d46b: RemoteSchema by lazy {
-    RemoteSchema(type = "object", defaultValue = JsonObject(mapOf("crossagents" to JsonPrimitive(true))), additionalSchema = schema_feeb8bb50144d96d, propertyNames = schema_bf0b727f7b1c6d07, unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
-}
-
-internal val schema_2d8274eae552cc51: RemoteSchema by lazy {
-    RemoteSchema(type = "string", literals = listOf(JsonPrimitive("wsl")), unknownPolicy = RemoteUnknownFieldPolicy.STRIP)
 }

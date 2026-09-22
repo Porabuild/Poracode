@@ -277,7 +277,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -321,7 +321,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -398,7 +398,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -445,7 +445,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -496,7 +496,47 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v38 Muse statuses cached without thread title commands", () => {
+    // Pre-v39 statuses lack `threadTitleCommands`, so a cached Muse status
+    // would keep titling `/goal <objective>` threads from the raw command.
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 38,
+        windows: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { presentationModes: ["terminal", "gui"] },
+            envKind: "windows",
+          },
+        ],
+        wsl: [],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -535,7 +575,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -564,7 +604,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -597,7 +637,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -637,7 +677,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses([]);
-    expect(STATUS_CACHE_VERSION).toBe(38);
+    expect(STATUS_CACHE_VERSION).toBe(39);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

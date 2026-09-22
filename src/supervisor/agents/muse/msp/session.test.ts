@@ -921,6 +921,33 @@ describe("MuseMspStructuredSession", () => {
     });
   });
 
+  it("tears down the owned host after an unexpected exit, once across a later dispose", async () => {
+    const { session, child } = await createSession();
+    child.emit("close", 143, null);
+    await vi.waitFor(() => expect(batchWslCommandsAsync).toHaveBeenCalledTimes(1));
+    expect(disposeClient).toHaveBeenCalledTimes(1);
+    expect(terminate).toHaveBeenCalledExactlyOnceWith(child, {
+      ownedProcessGroup: process.platform !== "win32",
+    });
+
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(1);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a failed crash cleanup on dispose", async () => {
+    const { session, child } = await createSession();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    batchWslCommandsAsync.mockResolvedValueOnce([{ ok: false, stdout: "" }]);
+    child.emit("close", 143, null);
+    await vi.waitFor(() => expect(warn).toHaveBeenCalled());
+    warn.mockRestore();
+
+    await session.dispose();
+    expect(terminate).toHaveBeenCalledTimes(2);
+    expect(batchWslCommandsAsync).toHaveBeenCalledTimes(2);
+  });
+
   it("reports a failed write channel while the server process remains open", async () => {
     const { errors } = await createSession();
 

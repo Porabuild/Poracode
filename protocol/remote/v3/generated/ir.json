@@ -22727,6 +22727,37 @@
                     "type": "string"
                   },
                   "type": "array"
+                },
+                "threadTitleCommands": {
+                  "items": {
+                    "additionalProperties": true,
+                    "properties": {
+                      "argumentSubcommands": {
+                        "items": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      "command": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "controlArguments": {
+                        "items": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "type": "array"
+                      }
+                    },
+                    "required": [
+                      "command"
+                    ],
+                    "type": "object",
+                    "x-poracode-unknownFields": "strip"
+                  },
+                  "type": "array"
                 }
               },
               "required": [
@@ -45036,7 +45067,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:fb9073c123729c295db093f24aca4ea0474ee9cf88e2f3dfcd52b304d848aa11",
+  "sourceHash": "sha256:8fb46e997cb2f17f7b60d26a1980133510ed3d2e79250efd30997c75f57639e3",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

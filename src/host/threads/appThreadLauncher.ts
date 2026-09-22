@@ -15,7 +15,10 @@ import { isHomeProjectId } from "@/shared/homeScope";
 import { makeThreadTitle } from "@/shared/threadTitle";
 import { buildWorktreeLocation, resolveWorktreePlacement } from "@/shared/worktree";
 import { generateWorktreeBranch } from "@/shared/worktreeBranch";
-import { resolveUnrestrictedThreadPermissions } from "./threadLaunchConfig";
+import {
+  resolveHostThreadTitlePrompt,
+  resolveUnrestrictedThreadPermissions,
+} from "./threadLaunchConfig";
 
 /** Host surface the launcher needs — the same main-side seams schedules use. */
 export interface AppThreadLauncherDeps {
@@ -120,7 +123,17 @@ export async function createAppThread(
   };
 
   const customTitle = request.title?.trim();
-  const title = customTitle || makeThreadTitle(request.prompt) || "New thread";
+  const title =
+    customTitle ||
+    makeThreadTitle(
+      await resolveHostThreadTitlePrompt(
+        deps.getAgentStatuses,
+        request.agentKind,
+        threadLocation,
+        request.prompt,
+      ),
+    ) ||
+    "New thread";
   const thread: Thread = {
     id: threadId,
     projectId: project.id,

@@ -16,8 +16,7 @@ import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
-import { titlePromptFromSegments } from "@/shared/threadTitle";
-import { resolveThreadTitlePrompt } from "@/renderer/components/providers/threadTitlePrompt";
+import { resolveThreadTitlePrompt, titlePromptFromSegments } from "@/shared/threadTitle";
 import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
@@ -640,10 +639,6 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
     agentStatuses,
     wslAgentStatuses,
   );
-  const titlePrompt = resolveThreadTitlePrompt(
-    launch.agentKind,
-    titlePromptFromSegments(launch.prompt, launch.segments),
-  );
   const currentView = store.view;
   const activeGroup =
     launch.options.preserveActiveGroup !== false &&
@@ -658,6 +653,10 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
       : undefined;
 
   const agentStatus = projectAgentStatuses.find((status) => status.kind === launch.agentKind);
+  const titlePrompt = resolveThreadTitlePrompt(
+    titlePromptFromSegments(launch.prompt, launch.segments),
+    agentStatus?.capabilities.threadTitleCommands,
+  );
   const config =
     isHomeProject(launch.project) && agentStatus
       ? applyHomeScopePermissions(launch.project.location, launch.config, agentStatus.capabilities)
