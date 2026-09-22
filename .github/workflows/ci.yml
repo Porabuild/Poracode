@@ -284,23 +284,9 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build test native dependencies
-        # node-pty ships no Linux prebuild, so every shard compiles it from
-        # source and downloads Node headers from nodejs.org. A flaky transfer
-        # crashes node-gyp's downloader (undici assert(!this.paused)) instead
-        # of failing cleanly, so retry the rebuild like other network steps.
-        run: |
-          for attempt in 1 2 3; do
-            if pnpm rebuild node-pty; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::Native dependency rebuild failed after $attempt attempts."
-              exit 1
-            fi
-            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
-            sleep $((attempt * 10))
-          done
-        shell: bash
+        # Compile against setup-node's local headers; CI must not download the
+        # same Node headers independently in every isolated test job.
+        run: scripts/ci-rebuild-node-pty.sh
 
       - name: Test shard
         run: pnpm run test --shard=${{ matrix.shard }}/8
@@ -334,22 +320,8 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Build test native dependencies
-        # The supervisor runtime chain pulls in node-pty, which ships no Linux
-        # prebuild. Retry the rebuild like the sharded suite: a flaky transfer
-        # crashes node-gyp's downloader instead of failing cleanly.
-        run: |
-          for attempt in 1 2 3; do
-            if pnpm rebuild node-pty; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::Native dependency rebuild failed after $attempt attempts."
-              exit 1
-            fi
-            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
-            sleep $((attempt * 10))
-          done
-        shell: bash
+        # The perf runner exercises the supervisor's node-pty runtime chain.
+        run: scripts/ci-rebuild-node-pty.sh
 
       - name: CLI hook perf suite
         run: pnpm run test:perf:cli-hook

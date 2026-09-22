@@ -228,20 +228,8 @@ jobs:
       - name: Build test native dependencies
         # The mock journey is pure Node, but the E.2 real-peer leg below runs
         # the production host, whose PTY sessions need node-pty (install runs
-        # with --ignore-scripts). Retry like the foundation job.
-        run: |
-          for attempt in 1 2 3; do
-            if pnpm rebuild node-pty; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::Native dependency rebuild failed after $attempt attempts."
-              exit 1
-            fi
-            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
-            sleep $((attempt * 10))
-          done
-        shell: bash
+        # with --ignore-scripts).
+        run: scripts/ci-rebuild-node-pty.sh
 
       - name: Build the production headless host
         # Required by the E.2 real-peer family journey: the real harness boots
@@ -347,21 +335,8 @@ jobs:
 
       - name: Build test native dependencies
         # The E.2 real-peer leg below boots the production host, whose PTY
-        # sessions need node-pty (install runs with --ignore-scripts). Retry
-        # like the foundation job.
-        run: |
-          for attempt in 1 2 3; do
-            if pnpm rebuild node-pty; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::Native dependency rebuild failed after $attempt attempts."
-              exit 1
-            fi
-            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
-            sleep $((attempt * 10))
-          done
-        shell: bash
+        # sessions need node-pty (install runs with --ignore-scripts).
+        run: scripts/ci-rebuild-node-pty.sh
 
       - name: Build the production headless host
         # Required by the E.2 real-peer family journey (native-e2e.mjs
@@ -596,22 +571,8 @@ jobs:
       - name: Build test native dependencies
         # node-pty ships no Linux prebuild, so the plain-node headless host
         # used by the foundation smoke compiles it from source (the install
-        # step above runs with --ignore-scripts). Retry the rebuild like
-        # ci.yml shards: node-gyp's Node-header download fails uncleanly on
-        # flaky transfers.
-        run: |
-          for attempt in 1 2 3; do
-            if pnpm rebuild node-pty; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::Native dependency rebuild failed after $attempt attempts."
-              exit 1
-            fi
-            echo "::warning::Native dependency rebuild attempt $attempt failed; retrying."
-            sleep $((attempt * 10))
-          done
-        shell: bash
+        # step above runs with --ignore-scripts).
+        run: scripts/ci-rebuild-node-pty.sh
 
       - name: Build the production headless host
         run: |
