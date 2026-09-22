@@ -386,6 +386,86 @@ describe("sdkCanonicalMapping — prompt content", () => {
     }
   });
 
+  it("closes a verdict-owned goal it replaces and lets the replacement finish at turn end", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-a", "/goal objective A", undefined, "user-a");
+    mapClaudeSdkMessage(
+      assistantUsageMessage("msg-a-1", { input_tokens: 4_000, output_tokens: 1_000 }),
+      state,
+    );
+    mapClaudeSdkMessage(
+      activeGoalMessage({
+        condition: "objective A",
+        iterations: 1,
+        set_at: Date.now() / 1000,
+        tokens_at_start: 0,
+        last_reason: "not yet",
+      }),
+      state,
+    );
+    expect(state.sawActiveGoalMessage).toBe(true);
+
+    const replaceEvents = startClaudeTurn(
+      state,
+      "turn-b",
+      "/goal objective B",
+      undefined,
+      "user-b",
+    );
+    expect(replaceEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "goal-turn-a",
+        payload: expect.objectContaining({ objective: "objective A", status: "cancelled" }),
+      }),
+    );
+    expect(replaceEvents).toContainEqual(
+      expect.objectContaining({ type: "item.completed", itemId: "goal-turn-a" }),
+    );
+    // The replaced goal is closed before the new item starts, so B stays the
+    // latest goal row the dock reads.
+    const closeIndex = replaceEvents.findIndex(
+      (event) => event.type === "item.updated" && event.itemId === "goal-turn-a",
+    );
+    const startIndex = replaceEvents.findIndex(
+      (event) => event.type === "item.started" && event.itemId === "goal-turn-b",
+    );
+    expect(closeIndex).toBeGreaterThanOrEqual(0);
+    expect(closeIndex).toBeLessThan(startIndex);
+    expect(state.sawActiveGoalMessage).toBeUndefined();
+
+    const resultEvents = mapClaudeSdkMessage(
+      { type: "result", subtype: "success", session_id: "claude-session" } as SDKMessage,
+      state,
+    );
+    expect(resultEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "goal-turn-b",
+        payload: expect.objectContaining({
+          objective: "objective B",
+          status: "complete",
+          tokensUsed: 0,
+        }),
+      }),
+    );
+    expect(state.activeGoalItemId).toBeUndefined();
+  });
+
+  it("closes the active goal item when /goal clear replaces it", () => {
+    const state = createClaudeMapperState("thread-1");
+    startClaudeTurn(state, "turn-a", "/goal objective A", undefined);
+    const clearEvents = startClaudeTurn(state, "turn-clear", "/goal clear", undefined);
+    expect(clearEvents).toContainEqual(
+      expect.objectContaining({
+        type: "item.updated",
+        itemId: "goal-turn-a",
+        payload: expect.objectContaining({ action: "cleared", status: "cancelled" }),
+      }),
+    );
+    expect(state.activeGoalItemId).toBeUndefined();
+  });
+
   it("clears an active goal when /clear starts a new conversation", () => {
     const state = createClaudeMapperState("thread-1");
     startClaudeTurn(state, "turn-goal", "/goal fix the bug", undefined);
