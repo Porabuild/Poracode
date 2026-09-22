@@ -1,6 +1,5 @@
 import type { RemoteEnvironmentCapabilities } from "@/shared/remote/protocol/core";
 import { REMOTE_RUNTIME_HISTORY_NOTICES_VERSION } from "@/shared/remote/protocol/runtimeHistoryNotice";
-import { MANAGED_LOOPBACK_DESKTOP_ID } from "@/renderer/hostTransport/managedIdentity";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 
 /**
@@ -13,6 +12,11 @@ import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
  * fresh environment descriptor on every connect. It is deliberately
  * process-local: never persisted, so an old host or a later downgrade cannot
  * inherit a declaration the current host did not advertise.
+ *
+ * The registry is generic over opaque connection keys. Remote legs key on
+ * `remoteConnectionKey`; the managed-root leg keys on the per-activation
+ * authority minted inside `hostTransport/` and carried on the activation
+ * snapshot, so the managed identity itself never leaves `hostTransport/`.
  */
 export const RUNTIME_HISTORY_NOTICE_RENDERING_INSTALLED = true;
 
@@ -39,16 +43,6 @@ export function hostSupportsRuntimeHistoryNotices(
 /** Capability lookup by raw connection key (the managed-root leg has no record). */
 export function hostSupportsRuntimeHistoryNoticesForConnection(connectionKey: string): boolean {
   return capabilityByConnection.get(connectionKey) === true;
-}
-
-/**
- * Opaque per-activation notice authority for the managed root (C1 identity
- * custody): the process's unguessable managed identity plus the activation
- * sequence, so a notice authored by one activation can never be displayed or
- * acknowledged against a successor leg or a paired desktop.
- */
-export function managedRootNoticeAuthority(activationSeq: number): string {
-  return `managed-root:${MANAGED_LOOPBACK_DESKTOP_ID}:${activationSeq}`;
 }
 
 /**

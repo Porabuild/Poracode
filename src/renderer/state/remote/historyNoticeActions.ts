@@ -21,7 +21,6 @@ import {
 import {
   hostSupportsRuntimeHistoryNotices,
   hostSupportsRuntimeHistoryNoticesForConnection,
-  managedRootNoticeAuthority,
 } from "./historyNoticeCapability";
 
 /**
@@ -85,14 +84,14 @@ function ownedThread(viewThreadId: string): OwnedThread | undefined {
   return {
     kind: "managed-root",
     threadId: thread.id,
-    authority: managedRootNoticeAuthority(activation.seq),
+    authority: activation.authority,
   };
 }
 
 function stillOwned(owned: OwnedThread): boolean {
   if (owned.kind === "managed-root") {
     const activation = readManagedLoopbackActivation();
-    if (!activation || managedRootNoticeAuthority(activation.seq) !== owned.authority) {
+    if (!activation || activation.authority !== owned.authority) {
       return false;
     }
     const thread = useAppStore
@@ -130,7 +129,7 @@ async function withOwnedClient<Result>(
 ): Promise<Result> {
   if (owned.kind === "managed-root") {
     const activation = readManagedLoopbackActivation();
-    if (!activation || managedRootNoticeAuthority(activation.seq) !== owned.authority) {
+    if (!activation || activation.authority !== owned.authority) {
       throw new Error(i18n._(msg`The desktop's own server is not connected.`));
     }
     return invoke(activation.client);

@@ -34,7 +34,6 @@ import {
   type CatalogKind,
 } from "@/renderer/state/remoteServers/catalog/boundedCatalogAlgorithm";
 import { configureBoundedHistoryManagedRootClient } from "@/renderer/state/remoteServers/catalog/boundedHistory";
-import { managedRootNoticeAuthority } from "@/renderer/state/remote/historyNoticeCapability";
 import {
   getManagedParentAuthorityState,
   subscribeManagedParentAuthority,
@@ -249,7 +248,7 @@ function configureController(): void {
       ? {
           client: activation.client,
           seq: activation.seq,
-          authority: managedRootNoticeAuthority(activation.seq),
+          authority: activation.authority,
         }
       : null;
   });
