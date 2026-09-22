@@ -3098,6 +3098,10 @@ msgstr "터미널 작성기 접기"
 msgid "Collapse todo dock"
 msgstr "할 일 도크 접기"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Collapse warning"
+msgstr "경고 접기"
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -4765,6 +4769,10 @@ msgstr "닫기"
 msgid "Dismiss error"
 msgstr "오류 무시"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Dismiss warning"
+msgstr "경고 무시"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "dismissed review"
 msgstr "기각된 리뷰"
@@ -5369,6 +5377,10 @@ msgstr "펼쳐서 액세스를 검토하거나 취소합니다."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "할 일 도크 확장"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Expand warning"
+msgstr "경고 펼치기"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Expected branch {branch} at {expected}, but found {actual}"
@@ -15615,6 +15627,14 @@ msgstr "쉘 환경 준비 중..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "WSL 셸 환경 준비 중…"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Warning"
+msgstr "경고"
+
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+msgid "Warnings"
+msgstr "경고"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

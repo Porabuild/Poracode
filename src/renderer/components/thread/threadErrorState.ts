@@ -8,6 +8,8 @@ import {
 export interface ThreadErrorDockState {
   sourceItemId: string;
   message: string;
+  /** Set for an advisory notice; absent for an error. */
+  severity?: "warning";
 }
 
 const EMPTY_ERROR_DOCK_STATES: ThreadErrorDockState[] = [];
@@ -58,9 +60,14 @@ export function getThreadErrorDockStateForItem(item: RuntimeChatItem): ThreadErr
   const message = payload?.message?.trim();
   if (!message) return null;
   if (isAbortOnlyErrorMessage(message)) return null;
+  const severity = payload?.severity === "warning" ? ("warning" as const) : undefined;
   const cached = errorDockStateByItem.get(item);
-  if (cached && cached.message === message) return cached;
-  const dock = { sourceItemId: item.id, message };
+  if (cached && cached.message === message && cached.severity === severity) return cached;
+  const dock: ThreadErrorDockState = {
+    sourceItemId: item.id,
+    message,
+    ...(severity ? { severity } : {}),
+  };
   errorDockStateByItem.set(item, dock);
   return dock;
 }
@@ -107,7 +114,9 @@ export function resolveThreadAuthState(input: {
 }): { readonly authRequired: boolean; readonly hasRuntimeAuthError: boolean } {
   const hasRuntimeAuthError =
     input.authState !== "authenticated" &&
-    input.errorDockStates.some((state) => isAuthErrorMessage(state.message));
+    input.errorDockStates.some(
+      (state) => state.severity !== "warning" && isAuthErrorMessage(state.message),
+    );
   return {
     authRequired: input.authState === "missing" || hasRuntimeAuthError,
     hasRuntimeAuthError,

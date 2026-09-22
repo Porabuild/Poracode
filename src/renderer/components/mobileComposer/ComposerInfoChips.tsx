@@ -168,11 +168,12 @@ export function ComposerInfoChips(props: {
     chips.push({ key: "goal", icon: Target, label: t`Goal` });
   }
   if (props.errorDockStates.length > 0) {
+    const onlyWarnings = props.errorDockStates.every((state) => state.severity === "warning");
     chips.push({
       key: "errors",
       icon: AlertTriangle,
-      label: t`Errors`,
-      tone: "danger",
+      label: onlyWarnings ? t`Warnings` : t`Errors`,
+      tone: onlyWarnings ? "warning" : "danger",
       ...(props.errorDockStates.length > 1 ? { count: String(props.errorDockStates.length) } : {}),
     });
   }

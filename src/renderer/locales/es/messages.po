@@ -3098,6 +3098,10 @@ msgstr "Contraer el redactor del terminal"
 msgid "Collapse todo dock"
 msgstr "Contraer panel de tareas"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Collapse warning"
+msgstr "Contraer advertencia"
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -4765,6 +4769,10 @@ msgstr "Descartar"
 msgid "Dismiss error"
 msgstr "Descartar error"
 
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Dismiss warning"
+msgstr "Descartar advertencia"
+
 #: src/renderer/views/PrReviewOverlay/parts/PrConversationTab.tsx
 msgid "dismissed review"
 msgstr "revisión descartada"
@@ -5369,6 +5377,10 @@ msgstr "Expandir para revisar o revocar el acceso."
 #: src/renderer/components/thread/ThreadTodoDock.tsx
 msgid "Expand todo dock"
 msgstr "Expandir panel de tareas"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Expand warning"
+msgstr "Expandir advertencia"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Expected branch {branch} at {expected}, but found {actual}"
@@ -15615,6 +15627,14 @@ msgstr "Preparando los entornos de shell..."
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Warming up WSL shell environment…"
 msgstr "Preparando el entorno de shell de WSL…"
+
+#: src/renderer/components/thread/ThreadErrorDock.tsx
+msgid "Warning"
+msgstr "Advertencia"
+
+#: src/renderer/components/mobileComposer/ComposerInfoChips.tsx
+msgid "Warnings"
+msgstr "Advertencias"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts

@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 12
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:8fb46e997cb2f17f7b60d26a1980133510ed3d2e79250efd30997c75f57639e3"
+    const val sourceHash = "sha256:bafe4ad753be4f9c9f4fecd10efe22a7ad110be828a791bda1609889535e0783"
     const val manifestHash = "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -228,10 +228,10 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("stageThreadInput", "session:operate", "thread", "omitted", "ProcedurestageThreadInputRequest_d4db039cba", "RemoteUnit"),
         RemoteProcedureDescriptor("startThread", "session:operate", "projectLocation", "json", "ProcedureensureThreadRunningRequest_74c691ec4c", "ProcedurecancelExtractContextRequest_09b78d9c1d"),
         RemoteProcedureDescriptor("steerQueuedThreadFollowUp", "session:operate", "thread", "omitted", "ProcedurepauseThreadFollowUpsRequest_d42717fff2", "RemoteUnit"),
-        RemoteProcedureDescriptor("subagentSubscribe", "session:read", "thread", "json", "ProceduresubagentSubscribeRequest_ff495aee3e", "ProceduresubagentSubscribeResult_7e9898b3ae"),
+        RemoteProcedureDescriptor("subagentSubscribe", "session:read", "thread", "json", "ProceduresubagentSubscribeRequest_ff495aee3e", "ProceduresubagentSubscribeResult_24dedf2b27"),
         RemoteProcedureDescriptor("subagentUnsubscribe", "session:read", "thread", "omitted", "ProceduresubagentSubscribeRequest_ff495aee3e", "RemoteUnit"),
         RemoteProcedureDescriptor("waitMcpServerOauth", "session:operate", "optionalProjectLocation", "json", "ProcedurewaitMcpServerOauthRequest_e9df8b4f3d", "ProcedurewaitMcpServerOauthResult_51cc694dc5"),
-        RemoteProcedureDescriptor("workflowAgentChat", "session:read", "location", "json", "ProcedureworkflowAgentChatRequest_014d2dfae8", "ProcedureworkflowAgentChatResult_f5c102dcef"),
+        RemoteProcedureDescriptor("workflowAgentChat", "session:read", "location", "json", "ProcedureworkflowAgentChatRequest_014d2dfae8", "ProcedureworkflowAgentChatResult_d3844584d2"),
         RemoteProcedureDescriptor("workflowGetRun", "session:read", "location", "json", "ProcedureworkflowGetRunRequest_13324e3fec", "ProcedureworkflowGetRunResult_965bd4463b"),
         RemoteProcedureDescriptor("writeExternalFile", "projects:manage", "projectLocation", "json", "ProcedurewriteExternalFileRequest_551f784ecd", "ProcedurewriteExternalFileResult_c5c2ecebba"),
         RemoteProcedureDescriptor("writeProjectFile", "session:operate", "projectLocation", "json", "ProcedurewriteProjectFileRequest_aba5d69bfd", "ProcedurewriteExternalFileResult_c5c2ecebba"),

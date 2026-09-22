@@ -8,7 +8,7 @@ function map(method: string, params: Record<string, unknown>) {
 }
 
 describe("Codex advisory notifications", () => {
-  it("maps each advisory kind to a canonical warning", () => {
+  it("maps each advisory kind to a canonical warning, noticing all but generic warnings", () => {
     expect(map("warning", { threadId: null, message: "Skills were shortened." })).toEqual([
       { type: "warning", threadId: "local-thread", message: "Skills were shortened." },
     ]);
@@ -23,13 +23,14 @@ describe("Codex advisory notifications", () => {
         type: "warning",
         threadId: "local-thread",
         message: "Unknown key `foo`\n\nRemove it from config.toml.\n\n/home/me/.codex/config.toml",
+        presentation: "notice",
       },
     ]);
     expect(map("deprecationNotice", { summary: "Old flag", details: null })).toEqual([
-      { type: "warning", threadId: "local-thread", message: "Old flag" },
+      { type: "warning", threadId: "local-thread", message: "Old flag", presentation: "notice" },
     ]);
     expect(map("guardianWarning", { threadId: "provider-thread", message: "Risky." })).toEqual([
-      { type: "warning", threadId: "local-thread", message: "Risky." },
+      { type: "warning", threadId: "local-thread", message: "Risky.", presentation: "notice" },
     ]);
     expect(
       map("model/rerouted", {
@@ -44,6 +45,7 @@ describe("Codex advisory notifications", () => {
         type: "warning",
         threadId: "local-thread",
         message: msg("codex.modelRerouted", { fromModel: "gpt-5.6-sol", toModel: "gpt-5.6-terra" }),
+        presentation: "notice",
       },
     ]);
   });
@@ -72,8 +74,8 @@ describe("Codex advisory routing", () => {
     h.notify("configWarning", { summary: "Bad config", details: null });
 
     expect(h.events).toEqual([
-      { type: "warning", threadId: "local-thread", message: "Risky." },
-      { type: "warning", threadId: "local-thread", message: "Bad config" },
+      { type: "warning", threadId: "local-thread", message: "Risky.", presentation: "notice" },
+      { type: "warning", threadId: "local-thread", message: "Bad config", presentation: "notice" },
     ]);
   });
 

@@ -4,7 +4,9 @@
  * `warning`, `configWarning`, `deprecationNotice`, `guardianWarning`, and
  * `model/rerouted` carry user-facing guidance that is not a turn failure.
  * They reuse the canonical warning event rather than `error`, which would
- * open the error dock and pause queued follow-ups.
+ * pause queued follow-ups. All but the generic `warning` are presented as
+ * notices; the generic one stays hidden because Codex repeats some of them
+ * (e.g. the skills-budget warning) in every session.
  */
 
 import type { RuntimeEvent } from "@/shared/contracts";
@@ -18,6 +20,9 @@ const CODEX_ADVISORY_METHODS = new Set([
   "guardianWarning",
   "model/rerouted",
 ]);
+
+/** Advisories hidden from the user (the event is still emitted for logs/clients). */
+const CODEX_HIDDEN_ADVISORY_METHODS = new Set(["warning"]);
 
 export function isCodexAdvisoryNotification(method: string): boolean {
   return CODEX_ADVISORY_METHODS.has(method);
@@ -73,5 +78,12 @@ export function mapCodexAdvisoryNotification(
   const key = `${method}|${message}`;
   if (state.surfacedAdvisories.has(key)) return [];
   state.surfacedAdvisories.add(key);
-  return [{ type: "warning", threadId: state.threadId, message }];
+  return [
+    {
+      type: "warning",
+      threadId: state.threadId,
+      message,
+      ...(CODEX_HIDDEN_ADVISORY_METHODS.has(method) ? {} : { presentation: "notice" as const }),
+    },
+  ];
 }

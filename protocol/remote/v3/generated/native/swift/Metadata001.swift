@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 12
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:8fb46e997cb2f17f7b60d26a1980133510ed3d2e79250efd30997c75f57639e3"
+  public static let sourceHash = "sha256:bafe4ad753be4f9c9f4fecd10efe22a7ad110be828a791bda1609889535e0783"
   public static let manifestHash = "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -223,10 +223,10 @@ public enum RemoteContractMetadata {
     .init(name: "stageThreadInput", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurestageThreadInputRequest_d4db039cba", resultType: "RemoteUnit"),
     .init(name: "startThread", scope: "session:operate", owner: "projectLocation", resultKind: "json", requestType: "ProcedureensureThreadRunningRequest_74c691ec4c", resultType: "ProcedurecancelExtractContextRequest_09b78d9c1d"),
     .init(name: "steerQueuedThreadFollowUp", scope: "session:operate", owner: "thread", resultKind: "omitted", requestType: "ProcedurepauseThreadFollowUpsRequest_d42717fff2", resultType: "RemoteUnit"),
-    .init(name: "subagentSubscribe", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "ProceduresubagentSubscribeResult_7e9898b3ae"),
+    .init(name: "subagentSubscribe", scope: "session:read", owner: "thread", resultKind: "json", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "ProceduresubagentSubscribeResult_24dedf2b27"),
     .init(name: "subagentUnsubscribe", scope: "session:read", owner: "thread", resultKind: "omitted", requestType: "ProceduresubagentSubscribeRequest_ff495aee3e", resultType: "RemoteUnit"),
     .init(name: "waitMcpServerOauth", scope: "session:operate", owner: "optionalProjectLocation", resultKind: "json", requestType: "ProcedurewaitMcpServerOauthRequest_e9df8b4f3d", resultType: "ProcedurewaitMcpServerOauthResult_51cc694dc5"),
-    .init(name: "workflowAgentChat", scope: "session:read", owner: "location", resultKind: "json", requestType: "ProcedureworkflowAgentChatRequest_014d2dfae8", resultType: "ProcedureworkflowAgentChatResult_f5c102dcef"),
+    .init(name: "workflowAgentChat", scope: "session:read", owner: "location", resultKind: "json", requestType: "ProcedureworkflowAgentChatRequest_014d2dfae8", resultType: "ProcedureworkflowAgentChatResult_d3844584d2"),
     .init(name: "workflowGetRun", scope: "session:read", owner: "location", resultKind: "json", requestType: "ProcedureworkflowGetRunRequest_13324e3fec", resultType: "ProcedureworkflowGetRunResult_965bd4463b"),
     .init(name: "writeExternalFile", scope: "projects:manage", owner: "projectLocation", resultKind: "json", requestType: "ProcedurewriteExternalFileRequest_551f784ecd", resultType: "ProcedurewriteExternalFileResult_c5c2ecebba"),
     .init(name: "writeProjectFile", scope: "session:operate", owner: "projectLocation", resultKind: "json", requestType: "ProcedurewriteProjectFileRequest_aba5d69bfd", resultType: "ProcedurewriteExternalFileResult_c5c2ecebba"),

@@ -15,19 +15,28 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
   const [collapsed, setCollapsed] = useState(true);
   const isMultiline = state.message.includes("\n") || state.message.length > 120;
   const canExpand = isMultiline;
-  const { title, body } = splitErrorTitle(state.message, t`Error`);
+  const isWarning = state.severity === "warning";
+  const { title, body } = splitErrorTitle(state.message, isWarning ? t`Warning` : t`Error`);
 
   return (
     <ThreadDockSection placement="composer" collapsed={collapsed}>
       <ThreadDockHeader
         icon={AlertTriangle}
-        iconClassName="text-danger"
+        iconClassName={isWarning ? "text-warning" : "text-danger"}
         title={title}
         actions={
           <>
             {canExpand ? (
               <ThreadDockIconButton
-                label={collapsed ? t`Expand error` : t`Collapse error`}
+                label={
+                  isWarning
+                    ? collapsed
+                      ? t`Expand warning`
+                      : t`Collapse warning`
+                    : collapsed
+                      ? t`Expand error`
+                      : t`Collapse error`
+                }
                 tooltip={collapsed ? t`Expand` : t`Collapse`}
                 onPress={() => setCollapsed(!collapsed)}
               >
@@ -38,7 +47,7 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
             ) : null}
             {onDismiss ? (
               <ThreadDockIconButton
-                label={t`Dismiss error`}
+                label={isWarning ? t`Dismiss warning` : t`Dismiss error`}
                 tooltip={t`Dismiss`}
                 onPress={onDismiss}
               >
