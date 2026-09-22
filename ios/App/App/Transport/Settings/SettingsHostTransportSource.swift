@@ -20,7 +20,8 @@ extension HostCatalog: SettingsCredentialRepository {
       endpoint: record.httpBaseURL,
       token: token,
       protocolVersion: record.protocolVersion,
-      scopes: Set(record.scopes)
+      scopes: Set(record.scopes),
+      environment: await environmentTransportContext(for: record)
     )
   }
 }
@@ -34,18 +35,30 @@ struct SettingsTransportSelection: Sendable {
 /// back to the selected host's token, and repeats the lease check after the credential await.
 actor SettingsExactHostTransportSource {
   typealias AccessProvider = @MainActor @Sendable () -> SettingsSessionAccess?
-  typealias APIFactory = @Sendable (String, String) -> any SettingsRemoteAPI
+  typealias APIFactory = @Sendable (String, String, RemoteEnvironmentContext?) -> any SettingsRemoteAPI
 
   private let credentials: any SettingsCredentialRepository
   private let accessProvider: AccessProvider
   private let makeAPI: APIFactory
 
+  /// The one production factory: bound endpoint + child bearer + resolved
+  /// parent context. Tests inject a URLProtocol-backed session to capture the
+  /// exact headers this factory produces.
+  static func productionAPIFactory(session: URLSession? = nil) -> APIFactory {
+    { endpoint, token, environment in
+      RemoteAPIClient(
+        endpoint: endpoint,
+        accessToken: token,
+        session: session,
+        environment: environment
+      )
+    }
+  }
+
   init(
     credentials: any SettingsCredentialRepository,
     accessProvider: @escaping AccessProvider,
-    makeAPI: @escaping APIFactory = { endpoint, token in
-      RemoteAPIClient(endpoint: endpoint, accessToken: token)
-    }
+    makeAPI: @escaping APIFactory = SettingsExactHostTransportSource.productionAPIFactory()
   ) {
     self.credentials = credentials
     self.accessProvider = accessProvider
@@ -81,7 +94,7 @@ actor SettingsExactHostTransportSource {
     )
     return SettingsTransportSelection(
       access: exactAccess,
-      api: makeAPI(credential.endpoint, credential.token)
+      api: makeAPI(credential.endpoint, credential.token, credential.environment)
     )
   }
 }

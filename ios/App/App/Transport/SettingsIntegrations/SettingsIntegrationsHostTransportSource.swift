@@ -6,6 +6,7 @@ struct SettingsIntegrationsHostCredentials: Sendable {
   let token: String
   let protocolVersion: Int
   let scopes: Set<String>
+  var environment: RemoteEnvironmentContext?
 }
 
 protocol SettingsIntegrationsCredentialRepository: Sendable {
@@ -27,25 +28,40 @@ extension HostCatalog: SettingsIntegrationsCredentialRepository {
       endpoint: record.httpBaseURL,
       token: token,
       protocolVersion: record.protocolVersion,
-      scopes: Set(record.scopes)
+      scopes: Set(record.scopes),
+      environment: await environmentTransportContext(for: record)
     )
   }
 }
 
 actor SettingsIntegrationsExactHostTransportSource {
   typealias AccessProvider = @MainActor @Sendable () -> SettingsIntegrationsAccess?
-  typealias APIFactory = @Sendable (String, String) -> any SettingsIntegrationsRemoteAPI
+  typealias APIFactory =
+    @Sendable (String, String, RemoteEnvironmentContext?) -> any SettingsIntegrationsRemoteAPI
 
   private let credentials: any SettingsIntegrationsCredentialRepository
   private let accessProvider: AccessProvider
   private let makeAPI: APIFactory
 
+  /// The one production factory: bound endpoint + child bearer + resolved
+  /// parent context. Tests inject a URLProtocol-backed session to capture the
+  /// exact headers this factory produces.
+  static func productionAPIFactory(session: URLSession? = nil) -> APIFactory {
+    { endpoint, token, environment in
+      RemoteAPIClient(
+        endpoint: endpoint,
+        accessToken: token,
+        session: session,
+        environment: environment
+      )
+    }
+  }
+
   init(
     credentials: any SettingsIntegrationsCredentialRepository,
     accessProvider: @escaping AccessProvider,
-    makeAPI: @escaping APIFactory = { endpoint, token in
-      RemoteAPIClient(endpoint: endpoint, accessToken: token)
-    }
+    makeAPI: @escaping APIFactory =
+      SettingsIntegrationsExactHostTransportSource.productionAPIFactory()
   ) {
     self.credentials = credentials
     self.accessProvider = accessProvider
@@ -85,7 +101,7 @@ actor SettingsIntegrationsExactHostTransportSource {
     )
     return .init(
       access: exactAccess,
-      api: makeAPI(credential.endpoint, credential.token)
+      api: makeAPI(credential.endpoint, credential.token, credential.environment)
     )
   }
 }

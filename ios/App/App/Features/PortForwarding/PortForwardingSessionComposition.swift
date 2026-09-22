@@ -170,12 +170,7 @@ final class PortForwardingComposition {
     transport = PortForwardingExactHostTransportSource(
       credentials: credentials,
       accessProvider: accessProvider,
-      makeAPI: { endpoint, token in
-        GeneratedPortForwardingRemoteAPI(
-          http: try PortForwardingURLSessionHTTPClient(endpoint: endpoint, token: token),
-          browser: browser
-        )
-      }
+      makeAPI: PortForwardingExactHostTransportSource.productionMakeAPI(browser: browser)
     )
     controller = PortForwardingController(
       lease: lease,

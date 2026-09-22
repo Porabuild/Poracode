@@ -51,6 +51,7 @@ enum ProjectControllerTestResponse<Value: Sendable>: Sendable {
 actor ProjectControllerGatewayFake: ProjectSessionGateway {
   struct CommandCall: Sendable {
     var command: ProjectCommand
+    var operationId: String
     var lease: ProjectControllerHostLease
   }
 
@@ -61,7 +62,7 @@ actor ProjectControllerGatewayFake: ProjectSessionGateway {
   private(set) var notesLoadCalls: [(ProjectIdentity, ProjectControllerHostLease)] = []
   private(set) var notesWriteCalls: [(ProjectIdentity, ProjectNotesWriteBody)] = []
 
-  var commandResponses: [ProjectControllerTestResponse<ProjectCommandResult>] = []
+  var commandResponses: [ProjectControllerTestResponse<ProjectCommandOutcome>] = []
   var settingsResponses: [ProjectControllerTestResponse<ProjectSettings>] = []
   var browseResponses: [ProjectControllerTestResponse<BrowseHostDirectoryResult>] = []
   var detectionResponses: [ProjectControllerTestResponse<DetectSetupScriptResult>] = []
@@ -73,7 +74,7 @@ actor ProjectControllerGatewayFake: ProjectSessionGateway {
   var browseBarriers: [ProjectControllerTestBarrier] = []
   var notesWriteBarriers: [ProjectControllerTestBarrier] = []
 
-  func enqueueCommand(_ response: ProjectControllerTestResponse<ProjectCommandResult>) {
+  func enqueueCommand(_ response: ProjectControllerTestResponse<ProjectCommandOutcome>) {
     commandResponses.append(response)
   }
 
@@ -115,10 +116,11 @@ actor ProjectControllerGatewayFake: ProjectSessionGateway {
 
   func runProjectCommand(
     _ command: ProjectCommand,
+    operationId: String,
     lease: ProjectControllerHostLease
-  ) async throws -> ProjectCommandResult {
+  ) async throws -> ProjectCommandOutcome {
     let index = commandCalls.count
-    commandCalls.append(.init(command: command, lease: lease))
+    commandCalls.append(.init(command: command, operationId: operationId, lease: lease))
     guard !commandResponses.isEmpty else { throw ProjectSessionGatewayError.invalidResponse }
     let response = commandResponses.removeFirst()
     if index < commandBarriers.count { await commandBarriers[index].suspend() }

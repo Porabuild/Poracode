@@ -117,6 +117,24 @@ struct SettingsHostView: View {
         .padding(.vertical, 2)
       }
       routeLink(.devices, systemImage: "desktopcomputer", stackNavigation: stackNavigation)
+      if let connectionId = session.selectedConnectionId,
+        session.hosts.first(where: { $0.connectionId == connectionId })?
+          .hostCapabilities?.offersHostOwnedEnvironments == true
+      {
+        NavigationLink {
+          EnvironmentsView(session: session, boundConnectionId: connectionId)
+        } label: {
+          VStack(alignment: .leading, spacing: 2) {
+            Label(EnvironmentStrings.title, systemImage: "server.rack")
+            Text(EnvironmentStrings.subtitle)
+              .font(.caption)
+              .foregroundStyle(.secondary)
+              .lineLimit(2)
+          }
+          .padding(.vertical, 2)
+        }
+        .accessibilityLabel(EnvironmentStrings.title)
+      }
       routeLink(.activity, systemImage: "chart.bar.xaxis", stackNavigation: stackNavigation)
       routeLink(.tokens, systemImage: "number.circle", stackNavigation: stackNavigation)
       routeLink(.workspace, systemImage: "folder.badge.gearshape", stackNavigation: stackNavigation)

@@ -13,6 +13,13 @@ enum ProtocolConstants {
   static let maxBufferedEnvelopes = 512
     static let remoteProtocolVersion = 12
     static let commandIdHeader = "x-poracode-command-id"
+    /// Per-request bounded project-command result declaration
+    /// (`capabilities.projectCommandResults` v1). Mirrors
+    /// `REMOTE_PROJECT_COMMAND_RESULT_HEADER` / `..._DECLARATION` in
+    /// `src/shared/remote/protocol/projectCommandResults.ts`; only the exact
+    /// value counts and only an advertised host is ever declared to.
+    static let projectCommandResultHeader = "x-poracode-project-command-result"
+    static let projectCommandResultDeclaration = "bounded-v1"
     static let bearerTokenType = "Bearer"
 
     /// Auth policy / method literals from `remoteEnvironmentDescriptorSchema`.
@@ -39,6 +46,18 @@ enum ProtocolConstants {
     static let snapshotPath = "/api/snapshot"
     static let websocketTicketPath = "/api/auth/websocket-ticket"
     static let websocketPath = "/ws"
+
+    /// Parent data-plane credential header (ADR §5). The child bearer stays in
+    /// `Authorization`; the parent access token travels in this header only.
+    static let environmentAuthorizationHeader = "x-poracode-environment-authorization"
+    /// Trusted parent-origin response marker (C1 R1). Only the parent's own auth
+    /// step sets it; a missing marker is never treated as proof of parent
+    /// authority. Native performs no refresh, so it only classifies repair.
+    static let environmentAuthAuthorityHeader = "x-poracode-environment-auth-authority"
+    static let environmentAuthAuthorityParent = "parent"
+    /// One-use parent WS upgrade ticket query parameter, paired with the child
+    /// `ticket` parameter.
+    static let environmentParentTicketParam = "parentTicket"
 
     /// Default max response body size (64 MiB), matching `DEFAULT_REMOTE_RESPONSE_MAX_BYTES`.
     static let maxResponseBodyBytes = 64 * 1024 * 1024

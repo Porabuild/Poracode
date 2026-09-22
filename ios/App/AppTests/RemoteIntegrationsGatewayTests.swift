@@ -105,7 +105,7 @@ final class RemoteIntegrationsGatewayTests: XCTestCase {
     let source = RemoteIntegrationsExactHostTransportSource(
       credentials: repository,
       accessProvider: { box.value },
-      makeAPI: { _, _ in RemoteIntegrationsAPIFake() }
+      makeAPI: { _, _, _ in RemoteIntegrationsAPIFake() }
     )
 
     let resolved = try await source.selection(for: lease)

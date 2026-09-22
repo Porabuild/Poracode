@@ -208,6 +208,7 @@ actor HostCatalog {
                 vaultAccount: HostVault.account(for: record.connectionId),
                 vaultBytes: Data(token.utf8),
                 deleteVaultAccount: nil,
+                deleteVaultAccounts: nil,
                 legacySource: nil,
                 targetTombstoneBytes: nil
             )
@@ -229,6 +230,7 @@ actor HostCatalog {
                 vaultAccount: nil,
                 vaultBytes: nil,
                 deleteVaultAccount: nil,
+                deleteVaultAccounts: nil,
                 legacySource: nil,
                 targetTombstoneBytes: nil
             )
@@ -257,6 +259,127 @@ actor HostCatalog {
                 vaultAccount: nil,
                 vaultBytes: nil,
                 deleteVaultAccount: nil,
+                deleteVaultAccounts: nil,
+                legacySource: nil,
+                targetTombstoneBytes: nil
+            )
+        }
+    }
+
+    /// Commit live describe capabilities for one record in the same crash-safe
+    /// journal as every other metadata mutation.
+    ///
+    /// The record must still exist and still carry the exact identity the
+    /// describe was resolved against: a record removed while the response was
+    /// in flight rejects the write, so a stale response can never resurrect a
+    /// deleted record. A same-identity in-place environment re-pair keeps this
+    /// identity triple and replaces only the grant, so it is fenced by the
+    /// caller's durable operation ownership — any metadata operation that
+    /// begins while the describe is in flight makes the write stale before it
+    /// reaches this method (`AppSession.refreshStoredHostCapabilities`). The
+    /// caller only reaches this after a strict, successful describe, so a
+    /// failed read can never be persisted as capability absence.
+    ///
+    /// Journaled as the metadata-only `.rename` kind: the transaction shape is
+    /// identical (registry bytes only, no vault change), so no journal-format
+    /// version bump is needed and crash recovery applies the target bytes the
+    /// same way.
+    func updateHostCapabilities(
+        _ connectionId: ClientConnectionID,
+        expectedDesktopId: String,
+        expectedEnvironment: EnvironmentHostReference?,
+        capabilities: HostServiceCapabilities,
+        owning id: UInt64
+    ) async throws -> HostMutationResult {
+        try await mutate(owning: id, kind: .describeCapabilities) { document in
+            guard let index = document.hosts.firstIndex(where: {
+                $0.connectionId == connectionId
+            }) else {
+                throw HostCatalogError.staleDescribe
+            }
+            let record = document.hosts[index]
+            guard record.desktopId == expectedDesktopId,
+                  record.environment == expectedEnvironment
+            else {
+                throw HostCatalogError.staleDescribe
+            }
+            var next = document
+            next.hosts[index].hostCapabilities = capabilities
+            return TransactionPlan(
+                kind: .rename,
+                connectionId: connectionId,
+                document: next,
+                vaultAccount: nil,
+                vaultBytes: nil,
+                deleteVaultAccount: nil,
+                deleteVaultAccounts: nil,
+                legacySource: nil,
+                targetTombstoneBytes: nil
+            )
+        }
+    }
+
+    /// Commit one locally paired host-owned environment.
+    ///
+    /// Fail-closed rules (R2):
+    /// - the parent record must exist and be a direct pairing; an environment
+    ///   can never be the parent of another (no second proxied hop);
+    /// - an existing `(parentConnectionId, environmentId)` record with a
+    ///   different verified child identity refuses (`identityChanged`);
+    /// - the same triple re-pairs in place, keeping the record's connection id
+    ///   and vault slot so projections and the child grant stay stable;
+    /// - environment records are never deduped by `environmentId` or
+    ///   `childDesktopId`, so a direct pairing of the same child keeps its own
+    ///   record and connection key.
+    ///
+    /// The new record is not made selected: adopting an environment is an
+    /// explicit follow-up action.
+    func pairAddEnvironment(
+        record: HostRecord,
+        token: String,
+        owning id: UInt64
+    ) async throws -> HostMutationResult {
+        guard let reference = record.environment else {
+            throw HostCatalogError.notAnEnvironmentRecord
+        }
+        return try await mutate(owning: id, kind: .addEnvironment) { document in
+            guard let parent = document.hosts.first(where: {
+                $0.connectionId == reference.parentConnectionId
+            }) else {
+                throw HostCatalogError.environmentParentMissing
+            }
+            guard parent.isDirectConnection else {
+                throw HostCatalogError.environmentSecondHopRefused
+            }
+            guard !token.isEmpty else { throw KeychainError.unhandled(errSecParam) }
+
+            var next = document
+            var committed = record
+            if let index = next.hosts.firstIndex(where: { host in
+                host.environment?.parentConnectionId == reference.parentConnectionId
+                    && host.environment?.environmentId == reference.environmentId
+            }) {
+                let existing = next.hosts[index]
+                let existingChild = existing.environment?.childDesktopId
+                let incomingChild = reference.childDesktopId
+                if let existingChild, let incomingChild, existingChild != incomingChild {
+                    throw HostCatalogError.environmentIdentityChanged
+                }
+                committed.connectionId = existing.connectionId
+                committed.lastSelectedAt = existing.lastSelectedAt
+                next.hosts[index] = committed
+            } else {
+                next.hosts.append(committed)
+            }
+            let account = HostVault.account(for: committed.connectionId)
+            return TransactionPlan(
+                kind: .addEnvironment,
+                connectionId: committed.connectionId,
+                document: next,
+                vaultAccount: account,
+                vaultBytes: Data(token.utf8),
+                deleteVaultAccount: nil,
+                deleteVaultAccounts: nil,
                 legacySource: nil,
                 targetTombstoneBytes: nil
             )
@@ -268,10 +391,30 @@ actor HostCatalog {
         owning id: UInt64
     ) async throws -> HostMutationResult {
         try await mutate(owning: id, kind: .remove) { document in
-            guard document.host(id: connectionId) != nil else {
+            guard let removed = document.hosts.first(where: {
+                $0.connectionId == connectionId
+            }) else {
                 throw HostCatalogError.unknownHost
             }
+            // Removing a parent cascades only this device's locally paired
+            // environment records and their child grants. Host-side
+            // environments are never touched (the host owns them).
+            var dependentAccounts: [String] = []
             var next = document
+            if removed.isDirectConnection {
+                let dependents = next.hosts.filter {
+                    $0.environment?.parentConnectionId == connectionId
+                }
+                dependentAccounts = dependents.map {
+                    HostVault.account(for: $0.connectionId)
+                }
+                let dependentIds = Set(dependents.map(\.connectionId))
+                next.hosts.removeAll { dependentIds.contains($0.connectionId) }
+                next.lru.removeAll { dependentIds.contains($0) }
+                if let selected = next.selectedConnectionId, dependentIds.contains(selected) {
+                    next.selectedConnectionId = next.lru.first ?? next.hosts.first?.connectionId
+                }
+            }
             next.hosts.removeAll { $0.connectionId == connectionId }
             next.lru.removeAll { $0 == connectionId }
             if next.selectedConnectionId == connectionId {
@@ -291,6 +434,7 @@ actor HostCatalog {
                 vaultAccount: nil,
                 vaultBytes: nil,
                 deleteVaultAccount: HostVault.account(for: connectionId),
+                deleteVaultAccounts: dependentAccounts.isEmpty ? nil : dependentAccounts,
                 legacySource: legacyClear?.source,
                 targetTombstoneBytes: legacyClear?.tombstoneBytes
             )
@@ -358,6 +502,7 @@ actor HostCatalog {
         var vaultAccount: String?
         var vaultBytes: Data?
         var deleteVaultAccount: String?
+        var deleteVaultAccounts: [String]?
         var legacySource: LegacyHostSourceSnapshot?
         var targetTombstoneBytes: Data?
     }
@@ -385,6 +530,7 @@ actor HostCatalog {
             targetVaultAccount: plan.vaultAccount,
             targetVaultBytes: plan.vaultBytes,
             deleteVaultAccount: plan.deleteVaultAccount,
+            deleteVaultAccounts: plan.deleteVaultAccounts,
             legacySource: plan.legacySource,
             targetTombstoneBytes: plan.targetTombstoneBytes
         )
@@ -407,6 +553,9 @@ actor HostCatalog {
             }
             if let delete = record.deleteVaultAccount {
                 try vault.delete(account: delete)
+            }
+            for account in record.deleteVaultAccounts ?? [] {
+                try vault.delete(account: account)
             }
             if let source = record.legacySource,
                let tombstoneBytes = record.targetTombstoneBytes,
@@ -453,6 +602,7 @@ actor HostCatalog {
             targetVaultAccount: vaultAccount,
             targetVaultBytes: vaultBytes,
             deleteVaultAccount: nil,
+            deleteVaultAccounts: nil,
             legacySource: nil,
             targetTombstoneBytes: nil
         )
@@ -519,4 +669,15 @@ enum HostCatalogError: Error, Sendable, Equatable {
     case unknownHost
     case invalidLabel
     case missingCredential
+    /// An environment record was committed without a parent reference.
+    case notAnEnvironmentRecord
+    /// The parent record for an environment is not paired on this device.
+    case environmentParentMissing
+    /// The parent is itself an environment: a second proxied hop is refused.
+    case environmentSecondHopRefused
+    /// The verified child identity differs from the recorded one.
+    case environmentIdentityChanged
+    /// A describe response no longer matches the record it was resolved
+    /// against: the record was removed or re-paired while it was in flight.
+    case staleDescribe
 }

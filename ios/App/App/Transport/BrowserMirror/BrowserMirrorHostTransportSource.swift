@@ -30,7 +30,8 @@ extension HostCatalog: BrowserMirrorCredentialRepository {
       token: token,
       protocolVersion: record.protocolVersion,
       scopes: Set(record.scopes),
-      desktopID: record.desktopId
+      desktopID: record.desktopId,
+      environment: await environmentTransportContext(for: record)
     )
   }
 }
@@ -39,14 +40,20 @@ enum BrowserMirrorTransportFactory {
   /// Production gateway: exact-host credential resolution plus a generated-root HTTP API.
   static func makeGateway(
     credentials: any BrowserMirrorCredentialRepository,
-    accessProvider: @escaping @MainActor @Sendable () -> BrowserMirrorHostAccess?
+    accessProvider: @escaping @MainActor @Sendable () -> BrowserMirrorHostAccess?,
+    session: URLSession? = nil
   ) -> any BrowserMirrorGateway {
     BrowserMirrorSelectedGateway(
       credentials: credentials,
       accessProvider: accessProvider,
-      makeAPI: { endpoint, token in
+      makeAPI: { endpoint, token, environment in
         GeneratedBrowserMirrorRemoteAPI(
-          http: BrowserMirrorHTTPClient(endpoint: endpoint, token: token)
+          http: BrowserMirrorHTTPClient(
+            endpoint: endpoint,
+            token: token,
+            session: session ?? .shared,
+            environmentAuthority: EnvironmentParentAuthority(context: environment)
+          )
         )
       }
     )

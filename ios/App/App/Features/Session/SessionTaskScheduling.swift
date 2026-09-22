@@ -87,14 +87,9 @@ struct TaskCancelExclusion: Sendable, Equatable {
     var backgroundSuspend: UInt64?
     var snapshot: UInt64?
     var shellRefresh: UInt64?
-    var threadMetaRefresh: UInt64?
-    var threadLoad: UInt64?
     var unauthorizedRetry: UInt64?
     var interestFlush: UInt64?
     var gitInterestFlush: UInt64?
-    var send: UInt64?
-    var interrupt: UInt64?
-    var pagination: UInt64?
 
     static let none = TaskCancelExclusion()
 }
@@ -102,20 +97,6 @@ struct TaskCancelExclusion: Sendable, Equatable {
 // MARK: - Owned task scheduling (weak self)
 
 extension AppSession {
-    func ownsThreadMutation(
-        token: ThreadOpenOwnership.Token,
-        generation: Int
-    ) -> Bool {
-        generation == state.workGeneration
-            && state.openThreadId == token.threadId
-            && state.openThreadEpoch == token.epoch
-            && state.threadOwnership.isCurrent(
-                token,
-                sessionGeneration: generation,
-                apiEndpoint: state.profile?.httpBaseURL
-            )
-    }
-
     func joinTasks(_ tasks: [any SendableTask]) async {
         for task in tasks {
             await task.join()
@@ -159,7 +140,7 @@ extension AppSession {
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             defer { self.interestFlushTask.clearIfCurrent(installToken) }
-            await self.threads.flushInterests(threadIds: threadIds)
+            await self.flushThreadItemInterests(threadIds: threadIds)
         }
         installToken = interestFlushTask.install(task)
     }
@@ -191,7 +172,7 @@ extension AppSession {
             guard self.state.workGeneration == generation,
                   !self.state.liveLifecycle.isInBackground
             else { return }
-            await self.threads.flushInterests(
+            await self.flushThreadItemInterests(
                 threadIds: self.state.interestCoordinator.latestDesired
             )
             guard self.state.workGeneration == generation,
@@ -200,22 +181,6 @@ extension AppSession {
             await self.live.flushGitStateInterests(generation: generation)
         }
         installToken = interestFlushTask.install(task)
-    }
-
-    func scheduleThreadHistoryLoad(
-        token: ThreadOpenOwnership.Token,
-        historyLoadGeneration: Int
-    ) {
-        var installToken: UInt64 = 0
-        let task = Task { @MainActor [weak self] in
-            guard let self else { return }
-            defer { self.threadLoadTask.clearIfCurrent(installToken) }
-            await self.threads.loadThreadHistory(
-                token: token,
-                historyLoadGeneration: historyLoadGeneration
-            )
-        }
-        installToken = threadLoadTask.install(task)
     }
 
     func scheduleResyncRun(reason: String) {
@@ -264,18 +229,6 @@ extension AppSession {
             await self.live.refreshSnapshot()
         }
         installToken = shellRefreshTask.install(task)
-    }
-
-    func scheduleOpenThreadMetadataRefresh(delayNs: UInt64) {
-        var installToken: UInt64 = 0
-        let task = Task { @MainActor [weak self] in
-            guard let self else { return }
-            defer { self.threadMetaRefreshTask.clearIfCurrent(installToken) }
-            try? await Task.sleep(nanoseconds: delayNs)
-            guard !Task.isCancelled else { return }
-            await self.threads.refreshOpenThreadMetadata()
-        }
-        installToken = threadMetaRefreshTask.install(task)
     }
 
     func scheduleStartWebSocket(api: any SessionRemoteAPI, generation: Int) {

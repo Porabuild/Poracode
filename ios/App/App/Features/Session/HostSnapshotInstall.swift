@@ -21,53 +21,117 @@ struct ReplayInstallBuffer: Sendable, Equatable {
   struct Envelope: Sendable, Equatable {
     let seq: Int
     let event: SequencedReplayEvent
+    let byteCount: Int
+    /// Monotonic arrival; shares its base with `RecoveryClock`.
+    let receivedAtMilliseconds: Int64
+  }
+
+  /// Outcome of consuming the boundary for one matching install generation.
+  /// `coverageLost` covers every eviction, including frames dropped for expiry
+  /// at take.
+  struct Take: Sendable, Equatable {
+    let envelopes: [Envelope]
+    let coverageLost: Bool
   }
 
   private(set) var isActive = false
   private(set) var installGeneration: UInt64 = 0
   private(set) var buffered: [Envelope] = []
-  /// The cap forced an oldest-entry drop; the boundary replay is incomplete
+  private var ledger: RecoveryBufferLedger
+
+  init(budget: RecoveryBufferBudget = .replayInstallEnvelopes) {
+    ledger = RecoveryBufferLedger(budget: budget)
+  }
+
+  /// An eviction dropped replay coverage; the boundary replay is incomplete
   /// and the commit must demand a resync (WS7 P1-14).
-  private(set) var overflowed = false
+  var overflowed: Bool { ledger.overflowed }
+
+  /// Retained estimated payload bytes (accounting; exposed for tests).
+  var retainedBytes: Int { ledger.retainedBytes }
 
   mutating func begin(installGeneration: UInt64) {
     self.isActive = true
     self.installGeneration = installGeneration
     self.buffered = []
-    overflowed = false
+    ledger.reset()
   }
 
   mutating func discard() {
     isActive = false
     installGeneration = 0
     buffered = []
-    overflowed = false
+    ledger.reset()
   }
 
   /// Returns true when the caller must not apply the event yet.
+  ///
+  /// `estimatedByteCount` is the raw wire frame's conservative encoded-size
+  /// estimate, computed once by the caller from the payload it already holds;
+  /// the buffer never re-serializes for accounting. `receivedAtMilliseconds`
+  /// is the monotonic arrival and doubles as the append-time age clock.
   mutating func bufferIfInstalling(
     installGeneration: UInt64,
     seq: Int,
-    event: SequencedReplayEvent
+    event: SequencedReplayEvent,
+    estimatedByteCount: Int,
+    receivedAtMilliseconds: Int64 = RecoveryClock.nowMilliseconds()
   ) -> Bool {
     guard isActive, self.installGeneration == installGeneration else { return false }
-    buffered.append(Envelope(seq: seq, event: event))
-    if buffered.count > ProtocolConstants.maxBufferedEnvelopes {
-      buffered.removeFirst()
-      overflowed = true
-    }
+    let envelope = Envelope(
+      seq: seq,
+      event: event,
+      byteCount: max(0, estimatedByteCount),
+      receivedAtMilliseconds: receivedAtMilliseconds
+    )
+    buffered.append(envelope)
+    ledger.recordRetained(bytes: envelope.byteCount)
+    evictOverflowingHead(nowMilliseconds: receivedAtMilliseconds)
     return true
   }
 
+  /// Oldest-first eviction once any budget bound is exceeded. Every dropped
+  /// envelope (including a single oversized newest one) loses coverage.
+  private mutating func evictOverflowingHead(nowMilliseconds: Int64) {
+    while let head = buffered.first,
+          ledger.mustEvictHead(
+            retainedCount: buffered.count,
+            oldestArrivalMilliseconds: head.receivedAtMilliseconds,
+            nowMilliseconds: nowMilliseconds
+          ) {
+      buffered.removeFirst()
+      ledger.recordDropped(bytes: head.byteCount)
+    }
+  }
+
+  /// Drops every retained envelope that outlived the age budget. A hung or
+  /// quiet snapshot fetch lands here at take and loses coverage rather than
+  /// replaying an arbitrarily stale frame.
+  private mutating func dropExpired(nowMilliseconds: Int64) {
+    while let head = buffered.first,
+          ledger.isExpired(
+            arrivalMilliseconds: head.receivedAtMilliseconds,
+            nowMilliseconds: nowMilliseconds
+          ) {
+      buffered.removeFirst()
+      ledger.recordDropped(bytes: head.byteCount)
+    }
+  }
+
   /// Ends buffering for the matching owner and returns its envelopes exactly
-  /// once. `nil` when a newer install already owns the buffer.
-  mutating func take(installGeneration: UInt64) -> [Envelope]? {
+  /// once. Expired envelopes are dropped first and reported through
+  /// `coverageLost`. `nil` when a newer install already owns the buffer.
+  mutating func take(
+    installGeneration: UInt64,
+    nowMilliseconds: Int64 = RecoveryClock.nowMilliseconds()
+  ) -> Take? {
     guard isActive, self.installGeneration == installGeneration else { return nil }
-    let envelopes = buffered
+    dropExpired(nowMilliseconds: nowMilliseconds)
+    let take = Take(envelopes: buffered, coverageLost: ledger.overflowed)
     isActive = false
     buffered = []
-    overflowed = false
-    return envelopes
+    ledger.reset()
+    return take
   }
 }
 
@@ -91,6 +155,26 @@ enum HostSnapshotInstall {
     var replay = existing
     replay.installSnapshotGitState(
       summaries: try shell.decodedGitSummaries(),
+      gitState: try shell.decodedGitState()
+    )
+    return PreparedReplayInstall(replay: replay, snapshotSeq: shell.snapshotSeq)
+  }
+
+  /// B4 bounded shell page 1. The page's `gitSummariesByThread` is sliced to
+  /// the page, so it is merged into the cache (page entries win) instead of
+  /// replacing it; an absent field still leaves the cache alone and the full
+  /// `gitState` (when present) installs unchanged.
+  static func prepareMergingGitSummaries(
+    shell: RemoteShellSnapshot,
+    existing: HostReplayState
+  ) throws -> PreparedReplayInstall {
+    var replay = existing
+    var merged = replay.gitSummariesByThread
+    if let page = try shell.decodedGitSummaries() {
+      for (threadId, summary) in page { merged[threadId] = summary }
+    }
+    replay.installSnapshotGitState(
+      summaries: merged,
       gitState: try shell.decodedGitState()
     )
     return PreparedReplayInstall(replay: replay, snapshotSeq: shell.snapshotSeq)

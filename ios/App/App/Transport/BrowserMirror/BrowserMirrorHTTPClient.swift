@@ -29,19 +29,22 @@ actor BrowserMirrorHTTPClient: BrowserMirrorHTTPExecuting {
   private let session: URLSession
   private let timeout: TimeInterval
   private let maximumResponseBytes: Int
+  private let authorization: EnvironmentParentAuthority
 
   init(
     endpoint: String,
     token: String,
     session: URLSession = .shared,
     timeout: TimeInterval = 30,
-    maximumResponseBytes: Int = 512 * 1_024
+    maximumResponseBytes: Int = 512 * 1_024,
+    environmentAuthority: EnvironmentParentAuthority = .direct
   ) {
     self.endpoint = endpoint
     self.token = token
     self.session = session
     self.timeout = timeout
     self.maximumResponseBytes = maximumResponseBytes
+    self.authorization = environmentAuthority
   }
 
   func execute(_ request: BrowserMirrorHTTPRequest) async throws -> Data {
@@ -58,6 +61,12 @@ actor BrowserMirrorHTTPClient: BrowserMirrorHTTPExecuting {
     var value = URLRequest(url: try url(path: metadata.path), timeoutInterval: timeout)
     value.httpMethod = metadata.method
     value.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    do {
+      try await authorization.authorize(&value)
+    } catch let error as RemoteClientError {
+      // Missing/unreadable parent pairing fails closed before any dial.
+      throw BrowserMirrorHTTPError.rejected(statusCode: error.status, code: error.code)
+    }
     if let body = request.body {
       value.setValue("application/json", forHTTPHeaderField: "Content-Type")
       value.httpBody = body

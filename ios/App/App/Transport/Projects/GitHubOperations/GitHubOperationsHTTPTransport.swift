@@ -12,18 +12,21 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
   private let loader: Loader
   private let timeout: TimeInterval
   private let maximumResponseBytes: Int
+  private let authorization: EnvironmentParentAuthority
 
   init(
     endpoint: URL,
     accessToken: String,
     session: URLSession = .shared,
     timeout: TimeInterval = 30,
-    maximumResponseBytes: Int = 4 * 1_024 * 1_024
+    maximumResponseBytes: Int = 4 * 1_024 * 1_024,
+    environmentAuthority: EnvironmentParentAuthority = .direct
   ) {
     self.endpoint = endpoint
     self.accessToken = accessToken
     self.timeout = timeout
     self.maximumResponseBytes = maximumResponseBytes
+    self.authorization = environmentAuthority
     self.loader = { request in try await session.data(for: request) }
   }
 
@@ -32,12 +35,14 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
     accessToken: String,
     timeout: TimeInterval = 30,
     maximumResponseBytes: Int = 4 * 1_024 * 1_024,
-    loader: @escaping Loader
+    loader: @escaping Loader,
+    environmentAuthority: EnvironmentParentAuthority = .direct
   ) {
     self.endpoint = endpoint
     self.accessToken = accessToken
     self.timeout = timeout
     self.maximumResponseBytes = maximumResponseBytes
+    self.authorization = environmentAuthority
     self.loader = loader
   }
 
@@ -46,7 +51,14 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
   ) async throws -> GitHubOperationResult {
     let metadata = GitHubOperationsRemoteV3Contract.metadata(for: request.procedure)
     let body = try GitHubOperationsRemoteV3Contract.request(request)
-    let urlRequest = try makeRequest(body: body)
+    let urlRequest: URLRequest
+    do {
+      urlRequest = try await makeRequest(body: body)
+    } catch let error as RemoteClientError {
+      // Parent pairing is missing/unreadable: fail closed with the transport's
+      // own 401 classification instead of dialing without the parent header.
+      throw GitHubOperationsFailure.rejected(statusCode: error.status, code: error.code)
+    }
     let data: Data
     let response: URLResponse
 
@@ -95,7 +107,7 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
     }
   }
 
-  private func makeRequest(body: Data) throws -> URLRequest {
+  private func makeRequest(body: Data) async throws -> URLRequest {
     guard var components = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else {
       throw GitHubOperationsFailure.notReady
     }
@@ -110,6 +122,7 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
     request.httpBody = body
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+    try await authorization.authorize(&request)
     return request
   }
 

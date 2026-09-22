@@ -2,6 +2,13 @@ import Foundation
 
 // MARK: - Remote API seam
 
+/// Capabilities a host advertised on the current authority's latest
+/// environment handshake, as the declaration machinery observed them.
+struct SessionAdvertisedCapabilities: Equatable, Sendable {
+    var runtimeHistoryNotices = false
+    var boundedCatalogChanges = false
+}
+
 /// HTTP surface AppSession uses. Production wraps `RemoteAPIClient`.
 @MainActor
 protocol SessionRemoteAPI: AnyObject {
@@ -17,6 +24,11 @@ protocol SessionRemoteAPI: AnyObject {
     func agentStatuses() async throws -> SessionAgentStatuses
     /// V6 C.2: host-declared service capabilities. A missing route fails closed.
     func describeHost() async throws -> HostServiceCapabilities
+    /// Strict host-capability read used by connect-time metadata refresh.
+    /// Unlike `describeHost()` this never substitutes `.unknown` for a failed
+    /// read, so a caller can keep previously known capabilities instead of
+    /// persisting false absence. Defaults to unsupported (no refresh).
+    func fetchHostCapabilities() async throws -> HostServiceCapabilities
     func threadHistory(
         threadId: String,
         targetTimelineEntryCount: Int?
@@ -27,6 +39,14 @@ protocol SessionRemoteAPI: AnyObject {
         limit: Int,
         targetTimelineEntryCount: Int?
     ) async throws -> RemoteRuntimeItemsPage
+    /// Records an authoritative environment handshake on this same client.
+    func observeEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) async
+    /// Client intent to declare `notices=v1` (effective only when advertised).
+    func declareRuntimeHistoryNotices(_ enabled: Bool) async
+    /// Client intent to declare `catalogChanges=bounded-v1`.
+    func declareBoundedCatalogChanges(_ enabled: Bool) async
+    /// The current handshake's advertisement snapshot for late reconciliation.
+    func advertisedCapabilities() async -> SessionAdvertisedCapabilities
     func sendThreadInput(
         threadId: String,
         prompt: String,
@@ -35,24 +55,62 @@ protocol SessionRemoteAPI: AnyObject {
     func interruptThread(threadId: String) async throws
 }
 
+/// Strict-read capability the injected session surface may not implement.
+/// Defaults must fail, never fabricate an empty capability set.
+enum SessionRemoteAPIFailure: Error, Equatable, Sendable {
+    case capabilityReadUnavailable
+}
+
+extension SessionRemoteAPI {
+    func fetchHostCapabilities() async throws -> HostServiceCapabilities {
+        throw SessionRemoteAPIFailure.capabilityReadUnavailable
+    }
+
+    /// B1/B4 capability advertisement from an authoritative environment
+    /// handshake. Default no-op: a surface without the declaration machinery
+    /// stays undeclared (never declared by inference).
+    func observeEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) async {}
+
+    /// Client intent to declare `notices=v1`. Effective only with a host that
+    /// advertised the capability on this same client.
+    func declareRuntimeHistoryNotices(_ enabled: Bool) async {}
+
+    /// Client intent to declare `catalogChanges=bounded-v1`. Effective only
+    /// with a host advertisement and a negotiated bounded catalog controller.
+    func declareBoundedCatalogChanges(_ enabled: Bool) async {}
+
+    /// What the current authority's latest handshake advertised, as observed
+    /// on this client. Defaults to nothing advertised.
+    func advertisedCapabilities() async -> SessionAdvertisedCapabilities {
+        SessionAdvertisedCapabilities()
+    }
+}
+
 /// Production adapter around the `RemoteAPIClient` actor.
 @MainActor
 final class RemoteAPIClientBox: SessionRemoteAPI {
     let client: RemoteAPIClient
     private let richChatEndpoint: String?
+    private let clientEnvironment: RemoteEnvironmentContext?
     private(set) var richChatAPI: (any RichChatRemoteAPI)?
 
     init(
         _ client: RemoteAPIClient,
         richChatEndpoint: String? = nil,
-        accessToken: String? = nil
+        accessToken: String? = nil,
+        environment: RemoteEnvironmentContext? = nil
     ) {
         self.client = client
         self.richChatEndpoint = richChatEndpoint
+        self.clientEnvironment = environment
         if let richChatEndpoint, let accessToken, !accessToken.isEmpty {
             richChatAPI = GeneratedRichChatRemoteAPI(
                 json: client,
-                raw: RichChatRawHTTPClient(endpoint: richChatEndpoint, accessToken: accessToken)
+                raw: RichChatRawHTTPClient(
+                    endpoint: richChatEndpoint,
+                    accessToken: accessToken,
+                    environmentAuthority: environment?.parentAuthorizationToken
+                )
             )
         } else {
             richChatAPI = GeneratedRichChatRemoteAPI(json: client)
@@ -68,15 +126,42 @@ final class RemoteAPIClientBox: SessionRemoteAPI {
         if let richChatEndpoint, let token, !token.isEmpty {
             richChatAPI = GeneratedRichChatRemoteAPI(
                 json: client,
-                raw: RichChatRawHTTPClient(endpoint: richChatEndpoint, accessToken: token)
+                raw: RichChatRawHTTPClient(
+                    endpoint: richChatEndpoint,
+                    accessToken: token,
+                    environmentAuthority: richChatEnvironmentAuthority
+                )
             )
         } else {
             richChatAPI = GeneratedRichChatRemoteAPI(json: client)
         }
     }
 
+    /// Parent authority for the raw rich-chat transport when this box wraps an
+    /// environment-bound client.
+    private var richChatEnvironmentAuthority: (@Sendable () async -> String?)? {
+        guard let environment = clientEnvironment else { return nil }
+        return environment.parentAuthorizationToken
+    }
+
     func environment() async throws -> RemoteEnvironmentDescriptor {
         try await client.environment()
+    }
+
+    func observeEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) async {
+        await client.observeEnvironmentCapabilities(descriptor)
+    }
+
+    func declareRuntimeHistoryNotices(_ enabled: Bool) async {
+        await client.declareRuntimeHistoryNotices(enabled)
+    }
+
+    func declareBoundedCatalogChanges(_ enabled: Bool) async {
+        await client.declareBoundedCatalogChanges(enabled)
+    }
+
+    func advertisedCapabilities() async -> SessionAdvertisedCapabilities {
+        await client.advertisedCapabilities
     }
 
     func exchangePairingCredential(
@@ -94,9 +179,13 @@ final class RemoteAPIClientBox: SessionRemoteAPI {
         try await client.agentStatuses()
     }
 
-    func describeHost() async throws -> HostServiceCapabilities {
-        try await client.describeHost()
-    }
+  func describeHost() async throws -> HostServiceCapabilities {
+    try await client.describeHost()
+  }
+
+  func fetchHostCapabilities() async throws -> HostServiceCapabilities {
+    try await client.fetchHostCapabilities()
+  }
 
     func threadHistory(
         threadId: String,
@@ -159,6 +248,9 @@ protocol SessionLiveSocket: AnyObject {
     /// Must never be used to resume a replacement socket from a stale captured baseline.
     func recoverFromResyncAbort() async
     func matchesIdentity(_ other: any SessionLiveSocket) -> Bool
+    /// Declarations of the actual upgrade attempt this socket sent, or nil
+    /// before one exists / for sockets without the declaration surface.
+    func upgradeDeclarations() async -> RemoteSocketUpgradeDeclarations?
 
     // Browser Mirror multiplexing. Declared as requirements so calls through
     // `any SessionLiveSocket` dispatch to the conformer, with defaults below keeping
@@ -170,6 +262,8 @@ protocol SessionLiveSocket: AnyObject {
 
 /// Defaults for sockets that do not carry browser traffic: no sink, no sends, generation zero.
 extension SessionLiveSocket {
+    func upgradeDeclarations() async -> RemoteSocketUpgradeDeclarations? { nil }
+
     /// Sockets that do not carry Git-state interests ignore them.
     func setGitStateInterests(_: [GitStateInterest]) async {}
 
@@ -248,6 +342,10 @@ final class RemoteWebSocketClientBox: SessionLiveSocket {
         return client === other.client
     }
 
+    func upgradeDeclarations() async -> RemoteSocketUpgradeDeclarations? {
+        await client.upgradeDeclarations
+    }
+
     func wraps(_ raw: RemoteWebSocketClient) -> Bool {
         client === raw
     }
@@ -274,10 +372,17 @@ struct SessionDependencies: Sendable {
             credentialStore: SessionCredentialRepository.shared,
             hostCatalog: HostCatalog.shared,
             makeAPI: { endpoint, token in
-                RemoteAPIClientBox(
-                    RemoteAPIClient(endpoint: endpoint, accessToken: token),
+                let environment = EnvironmentConnectionRegistry.shared
+                    .context(forEndpoint: endpoint)
+                return RemoteAPIClientBox(
+                    RemoteAPIClient(
+                        endpoint: endpoint,
+                        accessToken: token,
+                        environment: environment
+                    ),
                     richChatEndpoint: endpoint,
-                    accessToken: token
+                    accessToken: token,
+                    environment: environment
                 )
             },
             makeSocket: { api in

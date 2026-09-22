@@ -6,6 +6,11 @@ import Foundation
 /// omit a flag decode to the fail-closed default — both here and through the
 /// generated describe codec that governs the canonical boundary.
 struct HostServiceCapabilities: Codable, Sendable, Equatable {
+    /// Advertised versions for one additive capability object.
+    struct VersionedCapability: Codable, Sendable, Equatable {
+        var versions: [Int]
+    }
+
     var ssh: Bool
     var browserPanel: Bool
     var chromeBridge: Bool
@@ -14,6 +19,9 @@ struct HostServiceCapabilities: Codable, Sendable, Equatable {
     var portForward: Bool
     var autoUpdate: Bool
     var osNotifications: Bool
+    /// C1: emitted only when the host-owned environment gateway is composed and
+    /// every environment route is usable. Absent means the feature is hidden.
+    var sshEnvironments: VersionedCapability?
 
     static let unknown = HostServiceCapabilities(
         ssh: false,
@@ -23,7 +31,8 @@ struct HostServiceCapabilities: Codable, Sendable, Equatable {
         nativeSecrets: false,
         portForward: false,
         autoUpdate: false,
-        osNotifications: false
+        osNotifications: false,
+        sshEnvironments: nil
     )
 
     init(
@@ -34,7 +43,8 @@ struct HostServiceCapabilities: Codable, Sendable, Equatable {
         nativeSecrets: Bool = false,
         portForward: Bool = false,
         autoUpdate: Bool = false,
-        osNotifications: Bool = false
+        osNotifications: Bool = false,
+        sshEnvironments: VersionedCapability? = nil
     ) {
         self.ssh = ssh
         self.browserPanel = browserPanel
@@ -44,6 +54,12 @@ struct HostServiceCapabilities: Codable, Sendable, Equatable {
         self.portForward = portForward
         self.autoUpdate = autoUpdate
         self.osNotifications = osNotifications
+        self.sshEnvironments = sshEnvironments
+    }
+
+    /// True when the host advertises host-owned environment support v1.
+    var offersHostOwnedEnvironments: Bool {
+        sshEnvironments?.versions.contains(1) == true
     }
 
     init(from decoder: Decoder) throws {
@@ -56,6 +72,10 @@ struct HostServiceCapabilities: Codable, Sendable, Equatable {
         portForward = try container.decodeIfPresent(Bool.self, forKey: .portForward) ?? false
         autoUpdate = try container.decodeIfPresent(Bool.self, forKey: .autoUpdate) ?? false
         osNotifications = try container.decodeIfPresent(Bool.self, forKey: .osNotifications) ?? false
+        sshEnvironments = try container.decodeIfPresent(
+            VersionedCapability.self,
+            forKey: .sshEnvironments
+        )
     }
 }
 

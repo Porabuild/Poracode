@@ -69,18 +69,77 @@ final class ProjectRemoteTransportTests: XCTestCase {
     ProjectCapturingURLProtocol.responseBody = try JSONEncoder().encode(response)
 
     let client = makeClient()
-    let result = try await client.remoteRunProjectCommand(.remove(projectId: "project-remove"))
+    let outcome = try await client.remoteRunProjectCommand(
+      .remove(projectId: "project-remove"), operationId: "op-legacy"
+    )
+    guard case .complete(let result) = outcome else {
+      return XCTFail("An undeclared host must answer the complete legacy result")
+    }
     XCTAssertEqual(result.project?.id, "project-posix")
     XCTAssertEqual(
       ProjectCapturingURLProtocol.lastRequest?.url?.absoluteString,
       "https://relay.test/prefix/api/projects/command"
     )
     XCTAssertEqual(ProjectCapturingURLProtocol.lastRequest?.httpMethod, "POST")
+    XCTAssertNil(
+      ProjectCapturingURLProtocol.lastRequest?
+        .value(forHTTPHeaderField: ProtocolConstants.projectCommandResultHeader),
+      "an unprobed host is never sent the bounded declaration"
+    )
+    XCTAssertNil(
+      ProjectCapturingURLProtocol.lastRequest?
+        .value(forHTTPHeaderField: ProtocolConstants.commandIdHeader)
+    )
     let body = try XCTUnwrap(ProjectCapturingURLProtocol.lastBody)
     XCTAssertEqual(
       try JSONDecoder().decode(ProjectCommand.self, from: body),
       .remove(projectId: "project-remove")
     )
+  }
+
+  func testBoundedProjectCommandDeclaresPerOperationHeadersAfterAdvertisement() async throws {
+    ProjectCapturingURLProtocol.responseStatus = 200
+    ProjectCapturingURLProtocol.responseBody = Data(
+      #"{"ok":true,"project":{"id":"created-1","name":"New","location":{"kind":"posix","path":"/w"},"createdAt":"2026-01-01T00:00:00Z"}}"#
+        .utf8
+    )
+    let client = makeClient()
+    await client.observeEnvironmentCapabilities(makeEnvironment(projectCommandResults: true))
+
+    let outcome = try await client.remoteRunProjectCommand(
+      .create(parentPath: "/w", name: "New"), operationId: "op-42"
+    )
+
+    guard case .bounded(let bounded) = outcome else {
+      return XCTFail("An advertised host must answer the bounded acknowledgement")
+    }
+    XCTAssertEqual(bounded.project?.id, "created-1")
+    XCTAssertEqual(
+      ProjectCapturingURLProtocol.lastRequest?
+        .value(forHTTPHeaderField: ProtocolConstants.projectCommandResultHeader),
+      ProtocolConstants.projectCommandResultDeclaration
+    )
+    XCTAssertEqual(
+      ProjectCapturingURLProtocol.lastRequest?
+        .value(forHTTPHeaderField: ProtocolConstants.commandIdHeader),
+      "op-42"
+    )
+  }
+
+  func testMalformedBoundedAcknowledgementIsAmbiguous() async throws {
+    ProjectCapturingURLProtocol.responseStatus = 200
+    ProjectCapturingURLProtocol.responseBody = Data(#"{"ok":true,"project":"invalid"}"#.utf8)
+    let client = makeClient()
+    await client.observeEnvironmentCapabilities(makeEnvironment(projectCommandResults: true))
+
+    do {
+      _ = try await client.remoteRunProjectCommand(
+        .remove(projectId: "project-remove"), operationId: "op-43"
+      )
+      XCTFail("Expected ambiguous outcome")
+    } catch ProjectRemoteMutationError.ambiguousOutcome {
+      XCTAssertEqual(ProjectCapturingURLProtocol.requests.count, 1)
+    }
   }
 
   func testSettingsPathIsValidatedAndEncodedAsOneSegment() async throws {
@@ -180,11 +239,36 @@ final class ProjectRemoteTransportTests: XCTestCase {
     ProjectCapturingURLProtocol.responseStatus = 200
     ProjectCapturingURLProtocol.responseBody = Data(#"{"projects":"invalid"}"#.utf8)
     do {
-      _ = try await makeClient().remoteRunProjectCommand(.remove(projectId: "project-remove"))
+      _ = try await makeClient().remoteRunProjectCommand(
+        .remove(projectId: "project-remove"), operationId: "op-44"
+      )
       XCTFail("Expected ambiguous outcome")
     } catch ProjectRemoteMutationError.ambiguousOutcome {
       XCTAssertEqual(ProjectCapturingURLProtocol.requests.count, 1)
     }
+  }
+
+  private func makeEnvironment(
+    projectCommandResults: Bool
+  ) -> RemoteEnvironmentDescriptor {
+    RemoteEnvironmentDescriptor(
+      protocolVersion: ProtocolConstants.remoteProtocolVersion,
+      hostMode: nil,
+      desktopId: "desk-a",
+      label: "Desktop A",
+      appVersion: "1.0.0",
+      platform: "macOS",
+      auth: .init(
+        policy: ProtocolConstants.authPolicy,
+        bootstrapMethods: [ProtocolConstants.bootstrapMethod],
+        sessionMethods: [ProtocolConstants.sessionMethod],
+        scopes: ProtocolConstants.standardScopes
+      ),
+      endpoints: .init(httpBaseUrl: "https://relay.test", wsBaseUrl: "wss://relay.test"),
+      capabilities: .init(
+        projectCommandResults: .init(versions: [RemoteEnvironmentDescriptor.projectCommandResultsVersion])
+      )
+    )
   }
 
   private func makeClient() -> RemoteAPIClient {

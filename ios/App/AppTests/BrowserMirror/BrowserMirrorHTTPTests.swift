@@ -171,7 +171,7 @@ final class BrowserMirrorHTTPTests: XCTestCase {
     BrowserMirrorSelectedGateway(
       credentials: BrowserMirrorCredentialSpy(),
       accessProvider: { accessBox.access },
-      makeAPI: { _, _ in api }
+      makeAPI: { _, _, _ in api }
     )
   }
 }

@@ -18,7 +18,8 @@ final class PushClientStatus {
 }
 
 actor PushRegistrationController {
-  typealias APIFactory = @Sendable (String, String) -> any PushRemoteAPI
+  typealias APIFactory =
+    @Sendable (String, String, RemoteEnvironmentContext?) -> any PushRemoteAPI
 
   static let shared = PushRegistrationController()
 
@@ -26,6 +27,7 @@ actor PushRegistrationController {
   private let vault: PushTokenVault
   private let stateStore: PushClientStateStore
   private let outbox: PushUnregisterOutbox
+  private let removalPolicy: PushUnregisterRemovalPolicy
   private let makeAPI: APIFactory
   private let appVersion: @Sendable () -> String
   private var deliveryEnabled: Bool
@@ -34,14 +36,26 @@ actor PushRegistrationController {
   private var isForeground = false
   private var reconcileTask: Task<Void, Never>?
 
+  /// The one production factory: bound endpoint + paired bearer + resolved
+  /// parent context (nil for a direct host). Tests inject a URLProtocol-backed
+  /// session to capture the exact headers this factory produces.
+  static func productionAPIFactory(session: URLSession? = nil) -> APIFactory {
+    { endpoint, token, environment in
+      RemoteAPIClient(
+        endpoint: endpoint,
+        accessToken: token,
+        session: session,
+        environment: environment
+      )
+    }
+  }
+
   init(
     catalog: HostCatalog = .shared,
     vault: PushTokenVault = .shared,
     stateStore: PushClientStateStore = .shared,
     outbox: PushUnregisterOutbox = .shared,
-    makeAPI: @escaping APIFactory = { endpoint, token in
-      RemoteAPIClient(endpoint: endpoint, accessToken: token)
-    },
+    makeAPI: @escaping APIFactory = PushRegistrationController.productionAPIFactory(),
     appVersion: @escaping @Sendable () -> String = {
       Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
     },
@@ -52,6 +66,7 @@ actor PushRegistrationController {
     self.vault = vault
     self.stateStore = stateStore
     self.outbox = outbox
+    self.removalPolicy = PushUnregisterRemovalPolicy(catalog: catalog, stateStore: stateStore)
     self.makeAPI = makeAPI
     self.appVersion = appVersion
     self.deliveryEnabled = deliveryEnabled
@@ -185,22 +200,41 @@ actor PushRegistrationController {
     }
   }
 
+  /// Durable removal snapshot for one record — and, for a direct parent, every
+  /// locally paired environment it cascades — taken before the catalog deletes
+  /// them.
+  ///
+  /// Each environment route is enqueued with its existing child grant and the
+  /// parent authority read from the parent record's vault slot, so the entry
+  /// still authenticates through the proxy after both records (and both vault
+  /// slots) are gone. A record whose grant is unreadable contributes no entry
+  /// and no invented credential; the host-side registration remains a bounded
+  /// best-effort residual. Entries expire with the outbox (7 days).
   func prepareRemoval(record: HostRecord, accessToken: String) async {
-    let route = PushRegistrationRoute(
-      clientConnectionId: record.connectionId,
-      desktopId: record.desktopId
-    )
     guard let secrets = try? await vault.snapshotCreatingIfNeeded() else { return }
-    guard
-      let entry = await enqueueUnregister(
-        endpoint: record.httpBaseURL,
-        accessToken: accessToken,
-        deviceId: secrets.deviceId,
-        route: route
-      )
-    else { return }
-    Task { [weak self] in
-      await self?.attemptUnregister(entry)
+    for target in await removalPolicy.targets(record: record, accessToken: accessToken) {
+      guard
+        let entry = await enqueueUnregister(
+          endpoint: target.record.httpBaseURL,
+          accessToken: target.accessToken,
+          deviceId: secrets.deviceId,
+          route: PushRegistrationRoute(
+            clientConnectionId: target.record.connectionId,
+            desktopId: target.record.desktopId
+          ),
+          parentConnectionId: target.record.environment?.parentConnectionId,
+          parentAuthority: target.parentAuthority
+        )
+      else { return }
+      if target.cascaded {
+        // The parent removal deletes this dependent in the same catalog
+        // transaction. Its push state goes with it; the durable outbox entry
+        // is now the only cleanup record.
+        try? await stateStore.removeHost(target.record.connectionId)
+      }
+      Task { [weak self] in
+        await self?.attemptUnregister(entry)
+      }
     }
   }
 
@@ -222,7 +256,8 @@ actor PushRegistrationController {
     }
     guard ownsDelivery(expectedRevision, enabled: true) else { return }
     guard let accessToken = storedToken, !accessToken.isEmpty else { return }
-    let api = makeAPI(host.httpBaseURL, accessToken)
+    let environmentContext = await catalog.environmentTransportContext(for: host)
+    let api = makeAPI(host.httpBaseURL, accessToken, environmentContext)
     let environment: RemoteEnvironmentDescriptor
     do {
       environment = try await api.environment()
@@ -276,11 +311,10 @@ actor PushRegistrationController {
       let response = try await api.registerPush(request)
       guard ownsDelivery(expectedRevision, enabled: true) else {
         await cleanUpStaleRegistration(
-          endpoint: host.httpBaseURL,
+          record: host,
           accessToken: accessToken,
           deviceId: secrets.deviceId,
-          route: route,
-          connectionId: host.connectionId
+          route: route
         )
         return
       }
@@ -342,12 +376,15 @@ actor PushRegistrationController {
           clientConnectionId: host.connectionId,
           desktopId: host.desktopId
         )
+        let parentAuthority = await removalPolicy.captureParentAuthority(for: host)
         guard
           await enqueueUnregister(
             endpoint: host.httpBaseURL,
             accessToken: token,
             deviceId: secrets.deviceId,
-            route: route
+            route: route,
+            parentConnectionId: host.environment?.parentConnectionId,
+            parentAuthority: parentAuthority
           ) != nil
         else { return false }
         guard ownsDelivery(expectedRevision, enabled: false) else { return false }
@@ -368,14 +405,18 @@ actor PushRegistrationController {
     endpoint: String,
     accessToken: String,
     deviceId: String,
-    route: PushRegistrationRoute
+    route: PushRegistrationRoute,
+    parentConnectionId: ClientConnectionID?,
+    parentAuthority: PushUnregisterParentAuthority?
   ) async -> PushUnregisterOutbox.Entry? {
     do {
       return try await outbox.enqueue(
         endpoint: endpoint,
         accessToken: accessToken,
         deviceId: deviceId,
-        route: route
+        route: route,
+        parentConnectionId: parentConnectionId,
+        parentAuthority: parentAuthority
       )
     } catch {
       await disableForPreservedState()
@@ -388,35 +429,81 @@ actor PushRegistrationController {
   /// again. If delivery was re-enabled in the meantime, reconcile only after
   /// the stale unregister has drained so the final remote state is registered.
   private func cleanUpStaleRegistration(
-    endpoint: String,
+    record: HostRecord,
     accessToken: String,
     deviceId: String,
-    route: PushRegistrationRoute,
-    connectionId: ClientConnectionID
+    route: PushRegistrationRoute
   ) async {
     guard
       let entry = await enqueueUnregister(
-        endpoint: endpoint,
+        endpoint: record.httpBaseURL,
         accessToken: accessToken,
         deviceId: deviceId,
-        route: route
+        route: route,
+        parentConnectionId: record.environment?.parentConnectionId,
+        parentAuthority: await removalPolicy.captureParentAuthority(for: record)
       )
     else { return }
-    try? await stateStore.removeHost(connectionId)
+    try? await stateStore.removeHost(record.connectionId)
     await attemptUnregister(entry)
     if deliveryEnabled, isForeground {
       await reconcileNow()
     }
   }
 
+  /// Parent authority for one unregister dispatch.
+  ///
+  /// A parent that still exists locally is the freshest grant and wins. When it
+  /// is gone — or its locally unreadable slot would fail closed — the bounded
+  /// snapshot captured before the removal cascade is used, so cleanup still
+  /// authenticates after both records are deleted. A direct route resolves to
+  /// nil and sends no parent header.
+  ///
+  /// A route with no environment tuple still fails closed when its endpoint has
+  /// the proxy shape (a legacy/corrupt entry, or a captured authority that lost
+  /// its route reference): the child grant must never reach the parent proxy
+  /// bare, and a fail-closed context sends no request at all.
+  private func environmentContext(
+    for entry: PushUnregisterOutbox.Entry
+  ) async -> RemoteEnvironmentContext? {
+    guard let parentConnectionId = entry.parentConnectionId else {
+      let isProxyShaped = entry.parentAuthority != nil
+        || EnvironmentEndpoints.isProxyEndpoint(entry.endpoint)
+      return isProxyShaped ? .parentMissing(environmentId: "") : nil
+    }
+    let live = await catalog.parentHeaderContext(parentConnectionId: parentConnectionId)
+    if let live, let token = await live.parentAuthorizationToken(), !token.isEmpty {
+      return live
+    }
+    if let authority = entry.validatedParentAuthority {
+      let token = authority.accessToken
+      return RemoteEnvironmentContext(
+        environmentId: "",
+        expectedChildDesktopId: nil,
+        parentAuthorizationToken: { token },
+        mintParentWebSocketTicket: { throw EnvironmentTransportError.parentTicketMissing() }
+      )
+    }
+    // No usable authority: a fail-closed context (no dial, no header) rather
+    // than a bare child dispatch the proxy could misread.
+    return live ?? .parentMissing(environmentId: "")
+  }
+
   private func attemptUnregister(_ entry: PushUnregisterOutbox.Entry) async {
-    let api = makeAPI(entry.endpoint, entry.accessToken)
+    let environment = await environmentContext(for: entry)
+    let api = makeAPI(entry.endpoint, entry.accessToken, environment)
     do {
       try await api.unregisterPush(
         PushUnregisterRequest(deviceId: entry.deviceId, routing: entry.route)
       )
       try? await outbox.remove(entry.id)
     } catch let error as RemoteClientError where error.isUnauthorized {
+      // Environment custody is never concluded by a 401/403: the protocol has
+      // no trusted child-origin marker, so a markerless refusal may be the
+      // parent, a local fail-closed resolution, or a CORS/host response. Only
+      // a direct-host route keeps the existing genuine-auth-failure
+      // retirement.
+      guard PushUnregisterRemovalPolicy.retiresOnAuthRefusal(entry) else { return }
       try? await outbox.remove(entry.id)
     } catch {
       // Keep exact endpoint/token/device/route for bounded foreground retries.

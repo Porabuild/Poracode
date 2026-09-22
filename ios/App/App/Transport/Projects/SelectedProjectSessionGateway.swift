@@ -20,10 +20,11 @@ actor SelectedProjectSessionGateway: ProjectSessionGateway {
 
   func runProjectCommand(
     _ command: ProjectCommand,
+    operationId: String,
     lease: ProjectControllerHostLease
-  ) async throws -> ProjectCommandResult {
+  ) async throws -> ProjectCommandOutcome {
     try await execute(lease: lease, scope: .projectsManage) { api in
-      try await api.remoteRunProjectCommand(command)
+      try await api.remoteRunProjectCommand(command, operationId: operationId)
     }
   }
 

@@ -6,11 +6,16 @@ enum HostTransactionJournal {
     /// v2 captures exact legacy-source bytes so an interrupted explicit removal
     /// can resume without deleting credentials written after the operation began.
     /// v3 adds a metadata-only rename operation without changing registry shape.
-    static let currentVersion = 3
+    /// v4 allows one removal to delete additional dependent vault accounts
+    /// (an environment's locally paired child records when their parent is
+    /// removed) in the same crash-atomic operation.
+    static let currentVersion = 4
     static let account = HostVault.journalAccount
 
     enum Kind: String, Codable, Sendable, Equatable {
         case add
+        /// Adds one environment record without changing the selected host.
+        case addEnvironment
         case switchSelected
         case rename
         case remove
@@ -37,6 +42,9 @@ enum HostTransactionJournal {
         /// Exact vault payload. Recovery writes these bytes when present.
         var targetVaultBytes: Data?
         var deleteVaultAccount: String?
+        /// Additional dependent vault accounts to delete with the primary one
+        /// (v4). Never holds the primary `deleteVaultAccount`.
+        var deleteVaultAccounts: [String]?
         /// Exact legacy source slots observed before an explicit imported-host removal.
         var legacySource: LegacyHostSourceSnapshot?
         /// Exact tombstone bytes, written only when every source slot was unchanged.
@@ -81,6 +89,7 @@ enum HostTransactionJournal {
                         targetVaultAccount: legacy.targetVaultAccount,
                         targetVaultBytes: legacy.targetVaultBytes,
                         deleteVaultAccount: legacy.deleteVaultAccount,
+                        deleteVaultAccounts: nil,
                         legacySource: nil,
                         targetTombstoneBytes: nil
                     )
@@ -99,6 +108,26 @@ enum HostTransactionJournal {
                         targetVaultAccount: legacy.targetVaultAccount,
                         targetVaultBytes: legacy.targetVaultBytes,
                         deleteVaultAccount: legacy.deleteVaultAccount,
+                        deleteVaultAccounts: nil,
+                        legacySource: legacy.legacySource,
+                        targetTombstoneBytes: legacy.targetTombstoneBytes
+                    )
+                )
+            }
+            if version == 3 {
+                let legacy = try HostRegistryCoding.decode(LegacyRecordV3.self, from: data)
+                return validated(
+                    Record(
+                        version: currentVersion,
+                        operationId: legacy.operationId,
+                        kind: legacy.kind,
+                        connectionId: legacy.connectionId,
+                        phase: legacy.phase,
+                        targetRegistryBytes: legacy.targetRegistryBytes,
+                        targetVaultAccount: legacy.targetVaultAccount,
+                        targetVaultBytes: legacy.targetVaultBytes,
+                        deleteVaultAccount: legacy.deleteVaultAccount,
+                        deleteVaultAccounts: nil,
                         legacySource: legacy.legacySource,
                         targetTombstoneBytes: legacy.targetTombstoneBytes
                     )
@@ -114,25 +143,44 @@ enum HostTransactionJournal {
     }
 
     private static func validated(_ record: Record) -> Decode {
-        guard let document = try? HostRegistryCoding.decode(
-            HostRegistryDocument.self,
-            from: record.targetRegistryBytes
-        ).validated() else { return .corrupt }
+        guard record.version == currentVersion,
+              let document = try? HostRegistryStore.migratedDocument(record.targetRegistryBytes)
+        else { return .corrupt }
         let account = HostVault.account(for: record.connectionId)
+        let dependentAccounts = record.deleteVaultAccounts ?? []
+        guard Set(dependentAccounts).count == dependentAccounts.count,
+              !dependentAccounts.contains(account),
+              dependentAccounts.allSatisfy({ HostVault.connectionId(fromAccount: $0) != nil }),
+              dependentAccounts.allSatisfy({ dependent in
+                  HostVault.connectionId(fromAccount: dependent)
+                      .map { document.host(id: $0) == nil } ?? false
+              })
+        else { return .corrupt }
         switch record.kind {
         case .add:
             guard record.targetVaultAccount == account,
                   record.targetVaultBytes?.isEmpty == false,
                   record.deleteVaultAccount == nil,
+                  record.deleteVaultAccounts == nil,
                   record.legacySource == nil,
                   record.targetTombstoneBytes == nil,
                   document.host(id: record.connectionId) != nil,
                   document.selectedConnectionId == record.connectionId
             else { return .corrupt }
+        case .addEnvironment:
+            guard record.targetVaultAccount == account,
+                  record.targetVaultBytes?.isEmpty == false,
+                  record.deleteVaultAccount == nil,
+                  record.deleteVaultAccounts == nil,
+                  record.legacySource == nil,
+                  record.targetTombstoneBytes == nil,
+                  document.host(id: record.connectionId)?.environment != nil
+            else { return .corrupt }
         case .switchSelected:
             guard record.targetVaultAccount == nil,
                   record.targetVaultBytes == nil,
                   record.deleteVaultAccount == nil,
+                  record.deleteVaultAccounts == nil,
                   record.legacySource == nil,
                   record.targetTombstoneBytes == nil,
                   document.host(id: record.connectionId) != nil,
@@ -142,6 +190,7 @@ enum HostTransactionJournal {
             guard record.targetVaultAccount == nil,
                   record.targetVaultBytes == nil,
                   record.deleteVaultAccount == nil,
+                  record.deleteVaultAccounts == nil,
                   record.legacySource == nil,
                   record.targetTombstoneBytes == nil,
                   document.host(id: record.connectionId) != nil
@@ -188,6 +237,21 @@ enum HostTransactionJournal {
         var version: Int
         var operationId: UInt64
         var kind: LegacyKindV2
+        var connectionId: ClientConnectionID
+        var phase: Phase
+        var targetRegistryBytes: Data
+        var targetVaultAccount: String?
+        var targetVaultBytes: Data?
+        var deleteVaultAccount: String?
+        var legacySource: LegacyHostSourceSnapshot?
+        var targetTombstoneBytes: Data?
+    }
+
+    /// Version 3 shape: one deleted vault account per removal.
+    private struct LegacyRecordV3: Codable {
+        var version: Int
+        var operationId: UInt64
+        var kind: Kind
         var connectionId: ClientConnectionID
         var phase: Phase
         var targetRegistryBytes: Data

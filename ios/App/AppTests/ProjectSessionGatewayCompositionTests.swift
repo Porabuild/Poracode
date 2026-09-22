@@ -8,11 +8,15 @@ private actor ProjectRemoteAPIFake: ProjectRemoteAPI {
 
   func setError(_ error: (any Error)?) { self.error = error }
 
-  func remoteRunProjectCommand(_ command: ProjectCommand) async throws -> ProjectCommandResult {
+  func remoteRunProjectCommand(
+    _ command: ProjectCommand,
+    operationId: String
+  ) async throws -> ProjectCommandOutcome {
     _ = command
+    _ = operationId
     commandCalls += 1
     if let error { throw error }
-    return ProjectCommandResult(projects: [], project: nil)
+    return .complete(ProjectCommandResult(projects: [], project: nil))
   }
 
   func remoteLoadProjectSettings(projectId: String) async throws -> ProjectSettings {
@@ -169,7 +173,8 @@ final class ProjectSessionGatewayCompositionTests: XCTestCase {
     let gateway = SelectedProjectSessionGateway { box.selection }
 
     do {
-      _ = try await gateway.runProjectCommand(.remove(projectId: "p"), lease: lease)
+      _ = try await gateway.runProjectCommand(
+        .remove(projectId: "p"), operationId: "op-1", lease: lease)
       XCTFail("Expected missing scope")
     } catch let error as ProjectSessionGatewayError {
       XCTAssertEqual(
@@ -192,7 +197,8 @@ final class ProjectSessionGatewayCompositionTests: XCTestCase {
 
     await api.setError(RemoteClientError(message: "secret detail", status: 401, code: "BAD SECRET"))
     do {
-      _ = try await gateway.runProjectCommand(.remove(projectId: "p"), lease: lease)
+      _ = try await gateway.runProjectCommand(
+        .remove(projectId: "p"), operationId: "op-1", lease: lease)
       XCTFail("Expected authorization failure")
     } catch let error as ProjectSessionGatewayError {
       XCTAssertEqual(error, .http(statusCode: 401, code: nil, missingScope: nil))
@@ -210,7 +216,7 @@ final class ProjectSessionGatewayCompositionTests: XCTestCase {
 
     do {
       _ = try await gateway.runProjectCommand(
-        .remove(projectId: "p"), lease: makeLease(generation: 1)
+        .remove(projectId: "p"), operationId: "op-1", lease: makeLease(generation: 1)
       )
       XCTFail("Expected cancellation")
     } catch is CancellationError {}

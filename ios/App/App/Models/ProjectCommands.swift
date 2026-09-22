@@ -297,3 +297,19 @@ struct ProjectCommandResult: Codable, Equatable, Sendable {
     var projects: [RemoteProject]
     var project: RemoteProject?
 }
+
+/// Bounded acknowledgement of one project command (`projectCommandResults`
+/// v1): the affected canonical row when the operation has one (registration,
+/// update, relocate) and never the catalog. Mirrors the host's
+/// `remoteProjectCommandBoundedResultSchema`.
+struct ProjectCommandBoundedResult: Codable, Equatable, Sendable {
+    var project: RemoteProject?
+}
+
+/// Explicit result union of `POST /api/projects/command`: the complete legacy
+/// result (full list + affected row) or the negotiated bounded
+/// acknowledgement. A bounded ack is never treated as an empty full catalog.
+enum ProjectCommandOutcome: Equatable, Sendable {
+    case complete(ProjectCommandResult)
+    case bounded(ProjectCommandBoundedResult)
+}

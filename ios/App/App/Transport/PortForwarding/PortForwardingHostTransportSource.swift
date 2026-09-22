@@ -7,11 +7,32 @@ protocol PortForwardingCredentialRepository: Sendable {
 
 actor PortForwardingExactHostTransportSource {
   typealias AccessProvider = @MainActor @Sendable () -> PortForwardingHostAccess?
-  typealias APIFactory = @Sendable (String, String) throws -> any PortForwardingRemoteAPI
+  typealias APIFactory =
+    @Sendable (String, String, RemoteEnvironmentContext?) throws -> any PortForwardingRemoteAPI
 
   private let credentials: any PortForwardingCredentialRepository
   private let accessProvider: AccessProvider
   private let makeAPI: APIFactory
+
+  /// Production factory: the parent authority for a host-owned environment
+  /// record is attached to every port-forwarding HTTP dispatch; a direct host
+  /// sends no parent header.
+  static func productionMakeAPI(
+    browser: PortForwardingBrowserOpener,
+    session: URLSession? = nil
+  ) -> APIFactory {
+    { endpoint, token, environment in
+      GeneratedPortForwardingRemoteAPI(
+        http: try PortForwardingURLSessionHTTPClient(
+          endpoint: endpoint,
+          token: token,
+          session: session,
+          environmentAuthority: EnvironmentParentAuthority(context: environment)
+        ),
+        browser: browser
+      )
+    }
+  }
 
   init(
     credentials: any PortForwardingCredentialRepository,
@@ -57,6 +78,8 @@ actor PortForwardingExactHostTransportSource {
       browserForwardEntry: access.browserForwardEntry
     )
     return PortForwardingTransportSelection(
-      access: exact, api: try makeAPI(credential.endpoint, credential.token))
+      access: exact,
+      api: try makeAPI(credential.endpoint, credential.token, credential.environment)
+    )
   }
 }

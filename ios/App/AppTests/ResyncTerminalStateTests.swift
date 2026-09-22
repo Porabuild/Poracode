@@ -42,7 +42,7 @@ final class ResyncTerminalStateTests: XCTestCase {
         XCTAssertFalse(c.inFlight)
     }
 
-    func testHostResyncPolicyThreadSwitchIsAbortStale() {
+    func testHostResyncPolicyStaleIdentityIsAbortStale() {
         let shell = RemoteShellSnapshot(
             snapshotSeq: 9,
             projects: [],
@@ -52,23 +52,43 @@ final class ResyncTerminalStateTests: XCTestCase {
         )
         let tx = ResyncTransaction(
             workGeneration: 1,
-            openThreadId: "a",
-            openThreadEpoch: 1,
             apiEndpoint: "https://a.test",
             socketObjectID: nil,
-            shell: shell,
-            history: nil
+            shell: shell
         )
-        let decision = HostResyncPolicy.commitDecision(
-            transaction: tx,
-            currentWorkGeneration: 1,
-            currentOpenThreadId: "b",
-            currentOpenThreadEpoch: 2,
-            currentAPIEndpoint: "https://a.test",
-            currentSocketObjectID: nil,
-            isCancelled: false
+        // A stale work generation (host change / newer operation) aborts.
+        XCTAssertEqual(
+            HostResyncPolicy.commitDecision(
+                transaction: tx,
+                currentWorkGeneration: 2,
+                currentAPIEndpoint: "https://a.test",
+                currentSocketObjectID: nil,
+                isCancelled: false
+            ),
+            .abortStale
         )
-        XCTAssertEqual(decision, .abortStale)
+        // A stale endpoint (host switch) aborts.
+        XCTAssertEqual(
+            HostResyncPolicy.commitDecision(
+                transaction: tx,
+                currentWorkGeneration: 1,
+                currentAPIEndpoint: "https://b.test",
+                currentSocketObjectID: nil,
+                isCancelled: false
+            ),
+            .abortStale
+        )
+        // The shell snapshot alone supplies the reconnect baseline.
+        XCTAssertEqual(
+            HostResyncPolicy.commitDecision(
+                transaction: tx,
+                currentWorkGeneration: 1,
+                currentAPIEndpoint: "https://a.test",
+                currentSocketObjectID: nil,
+                isCancelled: false
+            ),
+            .commit(reconnectSeq: 9)
+        )
     }
 
     func testCompositionThreadSwitchAbortsResyncGateAndLeavesReplacementUntouched() async throws {
@@ -202,14 +222,14 @@ final class ResyncTerminalStateTests: XCTestCase {
         await session.bootstrap()
         let captured = try XCTUnwrap(sockets.last)
         captured.markResyncSuspendedForTests()
-        session.openThread(id: "tA")
-        try await Task.sleep(for: .milliseconds(40))
 
         session.triggerResyncForTests(reason: "gap")
         try await gate.waitUntilWaiting()
         let replacement = FakeLiveSocket()
         session.state.webSocket = replacement
-        session.openThread(id: "tB")
+        // The host moved on while the resync fetch was in flight: the attempt
+        // is stale and must not commit or recover the replacement.
+        _ = session.state.operationOwner.bumpWorkGeneration()
         await gate.resume()
         try await Task.sleep(for: .milliseconds(80))
 
@@ -321,12 +341,11 @@ final class ResyncTerminalStateTests: XCTestCase {
         await session.bootstrap()
         let socket = try XCTUnwrap(sockets.last)
         socket.markResyncSuspendedForTests()
-        session.openThread(id: "tA")
-        try await Task.sleep(for: .milliseconds(30))
-        // Bump open epoch mid-flight to force abortStale while socket remains current.
         session.triggerResyncForTests(reason: "gap")
         try await gate.waitUntilWaiting()
-        session.state.openThreadEpoch += 1
+        // A newer operation supersedes the attempt while the captured socket is
+        // still the session socket: the stale attempt must recover it.
+        _ = session.state.operationOwner.bumpWorkGeneration()
         await gate.resume()
         try await Task.sleep(for: .milliseconds(60))
         XCTAssertFalse(session.state.resyncCoordinator.pending)

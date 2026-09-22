@@ -130,6 +130,27 @@ final class FakeRemoteAPI: SessionRemoteAPI {
     return try describeHostResult.get()
   }
 
+  /// Strict connect-time capability read (C1 F2). Unlike `describeHost()` the
+  /// default here fails, matching the production seam's fail-closed default.
+  var hostCapabilitiesResult: Result<HostServiceCapabilities, Error> = .failure(
+    SessionRemoteAPIFailure.capabilityReadUnavailable
+  )
+  /// Runs after the (captured) result is chosen and before it is returned, so
+  /// a test can mutate durable state while the response is "in flight".
+  var hostCapabilitiesHook: (@Sendable () async -> Void)?
+  /// Holds `fetchHostCapabilities()` until resumed (deterministic delayed-
+  /// describe tests); the test performs its mutation before releasing it.
+  var hostCapabilitiesGate: AsyncGate?
+  private(set) var hostCapabilitiesCalls = 0
+
+  func fetchHostCapabilities() async throws -> HostServiceCapabilities {
+    hostCapabilitiesCalls += 1
+    let result = hostCapabilitiesResult
+    if let hostCapabilitiesGate { await hostCapabilitiesGate.wait() }
+    if let hostCapabilitiesHook { await hostCapabilitiesHook() }
+    return try result.get()
+  }
+
   func threadHistory(
     threadId: String,
     targetTimelineEntryCount: Int?
@@ -192,6 +213,10 @@ final class FakeLiveSocket: SessionLiveSocket {
   private(set) var resyncSuspended = false
   var attachGate: AsyncGate?
   var startGate: AsyncGate?
+  /// The declaration snapshot this fake reports for the actual upgrade. nil
+  /// models a socket installed before any capability machinery observed the
+  /// host (undeclared reconciliation path).
+  var upgradeDeclarationSnapshot: RemoteSocketUpgradeDeclarations?
 
   func attachSession(_ session: AppSession) async {
     if let attachGate { await attachGate.wait() }
@@ -248,6 +273,10 @@ final class FakeLiveSocket: SessionLiveSocket {
   func matchesIdentity(_ other: any SessionLiveSocket) -> Bool {
     guard let other = other as? FakeLiveSocket else { return false }
     return self === other
+  }
+
+  func upgradeDeclarations() async -> RemoteSocketUpgradeDeclarations? {
+    upgradeDeclarationSnapshot
   }
 
   func markResyncSuspendedForTests() {
@@ -1444,111 +1473,6 @@ final class AppSessionCompositionTests: XCTestCase {
 
   // MARK: Thread / hydration
 
-  func testSameIdCloseReopenRejectsStaleHistory() async throws {
-    let box = ContinuationBox()
-    let inner = FakeRemoteAPI()
-    inner.environmentResult = .success(makeEnvironment())
-    inner.snapshotResult = .success(makeShell(seq: 1, threads: [makeThread(id: "same")]))
-    inner.historyResults["same"] = .success(
-      makeHistory(
-        threadId: "same",
-        seq: 1,
-        items: [
-          PersistedRuntimeItem(
-            id: "a", type: "user_message", state: "completed",
-            payload: nil, streams: ["input_text": "A"], parentItemId: nil
-          )
-        ]
-      )
-    )
-    let gated = GatedHistoryAPI(inner: inner, box: box)
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(),
-      seedToken: "t"
-    ) { _, t in
-      gated.accessToken = t
-      return gated
-    }
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-
-    session.openThread(id: "same")
-    let epoch1 = session.openThreadEpoch
-    try await box.waitUntilWaiting()
-    session.closeThread()
-    session.openThread(id: "same")
-    let epoch2 = session.openThreadEpoch
-    XCTAssertNotEqual(epoch1, epoch2)
-    // Stale history must not install after close/reopen.
-    await box.resume()
-    // Drain the cancelled/stale load without ownership sleeps: resume already unblocked it.
-    // Second open installs via its own task; epoch must remain the reopen epoch.
-    XCTAssertEqual(session.openThreadId, "same")
-    XCTAssertNotEqual(session.openThreadEpoch, epoch1)
-    XCTAssertEqual(session.openThreadEpoch, epoch2)
-  }
-
-  func testLoadOlderItemsNeverInjectsAcrossThreads() async throws {
-    let box = ContinuationBox()
-    let inner = FakeRemoteAPI()
-    inner.environmentResult = .success(makeEnvironment())
-    inner.snapshotResult = .success(
-      makeShell(seq: 1, threads: [makeThread(id: "thread-a"), makeThread(id: "thread-b")])
-    )
-    inner.historyResults["thread-a"] = .success(
-      makeHistory(
-        threadId: "thread-a",
-        seq: 2,
-        items: [
-          PersistedRuntimeItem(
-            id: "a", type: "user_message", state: "completed",
-            payload: nil, streams: ["input_text": "A"], parentItemId: nil
-          )
-        ]
-      )
-    )
-    inner.historyResults["thread-b"] = .success(
-      makeHistory(
-        threadId: "thread-b",
-        seq: 2,
-        items: [
-          PersistedRuntimeItem(
-            id: "b", type: "user_message", state: "completed",
-            payload: nil, streams: ["input_text": "B"], parentItemId: nil
-          )
-        ]
-      )
-    )
-    let gated = GatedPageAPI(inner: inner, box: box)
-    gated.pageItems = [
-      PersistedRuntimeItem(
-        id: "older-A", type: "user_message", state: "completed",
-        payload: nil, streams: ["input_text": "older-A"], parentItemId: nil
-      )
-    ]
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(),
-      seedToken: "t"
-    ) { _, t in
-      gated.accessToken = t
-      return gated
-    }
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-    session.openThread(id: "thread-a")
-    // Wait for history install of thread-a before pagination (gate on page path only).
-    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
-      session.threadItems.map(\.id).contains("a")
-    }
-    async let older: Void = session.loadOlderItems()
-    try await box.waitUntilWaiting()
-    session.openThread(id: "thread-b")
-    await box.resume()
-    await older
-    XCTAssertEqual(session.openThreadId, "thread-b")
-    XCTAssertFalse(session.threadItems.map(\.id).contains("older-A"))
-  }
-
   func testInterestUpdatesAreOrderedLatestWins() async throws {
     var sockets: [FakeLiveSocket] = []
     let (session, repo, _) = try await makeSession(
@@ -1560,8 +1484,6 @@ final class AppSessionCompositionTests: XCTestCase {
         api.snapshotResult = .success(
           makeShell(seq: 1, threads: [makeThread(id: "t1"), makeThread(id: "t2")])
         )
-        api.historyResults["t1"] = .success(makeHistory(threadId: "t1", seq: 1))
-        api.historyResults["t2"] = .success(makeHistory(threadId: "t2", seq: 1))
         return api
       },
       socketFactory: { _ in
@@ -1572,109 +1494,41 @@ final class AppSessionCompositionTests: XCTestCase {
     )
     defer { Task { await repo.wipeSuiteForTests() } }
     await session.bootstrap()
-    session.openThread(id: "t1")
+    session.state.socketState = .online
+
+    // The real RichChat page lifecycle owns the item-interest set: attaching a
+    // page for t1 flushes t1, replacing it with t2 flushes t2 (latest wins),
+    // and dismissal clears it.
+    let first = try await attachRichChatPage(session, threadID: "t1")
     try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
       sockets.last?.interests == ["t1"]
     }
-    session.openThread(id: "t2")
+    let second = try await attachRichChatPage(session, threadID: "t2")
     try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
       sockets.last?.interests == ["t2"]
     }
-    let last = sockets.last
-    XCTAssertEqual(last?.interests, ["t2"])
+    XCTAssertEqual(sockets.last?.interests, ["t2"])
+    session.detachRichChatSuite(second)
+    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
+      sockets.last?.interests == []
+    }
+    _ = first
+  }
+
+  /// Attaches the real RichChat page lifecycle for one thread.
+  @MainActor
+  private func attachRichChatPage(
+    _ session: AppSession,
+    threadID: String
+  ) throws -> RichChatControllerSuite {
+    let suite = session.makeRichChatControllerSuite()
+    let access = try XCTUnwrap(session.currentRichChatAccess)
+    suite.select(access: access, threadID: threadID)
+    session.attachRichChatSuite(suite)
+    return suite
   }
 
   // MARK: Resync terminal state
-
-  func testResyncThreadSwitchAbortsWithoutPartialCommit() async throws {
-    let gate = AsyncGate()
-    var sockets: [FakeLiveSocket] = []
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(),
-      seedToken: "t",
-      apiFactory: { e, t in
-        let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-        api.environmentResult = .success(makeEnvironment())
-        api.snapshotResult = .success(
-          makeShell(seq: 10, threads: [makeThread(id: "tA"), makeThread(id: "tB")])
-        )
-        api.historyResults["tA"] = .success(
-          makeHistory(
-            threadId: "tA",
-            seq: 5,
-            items: [
-              PersistedRuntimeItem(
-                id: "a", type: "user_message", state: "completed",
-                payload: nil, streams: ["input_text": "A"], parentItemId: nil
-              )
-            ]
-          )
-        )
-        api.historyResults["tB"] = .success(
-          makeHistory(
-            threadId: "tB",
-            seq: 5,
-            items: [
-              PersistedRuntimeItem(
-                id: "b", type: "user_message", state: "completed",
-                payload: nil, streams: ["input_text": "B"], parentItemId: nil
-              )
-            ]
-          )
-        )
-        api.snapshotGate = gate
-        return api
-      },
-      socketFactory: { _ in
-        let s = FakeLiveSocket()
-        sockets.append(s)
-        return s
-      }
-    )
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-    let socket = try XCTUnwrap(sockets.last)
-    socket.markResyncSuspendedForTests()
-    session.openThread(id: "tA")
-    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
-      session.threadItems.map(\.id) == ["a"]
-    }
-
-    // Mid-resync switch: abort must not partially commit shell/history.
-    session.triggerResyncForTests(reason: "gap")
-    try await gate.waitUntilWaiting()
-    let seqBefore = session.state.lastSeenSeq
-    session.openThread(id: "tB")
-    await gate.resume()
-    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
-      !session.state.resyncCoordinator.pending && !session.state.resyncCoordinator.inFlight
-    }
-
-    XCTAssertFalse(session.state.resyncCoordinator.pending)
-    XCTAssertFalse(session.state.resyncCoordinator.inFlight)
-    XCTAssertEqual(session.openThreadId, "tB")
-    // Captured socket recovered; replacement identity path never resumes a different socket.
-    XCTAssertGreaterThanOrEqual(socket.recoverFromResyncAbortCount, 1)
-    XCTAssertTrue(socket.resumeAfterResyncSeqs.isEmpty)
-    // Later live event may apply (gate open).
-    session.handleServerMessageForTests(
-      .event(
-        seq: seqBefore + 1,
-        event: .object([
-          "type": .string("thread-runtime-event"),
-          "threadId": .string("tB"),
-          "event": .object([
-            "type": .string("item.started"),
-            "threadId": .string("tB"),
-            "itemId": .string("live-1"),
-            "itemType": .string("assistant_message"),
-          ]),
-        ])
-      )
-    )
-    // History may still be installing for tB; ensure coordinator not wedged.
-    XCTAssertFalse(session.state.resyncCoordinator.pending)
-  }
 
   func testResync401ResetsGateAndRetainsCredentials() async throws {
     let (session, repo, _) = try await makeSession(
@@ -1735,157 +1589,6 @@ final class AppSessionCompositionTests: XCTestCase {
     _ = repo
   }
 
-  func testSend401ReturnsFalseAndRetainsCredentials() async throws {
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(),
-      seedToken: "t"
-    ) { e, t in
-      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-      api.environmentResult = .success(makeEnvironment())
-      api.snapshotResult = .success(makeShell(seq: 1, threads: [makeThread(id: "t1")]))
-      api.historyResults["t1"] = .success(makeHistory(threadId: "t1", seq: 1))
-      api.sendError = RemoteClientError(message: "expired", status: 401, code: "unauthorized")
-      return api
-    }
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-    session.state.socketState = .online
-    session.openThread(id: "t1")
-    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
-      session.threadLoadState == .loaded || !session.threadItems.isEmpty
-        || session.threadSnapshot != nil
-    }
-    let ok = await session.sendMessage("hi")
-    XCTAssertFalse(ok)
-    XCTAssertEqual(session.phase, .sessionExpired)
-    let _nn5 = try await repo.v2RawData()
-    XCTAssertNotNil(_nn5)
-  }
-
-  func testInterrupt401EntersSessionExpired() async throws {
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(),
-      seedToken: "t"
-    ) { e, t in
-      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-      api.environmentResult = .success(makeEnvironment())
-      api.snapshotResult = .success(makeShell(seq: 1, threads: [makeThread(id: "t1")]))
-      api.historyResults["t1"] = .success(makeHistory(threadId: "t1", seq: 1))
-      api.interruptError = RemoteClientError(
-        message: "expired", status: 401, code: "unauthorized")
-      return api
-    }
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-    session.state.socketState = .online
-    session.openThread(id: "t1")
-    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
-      session.threadSnapshot != nil || session.threadLoadState == .loaded
-    }
-    await session.interruptOpenThread()
-    XCTAssertEqual(session.phase, .sessionExpired)
-  }
-
-  func testReadOnlyScopesHideOperateAndBlockSend() async throws {
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(scopes: ["session:read"]),
-      seedToken: "t"
-    ) { e, t in
-      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-      api.environmentResult = .success(makeEnvironment())
-      api.snapshotResult = .success(makeShell(seq: 1, threads: [makeThread(id: "t1")]))
-      api.historyResults["t1"] = .success(makeHistory(threadId: "t1", seq: 1))
-      return api
-    }
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-    XCTAssertTrue(session.canRead)
-    XCTAssertFalse(session.canOperate)
-    session.openThread(id: "t1")
-    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
-      session.openThreadId == "t1"
-    }
-    let ok = await session.sendMessage("nope")
-    XCTAssertFalse(ok)
-  }
-
-  func testSendAndInterruptRequireOnlineForegroundSession() async throws {
-    var remote: FakeRemoteAPI?
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(),
-      seedToken: "t"
-    ) { e, t in
-      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-      api.environmentResult = .success(makeEnvironment())
-      api.snapshotResult = .success(makeShell(seq: 1, threads: [makeThread(id: "t1")]))
-      api.historyResults["t1"] = .success(makeHistory(threadId: "t1", seq: 1))
-      remote = api
-      return api
-    }
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-    session.openThread(id: "t1")
-    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
-      session.threadSnapshot != nil || session.threadLoadState == .loaded
-    }
-    guard let remote else { return XCTFail("missing API") }
-
-    let offlineSend = await session.sendMessage("offline")
-    XCTAssertFalse(offlineSend)
-    await session.interruptOpenThread()
-    XCTAssertEqual(remote.sendCalls, 0)
-    XCTAssertEqual(remote.interruptCalls, 0)
-
-    session.state.socketState = .online
-    session.state.liveLifecycle.noteEnteredBackground(
-      sessionExpired: false,
-      resyncPending: false
-    )
-    let backgroundSend = await session.sendMessage("background")
-    XCTAssertFalse(backgroundSend)
-    await session.interruptOpenThread()
-    XCTAssertEqual(remote.sendCalls, 0)
-    XCTAssertEqual(remote.interruptCalls, 0)
-  }
-
-  func testOpeningAnotherThreadCancelsOwnedSendAndCannotReportStaleSuccess() async throws {
-    let gate = AsyncGate()
-    var remote: FakeRemoteAPI?
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(),
-      seedToken: "t"
-    ) { e, t in
-      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-      api.environmentResult = .success(makeEnvironment())
-      api.snapshotResult = .success(
-        makeShell(seq: 1, threads: [makeThread(id: "t1"), makeThread(id: "t2")])
-      )
-      api.historyResults["t1"] = .success(makeHistory(threadId: "t1", seq: 1))
-      api.historyResults["t2"] = .success(makeHistory(threadId: "t2", seq: 1))
-      api.sendGate = gate
-      remote = api
-      return api
-    }
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-    session.state.socketState = .online
-    session.openThread(id: "t1")
-    try await waitUntil(timeoutNanoseconds: 2_000_000_000) {
-      session.threadSnapshot?.thread.id == "t1"
-    }
-
-    let send = Task { @MainActor in await session.sendMessage("first") }
-    try await gate.waitUntilWaiting()
-    XCTAssertTrue(session.isSending)
-    session.openThread(id: "t2")
-
-    let staleSend = await send.value
-    XCTAssertFalse(staleSend)
-    XCTAssertEqual(remote?.sendCalls, 1)
-    XCTAssertEqual(session.openThreadId, "t2")
-    XCTAssertFalse(session.isSending)
-  }
-
   func testMissingReadScopeBlocksBootstrapLive() async throws {
     let (session, repo, _) = try await makeSession(
       seedProfile: makeProfile(scopes: ["session:operate"]),
@@ -1899,25 +1602,6 @@ final class AppSessionCompositionTests: XCTestCase {
   func testNilPresentationModeIsNotGUI() {
     XCTAssertFalse(ThreadPresentationFilter.isGUIPresentation(nil))
     XCTAssertTrue(ThreadPresentationFilter.isGUIPresentation("gui"))
-  }
-
-  func testOpenThreadRejectsTerminal() async throws {
-    let (session, repo, _) = try await makeSession(
-      seedProfile: makeProfile(),
-      seedToken: "t"
-    ) { e, t in
-      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
-      api.environmentResult = .success(makeEnvironment())
-      api.snapshotResult = .success(
-        makeShell(seq: 1, threads: [makeThread(id: "term", presentationMode: "terminal")])
-      )
-      return api
-    }
-    defer { Task { await repo.wipeSuiteForTests() } }
-    await session.bootstrap()
-    session.openThread(id: "term")
-    XCTAssertNil(session.openThreadId)
-    XCTAssertNotNil(session.globalError)
   }
 
   func testBackgroundSlowBootstrapDoesNotCreateSocket() async throws {
@@ -1987,7 +1671,6 @@ final class AppSessionCompositionTests: XCTestCase {
     }
     defer { Task { await repo.wipeSuiteForTests() } }
     await session.bootstrap()
-    session.openThread(id: "t1")
     session.handleScenePhase(.background)
     // Cancellation paths must not flip to transport network error UI.
     XCTAssertNotEqual(session.state.projectsLoadState, .failed("Network request failed."))

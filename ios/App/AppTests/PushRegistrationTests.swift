@@ -243,7 +243,7 @@ private struct PushHarness {
       vault: vault,
       stateStore: state,
       outbox: outbox,
-      makeAPI: { endpoint, token in
+      makeAPI: { endpoint, token, _ in
         PushFakeAPI(endpoint: endpoint, accessToken: token, recorder: recorder)
       },
       appVersion: { "9.9.9" },

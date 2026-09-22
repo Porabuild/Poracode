@@ -178,6 +178,14 @@ struct HostSwitcherView: View {
                         kind: .desktopSettings
                     )
                 }
+                if host.hostCapabilities?.offersHostOwnedEnvironments == true {
+                    Button(EnvironmentStrings.hostRowEnvironments, systemImage: "server.rack") {
+                        destination = HostDestination(
+                            connectionID: host.connectionId,
+                            kind: .environments
+                        )
+                    }
+                }
                 Button(ThreadLifecycleStrings.rename, systemImage: "pencil") {
                     beginRename(host)
                 }
@@ -219,6 +227,14 @@ struct HostSwitcherView: View {
                     connectionID: host.connectionId,
                     kind: .desktopSettings
                 )
+            }
+            if host.hostCapabilities?.offersHostOwnedEnvironments == true {
+                Button(EnvironmentStrings.hostRowEnvironments, systemImage: "server.rack") {
+                    destination = HostDestination(
+                        connectionID: host.connectionId,
+                        kind: .environments
+                    )
+                }
             }
             Button(ThreadLifecycleStrings.rename, systemImage: "pencil") {
                 beginRename(host)
@@ -272,6 +288,13 @@ struct HostSwitcherView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                Text(
+                    host.isDirectConnection
+                        ? EnvironmentStrings.directModeBadge
+                        : EnvironmentStrings.environmentModeBadge
+                )
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
                 statusPills(status: status, selected: selected, secondary: secondary)
             }
             Spacer(minLength: 8)

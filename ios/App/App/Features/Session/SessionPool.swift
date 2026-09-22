@@ -130,8 +130,7 @@ final class SessionPool {
         let seq = host.state.lastSeenSeq
         var cache = cache(for: key)
         cache.lastSeenSeq = seq
-        cache.interests = host.state.openThreadId.map { [$0] }
-            ?? host.state.interestCoordinator.latestDesired
+        cache.interests = host.state.interestCoordinator.latestDesired
         cache.gitStateInterests = host.state.gitInterestCoordinator.desired
         if var slot = slots[key] {
             slot.cache = cache
@@ -249,12 +248,9 @@ final class SessionPool {
         cache.lastSeenSeq = host.state.lastSeenSeq
         cache.snapshot = host.state.snapshot
         cache.projectsLoadState = host.state.projectsLoadState
-        cache.openThreadId = host.state.openThreadId
-        cache.threadOlderCursor = host.state.threadOlderCursor
         cache.replay = host.state.replay
         cache.gitStateInterests = host.state.gitInterestCoordinator.desired
-        cache.interests = host.state.openThreadId.map { [$0] }
-            ?? host.state.interestCoordinator.latestDesired
+        cache.interests = host.state.interestCoordinator.latestDesired
         if slots[key] == nil {
             slots[key] = Slot(
                 key: key,

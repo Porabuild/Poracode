@@ -37,13 +37,15 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
   private let sessionDelegate: RedirectDenyingURLSessionDelegate?
   private let timeout: TimeInterval
   private let maximumResponseBytes: Int
+  private let authorization: EnvironmentParentAuthority
 
   init(
     endpoint: String,
     token: String,
     session: URLSession? = nil,
     timeout: TimeInterval = 15,
-    maximumResponseBytes: Int = defaultMaximumResponseBytes
+    maximumResponseBytes: Int = defaultMaximumResponseBytes,
+    environmentAuthority: EnvironmentParentAuthority = .direct
   ) throws {
     guard !token.isEmpty, (1...30).contains(timeout),
       (1...Self.defaultMaximumResponseBytes).contains(maximumResponseBytes),
@@ -53,6 +55,7 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
     self.token = token
     self.timeout = timeout
     self.maximumResponseBytes = maximumResponseBytes
+    self.authorization = environmentAuthority
     if let session {
       self.sessionDelegate = nil
       self.session = session
@@ -84,6 +87,12 @@ final class PortForwardingURLSessionHTTPClient: PortForwardingHTTPExecuting, @un
     var value = URLRequest(url: try url(path: metadata.path), timeoutInterval: timeout)
     value.httpMethod = metadata.method
     value.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    do {
+      try await authorization.authorize(&value)
+    } catch let error as RemoteClientError {
+      // Missing/unreadable parent pairing fails closed before any dial.
+      throw PortForwardingHTTPError.rejected(statusCode: error.status, code: error.code)
+    }
     if let body = request.body {
       value.setValue("application/json", forHTTPHeaderField: "Content-Type")
       value.httpBody = body

@@ -3,6 +3,7 @@ import SwiftUI
 enum HostDestinationKind: String, Hashable, Sendable {
   case projects
   case desktopSettings
+  case environments
 }
 
 struct HostDestination: Identifiable, Hashable, Sendable {
@@ -47,6 +48,11 @@ struct HostDestinationView: View {
         selection: session.currentSettingsHostSelection,
         gateway: session.makeSettingsSessionGateway(),
         usesStackNavigation: true
+      )
+    case .environments:
+      EnvironmentsView(
+        session: session,
+        boundConnectionId: destination.connectionID
       )
     }
   }

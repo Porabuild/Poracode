@@ -95,6 +95,13 @@ final class RichChatCheckpointController {
 
   func load(projectLocation: ProjectLocation) async {
     guard let context = context(capability: .sessionRead) else { return }
+    // A permitted attempt supersedes any retained failure band. The gate above
+    // records `.offline` during a reconnect window; without this clear, the
+    // band survived the very load that ran once the socket was online again
+    // (the page showed "desktop is offline" while the connection was live).
+    // Matches the mutation path, which clears its failure when an attempt
+    // starts.
+    state.failure = nil
     state.loadState = .loading
     loadTask.launch { [weak self] in
       guard let self else { return }

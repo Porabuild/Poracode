@@ -183,9 +183,13 @@ final class RichChatRemoteAPITests: XCTestCase {
     XCTAssertEqual(collection.checkpoints.count, 2)
     XCTAssertEqual(collection.turns.count, 2)
 
+    // F1: the production rich-history read is the negotiated bounded tail
+    // (no fixture-global switch), and a response without the echo is the only
+    // legacy outcome.
     XCTAssertEqual(
       RichChatCapturingURLProtocol.requests[0].url?.query,
-      "runtimePage=1&targetTimelineEntryCount=50"
+      "reads=bounded-v1&runtimePage=1&completedTurnsLimit=200"
+        + "&targetTimelineEntryCount=50&maxBytes=33554432&maxDecodeBytes=67108864"
     )
     for index in 1...2 {
       XCTAssertEqual(RichChatCapturingURLProtocol.requests[index].url?.path, "/prefix/api/git/call")
@@ -251,6 +255,85 @@ final class RichChatRemoteAPITests: XCTestCase {
     }
   }
 
+  func testExplicitUncertainReceipt409IsAmbiguousWhileOrdinaryConflictsAreDefinite() async throws {
+    try RichChatCapturingURLProtocol.enqueueJSON(
+      .object([
+        "error": .object([
+          "code": .string("command_outcome_uncertain"),
+          "message": .string("Remote command outcome is uncertain and was not repeated."),
+        ])
+      ]),
+      status: 409
+    )
+    let api = makeAPI()
+    do {
+      try await api.richSend(
+        threadID: "thread-1",
+        input: RichChatSendInput(
+          prompt: "hello", config: ["model": .string("gpt-5")], userMessageItemID: "user-1"))
+      XCTFail("Expected ambiguous outcome")
+    } catch let failure as RichChatTransportFailure {
+      XCTAssertEqual(failure, .ambiguousOutcome)
+    } catch {
+      XCTFail("Unexpected error \(error)")
+    }
+    XCTAssertEqual(RichChatCapturingURLProtocol.requests.count, 1, "never resend")
+
+    RichChatCapturingURLProtocol.reset()
+    try RichChatCapturingURLProtocol.enqueueJSON(
+      .object([
+        "error": .object([
+          "code": .string("command_id_conflict"),
+          "message": .string("Remote command id was already used for another operation."),
+        ])
+      ]),
+      status: 409
+    )
+    let definiteAPI = makeAPI()
+    do {
+      try await definiteAPI.richInterrupt(threadID: "thread-1")
+      XCTFail("Expected definite rejection")
+    } catch let error as RemoteClientError {
+      XCTAssertEqual(error.status, 409)
+      XCTAssertEqual(error.code, "command_id_conflict")
+    } catch {
+      XCTFail("Unexpected error \(error)")
+    }
+    XCTAssertEqual(RichChatCapturingURLProtocol.requests.count, 1, "never resend")
+  }
+
+  @MainActor
+  func testUncertainReceipt409ReachesConversationStateAsAmbiguousWithOneRefresh() async throws {
+    try RichChatCapturingURLProtocol.enqueueJSON(
+      .object([
+        "error": .object([
+          "code": .string("command_outcome_uncertain"),
+          "message": .string("Remote command outcome is uncertain and was not repeated."),
+        ])
+      ]),
+      status: 409
+    )
+    let api = makeAPI()
+    let access = RichChatControllerTestValues.access()
+    let box = RichChatUncertainSelectionBox(
+      selection: RichChatTransportSelection(access: access, api: api)
+    )
+    let gateway = SelectedRichChatSessionGateway { box.selection }
+    let refresh = RichChatRefreshRecorder()
+    let controller = RichChatConversationController(gateway: gateway, refreshRequester: refresh)
+    controller.activate(access: access, threadID: "thread-rich")
+
+    let sent = await controller.send(
+      RichChatSendInput(prompt: "hello", config: ["model": .string("gpt-5")])
+    )
+
+    XCTAssertFalse(sent)
+    XCTAssertEqual(controller.state.failure, .ambiguousOutcome)
+    let requests = await refresh.requests
+    XCTAssertEqual(requests.map(\.1), [.ambiguousMutation])
+    XCTAssertEqual(RichChatCapturingURLProtocol.requests.count, 1, "never resend")
+  }
+
   func testTransportDropAfterSendIsAmbiguousAndNotRetried() async throws {
     RichChatCapturingURLProtocol.failure = URLError(.notConnectedToInternet)
     let api = makeAPI()
@@ -291,5 +374,14 @@ final class RichChatRemoteAPITests: XCTestCase {
   private func body(_ index: Int) throws -> [String: RichJSON] {
     try XCTUnwrap(
       try RichJSON.decode(try XCTUnwrap(RichChatCapturingURLProtocol.bodies[index])).objectValue)
+  }
+}
+
+@MainActor
+private final class RichChatUncertainSelectionBox {
+  var selection: RichChatTransportSelection?
+
+  init(selection: RichChatTransportSelection) {
+    self.selection = selection
   }
 }

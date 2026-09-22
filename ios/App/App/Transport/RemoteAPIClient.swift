@@ -7,13 +7,85 @@ actor RemoteAPIClient: PushRemoteAPI {
     private let session: URLSession
     private let requestTimeout: TimeInterval
     private let maxResponseBodyBytes: Int
+    /// Present when this client is bound to a host-owned environment reached
+    /// through its parent proxy. Every dispatch then carries the parent
+    /// authority header in addition to the child bearer.
+    private let environment: RemoteEnvironmentContext?
+    private let responseEvidenceHeaders: [String]
+
+    // MARK: Capability advertisement + per-client declarations
+    //
+    // advertisement is written only by an authoritative environment handshake
+    // through this same client; a declaration is a caller intent. The effective
+    // declaration is the conjunction, so an authoritative absence withdraws it
+    // (fail closed) and a superseded authority can never leak a declaration to
+    // a replacement client. Nothing here is persisted: a host switch or fresh
+    // pairing constructs a new client with fresh state.
+
+    private(set) var noticesAdvertised = false
+    private(set) var noticesDeclarationIntent = false
+    private(set) var catalogChangesAdvertised = false
+    private(set) var catalogChangesDeclarationIntent = false
+    /// Bounded project-command results (`capabilities.projectCommandResults`
+    /// v1) recorded from an authoritative environment handshake on this exact
+    /// client. The per-request declaration IS the caller's intent, so only this
+    /// advertised flag gates it: an old or unprobed host keeps the complete
+    /// legacy request and result.
+    private(set) var projectCommandResultsAdvertised = false
+
+    /// Effective per-request `x-poracode-project-command-result` declaration.
+    var effectiveProjectCommandResultDeclaration: Bool {
+        projectCommandResultsAdvertised
+    }
+
+    /// Effective per-request/upgrade `notices=v1` declaration.
+    var effectiveNoticesDeclaration: Bool {
+        noticesAdvertised && noticesDeclarationIntent
+    }
+
+    /// Effective per-upgrade `catalogChanges=bounded-v1` declaration.
+    var effectiveCatalogChangesDeclaration: Bool {
+        catalogChangesAdvertised && catalogChangesDeclarationIntent
+    }
+
+    /// Advertisement snapshot for the session's late-declaration reconcile.
+    var advertisedCapabilities: SessionAdvertisedCapabilities {
+        SessionAdvertisedCapabilities(
+            runtimeHistoryNotices: noticesAdvertised,
+            boundedCatalogChanges: catalogChangesAdvertised
+        )
+    }
+
+    /// Records one authoritative environment handshake. Absence or an unknown
+    /// version list is "not advertised here"; nothing is inferred from a
+    /// failed read (the caller simply never reaches this).
+    func observeEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) {
+        noticesAdvertised = descriptor.advertisesRuntimeHistoryNotices
+        catalogChangesAdvertised = descriptor.advertisesBoundedCatalogChanges
+        projectCommandResultsAdvertised = descriptor.advertisesProjectCommandResults
+    }
+
+    /// Client intent for the B1 notice declaration. The effective value also
+    /// requires the host advertisement, so this can never declare on a host
+    /// that does not serve the feature.
+    func declareRuntimeHistoryNotices(_ enabled: Bool) {
+        noticesDeclarationIntent = enabled
+    }
+
+    /// Client intent for the bounded catalog-change signal declaration. The
+    /// caller must also prove the bounded catalog controller is negotiated on
+    /// this authority before enabling it.
+    func declareBoundedCatalogChanges(_ enabled: Bool) {
+        catalogChangesDeclarationIntent = enabled
+    }
 
     init(
         endpoint: String,
         accessToken: String? = nil,
         session: URLSession? = nil,
         requestTimeout: TimeInterval = RemoteSocketPolicy.requestTimeoutSeconds,
-        maxResponseBodyBytes: Int = ProtocolConstants.maxResponseBodyBytes
+        maxResponseBodyBytes: Int = ProtocolConstants.maxResponseBodyBytes,
+        environment: RemoteEnvironmentContext? = nil
     ) {
         self.endpoint = endpoint
         self.accessToken = accessToken
@@ -21,6 +93,10 @@ actor RemoteAPIClient: PushRemoteAPI {
         self.session = session ?? RemoteURLSessions.makeAPISession(requestTimeout: requestTimeout)
         self.requestTimeout = requestTimeout
         self.maxResponseBodyBytes = maxResponseBodyBytes
+        self.environment = environment
+        self.responseEvidenceHeaders = environment == nil
+            ? []
+            : [ProtocolConstants.environmentAuthAuthorityHeader]
     }
 
     /// Normalized HTTP endpoint the client was constructed with (user-reached, including relay prefix).
@@ -53,6 +129,16 @@ actor RemoteAPIClient: PushRemoteAPI {
         let canonical = try GeneratedRemoteV3Contract.environmentResponse(raw, legacy: legacy)
         var descriptor = try JSONDecoding.decode(RemoteEnvironmentDescriptor.self, from: canonical)
         try validateEnvironmentLiterals(descriptor)
+        // Identity gate: the descriptor resolved through the parent proxy must
+        // match the verified child identity recorded at pairing. A mismatch
+        // fails closed before any snapshot or socket.
+        if let environment,
+           let expected = environment.expectedChildDesktopId,
+           !expected.isEmpty,
+           descriptor.desktopId != expected
+        {
+            throw EnvironmentTransportError.identityChanged()
+        }
         // Forward-compatible: drop unknown scopes rather than failing.
         descriptor.auth.scopes = RemoteAccessScopes.filterKnown(descriptor.auth.scopes)
         return descriptor
@@ -122,9 +208,7 @@ actor RemoteAPIClient: PushRemoteAPI {
     /// refused pin and real cancellation propagate.
     func describeHost() async throws -> HostServiceCapabilities {
         do {
-            let data = try await requestData(path: GeneratedRemoteV3Contract.hostDescribeRoutePath)
-            let canonical = try GeneratedRemoteV3Contract.hostDescribeResponse(data)
-            return try JSONDecoding.decode(HostDescribeResponse.self, from: canonical).capabilities
+            return try await fetchHostCapabilities()
         } catch let error as RemoteClientError where error.code == TlsCertPin.mismatchCode {
             throw error
         } catch is CancellationError {
@@ -134,13 +218,23 @@ actor RemoteAPIClient: PushRemoteAPI {
         }
     }
 
+    /// Strict host-capability read: any failure (including the best-effort
+    /// cases `describeHost()` folds into `.unknown`) throws, so a caller can
+    /// distinguish a real capability absence from an unreadable descriptor.
+    func fetchHostCapabilities() async throws -> HostServiceCapabilities {
+        let data = try await requestData(path: GeneratedRemoteV3Contract.hostDescribeRoutePath)
+        let canonical = try GeneratedRemoteV3Contract.hostDescribeResponse(data)
+        return try JSONDecoding.decode(HostDescribeResponse.self, from: canonical).capabilities
+    }
+
     func threadHistory(
         threadId: String,
         targetTimelineEntryCount: Int? = nil
     ) async throws -> RemoteThreadSnapshot {
         let validatedThreadId = try GeneratedRemoteV3Contract.threadHistoryPath(threadId: threadId)
         let items = try GeneratedRemoteV3Contract.threadHistoryQuery(
-            targetTimelineEntryCount: targetTimelineEntryCount
+            targetTimelineEntryCount: targetTimelineEntryCount,
+            notices: effectiveNoticesDeclaration
         )
         let path = "/api/threads/\(Self.encodePathSegment(validatedThreadId))/history"
         let data = try await requestData(path: path, queryItems: items)
@@ -158,7 +252,8 @@ actor RemoteAPIClient: PushRemoteAPI {
         let items = try GeneratedRemoteV3Contract.historyItemsQuery(
             beforePosition: beforePosition,
             limit: limit,
-            targetTimelineEntryCount: targetTimelineEntryCount
+            targetTimelineEntryCount: targetTimelineEntryCount,
+            notices: effectiveNoticesDeclaration
         )
         let path = "/api/threads/\(Self.encodePathSegment(validatedThreadId))/history/items"
         let data = try await requestData(path: path, queryItems: items)
@@ -210,6 +305,21 @@ actor RemoteAPIClient: PushRemoteAPI {
     }
 
     func websocketTicket() async throws -> String {
+        let ticket = try await mintChildWebSocketTicket()
+        guard let environment else { return ticket }
+        // Mint the parent upgrade ticket for exactly this child ticket. No
+        // single cached parent ticket: concurrent event/terminal upgrades each
+        // get their own association. A missing mint fails closed; the ticket
+        // is never cached and never replayed.
+        let parentTicket = try await environment.mintParentWebSocketTicket()
+        await EnvironmentParentTicketStore.shared.store(
+            parentTicket: parentTicket,
+            childTicket: ticket
+        )
+        return ticket
+    }
+
+    private func mintChildWebSocketTicket() async throws -> String {
         let data = try await requestData(
             path: ProtocolConstants.websocketTicketPath,
             method: "POST"
@@ -253,13 +363,28 @@ actor RemoteAPIClient: PushRemoteAPI {
         ticket: String,
         lastSeenSeq: Int?,
         threadItemInterests: [String]? = nil
-    ) throws -> URL {
+    ) async throws -> URL {
         let base = try endpointURL(path: ProtocolConstants.websocketPath)
         guard var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else {
             throw PairingError.invalidURL
         }
         components.scheme = (components.scheme?.lowercased() == "https") ? "wss" : "ws"
         var query: [URLQueryItem] = [URLQueryItem(name: "ticket", value: ticket)]
+        if environment != nil {
+            // Parity of authorities is mandatory: the parent ticket must be the
+            // one minted for this exact child ticket.
+            guard let parentTicket = await EnvironmentParentTicketStore.shared.consume(
+                childTicket: ticket
+            ) else {
+                throw EnvironmentTransportError.parentTicketMissing()
+            }
+            query.append(
+                URLQueryItem(
+                    name: ProtocolConstants.environmentParentTicketParam,
+                    value: parentTicket
+                )
+            )
+        }
         if let lastSeenSeq, lastSeenSeq >= 0 {
             query.append(URLQueryItem(name: "lastSeenSeq", value: String(lastSeenSeq)))
         }
@@ -267,6 +392,17 @@ actor RemoteAPIClient: PushRemoteAPI {
             let data = try JSONSerialization.data(withJSONObject: threadItemInterests)
             let json = String(data: data, encoding: .utf8) ?? "[]"
             query.append(URLQueryItem(name: "threadItemInterests", value: json))
+        }
+        // Per-connection capability declarations. Both are read at the moment
+        // the actual upgrade URL is built: the socket records its own
+        // declaration from this URL, never from a second sample of the mutable
+        // client state (an in-flight environment answer must not disagree with
+        // the request that was sent).
+        if effectiveNoticesDeclaration {
+            query.append(URLQueryItem(name: "notices", value: "v1"))
+        }
+        if effectiveCatalogChangesDeclaration {
+            query.append(URLQueryItem(name: "catalogChanges", value: "bounded-v1"))
         }
         components.queryItems = query
         guard let url = components.url else { throw PairingError.invalidURL }
@@ -340,6 +476,20 @@ actor RemoteAPIClient: PushRemoteAPI {
         if authorized, let accessToken {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
+        // Parent authority: attached to every dispatch on an environment client,
+        // including the child token exchange/refresh and the child WS ticket.
+        // A missing parent token fails closed before any dial.
+        if let environment {
+            guard let parentToken = await environment.parentAuthorizationToken(),
+                  !parentToken.isEmpty
+            else {
+                throw EnvironmentTransportError.parentNotPaired()
+            }
+            request.setValue(
+                "Bearer \(parentToken)",
+                forHTTPHeaderField: ProtocolConstants.environmentAuthorizationHeader
+            )
+        }
 
         let data: Data
         let response: URLResponse
@@ -371,25 +521,61 @@ actor RemoteAPIClient: PushRemoteAPI {
         }
 
         if !(200 ... 299).contains(http.statusCode) {
+            let evidence = responseEvidence(from: http)
             if let payload = try? JSONDecoding.decode(RemoteHttpErrorPayload.self, from: data) {
-                throw RemoteClientError(
+                throw environmentAwareError(
                     message: payload.error.message,
                     status: http.statusCode,
-                    code: payload.error.code
+                    code: payload.error.code,
+                    evidence: evidence,
+                    authorized: authorized
                 )
             }
             let text = String(data: data, encoding: .utf8) ?? ""
             let htmlLike = text.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("<")
-            throw RemoteClientError(
+            throw environmentAwareError(
                 message: htmlLike
                     ? "That endpoint returned HTML instead of the desktop API. Use the desktop API endpoint from Remote Access settings."
                     : "Remote request failed.",
                 status: http.statusCode,
-                code: "request_failed"
+                code: "request_failed",
+                evidence: evidence,
+                authorized: authorized
             )
         }
 
         return data
+    }
+
+    /// Capture only the allowlisted response headers as error evidence.
+    private func responseEvidence(from response: HTTPURLResponse) -> [String: String]? {
+        guard !responseEvidenceHeaders.isEmpty else { return nil }
+        var evidence: [String: String] = [:]
+        for name in responseEvidenceHeaders {
+            if let value = response.value(forHTTPHeaderField: name), !value.isEmpty {
+                evidence[name.lowercased()] = value
+            }
+        }
+        return evidence.isEmpty ? nil : evidence
+    }
+
+    /// 401 classification for environment clients (R1). Delegates to the one
+    /// shared classifier so raw bodies and JSON dispatches can never drift.
+    private func environmentAwareError(
+        message: String,
+        status: Int,
+        code: String,
+        evidence: [String: String]?,
+        authorized: Bool
+    ) -> RemoteClientError {
+        RemoteClientError.environmentAwareFailure(
+            message: message,
+            status: status,
+            code: code,
+            evidence: evidence,
+            environmentBound: environment != nil,
+            authorized: authorized
+        )
     }
 
     /// Fetch with Content-Length early rejection and incremental size enforcement

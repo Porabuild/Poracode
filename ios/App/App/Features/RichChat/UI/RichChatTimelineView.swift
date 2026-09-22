@@ -47,7 +47,9 @@ struct RichChatTimelineView: View {
     ScrollViewReader { proxy in
       ScrollView {
         LazyVStack(alignment: .leading, spacing: 6) {
-          if controller.state.olderCursor != nil || controller.state.isLoadingOlder {
+          if controller.state.olderCursor != nil || controller.state.olderTurnsCursor != nil
+            || controller.state.isLoadingOlder
+          {
             Button {
               Task { await controller.loadOlder() }
             } label: {

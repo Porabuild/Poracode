@@ -11,6 +11,13 @@ protocol NotificationRouteSession: AnyObject {
   var snapshot: RemoteShellSnapshot? { get }
   func switchHost(_ connectionId: ClientConnectionID) async
   func refreshSnapshot() async
+  /// Exact pinned lookup outside the loaded catalog page: one by-id read that
+  /// installs and pins the target row so a pending navigation cannot be lost to
+  /// a bounded page that does not include it.
+  func ensureThreadLoadedForOpen(id: String) async -> RemoteThread?
+  /// Releases the navigation owner's pin for `id` (never the open owner's).
+  /// Called when a pending navigation is abandoned or superseded.
+  func releasePendingNavigationPin(id: String)
 }
 
 extension AppSession: NotificationRouteSession {}
@@ -32,6 +39,9 @@ final class NotificationRouteController {
   private let navigation: NotificationNavigationCenter
   private var supersession = NotificationRouteSupersession()
   private var task: Task<Void, Never>?
+  /// Thread id whose navigation pin this controller currently owns, if any.
+  /// Released when the navigation is abandoned or superseded.
+  private var navigationPinnedThreadID: String?
 
   /// The cross-host tap awaiting explicit confirmation, if any. The route is
   /// retained here — never dropped — until it is confirmed, cancelled,
@@ -66,6 +76,9 @@ final class NotificationRouteController {
   func submit(_ route: NotificationRoute) {
     let submittedGeneration = supersession.submit(route, attached: session != nil)
     task?.cancel()
+    // A newer tap supersedes whatever the previous route pinned: release that
+    // navigation pin before this route's own by-id read can install one.
+    releaseNavigationPin()
     guard session != nil else {
       return
     }
@@ -93,6 +106,7 @@ final class NotificationRouteController {
   /// The user declined the pending cross-host tap. The route is dropped.
   func cancelPendingHostSwitch() {
     pendingHostSwitch = nil
+    releaseNavigationPin()
   }
 
   /// Foreground policy mirrors the rest of the session: backgrounding is a
@@ -101,6 +115,16 @@ final class NotificationRouteController {
   func setForeground(_ foreground: Bool) {
     guard !foreground else { return }
     pendingHostSwitch = nil
+    releaseNavigationPin()
+  }
+
+  /// Releases the navigation-owned pin this controller installed, if any. The
+  /// session refuses to unpin the currently open thread, so a genuine open
+  /// owner is never affected.
+  private func releaseNavigationPin() {
+    guard let id = navigationPinnedThreadID else { return }
+    navigationPinnedThreadID = nil
+    session?.releasePendingNavigationPin(id: id)
   }
 
   /// Joins in-flight route work. Test hook only.
@@ -146,11 +170,22 @@ final class NotificationRouteController {
 
     await session.refreshSnapshot()
     guard isCurrent(submittedGeneration), !Task.isCancelled,
-      session.selectedConnectionId == route.clientConnectionId,
-      let thread = session.snapshot?.threads.first(where: { $0.id == route.threadId })
+      session.selectedConnectionId == route.clientConnectionId
     else { return }
 
-    guard isCurrent(submittedGeneration), !Task.isCancelled else { return }
+    var thread = session.snapshot?.threads.first(where: { $0.id == route.threadId })
+    if thread == nil {
+      // The bounded first page is a window: the target may be outside it.
+      // One exact by-id read installs and pins the row.
+      thread = await session.ensureThreadLoadedForOpen(id: route.threadId)
+      if thread != nil { navigationPinnedThreadID = route.threadId }
+    }
+    guard isCurrent(submittedGeneration), !Task.isCancelled, let thread else {
+      // The route was superseded or the target vanished after the by-id read
+      // pinned it: release the navigation owner's pin instead of leaking it.
+      releaseNavigationPin()
+      return
+    }
     navigation.publish(route: route, threadTitle: thread.title)
   }
 

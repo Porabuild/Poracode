@@ -34,6 +34,9 @@ final class RichChatControllerSuite {
   let checkpoints: RichChatCheckpointController
   let media: RichChatMediaController
   let terminal: RichChatTerminalController
+  /// B1 durable history notices: an owner of its own so the transcript never
+  /// grows the notice's retention/recovery state.
+  let notice: RichChatNoticeController
 
   init(
     gateway: any RichChatSessionGateway,
@@ -41,7 +44,15 @@ final class RichChatControllerSuite {
       RichChatNoopRefreshRequester(),
     watchIDGenerator: any RichChatWatchIDGenerating = RichChatUUIDWatchIDGenerator()
   ) {
-    transcript = RichChatTranscriptController(gateway: gateway, refreshRequester: refreshRequester)
+    let noticeController = RichChatNoticeController(
+      gateway: gateway, refreshRequester: refreshRequester
+    )
+    notice = noticeController
+    transcript = RichChatTranscriptController(
+      gateway: gateway,
+      refreshRequester: refreshRequester,
+      noticeProjection: noticeController
+    )
     conversation = RichChatConversationController(
       gateway: gateway,
       refreshRequester: refreshRequester
@@ -79,6 +90,7 @@ final class RichChatControllerSuite {
     }
     scope = RichChatControllerScope(access: access, threadID: threadID)
     transcript.activate(access: access, threadID: threadID)
+    notice.activate(access: access, threadID: threadID)
     conversation.activate(access: access, threadID: threadID)
     requests.activate(access: access, threadID: threadID)
     checkpoints.activate(access: access, threadID: threadID)
@@ -93,6 +105,7 @@ final class RichChatControllerSuite {
     }
     scope.access = access
     transcript.updateAccess(access)
+    notice.updateAccess(access)
     conversation.updateAccess(access)
     requests.updateAccess(access)
     checkpoints.updateAccess(access)
@@ -103,6 +116,7 @@ final class RichChatControllerSuite {
   func deselect() {
     scope = RichChatControllerScope()
     transcript.deactivate()
+    notice.deactivate()
     conversation.deactivate()
     requests.deactivate()
     checkpoints.deactivate()
@@ -114,6 +128,7 @@ final class RichChatControllerSuite {
     guard !scope.isBackgrounded else { return }
     scope.isBackgrounded = true
     transcript.enterBackground()
+    notice.enterBackground()
     conversation.enterBackground()
     requests.enterBackground()
     checkpoints.enterBackground()
@@ -131,6 +146,7 @@ final class RichChatControllerSuite {
     scope.access = access
     scope.isBackgrounded = false
     transcript.leaveBackground(access: access)
+    notice.leaveBackground(access: access)
     conversation.leaveBackground(access: access)
     requests.leaveBackground(access: access)
     checkpoints.leaveBackground(access: access)
@@ -176,7 +192,14 @@ final class RichChatControllerSuite {
   }
 
   func refreshAuthoritativeHistory(targetEntryCount: Int? = 40) async {
+    guard let target = transcript.state.target else { return }
     await transcript.loadHistory(targetEntryCount: targetEntryCount)
+    // A retired read may finish after selection or connectivity changed.
+    // Its completion cannot acknowledge another host's current failures.
+    guard transcript.state.target == target,
+      let access = transcript.state.access,
+      access.controllerGate(.sessionRead) == nil
+    else { return }
     switch transcript.state.loadState {
     case .loaded, .empty:
       conversation.acknowledgeAuthoritativeRefresh()

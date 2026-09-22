@@ -81,21 +81,26 @@ final class ReplayInstallTransactionTests: XCTestCase {
     XCTAssertTrue(
       buffer.bufferIfInstalling(
         installGeneration: 1, seq: 11,
-        event: .remoteGitSummaries(["t": try GitThreadSummary(wire: summary(branch: "live"))])
+        event: .remoteGitSummaries(["t": try GitThreadSummary(wire: summary(branch: "live"))]),
+        estimatedByteCount: 64
       )
     )
     // A stale install generation never claims the frame.
     XCTAssertFalse(
-      buffer.bufferIfInstalling(installGeneration: 2, seq: 12, event: .threadReset(threadId: "t"))
+      buffer.bufferIfInstalling(
+        installGeneration: 2, seq: 12, event: .threadReset(threadId: "t"),
+        estimatedByteCount: 64
+      )
     )
-    let boundary = try XCTUnwrap(buffer.take(installGeneration: 1))
+    let taken = try XCTUnwrap(buffer.take(installGeneration: 1))
     XCTAssertNil(buffer.take(installGeneration: 1), "the buffer is drained exactly once")
+    XCTAssertFalse(taken.coverageLost)
 
     let prepared = try HostSnapshotInstall.prepare(
       shell: shell(seq: 10, summaries: .object(["t": summary(branch: "snapshot")])),
       existing: HostReplayState()
     )
-    let commit = HostSnapshotInstall.commit(prepared, boundary: boundary)
+    let commit = HostSnapshotInstall.commit(prepared, boundary: taken.envelopes)
     XCTAssertEqual(commit.appliedBoundaryEvents, 1)
     XCTAssertEqual(commit.cursor, 11)
     XCTAssertFalse(commit.requiresResync)
@@ -108,7 +113,8 @@ final class ReplayInstallTransactionTests: XCTestCase {
     for seq in 1...ProtocolConstants.maxBufferedEnvelopes {
       XCTAssertTrue(
         buffer.bufferIfInstalling(
-          installGeneration: 1, seq: seq, event: .threadReset(threadId: "t")
+          installGeneration: 1, seq: seq, event: .threadReset(threadId: "t"),
+          estimatedByteCount: 64
         )
       )
     }
@@ -119,19 +125,19 @@ final class ReplayInstallTransactionTests: XCTestCase {
     XCTAssertTrue(
       buffer.bufferIfInstalling(
         installGeneration: 1, seq: ProtocolConstants.maxBufferedEnvelopes + 1,
-        event: .threadReset(threadId: "t")
+        event: .threadReset(threadId: "t"),
+        estimatedByteCount: 64
       )
     )
     XCTAssertTrue(buffer.overflowed)
     XCTAssertEqual(buffer.buffered.first?.seq, 2)
 
-    // take() is still exactly-once and consumes the flag with the buffer; the
-    // caller reads the flag BEFORE take and folds it into a resync demand.
-    let overflowed = buffer.overflowed
-    let boundary = try XCTUnwrap(buffer.take(installGeneration: 1))
+    // take() is still exactly-once and reports the consumed coverage loss, so
+    // the caller folds it into a resync demand.
+    let taken = try XCTUnwrap(buffer.take(installGeneration: 1))
     XCTAssertFalse(buffer.overflowed)
-    XCTAssertTrue(overflowed)
-    XCTAssertEqual(boundary.count, ProtocolConstants.maxBufferedEnvelopes)
+    XCTAssertTrue(taken.coverageLost)
+    XCTAssertEqual(taken.envelopes.count, ProtocolConstants.maxBufferedEnvelopes)
   }
 
   func testBoundaryReplayDropsDuplicatesAndStopsAtTheFirstGap() throws {
@@ -141,11 +147,11 @@ final class ReplayInstallTransactionTests: XCTestCase {
     let commit = HostSnapshotInstall.commit(
       prepared,
       boundary: [
-        .init(seq: 9, event: .threadReset(threadId: "stale")),
-        .init(seq: 10, event: .threadReset(threadId: "duplicate")),
-        .init(seq: 11, event: .threadReset(threadId: "contiguous")),
-        .init(seq: 13, event: .threadReset(threadId: "gap")),
-        .init(seq: 14, event: .threadReset(threadId: "after-gap")),
+        .init(seq: 9, event: .threadReset(threadId: "stale"), byteCount: 64, receivedAtMilliseconds: 1),
+        .init(seq: 10, event: .threadReset(threadId: "duplicate"), byteCount: 64, receivedAtMilliseconds: 1),
+        .init(seq: 11, event: .threadReset(threadId: "contiguous"), byteCount: 64, receivedAtMilliseconds: 1),
+        .init(seq: 13, event: .threadReset(threadId: "gap"), byteCount: 64, receivedAtMilliseconds: 1),
+        .init(seq: 14, event: .threadReset(threadId: "after-gap"), byteCount: 64, receivedAtMilliseconds: 1),
       ]
     )
     XCTAssertEqual(commit.cursor, 11, "the cursor never advances past a gap")
@@ -163,8 +169,8 @@ final class ReplayInstallTransactionTests: XCTestCase {
     let commit = HostSnapshotInstall.commit(
       prepared,
       boundary: [
-        .init(seq: 3, event: .remoteGitState(second)),
-        .init(seq: 2, event: .remoteGitState(first)),
+        .init(seq: 3, event: .remoteGitState(second), byteCount: 64, receivedAtMilliseconds: 1),
+        .init(seq: 2, event: .remoteGitState(first), byteCount: 64, receivedAtMilliseconds: 1),
       ]
     )
     XCTAssertEqual(commit.cursor, 3)
@@ -178,8 +184,6 @@ final class ReplayInstallTransactionTests: XCTestCase {
       workGeneration: 4,
       apiEndpoint: "https://a.test",
       socketObjectID: nil,
-      openThreadId: "t",
-      openThreadEpoch: 2,
       installGeneration: 9
     )
   }
@@ -194,8 +198,6 @@ final class ReplayInstallTransactionTests: XCTestCase {
     var mutations: [(String, (inout ReplayInstallIdentity) -> Void)] = [
       ("workGeneration", { $0.workGeneration += 1 }),
       ("apiEndpoint", { $0.apiEndpoint = "https://b.test" }),
-      ("openThreadId", { $0.openThreadId = "other" }),
-      ("openThreadEpoch", { $0.openThreadEpoch += 1 }),
       ("installGeneration", { $0.installGeneration += 1 }),
     ]
     let replacementSocket = NSObject()
@@ -279,6 +281,41 @@ final class ReplayInstallTransactionTests: XCTestCase {
     XCTAssertEqual(session.state.replay.gitSummariesByThread["t"]?.branch, "main")
   }
 
+  /// F3 end-to-end: a boundary frame retained past the age budget is dropped
+  /// at take, releases the payload, and the session commit demands the existing
+  /// resync recovery (`resync.trigger("replay boundary gap")` at the call site)
+  /// instead of replaying a stale frame.
+  func testSessionCommitDemandsResyncWhenBoundaryFramesExpiredAtTake() throws {
+    let session = makeSession()
+    let captured = session.beginReplayInstall(apiEndpoint: "https://a.test")
+    XCTAssertTrue(
+      session.state.replayInstallBuffer.bufferIfInstalling(
+        installGeneration: captured.installGeneration,
+        seq: 11,
+        event: .threadReset(threadId: "expired"),
+        estimatedByteCount: 64,
+        receivedAtMilliseconds: 0
+      )
+    )
+    let prepared = try HostSnapshotInstall.prepare(
+      shell: shell(seq: 10), existing: session.state.replay
+    )
+    let commit = try XCTUnwrap(
+      session.commitReplayInstall(
+        prepared,
+        shell: shell(seq: 10),
+        captured: captured,
+        currentAPIEndpoint: "https://a.test",
+        advanceCursor: true,
+        isCancelled: false
+      )
+    )
+    XCTAssertTrue(commit.requiresResync, "an expired boundary frame must demand one resync")
+    XCTAssertEqual(commit.appliedBoundaryEvents, 0)
+    XCTAssertEqual(commit.cursor, 10)
+    XCTAssertTrue(session.state.replayInstallBuffer.buffered.isEmpty)
+  }
+
   func testSessionCommitExposesNothingWhenIdentityMovedOn() throws {
     let session = makeSession()
     let captured = session.beginReplayInstall(apiEndpoint: "https://a.test")
@@ -331,7 +368,8 @@ final class ReplayInstallTransactionTests: XCTestCase {
     let session = makeSession()
     let captured = session.beginReplayInstall(apiEndpoint: "https://a.test")
     XCTAssertTrue(
-      session.bufferReplayEventDuringInstall(seq: 3, event: .threadReset(threadId: "t"))
+      session.bufferReplayEventDuringInstall(
+        seq: 3, event: .threadReset(threadId: "t"), estimatedByteCount: 64)
     )
     _ = session.cancelBackgroundSensitiveTasks()
     XCTAssertTrue(
@@ -357,16 +395,19 @@ final class ReplayInstallTransactionTests: XCTestCase {
   func testEventsAreOnlyBufferedForTheCurrentInstall() {
     let session = makeSession()
     XCTAssertFalse(
-      session.bufferReplayEventDuringInstall(seq: 1, event: .threadReset(threadId: "t")),
+      session.bufferReplayEventDuringInstall(
+        seq: 1, event: .threadReset(threadId: "t"), estimatedByteCount: 64),
       "with no install in flight the event applies immediately"
     )
     let captured = session.beginReplayInstall(apiEndpoint: nil)
     XCTAssertTrue(
-      session.bufferReplayEventDuringInstall(seq: 2, event: .threadReset(threadId: "t"))
+      session.bufferReplayEventDuringInstall(
+        seq: 2, event: .threadReset(threadId: "t"), estimatedByteCount: 64)
     )
     session.abortReplayInstall(captured)
     XCTAssertFalse(
-      session.bufferReplayEventDuringInstall(seq: 3, event: .threadReset(threadId: "t"))
+      session.bufferReplayEventDuringInstall(
+        seq: 3, event: .threadReset(threadId: "t"), estimatedByteCount: 64)
     )
   }
 }

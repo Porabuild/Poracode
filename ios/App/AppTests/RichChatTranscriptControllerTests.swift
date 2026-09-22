@@ -147,6 +147,45 @@ final class RichChatTranscriptControllerTests: XCTestCase {
     XCTAssertNil(controller.state.olderCursor)
   }
 
+  func testOfflinePagingFailureClearsOnlyAfterSuccessfulAuthoritativeHistory() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history()))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+    await controller.loadHistory()
+
+    controller.updateAccess(RichChatControllerTestValues.access(online: false))
+    await controller.loadOlder()
+    XCTAssertEqual(controller.state.pageFailure, .offline)
+
+    controller.updateAccess(RichChatControllerTestValues.access())
+    await gateway.configureHistory(.failure(.invalidResponse))
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.pageFailure, .offline)
+
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history()))
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.loadState, .loaded)
+    XCTAssertNil(controller.state.pageFailure)
+    XCTAssertEqual(controller.state.olderCursor, 4)
+    XCTAssertEqual(controller.state.transcript?.orderedItemIDs, ["history"])
+  }
+
+  func testAuthoritativeHistoryDoesNotClearPagingDomainFailure() async {
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(.value(RichChatControllerTestValues.history()))
+    await gateway.configurePage(.failure(.http(statusCode: 403, code: "forbidden", missingScope: nil)))
+    let controller = RichChatTranscriptController(gateway: gateway)
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: "thread-rich")
+    await controller.loadHistory()
+    await controller.loadOlder()
+    let failure = controller.state.pageFailure
+    XCTAssertNotNil(failure)
+    XCTAssertNotEqual(failure, .offline)
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.pageFailure, failure)
+  }
+
   // MARK: - context.updated / usage.spent / warning
 
   func testSnapshotContextHydratesThenBufferedAndLiveReportsMergeShallowly() async throws {
@@ -373,6 +412,176 @@ final class RichChatTranscriptControllerTests: XCTestCase {
     XCTAssertEqual(controller.state.liveSequence, -1)
   }
 
+  // MARK: - history read terminal paths (F-D1/F-D2)
+
+  /// F-D1: a completed read whose snapshot names another thread is a host
+  /// contract violation. It must end `.loading` with a truthful error and
+  /// release the retained window instead of stranding the buffer with no read
+  /// in flight and never applying (or re-requesting) the buffered frames.
+  func testWrongThreadHistoryResponseFailsAndReleasesBufferedBatches() async {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(RichChatControllerTestValues.history(threadID: "thread-other")),
+      barrier: barrier
+    )
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    controller.receiveLiveEvents(
+      [.turnStarted(threadID: target.threadID, turnID: "buffered")],
+      sequence: 11,
+      target: target
+    )
+    XCTAssertEqual(controller.state.loadState, .loading)
+    XCTAssertEqual(controller.retainedHistoryBatchCount, 1)
+
+    await barrier.release()
+    await loading.value
+
+    XCTAssertEqual(controller.state.loadState, .failed(.invalidResponse))
+    XCTAssertEqual(
+      controller.retainedHistoryBatchCount, 0,
+      "the wrong-thread response must release the retained window")
+    XCTAssertEqual(controller.state.liveSequence, -1)
+    XCTAssertNil(controller.state.transcript?.openTurn)
+
+    // The failure is retryable: a correct snapshot recovers and the dropped
+    // wrong-thread window never replays over it.
+    await gateway.configureHistory(
+      .value(
+        RichChatControllerTestValues.history(items: [
+          RichChatControllerTestValues.persistedItem(id: "recovered")
+        ])))
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.loadState, .loaded)
+    XCTAssertEqual(controller.state.transcript?.orderedItemIDs, ["recovered"])
+    XCTAssertNotEqual(
+      controller.state.transcript?.openTurn, true,
+      "the dropped wrong-thread window must not replay over the recovered snapshot")
+
+    // Once the read has ended, live events apply directly again.
+    controller.receiveLiveEvents(
+      [.turnStarted(threadID: target.threadID, turnID: "live")],
+      sequence: 12,
+      target: target
+    )
+    XCTAssertEqual(controller.state.transcript?.openTurn, true)
+    XCTAssertEqual(controller.state.liveSequence, 12)
+  }
+
+  /// F-D2: an owner-valid cancellation of the history read (caller teardown
+  /// cancels the awaiting task) releases the retained batches like any other
+  /// terminal path, so the ledger is never left open with no read in flight.
+  func testOwnerValidCancellationReleasesRetainedHistoryBatches() async {
+    let barrier = RichChatControllerTestBarrier()
+    let gateway = RichChatControllerGatewayFake()
+    await gateway.configureHistory(
+      .value(RichChatControllerTestValues.history()), barrier: barrier)
+    let controller = RichChatTranscriptController(gateway: gateway)
+    let target = RichChatControllerTestValues.target()
+    controller.activate(access: RichChatControllerTestValues.access(), threadID: target.threadID)
+
+    let loading = Task { await controller.loadHistory() }
+    await barrier.waitUntilReached()
+    controller.receiveLiveEvents(
+      [.turnStarted(threadID: target.threadID, turnID: "buffered")],
+      sequence: 11,
+      target: target
+    )
+    XCTAssertEqual(controller.retainedHistoryBatchCount, 1)
+
+    loading.cancel()
+    await barrier.release()
+    await loading.value
+
+    XCTAssertEqual(controller.state.loadState, .idle)
+    XCTAssertEqual(
+      controller.retainedHistoryBatchCount, 0,
+      "owner-valid cancellation must release the retained window")
+
+    // The cancelled window is gone: a fresh read installs only the snapshot.
+    await controller.loadHistory()
+    XCTAssertEqual(controller.state.loadState, .loaded)
+    XCTAssertEqual(controller.state.transcript?.orderedItemIDs, ["history"])
+    XCTAssertEqual(controller.state.liveSequence, 10)
+    XCTAssertNotEqual(
+      controller.state.transcript?.openTurn, true,
+      "the cancelled window must not replay over the fresh snapshot")
+  }
+
+  /// Real production deadline evidence: a URLSession custom protocol that never
+  /// answers stalls the actual `RemoteAPIClient` request, and the request's
+  /// short configured timeout (the same `URLRequest.timeoutInterval` production
+  /// derives from `RemoteSocketPolicy.requestTimeoutSeconds`) must end the read
+  /// and release the buffered batches — no fake clock, no injected timer.
+  func testRealTransportTimeoutFailsAndReleasesRetainedBatches() async throws {
+    RichChatStallingURLProtocol.reset()
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [RichChatStallingURLProtocol.self]
+    let api = GeneratedRichChatRemoteAPI(
+      json: RemoteAPIClient(
+        endpoint: "https://relay.test/prefix",
+        accessToken: "access-secret",
+        session: URLSession(configuration: configuration),
+        requestTimeout: 0.4
+      ))
+    let access = RichChatControllerTestValues.access()
+    let target = RichChatControllerTestValues.target(threadID: "thread-fixture-001")
+    let selection = RichChatTransportSelection(access: access, api: api)
+    let gateway = SelectedRichChatSessionGateway { selection }
+    let controller = RichChatTranscriptController(gateway: gateway)
+    controller.activate(access: access, threadID: target.threadID)
+
+    let requestStarted = expectation(description: "history request reached the transport")
+    RichChatStallingURLProtocol.onStart = { requestStarted.fulfill() }
+    let loading = Task { await controller.loadHistory() }
+    await fulfillment(of: [requestStarted], timeout: 5)
+    XCTAssertEqual(controller.state.loadState, .loading)
+
+    // Sequence 100 outranks the fixture's snapshotSeq 42, so retention would
+    // be observable as a replay if the timeout path failed to release it.
+    controller.receiveLiveEvents(
+      [.turnStarted(threadID: target.threadID, turnID: "stalled")],
+      sequence: 100,
+      target: target
+    )
+    XCTAssertEqual(controller.retainedHistoryBatchCount, 1)
+
+    let deadline = Date().addingTimeInterval(5)
+    while controller.state.loadState == .loading, Date() < deadline {
+      try? await Task.sleep(for: .milliseconds(25))
+    }
+    guard controller.state.loadState != .loading else {
+      loading.cancel()
+      await loading.value
+      XCTFail("the transport request deadline did not end the history read")
+      return
+    }
+    await loading.value
+
+    XCTAssertEqual(controller.state.loadState, .failed(.transport))
+    XCTAssertEqual(
+      controller.retainedHistoryBatchCount, 0,
+      "the real request timeout must release the retained window")
+
+    // Serve the valid snapshot next; the released stalled batch must not replay.
+    let history = try RichJSON.object(loadRichChatFixture("thread-history.json"))
+    RichChatStallingURLProtocol.respond(with: try JSONDecoding.encoder.encode(history))
+    await controller.loadHistory()
+
+    XCTAssertEqual(controller.state.loadState, .loaded)
+    XCTAssertEqual(controller.state.snapshotSequence, 42)
+    XCTAssertEqual(controller.state.liveSequence, 42)
+    XCTAssertNotEqual(
+      controller.state.transcript?.openTurn, true,
+      "the released sequence-100 batch must not replay over snapshotSeq 42")
+    XCTAssertEqual(RichChatStallingURLProtocol.startedCount, 2)
+  }
+
   // MARK: - history turn baseline (status-derived openTurn)
 
   /// The snapshot status is the only authoritative open-turn evidence a history
@@ -541,4 +750,56 @@ final class RichChatTranscriptControllerTests: XCTestCase {
     snapshot.thread.status = status
     return snapshot
   }
+}
+
+/// Test-only transport stub that stalls every request until the test supplies a
+/// body, so the production `URLRequest` timeout is the release trigger.
+private final class RichChatStallingURLProtocol: URLProtocol {
+  private static let lock = NSLock()
+  nonisolated(unsafe) private static var started = 0
+  nonisolated(unsafe) private static var body: Data?
+  nonisolated(unsafe) static var onStart: (() -> Void)?
+
+  static var startedCount: Int {
+    lock.lock()
+    defer { lock.unlock() }
+    return started
+  }
+
+  static func respond(with data: Data) {
+    lock.lock()
+    body = data
+    lock.unlock()
+  }
+
+  static func reset() {
+    lock.lock()
+    started = 0
+    body = nil
+    onStart = nil
+    lock.unlock()
+  }
+
+  override class func canInit(with request: URLRequest) -> Bool { true }
+  override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+  override func startLoading() {
+    Self.lock.lock()
+    Self.started += 1
+    let responseBody = Self.body
+    let onStart = Self.onStart
+    Self.onStart = nil
+    Self.lock.unlock()
+    onStart?()
+    guard let responseBody else { return }
+    let response = HTTPURLResponse(
+      url: request.url!, statusCode: 200, httpVersion: nil,
+      headerFields: ["Content-Type": "application/json"]
+    )!
+    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+    client?.urlProtocol(self, didLoad: responseBody)
+    client?.urlProtocolDidFinishLoading(self)
+  }
+
+  override func stopLoading() {}
 }

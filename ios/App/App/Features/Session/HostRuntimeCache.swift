@@ -6,8 +6,6 @@ struct HostRuntimeCache: Sendable, Equatable {
     var interests: [String] = []
     var snapshot: RemoteShellSnapshot?
     var projectsLoadState: SessionLoadState = .idle
-    var openThreadId: String?
-    var threadOlderCursor: Int?
     /// Replayed Git/agent/thread-lifecycle state for this exact host identity.
     /// Never installed into another slot, so colliding thread ids stay isolated.
     var replay = HostReplayState()

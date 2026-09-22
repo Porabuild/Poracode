@@ -49,18 +49,30 @@ extension AppSession {
         )
     }
 
-    func removeHost(_ connectionId: ClientConnectionID) async {
+    /// Remove one local pairing. A direct parent cascades every locally paired
+    /// environment record; the push-removal snapshot for the record and its
+    /// dependents is durably enqueued (with the existing child grants and the
+    /// parent authority captured from the parent's vault slot) *before* the
+    /// catalog deletes either record, so cleanup still authenticates offline.
+    ///
+    /// `registrations` is a test seam; production resolves the shared ingress
+    /// controller.
+    func removeHost(
+        _ connectionId: ClientConnectionID,
+        registrations: PushRegistrationController? = nil
+    ) async {
+        let pushRegistrations = registrations ?? NotificationIngress.shared.registrations
         if let record = state.hosts.first(where: { $0.connectionId == connectionId }) {
             if let token = try? await deps.hostCatalog.token(for: connectionId) {
-                await NotificationIngress.shared.registrations.prepareRemoval(
+                await pushRegistrations.prepareRemoval(
                     record: record,
                     accessToken: token
                 )
             }
             await NotificationIngress.shared.liveActivities.endActivities(for: connectionId)
         }
-        let removedEndpoint = state.hosts.first(where: { $0.connectionId == connectionId })?
-            .httpBaseURL
+        let removedRecord = state.hosts.first(where: { $0.connectionId == connectionId })
+        let removedEndpoint = removedRecord?.httpBaseURL
         let wasSelected = state.selectedConnectionId == connectionId
         let began = state.operationOwner.begin(.removeHost)
         do {
@@ -86,9 +98,15 @@ extension AppSession {
         }
         await cancelStaleSessionWork(invalidateSocket: false)
         await sessionPool.forget(.host(connectionId))
-        // Only this endpoint's pin goes: other paired hosts keep theirs.
-        if let removedEndpoint {
-            TlsCertPinStore.remove(endpoint: removedEndpoint)
+        EnvironmentConnectionRegistry.shared.remove(connectionId: connectionId)
+        if let removedRecord, removedRecord.isDirectConnection {
+            // Only a direct record owns its endpoint's pin. An environment
+            // record shares the parent host:port, so removing it must never
+            // drop the parent's pin.
+            if let removedEndpoint {
+                TlsCertPinStore.remove(endpoint: removedEndpoint)
+            }
+            await EnvironmentParentAuthorityStore.shared.invalidate(parentConnectionId: connectionId)
         }
         richChatComposerDrafts.clear(connectionID: connectionId)
         let snapshot: HostCatalogSnapshot
@@ -100,7 +118,7 @@ extension AppSession {
             return
         }
         applyCatalogSnapshot(snapshot)
-        await NotificationIngress.shared.registrations.didRemoveHost(connectionId)
+        await pushRegistrations.didRemoveHost(connectionId)
         if !wasSelected {
             await sessionPool.evictToPolicy()
             return
@@ -168,6 +186,71 @@ extension AppSession {
         }
     }
 
+    /// Connect-time capability metadata refresh (C1 F2 / C1-B).
+    ///
+    /// After a successful handshake on the selected host, a strict describe
+    /// commits the live capability set to the durable record through the same
+    /// journaled metadata path as rename — so a host that gained host-owned
+    /// environments after it was paired surfaces them without re-pairing.
+    /// A failed/stale read changes nothing (false absence is never persisted).
+    ///
+    /// An in-place same-identity environment re-pair keeps the record's
+    /// connection/identity triple but replaces its grant, so identity equality
+    /// alone cannot fence a describe that was resolved under the old grant.
+    /// The durable-mutation ownership captured before the read does: any
+    /// metadata operation that begins while the response is in flight (pair,
+    /// remove, rename) advances `operationId`, and the refresh aborts instead
+    /// of committing across the incarnation boundary.
+    func refreshStoredHostCapabilities(generation gen: Int, ownerEpoch: Int? = nil) async {
+        guard !state.liveLifecycle.isInBackground,
+              let api = state.api,
+              let connectionId = state.selectedConnectionId,
+              let record = state.hosts.first(where: { $0.connectionId == connectionId })
+        else { return }
+        guard state.workGeneration == gen else { return }
+        let expectedDesktopId = record.desktopId
+        let expectedEnvironment = record.environment
+        let expectedOwnership = state.operationOwner.operationId
+        guard let capabilities = try? await api.fetchHostCapabilities() else { return }
+        guard state.workGeneration == gen,
+              state.operationOwner.operationId == expectedOwnership,
+              state.selectedConnectionId == connectionId,
+              let current = state.hosts.first(where: { $0.connectionId == connectionId }),
+              current.desktopId == expectedDesktopId,
+              current.environment == expectedEnvironment
+        else { return }
+        if let ownerEpoch, !state.operationOwner.isCurrent(ownerEpoch) { return }
+
+        let began = state.operationOwner.beginMetadata(.refreshCapabilities)
+        do {
+            guard try await deps.hostCatalog.activate(
+                id: began.operationId,
+                kind: .describeCapabilities
+            ) else { return }
+            let result = try await deps.hostCatalog.updateHostCapabilities(
+                connectionId,
+                expectedDesktopId: expectedDesktopId,
+                expectedEnvironment: expectedEnvironment,
+                capabilities: capabilities,
+                owning: began.operationId
+            )
+            guard result.didApply,
+                  state.operationOwner.isCurrentOperation(began.operationId),
+                  state.workGeneration == gen
+            else { return }
+            let snapshot = try await deps.hostCatalog.snapshot()
+            applyCatalogSnapshot(snapshot)
+            if connectionId == state.selectedConnectionId,
+               let updated = snapshot.document.host(id: connectionId)
+            {
+                state.profile = updated.asProfile()
+            }
+        } catch {
+            // Additive metadata only: a refused/failed write never surfaces as a
+            // session failure and never clears previously known capabilities.
+        }
+    }
+
     func applyCatalogSnapshot(_ snapshot: HostCatalogSnapshot) {
         state.hosts = snapshot.hosts
         state.hostsLRU = snapshot.lru
@@ -178,6 +261,26 @@ extension AppSession {
         for record in snapshot.hosts {
             TlsCertPinStore.register(endpoint: record.httpBaseURL, fingerprint: record.certFingerprint)
         }
+        // Environment transports resolve their parent authority from the local
+        // catalog; re-registering after every durable snapshot keeps the
+        // endpoint -> context map exact and fails closed for a missing parent.
+        let parentsByConnection = Dictionary(
+            uniqueKeysWithValues: snapshot.hosts.map { ($0.connectionId, $0) }
+        )
+        let environmentIds = Set(
+            snapshot.hosts.filter { $0.environment != nil }.map(\.connectionId)
+        )
+        for id in EnvironmentConnectionRegistry.shared.registeredConnectionIds
+        where !environmentIds.contains(id) {
+            EnvironmentConnectionRegistry.shared.remove(connectionId: id)
+        }
+        for record in snapshot.hosts where record.environment != nil {
+            let parent = record.environment.flatMap {
+                parentsByConnection[$0.parentConnectionId]
+            }
+            EnvironmentConnectionRegistry.shared.register(record: record, parent: parent)
+        }
+
     }
 
     /// Refreshes the selected live host and fetches lightweight shell snapshots
@@ -240,9 +343,14 @@ extension AppSession {
         state.profile = record.asProfile()
         state.accessToken = token
         state.api = deps.makeAPI(record.httpBaseURL, token)
-        state.clearThreadSurface()
-        state.threadOwnership.invalidate()
-        state.openThreadEpoch = state.threadOwnership.epoch
+        // Same-authority preflight on the client the socket will use: a host
+        // switch must declare capability-negotiated reads/upgrades on its
+        // FIRST socket, exactly like a fresh pairing. A failed read leaves the
+        // authority unknown (the Online descriptor reconciles).
+        reconcileAttemptedSocketID = nil
+        if let descriptor = try? await state.api?.environment() {
+            await noteEnvironmentCapabilities(descriptor)
+        }
         state.bootstrapCompleted = true
         if state.liveLifecycle.isInBackground {
             state.phase = .connecting
@@ -251,5 +359,6 @@ extension AppSession {
         }
         state.phase = .connecting
         await live.connectAndStart(generation: gen, ownerEpoch: ownerEpoch)
+        await refreshStoredHostCapabilities(generation: gen, ownerEpoch: ownerEpoch)
     }
 }

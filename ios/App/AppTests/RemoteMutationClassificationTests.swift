@@ -28,6 +28,7 @@ final class RemoteMutationClassificationTests: XCTestCase {
             (403, nil, .definiteFailure),
             (404, nil, .definiteFailure),
             (409, "conflict", .definiteFailure),
+            (409, "command_outcome_uncertain", .requestMayHaveCommitted),
             (422, "validation", .definiteFailure),
         ]
         for row in cases {
@@ -51,6 +52,8 @@ final class RemoteMutationClassificationTests: XCTestCase {
             RemoteClientError(message: "unavailable", status: 503, code: "unavailable"),
             RemoteClientError(message: "dropped", status: 0, code: "network"),
             RemoteClientError(message: "slow", status: 0, code: "timeout"),
+            RemoteClientError(
+                message: "uncertain receipt", status: 409, code: "command_outcome_uncertain"),
             RemoteClientError.invalidResponse("bad payload"),
         ]
         for error in ambiguous {

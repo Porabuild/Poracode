@@ -35,6 +35,9 @@ struct SettingsHostCredentials: Sendable {
   let token: String
   let protocolVersion: Int
   let scopes: Set<String>
+  /// Parent authority when this record is a host-owned environment; nil for a
+  /// direct host. Resolved from the same catalog snapshot as the credential.
+  var environment: RemoteEnvironmentContext?
 }
 
 enum SettingsOperationFailure: Error, Equatable, Sendable {

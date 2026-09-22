@@ -21,17 +21,25 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
   private var accessToken: String
   private let session: URLSession
   private let requestTimeout: TimeInterval
+  /// Parent authority for an environment-bound raw transport. The child bearer
+  /// stays in `Authorization`; this supplies the parent header through the one
+  /// shared authorization seam.
+  private let authorization: EnvironmentParentAuthority
 
   init(
     endpoint: String,
     accessToken: String,
     session: URLSession? = nil,
-    requestTimeout: TimeInterval = RemoteSocketPolicy.requestTimeoutSeconds
+    requestTimeout: TimeInterval = RemoteSocketPolicy.requestTimeoutSeconds,
+    environmentAuthority: (@Sendable () async -> String?)? = nil
   ) {
     self.endpoint = endpoint
     self.accessToken = accessToken
     self.session = session ?? RemoteURLSessions.makeAPISession(requestTimeout: requestTimeout)
     self.requestTimeout = requestTimeout
+    self.authorization = EnvironmentParentAuthority(
+      parentTokenProvider: environmentAuthority
+    )
   }
 
   func setAccessToken(_ token: String) {
@@ -48,7 +56,7 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     guard (1...Self.maximumAttachmentBytes).contains(body.count),
       Self.isSafeContentType(contentType)
     else { throw RichChatTransportFailure.invalidRequest }
-    var request = try makeRequest(path: path, queryItems: queryItems, method: "POST")
+    var request = try await makeRequest(path: path, queryItems: queryItems, method: "POST")
     request.setValue(contentType, forHTTPHeaderField: "Content-Type")
     request.setValue(String(body.count), forHTTPHeaderField: "Content-Length")
     request.httpBody = body
@@ -65,7 +73,7 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     queryItems: [URLQueryItem]
   ) async throws -> RichChatBinaryPayload {
     try Task.checkCancellation()
-    let request = try makeRequest(path: path, queryItems: queryItems, method: "GET")
+    let request = try await makeRequest(path: path, queryItems: queryItems, method: "GET")
     let (data, response) = try await perform(
       request, maximumResponseBytes: Self.maximumImageBytes
     )
@@ -87,7 +95,7 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     path: String,
     queryItems: [URLQueryItem],
     method: String
-  ) throws -> URLRequest {
+  ) async throws -> URLRequest {
     var url = try RemoteAPIClient.resolveEndpointURL(endpoint: endpoint, path: path)
     if !queryItems.isEmpty {
       guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
@@ -100,6 +108,7 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     var request = URLRequest(url: url, timeoutInterval: requestTimeout)
     request.httpMethod = method
     request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+    try await authorization.authorize(&request)
     return request
   }
 
@@ -145,6 +154,19 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
       throw RedirectPolicy.apiErrorForRedirect(status: http.statusCode)
     }
     guard http.statusCode == 200 else {
+      if authorization.isEnvironmentBound, http.statusCode == 401 {
+        // Environment sessions: prove parent origin only from the trusted
+        // marker; otherwise report an unattributed repair. Same classifier as
+        // the JSON transport.
+        throw RemoteClientError.environmentAwareFailure(
+          message: "Remote request failed.",
+          status: 401,
+          code: "request_failed",
+          evidence: Self.environmentEvidence(from: http),
+          environmentBound: true,
+          authorized: true
+        )
+      }
       if let payload = try? JSONDecoding.decode(RemoteHttpErrorPayload.self, from: data) {
         throw RemoteClientError(
           message: payload.error.message,
@@ -158,6 +180,19 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
         code: "request_failed"
       )
     }
+  }
+
+  /// Capture only the allowlisted parent-origin evidence header.
+  private nonisolated static func environmentEvidence(
+    from response: HTTPURLResponse
+  ) -> [String: String]? {
+    guard
+      let value = response.value(
+        forHTTPHeaderField: ProtocolConstants.environmentAuthAuthorityHeader
+      ),
+      !value.isEmpty
+    else { return nil }
+    return [ProtocolConstants.environmentAuthAuthorityHeader.lowercased(): value]
   }
 
   private nonisolated static func isSafeContentType(_ value: String) -> Bool {

@@ -20,7 +20,8 @@ extension HostCatalog: PortForwardingCredentialRepository {
       endpoint: record.httpBaseURL,
       token: credential,
       protocolVersion: record.protocolVersion,
-      scopes: Set(record.scopes)
+      scopes: Set(record.scopes),
+      environment: await environmentTransportContext(for: record)
     )
   }
 }

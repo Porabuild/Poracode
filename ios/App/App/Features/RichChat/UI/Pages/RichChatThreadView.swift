@@ -178,6 +178,7 @@ struct RichChatThreadView: View {
   private var transcriptSurface: some View {
     RichChatTranscriptSurface(
       controller: suite.transcript,
+      notice: suite.notice,
       mediaController: suite.media,
       conversation: suite.conversation,
       checkpointController: suite.checkpoints,

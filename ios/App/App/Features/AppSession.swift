@@ -5,8 +5,9 @@ import SwiftUI
 /// Thin public facade: pairing, snapshot, live events, and thread detail.
 ///
 /// Domain work lives in focused controllers (`PairingCoordinator`,
-/// `LiveConnectionController`, `ThreadController`, `SessionEventRouter`,
-/// `ResyncEngine`). Screens observe narrow state and do not decode protocol.
+/// `LiveConnectionController`, `SessionEventRouter`, `ResyncEngine`). Screens
+/// observe narrow state and do not decode protocol. Rich GUI threads are owned
+/// by `RichChatControllerSuite`; the bounded catalog owns row state.
 @MainActor
 @Observable
 final class AppSession {
@@ -48,51 +49,6 @@ final class AppSession {
     var pendingPairing: RemotePairingPending? {
         get { state.pendingPairing }
         set { state.pendingPairing = newValue }
-    }
-
-    var openRuntimeRequests: [RuntimeEventReducer.OpenRuntimeRequest] {
-        get { state.openRuntimeRequests }
-        set { state.openRuntimeRequests = newValue }
-    }
-
-    var openThreadId: String? {
-        get { state.openThreadId }
-        set { state.openThreadId = newValue }
-    }
-
-    var openThreadEpoch: Int {
-        get { state.openThreadEpoch }
-        set { state.openThreadEpoch = newValue }
-    }
-
-    var threadSnapshot: RemoteThreadSnapshot? {
-        get { state.threadSnapshot }
-        set { state.threadSnapshot = newValue }
-    }
-
-    var threadItems: [PersistedRuntimeItem] {
-        get { state.threadItems }
-        set { state.threadItems = newValue }
-    }
-
-    var threadOlderCursor: Int? {
-        get { state.threadOlderCursor }
-        set { state.threadOlderCursor = newValue }
-    }
-
-    var threadLoadState: SessionLoadState {
-        get { state.threadLoadState }
-        set { state.threadLoadState = newValue }
-    }
-
-    var isSending: Bool {
-        get { state.isSending }
-        set { state.isSending = newValue }
-    }
-
-    var isLoadingOlder: Bool {
-        get { state.isLoadingOlder }
-        set { state.isLoadingOlder = newValue }
     }
 
     var canRead: Bool { state.canRead }
@@ -142,10 +98,12 @@ final class AppSession {
 
     private(set) var pairing: PairingCoordinator!
     private(set) var live: LiveConnectionController!
-    private(set) var threads: ThreadController!
     private(set) var events: SessionEventRouter!
     private(set) var resync: ResyncEngine!
     private(set) var sessionPool: SessionPool!
+    /// B4 bounded catalog capability facade (negotiated shell/inventory/history
+    /// reads, pins, membership events). Stateless struct over `state.catalog`.
+    var catalog: BoundedCatalogController { BoundedCatalogController(host: self) }
     /// The one rich GUI conversation currently subscribed to live runtime events.
     /// The owning screen explicitly attaches and detaches this suite.
     var activeRichChatSuite: RichChatControllerSuite?
@@ -154,10 +112,8 @@ final class AppSession {
     // Explicit unpair durable clear is NOT cancelled (runs as direct await).
     // Each slot is identity-safe: install returns a token; clear only if still current;
     // bulk cancel can exclude a token so a running op never cancel-joins itself.
-    var threadLoadTask = OwnedTaskSlot()
     var snapshotTask = OwnedTaskSlot()
     var shellRefreshTask = OwnedTaskSlot()
-    var threadMetaRefreshTask = OwnedTaskSlot()
     /// In-flight resync attempt (HTTP). Separate from `resyncRetryTask`.
     var resyncTask = OwnedTaskSlot()
     /// Scheduled retry timer only — never shares identity with the attempt task.
@@ -170,9 +126,6 @@ final class AppSession {
     var gitInterestFlushTask = OwnedTaskSlot()
     var pairTask = OwnedTaskSlot()
     var bootstrapNetworkTask = OwnedTaskSlot()
-    var sendTask = OwnedTaskSlot()
-    var interruptTask = OwnedTaskSlot()
-    var paginationTask = OwnedTaskSlot()
     /// Background join + socket suspend (owned; cancelled on next background/unpair).
     var backgroundSuspendTask = OwnedTaskSlot()
     /// Browser-capability refresh (one environment handshake per online
@@ -180,6 +133,9 @@ final class AppSession {
     /// sweeps; a cancelled read never writes, and epoch fencing drops any
     /// result that lands after a further reconnect or host swap anyway.
     var browserForwardAuthorityTask = OwnedTaskSlot()
+    /// Identity of the socket that already consumed its one-shot capability
+    /// declaration reconcile. A replacement socket may reconcile once.
+    var reconcileAttemptedSocketID: ObjectIdentifier?
 
     // MARK: - Init
 
@@ -198,7 +154,6 @@ final class AppSession {
         self.remoteNotificationPresentations = remoteNotificationPresentations
         self.pairing = PairingCoordinator(host: self)
         self.live = LiveConnectionController(host: self)
-        self.threads = ThreadController(host: self)
         self.events = SessionEventRouter(host: self)
         self.resync = ResyncEngine(host: self)
         self.sessionPool = SessionPool(host: self)
@@ -253,25 +208,19 @@ final class AppSession {
         live.threads(for: projectId)
     }
 
-    func openThread(id: String) {
-        threads.openThread(id: id)
+    /// Exact pinned lookup for a deep link / push target: returns the loaded
+    /// row, or performs one by-id history read (never a catalog scan), installs
+    /// the row into the catalog and pins it so a membership confirmation can
+    /// never remove the target of a pending navigation. `nil` when the host no
+    /// longer has that thread.
+    func ensureThreadLoadedForOpen(id: String) async -> RemoteThread? {
+        await catalog.loadRowByExactId(id)
     }
 
-    func closeThread() {
-        threads.closeThread()
-    }
-
-    func loadOlderItems() async {
-        await threads.loadOlderItems()
-    }
-
-    @discardableResult
-    func sendMessage(_ text: String) async -> Bool {
-        await threads.sendMessage(text)
-    }
-
-    func interruptOpenThread() async {
-        await threads.interruptOpenThread()
+    /// Releases a pending deep-link/push navigation's pin. Owner-aware: the
+    /// open RichChat page's pin is never released here.
+    func releasePendingNavigationPin(id: String) {
+        _ = catalog.releaseNavigationPin(id)
     }
 
     /// Internal entry for live frames (and composition tests).
@@ -295,13 +244,15 @@ final class AppSession {
         let cancelled = cancelAllForegroundNetworkTasks(excluding: excluding)
         browserForwardAuthorityTask.cancelCurrent()
         state.isResyncing = false
-        state.hydrationBuffer.discard()
+        // Host-scoped bounded catalog state never survives a host switch,
+        // re-pair or unpair; the notice declaration mirror belongs to the
+        // authority that advertised it.
+        state.catalog.resetForHostChange()
+        state.runtimeHistoryNoticesDeclared = false
+        reconcileAttemptedSocketID = nil
         // Invalidate any in-flight authoritative install so it cannot commit.
         state.replayInstallBuffer.discard()
         state.replayInstallGeneration &+= 1
-        state.historyLoadGeneration += 1
-        state.threadOwnership.invalidate()
-        state.openThreadEpoch = state.threadOwnership.epoch
         state.resyncCoordinator.reset()
         await joinTasks(cancelled)
         if invalidateSocket {
@@ -318,6 +269,9 @@ final class AppSession {
         _ = state.operationOwner.bumpWorkGeneration()
         browserForwardAuthorityTask.cancelCurrent()
         state.pendingPairing = nil
+        // Cancel every bounded walk task; a foreground resume re-arms passes
+        // from the retained cursors.
+        state.catalog.cancelAll()
         // Synchronously invalidate any in-flight authoritative install: a commit
         // arriving after this point must not write into the backgrounded session.
         if !state.replayInstallBuffer.buffered.isEmpty {
@@ -342,8 +296,6 @@ final class AppSession {
         }
         take(&snapshotTask, excluded: excluding.snapshot)
         take(&shellRefreshTask, excluded: excluding.shellRefresh)
-        take(&threadMetaRefreshTask, excluded: excluding.threadMetaRefresh)
-        take(&threadLoadTask, excluded: excluding.threadLoad)
         take(&resyncTask, excluded: excluding.resync)
         take(&resyncRetryTask, excluded: excluding.resyncRetry)
         take(&unauthorizedRetryTask, excluded: excluding.unauthorizedRetry)
@@ -351,9 +303,6 @@ final class AppSession {
         take(&gitInterestFlushTask, excluded: excluding.gitInterestFlush)
         take(&pairTask, excluded: excluding.pair)
         take(&bootstrapNetworkTask, excluded: excluding.bootstrapNetwork)
-        take(&sendTask, excluded: excluding.send)
-        take(&interruptTask, excluded: excluding.interrupt)
-        take(&paginationTask, excluded: excluding.pagination)
         take(&backgroundSuspendTask, excluded: excluding.backgroundSuspend)
         return handles
     }
@@ -463,6 +412,10 @@ final class AppSession {
         if value == .online {
             guard previous != .online else { return }
             state.beginBrowserForwardOnlineEpoch()
+            // Reconnect/resume: re-prove both catalogs and re-arm the jittered
+            // reconciliation pass. A still-running walk resumes from its
+            // retained cursor (segments are generation-fenced, not discarded).
+            catalog.onSocketOnline()
             if let connectionID = state.selectedConnectionId {
                 refreshBrowserForwardAuthority(for: connectionID)
             }
@@ -507,7 +460,7 @@ final class AppSession {
             defer { self.browserForwardAuthorityTask.clearIfCurrent(installToken) }
             let environment = try? await api.environment()
             let isCurrentInstall = self.browserForwardAuthorityTask.isCurrent(installToken)
-            self.finishBrowserForwardRefresh(
+            await self.finishBrowserForwardRefresh(
                 environment,
                 marker: marker,
                 isCurrentInstall: isCurrentInstall
@@ -515,6 +468,71 @@ final class AppSession {
         }
         installToken = browserForwardAuthorityTask.install(task)
         assert(installToken == marker.requestToken, "Marker token must match the install")
+    }
+
+    /// Records one authoritative environment handshake on the same client the
+    /// socket and reads use, and enables the declarations whose production
+    /// paths are installed. A failed handshake never reaches this, so absence
+    /// is never inferred from a network error.
+    func noteEnvironmentCapabilities(_ descriptor: RemoteEnvironmentDescriptor) async {
+        guard let api = state.api else { return }
+        let notices = descriptor.advertisesRuntimeHistoryNotices
+        await api.observeEnvironmentCapabilities(descriptor)
+        await api.declareRuntimeHistoryNotices(notices)
+        state.runtimeHistoryNoticesDeclared = notices
+    }
+
+    /// Declares the bounded catalog-change signal intent from the current
+    /// authority's advertisement and the bounded catalog controller's actual
+    /// negotiation. Called immediately before each socket start (the bounded
+    /// first page has already committed on the connect paths).
+    func declareBoundedCatalogChangesIfReady() async {
+        guard let api = state.api else { return }
+        await api.declareBoundedCatalogChanges(catalog.isSupported && catalog.isNegotiated)
+    }
+
+    /// Per-socket one-shot reconciliation for a late capability discovery: the
+    /// authoritative descriptor arrived after this socket's upgrade omitted a
+    /// declaration. Flipping the flag alone would leave the open connection
+    /// incapable (a notice thread's canonical frames are emptied host-side and
+    /// the cursor advances), so this runs the existing authoritative resync
+    /// barrier first and reconnects declared at the committed cursor.
+    func reconcileCapabilityDeclarationsIfNeeded(
+        expectedClient: RemoteWebSocketClient? = nil
+    ) async {
+        guard !state.liveLifecycle.isInBackground, !state.isResyncing,
+              let socket = state.webSocket,
+              let api = state.api,
+              let declarations = await socket.upgradeDeclarations()
+        else { return }
+        if let expectedClient,
+           !((socket as? RemoteWebSocketClientBox)?.wraps(expectedClient) ?? false)
+        {
+            return
+        }
+        let advertised = await api.advertisedCapabilities()
+        var missingNotices = false
+        var missingCatalog = false
+        if advertised.runtimeHistoryNotices, !declarations.notices {
+            missingNotices = true
+            await api.declareRuntimeHistoryNotices(true)
+            state.runtimeHistoryNoticesDeclared = true
+        }
+        if advertised.boundedCatalogChanges, !declarations.catalogChanges,
+           catalog.isSupported, catalog.isNegotiated
+        {
+            missingCatalog = true
+            await api.declareBoundedCatalogChanges(true)
+        }
+        guard missingNotices || missingCatalog else { return }
+        let socketID = ObjectIdentifier(socket as AnyObject)
+        guard reconcileAttemptedSocketID != socketID else { return }
+        reconcileAttemptedSocketID = socketID
+        resync.trigger(
+            reason: missingNotices
+                ? "notices_capability_declared"
+                : "bounded_catalog_changes_declared"
+        )
     }
 
     /// Applies a completed capability handshake if this exact request still
@@ -536,7 +554,7 @@ final class AppSession {
         _ environment: RemoteEnvironmentDescriptor?,
         marker: BrowserForwardRefreshPending,
         isCurrentInstall: Bool
-    ) {
+    ) async {
         if state.browserForwardRefresh == marker {
             state.browserForwardRefresh = nil
         }
@@ -546,6 +564,11 @@ final class AppSession {
               let environment
         else { return }
         state.noteBrowserForwardEntry(environment, connectionID: marker.connectionID)
+        // The Online descriptor is the late-discovery path for a socket whose
+        // upgrade omitted a declaration (e.g. a failed preflight): observe it
+        // on the same client and reconcile through the authoritative barrier.
+        await noteEnvironmentCapabilities(environment)
+        await reconcileCapabilityDeclarationsIfNeeded()
     }
 
 }
@@ -560,6 +583,13 @@ extension AppSession: RemoteWebSocketClientDelegate {
         await MainActor.run {
             guard let key = self.socketKey(wrapping: client) else { return }
             self.recordSocketState(state, for: key)
+        }
+        // Every fresh Online of the selected socket re-evaluates the actual
+        // upgrade declarations against the current advertisement (one barrier
+        // per installed socket at most). A secondary host's socket is ignored:
+        // the declaration belongs to the selected authority's client.
+        if state == .online {
+            await self.reconcileCapabilityDeclarationsIfNeeded(expectedClient: client)
         }
     }
 

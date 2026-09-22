@@ -260,6 +260,36 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     XCTAssertNil(harness.navigation.event)
   }
 
+  // MARK: - Navigation pin ownership
+
+  func testSupersededAndAbandonedNavigationReleaseTheirOwnPin() async {
+    let harness = Harness()
+    harness.session.snapshot = makeSnapshot(threads: [makeThread(id: "t-open", title: "Open")])
+    harness.session.ensureLoadsThread = makeThread(id: "t-outside", title: "Outside")
+
+    // Same-host tap for a row outside the loaded page: the by-id fallback pins
+    // the target for the navigation.
+    harness.controller.submit(
+      route(connection: connectionA, desktopId: "desk-a", threadId: "t-outside"))
+    await harness.settle()
+    XCTAssertEqual(harness.navigation.event?.route.threadId, "t-outside")
+    XCTAssertTrue(harness.session.releasedNavigationPins.isEmpty)
+
+    // A newer tap supersedes the first route: its pin is released, not leaked.
+    harness.controller.submit(
+      route(connection: connectionA, desktopId: "desk-a", threadId: "t-open"))
+    await harness.settle()
+    XCTAssertEqual(harness.session.releasedNavigationPins, ["t-outside"])
+
+    // Backgrounding abandons a pending navigation and releases its pin too.
+    harness.controller.submit(
+      route(connection: connectionA, desktopId: "desk-a", threadId: "t-outside"))
+    await harness.settle()
+    harness.controller.setForeground(false)
+    await harness.settle()
+    XCTAssertEqual(harness.session.releasedNavigationPins, ["t-outside", "t-outside"])
+  }
+
   // MARK: - No secret display
 
   func testConfirmationExposesOnlyTheSafeHostLabel() async throws {
@@ -460,6 +490,9 @@ private final class RouteSessionDouble: NotificationRouteSession {
 
   private(set) var switchHostCalls: [ClientConnectionID] = []
   private(set) var refreshSnapshotCount = 0
+  private(set) var releasedNavigationPins: [String] = []
+  /// By-id fallback result for a target outside the loaded snapshot page.
+  var ensureLoadsThread: RemoteThread?
 
   func switchHost(_ connectionId: ClientConnectionID) async {
     switchHostCalls.append(connectionId)
@@ -474,4 +507,11 @@ private final class RouteSessionDouble: NotificationRouteSession {
     refreshSnapshotCount += 1
   }
 
+  func ensureThreadLoadedForOpen(id: String) async -> RemoteThread? {
+    snapshot?.threads.first { $0.id == id } ?? ensureLoadsThread
+  }
+
+  func releasePendingNavigationPin(id: String) {
+    releasedNavigationPins.append(id)
+  }
 }

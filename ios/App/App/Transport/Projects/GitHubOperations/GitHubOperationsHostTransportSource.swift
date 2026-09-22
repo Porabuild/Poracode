@@ -7,6 +7,7 @@ struct GitHubOperationsHostCredentials: Sendable {
   let token: String
   let protocolVersion: Int
   let scopes: Set<String>
+  var environment: RemoteEnvironmentContext?
 }
 
 protocol GitHubOperationsCredentialRepository: Sendable {
@@ -29,7 +30,8 @@ extension HostCatalog: GitHubOperationsCredentialRepository {
       endpoint: record.httpBaseURL,
       token: token,
       protocolVersion: record.protocolVersion,
-      scopes: Set(record.scopes)
+      scopes: Set(record.scopes),
+      environment: await environmentTransportContext(for: record)
     )
   }
 }
@@ -39,18 +41,31 @@ extension HostCatalog: GitHubOperationsCredentialRepository {
 /// endpoint or bearer token can never be attached to stale project work.
 actor GitHubOperationsExactHostTransportSource {
   typealias ContextProvider = @MainActor @Sendable () -> GitHubControllerContext?
-  typealias APIFactory = @Sendable (URL, String) -> any GitHubOperationsRemoteAPI
+  typealias APIFactory =
+    @Sendable (URL, String, RemoteEnvironmentContext?) -> any GitHubOperationsRemoteAPI
 
   private let credentials: any GitHubOperationsCredentialRepository
   private let contextProvider: ContextProvider
   private let makeAPI: APIFactory
 
+  /// The one production factory: bound endpoint + child bearer + resolved
+  /// parent context. Tests inject a URLProtocol-backed session to capture the
+  /// exact headers this factory produces.
+  static func productionAPIFactory(session: URLSession? = nil) -> APIFactory {
+    { endpoint, token, environment in
+      GitHubOperationsHTTPTransport(
+        endpoint: endpoint,
+        accessToken: token,
+        session: session ?? .shared,
+        environmentAuthority: EnvironmentParentAuthority(context: environment)
+      )
+    }
+  }
+
   init(
     credentials: any GitHubOperationsCredentialRepository,
     contextProvider: @escaping ContextProvider,
-    makeAPI: @escaping APIFactory = { endpoint, token in
-      GitHubOperationsHTTPTransport(endpoint: endpoint, accessToken: token)
-    }
+    makeAPI: @escaping APIFactory = GitHubOperationsExactHostTransportSource.productionAPIFactory()
   ) {
     self.credentials = credentials
     self.contextProvider = contextProvider
@@ -85,7 +100,7 @@ actor GitHubOperationsExactHostTransportSource {
     )
     return GitHubTransportSelection(
       context: exactContext,
-      api: makeAPI(endpoint, credential.token)
+      api: makeAPI(endpoint, credential.token, credential.environment)
     )
   }
 }

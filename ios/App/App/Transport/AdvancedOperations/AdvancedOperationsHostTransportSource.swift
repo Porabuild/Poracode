@@ -19,6 +19,7 @@ struct AdvancedOperationsHostCredentials: Sendable {
   let credential: String
   let protocolVersion: Int
   let scopes: Set<String>
+  let environment: RemoteEnvironmentContext?
 }
 
 protocol AdvancedOperationsCredentialRepository: Sendable {
@@ -45,7 +46,8 @@ protocol AdvancedOperationsCredentialRepository: Sendable {
         endpoint: record.httpBaseURL,
         credential: credential,
         protocolVersion: record.protocolVersion,
-        scopes: Set(record.scopes)
+        scopes: Set(record.scopes),
+        environment: await environmentTransportContext(for: record)
       )
     }
   }
@@ -67,20 +69,34 @@ struct AdvancedOperationsResolvedHost: Sendable {
 /// credential to this feature's work.
 actor AdvancedOperationsExactHostTransportSource {
   typealias BindingProvider = @MainActor @Sendable () -> AdvancedOperationsHostBinding?
-  typealias APIFactory = @Sendable (String, String) throws -> any AdvancedOperationsRemoteAPI
+  typealias APIFactory =
+    @Sendable (String, String, RemoteEnvironmentContext?) throws -> any AdvancedOperationsRemoteAPI
 
   private let credentials: any AdvancedOperationsCredentialRepository
   private let bindingProvider: BindingProvider
   private let makeAPI: APIFactory
 
+  /// The one production factory: bound endpoint + child bearer + resolved
+  /// parent context. Tests inject a URLProtocol-backed session to capture the
+  /// exact headers this factory produces.
+  static func productionAPIFactory(session: URLSession? = nil) -> APIFactory {
+    { endpoint, credential, environment in
+      AdvancedOperationsRemoteTransport(
+        http: try AdvancedOperationsHTTPClient(
+          endpoint: endpoint,
+          credential: credential,
+          session: session,
+          environmentAuthority: EnvironmentParentAuthority(context: environment)
+        )
+      )
+    }
+  }
+
   init(
     credentials: any AdvancedOperationsCredentialRepository,
     bindingProvider: @escaping BindingProvider,
-    makeAPI: @escaping APIFactory = { endpoint, credential in
-      AdvancedOperationsRemoteTransport(
-        http: try AdvancedOperationsHTTPClient(endpoint: endpoint, credential: credential)
-      )
-    }
+    makeAPI: @escaping APIFactory =
+      AdvancedOperationsExactHostTransportSource.productionAPIFactory()
   ) {
     self.credentials = credentials
     self.bindingProvider = bindingProvider
@@ -115,7 +131,7 @@ actor AdvancedOperationsExactHostTransportSource {
     return AdvancedOperationsResolvedHost(
       binding: binding,
       grantedScopes: granted,
-      api: try makeAPI(credential.endpoint, credential.credential)
+      api: try makeAPI(credential.endpoint, credential.credential, credential.environment)
     )
   }
 }

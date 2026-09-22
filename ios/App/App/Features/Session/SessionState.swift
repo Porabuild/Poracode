@@ -23,6 +23,12 @@ enum SessionLoadState: Equatable, Sendable {
 }
 
 /// Open-thread domain state matching TS runtime event slice fields used by mobile.
+///
+/// Retained as the vocabulary of the handwritten `RuntimeEventReducer` parity
+/// reducer (the iOS half of the three-client fixture-pinned contract; consumers
+/// `RuntimeEventReducerTests`, `RichChatReducerFixtureTests`,
+/// `RuntimeBackgroundTasksReduceTests` load `protocol/remote/v3/fixtures`).
+/// Its legacy production reader was removed with the open-thread surface.
 struct RuntimeThreadDomainState: Sendable, Equatable {
     var openTurn: Bool?
     var openRequests: [RuntimeEventReducer.OpenRuntimeRequest] = []
@@ -128,6 +134,11 @@ struct SessionRuntimeState {
     /// costs exactly one environment handshake.
     var browserForwardRefresh: BrowserForwardRefreshPending?
 
+    /// B1: the selected host's latest environment handshake advertised durable
+    /// runtime history notices, and the client declared them on the same
+    /// authority. Connection-scoped (never persisted); reset with the host.
+    var runtimeHistoryNoticesDeclared = false
+
     var snapshot: RemoteShellSnapshot?
     /// Latest authoritative shell snapshot for each paired host. The selected
     /// host is refreshed by the live session; background hosts are refreshed
@@ -141,20 +152,6 @@ struct SessionRuntimeState {
     /// QR `#fp=` for the pending candidate; not part of the generated pending struct.
     var pendingCertFingerprint: String?
 
-    var openRuntimeRequests: [RuntimeEventReducer.OpenRuntimeRequest] = []
-    /// Canonical domain fields for the open thread (open-turn, context, completed turns).
-    var threadDomain = RuntimeThreadDomainState()
-
-    var openThreadId: String?
-    /// Explicit open epoch — changes on every open/close even for the same id.
-    var openThreadEpoch: Int = 0
-    var threadSnapshot: RemoteThreadSnapshot?
-    var threadItems: [PersistedRuntimeItem] = []
-    var threadOlderCursor: Int?
-    var threadLoadState: SessionLoadState = .idle
-    var isSending = false
-    var isLoadingOlder = false
-
     var api: (any SessionRemoteAPI)?
     var webSocket: (any SessionLiveSocket)?
     /// Always a baseline once a live session is attempted; `0` after snapshot failure.
@@ -167,18 +164,18 @@ struct SessionRuntimeState {
     /// Once-per-process: SwiftUI `.task` reentry must not re-bootstrap after completion.
     var bootstrapCompleted = false
     var isResyncing = false
-    /// History load tokens invalidated by successful resync.
-    var historyLoadGeneration: Int = 0
     /// Background mid-resync left an authoritative refresh requirement for next foreground.
     var needsAuthoritativeRefresh = false
 
     var operationOwner = SessionOperationOwner()
-    var threadOwnership = ThreadOpenOwnership()
     var interestCoordinator = InterestUpdateCoordinator()
     var liveLifecycle = LiveSessionLifecycle()
-    var hydrationBuffer = ThreadHistoryHydrationBuffer()
     var pairingTracker = RemotePairingCandidateTracker()
     var resyncCoordinator = ResyncCoordinator()
+    /// B4 bounded catalog state: negotiation, paints, inventory passes, pins,
+    /// per-row applied-seq guard and walk ownership. In-memory only; scoped to
+    /// the selected host and reset on host switch/unpair.
+    var catalog = BoundedCatalogState()
     /// Replayed Git/agent/lifecycle state for the *selected* host only.
     var replay = HostReplayState()
     /// Boundary buffer for sequenced events arriving during a snapshot/resync install.
@@ -204,18 +201,6 @@ struct SessionRuntimeState {
         guard canRead else { return [] }
         return (snapshot?.projects ?? []).filter { !($0.disabled ?? false) }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-    }
-
-    mutating func clearThreadSurface() {
-        openThreadId = nil
-        threadSnapshot = nil
-        threadItems = []
-        threadOlderCursor = nil
-        openRuntimeRequests = []
-        threadDomain.reset()
-        threadLoadState = .idle
-        isSending = false
-        isLoadingOlder = false
     }
 
     /// Records browser-origin forward-entry advertising from a completed
@@ -282,11 +267,10 @@ struct SessionRuntimeState {
         browserForwardEntry = nil
         browserForwardOnlineEpoch = 0
         browserForwardRefresh = nil
+        runtimeHistoryNoticesDeclared = false
         snapshot = nil
         hostSnapshots = [:]
-        clearThreadSurface()
-        threadOwnership.invalidate()
-        openThreadEpoch = threadOwnership.epoch
+        catalog.resetForHostChange()
         lastSeenSeq = 0
         socketReplayCeiling = 0
         isResyncing = false
@@ -303,8 +287,6 @@ struct SessionRuntimeState {
         explicitGitInterests = []
         pendingPairing = nil
         pendingCertFingerprint = nil
-        hydrationBuffer.discard()
-        historyLoadGeneration += 1
         phase = .needsPairing
         socketState = .idle
         projectsLoadState = .idle

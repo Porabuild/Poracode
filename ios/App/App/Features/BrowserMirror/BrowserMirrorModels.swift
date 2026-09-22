@@ -33,6 +33,7 @@ struct BrowserMirrorHostCredentials: Sendable {
   let protocolVersion: Int
   let scopes: Set<String>
   var desktopID: String?
+  var environment: RemoteEnvironmentContext?
 }
 
 struct BrowserMirrorTab: Codable, Equatable, Identifiable, Sendable {

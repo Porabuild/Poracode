@@ -14,6 +14,7 @@ struct SessionOperationOwner: Sendable, Equatable {
         case connect
         case switchHost
         case renameHost
+        case refreshCapabilities
         case removeHost
     }
 
@@ -72,91 +73,6 @@ struct SessionOperationOwner: Sendable, Equatable {
     }
 }
 
-// MARK: - Thread open ownership
-
-/// Explicit open-thread epoch that changes on every close/open, even for the same id.
-struct ThreadOpenOwnership: Sendable, Equatable {
-    private(set) var threadId: String?
-    private(set) var epoch: Int = 0
-    private(set) var sessionGeneration: Int = 0
-    /// Captured HTTP endpoint identity for the load.
-    private(set) var apiEndpoint: String?
-    /// Socket instance identity at open time (optional; nil when deferred).
-    private(set) var socketObjectID: ObjectIdentifier?
-
-    struct Token: Sendable, Equatable {
-        var threadId: String
-        var epoch: Int
-        var sessionGeneration: Int
-        var apiEndpoint: String?
-        var socketObjectID: ObjectIdentifier?
-    }
-
-    /// Open (or reopen) a thread. Always advances epoch.
-    @discardableResult
-    mutating func open(
-        threadId: String,
-        sessionGeneration: Int,
-        apiEndpoint: String?,
-        socketObjectID: ObjectIdentifier?
-    ) -> Token {
-        epoch += 1
-        self.threadId = threadId
-        self.sessionGeneration = sessionGeneration
-        self.apiEndpoint = apiEndpoint
-        self.socketObjectID = socketObjectID
-        return currentToken()!
-    }
-
-    /// Close the open thread. Advances epoch so in-flight loads become stale.
-    mutating func close() {
-        epoch += 1
-        threadId = nil
-        apiEndpoint = nil
-        socketObjectID = nil
-    }
-
-    /// Discard ownership without requiring a matching token (pair/unpair/cancel).
-    mutating func invalidate() {
-        epoch += 1
-        threadId = nil
-        apiEndpoint = nil
-        socketObjectID = nil
-    }
-
-    /// After background recovery: rebind an already-open thread to the current session generation
-    /// so pagination / metadata refresh remain valid without reopening.
-    mutating func rebindSessionGeneration(_ sessionGeneration: Int) {
-        guard threadId != nil else { return }
-        self.sessionGeneration = sessionGeneration
-    }
-
-    func currentToken() -> Token? {
-        guard let threadId else { return nil }
-        return Token(
-            threadId: threadId,
-            epoch: epoch,
-            sessionGeneration: sessionGeneration,
-            apiEndpoint: apiEndpoint,
-            socketObjectID: socketObjectID
-        )
-    }
-
-    /// True when the captured load identity still owns the open thread.
-    func isCurrent(_ token: Token, sessionGeneration: Int, apiEndpoint: String?) -> Bool {
-        guard self.threadId == token.threadId,
-              self.epoch == token.epoch,
-              token.sessionGeneration == sessionGeneration,
-              self.sessionGeneration == sessionGeneration
-        else { return false }
-        // API identity: if either side captured an endpoint, they must match.
-        if let expected = token.apiEndpoint, let current = apiEndpoint {
-            return expected == current
-        }
-        return true
-    }
-}
-
 // MARK: - Ordered interest coordinator
 
 /// Serializes thread-item-interest updates with a monotonic ordinal.
@@ -207,40 +123,18 @@ struct InterestUpdateCoordinator: Sendable, Equatable {
     }
 }
 
-// MARK: - Shell refresh cursor policy
-
-/// Manual/debounced shell snapshot must not advance the global replay cursor
-/// while a thread is open unless that thread is rehydrated in the same commit.
-enum ShellRefreshCursorPolicy {
-    enum Decision: Sendable, Equatable {
-        /// Bootstrap / no open thread — may baseline from shell.snapshotSeq.
-        case advanceGlobalCursor
-        /// Open thread present — update shell lists only; keep lastSeenSeq.
-        case shellListsOnly
-    }
-
-    static func decision(hasOpenThread: Bool, isInitialBootstrap: Bool) -> Decision {
-        if isInitialBootstrap { return .advanceGlobalCursor }
-        if hasOpenThread { return .shellListsOnly }
-        return .advanceGlobalCursor
-    }
-}
-
 // MARK: - Resync transaction (pure)
 
 /// Captured identities + fetched locals for a single atomic resync commit.
 struct ResyncTransaction: Sendable {
     var workGeneration: Int
-    var openThreadId: String?
-    var openThreadEpoch: Int
     var apiEndpoint: String
     var socketObjectID: ObjectIdentifier?
     var shell: RemoteShellSnapshot
-    var history: RemoteThreadSnapshot?
 }
 
 enum ResyncCommitDecision: Sendable, Equatable {
-    case commit(reconnectSeq: Int, installHistory: Bool)
+    case commit(reconnectSeq: Int)
     case abortStale
     case abortCancelled
 }
@@ -250,8 +144,6 @@ enum HostResyncPolicy {
     static func commitDecision(
         transaction: ResyncTransaction,
         currentWorkGeneration: Int,
-        currentOpenThreadId: String?,
-        currentOpenThreadEpoch: Int,
         currentAPIEndpoint: String?,
         currentSocketObjectID: ObjectIdentifier?,
         isCancelled: Bool
@@ -267,23 +159,9 @@ enum HostResyncPolicy {
         if transaction.socketObjectID != currentSocketObjectID {
             return .abortStale
         }
-        // Thread identity: if we fetched history for A, A must still be open at same epoch.
-        if let expectedThread = transaction.openThreadId {
-            guard currentOpenThreadId == expectedThread,
-                  currentOpenThreadEpoch == transaction.openThreadEpoch
-            else {
-                // Thread switched — commit shell only if we still want shell baseline.
-                // Spec: no partial UI/cursor if thread switched — abort entire transaction.
-                return .abortStale
-            }
-        } else if currentOpenThreadId != nil {
-            // Opened a thread mid-resync that we didn't fetch — abort (no partial).
-            return .abortStale
-        }
         let reconnect = GlobalCursorOwnership.resyncReconnectSeq(
             shellSnapshotSeq: transaction.shell.snapshotSeq
         )
-        let installHistory = transaction.history != nil && transaction.openThreadId != nil
-        return .commit(reconnectSeq: reconnect, installHistory: installHistory)
+        return .commit(reconnectSeq: reconnect)
     }
 }
