@@ -14,9 +14,12 @@ import XCTest
 ///    the TS harness (`tests/native-e2e/realHostObservableEffects.test.ts`).
 @MainActor
 final class NativeFamilyJourneyUITests: XCTestCase {
+  private static var preparedRealPeerState = false
+
   private let app = XCUIApplication()
   private var controlURL: URL!
   private var capability = ""
+  private var reusesRealPeerPairing = false
 
   private enum PeerMode {
     case mock
@@ -39,9 +42,16 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     }
     controlURL = url
     capability = controlCapability
-    app.launchArguments = [
-      "-AppleLanguages", "(en)", "-AppleLocale", "en_US", "-native-e2e-fresh-state",
-    ]
+    app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+    if peerMode == .mock {
+      app.launchArguments.append("-native-e2e-fresh-state")
+    } else {
+      reusesRealPeerPairing = Self.preparedRealPeerState
+      Self.preparedRealPeerState = true
+      if !reusesRealPeerPairing {
+        app.launchArguments.append("-native-e2e-fresh-state")
+      }
+    }
   }
 
   func testSteerFamilySetsPendingFromComposerDuringLiveTurn() async throws {
@@ -188,6 +198,14 @@ final class NativeFamilyJourneyUITests: XCTestCase {
 
   private func pairUntilHome() async throws {
     app.launch()
+    if peerMode == .real, reusesRealPeerPairing {
+      let homeReady = app.buttons["native-e2e.session-menu"]
+      XCTAssertTrue(
+        homeReady.waitForExistence(timeout: 20),
+        "The preserved real-peer pairing did not return to Home"
+      )
+      return
+    }
     XCTAssertTrue(revealPairingLinkField(timeout: 10).exists)
     let primaryPairing = try await pairingURL(hostID: "primary")
     try pastePairingURL(primaryPairing)
