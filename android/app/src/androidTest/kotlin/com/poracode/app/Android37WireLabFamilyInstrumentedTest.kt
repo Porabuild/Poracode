@@ -101,7 +101,7 @@ class Android37WireLabFamilyInstrumentedTest {
             .assertIsDisplayed()
             .assertIsEnabled()
             .performClick()
-        control.waitUntilOperationCount("primary", "route:thread-steer-set", 1, 20_000L)
+        waitForOperation("route:thread-steer-set")
     }
 
     @Test
@@ -114,8 +114,9 @@ class Android37WireLabFamilyInstrumentedTest {
                 compose.onNodeWithTag("request_option_allow").assertIsDisplayed()
             }.isSuccess
         }
+        waitForEnabledTag("request_option_allow")
         compose.onNodeWithTag("request_option_allow").performClick()
-        control.waitUntilOperationCount("primary", "route:request-resolve", 1, 20_000L)
+        waitForOperation("route:request-resolve")
     }
 
     @Test
@@ -143,13 +144,12 @@ class Android37WireLabFamilyInstrumentedTest {
                 compose.onNodeWithText("Fixture Project").performClick()
             }
         }
-        compose.waitUntil(15_000) {
-            runCatching { compose.onNodeWithTag("terminal_input").assertIsDisplayed() }.isSuccess
-        }
+        waitForEnabledTag("terminal_input")
         compose.onNodeWithTag("terminal_input").performTextInput("echo family-pty")
-        compose.onNodeWithTag("terminal_send").assertIsEnabled().performClick()
+        waitForEnabledTag("terminal_send")
+        compose.onNodeWithTag("terminal_send").performClick()
         if (isRealPeer) pollRealPeerState() else {
-            control.waitUntilOperationCount("primary", "route:terminal-write", 1, 20_000L)
+            waitForOperation("route:terminal-write")
         }
     }
 
@@ -161,20 +161,14 @@ class Android37WireLabFamilyInstrumentedTest {
         val projectLabel = if (isRealPeer) realArg("projectLabel", "native-e2e-fixture") else "Fixture Project"
         compose.waitUntil(15_000) { hasText(projectLabel) }
         compose.onNodeWithText(projectLabel).performClick()
-        compose.waitUntil(15_000) {
-            runCatching { compose.onNodeWithTag("project_workspace").assertIsDisplayed() }.isSuccess
-        }
+        waitForEnabledTag("project_workspace")
         compose.onNodeWithTag("project_workspace").performClick()
-        compose.waitUntil(15_000) {
-            runCatching { compose.onNodeWithTag("workspace_git").assertIsDisplayed() }.isSuccess
-        }
+        waitForEnabledTag("workspace_git")
         compose.onNodeWithTag("workspace_git").performClick()
-        compose.waitUntil(15_000) {
-            runCatching { compose.onNodeWithTag("git_stage_all").assertIsDisplayed() }.isSuccess
-        }
+        waitForEnabledTag("git_stage_all")
         compose.onNodeWithTag("git_stage_all").performClick()
         if (isRealPeer) pollRealPeerState() else {
-            control.waitUntilOperationCount("primary", "procedure:gitStageAll", 1, 20_000L)
+            waitForOperation("procedure:gitStageAll")
         }
     }
 
@@ -289,6 +283,22 @@ class Android37WireLabFamilyInstrumentedTest {
 
     private fun waitForText(text: String, timeoutMs: Long = 30_000) {
         compose.waitUntil(timeoutMs) { hasText(text) }
+    }
+
+    private fun waitForEnabledTag(tag: String, timeoutMs: Long = 20_000L) {
+        compose.waitUntil(timeoutMs) {
+            runCatching {
+                compose.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled()
+            }.isSuccess
+        }
+    }
+
+    /** Compose-aware wait: a blocking control-plane poll starves the UI
+     * coroutine that must issue the operation being observed. */
+    private fun waitForOperation(operation: String, timeoutMs: Long = 20_000L) {
+        compose.waitUntil(timeoutMs) {
+            control.operationCount("primary", operation) >= 1
+        }
     }
 
     private fun hasText(text: String): Boolean = runCatching {

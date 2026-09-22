@@ -115,5 +115,12 @@ grep -Fq 'native-e2e mock host ready' "$RUNNER_TEMP/android-wire-lab.stderr"
 cd android
 adb reverse tcp:49160 tcp:49160
 adb reverse tcp:49161 tcp:49161
-./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.capability="$capability" --no-daemon --stacktrace
+# Keep this lane on the mock-capable API 37 classes. The real-host family and
+# capable-history runners own the one-time pairing URLs their classes require;
+# discovering those classes here would fail before exercising either contract.
+mock_classes="com.poracode.app.Android37MultihostInstrumentedTest,com.poracode.app.Android37WireLabFamilyInstrumentedTest,com.poracode.app.Android37WireLabJourneyInstrumentedTest,com.poracode.app.Android37WireLabSmokeInstrumentedTest"
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.capability="$capability" \
+  -Pandroid.testInstrumentationRunnerArguments.class="$mock_classes" \
+  --no-daemon --stacktrace
 printf '%s\n' '### Android 17 runtime evidence' '' '- API 37 emulator booted as Android 17 (REL).' '- The targetSdk 37 / minSdk 34 APK installed and launched.' '- The API 37 instrumentation suite passed.' >> "$GITHUB_STEP_SUMMARY"

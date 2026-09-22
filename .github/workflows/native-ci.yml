@@ -259,6 +259,10 @@ jobs:
           # (49152) is claimed by macOS system services on runner images.
           PORACODE_NATIVE_E2E_SLOT: "1"
           NATIVE_E2E_STARTUP_TIMEOUT_MS: "60000"
+          # Includes clean build-for-testing time before XCUITest starts. The
+          # previous five-minute floor expired during a 12-minute CI compile
+          # and deliberately stopped the control server under every test.
+          NATIVE_E2E_TEST_TIMEOUT_MS: "1800000"
         run: node scripts/native-e2e.mjs ios-ui
 
       # E.2 real-peer leg: the same journey against the production headless
@@ -273,6 +277,7 @@ jobs:
           PORACODE_NATIVE_E2E_SLOT: "1"
           NATIVE_E2E_PEER_MODE: "real"
           NATIVE_E2E_STARTUP_TIMEOUT_MS: "120000"
+          NATIVE_E2E_TEST_TIMEOUT_MS: "1800000"
           NATIVE_E2E_IOS_ONLY_TESTING: "NativeE2ETests/NativeFamilyJourneyUITests/testTerminalKeystrokeFamilyWritesToPty,NativeE2ETests/NativeFamilyJourneyUITests/testGitFamilyStagesFromWorkspace"
         run: node scripts/native-e2e.mjs ios-ui
 
