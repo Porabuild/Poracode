@@ -317,7 +317,10 @@ export interface RemoteAccessServerOptions {
   /**
    * Socket addresses or CIDRs whose `X-Forwarded-For` the rate limiter may
    * honor (V6 A.6). Authenticated in-process relay dials (hop secret) are
-   * the other way past this gate. Defaults to `PORACODE_REMOTE_TRUSTED_PROXIES`.
+   * the other way past this gate. A dial from one of these sockets is never a
+   * direct local peer, so loopback-only surfaces (`/metrics`, desktop-internal
+   * events, experiment commands) refuse it. Defaults to
+   * `PORACODE_REMOTE_TRUSTED_PROXIES`.
    */
   readonly trustedProxies?: readonly string[];
   /** Authenticated relay registration origin, cleared when registration is lost. */
