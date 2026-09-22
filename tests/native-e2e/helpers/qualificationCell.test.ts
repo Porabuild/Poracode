@@ -507,7 +507,7 @@ describe("buildFixtureThreads", () => {
     }),
   })!;
 
-  it("builds schema-valid inactive chat + terminal rows with fixed transcripts", () => {
+  it("builds schema-valid rows: idle chat panes (editable composer) + dormant terminal", () => {
     const rows = buildFixtureThreads({
       projectId: "smoke-project",
       spec,
@@ -515,9 +515,12 @@ describe("buildFixtureThreads", () => {
     });
     expect(rows.map((row) => row.thread.id)).toEqual(["v2q-chat-01", "v2q-chat-02", "v2q-term-01"]);
     expect(rows.map((row) => row.thread.presentationMode)).toEqual(["gui", "gui", "terminal"]);
+    // Chat panes must read back `idle`: the product renders the server composer
+    // editable only for a non-inactive thread, and the trusted-input probe types
+    // into that real composer. Dormant rows keep `inactive`.
+    expect(rows.map((row) => row.thread.status)).toEqual(["idle", "idle", "inactive"]);
     for (const row of rows) {
       const parsed = persistedThreadSchema.parse(row.thread);
-      expect(parsed.status).toBe("inactive");
       expect(parsed.projectId).toBe("smoke-project");
       expect(parsed.archived).toBe(false);
       for (const item of row.items ?? []) persistedRuntimeItemSchema.parse(item);
@@ -610,8 +613,8 @@ describe("seedQualificationFixture over the host bridge", () => {
     });
     expect(fixture.hostReadBack.threadIds).toEqual(["v2q-chat-01", "v2q-chat-02", "v2q-term-01"]);
     expect(fixture.hostReadBack.statuses).toEqual({
-      "v2q-chat-01": "inactive",
-      "v2q-chat-02": "inactive",
+      "v2q-chat-01": "idle",
+      "v2q-chat-02": "idle",
       "v2q-term-01": "inactive",
     });
     expect(fixture.hostReadBack.runtimeItemCounts).toEqual({
@@ -643,6 +646,38 @@ describe("seedQualificationFixture over the host bridge", () => {
     });
     await expect(seedQualificationFixture({ cdp, spec: singleChatSpec })).rejects.toThrow(
       "host did not return seeded fixture threads",
+    );
+  });
+
+  it("fails when a chat pane reads back with a status that renders no editable composer", async () => {
+    // The fixture seeds chat panes `idle`; a host that demotes them back to
+    // `inactive` would render the composer disabled (`contenteditable="false"`)
+    // and break the trusted-input phase much later. The mismatch must fail the
+    // seeding gate with the seeded vs read-back statuses named.
+    const stored = new Map<string, Thread>();
+    const cdp = stubCdp(async (procedure, payload) => {
+      switch (procedure) {
+        case "dbGetProjects":
+          return [{ id: "smoke-project", location: { kind: "posix", path: "/tmp/p" } }];
+        case "dbUpsertThread": {
+          const thread = persistedThreadSchema.parse(payload);
+          stored.set(
+            thread.id,
+            thread.presentationMode === "gui" ? { ...thread, status: "inactive" } : thread,
+          );
+          return undefined;
+        }
+        case "dbGetThreadsPage":
+          return { threads: [...stored.values()], nextCursor: null };
+        case "dbGetThreadRuntimeItems":
+          return [];
+        default:
+          throw new Error(`unexpected procedure ${procedure}`);
+      }
+    });
+    await expect(seedQualificationFixture({ cdp, spec })).rejects.toThrow(
+      "host fixture threads did not read back with their seeded status: " +
+        "v2q-chat-01=inactive (expected idle), v2q-chat-02=inactive (expected idle)",
     );
   });
 
