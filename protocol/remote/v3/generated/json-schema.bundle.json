@@ -28736,6 +28736,10 @@
               "minimum": 0,
               "type": "integer"
             },
+            "executionMs": {
+              "minimum": 0,
+              "type": "number"
+            },
             "limit": {
               "maximum": 9007199254740991,
               "minimum": 1,
@@ -28745,6 +28749,18 @@
               "maximum": 9007199254740991,
               "minimum": 0,
               "type": "integer"
+            },
+            "maxExecutionMs": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "maxQueueWaitMs": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "queueWaitMs": {
+              "minimum": 0,
+              "type": "number"
             },
             "queued": {
               "maximum": 9007199254740991,
@@ -28757,6 +28773,27 @@
             "active",
             "queued",
             "maxActive"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        "__schema2": {
+          "additionalProperties": true,
+          "properties": {
+            "active": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "queued": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "active",
+            "queued"
           ],
           "type": "object",
           "x-poracode-unknownFields": "strip"
@@ -28781,6 +28818,27 @@
                   "minimum": 0,
                   "type": "integer"
                 },
+                "environments": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "posix": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "windows": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "wsl": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  },
+                  "required": [
+                    "posix",
+                    "windows",
+                    "wsl"
+                  ],
+                  "type": "object",
+                  "x-poracode-unknownFields": "strip"
+                },
                 "long": {
                   "$ref": "#/$defs/__schema1"
                 },
@@ -28791,6 +28849,11 @@
                 },
                 "short": {
                   "$ref": "#/$defs/__schema1"
+                },
+                "slowFetches": {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "waitTimeoutRefusals": {
                   "maximum": 9007199254740991,
@@ -42042,5 +42105,5 @@
   },
   "manifestHash": "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
   "protocolVersion": 12,
-  "sourceHash": "sha256:d50180d293521d315e1ec1d07dc81d45fbe8f1b7cedc087a47a4722d9524ea95"
+  "sourceHash": "sha256:fb9073c123729c295db093f24aca4ea0474ee9cf88e2f3dfcd52b304d848aa11"
 }

@@ -6,6 +6,19 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class WebSocketServerMessageU2DOptionU2D5_bd23acb1d6(
+    @SerialName("state") val state: RoutebrowserU2DCommandResponseU2DState_ecc6edb616,
+    @SerialName("type") val type: WebSocketServerMessageU2DOptionU2D5U2DType_47e02a8368,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("state", "RoutebrowserU2DCommandResponseU2DState_ecc6edb616", true, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("type", "WebSocketServerMessageU2DOptionU2D5U2DType_47e02a8368", true, false, null, null, null, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class WebSocketServerMessageU2DOptionU2D6U2DMetadata_7d9e4e8a68(
     @SerialName("deviceHeight") val deviceHeight: Double,
     @SerialName("deviceWidth") val deviceWidth: Double,
