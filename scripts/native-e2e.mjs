@@ -685,9 +685,9 @@ async function runAndroidRealJourney({ registerShutdown }) {
     // preserve the first method's stored host for the second method.
     const installedAppPath = await runBuffered("adb", [
       "shell",
-      "pm",
-      "path",
-      "com.lightcodeapp.mobile",
+      "sh",
+      "-c",
+      "pm path com.lightcodeapp.mobile || true",
     ]);
     if (installedAppPath.trim()) {
       await runBuffered("adb", ["shell", "pm", "clear", "com.lightcodeapp.mobile"]);
