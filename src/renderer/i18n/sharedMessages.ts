@@ -236,6 +236,9 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "codex.compactFailed": msg({
     message: "Codex could not compact the conversation: {detail}",
   }),
+  "codex.modelRerouted": msg({
+    message: "Model rerouted from {fromModel} to {toModel}.",
+  }),
   "acp.authenticationUnverified": msg({
     message:
       "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",

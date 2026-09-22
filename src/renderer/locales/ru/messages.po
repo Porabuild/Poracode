@@ -7969,6 +7969,10 @@ msgstr "Метка модели"
 msgid "Model removed from favorites"
 msgstr "Модель удалена из избранного"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Model rerouted from {fromModel} to {toModel}."
+msgstr "Модель перенаправлена с {fromModel} на {toModel}."
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "Использование моделей"

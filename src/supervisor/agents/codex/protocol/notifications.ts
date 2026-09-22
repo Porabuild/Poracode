@@ -2,8 +2,11 @@ import type {
   AccountRateLimitsUpdatedNotification,
   AgentMessageDeltaNotification,
   CommandExecutionOutputDeltaNotification,
+  ConfigWarningNotification,
+  DeprecationNoticeNotification,
   ErrorNotification,
   FileChangeOutputDeltaNotification,
+  GuardianWarningNotification,
   ItemCompletedNotification,
   ItemStartedNotification,
   PlanDeltaNotification,
@@ -11,6 +14,7 @@ import type {
   ReasoningTextDeltaNotification,
   ServerRequestResolvedNotification,
   McpToolCallProgressNotification,
+  ModelReroutedNotification,
   SkillsChangedNotification,
   ThreadClosedNotification,
   ThreadGoalClearedNotification,
@@ -28,6 +32,7 @@ import type {
   TurnPlanStepStatus,
   TurnPlanUpdatedNotification,
   TurnStartedNotification,
+  WarningNotification,
 } from "@poracode/codex-protocol";
 
 export type {
@@ -64,4 +69,10 @@ export interface CodexServerNotificationMap {
   "serverRequest/resolved": ServerRequestResolvedNotification;
   "account/rateLimits/updated": AccountRateLimitsUpdatedNotification;
   "skills/changed": SkillsChangedNotification;
+  // Advisory notices, surfaced as canonical warnings (canonicalMapping/advisory.ts).
+  warning: WarningNotification;
+  configWarning: ConfigWarningNotification;
+  deprecationNotice: DeprecationNoticeNotification;
+  guardianWarning: GuardianWarningNotification;
+  "model/rerouted": ModelReroutedNotification;
 }

@@ -15,6 +15,7 @@ import {
   normalizeItemType,
   streamForType,
 } from "../canonicalMappingState";
+import { isCodexAdvisoryNotification, mapCodexAdvisoryNotification } from "./advisory";
 import { isCodexContextCompactionItem, mapCodexContextCompaction } from "./compaction";
 import { isNewCodexGoal, readCodexGoal, updateCodexGoalIdentity } from "./goal";
 import {
@@ -156,6 +157,10 @@ export function mapCodexNotification(
     return method === "error" && params?.willRetry === true
       ? [{ type: "warning", threadId, message }]
       : [{ type: "error", threadId, message }];
+  }
+
+  if (isCodexAdvisoryNotification(method)) {
+    return mapCodexAdvisoryNotification(method, params, state);
   }
 
   if (method === "serverRequest/resolved") {

@@ -7968,6 +7968,10 @@ msgstr "模型标签"
 msgid "Model removed from favorites"
 msgstr "已将模型从收藏夹中删除"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Model rerouted from {fromModel} to {toModel}."
+msgstr "模型已从 {fromModel} 改为 {toModel}。"
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "模型用量"

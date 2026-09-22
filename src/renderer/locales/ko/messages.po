@@ -7969,6 +7969,10 @@ msgstr "모델 레이블"
 msgid "Model removed from favorites"
 msgstr "모델을 즐겨찾기에서 제거함"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Model rerouted from {fromModel} to {toModel}."
+msgstr "모델이 {fromModel}에서 {toModel}(으)로 전환되었습니다."
+
 #: src/renderer/views/ProfileOverlay/parts/ModelUsage.tsx
 msgid "Model usage"
 msgstr "모델 사용량"
