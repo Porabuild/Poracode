@@ -442,6 +442,9 @@ describe("SessionRuntimeLifecycle", () => {
     expect(harness.mocks.append).not.toHaveBeenCalled();
     expect(harness.mocks.failStructuredSession).not.toHaveBeenCalled();
     expect(harness.mocks.kill).not.toHaveBeenCalled();
+    // A stale generation's close never detaches the handle of the session it
+    // no longer owns the thread slot for.
+    expect(harness.session.structuredSession).toBe(harness.structuredSession);
 
     harness.sessions.set(harness.session.threadId, harness.session);
     harness.session.ignoreExit = true;
@@ -463,6 +466,7 @@ describe("SessionRuntimeLifecycle", () => {
       );
 
       harness.structuredListener?.onClose();
+      expect(harness.session.structuredSession).toBeUndefined();
       expect(harness.mocks.updateState).toHaveBeenCalledWith(harness.session, "inactive", "none");
       expect(harness.mocks.emit).toHaveBeenCalledWith({
         type: "thread-exited",
@@ -494,6 +498,10 @@ describe("SessionRuntimeLifecycle", () => {
       harness.structuredListener?.onClose();
 
       expect(harness.mocks.failStructuredSession).toHaveBeenCalledTimes(1);
+      // The dead handle is detached so the next submit relaunches/resumes
+      // instead of writing into the closed transport.
+      expect(harness.session.structuredSession).toBeUndefined();
+      expect(harness.session.structuredRetired).toBe(true);
       expect(harness.mocks.updateState).not.toHaveBeenCalledWith(
         harness.session,
         "inactive",

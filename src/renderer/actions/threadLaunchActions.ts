@@ -17,6 +17,7 @@ import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
 import { buildPromptContentBlocks } from "@/shared/promptContent";
 import { titlePromptFromSegments } from "@/shared/threadTitle";
+import { resolveThreadTitlePrompt } from "@/renderer/components/providers/threadTitlePrompt";
 import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
 import type { DraftStartInput } from "@/renderer/components/thread/ThreadDraftComposerArea";
@@ -639,7 +640,10 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
     agentStatuses,
     wslAgentStatuses,
   );
-  const titlePrompt = titlePromptFromSegments(launch.prompt, launch.segments);
+  const titlePrompt = resolveThreadTitlePrompt(
+    launch.agentKind,
+    titlePromptFromSegments(launch.prompt, launch.segments),
+  );
   const currentView = store.view;
   const activeGroup =
     launch.options.preserveActiveGroup !== false &&

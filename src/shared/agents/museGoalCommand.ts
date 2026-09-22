@@ -1,0 +1,41 @@
+/**
+ * Muse `/goal` gesture grammar. Shared so the supervisor's MSP session (which
+ * dispatches the `goal/*` verbs) and the renderer's Muse plugin (which derives
+ * a thread title from a goal objective) parse the same submission the same way.
+ */
+
+/**
+ * A `/goal` submission parsed into its TUI verb. Mirrors the documented
+ * gestures (`/goal`, `/goal <objective>`, `/goal edit <objective>`,
+ * `/goal pause|resume|clear`): bare verbs match exactly (an objective that
+ * merely starts with one, e.g. "pause for thought", still sets), and
+ * anything else non-empty sets the whole remainder as the objective.
+ * `view` needs no RPC — the goal dock already shows the current goal — and
+ * a bare `/goal edit` is its own kind so the session can nudge toward the
+ * usage instead of setting the word "edit" as an objective.
+ */
+export type MuseGoalCommand =
+  | { kind: "set"; objective: string }
+  | { kind: "edit"; objective: string }
+  | { kind: "view" }
+  | { kind: "editUsage" }
+  | { kind: "pause" }
+  | { kind: "resume" }
+  | { kind: "clear" };
+
+export function parseMuseGoalCommand(prompt: string): MuseGoalCommand | undefined {
+  const match = /^\/goal(?:\s+([\s\S]*))?$/iu.exec(prompt.trim());
+  if (!match) return undefined;
+  const rawArgs = match[1]?.trim() ?? "";
+  if (rawArgs.length === 0) return { kind: "view" };
+  if (/^(clear|reset|off|none)$/iu.test(rawArgs)) return { kind: "clear" };
+  if (/^pause$/iu.test(rawArgs)) return { kind: "pause" };
+  if (/^resume$/iu.test(rawArgs)) return { kind: "resume" };
+  const edit = /^edit(?:\s+([\s\S]*))?$/iu.exec(rawArgs);
+  if (edit) {
+    const objective = edit[1]?.trim() ?? "";
+    if (objective.length === 0) return { kind: "editUsage" };
+    return { kind: "edit", objective };
+  }
+  return { kind: "set", objective: rawArgs };
+}
