@@ -194,6 +194,20 @@ export function parseQualificationCellSpec(
   };
 }
 
+/**
+ * Status a seeded chat pane row must carry: the product's idle-resumable state
+ * for a GUI thread. The trusted-input probe types into the pane's real
+ * composer, and the product only renders that composer editable when
+ * `status !== "inactive"` (ThreadComposerSection keeps `showServerComposer`
+ * false for inactive rows, so the input renders `contenteditable="false"`).
+ * `inactive` is the not-yet-launched state; `idle` is what a normal
+ * finished-and-resumable chat thread reports, i.e. the representative editable
+ * surface real users type into.
+ */
+export const FIXTURE_CHAT_PANE_STATUS = "idle";
+/** Dormant rows (terminal pane, pre-launch structured producer) keep the not-yet-run status. */
+export const FIXTURE_DORMANT_THREAD_STATUS = "inactive";
+
 const FILLER_WORDS = ["fixed", "visible", "qualification", "transcript", "content", "baseline"];
 
 function fillerText(seed: number, targetChars: number): string {
@@ -321,7 +335,7 @@ export function buildFixtureThreads(input: {
         title: `V2Q chat pane ${String(index).padStart(2, "0")} fixed visible content`,
         agentKind: "codex",
         config: { model: "v2q-fixed-content" },
-        status: "inactive",
+        status: FIXTURE_CHAT_PANE_STATUS,
         attention: "none",
         canResumeWithConfig: false,
         archived: false,
@@ -342,7 +356,7 @@ export function buildFixtureThreads(input: {
       title: "V2Q terminal pane fixed visible content",
       agentKind: "codex",
       config: { model: "v2q-fixed-content" },
-      status: "inactive",
+      status: FIXTURE_DORMANT_THREAD_STATUS,
       attention: "none",
       canResumeWithConfig: false,
       archived: false,
@@ -460,11 +474,20 @@ export async function seedQualificationFixture(input: {
   if (missing.length > 0) {
     throw new Error(`host did not return seeded fixture threads: ${missing.join(", ")}`);
   }
-  const notInactive = expectedIds.filter((id) => found.get(id)?.status !== "inactive");
-  if (notInactive.length > 0) {
+  // Each row must read back with the exact status it was seeded with: a chat
+  // pane that came back `inactive` would render a disabled composer and break
+  // the trusted-input phase hours later, so the mismatch fails here instead.
+  const seededStatusById = new Map(rows.map((row) => [row.thread.id, row.thread.status]));
+  const statusMismatches = expectedIds.filter(
+    (id) => found.get(id)?.status !== seededStatusById.get(id),
+  );
+  if (statusMismatches.length > 0) {
     throw new Error(
-      `host fixture threads are not inactive: ${notInactive
-        .map((id) => `${id}=${String(found.get(id)?.status)}`)
+      `host fixture threads did not read back with their seeded status: ${statusMismatches
+        .map(
+          (id) =>
+            `${id}=${String(found.get(id)?.status)} (expected ${String(seededStatusById.get(id))})`,
+        )
         .join(", ")}`,
     );
   }

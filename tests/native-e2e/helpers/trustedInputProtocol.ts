@@ -584,6 +584,96 @@ export function buildIdleProbeText(targetChars: number): string {
   return "v2q probe ".repeat(Math.ceil(targetChars / 10)).slice(0, targetChars);
 }
 
+// ── Composer-surface diagnostics ────────────────────────────────────────────
+
+export interface ComposerEditableCandidateRaw {
+  readonly contentEditableAttr: string;
+  readonly isContentEditable: boolean;
+  readonly ariaDisabled: string | null;
+}
+
+export interface ComposerAnchorRaw {
+  readonly editableCandidates: readonly ComposerEditableCandidateRaw[];
+}
+
+export interface ComposerSurfaceRaw {
+  readonly anchorCount: number;
+  readonly anchors: readonly ComposerAnchorRaw[];
+  readonly selectorMatches: number;
+}
+
+/** Read-only page-side census of the composer anchors and their editable candidates. */
+export function composerSurfaceDiagnosticExpression(selector: string): string {
+  return `(() => {
+    const anchors = [...document.querySelectorAll("[data-composer-input-anchor]")].slice(0, 4);
+    return {
+      anchorCount: document.querySelectorAll("[data-composer-input-anchor]").length,
+      anchors: anchors.map((anchor) => ({
+        editableCandidates: [...anchor.querySelectorAll("[contenteditable]")].slice(0, 4).map((el) => ({
+          contentEditableAttr: el.getAttribute("contenteditable") ?? "",
+          isContentEditable: el.isContentEditable,
+          ariaDisabled: el.getAttribute("aria-disabled"),
+        })),
+      })),
+      selectorMatches: document.querySelectorAll(${JSON.stringify(selector)}).length,
+    };
+  })()`;
+}
+
+/** Human-readable one-line listing; null when the page returned nothing usable. */
+export function formatComposerSurfaceDiagnostic(raw: unknown): string | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const census = raw as Partial<ComposerSurfaceRaw>;
+  if (typeof census.anchorCount !== "number" || !Array.isArray(census.anchors)) return null;
+  const parts = census.anchors.map((anchor, index) => {
+    const candidates = Array.isArray(anchor?.editableCandidates)
+      ? (anchor.editableCandidates as readonly ComposerEditableCandidateRaw[]).map((candidate) => {
+          const disabled =
+            candidate?.ariaDisabled === "true" || candidate?.contentEditableAttr === "false"
+              ? " disabled"
+              : "";
+          return `[contenteditable="${candidate?.contentEditableAttr ?? "?"}"]${disabled}`;
+        })
+      : [];
+    return `anchor[${String(index)}] editables=[${candidates.join(", ") || "none"}]`;
+  });
+  return (
+    `composer surfaces: data-composer-input-anchor count=${String(census.anchorCount)}` +
+    (parts.length > 0 ? `; ${parts.join("; ")}` : "") +
+    `; declared selector matches=${String(census.selectorMatches ?? "?")}`
+  );
+}
+
+/**
+ * Best-effort diagnostic appended when trusted typing cannot find or focus an
+ * editable composer: instead of a bare `missing`, the error names every
+ * composer anchor on the page with its editable candidates' states, so an
+ * ineligible fixture status (e.g. a seeded `inactive` thread rendering a
+ * disabled composer) is visible at the failure site.
+ */
+export async function withComposerDiagnostic(
+  error: unknown,
+  cdp: Pick<ManagedCdpClient, "evaluate">,
+  selector: string,
+): Promise<unknown> {
+  let diagnostic: string;
+  try {
+    diagnostic =
+      formatComposerSurfaceDiagnostic(
+        await cdp.evaluate(composerSurfaceDiagnosticExpression(selector)),
+      ) ?? "composer surfaces: census returned no usable shape";
+  } catch (diagnosticError) {
+    diagnostic = `composer-surface diagnostic unavailable: ${
+      diagnosticError instanceof Error ? diagnosticError.message : String(diagnosticError)
+    }`;
+  }
+  if (error instanceof Error) {
+    error.message = `${error.message} (${diagnostic})`;
+    return error;
+  }
+  return new Error(`${String(error)} (${diagnostic})`);
+}
+
 export interface SegmentedIdlePhaseResult extends PhaseProtocolResult {
   readonly segments: readonly SegmentedIdleSegmentEvidence[];
   readonly aggregate: SegmentedIdleAggregateEvidence;
@@ -687,15 +777,16 @@ export async function runSegmentedTrustedIdlePhase(input: {
           error: null,
         });
       } catch (error) {
+        const augmented = await withComposerDiagnostic(error, cdp, options.composerSelector);
         dispatch.push({
           phase,
           kind: "type",
           selector: options.composerSelector,
           startedAtMs,
           finishedAtMs: Date.now(),
-          error: error instanceof Error ? error.message : String(error),
+          error: augmented instanceof Error ? augmented.message : String(augmented),
         });
-        throw error;
+        throw augmented;
       }
     }
     const segmentRecorderAfter = await readTrustedInputRecorder(cdp).catch(() => null);
@@ -964,15 +1055,16 @@ export async function runTrustedIdlePhase(input: {
         error: null,
       });
     } catch (error) {
+      const augmented = await withComposerDiagnostic(error, cdp, options.composerSelector);
       dispatch.push({
         phase,
         kind: "type",
         selector: options.composerSelector,
         startedAtMs,
         finishedAtMs: Date.now(),
-        error: error instanceof Error ? error.message : String(error),
+        error: augmented instanceof Error ? augmented.message : String(augmented),
       });
-      throw error;
+      throw augmented;
     }
   }
   // Close the last interaction with a distinct event type so Event Timing can
@@ -1197,6 +1289,16 @@ function findQueuedInputEvidence(input: {
   readonly phaseEvents: readonly RecorderTrustedEvent[];
   readonly windowStartMs: number | null;
   readonly minDelayMs: number;
+  /**
+   * End of the immediately preceding block cycle in the same phase, when the
+   * evaluated block is not the first cycle. The cycle loop is sequential
+   * (each cycle's clicks are written only after the previous cycle's block was
+   * read back), so this block's queued event is always created after that end;
+   * an event created earlier was queued behind — and released by — the earlier
+   * block. Without this floor the wide lookback below reaches two cycles back
+   * and pairs a released event with the wrong block window.
+   */
+  readonly earlierBlockEndMs?: number | null;
 }): QueuedInputEvidence {
   const block = input.block;
   const records = input.after?.recentEventTimings ?? [];
@@ -1218,6 +1320,7 @@ function findQueuedInputEvidence(input: {
       record.startMs <= windowEnd &&
       record.inputDelayMs >= input.minDelayMs &&
       (blockStartMs === null || record.startMs >= blockStartMs - 500) &&
+      (input.earlierBlockEndMs == null || record.startMs > input.earlierBlockEndMs) &&
       (blockEndMs === null || record.startMs <= blockEndMs),
   );
   const best =
@@ -1282,6 +1385,12 @@ export interface BlockedControlInput {
   readonly idleWindowStartMs: number | null;
   /** Completeness of the idle population the p95 baseline was read from. */
   readonly idlePopulationComplete?: boolean | null;
+  /**
+   * End of the block cycle immediately before the evaluated one (null for the
+   * first cycle). Queued-event matching must not reach back past it: an event
+   * created earlier was released by that earlier block.
+   */
+  readonly earlierBlockEndMs?: number | null;
 }
 
 /** Blocked-phase policy: a real scheduled DOM block task produced at least one
@@ -1299,6 +1408,9 @@ export function evaluateBlockedControl(input: BlockedControlInput): BlockedContr
     phaseEvents: input.phaseEvents,
     windowStartMs: input.idleWindowStartMs,
     minDelayMs: input.minQueuedInputDelayMs,
+    ...(input.earlierBlockEndMs === undefined
+      ? {}
+      : { earlierBlockEndMs: input.earlierBlockEndMs }),
   });
   const longTask = {
     status: win?.longTasks.observerStatus ?? "not-installed",
@@ -1441,6 +1553,11 @@ export async function runTrustedInputProtocol(input: {
     after: blocked.after,
     block: blocked.recorderAfter?.block ?? null,
     phaseEvents: blocked.phaseEvents,
+    // The evaluated block is the last cycle's; exclude queued-event candidates
+    // the earlier cycles' blocks already released (sequential cycle loop, so
+    // this block's queued event is always created after the previous end).
+    earlierBlockEndMs:
+      blocked.cycles.length > 1 ? (blocked.cycles.at(-2)?.blockEndMs ?? null) : null,
     idleMaxInputDelayMs: idleMeasured ? (idle.window?.eventTimings.inputDelay.maxMs ?? null) : null,
     idleP95InputDelayMs: idleMeasured ? (idle.window?.eventTimings.inputDelay.p95Ms ?? null) : null,
     // The p95 baseline is read from the (possibly lossy) union population;

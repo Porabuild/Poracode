@@ -3,10 +3,13 @@ import type { RendererPerfSnapshot } from "../../../src/renderer/diagnostics/ren
 import type { EventTimingWindowEvidence, PhaseWindowEvidence } from "./rendererPhaseEvidence.ts";
 import {
   buildIdleProbeText,
+  composerSurfaceDiagnosticExpression,
   evaluateBlockedControl,
+  formatComposerSurfaceDiagnostic,
   planTrustedInputBatches,
   resolveTrustedInputOptions,
   sliceRecorderEvents,
+  withComposerDiagnostic,
   type RecorderState,
   type RecorderTrustedEvent,
 } from "./trustedInputProtocol.ts";
@@ -279,6 +282,113 @@ describe("evaluateBlockedControl", () => {
     expect(policy.reasons.join(" ")).toContain("never fired");
     expect(policy.reasons.join(" ")).toContain("handler null");
   });
+
+  it("does not pair an earlier cycle's released event with the last block window", () => {
+    // Real multi-cycle shape (short-cell run 2026-09-22): the policy evaluates
+    // the LAST cycle's block, but both cycles' queued events sit in the ring
+    // and the 500ms creation lookback reaches into the previous cycle. Cycle
+    // 2's queued event was released by cycle 2's block (processed 0.2ms after
+    // its end); pairing it with cycle 3's window reads as "processed before
+    // the block ended" and fails an otherwise healthy control.
+    const after = {
+      capturedAtMonotonicMs: 143_616,
+      recentEventTimings: [
+        {
+          name: "click",
+          interactionId: 11,
+          // Cycle 2's queued event: created during cycle 2, released by
+          // cycle 2's block (start 143111.3, end 143361.3).
+          startMs: 143_111.1,
+          inputDelayMs: 250.4,
+          processingMs: 2,
+          interactionDurationMs: 248,
+        },
+        {
+          name: "click",
+          interactionId: 12,
+          // Cycle 3's queued event: created just after cycle 3's block armed
+          // (start 143363.9, end 143613.9), processed at release.
+          startMs: 143_365,
+          inputDelayMs: 250.2,
+          processingMs: 2,
+          interactionDurationMs: 250,
+        },
+      ],
+    } as unknown as RendererPerfSnapshot;
+    const cycle3Block = {
+      armed: true,
+      blockMs: 250,
+      startMs: 143_363.9,
+      endMs: 143_613.9,
+      fired: true,
+      handlerType: "pointerdown",
+    };
+    // Without the earlier-cycle floor the released event wins the max-delay
+    // sort and the control fails against the wrong window (the reported
+    // defect).
+    const unpaired = evaluateBlockedControl({
+      window: phaseWindow(),
+      after,
+      block: cycle3Block,
+      phaseEvents: [],
+      idleMaxInputDelayMs: null,
+      idleMeasured: false,
+      minQueuedInputDelayMs: 150,
+      idleWindowStartMs: null,
+    });
+    expect(unpaired.ok).toBe(false);
+    expect(unpaired.queued.eventTiming?.startMs).toBe(143_111.1);
+    expect(unpaired.reasons).toContain("queued trusted event was processed before the block ended");
+    // With the floor (end of the immediately preceding block) only cycle 3's
+    // queued event is eligible and the same evidence passes.
+    const paired = evaluateBlockedControl({
+      window: phaseWindow(),
+      after,
+      block: cycle3Block,
+      phaseEvents: [],
+      idleMaxInputDelayMs: null,
+      idleMeasured: false,
+      minQueuedInputDelayMs: 150,
+      idleWindowStartMs: null,
+      earlierBlockEndMs: 143_361.3,
+    });
+    expect(paired.ok).toBe(true);
+    expect(paired.queued.eventTiming?.startMs).toBe(143_365);
+    expect(paired.queued.createdBeforeBlockEnd).toBe(true);
+    expect(paired.queued.processedAfterBlockEnd).toBe(true);
+    expect(paired.reasons).toEqual([]);
+  });
+
+  it("keeps the wide lookback for the first cycle, which has no earlier block", () => {
+    // First cycle: the queued event may be created up to the full lookback
+    // before the block handler started (overloaded main thread) — there is no
+    // earlier block that could have released it.
+    const policy = evaluateBlockedControl({
+      window: phaseWindow(),
+      after: {
+        capturedAtMonotonicMs: 5_000,
+        recentEventTimings: [
+          {
+            name: "click",
+            interactionId: 9,
+            startMs: 3_900,
+            inputDelayMs: 360,
+            processingMs: 2,
+            interactionDurationMs: 362,
+          },
+        ],
+      } as unknown as RendererPerfSnapshot,
+      block,
+      phaseEvents: [],
+      idleMaxInputDelayMs: null,
+      idleMeasured: false,
+      minQueuedInputDelayMs: 150,
+      idleWindowStartMs: null,
+      earlierBlockEndMs: null,
+    });
+    expect(policy.ok).toBe(true);
+    expect(policy.queued.delayMs).toBe(360);
+  });
 });
 
 describe("resolveTrustedInputOptions / sliceRecorderEvents", () => {
@@ -346,5 +456,93 @@ describe("planTrustedInputBatches / buildIdleProbeText", () => {
     ]);
     expect(buildIdleProbeText(5)).toBe("v2q p");
     expect(buildIdleProbeText(10)).toBe("v2q probe ");
+  });
+});
+
+describe("composer-surface diagnostics", () => {
+  const defaultSelector = resolveTrustedInputOptions().composerSelector;
+
+  it("builds a read-only census expression over composer anchors", () => {
+    const expression = composerSurfaceDiagnosticExpression(defaultSelector);
+    expect(expression).toContain("data-composer-input-anchor");
+    expect(expression).toContain(JSON.stringify(defaultSelector));
+    // Read-only: the census must never mutate the page it diagnoses.
+    expect(expression).not.toContain("setState");
+    expect(expression).not.toContain("rehydrate");
+    expect(expression).not.toContain("focus(");
+    expect(expression).not.toContain("dispatchEvent");
+  });
+
+  it("formats a disabled-composer census into a per-anchor listing", () => {
+    const formatted = formatComposerSurfaceDiagnostic({
+      anchorCount: 2,
+      anchors: [
+        {
+          editableCandidates: [
+            { contentEditableAttr: "false", isContentEditable: false, ariaDisabled: "true" },
+          ],
+        },
+        {
+          editableCandidates: [
+            { contentEditableAttr: "true", isContentEditable: true, ariaDisabled: null },
+          ],
+        },
+      ],
+      selectorMatches: 1,
+    });
+    expect(formatted).toBe(
+      "composer surfaces: data-composer-input-anchor count=2; " +
+        'anchor[0] editables=[[contenteditable="false"] disabled]; ' +
+        'anchor[1] editables=[[contenteditable="true"]]; ' +
+        "declared selector matches=1",
+    );
+  });
+
+  it("returns null for an unusable census shape and tolerates missing candidates", () => {
+    expect(formatComposerSurfaceDiagnostic(null)).toBeNull();
+    expect(formatComposerSurfaceDiagnostic("nope")).toBeNull();
+    expect(formatComposerSurfaceDiagnostic({ anchorCount: 0, anchors: [] })).toBe(
+      "composer surfaces: data-composer-input-anchor count=0; declared selector matches=?",
+    );
+  });
+
+  it("appends the census to a typing failure instead of a bare missing", async () => {
+    const failure = new Error(
+      'cannot type into [data-composer-input-anchor] [contenteditable="true"]: missing',
+    );
+    const cdp = {
+      evaluate: async <T>() =>
+        ({
+          anchorCount: 1,
+          anchors: [
+            {
+              editableCandidates: [
+                { contentEditableAttr: "false", isContentEditable: false, ariaDisabled: "true" },
+              ],
+            },
+          ],
+          selectorMatches: 0,
+        }) as T,
+    };
+    const augmented = await withComposerDiagnostic(failure, cdp, defaultSelector);
+    expect(augmented).toBeInstanceOf(Error);
+    expect((augmented as Error).message).toContain(": missing");
+    expect((augmented as Error).message).toContain("count=1");
+    expect((augmented as Error).message).toContain('[contenteditable="false"] disabled');
+    // The original stack survives the augmentation.
+    expect((augmented as Error).stack).toBe(failure.stack);
+  });
+
+  it("keeps the original error when the census itself fails", async () => {
+    const failure = new Error("cannot type into x: not-focusable");
+    const cdp = {
+      evaluate: async () => {
+        throw new Error("target detached");
+      },
+    };
+    const augmented = await withComposerDiagnostic(failure, cdp, defaultSelector);
+    expect((augmented as Error).message).toBe(
+      "cannot type into x: not-focusable (composer-surface diagnostic unavailable: target detached)",
+    );
   });
 });
