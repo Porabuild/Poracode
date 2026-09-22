@@ -64,6 +64,10 @@ import {
  *  - Disconnect/replay: mid-stream relay teardown while impaired, mutations
  *    accumulate, reconnect through the shaper with lastSeenSeq — contiguous
  *    seq, replay accounting, offline renames in order, notes content exact.
+ *    The replayer declares bounded catalog changes (the production client
+ *    contract): retained catalog mutations replay as the bounded signal form,
+ *    and rename order is proven by seq parity against the healthy neighbor's
+ *    live full-list frames plus durable snapshot convergence.
  *  - Pacing proof: a known payload sized to 0.5s of link time travels both
  *    directions byte-exact; measured wire throughput must respect the imposed
  *    rate (serialization-aware window).
@@ -759,24 +763,34 @@ describe.skipIf(!entrypoint)(
               label: `cn-${tag}-replay`,
               accessToken: credential.accessToken,
               lastSeenSeq: offlineCursor,
+              // The production client contract: catalog mutations replay as the
+              // bounded signal form. Undeclared, the replay buffer's retained
+              // signals would be undeliverable and this reconnect would be
+              // per-socket resync-required with zero frames.
+              declareBoundedCatalogChanges: true,
             });
             const replayer = replayed;
             assert(
               (replayer.metrics.readySeq ?? 0) >= offlineCursor,
               "reconnecting device must resume at or beyond its offline cursor",
             );
-            // The replay window trickles through the shaper: wait until it
-            // actually carries every offline rename before asserting on it.
+            // The replay window trickles through the shaper: wait until every
+            // frame of the retained window has actually arrived before
+            // asserting on it.
             const readySeq = replayer.metrics.readySeq ?? 0;
+            const windowSize = readySeq - offlineCursor;
+            assert(
+              windowSize >= OFFLINE_RENAMES,
+              `offline window must hold the ${String(OFFLINE_RENAMES)} renames (got ${String(windowSize)} frames)`,
+            );
             const replayDeadline = Date.now() + impairedDeadlineMs(profile);
             let replayedEvents: readonly ReceivedEvent[] = [];
             for (;;) {
               replayedEvents = replayer.receivedEvents().filter((event) => event.seq <= readySeq);
-              const joined = replayedEvents.map((event) => JSON.stringify(event.event)).join("|");
-              if (offlineRenames.every((uniqueName) => joined.includes(uniqueName))) break;
+              if (replayedEvents.length >= windowSize) break;
               if (Date.now() > replayDeadline) {
                 throw new Error(
-                  `replay never delivered the offline renames (${String(replayedEvents.length)} frames ≤ readySeq ${String(readySeq)})`,
+                  `replay never delivered the offline window (${String(replayedEvents.length)}/${String(windowSize)} frames ≤ readySeq ${String(readySeq)})`,
                 );
               }
               await sleep(200);
@@ -786,24 +800,45 @@ describe.skipIf(!entrypoint)(
               replayedEvents.length,
               "replayed-frame accounting",
             );
-            assert(
-              replayedEvents.length >= OFFLINE_RENAMES,
-              "replay must cover every offline rename",
-            );
-            const replayedRenames = replayedEvents.filter(
-              (event) => event.type === "remote-projects-changed",
-            );
-            let scanAt = 0;
-            for (const uniqueName of offlineRenames) {
-              while (
-                scanAt < replayedRenames.length &&
-                !JSON.stringify(replayedRenames[scanAt]?.event).includes(uniqueName)
-              ) {
-                scanAt += 1;
-              }
-              assert(scanAt < replayedRenames.length, `replay must contain ${uniqueName} in order`);
-              scanAt += 1;
+            // Catalog frames in the replay window are the bounded signal form,
+            // content-free by contract (the rename itself is proven by seq
+            // parity below plus the durable snapshots at convergence).
+            for (const event of replayedEvents) {
+              if (event.type !== "remote-projects-changed") continue;
+              assert.deepStrictEqual(
+                event.event,
+                { type: "remote-projects-changed", mode: "signal" },
+                `catalog replay frame at seq ${String(event.seq)} must be the bounded signal`,
+              );
             }
+            // The healthy neighbor observed each offline rename live as a full
+            // catalog list; the replayed signals must sit at exactly those
+            // seqs, in order — both forms share one seq space.
+            const healthyWitness = healthy;
+            assert(healthyWitness, "healthy neighbor must still be connected");
+            const healthyRenameSeqs = offlineRenames.map((uniqueName) => {
+              const observed = healthyWitness
+                .receivedEvents()
+                .filter(
+                  (event) =>
+                    event.type === "remote-projects-changed" &&
+                    JSON.stringify(event.event).includes(uniqueName),
+                );
+              const seq = observed[observed.length - 1]?.seq;
+              assert(
+                typeof seq === "number",
+                `healthy client must have observed ${uniqueName} live`,
+              );
+              return seq;
+            });
+            const replayedRenameSeqs = replayedEvents
+              .filter((event) => event.type === "remote-projects-changed")
+              .map((event) => event.seq);
+            assert.deepStrictEqual(
+              replayedRenameSeqs,
+              healthyRenameSeqs,
+              "replay must carry every offline rename at its live seq, in order",
+            );
             assert.strictEqual(replayed.metrics.eventSeqGaps, 0, "replay seq gaps");
             assert.strictEqual(replayed.metrics.resyncRequiredCount, 0, "replay resync-required");
             const replayNotes = await replayed.fetchJson(

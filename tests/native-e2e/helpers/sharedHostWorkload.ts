@@ -249,16 +249,23 @@ export async function runConcurrentBurst(
 /** Waits until every client's stream has absorbed the host cursor, then
  * validates EVERY client: its own authoritative snapshot matches the converged
  * seq and project list, its stream is contiguous, and its delivered-frame
- * accounting holds (replay windows included via first-delivered seq). */
+ * accounting holds (replay windows included via first-delivered seq).
+ * `assertProjectEventParity: false` supports mixed declared/legacy clients:
+ * bounded catalog signals intentionally carry no project list, while snapshot
+ * parity and every form-independent stream invariant still apply. */
 export async function quiesceAndAssertConvergence(
   clients: readonly ProfileClient[],
   profileTag: string,
+  options: {
+    readonly assertProjectEventParity?: boolean;
+    readonly timeoutMs?: number;
+  } = {},
 ): Promise<number> {
   const head = clients[0];
   if (!head) throw new Error(`${profileTag}: quiesce ran with no clients`);
   // Monotonic deadline: convergence polling must not be perturbed by a
   // wall-clock step mid-run.
-  const deadline = performance.now() + 20_000;
+  const deadline = performance.now() + (options.timeoutMs ?? 20_000);
   let snapshotSeq = -1;
   for (;;) {
     const snapshot = await head.fetchJson("snapshot-read", "/api/snapshot");
@@ -305,11 +312,13 @@ export async function quiesceAndAssertConvergence(
       );
     }
     snapshotProjects.push(body.projects);
-    const projectsEvents = client
-      .receivedEvents()
-      .filter((event) => event.type === "remote-projects-changed");
-    const last = projectsEvents[projectsEvents.length - 1];
-    if (last) lastProjectsEventByClient.set(client.label, last.event.projects);
+    if (options.assertProjectEventParity !== false) {
+      const projectsEvents = client
+        .receivedEvents()
+        .filter((event) => event.type === "remote-projects-changed");
+      const last = projectsEvents[projectsEvents.length - 1];
+      if (last) lastProjectsEventByClient.set(client.label, last.event.projects);
+    }
   }
   for (const entry of snapshotProjects) {
     assert.deepStrictEqual(
@@ -318,14 +327,16 @@ export async function quiesceAndAssertConvergence(
       `${profileTag}: authoritative snapshot projects must match on every client`,
     );
   }
-  const projectLists = [...lastProjectsEventByClient.values()];
-  assert(projectLists.length > 0, `${profileTag}: no projects events were observed`);
-  for (const entry of projectLists) {
-    assert.deepStrictEqual(
-      entry,
-      projectLists[0],
-      `${profileTag}: final projects event must be identical across clients`,
-    );
+  if (options.assertProjectEventParity !== false) {
+    const projectLists = [...lastProjectsEventByClient.values()];
+    assert(projectLists.length > 0, `${profileTag}: no projects events were observed`);
+    for (const entry of projectLists) {
+      assert.deepStrictEqual(
+        entry,
+        projectLists[0],
+        `${profileTag}: final projects event must be identical across clients`,
+      );
+    }
   }
   return snapshotSeq;
 }

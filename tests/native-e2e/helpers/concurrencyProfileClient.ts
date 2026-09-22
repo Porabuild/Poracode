@@ -1,5 +1,9 @@
 import { type Socket } from "node:net";
 import { WebSocket } from "ws";
+import {
+  REMOTE_BOUNDED_CATALOG_CHANGES_DECLARATION,
+  REMOTE_BOUNDED_CATALOG_CHANGES_WS_PARAM,
+} from "../../../src/shared/remote/protocol.ts";
 import { type RealHostHandle } from "../harness/realHost.ts";
 import { httpRequestJson, issueTicket } from "./testClient.ts";
 import { TerminalWatchRecorder, type TerminalWatchState } from "./terminalWatchRecorder.ts";
@@ -93,6 +97,32 @@ interface PongWaiter {
 const OPEN_TIMEOUT_MS = 15_000;
 const CLOSE_TIMEOUT_MS = 3_000;
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Resolves once the client's stream has delivered every frame through
+ * `throughSeq` (replay windows trickle in frame by frame), returning the full
+ * received-event log at that moment. */
+export async function awaitDeliveredThrough(
+  client: ProfileClient,
+  throughSeq: number,
+  timeoutMs: number,
+): Promise<readonly ReceivedEvent[]> {
+  const deadline = performance.now() + timeoutMs;
+  for (;;) {
+    const last = client.metrics.lastEventSeq;
+    if (last !== null && last >= throughSeq) return client.receivedEvents();
+    if (performance.now() > deadline) {
+      throw new Error(
+        `${client.label}: never received frames through seq ${String(throughSeq)} ` +
+          `(at ${String(last)}, ${String(client.metrics.eventsReceived)} frames)`,
+      );
+    }
+    await sleep(50);
+  }
+}
+
 export class ProfileClient {
   readonly metrics: ProfileClientMetrics;
   readonly accessToken: string;
@@ -182,12 +212,23 @@ export class ProfileClient {
     });
   }
 
-  /** Opens one instrumented connection for an existing device credential. */
+  /** Opens one instrumented connection for an existing device credential.
+   *
+   * `declareBoundedCatalogChanges` mirrors the production web/mobile client
+   * pre-flight (see `hostSupportsBoundedCatalogChanges`): the upgrade carries
+   * `catalogChanges=bounded-v1`, so catalog mutations arrive as the bounded
+   * signal form live AND in replay. Undeclared (legacy) sockets keep receiving
+   * the truthful full list live, but the replay buffer retains only the signal,
+   * so an undeclared RECONNECT is per-socket resync-required instead (the
+   * bounded-catalog contract in `src/host/remote/server/eventReplay.ts`).
+   * Suites reconnecting through `lastSeenSeq` across project mutations must
+   * declare, exactly like the shipped clients do. */
   static async create(input: {
     readonly handle: RealHostHandle;
     readonly label: string;
     readonly accessToken: string;
     readonly lastSeenSeq?: number | undefined;
+    readonly declareBoundedCatalogChanges?: boolean | undefined;
     readonly onMessage?: ((frame: ProfileClientFrame) => void) | undefined;
   }): Promise<ProfileClient> {
     const { handle, label } = input;
@@ -203,6 +244,12 @@ export class ProfileClient {
     url.searchParams.set("ticket", ticket.ticket);
     if (input.lastSeenSeq !== undefined) {
       url.searchParams.set("lastSeenSeq", String(input.lastSeenSeq));
+    }
+    if (input.declareBoundedCatalogChanges === true) {
+      url.searchParams.set(
+        REMOTE_BOUNDED_CATALOG_CHANGES_WS_PARAM,
+        REMOTE_BOUNDED_CATALOG_CHANGES_DECLARATION,
+      );
     }
     // Observers attach in the constructor, strictly before any open/message.
     // Proxy-wrapped handles present the origin's Host header on the upgrade.
