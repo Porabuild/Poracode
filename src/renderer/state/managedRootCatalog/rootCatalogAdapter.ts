@@ -1,5 +1,6 @@
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
+import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
 import {
   REMOTE_BOUNDED_READ_DEFAULT_MAX_DECODE_BYTES,
   REMOTE_BOUNDED_READ_DEFAULT_MAX_WIRE_BYTES,
@@ -89,12 +90,22 @@ export { MANAGED_ROOT_CATALOG_KEY } from "./managedRootOrderFence";
  * The root connection's seq ledger. Both the page guard and the per-thread
  * applied seq come from the SAME loopback dispatch sequence space (the
  * supervisor event stream), so "live event newer than page" comparisons are
- * meaningful. Page snapshot seqs are deliberately not mixed in.
+ * meaningful. Page snapshot seqs are deliberately not mixed in, and so are
+ * the desktop-internal `ipc` frames (`provider-usage*`, `thread-voice`,
+ * `thread-osc-*`, `thread-scrollback-resync`, …): they carry an independent
+ * sequence whose head must never raise the shared live head.
  */
 let rootConnectionSeq = 0;
 const rootThreadAppliedSeqs = new Map<string, number>();
 
-function noteRootDispatchSequence(event: unknown, seq: number | undefined): void {
+function noteRootDispatchSequence(
+  event: unknown,
+  seq: number | undefined,
+  space: EventSequenceSpace | undefined,
+): void {
+  // Loopback-space events only; an absent space is the transport's loopback
+  // default (see PreloadIpcTransport.dispatch).
+  if (space !== undefined && space !== "loopback") return;
   if (typeof seq !== "number") return;
   rootConnectionSeq = Math.max(rootConnectionSeq, seq);
   const threadId = (event as { readonly threadId?: unknown } | null)?.threadId;
@@ -538,8 +549,8 @@ export function installManagedRootCatalogRuntime(): void {
   });
   // Record per-thread applied sequences from the same event stream the desktop
   // reducer consumes; the controller's stale-page arbitration reads them.
-  unsubscribeSupervisorEvents = readBridge().onSupervisorEvent((event, seq) =>
-    noteRootDispatchSequence(event, seq),
+  unsubscribeSupervisorEvents = readBridge().onSupervisorEvent((event, seq, space) =>
+    noteRootDispatchSequence(event, seq, space),
   );
   applyActivation(readManagedLoopbackActivation());
 }

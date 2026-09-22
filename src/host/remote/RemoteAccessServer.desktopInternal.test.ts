@@ -303,6 +303,90 @@ describe("RemoteAccessServer desktop-internal sessions (V5 plan 2.5)", () => {
     expect(isLoopbackSocketAddress("fe80::1")).toBe(false);
   });
 
+  it("carries the desktop-space head in every desktop-internal resync-required frame", async () => {
+    // The desktop-internal frames live on the `ipc` sequence space
+    // (`desktopSeq`), so their resync cursor must be the DESKTOP head — the
+    // shared-loopback head would be a meaningless cursor that loops a future
+    // desktop-stream resume into permanent resyncs.
+    const server = buildServer();
+    const info = await server.start();
+
+    // A connected desktop session is required for the desktop sequence to
+    // advance; shared and desktop events then diverge the two heads.
+    const observer = await openSocket(server, info, { desktopInternal: true });
+    await expect(observer.next()).resolves.toMatchObject({ type: "ready" });
+    server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t1"] });
+    server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t2"] });
+    server.publishSupervisorEvent({ type: "remote-threads-changed", threadIds: ["t3"] });
+    server.publishSupervisorEvent({
+      type: "thread-osc-notification",
+      threadId: "t1",
+      title: "Done",
+      body: "Turn finished",
+    });
+    // Shared head is now 3; desktop head is 1.
+
+    // Cursor ahead of the desktop space: the resync reports the desktop head.
+    const ahead = await openSocket(server, info, {
+      desktopInternal: true,
+      lastDesktopSeq: 99,
+    });
+    await expect(ahead.next()).resolves.toMatchObject({ type: "ready" });
+    await expect(ahead.next()).resolves.toMatchObject({
+      type: "resync-required",
+      seq: 1,
+      reason: "Desktop event stream reset; request a fresh snapshot.",
+    });
+    ahead.ws.close();
+
+    // Replay-window expiry: same rule at the replay pump's resync.
+    for (let index = 0; index < 4_001; index += 1) {
+      server.publishSupervisorEvent({
+        type: "thread-osc-notification",
+        threadId: "t1",
+        title: `n${index}`,
+        body: "x",
+      });
+    }
+    // The desktop head is now 4002 and the bounded buffer holds only the
+    // newest 4,000 entries, so a resume from seq 0 has no replay window.
+    const expired = await openSocket(server, info, {
+      desktopInternal: true,
+      lastDesktopSeq: 0,
+    });
+    await expect(expired.next()).resolves.toMatchObject({ type: "ready" });
+    const expiredResync = await expired.next();
+    expect(expiredResync.type).toBe("resync-required");
+    expect(expiredResync.seq).toBe(4_002);
+    expect(expiredResync.reason).toBe(
+      "Desktop event replay window expired; request a fresh snapshot.",
+    );
+    expired.ws.close();
+
+    // Undeliverable oversized desktop event: same rule at the live-publish
+    // safety valve (the desktop head still advanced for the refused frame).
+    // The budget sits between the resync frame's own framed size and the
+    // oversized event, so the resync itself stays deliverable.
+    const tiny = buildServer({ maxWebSocketOutboundBufferBytes: 1024 });
+    const tinyInfo = await tiny.start();
+    const tinyDesktop = await openSocket(tiny, tinyInfo, { desktopInternal: true });
+    await expect(tinyDesktop.next()).resolves.toMatchObject({ type: "ready" });
+    tiny.publishSupervisorEvent({
+      type: "thread-osc-notification",
+      threadId: "t1",
+      title: "x".repeat(512),
+      body: "y",
+    });
+    const undeliverableResync = await tinyDesktop.next();
+    expect(undeliverableResync.type).toBe("resync-required");
+    expect(undeliverableResync.seq).toBe(1);
+    expect(undeliverableResync.reason).toBe(
+      "Desktop event too large for the live stream; request a fresh snapshot.",
+    );
+    tinyDesktop.ws.close();
+    observer.ws.close();
+  }, 30_000);
+
   it("streams terminal output to a desktop-internal session only through terminal-watch", async () => {
     const server = buildServer();
     const info = await server.start();
