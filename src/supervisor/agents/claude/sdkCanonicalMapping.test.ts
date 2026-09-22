@@ -3703,9 +3703,11 @@ describe("sdkCanonicalMapping — context usage", () => {
   it("maps SDK current context usage into provider context usage", () => {
     const event = mapClaudeContextUsageResponse("thread-1", {
       categories: [
-        { name: "System prompt", tokens: 20_000, color: "#999999" },
-        { name: "Messages", tokens: 45_000, color: "#3366ff" },
-        { name: "Deferred tools", tokens: 0, color: "#666666", isDeferred: true },
+        { name: "System prompt", tokens: 20_000, color: "#999999", kind: "used" },
+        { name: "Messages", tokens: 45_000, color: "#3366ff", kind: "used" },
+        { name: "Deferred tools", tokens: 0, color: "#666666", isDeferred: true, kind: "deferred" },
+        { name: "Free space", tokens: 915_000, color: "#222222", kind: "free" },
+        { name: "Autocompact buffer", tokens: 20_000, color: "#444444", kind: "buffer" },
       ],
       totalTokens: 65_000,
       maxTokens: 1_000_000,

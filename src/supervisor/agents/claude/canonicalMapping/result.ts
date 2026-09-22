@@ -115,6 +115,10 @@ export function mapClaudeContextUsageResponse(
     readPositiveInteger(response.maxTokens) ?? readPositiveInteger(response.rawMaxTokens);
   const breakdown = response.categories
     .map((category, index) => {
+      // Only in-window content belongs in the breakdown; free space, the
+      // compaction buffer, and deferred tool schemas do not occupy context.
+      // CLIs older than SDK 0.3.280 omit `kind`, so treat that as "used".
+      if ((category.kind ?? "used") !== "used") return undefined;
       const tokens = readNonNegativeInteger(category.tokens);
       if (tokens === undefined || tokens <= 0) return undefined;
       const slug = category.name
