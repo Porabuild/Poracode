@@ -41,7 +41,9 @@ server advertises the PWA at port `3101` by default.
 - JDK 21 plus Android Studio / command-line tools with Android 17
   `platforms;android-37.0` and `build-tools;37.0.0`. The app's minimum SDK is
   API 34 (Android 14), the oldest release still covered by the monthly Android
-  Security Bulletin.
+  Security Bulletin. The rolling support-window policy is defined in
+  `docs/RELEASE_MOBILE.md`; do not add compatibility code or test lanes below
+  that maintained floor.
 
 Install the Android platform from the command line when needed:
 
