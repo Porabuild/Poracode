@@ -350,6 +350,23 @@ Important: one-shot key-adoption race; host-operation journal settled rewrite + 
 
 Follow-up after `10e47e63b`: split `main.ts` (1863 → 244) and `remoteServersStore.ts` (2370 → 1396); land the Gate 4 smaller off-thread client engine.
 
+## 1m. Android minimum-SDK floor raised to API 34 (2026-09-21, uncommitted — no gate passed as a whole)
+
+**Decision.** The supported Android floor is the oldest AOSP release still
+covered by the monthly Android Security Bulletin (the September 2026 bulletin
+updates 14–17): Android 14 / API 34. `minSdk` is 34 (compile/target 37
+unchanged); the required `android_api26_runtime` lane is replaced by
+`android_api34_runtime` ("Android 14 minimum-supported runtime"), which boots
+an API 34 emulator and runs the cold-launch pairing-entry plus TLS pin pairing
+instrumentation on the minSdk 34 APK; `native_gate` requires the new job, and
+both gate greps (native-ci.yml, release-mobile.yml) pin `minSdk = 34`.
+
+**Status.** Local checks pass (workflow-script tests, YAML/bash/lint/fmt,
+Gradle unit-test + androidTest compile); the API 34 emulator/instrumentation
+run itself awaits CI. The §1 baseline note above ("API 26+37") records what
+`76d6e2ea3` actually passed and is intentionally not rewritten. Details:
+`docs/V4_EXECUTION_LOG.md` § 2026-09-21.
+
 ## 2. The five gates
 
 Numeric targets below are **targets, not measured passes** (source: readiness plan §7). The master comparison allows **no more than 10% deterioration in p95 latency or peak resources**, with an absolute noise allowance fixed from repeated baselines; V2-only journeys must pass absolute gates.

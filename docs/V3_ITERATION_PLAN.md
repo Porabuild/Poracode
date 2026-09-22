@@ -111,6 +111,12 @@ Estimate the remaining work after inspecting hosted checks and live-test access.
    the client provably creates a single task — the test now asserts the
    cancellation contract (stop observed, propagation) instead of raw load counts
    (`242fb2555`)._
+   _Update 2026-09-21: the API 26 runtime noted above is retired. The Android
+   minimum floor is raised to Android 14 / API 34 (the oldest AOSP release still
+   covered by the monthly Android Security Bulletin): `minSdk = 34` is
+   gate-enforced, and the renamed required `android_api34_runtime` lane boots an
+   API 34 emulator and runs the cold-launch pairing-entry plus TLS pin pairing
+   tests (uncommitted at this date)._
 2. **Close the WSL helper upgrade discrepancy before V2-to-master integration or
    release.** `bridge.mjs` still advertises `2.16.0`. Audit deployed copies/readers,
    select the next valid version (planned `2.17.0`), and prove replacement of an

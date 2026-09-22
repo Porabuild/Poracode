@@ -14,7 +14,7 @@ class AndroidMultihostConfigTest {
         val manifest = projectFile("app/src/main/AndroidManifest.xml").readText()
         listOf(
             "compileSdk = 37",
-            "minSdk = 26",
+            "minSdk = 34",
             "targetSdk = 37",
             "version \"2.4.10\"",
             "compose-bom:2026.08.00",

@@ -93,7 +93,7 @@ void test("native qualification preserves every existing contract, build, and fo
   assert.equal(jobs.native_gate.if, "${{ always() }}");
   assert.deepEqual([...jobs.native_gate.needs].sort(), [
     "android",
-    "android_api26_runtime",
+    "android_api34_runtime",
     "android_api37_runtime",
     "ios",
     "ios_ui",

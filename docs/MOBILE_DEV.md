@@ -39,8 +39,9 @@ server advertises the PWA at port `3101` by default.
 - Xcode 26.6. It contains the iOS 26.5 SDK; there is no iOS 26.6 SDK. The app's
   deployment target remains iOS 17.
 - JDK 21 plus Android Studio / command-line tools with Android 17
-  `platforms;android-37.0` and `build-tools;37.0.0`. The app's minimum SDK
-  remains API 26.
+  `platforms;android-37.0` and `build-tools;37.0.0`. The app's minimum SDK is
+  API 34 (Android 14), the oldest release still covered by the monthly Android
+  Security Bulletin.
 
 Install the Android platform from the command line when needed:
 
@@ -268,7 +269,9 @@ accessibility, and real remote-host flow have also been exercised on each OS.
 remote-v3 artifacts, runs AppTests on the iOS 26.5 simulator, and runs Android
 unit tests, APK assembly, and lint against Android 17 / API 37. A required API 37
 emulator lane then installs and launches the targetSdk 37 APK and requires
-`connectedDebugAndroidTest` to pass. An empty or missing `androidTest` source set
+`connectedDebugAndroidTest` to pass. A second required lane boots Android 14 /
+API 34 — the minimum supported SDK — and requires the cold-launch pairing-entry
+and TLS pin pairing tests to pass on the minSdk 34 APK. An empty or missing `androidTest` source set
 is a failure, not a skipped success. The API 37 manifest declares
 `ACCESS_LOCAL_NETWORK`; its native request/rationale/denial instrumentation is
 part of this required platform gate. CI also builds `dist/main/server.cjs`

@@ -37,7 +37,7 @@ done
 
 adb shell df -h /data
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'minSdk=26'
+adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'minSdk=34'
 adb shell dumpsys package com.lightcodeapp.mobile | grep -F 'targetSdk=37'
 adb logcat -c
 # Cold-launch hardening. Measured cold launches on the API 37 emulator take
@@ -116,4 +116,4 @@ cd android
 adb reverse tcp:49160 tcp:49160
 adb reverse tcp:49161 tcp:49161
 ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.capability="$capability" --no-daemon --stacktrace
-printf '%s\n' '### Android 17 runtime evidence' '' '- API 37 emulator booted as Android 17 (REL).' '- The targetSdk 37 / minSdk 26 APK installed and launched.' '- The API 37 instrumentation suite passed.' >> "$GITHUB_STEP_SUMMARY"
+printf '%s\n' '### Android 17 runtime evidence' '' '- API 37 emulator booted as Android 17 (REL).' '- The targetSdk 37 / minSdk 34 APK installed and launched.' '- The API 37 instrumentation suite passed.' >> "$GITHUB_STEP_SUMMARY"
