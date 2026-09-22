@@ -1148,6 +1148,14 @@ describe("generated native union runtime wire format", () => {
         'rootProject.name = "native-union-runtime"\n',
         "utf8",
       );
+      // Without explicit heap the temp build runs on Gradle's 512 MB default,
+      // and compiling the large generated harness exhausts it (OOM in CI).
+      // Mirror android/gradle.properties for both Gradle and the Kotlin daemon.
+      writeFileSync(
+        join(directory, "gradle.properties"),
+        "org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8\nkotlin.daemon.jvmargs=-Xmx2048m\n",
+        "utf8",
+      );
       writeFileSync(
         join(directory, "build.gradle.kts"),
         `plugins {
