@@ -69,7 +69,7 @@ import {
 } from "./sdkCanonicalMapping";
 import { mapClaudeSlashCommands } from "./probe";
 import { AsyncPromptQueue } from "./promptQueue";
-import { ClaudeSteerDelivery, interruptClaudeQuery } from "./steerDelivery";
+import { ClaudeSteerDelivery, interruptClaudeQuery, isGoalMutationPrompt } from "./steerDelivery";
 import { projectCwd, spawnClaudeInWsl, spawnClaudeNative } from "./sdkSpawn";
 import { buildSdkUserMessage } from "./sdkPrompt";
 import {
@@ -172,6 +172,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   // in the errors array — otherwise the supervisor's drain-on-idle hook would
   // miss the steer and the staged prompt would never flush.
   private interruptInFlight = false;
+  /**
+   * Set while Poracode itself interrupts a turn to deliver a goal set/clear
+   * steer: the interrupted-result cleanup must then keep every staged steer
+   * (not only goal ones) because the user never asked to cancel them.
+   */
+  private goalSteerInterruptInFlight = false;
   private goalTrackingTimer: ReturnType<typeof setInterval> | undefined;
 
   private constructor(input: CreateStructuredSessionInput) {
@@ -382,6 +388,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.emitRuntimeEvents(
         steerClaudeTurn(this.mapperState, prompt, segments, userMessageItemId),
       );
+      if (this.currentTurnInFlight && isGoalMutationPrompt(prompt)) this.interruptForGoalSteer();
       return;
     }
     const uuid = randomUUID();
@@ -410,6 +417,48 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       this.emitUpdate({ status: "error", attention: "error", errorMessage: this.steerError });
       throw error;
     }
+  }
+
+  /**
+   * A goal set/clear cannot wait for the running turn: the CLI's goal Stop hook
+   * may keep it open forever. Interrupt it (after backgrounding live work),
+   * re-stage any SDK-queued steers ahead of the goal command (the interrupt
+   * cancels their SDK copies so they cannot run inside the dying turn), and let the interrupted result open the goal
+   * command as a fresh turn via startPendingSteer. The user row was already
+   * painted by steerTurn; startClaudeTurn re-emits it under the same item id,
+   * which the stores treat as a no-op.
+   */
+  private interruptForGoalSteer(): void {
+    if (this.interruptInFlight || !this.queryRuntime) return;
+    this.submissionGeneration++;
+    this.pendingSteers = [...this.steerDelivery.takePending(), ...this.pendingSteers];
+    this.promptQueue.clear();
+    this.interruptInFlight = true;
+    this.goalSteerInterruptInFlight = true;
+    const runtime = this.queryRuntime;
+    const cancelQueued = this.steerDelivery.supported;
+    // Same rule as prepareSteerInterrupt: foreground Bash and subagents become
+    // background tasks instead of dying with the replaced goal's turn.
+    void (async () => {
+      try {
+        await runtime.backgroundTasks();
+      } catch {
+        // Older CLIs lack the control request; the interrupt still applies.
+      }
+      await interruptClaudeQuery(runtime, cancelQueued);
+    })().catch(() => {});
+  }
+
+  /**
+   * Staged steers that outlive an interrupted turn. A Poracode goal-steer
+   * interrupt keeps all of them. Any other interrupt (user Stop, in-CLI Esc)
+   * drops ordinary follow-ups but still delivers a queued goal set/clear as
+   * the next turn: the user explicitly replaced or cleared the goal, and
+   * silently dropping it would leave the dock on the goal they abandoned.
+   */
+  private steersSurvivingInterrupt(goalSteerInterrupt: boolean): typeof this.pendingSteers {
+    if (goalSteerInterrupt) return this.pendingSteers;
+    return this.pendingSteers.filter(([prompt]) => isGoalMutationPrompt(prompt));
   }
 
   private startPendingSteer(): boolean {
@@ -602,7 +651,10 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
   }
 
   async interruptTurn(): Promise<void> {
-    this.pendingSteers = [];
+    // A user Stop cancels ordinary follow-ups but not a queued goal set/clear
+    // (see steersSurvivingInterrupt); the interrupted result delivers it.
+    this.goalSteerInterruptInFlight = false;
+    this.pendingSteers = this.steersSurvivingInterrupt(false);
     this.steerDelivery.clear();
     this.promptQueue.clear();
     this.submissionGeneration++;
@@ -1282,6 +1334,8 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       }
       this.currentTurnAssistantUuid = undefined;
       this.currentTurnInFlight = false;
+      const goalSteerInterrupt = this.goalSteerInterruptInFlight;
+      this.goalSteerInterruptInFlight = false;
       // Stop the 15s goal-tracking poller on every turn end — including
       // interrupts and steers — so it does not keep firing context-usage
       // round-trips while the thread sits idle. The goal itself is NOT cleared
@@ -1299,7 +1353,7 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
       if (failed || wasInterrupted) {
         const hadPendingDelivery = this.steerDelivery.hasPending;
         this.submissionGeneration++;
-        this.pendingSteers = [];
+        this.pendingSteers = failed ? [] : this.steersSurvivingInterrupt(goalSteerInterrupt);
         this.steerDelivery.clear();
         this.promptQueue.clear();
         if (failed && hadPendingDelivery && this.queryRuntime && this.steerDelivery.supported) {

@@ -1,6 +1,7 @@
 import type { Query, SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { StartTurnOptions } from "../base";
 import type { PromptSegment, ThreadConfig } from "@/shared/contracts";
+import { parseGoalSlashCommand } from "../goalRuntime";
 
 export type ClaudeSteer = [string, ThreadConfig, PromptSegment[] | undefined, StartTurnOptions];
 
@@ -23,6 +24,13 @@ export class ClaudeSteerDelivery {
     this.tail = Promise.resolve();
   }
 
+  /** Hand back undelivered steers in submission order and forget them. */
+  takePending(): ClaudeSteer[] {
+    const steers = [...this.pending.values()];
+    this.clear();
+    return steers;
+  }
+
   /** Attachment reads must not reorder messages submitted close together. */
   serialize(deliver: () => Promise<void>): Promise<void> {
     const result = this.tail.then(deliver);
@@ -42,7 +50,19 @@ export class ClaudeSteerDelivery {
 }
 
 /**
- * SDK 0.3.251 implements cancelQueued but omits the argument in its public type.
+ * A `/goal <objective>` or `/goal clear` replaces the running goal. The CLI's
+ * goal Stop hook can keep the current turn open indefinitely, so such a steer
+ * must interrupt instead of waiting for the turn to end. A bare `/goal` is a
+ * status query and waits like any other command.
+ */
+export function isGoalMutationPrompt(prompt: string): boolean {
+  const goal = parseGoalSlashCommand(prompt);
+  return goal !== undefined && goal.action !== "viewed";
+}
+
+/**
+ * SDK 0.3.280 (as since 0.3.251) implements cancelQueued but still types
+ * `interrupt()` without the argument.
  * Use only after the CLI advertises interrupt_cancel_queued_v1. A plain interrupt
  * explicitly leaves SDK-queued user input runnable.
  */

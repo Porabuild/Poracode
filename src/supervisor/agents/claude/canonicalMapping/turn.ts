@@ -51,6 +51,25 @@ export function startClaudeTurn(
   const goalPayload = parseGoalSlashCommand(prompt);
   if (goalPayload && goalPayload.action !== "viewed") {
     const goalItemId = `goal-${turnId}`;
+    // A set or clear replaces the goal that was running. Close its stored row
+    // first (the goal vocabulary has no "superseded"; `cancelled` is the
+    // closest non-active status) so it never stays "active" in history, and
+    // so the new item remains the latest goal row the dock reads.
+    if (state.activeGoalItemId && state.activeGoalItemId !== goalItemId) {
+      events.push(
+        ...updateGoalItemEvents(
+          state.threadId,
+          state.activeGoalItemId,
+          goalPayloadFromProviderState(
+            {
+              ...(state.activeGoalObjective ? { objective: state.activeGoalObjective } : {}),
+              status: "cancelled",
+            },
+            "cleared",
+          ),
+        ),
+      );
+    }
     events.push(...startGoalItemEvents(state.threadId, goalItemId, goalPayload));
     if (goalPayload.action === "set" && goalPayload.objective) {
       state.activeGoalItemId = goalItemId;
@@ -58,6 +77,9 @@ export function startClaudeTurn(
       state.activeGoalStartedAtMs = Date.now();
       delete state.activeGoalIterations;
       delete state.activeGoalLastReason;
+      // Evaluator ownership is per goal: a verdict frame seen for the replaced
+      // goal must not stop this one from resolving at a clean turn end.
+      delete state.sawActiveGoalMessage;
       resetActiveGoalTokenAccounting(state);
     } else {
       clearActiveGoal(state);

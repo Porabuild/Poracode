@@ -80,7 +80,9 @@ it.each(["second prompt", "/compact", "/goal finish the task", "/clear"])(
     expect(
       h.events.filter((event) => event.type === "item.started" && event.itemId === "steer-row"),
     ).toHaveLength(1);
-    expect(h.interrupt).not.toHaveBeenCalled();
+    // A goal set replaces the running goal, so it interrupts the turn (after
+    // backgrounding live work); other commands wait for the turn to end.
+    expect(h.interrupt).toHaveBeenCalledTimes(prompt.startsWith("/goal ") ? 1 : 0);
 
     h.output.write({
       type: "user",
@@ -280,4 +282,102 @@ it("surfaces a failed follow-up attachment and discards later steers", async () 
   await vi.waitFor(() => expect(h.errors).toHaveLength(1));
   expect(h.updates.at(-1)?.status).toBe("error");
   expect(h.events.filter((event) => event.type === "turn.started")).toHaveLength(2);
+});
+
+function goalItemEvents(events: RuntimeEvent[]) {
+  return events.filter(
+    (event): event is Extract<RuntimeEvent, { type: "item.started" }> =>
+      event.type === "item.started" && event.itemType === "goal",
+  );
+}
+
+function userRowIds(events: RuntimeEvent[]): string[] {
+  return events.flatMap((event) =>
+    event.type === "item.started" && event.itemType === "user_message" ? [event.itemId] : [],
+  );
+}
+
+it.each([
+  { prompt: "/goal ship B", payload: { action: "set", objective: "ship B" } },
+  { prompt: "/goal clear", payload: { action: "cleared" } },
+])("interrupts a running goal turn to deliver $prompt", async ({ prompt, payload }) => {
+  const h = await createSession();
+  await h.session.startTurn("/goal ship A", config, undefined, { userMessageItemId: "goal-a-row" });
+  await h.inputs.next();
+  const [goalA] = goalItemEvents(h.events);
+  expect(goalA?.payload).toMatchObject({ action: "set", objective: "ship A" });
+
+  await h.session.steerTurn(prompt, config, undefined, { userMessageItemId: "steer-row" });
+  await flushSdkMessages();
+  expect(h.backgroundTasks).toHaveBeenCalledTimes(1);
+  expect(h.interrupt).toHaveBeenCalledTimes(1);
+  expect(h.backgroundTasks.mock.invocationCallOrder[0]).toBeLessThan(
+    h.interrupt.mock.invocationCallOrder[0]!,
+  );
+  expect(h.events.filter((event) => event.type === "turn.started")).toHaveLength(1);
+
+  h.output.write(resultMessage(h.id));
+  expect((await h.inputs.next()).value?.message.content).toBe(prompt);
+  const turns = h.events.filter((event) => event.type === "turn.started");
+  expect(turns).toHaveLength(2);
+  expect(h.events).toContainEqual(
+    expect.objectContaining({ type: "turn.completed", state: "interrupted" }),
+  );
+  const goalB = goalItemEvents(h.events).at(-1);
+  expect(goalB?.itemId).toBe(`goal-${turns[1]?.type === "turn.started" ? turns[1].turnId : ""}`);
+  expect(goalB?.payload).toMatchObject(payload);
+  expect(h.events).toContainEqual(
+    expect.objectContaining({
+      type: "item.updated",
+      itemId: goalA?.itemId,
+      payload: expect.objectContaining({ status: "cancelled" }),
+    }),
+  );
+  // The steer row is painted once; startClaudeTurn re-emits the same id only.
+  expect(new Set(userRowIds(h.events))).toEqual(new Set(["goal-a-row", "steer-row"]));
+  expect(h.updates.every((update) => update.status !== "idle")).toBe(true);
+});
+
+it("keeps other staged steers when a goal steer interrupts the turn", async () => {
+  const h = await createSession();
+  await h.session.startTurn("/goal ship A", config);
+  await h.inputs.next();
+  await h.session.steerTurn("/compact", config);
+  expect(h.interrupt).not.toHaveBeenCalled();
+  await h.session.steerTurn("/goal ship B", config);
+  await flushSdkMessages();
+  expect(h.interrupt).toHaveBeenCalledTimes(1);
+  h.output.write(resultMessage(h.id));
+  expect((await h.inputs.next()).value?.message.content).toBe("/compact");
+  h.output.write(resultMessage(h.id));
+  expect((await h.inputs.next()).value?.message.content).toBe("/goal ship B");
+});
+
+it("does not interrupt for a bare /goal status query", async () => {
+  const h = await createSession();
+  await h.session.startTurn("/goal ship A", config);
+  await h.inputs.next();
+  await h.session.steerTurn("/goal", config);
+  await flushSdkMessages();
+  expect(h.interrupt).not.toHaveBeenCalled();
+});
+
+it("Stop still delivers a queued goal set but drops ordinary follow-ups", async () => {
+  const h = await createSession();
+  await h.session.startTurn("/goal ship A", config);
+  await h.inputs.next();
+  await h.session.steerTurn("/compact", config);
+  await h.session.steerTurn("/goal ship B", config, undefined, { userMessageItemId: "steer-row" });
+  await h.session.interruptTurn();
+  h.output.write(resultMessage(h.id));
+  expect((await h.inputs.next()).value?.message.content).toBe("/goal ship B");
+  expect(h.events.filter((event) => event.type === "turn.started")).toHaveLength(2);
+  expect(goalItemEvents(h.events).at(-1)?.payload).toMatchObject({ objective: "ship B" });
+
+  const nextInput = vi.fn<(result: IteratorResult<SDKUserMessage>) => void>();
+  void h.inputs.next().then(nextInput);
+  h.output.write(resultMessage(h.id));
+  await flushSdkMessages();
+  expect(nextInput).not.toHaveBeenCalled();
+  expect(h.updates.at(-1)?.status).toBe("idle");
 });
