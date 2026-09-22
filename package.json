@@ -78,6 +78,8 @@
     "test:native-dev": "node --test scripts/native-dev-lib.test.mjs",
     "v2perf:qualify": "node scripts/v2-perf-qualify.mjs",
     "v2perf:test": "node --test scripts/v2-perf-qualify.test.mjs scripts/v2-perf-qualify-workflows.test.mjs",
+    "n1qual:run": "node scripts/server-n1-qualification.mjs",
+    "n1qual:test": "node --test scripts/server-n1-qualification.test.mjs scripts/provider-n1-workflows.test.mjs",
     "native:e2e": "vitest run --config tests/native-e2e/vitest.config.ts",
     "native:e2e:mock-host": "node scripts/native-e2e.mjs mock",
     "native:e2e:real-host": "node scripts/native-e2e.mjs real",

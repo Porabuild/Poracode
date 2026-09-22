@@ -1,0 +1,199 @@
+name: Provider & published N-1 server qualification
+
+# Dispatch-only qualification cells that must never gate merges:
+#
+# - providers: the live provider lifecycle suite
+#   (tests/integration/providers-lifecycle.integration.test.ts) in
+#   PORACODE_LIVE_PROVIDERS_REQUIRED strict mode, on the clearly labeled
+#   self-hosted macOS ARM64 qualification runner where real provider CLIs and
+#   their credentials live. Provider credentials are NEVER repository secrets
+#   — they are provisioned on the runner host itself, which is exactly why
+#   this cell cannot run on hosted runners.
+# - server_n1: the fail-closed published N-1 upgrade gate
+#   (scripts/server-n1-qualification.mjs) against a supplied candidate
+#   server tarball. The gate exits nonzero with a typed
+#   NO_PUBLISHED_SERVER_N1 result until a first stable published server
+#   release exists; wiring it into required PR/push/release gates is blocked
+#   until that predecessor exists.
+#
+# Deliberately workflow_dispatch-only — no push, pull_request, schedule, or
+# release trigger. Evidence uploads on success and failure but not on
+# cancellation (an interrupted cell has no complete result to archive).
+# Secrets stay in env indirection, are never echoed, and the qualification
+# script redacts pairing URLs, tickets, and tokens from everything it prints.
+
+on:
+  workflow_dispatch:
+    inputs:
+      required_providers:
+        description: >-
+          Comma-separated provider kinds that MUST run (e.g. "claude,codex").
+          Unknown, duplicate, or empty names fail fast; a named provider
+          missing its CLI, auth, or model fails instead of skipping.
+        required: true
+        type: string
+      candidate_tarball_url:
+        description: >-
+          Direct URL of the candidate poracode-server tarball. Downloaded
+          with the workflow token in a request header; the URL and token are
+          never logged.
+        required: true
+        type: string
+      candidate_tarball_sha256:
+        description: >-
+          Optional expected sha256 of the candidate tarball; a mismatch fails
+          the job before anything is installed.
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  # One qualification machine: a second run must never share the labeled
+  # runner with a live cell.
+  group: provider-n1-qualification
+  cancel-in-progress: false
+
+env:
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
+jobs:
+  providers:
+    name: Live provider lifecycle (strict mode)
+    # Enroll the runner with exactly these labels. Node 24 + pnpm must be
+    # reachable through the actions below (they provision both), and the host
+    # must carry installed + authenticated provider CLIs for every kind named
+    # in required_providers.
+    runs-on: [self-hosted, macOS, ARM64, provider-qualification]
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          clean: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Provision Electron and node-pty
+        run: |
+          node scripts/ensure-native-deps.mjs --electron-native
+          scripts/ci-rebuild-node-pty.sh
+
+      - name: Run strict provider lifecycle qualification
+        env:
+          PORACODE_LIVE_PROVIDERS_REQUIRED: ${{ inputs.required_providers }}
+          PROVIDERS_EVIDENCE_DIR: ${{ runner.temp }}/provider-qualification-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$PROVIDERS_EVIDENCE_DIR"
+          pnpm exec vitest run --configLoader runner --config vitest.integration.config.ts \
+            tests/integration/helpers/liveProvidersRequired.test.ts \
+            tests/integration/providers-lifecycle.integration.test.ts \
+            2>&1 | tee "$PROVIDERS_EVIDENCE_DIR/providers-lifecycle.log"
+
+      - name: Upload provider qualification evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: provider-qualification-${{ github.run_id }}
+          path: ${{ runner.temp }}/provider-qualification-evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  server_n1:
+    name: Published N-1 server upgrade gate
+    # Serialize the two cells even if this label is later attached to more
+    # than one runner. N-1 still produces independent evidence after a
+    # provider failure; cancellation stops the workflow.
+    needs: providers
+    if: ${{ always() && !cancelled() }}
+    runs-on: [self-hosted, macOS, ARM64, provider-qualification]
+    timeout-minutes: 90
+    env:
+      N1_EVIDENCE_DIR: ${{ runner.temp }}/n1-qualification-evidence
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          clean: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Download the candidate tarball
+        env:
+          CANDIDATE_URL: ${{ inputs.candidate_tarball_url }}
+          CANDIDATE_SHA: ${{ inputs.candidate_tarball_sha256 }}
+          # Release download only. It travels in a header and is never echoed.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$N1_EVIDENCE_DIR"
+          # Dispatch inputs are untrusted. Never send the workflow token to
+          # an arbitrary host, and reject malformed checksum input before it
+          # reaches shasum. GitHub redirects release downloads to a signed
+          # object URL; curl does not forward Authorization across hosts.
+          node -e '
+            const url = new URL(process.env.CANDIDATE_URL);
+            if (url.protocol !== "https:" || !["api.github.com", "github.com"].includes(url.hostname)) {
+              throw new Error("candidate_tarball_url must be an HTTPS GitHub release/API URL");
+            }
+            const sha = process.env.CANDIDATE_SHA;
+            if (sha && !/^[0-9a-f]{64}$/i.test(sha)) {
+              throw new Error("candidate_tarball_sha256 must contain exactly 64 hexadecimal characters");
+            }
+          '
+          # The token rides in the header; no -v, no echo of either value.
+          curl -fsSL --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/octet-stream" \
+            -o "$N1_EVIDENCE_DIR/candidate.tar.gz" \
+            "$CANDIDATE_URL"
+          if [ -n "$CANDIDATE_SHA" ]; then
+            # The labeled runner is macOS; shasum ships with the OS.
+            echo "$CANDIDATE_SHA  $N1_EVIDENCE_DIR/candidate.tar.gz" | shasum -a 256 -c -
+          fi
+
+      - name: Qualification self-tests
+        run: node --test scripts/server-n1-qualification.test.mjs scripts/provider-n1-workflows.test.mjs
+
+      - name: Run the published N-1 upgrade gate
+        env:
+          # Release-list and N-1 asset downloads only. The script removes it
+          # from every spawned server/terminal environment.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          node scripts/server-n1-qualification.mjs \
+            --candidate-tarball "$N1_EVIDENCE_DIR/candidate.tar.gz" \
+            --out-dir "$N1_EVIDENCE_DIR"
+
+      - name: Upload N-1 gate evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: n1-qualification-${{ github.run_id }}
+          path: ${{ runner.temp }}/n1-qualification-evidence
+          if-no-files-found: warn
+          retention-days: 30
