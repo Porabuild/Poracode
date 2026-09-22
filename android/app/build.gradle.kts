@@ -19,8 +19,16 @@ val rootPackageVersion = rootPackageMetadata["version"] as? String
     ?: error("Root package.json is missing a version")
 val mobileBuildNumber = (System.getenv("PORACODE_MOBILE_BUILD_NUMBER") ?: "1").toInt()
 val mobileVersionName = System.getenv("PORACODE_MOBILE_VERSION_NAME") ?: rootPackageVersion
+// Orchestrator normally isolates every method. The real-peer family overrides
+// this because its two methods intentionally reuse one persisted host after a
+// one-use pairing credential is redeemed by the first method.
 val clearPackageDataBetweenInstrumentedTests =
-    providers.gradleProperty("poracode.android.clearPackageData").orElse("true")
+    providers.gradleProperty("poracode.android.clearPackageData").orElse("true").map { value ->
+        require(value == "true" || value == "false") {
+            "poracode.android.clearPackageData must be true or false (received '$value')"
+        }
+        value
+    }
 val remoteV3NativeDirectory =
     rootProject.layout.projectDirectory.dir("../protocol/remote/v3/generated/native")
 val remoteV3KotlinDirectory = remoteV3NativeDirectory.dir("kotlin")
