@@ -4,7 +4,6 @@ import com.poracode.app.model.RemoteClientException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CancellationException
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -162,8 +161,10 @@ class RemoteApiClientCompressionTest {
                 client.requestText("/api/snapshot")
                 fail("Recovery must not receive a fresh 600ms budget")
             } catch (error: Exception) {
-                assertTrue(error is CancellationException ||
-                    (error is RemoteClientException && error.code == "network"))
+                assertTrue(
+                    "the shared deadline must surface as a typed timeout: $error",
+                    error is RemoteClientException && error.code == "timeout",
+                )
             }
             assertEquals(2, server.requestCount)
         } finally { server.shutdown() }

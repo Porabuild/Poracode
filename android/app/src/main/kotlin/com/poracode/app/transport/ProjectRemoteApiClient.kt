@@ -10,6 +10,7 @@ import com.poracode.app.model.ProjectNotesWriteBody
 import com.poracode.app.model.ProjectSettings
 import com.poracode.app.model.RemoteJson
 import com.poracode.app.protocol.GeneratedRemoteV3ProjectContract
+import com.poracode.app.protocol.ProtocolConstants
 import java.net.URLEncoder
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.encodeToJsonElement
@@ -34,16 +35,39 @@ class ProjectRemoteApiClient private constructor(
         ),
     )
 
-    override suspend fun projectCommand(command: ProjectCommand): ProjectCommandResult {
+    override suspend fun projectCommand(
+        command: ProjectCommand,
+        dispatch: ProjectCommandDispatch?,
+    ): ProjectCommandResult {
         val rawBody = RemoteJson.encodeToString(ProjectCommand.serializer(), command)
         val response = http.requestText(
             path = PROJECT_COMMAND_PATH,
             method = "POST",
             jsonBody = GeneratedRemoteV3ProjectContract.projectCommandRequest(rawBody),
+            extraHeaders = dispatchHeaders(dispatch),
         )
         return ProjectRemoteV3Adapters.commandResult(
             GeneratedRemoteV3ProjectContract.projectCommandResponse(response),
+            boundedDeclared = dispatch?.boundedResult == true,
         )
+    }
+
+    /**
+     * The declared dispatch's only wire effect: the per-operation command id
+     * and, under the bounded declaration, the result-mode header. A null
+     * dispatch is the historical undeclared complete-result request.
+     */
+    private fun dispatchHeaders(dispatch: ProjectCommandDispatch?): Map<String, String> {
+        if (dispatch == null) return emptyMap()
+        return buildMap {
+            put(ProtocolConstants.COMMAND_ID_HEADER, dispatch.commandId)
+            if (dispatch.boundedResult) {
+                put(
+                    ProtocolConstants.PROJECT_COMMAND_RESULT_HEADER,
+                    ProtocolConstants.PROJECT_COMMAND_RESULT_DECLARATION,
+                )
+            }
+        }
     }
 
     override suspend fun projectSettings(projectId: String): ProjectSettings {

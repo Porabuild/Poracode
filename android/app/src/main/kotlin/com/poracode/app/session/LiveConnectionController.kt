@@ -2,12 +2,11 @@ package com.poracode.app.session
 
 import com.poracode.app.model.ConnectionProfile
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.RemoteEnvironmentDescriptor
 import com.poracode.app.model.RemoteShellSnapshot
 import com.poracode.app.model.RemoteWebSocketServerMessage
 import com.poracode.app.protocol.AppLifecycleGate
-import com.poracode.app.protocol.GlobalCursorPolicy
 import com.poracode.app.protocol.RemoteAccessScopes
-import com.poracode.app.protocol.RemoteSocketPolicy
 import com.poracode.app.transport.RemoteApiGateway
 import com.poracode.app.transport.RemoteApiGatewayFactory
 import com.poracode.app.transport.RemoteEventSocket
@@ -38,6 +37,14 @@ class LiveConnectionController(
     private val interestEpoch: InterestEpochGate,
     private val onAuthoritativeBaseline: () -> Unit = {}, private val onLiveSocketInstalled: () -> Unit = {},
     private val agentStatusesBootstrap: AgentStatusesBootstrap? = null,
+    /**
+     * Bounded-catalog bootstrap: installs the first shell page (bounded or the
+     * legacy full shell when the host never echoed the capability) before the
+     * socket starts, then continues its walks in the background.
+     */
+    private val bootstrapShell: suspend (RemoteApiGateway, Long) -> Unit = { _, _ -> },
+    /** Bounded foreground/manual shell refresh; returns true when it installed. */
+    private val refreshShell: suspend (RemoteApiGateway, Long) -> Boolean = { _, _ -> false },
 ) {
     var api: RemoteApiGateway? = null
         private set
@@ -66,65 +73,38 @@ class LiveConnectionController(
             scope = scope,
             jobs = jobs,
             lifecycleGate = lifecycleGate,
-            ioDispatcher = ioDispatcher,
             api = { api },
             readScopes = { state().profile?.scopes.orEmpty() },
             updateState = updateState,
-            applyShellSnapshot = ShellSnapshotApplier(::applyShellSnapshot),
-            handleApiException = ::handleApiException,
+            refreshShell = { client, attemptSeq -> refreshShell(client, attemptSeq) },
+            handleApiException = failures::handleApiException,
             events = connectionEvents,
         )
     }
 
-    /**
-     * Single owner for every browser-capability transition: connect-time cache
-     * writes and invalidations, socket-state epoch bumps and clears, and
-     * refresh publication. The socket listener fires on the client's
-     * Dispatchers.IO scope while install/destroy paths and refresh completions
-     * run on Main, so the epoch alone cannot guard results: a refresh that
-     * reads a current epoch can still publish after a concurrent invalidation
-     * (check-then-publish), and MutableStateFlow equality can suppress an
-     * invalidation's clear emission while the external epoch moves. Holding
-     * [capabilityLock] across {guard, publication} and across every bump makes
-     * each transition indivisible: an invalidation either precedes the guard
-     * read (result rejected) or follows the publication entirely (its own
-     * emission supersedes). SessionOperationOwner identity does not
-     * discriminate a same-socket reconnect (socket/session ids only move on
-     * install/destroy), so within one socket the epoch — linearized here with
-     * the publication it guards — is the only authority for staleness.
-     */
+    /** Guard shared with [LiveCapabilityAuthority]: socket identity + epoch transitions. */
     private val capabilityLock = Any()
-    private var browserCapabilityEpoch = 0L
-    private var initialBrowserVersions: Set<Int>? = null
-
-    /** Capability from a previous connection/state is never authority for the next one. */
-    private fun invalidateBrowserCapability() {
-        synchronized(capabilityLock) {
-            browserCapabilityEpoch += 1
-            initialBrowserVersions = null
-            updateState { it.copy(liveBrowserForwardVersions = emptySet()) }
-        }
-    }
+    private val capability = LiveCapabilityAuthority(capabilityLock, updateState)
+    internal val failures =
+        LiveFailureSurface(jobs, { webSocket }, lifecycleGate, connectionEvents, updateState)
 
     /**
      * Drop the connect-time capability cache under the capability guard (see
      * [capabilityLock]); entry point for [LiveForegroundRecovery] on background.
      */
-    internal fun invalidateInitialCapabilityVersions() {
-        synchronized(capabilityLock) { initialBrowserVersions = null }
-    }
+    internal fun invalidateInitialCapabilityVersions() = capability.invalidateInitial()
 
     fun installApi(endpoint: String, token: String): RemoteApiGateway {
         val client = apiFactory.create(endpoint, token)
         api = client
-        invalidateBrowserCapability()
+        capability.invalidate()
         owner.bumpApiIdentity()
         accessToken = token
         return client
     }
 
     fun destroyLiveForHostSwap() {
-        invalidateBrowserCapability()
+        capability.invalidate()
         // Must not cancel the exclusive PAIR/BOOTSTRAP job that is driving the swap.
         jobs.cancelLiveNetworkWork()
         owner.invalidateThread()
@@ -141,7 +121,7 @@ class LiveConnectionController(
     }
 
     fun destroyAllForUnpair() {
-        invalidateBrowserCapability()
+        capability.invalidate()
         // Unpair job must keep running through durable clear — cancel live only.
         jobs.cancelLiveNetworkWork()
         owner.invalidateThread()
@@ -165,10 +145,7 @@ class LiveConnectionController(
         try {
             val environment = withContext(ioDispatcher) { client.environment() }
             if (api !== client) return
-            synchronized(capabilityLock) {
-                initialBrowserVersions =
-                    environment.capabilities?.browserForward?.versions.orEmpty().toSet()
-            }
+            capability.cacheInitial(environment.capabilities)
             startLiveSession()
         } catch (e: CancellationException) {
             throw e
@@ -180,7 +157,7 @@ class LiveConnectionController(
                 return
             }
             if (e.isUnauthorized) {
-                surfaceSessionExpired(e.message)
+                failures.surfaceSessionExpired(e.message)
                 startLiveSession()
             } else {
                 connectionEvents.publishFailure(e.message)
@@ -192,6 +169,31 @@ class LiveConnectionController(
         }
     }
 
+    /**
+     * B1 first-connection coherence: observe the authority descriptor through
+     * the *same* client before the first upgrade, so a fresh pair or catalog
+     * host switch opens its first socket with the declaration the host
+     * advertises (the observation also primes the Online observer's one-fetch
+     * cache). A failed preflight is not an answer: the socket still starts
+     * undeclared and the Online observer reconciles or stays truthfully
+     * undeclared. A superseded client never starts a socket.
+     */
+    suspend fun preflightCapabilitiesAndStart(client: RemoteApiGateway) {
+        val environment = try {
+            withContext(ioDispatcher) { client.environment() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        if (environment != null) {
+            synchronized(capabilityLock) {
+                if (api === client) capability.cacheInitial(environment.capabilities)
+            }
+        }
+        if (api !== client) return
+        startLiveSession()
+    }
 
     suspend fun startLiveSession() {
         val client = api ?: return
@@ -213,12 +215,7 @@ class LiveConnectionController(
         }
         try {
             val attemptSeq = connectionEvents.next()
-            val snap = withContext(ioDispatcher) { client.snapshot() }
-            applyShellSnapshot(
-                snap,
-                advanceGlobalCursor = GlobalCursorPolicy.bootstrapAdvancesGlobalCursor(),
-                recoveryAttemptSeq = attemptSeq,
-            )
+            bootstrapShell(client, attemptSeq)
             onAuthoritativeBaseline()
             agentStatusesBootstrap?.start(client)
             updateState {
@@ -238,7 +235,7 @@ class LiveConnectionController(
                 return
             }
             if (e.isUnauthorized) {
-                surfaceSessionExpired(e.message)
+                failures.surfaceSessionExpired(e.message)
                 lastSeenSeq = 0
                 startWebSocket(client)
             } else {
@@ -264,6 +261,13 @@ class LiveConnectionController(
 
     fun startWebSocket(client: RemoteApiGateway) {
         lifecycleGate.noteLiveSessionDesired(true)
+        // Declare bounded catalog changes before this socket's first upgrade iff
+        // the catalog controller actually negotiated bounded reads; the client
+        // itself still requires the authoritative descriptor to have advertised
+        // the capability, so an incapable host can never be declared to.
+        client.declareBoundedCatalogChanges(
+            state().catalog.negotiated && !state().catalog.legacy,
+        )
         pendingLiveClient = client
         val bindSessionGen = owner.sessionGeneration
         val prev = webSocket
@@ -272,10 +276,16 @@ class LiveConnectionController(
         prev?.destroy()
         val socket = socketFactory.create(client)
         val sockId = owner.bumpSocketIdentity()
+        // Per-socket one-shot: a declaration reconciliation is issued at most
+        // once per installed socket, so a repeated same-capability descriptor
+        // can never reconnect-loop.
+        val declaration = LiveCapabilityReconciliation(client) {
+            state().catalog.negotiated && !state().catalog.legacy
+        }
         // A newly installed socket opens a fresh capability transition: any
         // in-flight refresh from a previous socket is stale by definition.
         synchronized(capabilityLock) {
-            browserCapabilityEpoch += 1
+            capability.beginSocket()
             webSocket = socket
         }
         socket.setListener(object : RemoteEventSocket.Listener {
@@ -291,48 +301,50 @@ class LiveConnectionController(
                     if (!lifecycleGate.isForeground &&
                         state != RemoteWebSocketClient.ConnectionState.Suspended
                     ) return
-                    capabilityEpoch = ++browserCapabilityEpoch
+                    capabilityEpoch = capability.beginObservation()
                     if (state == RemoteWebSocketClient.ConnectionState.Suspended) {
                         // Suspension defers the next Online indefinitely: a
                         // connect-time capability snapshot carries no freshness
                         // guarantee across the suspension.
-                        initialBrowserVersions = null
+                        capability.invalidateInitial()
                     }
                     updateState {
                         LiveSessionStateTransitions.socketStateChanged(it, state, detail)
                     }
                 }
                 if (state == RemoteWebSocketClient.ConnectionState.Online) {
-                    val initialVersions: Set<Int>?
+                    val cachedCapabilities: RemoteEnvironmentDescriptor.Capabilities?
                     synchronized(capabilityLock) {
-                        if (browserCapabilityEpoch != capabilityEpoch ||
+                        if (!capability.isCurrentEpoch(capabilityEpoch) ||
                             !isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)
                         ) return
-                        initialVersions = initialBrowserVersions
-                        initialBrowserVersions = null
+                        cachedCapabilities = capability.consumeInitial()
                     }
                     scope.launch {
-                        val versions = try {
-                            initialVersions ?: withContext(ioDispatcher) {
-                                client.environment().capabilities?.browserForward?.versions
-                                    .orEmpty().toSet()
+                        // One descriptor fetch publishes every live capability;
+                        // a failed fetch publishes nothing (absence is not an answer).
+                        val capabilities = try {
+                            cachedCapabilities ?: withContext(ioDispatcher) {
+                                client.environment().capabilities
                             }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (_: Exception) {
-                            emptySet()
+                            null
                         }
-                        // Guard + publication are one transition under the
-                        // owner: a concurrent state change can never slip
-                        // between the check and the write — it either runs
-                        // entirely before the guard (result rejected) or
-                        // entirely after the publication (its own clear
-                        // supersedes). Also rejects non-current sockets:
-                        // identity is stable across same-socket reconnects,
-                        // so the epoch carries that case and identity carries
-                        // socket swaps.
+                        val versions = capabilities?.browserForward?.versions.orEmpty().toSet()
+                        val noticeVersions =
+                            capabilities?.runtimeHistoryNotices?.versions.orEmpty().toSet()
+                        val projectCommandResultVersions =
+                            capabilities?.projectCommandResults?.versions.orEmpty().toSet()
+                        var reconcileReason: String? = null
+                        // Guard + publication are one indivisible transition:
+                        // a concurrent change either runs entirely before the
+                        // guard read (rejected) or entirely after the publish
+                        // (its own clear supersedes). Identity rejects socket
+                        // swaps; the epoch carries same-socket reconnects.
                         synchronized(capabilityLock) {
-                            if (browserCapabilityEpoch == capabilityEpoch &&
+                            if (capability.isCurrentEpoch(capabilityEpoch) &&
                                 isCurrentLiveSocket(
                                     webSocket,
                                     socket,
@@ -341,9 +353,29 @@ class LiveConnectionController(
                                     sockId,
                                 )
                             ) {
-                                updateState { it.copy(liveBrowserForwardVersions = versions) }
+                                updateState {
+                                    it.copy(
+                                        liveBrowserForwardVersions = versions,
+                                        liveRuntimeHistoryNoticeVersions = noticeVersions,
+                                        liveProjectCommandResultVersions =
+                                            projectCommandResultVersions,
+                                    )
+                                }
+                                // B1: a capable descriptor for a connection
+                                // whose real upgrade omitted the declaration
+                                // must not be left silently incapable. Declare
+                                // on the same client and run the authoritative
+                                // shell+history barrier before the socket
+                                // reconnects: an incapable connection had its
+                                // canonical frames emptied while the cursor
+                                // advanced, so a bare reconnect could skip
+                                // content. One attempt per installed socket;
+                                // the bounded catalog-change declaration follows
+                                // the same rule.
+                                reconcileReason = declaration.reconcile(capabilities, socket)
                             }
                         }
+                        reconcileReason?.let { requestResync(it) }
                     }
                 }
             }
@@ -363,7 +395,7 @@ class LiveConnectionController(
 
             override fun onSessionExpired(reason: String) {
                 if (!isCurrentLiveSocket(webSocket, socket, owner, bindSessionGen, sockId)) return
-                surfaceSessionExpired(reason)
+                failures.surfaceSessionExpired(reason)
             }
         })
         val openId = state().openThreadId
@@ -380,13 +412,13 @@ class LiveConnectionController(
             AppLifecycleGate.StartAction.DoNotStart -> {
                 // No start now and no bound on when (or from which host state)
                 // the first Online arrives: never reuse the connect-time cache.
-                synchronized(capabilityLock) { initialBrowserVersions = null }
+                capability.invalidateInitial()
             }
             AppLifecycleGate.StartAction.LeaveSuspendedUntilForeground -> {
                 pendingLiveClient = client
                 // Deferred start carries no freshness guarantee for a cache
                 // captured before suspension (see closeLifecycleGate).
-                synchronized(capabilityLock) { initialBrowserVersions = null }
+                capability.invalidateInitial()
                 socket.armSuspended(startSeq)
             }
             AppLifecycleGate.StartAction.StartNow -> {
@@ -427,66 +459,25 @@ class LiveConnectionController(
         advanceGlobalCursor: Boolean,
         recoveryAttemptSeq: Long? = null,
     ) {
-        if (advanceGlobalCursor) {
-            lastSeenSeq = when (val current = lastSeenSeq) {
-                null -> snap.snapshotSeq
-                else -> maxOf(current, snap.snapshotSeq)
-            }
-            webSocket?.noteAuthoritativeSnapshot(snap.snapshotSeq)
-        }
-        updateState {
-            val connectionId = it.hostCatalog.selectedConnectionId
-            val base = it.copy(
-                snapshot = snap,
-                hostSnapshots = if (connectionId == null) {
-                    it.hostSnapshots
-                } else {
-                    it.hostSnapshots + (connectionId to snap)
-                },
-                projectsLoadState = if (snap.projects.isEmpty() && snap.threads.isEmpty()) {
-                    AppSession.LoadState.Empty
-                } else {
-                    AppSession.LoadState.Loaded
-                },
-                projectsLoadError = null,
-            )
-            if (recoveryAttemptSeq == null) base
-            else LiveSessionStateTransitions.connectionRecovered(base, recoveryAttemptSeq)
-        }
+        lastSeenSeq = ShellSnapshotMerger.nextGlobalCursor(lastSeenSeq, snap.snapshotSeq, advanceGlobalCursor)
+        if (advanceGlobalCursor) webSocket?.noteAuthoritativeSnapshot(snap.snapshotSeq)
+        updateState { ShellSnapshotMerger.replace(it, snap, recoveryAttemptSeq) }
     }
 
-    fun handleUnauthorized(message: String?) {
-        jobs.cancel(SessionLifecycleJobs.RESYNC)
-        jobs.cancel(SessionLifecycleJobs.RESYNC_HISTORY)
-        jobs.cancel(SessionLifecycleJobs.SHELL_REFRESH)
-        jobs.cancel(SessionLifecycleJobs.THREAD_META)
-        jobs.cancel(SessionLifecycleJobs.SNAPSHOT)
-        val detail = message?.takeIf { it.isNotBlank() }
-            ?: RemoteSocketPolicy.SESSION_EXPIRED_REASON
-        // Never reset the cursor to 0 — require an authoritative transaction.
-        webSocket?.markResyncPending()
-        if (lifecycleGate.isForeground) {
-            webSocket?.noteHttpUnauthorized(detail)
-        }
-        surfaceSessionExpired(detail)
-    }
-
-    fun handleApiException(e: RemoteClientException) {
-        if (e.isUnauthorized) {
-            handleUnauthorized(e.message)
-        } else if (e.isTransportFailure) {
-            // Transient transport failure: claim it as connection scope so a
-            // later authoritative snapshot can retire the banner. Host domain
-            // failures are not connection-health evidence and stay on
-            // globalError.
-            connectionEvents.publishFailure(e.message)
-        } else {
-            updateState { it.copy(globalError = e.message) }
-        }
-    }
-
-    fun surfaceSessionExpired(message: String?) {
-        updateState { it.withExpiredSession(message) }
+    /**
+     * Bounded page-1 install: merge the page into the existing catalog (keeping
+     * continuation rows, pins and per-row guards) instead of replacing it. Only
+     * a first-page install may advance the global replay cursor.
+     */
+    fun mergeShellSnapshot(
+        snap: RemoteShellSnapshot,
+        advanceGlobalCursor: Boolean,
+        recoveryAttemptSeq: Long? = null,
+        pageStartedSeq: Long = 0L,
+    ) {
+        lastSeenSeq = ShellSnapshotMerger.nextGlobalCursor(lastSeenSeq, snap.snapshotSeq, advanceGlobalCursor)
+        if (advanceGlobalCursor) webSocket?.noteAuthoritativeSnapshot(snap.snapshotSeq)
+        updateState { ShellSnapshotMerger.merge(it, snap, pageStartedSeq, recoveryAttemptSeq) }
     }
 
     fun applyThreadInterests(ids: List<String>, epoch: Int) {

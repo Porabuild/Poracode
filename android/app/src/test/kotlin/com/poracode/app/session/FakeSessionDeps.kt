@@ -213,8 +213,24 @@ class FakeApiGateway(
         return tokenResult.copy(scopes = scopes.ifEmpty { tokenResult.scopes })
     }
 
-    override suspend fun agentStatuses(): RemoteAgentStatuses =
-        RemoteAgentStatuses(emptyList(), emptyList())
+    var agentStatusesCalls = AtomicInteger(0)
+
+    /** Responses popped per call; falls back to [agentStatusesResponse]. */
+    var agentStatusesResponses: MutableList<RemoteAgentStatuses> = mutableListOf()
+    var agentStatusesResponse: RemoteAgentStatuses = RemoteAgentStatuses(emptyList(), emptyList())
+
+    @Volatile
+    var agentStatusesHold: CompletableDeferred<Unit>? = null
+
+    override suspend fun agentStatuses(): RemoteAgentStatuses {
+        agentStatusesCalls.incrementAndGet()
+        agentStatusesHold?.await()
+        return if (agentStatusesResponses.isNotEmpty()) {
+            agentStatusesResponses.removeAt(0)
+        } else {
+            agentStatusesResponse
+        }
+    }
 
     override suspend fun snapshot(): RemoteShellSnapshot {
         val n = snapshotCalls.incrementAndGet()
@@ -433,6 +449,8 @@ class FakeApiGateway(
 class FakeSocket : RemoteEventSocket {
     private val listenerRef = AtomicReference<RemoteEventSocket.Listener?>(null)
     private val applied = AtomicReference<Int?>(null)
+    @Volatile
+    override var upgradeDeclaredNotices: Boolean? = null
     @Volatile
     var resyncPendingFlag: Boolean = false
     @Volatile

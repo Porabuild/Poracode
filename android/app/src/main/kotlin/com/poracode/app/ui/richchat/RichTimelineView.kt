@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun RichTimelineView(
     transcript: RichThreadState,
     olderCursor: Int?,
+    olderTurnsCursor: String?,
     loadingOlder: Boolean,
     runtime: RichChatSessionRuntime,
     onLoadOlder: () -> Unit,
@@ -65,7 +66,11 @@ fun RichTimelineView(
     val listState = rememberLazyListState()
     val timelineDescription = stringResource(R.string.rich_chat_timeline_description)
     var initialScrollComplete by rememberSaveable(transcript.key.threadId) { mutableStateOf(false) }
-    val headerCount = if (olderCursor != null || loadingOlder) 1 else 0
+    // The action stays reachable while either continuation remains, so a
+    // thread with no older runtime items but older completed turns (`ct1.`)
+    // still pages instead of looking exhausted.
+    val hasOlder = olderCursor != null || olderTurnsCursor != null
+    val headerCount = if (hasOlder || loadingOlder) 1 else 0
 
     LaunchedEffect(entries.size, headerCount, initialScrollComplete) {
         if (!initialScrollComplete && entries.isNotEmpty()) {
@@ -73,11 +78,11 @@ fun RichTimelineView(
             initialScrollComplete = true
         }
     }
-    LaunchedEffect(listState, olderCursor, loadingOlder) {
+    LaunchedEffect(listState, olderCursor, olderTurnsCursor, loadingOlder) {
         snapshotFlow { listState.firstVisibleItemIndex }
             .distinctUntilChanged()
             .collect { index ->
-                if (index <= 1 && olderCursor != null && !loadingOlder) onLoadOlder()
+                if (index <= 1 && hasOlder && !loadingOlder) onLoadOlder()
             }
     }
 
@@ -89,7 +94,7 @@ fun RichTimelineView(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        if (olderCursor != null || loadingOlder) {
+        if (hasOlder || loadingOlder) {
             item(key = "older") {
                 TextButton(
                     onClick = onLoadOlder,

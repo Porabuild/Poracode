@@ -29,10 +29,21 @@ data class ConnectionProfile(
      * hosts or app versions: browser entry unsupported, raw forwarding unaffected.
      */
     val browserForwardVersions: List<Int> = emptyList(),
+    /**
+     * Handshake capability `capabilities.sshEnvironments.versions`. Empty on
+     * hosts that do not serve the C1 environment management routes: the
+     * host-owned environment UI is hidden and zero environment calls are made.
+     */
+    val sshEnvironmentsVersions: List<Int> = emptyList(),
     /** QR `#fp=` SHA-256 of the TLS leaf DER. Absent on records paired before V6 A.2. */
     val certFingerprint: String? = null,
     /** Host-declared services from `GET /api/host/describe`. Absent on records paired before V6 C.2. */
     val hostCapabilities: HostServiceCapabilities? = null,
+    /**
+     * Local-only binding for a host-owned environment record (C1). `null` on
+     * every direct/ssh pairing; never derived from an environment id.
+     */
+    val environment: EnvironmentHostReference? = null,
 ) {
     companion object {
         /** Bump + migrate or invalidate when the persisted shape becomes incompatible. */

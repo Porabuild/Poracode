@@ -154,7 +154,7 @@ class ProjectCatalogController(
         lease: ProjectHostLease,
         initial: ProjectCommandResult,
     ): ProjectCommandOutcome {
-        val project = initial.project ?: return ProjectCommandOutcome.Applied(initial)
+        val project = initial.affectedProject ?: return ProjectCommandOutcome.Applied(initial)
         val (_, readFailure) = session.currentLease(ProjectCapability.Read)
         if (readFailure != null) {
             if (!session.isCurrent(lease)) return ProjectCommandOutcome.Stale
@@ -198,6 +198,15 @@ class ProjectCatalogController(
         }
     }
 
+    /**
+     * Applies a command result to the catalog. A legacy [ProjectCommandResult.Complete]
+     * result is authoritative for list contents. A bounded acknowledgement is
+     * never an empty catalog: at most the affected row is merged in place (or
+     * appended when the host registered a new project), and list membership
+     * plus deletion converge through the existing bounded catalog refresh
+     * (scheduled by [notifyProjectChange]) — never by local replacement, so
+     * confirmed-deletion and pin ownership stay with the bounded controller.
+     */
     private fun applyCommandResult(
         lease: ProjectHostLease,
         result: ProjectCommandResult,
@@ -205,8 +214,16 @@ class ProjectCatalogController(
         if (!session.isCurrent(lease)) return false
         mutateCatalog(lease) { catalog ->
             // A command result is authoritative for list contents, not snapshot sequence.
+            val ordered = when (result) {
+                is ProjectCommandResult.Complete -> result.projects.entriesFor(lease)
+                is ProjectCommandResult.Bounded -> {
+                    val row = result.project
+                    if (row == null) catalog.orderedProjects
+                    else catalog.orderedProjects.withAffectedRow(lease, row)
+                }
+            }
             catalog.copy(
-                orderedProjects = result.projects.entriesFor(lease),
+                orderedProjects = ordered,
                 failure = null,
                 setupFailure = null,
             )
@@ -256,6 +273,29 @@ class ProjectCatalogController(
 
 private fun List<RemoteProject>.entriesFor(lease: ProjectHostLease): List<CatalogProject> =
     map { project -> CatalogProject(project.identityOn(lease.connectionId), project) }
+
+/**
+ * Merges one bounded-result row under its full host/project identity: the
+ * existing row is replaced in place, a host-registered new project is
+ * appended, and no other row is touched.
+ */
+private fun List<CatalogProject>.withAffectedRow(
+    lease: ProjectHostLease,
+    project: RemoteProject,
+): List<CatalogProject> {
+    val identity = project.identityOn(lease.connectionId)
+    return if (any { it.identity == identity }) {
+        map { if (it.identity == identity) CatalogProject(identity, project) else it }
+    } else {
+        this + CatalogProject(identity, project)
+    }
+}
+
+private val ProjectCommandResult.affectedProject: RemoteProject?
+    get() = when (this) {
+        is ProjectCommandResult.Complete -> project
+        is ProjectCommandResult.Bounded -> project
+    }
 
 private fun ProjectCommand.needsSetupDetection(): Boolean =
     this is AddExistingProject || this is CreateProject || this is CloneProject

@@ -2,16 +2,15 @@ package com.poracode.app.session
 
 import com.poracode.app.model.RemoteClientException
 import com.poracode.app.model.RemoteThreadSnapshot
-import com.poracode.app.model.array
-import com.poracode.app.model.asObjectOrNull
-import com.poracode.app.model.int
-import com.poracode.app.model.string
 import com.poracode.app.protocol.GlobalCursorPolicy
 import com.poracode.app.protocol.RemoteAccessScopes
-import com.poracode.app.protocol.RuntimeEventReducer
-import com.poracode.app.protocol.ThreadContextUsage
 import com.poracode.app.protocol.ThreadHydrationCoordinator
 import com.poracode.app.protocol.ThreadRuntimeDomainState
+import com.poracode.app.session.history.OLDER_TURNS_PAGE_LIMIT
+import com.poracode.app.session.history.appendOlderTurns
+import com.poracode.app.session.history.loadOlderCompletedTurns
+import com.poracode.app.session.history.loadOlderHistoryItems
+import com.poracode.app.session.history.loadThreadHistoryTail
 import com.poracode.app.transport.RemoteApiGateway
 import com.poracode.app.transport.RemoteMutationClassification
 import kotlinx.coroutines.CancellationException
@@ -37,7 +36,11 @@ class ThreadController(
     private val applyThreadInterests: (List<String>, Int) -> Unit,
     private val handleApiException: (RemoteClientException) -> Unit,
     private val requestAuthoritativeRefresh: () -> Unit,
-    private val applyLiveEvent: (kotlinx.serialization.json.JsonElement) -> Unit,
+    private val applyLiveEvent: (kotlinx.serialization.json.JsonElement, Long) -> Unit,
+    /** Bounded catalog owner: pins the open row and picks bounded history reads. */
+    private val catalog: com.poracode.app.session.catalog.CatalogSyncController? = null,
+    /** Newest live event seq; fences a history row install against a newer live row. */
+    private val currentEventSeq: () -> Long = { 0L },
 ) {
     fun openThread(id: String) {
         if (!requireSessionRead()) return
@@ -52,6 +55,11 @@ class ThreadController(
         }
         jobs.cancel(SessionLifecycleJobs.THREAD_HISTORY)
         owner.beginOpenThread(id)
+        // The pin belongs to the open-thread owner only; switching releases the
+        // previous selection so a host-deleted old row can still be confirmed
+        // absent. A same-id reopen keeps its single pin (set semantics).
+        state().openThreadId?.takeIf { it != id }?.let { catalog?.releaseThreadPin(it) }
+        catalog?.pinThread(id)
         // Hydration generation is the source of truth for buffer/apply disposition.
         val openGen = hydration.beginOpen(id)
         val epoch = interestEpoch.next()
@@ -77,6 +85,7 @@ class ThreadController(
         jobs.cancel(SessionLifecycleJobs.THREAD_HISTORY)
         jobs.cancel(SessionLifecycleJobs.THREAD_META)
         hydration.cancel()
+        state().openThreadId?.let { catalog?.releaseThreadPin(it) }
         owner.closeThread()
         val epoch = interestEpoch.next()
         updateState {
@@ -105,14 +114,15 @@ class ThreadController(
         val job = scope.launch {
             updateState { it.copy(isLoadingOlder = true) }
             try {
-                val page = withContext(ioDispatcher) {
-                    client.threadRuntimeItemsPage(
-                        threadId = openId,
-                        beforePosition = cursor,
-                        limit = 100,
-                        targetTimelineEntryCount = 40,
-                    )
-                }
+                val page = loadOlderHistoryItems(
+                    api = client,
+                    threadId = openId,
+                    beforePosition = cursor,
+                    limit = 100,
+                    targetTimelineEntryCount = 40,
+                    bounded = boundedHistoryReads(),
+                    ioDispatcher = ioDispatcher,
+                )
                 if (!isForeground()) return@launch
                 if (!owner.isCurrentThread(threadGen, openId)) return@launch
                 updateState { s ->
@@ -250,24 +260,36 @@ class ThreadController(
 
     suspend fun loadThreadHistory(id: String, openGeneration: Int): Boolean {
         val client = api() ?: return false
+        val startedSeq = currentEventSeq()
         try {
-            val history = withContext(ioDispatcher) {
-                client.threadHistory(threadId = id, targetTimelineEntryCount = 40)
-            }
+            val history = loadThreadHistoryTail(
+                api = client,
+                threadId = id,
+                targetTimelineEntryCount = 40,
+                bounded = boundedHistoryReads(),
+                ioDispatcher = ioDispatcher,
+            )
             if (!isForeground()) return false
             if (state().openThreadId != id) return false
             check(!GlobalCursorPolicy.ordinaryThreadHistoryAdvancesGlobalCursor())
 
-            val replay = hydration.completeHistory(
+            val completion = hydration.completeHistory(
                 threadId = id,
                 openGeneration = openGeneration,
                 snapshotSeq = history.snapshotSeq,
             )
-            if (replay == null) return false
+            if (completion == null) return false
+            if (completion.coverageLost) {
+                // The buffered replay lost its oldest coverage (count/byte
+                // eviction or age expiry at completion); install what survived
+                // but request the authoritative pass that repairs it.
+                requestAuthoritativeRefresh()
+            }
 
             // Hydrate: hide pending_request; recover open requests; seed context/openTurn
             // from authoritative history (same path as resync commit).
             val hydrated = hydrateFromHistory(history = history, threadId = id)
+            history.thread.takeIf { it.id == id }?.let { catalog?.pinThreadRow(it, startedSeq) }
 
             updateState {
                 it.copy(
@@ -284,8 +306,8 @@ class ThreadController(
                 )
             }
             // Replay buffered live events exactly once after history install.
-            for (frame in replay) {
-                applyLiveEvent(frame.event)
+            for (frame in completion.replay) {
+                applyLiveEvent(frame.event, frame.seq.toLong())
             }
             return true
         } catch (e: CancellationException) {
@@ -325,10 +347,62 @@ class ThreadController(
     suspend fun fetchThreadHistory(id: String): RemoteThreadSnapshot {
         val client = api()
             ?: throw RemoteClientException("No API client.", status = 500, code = "no_client")
-        return withContext(ioDispatcher) {
-            client.threadHistory(threadId = id, targetTimelineEntryCount = 40)
-        }
+        return loadThreadHistoryTail(
+            api = client,
+            threadId = id,
+            targetTimelineEntryCount = 40,
+            bounded = boundedHistoryReads(),
+            ioDispatcher = ioDispatcher,
+        )
     }
+
+    /**
+     * Loads one older `ct1.` completed-turn page and merges it into the open
+     * thread's snapshot. Previously loaded older turns are preserved by
+     * `(startedAt, endedAt)`; anchorless turns are never dropped.
+     */
+    fun loadOlderCompletedTurns() {
+        if (!requireSessionRead()) return
+        val client = api() ?: return
+        val current = state()
+        val openId = current.openThreadId ?: return
+        val snapshot = current.threadSnapshot ?: return
+        val cursor = snapshot.completedTurnsNextCursor ?: return
+        if (isLoadingOlderTurns) return
+        val threadGen = owner.threadGeneration
+        val job = scope.launch {
+            isLoadingOlderTurns = true
+            try {
+                val page = loadOlderCompletedTurns(
+                    api = client,
+                    threadId = openId,
+                    cursor = cursor,
+                    limit = OLDER_TURNS_PAGE_LIMIT,
+                    ioDispatcher = ioDispatcher,
+                )
+                if (!isForeground() || !owner.isCurrentThread(threadGen, openId)) return@launch
+                updateState { s ->
+                    val loaded = s.threadSnapshot ?: return@updateState s
+                    s.copy(threadSnapshot = appendOlderTurns(loaded, page.turns, page.completedTurnsNextCursor))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: RemoteClientException) {
+                if (isForeground() && owner.isCurrentThread(threadGen, openId)) handleApiException(e)
+            } finally {
+                isLoadingOlderTurns = false
+            }
+        }
+        jobs.replace(SessionLifecycleJobs.THREAD_PAGE, job)
+    }
+
+    private fun boundedHistoryReads(): Boolean {
+        val current = state().catalog
+        return current.negotiated && !current.legacy
+    }
+
+    @Volatile
+    private var isLoadingOlderTurns: Boolean = false
 
     fun beginOpenForResync(threadId: String): Int {
         owner.beginOpenThread(threadId)
@@ -369,65 +443,4 @@ class ThreadController(
         return false
     }
 
-    data class HydratedTranscript(
-        val visible: List<com.poracode.app.model.PersistedRuntimeItem>,
-        val domain: ThreadRuntimeDomainState,
-    )
-
-    companion object {
-        /**
-         * Shared history install for ordinary open and authoritative resync.
-         * pending_request rows are hidden; open requests recover only from valid
-         * canonical outer rows; contextUsage/openTurn come from authoritative history.
-         */
-        fun hydrateFromHistory(
-            history: RemoteThreadSnapshot,
-            threadId: String,
-            nowEpochMs: Long = System.currentTimeMillis(),
-        ): HydratedTranscript {
-            val visible = RuntimeEventReducer.visibleTranscriptItems(history.runtimeItems)
-            val openRequests = RuntimeEventReducer.openRequestsFromRuntimeItems(
-                items = history.runtimeItems,
-                threadId = threadId,
-                nowEpochMs = nowEpochMs,
-            )
-            val contextUsage = history.contextUsage?.let { raw ->
-                val obj = raw.asObjectOrNull()
-                if (obj != null) {
-                    val breakdown = obj.array("breakdown")?.mapNotNull { el ->
-                        val o = el.asObjectOrNull() ?: return@mapNotNull null
-                        val id = o.string("id") ?: return@mapNotNull null
-                        val label = o.string("label") ?: return@mapNotNull null
-                        val tokens = o.int("tokens") ?: return@mapNotNull null
-                        com.poracode.app.protocol.ContextBreakdownEntry(id, label, tokens)
-                    }.orEmpty()
-                    ThreadContextUsage(
-                        usedTokens = obj.int("usedTokens"),
-                        maxTokens = obj.int("maxTokens"),
-                        breakdown = breakdown,
-                        raw = raw,
-                    )
-                } else {
-                    null
-                }
-            }
-            val hasOpenItem = history.runtimeItems.any {
-                it.type != RuntimeEventReducer.PENDING_REQUEST_ITEM_TYPE &&
-                    it.state == "started"
-            }
-            val openTurn = when {
-                hasOpenItem -> true
-                history.completedTurns.isNotEmpty() -> false
-                else -> null
-            }
-            return HydratedTranscript(
-                visible = visible,
-                domain = ThreadRuntimeDomainState(
-                    openRequests = openRequests,
-                    openTurn = openTurn,
-                    contextUsage = contextUsage,
-                ),
-            )
-        }
-    }
 }

@@ -3,21 +3,19 @@ package com.poracode.app.session.richchat
 import com.poracode.app.chat.RichCheckpoint
 import com.poracode.app.chat.RichSnapshotMapping
 import com.poracode.app.model.RemoteClientException
+import com.poracode.app.model.RemoteRuntimeGapAck
+import com.poracode.app.model.RemoteRuntimeGapRead
+import com.poracode.app.session.history.historyItems
+import com.poracode.app.session.history.historyTail
+import com.poracode.app.session.history.historyTurns
 import com.poracode.app.transport.RemoteApiGateway
 import com.poracode.app.transport.RemoteBinaryResponse
-import com.poracode.app.transport.RemoteMutationClassification
+import com.poracode.app.transport.RemoteHistoryNoticeGateway
 import com.poracode.app.transport.richchat.AttachmentUploadBody
 import com.poracode.app.transport.richchat.BinaryRequestPlan
 import com.poracode.app.transport.richchat.RequestResolution
-import com.poracode.app.transport.richchat.RichChatAuthorizationException
 import com.poracode.app.transport.richchat.RichChatBinaryBodyExecutor
-import com.poracode.app.transport.richchat.RichChatInvalidRequestException
-import com.poracode.app.transport.richchat.RichChatInvalidResponseException
-import com.poracode.app.transport.richchat.RichChatMutationOutcomeUnknownException
-import com.poracode.app.transport.richchat.RichChatRemoteRejectedException
 import com.poracode.app.transport.richchat.RichChatRemoteTransport
-import com.poracode.app.transport.richchat.RichChatRevertFailedException
-import com.poracode.app.transport.richchat.RichChatTransportUnavailableException
 import com.poracode.app.transport.richchat.RuntimeImagePathSegment
 import com.poracode.app.transport.richchat.TerminalStartInput
 import com.poracode.app.transport.richchat.ThreadGoalUpdate
@@ -71,7 +69,7 @@ class GeneratedRichChatSessionGateway(
     ): RichChatHistorySnapshot = invoke(lease, RichChatCapability.Read, false) {
         RichChatHistoryMapper.snapshot(
             lease.connectionId,
-            core.threadHistory(threadId, targetTimelineEntryCount),
+            core.historyTail(threadId, targetTimelineEntryCount),
             receivedAtEpochMs(),
         ).also { if (it.key.threadId != threadId) invalidResponse() }
     }
@@ -84,13 +82,38 @@ class GeneratedRichChatSessionGateway(
         targetTimelineEntryCount: Int,
     ): RichChatHistoryPage = invoke(lease, RichChatCapability.Read, false) {
         RichChatHistoryMapper.page(
-            core.threadRuntimeItemsPage(
+            core.historyItems(
                 threadId,
                 beforePosition,
                 limit,
                 targetTimelineEntryCount,
             ),
         )
+    }
+
+    override suspend fun olderTurns(
+        lease: RichChatHostLease,
+        threadId: String,
+        cursor: String,
+        limit: Int,
+    ): RichChatTurnsPage = invoke(lease, RichChatCapability.Read, false) {
+        RichChatHistoryMapper.turnPage(core.historyTurns(threadId, cursor, limit))
+    }
+
+    override suspend fun runtimeGap(
+        lease: RichChatHostLease,
+        threadId: String,
+    ): RemoteRuntimeGapRead = invoke(lease, RichChatCapability.Read, false) {
+        noticeCore().threadRuntimeGap(threadId)
+    }
+
+    override suspend fun acknowledgeRuntimeGap(
+        lease: RichChatHostLease,
+        threadId: String,
+        episodeToken: String,
+        commandId: String,
+    ): RemoteRuntimeGapAck = invoke(lease, RichChatCapability.Operate, true) {
+        noticeCore().acknowledgeThreadRuntimeGap(threadId, episodeToken, commandId)
     }
 
     override suspend fun send(
@@ -360,6 +383,10 @@ class GeneratedRichChatSessionGateway(
         return invoke(lease, capability, mutation, operation)
     }
 
+    private fun RichChatGatewayBundle.noticeCore(): RemoteHistoryNoticeGateway =
+        core as? RemoteHistoryNoticeGateway
+            ?: throw RichChatGatewayException(501, "runtime_notice_transport", false)
+
     private suspend fun <T> invoke(
         lease: RichChatHostLease,
         capability: RichChatCapability,
@@ -377,6 +404,11 @@ class GeneratedRichChatSessionGateway(
         if (mutation && bundle.mutationDelivery != RichChatMutationDelivery.SingleAttempt) {
             throw RichChatGatewayException(500, "unsafe_retry_policy", false)
         }
+        // B1: this bundle's connection declares the notice surface exactly when
+        // the lease's live descriptor advertised it. Reads never declare on an
+        // incapable host, and a declaring client is always the one that can
+        // render the notice.
+        bundle.core.declareRuntimeHistoryNotices(lease.noticesSupported)
         requireCurrent(lease, capability)
         val value = try {
             bundle.operation()
@@ -457,39 +489,3 @@ class GeneratedRichChatSessionGateway(
 
     private fun unavailable(code: String): Nothing = throw RichChatGatewayException(501, code, false)
 }
-
-private fun RemoteClientException.sanitized(mutation: Boolean): RichChatGatewayException =
-    RichChatGatewayException(
-        statusCode = status,
-        code = code.takeIf(SAFE_RICH_CHAT_ERROR_CODES::contains) ?: "remote_error",
-        requestMayHaveCommitted =
-            RemoteMutationClassification.requestMayHaveCommitted(this, mutation),
-        cause = this,
-    )
-
-private fun Exception.sanitized(mutation: Boolean): RichChatGatewayException = when (this) {
-    is RichChatAuthorizationException -> RichChatGatewayException(status, "forbidden", false, this)
-    is RichChatRemoteRejectedException -> RichChatGatewayException(status, "remote_error", false, this)
-    is RichChatRevertFailedException ->
-        RichChatGatewayException(null, "checkpoint_revert_failed", false, this)
-    is RichChatMutationOutcomeUnknownException ->
-        RichChatGatewayException(null, "outcome_unknown", true, this)
-    is RichChatTransportUnavailableException -> RichChatGatewayException(0, "network", mutation, this)
-    is RichChatInvalidRequestException -> RichChatGatewayException(400, "invalid_request", false, this)
-    is RichChatInvalidResponseException ->
-        RichChatGatewayException(500, "invalid_response", mutation, this)
-    else -> RichChatGatewayException(0, "network", mutation, this)
-}
-
-private val SAFE_RICH_CHAT_ERROR_CODES = setOf(
-    "invalid_token",
-    "unauthorized",
-    "forbidden",
-    "missing_scope",
-    "network",
-    "timeout",
-    "invalid_response",
-    "response_too_large",
-    "request_failed",
-    "not_modified",
-)

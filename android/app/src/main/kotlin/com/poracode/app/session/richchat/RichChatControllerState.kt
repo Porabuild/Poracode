@@ -16,6 +16,8 @@ data class RichChatControllerState(
     val transcript: RichThreadState? = null,
     val snapshotSeq: Int? = null,
     val olderCursor: Int? = null,
+    /** `ct1.` continuation for older completed turns; null ends the walk. */
+    val olderTurnsCursor: String? = null,
     val config: ThreadConfig? = null,
     val terminalScrollback: String? = null,
     val loadPhase: RichChatLoadPhase = RichChatLoadPhase.Idle,
@@ -24,4 +26,6 @@ data class RichChatControllerState(
     val failure: RichChatOperationFailure? = null,
     /** Required after an ambiguous mutation or lifecycle interruption. */
     val needsAuthoritativeRefresh: Boolean = false,
+    /** B1 durable history notice / recovery; selection-scoped metadata owner. */
+    val historyNotice: RichChatHistoryNoticeState = RichChatHistoryNoticeState(),
 )

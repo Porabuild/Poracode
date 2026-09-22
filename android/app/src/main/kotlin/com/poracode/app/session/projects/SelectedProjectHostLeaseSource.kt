@@ -61,6 +61,7 @@ class SelectedProjectHostLeaseSource(initial: AppSession.UiState) {
             online = online,
             ready = ready,
             browserForwardVersions = appState.liveBrowserForwardVersions,
+            projectCommandResultVersions = appState.liveProjectCommandResultVersions,
         )
     }
 }

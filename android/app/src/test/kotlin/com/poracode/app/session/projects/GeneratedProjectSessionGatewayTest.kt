@@ -13,6 +13,9 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -190,5 +193,62 @@ class GeneratedProjectSessionGatewayTest {
         assertEquals(403, denied.statusCode)
         assertEquals("missing_scope", denied.code)
         assertEquals(0, providerCalls)
+    }
+
+    // --- bounded project-command dispatch ---
+
+    @Test
+    fun advertisedCapabilityMintsAFreshBoundedDispatchPerOperation() = runTest {
+        val capable = lease(projectCommandResultVersions = setOf(1))
+        val session = MutableStateFlow<ProjectHostLease?>(capable)
+        val remote = FakeProjectRemoteGateway()
+        val gateway = GeneratedProjectSessionGateway(
+            session,
+            ProjectRemoteGatewayProvider { remote },
+        )
+
+        gateway.projectCommand(capable, com.poracode.app.model.RemoveProject("a"))
+        gateway.projectCommand(capable, com.poracode.app.model.RemoveProject("b"))
+
+        assertEquals(2, remote.commandDispatches.size)
+        remote.commandDispatches.forEach { dispatch ->
+            assertNotNull(dispatch)
+            assertTrue(dispatch!!.boundedResult)
+            assertTrue(dispatch.commandId.isNotBlank())
+        }
+        assertNotEquals(
+            remote.commandDispatches[0]!!.commandId,
+            remote.commandDispatches[1]!!.commandId,
+        )
+    }
+
+    @Test
+    fun undeclaredLeaseKeepsTheLegacyCompleteResultDispatch() = runTest {
+        val undeclared = lease()
+        val session = MutableStateFlow<ProjectHostLease?>(undeclared)
+        val remote = FakeProjectRemoteGateway()
+        val gateway = GeneratedProjectSessionGateway(
+            session,
+            ProjectRemoteGatewayProvider { remote },
+        )
+
+        gateway.projectCommand(undeclared, com.poracode.app.model.RemoveProject("a"))
+
+        assertNull(remote.commandDispatches.single())
+    }
+
+    @Test
+    fun futureOnlyCapabilityVersionNeverDeclares() = runTest {
+        val future = lease(projectCommandResultVersions = setOf(2))
+        val session = MutableStateFlow<ProjectHostLease?>(future)
+        val remote = FakeProjectRemoteGateway()
+        val gateway = GeneratedProjectSessionGateway(
+            session,
+            ProjectRemoteGatewayProvider { remote },
+        )
+
+        gateway.projectCommand(future, com.poracode.app.model.RemoveProject("a"))
+
+        assertNull(remote.commandDispatches.single())
     }
 }

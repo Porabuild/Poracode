@@ -49,8 +49,10 @@ fun SettingsScreen(
     onOpenPrivacy: () -> Unit,
     onOpenSupport: () -> Unit,
     archivedThreads: @Composable (Modifier) -> Unit,
+    onUseEnvironmentHost: (com.poracode.app.model.ClientConnectionId) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val environmentState = composition.environments?.state?.collectAsStateWithLifecycle()?.value
     val lease by composition.hostLease.collectAsStateWithLifecycle()
     val host by composition.host.collectAsStateWithLifecycle()
     val information by composition.information.state.collectAsStateWithLifecycle()
@@ -79,6 +81,20 @@ fun SettingsScreen(
         if (desktopOwned && route == SettingsRoute.GlobalMcp && access.canManageProjects) {
             composition.globalMcp.refresh()
             composition.globalMcp.refreshOauthStatus()
+        }
+    }
+    LaunchedEffect(
+        route,
+        lease?.key,
+        environmentState?.capabilityAvailable,
+        environmentState?.access?.canRead,
+        expectedConnectionId,
+    ) {
+        if (desktopOwned && route == SettingsRoute.Environments &&
+            environmentState?.capabilityAvailable == true &&
+            environmentState.access.canRead
+        ) {
+            composition.environments?.refresh()
         }
     }
     val navigateBack = {
@@ -110,12 +126,20 @@ fun SettingsScreen(
                             route == SettingsRoute.GlobalMcp)) {
                         IconButton(
                             onClick = {
-                                if (route == SettingsRoute.GlobalMcp) composition.globalMcp.refresh()
-                                else composition.controller.refresh(requireNotNull(pane))
+                                when {
+                                    route == SettingsRoute.GlobalMcp -> composition.globalMcp.refresh()
+                                    route == SettingsRoute.Environments ->
+                                        composition.environments?.refresh()
+                                    else -> composition.controller.refresh(requireNotNull(pane))
+                                }
                             },
-                            enabled = if (route == SettingsRoute.GlobalMcp) {
-                                access.canManageProjects && !globalMcp.mutating
-                            } else access.canRead,
+                            enabled = when {
+                                route == SettingsRoute.GlobalMcp ->
+                                    access.canManageProjects && !globalMcp.mutating
+                                route == SettingsRoute.Environments ->
+                                    access.canRead && environmentState?.busy == null
+                                else -> access.canRead
+                            },
                         ) {
                             Icon(Icons.Outlined.Refresh, stringResource(R.string.settings_refresh))
                         }
@@ -178,6 +202,9 @@ fun SettingsScreen(
                         onOpenIntegrations = onOpenSettingsIntegrations,
                         onOpenAdvanced = onOpenAdvancedOperations,
                         onOpenBrowser = onOpenBrowserMirror,
+                        environmentsAvailable = environmentState?.capabilityAvailable == true &&
+                            environmentState.access.canRead,
+                        onOpenEnvironments = { routeName = SettingsRoute.Environments.name },
                     )
                     SettingsRoute.ArchivedThreads -> archivedThreads(Modifier.fillMaxSize())
                     SettingsRoute.GlobalMcp -> GlobalMcpSettingsPane(
@@ -188,6 +215,20 @@ fun SettingsScreen(
                         onDiscover = onOpenSettingsIntegrations,
                         modifier = Modifier.fillMaxSize(),
                     )
+                    SettingsRoute.Environments -> {
+                        val environments = composition.environments
+                        val state = environmentState
+                        if (environments != null && state != null) {
+                            SettingsEnvironmentsPane(
+                                state = state,
+                                controller = environments,
+                                onUse = onUseEnvironmentHost,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            SettingsLoading(stringResource(R.string.environments_unavailable))
+                        }
+                    }
                     else -> SettingsPaneContent(
                         pane = requireNotNull(currentPane),
                         host = host,
@@ -266,6 +307,8 @@ private fun SettingsPaneContent(
             onRetry = { composition.controller.refresh(SettingsPane.Workspace) },
             modifier = modifier,
         )
+        // Rendered by the dedicated route branch; kept for enum exhaustiveness.
+        SettingsPane.Environments -> Unit
     }
 }
 
@@ -285,6 +328,7 @@ private fun settingsRouteTitle(route: SettingsRoute): String = stringResource(
         SettingsRoute.Profile -> R.string.settings_profile_title
         SettingsRoute.Preferences -> R.string.settings_generation_title
         SettingsRoute.Workspace -> R.string.settings_workspace_defaults
+        SettingsRoute.Environments -> R.string.environments_settings_title
         SettingsRoute.GlobalMcp -> R.string.settings_global_mcp_title
         SettingsRoute.ArchivedThreads -> R.string.archived_threads_title
     },

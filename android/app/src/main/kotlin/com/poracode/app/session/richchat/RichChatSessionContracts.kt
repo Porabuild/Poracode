@@ -27,6 +27,12 @@ data class RichChatHostLease(
     val ready: Boolean,
     /** Stable across transport reconnects; changes with endpoint, pairing or access binding. */
     val bindingGeneration: Long = generation,
+    /**
+     * B1: the live environment descriptor advertised durable history notices
+     * (`versions` contains 1). False on older hosts and before the descriptor
+     * is observed; an undeclared connection makes zero gap calls.
+     */
+    val noticesSupported: Boolean = false,
 ) {
     val key: RichChatHostKey get() = RichChatHostKey(connectionId, generation)
 }
@@ -98,6 +104,8 @@ data class RichChatHistorySnapshot(
     val snapshotSeq: Int,
     val state: RichThreadState,
     val olderCursor: Int?,
+    /** `ct1.` cursor for older completed turns, when the host returned a tail. */
+    val completedTurnsNextCursor: String? = null,
     val config: ThreadConfig,
     val terminalScrollback: String?,
     /**
@@ -108,11 +116,21 @@ data class RichChatHistorySnapshot(
      */
     val followUpQueuePresent: Boolean = false,
     val updatedAt: String,
+    /** B1 declared-read notice; null when the wire omitted it, never a clear. */
+    val runtimeNotice: com.poracode.app.model.RemoteRuntimeHistoryNotice? = null,
 )
 
 data class RichChatHistoryPage(
     val items: List<com.poracode.app.chat.RichRuntimeItem>,
     val nextCursor: Int?,
+    /** B1 declared-read notice on the item page; null never clears a notice. */
+    val runtimeNotice: com.poracode.app.model.RemoteRuntimeHistoryNotice? = null,
+)
+
+/** One `ct1.` older-completed-turn page; `nextCursor == null` ends the walk. */
+data class RichChatTurnsPage(
+    val turns: List<com.poracode.app.chat.RichCompletedTurn>,
+    val nextCursor: String?,
 )
 
 data class RichCheckpointCollection(
@@ -158,6 +176,41 @@ interface RichChatSessionGateway {
         limit: Int = 100,
         targetTimelineEntryCount: Int = 40,
     ): RichChatHistoryPage
+
+    /**
+     * Older completed turns via the declared-only `thread-turns` route. The
+     * UI's load-older action drives this together with [olderItems]; a host
+     * without the capability ends the continuation (`route_unavailable`).
+     */
+    suspend fun olderTurns(
+        lease: RichChatHostLease,
+        threadId: String,
+        cursor: String,
+        limit: Int = 200,
+    ): RichChatTurnsPage
+
+    /**
+     * B1 declared-only gap read. Callers may only invoke this when the same
+     * lease's environment descriptor advertised notices v1; the reply carries
+     * the actual unacknowledged descriptor and/or durable notice, never an
+     * inferred one.
+     */
+    suspend fun runtimeGap(
+        lease: RichChatHostLease,
+        threadId: String,
+    ): com.poracode.app.model.RemoteRuntimeGapRead
+
+    /**
+     * B1 declared-only acknowledgement of exactly [episodeToken] using the
+     * caller's [commandId] idempotency key. The same uncertain operation must
+     * retry with the same pair; `already`/`stale` are zero-effect outcomes.
+     */
+    suspend fun acknowledgeRuntimeGap(
+        lease: RichChatHostLease,
+        threadId: String,
+        episodeToken: String,
+        commandId: String,
+    ): com.poracode.app.model.RemoteRuntimeGapAck
 
     suspend fun send(
         lease: RichChatHostLease,

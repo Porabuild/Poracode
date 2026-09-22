@@ -11,6 +11,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.PersistedRuntimeItem
 import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteThreadSnapshot
+import com.poracode.app.model.RemoteThreadTurnsPage
 import kotlinx.serialization.json.JsonNull
 
 object RichChatHistoryMapper {
@@ -51,16 +52,31 @@ object RichChatHistoryMapper {
             snapshotSeq = value.snapshotSeq,
             state = hydrated.copy(openTurn = openTurn, followUpQueue = followUpQueue),
             olderCursor = value.runtimeNextCursor,
+            completedTurnsNextCursor = value.completedTurnsNextCursor,
             config = value.thread.config,
             terminalScrollback = value.terminalScrollback,
             followUpQueuePresent = followUpQueuePresent,
             updatedAt = value.updatedAt,
+            runtimeNotice = value.runtimeNotice,
         )
     }
 
     fun page(value: RemoteRuntimeItemsPage): RichChatHistoryPage = RichChatHistoryPage(
         items = value.items.map(::runtimeItem),
         nextCursor = value.nextCursor,
+        runtimeNotice = value.runtimeNotice,
+    )
+
+    /** One older `ct1.` page; a malformed row is an invalid response, never a silent drop. */
+    fun turnPage(value: RemoteThreadTurnsPage): RichChatTurnsPage = RichChatTurnsPage(
+        turns = value.turns.map {
+            RichSnapshotMapping.decodeCompletedTurn(
+                startedAt = it.startedAt,
+                endedAt = it.endedAt,
+                anchorItemId = it.anchorItemId,
+            ) ?: invalid("completed turn")
+        },
+        nextCursor = value.completedTurnsNextCursor,
     )
 
     private fun runtimeItem(value: PersistedRuntimeItem): RichRuntimeItem {

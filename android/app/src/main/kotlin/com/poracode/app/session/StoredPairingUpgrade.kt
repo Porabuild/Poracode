@@ -50,6 +50,7 @@ internal suspend fun upgradeStoredPairing(
         profile = stored.profile.copy(
             protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
             browserForwardVersions = emptyList(),
+            sshEnvironmentsVersions = emptyList(),
         ),
     )
 }

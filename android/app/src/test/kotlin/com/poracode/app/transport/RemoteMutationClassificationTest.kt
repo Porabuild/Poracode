@@ -29,6 +29,8 @@ class RemoteMutationClassificationTest {
         Case(403, "missing_scope", false, "scope rejection"),
         Case(404, "not_found", false, "resource rejection"),
         Case(409, "conflict", false, "conflict rejection"),
+        Case(409, "command_id_conflict", false, "idempotency-key conflict rejection"),
+        Case(409, "command_outcome_uncertain", true, "explicit uncertain receipt outcome"),
         Case(422, "unprocessable_entity", false, "semantic rejection"),
         Case(200, "ok", false, "successful response"),
     )
@@ -84,6 +86,24 @@ class RemoteMutationClassificationTest {
         assertFalse(
             RemoteMutationClassification.requestMayHaveCommitted(
                 RemoteClientException("denied", 403, "missing_scope"),
+                mutation = true,
+            ),
+        )
+        assertTrue(
+            RemoteMutationClassification.requestMayHaveCommitted(
+                RemoteClientException("uncertain", 409, "command_outcome_uncertain"),
+                mutation = true,
+            ),
+        )
+        assertFalse(
+            RemoteMutationClassification.requestMayHaveCommitted(
+                RemoteClientException("uncertain", 409, "command_outcome_uncertain"),
+                mutation = false,
+            ),
+        )
+        assertFalse(
+            RemoteMutationClassification.requestMayHaveCommitted(
+                RemoteClientException("conflict", 409, "command_id_conflict"),
                 mutation = true,
             ),
         )

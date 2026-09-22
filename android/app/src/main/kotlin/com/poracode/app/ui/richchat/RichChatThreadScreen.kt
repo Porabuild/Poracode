@@ -54,6 +54,8 @@ import com.poracode.app.session.projects.ProjectWorkspaceController
 import com.poracode.app.session.richchat.RichChatLoadPhase
 import com.poracode.app.session.richchat.RichChatOperationResult
 import com.poracode.app.session.richchat.RichChatSessionRuntime
+import com.poracode.app.session.richchat.acknowledgeHistoryGap
+import com.poracode.app.session.richchat.readHistoryGapIfSupported
 import com.poracode.app.session.threads.ThreadLifecycleController
 import com.poracode.app.ui.GitSummaryText
 import com.poracode.app.ui.components.EmptyStateView
@@ -314,9 +316,16 @@ fun RichChatThreadScreen(
                 state.failure ?: checkpointState.failure,
                 state.needsAuthoritativeRefresh,
                 canOperate,
-            ) {
-                runtime.refreshSelectedThread()
-            }
+                onRefresh = { runtime.refreshSelectedThread() },
+                historyNotice = state.historyNotice,
+                onAcknowledgeNotice = { scope.launch { runtime.chat.acknowledgeHistoryGap() } },
+                onRetryNoticeCheck = {
+                    scope.launch {
+                        val lease = runtime.chat.selection.value
+                        if (lease != null) runtime.chat.readHistoryGapIfSupported(lease)
+                    }
+                },
+            )
             pendingTruncateItemId?.let { itemId ->
                 RichChatTruncateConfirmDialog(
                     enabled = !mutating,
@@ -410,6 +419,7 @@ fun RichChatThreadScreen(
                                 RichTimelineView(
                                     transcript,
                                     state.olderCursor,
+                                    state.olderTurnsCursor,
                                     state.loadingOlder || refreshing,
                                     runtime,
                                     onLoadOlder = { scope.launch { runtime.chat.loadOlder() } },
@@ -432,6 +442,7 @@ fun RichChatThreadScreen(
                                 RichTimelineView(
                                     transcript,
                                     state.olderCursor,
+                                    state.olderTurnsCursor,
                                     state.loadingOlder || refreshing,
                                     runtime,
                                     onLoadOlder = { scope.launch { runtime.chat.loadOlder() } },

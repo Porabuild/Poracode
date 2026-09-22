@@ -8,18 +8,24 @@ import com.poracode.app.model.ProjectLocation
 import com.poracode.app.model.ProjectNotesReadResult
 import com.poracode.app.model.ProjectNotesWriteBody
 import com.poracode.app.model.ProjectSettings
+import com.poracode.app.transport.ProjectCommandDispatch
 import com.poracode.app.transport.ProjectRemoteGateway
 
 internal class FakeProjectRemoteGateway : ProjectRemoteGateway {
     var commandCalls = 0
+    val commandDispatches = mutableListOf<ProjectCommandDispatch?>()
     val settingsIds = mutableListOf<String>()
     var commandHandler: suspend (ProjectCommand) -> ProjectCommandResult = {
-        ProjectCommandResult(emptyList())
+        ProjectCommandResult.Complete(emptyList())
     }
     var settingsHandler: suspend (String) -> ProjectSettings = { ProjectSettings() }
 
-    override suspend fun projectCommand(command: ProjectCommand): ProjectCommandResult {
+    override suspend fun projectCommand(
+        command: ProjectCommand,
+        dispatch: ProjectCommandDispatch?,
+    ): ProjectCommandResult {
         commandCalls += 1
+        commandDispatches += dispatch
         return commandHandler(command)
     }
 

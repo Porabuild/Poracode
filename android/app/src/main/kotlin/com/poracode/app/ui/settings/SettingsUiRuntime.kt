@@ -47,6 +47,8 @@ class SettingsUiComposition(
         SettingsRemoteApiClient(endpoint, token)
     },
     statsRequest: () -> ProfileStatsRequest = ::localProfileStatsRequest,
+    /** Bound-host environment management (C1); null in tests/compositions without it. */
+    val environments: com.poracode.app.session.environments.EnvironmentManagementController? = null,
 ) {
     private val owner = SupervisorJob(scope.coroutineContext[Job])
     private val runtimeScope = CoroutineScope(scope.coroutineContext + owner)
@@ -80,7 +82,12 @@ class SettingsUiComposition(
                 if (previous != null) information.invalidate(previous)
                 controller.onLeaseChanged()
                 globalMcp.onLeaseChanged()
+                environments?.onLeaseChanged()
             }
+            val selectedId = state.hostCatalog.selectedConnectionId
+            environments?.bind(
+                selectedId?.let { id -> state.hostCatalog.hosts.firstOrNull { it.connectionId == id } },
+            )
         }
     }
 
@@ -122,6 +129,8 @@ class SettingsUiController internal constructor(
                 }
             }
             SettingsPane.Workspace -> scope.launch { information.loadSettings() }
+            // The host-owned environment pane owns its own bound-host controller.
+            SettingsPane.Environments -> Unit
         }
     }
 

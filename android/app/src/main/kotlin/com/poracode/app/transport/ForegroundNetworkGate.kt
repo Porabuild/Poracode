@@ -16,7 +16,7 @@ import okhttp3.WebSocket
  */
 class ForegroundNetworkGate {
     private val open = AtomicBoolean(true)
-    private val calls = ConcurrentHashMap.newKeySet<Call>()
+    private val calls = ConcurrentHashMap<Call, CallRegistration>()
     private val sockets = ConcurrentHashMap.newKeySet<WebSocket>()
     private val placeholders = ConcurrentHashMap.newKeySet<SocketPlaceholder>()
 
@@ -38,7 +38,8 @@ class ForegroundNetworkGate {
      */
     fun closeAndCancelAll() {
         open.set(false)
-        for (call in calls) {
+        for ((call, registration) in calls) {
+            registration.markGateCancelled()
             calls.remove(call)
             runCatching { call.cancel() }
             cancelledCallCount.incrementAndGet()
@@ -59,25 +60,47 @@ class ForegroundNetworkGate {
         }
     }
 
-    /** Register an OkHttp call. Returns false when the gate is closed (caller must cancel). */
-    fun registerCall(call: Call): Boolean {
+    /**
+     * Register an OkHttp call. Returns null when the gate is closed (the call
+     * is cancelled here and the caller must treat it as cancellation).
+     */
+    fun registerCall(call: Call): CallRegistration? {
+        val registration = CallRegistration()
         if (!open.get()) {
             rejectCount.incrementAndGet()
             runCatching { call.cancel() }
-            return false
+            return null
         }
-        calls.add(call)
+        calls[call] = registration
         if (!open.get()) {
             calls.remove(call)
+            registration.markGateCancelled()
             rejectCount.incrementAndGet()
             runCatching { call.cancel() }
-            return false
+            return null
         }
-        return true
+        return registration
     }
 
     fun unregisterCall(call: Call) {
         calls.remove(call)
+    }
+
+    /**
+     * Explicit cancellation intent for one registered call. A call cancelled
+     * by [closeAndCancelAll] stays attributable after the gate reopens, so a
+     * late failure cannot be mistaken for a transport deadline. `Call.isCanceled`
+     * alone is not evidence: OkHttp's call timeout cancels the same way.
+     */
+    class CallRegistration internal constructor() {
+        private val gateCancelled = AtomicBoolean(false)
+
+        val isGateCancelled: Boolean
+            get() = gateCancelled.get()
+
+        internal fun markGateCancelled() {
+            gateCancelled.set(true)
+        }
     }
 
     /**

@@ -2,6 +2,8 @@ package com.poracode.app.transport
 
 import com.poracode.app.model.RemoteClientException
 import java.io.IOException
+import java.io.InterruptedIOException
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.CancellationException
@@ -25,8 +27,17 @@ internal suspend fun <Value> executeRemoteRequest(
     }
     return suspendCancellableCoroutine { cont ->
         val call = client.newCall(request)
-        if (deadlineNanos != null) call.timeout().deadlineNanoTime(deadlineNanos)
-        if (!networkGate.registerCall(call)) {
+        // Own the deadline so expiry is attributable. OkHttp's call timeout
+        // cancels the call exactly like a caller or gate cancel does, so
+        // `isCanceled` alone cannot say whether the transport deadline fired.
+        val effectiveDeadlineNanos = deadlineNanos ?: client.callTimeoutMillis
+            .takeIf { it > 0 }
+            ?.let { System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(it.toLong()) }
+        if (effectiveDeadlineNanos != null) {
+            call.timeout().deadlineNanoTime(effectiveDeadlineNanos)
+        }
+        val registration = networkGate.registerCall(call)
+        if (registration == null) {
             cont.resumeWithException(CancellationException("Foreground network gate closed"))
             return@suspendCancellableCoroutine
         }
@@ -38,9 +49,22 @@ internal suspend fun <Value> executeRemoteRequest(
             override fun onFailure(call: Call, e: IOException) {
                 networkGate.unregisterCall(call)
                 if (!cont.isActive) return
-                if (call.isCanceled()) {
+                // Caller and background cancellation are explicit intent. The
+                // gate marker survives a close/reopen before this failure is
+                // delivered; a mere `isCanceled` is never cause evidence.
+                if (registration.isGateCancelled) {
                     cont.resumeWithException(
-                        CancellationException("OkHttp call cancelled"),
+                        CancellationException("Foreground network gate closed"),
+                    )
+                    return
+                }
+                if (isTimeout(e, call, effectiveDeadlineNanos)) {
+                    cont.resumeWithException(
+                        RemoteClientException(
+                            "Network request timed out.",
+                            status = 0,
+                            code = "timeout",
+                        ),
                     )
                     return
                 }
@@ -80,3 +104,13 @@ internal suspend fun <Value> executeRemoteRequest(
         })
     }
 }
+
+/**
+ * A read/write timeout is a typed transport deadline; a cancelled call is a
+ * deadline only when our own deadline actually elapsed. Unattributed
+ * cancellation is not a timeout and not a caller cancellation — it falls
+ * through to the plain network classification.
+ */
+private fun isTimeout(e: IOException, call: Call, deadlineNanos: Long?): Boolean =
+    e is InterruptedIOException ||
+        (call.isCanceled() && deadlineNanos != null && System.nanoTime() >= deadlineNanos)

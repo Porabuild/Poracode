@@ -184,21 +184,19 @@ fun HostSwitcherScreen(
         }
     }
     pendingRemoval?.let { host ->
-        AlertDialog(
-            onDismissRequest = { pendingRemoval = null },
-            title = { Text(stringResource(R.string.hosts_remove_confirm_title, host.label)) },
-            text = { Text(stringResource(R.string.hosts_remove_confirm_message)) },
-            confirmButton = {
-                Button(onClick = {
-                    pendingRemoval = null
-                    onRemove(host.connectionId)
-                }) { Text(stringResource(R.string.hosts_remove_action)) }
+        val dependents = if (host.environment == null) {
+            catalog.hosts.count { it.environment?.parentConnectionId == host.connectionId }
+        } else {
+            0
+        }
+        HostRemovalDialog(
+            host = host,
+            dependents = dependents,
+            onConfirm = {
+                pendingRemoval = null
+                onRemove(host.connectionId)
             },
-            dismissButton = {
-                TextButton(onClick = { pendingRemoval = null }) {
-                    Text(stringResource(R.string.cancel_pair_button))
-                }
-            },
+            onDismiss = { pendingRemoval = null },
         )
     }
     pendingRename?.let { host ->
@@ -269,6 +267,11 @@ private fun HostList(
                     Column(Modifier.weight(1f)) {
                         Text(host.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
+                            hostModeLabel(host),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
                             when {
                                 connectionState != null -> hostConnectionStateLabel(connectionState)
                                 selected -> stringResource(R.string.hosts_selected)
@@ -322,7 +325,17 @@ private fun HostDetail(
         }
         Icon(Icons.Outlined.Computer, contentDescription = null)
         Text(host.label, style = MaterialTheme.typography.headlineSmall)
-        Text(host.desktopId, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(hostModeLabel(host), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (host.environment != null) {
+            Text(
+                host.environment?.childDesktopId?.let {
+                    stringResource(R.string.environments_child_label, it)
+                } ?: stringResource(R.string.environments_child_unverified),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Text(host.desktopId, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         Text(host.httpBaseUrl, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (connectionState != null) {
             Text(hostConnectionStateLabel(connectionState))
@@ -453,37 +466,4 @@ private fun HostRowMenu(
             )
         }
     }
-}
-
-@Composable
-private fun RenameHostDialog(
-    host: HostRecord,
-    onDismiss: () -> Unit,
-    onRename: (String) -> Unit,
-) {
-    var label by remember(host.connectionId) { mutableStateOf(host.label) }
-    val normalized = label.trim()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.hosts_rename_title)) },
-        text = {
-            OutlinedTextField(
-                value = label,
-                onValueChange = { if (it.length <= HostCatalog.MAX_HOST_LABEL_LENGTH) label = it },
-                label = { Text(stringResource(R.string.hosts_name_label)) },
-                singleLine = true,
-            )
-        },
-        confirmButton = {
-            Button(
-                onClick = { onRename(normalized) },
-                enabled = normalized.isNotEmpty() && normalized != host.label,
-            ) { Text(stringResource(R.string.hosts_rename_action)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel_pair_button))
-            }
-        },
-    )
 }

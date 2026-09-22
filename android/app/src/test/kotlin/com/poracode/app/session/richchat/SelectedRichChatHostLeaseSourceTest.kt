@@ -103,11 +103,43 @@ class SelectedRichChatHostLeaseSourceTest {
         pairedAtEpochMs = 10,
     )
 
+    @Test
+    fun runtimeNoticeCapabilityRidesTheLeaseAndIsANewBindingWhenItChanges() {
+        val profile = profile(HOST_A)
+        val source = SelectedRichChatHostLeaseSource(
+            state(HOST_A, profile, AppSession.Phase.Ready, online = true),
+        )
+        val without = source.state.value!!
+        assertFalse(without.noticesSupported)
+
+        source.update(
+            state(
+                HOST_A,
+                profile,
+                AppSession.Phase.Ready,
+                online = true,
+                noticeVersions = setOf(1),
+            ),
+        )
+        val withNotices = source.state.value!!
+        assertTrue("the live descriptor capability must ride the lease", withNotices.noticesSupported)
+        assertTrue(
+            "a capability change is a new binding generation",
+            withNotices.bindingGeneration > without.bindingGeneration,
+        )
+
+        source.update(
+            state(HOST_A, profile, AppSession.Phase.Ready, online = true, noticeVersions = emptySet()),
+        )
+        assertFalse(source.state.value!!.noticesSupported)
+    }
+
     private fun state(
         id: ClientConnectionId,
         profile: ConnectionProfile,
         phase: AppSession.Phase,
         online: Boolean,
+        noticeVersions: Set<Int> = emptySet(),
     ) = AppSession.UiState(
         profile = profile,
         phase = phase,
@@ -116,6 +148,7 @@ class SelectedRichChatHostLeaseSourceTest {
         } else {
             RemoteWebSocketClient.ConnectionState.Connecting
         },
+        liveRuntimeHistoryNoticeVersions = noticeVersions,
         hostCatalog = HostUiCatalog(
             hosts = listOf(HostRecord(id, profile)),
             selectedConnectionId = id,

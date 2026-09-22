@@ -62,6 +62,17 @@ object RichSnapshotMapping {
         return RichCompletedTurn(started, ended, anchor)
     }
 
+    /** Typed `thread-turns` rows use the same strict decode as the history tail. */
+    fun decodeCompletedTurn(
+        startedAt: String,
+        endedAt: String,
+        anchorItemId: String?,
+    ): RichCompletedTurn? {
+        val started = parseEpochMs(startedAt) ?: return null
+        val ended = parseEpochMs(endedAt) ?: return null
+        return RichCompletedTurn(started, ended, anchorItemId)
+    }
+
     fun decodeCompletedTurns(value: JsonElement): List<RichCompletedTurn>? {
         val array = value.arrayOrNull() ?: return null
         return array.map { decodeCompletedTurn(it) ?: return null }

@@ -86,6 +86,12 @@ class RemoteWebSocketClient(
 
     override fun appliedSeq(): Int? = state.cursor.appliedSeq
 
+    override val upgradeDeclaredNotices: Boolean?
+        get() = state.upgradeDeclaredNotices.get()
+
+    override val upgradeDeclaredCatalogChanges: Boolean?
+        get() = state.upgradeDeclaredCatalogChanges.get()
+
     /** @deprecated Prefer [appliedSeq]. */
     fun lastSeenSeq(): Int? = state.cursor.appliedSeq
 

@@ -202,6 +202,10 @@ class SessionLifecycleJobs {
             CONNECT,
             RECONNECT,
             HEALTH,
+            // Bounded catalog walks/timer: foreground network work like any other.
+            CATALOG_PAINT,
+            CATALOG_INVENTORY,
+            CATALOG_RECONCILE,
         )
         val cancelled = ArrayList<kotlinx.coroutines.Job>(keys.size)
         for (key in keys) {
@@ -232,5 +236,8 @@ class SessionLifecycleJobs {
         const val CONNECT = "connect"
         const val RECONNECT = "reconnect"
         const val HEALTH = "health"
+        const val CATALOG_PAINT = "catalog_paint"
+        const val CATALOG_INVENTORY = "catalog_inventory"
+        const val CATALOG_RECONCILE = "catalog_reconcile"
     }
 }

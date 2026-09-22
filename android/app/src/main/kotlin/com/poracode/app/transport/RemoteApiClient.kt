@@ -1,6 +1,7 @@
 package com.poracode.app.transport
 
 import android.os.Build
+import com.poracode.app.model.EnvironmentAuthority
 import com.poracode.app.model.GitStateJsonAdapter
 import com.poracode.app.model.HostServiceCapabilities
 import com.poracode.app.model.RemoteAccessTokenResult
@@ -19,6 +20,7 @@ import com.poracode.app.protocol.RemoteAccessScopes
 import com.poracode.app.protocol.RemoteSocketPolicy
 import com.poracode.app.protocol.settings.GeneratedRemoteV3SettingsContract
 import com.poracode.app.protocol.settings.SettingsRouteId
+import com.poracode.app.transport.environments.EnvironmentRequestCoordinator
 import com.poracode.app.transport.settings.SettingsRemoteV3Adapters
 import java.net.URLEncoder
 import java.util.UUID
@@ -54,7 +56,14 @@ class RemoteApiClient(
     /** Injectable for unit tests; production always uses [MAX_RESPONSE_BYTES]. */
     private val maxResponseBytes: Long = MAX_RESPONSE_BYTES,
     private val networkGate: ForegroundNetworkGate = ForegroundNetworkGate.shared,
-) : RemoteApiGateway {
+    /**
+     * Explicit environment authority (pairing and tests). Production clients
+     * resolve the authority from [EnvironmentAuthorityStore] by endpoint, so
+     * every feature transport built for an environment record carries both
+     * authorities without a second client stack.
+     */
+    private val explicitEnvironmentAuthority: EnvironmentAuthority? = null,
+) : RemoteApiGateway, RemoteBoundedReadGateway, RemoteHistoryNoticeGateway {
     private val endpoint: String = endpoint.trimEnd('/')
     // The same client carries non-idempotent mutations. OkHttp's transparent connection retry
     // cannot distinguish those from safe reads, so all replay decisions stay in our domain layer.
@@ -68,12 +77,114 @@ class RemoteApiClient(
     /** Unpinned base for transports that re-resolve the pin per use (event socket). */
     internal val baseOkHttpClient: OkHttpClient get() = baseClient
     internal val httpEndpoint: String get() = endpoint
-    private val responseDecoder = RemoteResponseDecoder(maxResponseBytes)
-    private val readCache = RemoteReadCache()
+    private val environment = EnvironmentRequestCoordinator(endpoint, explicitEnvironmentAuthority)
+    private val http = RemoteHttpExecutor(
+        endpoint = endpoint,
+        accessToken = { accessToken },
+        clientForRequest = { clientForRequest() },
+        networkGate = networkGate,
+        maxResponseBytes = maxResponseBytes,
+        environment = environment,
+    )
+
+    /** B4 bounded reads on the same transport; see [RemoteBoundedReadClient]. */
+    val bounded: RemoteBoundedReadGateway = RemoteBoundedReadClient(this)
+
+    /** Every per-client upgrade declaration; see [ClientCapabilityDeclaration]. */
+    private val declarations = ClientCapabilityDeclaration()
+    private val historyNotices: RemoteHistoryNoticeGateway = RemoteHistoryNoticeClient(this)
+
+    override val runtimeHistoryNoticesSupported: Boolean get() = declarations.noticesDeclared
+
+    override fun declareRuntimeHistoryNotices(enabled: Boolean) = declarations.declareNotices(enabled)
+
+    override fun declareBoundedCatalogChanges(enabled: Boolean) =
+        declarations.declareCatalogChanges(enabled)
+
+    override suspend fun threadRuntimeGap(threadId: String) =
+        historyNotices.threadRuntimeGap(threadId)
+
+    override suspend fun acknowledgeThreadRuntimeGap(
+        threadId: String,
+        episodeToken: String,
+        commandId: String,
+    ) = historyNotices.acknowledgeThreadRuntimeGap(threadId, episodeToken, commandId)
+
+    override suspend fun boundedShellSnapshot(
+        order: String,
+        threadLimit: Int?,
+        projectLimit: Int,
+        summaries: Boolean,
+        maxBytes: Long,
+        maxDecodeBytes: Long,
+    ) = bounded.boundedShellSnapshot(order, threadLimit, projectLimit, summaries, maxBytes, maxDecodeBytes)
+
+    override suspend fun boundedThreadPage(
+        mode: String,
+        order: String,
+        cursor: String?,
+        limit: Int,
+        summaries: Boolean,
+        maxBytes: Long,
+        maxDecodeBytes: Long,
+    ) = bounded.boundedThreadPage(mode, order, cursor, limit, summaries, maxBytes, maxDecodeBytes)
+
+    override suspend fun boundedProjectPage(
+        mode: String,
+        cursor: String?,
+        projectLimit: Int,
+        maxBytes: Long,
+        maxDecodeBytes: Long,
+    ) = bounded.boundedProjectPage(mode, cursor, projectLimit, maxBytes, maxDecodeBytes)
+
+    override suspend fun boundedCatalogMembership(
+        threadIds: List<String>,
+        projectIds: List<String>,
+    ) = bounded.boundedCatalogMembership(threadIds, projectIds)
+
+    override suspend fun boundedThreadHistory(
+        threadId: String,
+        completedTurnsLimit: Int,
+        targetTimelineEntryCount: Int?,
+        omitScrollback: Boolean?,
+        maxBytes: Long,
+        maxDecodeBytes: Long,
+    ) = bounded.boundedThreadHistory(
+        threadId,
+        completedTurnsLimit,
+        targetTimelineEntryCount,
+        omitScrollback,
+        maxBytes,
+        maxDecodeBytes,
+    )
+
+    override suspend fun boundedThreadHistoryItems(
+        threadId: String,
+        beforePosition: Int?,
+        limit: Int,
+        targetTimelineEntryCount: Int?,
+        maxBytes: Long,
+        maxDecodeBytes: Long,
+    ) = bounded.boundedThreadHistoryItems(
+        threadId,
+        beforePosition,
+        limit,
+        targetTimelineEntryCount,
+        maxBytes,
+        maxDecodeBytes,
+    )
+
+    override suspend fun boundedThreadTurns(
+        threadId: String,
+        cursor: String?,
+        limit: Int,
+        maxBytes: Long,
+        maxDecodeBytes: Long,
+    ) = bounded.boundedThreadTurns(threadId, cursor, limit, maxBytes, maxDecodeBytes)
 
     override fun setAccessToken(token: String?) {
-        synchronized(readCache) {
-            if (token != accessToken) readCache.clear()
+        if (token != accessToken) {
+            http.clearReadCache()
             accessToken = token
         }
     }
@@ -101,6 +212,9 @@ class RemoteApiClient(
             throw RemoteClientException.protocolMismatch(foundVersion)
         }
         val descriptor = RemoteV3TransportAdapters.environment(raw, legacy)
+        // This authoritative descriptor gates every upgrade declaration on this
+        // client; absence is authoritative too (older/no-store stays undeclared).
+        declarations.observe(descriptor)
         return descriptor.copy(
             auth = descriptor.auth.copy(
                 scopes = RemoteAccessScopes.filterKnown(descriptor.auth.scopes),
@@ -179,6 +293,7 @@ class RemoteApiClient(
         val route = GeneratedRemoteV3Contract.threadHistoryRoute(
             threadId,
             targetTimelineEntryCount,
+            noticesCapable = declarations.noticesDeclared,
         )
         val path = "/api/threads/${encodePath(route.threadId)}/history"
         val data = requestText(path, query = route.query)
@@ -196,6 +311,7 @@ class RemoteApiClient(
             beforePosition,
             limit,
             targetTimelineEntryCount,
+            noticesCapable = declarations.noticesDeclared,
         )
         val path = "/api/threads/${encodePath(route.threadId)}/history/items"
         val data = requestText(path, query = route.query)
@@ -242,12 +358,22 @@ class RemoteApiClient(
         GeneratedRemoteV3Contract.threadInterruptResponse(response)
     }
 
+    /**
+     * Mints the child ticket through the proxy (parent header attached), then
+     * the separate one-use parent environment-bound ticket, and remembers the
+     * pairing keyed by the exact child ticket. Concurrent event-socket and
+     * terminal mints on this client therefore never share or overwrite a parent
+     * ticket. The wrapping is deliberately not single-flight: every child
+     * ticket receives its own parent ticket, matching the server's one-use
+     * semantics.
+     */
     override suspend fun websocketTicket(): String {
         val data = requestText(
             path = ProtocolConstants.WEBSOCKET_TICKET_PATH,
             method = "POST",
         )
         val result = RemoteV3TransportAdapters.websocketTicket(data)
+        environment.pairParentTicket(result.ticket)
         return result.ticket
     }
 
@@ -268,6 +394,8 @@ class RemoteApiClient(
             ).toString()
             builder.setQueryParameter("threadItemInterests", json)
         }
+        declarations.decorateWebSocketUrl(builder)
+        environment.decorateWebSocketUrl(builder, ticket)
         val httpUrl = builder.build().toString()
         val url = if (base.isHttps) {
             httpUrl.replaceFirst("https:", "wss:")
@@ -292,61 +420,15 @@ class RemoteApiClient(
         authorized: Boolean = true,
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
-    ): String {
-        var url = endpointUrl(path).toHttpUrl()
-        if (query.isNotEmpty()) {
-            val builder = url.newBuilder()
-            query.forEach { (k, v) -> builder.addQueryParameter(k, v) }
-            url = builder.build()
-        }
-        CleartextPolicy.enforce(url.toString())
-
-        val canRevalidate = method == "GET" && authorized && jsonBody == null && extraHeaders.isEmpty() &&
-            (expectedStatus == null || expectedStatus == 200)
-        val (token, cachedRead) = synchronized(readCache) {
-            accessToken to if (canRevalidate) readCache.capture(url.toString()) else null
-        }
-
-        val body = when {
-            jsonBody != null -> jsonBody.toRequestBody(JSON_MEDIA)
-            methodRequiresBody(method) -> EMPTY_BODY
-            else -> null
-        }
-        val requestBuilder = Request.Builder()
-            .url(url)
-            .method(method, body)
-        extraHeaders.forEach { (k, v) -> requestBuilder.header(k, v) }
-        if (jsonBody != null) {
-            requestBuilder.header("Content-Type", "application/json")
-        }
-        if (authorized) {
-            if (!token.isNullOrBlank()) {
-                requestBuilder.header("Authorization", "Bearer $token")
-            }
-        }
-        cachedRead?.entry?.let { requestBuilder.header("If-None-Match", it.etag) }
-        val request = requestBuilder.build()
-        val liveClient = clientForRequest()
-        val deadlineNanos = liveClient.callTimeoutMillis.takeIf { it > 0 }?.let {
-            System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(it.toLong())
-        }
-        val decode: (Response) -> String = { response ->
-            responseDecoder.text(response, expectedStatus).also { text ->
-                if (cachedRead != null) readCache.store(cachedRead, response, text)
-            }
-        }
-        val result = executeRemoteRequest(liveClient, networkGate, request, deadlineNanos) { response ->
-            if (response.code == 304 && cachedRead != null) {
-                response.close()
-                readCache.body(cachedRead)
-            } else decode(response)
-        }
-        // A body may have been invalidated while the request was in flight.
-        // Retry only this safe GET, once, without its validator.
-        return result ?: executeRemoteRequest(
-            liveClient, networkGate, request.newBuilder().removeHeader("If-None-Match").build(), deadlineNanos, decode,
-        )
-    }
+    ): String = http.requestText(
+        path = path,
+        method = method,
+        query = query,
+        jsonBody = jsonBody,
+        authorized = authorized,
+        extraHeaders = extraHeaders,
+        expectedStatus = expectedStatus,
+    )
 
     /** Executes a bounded raw-body request without converting the upload or response to JSON. */
     internal suspend fun requestRawText(
@@ -357,10 +439,15 @@ class RemoteApiClient(
         authorized: Boolean = true,
         extraHeaders: Map<String, String> = emptyMap(),
         expectedStatus: Int? = null,
-    ): String {
-        val request = buildRawRequest(path, method, query, body, authorized, extraHeaders)
-        return executeRemoteRequest(clientForRequest(), networkGate, request) { responseDecoder.text(it, expectedStatus) }
-    }
+    ): String = http.requestRawText(
+        path = path,
+        method = method,
+        query = query,
+        body = body,
+        authorized = authorized,
+        extraHeaders = extraHeaders,
+        expectedStatus = expectedStatus,
+    )
 
     /** Fetches binary data with early Content-Length rejection and an incremental hard cap. */
     internal suspend fun requestBytes(
@@ -368,78 +455,20 @@ class RemoteApiClient(
         query: List<Pair<String, String>> = emptyList(),
         authorized: Boolean = true,
         expectedStatus: Int? = null,
-    ): RemoteBinaryResponse {
-        var url = endpointUrl(path).toHttpUrl()
-        if (query.isNotEmpty()) {
-            val builder = url.newBuilder()
-            query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
-            url = builder.build()
-        }
-        CleartextPolicy.enforce(url.toString())
-        val requestBuilder = Request.Builder().url(url).get()
-        if (authorized) {
-            accessToken?.takeIf(String::isNotBlank)?.let {
-                requestBuilder.header("Authorization", "Bearer $it")
-            }
-        }
-        return executeRemoteRequest(clientForRequest(), networkGate, requestBuilder.build()) { responseDecoder.binary(it, expectedStatus) }
-    }
+    ): RemoteBinaryResponse = http.requestBytes(
+        path = path,
+        query = query,
+        authorized = authorized,
+        expectedStatus = expectedStatus,
+    )
 
-    private fun buildRawRequest(
-        path: String,
-        method: String,
-        query: List<Pair<String, String>>,
-        body: RequestBody,
-        authorized: Boolean,
-        extraHeaders: Map<String, String>,
-    ): Request {
-        var url = endpointUrl(path).toHttpUrl()
-        if (query.isNotEmpty()) {
-            val builder = url.newBuilder()
-            query.forEach { (key, value) -> builder.addQueryParameter(key, value) }
-            url = builder.build()
-        }
-        CleartextPolicy.enforce(url.toString())
-        val requestBuilder = Request.Builder().url(url).method(method, body)
-        extraHeaders.forEach { (key, value) -> requestBuilder.header(key, value) }
-        if (authorized) {
-            accessToken?.takeIf(String::isNotBlank)?.let {
-                requestBuilder.header("Authorization", "Bearer $it")
-            }
-        }
-        return requestBuilder.build()
-    }
-
-    private fun endpointUrl(path: String): String {
-        val base = endpoint.toHttpUrl().newBuilder()
-            .query(null)
-            .fragment(null)
-            .build()
-        var basePath = base.encodedPath
-        if (basePath.isEmpty()) basePath = "/"
-        if (!basePath.endsWith("/")) basePath += "/"
-        val relative = path.trimStart('/')
-        return base.newBuilder()
-            .encodedPath(basePath + relative)
-            .build()
-            .toString()
-    }
+    private fun endpointUrl(path: String): String = http.endpointUrl(path)
 
     private fun encodePath(value: String): String =
         URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
     companion object {
-        private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
-        private val EMPTY_MEDIA = "application/json; charset=utf-8".toMediaType()
-        private val EMPTY_BODY = ByteArray(0).toRequestBody(EMPTY_MEDIA)
-
         const val MAX_RESPONSE_BYTES: Long = 64L * 1024L * 1024L
-
-        private fun methodRequiresBody(method: String): Boolean =
-            when (method.uppercase()) {
-                "POST", "PUT", "PATCH" -> true
-                else -> false
-            }
 
         /**
          * Shared base client (WS7 finding 5): one connection pool + dispatcher

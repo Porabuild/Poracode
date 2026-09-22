@@ -140,4 +140,24 @@
     <string name="rich_chat_queue_resume">Відновити</string>
     <string name="rich_chat_queue_edit_title">Редагувати повідомлення в черзі</string>
     <string name="rich_chat_queue_save">Зберегти</string>
+    <string name="rich_chat_history_notice_title">Історія неповна</string>
+    <string name="rich_chat_history_notice_body">Деякі події не було збережено. Підтвердження дозволяє продовжити з неповною історією; відсутній вміст не відновлюється, і це не підтверджує зупинку джерела.</string>
+    <string name="rich_chat_history_notice_detail">Не збережено: щонайменше %1$d (%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">Підтвердити</string>
+    <string name="rich_chat_history_notice_ack_in_flight">Підтвердження…</string>
+    <string name="rich_chat_history_notice_check_failed">Не вдалося прочитати відомості про відновлення.</string>
+    <string name="rich_chat_history_notice_source_exact">підтверджена втрата</string>
+    <string name="rich_chat_history_notice_source_suspect">імовірна втрата</string>
+    <string name="rich_chat_history_notice_source_unknown">втрата</string>
+    <string name="rich_chat_history_notice_reason_thread_events">ліміт подій треду</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">ліміт розміру треду</string>
+    <string name="rich_chat_history_notice_reason_global_events">глобальний ліміт подій</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">глобальний ліміт розміру</string>
+    <string name="rich_chat_history_notice_reason_oversize">завелика подія</string>
+    <string name="rich_chat_history_notice_reason_age">видалено за віком</string>
+    <string name="rich_chat_history_notice_reason_degraded">погіршене сховище</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">відкинуто через rebase</string>
+    <string name="rich_chat_history_notice_reason_shutdown">аварійне завершення</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">некоректна сесія</string>
+    <string name="rich_chat_history_notice_reason_unknown">ліміт сховища</string>
 </resources>

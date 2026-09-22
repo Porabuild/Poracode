@@ -221,9 +221,12 @@ class PairingCoordinator(
                     tokenExpiresAt = tokenResult.expiresAt,
                     pairedAtEpochMs = System.currentTimeMillis(),
                     protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
-                    // Authoritative absence (older host) downgrades to no browser entry.
+                    // Authoritative absence (older host) downgrades to no browser entry
+                    // and to no host-owned environment management.
                     browserForwardVersions =
                         environment.capabilities?.browserForward?.versions.orEmpty(),
+                    sshEnvironmentsVersions =
+                        environment.capabilities?.sshEnvironments?.versions.orEmpty(),
                     certFingerprint = pin,
                     hostCapabilities = hostCapabilities,
                 )

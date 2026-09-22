@@ -5,7 +5,6 @@ import com.poracode.app.chat.RichPendingSteerEnvelope
 import com.poracode.app.chat.RichReducer
 import com.poracode.app.chat.RichRequestQueue
 import com.poracode.app.chat.RichRuntimeEvent
-import com.poracode.app.chat.RichThreadState
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.transport.richchat.RequestResolution
 import com.poracode.app.transport.richchat.ThreadGoalUpdate
@@ -22,22 +21,33 @@ import kotlinx.serialization.json.JsonObject
 
 /** Selected-thread state machine. Live events and HTTP history share one rich domain reducer. */
 class RichChatController(
-    private val session: StateFlow<RichChatHostLease?>,
+    internal val session: StateFlow<RichChatHostLease?>,
     private val gateway: RichChatSessionGateway,
     private val lifecycle: ForegroundOperationRegistry = ForegroundOperationRegistry(),
 ) : RichChatEventSink {
-    private val mutableState = MutableStateFlow(RichChatControllerState())
+    internal val mutableState = MutableStateFlow(RichChatControllerState())
     val state: StateFlow<RichChatControllerState> = mutableState.asStateFlow()
     private val mutableSelection = MutableStateFlow<RichChatThreadLease?>(null)
     val selection: StateFlow<RichChatThreadLease?> = mutableSelection.asStateFlow()
-    private val owner = RichChatOperationOwner()
+    internal val owner = RichChatOperationOwner()
     private val sendMutex = Mutex()
 
-    /** Seam for the queue-operation extensions file (size-gate split). */
+    /** Seam for the queue-operation and history extension files (size-gate split). */
     internal val sessionGateway: RichChatSessionGateway
         get() = gateway
     private var threadGeneration = 0L
-    private val frameBuffer = RichChatLiveFrameBuffer()
+    internal val frameBuffer = RichChatLiveFrameBuffer()
+
+    /**
+     * Fences older-history paging against authoritative installs, truncation
+     * and selection changes: a page requested before the transcript changed
+     * must never publish (or move the cursor backwards) afterwards.
+     */
+    internal val olderPagingEpoch = java.util.concurrent.atomic.AtomicLong(0L)
+
+    internal fun invalidateOlderPaging() {
+        olderPagingEpoch.incrementAndGet()
+    }
 
     @Synchronized
     fun selectThread(threadId: String): RichChatOperationResult<RichChatThreadLease> {
@@ -50,6 +60,7 @@ class RichChatController(
         threadGeneration += 1L
         val lease = RichChatThreadLease(host, threadId, threadGeneration)
         owner.invalidateAll()
+        invalidateOlderPaging()
         frameBuffer.reset()
         mutableSelection.value = lease
         mutableState.value = RichChatControllerState(
@@ -63,6 +74,7 @@ class RichChatController(
     fun closeThread() {
         threadGeneration += 1L
         owner.invalidateAll()
+        invalidateOlderPaging()
         frameBuffer.reset()
         mutableSelection.value = null
         mutableState.value = RichChatControllerState()
@@ -74,104 +86,8 @@ class RichChatController(
         if (current == null || current.key != selected.host.key || !current.ready) closeThread()
     }
 
-    suspend fun refreshHistory(): RichChatOperationResult<RichChatHistorySnapshot> {
-        val prepared = prepare(RichChatCapability.Read) ?: return currentRejection()
-        val token = owner.begin(OP_HISTORY, prepared)
-        markActive(OP_HISTORY)
-        return runOperation(prepared, token, RichChatCapability.Read, false) {
-            val snapshot = gateway.history(prepared.host, prepared.threadId)
-            if (!canPublish(prepared, token)) return@runOperation RichChatOperationResult.Stale
-            if (!installAuthoritativeSnapshot(prepared, snapshot)) {
-                return@runOperation RichChatOperationResult.Stale
-            }
-            RichChatOperationResult.Success(snapshot)
-        }
-    }
-
-    suspend fun loadOlder(): RichChatOperationResult<Int> {
-        val prepared = prepare(RichChatCapability.Read) ?: return currentRejection()
-        val cursor = mutableState.value.olderCursor
-            ?: return RichChatOperationResult.Success(0)
-        val token = owner.begin(OP_OLDER, prepared)
-        mutableState.update { it.copy(loadingOlder = true, failure = null) }
-        return runOperation(prepared, token, RichChatCapability.Read, false) {
-            val page = gateway.olderItems(prepared.host, prepared.threadId, cursor)
-            if (!canPublish(prepared, token)) return@runOperation RichChatOperationResult.Stale
-            var added = 0
-            mutableState.update { current ->
-                val live = current.transcript ?: return@update current
-                val older = page.items.filterNot { it.id in live.itemsById }
-                added = older.size
-                val all = older + live.itemsInOrder
-                val hydrated = RichThreadState.hydrate(
-                    key = live.key,
-                    items = all,
-                    completedTurns = live.completedTurns,
-                    contextUsage = live.contextUsage,
-                ).copy(
-                    pendingSteer = live.pendingSteer,
-                    followUpQueue = live.followUpQueue,
-                    openTurn = live.openTurn,
-                    lastUsageSpent = live.lastUsageSpent,
-                    structuralVersion = live.structuralVersion + if (older.isEmpty()) 0 else 1,
-                    syntheticErrorSequence = live.syntheticErrorSequence,
-                )
-                current.copy(
-                    transcript = hydrated,
-                    olderCursor = page.nextCursor,
-                    loadingOlder = false,
-                    loadPhase = if (all.isEmpty()) RichChatLoadPhase.Empty else RichChatLoadPhase.Loaded,
-                )
-            }
-            RichChatOperationResult.Success(added)
-        }
-    }
-
-    @Synchronized
-    fun installAuthoritativeSnapshot(
-        source: RichChatThreadLease,
-        snapshot: RichChatHistorySnapshot,
-    ): Boolean {
-        if (!isSelected(source) || snapshot.key != source.key || !session.isCurrent(source.host)) {
-            return false
-        }
-        // Buffered truncate whose checkpoint is outside the freshly installed
-        // window needs one authoritative catchup. Frames at or below
-        // snapshotSeq were already reflected in the snapshot and are dropped
-        // without catchup (per-thread installed baseline gate).
-        // Absent queue field = the supervisor read failed; the desktop contract
-        // keeps the previously projected queue instead of silently clearing the
-        // strip. The substitution happens on the replay base, not the result,
-        // so buffered queue frames newer than the snapshot still win.
-        val previousQueue = mutableState.value.transcript?.followUpQueue
-        val base = if (snapshot.followUpQueuePresent) {
-            snapshot.state
-        } else {
-            snapshot.state.copy(followUpQueue = previousQueue)
-        }
-        val replayed = frameBuffer.replayAfterSnapshot(snapshot, base)
-        val transcript = replayed.transcript
-        val truncationCatchup = replayed.truncationCatchup
-        val needsFollowUp = replayed.hadOverflow
-        mutableState.update {
-            it.copy(
-                transcript = transcript,
-                snapshotSeq = snapshot.snapshotSeq,
-                olderCursor = snapshot.olderCursor,
-                config = snapshot.config,
-                terminalScrollback = snapshot.terminalScrollback,
-                activeOperations = it.activeOperations - OP_HISTORY,
-                loadPhase = if (transcript.orderedItemIds.isEmpty()) {
-                    RichChatLoadPhase.Empty
-                } else {
-                    RichChatLoadPhase.Loaded
-                },
-                failure = null,
-                needsAuthoritativeRefresh = needsFollowUp || truncationCatchup,
-            )
-        }
-        return true
-    }
+    /** Loads the next older runtime-item and/or completed-turn page. */
+    suspend fun loadOlder(): RichChatOperationResult<Int> = loadOlderPage()
 
     override fun apply(lease: RichChatThreadLease, event: RichRuntimeEvent): Boolean {
         return applyServerFrame(lease, sequence = null, events = listOf(event))
@@ -200,6 +116,7 @@ class RichChatController(
         }
         val frame = RichChatLiveFrame(sequence, events, pendingSteer, followUpQueue)
         var accepted = false
+        val truncated = events.any { it is RichRuntimeEvent.RuntimeTruncated }
         mutableState.update { current ->
             val transcript = current.transcript
             if (transcript == null) {
@@ -225,11 +142,15 @@ class RichChatController(
             val truncationCatchup = frameNeedsTruncationCatchup(next, frame)
             current.copy(
                 transcript = next,
+                // A truncate renumbers/removes turn rows: the held `ct1.`
+                // continuation is dropped and in-flight older pages are fenced.
+                olderTurnsCursor = if (truncated) null else current.olderTurnsCursor,
                 needsAuthoritativeRefresh = current.needsAuthoritativeRefresh ||
                     frameBuffer.overflow ||
                     truncationCatchup,
             )
         }
+        if (accepted && truncated) invalidateOlderPaging()
         if (accepted) frameBuffer.markAccepted(sequence)
         return accepted
     }
@@ -264,11 +185,22 @@ class RichChatController(
     suspend fun interrupt(): RichChatOperationResult<Unit> =
         mutate(OP_INTERRUPT, RichChatCapability.Operate) { gateway.interrupt(it.host, it.threadId) }
 
-    suspend fun truncate(itemId: String): RichChatOperationResult<Unit> =
-        mutate(OP_TRUNCATE, RichChatCapability.Operate) {
+    suspend fun truncate(itemId: String): RichChatOperationResult<Unit> {
+        val result = mutate(OP_TRUNCATE, RichChatCapability.Operate) {
             if (itemId.isEmpty()) throw RichChatGatewayException(400, "invalid_request", false)
             gateway.truncate(it.host, it.threadId, itemId)
         }
+        if (result is RichChatOperationResult.Success) {
+            // The host removed/renumbered turn rows; the held continuation must
+            // not be used again, any in-flight older page is fenced, and one
+            // authoritative read reinstates the tail with a fresh cursor.
+            invalidateOlderPaging()
+            mutableState.update {
+                it.copy(olderTurnsCursor = null, needsAuthoritativeRefresh = true)
+            }
+        }
+        return result
+    }
 
     suspend fun updateGoal(update: ThreadGoalUpdate): RichChatOperationResult<Unit> =
         mutate(OP_GOAL, RichChatCapability.Operate) {
@@ -369,7 +301,7 @@ class RichChatController(
         }
     }
 
-    private suspend fun <T> runOperation(
+    internal suspend fun <T> runOperation(
         lease: RichChatThreadLease,
         ownerToken: RichChatOperationOwner.Token,
         capability: RichChatCapability,
@@ -381,7 +313,20 @@ class RichChatController(
             if (!lifecycle.isCurrent(lifecycleToken)) RichChatOperationResult.Stale else result
         }
     } catch (error: CancellationException) {
-        if (canPublish(lease, ownerToken)) clearActive(ownerToken.kind)
+        if (canPublish(lease, ownerToken)) {
+            if (ownerToken.kind == OP_HISTORY) {
+                releaseHistoryFrameBuffer()
+                mutableState.update {
+                    it.copy(
+                        loadPhase = historySettledPhase(
+                            it.transcript,
+                            RichChatLoadPhase.Idle,
+                        ),
+                    )
+                }
+            }
+            clearActive(ownerToken.kind)
+        }
         throw error
     } catch (_: RichChatBackgroundException) {
         rejected(RichChatOperationFailure.Backgrounded)
@@ -389,17 +334,14 @@ class RichChatController(
         if (!canPublish(lease, ownerToken)) {
             RichChatOperationResult.Stale
         } else {
+            if (ownerToken.kind == OP_HISTORY) releaseHistoryFrameBuffer()
             val failure = error.asRichChatFailure(capability, mutation)
             mutableState.update {
                 it.copy(
                     activeOperations = it.activeOperations - ownerToken.kind,
                     loadingOlder = if (ownerToken.kind == OP_OLDER) false else it.loadingOlder,
                     loadPhase = if (ownerToken.kind == OP_HISTORY) {
-                        when {
-                            it.transcript == null -> RichChatLoadPhase.Failed
-                            it.transcript.orderedItemIds.isEmpty() -> RichChatLoadPhase.Empty
-                            else -> RichChatLoadPhase.Loaded
-                        }
+                        historySettledPhase(it.transcript, RichChatLoadPhase.Failed)
                     } else {
                         it.loadPhase
                     },
@@ -412,7 +354,7 @@ class RichChatController(
         }
     }
 
-    private fun prepare(capability: RichChatCapability): RichChatThreadLease? {
+    internal fun prepare(capability: RichChatCapability): RichChatThreadLease? {
         if (!lifecycle.isForeground) {
             rejected<Unit>(RichChatOperationFailure.Backgrounded)
             return null
@@ -430,12 +372,12 @@ class RichChatController(
         return selected.copy(host = host)
     }
 
-    private fun currentRejection(): RichChatOperationResult.Failed =
+    internal fun currentRejection(): RichChatOperationResult.Failed =
         RichChatOperationResult.Failed(
             mutableState.value.failure ?: RichChatOperationFailure.NoThread,
         )
 
-    private fun canPublish(
+    internal fun canPublish(
         lease: RichChatThreadLease,
         token: RichChatOperationOwner.Token,
     ): Boolean = lifecycle.isForeground &&
@@ -443,14 +385,14 @@ class RichChatController(
         isSelected(lease) &&
         session.isCurrent(lease.host)
 
-    private fun isSelected(lease: RichChatThreadLease): Boolean {
+    internal fun isSelected(lease: RichChatThreadLease): Boolean {
         val current = mutableSelection.value ?: return false
         return current.host.key == lease.host.key &&
             current.threadId == lease.threadId &&
             current.generation == lease.generation
     }
 
-    private fun markActive(kind: String) {
+    internal fun markActive(kind: String) {
         mutableState.update {
             it.copy(
                 activeOperations = it.activeOperations + kind,
@@ -480,8 +422,6 @@ class RichChatController(
     }
 
     private companion object {
-        const val OP_HISTORY = "history"
-        const val OP_OLDER = "older"
         const val OP_SEND = "send"
         const val OP_INTERRUPT = "interrupt"
         const val OP_TRUNCATE = "truncate"

@@ -90,7 +90,9 @@ class PushRegistrationCoordinatorTest {
     }
 
     @Test
-    fun authFailureErasesOutboxEntry() = runBlocking {
+    fun directAuthFailureRetiresOutboxEntry() = runBlocking {
+        // Direct-host control for the environment retention rule: a genuine
+        // 401/403 on a direct route keeps the existing retirement.
         val fixture = fixture("auth", listOf(1), unregister = PushHttpResult.AuthFailure)
         fixture.coordinator.onForeground()
         fixture.coordinator.beforeHostRemoval(
@@ -153,7 +155,7 @@ class PushRegistrationCoordinatorTest {
             tokenVault = token,
             outbox = outbox,
             hosts = PushHostSource { listOf(host) },
-            clientFactory = PushHostGatewayFactory { _, accessToken ->
+            clientFactory = PushHostGatewayFactory { _, accessToken, _ ->
                 assertEquals("access-secret", accessToken)
                 gateway
             },

@@ -5,6 +5,7 @@ import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.HostCatalogSnapshot
 import com.poracode.app.model.HostRecord
 import com.poracode.app.model.HostRegistryDocument
+import com.poracode.app.model.HostServiceCapabilities
 import com.poracode.app.protocol.ProtocolConstants
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
@@ -23,7 +24,7 @@ enum class HostMutationResult {
     val didApply: Boolean get() = this != RejectedBeforeApply
 }
 
-class HostCatalogException(message: String) : IllegalStateException(message)
+open class HostCatalogException(message: String) : IllegalStateException(message)
 
 /**
  * Crash-safe multihost registry + encrypted vault. Recovery always completes
@@ -54,6 +55,7 @@ class HostCatalog(
 
     private val mutex = Mutex()
     private val receiptClock = AtomicLong(0)
+    private val revisionClock = AtomicLong(0)
     @Volatile private var currentReceipt: HostOperationReceipt? = null
     @Volatile private var currentMetadataReceipt: HostOperationReceipt? = null
     private val receiptFile = File(registry.directory, LegacyHostImport.RECEIPT_FILE)
@@ -80,7 +82,11 @@ class HostCatalog(
 
     suspend fun snapshot(): HostCatalogSnapshot = mutex.withLock {
         recoverLocked()
-        HostCatalogSnapshot(registry.load() ?: HostRegistryDocument(), registry.exists())
+        HostCatalogSnapshot(
+            registry.load() ?: HostRegistryDocument(),
+            registry.exists(),
+            revisionClock.get(),
+        )
     }
 
     suspend fun token(connectionId: ClientConnectionId): String? = mutex.withLock {
@@ -120,14 +126,12 @@ class HostCatalog(
         if (document.host(record.connectionId) != null) {
             throw HostCatalogException("Host connection id collision")
         }
-        // Re-pairing a known endpoint refreshes the existing entry instead of
-        // stacking a duplicate row with a stale token.
-        val replaced = document.hosts.firstOrNull { it.httpBaseUrl == record.httpBaseUrl }
-        val effective = replaced?.let { record.copy(connectionId = it.connectionId) } ?: record
-        val hosts = if (replaced != null) {
-            document.hosts.map {
-                if (it.connectionId == replaced.connectionId) effective else it
-            }
+        val effective = HostRecordSelection.directOrEnvironment(document, record)
+        val replacedId = effective.connectionId.takeIf { id ->
+            document.hosts.any { it.connectionId == id }
+        }
+        val hosts = if (replacedId != null) {
+            document.hosts.map { if (it.connectionId == replacedId) effective else it }
         } else {
             document.hosts + effective
         }
@@ -160,6 +164,7 @@ class HostCatalog(
                     it.copy(
                         protocolVersion = ProtocolConstants.REMOTE_PROTOCOL_VERSION,
                         browserForwardVersions = emptyList(),
+                        sshEnvironmentsVersions = emptyList(),
                     )
                 } else it
             }),
@@ -178,15 +183,31 @@ class HostCatalog(
         )
     }
 
+    /**
+     * Local removal. Removing a direct/ssh parent cascades its dependent
+     * environment records and their child credential vault accounts in the same
+     * atomic transaction; the host-side environment registry is never touched
+     * (it belongs to the parent, not the device). Removing an environment record
+     * retires only that record and its own child grant.
+     */
     suspend fun remove(
         connectionId: ClientConnectionId,
         owning: HostOperationReceipt,
     ): HostMutationResult = mutate(owning, HostOperationKind.Remove) { document ->
-        if (document.host(connectionId) == null) throw HostCatalogException("Unknown host")
+        val target = document.host(connectionId) ?: throw HostCatalogException("Unknown host")
+        val cascaded = if (target.environment == null) {
+            document.hosts.filter { it.environment?.parentConnectionId == connectionId }
+        } else {
+            emptyList()
+        }
+        val removedIds = buildSet {
+            add(connectionId)
+            cascaded.forEach { add(it.connectionId) }
+        }
         var next = document.copy(
-            hosts = document.hosts.filterNot { it.connectionId == connectionId },
-            lru = document.lru.filterNot { it == connectionId },
-            selectedConnectionId = document.selectedConnectionId.takeIf { it != connectionId },
+            hosts = document.hosts.filterNot { it.connectionId in removedIds },
+            lru = document.lru.filterNot { it in removedIds },
+            selectedConnectionId = document.selectedConnectionId.takeIf { it !in removedIds },
         )
         if (next.hosts.isNotEmpty() && next.selectedConnectionId == null) {
             val fallback = next.lru.firstOrNull() ?: next.hosts.first().connectionId
@@ -201,6 +222,7 @@ class HostCatalog(
             connectionId = connectionId,
             document = next,
             deleteVaultAccount = HostVault.account(connectionId),
+            deleteVaultAccounts = cascaded.map { HostVault.account(it.connectionId) },
             clearLegacySource = clearSource,
         )
     }
@@ -225,6 +247,44 @@ class HostCatalog(
         )
     }
 
+    /**
+     * Persists freshly observed capability metadata onto an existing record
+     * (C1 capability freshness). The mutation is journaled like every other
+     * catalog change and occupies the metadata receipt slot (shared with
+     * rename), so an in-flight metadata action is fenced rather than
+     * interleaved.
+     *
+     * The apply is identity-checked: [expectedPairedAtEpochMs] and
+     * [expectedDesktopId] must still match the record, so a stale describe
+     * result can never update a removed record or a record re-paired in the
+     * meantime. A `null` [hostCapabilities] is treated as "no trustworthy
+     * describe" and only the descriptor-carried versions are refreshed.
+     */
+    suspend fun updateCapabilities(
+        connectionId: ClientConnectionId,
+        expectedPairedAtEpochMs: Long,
+        expectedDesktopId: String,
+        browserForwardVersions: List<Int>,
+        sshEnvironmentsVersions: List<Int>,
+        hostCapabilities: HostServiceCapabilities?,
+        owning: HostOperationReceipt,
+    ): HostMutationResult = mutate(owning, HostOperationKind.Rename) { document ->
+        val hosts = HostRecordSelection.capabilityUpdatedHosts(
+            document = document,
+            connectionId = connectionId,
+            expectedPairedAtEpochMs = expectedPairedAtEpochMs,
+            expectedDesktopId = expectedDesktopId,
+            browserForwardVersions = browserForwardVersions,
+            sshEnvironmentsVersions = sshEnvironmentsVersions,
+            hostCapabilities = hostCapabilities,
+        ) ?: return@mutate null
+        TransactionPlan(
+            kind = HostTransactionJournal.Kind.Add,
+            connectionId = connectionId,
+            document = document.copy(hosts = hosts),
+        )
+    }
+
     fun rawRegistryForTests(): ByteArray? = registry.raw()
     fun rawJournalForTests(): ByteArray? = vault.rawEncrypted(HostVault.JOURNAL_ACCOUNT)
     fun rawVaultForTests(id: ClientConnectionId): ByteArray? = vault.rawEncrypted(HostVault.account(id))
@@ -238,6 +298,7 @@ class HostCatalog(
         val targetVaultAccount: String? = null,
         val targetVaultBytes: ByteArray? = null,
         val deleteVaultAccount: String? = null,
+        val deleteVaultAccounts: List<String> = emptyList(),
         val clearLegacySource: Boolean = false,
     )
 
@@ -265,6 +326,7 @@ class HostCatalog(
             targetVaultAccount = plan.targetVaultAccount,
             targetVaultBytes = plan.targetVaultBytes,
             deleteVaultAccount = plan.deleteVaultAccount,
+            deleteVaultAccounts = plan.deleteVaultAccounts,
             clearLegacySource = plan.clearLegacySource,
         )
         saveJournal(journal)
@@ -302,6 +364,7 @@ class HostCatalog(
             val bytes = record.targetVaultBytes
             if (target != null && bytes != null) vault.save(target, bytes)
             record.deleteVaultAccount?.let(vault::delete)
+            record.deleteVaultAccounts.forEach(vault::delete)
             if (record.clearLegacySource) clearLegacySourceLocked(record.connectionId)
             record = record.withPhase(HostTransactionJournal.Phase.VaultApplied)
             saveJournal(record)
@@ -322,6 +385,7 @@ class HostCatalog(
                 writer.writeAtomically(receiptFile, java.util.Base64.getDecoder().decode(it))
             }
         }
+        revisionClock.incrementAndGet()
     }
 
     private suspend fun persistImportLocked(imported: LegacyHostImport.Imported) {

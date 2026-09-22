@@ -17,6 +17,7 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
         val protocolVersion: Int,
         val tokenExpiresAt: String?,
         val scopes: Set<String>,
+        val noticesSupported: Boolean,
     )
 
     private val mutableState = MutableStateFlow<RichChatHostLease?>(null)
@@ -50,6 +51,9 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
             protocolVersion = profile.protocolVersion,
             tokenExpiresAt = profile.tokenExpiresAt,
             scopes = profile.scopes.toSet(),
+            noticesSupported = appState.liveRuntimeHistoryNoticeVersions.contains(
+                com.poracode.app.model.RemoteEnvironmentDescriptor.RUNTIME_HISTORY_NOTICES_VERSION,
+            ),
         )
         val ready = appState.phase == AppSession.Phase.Ready && !appState.sessionExpired
         val online = ready &&
@@ -71,6 +75,7 @@ class SelectedRichChatHostLeaseSource(initial: AppSession.UiState) {
             online = online,
             ready = ready,
             bindingGeneration = bindingGeneration,
+            noticesSupported = nextBinding.noticesSupported,
         )
     }
 }

@@ -140,4 +140,24 @@
     <string name="rich_chat_queue_resume">재개</string>
     <string name="rich_chat_queue_edit_title">대기 중인 메시지 편집</string>
     <string name="rich_chat_queue_save">저장</string>
+    <string name="rich_chat_history_notice_title">기록이 불완전합니다</string>
+    <string name="rich_chat_history_notice_body">일부 이벤트가 저장되지 않았습니다. 확인하면 불완전한 기록으로 계속할 수 있지만, 누락된 내용이 복원되거나 소스가 중단되었음이 확인되는 것은 아닙니다.</string>
+    <string name="rich_chat_history_notice_detail">저장되지 않음: 최소 %1$d(%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">확인</string>
+    <string name="rich_chat_history_notice_ack_in_flight">확인 중…</string>
+    <string name="rich_chat_history_notice_check_failed">복구 세부 정보를 읽을 수 없습니다.</string>
+    <string name="rich_chat_history_notice_source_exact">확인된 손실</string>
+    <string name="rich_chat_history_notice_source_suspect">의심되는 손실</string>
+    <string name="rich_chat_history_notice_source_unknown">손실</string>
+    <string name="rich_chat_history_notice_reason_thread_events">스레드 이벤트 한도</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">스레드 크기 한도</string>
+    <string name="rich_chat_history_notice_reason_global_events">전역 이벤트 한도</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">전역 크기 한도</string>
+    <string name="rich_chat_history_notice_reason_oversize">크기 초과 이벤트</string>
+    <string name="rich_chat_history_notice_reason_age">경과 시간으로 제거됨</string>
+    <string name="rich_chat_history_notice_reason_degraded">저장소 성능 저하</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">리베이스로 삭제됨</string>
+    <string name="rich_chat_history_notice_reason_shutdown">비정상 종료</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">비정상 세션</string>
+    <string name="rich_chat_history_notice_reason_unknown">저장소 한도</string>
 </resources>

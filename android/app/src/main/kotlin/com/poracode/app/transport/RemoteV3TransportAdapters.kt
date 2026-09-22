@@ -6,12 +6,17 @@ import com.poracode.app.model.RemoteEnvironmentDescriptor
 import com.poracode.app.model.HostDescribeResponse
 import com.poracode.app.model.HostServiceCapabilities
 import com.poracode.app.model.RemoteJson
+import com.poracode.app.model.RemoteRuntimeGapAck
+import com.poracode.app.model.RemoteRuntimeGapDescriptor
+import com.poracode.app.model.RemoteRuntimeGapRead
+import com.poracode.app.model.RemoteRuntimeHistoryNotice
 import com.poracode.app.model.RemoteRuntimeItemsPage
 import com.poracode.app.model.RemoteShellSnapshot
 import com.poracode.app.model.RemoteThreadSnapshot
 import com.poracode.app.model.RemoteWebSocketTicketResult
 import com.poracode.app.protocol.GeneratedRemoteV3Contract
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.jsonObject
@@ -76,6 +81,46 @@ internal object RemoteV3TransportAdapters {
         HostDescribeResponse.serializer(),
         "host describe",
     ).capabilities
+
+    fun runtimeGap(raw: String): RemoteRuntimeGapRead = project(
+        GeneratedRemoteV3Contract.runtimeGapResponse(raw),
+        RemoteRuntimeGapRead.serializer(),
+        "runtime gap",
+    )
+
+    fun runtimeGapAck(raw: String): RemoteRuntimeGapAck {
+        val wire = project(
+            GeneratedRemoteV3Contract.runtimeGapAcknowledgeResponse(raw),
+            RemoteRuntimeGapAckWire.serializer(),
+            "runtime gap acknowledge",
+        )
+        return when (wire.outcome) {
+            "applied" -> RemoteRuntimeGapAck.Applied(
+                notice = wire.notice ?: invalid("runtime gap acknowledge applied notice"),
+                descriptor = wire.descriptor
+                    ?: invalid("runtime gap acknowledge applied descriptor"),
+                supersededAcceptedEvents = wire.supersededAcceptedEvents,
+            )
+            "already" -> RemoteRuntimeGapAck.Already(
+                notice = wire.notice ?: invalid("runtime gap acknowledge already notice"),
+            )
+            "stale" -> RemoteRuntimeGapAck.Stale(current = wire.current)
+            else -> invalid("runtime gap acknowledge outcome")
+        }
+    }
+
+    /** The generated union is canonicalized first; this is its app-owned projection. */
+    @Serializable
+    private data class RemoteRuntimeGapAckWire(
+        val outcome: String,
+        val notice: RemoteRuntimeHistoryNotice? = null,
+        val descriptor: RemoteRuntimeGapDescriptor? = null,
+        val supersededAcceptedEvents: Long = 0L,
+        val current: RemoteRuntimeGapDescriptor? = null,
+    )
+
+    private fun invalid(boundary: String): Nothing =
+        throw RemoteClientException.invalidResponse("Remote contract projection failed at $boundary.")
 
     private fun <T> project(raw: String, serializer: KSerializer<T>, boundary: String): T = try {
         RemoteJson.decodeFromString(serializer, raw)

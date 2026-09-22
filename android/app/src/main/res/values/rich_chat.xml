@@ -145,4 +145,24 @@
     <string name="rich_chat_queue_resume">Resume</string>
     <string name="rich_chat_queue_edit_title">Edit queued message</string>
     <string name="rich_chat_queue_save">Save</string>
+    <string name="rich_chat_history_notice_title">History is incomplete</string>
+    <string name="rich_chat_history_notice_body">Some events were not saved. Acknowledging lets you continue with incomplete history; it does not restore the missing content or confirm that the source has stopped.</string>
+    <string name="rich_chat_history_notice_detail">Not saved: at least %1$d (%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">Acknowledge</string>
+    <string name="rich_chat_history_notice_ack_in_flight">Acknowledging…</string>
+    <string name="rich_chat_history_notice_check_failed">Recovery details could not be read.</string>
+    <string name="rich_chat_history_notice_source_exact">confirmed loss</string>
+    <string name="rich_chat_history_notice_source_suspect">suspected loss</string>
+    <string name="rich_chat_history_notice_source_unknown">loss</string>
+    <string name="rich_chat_history_notice_reason_thread_events">thread event limit</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">thread size limit</string>
+    <string name="rich_chat_history_notice_reason_global_events">global event limit</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">global size limit</string>
+    <string name="rich_chat_history_notice_reason_oversize">oversized event</string>
+    <string name="rich_chat_history_notice_reason_age">aged out</string>
+    <string name="rich_chat_history_notice_reason_degraded">degraded storage</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">dropped by rebase</string>
+    <string name="rich_chat_history_notice_reason_shutdown">unclean shutdown</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">unclean session</string>
+    <string name="rich_chat_history_notice_reason_unknown">storage limit</string>
 </resources>

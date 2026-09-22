@@ -1,8 +1,10 @@
 package com.poracode.app.push
 
+import com.poracode.app.model.EnvironmentEndpoints
 import com.poracode.app.protocol.CleartextPolicy
 import com.poracode.app.protocol.GeneratedRemoteV3Contract
 import com.poracode.app.transport.TlsCertPin
+import com.poracode.app.transport.environments.EnvironmentProtocol
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
@@ -35,14 +37,35 @@ interface PushHostGateway {
     suspend fun unregister(body: PushUnregisterBody): PushHttpResult
 }
 
+/**
+ * Live parent authority for an environment record's push client (A3). The push
+ * stack has its own OkHttp client, so it resolves the parent token explicitly
+ * rather than through [com.poracode.app.transport.environments.EnvironmentAuthorityStore]:
+ * registration reads it live from the parent record, and bounded outbox cleanup
+ * reads the encrypted entry snapshot after the records are gone.
+ */
+fun interface PushParentAuthority {
+    suspend fun parentAccessToken(): String?
+}
+
 fun interface PushHostGatewayFactory {
-    fun create(endpoint: String, accessToken: String): PushHostGateway
+    fun create(
+        endpoint: String,
+        accessToken: String,
+        parentAuthority: PushParentAuthority?,
+    ): PushHostGateway
 }
 
 class PushHostClient(
     private val endpoint: String,
     private val accessToken: String,
     private val client: OkHttpClient = DEFAULT_CLIENT,
+    /**
+     * Present for environment records. A proxy endpoint without one never dials:
+     * the child bearer must not reach the parent proxy alone, and a missing
+     * parent token fails closed before the request is sent.
+     */
+    private val parentAuthority: PushParentAuthority? = null,
 ) : PushHostGateway {
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
 
@@ -104,9 +127,23 @@ class PushHostClient(
         }
         val url = base.newBuilder().encodedPath(basePath + path.trimStart('/')).build()
         CleartextPolicy.enforce(url.toString())
-        val request = Request.Builder()
+        val parentHeader = when {
+            parentAuthority != null -> {
+                val parentToken = parentAuthority.parentAccessToken()
+                    ?.takeIf(String::isNotBlank)
+                    ?: return RawResult.AuthFailure
+                "Bearer $parentToken"
+            }
+            EnvironmentEndpoints.isProxyEndpoint(endpoint) -> return RawResult.AuthFailure
+            else -> null
+        }
+        val requestBuilder = Request.Builder()
             .url(url)
             .header("Authorization", "Bearer $accessToken")
+        if (parentHeader != null) {
+            requestBuilder.header(EnvironmentProtocol.AUTHORIZATION_HEADER, parentHeader)
+        }
+        val request = requestBuilder
             .method(method, body?.toRequestBody(JSON_MEDIA))
             .build()
         return suspendCancellableCoroutine { continuation ->

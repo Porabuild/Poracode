@@ -21,6 +21,27 @@ value class ClientConnectionId(val value: String) : Comparable<ClientConnectionI
     }
 }
 
+/**
+ * Local-only environment binding (C1, R2).
+ *
+ * `environmentId` is host-minted on the parent and is display/ticket binding
+ * only, never a local map key: two parents can hold a copied environment id and
+ * the local [HostRecord.connectionId] keeps them apart. [childDesktopId] is the
+ * verified child identity; a mismatch against a recorded value refuses.
+ *
+ * This record is local to the device. Host-owned environments live in the
+ * parent's registry; removing this record never touches the host registry.
+ */
+@Serializable
+data class EnvironmentHostReference(
+    /** Local connection id of the paired parent record that reaches this environment. */
+    val parentConnectionId: ClientConnectionId,
+    /** Host-minted environment id (UUID) on the parent. */
+    val environmentId: String,
+    /** Verified child desktop id, recorded after the first verified pairing. */
+    val childDesktopId: String? = null,
+)
+
 /** Non-secret host metadata. Bearer tokens live only in the per-host vault. */
 @Serializable
 data class HostRecord(
@@ -39,13 +60,22 @@ data class HostRecord(
     val lastSelectedAtEpochMs: Long? = null,
     /** Mirrors [ConnectionProfile.browserForwardVersions]; see that field's contract. */
     val browserForwardVersions: List<Int> = emptyList(),
+    /** Mirrors [ConnectionProfile.sshEnvironmentsVersions]; see that field's contract. */
+    val sshEnvironmentsVersions: List<Int> = emptyList(),
     val certFingerprint: String? = null,
     val hostCapabilities: HostServiceCapabilities? = null,
+    /**
+     * Present only on host-owned environment records. A direct/ssh record keeps
+     * `null` here; environment records hold a distinct locally minted
+     * [connectionId] and their own child credential vault account.
+     */
+    val environment: EnvironmentHostReference? = null,
 ) {
     constructor(
         connectionId: ClientConnectionId,
         profile: ConnectionProfile,
         lastSelectedAtEpochMs: Long? = null,
+        environment: EnvironmentHostReference? = profile.environment,
     ) : this(
         connectionId = connectionId,
         desktopId = profile.desktopId,
@@ -61,9 +91,13 @@ data class HostRecord(
         protocolVersion = profile.protocolVersion,
         lastSelectedAtEpochMs = lastSelectedAtEpochMs,
         browserForwardVersions = profile.browserForwardVersions,
+        sshEnvironmentsVersions = profile.sshEnvironmentsVersions,
         certFingerprint = profile.certFingerprint,
         hostCapabilities = profile.hostCapabilities,
+        environment = environment,
     )
+
+    val isEnvironment: Boolean get() = environment != null
 
     fun asProfile(): ConnectionProfile = ConnectionProfile(
         desktopId = desktopId,
@@ -78,8 +112,10 @@ data class HostRecord(
         pairedAtEpochMs = pairedAtEpochMs,
         protocolVersion = protocolVersion,
         browserForwardVersions = browserForwardVersions,
+        sshEnvironmentsVersions = sshEnvironmentsVersions,
         certFingerprint = certFingerprint,
         hostCapabilities = hostCapabilities,
+        environment = environment,
     )
 }
 
@@ -124,13 +160,30 @@ data class HostRegistryDocument(
     }
 
     companion object {
-        const val FORMAT_VERSION = 2
+        /**
+         * Format 3 adds the optional `environment` binding to a host record.
+         * Formats 2 and 3 remain readable: v2 records decode with
+         * `environment == null` (direct/ssh records are preserved byte-for-byte
+         * in meaning, and every field they carry keeps its value) and the
+         * reader migrates the document in memory before validation. No v2
+         * record ever gains an environment binding implicitly. Format 1 is
+         * older than the oldest readable version and is refused untouched.
+         */
+        const val FORMAT_VERSION = 3
+        const val OLDEST_READABLE_VERSION = 2
     }
 }
 
 data class HostCatalogSnapshot(
     val document: HostRegistryDocument,
     val registryExists: Boolean,
+    /**
+     * Monotonic catalog revision, incremented once per applied journaled
+     * mutation. Consumers that project a snapshot into process state (the
+     * environment authority registry) use it to ignore stale snapshots so an
+     * older read can never retire a context a newer mutation just registered.
+     */
+    val revision: Long = 0,
 ) {
     val hosts: List<HostRecord> get() = document.hosts
     val selected: HostRecord? get() = document.selected

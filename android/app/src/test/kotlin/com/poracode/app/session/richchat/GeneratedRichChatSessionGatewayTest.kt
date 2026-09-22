@@ -177,9 +177,12 @@ class GeneratedRichChatSessionGatewayTest {
             Case(500, "request_failed", true),
             Case(503, "request_failed", true),
             Case(0, "network", true),
+            Case(0, "timeout", true),
             Case(200, "invalid_response", true),
             Case(400, "request_failed", false),
             Case(404, "request_failed", false),
+            Case(409, "command_id_conflict", false),
+            Case(409, "command_outcome_uncertain", true),
             Case(422, "request_failed", false),
         )
         for (case in cases) {
@@ -202,6 +205,23 @@ class GeneratedRichChatSessionGatewayTest {
     }
 
     @Test
+    fun explicitUncertainReceipt409KeepsItsHostCodeAndAmbiguity() = runTest {
+        val core = FakeCoreGateway().apply {
+            sendFailure = RemoteClientException("uncertain", 409, "command_outcome_uncertain")
+        }
+        val gateway = generatedGateway(richLease(), core, FakeSpecializedTransport())
+
+        val error = expectGatewayFailure {
+            gateway.send(richLease(), "thread-a", "hello", ThreadConfig(), null, "message-a")
+        }
+
+        assertEquals(409, error.statusCode)
+        assertEquals("command_outcome_uncertain", error.code)
+        assertTrue(error.requestMayHaveCommitted)
+        assertEquals(1, core.sendCalls)
+    }
+
+    @Test
     fun readServerFailuresStayDefinite() = runTest {
         val core = FakeCoreGateway().apply {
             historyFailure = RemoteClientException("lost", 503, "request_failed")
@@ -212,6 +232,21 @@ class GeneratedRichChatSessionGatewayTest {
         val error = expectGatewayFailure { gateway.history(host, "thread-a") }
 
         assertEquals(503, error.statusCode)
+        assertFalse(error.requestMayHaveCommitted)
+    }
+
+    @Test
+    fun readTimeoutStaysDefiniteWithItsOwnCode() = runTest {
+        val core = FakeCoreGateway().apply {
+            historyFailure = RemoteClientException("timed out", 0, "timeout")
+        }
+        val host = richLease()
+        val gateway = generatedGateway(host, core, FakeSpecializedTransport())
+
+        val error = expectGatewayFailure { gateway.history(host, "thread-a") }
+
+        assertEquals(0, error.statusCode)
+        assertEquals("timeout", error.code)
         assertFalse(error.requestMayHaveCommitted)
     }
 

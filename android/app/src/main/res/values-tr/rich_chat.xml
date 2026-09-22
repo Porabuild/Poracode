@@ -145,4 +145,24 @@
     <string name="rich_chat_queue_resume">Sürdür</string>
     <string name="rich_chat_queue_edit_title">Sıradaki iletiyi düzenle</string>
     <string name="rich_chat_queue_save">Kaydet</string>
+    <string name="rich_chat_history_notice_title">Geçmiş eksik</string>
+    <string name="rich_chat_history_notice_body">Bazı olaylar kaydedilmedi. Onaylamak eksik geçmişle devam etmenizi sağlar; eksik içeriği geri yüklemez ve kaynağın durduğunu doğrulamaz.</string>
+    <string name="rich_chat_history_notice_detail">Kaydedilmedi: en az %1$d (%2$s) · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">Onayla</string>
+    <string name="rich_chat_history_notice_ack_in_flight">Onaylanıyor…</string>
+    <string name="rich_chat_history_notice_check_failed">Kurtarma ayrıntıları okunamadı.</string>
+    <string name="rich_chat_history_notice_source_exact">doğrulanmış kayıp</string>
+    <string name="rich_chat_history_notice_source_suspect">şüpheli kayıp</string>
+    <string name="rich_chat_history_notice_source_unknown">kayıp</string>
+    <string name="rich_chat_history_notice_reason_thread_events">konu olay sınırı</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">konu boyut sınırı</string>
+    <string name="rich_chat_history_notice_reason_global_events">genel olay sınırı</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">genel boyut sınırı</string>
+    <string name="rich_chat_history_notice_reason_oversize">aşırı büyük olay</string>
+    <string name="rich_chat_history_notice_reason_age">yaş nedeniyle kaldırıldı</string>
+    <string name="rich_chat_history_notice_reason_degraded">bozulmuş depolama</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">rebase ile atıldı</string>
+    <string name="rich_chat_history_notice_reason_shutdown">temiz olmayan kapanış</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">temiz olmayan oturum</string>
+    <string name="rich_chat_history_notice_reason_unknown">depolama sınırı</string>
 </resources>

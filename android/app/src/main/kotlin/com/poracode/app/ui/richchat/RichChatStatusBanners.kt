@@ -19,7 +19,17 @@ internal fun RichChatStatusBanners(
     needsRefresh: Boolean,
     canOperate: Boolean,
     onRefresh: () -> Unit,
+    historyNotice: com.poracode.app.session.richchat.RichChatHistoryNoticeState =
+        com.poracode.app.session.richchat.RichChatHistoryNoticeState(),
+    onAcknowledgeNotice: () -> Unit = {},
+    onRetryNoticeCheck: () -> Unit = {},
 ) {
+    RichChatHistoryNoticeBanner(
+        noticeState = historyNotice,
+        canOperate = canOperate,
+        onAcknowledge = onAcknowledgeNotice,
+        onRetryCheck = onRetryNoticeCheck,
+    )
     failure?.let {
         Text(
             richChatFailureText(it) ?: stringResource(R.string.rich_chat_request_failed),

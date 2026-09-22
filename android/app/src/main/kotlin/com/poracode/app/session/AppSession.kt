@@ -1,9 +1,8 @@
 package com.poracode.app.session
 
 import com.poracode.app.protocol.AppLifecycleGate
-import com.poracode.app.protocol.ProtocolConstants
-import com.poracode.app.protocol.RemoteAccessScopes
 import com.poracode.app.protocol.ThreadHydrationCoordinator
+import com.poracode.app.session.catalog.CatalogSyncController
 import com.poracode.app.storage.SessionCredentialRepository
 import com.poracode.app.storage.SessionCredentials
 import com.poracode.app.transport.ForegroundNetworkGate
@@ -22,7 +21,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class AppSession(
     private val credentials: SessionCredentialRepository,
@@ -66,6 +64,14 @@ class AppSession(
             RemoteWebSocketClient.ConnectionState.Idle,
         val socketDetail: String? = null,
         val liveBrowserForwardVersions: Set<Int> = emptySet(),
+        /** B1 live `capabilities.runtimeHistoryNotices.versions`; empty = undeclared. */
+        val liveRuntimeHistoryNoticeVersions: Set<Int> = emptySet(),
+        /**
+         * Live `capabilities.projectCommandResults.versions` from this
+         * connection's descriptor; empty = undeclared. Never persisted or
+         * shared across hosts: the lease reads only this live value.
+         */
+        val liveProjectCommandResultVersions: Set<Int> = emptySet(),
         val snapshot: com.poracode.app.model.RemoteShellSnapshot? = null,
         val hostSnapshots: Map<
             com.poracode.app.model.ClientConnectionId,
@@ -109,6 +115,9 @@ class AppSession(
             com.poracode.app.protocol.ThreadRuntimeDomainState(),
         val hostReplay: com.poracode.app.session.replay.HostReplayCacheUi =
             com.poracode.app.session.replay.HostReplayCacheUi.EMPTY,
+        /** Bounded catalog walk generation, per-row guards and pins. */
+        val catalog: com.poracode.app.session.catalog.CatalogUiState =
+            com.poracode.app.session.catalog.CatalogUiState(),
     )
     data class PairingInput(
         val pairingUrlOrEmpty: String = "",
@@ -133,191 +142,42 @@ class AppSession(
     private lateinit var hosts: HostSessionController
     private lateinit var bootstrapController: SessionBootstrapController
     private lateinit var lifecycleCoordinator: AppSessionLifecycleCoordinator
-    @Volatile
-    private var richChatEventSink:
-        ((Int, kotlinx.serialization.json.JsonElement) -> Unit)? = null
-    @Volatile
-    private var replaySideEffectSink:
-        ((com.poracode.app.session.replay.ReplayOutcome) -> Unit)? = null
-    @Volatile
-    private var heavyReviewTargetSupplier:
-        (() -> HeavyReviewTarget?)? = null
+    private lateinit var catalog: CatalogSyncController
+    private val sinks = SessionSinks()
+    private val pendingOpen = PendingThreadOpenState()
     private val browserMirrorBridge = BrowserMirrorSessionBridge { live.webSocket }
-    private data class PendingThreadOpen(
-        val connectionId: com.poracode.app.model.ClientConnectionId,
-        val threadId: String,
-    )
-    private var pendingThreadOpen: PendingThreadOpen? = null
     init {
-        live = LiveConnectionController(
+        val graph = buildSessionControllerGraph(
+            credentials = credentials,
             scope = scope,
             jobs = jobs,
             owner = owner,
             lifecycleGate = lifecycleGate,
+            hydration = hydration,
+            interestEpoch = interestEpoch,
+            sessionPool = sessionPool,
             apiFactory = apiFactory,
             socketFactory = socketFactory,
             ioDispatcher = ioDispatcher,
-            state = { _state.value },
-            updateState = { _state.update(it) },
-            deliverServerMessage = { events.handleServerMessage(it) },
-            requestResync = { reason -> resync.launchResync(reason) },
-            interestEpoch = interestEpoch,
-            onAuthoritativeBaseline = { resync.clearAuthoritativeRefreshRequired() }, onLiveSocketInstalled = { browserMirrorBridge.installOnLiveSocket() },
-            agentStatusesBootstrap = AgentStatusesBootstrap(scope, ioDispatcher, begin = { events.beginAgentStatusesBase() }) { native, wsl -> events.seedAgentStatusesBase(native, wsl) },
-        )
-        events = SessionEventRouter(
-            scope = scope,
-            jobs = jobs,
-            hydration = hydration,
-            isForeground = { lifecycleGate.isForeground },
-            allowsLiveEvents = { resync.allowsLiveEvents },
-            openThreadGeneration = { hydration.currentGeneration },
-            state = { _state.value },
-            updateState = { _state.update(it) },
-            setLastSeenSeq = { live.lastSeenSeq = it },
-            refreshSnapshot = { live.refreshSnapshot() },
-            refreshOpenThreadMetadata = { events.refreshOpenThreadMetadataImpl() },
-            api = { live.api },
-            ioDispatcher = ioDispatcher,
-            handleUnauthorized = { msg ->
-                live.handleUnauthorized(msg)
-            },
-            requestResync = { reason -> resync.launchResync(reason) },
-            richChatEventSink = { sequence, event ->
-                richChatEventSink?.invoke(sequence, event)
-            },
-            applyGitInterests = { live.webSocket?.setGitInterests(it) },
-            onReplaySideEffects = { outcome -> replaySideEffectSink?.invoke(outcome) },
-            heavyReviewTarget = { heavyReviewTargetSupplier?.invoke() },
-            presentRemoteNotification = { notification, replay ->
-                notificationBridge.receive(notification, replay, _state.value, lifecycleGate.isForeground)
-            },
-        )
-        threads = ThreadController(
-            scope = scope,
-            jobs = jobs,
-            owner = owner,
-            hydration = hydration,
-            interestEpoch = interestEpoch,
-            ioDispatcher = ioDispatcher,
-            isForeground = { lifecycleGate.isForeground },
-            state = { _state.value },
-            updateState = { _state.update(it) },
-            api = { live.api },
-            applyThreadInterests = { ids, epoch -> live.applyThreadInterests(ids, epoch) },
-            handleApiException = { live.handleApiException(it) },
-            requestAuthoritativeRefresh = { resync.requestUserAuthoritativeRefresh() },
-            applyLiveEvent = { events.applyLiveEvent(it) },
-        )
-        resync = ResyncEngine(
-            scope = scope,
-            jobs = jobs,
-            owner = owner,
-            isForeground = { lifecycleGate.isForeground },
-            currentApi = { live.api },
-            currentSocket = { live.webSocket },
-            openThreadId = { _state.value.openThreadId },
-            openThreadGeneration = { hydration.currentGeneration },
-            hasAuthoritativeBaseline = {
-                live.lastSeenSeq != null && _state.value.snapshot != null
-            },
-            nextSnapshotAttemptSeq = { live.nextSnapshotAttemptSeq() },
-            fetchShell = { api -> withContext(ioDispatcher) { api.snapshot() } },
-            fetchHistory = { api, id ->
-                withContext(ioDispatcher) {
-                    api.threadHistory(threadId = id, targetTimelineEntryCount = 40)
-                }
-            },
-            onCommit = { commit ->
-                live.lastSeenSeq = commit.reconnectSeq
-                _state.update { s ->
-                    LiveSessionStateTransitions.authoritativeCommit(s, commit)
-                }
-                live.ensureLiveSocketAfterAuthoritativeCommit()
-                events.seedReplayAuthoritative(commit.shell)
-            },
-            onUnauthorized = { msg ->
-                live.handleUnauthorized(msg)
-            },
-            onFailureMessage = { msg ->
-                _state.update { it.copy(globalError = msg) }
-            },
-            onBeginOpenThread = { id -> threads.beginOpenForResync(id) },
-            hydration = hydration,
-        )
-        hosts = HostSessionController(
-            repository = credentials,
-            scope = scope,
-            ioDispatcher = ioDispatcher,
-            owner = owner,
-            pool = sessionPool,
-            apiFactory = apiFactory,
-            socketFactory = socketFactory,
-            isForeground = { lifecycleGate.isForeground },
-            hasEndpointPermission = hasEndpointPermission,
-            state = { _state.value },
-            updateState = { _state.update(it) },
-            installSelected = ::installSelectedCredentials,
-            installEmpty = ::installEmptyCatalog,
-            beforeRemove = beforeHostRemoval,
-        )
-        pairing = PairingCoordinator(
-            credentials = credentials,
-            scope = scope,
-            jobs = jobs,
-            owner = owner,
-            apiFactory = apiFactory,
-            ioDispatcher = ioDispatcher,
-            state = { _state.value },
-            updateState = { _state.update(it) },
-            accessToken = { live.accessToken },
-            setAccessToken = { live.accessToken = it },
-            destroyLiveForHostSwap = {
-                resync.reset()
-                live.destroyLiveForHostSwap()
-            },
-            onPairCommitted = { profile, token ->
-                events.bindReplayHost(profile.desktopId)
-                hosts.refreshCatalog()
-                live.installApi(profile.httpBaseUrl, token)
-                live.startLiveSession()
-                hosts.warmSecondary()
-                hosts.refreshHostSnapshots()
-            },
-            onUnpairComplete = {
-                resync.reset()
-                events.clearReplayCache()
-                live.destroyAllForUnpair()
-            },
-            onCatalogChanged = { hosts.reconcileSelected() },
-        )
-        bootstrapController = SessionBootstrapController(
-            credentials = credentials,
-            scope = scope,
-            jobs = jobs,
-            owner = owner,
-            hosts = hosts,
-            live = live,
-            ioDispatcher = ioDispatcher,
-            apiFactory = apiFactory,
-            hasEndpointPermission = hasEndpointPermission,
-            updateState = { _state.update(it) },
-        )
-        lifecycleCoordinator = AppSessionLifecycleCoordinator(
             networkGate = networkGate,
-            live = live,
-            threads = threads,
-            pairing = pairing,
-            hosts = hosts,
-            resync = resync,
-            jobs = jobs,
-            scope = scope,
+            hasEndpointPermission = hasEndpointPermission,
+            beforeHostRemoval = beforeHostRemoval,
+            notificationBridge = notificationBridge,
+            browserMirrorBridge = browserMirrorBridge,
+            sinks = sinks,
+            pendingOpen = pendingOpen,
             state = { _state.value },
             updateState = { _state.update(it) },
-            hasEndpointPermission = hasEndpointPermission,
-            bootstrap = ::bootstrap,
         )
-        // Browser-mirror sink binding is driven by the live-socket lifecycle via onLiveSocketInstalled.
+        live = graph.live
+        catalog = graph.catalog
+        events = graph.events
+        threads = graph.threads
+        resync = graph.resync
+        pairing = graph.pairing
+        hosts = graph.hosts
+        bootstrapController = graph.bootstrapController
+        lifecycleCoordinator = graph.lifecycleCoordinator
     }
 
     fun bootstrap() = bootstrapController.start()
@@ -395,12 +255,15 @@ class AppSession(
         } else if (parts.connectionId == _state.value.hostCatalog.selectedConnectionId) {
             threads.openThread(parts.remoteId)
         } else {
-            pendingThreadOpen = PendingThreadOpen(parts.connectionId, parts.remoteId)
+            pendingOpen.set(parts.connectionId, parts.remoteId)
             hosts.select(parts.connectionId)
         }
     }
     fun closeThread() = threads.closeThread()
     fun loadOlderItems() = threads.loadOlderItems()
+
+    /** Loads one older `ct1.` completed-turn page into the open thread's snapshot. */
+    fun loadOlderCompletedTurns() = threads.loadOlderCompletedTurns()
     fun sendMessage(text: String, onResult: (Boolean) -> Unit = {}) =
         threads.sendMessage(text, onResult)
     fun interruptOpenThread() = threads.interruptOpenThread()
@@ -408,20 +271,20 @@ class AppSession(
     fun setRichChatEventSink(
         sink: ((Int, kotlinx.serialization.json.JsonElement) -> Unit)?,
     ) {
-        richChatEventSink = sink
+        sinks.richChatEventSink = sink
     }
 
     /** Registers the receiver for sequenced-replay side effects (e.g. terminal fresh-baseline). */
     fun setReplaySideEffectSink(
         sink: ((com.poracode.app.session.replay.ReplayOutcome) -> Unit)?,
     ) {
-        replaySideEffectSink = sink
+        sinks.replaySideEffectSink = sink
     }
 
     fun setHeavyReviewTargetSource(
         supplier: (() -> HeavyReviewTarget?)?,
     ) {
-        heavyReviewTargetSupplier = supplier
+        sinks.heavyReviewTargetSupplier = supplier
     }
 
     fun recomputeGitInterests() = events.recomputeGitInterests()
@@ -442,40 +305,6 @@ class AppSession(
     fun threadsFor(projectId: String) = HostPresentation.threads(_state.value, projectId)
     fun unifiedThreads() = HostPresentation.unifiedThreads(_state.value)
 
-    private suspend fun installSelectedCredentials(credentials: SessionCredentials) {
-        resync.reset()
-        events.bindReplayHost(credentials.profile.desktopId)
-        live.destroyLiveForHostSwap()
-        owner.bumpSessionGeneration()
-        _state.update { SessionStateTransitions.installingHost(it, credentials.profile) }
-        if (credentials.profile.protocolVersion != ProtocolConstants.REMOTE_PROTOCOL_VERSION) {
-            live.accessToken = null
-            bootstrap()
-            return
-        }
-        live.accessToken = credentials.accessToken
-        if (!hasEndpointPermission(credentials.profile.httpBaseUrl)) {
-            _state.update { it.copy(phase = Phase.LocalNetworkPermissionRequired) }
-            return
-        }
-        live.installApi(credentials.profile.httpBaseUrl, credentials.accessToken)
-        live.startLiveSession()
-        pendingThreadOpen?.takeIf {
-            it.connectionId == _state.value.hostCatalog.selectedConnectionId
-        }?.let { pending ->
-            pendingThreadOpen = null
-            threads.openThread(pending.threadId)
-        }
-    }
-
-    private fun installEmptyCatalog() {
-        resync.reset()
-        events.clearReplayCache()
-        live.destroyAllForUnpair()
-        owner.bumpSessionGeneration()
-        val catalog = _state.value.hostCatalog
-        _state.value = UiState(phase = Phase.NeedsPairing, hostCatalog = catalog)
-    }
     companion object {
         const val SEND_MISSING_THREAD_CONFIG_MESSAGE =
             "This thread is not ready to send yet. Wait for the transcript to load, or reopen the thread."

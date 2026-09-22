@@ -3,6 +3,7 @@ package com.poracode.app.session
 import com.poracode.app.model.ClientConnectionId
 import com.poracode.app.model.CompositeRemoteId
 import com.poracode.app.model.ConnectionProfile
+import com.poracode.app.model.EnvironmentHostReference
 import com.poracode.app.model.HostCatalogSnapshot
 import com.poracode.app.model.HostRecord
 import com.poracode.app.model.HostRegistryDocument
@@ -424,6 +425,86 @@ class MultiHostSessionTest {
         assertEquals("Re-paired", compacted.hosts.first().label)
         assertEquals(listOf(id(2), id(3)), compacted.lru)
         assertEquals(id(2), compacted.selectedConnectionId)
+    }
+
+    @Test
+    fun environmentRecordsAreNeverCompactedAway() {
+        val stale = HostRecord(id(1), profile(1), 1_001L)
+        val fresh = HostRecord(id(2), profile(1).copy(label = "Re-paired"), 1_500L)
+        val environmentId = "11111111-1111-4111-8111-111111111111"
+        val environment = HostRecord(
+            connectionId = id(3),
+            desktopId = "child",
+            label = "Environment",
+            httpBaseUrl = "https://host-1.test/api/environments/$environmentId/proxy",
+            wsBaseUrl = "wss://host-1.test/api/environments/$environmentId/proxy",
+            appVersion = "12.0.0",
+            pairedAtEpochMs = 1,
+            protocolVersion = 12,
+            environment = EnvironmentHostReference(id(2), environmentId, "child"),
+        )
+        val snapshot = HostCatalogSnapshot(
+            HostRegistryDocument(
+                selectedConnectionId = id(2),
+                lru = listOf(id(2), id(3), id(1)),
+                hosts = listOf(stale, fresh, environment),
+            ),
+            registryExists = true,
+        )
+
+        val compacted = compactHostsByEndpoint(snapshot)
+
+        assertEquals(
+            "an environment row is never silently hidden by direct-endpoint compaction",
+            listOf(id(2), id(3)),
+            compacted.hosts.map { it.connectionId },
+        )
+    }
+
+    @Test
+    fun environmentEndpointIsDerivedFromTheCurrentParent() {
+        val environmentId = "11111111-1111-4111-8111-111111111111"
+        val parent = HostRecord(
+            connectionId = id(1),
+            desktopId = "parent",
+            label = "Parent",
+            httpBaseUrl = "https://current.test/",
+            wsBaseUrl = "wss://current.test/",
+            appVersion = "12.0.0",
+            pairedAtEpochMs = 1,
+            protocolVersion = 12,
+        )
+        val environment = HostRecord(
+            connectionId = id(2),
+            desktopId = "child",
+            label = "Environment",
+            // Stored pairing-time snapshot points at the old parent endpoint.
+            httpBaseUrl = "https://stale.test/api/environments/$environmentId/proxy",
+            wsBaseUrl = "wss://stale.test/api/environments/$environmentId/proxy",
+            appVersion = "12.0.0",
+            pairedAtEpochMs = 1,
+            protocolVersion = 12,
+            environment = EnvironmentHostReference(id(1), environmentId, "child"),
+        )
+        val snapshot = HostCatalogSnapshot(
+            HostRegistryDocument(
+                selectedConnectionId = id(2),
+                lru = listOf(id(2), id(1)),
+                hosts = listOf(parent, environment),
+            ),
+            registryExists = true,
+        )
+
+        val presented = deriveEnvironmentEndpoints(snapshot)
+
+        assertEquals(
+            "https://current.test/api/environments/$environmentId/proxy",
+            presented.hosts.first { it.connectionId == id(2) }.httpBaseUrl,
+        )
+        assertEquals(
+            "wss://current.test/api/environments/$environmentId/proxy",
+            presented.hosts.first { it.connectionId == id(2) }.wsBaseUrl,
+        )
     }
 
     @Test

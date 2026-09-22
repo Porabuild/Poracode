@@ -68,6 +68,39 @@ class RemoteEnvironmentCapabilitiesProjectionTest {
         assertEquals(listOf(1), env.capabilities?.browserForward?.versions)
     }
 
+    @Test
+    fun projectCommandResultsCapabilitySurvivesCanonicalProjection() {
+        val env = RemoteV3TransportAdapters.environment(
+            environmentJson(
+                capabilitiesMember =
+                    """"capabilities":{"projectCommandResults":{"versions":[1]}}""",
+            ),
+            legacy = false,
+        )
+
+        assertEquals(listOf(1), env.capabilities?.projectCommandResults?.versions)
+        assertEquals(
+            RemoteEnvironmentDescriptor.PROJECT_COMMAND_RESULTS_VERSION,
+            env.capabilities?.projectCommandResults?.versions?.single(),
+        )
+    }
+
+    @Test
+    fun aDescriptorWithoutTheProjectCommandResultsMemberStaysUnknown() {
+        val env = RemoteV3TransportAdapters.environment(
+            environmentJson(
+                capabilitiesMember = """"capabilities":{"browserForward":{"versions":[1]}}""",
+            ),
+            legacy = false,
+        )
+
+        assertNull(env.capabilities?.projectCommandResults)
+        assertFalse(
+            RemoteEnvironmentDescriptor.PROJECT_COMMAND_RESULTS_VERSION in
+                env.capabilities?.projectCommandResults?.versions.orEmpty(),
+        )
+    }
+
     /**
      * Canonical environment shape (mirrors
      * protocol/remote/v3/fixtures/environment.json); [capabilitiesMember] is a

@@ -140,4 +140,24 @@
     <string name="rich_chat_queue_resume">再開</string>
     <string name="rich_chat_queue_edit_title">待機中のメッセージを編集</string>
     <string name="rich_chat_queue_save">保存</string>
+    <string name="rich_chat_history_notice_title">履歴が不完全です</string>
+    <string name="rich_chat_history_notice_body">一部のイベントが保存されませんでした。確認すると不完全な履歴のまま続行できますが、欠落した内容は復元されず、配信元が停止したことの確認でもありません。</string>
+    <string name="rich_chat_history_notice_detail">未保存: 少なくとも %1$d（%2$s） · %3$s · %4$s</string>
+    <string name="rich_chat_history_notice_ack">確認</string>
+    <string name="rich_chat_history_notice_ack_in_flight">確認中…</string>
+    <string name="rich_chat_history_notice_check_failed">復旧の詳細を読み取れませんでした。</string>
+    <string name="rich_chat_history_notice_source_exact">確認済みの損失</string>
+    <string name="rich_chat_history_notice_source_suspect">推定される損失</string>
+    <string name="rich_chat_history_notice_source_unknown">損失</string>
+    <string name="rich_chat_history_notice_reason_thread_events">スレッドのイベント上限</string>
+    <string name="rich_chat_history_notice_reason_thread_bytes">スレッドのサイズ上限</string>
+    <string name="rich_chat_history_notice_reason_global_events">グローバルなイベント上限</string>
+    <string name="rich_chat_history_notice_reason_global_bytes">グローバルなサイズ上限</string>
+    <string name="rich_chat_history_notice_reason_oversize">サイズ超過のイベント</string>
+    <string name="rich_chat_history_notice_reason_age">経過時間により削除</string>
+    <string name="rich_chat_history_notice_reason_degraded">ストレージが劣化</string>
+    <string name="rich_chat_history_notice_reason_rebase_dropped">リベースにより破棄</string>
+    <string name="rich_chat_history_notice_reason_shutdown">異常終了</string>
+    <string name="rich_chat_history_notice_reason_unclean_epoch">異常なセッション</string>
+    <string name="rich_chat_history_notice_reason_unknown">ストレージ上限</string>
 </resources>
