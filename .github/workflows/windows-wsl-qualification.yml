@@ -1,0 +1,191 @@
+name: Windows WSL qualification
+
+# Real Windows/WSL2 qualification lane, driven by scripts/ci-windows-wsl-lab.mjs
+# plus the fail-closed suite in tests/real-wsl/. Two legs with sharply
+# different evidence value:
+#
+# - hosted_nat: scheduled + manual on the hosted windows-latest runner. NAT
+#   mode only, and the only leg with the real in-distro sshd + ephemeral key
+#   validation. HOSTED WINDOWS SERVER RUNNERS CANNOT PROVE MIRRORED NETWORKING:
+#   `networkingMode=mirrored` is a Windows 11 client feature, and a green
+#   hosted run says nothing about mirrored behavior.
+# - selfhosted_mirrored: manual dispatch only, on the clearly labeled
+#   self-hosted Windows 11 qualification runner enrolled with exactly
+#   [self-hosted, Windows, windows11, poracode-wsl-mirrored], where mirrored
+#   mode is real.
+#
+# Deliberately no push/pull_request triggers and no required merge gate yet:
+# this lane is evidence-gathering, not gating. Evidence uploads on success and
+# failure but not on cancellation (an interrupted run has no complete lab to
+# archive). Every action is pinned to the repository's SHAs, every job is
+# time-bounded, and cleanup only ever removes state the lab itself created.
+
+on:
+  schedule:
+    - cron: "37 5 * * 3" # Weekly NAT + sshd leg, Wednesday 05:37 UTC (off-minute)
+  workflow_dispatch:
+    inputs:
+      run_mirrored:
+        description: >-
+          Also run the mirrored-mode leg on the labeled self-hosted Windows 11
+          runner. Hosted Windows Server never proves mirrored, so this input
+          is the only way the mirrored leg runs.
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-wsl-qualification-nat
+  cancel-in-progress: false
+
+env:
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  hosted_nat:
+    name: Hosted windows-latest — NAT + real sshd leg
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+    runs-on: windows-latest
+    timeout-minutes: 90 # rootfs download + two imports + suite + cleanup headroom
+    env:
+      WSL_LAB_EVIDENCE_DIR: ${{ runner.temp }}/windows-wsl-lab-evidence
+      WSL_LAB_STATE_DIR: ${{ runner.temp }}/windows-wsl-lab-state
+      WSL_ROOTFS_SHA256: ${{ vars.WSL_ROOTFS_SHA256 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lab and workflow self-tests
+        run: node --test scripts/ci-windows-wsl-lab.test.mjs scripts/windows-wsl-qualification-workflow.test.mjs
+
+      - name: Provision the WSL lab (NAT + sshd)
+        run: |
+          set -euo pipefail
+          [[ "$WSL_ROOTFS_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "::error::Set repository variable WSL_ROOTFS_SHA256 to the pinned Ubuntu 24.04 WSL rootfs digest."; exit 1; }
+          node scripts/ci-windows-wsl-lab.mjs provision \
+            --mode nat \
+            --with-sshd \
+            --rootfs-sha256 "$WSL_ROOTFS_SHA256" \
+            --out "$WSL_LAB_EVIDENCE_DIR" \
+            --state "$WSL_LAB_STATE_DIR"
+
+      - name: Run the real-WSL qualification suite
+        env:
+          PORACODE_WSL_LAB: "1"
+          PORACODE_WSL_LAB_JSON: ${{ runner.temp }}/windows-wsl-lab-evidence/lab.json
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run --configLoader runner --config tests/real-wsl/vitest.config.ts \
+            2>&1 | tee "$WSL_LAB_EVIDENCE_DIR/real-wsl-suite.log"
+
+      - name: Clean up lab-owned state
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          # Best effort at the job level: a failed unregister must not mask the
+          # suite verdict (hosted runners are ephemeral; the script itself
+          # already fails provision when it cannot honor its own invariants).
+          node scripts/ci-windows-wsl-lab.mjs cleanup --state "$WSL_LAB_STATE_DIR" || true
+
+      - name: Upload lab evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-wsl-lab-nat-${{ github.run_id }}
+          path: ${{ runner.temp }}/windows-wsl-lab-evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  selfhosted_mirrored:
+    name: Self-hosted windows11 — mirrored leg (manual only)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_mirrored == true }}
+    # Enroll the runner with exactly these labels: mirrored networking is a
+    # Windows 11 client feature, so the labels — not the comments — are what
+    # keep this leg honest. Node 24 + pnpm must be reachable through the
+    # actions below (they provision both).
+    runs-on: [self-hosted, Windows, windows11, poracode-wsl-mirrored]
+    timeout-minutes: 120
+    concurrency:
+      group: windows-wsl-qualification-mirrored
+      cancel-in-progress: false
+    env:
+      WSL_LAB_EVIDENCE_DIR: ${{ runner.temp }}/windows-wsl-lab-evidence
+      WSL_LAB_STATE_DIR: ${{ runner.temp }}/windows-wsl-lab-state
+      WSL_ROOTFS_SHA256: ${{ vars.WSL_ROOTFS_SHA256 }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          clean: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Lab and workflow self-tests
+        run: node --test scripts/ci-windows-wsl-lab.test.mjs scripts/windows-wsl-qualification-workflow.test.mjs
+
+      - name: Provision the WSL lab (mirrored + sshd)
+        run: |
+          set -euo pipefail
+          [[ "$WSL_ROOTFS_SHA256" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "::error::Set repository variable WSL_ROOTFS_SHA256 to the pinned Ubuntu 24.04 WSL rootfs digest."; exit 1; }
+          node scripts/ci-windows-wsl-lab.mjs provision \
+            --mode mirrored \
+            --with-sshd \
+            --rootfs-sha256 "$WSL_ROOTFS_SHA256" \
+            --out "$WSL_LAB_EVIDENCE_DIR" \
+            --state "$WSL_LAB_STATE_DIR"
+
+      - name: Run the real-WSL qualification suite
+        env:
+          PORACODE_WSL_LAB: "1"
+          PORACODE_WSL_LAB_JSON: ${{ runner.temp }}/windows-wsl-lab-evidence/lab.json
+        run: |
+          set -euo pipefail
+          pnpm exec vitest run --configLoader runner --config tests/real-wsl/vitest.config.ts \
+            2>&1 | tee "$WSL_LAB_EVIDENCE_DIR/real-wsl-suite.log"
+
+      - name: Clean up lab-owned state
+        if: ${{ always() }}
+        run: |
+          set -euo pipefail
+          # On a long-lived self-hosted runner this matters more: the lab must
+          # restore the original .wslconfig (persistent backup) and unregister
+          # only its own distros.
+          node scripts/ci-windows-wsl-lab.mjs cleanup --state "$WSL_LAB_STATE_DIR" || true
+
+      - name: Upload lab evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-wsl-lab-mirrored-${{ github.run_id }}
+          path: ${{ runner.temp }}/windows-wsl-lab-evidence
+          if-no-files-found: warn
+          retention-days: 30
