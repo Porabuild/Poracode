@@ -680,10 +680,15 @@ async function runAndroidRealJourney({ registerShutdown }) {
 
     await runBuffered("adb", ["reverse", `tcp:${controlPort}`, `tcp:${controlPort}`]);
     await runBuffered("adb", ["reverse", `tcp:${productionPort}`, `tcp:${productionPort}`]);
+    // This real-peer class receives one deliberately one-use pairing URL for
+    // its terminal + Git methods. Start the suite clean, then let Orchestrator
+    // preserve the first method's stored host for the second method.
+    await runBuffered("adb", ["shell", "pm", "clear", "com.lightcodeapp.mobile"]);
     const status = await runStreaming(
       "./gradlew",
       [
         "connectedDebugAndroidTest",
+        "-Pandroid.testInstrumentationRunnerArguments.clearPackageData=false",
         "-Pandroid.testInstrumentationRunnerArguments.peerMode=real",
         `-Pandroid.testInstrumentationRunnerArguments.pairingUrl=${pairingUrl}`,
         `-Pandroid.testInstrumentationRunnerArguments.capability=${capability}`,
