@@ -41,11 +41,25 @@ void test("shared and uncertain changes run every qualification lane", () => {
     "protocol/remote/v3/generated/schema.json",
     "pnpm-lock.yaml",
     ".github/workflows/native-ci.yml",
-    "website/package.json",
   ]) {
     assert.deepEqual(classifyChanges([path]), fullScope(), path);
   }
   assert.deepEqual(classifyChanges([]), fullScope());
+});
+
+void test("renderer and separately shipped surfaces do not start native clients", () => {
+  for (const path of [
+    "src/renderer/App.tsx",
+    "chrome-extension/manifest.json",
+    "branding/assets/icon.svg",
+    "website/package.json",
+  ]) {
+    assert.deepEqual(
+      classifyChanges([path]),
+      { core: true, nativeAndroid: false, nativeIos: false, nativeShared: false },
+      path,
+    );
+  }
 });
 
 void test("required gates remain present and validate intentionally skipped jobs", async () => {
@@ -80,4 +94,42 @@ void test("required gates remain present and validate intentionally skipped jobs
   }
   assert.ok(native.jobs.native_gate.needs.includes("changes"));
   assert.match(native.jobs.native_gate.steps.at(-1).run, /const wanted = required/u);
+});
+
+void test("pull requests keep release-grade native lanes opt-in while full runs retain them", async () => {
+  const native = parse(
+    await readFile(new URL("../.github/workflows/native-ci.yml", import.meta.url), "utf8"),
+  );
+
+  assert.equal(native.jobs.changes.outputs.full, "${{ steps.mode.outputs.full }}");
+  const mode = native.jobs.changes.steps.find((step) => step.id === "mode");
+  assert.match(mode.env.FULL_QUALIFICATION, /github\.event_name != 'pull_request'/u);
+  assert.doesNotMatch(mode.env.FULL_QUALIFICATION, /labels/u);
+
+  for (const name of [
+    "ios_ui",
+    "android_api34_runtime",
+    "android_api37_runtime",
+    "server_install_qualification",
+  ]) {
+    assert.match(native.jobs[name].if, /needs\.changes\.outputs\.full == 'true'/u, name);
+  }
+
+  const loadStep = native.jobs.native_e2e_foundation.steps.find(
+    (step) => step.name === "Run isolated native load qualifications",
+  );
+  assert.match(loadStep.if, /needs\.changes\.outputs\.full == 'true'/u);
+  const gate = native.jobs.native_gate.steps.at(-1);
+  assert.equal(gate.env.FULL_REQUIRED, "${{ needs.changes.outputs.full }}");
+  assert.match(gate.run, /FULL_REQUIRED/u);
+});
+
+void test("core gate consumes test shards directly without a no-op runner hop", async () => {
+  const core = parse(
+    await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8"),
+  );
+
+  assert.equal(core.jobs.test, undefined);
+  assert.ok(core.jobs.ci_gate.needs.includes("test_shard"));
+  assert.ok(!core.jobs.ci_gate.needs.includes("test"));
 });

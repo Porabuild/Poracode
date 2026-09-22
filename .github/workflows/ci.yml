@@ -329,31 +329,11 @@ jobs:
       - name: Remote protocol perf suite
         run: pnpm run test:perf:remote
 
-  test:
-    name: Test
-    needs: [changes, test_shard]
-    if: ${{ needs.changes.outputs.core == 'true' && needs.test_shard.result == 'success' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify test shards
-        run: test "${{ needs.test_shard.result }}" = "success"
-
   ci_gate:
     name: CI required gate
     if: ${{ always() }}
     needs:
-      [
-        changes,
-        typecheck,
-        lint,
-        fmt,
-        web_build,
-        runtime_deps,
-        rust_helper,
-        test_shard,
-        test_perf,
-        test,
-      ]
+      [changes, typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test_perf]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -367,7 +347,7 @@ jobs:
           if (!["true", "false"].includes(process.env.CORE_REQUIRED)) throw new Error("core change scope is missing");
           const required = new Set(["changes", "fmt"]);
           if (process.env.CORE_REQUIRED === "true") {
-            for (const name of ["typecheck", "lint", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf", "test"]) required.add(name);
+            for (const name of ["typecheck", "lint", "web_build", "runtime_deps", "rust_helper", "test_shard", "test_perf"]) required.add(name);
           }
           for (const [name, job] of Object.entries(jobs)) {
             const expected = required.has(name) ? "success" : "skipped";
