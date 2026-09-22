@@ -168,7 +168,6 @@ class Android37WireLabFamilyInstrumentedTest {
         compose.onNodeWithText(projectLabel).performClick()
         waitForEnabledTag("project_workspace")
         compose.onNodeWithTag("project_workspace").performClick()
-        if (!isRealPeer) waitForOperation("procedure:gitProjectSnapshot")
         waitForEnabledTag("workspace_git")
         compose.onNodeWithTag("workspace_git").performClick()
         waitForEnabledTag("git_actions_open")

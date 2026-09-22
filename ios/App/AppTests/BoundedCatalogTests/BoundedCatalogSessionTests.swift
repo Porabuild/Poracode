@@ -81,6 +81,7 @@ final class BoundedCatalogSessionTests: XCTestCase {
 
   func testSegmentYieldsResumeWithoutATotalCap() async throws {
     let fixture = BoundedCatalogHostFixture()
+    fixture.holdWalks = true
     let harness = try await BoundedCatalogSessionHarness.make(
       fixture: fixture,
       threadCount: 1_000,
@@ -94,6 +95,7 @@ final class BoundedCatalogSessionTests: XCTestCase {
       }
     )
     XCTAssertEqual(harness.session.snapshot?.threads.count, 100)
+    fixture.releaseWalks()
     await harness.waitUntil("segmented walk converges", timeout: 30) {
       harness.session.snapshot?.threads.count == 1_000
         && harness.session.state.catalog.threadPass == nil
