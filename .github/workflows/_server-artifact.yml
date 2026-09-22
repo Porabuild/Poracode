@@ -130,13 +130,25 @@ jobs:
         # §8): build the arm64 binding in an emulated arm64 container and drop it
         # where prepare-server-native.mjs picks cross targets up. Uses the
         # runner's Docker and the explicit binfmt setup above.
+        #
+        # pnpm resolves node-pty's only dependency, node-addon-api, to a sibling
+        # of the package in its virtual store, so copying node_modules/node-pty
+        # alone leaves binding.gyp's `require('node-addon-api')` unresolvable
+        # inside the container. Stage the exact installed copy — resolved by
+        # Node through pnpm's symlinks from the installed node-pty, never
+        # fetched from the registry where the version would be unpinned — and
+        # make the container prove it is visible before building.
+        # `npm rebuild --offline` fails loudly instead of papering over a
+        # missing dependency with a network fetch.
         if: matrix.cross_build
         run: |
-          mkdir -p dist/server-native-cross/linux-arm64 dist/server-native-cross/node-pty
+          mkdir -p dist/server-native-cross/linux-arm64 dist/server-native-cross/node-pty/node_modules
           cp -RL node_modules/node-pty/. dist/server-native-cross/node-pty/
+          ADDON_API_DIR="$(node -p "require('node:path').dirname(require.resolve('node-addon-api/package.json', { paths: [require('node:path').dirname(require.resolve('node-pty/package.json'))] }))")"
+          cp -RL "$ADDON_API_DIR" dist/server-native-cross/node-pty/node_modules/node-addon-api
           docker run --rm --platform linux/arm64 \
             -v "$PWD":/work -w /armbuild node:24-bookworm \
-            sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && rm -rf build && npm rebuild && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
+            sh -c "cp -R /work/dist/server-native-cross/node-pty /armbuild/np && cd /armbuild/np && node -p 'require(\"node-addon-api\").include_dir' >/dev/null && rm -rf build && npm rebuild --offline && cp build/Release/pty.node /work/dist/server-native-cross/linux-arm64/pty.node"
         shell: bash
 
       - name: Build and assemble the server artifact

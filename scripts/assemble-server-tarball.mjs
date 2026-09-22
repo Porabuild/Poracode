@@ -128,8 +128,8 @@ function legacyBetterSqlite3Targets(overlayRoot) {
   return targets;
 }
 
-function copyResourceDir(stageResources, name, required) {
-  const source = join(repoRoot, "resources", name);
+function copyResourceDir(resourceRoot, stageResources, name, required) {
+  const source = join(resourceRoot, name);
   if (!existsSync(source)) {
     if (required) throw new Error(`Required resource directory missing: ${source}`);
     return;
@@ -226,6 +226,9 @@ export function assembleServerTarball(options = {}) {
   const outDir = options.outDir ?? join(repoRoot, "dist");
   const overlaySource = options.overlaySource ?? join(repoRoot, "dist", "server-native");
   const webDir = options.webDir ?? join(repoRoot, "dist", "web");
+  // Resource trees are generated + gitignored in a real checkout, so tests
+  // inject a fixture root; production still reads the repository `resources/`.
+  const resourceRoot = options.resourceRoot ?? join(repoRoot, "resources");
   const apiOnly = options.apiOnly === true;
   const targets =
     options.targets && options.targets.length > 0
@@ -260,11 +263,11 @@ export function assembleServerTarball(options = {}) {
     cpSync(join(mainBundleDir, name), join(stage, "lib", name));
   }
 
-  copyResourceDir(join(stage, "resources"), "wsl-helpers", true);
-  copyResourceDir(join(stage, "resources"), "skills", false);
-  copyResourceDir(join(stage, "resources"), "plugins", false);
-  copyResourceDir(join(stage, "resources"), "agent-plugins", true);
-  copyResourceDir(join(stage, "resources"), "computer-use-helper", true);
+  copyResourceDir(resourceRoot, join(stage, "resources"), "wsl-helpers", true);
+  copyResourceDir(resourceRoot, join(stage, "resources"), "skills", false);
+  copyResourceDir(resourceRoot, join(stage, "resources"), "plugins", false);
+  copyResourceDir(resourceRoot, join(stage, "resources"), "agent-plugins", true);
+  copyResourceDir(resourceRoot, join(stage, "resources"), "computer-use-helper", true);
 
   copyNativeOverlay(overlaySource, join(stage, "native-overlay"));
   mkdirSync(join(stage, "scripts"), { recursive: true });

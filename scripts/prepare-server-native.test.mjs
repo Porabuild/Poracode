@@ -54,11 +54,24 @@ void test("parseRequireTargets collects every --require-target value", () => {
   });
 });
 
-void test("crossTargetsForHost stages the other macOS arch and the Linux cross set", () => {
+void test("crossTargetsForHost stages the other macOS arch and never the host's own shape", () => {
   assert.deepEqual(crossTargetsForHost("darwin", "arm64"), ["darwin-x64"]);
   assert.deepEqual(crossTargetsForHost("darwin", "x64"), ["darwin-arm64"]);
-  assert.deepEqual(crossTargetsForHost("linux", "x64"), CROSS_TARGETS);
-  assert.deepEqual(crossTargetsForHost("linux", "arm64"), CROSS_TARGETS);
+  // A Linux packaging host stages its own target as the host binding; staging
+  // it again as a cross prebuild duplicates the overlay entry and demands a
+  // `prebuilds/<host>.node` file that does not exist for the host shape.
+  assert.deepEqual(
+    crossTargetsForHost("linux", "x64"),
+    CROSS_TARGETS.filter((target) => target !== "linux-x64"),
+  );
+  assert.deepEqual(
+    crossTargetsForHost("linux", "arm64"),
+    CROSS_TARGETS.filter((target) => target !== "linux-arm64"),
+  );
+  assert.deepEqual(
+    crossTargetsForHost("linuxmusl", "x64"),
+    CROSS_TARGETS.filter((target) => target !== "linuxmusl-x64"),
+  );
 });
 
 void test("a required target must be covered by every staged native module (V6 D.2)", () => {

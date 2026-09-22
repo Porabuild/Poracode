@@ -37,13 +37,16 @@ export function hostPlatformKey() {
  * the D.2 cross targets (built in an emulated container or downloaded);
  * macOS hosts stage the other macOS arch from the modules' own published
  * prebuilds, so one `darwin-arm64`-assembled tarball also covers `darwin-x64`
- * (and vice versa on an Intel runner). Windows desktop packaging never builds
- * a standalone server artifact.
+ * (and vice versa on an Intel runner). The host's own shape is always staged
+ * as the host binding, so it never appears here: listing it again would
+ * duplicate the overlay entry and demand a `prebuilds/<host>.node` file no
+ * cross source provides. Windows desktop packaging never builds a standalone
+ * server artifact.
  */
 export function crossTargetsForHost(platform = platformKey, arch = process.arch) {
-  if (platform === "darwin")
-    return ["darwin-arm64", "darwin-x64"].filter((t) => t !== `${platform}-${arch}`);
-  return CROSS_TARGETS;
+  const hostTarget = `${platform}-${arch}`;
+  if (platform === "darwin") return ["darwin-arm64", "darwin-x64"].filter((t) => t !== hostTarget);
+  return CROSS_TARGETS.filter((t) => t !== hostTarget);
 }
 
 /** Directory a CI job can drop cross-built bindings into: `<target>/pty.node`. */

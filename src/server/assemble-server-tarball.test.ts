@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   assembleServerTarball,
@@ -99,6 +99,37 @@ function writeWebFixture(webDir: string) {
   writeFileSync(join(webDir, "service-worker.js"), 'const BUILD_VERSION = "web-build-1";\n');
 }
 
+/**
+ * Minimal complete content for every resource directory production assembly
+ * requires. All of these are generated + gitignored in a real checkout, so a
+ * clean CI shard has none of them — every assembling test stages its own
+ * fixture root and passes it through the `resourceRoot` seam instead of
+ * depending on local build state. Optional resources (`skills`, `plugins`)
+ * stay absent, which also exercises the optional-resource path.
+ */
+const REQUIRED_RESOURCE_FILES: Record<string, string[]> = {
+  "wsl-helpers": ["bridge.mjs", "watcher.node"],
+  "agent-plugins": ["claude/plugin.json"],
+  "computer-use-helper": ["manifest.json"],
+};
+
+function writeResourceFixtures(resourceRoot: string, omit?: string) {
+  for (const [name, files] of Object.entries(REQUIRED_RESOURCE_FILES)) {
+    if (name === omit) continue;
+    for (const file of files) {
+      const path = join(resourceRoot, name, file);
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, `${name}/${file}\n`);
+    }
+  }
+}
+
+function resourceFixtureDir(prefix: string): string {
+  const resourceRoot = tempDir(prefix);
+  writeResourceFixtures(resourceRoot);
+  return resourceRoot;
+}
+
 function fakeNpmRun(_command: string, _args: readonly string[], cwd: string) {
   writeFileSync(
     join(cwd, "package-lock.json"),
@@ -150,6 +181,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     const overlaySource = tempDir("poracode-tarball-overlay-");
     const webDir = tempDir("poracode-tarball-web-");
     writeWebFixture(webDir);
+    const resourceRoot = resourceFixtureDir("poracode-tarball-resources-");
 
     const bundleBytes = Buffer.from("module.exports = {};\n");
     writeFileSync(join(mainBundleDir, "server.cjs"), bundleBytes);
@@ -169,6 +201,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
       mainBundleDir,
       overlaySource,
       webDir,
+      resourceRoot,
       targets: ["linux-x64", "linux-arm64"],
       npmRun: fakeNpmRun,
       sourceRevision: "test-revision",
@@ -184,6 +217,16 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     expect(readFileSync(join(result.stageDir, "renderer", "index.html"), "utf8")).toContain("web");
     expect(existsSync(join(result.stageDir, "renderer", "assets", "app.js"))).toBe(true);
     expect(existsSync(join(result.stageDir, "LICENSE"))).toBe(true);
+    // The injected resource fixtures are staged verbatim at the artifact
+    // resource paths (they stand in for the generated trees a developer
+    // checkout happens to carry and clean CI does not).
+    for (const [name, files] of Object.entries(REQUIRED_RESOURCE_FILES)) {
+      for (const file of files) {
+        expect(readFileSync(join(result.stageDir, "resources", name, file), "utf8")).toBe(
+          `${name}/${file}\n`,
+        );
+      }
+    }
     expect(existsSync(join(result.stageDir, "npm-shrinkwrap.json"))).toBe(true);
     expect(existsSync(join(result.stageDir, "package-lock.json"))).toBe(false);
     const shippedPackage = JSON.parse(readFileSync(join(result.stageDir, "package.json"), "utf8"));
@@ -250,6 +293,36 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     }
   });
 
+  it("fails when a required resource directory is missing", () => {
+    const mainBundleDir = tempDir("poracode-tarball-resreg-main-");
+    const overlaySource = tempDir("poracode-tarball-resreg-overlay-");
+    writeFileSync(join(mainBundleDir, "server.cjs"), "module.exports = {};\n");
+    writeFileSync(
+      join(mainBundleDir, "server.ssh-runtime-manifest.json"),
+      `${JSON.stringify({ files: [{ path: "server.cjs" }], dependencies: [] })}\n`,
+    );
+    writeOverlay(overlaySource, { targets: [hostTarget()], withSqlite: true });
+    // Clean-CI regression: the required resource trees are generated and
+    // gitignored, so a fresh checkout has none of them. Assembly must refuse
+    // to publish an artifact that would silently lack one.
+    for (const missing of Object.keys(REQUIRED_RESOURCE_FILES)) {
+      const resourceRoot = tempDir(`poracode-tarball-resreg-${missing}-`);
+      writeResourceFixtures(resourceRoot, missing);
+      expect(() =>
+        assembleServerTarball({
+          outDir: tempDir("poracode-tarball-resreg-fail-"),
+          mainBundleDir,
+          overlaySource,
+          webDir: join(tempDir("poracode-tarball-resreg-"), "missing-web"),
+          apiOnly: true,
+          resourceRoot,
+          shrinkwrap: false,
+          sourceRevision: "test-revision",
+        }),
+      ).toThrow(new RegExp(`Required resource directory missing.*${missing}`, "u"));
+    }
+  });
+
   it("requires every advertised target in both native modules", () => {
     const overlaySource = tempDir("poracode-tarball-coverage-");
     writeOverlay(overlaySource, { targets: ["linux-x64"], withSqlite: true });
@@ -263,6 +336,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     const outDir = tempDir("poracode-tarball-api-");
     const mainBundleDir = tempDir("poracode-tarball-api-main-");
     const overlaySource = tempDir("poracode-tarball-api-overlay-");
+    const resourceRoot = resourceFixtureDir("poracode-tarball-api-resources-");
     writeFileSync(join(mainBundleDir, "server.cjs"), "module.exports = {};\n");
     writeFileSync(
       join(mainBundleDir, "server.ssh-runtime-manifest.json"),
@@ -274,6 +348,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
       outDir,
       mainBundleDir,
       overlaySource,
+      resourceRoot,
       webDir: join(outDir, "missing-web"),
       apiOnly: true,
       shrinkwrap: false,
@@ -288,6 +363,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     const outDir = tempDir("poracode-tarball-links-");
     const mainBundleDir = tempDir("poracode-tarball-links-main-");
     const overlaySource = tempDir("poracode-tarball-links-overlay-");
+    const resourceRoot = resourceFixtureDir("poracode-tarball-links-resources-");
     writeFileSync(join(mainBundleDir, "server.cjs"), "module.exports = {};\n");
     writeFileSync(
       join(mainBundleDir, "server.ssh-runtime-manifest.json"),
@@ -304,6 +380,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
       outDir,
       mainBundleDir,
       overlaySource,
+      resourceRoot,
       webDir: join(outDir, "missing-web"),
       apiOnly: true,
       shrinkwrap: false,
@@ -318,6 +395,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
         outDir: tempDir("poracode-tarball-links-out-"),
         mainBundleDir,
         overlaySource,
+        resourceRoot,
         webDir: join(outDir, "missing-web"),
         apiOnly: true,
         shrinkwrap: false,
@@ -330,6 +408,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     const outDir = tempDir("poracode-tarball-closure-out-");
     const mainBundleDir = tempDir("poracode-tarball-closure-main-");
     const overlaySource = tempDir("poracode-tarball-closure-overlay-");
+    const resourceRoot = resourceFixtureDir("poracode-tarball-closure-resources-");
     const target = hostTarget();
     writeFileSync(join(mainBundleDir, "server.cjs"), "module.exports = {};\n");
     writeFileSync(
@@ -346,6 +425,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
       outDir,
       mainBundleDir,
       overlaySource,
+      resourceRoot,
       webDir: join(outDir, "missing-web"),
       apiOnly: true,
       shrinkwrap: false,

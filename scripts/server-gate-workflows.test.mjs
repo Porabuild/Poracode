@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, realpath, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
 const workflowUrl = (name) => new URL(`../.github/workflows/${name}`, import.meta.url);
@@ -159,6 +163,90 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
       downloads.some((step) => /poracode-server-artifact-qualified-/u.test(step.with.pattern)),
       `${releaseName} must download the verified aggregate, not the per-leg builds`,
     );
+  }
+});
+
+void test("the arm64 node-pty cross-build stages the installed node-addon-api sibling and proves it visible", async () => {
+  const workflow = await readWorkflow("_server-artifact.yml");
+  const cross = workflow.jobs.build.steps.find(
+    (step) => step.name === "Cross-build the linux-arm64 node-pty binding",
+  );
+  assert.ok(cross, "the arm64 cross-build step is required in _server-artifact.yml");
+  const run = cross.run;
+
+  // The emulated arm64 container must still drop the binding where
+  // prepare-server-native.mjs picks cross targets up.
+  assert.match(run, /--platform linux\/arm64/u);
+  assert.match(run, /dist\/server-native-cross\/linux-arm64\/pty\.node/u);
+
+  // pnpm resolves node-pty's dependency to a virtual-store sibling, so the
+  // exact installed node-addon-api must be resolved by Node through pnpm's
+  // symlinks from the installed node-pty — never fetched from the registry,
+  // where the version would be unpinned.
+  assert.match(run, /require\.resolve\('node-addon-api\/package\.json'/u);
+  assert.match(
+    run,
+    /paths:\s*\[require\('node:path'\)\.dirname\(require\.resolve\('node-pty\/package\.json'\)\)\]/u,
+    "node-addon-api must resolve from the installed node-pty's real location",
+  );
+  assert.match(
+    run,
+    /cp -RL "\$ADDON_API_DIR" dist\/server-native-cross\/node-pty\/node_modules\/node-addon-api/u,
+    "the staged package must carry a dereferenced copy of node-addon-api",
+  );
+  assert.doesNotMatch(
+    run,
+    /npm (?:install|i|update|ci)\b/u,
+    "the cross-build must not fetch dependencies from the registry",
+  );
+  assert.match(
+    run,
+    /npm rebuild --offline/u,
+    "npm rebuild must fail loudly on a missing dependency, not fetch one",
+  );
+
+  // The container proves binding.gyp's own require resolves before building.
+  assert.match(
+    run,
+    /node -p 'require\(\\"node-addon-api\\"\)\.include_dir'/u,
+    "the container must verify node-addon-api is visible before npm rebuild",
+  );
+
+  // Behavioral proof of the staged recipe: replicate the two copies the
+  // workflow performs under the real pnpm layout, then resolve node-addon-api
+  // the way binding.gyp does (require rooted at the staged package dir) and
+  // confirm it resolves inside the staged tree at the exact installed version.
+  const repoRoot = fileURLToPath(new URL("..", import.meta.url));
+  const hostRequire = createRequire(join(repoRoot, "package.json"));
+  const ptyDir = dirname(hostRequire.resolve("node-pty/package.json"));
+  const addonApiPackage = hostRequire.resolve("node-addon-api/package.json", {
+    paths: [ptyDir],
+  });
+  const addonApiVersion = hostRequire(addonApiPackage).version;
+
+  const stage = await mkdtemp(join(tmpdir(), "node-pty-cross-"));
+  try {
+    const stagedPty = join(stage, "node-pty");
+    await cp(ptyDir, stagedPty, { recursive: true, dereference: true });
+    await cp(dirname(addonApiPackage), join(stagedPty, "node_modules", "node-addon-api"), {
+      recursive: true,
+      dereference: true,
+    });
+    const stagedResolution = createRequire(join(stagedPty, "binding.gyp")).resolve(
+      "node-addon-api/package.json",
+    );
+    assert.equal(
+      await realpath(dirname(stagedResolution)),
+      await realpath(join(stagedPty, "node_modules", "node-addon-api")),
+      `the staged copy must be visible from the staged package, resolved ${stagedResolution}`,
+    );
+    assert.equal(
+      hostRequire(stagedResolution).version,
+      addonApiVersion,
+      "the staged copy must be the exact installed node-addon-api version",
+    );
+  } finally {
+    await rm(stage, { recursive: true, force: true });
   }
 });
 
