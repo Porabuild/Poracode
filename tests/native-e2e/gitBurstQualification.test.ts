@@ -336,159 +336,167 @@ describe.skipIf(!entrypoint)(
       }
     }, 180_000);
 
-    it("burst size 64: streaming, steer, Stop and control survive one stalled network fetch", async () => {
-      const gitSession = requireSession();
-      const before = await gitSession.gitDiagnostics();
-      // The burst principals flood their own B3 budget; the §4 control
-      // surface (snapshot reads, ping, steer, Stop, streaming watch) lives on
-      // this separate authenticated principal — B3's "one busy client cannot
-      // consume the shared server's entire budget" acceptance, measured.
-      const control = await gitSession.openControlClient("gitburst-n64-control");
-      const clients = await gitSession.openBurstClients(
-        GIT_BURST_CLIENTS_BY_SIZE[64]!,
-        "gitburst-n64",
-      );
-      const heartbeat = new GitBurstHeartbeatObserver(control.ws);
-      const blackhole = await startBlackholeListener();
-      let stream: GitBurstStreamEvidence | null = null;
-      let steer: GitBurstSteerProbe | null = null;
-      let closeMs: number | null = null;
-      let stopWhileFetchStalled: boolean | null = null;
-      let heartbeatRecord: GitBurstHeartbeatRecord | null = null;
-      let controls: GitBurstControlProbeResult | null = null;
-      let refresh: GitBurstRefreshSummary | null = null;
-      let stall: { elapsedMs: number; status: number } | null = null;
-      try {
-        heartbeat.start();
-        const windowStartedAtMs = Date.now();
-        // The gauge sampler spans the WHOLE window: stream, burst, the stalled
-        // fetch and the drain — so the per-environment gauges cover the stall.
-        poller?.start();
-
-        const handle = await startStreamingShell({
-          client: control,
-          project: gitSession.fixtureProject(),
-          shellId: "gitburst-stream-01",
-          watchId: "gitburst-watch-01",
-        });
-        await startGenerator({ handle, lines: GIT_BURST_GENERATOR_LINES });
-
-        // The deliberately stalled network operation: one `long` permit pinned
-        // by a black-hole fetch while everything below keeps running.
-        const pendingFetch = await pinStalledNetworkFetch({
-          client: clients[1]!,
-          project: gitSession.fixtureProject(),
-          blackholeUrl: blackhole.url,
-        });
-        let fetchSettled = false;
-        const stalledFetch = pendingFetch.settled.then((settled) => {
-          fetchSettled = true;
-          return settled;
-        });
-
-        // The long permit must become visible in the production gauges while
-        // the operation stalls.
-        const longPermitObservedActive = await waitForVisibleLongPermit(gitSession);
-
-        // The burst: 64 distinct worktrees across 8 clients while the fetch
-        // stalls and the PTY streams; control probes ride along concurrently
-        // on the control principal.
-        const burst = runGitBurst(clients, gitSession.fixtureProject(), requireFixture().worktrees);
-        controls = await controlProbes(control, 5, 100, "concurrent-with-burst");
-        steer = await steerStreamingShell({ handle, probeId: "N64" });
-        refresh = await burst;
-
-        assert(longPermitObservedActive, "stalled fetch never became a visible long permit");
-        assertRefreshClassification(refresh);
-        assertRefreshErrorCodes(refresh);
-        assert(refresh.ok >= 1, "the shared pool must still admit work at size 64");
-        assertControlBounds(controls);
-        assert(steer.echoWaitMs !== null, "steer echo never observed within the frozen bound");
-        assert(
-          steer.echoWaitMs <= GIT_BURST_BOUND_STEER_ECHO_MS,
-          `steer echo ${String(steer.echoWaitMs)}ms exceeded ${String(GIT_BURST_BOUND_STEER_ECHO_MS)}ms`,
+    it(
+      "burst size 64: streaming, steer, Stop and control survive one stalled network fetch",
+      async () => {
+        const gitSession = requireSession();
+        const before = await gitSession.gitDiagnostics();
+        // The burst principals flood their own B3 budget; the §4 control
+        // surface (snapshot reads, ping, steer, Stop, streaming watch) lives on
+        // this separate authenticated principal — B3's "one busy client cannot
+        // consume the shared server's entire budget" acceptance, measured.
+        const control = await gitSession.openControlClient("gitburst-n64-control");
+        const clients = await gitSession.openBurstClients(
+          GIT_BURST_CLIENTS_BY_SIZE[64]!,
+          "gitburst-n64",
         );
+        const heartbeat = new GitBurstHeartbeatObserver(control.ws);
+        const blackhole = await startBlackholeListener();
+        let stream: GitBurstStreamEvidence | null = null;
+        let steer: GitBurstSteerProbe | null = null;
+        let closeMs: number | null = null;
+        let stopWhileFetchStalled: boolean | null = null;
+        let heartbeatRecord: GitBurstHeartbeatRecord | null = null;
+        let controls: GitBurstControlProbeResult | null = null;
+        let refresh: GitBurstRefreshSummary | null = null;
+        let stall: { elapsedMs: number; status: number } | null = null;
+        try {
+          heartbeat.start();
+          const windowStartedAtMs = Date.now();
+          // The gauge sampler spans the WHOLE window: stream, burst, the stalled
+          // fetch and the drain — so the per-environment gauges cover the stall.
+          poller?.start();
 
-        // Stream integrity on the healthy watcher while everything ran.
-        const generatorDone = await waitForTerminalFragment(
-          handle.client,
-          handle.watchId,
-          "GITBURST-GEN-DONE\r\n",
-          GIT_BURST_GENERATOR_DONE_WAIT_MS,
+          const handle = await startStreamingShell({
+            client: control,
+            project: gitSession.fixtureProject(),
+            shellId: "gitburst-stream-01",
+            watchId: "gitburst-watch-01",
+          });
+          await startGenerator({ handle, lines: GIT_BURST_GENERATOR_LINES });
+
+          // The deliberately stalled network operation: one `long` permit pinned
+          // by a black-hole fetch while everything below keeps running.
+          const pendingFetch = await pinStalledNetworkFetch({
+            client: clients[1]!,
+            project: gitSession.fixtureProject(),
+            blackholeUrl: blackhole.url,
+          });
+          let fetchSettled = false;
+          const stalledFetch = pendingFetch.settled.then((settled) => {
+            fetchSettled = true;
+            return settled;
+          });
+
+          // The long permit must become visible in the production gauges while
+          // the operation stalls.
+          const longPermitObservedActive = await waitForVisibleLongPermit(gitSession);
+
+          // The burst: 64 distinct worktrees across 8 clients while the fetch
+          // stalls and the PTY streams; control probes ride along concurrently
+          // on the control principal.
+          const burst = runGitBurst(
+            clients,
+            gitSession.fixtureProject(),
+            requireFixture().worktrees,
+          );
+          controls = await controlProbes(control, 5, 100, "concurrent-with-burst");
+          steer = await steerStreamingShell({ handle, probeId: "N64" });
+          refresh = await burst;
+
+          assert(longPermitObservedActive, "stalled fetch never became a visible long permit");
+          assertRefreshClassification(refresh);
+          assertRefreshErrorCodes(refresh);
+          assert(refresh.ok >= 1, "the shared pool must still admit work at size 64");
+          assertControlBounds(controls);
+          assert(steer.echoWaitMs !== null, "steer echo never observed within the frozen bound");
+          assert(
+            steer.echoWaitMs <= GIT_BURST_BOUND_STEER_ECHO_MS,
+            `steer echo ${String(steer.echoWaitMs)}ms exceeded ${String(GIT_BURST_BOUND_STEER_ECHO_MS)}ms`,
+          );
+
+          // Stream integrity on the healthy watcher while everything ran.
+          const generatorDone = await waitForTerminalFragment(
+            handle.client,
+            handle.watchId,
+            "GITBURST-GEN-DONE\r\n",
+            GIT_BURST_GENERATOR_DONE_WAIT_MS,
+          );
+          assert(generatorDone !== null, "stream generator never completed on its watcher");
+          stream = readStreamEvidence(handle, GIT_BURST_GENERATOR_LINES);
+          assert(
+            stream.deliveredPadLines >=
+              GIT_BURST_GENERATOR_LINES - GIT_BURST_INTERLEAVE_TOLERANCE_LINES,
+            `healthy watcher received only ${String(stream.deliveredPadLines)}/${String(GIT_BURST_GENERATOR_LINES)} generator lines`,
+          );
+
+          // Input accepted while busy executes after the generator drains
+          // (frozen steer-exec bound, measured from the probe write).
+          assert(steer.execWaitMs !== null, "busy shell never executed the queued steer input");
+          assert(
+            steer.execWaitMs <= GIT_BURST_BOUND_STEER_EXEC_MS,
+            `steer execution ${String(steer.execWaitMs)}ms exceeded ${String(GIT_BURST_BOUND_STEER_EXEC_MS)}ms`,
+          );
+
+          // Stop while the network Git operation is (probably) still stalling:
+          // the bounded close reply IS the teardown proof.
+          stopWhileFetchStalled = !fetchSettled;
+          closeMs = await stopStreamingShell(handle);
+
+          // The stalled fetch settles only through the production network
+          // timeout, and the diagnostics must have counted it as slow.
+          stall = await stalledFetch;
+          await assertStalledFetchAccounted({ session: gitSession, before, stall });
+          heartbeatRecord = heartbeat.window();
+
+          // Exact release: every pool drains to zero once the burst and the
+          // stalled child are gone (permits release only at the reap boundary).
+          await waitForAdmissionDrain(gitSession);
+
+          // Close the window AFTER the drain, so the sampled gauges and the
+          // cumulative deltas cover stream + burst + stall + release.
+          const windowFinishedAtMs = Date.now();
+          await poller?.stop();
+          const after = await gitSession.gitDiagnostics();
+          const delta = await requireCellWindowRecorder()({
+            name: "n64",
+            windowStartedAtMs,
+            windowFinishedAtMs,
+            before,
+            after,
+            refresh,
+            extra: { controls, longPermitObservedActive },
+          });
+          assertFailureAttribution(refresh, delta);
+          assertClassLimits(delta);
+
+          writeExperimentArtifact(repoRoot, "git-burst-cell-n64-detail.json", {
+            stall,
+            stopWhileFetchStalled,
+            closeMs,
+            stream,
+            steer,
+            heartbeat: heartbeatRecord,
+            drainVerified: true,
+            environment: GIT_BURST_RUN_ENVIRONMENT,
+          });
+        } finally {
+          await closeProfileClients(clients);
+          await control.close();
+          await blackhole.close();
+        }
+
+        assert(refresh !== null && controls !== null && stall !== null);
+        console.log(
+          `[git-burst] n64: ok=${String(refresh.ok)}/${String(refresh.refreshes)} ` +
+            `httpErrors=${String(refresh.httpErrors)} falseRepo=${String(refresh.silentFalseRepo)} ` +
+            `fetchStall=${String(Math.round(stall.elapsedMs))}ms closeMs=${String(closeMs ?? -1)} ` +
+            `steerEcho=${String(steer?.echoWaitMs ?? -1)}ms lines=${String(stream?.deliveredPadLines ?? 0)} ` +
+            `heartbeatPings=${String(heartbeatRecord?.pings ?? 0)}`,
         );
-        assert(generatorDone !== null, "stream generator never completed on its watcher");
-        stream = readStreamEvidence(handle, GIT_BURST_GENERATOR_LINES);
-        assert(
-          stream.deliveredPadLines >=
-            GIT_BURST_GENERATOR_LINES - GIT_BURST_INTERLEAVE_TOLERANCE_LINES,
-          `healthy watcher received only ${String(stream.deliveredPadLines)}/${String(GIT_BURST_GENERATOR_LINES)} generator lines`,
-        );
-
-        // Input accepted while busy executes after the generator drains
-        // (frozen steer-exec bound, measured from the probe write).
-        assert(steer.execWaitMs !== null, "busy shell never executed the queued steer input");
-        assert(
-          steer.execWaitMs <= GIT_BURST_BOUND_STEER_EXEC_MS,
-          `steer execution ${String(steer.execWaitMs)}ms exceeded ${String(GIT_BURST_BOUND_STEER_EXEC_MS)}ms`,
-        );
-
-        // Stop while the network Git operation is (probably) still stalling:
-        // the bounded close reply IS the teardown proof.
-        stopWhileFetchStalled = !fetchSettled;
-        closeMs = await stopStreamingShell(handle);
-
-        // The stalled fetch settles only through the production network
-        // timeout, and the diagnostics must have counted it as slow.
-        stall = await stalledFetch;
-        await assertStalledFetchAccounted({ session: gitSession, before, stall });
-        heartbeatRecord = heartbeat.window();
-
-        // Exact release: every pool drains to zero once the burst and the
-        // stalled child are gone (permits release only at the reap boundary).
-        await waitForAdmissionDrain(gitSession);
-
-        // Close the window AFTER the drain, so the sampled gauges and the
-        // cumulative deltas cover stream + burst + stall + release.
-        const windowFinishedAtMs = Date.now();
-        await poller?.stop();
-        const after = await gitSession.gitDiagnostics();
-        const delta = await requireCellWindowRecorder()({
-          name: "n64",
-          windowStartedAtMs,
-          windowFinishedAtMs,
-          before,
-          after,
-          refresh,
-          extra: { controls, longPermitObservedActive },
-        });
-        assertFailureAttribution(refresh, delta);
-        assertClassLimits(delta);
-
-        writeExperimentArtifact(repoRoot, "git-burst-cell-n64-detail.json", {
-          stall,
-          stopWhileFetchStalled,
-          closeMs,
-          stream,
-          steer,
-          heartbeat: heartbeatRecord,
-          drainVerified: true,
-          environment: GIT_BURST_RUN_ENVIRONMENT,
-        });
-      } finally {
-        await closeProfileClients(clients);
-        await control.close();
-        await blackhole.close();
-      }
-
-      assert(refresh !== null && controls !== null && stall !== null);
-      console.log(
-        `[git-burst] n64: ok=${String(refresh.ok)}/${String(refresh.refreshes)} ` +
-          `httpErrors=${String(refresh.httpErrors)} falseRepo=${String(refresh.silentFalseRepo)} ` +
-          `fetchStall=${String(Math.round(stall.elapsedMs))}ms closeMs=${String(closeMs ?? -1)} ` +
-          `steerEcho=${String(steer?.echoWaitMs ?? -1)}ms lines=${String(stream?.deliveredPadLines ?? 0)} ` +
-          `heartbeatPings=${String(heartbeatRecord?.pings ?? 0)}`,
-      );
-    }, gitBurstN64TimeoutMs);
+      },
+      gitBurstN64TimeoutMs,
+    );
 
     it("records the run summary", async () => {
       if (!firstDiagnostics) throw new Error("admission diagnostics were not captured");
