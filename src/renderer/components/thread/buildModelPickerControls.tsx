@@ -23,7 +23,10 @@ import {
   providerMenuKey,
   providerVisibilityKey,
 } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
-import { getComposerControls } from "@/renderer/components/providers/providerComposer";
+import {
+  getComposerConfigBehavior,
+  getComposerControls,
+} from "@/renderer/components/providers/providerComposer";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import {
   capabilitiesForPresentation,
@@ -59,6 +62,8 @@ export type BuildModelPickerControlsInput = {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   includeFastToggle?: boolean;
+  /** Ask before applying a context-size change (see `ComposerConfigBehavior`). */
+  confirmContextChange?: boolean;
   onProviderModelChange: (next: {
     agentKind: string;
     model: string;
@@ -234,6 +239,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     isDisabled,
     hideLabelOnWrap = true,
     includeFastToggle = true,
+    confirmContextChange,
     onProviderModelChange,
     onConfigPatch,
   } = input;
@@ -277,6 +283,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       contextSizes: selectableContextSizes,
       ...(selectableContextSizes.length > 0 && contextSize ? { contextValue: contextSize } : {}),
       onContextChange: (value) => onConfigPatch({ contextSize: value }),
+      ...(confirmContextChange ? { confirmContextChange } : {}),
       thinkingSupported: supportsThinking,
       thinkingValue: thinking === true,
       onThinkingChange: (value) => onConfigPatch({ thinking: value }),
@@ -441,6 +448,11 @@ export function buildControls(
       ...(machineKey ? { machineKey } : {}),
       presentationMode,
       isDisabled,
+      // A started session is reloaded to apply a new size; drafts apply it at launch.
+      ...(thread.sessionRef &&
+      getComposerConfigBehavior(thread.agentKind)?.contextSizeChangeReloadsSession
+        ? { confirmContextChange: true }
+        : {}),
       onProviderModelChange: ({ model: selectedModel }) => {
         const current = normalizeProviderModelConfig(
           thread.agentKind,

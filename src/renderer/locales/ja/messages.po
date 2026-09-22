@@ -2360,6 +2360,14 @@ msgstr "ブランチを切り替えることはできません - 最初に変更
 msgid "Category"
 msgstr "カテゴリ"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change"
+msgstr "変更"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change context size to {contextLabel}?"
+msgstr "コンテキストサイズを {contextLabel} に変更しますか?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "プロジェクトフォルダーを変更"
@@ -4791,6 +4799,10 @@ msgstr "ドキュメント"
 #: src/renderer/components/thread/ChatPane/parts/CheckpointRevertControls.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
+msgstr "今後表示しない"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Don't show again"
 msgstr "今後表示しない"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
@@ -13767,6 +13779,10 @@ msgstr "MCPサーバー設定が無効か、予約済みの名前を使用して
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "MCPサーバーが無効です。"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+msgstr "新しいコンテキストサイズは次のメッセージから適用されます。そのメッセージを送信する前にエージェントのセッションが再読み込みされます。会話は保持されます。"
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."

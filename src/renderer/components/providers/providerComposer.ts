@@ -56,6 +56,29 @@ export function getComposerControls(kind: string): ComposerControlsFactory | und
   };
 }
 
+/**
+ * Facts a provider declares about how its GUI sessions react to composer
+ * config changes. Every field defaults to "no special handling".
+ */
+export interface ComposerConfigBehavior {
+  /**
+   * Changing the context size on a thread whose provider session already
+   * started reloads that session; the new size applies from the next message.
+   * The composer asks the user to confirm such a change first.
+   */
+  contextSizeChangeReloadsSession?: boolean;
+}
+
+const composerConfigBehaviorRegistry = new Map<string, ComposerConfigBehavior>();
+
+export function registerComposerConfigBehavior(kind: string, behavior: ComposerConfigBehavior) {
+  composerConfigBehaviorRegistry.set(kind, behavior);
+}
+
+export function getComposerConfigBehavior(kind: string): ComposerConfigBehavior | undefined {
+  return lookupProviderRegistration(composerConfigBehaviorRegistry, kind);
+}
+
 export interface ConfigNormalizerInput {
   capabilities: AgentCapability;
   config: ThreadConfig;

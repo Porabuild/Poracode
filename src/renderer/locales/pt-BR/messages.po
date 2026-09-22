@@ -2361,6 +2361,14 @@ msgstr "Não é possível alternar entre branches — faça commit ou stash das 
 msgid "Category"
 msgstr "Categoria"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change"
+msgstr "Alterar"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change context size to {contextLabel}?"
+msgstr "Alterar o tamanho do contexto para {contextLabel}?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Alterar pasta do projeto"
@@ -4793,6 +4801,10 @@ msgstr "Documentação"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
 msgstr "Não pergunte novamente"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Don't show again"
+msgstr "Não mostrar novamente"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Don't show hook install proposal"
@@ -13769,6 +13781,10 @@ msgstr "A configuração do servidor MCP é inválida ou usa um nome reservado."
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "O servidor MCP é inválido."
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+msgstr "O novo tamanho do contexto vale a partir da sua próxima mensagem. A sessão do agente é recarregada antes de essa mensagem ser enviada; a conversa é mantida."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."

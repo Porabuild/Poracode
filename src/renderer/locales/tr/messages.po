@@ -2361,6 +2361,14 @@ msgstr "Dallar değiştirilemiyor; önce değişikliklerinizi commit edin veya s
 msgid "Category"
 msgstr "Kategori"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change"
+msgstr "Değiştir"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change context size to {contextLabel}?"
+msgstr "Bağlam boyutu {contextLabel} olarak değiştirilsin mi?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Proje klasörünü değiştir"
@@ -4793,6 +4801,10 @@ msgstr "Dokümanlar"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
 msgstr "Bir daha sorma"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Don't show again"
+msgstr "Bir daha gösterme"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Don't show hook install proposal"
@@ -13769,6 +13781,10 @@ msgstr "MCP sunucusu yapılandırması geçersiz veya ayrılmış bir ad kullan�
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "MCP sunucusu geçersiz."
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+msgstr "Yeni bağlam boyutu bir sonraki mesajınızdan itibaren geçerli olur. Bu mesaj gönderilmeden önce aracı oturumu yeniden yüklenir; konuşma korunur."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."

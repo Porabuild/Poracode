@@ -2361,6 +2361,14 @@ msgstr "브랜치를 전환할 수 없습니다. 먼저 변경 사항을 커밋�
 msgid "Category"
 msgstr "카테고리"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change"
+msgstr "변경"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change context size to {contextLabel}?"
+msgstr "컨텍스트 크기를 {contextLabel}(으)로 변경할까요?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "프로젝트 폴더 변경"
@@ -4793,6 +4801,10 @@ msgstr "문서"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
 msgstr "다시 묻지 마세요"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Don't show again"
+msgstr "다시 표시하지 않음"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Don't show hook install proposal"
@@ -13769,6 +13781,10 @@ msgstr "MCP 서버 구성이 올바르지 않거나 예약된 이름을 사용�
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "MCP 서버가 올바르지 않습니다."
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+msgstr "새 컨텍스트 크기는 다음 메시지부터 적용됩니다. 해당 메시지를 보내기 전에 에이전트 세션을 다시 불러오며, 대화 내용은 유지됩니다."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."

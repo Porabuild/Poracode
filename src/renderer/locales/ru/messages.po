@@ -2361,6 +2361,14 @@ msgstr "Невозможно переключить ветки — сначал�
 msgid "Category"
 msgstr "Категория"
 
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change"
+msgstr "Изменить"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Change context size to {contextLabel}?"
+msgstr "Изменить размер контекста на {contextLabel}?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Изменить папку проекта"
@@ -4793,6 +4801,10 @@ msgstr "Документация"
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteThreadPopover.tsx
 msgid "Don't ask again"
 msgstr "Больше не спрашивать"
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "Don't show again"
+msgstr "Больше не показывать"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Don't show hook install proposal"
@@ -13769,6 +13781,10 @@ msgstr "Конфигурация сервера MCP недопустима ил�
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "The MCP server is invalid."
 msgstr "Сервер MCP недопустим."
+
+#: src/renderer/components/common/EffortContextMenu/ContextSizeReloadPopover.tsx
+msgid "The new context size applies from your next message. The agent session reloads before that message is sent; the conversation is kept."
+msgstr "Новый размер контекста применяется со следующего сообщения. Сессия агента перезагрузится перед его отправкой; беседа сохранится."
 
 #: src/renderer/RendererCrashScreen.tsx
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."

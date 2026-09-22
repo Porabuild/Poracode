@@ -104,6 +104,8 @@ export type ComposerControl =
       contextSizes: readonly LabeledOption[];
       contextValue?: string;
       onContextChange?: (value: string) => void;
+      /** Confirm before `onContextChange`: the change reloads a started session. */
+      confirmContextChange?: boolean;
       thinkingSupported?: boolean;
       thinkingValue?: boolean;
       onThinkingChange?: (value: boolean) => void;
@@ -491,6 +493,7 @@ export function ThreadComposer(props: {
           contextSizes={control.contextSizes}
           {...(control.contextValue !== undefined ? { contextValue: control.contextValue } : {})}
           {...(control.onContextChange ? { onContextChange: control.onContextChange } : {})}
+          {...(control.confirmContextChange ? { confirmContextChange: true } : {})}
           {...(control.thinkingSupported !== undefined
             ? { thinkingSupported: control.thinkingSupported }
             : {})}
