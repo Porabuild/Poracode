@@ -686,11 +686,12 @@ async function runAndroidRealJourney({ registerShutdown }) {
     // preserve the first method's stored host for the second method.
     const installedAppPath = await runBuffered("adb", [
       "shell",
-      "sh",
-      "-c",
-      "pm path com.lightcodeapp.mobile || true",
+      "pm",
+      "list",
+      "packages",
+      "com.lightcodeapp.mobile",
     ]);
-    if (installedAppPath.split(/\r?\n/).some((line) => line.startsWith("package:"))) {
+    if (hasInstalledAndroidPackage(installedAppPath)) {
       await runBuffered("adb", ["shell", "pm", "clear", "com.lightcodeapp.mobile"]);
     }
     const status = await runStreaming(
@@ -736,20 +737,27 @@ async function runAndroidRealJourney({ registerShutdown }) {
   }
 }
 
-async function waitForAndroidFrameworkServices() {
+export function hasInstalledAndroidPackage(output) {
+  return output.split(/\r?\n/).some((line) => line.startsWith("package:"));
+}
+
+export async function waitForAndroidFrameworkServices(
+  run = runBuffered,
+  {
+    attempts = 60,
+    delayMs = 2_000,
+    sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  } = {},
+) {
   let lastError = null;
-  for (let attempt = 1; attempt <= 60; attempt += 1) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
-      await runBuffered("adb", [
-        "shell",
-        "sh",
-        "-c",
-        "pm path android >/dev/null && am get-current-user >/dev/null",
-      ]);
+      await run("adb", ["shell", "pm", "path", "android"]);
+      await run("adb", ["shell", "am", "get-current-user"]);
       return;
     } catch (error) {
       lastError = error;
-      if (attempt < 60) await new Promise((resolve) => setTimeout(resolve, 2_000));
+      if (attempt < attempts) await sleep(delayMs);
     }
   }
   throw new Error(
