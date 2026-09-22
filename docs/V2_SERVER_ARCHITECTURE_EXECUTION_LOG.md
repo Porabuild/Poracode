@@ -935,3 +935,9 @@ Production build05 pins source `543cc432cf3bb1ccf5b25e30b3740c6b7181283f9c6a67c5
 The architecture delta is split into reviewable commits: host extraction (`7e9cf2a28`), bounded runtime/control plane (`ecbd7b36f`), desktop managed-host routing (`5032a427e`), standalone packaging/promotion (`76849b67f`), iOS adoption (`10d3862e7`), Android adoption (`ffb1f2855`) and generated parity/qualification gates (`80eae5304`). Commit hooks passed typecheck; source-format hooks passed for applicable files. Remote delivery is recorded only after the branch push is independently verified.
 
 Remaining mandatory production gates are the quiet reference performance/Git-burst cell with input-latency budgets, 30-minute sustained and overnight soak runs, build05 multi-host rerun, Windows 11 plus WSL2 NAT/mirrored qualification, physical iPhone and lower-tier Android runs, current real-provider journeys, and a real supported published N−1 persisted-payload upgrade. These prevent a production-ready declaration even though the implementation and macOS/web candidate are substantially complete.
+
+### Verified branch delivery — 2026-09-22 UTC
+
+The clean `poracode/v2` branch was pushed normally, without force or history rewriting. The first delivered head matched locally and remotely at `3811d24852fa060d48a4d77caea8335890b37b53`. The configured origin reported that the repository has moved to `git@github.com:Porabuild/Poracode.git`, but accepted the push through the existing URL; no remote configuration was changed during close-out. This final documentation commit records that verification and advances the delivery component from 0% to 100%.
+
+The resulting overall estimate is **about 80%**: implementation 90% at 70% weight, production qualification 48% at 25% weight, and delivery 100% at 5% weight. The open platform, soak, performance, provider and published N−1 gates remain mandatory and keep the goal active.
