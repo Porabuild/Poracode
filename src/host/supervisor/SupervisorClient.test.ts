@@ -2,6 +2,10 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { isHostResourceBusyError } from "@/shared/hostResourceAdmission";
+import {
+  GIT_ADMISSION_QUEUE_FULL_CODE,
+  isGitProcessAdmissionRefusal,
+} from "@/shared/gitProcessAdmission";
 
 const forkMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 const setPriorityMock = vi.hoisted(() => vi.fn<(pid: number, priority: number) => void>());
@@ -622,6 +626,27 @@ describe("SupervisorClient typed refusal rehydration", () => {
     );
     expect(isHostResourceBusyError(error)).toBe(true);
     expect(error).toMatchObject({ code: "host_resource_busy", retryAfterMs: 250 });
+  });
+
+  it("rehydrates a Git admission refusal without classifying it as host admission", async () => {
+    const { client, child } = makeClient();
+    const getId = captureSentId(child);
+    const promise = client.call("getGitStatus", { projectLocation: {} } as never);
+    child.emit("message", {
+      replyTo: getId(),
+      ok: false,
+      error: "Git short admission queue is full.",
+      errorCode: GIT_ADMISSION_QUEUE_FULL_CODE,
+      retryAfterMs: 500,
+    });
+
+    const error = await promise.then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+    expect(isGitProcessAdmissionRefusal(error)).toBe(true);
+    expect(isHostResourceBusyError(error)).toBe(false);
+    expect(error).toMatchObject({ code: GIT_ADMISSION_QUEUE_FULL_CODE, retryAfterMs: 500 });
   });
 
   it("keeps an old message-only failure reply graceful", async () => {

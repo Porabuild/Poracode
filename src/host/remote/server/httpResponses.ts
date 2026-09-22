@@ -10,6 +10,10 @@ import {
 } from "@/shared/hostResourceAdmission";
 import { RemoteHttpError } from "../auth";
 import { writeNegotiatedJson } from "./httpCompression";
+import {
+  gitProcessAdmissionRetryAfterMsOf,
+  isGitProcessAdmissionRefusal,
+} from "@/shared/gitProcessAdmission";
 
 export function writeJson(res: ServerResponse, status: number, data: unknown): void {
   writeJsonResponse(res, status, data, { trailingNewline: true });
@@ -122,9 +126,22 @@ function hostResourceAdmissionHttpError(error: unknown): RemoteHttpError | null 
   );
 }
 
+function gitProcessAdmissionHttpError(error: unknown): RemoteHttpError | null {
+  if (!isGitProcessAdmissionRefusal(error)) return null;
+  const code = (error as { code: string }).code;
+  return new RemoteHttpError(
+    code,
+    "Git work is temporarily unavailable. Retry the operation.",
+    503,
+    gitProcessAdmissionRetryAfterMsOf(error),
+  );
+}
+
 export function writeError(res: ServerResponse, error: unknown): void {
   const httpError =
-    error instanceof RemoteHttpError ? error : hostResourceAdmissionHttpError(error);
+    error instanceof RemoteHttpError
+      ? error
+      : (hostResourceAdmissionHttpError(error) ?? gitProcessAdmissionHttpError(error));
   if (httpError) {
     // B3: a typed overload carries a retry hint; surface it as the standard
     // `Retry-After` header (seconds) on 429/503. The JSON error body is

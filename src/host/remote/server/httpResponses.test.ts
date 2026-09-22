@@ -7,6 +7,10 @@ import {
 } from "@/shared/hostResourceAdmission";
 import { RemoteHttpError } from "../auth";
 import { writeError } from "./httpResponses";
+import {
+  GIT_ADMISSION_QUEUE_FULL_CODE,
+  GitProcessAdmissionRefusalError,
+} from "@/shared/gitProcessAdmission";
 
 /**
  * The single HTTP mapping for typed host-resource-admission refusals: both
@@ -75,6 +79,21 @@ describe("writeError host-resource-admission mapping", () => {
     const result = write(Object.assign(new Error("handoff unconfirmed"), { code: "other_code" }));
     expect(result.status).toBe(500);
     expect(result.body.error.code).toBe("internal_error");
+  });
+
+  it("maps Git admission pressure to a typed retryable 503", () => {
+    const result = write(
+      new GitProcessAdmissionRefusalError("Git short admission queue is full.", {
+        code: GIT_ADMISSION_QUEUE_FULL_CODE,
+        retryAfterMs: 1_500,
+      }),
+    );
+    expect(result.status).toBe(503);
+    expect(result.headers.get("retry-after")).toBe("2");
+    expect(result.body.error).toEqual({
+      code: GIT_ADMISSION_QUEUE_FULL_CODE,
+      message: "Git work is temporarily unavailable. Retry the operation.",
+    });
   });
 
   it("leaves the existing RemoteHttpError behavior intact", () => {

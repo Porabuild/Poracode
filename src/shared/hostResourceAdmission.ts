@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { admissionRetryAfterMsOf } from "./admissionRefusal";
 
 /**
  * Shared, provider-agnostic vocabulary for host execution-slot admission.
@@ -38,7 +39,6 @@ export type HostResourceAdmissionRefusalCode =
 interface RefusalLike {
   code?: unknown;
   message?: unknown;
-  retryAfterMs?: unknown;
 }
 
 /**
@@ -66,12 +66,7 @@ export function isHostResourceAdmissionRefusal(error: unknown): boolean {
   return isHostResourceBusyError(error) || isHostResourcePolicyUnavailableError(error);
 }
 
-/** Carry only a nonnegative safe-integer hint; anything else is dropped. */
-export function hostResourceRetryAfterMsOf(error: unknown): number | undefined {
-  if (typeof error !== "object" || error === null) return undefined;
-  const value = (error as RefusalLike).retryAfterMs;
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
-}
+export const hostResourceRetryAfterMsOf = admissionRetryAfterMsOf;
 
 /**
  * Host-side rehydration of a typed supervisor refusal. The supervisor runtime

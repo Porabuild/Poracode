@@ -173,14 +173,14 @@ export type SupervisorReply =
       ok: false;
       error: string;
       /**
-       * Additive typed refusal code (e.g. `host_resource_busy`,
-       * `host_resource_policy_unavailable`). Older supervisors omit both
-       * fields and the host degrades to a plain message-only Error; newer
-       * hosts rehydrate `code`/`retryAfterMs` onto the rejected error. No
-       * reply version exists and `isSupervisorReply` keys only on `replyTo`.
+       * Additive typed admission-refusal code (e.g. `host_resource_busy`,
+       * `git_admission_queue_full`). Older supervisors omit both fields and
+       * the host degrades to a plain message-only Error; newer hosts rehydrate
+       * `code`/`retryAfterMs` onto the rejected error. No reply version exists
+       * and `isSupervisorReply` keys only on `replyTo`.
        */
       errorCode?: string;
-      /** Additive Retry-After hint (ms); only meaningful for busy refusals. */
+      /** Additive Retry-After hint (ms) for a retryable admission refusal. */
       retryAfterMs?: number;
     };
 

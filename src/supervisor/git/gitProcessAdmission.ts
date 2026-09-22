@@ -74,6 +74,19 @@ import type {
   GitProcessAdmissionEnvironment,
   GitProcessAdmissionEnvironmentUsage,
 } from "@/shared/hostResourceAdmission";
+import {
+  GIT_ADMISSION_CANCELLED_CODE,
+  GIT_ADMISSION_QUEUE_FULL_CODE,
+  GIT_ADMISSION_WAIT_TIMEOUT_CODE,
+  type GitProcessAdmissionRefusalCode,
+} from "@/shared/gitProcessAdmission";
+
+export {
+  GIT_ADMISSION_CANCELLED_CODE,
+  GIT_ADMISSION_QUEUE_FULL_CODE,
+  GIT_ADMISSION_WAIT_TIMEOUT_CODE,
+  type GitProcessAdmissionRefusalCode,
+} from "@/shared/gitProcessAdmission";
 
 export type GitProcessClass = "short" | "long";
 
@@ -101,10 +114,6 @@ export const GIT_PROCESS_ADMISSION_DEFAULT_POLICY: Readonly<GitProcessAdmissionP
     admissionWaitTimeoutMs: 10_000,
   });
 
-export const GIT_ADMISSION_QUEUE_FULL_CODE = "git_admission_queue_full" as const;
-export const GIT_ADMISSION_WAIT_TIMEOUT_CODE = "git_admission_wait_timeout" as const;
-export const GIT_ADMISSION_CANCELLED_CODE = "git_admission_cancelled" as const;
-
 /**
  * A direct `fetch` whose admitted execution (grant→release) exceeds this span
  * is counted in `slowFetches`. Derived as a third of the 30s network command
@@ -115,11 +124,6 @@ export const GIT_ADMISSION_CANCELLED_CODE = "git_admission_cancelled" as const;
  * populate it, so batch fetches are out of scope by construction.
  */
 export const GIT_SLOW_FETCH_EXECUTION_MS = 10_000;
-
-export type GitProcessAdmissionRefusalCode =
-  | typeof GIT_ADMISSION_QUEUE_FULL_CODE
-  | typeof GIT_ADMISSION_WAIT_TIMEOUT_CODE
-  | typeof GIT_ADMISSION_CANCELLED_CODE;
 
 export interface GitProcessAdmissionRefusalDetails {
   gitClass: GitProcessClass;

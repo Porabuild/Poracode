@@ -20,24 +20,35 @@ import {
 } from "@/shared/ipc";
 import {
   HostResourceAdmissionRefusalError,
-  hostResourceRetryAfterMsOf,
   type ResourceAdmissionPeek,
 } from "@/shared/hostResourceAdmission";
+import { admissionRetryAfterMsOf } from "@/shared/admissionRefusal";
+import {
+  GitProcessAdmissionRefusalError,
+  isGitProcessAdmissionRefusalCode,
+} from "@/shared/gitProcessAdmission";
 
 function isSupervisorReply(message: unknown): message is SupervisorReply {
   return typeof message === "object" && message !== null && "replyTo" in message;
 }
 
 /**
- * Rehydrates the additive typed fields of a failed reply. An old supervisor
- * reply has no `errorCode` and keeps the historical message-only Error.
+ * Rehydrates the additive typed fields of a failed admission reply. An old
+ * supervisor reply has no `errorCode` and keeps the historical message-only
+ * Error.
  */
 function createSupervisorFailureError(message: Extract<SupervisorReply, { ok: false }>): Error {
   const errorCode = message.errorCode;
   if (typeof errorCode !== "string" || errorCode.length === 0) {
     return new Error(message.error);
   }
-  const retryAfterMs = hostResourceRetryAfterMsOf(message);
+  const retryAfterMs = admissionRetryAfterMsOf(message);
+  if (isGitProcessAdmissionRefusalCode(errorCode)) {
+    return new GitProcessAdmissionRefusalError(message.error, {
+      code: errorCode,
+      ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+    });
+  }
   return new HostResourceAdmissionRefusalError(message.error, {
     code: errorCode,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
