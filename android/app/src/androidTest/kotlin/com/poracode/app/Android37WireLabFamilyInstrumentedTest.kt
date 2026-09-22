@@ -39,18 +39,23 @@ import org.junit.runner.RunWith
  * class covers the remaining families so `connectedDebugAndroidTest` runs 5/5.
  *
  * The terminal and git journeys run against BOTH peers:
- *  - `mock` (default, CI-fast): the WireLab peer; assertions poll the mock
- *    operation journal.
+ *  - `mock` (default, CI-fast): the WireLab peer on the API 37 emulator;
+ *    assertions poll the mock operation journal. The mock wire lab stays an
+ *    EXACT API 37 contract lane (emulator alias, frame fixtures, the
+ *    ACCESS_LOCAL_NETWORK shell grant), so every mock method is suppressed
+ *    below API 37 and [setup] asserts the exact level.
  *  - `real` (instrumentation args `peerMode=real` plus `pairingUrl`, the real
  *    host deep-link credential; optional `projectLabel`, default
  *    `native-e2e-fixture`): the production headless host. The real host has no
  *    scenario journal or fixture threads, so the journey asserts in-UI
  *    completion against the real peer (`/v1/state` reports `mode=real`) while
  *    the observable PTY-echo / repo-index effects are asserted by the TS
- *    harness (`tests/native-e2e/realHostObservableEffects.test.ts`).
+ *    harness (`tests/native-e2e/realHostObservableEffects.test.ts`). Real-peer
+ *    methods qualify every release from the app's maintained floor (API 34,
+ *    the minSdk) upward, which is what lets them run on physical devices.
  */
 @RunWith(AndroidJUnit4::class)
-@SdkSuppress(minSdkVersion = 37)
+@SdkSuppress(minSdkVersion = 34)
 class Android37WireLabFamilyInstrumentedTest {
     @get:Rule val compose = createEmptyComposeRule()
 
@@ -68,7 +73,14 @@ class Android37WireLabFamilyInstrumentedTest {
 
     @Before
     fun setup() {
-        assertEquals(37, Build.VERSION.SDK_INT)
+        if (isRealPeer) {
+            Assume.assumeTrue(
+                "real-peer families require the maintained API >= 34 floor",
+                Build.VERSION.SDK_INT >= 34,
+            )
+        } else {
+            assertEquals(37, Build.VERSION.SDK_INT)
+        }
         control = WireLabControl(WireLabArgs.controlBaseUrl(), WireLabArgs.capability())
         application.session.cancelPendingPair()
         if (!isRealPeer) control.reset()
@@ -80,6 +92,7 @@ class Android37WireLabFamilyInstrumentedTest {
     }
 
     @Test
+    @SdkSuppress(minSdkVersion = 37)
     fun familySteerSetsPendingFromComposerDuringLiveTurn() {
         Assume.assumeFalse("steer family drives mock-only frame fixtures", isRealPeer)
         pairAndOpenFixtureThread()
@@ -106,6 +119,7 @@ class Android37WireLabFamilyInstrumentedTest {
     }
 
     @Test
+    @SdkSuppress(minSdkVersion = 37)
     fun familyPermissionResolvesOpenedRequest() {
         Assume.assumeFalse("permission family drives mock-only frame fixtures", isRealPeer)
         pairAndOpenFixtureThread()
@@ -181,11 +195,18 @@ class Android37WireLabFamilyInstrumentedTest {
     }
 
     private fun pairUntilHome() {
-        shell("pm grant ${context.packageName} ${Manifest.permission.ACCESS_LOCAL_NETWORK}")
-        assertEquals(
-            PackageManager.PERMISSION_GRANTED,
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_LOCAL_NETWORK),
-        )
+        if (!isRealPeer) {
+            // The ACCESS_LOCAL_NETWORK shell grant exercises the runtime
+            // permission path on the API 37 mock emulator; it stays mock-only
+            // because the permission is not grantable this way below the API
+            // level that ships it, and real-device peers qualify the
+            // user-granted state instead of an instrumentation override.
+            shell("pm grant ${context.packageName} ${Manifest.permission.ACCESS_LOCAL_NETWORK}")
+            assertEquals(
+                PackageManager.PERMISSION_GRANTED,
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_LOCAL_NETWORK),
+            )
+        }
         val reusingRealPairing = if (isRealPeer) {
             launchMainActivity()
             compose.waitUntil(30_000) {
@@ -268,12 +289,13 @@ class Android37WireLabFamilyInstrumentedTest {
     }
 
     private fun waitForTextIfPresent(text: String, timeoutMs: Long = 5_000L): Boolean {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (System.currentTimeMillis() < deadline) {
-            if (hasText(text)) return true
-            Thread.sleep(150L)
-        }
-        return false
+        return runCatching {
+            // Compose's test rule runs the body in a coroutine test scope. A
+            // blocking sleep here can starve the app coroutine that publishes
+            // a delayed real-host confirmation screen on a cold emulator.
+            compose.waitUntil(timeoutMs) { hasText(text) }
+            true
+        }.getOrDefault(false)
     }
 
     private fun pairAndOpenFixtureThread() {

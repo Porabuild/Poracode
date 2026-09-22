@@ -5,6 +5,7 @@
 
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
+import net from "node:net";
 import { appendFileSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { chmod, mkdir, readFile, readdir, rm, unlink, writeFile } from "node:fs/promises";
 import { dirname, join, resolve as resolvePath } from "node:path";
@@ -267,7 +268,205 @@ export function selectPrunableIosRunDirs(names, keep = IOS_UI_MAX_RUN_DIRS) {
   return runs.slice(keep);
 }
 
+export const IOS_PHYSICAL_UDID_ENV = "NATIVE_E2E_IOS_PHYSICAL_UDID";
+export const DEVICE_HOST_ENV = "NATIVE_E2E_DEVICE_HOST";
+export const DEVICE_FORWARD_ENV = "NATIVE_E2E_DEVICE_FORWARD";
+
+// Physical UDIDs are either the legacy 40-hex form or a UUID (simulators use
+// the same UUID form). Anything else — a device name, a typo — must fail
+// before any harness or xcodebuild work starts.
+const IOS_DEVICE_UDID_PATTERN =
+  /^[0-9A-Fa-f]{40}$|^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
+
+/**
+ * Pure iOS target selector for the ios-ui journey. An explicit physical UDID
+ * wins and selects the CoreDevice destination (`platform=iOS,id=...`) — the
+ * journey then never runs simctl. Without one the fixed simulator is selected
+ * (`platform=iOS Simulator,id=...`) exactly as before.
+ */
+export function selectIosTestDestination({ physicalUdid, simulatorUdid } = {}) {
+  const physical = (physicalUdid ?? "").trim();
+  if (physical) {
+    if (!IOS_DEVICE_UDID_PATTERN.test(physical)) {
+      throw new Error(
+        `${IOS_PHYSICAL_UDID_ENV} must be a device UDID (40-hex or UUID form), received "${physical}"`,
+      );
+    }
+    return { destination: `platform=iOS,id=${physical}`, physical: true };
+  }
+  const simulator = (simulatorUdid ?? "").trim();
+  if (simulator) {
+    return { destination: `platform=iOS Simulator,id=${simulator}`, physical: false };
+  }
+  throw new Error("an iOS test destination needs a simulator or a physical device UDID");
+}
+
+/**
+ * Pure loopback rewrite for device-injected URLs. Rewrites ONLY the
+ * 127.0.0.1/localhost hostname to `deviceHost`, preserving scheme, port,
+ * path, query, and fragment (the real-peer pairing credential rides in the
+ * `#token=` fragment). Anything else — an empty host, an unparseable URL, a
+ * non-http(s) scheme, or a non-loopback hostname — returns unchanged. The
+ * production Host gate already admits raw IP dials on the bound port, so this
+ * never widens production admission; device reachability is provided by the
+ * opt-in forwarder below, not by this rewrite.
+ */
+export function rewriteLoopbackUrlHost(rawUrl, deviceHost) {
+  const host = (deviceHost ?? "").trim();
+  if (!host) return rawUrl;
+  let url;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    return rawUrl;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return rawUrl;
+  const hostname = url.hostname.toLowerCase();
+  if (hostname !== "127.0.0.1" && hostname !== "localhost") return rawUrl;
+  try {
+    url.hostname = host;
+  } catch {
+    throw new Error(`${DEVICE_HOST_ENV} is not a usable host: "${host}"`);
+  }
+  // WHATWG URL silently ignores an unassignable host (e.g. an unbracketed
+  // IPv6 literal); fail loudly instead of leaving the URL on loopback while
+  // the operator believes it was rewritten.
+  if (url.hostname.toLowerCase() !== host.toLowerCase()) {
+    throw new Error(`${DEVICE_HOST_ENV} is not a usable host: "${host}"`);
+  }
+  return url.toString();
+}
+
+/**
+ * Unique TCP ports of the harness endpoints a device must dial (control
+ * plane, production host). Ports survive the loopback rewrite unchanged, so
+ * they are collected from the original URLs.
+ */
+export function collectForwardPorts(urls) {
+  const ports = [];
+  for (const raw of urls) {
+    if (!raw) continue;
+    try {
+      const url = new URL(raw);
+      if (url.port) ports.push(Number(url.port));
+    } catch {
+      // Not a dialable URL; nothing to forward for it.
+    }
+  }
+  return [...new Set(ports)];
+}
+
+/**
+ * One test-only TCP forwarder: listens on `listenHost` (the device-reachable
+ * host) at the harness port and proxies raw bytes to the loopback listener.
+ * The harness binds loopback only (tests/native-e2e/harness/loopback.ts), and
+ * this proxy does not widen production admission — the proxied connection
+ * arrives at the host as loopback traffic, and the pairing/control
+ * credentials remain the only authorization. `close()` destroys every socket
+ * and resolves once the listener is gone.
+ */
+export function createLoopbackForwarder({
+  listenHost,
+  port,
+  targetHost = "127.0.0.1",
+  targetPort = port,
+}) {
+  const sockets = new Set();
+  const server = net.createServer((clientSocket) => {
+    const upstreamSocket = net.connect({ host: targetHost, port: targetPort });
+    sockets.add(clientSocket);
+    sockets.add(upstreamSocket);
+    const teardown = () => {
+      clientSocket.destroy();
+      upstreamSocket.destroy();
+    };
+    clientSocket.once("close", teardown);
+    upstreamSocket.once("close", teardown);
+    clientSocket.on("error", teardown);
+    upstreamSocket.on("error", teardown);
+    clientSocket.pipe(upstreamSocket).pipe(clientSocket);
+  });
+  const listening = new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(port, listenHost, () => {
+      server.removeListener("error", reject);
+      // Reflect the OS-assigned port for ephemeral (port 0) listeners; the
+      // device path always passes explicit ports, so this only matters to
+      // tests.
+      handle.port = server.address().port;
+      resolve();
+    });
+  });
+  const handle = {
+    port,
+    listening,
+    close: () =>
+      new Promise((resolve) => {
+        for (const socket of sockets) socket.destroy();
+        // Invokes its callback even when the server never listened.
+        server.close(() => resolve());
+      }),
+  };
+  return handle;
+}
+
+/**
+ * Forwarders for every dialable port, listening on the device-reachable host.
+ * Fails closed: if any port cannot bind, every partial listener is closed
+ * before the error surfaces.
+ */
+export async function startLoopbackForwarders({ listenHost, ports, targetHost = "127.0.0.1" }) {
+  const forwarders = ports.map((port) => createLoopbackForwarder({ listenHost, port, targetHost }));
+  try {
+    await Promise.all(forwarders.map((forwarder) => forwarder.listening));
+  } catch (error) {
+    await Promise.all(forwarders.map((forwarder) => forwarder.close()));
+    throw new Error(
+      `device forwarder could not listen on ${listenHost} (ports ${ports.join(", ")}): ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { cause: error },
+    );
+  }
+  return {
+    ports: forwarders.map((forwarder) => forwarder.port),
+    close: async () => {
+      await Promise.all(forwarders.map((forwarder) => forwarder.close()));
+    },
+  };
+}
+
 async function runIosUIJourney({ registerShutdown }) {
+  // Physical-device opt-in (qualification design §iOS): with
+  // IOS_PHYSICAL_UDID_ENV set the journey targets the CoreDevice destination
+  // and never runs simctl. DEVICE_HOST_ENV names the host the device dials
+  // (the Mac's LAN/VPN address); it is required for the physical path because
+  // the device cannot reach the Mac's loopback, and rejected on the simulator
+  // path so a stray value can never silently rewrite a simulator run.
+  // DEVICE_FORWARD_ENV=1 additionally starts the test-only TCP forwarders
+  // that expose the loopback-only harness on the device-reachable host; they
+  // are closed in the finally below.
+  const physicalUdid = (process.env[IOS_PHYSICAL_UDID_ENV] ?? "").trim();
+  const deviceHost = (process.env[DEVICE_HOST_ENV] ?? "").trim();
+  const forwardDeviceTraffic = process.env[DEVICE_FORWARD_ENV] === "1";
+  if (physicalUdid && !deviceHost) {
+    throw new Error(
+      `${IOS_PHYSICAL_UDID_ENV} also requires ${DEVICE_HOST_ENV}: ` +
+        "a physical device cannot reach the Mac's loopback",
+    );
+  }
+  if (!physicalUdid && deviceHost) {
+    throw new Error(
+      `${DEVICE_HOST_ENV} only applies to the physical-device journey (${IOS_PHYSICAL_UDID_ENV})`,
+    );
+  }
+  if (forwardDeviceTraffic && !(physicalUdid && deviceHost)) {
+    throw new Error(
+      `${DEVICE_FORWARD_ENV}=1 requires ${IOS_PHYSICAL_UDID_ENV} and ${DEVICE_HOST_ENV}`,
+    );
+  }
+  // Validate the selector before any harness, simulator, or xcodebuild work.
+  const physicalTarget = physicalUdid ? selectIosTestDestination({ physicalUdid }) : null;
   // E.2 real-peer mode: with NATIVE_E2E_PEER_MODE=real the journey runs the
   // family tests against the production headless host instead of the mock
   // wire lab. The harness is then started in real mode (it needs
@@ -317,6 +516,9 @@ async function runIosUIJourney({ registerShutdown }) {
 
   let controlUrl;
   let realPeerPairingUrl;
+  // Function scope: the finally closes the forwarders even when a throw (for
+  // example a harness startup timeout) happens before they are started.
+  let forwarders = null;
   const ready = new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error("native iOS harness startup timed out")),
@@ -343,6 +545,8 @@ async function runIosUIJourney({ registerShutdown }) {
     );
   });
 
+  // Only the simulator path assigns this; the physical path never selects a
+  // simulator. `readinessPath` spans both paths (deleted in the finally).
   let simulatorId;
   let readinessPath;
   // Kill the harness process group on signals; the fixed simulator survives
@@ -378,29 +582,38 @@ async function runIosUIJourney({ registerShutdown }) {
   });
   try {
     await ready;
-    const deviceList = JSON.parse(
-      await runBuffered("xcrun", ["simctl", "list", "devices", "--json"]),
-    );
-    const fixed = selectFixedIosSimulator(deviceList);
-    if (fixed?.udid) {
-      simulatorId = fixed.udid;
-      if (fixed.state !== "Booted") {
-        // Tolerate a boot race; bootstatus below waits for completion.
-        await runBuffered("xcrun", ["simctl", "boot", simulatorId]).catch(() => {});
-      }
+    let target = physicalTarget;
+    if (target) {
+      // Physical device: xcodebuild talks to CoreDevice directly; the
+      // physical path never runs simctl (no list, boot, bootstatus, or
+      // delete). The device must already be plugged in, unlocked, trusted,
+      // and code-signable.
     } else {
-      simulatorId = (
-        await runBuffered("xcrun", [
-          "simctl",
-          "create",
-          IOS_UI_SIMULATOR_NAME,
-          IOS_UI_DEVICE_TYPE,
-          IOS_UI_RUNTIME,
-        ])
-      ).trim();
-      await runBuffered("xcrun", ["simctl", "boot", simulatorId]);
+      const deviceList = JSON.parse(
+        await runBuffered("xcrun", ["simctl", "list", "devices", "--json"]),
+      );
+      const fixed = selectFixedIosSimulator(deviceList);
+      if (fixed?.udid) {
+        simulatorId = fixed.udid;
+        if (fixed.state !== "Booted") {
+          // Tolerate a boot race; bootstatus below waits for completion.
+          await runBuffered("xcrun", ["simctl", "boot", simulatorId]).catch(() => {});
+        }
+      } else {
+        simulatorId = (
+          await runBuffered("xcrun", [
+            "simctl",
+            "create",
+            IOS_UI_SIMULATOR_NAME,
+            IOS_UI_DEVICE_TYPE,
+            IOS_UI_RUNTIME,
+          ])
+        ).trim();
+        await runBuffered("xcrun", ["simctl", "boot", simulatorId]);
+      }
+      await runBuffered("xcrun", ["simctl", "bootstatus", simulatorId, "-b"]);
+      target = selectIosTestDestination({ simulatorUdid: simulatorId });
     }
-    await runBuffered("xcrun", ["simctl", "bootstatus", simulatorId, "-b"]);
     const buildStatus = await runStreaming(
       "xcodebuild",
       [
@@ -409,7 +622,7 @@ async function runIosUIJourney({ registerShutdown }) {
         "-scheme",
         "App",
         "-destination",
-        `platform=iOS Simulator,id=${simulatorId}`,
+        target.destination,
         "-derivedDataPath",
         derivedData,
         ...iosOnlyTestingFlags(),
@@ -440,14 +653,22 @@ async function runIosUIJourney({ registerShutdown }) {
           "(the real harness did not mint secrets/real-peer-pairing.json)",
       );
     }
+    // Opt-in device rewrite: only the URLs injected for the device are
+    // rewritten (control + pairing); every host-side consumer keeps the
+    // original loopback URLs. Ports survive the rewrite, so the forwarders
+    // below can be collected from the original URLs.
+    const injectedControlUrl = rewriteLoopbackUrlHost(controlUrl, deviceHost);
+    const injectedPairingUrl = realPairingURL
+      ? rewriteLoopbackUrlHost(realPairingURL, deviceHost)
+      : undefined;
     await writeFile(
       readinessPath,
       injectXCTestEnvironment(generated, {
-        NATIVE_E2E_CONTROL_URL: controlUrl,
+        NATIVE_E2E_CONTROL_URL: injectedControlUrl,
         NATIVE_E2E_CONTROL_CAPABILITY: uiCapability,
         ...(peerMode === "real" ? { NATIVE_E2E_PEER_MODE: "real" } : {}),
-        ...(peerMode === "real" && realPairingURL
-          ? { NATIVE_E2E_PAIRING_URL: realPairingURL }
+        ...(peerMode === "real" && injectedPairingUrl
+          ? { NATIVE_E2E_PAIRING_URL: injectedPairingUrl }
           : {}),
         ...(interfaceStyle === "Dark" || interfaceStyle === "Light"
           ? { NATIVE_E2E_INTERFACE_STYLE: interfaceStyle }
@@ -457,13 +678,28 @@ async function runIosUIJourney({ registerShutdown }) {
     );
     await chmod(readinessPath, 0o600);
 
+    // Opt-in test-only forwarder: the harness binds loopback only, so the
+    // device dials the rewritten host through these raw TCP proxies. Closed
+    // unconditionally in the finally below.
+    if (forwardDeviceTraffic) {
+      forwarders = await startLoopbackForwarders({
+        listenHost: deviceHost,
+        ports: collectForwardPorts([controlUrl, realPairingURL]),
+      });
+      process.stderr.write(
+        redact(
+          `native iOS device forwarders: ${deviceHost} -> 127.0.0.1 on ports ${forwarders.ports.join(", ")}\n`,
+        ),
+      );
+    }
+
     const status = await runStreaming(
       "xcodebuild",
       [
         "-xctestrun",
         readinessPath,
         "-destination",
-        `platform=iOS Simulator,id=${simulatorId}`,
+        target.destination,
         "-resultBundlePath",
         resultBundle,
         ...iosOnlyTestingFlags(),
@@ -484,6 +720,7 @@ async function runIosUIJourney({ registerShutdown }) {
     process.stderr.write(`native iOS operation journal: ${observedPath}\n`);
     if (status !== 0) throw new Error(`native iOS UI journey failed (${String(status)})`);
   } finally {
+    if (forwarders) await forwarders.close().catch(() => {});
     if (harness.pid) {
       try {
         process.kill(-harness.pid, "SIGTERM");
@@ -492,8 +729,10 @@ async function runIosUIJourney({ registerShutdown }) {
       }
     }
     // The fixed simulator is kept for reuse; only devices left unavailable by
-    // runtime deletions are removed.
-    await runBuffered("xcrun", ["simctl", "delete", "unavailable"]).catch(() => {});
+    // runtime deletions are removed. The physical path never runs simctl.
+    if (!physicalTarget) {
+      await runBuffered("xcrun", ["simctl", "delete", "unavailable"]).catch(() => {});
+    }
     if (readinessPath) await unlink(readinessPath).catch(() => {});
   }
 }
