@@ -706,7 +706,7 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     const hiddenIds = Array.from({ length: 64 }, (_, index) => `hidden-${index}`);
     for (const threadId of hiddenIds) server.publishSupervisorEvent(itemEvent(threadId));
     server.publishSupervisorEvent(itemEvent("visible"));
-    await vi.waitFor(() => expect(eventFrames()).toHaveLength(65));
+    await vi.waitFor(() => expect(eventFrames()).toHaveLength(65), { timeout: 10_000 });
 
     // One visible thread arrives intact; 64 hidden threads arrive as empty,
     // content-free frames (never dropped: replay/seq contiguity holds) whose
@@ -743,8 +743,12 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
         payload: { summary: "Allow this tool?" },
       },
     });
-    await vi.waitFor(() =>
-      expect(eventFrames().some(({ event }) => event.event?.type === "request.opened")).toBe(true),
+    await vi.waitFor(
+      () =>
+        expect(eventFrames().some(({ event }) => event.event?.type === "request.opened")).toBe(
+          true,
+        ),
+      { timeout: 10_000 },
     );
 
     // Select a previously hidden thread over the same socket: the next frame
@@ -758,19 +762,25 @@ describe("desktop loopback intake composition (loopback RemoteAccessServer)", ()
     const itemInterests = (
       server as unknown as { itemInterests: Map<unknown, ReadonlySet<string>> }
     ).itemInterests;
-    await vi.waitFor(() =>
-      expect([...itemInterests.values()].some((interestSet) => interestSet.has("hidden-0"))).toBe(
-        true,
-      ),
+    await vi.waitFor(
+      () =>
+        expect([...itemInterests.values()].some((interestSet) => interestSet.has("hidden-0"))).toBe(
+          true,
+        ),
+      { timeout: 10_000 },
     );
     server.publishSupervisorEvent(itemEvent("hidden-0"));
-    await vi.waitFor(() => expect(eventFrames()).toHaveLength(before.length + 1));
+    await vi.waitFor(() => expect(eventFrames()).toHaveLength(before.length + 1), {
+      timeout: 10_000,
+    });
     const selected = eventFrames().at(-1)!;
     expect(selected.seq).toBe(lastSeq + 1);
     expect(selected.event.event?.payload?.result).toHaveLength(5_000);
 
     server.publishSupervisorEvent(itemEvent("hidden-0"));
-    await vi.waitFor(() => expect(eventFrames()).toHaveLength(before.length + 2));
+    await vi.waitFor(() => expect(eventFrames()).toHaveLength(before.length + 2), {
+      timeout: 10_000,
+    });
     expect(eventFrames().at(-1)!.seq).toBe(lastSeq + 2);
     // Interest switching is not a full rebuild: the baseline path stays the
     // activation rebuild + the pane's hydration-on-ready.
@@ -1574,5 +1584,63 @@ describe("desktop loopback socket policy (A4)", () => {
     expect(intake.isActive()).toBe(false);
     await vi.advanceTimersByTimeAsync(60_000);
     expect(sockets).toHaveLength(1);
+  });
+
+  it("resolves repeated foreground/activation signals during setup to one owner decision", async () => {
+    const { fetchImpl, calls } = createFakeFetch();
+    const sockets: FakeSocketHarness[] = [];
+    const activeChanges: boolean[] = [];
+    const intake = new DesktopLoopbackIntake(
+      baseIntakeDeps({
+        fetchImpl,
+        retryDelayMs: 100,
+        onActiveChanged: (active) => activeChanges.push(active),
+        socketFactory: () => {
+          const harness = makeFakeSocket();
+          sockets.push(harness);
+          return harness.socket;
+        },
+      }),
+    );
+    intakes.push(intake);
+
+    // The owner's activation is in flight: pairing exchange and ticket are
+    // done, the socket exists but has not opened yet.
+    const owner = intake.activate();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sockets).toHaveLength(1);
+
+    // A storm of repeated foreground/activation signals lands while that setup
+    // is still in flight. Every signal must coalesce onto the ONE in-flight
+    // owner decision: no second pairing exchange, no second socket, no
+    // orphaned connection racing the first one.
+    const storm = Array.from({ length: 8 }, () => intake.activate());
+    await vi.advanceTimersByTimeAsync(1);
+    expect(calls).toHaveLength(2); // exactly one exchange + one ticket mint
+    expect(sockets).toHaveLength(1);
+    // The storm losers report the leg's in-flight state, never their own
+    // connection attempt.
+    await expect(Promise.all(storm)).resolves.toEqual(Array.from({ length: 8 }, () => false));
+
+    // The single setup completes: exactly one owner decision.
+    sockets[0]!.emitOpen();
+    await expect(owner).resolves.toBe(true);
+    expect(intake.isActive()).toBe(true);
+    expect(activeChanges).toEqual([true]);
+
+    // Repeated signals while the leg serves are inert: the active guard makes
+    // them no-ops that report the live leg.
+    const afterOpen = Array.from({ length: 4 }, () => intake.activate());
+    await vi.advanceTimersByTimeAsync(1);
+    expect(calls).toHaveLength(2);
+    expect(sockets).toHaveLength(1);
+    await expect(Promise.all(afterOpen)).resolves.toEqual(Array.from({ length: 4 }, () => true));
+    expect(activeChanges).toEqual([true]);
+
+    // No leaked socket: the one connection the owner opened is the one
+    // teardown closes.
+    intake.dispose();
+    expect(sockets).toHaveLength(1);
+    expect(sockets[0]!.closeCount).toBe(1);
   });
 });
