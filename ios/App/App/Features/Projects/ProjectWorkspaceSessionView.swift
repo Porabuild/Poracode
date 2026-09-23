@@ -491,15 +491,3 @@ extension String {
     return value.isEmpty ? nil : value
   }
 }
-
-/// Runs the workspace session's release when SwiftUI destroys the owning
-/// view's state (the view was popped or replaced), not when it is merely
-/// covered by a pushed child.
-@MainActor
-private final class ProjectWorkspaceSessionLifetime {
-  var release: (() -> Void)?
-
-  isolated deinit {
-    release?()
-  }
-}
