@@ -214,10 +214,28 @@ fun RichTerminalPane(
             processState = state.processState,
             busy = busy,
             // A start that was rejected or failed before owning a terminal leaves
-            // no lease to re-watch; the pane's one-shot auto-start latch is spent,
-            // so the status row must offer the explicit re-dispatch.
-            showRetry = state.failure != null && state.lease == null,
-            onReconnect = runtime::reconnectTerminal,
+            // no lease to re-watch and the one-shot auto-start latch is spent, so
+            // the status row offers a retry that starts THIS pane's project
+            // terminal, exactly like the Start button, only when a start is allowed.
+            showRetry = shouldOfferTerminalStartRetry(
+                hasStartFailure = state.failure != null,
+                canOperate = canOperate,
+                busy = busy,
+                hasTerminalLease = state.lease != null,
+                hasProjectLocation = projectLocation != null,
+            ),
+            onReconnect = {
+                val location = projectLocation
+                if (state.lease == null && location != null) {
+                    scope.launch {
+                        runtime.startTerminal(
+                            terminalStartInput(location, measuredSize, density, terminalCellSize),
+                        )
+                    }
+                } else {
+                    runtime.reconnectTerminal()
+                }
+            },
         )
         SelectionContainer(Modifier.weight(1f)) {
             LazyColumn(
@@ -393,6 +411,16 @@ internal fun shouldAutoStartProjectTerminal(
     hasTerminalLease: Boolean,
     hasProjectLocation: Boolean,
 ): Boolean = autoStartKey != null && !autoStartRequested &&
+    canStartProjectTerminal(canOperate, busy, hasTerminalLease, hasProjectLocation)
+
+/** Retry after a start that failed without a lease: the same gate as Start. */
+internal fun shouldOfferTerminalStartRetry(
+    hasStartFailure: Boolean,
+    canOperate: Boolean,
+    busy: Boolean,
+    hasTerminalLease: Boolean,
+    hasProjectLocation: Boolean,
+): Boolean = hasStartFailure &&
     canStartProjectTerminal(canOperate, busy, hasTerminalLease, hasProjectLocation)
 
 internal fun canStartProjectTerminal(

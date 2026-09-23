@@ -178,4 +178,14 @@ class TerminalTextBufferTest {
             ),
         )
     }
+
+    @Test
+    fun startRetryIsOfferedOnlyForALeaselessFailureThatCouldStartNow() {
+        assertTrue(shouldOfferTerminalStartRetry(true, canOperate = true, busy = false, hasTerminalLease = false, hasProjectLocation = true))
+        assertFalse(shouldOfferTerminalStartRetry(false, canOperate = true, busy = false, hasTerminalLease = false, hasProjectLocation = true))
+        assertFalse(shouldOfferTerminalStartRetry(true, canOperate = false, busy = false, hasTerminalLease = false, hasProjectLocation = true))
+        assertFalse(shouldOfferTerminalStartRetry(true, canOperate = true, busy = true, hasTerminalLease = false, hasProjectLocation = true))
+        assertFalse(shouldOfferTerminalStartRetry(true, canOperate = true, busy = false, hasTerminalLease = true, hasProjectLocation = true))
+        assertFalse(shouldOfferTerminalStartRetry(true, canOperate = true, busy = false, hasTerminalLease = false, hasProjectLocation = false))
+    }
 }
