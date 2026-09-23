@@ -1,3 +1,4 @@
+import SwiftUI
 import UIKit
 import UserNotifications
 
@@ -24,5 +25,19 @@ enum NotificationForegroundPresentation {
     guard hasRoutingEnvelope else { return presented }
     guard let route, route.clientConnectionId == selectedConnectionId else { return [] }
     return presented
+  }
+}
+
+/// Scene-phase → session-backgrounded policy for the notification surface.
+///
+/// Only a true `.background` ends the foreground session. The cross-host
+/// confirmation contract is "backgrounding is a cancellation"
+/// (`NotificationRouteController.setForeground`), and a transient `.inactive`
+/// (Notification Center / Control Center pull, app-switcher peek, call
+/// banner) does not mean backgrounded — wiring the predicate as
+/// `phase == .active` tears down a visible confirmation on any overlay.
+enum NotificationForegroundPolicy {
+  static func isSessionBackgrounded(_ phase: ScenePhase) -> Bool {
+    phase == .background
   }
 }

@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 
 @testable import App
@@ -258,6 +259,43 @@ final class NotificationRouteConfirmationTests: XCTestCase {
     XCTAssertNil(harness.controller.pendingHostSwitch)
     XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
     XCTAssertNil(harness.navigation.event)
+  }
+
+  // MARK: - Scene-phase policy wiring
+
+  func testScenePhasePolicyMapsOnlyTrueBackgroundToBackgrounded() {
+    // Transient overlays (Notification Center, Control Center, app-switcher
+    // peek, call banner) must never read as "backgrounded".
+    XCTAssertFalse(NotificationForegroundPolicy.isSessionBackgrounded(.active))
+    XCTAssertFalse(NotificationForegroundPolicy.isSessionBackgrounded(.inactive))
+    XCTAssertTrue(NotificationForegroundPolicy.isSessionBackgrounded(.background))
+  }
+
+  func testTransientInactiveKeepsPendingConfirmation() async {
+    let harness = Harness()
+    harness.session.snapshot = makeSnapshot(threads: [makeThread(id: "t-b", title: "Thread B")])
+
+    harness.controller.submit(route(connection: connectionB, desktopId: "desk-b", threadId: "t-b"))
+    await harness.settle()
+    XCTAssertNotNil(harness.controller.pendingHostSwitch)
+
+    // Notification Center / Control Center / app-switcher peek: still
+    // foreground, exactly as PoracodeApp wires the scene phase.
+    harness.controller.setForeground(
+      !NotificationForegroundPolicy.isSessionBackgrounded(.inactive))
+    await harness.settle()
+
+    // The alert must survive the transient overlay; nothing may move.
+    XCTAssertNotNil(harness.controller.pendingHostSwitch)
+    XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
+    XCTAssertNil(harness.navigation.event)
+
+    // True background still cancels (existing contract, now phase-keyed).
+    harness.controller.setForeground(
+      !NotificationForegroundPolicy.isSessionBackgrounded(.background))
+    await harness.settle()
+    XCTAssertNil(harness.controller.pendingHostSwitch)
+    XCTAssertTrue(harness.session.switchHostCalls.isEmpty)
   }
 
   // MARK: - Navigation pin ownership

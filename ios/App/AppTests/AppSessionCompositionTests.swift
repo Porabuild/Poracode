@@ -1463,6 +1463,56 @@ final class AppSessionCompositionTests: XCTestCase {
     XCTAssertEqual(session.profile?.desktopId, "desk-a")
   }
 
+  // The iOS analog of the Android recreate race (32299f2a4): transient
+  // inactive states (app switcher, Notification Center, call banner) must
+  // never read as "backgrounded", while a true background still drops the
+  // memory-only pairing credential.
+  func testTransientInactiveDoesNotClearPendingPairing() async throws {
+    let (session, repo, _) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "live"
+    ) { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment())
+      api.snapshotResult = .success(makeShell(seq: 3))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+    await session.bootstrap()
+
+    await session.handleIncomingPairingURL(URL(string: "https://b.test/#token=other")!)
+    XCTAssertNotNil(session.pendingPairing)
+
+    session.handleScenePhase(.inactive)
+    XCTAssertFalse(session.state.liveLifecycle.isInBackground)
+    XCTAssertNotNil(session.pendingPairing, "transient .inactive must not clear the pending pairing")
+
+    session.handleScenePhase(.active)
+    XCTAssertNotNil(session.pendingPairing, "returning to .active must not clear the pending pairing")
+  }
+
+  func testTrueBackgroundStillClearsPendingPairing() async throws {
+    let (session, repo, _) = try await makeSession(
+      seedProfile: makeProfile(),
+      seedToken: "live"
+    ) { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment())
+      api.snapshotResult = .success(makeShell(seq: 3))
+      return api
+    }
+    defer { Task { await repo.wipeSuiteForTests() } }
+    await session.bootstrap()
+
+    await session.handleIncomingPairingURL(URL(string: "https://b.test/#token=other")!)
+    XCTAssertNotNil(session.pendingPairing)
+
+    session.handleScenePhase(.background)
+    XCTAssertTrue(session.state.liveLifecycle.isInBackground)
+    XCTAssertNil(
+      session.pendingPairing, "true background drops the memory-only pairing credential")
+  }
+
   func testMalformedDeepLinkIsNoOp() async throws {
     let (session, repo, _) = try await makeSession { e, t in
       FakeRemoteAPI(endpoint: e, accessToken: t)
