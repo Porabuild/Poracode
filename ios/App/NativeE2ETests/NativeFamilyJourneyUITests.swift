@@ -322,7 +322,8 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       let controlHost = controlURL.host, !loopback.contains(controlHost),
       var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
     else { return url }
-    components.host = controlHost
+    // URL.host is unbracketed; URLComponents needs IPv6 literals bracketed.
+    components.percentEncodedHost = controlHost.contains(":") ? "[\(controlHost)]" : controlHost
     return components.url ?? url
   }
 

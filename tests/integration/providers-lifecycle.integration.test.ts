@@ -99,7 +99,8 @@ const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
       // pinned model is being retired ("GPT-5.5 retires on October 14, 2026.
       // … › 1. Try new model  2. Use existing model"). Answering "2" keeps
       // the configured model instead of switching the CLI's default.
-      needle: /retires\s*on|Choose\s*how\s*you'd\s*like\s*Codex\s*to\s*proceed/i,
+      // Anchored to the modal's option chrome (see the update responder).
+      needle: /retires\s*on[\s\S]*Try\s*new\s*model[\s\S]*Use\s*existing\s*model/i,
       response: "2\r",
       reason: "codex: keep configured model on retirement modal",
       maxFires: 2,
