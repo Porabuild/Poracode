@@ -12,8 +12,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
 import com.poracode.remote.v3.generated.RemotePairingMachine
 import com.poracode.app.protocol.LocalNetworkAccess
 import com.poracode.app.protocol.LocalNetworkPermissionUi
@@ -65,36 +63,16 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val app = application as PoracodeApplication
-        val session = app.session
 
-        lifecycle.addObserver(object : DefaultLifecycleObserver {
-            override fun onStart(owner: LifecycleOwner) {
-                session.onAppForeground()
-                app.onAdvancedOperationsForeground()
-                app.onThreadLifecycleForeground()
-                app.onRichChatForeground()
-                app.onBrowserMirrorForeground()
-                app.push.onForeground()
-                app.settings.onForeground()
-            }
-
-            override fun onStop(owner: LifecycleOwner) {
-                app.push.onBackground()
-                app.remoteIntegrations.cancelTransientWork()
-                app.settingsIntegrations.onBackground()
-                app.settings.onBackground()
-                app.onRichChatBackground()
-                app.ports.enterBackground()
-                app.onAdvancedOperationsBackground()
-                app.onBrowserMirrorBackground()
-                app.onThreadLifecycleBackground()
-                session.onAppBackground()
-            }
-        })
-
+        // App-level foreground/background fan-out (session, push, ports, rich
+        // chat, ...) is driven by PoracodeApplication's started-activity count,
+        // not this instance's onStart/onStop: a singleTask recreate from a
+        // pairing deep link starts the replacement instance before this
+        // finishing instance stops, and an onStop-based signal would background
+        // the app mid-dialog.
         setContent {
             PoracodeApp(
-                session = session,
+                session = app.session,
                 projects = app.projects,
                 ports = app.ports,
                 richChat = app.richChat,
@@ -122,7 +100,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // Process-level once: subsequent Activity recreations no-op.
-        if (!session.isBootstrappedForTests()) session.bootstrap()
+        if (!app.session.isBootstrappedForTests()) app.session.bootstrap()
         consumePushIntent(intent)
         consumePairingIntent(intent)
     }
