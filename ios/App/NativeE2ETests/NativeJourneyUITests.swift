@@ -188,15 +188,22 @@ final class NativeJourneyUITests: XCTestCase {
 
   private func confirmPairingIfNeeded() {
     let confirm = app.buttons["native-e2e.pair.confirm"]
-    if confirm.waitForExistence(timeout: 2) {
-      XCTAssertTrue(["Confirm", "Connect anyway"].contains(confirm.label))
-      XCTAssertTrue(app.buttons["Cancel"].exists)
-      confirm.tap()
-      app.tap()
-      return
+    let home = app.buttons["native-e2e.thread.thread-fixture-001"]
+    // Whichever appears first within one bound: a loaded runner can present
+    // the confirmation after a short fixed wait, leaving it unconfirmed.
+    let deadline = Date().addingTimeInterval(20)
+    while Date() < deadline {
+      if confirm.exists {
+        XCTAssertTrue(["Confirm", "Connect anyway"].contains(confirm.label))
+        XCTAssertTrue(app.buttons["Cancel"].exists)
+        confirm.tap()
+        app.tap()
+        return
+      }
+      if home.exists { return }
+      _ = confirm.waitForExistence(timeout: 0.5)
     }
-    XCTAssertTrue(
-      app.buttons["native-e2e.thread.thread-fixture-001"].waitForExistence(timeout: 18))
+    XCTFail("Pairing neither asked for confirmation nor reached Home within 20s")
   }
 
   private func navigateHome() {
