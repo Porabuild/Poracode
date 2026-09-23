@@ -73,6 +73,7 @@ internal fun TerminalStatusRow(
     failure: TerminalConnectionFailure?,
     processState: TerminalProcessState?,
     busy: Boolean,
+    showRetry: Boolean,
     onReconnect: () -> Unit,
 ) {
     Row(
@@ -89,7 +90,7 @@ internal fun TerminalStatusRow(
             },
             modifier = Modifier.weight(1f),
         )
-        if (phase == TerminalConnectionPhase.Failed) {
+        if (phase == TerminalConnectionPhase.Failed || showRetry) {
             OutlinedButton(onClick = onReconnect, enabled = !busy) {
                 Text(stringResource(R.string.terminal_reconnect))
             }

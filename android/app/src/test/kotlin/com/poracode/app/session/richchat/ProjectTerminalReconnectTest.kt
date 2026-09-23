@@ -5,11 +5,14 @@ import com.poracode.app.model.terminal.TerminalConnectionStatus
 import com.poracode.app.model.terminal.TerminalServerFrame
 import com.poracode.app.model.terminal.TerminalWatchError
 import com.poracode.app.model.terminal.TerminalWatchErrorCode
+import com.poracode.app.transport.richchat.TerminalStartInput
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -153,5 +156,62 @@ class ProjectTerminalReconnectTest {
         advanceUntilIdle()
         assertNull(runtime.terminal.state.value.lease)
         assertEquals(1, gateway.calls.count { it == "terminal-watch" })
+    }
+
+    @Test
+    fun startGatedBeforeDispatchRecoversThroughUserRetry() = runTest {
+        val host = richLease(online = false, ready = false)
+        val session = MutableStateFlow<RichChatHostLease?>(host)
+        val gateway = FakeRichChatSessionGateway()
+        val runtime = RichChatSessionRuntime(session, gateway, { "watch" }, this)
+        runtime.presentProjectTerminalSurface()
+        runtime.startTerminal(
+            TerminalStartInput(shellId = "pty-1", projectLocation = JsonObject(emptyMap())),
+        )
+        advanceUntilIdle()
+        assertEquals(
+            "a not-ready session must gate the dispatch",
+            0,
+            gateway.calls.count { it == "terminal-start" },
+        )
+        assertNotNull("the rejection must surface a retryable failure", runtime.terminal.state.value.failure)
+        assertNull(runtime.terminal.state.value.lease)
+
+        runtime.reconnectTerminal()
+        advanceUntilIdle()
+        assertEquals(
+            "retry while still gated dispatches nothing",
+            0,
+            gateway.calls.count { it == "terminal-start" },
+        )
+
+        session.value = host.copy(online = true, ready = true)
+        runtime.reconnectTerminal()
+        advanceUntilIdle()
+        assertEquals(1, gateway.calls.count { it == "terminal-start" })
+        assertEquals(1, gateway.calls.count { it == "terminal-watch" })
+        assertEquals("pty-1", runtime.terminal.state.value.lease?.terminalId)
+    }
+
+    @Test
+    fun startFailureOffSurfaceDoesNotRedispatchOnRetry() = runTest {
+        val host = richLease(online = false, ready = false)
+        val session = MutableStateFlow<RichChatHostLease?>(host)
+        val gateway = FakeRichChatSessionGateway()
+        val runtime = RichChatSessionRuntime(session, gateway, { "watch" }, this)
+        runtime.presentProjectTerminalSurface()
+        runtime.startTerminal(
+            TerminalStartInput(shellId = "pty-1", projectLocation = JsonObject(emptyMap())),
+        )
+        advanceUntilIdle()
+        runtime.dismissProjectTerminalSurface()
+        session.value = host.copy(online = true, ready = true)
+        runtime.reconnectTerminal()
+        advanceUntilIdle()
+        assertEquals(
+            "a retained start input must never spawn a shell behind another screen",
+            0,
+            gateway.calls.count { it == "terminal-start" },
+        )
     }
 }

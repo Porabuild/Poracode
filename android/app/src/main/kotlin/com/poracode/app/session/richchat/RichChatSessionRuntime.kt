@@ -30,6 +30,7 @@ class RichChatSessionRuntime(
     @Volatile private var projectTerminalSurfacePresented = false
     private var refreshJob: Job? = null
     private var terminalJob: Job? = null
+    private var lastTerminalStart: TerminalStartInput? = null
     val chat = RichChatController(session, gateway, lifecycle)
     val checkpoints = RichCheckpointController(session, chat.selection, gateway, lifecycle)
     val media = RichChatMediaController(session, chat.selection, gateway, lifecycle)
@@ -119,6 +120,7 @@ class RichChatSessionRuntime(
     @Synchronized
     fun startTerminal(input: TerminalStartInput) {
         if (input.shellId.isEmpty()) return
+        lastTerminalStart = input
         cancelRefresh()
         checkpoints.reset()
         if (chat.selection.value != null) chat.closeThread()
@@ -133,7 +135,18 @@ class RichChatSessionRuntime(
 
     @Synchronized
     fun reconnectTerminal() {
-        val terminalId = terminal.state.value.lease?.terminalId ?: return
+        val terminalId = terminal.state.value.lease?.terminalId
+        if (terminalId == null) {
+            // A start that was rejected or failed before owning a terminal has
+            // nothing to re-watch; the user-initiated retry re-dispatches it
+            // under the same client-generated shell id. Gated on the surface
+            // being presented so a retained input can never spawn a shell
+            // behind another screen.
+            val input = lastTerminalStart ?: return
+            if (!projectTerminalSurfacePresented) return
+            startTerminal(input)
+            return
+        }
         terminalJob?.cancel()
         terminalJob = scope.launch { terminal.watch(terminalId) }
     }

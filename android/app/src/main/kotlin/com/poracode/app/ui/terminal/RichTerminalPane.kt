@@ -213,6 +213,10 @@ fun RichTerminalPane(
             failure = state.connection.failure,
             processState = state.processState,
             busy = busy,
+            // A start that was rejected or failed before owning a terminal leaves
+            // no lease to re-watch; the pane's one-shot auto-start latch is spent,
+            // so the status row must offer the explicit re-dispatch.
+            showRetry = state.failure != null && state.lease == null,
             onReconnect = runtime::reconnectTerminal,
         )
         SelectionContainer(Modifier.weight(1f)) {

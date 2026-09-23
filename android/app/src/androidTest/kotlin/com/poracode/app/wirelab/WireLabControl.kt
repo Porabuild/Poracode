@@ -136,6 +136,30 @@ class WireLabControl(controlBaseUrl: String, private val capability: String) {
         )
     }
 
+    /**
+     * Like [waitUntilObserved] but scoped to one host's journal. The union
+     * `observedOperationIds` spans every host the lab knows — including stale
+     * collision hosts a previous test seeded and the scenario reset does not
+     * clear — so a readiness wait for the session under test must name its host.
+     */
+    fun waitUntilHostObserved(hostId: String, operationIds: List<String>, timeoutMs: Long = 20_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            val observed = hostObserved(hostId)
+            if (operationIds.all { it in observed }) return
+            try {
+                Thread.sleep(POLL_INTERVAL_MS)
+            } catch (ie: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw AwaitTimeoutException("interrupted waiting for $hostId/$operationIds")
+            }
+        }
+        throw AwaitTimeoutException(
+            "host $hostId operations not observed within ${timeoutMs}ms: " +
+                "wanted=$operationIds have=${hostObserved(hostId)}",
+        )
+    }
+
     fun observedOperationIds(state: JSONObject = state()): List<String> =
         state.optJSONArray("observedOperationIds")?.toStringList() ?: emptyList()
 

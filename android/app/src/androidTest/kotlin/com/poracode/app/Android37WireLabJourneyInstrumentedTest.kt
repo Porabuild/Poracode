@@ -141,14 +141,14 @@ class Android37WireLabJourneyInstrumentedTest {
             "route:shell-snapshot",
             "ws-server:ready",
         )
-        control.waitUntilObserved(readyOps, 30_000L)
+        control.waitUntilHostObserved("primary", readyOps, 30_000L)
         waitForText("Fixture Project")
         assertObserved(control, readyOps)
         val baselineSeq = assertNotNullOrZero(session.lastSeenSeqForTests())
 
         // PHASE 2 — open fixture thread and validate authoritative snapshot/history.
         compose.onNodeWithText("Fixture thread").performClick()
-        control.waitUntilObserved(listOf("route:thread-history"), 20_000L)
+        control.waitUntilHostObserved("primary", listOf("route:thread-history"), 20_000L)
         waitForText("Fixture response")
         assertObserved(control, listOf("route:thread-history"))
         compose.waitUntil(15_000) {
