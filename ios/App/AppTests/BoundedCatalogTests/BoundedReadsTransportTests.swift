@@ -324,6 +324,29 @@ final class BoundedReadsTransportTests: XCTestCase {
     XCTAssertEqual(removable, ["gone"])
   }
 
+  /// Epoch isolation: a client whose session was created under an earlier
+  /// test's epoch (its own host was installed, then reset) must never be
+  /// served by, or counted against, the fixture a later test installs.
+  func testStaleEpochSessionCannotReachCurrentFixture() async throws {
+    let staleFixture = BoundedCatalogHostFixture()
+    staleFixture.declared = true
+    staleFixture.setProjects([.make(id: "p1")])
+    staleFixture.setThreads([.make(id: "t1")])
+    BoundedCatalogURLProtocol.install(staleFixture)
+    let staleClient = RemoteAPIClient(
+      endpoint: "https://a.test",
+      accessToken: "token-1",
+      session: BoundedCatalogURLProtocol.makeSession()
+    )
+    BoundedCatalogURLProtocol.reset()  // "previous test" tearDown
+
+    BoundedCatalogURLProtocol.install(fixture)  // "current test" setUp
+
+    _ = try? await staleClient.boundedThreadPage(mode: .inventory, limit: 2)
+
+    XCTAssertEqual(fixture.requestCount("/api/threads"), 0)
+  }
+
   // MARK: - Helpers
 
   private func iso(_ seconds: Int64) -> String {
