@@ -243,6 +243,75 @@ final class NotificationRoutingTests: XCTestCase {
     XCTAssertEqual(soundCount, 0)
   }
 
+  // MARK: - Transient .inactive banner contract (intended behavior, pinned)
+  //
+  // The ingress maps a transient .inactive (Notification Center / Control
+  // Center pull, app-switcher peek, call banner) to foreground, so at this
+  // presentation center: (a) a visible in-app banner is NOT dismissed when an
+  // overlay opens — the pre-587195a47 behavior silently destroyed the
+  // 6-second toast on any overlay; (b) a socket-delivered notification
+  // arriving while the overlay is up still presents with its banner and
+  // sound, accepting that the 6-second self-dismissal may expire unseen
+  // behind the overlay. Only a true .background ends the presentation
+  // session (dismisses the banner, drops further receives).
+  func testTransientInactiveKeepsBannerAndStillPresentsBehindOverlay() {
+    var soundCount = 0
+    let center = RemoteUserNotificationPresentationCenter(
+      playSound: { soundCount += 1 }
+    )
+    let route = NotificationRoute(
+      version: 1, clientConnectionId: connectionA, desktopId: "desktop", threadId: "thread")
+    center.setForeground(true)
+    center.receive(
+      notification(category: .done),
+      route: route,
+      isReplay: false,
+      isThreadOpen: false,
+      preference: alertPreference(),
+      now: Date(timeIntervalSince1970: 100),
+      schedulesDismiss: false
+    )
+    XCTAssertEqual(center.banner?.route, route)
+    XCTAssertEqual(soundCount, 1)
+
+    // Overlay churn: setForeground(true) again must not dismiss the banner.
+    center.setForeground(true)
+    XCTAssertNotNil(center.banner, "a transient overlay must not dismiss the in-app banner")
+    XCTAssertEqual(soundCount, 1)
+
+    // A socket event arriving while Notification Center is pulled still presents.
+    let overlayArrival = NotificationRoute(
+      version: 1, clientConnectionId: connectionA, desktopId: "desktop", threadId: "thread-2")
+    center.receive(
+      notification(category: .error),
+      route: overlayArrival,
+      isReplay: false,
+      isThreadOpen: false,
+      preference: alertPreference(),
+      now: Date(timeIntervalSince1970: 101),
+      schedulesDismiss: false
+    )
+    XCTAssertEqual(center.banner?.route, overlayArrival)
+    XCTAssertEqual(soundCount, 2)
+
+    // Only a true background ends the presentation session...
+    center.setForeground(false)
+    XCTAssertNil(center.banner)
+
+    // ...and a notification arriving while truly backgrounded is dropped.
+    center.receive(
+      notification(category: .done),
+      route: overlayArrival,
+      isReplay: false,
+      isThreadOpen: false,
+      preference: alertPreference(),
+      now: Date(timeIntervalSince1970: 102),
+      schedulesDismiss: false
+    )
+    XCTAssertNil(center.banner)
+    XCTAssertEqual(soundCount, 2)
+  }
+
   func testReplayBackgroundPreferenceAndOpenThreadSuppressPresentation() {
     let route = NotificationRoute(
       version: 1, clientConnectionId: connectionA, desktopId: "desktop", threadId: "thread")
