@@ -1014,3 +1014,19 @@ Independent GLM 5.3 FlashX High lanes ran research, review, execution and qualif
 - Strict live-provider suite (Claude, Codex): first runs exposed a Devin launch crash on an unknown effort tier (fixed in `edf8a2ed7`) and provider CLI startup modals (Codex model-retirement and update prompts; Claude onboarding, security notes and folder trust) that the suite did not answer. Responders are added only after zero-token PTY probes captured each screen verbatim; defaults that would exit or run a remote update script are never sent.
 
 **Remaining gates (unchanged, need hardware, enrollment or product decisions):** Windows 11 + WSL2 NAT (needs the `WSL_ROOTFS_SHA256` repository variable) and mirrored (self-hosted runner), physical iPhone and lower-tier Android runners, provider-qualification and soak Mac runners, and published N−1. v1.8.0 is not a valid server N−1 (desktop installers only, predates the D4 contract), so the first v2 stable release is `NO_PUBLISHED_SERVER_N1` by design. Gemini has no local credentials for strict provider journeys.
+
+### Crossagents rounds R4–R5: native clients and live providers — 2026-09-23 UTC
+
+**Product defects fixed:**
+
+- Android (`32299f2a4`, `a67d0ea37`): a pairing deep link that recreates the `singleTask` activity let the finishing instance's late `onStop` background the app and clear the pending pair confirmation. App-level foreground now follows a pure `AppForegroundTracker` (0↔1 crossings, configuration-change aware, stale-marker safe) with JVM and instrumented tests.
+- iOS (`587195a47`, `560a69998`, `a6b0ce213`): a transient `.inactive` cancelled a visible cross-host notification confirmation; only true background now ends the foreground session, scene-phase mapping is tested through `NotificationIngress.applyScenePhase`, and repeated foreground reports remain the push-cleanup retry trigger.
+- iOS (`f870b4eb7`, `ede29bfbf`): `ProjectWorkspaceSessionView` deactivated its Git/GitHub/review controllers in `onDisappear`, which also fires when the Git Operations panel is pushed on top, so every panel mutation (e.g. Stage All) failed before any request with "Git operations are unavailable." and nothing reactivated on return. A raw TCP recorder and an on-device diagnostic (`notReady|contextNil`) proved it. Release now happens on state destruction; the real-peer journey asserts the action is not rejected.
+- Devin (`edf8a2ed7`): an unknown catalog effort tier crashed launch; it now degrades with a one-time warning.
+
+**Test and harness defects fixed:** Android real-peer and catalog-baseline races (`01e4e6eee`), iOS real-peer journey reusing a consumed one-time pairing credential and missing accessibility identifiers (`134150b36`), and live-provider startup screens for Claude, Codex and Qoder plus unanswered terminal cursor queries for Muse (`ad7b51c10`, `2b63f1d4c`), each captured verbatim by zero-token PTY probes before a responder was written. Responders never send defaults that exit or run a remote update script.
+
+**Evidence:**
+
+- Full native qualification dispatch `35829630528` at `ede29bfbf`: all jobs pass, including iOS AppTests, iOS XCUITest mock and real-peer family journeys, Android 14 floor and Android 17 (mock and real-peer), darwin/linux server artifacts and darwin-x64/linux-arm64 install qualification. Both real-peer legs had never passed before this round.
+- Strict live-provider suite (`PORACODE_LIVE_PROVIDERS_REQUIRED=claude,codex`): 25 passed, 6 skipped, 0 failed — Claude, Codex, Devin, Qoder and Muse launch, respond, resume and clean up. The Claude cell used the local z.ai-backed Claude profile (`CLAUDE_CONFIG_DIR`), so it proves the Claude CLI and adapter, not the Anthropic backend; Gemini has no local credentials.
