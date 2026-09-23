@@ -52,11 +52,13 @@ struct PoracodeApp: App {
         NotificationIngress.shared.attach(session: session)
         await NotificationPermissionController.shared.refreshAndRegisterIfUsable()
         await session.bootstrap()
-        NotificationIngress.shared.setForeground(scenePhase == .active)
+        NotificationIngress.shared.setForeground(
+          !NotificationForegroundPolicy.isSessionBackgrounded(scenePhase))
       }
       .onChange(of: scenePhase) { _, newPhase in
         session.handleScenePhase(newPhase)
-        NotificationIngress.shared.setForeground(newPhase == .active)
+        NotificationIngress.shared.setForeground(
+          !NotificationForegroundPolicy.isSessionBackgrounded(newPhase))
         if newPhase == .active {
           Task {
             await NotificationPermissionController.shared.refreshAndRegisterIfUsable()
