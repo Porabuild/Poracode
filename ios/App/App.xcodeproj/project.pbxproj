@@ -47,6 +47,7 @@
 		D41000000000000000000002 /* HomeThreadLifecycleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D42000000000000000000002 /* HomeThreadLifecycleCoordinator.swift */; };
 		D41000000000000000000003 /* notification.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D42000000000000000000003 /* notification.mp3 */; };
 		A1000000000000000000011A /* NotificationRouteConfirmationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011A /* NotificationRouteConfirmationTests.swift */; };
+		A1000000000000000000011C /* NotificationIngressScenePhaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011C /* NotificationIngressScenePhaseTests.swift */; };
 		A100000000000000000000FF /* GitStateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000FF /* GitStateModels.swift */; };
 		A100000000000000000000FE /* GitStateKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000000000000000000FE /* GitStateKeys.swift */; };
 		BA20000000000000000001 /* BrowserMirrorActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA10000000000000000001 /* BrowserMirrorActions.swift */; };
@@ -851,6 +852,7 @@
 		D42000000000000000000002 /* HomeThreadLifecycleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeThreadLifecycleCoordinator.swift; sourceTree = "<group>"; };
 		D42000000000000000000003 /* notification.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = ../../public/notification.mp3; sourceTree = SOURCE_ROOT; };
 		B1000000000000000000011A /* NotificationRouteConfirmationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRouteConfirmationTests.swift; sourceTree = "<group>"; };
+		B1000000000000000000011C /* NotificationIngressScenePhaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationIngressScenePhaseTests.swift; sourceTree = "<group>"; };
 		B100000000000000000000FF /* GitStateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStateModels.swift; sourceTree = "<group>"; };
 		B100000000000000000000FE /* GitStateKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStateKeys.swift; sourceTree = "<group>"; };
 		BA10000000000000000001 /* BrowserMirrorActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserMirrorActions.swift; sourceTree = "<group>"; };
@@ -2606,6 +2608,7 @@
 				B1000000000000000000004E /* SessionPoolTests.swift */,
 				B10000000000000000000060 /* NotificationRoutingTests.swift */,
 				B1000000000000000000011A /* NotificationRouteConfirmationTests.swift */,
+				B1000000000000000000011C /* NotificationIngressScenePhaseTests.swift */,
 				B10000000000000000000061 /* PushStorageTests.swift */,
 				B10000000000000000000062 /* ActivityKitRoutingTests.swift */,
 				B10000000000000000000063 /* PushRegistrationTests.swift */,
@@ -3842,6 +3845,7 @@
 				A1000000000000000000004E /* SessionPoolTests.swift in Sources */,
 				A10000000000000000000060 /* NotificationRoutingTests.swift in Sources */,
 				A1000000000000000000011A /* NotificationRouteConfirmationTests.swift in Sources */,
+				A1000000000000000000011C /* NotificationIngressScenePhaseTests.swift in Sources */,
 				A10000000000000000000061 /* PushStorageTests.swift in Sources */,
 				A10000000000000000000062 /* ActivityKitRoutingTests.swift in Sources */,
 				A10000000000000000000063 /* PushRegistrationTests.swift in Sources */,
