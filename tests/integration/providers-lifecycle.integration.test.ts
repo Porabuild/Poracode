@@ -101,20 +101,65 @@ const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
       reason: "codex: keep configured model on retirement modal",
       maxFires: 2,
     },
+    {
+      // Non-deterministic update-available modal ("✨ Update available!
+      // 0.155.1 -> 0.156.0 … › 1. Update now  2. Skip  3. Skip until next
+      // version"). Answer "2" — the default is "Update now", which pipes a
+      // remote install script through `sh`, so a bare "\r" here is dangerous.
+      needle: /Update\s*available|releases\/latest|Update\s*now/i,
+      response: "2\r",
+      reason: "codex: skip update-available modal (default is Update now!)",
+      maxFires: 2,
+    },
   ],
   // Claude 2.1.280 re-runs first-run onboarding on interactive TUI launches
   // when the stored onboarding version lags the CLI — dir-independent and
-  // unaffected by adapter flags. The captured probe only reaches the opening
-  // theme screen ("Let's get started. / Choose the text style…"), whose
-  // cursor already sits on the default ("2. Dark mode ✔"), so a single Enter
-  // accepts it. Later onboarding screens are not visible in the probe and may
-  // need their own responders if a launch stalls pre-prompt again.
+  // unaffected by adapter flags. The captured probe chain is: theme screen
+  // ("Choose the text style…", cursor already on the default "2. Dark mode ✔")
+  // → security-notes screen → folder-trust dialog → bypass-permissions
+  // confirmation. Which screens re-appear varies per launch (partial state
+  // persists), so every responder stays armed. Screens paint word-by-word,
+  // so the decoded text drops spaces inside dialog bodies; needles join with
+  // \s* so they match painted and stripped renderings alike.
   claude: [
     {
       needle: /Choose\s*the\s*text\s*style/i,
       response: "\r",
       reason: "claude: accept default theme on first-run onboarding",
       maxFires: 3,
+    },
+    {
+      // Static security notice after the theme screen ("Security notes: …
+      // Learn more: https://code.claude.com/docs/en/security — Press Enter to
+      // continue…"). Advances on Enter. Anchored on "Security notes" so the
+      // trailing "Press enter to continue" phrasing can never match a codex
+      // modal.
+      needle: /Security\s*notes[\s\S]*Press\s*Enter\s*to\s*continue/i,
+      response: "\r",
+      reason: "claude: accept security notes",
+      maxFires: 2,
+    },
+    {
+      // Folder-trust dialog for the repo cwd ("⚠ This folder pre-approves 23
+      // tool permissions in .claude/settings.local.json …"). The default
+      // cursor sits on "❯ No, exit", so a bare Enter would terminate the CLI —
+      // send Down+Enter to select "Yes, I trust this folder". Never answer
+      // this dialog with a plain "\r".
+      needle: /Yes,\s*I\s*trust\s*this\s*folder/i,
+      response: "\x1b[B\r",
+      reason: "claude: trust repo folder (down+enter, default is No)",
+      maxFires: 2,
+    },
+    {
+      // Bypass-permissions confirmation, shown because the supervisor launches
+      // claude with --allow-dangerously-skip-permissions ("In Bypass
+      // Permissions mode, Claude Code will not ask for your approval …").
+      // Default cursor is again "❯ No, exit" — send Down+Enter to select
+      // "Yes, I accept". Never answer this dialog with a plain "\r".
+      needle: /Bypass\s*Permissions[\s\S]*Yes,\s*I\s*accept/i,
+      response: "\x1b[B\r",
+      reason: "claude: accept bypass-permissions dialog (down+enter, default is No)",
+      maxFires: 2,
     },
   ],
 };
