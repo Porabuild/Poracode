@@ -3,6 +3,7 @@ package com.poracode.app.session.richchat
 import com.poracode.app.chat.TerminalCursorFrameDecoder
 import com.poracode.app.model.terminal.TerminalConnectionFailure
 import com.poracode.app.model.terminal.TerminalConnectionPhase
+import com.poracode.app.transport.richchat.TerminalStartInput
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -307,4 +308,80 @@ class RichTerminalControllerTest {
         assertEquals(null, controller.state.value.lease)
         assertTrue("terminal-unwatch" in gateway.calls)
     }
+
+    @Test
+    fun staleStartAfterHostBlinkReleasesTheBusyFlag() = runTest {
+        val session = MutableStateFlow<RichChatHostLease?>(richLease())
+        val gateway = FakeRichChatSessionGateway()
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        gateway.unitHandler = { name ->
+            if (name == "terminal-start") {
+                started.complete(Unit)
+                release.await()
+            }
+        }
+        val controller = RichTerminalController(session, gateway, ForegroundOperationRegistry())
+        val deferred = async { controller.start(startInput("shell-a")) }
+        runCurrent()
+        started.await()
+        assertTrue("terminal-start" in controller.state.value.activeOperations)
+
+        // The host blinks offline while the POST is in flight, so the completion is
+        // Stale with no lease to reconcile or dismiss.
+        session.value = richLease(online = false, ready = false)
+        release.complete(Unit)
+        runCurrent()
+
+        assertTrue(deferred.await() is RichChatOperationResult.Stale)
+        assertEquals(null, controller.state.value.lease)
+        assertFalse("terminal-start" in controller.state.value.activeOperations)
+    }
+
+    @Test
+    fun staleStartDoesNotClearANewerStartBusyFlag() = runTest {
+        val session = MutableStateFlow<RichChatHostLease?>(richLease())
+        val gateway = FakeRichChatSessionGateway()
+        val firstStarted = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        val secondStarted = CompletableDeferred<Unit>()
+        val releaseSecond = CompletableDeferred<Unit>()
+        var starts = 0
+        gateway.unitHandler = { name ->
+            if (name == "terminal-start") {
+                starts += 1
+                if (starts == 1) {
+                    firstStarted.complete(Unit)
+                    releaseFirst.await()
+                } else {
+                    secondStarted.complete(Unit)
+                    releaseSecond.await()
+                }
+            }
+        }
+        val controller = RichTerminalController(session, gateway, ForegroundOperationRegistry())
+        val first = async { controller.start(startInput("shell-a")) }
+        runCurrent()
+        firstStarted.await()
+        // A newer start takes ownership of the terminal-start slot.
+        val second = async { controller.start(startInput("shell-b")) }
+        runCurrent()
+        secondStarted.await()
+
+        releaseFirst.complete(Unit)
+        runCurrent()
+        // The superseded start goes Stale but must not clear the newer start's busy flag.
+        assertTrue(first.await() is RichChatOperationResult.Stale)
+        assertTrue("terminal-start" in controller.state.value.activeOperations)
+
+        releaseSecond.complete(Unit)
+        runCurrent()
+        assertTrue(second.await() is RichChatOperationResult.Success)
+        assertFalse("terminal-start" in controller.state.value.activeOperations)
+    }
+
+    private fun startInput(shellId: String) = TerminalStartInput(
+        shellId = shellId,
+        projectLocation = JsonObject(emptyMap()),
+    )
 }
