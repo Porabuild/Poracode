@@ -167,12 +167,6 @@ final class ProjectWorkspaceSelectionSource {
   }
 }
 
-private struct ProjectWorkspaceSessionID: Hashable {
-  let identity: ProjectIdentity
-  let projectLocation: ProjectLocation
-  let workspaceLocation: ProjectLocation
-}
-
 enum ProjectWorkspaceEntryPoint: Hashable, Sendable {
   case workspace(ProjectWorkspaceMode)
   case gitHubActions
@@ -278,9 +272,15 @@ struct ProjectWorkspaceSessionView: View {
           workspaceLocation: workspaceLocation
         )
       ) {
-        gitOperationsController.deactivate()
-        gitHubOperationsControllers.deactivate()
-        reviewController.release()
+        // .task reruns on every reappearance; tear down only for a new session.
+        let id = ProjectWorkspaceSessionID(
+          identity: identity, projectLocation: location, workspaceLocation: workspaceLocation)
+        if lifetime.sessionID != id {
+          lifetime.sessionID = id
+          gitOperationsController.deactivate()
+          gitHubOperationsControllers.deactivate()
+          reviewController.release()
+        }
         source.synchronize(
           identity: identity,
           location: location,
