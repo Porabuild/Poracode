@@ -21,23 +21,42 @@ final class BoundedCatalogURLProtocol: URLProtocol {
   }
 
   private static let lock = NSLock()
-  nonisolated(unsafe) private static var host: BoundedCatalogHostFixture?
+  /// Epoch token sent as a header by every session `makeSession()` creates.
+  /// Each test's install/reset opens and closes one epoch: a leaked in-flight
+  /// client from a finished test carries its own (now-closed) token and is
+  /// answered `no_host` — it can never be served by, or counted against, the
+  /// fixture a later test installs. A mid-test `install` swaps the fixture
+  /// under the live token, so host swaps stay visible to existing clients.
+  static let epochHeader = "X-Poracode-Test-Epoch"
+  nonisolated(unsafe) private static var fixturesByEpoch: [String: BoundedCatalogHostFixture] = [:]
+  nonisolated(unsafe) private static var liveEpoch: String?
+  nonisolated(unsafe) private static var epochCounter = 0
+
+  private static func openEpochIfNeeded() -> String {
+    if let epoch = liveEpoch { return epoch }
+    epochCounter += 1
+    let epoch = "bounded-\(epochCounter)"
+    liveEpoch = epoch
+    return epoch
+  }
 
   static func install(_ fixture: BoundedCatalogHostFixture) {
     lock.lock()
     defer { lock.unlock() }
-    host = fixture
+    fixturesByEpoch[openEpochIfNeeded()] = fixture
   }
 
   static func reset() {
     lock.lock()
-    defer { lock.unlock() }
-    host = nil
+    if let epoch = liveEpoch { fixturesByEpoch[epoch] = nil }
+    liveEpoch = nil
+    lock.unlock()
   }
 
   static func makeSession() -> URLSession {
     let config = URLSessionConfiguration.ephemeral
     config.protocolClasses = [BoundedCatalogURLProtocol.self]
+    config.httpAdditionalHeaders = [epochHeader: openEpochIfNeededLocked()]
     // A concurrent delegate queue: a held page blocks only its own request, so
     // an unrelated read (history, membership) still reaches the fixture while
     // one walk page is suspended.
@@ -47,12 +66,19 @@ final class BoundedCatalogURLProtocol: URLProtocol {
     return URLSession(configuration: config, delegate: nil, delegateQueue: queue)
   }
 
+  private static func openEpochIfNeededLocked() -> String {
+    lock.lock()
+    defer { lock.unlock() }
+    return openEpochIfNeeded()
+  }
+
   override class func canInit(with request: URLRequest) -> Bool { true }
   override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
   override func startLoading() {
     Self.lock.lock()
-    let fixture = Self.host
+    let epoch = request.value(forHTTPHeaderField: Self.epochHeader)
+    let fixture = epoch.flatMap { Self.fixturesByEpoch[$0] }
     Self.lock.unlock()
     guard let fixture else {
       finish(status: 500, body: Data(#"{"error":{"code":"no_host","message":"no host"}}"#.utf8))
