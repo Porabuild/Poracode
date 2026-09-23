@@ -273,20 +273,24 @@ final class NativeFamilyJourneyUITests: XCTestCase {
 
   private func confirmPairingIfNeeded() async throws {
     let confirm = app.buttons["native-e2e.pair.confirm"]
-    if confirm.waitForExistence(timeout: 2) {
-      confirm.tap()
-      app.tap()
-      return
-    }
     let homeReady = peerMode == .real
       ? app.buttons["native-e2e.session-menu"]
       : app.buttons["native-e2e.thread.thread-fixture-001"]
-    // Throw instead of asserting: an XCTAssert failure inside an async test
-    // records the failure but does not unwind the method, so a stalled
-    // pairing used to keep "passing" through every later step as a zombie.
-    guard homeReady.waitForExistence(timeout: 18) else {
-      throw FamilyJourneyError.pairingNeverReachedHome
+    // Wait for whichever comes first within one bound: on a loaded runner the
+    // confirmation can appear after a short fixed wait, and then nothing
+    // would ever confirm it. Throw instead of asserting: an XCTAssert failure
+    // inside an async test does not unwind the method.
+    let deadline = Date().addingTimeInterval(20)
+    while Date() < deadline {
+      if confirm.exists {
+        confirm.tap()
+        app.tap()
+        return
+      }
+      if homeReady.exists { return }
+      _ = confirm.waitForExistence(timeout: 0.5)
     }
+    throw FamilyJourneyError.pairingNeverReachedHome
   }
 
   private func pairingURL(hostID: String) async throws -> URL {
