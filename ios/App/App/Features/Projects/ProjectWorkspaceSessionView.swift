@@ -198,6 +198,7 @@ struct ProjectWorkspaceSessionView: View {
   @State private var gitHubOperationsControllers: GitHubOperationsControllerSuite
   @State private var reviewController: ProjectReviewInterestController
   @State private var prGenerationSource: AdvancedOperationsSelectionSource
+  @State private var lifetime = ProjectWorkspaceSessionLifetime()
   @State private var prGenerationComposition: AdvancedOperationsComposition
   @State private var prGenerationTransport: AdvancedOperationsExactHostTransportSource
   private let settingsGateway: any SettingsSessionGateway
@@ -319,11 +320,20 @@ struct ProjectWorkspaceSessionView: View {
           prGenerationSource.enterBackground()
         }
       }
-      .onDisappear {
-        gitOperationsController.deactivate()
-        gitHubOperationsControllers.deactivate()
-        reviewController.release()
-        prGenerationSource.enterBackground()
+      // Not onDisappear: it also fires while a pushed child (the Git, GitHub
+      // or review panel) covers this view, and deactivating there tore down
+      // the very controller that panel drives. Release only when this view's
+      // state is destroyed, and resynchronize whenever it is visible again.
+      .onAppear {
+        lifetime.release = {
+          [gitOperationsController, gitHubOperationsControllers, reviewController, prGenerationSource] in
+          gitOperationsController.deactivate()
+          gitHubOperationsControllers.deactivate()
+          reviewController.release()
+          prGenerationSource.enterBackground()
+        }
+        synchronizeGitOperationsOwnership()
+        synchronizeGitHubOperationsOwnership()
       }
   }
 
@@ -479,5 +489,17 @@ extension String {
   fileprivate var nilIfEmpty: String? {
     let value = trimmingCharacters(in: .whitespacesAndNewlines)
     return value.isEmpty ? nil : value
+  }
+}
+
+/// Runs the workspace session's release when SwiftUI destroys the owning
+/// view's state (the view was popped or replaced), not when it is merely
+/// covered by a pushed child.
+@MainActor
+private final class ProjectWorkspaceSessionLifetime {
+  var release: (() -> Void)?
+
+  isolated deinit {
+    release?()
   }
 }
