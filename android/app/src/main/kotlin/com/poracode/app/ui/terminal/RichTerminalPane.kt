@@ -224,6 +224,9 @@ fun RichTerminalPane(
                 hasTerminalLease = state.lease != null,
                 hasProjectLocation = projectLocation != null,
             ),
+            // Mirrors onReconnect: with no lease the tap starts THIS pane's project
+            // terminal, so label it Start; with a lease it re-watches, so Reconnect.
+            hasTerminalLease = state.lease != null,
             onReconnect = {
                 val location = projectLocation
                 if (state.lease == null && location != null) {

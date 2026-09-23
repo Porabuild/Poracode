@@ -31,8 +31,7 @@ class RichTerminalController(
     private val writeMutex = Mutex()
     private val resizeMutex = Mutex()
     private var generation = 0L
-    private var operationEpoch = 0L
-    private val currentEpochByKind = mutableMapOf<String, Long>()
+    private val epochs = RichTerminalOperationEpochs()
     private val detachedCleanup = RichTerminalDetachedCleanup(session, gateway, lifecycle)
 
     suspend fun start(input: TerminalStartInput): RichChatOperationResult<RichTerminalLease> {
@@ -382,7 +381,7 @@ class RichTerminalController(
         mutableState.update {
             it.copy(activeOperations = it.activeOperations + kind, failure = null)
         }
-        return TerminalOperationToken(host.key, terminalId, generation, kind, nextEpoch(kind))
+        return TerminalOperationToken(host.key, terminalId, generation, kind, epochs.next(kind))
     }
 
     private fun capture(lease: RichTerminalLease, kind: String): TerminalOperationToken {
@@ -394,7 +393,7 @@ class RichTerminalController(
             lease.terminalId,
             lease.generation,
             kind,
-            nextEpoch(kind),
+            epochs.next(kind),
         )
     }
 
@@ -404,19 +403,24 @@ class RichTerminalController(
         mutation: Boolean,
         operation: suspend () -> RichChatOperationResult<T>,
     ): RichChatOperationResult<T> = try {
-        lifecycle.run { lifecycleToken ->
-            val result = operation()
-            if (lifecycle.isCurrent(lifecycleToken)) result else RichChatOperationResult.Stale
+        val result = lifecycle.run { lifecycleToken ->
+            val inner = operation()
+            if (lifecycle.isCurrent(lifecycleToken)) inner else RichChatOperationResult.Stale
         }
+        // A start/watch that turns Stale never reaches the success cleanup, so it would
+        // strand its kind in activeOperations and wedge the pane busy with no lease to
+        // reconcile or dismiss. Release it on every abandoned path, ownership-guarded.
+        if (result is RichChatOperationResult.Stale) releaseOperationIfOwned(token)
+        result
     } catch (error: CancellationException) {
-        if (canPublish(token)) {
-            mutableState.update { it.copy(activeOperations = it.activeOperations - token.kind) }
-        }
+        releaseOperationIfOwned(token)
         throw error
     } catch (_: RichChatBackgroundException) {
+        releaseOperationIfOwned(token)
         rejected(RichChatOperationFailure.Backgrounded)
     } catch (error: Exception) {
         if (!canPublish(token)) {
+            releaseOperationIfOwned(token)
             RichChatOperationResult.Stale
         } else {
             val failure = error.asRichChatFailure(capability, mutation)
@@ -429,6 +433,18 @@ class RichTerminalController(
                 )
             }
             RichChatOperationResult.Failed(failure)
+        }
+    }
+
+    /** Releases [token]'s kind only while it still owns that kind's epoch slot. */
+    private fun releaseOperationIfOwned(token: TerminalOperationToken) {
+        if (!epochs.holds(token.kind, token.epoch)) return
+        mutableState.update {
+            if (token.kind in it.activeOperations) {
+                it.copy(activeOperations = it.activeOperations - token.kind)
+            } else {
+                it
+            }
         }
     }
 
@@ -449,7 +465,7 @@ class RichTerminalController(
         if (!lifecycle.isForeground) return false
         val currentHost = session.value ?: return false
         if (currentHost.key != token.host || !currentHost.online || !currentHost.ready) return false
-        if (synchronized(this) { currentEpochByKind[token.kind] } != token.epoch) return false
+        if (!epochs.holds(token.kind, token.epoch)) return false
         if (token.kind == OP_START) return generation == token.generation
         val current = mutableState.value.lease ?: return false
         return current.host.key == token.host && current.terminalId == token.terminalId &&
@@ -466,27 +482,10 @@ class RichTerminalController(
     }
 
     @Synchronized
-    private fun nextEpoch(kind: String): Long {
-        operationEpoch += 1L
-        currentEpochByKind[kind] = operationEpoch
-        return operationEpoch
-    }
-
     private fun bumpGenerationAndEpoch() {
         generation += 1L
-        synchronized(this) {
-            operationEpoch += 1L
-            currentEpochByKind.clear()
-        }
+        epochs.bumpAll()
     }
-
-    private data class TerminalOperationToken(
-        val host: RichChatHostKey,
-        val terminalId: String,
-        val generation: Long,
-        val kind: String,
-        val epoch: Long,
-    )
 
     private companion object {
         const val OP_START = "terminal-start"
