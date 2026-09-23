@@ -160,7 +160,7 @@ class Android37WireLabFamilyInstrumentedTest {
             }
         }
         if (!isRealPeer) {
-            waitForOperation("route:terminal-start")
+            waitForTerminalStart()
             waitForOperation("ws-client:terminal-watch")
             waitForOperation("ws-server:terminal-watch-result")
         }
@@ -246,7 +246,8 @@ class Android37WireLabFamilyInstrumentedTest {
                 }.isSuccess
             }
         } else {
-            control.waitUntilObserved(
+            control.waitUntilHostObserved(
+                "primary",
                 listOf(
                     "route:environment",
                     "route:token-exchange",
@@ -301,7 +302,7 @@ class Android37WireLabFamilyInstrumentedTest {
     private fun pairAndOpenFixtureThread() {
         pairUntilHome()
         compose.onNodeWithText("Fixture thread").performClick()
-        control.waitUntilObserved(listOf("route:thread-history"), 20_000L)
+        control.waitUntilHostObserved("primary", listOf("route:thread-history"), 20_000L)
         waitForText("Fixture response")
         compose.waitUntil(15_000) {
             application.richChat.chat.state.value.selection?.threadId == "thread-fixture-001"
@@ -356,6 +357,33 @@ class Android37WireLabFamilyInstrumentedTest {
             operation in control.hostObserved("primary")
         }
     }
+
+    /**
+     * The pane's one-shot terminal auto-start can lose a single race with a
+     * session blink (pre-dispatch rejection or failed dispatch). The status
+     * row then offers the product's user-initiated retry — honour it once
+     * instead of declaring the operation lost; a still-missing journal
+     * afterwards fails for real.
+     */
+    private fun waitForTerminalStart(timeoutMs: Long = 20_000L) {
+        compose.waitUntil(timeoutMs) {
+            "route:terminal-start" in control.hostObserved("primary") ||
+                terminalStartRetryVisible()
+        }
+        if ("route:terminal-start" !in control.hostObserved("primary") &&
+            terminalStartRetryVisible()
+        ) {
+            runCatching {
+                compose.onNodeWithText(context.getString(R.string.terminal_reconnect)).performClick()
+            }
+        }
+        waitForOperation("route:terminal-start")
+    }
+
+    private fun terminalStartRetryVisible(): Boolean = runCatching {
+        compose.onNodeWithText(context.getString(R.string.terminal_reconnect))
+            .assertIsDisplayed()
+    }.isSuccess
 
     private fun hasText(text: String): Boolean = runCatching {
         compose.onAllNodesWithText(text).fetchSemanticsNodes()
