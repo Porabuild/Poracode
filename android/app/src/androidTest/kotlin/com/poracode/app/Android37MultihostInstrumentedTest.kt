@@ -98,6 +98,31 @@ class Android37MultihostInstrumentedTest {
     }
 
     @Test
+    fun pairingConfirmSurvivesDeepLinkActivityRecreate() {
+        // The real-peer pairing journey launches MainActivity first, then the
+        // pairing deep link with FLAG_ACTIVITY_CLEAR_TASK. That recreates the
+        // singleTask activity: the replacement instance reaches onStart before
+        // the finishing instance reaches onStop, so an onStop-based app-level
+        // background signal fired after the new instance presented the confirm
+        // dialog and the pairing coordinator cleared it mid-dialog (the app
+        // fell back to plain onboarding with no error). The confirmation must
+        // survive the instance swap — the app is foreground throughout.
+        instrumentation.startActivitySync(mainIntent()) as MainActivity
+        launchDeepLink(publicLink("recreate.example", "recreate-token"))
+        compose.onNodeWithText("Confirm desktop pairing").assertIsDisplayed()
+        // Outlive the finishing instance's delayed onStop, which under the
+        // per-activity signal cleared the confirmation ~0.5-2s after the
+        // recreate (CI emulator timings in the real-peer leg).
+        Thread.sleep(3_000)
+        compose.waitUntil(5_000) {
+            runCatching {
+                compose.onNodeWithText("Confirm desktop pairing").assertIsDisplayed()
+            }.isSuccess
+        }
+        compose.onNodeWithText("Pair with desktop at recreate.example?").assertIsDisplayed()
+    }
+
+    @Test
     fun accessLocalNetworkDenyAndRevokeStayOnSemanticDeniedUi() {
         assertEquals(
             PackageManager.PERMISSION_DENIED,

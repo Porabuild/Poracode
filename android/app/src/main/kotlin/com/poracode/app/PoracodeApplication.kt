@@ -1,7 +1,9 @@
 package com.poracode.app
 
+import android.app.Activity
 import android.app.Application
 import android.content.pm.PackageManager
+import android.os.Bundle
 import androidx.core.content.ContextCompat
 import com.poracode.app.protocol.LocalNetworkAccess
 import com.poracode.app.push.AppSessionPushRouteSession
@@ -230,6 +232,96 @@ class PoracodeApplication : Application() {
                 PushRouteHostCatalog(catalog.selectedConnectionId, catalog.hosts)
             },
         )
+        registerAppForegroundCallbacks()
+    }
+
+    /**
+     * Started-activity count for the app-level foreground/background fan-out.
+     * Only touched from [ActivityLifecycleCallbacks] on the main thread.
+     */
+    private var startedActivityCount = 0
+
+    /**
+     * Set when the last started activity stops only to be recreated for a
+     * configuration change (locale, font scale, ...): the replacement's start
+     * is not a new foreground, so neither crossing fans out.
+     */
+    private var stoppedForConfigurationChange = false
+
+    /**
+     * Drives the app-level foreground/background fan-out from the number of
+     * started activities instead of any single activity's onStart/onStop.
+     *
+     * A per-activity observer misattributes lifecycle across a `singleTask`
+     * recreate: a pairing deep link launched with FLAG_ACTIVITY_CLEAR_TASK
+     * while MainActivity is already up starts the replacement instance before
+     * the finishing instance stops, and that delayed onStop lands after the
+     * new instance presented the pairing confirmation. Treating it as
+     * "app backgrounded" closed the network gate and cleared the pending
+     * pair confirmation mid-dialog, stranding the app on onboarding with the
+     * confirm card gone. Counting started activities fires the fan-out only
+     * on the true 0↔1 crossings, so an instance swap never leaves the app
+     * backgrounded while foreground.
+     */
+    private fun registerAppForegroundCallbacks() {
+        registerActivityLifecycleCallbacks(
+            object : Application.ActivityLifecycleCallbacks {
+                override fun onActivityStarted(activity: Activity) {
+                    startedActivityCount += 1
+                    if (startedActivityCount != 1) return
+                    if (stoppedForConfigurationChange) {
+                        stoppedForConfigurationChange = false
+                        return
+                    }
+                    onAppReachedForeground()
+                }
+
+                override fun onActivityStopped(activity: Activity) {
+                    // Unbalanced callbacks must not crash the app; clamp instead.
+                    if (startedActivityCount == 0) return
+                    startedActivityCount -= 1
+                    if (startedActivityCount != 0) return
+                    if (activity.isChangingConfigurations) {
+                        stoppedForConfigurationChange = true
+                        return
+                    }
+                    onAppReachedBackground()
+                }
+
+                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+
+                override fun onActivityDestroyed(activity: Activity) {}
+
+                override fun onActivityPaused(activity: Activity) {}
+
+                override fun onActivityResumed(activity: Activity) {}
+
+                override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            },
+        )
+    }
+
+    private fun onAppReachedForeground() {
+        session.onAppForeground()
+        onAdvancedOperationsForeground()
+        onThreadLifecycleForeground()
+        onRichChatForeground()
+        onBrowserMirrorForeground()
+        push.onForeground()
+        settings.onForeground()
+    }
+
+    private fun onAppReachedBackground() {
+        push.onBackground()
+        remoteIntegrations.cancelTransientWork()
+        settingsIntegrations.onBackground()
+        settings.onBackground()
+        onRichChatBackground()
+        ports.enterBackground()
+        onAdvancedOperationsBackground()
+        onBrowserMirrorBackground()
+        onThreadLifecycleBackground()
+        session.onAppBackground()
     }
 
     fun onRichChatBackground() = richChatComposition.enterBackground()
