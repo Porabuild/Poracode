@@ -18,7 +18,13 @@ import {
   type FaultFixtureId,
   type FrameFixtureId,
 } from "./controlFixtures.ts";
-import type { ControlServerOptions, HarnessBlocker, HarnessMode, LabState } from "./types.ts";
+import type {
+  ControlServerOptions,
+  HarnessBlocker,
+  HarnessMode,
+  LabState,
+  PairingControlResponse,
+} from "./types.ts";
 import type { CoverageLedger } from "./coverageLedger.ts";
 import type { WireLab } from "./wireLab.ts";
 import { LOOPBACK_HOST } from "./constants.ts";
@@ -44,6 +50,18 @@ export interface ControlPlane {
   applyCheckpoint(id: CheckpointFixtureId): void | HarnessBlocker;
   reset(): void;
   restartReal(): void | HarnessBlocker | Promise<void | HarnessBlocker>;
+  /**
+   * Mint a FRESH one-time pairing credential for an out-of-process peer.
+   * Pairing credentials are single-use (the host rotates them on every
+   * exchange), so a real-peer journey that pairs more than once — a runner
+   * restart resets the suite's reuse tracking — must never replay an
+   * already-consumed credential from its startup env. Real mode implements
+   * this; mock mode serves the equivalent through the scenario action.
+   */
+  issuePairingUrl?():
+    | PairingControlResponse
+    | HarnessBlocker
+    | Promise<PairingControlResponse | HarnessBlocker>;
   ledger(): CoverageLedger;
   readonly scenario?: NativeScenarioControl;
   readonly parity?: NativeParityControl;
@@ -229,6 +247,31 @@ export class ControlServer {
         const body = { ok: true };
         assertSecretFree(body, "/v1/real/restart");
         writeJson(res, 200, body);
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/v1/real/pairing-url") {
+        if (!this.plane.issuePairingUrl) {
+          throw new LabHttpError(
+            "pairing_issue_unavailable",
+            "This control plane cannot mint pairing credentials.",
+            409,
+          );
+        }
+        const result = await this.plane.issuePairingUrl();
+        if (isBlocker(result)) {
+          writeJson(res, 409, { blocker: { code: result.code } });
+          return;
+        }
+        // The pairing URL carries the one-time credential by design (the
+        // out-of-process peer pairs from it); everything else stays
+        // secret-free, mirroring the scenario action-result contract.
+        const { pairingUrl, expiresAt: _expiresAt, ...rest } = result;
+        assertSecretFree(rest, "/v1/real/pairing-url");
+        writeJson(res, 200, {
+          ok: true,
+          pairingUrl,
+          pairingExpiresAt: result.expiresAt,
+        });
         return;
       }
       throw new LabHttpError("not_found", "Not found.", 404);

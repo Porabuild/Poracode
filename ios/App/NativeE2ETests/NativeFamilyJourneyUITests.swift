@@ -7,11 +7,15 @@ import XCTest
 /// The terminal and git journeys run against BOTH peers:
 ///  - `mock` (default, CI-fast): the WireLab peer; assertions poll its
 ///    consolidated observed-operation set.
-///  - `real` (env-gated: `NATIVE_E2E_PEER_MODE=real` + `NATIVE_E2E_PAIRING_URL`):
+///  - `real` (env-gated: `NATIVE_E2E_PEER_MODE=real`):
 ///    the production headless host. The real host has no scenario journal or
 ///    fixture threads, so the journey asserts in-UI completion against the real
 ///    peer while the observable PTY-echo / repo-index effects are asserted by
 ///    the TS harness (`tests/native-e2e/realHostObservableEffects.test.ts`).
+///    Each real-mode pairing mints a fresh one-time credential from the
+///    harness control plane (`POST /v1/real/pairing-url`): pairing tokens are
+///    single-use by design, so a second pairing — after a runner restart —
+///    must never replay the startup env URL.
 @MainActor
 final class NativeFamilyJourneyUITests: XCTestCase {
   private static var preparedRealPeerState = false
@@ -169,6 +173,17 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     } else {
       app.buttons["Git"].firstMatch.tap()
     }
+    // The segmented control can swallow the mode switch while the workspace
+    // screen is still presenting; re-drive it once when the Git toolbar never
+    // appears instead of failing on a stale Files screen.
+    let gitToolbar = app.buttons["native-e2e.git.panel-menu"]
+    if !gitToolbar.waitForExistence(timeout: 5) {
+      let gitModeRetry = app.buttons["native-e2e.workspace.git"]
+      if gitModeRetry.waitForExistence(timeout: 2) {
+        gitModeRetry.tap()
+      }
+      XCTAssertTrue(gitToolbar.waitForExistence(timeout: 10), "The Git workspace never appeared")
+    }
     if peerMode == .mock {
       // WireLab has no mutable repository. Prove the native Git workspace
       // reached the host through its real read procedures; the real-peer leg
@@ -227,7 +242,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCTAssertTrue(revealPairingLinkField(timeout: 10).exists)
     let primaryPairing = try await pairingURL(hostID: "primary")
     try pastePairingURL(primaryPairing)
-    confirmPairingIfNeeded()
+    try await confirmPairingIfNeeded()
     let homeReady: XCUIElement
     switch peerMode {
     case .mock:
@@ -236,7 +251,9 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       // The real host seeds no fixture thread; the project list is home.
       homeReady = app.buttons["native-e2e.session-menu"]
     }
-    XCTAssertTrue(homeReady.waitForExistence(timeout: 20))
+    guard homeReady.waitForExistence(timeout: 20) else {
+      throw FamilyJourneyError.pairingNeverReachedHome
+    }
   }
 
   private func pairAndOpenFixtureThread() async throws {
@@ -245,7 +262,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["Fixture response"].waitForExistence(timeout: 15))
   }
 
-  private func confirmPairingIfNeeded() {
+  private func confirmPairingIfNeeded() async throws {
     let confirm = app.buttons["native-e2e.pair.confirm"]
     if confirm.waitForExistence(timeout: 2) {
       confirm.tap()
@@ -255,15 +272,27 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let homeReady = peerMode == .real
       ? app.buttons["native-e2e.session-menu"]
       : app.buttons["native-e2e.thread.thread-fixture-001"]
-    XCTAssertTrue(homeReady.waitForExistence(timeout: 18))
+    // Throw instead of asserting: an XCTAssert failure inside an async test
+    // records the failure but does not unwind the method, so a stalled
+    // pairing used to keep "passing" through every later step as a zombie.
+    guard homeReady.waitForExistence(timeout: 18) else {
+      throw FamilyJourneyError.pairingNeverReachedHome
+    }
   }
 
   private func pairingURL(hostID: String) async throws -> URL {
     if peerMode == .real {
-      guard let raw = ProcessInfo.processInfo.environment["NATIVE_E2E_PAIRING_URL"],
-        let url = URL(string: raw), !raw.isEmpty
+      // Pairing credentials are strictly single-use (the host rotates them on
+      // every exchange), so every real-peer pairing mints a FRESH one-time
+      // credential from the harness control plane. The startup env URL
+      // (`NATIVE_E2E_PAIRING_URL`) is consumed by the first pairing; a runner
+      // restart between family tests resets this suite's pairing-reuse
+      // tracking, and replaying the consumed credential stalls the app on the
+      // pairing sheet until the journey times out.
+      let body = try await control(path: "/v1/real/pairing-url", method: "POST")
+      guard let raw = body["pairingUrl"] as? String, let url = URL(string: raw), !raw.isEmpty
       else {
-        throw FamilyJourneyError.missingRealPairingURL
+        throw FamilyJourneyError.invalidHarnessResponse
       }
       return url
     }
@@ -392,7 +421,7 @@ private enum FamilyJourneyError: Error {
   case invalidHarnessResponse
   case timedOut
   case missingHost
-  case missingRealPairingURL
+  case pairingNeverReachedHome
 }
 
 private struct FamilyScenarioState: Decodable {

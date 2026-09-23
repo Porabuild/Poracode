@@ -196,6 +196,7 @@ struct GitOperationsPanel: View {
     )
     .disabled(!enabled)
     .accessibilityLabel(descriptor.accessibilityLabel)
+    .accessibilityIdentifier("native-e2e.git.\(descriptor.procedure.rawValue)")
   }
 
   private func branchActionEnabled(
