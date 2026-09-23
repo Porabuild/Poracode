@@ -1,6 +1,6 @@
 # Poracode v2 — Server Architecture and Production Readiness
 
-Status: active implementation and qualification; refined 2026-09-23 UTC after Crossagents rounds R1–R5 (§0.7). **About 90% of the overall goal is achieved; every remaining gate needs hardware, runner enrollment, a first stable release or an explicit product decision. This is not a production-ready declaration.**
+Status: active implementation and qualification; refined 2026-09-23 UTC after Crossagents rounds R1–R9 (§0.7). **About 90% of the overall goal is achieved; every remaining gate needs hardware, runner enrollment, a first stable release or an explicit product decision. This is not a production-ready declaration.**
 
 Original audit: `36e1649f017aeccebc202bb9d5c9c6ab0f797709` (`poracode/v2`). The main architecture delta was reconciled into seven scoped implementation/parity commits from `7e9cf2a28` through `80eae5304`, followed by documentation and smoke-harness commit `3811d2485`. Later exact-head CI and Git-burst corrections are grouped into typed-admission, packaging, native and qualification commits from `bad62fa9e` through `3206de989`. Artifact identities below pin the qualified earlier candidate bytes; they do not silently qualify these later source commits.
 
@@ -79,7 +79,7 @@ Additional compatibility lesson: external-project's latest history includes [a s
 
 These additions refine existing correctness/load gates. **Only B7 was a newly identified implementation gap.** It is now implemented, independently accepted and locally exercised after correcting the first review's multi-worktree and error-propagation findings. The other comparisons remain measurement and regression requirements; change code only where they reveal a failure. The overall estimate remains about 80% because the external platform, artifact, soak and upgrade gates still dominate the unfinished work.
 
-### 0.7 Crossagents rounds R1–R5 — 2026-09-22/23 UTC
+### 0.7 Crossagents rounds R1–R9 — 2026-09-22/23 UTC
 
 Independent GLM 5.3 FlashX High research, review, execution and test lanes ran in parallel; the coordinator verified each claim against code, tests or evidence before accepting it. Details and evidence paths are in the execution log.
 
@@ -88,6 +88,8 @@ Independent GLM 5.3 FlashX High research, review, execution and test lanes ran i
 **Evidence on current source:** exact-source artifact install/CLI/byte verification, multi-host 7/7 and compact web 22/22 (`0d80f009f`); artifact long-history pagination 34/34; real-host Git burst 4/4 on a clean window; 30-minute sustained and quiet reference trusted-input cells pass (`79e7f2e9d`: p50/p95/p99 24/32/32 ms, positive control, zero sequence gaps, zero offscreen bulk, reconnect and slow-client probes); full local suite green; exact-head core and native CI green.
 
 **Native and provider rounds (R4–R5):** fixed an Android pairing-confirmation loss on deep-link activity recreate, an iOS cross-host confirmation lost on transient inactive, an iOS workspace defect where every Git panel mutation failed pre-network after the panel was pushed, and a Devin launch crash; fixed the Android/iOS real-peer journeys and live-provider startup handling. Full native qualification at `ede29bfbf` passes every job, including both real-peer legs for the first time, and the strict live-provider suite passes 25/25 (Claude, Codex, Devin, Qoder, Muse).
+
+**Review rounds R6–R9** (Qoder Qwen3.8-Flash after the GLM quota ran out) closed further Android terminal-start defects and several qualification races; the full native qualification at `9d08529d7` passes every job, and core CI passes.
 
 **Still open (cannot be closed from this workstation):**
 

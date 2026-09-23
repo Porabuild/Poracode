@@ -1032,3 +1032,14 @@ Independent GLM 5.3 FlashX High lanes ran research, review, execution and qualif
 - Strict live-provider suite (`PORACODE_LIVE_PROVIDERS_REQUIRED=claude,codex`): 25 passed, 6 skipped, 0 failed — Claude, Codex, Devin, Qoder and Muse launch, respond, resume and clean up. The Claude cell used the local z.ai-backed Claude profile (`CLAUDE_CONFIG_DIR`), so it proves the Claude CLI and adapter, not the Anthropic backend; Gemini has no local credentials.
 
 **iOS `onDisappear` audit:** every other release in `onDisappear` was checked for the covered-parent pattern. Home's lifecycle modifier sits outside the `NavigationStack` and never fires on inner pushes; thread lifecycle controllers re-activate their target on every action and only drop in-flight results; rich chat, port forwarding, browser mirror and advanced operations activate in `.task`/`.task(id:)` and restart on reappear. `ProjectWorkspaceSessionView` was the only instance of the defect.
+
+### Crossagents review rounds R6–R9 (Qoder Qwen3.8-Flash xhigh) — 2026-09-23 UTC
+
+After the z.ai GLM quota was exhausted, independent review and execution continued on Qoder Qwen3.8-Flash at xhigh reasoning. Each round reviewed the previous round's fixes; every finding was checked against the code before a fix landed.
+
+- R6: live-provider responder fire caps were no longer enforced and the Codex update needle could match a model reply (`51a212fe7`); the real-peer journey dialled a loopback pairing URL on physical devices, and returning from a pushed Git panel re-ran workspace teardown (`e72aaba01`).
+- R7: the retirement needle was still unanchored and IPv6 device hosts produced invalid pairing URLs (`37076fb81`).
+- Qualification races found by full dispatches: the WS5 load profile's side connection lost the write lock during close and during appends (`1bd2a37f0`, `ddfedec44`); iOS journeys waited only 2s for the pairing confirmation (`0761d8039`); an intermittent bounded-catalog unit test was contaminated by an earlier test's never-stopped session through a static URL-protocol host (`20ff1cbf7`).
+- Android product fixes: a terminal auto-start that failed without a lease left no working retry (`5cb475fc4`, then scoped to the presented pane in `f3f5496a2` after R8 found a cross-project stale re-dispatch), and a Stale start stranded `terminal-start` in `activeOperations`, wedging the pane busy with Start disabled (`9d08529d7`).
+
+Full native qualification dispatch `35856597784` at `9d08529d7` passes every job (iOS AppTests and XCUITest mock/real-peer, Android 14/17 mock and real-peer, WS5 load profile, darwin/linux server artifacts, darwin-x64/linux-arm64 install); core CI passes at the same head.
