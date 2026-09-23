@@ -56,7 +56,10 @@ const PREFERRED_MODEL: Record<string, string> = {
   kimi: "kimi-code/kimi-for-coding",
   muse: "muse-spark-1.3",
   qwen: "qwen3.8-max",
-  qoder: "lite",
+  // qoder: was "lite" — stale pin. qodercli 1.1.61's discovered catalog is
+  // auto (default), ultimate, performance, efficient, … with no "lite"; the
+  // ACP lane rejects set_model("lite") with "Invalid or unavailable model".
+  qoder: "auto",
 };
 
 const CHEAP_NAME_HINTS = ["haiku", "mini", "flash-lite", "flash", "lite", "small", "fast", "nano"];
@@ -162,6 +165,22 @@ const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
       maxFires: 2,
     },
   ],
+  // qodercli gates an untrusted cwd on its folder-trust dialog before the
+  // composer paints ("Do you trust the files in this folder?" — the suite's
+  // repo cwd is not in qoder's permissions.trustDirectories), and no prompt
+  // is ever submitted while it blocks. The default cursor sits on
+  // "❯ 1. Trust folder", so bare Enter is the SAFE answer here (unlike the
+  // claude/codex dialogs above, whose defaults exit). Answering persists the
+  // cwd into ~/.qoder/settings.json → permissions.trustDirectories — the
+  // same class of host side effect as the claude trust responder.
+  qoder: [
+    {
+      needle: /Do\s*you\s*trust\s*the\s*files\s*in\s*this\s*folder/i,
+      response: "\r",
+      reason: "qoder: trust folder (default is Trust folder)",
+      maxFires: 2,
+    },
+  ],
 };
 
 function decodeScrollbackText(scrollback: string): string {
@@ -206,13 +225,50 @@ function armDialogAutoResponder(
     fires: 0,
     armed: true,
   }));
-  if (responders.length === 0) return () => undefined;
   const state = { stopped: false };
   void (async () => {
+    // Beyond painted dialogs, some CLIs probe the terminal with device
+    // queries during startup and stall or exit silently when nothing answers
+    // (muse 1.3.x sends OSC palette queries, kitty `CSI ?u`, primary DA
+    // `CSI c`, and cursor-position `CSI 6n`, then exits 0 with no output).
+    // The real app is unaffected — its xterm.js surface parses the queries
+    // and emits the replies through its onData channel — but the headless
+    // supervisor PTY answers nothing. Emulate that one terminal behavior
+    // here, generically for every kind: watch the RAW (undecoded) scrollback
+    // for new `CSI 6n` cursor-position queries and answer each new
+    // occurrence once with a `CSI 1;1R` report. Strictly reactive — nothing
+    // else is ever written, and `decodeScrollbackText` strips CSI sequences,
+    // so the queries are invisible to the needle responders below and the
+    // report bytes never satisfy a needle either. Transcripts are
+    // append-only per launch, so answered occurrences are counted per
+    // transcript; a shrinking raw scrollback means the resume leg's fresh
+    // transcript has started and counting restarts.
+    const CURSOR_QUERY = "\x1b[6n";
+    const CURSOR_REPORT = "\x1b[1;1R";
+    let answeredQueries = 0;
+    let lastRawLength = 0;
     while (!state.stopped) {
-      const text = decodeScrollbackText(
-        runtime.threadSessionManager.readTerminalScrollback(threadId),
-      );
+      const raw = runtime.threadSessionManager.readTerminalScrollback(threadId);
+      if (raw.length < lastRawLength) answeredQueries = 0;
+      lastRawLength = raw.length;
+      let queries = 0;
+      for (let idx = raw.indexOf(CURSOR_QUERY); idx !== -1; queries += 1) {
+        idx = raw.indexOf(CURSOR_QUERY, idx + CURSOR_QUERY.length);
+      }
+      while (queries > answeredQueries) {
+        answeredQueries += 1;
+        try {
+          await runtime.threadSessionManager.writeTerminal({ threadId, data: CURSOR_REPORT });
+          // eslint-disable-next-line no-console
+          console.log(
+            "[int-test] auto-respond → cursor-position query (CSI 6n) with CSI 1;1R report",
+          );
+        } catch {
+          answeredQueries -= 1;
+          break; // PTY may have closed; ignore.
+        }
+      }
+      const text = decodeScrollbackText(raw);
       for (const r of responders) {
         const matched = r.needle.test(text);
         if (matched && r.armed) {
@@ -231,7 +287,9 @@ function armDialogAutoResponder(
           r.armed = true;
         }
       }
-      if (responders.every((r) => r.fires >= r.maxFires)) return;
+      // No early exit: the cursor-query watch must stay armed for the whole
+      // thread lifetime (including the resume relaunch), so the loop stops
+      // only via the returned cancel, which the test's finally always calls.
       await sleep(500);
     }
   })();
