@@ -28,7 +28,7 @@ import {
   type SlotPorts,
 } from "./runDirectory.ts";
 import { startMockHarness } from "./startMockHarness.ts";
-import type { HarnessMode, LabState } from "./types.ts";
+import type { HarnessBlocker, HarnessMode, LabState } from "./types.ts";
 import {
   SCENARIO_ACTION_PATH,
   SCENARIO_DESCRIPTOR_PATH,
@@ -300,6 +300,17 @@ function createRealControlPlane(host: RealHostHandle, controlPort: number): Cont
       unavailable("host-mode-unavailable", "Real host checkpoints are not injectable."),
     reset: () => undefined,
     restartReal: () => host.restart(),
+    issuePairingUrl: async () => {
+      try {
+        const pairing = await host.pair();
+        return { pairingUrl: pairing.pairingUrl, expiresAt: pairing.expiresAt };
+      } catch (error) {
+        return {
+          code: "pair-json-unavailable",
+          message: redactLogLine(error instanceof Error ? error.message : String(error)),
+        } satisfies HarnessBlocker;
+      }
+    },
     ledger: () => ledger,
   };
 }
