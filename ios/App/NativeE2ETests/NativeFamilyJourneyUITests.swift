@@ -210,7 +210,9 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     let actionIdentifier = "native-e2e.git.gitStageAll"
     var gitAction = await waitForHittableButton(identifier: actionIdentifier, timeout: 5)
     if gitAction == nil {
-      let quickActions = app.buttons["Quick Actions"]
+      // The covered workspace keeps its own Quick Actions menu in the tree;
+      // target the pushed panel's menu explicitly.
+      let quickActions = app.buttons["native-e2e.git.panel-quick-actions"]
       XCTAssertTrue(quickActions.waitForExistence(timeout: 5))
       quickActions.tap()
       gitAction = await waitForHittableButton(identifier: actionIdentifier, timeout: 5)
@@ -226,6 +228,13 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     )
     XCTAssertTrue(gitAction.isEnabled, "Git action never became enabled")
     gitAction.tap()
+    // The action must actually run: a controller that lost its workspace
+    // context rejects it before any request and shows the failure label.
+    let failure = app.descendants(matching: .any)["native-e2e.git.failure"]
+    XCTAssertFalse(
+      failure.waitForExistence(timeout: 5),
+      "Stage All was rejected: \(failure.exists ? failure.label : "")"
+    )
     try await waitForRealPeerReached()
   }
 

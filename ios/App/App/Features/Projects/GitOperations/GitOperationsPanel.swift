@@ -65,6 +65,7 @@ struct GitOperationsPanel: View {
       if let failure = controller.state.failure {
         Label(GitOperationsStrings.failure(failure), systemImage: "exclamationmark.triangle")
           .foregroundStyle(.secondary)
+          .accessibilityIdentifier("native-e2e.git.failure")
       }
       TextField(GitOperationsStrings.commitMessage, text: $commitMessage, axis: .vertical)
         .accessibilityLabel(GitOperationsStrings.commitMessage)
@@ -170,6 +171,7 @@ struct GitOperationsPanel: View {
       }
       .disabled(!canWrite)
       .accessibilityLabel(GitOperationsStrings.quickActions)
+      .accessibilityIdentifier("native-e2e.git.panel-quick-actions")
     }
   }
 
