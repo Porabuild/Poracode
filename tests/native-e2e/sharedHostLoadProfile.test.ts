@@ -228,6 +228,28 @@ interface GuiThreadFixture {
   itemCounter: number;
 }
 
+/**
+ * Closes this test's second connection while the live server keeps writing.
+ * Clean close disarms the durable-gap epoch without waiting on a busy lock,
+ * and a failed close hook deliberately keeps the handle open for a retry
+ * (failed-hook custody), so retry only on SQLITE_BUSY, bounded.
+ */
+async function closeDatabaseWhenUnlocked(): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  for (;;) {
+    try {
+      closeDatabase();
+      return;
+    } catch (error) {
+      const busy =
+        (error as { code?: unknown }).code === "SQLITE_BUSY" ||
+        /database is locked/i.test(String(error));
+      if (!busy || Date.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+}
+
 /** Appends `count` completed message items to a GUI thread through the
  * production DB writers (second WAL connection, as in the truncate test). */
 async function appendGuiThreadItems(
@@ -263,7 +285,7 @@ async function appendGuiThreadItems(
     await dbFlushThreadRuntimeWrites(fixture.threadId);
     return appended;
   } finally {
-    closeDatabase();
+    await closeDatabaseWhenUnlocked();
   }
 }
 
@@ -866,7 +888,7 @@ describe.skipIf(!entrypoint)(
             );
           }
         } finally {
-          closeDatabase();
+          await closeDatabaseWhenUnlocked();
         }
 
         // Production-parser check: every GUI client's received truncate frames
