@@ -241,11 +241,42 @@ async function closeDatabaseWhenUnlocked(): Promise<void> {
       closeDatabase();
       return;
     } catch (error) {
-      const busy =
-        (error as { code?: unknown }).code === "SQLITE_BUSY" ||
-        /database is locked/i.test(String(error));
-      if (!busy || Date.now() >= deadline) throw error;
+      if (!isLockContention(error) || Date.now() >= deadline) throw error;
       await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+}
+
+function isLockContention(error: unknown): boolean {
+  for (let current: unknown = error; current; current = (current as { cause?: unknown }).cause) {
+    if ((current as { code?: unknown }).code === "SQLITE_BUSY") return true;
+    if (/database is locked/i.test(String(current))) return true;
+  }
+  return false;
+}
+
+/**
+ * The side connection competes with the live server for the write lock, and
+ * durable-gap bookkeeping never waits for it, so an append can be refused
+ * with nothing committed. Retry the whole append on a fresh connection,
+ * restoring the fixture's counters, only for lock contention and bounded.
+ */
+async function appendGuiThreadItemsWhenUnlocked(
+  dbPath: string,
+  fixture: GuiThreadFixture,
+  count: number,
+): Promise<string[]> {
+  const deadline = Date.now() + 20_000;
+  for (;;) {
+    const counter = fixture.itemCounter;
+    const survivors = fixture.survivingItemIds.length;
+    try {
+      return await appendGuiThreadItems(dbPath, fixture, count);
+    } catch (error) {
+      fixture.itemCounter = counter;
+      fixture.survivingItemIds.length = survivors;
+      if (!isLockContention(error) || Date.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 }
@@ -456,7 +487,7 @@ describe.skipIf(!entrypoint)(
       guiThreadFixtures = await seedGuiThreads(dbPath, seededProjectId);
       // Initial transcript content on every GUI thread.
       for (const fixture of guiThreadFixtures) {
-        await appendGuiThreadItems(dbPath, fixture, 4);
+        await appendGuiThreadItemsWhenUnlocked(dbPath, fixture, 4);
       }
     }, 240_000);
 
@@ -624,7 +655,7 @@ describe.skipIf(!entrypoint)(
           const fixture = guiThreadFixtures[actingIndex]!;
 
           // Transcript churn while every agent streams.
-          const appended = await appendGuiThreadItems(dbPath, fixture, 2);
+          const appended = await appendGuiThreadItemsWhenUnlocked(dbPath, fixture, 2);
           await new Promise((resolve) => setTimeout(resolve, 250));
           const anchorItemId = appended[0]!;
           fixture.survivingItemIds.pop(); // The truncate removes the appended tail item.
