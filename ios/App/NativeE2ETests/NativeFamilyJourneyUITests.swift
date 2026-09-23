@@ -303,13 +303,27 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       else {
         throw FamilyJourneyError.invalidHarnessResponse
       }
-      return url
+      return rebasedOntoControlHost(url)
     }
     let body = try await scenarioAction(["type": "pairing-url", "hostId": hostID])
     guard let raw = body["pairingUrl"] as? String, let url = URL(string: raw) else {
       throw FamilyJourneyError.invalidHarnessResponse
     }
     return url
+  }
+
+  /// The harness mints pairing URLs on its loopback bind. On a physical device
+  /// the driver rewrites the injected control URL to the device-reachable host
+  /// and forwards the same ports, so a loopback pairing URL is rebased onto the
+  /// control URL's host; simulator runs keep loopback and are unchanged.
+  private func rebasedOntoControlHost(_ url: URL) -> URL {
+    let loopback: Set<String> = ["127.0.0.1", "localhost", "::1"]
+    guard let host = url.host, loopback.contains(host),
+      let controlHost = controlURL.host, !loopback.contains(controlHost),
+      var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    else { return url }
+    components.host = controlHost
+    return components.url ?? url
   }
 
   /// Real-peer completion check: the production host has no scenario journal,

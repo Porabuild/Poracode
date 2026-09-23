@@ -4,8 +4,17 @@
 @MainActor
 final class ProjectWorkspaceSessionLifetime {
   var release: (() -> Void)?
+  /// The session the controllers were last torn down for.
+  var sessionID: ProjectWorkspaceSessionID?
 
   isolated deinit {
     release?()
   }
+}
+
+/// Identity of one workspace session: a change tears the controllers down.
+struct ProjectWorkspaceSessionID: Hashable {
+  let identity: ProjectIdentity
+  let projectLocation: ProjectLocation
+  let workspaceLocation: ProjectLocation
 }

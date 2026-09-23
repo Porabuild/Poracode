@@ -52,6 +52,19 @@ describe("secret-free versioned control plane", () => {
     expect(checks.find((entry) => entry.path === "/v1/real/restart")?.status).toBe(409);
   });
 
+  it("gates the real-peer pairing mint and refuses it where no real host exists", async () => {
+    harness = await startLab();
+    const denied = await fetch(new URL("/v1/real/pairing-url", harness.controlUrl), {
+      method: "POST",
+    });
+    expect(denied.status).toBe(401);
+    const unavailable = await controlRequest(harness, "/v1/real/pairing-url", { method: "POST" });
+    expect(unavailable.status).toBe(409);
+    const body = (await unavailable.json()) as Record<string, unknown>;
+    expect(collectSecretViolations(body)).toEqual([]);
+    expect(body).not.toHaveProperty("pairingUrl");
+  });
+
   it("rejects removed pairing, emit, and shutdown control APIs", async () => {
     harness = await startLab();
     for (const path of ["/pair", "/emit", "/shutdown", "/state", "/fault", "/ledger"]) {
