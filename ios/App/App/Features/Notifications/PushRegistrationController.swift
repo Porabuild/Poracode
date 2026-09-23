@@ -80,10 +80,9 @@ actor PushRegistrationController {
   }
 
   func setForeground(_ foreground: Bool) async {
-    // Idempotent at the boundary too: the ingress already gates on real
-    // transitions, but a redundant foreground re-report must never re-run the
-    // full vault/state/outbox reconcile over the network.
-    guard isForeground != foreground else { return }
+    // Not transition-gated here: a repeated foreground report is this
+    // controller's retry trigger for retained outbox cleanup. Scene-phase
+    // re-reports are deduplicated upstream in NotificationIngress.
     isForeground = foreground
     if foreground { await reconcileNow() }
   }
