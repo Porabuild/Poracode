@@ -109,7 +109,9 @@ const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
       // 0.155.1 -> 0.156.0 … › 1. Update now  2. Skip  3. Skip until next
       // version"). Answer "2" — the default is "Update now", which pipes a
       // remote install script through `sh`, so a bare "\r" here is dangerous.
-      needle: /Update\s*available|releases\/latest|Update\s*now/i,
+      // Require the modal's own option chrome, not words a model reply could
+      // contain: this needle is matched against the whole decoded transcript.
+      needle: /Update\s*available!?[\s\S]*Update\s*now[\s\S]*Skip\s*until\s*next\s*version/i,
       response: "2\r",
       reason: "codex: skip update-available modal (default is Update now!)",
       maxFires: 2,
@@ -271,7 +273,7 @@ function armDialogAutoResponder(
       const text = decodeScrollbackText(raw);
       for (const r of responders) {
         const matched = r.needle.test(text);
-        if (matched && r.armed) {
+        if (matched && r.armed && r.fires < r.maxFires) {
           r.armed = false;
           r.fires += 1;
           try {
