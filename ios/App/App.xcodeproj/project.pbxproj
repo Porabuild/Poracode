@@ -584,6 +584,7 @@
 		A30000000000000000000042 /* ProjectGitDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000000000000000000042 /* ProjectGitDetailView.swift */; };
 		A30000000000000000000043 /* NativeUnifiedDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000000000000000000043 /* NativeUnifiedDiffView.swift */; };
 		A30000000000000000000008 /* ProjectWorkspaceSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000000000000000000008 /* ProjectWorkspaceSessionView.swift */; };
+		A3000000000000000000F001 /* ProjectWorkspaceSessionLifetime.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3000000000000000000F001 /* ProjectWorkspaceSessionLifetime.swift */; };
 		A30000000000000000000009 /* ProjectWorkspacePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B30000000000000000000009 /* ProjectWorkspacePresentationTests.swift */; };
 		A3000000000000000000000A /* ProjectWorkspace.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B3000000000000000000000A /* ProjectWorkspace.xcstrings */; };
 		07C28A400CCC4648B30F987D /* RemoteIntegrationsAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = E958A2AACFA14E5788D88E0B /* RemoteIntegrationsAccess.swift */; };
@@ -1391,6 +1392,7 @@
 		B30000000000000000000042 /* ProjectGitDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectGitDetailView.swift; sourceTree = "<group>"; };
 		B30000000000000000000043 /* NativeUnifiedDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeUnifiedDiffView.swift; sourceTree = "<group>"; };
 		B30000000000000000000008 /* ProjectWorkspaceSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceSessionView.swift; sourceTree = "<group>"; };
+		B3000000000000000000F001 /* ProjectWorkspaceSessionLifetime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspaceSessionLifetime.swift; sourceTree = "<group>"; };
 		B30000000000000000000009 /* ProjectWorkspacePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectWorkspacePresentationTests.swift; sourceTree = "<group>"; };
 		B3000000000000000000000A /* ProjectWorkspace.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = ProjectWorkspace.xcstrings; sourceTree = "<group>"; };
 		E958A2AACFA14E5788D88E0B /* RemoteIntegrationsAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteIntegrationsAccess.swift; sourceTree = "<group>"; };
@@ -2135,6 +2137,7 @@
 				B30000000000000000000042 /* ProjectGitDetailView.swift */,
 				B30000000000000000000043 /* NativeUnifiedDiffView.swift */,
 				B30000000000000000000008 /* ProjectWorkspaceSessionView.swift */,
+				B3000000000000000000F001 /* ProjectWorkspaceSessionLifetime.swift */,
 			);
 			name = "Workspace UI";
 			sourceTree = "<group>";
@@ -3620,6 +3623,7 @@
 				A30000000000000000000042 /* ProjectGitDetailView.swift in Sources */,
 				A30000000000000000000043 /* NativeUnifiedDiffView.swift in Sources */,
 				A30000000000000000000008 /* ProjectWorkspaceSessionView.swift in Sources */,
+				A3000000000000000000F001 /* ProjectWorkspaceSessionLifetime.swift in Sources */,
 				A100000000000000000000D0 /* SettingsJSON.swift in Sources */,
 				A100000000000000000000D1 /* SettingsHostModels.swift in Sources */,
 				GM2000000000000000000001 /* GlobalMCPSettingsModels.swift in Sources */,
