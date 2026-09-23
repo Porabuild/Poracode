@@ -236,17 +236,11 @@ class PoracodeApplication : Application() {
     }
 
     /**
-     * Started-activity count for the app-level foreground/background fan-out.
-     * Only touched from [ActivityLifecycleCallbacks] on the main thread.
+     * Started-activity state for the app-level foreground/background fan-out.
+     * Only touched from [ActivityLifecycleCallbacks] on the main thread; the
+     * counting rules live in [AppForegroundTracker] so they stay unit-testable.
      */
-    private var startedActivityCount = 0
-
-    /**
-     * Set when the last started activity stops only to be recreated for a
-     * configuration change (locale, font scale, ...): the replacement's start
-     * is not a new foreground, so neither crossing fans out.
-     */
-    private var stoppedForConfigurationChange = false
+    private val appForegroundTracker = AppForegroundTracker()
 
     /**
      * Drives the app-level foreground/background fan-out from the number of
@@ -266,29 +260,28 @@ class PoracodeApplication : Application() {
     private fun registerAppForegroundCallbacks() {
         registerActivityLifecycleCallbacks(
             object : Application.ActivityLifecycleCallbacks {
+                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                    // A recreation carries saved state; a fresh launch does not,
+                    // so it must drop a stale pending-configuration-change marker
+                    // (see AppForegroundTracker.onActivityCreated).
+                    appForegroundTracker.onActivityCreated(
+                        isActivityRecreation = savedInstanceState != null,
+                    )
+                }
+
                 override fun onActivityStarted(activity: Activity) {
-                    startedActivityCount += 1
-                    if (startedActivityCount != 1) return
-                    if (stoppedForConfigurationChange) {
-                        stoppedForConfigurationChange = false
-                        return
+                    if (appForegroundTracker.onStarted() == AppForegroundTracker.Transition.FOREGROUND) {
+                        onAppReachedForeground()
                     }
-                    onAppReachedForeground()
                 }
 
                 override fun onActivityStopped(activity: Activity) {
-                    // Unbalanced callbacks must not crash the app; clamp instead.
-                    if (startedActivityCount == 0) return
-                    startedActivityCount -= 1
-                    if (startedActivityCount != 0) return
-                    if (activity.isChangingConfigurations) {
-                        stoppedForConfigurationChange = true
-                        return
+                    if (appForegroundTracker.onStopped(activity.isChangingConfigurations) ==
+                        AppForegroundTracker.Transition.BACKGROUND
+                    ) {
+                        onAppReachedBackground()
                     }
-                    onAppReachedBackground()
                 }
-
-                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
 
                 override fun onActivityDestroyed(activity: Activity) {}
 
