@@ -56,12 +56,18 @@ class BoundedCatalogProductionWiringTest {
         java.util.concurrent.CopyOnWriteArrayList<List<String>>()
     private val pageOneExtraIds = mutableListOf<String>()
 
+    /** Test-only: ordered (nanoTime, key, path?query) trace of every counted request. */
+    private val requestLog = java.util.concurrent.ConcurrentLinkedQueue<String>()
+    private val logStartNanos = java.util.concurrent.atomic.AtomicLong()
+
     @Volatile
     private var blockInventory = false
 
     @Before
     fun setUp() {
         server = MockWebServer()
+        requestLog.clear()
+        logStartNanos.set(System.nanoTime())
     }
 
     @After
@@ -265,8 +271,19 @@ class BoundedCatalogProductionWiringTest {
         val session = buildSession()
         session.bootstrap()
         awaitCondition { session.state.value.phase == AppSession.Phase.Ready && session.state.value.snapshot != null }
-        awaitCondition { session.state.value.catalog.threadsComplete }
+        // The baseline must be sampled only once the whole initial walk has
+        // settled. `threadsComplete` alone still has the projects inventory
+        // page (the tail of the same startCapability drain) in flight, so
+        // under load it lands inside the post-event window and masquerades as
+        // a live-event refetch. `complete` is the production signal that both
+        // passes finished; afterwards the drain has no scheduled work left,
+        // so any later catalog request really is caused by the event.
+        awaitCondition { session.state.value.catalog.complete }
         val requestsBefore = catalogRequests()
+        mark("baseline sampled requestsBefore=$requestsBefore complete=" +
+            session.state.value.catalog.complete +
+            " pending=${session.state.value.catalog.pendingThreadsChange}" +
+            "/${session.state.value.catalog.pendingProjectsChange}")
 
         lastSockets!!.latest!!.emitEvent(
             seq = SHELL_SEQ + 1,
@@ -278,10 +295,18 @@ class BoundedCatalogProductionWiringTest {
                 put("canResumeWithConfig", true)
             },
         )
+        mark("live thread-state emitted")
         awaitCondition { session.state.value.snapshot!!.threads.any { it.id == "t1" && it.status == "working" } }
         assertEquals(SHELL_SEQ + 1L, session.state.value.catalog.threadAppliedSeq["t1"])
         delay(400)
-        assertEquals(requestsBefore, catalogRequests())
+        val after = catalogRequests()
+        if (after != requestsBefore) {
+            fail(
+                "catalog requests changed: before=$requestsBefore after=$after " +
+                    "counts=" + requestCounts.mapValues { it.value.get() } + "\n" +
+                    requestLog.joinToString("\n"),
+            )
+        }
     }
 
     // --- harness ---
@@ -332,15 +357,15 @@ class BoundedCatalogProductionWiringTest {
             return when {
                 path.endsWith("/environment") -> ok(readFixture("environment.json"))
                 path == "/api/snapshot" && legacyHost -> {
-                    count("legacy-snapshot")
+                    count("legacy-snapshot", request)
                     ok(legacyShellBody(total))
                 }
                 path == "/api/snapshot" && reads == "bounded-v1" -> {
-                    count("shell-page")
+                    count("shell-page", request)
                     ok(shellBody(total, pageOneExtraIds))
                 }
                 path == "/api/threads" && url.queryParameter("mode") == "inventory" -> {
-                    count("thread-inventory")
+                    count("thread-inventory", request)
                     if (blockInventory) {
                         inventoryRequested.countDown()
                         inventoryLatch.await(10, TimeUnit.SECONDS)
@@ -352,7 +377,7 @@ class BoundedCatalogProductionWiringTest {
                     ok(threadListBody(ids, next, frontier = "t${total - 1}"))
                 }
                 path == "/api/threads" && url.queryParameter("mode") == "page" -> {
-                    count("thread-page")
+                    count("thread-page", request)
                     val cursor = url.queryParameter("cursor")
                     val start = cursor?.removePrefix("tu2.")?.toIntOrNull() ?: 0
                     if (start == PAGE && !legacyHost) {
@@ -368,22 +393,22 @@ class BoundedCatalogProductionWiringTest {
                     }
                 }
                 path == "/api/projects" -> {
-                    count("project-page")
+                    count("project-page", request)
                     ok(projectListBody(cursor = url.queryParameter("cursor")))
                 }
                 path == "/api/catalog/membership" -> {
-                    count("membership")
+                    count("membership", request)
                     val body = request.body.readUtf8()
                     membershipThreadIds += requestedThreadIds(body)
                     ok(membershipBody(body))
                 }
                 path.startsWith("/api/threads/") && path.endsWith("/history") -> {
-                    count("thread-history")
+                    count("thread-history", request)
                     val threadId = path.removePrefix("/api/threads/").removeSuffix("/history")
                     ok(historyBody(threadId))
                 }
                 path.startsWith("/api/threads/") && path.endsWith("/turns") -> {
-                    count("thread-turns")
+                    count("thread-turns", request)
                     ok(turnsBody(url.queryParameter("cursor") ?: "ct1.320"))
                 }
                 else -> notFound()
@@ -402,8 +427,19 @@ class BoundedCatalogProductionWiringTest {
         "thread-history",
     ).sumOf { requestCounts[it]?.get() ?: 0 }
 
-    private fun count(key: String) {
+    private fun count(key: String, request: RecordedRequest? = null) {
         requestCounts.getOrPut(key) { AtomicInteger() }.incrementAndGet()
+        val atMs = (System.nanoTime() - logStartNanos.get()) / 1_000_000
+        val where = request?.let { r ->
+            val u = r.requestUrl
+            u?.encodedPath + (u?.query?.let { "?$it" } ?: "")
+        } ?: "?"
+        requestLog += "%6dms %-16s %s".format(atMs, key, where)
+    }
+
+    private fun mark(label: String) {
+        val atMs = (System.nanoTime() - logStartNanos.get()) / 1_000_000
+        requestLog += "%6dms === %s".format(atMs, label)
     }
 
     private fun notFound(): MockResponse = MockResponse()
