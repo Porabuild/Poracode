@@ -2796,6 +2796,39 @@ describe("CodexStructuredSession", () => {
     );
   });
 
+  it("explains a resume refused because another Codex app holds the session", async () => {
+    const session = createSessionShell();
+    session["threadId"] = "local-thread";
+    session["remoteThreadId"] = undefined;
+    session["launchOptions"] = {};
+    session["activated"] = true;
+    session["isDisposed"] = false;
+    session["resumeActiveStatusSuppressionUntil"] = new Map();
+    const requests: string[] = [];
+    session["rpc"] = {
+      claimThread: () => {},
+      request: async (method: string) => {
+        requests.push(method);
+        if (method === "thread/resume") {
+          throw new Error(
+            "failed to acquire thread writer lock: thread 01a0 already has an active writer",
+          );
+        }
+        return {};
+      },
+    };
+
+    await expect(
+      (session as unknown as CodexStructuredSession).openThread(
+        { model: "gpt-5.4" },
+        { providerSessionId: "01a0", discoveredAt: "2026-05-10T12:00:00.000Z" },
+      ),
+    ).rejects.toThrow(/open in another Codex app/u);
+    // Unlike a missing thread, a held lock must not fall back to a fresh thread:
+    // that would silently start the conversation over.
+    expect(requests).toEqual(["thread/resume"]);
+  });
+
   it("does not surface resume-time active status as new work", async () => {
     const session = createSessionShell();
     const updates: StructuredSessionUpdate[] = [];

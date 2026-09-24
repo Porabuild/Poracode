@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { agentKindSchema, threadModeSchema } from "./common";
+import { threadImportedFromSchema } from "./sessionImport";
 
 const threadConfigShape = {
   model: z.string().min(1),
@@ -17,6 +18,12 @@ const threadConfigShape = {
   chromeMcp: z.boolean().optional(),
   /** Runtime environment selected for a provider that cannot execute natively. */
   executionEnvironment: z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }).optional(),
+  /**
+   * Set when the thread was created by importing an existing CLI transcript.
+   * Drives the "Imported from …" line in the chat header and makes a repeat
+   * import of the same session detectable.
+   */
+  importedFrom: threadImportedFromSchema.optional(),
 } as const;
 
 export const threadConfigBaseSchema = z.object(threadConfigShape);

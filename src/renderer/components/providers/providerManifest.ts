@@ -11,6 +11,11 @@ export interface ProviderMarkdownImageRootsInput {
 export interface RendererProviderManifest {
   kind: string;
   label: MessageDescriptor;
+  /** Native session import support declared by the provider UI. */
+  sessionImport?: {
+    label: MessageDescriptor;
+    fallbackModel: string;
+  };
   /** Shared discovery/model-picker order. */
   order: number;
   /** Optional override for automatic utility tasks; otherwise `order` applies. */

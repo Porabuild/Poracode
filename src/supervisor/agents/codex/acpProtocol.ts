@@ -179,6 +179,18 @@ export function extractCodexStatusErrorMessage(status: unknown): string {
   return "Codex reported a system error. The session may be out of usage or otherwise unable to continue.";
 }
 
+/**
+ * Codex allows one writer per rollout: resuming a thread that another Codex
+ * app (Codex Desktop, the CLI, or a second Poracode) has open fails with this.
+ * The raw message names an internal lock; the user needs to know what to close.
+ */
+export function isSessionInUseResumeError(message: string): boolean {
+  return message.toLowerCase().includes("already has an active writer");
+}
+
+export const CODEX_SESSION_IN_USE_MESSAGE =
+  "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again.";
+
 export function isRecoverableResumeError(message: string): boolean {
   const lower = message.toLowerCase();
   return (
