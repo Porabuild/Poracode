@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { keyboardDebug } from "./composerKeyboardDebug";
-import { getMobileRuntimePlatform } from "./mobilePlatform";
+import { getMobileRuntimePlatform, isNativeAndroidRuntime } from "./mobilePlatform";
 
 export interface KeyboardGeometry {
   /**
@@ -89,7 +89,7 @@ function readGeometry(
 
   return {
     baselineExtent,
-    liftOffset: platform === "android" ? 0 : roundedOffset(layoutHeight - visualBottom),
+    liftOffset: isNativeAndroidRuntime() ? 0 : roundedOffset(layoutHeight - visualBottom),
     layoutHeight,
     layoutResizeOffset,
     layoutResizedForKeyboard,
@@ -108,8 +108,9 @@ function readGeometry(
  * viewport stays full-height, so bottom chrome needs a manual lift.
  * Android WebView resizes the layout viewport for the keyboard, but it can
  * emit an early visual-viewport-only frame during the keyboard animation. Keep
- * Android lift at 0 and use the offset only as a visibility signal there, so
- * the composer does not chase that transient frame.
+ * Native Android lift stays at 0 so the composer does not chase that transient
+ * frame. Android browsers and installed PWAs need the measured lift: Chrome
+ * normally resizes only the visual viewport, leaving the layout behind it.
  */
 export function useKeyboardGeometry(): KeyboardGeometry {
   const [geometry, setGeometry] = useState<KeyboardGeometry>({

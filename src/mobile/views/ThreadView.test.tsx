@@ -26,6 +26,7 @@ const fixtures = vi.hoisted(() => ({
     autoFocusComposer?: boolean;
     composerPlaceholder?: string;
     submitOnEnter?: boolean;
+    pickFiles?: () => Promise<string[] | null>;
   }>,
   guiThreadProps: [] as Array<{
     initialScrollRevealDelayMs?: number;
@@ -44,6 +45,7 @@ vi.mock("../remoteContext", () => ({
 vi.mock("../useGitSummaryHydration", () => ({ useGitSummaryHydration: () => undefined }));
 
 const bridgeMock = vi.hoisted(() => ({
+  pickFiles: vi.fn<(options: { attachmentThreadId: string }) => Promise<string[] | null>>(),
   pauseThreadFollowUps: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   closeThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   startThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -236,6 +238,25 @@ describe("mobile ThreadView", () => {
       );
     },
   );
+  it("provides file picking for the current remote thread after switching chats", async () => {
+    const thread = makeTerminalThread();
+    const props = {
+      thread,
+      terminalScrollback: "",
+      onThreadAction: () => undefined,
+      onSubmitInput: () => Promise.resolve(),
+    };
+    bridgeMock.pickFiles.mockResolvedValue(["/attachments/photo.png", "/attachments/notes.pdf"]);
+    const view = render(<ThreadView {...props} />);
+    await expect(fixtures.composerProps.at(-1)?.pickFiles?.()).resolves.toEqual([
+      "/attachments/photo.png",
+      "/attachments/notes.pdf",
+    ]);
+    expect(bridgeMock.pickFiles).toHaveBeenLastCalledWith({ attachmentThreadId: thread.id });
+    view.rerender(<ThreadView {...props} thread={{ ...thread, id: "second-thread" }} />);
+    await fixtures.composerProps.at(-1)?.pickFiles?.();
+    expect(bridgeMock.pickFiles).toHaveBeenLastCalledWith({ attachmentThreadId: "second-thread" });
+  });
 
   it("enables desktop composer behavior only for desktop-like PWA input", () => {
     const thread = makeTerminalThread();
