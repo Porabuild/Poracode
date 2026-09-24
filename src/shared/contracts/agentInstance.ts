@@ -23,6 +23,7 @@ export const agentDriverKindSchema = z
 export type AgentDriverKind = z.infer<typeof agentDriverKindSchema>;
 
 export const CLAUDE_PROFILE_KIND_PREFIX = "claude:";
+export const CODEX_PROFILE_KIND_PREFIX = "codex:";
 export const CURSOR_PROFILE_KIND_PREFIX = "cursor:";
 
 export const agentInstanceIdSchema = z
@@ -201,6 +202,22 @@ export function parseClaudeProfileInstanceConfig(value: unknown): ClaudeProfileI
   return claudeProfileInstanceConfigSchema.parse(value ?? {});
 }
 
+// ── codex profile driver config ─────────────────────────────────────────
+
+export const codexProfileInstanceConfigSchema = z.object({
+  /**
+   * Directory passed to Codex as CODEX_HOME — the profile's own `auth.json`,
+   * `config.toml`, and `sessions/`. A leading "~/" is resolved against the
+   * target runtime environment (native home or WSL home).
+   */
+  homeDir: z.string().min(1),
+});
+export type CodexProfileInstanceConfig = z.infer<typeof codexProfileInstanceConfigSchema>;
+
+export function parseCodexProfileInstanceConfig(value: unknown): CodexProfileInstanceConfig {
+  return codexProfileInstanceConfigSchema.parse(value ?? {});
+}
+
 // Profile payload schemas are provider-agnostic and live in `agentProfiles.ts`
 // (`setProfileEnvironment`, `createProfile`). The per-provider helpers below are
 // only naming sugar over the shared `<driver>:<id>` kind shape.
@@ -215,6 +232,18 @@ export function isClaudeProfileKind(kind: string): boolean {
 
 export function extractClaudeProfileInstanceId(kind: string): string | undefined {
   return kindInstanceId(kind, CLAUDE_PROFILE_KIND_PREFIX);
+}
+
+export function codexProfileKind(instanceId: string): AgentDriverKind {
+  return prefixedKind(CODEX_PROFILE_KIND_PREFIX, instanceId);
+}
+
+export function isCodexProfileKind(kind: string): boolean {
+  return hasKindPrefix(kind, CODEX_PROFILE_KIND_PREFIX);
+}
+
+export function extractCodexProfileInstanceId(kind: string): string | undefined {
+  return kindInstanceId(kind, CODEX_PROFILE_KIND_PREFIX);
 }
 
 export function cursorProfileKind(instanceId: string): AgentDriverKind {

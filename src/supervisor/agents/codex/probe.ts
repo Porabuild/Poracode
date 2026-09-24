@@ -429,6 +429,8 @@ interface RunWithCodexAppServerOptions {
   timeoutMs?: number;
   label?: string;
   signal?: AbortSignal;
+  /** Extra spawn env for the probe app-server (a profile's `CODEX_HOME`). */
+  env?: Record<string, string>;
 }
 
 /**
@@ -458,6 +460,7 @@ async function runWithCodexAppServer<T>(
     const cmd = buildCodexAppServerCommand(location, {
       ...(options?.wslExecPath !== undefined ? { wslExecPath: options.wslExecPath } : {}),
       ...(wslNodePath !== undefined ? { wslNodePath } : {}),
+      ...(options?.env ? { env: options.env } : {}),
     });
     const spawnCwd = resolveProbeSpawnCwd(location, cmd.cwd);
 
@@ -574,7 +577,7 @@ export async function probeCodexAccount(
  */
 export async function probeCodexCapabilities(
   location: ProjectLocation,
-  options?: { wslExecPath?: string; timeoutMs?: number; label?: string },
+  options?: RunWithCodexAppServerOptions,
 ): Promise<CodexProbeResult | undefined> {
   const result = await runWithCodexAppServer(location, options, async ({ client, initResult }) => {
     const [modelResult, requirementsResult, skillsResult, accountResult, voicesResult] =

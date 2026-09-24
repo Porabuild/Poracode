@@ -13,7 +13,6 @@ import {
   parseCodexRolloutIdFromPath,
   parseCodexRolloutMeta,
   parseCodexSessionIndex,
-  readCodexSessionIndex,
   type CodexRolloutMeta,
 } from "./sessionFiles";
 
@@ -21,8 +20,14 @@ function nativePrivateCodexHome(): string {
   return join(resolvePoracodePaths(process.env.PORACODE_DATA_DIR).agentPluginsDir, "codex", "home");
 }
 
-function nativeCodexHomeCandidates(): string[] {
-  return [join(homedir(), ".codex"), nativePrivateCodexHome()];
+/**
+ * Native `CODEX_HOME` directories to scan for sessions. The base adapter
+ * reads the user's `~/.codex` plus Poracode's private hook overlay; a profile
+ * adapter passes its own homes (the profile's `CODEX_HOME` and its overlay)
+ * so its sessions never mix with the global account's.
+ */
+function nativeCodexHomeCandidates(homes?: readonly string[]): string[] {
+  return homes ? [...homes] : [join(homedir(), ".codex"), nativePrivateCodexHome()];
 }
 
 /** Append the codex private-home suffix to a resolved WSL `$HOME`, if present. */
@@ -66,20 +71,22 @@ export function describeCodexLocation(location: ProjectLocation): string {
   }
 }
 
-export function readCodexSessionIndexForLocation(location: ProjectLocation) {
+export function readCodexSessionIndexForLocation(
+  location: ProjectLocation,
+  homes?: readonly string[],
+) {
   if (location.kind === "wsl") {
     return [];
   }
 
-  const sessions = readCodexSessionIndex();
-  const privateIndexPath = join(nativePrivateCodexHome(), "session_index.jsonl");
-  let privateRaw: string;
-  try {
-    privateRaw = readFileSync(privateIndexPath, "utf8");
-  } catch {
-    return sessions;
-  }
-  return dedupeSessionIndex([...sessions, ...parseCodexSessionIndex(privateRaw)]);
+  const merged = nativeCodexHomeCandidates(homes).flatMap((home) => {
+    try {
+      return parseCodexSessionIndex(readFileSync(join(home, "session_index.jsonl"), "utf8"));
+    } catch {
+      return [];
+    }
+  });
+  return dedupeSessionIndex(merged);
 }
 
 /**
@@ -90,16 +97,19 @@ export function readCodexSessionIndexForLocation(location: ProjectLocation) {
  */
 export async function readCodexSessionIndexForLocationAsync(
   location: ProjectLocation,
+  homes?: readonly string[],
 ): Promise<Array<{ id: string; updatedAt: number; threadName: string }>> {
   if (location.kind !== "wsl") {
-    return readCodexSessionIndexForLocation(location);
+    return readCodexSessionIndexForLocation(location, homes);
   }
   const home = await resolveWslHomeDirectoryAsync(location.distro);
   const privateHome = codexPrivateHomeFrom(home);
-  const paths = [
-    home ? `${home}/.codex/session_index.jsonl` : undefined,
-    privateHome ? `${privateHome}/session_index.jsonl` : undefined,
-  ].filter((p): p is string => Boolean(p));
+  const paths = homes
+    ? homes.map((root) => `${root}/session_index.jsonl`)
+    : [
+        home ? `${home}/.codex/session_index.jsonl` : undefined,
+        privateHome ? `${privateHome}/session_index.jsonl` : undefined,
+      ].filter((p): p is string => Boolean(p));
   const reads = await Promise.all(paths.map((p) => readSessionFileText(location, p)));
   const parts = reads.filter((r): r is string => typeof r === "string" && r.length > 0);
   if (parts.length === 0) return [];
@@ -129,7 +139,10 @@ export function isInteractiveCodexRollout(
   }
 }
 
-export function readCodexRolloutsForLocation(location: ProjectLocation): CodexRolloutMeta[] {
+export function readCodexRolloutsForLocation(
+  location: ProjectLocation,
+  homes?: readonly string[],
+): CodexRolloutMeta[] {
   if (location.kind === "wsl") {
     return [];
   }
@@ -173,7 +186,7 @@ export function readCodexRolloutsForLocation(location: ProjectLocation): CodexRo
       }
     }
   };
-  for (const home of nativeCodexHomeCandidates()) {
+  for (const home of nativeCodexHomeCandidates(homes)) {
     walk(join(home, "sessions"));
   }
   return dedupeRollouts(rollouts);
@@ -210,16 +223,19 @@ export async function readCodexRolloutMetaForLocationAsync(
 
 export async function readCodexRolloutsForLocationAsync(
   location: ProjectLocation,
+  homes?: readonly string[],
 ): Promise<CodexRolloutMeta[]> {
   if (location.kind !== "wsl") {
-    return readCodexRolloutsForLocation(location);
+    return readCodexRolloutsForLocation(location, homes);
   }
   const home = await resolveWslHomeDirectoryAsync(location.distro);
   const privateHome = codexPrivateHomeFrom(home);
-  const roots = [
-    home ? `${home}/.codex/sessions` : undefined,
-    privateHome ? `${privateHome}/sessions` : undefined,
-  ].filter((r): r is string => Boolean(r));
+  const roots = homes
+    ? homes.map((root) => `${root}/sessions`)
+    : [
+        home ? `${home}/.codex/sessions` : undefined,
+        privateHome ? `${privateHome}/sessions` : undefined,
+      ].filter((r): r is string => Boolean(r));
 
   const accept = (name: string): boolean => name.startsWith("rollout-") && name.endsWith(".jsonl");
   const found = (
@@ -249,8 +265,12 @@ export async function readCodexRolloutsForLocationAsync(
  * paths for windows/posix; Linux paths inside the distro for WSL (consumed
  * by the in-distro bridge watch subscription, NOT UNC `\\wsl.localhost\…`).
  */
-export function resolveCodexSessionWatchPaths(location: ProjectLocation): string[] {
+export function resolveCodexSessionWatchPaths(
+  location: ProjectLocation,
+  homes?: readonly string[],
+): string[] {
   if (location.kind === "wsl") {
+    if (homes) return homes.map((home) => `${home}/sessions`);
     const home = getCachedWslHomeDirectory(location.distro);
     const privateHome = wslPrivateCodexHome(location.distro);
     return [
@@ -258,10 +278,7 @@ export function resolveCodexSessionWatchPaths(location: ProjectLocation): string
       privateHome ? `${privateHome}/sessions` : undefined,
     ].filter((p): p is string => Boolean(p));
   }
-  const paths: string[] = [];
-  const publicSessions = join(homedir(), ".codex", "sessions");
-  if (existsSync(publicSessions)) paths.push(publicSessions);
-  const privateSessions = join(nativePrivateCodexHome(), "sessions");
-  if (existsSync(privateSessions)) paths.push(privateSessions);
-  return paths;
+  return nativeCodexHomeCandidates(homes)
+    .map((home) => join(home, "sessions"))
+    .filter((sessions) => existsSync(sessions));
 }

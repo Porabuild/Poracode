@@ -1,9 +1,11 @@
+import { getProviderManifest } from "./providerManifest";
 import { antigravityWindowId } from "@poracode/agents-usage/antigravity";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
 import {
   baseAgentKind,
   claudeProfileKind,
+  agentProfileKind,
   cursorProfileKind,
   parseClaudeProfileInstanceConfig,
   type AgentInstanceConfigMap,
@@ -173,6 +175,30 @@ function claudeProfileUsageProviders(
   return profiles;
 }
 
+function registeredProfileUsageProviders(
+  agentInstances: AgentInstanceConfigMap | undefined,
+): UsageProvider[] {
+  return Object.values(agentInstances ?? {})
+    .flatMap((instance) => {
+      if (instance.enabled === false) return [];
+      try {
+        const label = getProviderManifest(instance.driver)?.profileUsageLabel?.(instance);
+        return label
+          ? [
+              {
+                id: agentProfileKind(instance.driver, instance.id),
+                label,
+                ...rendererMeta(instance.driver),
+              },
+            ]
+          : [];
+      } catch {
+        return [];
+      }
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
 function cursorProfileUsageProviders(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
@@ -197,14 +223,20 @@ export function usageProvidersForAgentInstances(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
   const claudeProfiles = claudeProfileUsageProviders(agentInstances);
+  const registeredProfiles = registeredProfileUsageProviders(agentInstances);
   const cursorProfiles = cursorProfileUsageProviders(agentInstances);
-  if (claudeProfiles.length === 0 && cursorProfiles.length === 0) {
+  if (
+    claudeProfiles.length === 0 &&
+    registeredProfiles.length === 0 &&
+    cursorProfiles.length === 0
+  ) {
     return [...STATIC_USAGE_PROVIDERS];
   }
   const out: UsageProvider[] = [];
   for (const provider of STATIC_USAGE_PROVIDERS) {
     out.push(provider);
     if (provider.id === "claude") out.push(...claudeProfiles);
+    out.push(...registeredProfiles.filter((profile) => baseAgentKind(profile.id) === provider.id));
     if (provider.id === "cursor") out.push(...cursorProfiles);
   }
   return out;

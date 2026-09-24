@@ -68,6 +68,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", async (importOriginal) => {
 
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { CodexProviderSettings } from "./CodexProviderSettings";
+import { CodexAgentSettingsPanel, codexProfileSupport } from "./CodexProfileSettings";
 import { NATIVE_AGENT_REGISTRY_ENTRIES } from "./agentRegistryNative";
 
 const setAgentSettingMock = vi.hoisted(() =>
@@ -95,10 +96,12 @@ beforeEach(() => {
 });
 
 describe("CodexProviderSettings", () => {
-  it("registers the provider-local panel for Codex", () => {
-    expect(NATIVE_AGENT_REGISTRY_ENTRIES.find((entry) => entry.id === "codex")?.settingsPanel).toBe(
-      CodexProviderSettings,
-    );
+  it("registers the profile-aware panel and profile support for Codex", () => {
+    // The family panel wraps this provider-local panel on the base page and
+    // swaps in the profile editor on `codex:<id>` pages.
+    const entry = NATIVE_AGENT_REGISTRY_ENTRIES.find((candidate) => candidate.id === "codex");
+    expect(entry?.settingsPanel).toBe(CodexAgentSettingsPanel);
+    expect(entry?.profiles).toBe(codexProfileSupport);
   });
 
   it("shows the default 272k, 400k, and 1M sizes", () => {

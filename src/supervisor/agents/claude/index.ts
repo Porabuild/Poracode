@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { homedir } from "node:os";
-import path, { posix as posixPath } from "node:path";
 
 import type {
   AgentCapability,
@@ -18,7 +16,7 @@ import {
   detectAgentInstall,
   detectProbeLocation,
   iterm2ProgressOscHint,
-  resolveWslHomeDirectory,
+  resolveTildePath,
   shortenHomePath,
   type AgentAdapter,
   type CreateStructuredSessionInput,
@@ -63,19 +61,6 @@ interface ClaudeAdapterOptions {
   defaultEffort?: string;
   /** Per-model effort choices for external-provider model ids. */
   modelEfforts?: Record<string, string[]>;
-}
-
-function resolveTildePath(rawPath: string, location: ProjectLocation): string {
-  const trimmed = rawPath.trim();
-  if (trimmed !== "~" && !trimmed.startsWith("~/")) {
-    return trimmed;
-  }
-  const suffix = trimmed === "~" ? "" : trimmed.slice(2);
-  if (location.kind === "wsl") {
-    const home = resolveWslHomeDirectory(location.distro);
-    return home ? posixPath.join(home, suffix) : trimmed;
-  }
-  return path.join(homedir(), suffix);
 }
 
 function profileEnvForLocation(

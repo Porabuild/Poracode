@@ -174,6 +174,11 @@ export function buildCodexAppServerCommand(
     wslNodePath?: string;
     mcpServers?: readonly ResolvedMcpServer[];
     includeMcpConfig?: boolean;
+    /**
+     * Extra spawn env for the app-server (a profile's `CODEX_HOME`). Applied
+     * after the MCP env so a profile's identity always wins.
+     */
+    env?: Record<string, string>;
   },
 ): CommandSpec {
   const wslExecPath = options?.wslExecPath;
@@ -182,7 +187,7 @@ export function buildCodexAppServerCommand(
   const mcp = buildCodexMcp(mcpServers);
   const includeMcpConfig = options?.includeMcpConfig ?? true;
   const mcpSkillConflictArgs = buildCodexMcpSkillConflictArgs(location, mcpServers);
-  const mcpEnv = mcp.env;
+  const mcpEnv = { ...mcp.env, ...(options?.env ?? {}) };
   const hasMcpEnv = Object.keys(mcpEnv).length > 0;
   const args = [
     ...(isCodexGoalsSupported(location, wslExecPath) ? ["--enable", CODEX_GOALS_FEATURE_FLAG] : []),
