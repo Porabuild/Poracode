@@ -7,6 +7,7 @@ import {
   Boxes,
   Box,
   Cable,
+  Download,
   FlaskConical,
   FolderGit2,
   Gauge,
@@ -274,6 +275,14 @@ export function SettingsSidebar(props: {
           label: t({
             message: "Provider Usage",
             comment: "Settings section: provider usage and quota dashboard",
+          }),
+        },
+        {
+          id: "import",
+          icon: <Download className="size-4" />,
+          label: t({
+            message: "Import",
+            comment: "Settings section: import existing CLI sessions as threads",
           }),
         },
       ],

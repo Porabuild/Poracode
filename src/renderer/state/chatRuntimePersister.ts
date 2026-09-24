@@ -155,6 +155,22 @@ export async function hydrateThreadRuntimeItems(threadId: string): Promise<void>
   }
 }
 
+/**
+ * Re-read a thread's persisted items after main wrote them behind the
+ * renderer's back (an imported transcript is replayed straight into SQLite).
+ * A pane opened while that replay was still running hydrated an empty
+ * transcript and, being marked hydrated, would show nothing until a reload.
+ * A thread nobody has opened yet needs nothing: its first open reads the DB.
+ */
+export async function rehydrateThreadRuntimeItems(threadId: string): Promise<void> {
+  const pending = pendingThreadRuntimeHydrations.get(threadId);
+  if (pending) await pending;
+  if (!hydratedThreadRuntimeIds.has(threadId)) return;
+  hydratedThreadRuntimeIds.delete(threadId);
+  cancelPendingOlderRuntimePage(threadId);
+  await hydrateThreadRuntimeItems(threadId);
+}
+
 async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolean> {
   const bridge = readBridge();
   const [itemsResult, turnsResult, contextResult, latestGoalResult] = await Promise.allSettled([

@@ -1,5 +1,26 @@
 import { describe, it, expect } from "vitest";
-import { getBasename, splitPath } from "./pathUtils";
+import { getBasename, isSameFolderPath, splitPath } from "./pathUtils";
+
+describe("isSameFolderPath", () => {
+  it("ignores a trailing separator and the separator style", () => {
+    expect(isSameFolderPath("F:\\repo", "F:/repo/", false)).toBe(true);
+    expect(isSameFolderPath("/home/u/repo/", "/home/u/repo", false)).toBe(true);
+  });
+
+  it("folds case only when the caller asks for it", () => {
+    expect(isSameFolderPath("F:\\Repo", "f:\\repo", true)).toBe(true);
+    expect(isSameFolderPath("/home/u/Repo", "/home/u/repo", false)).toBe(false);
+  });
+
+  it("never matches a missing path", () => {
+    expect(isSameFolderPath(undefined, "F:\\repo", true)).toBe(false);
+    expect(isSameFolderPath("F:\\repo", undefined, true)).toBe(false);
+  });
+
+  it("does not treat a different folder as the same one", () => {
+    expect(isSameFolderPath("F:\\repo", "F:\\repo2", true)).toBe(false);
+  });
+});
 
 describe("getBasename", () => {
   it("returns last segment of a forward-slash path", () => {

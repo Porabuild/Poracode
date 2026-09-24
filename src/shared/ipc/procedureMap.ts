@@ -14,6 +14,7 @@ import { prWatchProcedures } from "./procedures/prWatches";
 import { scheduleProcedures } from "./procedures/schedules";
 import { skillProcedures } from "./procedures/skills";
 import { projectTreeProcedures } from "./procedures/projectTree";
+import { sessionImportProcedures } from "./procedures/sessionImport";
 import { settingsProcedures } from "./procedures/settings";
 import { sshProcedures } from "./procedures/ssh";
 import { threadProcedures } from "./procedures/thread";
@@ -42,6 +43,7 @@ export const groupedIpcProcedures = {
   skills: skillProcedures,
   plugins: pluginProcedures,
   agentCredentials: agentCredentialProcedures,
+  sessionImport: sessionImportProcedures,
 } as const;
 
 export const ipcProcedureMap = {
@@ -66,6 +68,7 @@ export const ipcProcedureMap = {
   ...skillProcedures,
   ...pluginProcedures,
   ...agentCredentialProcedures,
+  ...sessionImportProcedures,
 } as const;
 
 export type IpcProcedureMap = typeof ipcProcedureMap;
@@ -123,6 +126,8 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "updateCrossagentMemoryEntryTags",
   "setProfileEnvironment",
   "createProfile",
+  "listImportableSessions",
+  "importSessionTranscript",
   "setWindowChrome",
   "dbGetProjects",
   "dbGetThreads",

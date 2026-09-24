@@ -22,6 +22,7 @@ export type SettingsSection =
   | "plugins"
   | "browser"
   | "usage"
+  | "import"
   | "archived"
   | "changelog"
   | "about"

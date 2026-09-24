@@ -433,6 +433,10 @@ msgstr "{agentLabel}: {statusLabel}. Durum ayrıntıları için fareyle üzerine
 msgid "{agentLead} needs your input to continue."
 msgstr "{agentLead} devam etmek için girişinizi bekliyor."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{alreadyImported} session(s) were already imported."
+msgstr "{alreadyImported} oturum zaten içe aktarılmış."
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
@@ -814,6 +818,7 @@ msgstr "Mevcut Değişikliği Kabul Et"
 msgid "Accept Incoming Change"
 msgstr "Gelen Değişikliği Kabul Et"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "Hesap"
@@ -1275,6 +1280,7 @@ msgstr "İş parçacıkları size ihtiyaç duyduğunda uyarılar"
 msgid "All"
 msgstr "Tümü"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
 msgstr "Tüm hesaplar"
@@ -1302,6 +1308,10 @@ msgstr "Tüm efor düzeyleri"
 msgid "All files"
 msgstr "Tüm dosyalar"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "All folders"
+#~ msgstr "Tüm klasörler"
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "Tüm makineler"
@@ -1311,9 +1321,14 @@ msgid "All plugins are up to date."
 msgstr "Tüm eklentiler güncel."
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "Tüm projeler"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All providers"
+msgstr "Tüm sağlayıcılar"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
@@ -1996,6 +2011,14 @@ msgstr "Şubeler"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "Panele geri getir"
+
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Bring conversations you started in an agent CLI into Poracode. Transcript files are read, never modified."
+msgstr "Ajan CLI'sinde başlattığınız konuşmaları Poracode'a aktarın. Döküm dosyaları yalnızca okunur, değiştirilmez."
+
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#~ msgid "Bring conversations you started in Codex CLI or Claude Code into Poracode. Transcript files are read, never modified."
+#~ msgstr "Codex CLI veya Claude Code'da başlattığın konuşmaları Poracode'a getir. Döküm dosyaları yalnızca okunur, asla değiştirilmez."
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -2940,6 +2963,10 @@ msgstr "Kod kopyalandı."
 msgid "Codex"
 msgstr "Codex"
 
+#: src/renderer/components/providers/codex/manifest.ts
+msgid "Codex CLI"
+msgstr "Codex CLI"
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
@@ -3599,6 +3626,11 @@ msgstr "Bağlam çıkarılamadı."
 msgid "Could not generate commit message: {detail}"
 msgstr "Commit mesajı oluşturulamadı: {detail}"
 
+#. placeholder {0}: session.preview
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Could not import {0}."
+msgstr "{0} içe aktarılamadı."
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3607,6 +3639,10 @@ msgstr "{0} için çekme istekleri yüklenemedi."
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Bu PDF açılamadı."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Could not read existing CLI sessions."
+msgstr "Mevcut CLI oturumları okunamadı."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -5644,6 +5680,10 @@ msgstr "Klasör"
 msgid "Folder name"
 msgstr "Klasör adı"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Folder no longer exists — imports into the project chosen above."
+msgstr "Klasör artık yok — yukarıda seçilen projeye aktarılır."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Folder on the server"
 msgstr "Sunucudaki klasör"
@@ -6244,6 +6284,10 @@ msgstr "Kimlik dosyası yolu"
 msgid "Idle"
 msgstr "Boşta"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "If the folder is missing, import into"
+msgstr "Klasör yoksa şuraya aktar"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Ignored an unrecognized field in plugin.json."
 msgstr "plugin.json içindeki bilinmeyen bir alan yok sayıldı."
@@ -6264,9 +6308,32 @@ msgstr "Resim önizlemesi"
 msgid "Images"
 msgstr "Görseller"
 
+#. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Import"
+msgstr "İçe aktarma"
+
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Import {0} session(s)"
+msgstr "{0} oturumu içe aktar"
+
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Import {0} sessions"
+msgstr "{0} oturumu içe aktar"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "Import a conversation from Codex CLI or Claude Code. The thread keeps its provider session, so your next message continues where you left off."
+#~ msgstr "Codex CLI veya Claude Code'dan bir konuşmayı içe aktar. İş parçacığı sağlayıcı oturumunu korur, bu yüzden sonraki mesajın kaldığın yerden devam eder."
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
 msgstr "Tekrar içe aktar"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Import an existing conversation. The thread keeps its provider session, so your next message continues where you left off."
+msgstr "Mevcut bir konuşmayı içe aktarın. İş parçacığı sağlayıcı oturumunu korur; sonraki iletiniz kaldığınız yerden devam eder."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import and restart"
@@ -6293,6 +6360,10 @@ msgstr "Harici aracı becerilerini içe aktar"
 msgid "Import external skills"
 msgstr "Harici becerileri içe aktar"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Import into account"
+msgstr "Hesaba aktar"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import Lightcode data"
 msgstr "Lightcode verilerini içe aktar"
@@ -6313,6 +6384,16 @@ msgstr "İçe aktarma yöntemi"
 msgid "Import selected"
 msgstr "Seçilenleri içe aktar"
 
+#: src/renderer/components/sessionImport/ImportSessionsDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Import session"
+msgstr "Oturumu içe aktar"
+
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Import sessions"
+msgstr "Oturumları içe aktar"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "{destinationProjectName} projesine içe aktar"
@@ -6325,6 +6406,10 @@ msgstr "Genel kapsama içe aktar"
 #~ msgid "Import to Project"
 #~ msgstr "Projeye içe aktar"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Imported"
+msgstr "İçe aktarıldı"
+
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -6336,9 +6421,29 @@ msgstr "Genel kapsama içe aktar"
 msgid "Imported {0} skills."
 msgstr "{0} beceri içe aktarıldı."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Imported {imported} session(s)."
+msgstr "{imported} oturum içe aktarıldı."
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "1 beceri içe aktarıldı."
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+msgid "Imported from {providerLabel} — text only, tool calls are not shown."
+msgstr "{providerLabel} kaynağından içe aktarıldı — yalnızca metin gösterilir, araç çağrıları gösterilmez."
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+#~ msgid "Imported from Claude Code — text only, tool calls are not shown."
+#~ msgstr "Claude Code'dan içe aktarıldı — yalnızca metin, araç çağrıları gösterilmez."
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+#~ msgid "Imported from Codex CLI — text only, tool calls are not shown."
+#~ msgstr "Codex CLI'dan içe aktarıldı — yalnızca metin, araç çağrıları gösterilmez."
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Imported session"
+msgstr "İçe aktarılan oturum"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -8213,6 +8318,10 @@ msgstr "{threadId} deney adayı için kullanılabilir sohbet yanıtı yok."
 msgid "No checks reported for this PR."
 msgstr "Bu PR için herhangi bir kontrol raporlanmadı."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "No Codex or Claude Code sessions found on this computer."
+#~ msgstr "Bu bilgisayarda Codex veya Claude Code oturumu bulunamadı."
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "No commands found"
 msgstr "Hiçbir komut bulunamadı"
@@ -8312,6 +8421,10 @@ msgstr "Henüz geçmiş yok"
 msgid "No icons found"
 msgstr "Simge bulunamadı"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No importable sessions found on this computer."
+msgstr "Bu bilgisayarda içe aktarılabilecek oturum bulunamadı."
+
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Bu proje için seçilebilir modellere sahip yüklü bir ajan yok."
@@ -8335,6 +8448,10 @@ msgstr "Lightcode verisi bulunamadı."
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "Bu filtrelerle eşleşen marketplace becerisi yok."
+
+#: src/renderer/components/sessionImport/SearchableSelect.tsx
+msgid "No matches"
+msgstr "Eşleşme yok"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -8427,6 +8544,11 @@ msgstr "Bu çalıştırma için etkin eklenti yok"
 msgid "No plugins match your search."
 msgstr "Aramanızla eşleşen eklenti yok."
 
+#. placeholder {0}: session.preview
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "No project to import into — pick one for {0}."
+msgstr "İçe aktarılacak proje yok — {0} için bir tane seç."
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "No projects"
 msgstr "Proje yok"
@@ -8495,6 +8617,14 @@ msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "Henüz bağlı sunucu yok."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions could be imported."
+msgstr "Hiçbir oturum içe aktarılamadı."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions match the current filters."
+msgstr "Geçerli filtrelere uyan oturum yok."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -9854,6 +9984,7 @@ msgstr "Profiller"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9966,6 +10097,7 @@ msgstr "Desteklenen aracılar için Poracode tarafından sağlanır ve yönetili
 msgid "provider"
 msgstr "sağlayıcı"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Provider"
 msgstr "Sağlayıcı"
@@ -11241,6 +11373,10 @@ msgstr "Çalışma zamanı hata ayıklaması"
 msgid "Runtime options"
 msgstr "Çalışma zamanı seçenekleri"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Same account as the session"
+msgstr "Oturumla aynı hesap"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
@@ -11450,6 +11586,15 @@ msgstr "SDK yüklü değil"
 msgid "Search"
 msgstr "Ara"
 
+#. placeholder {0}: props.label
+#: src/renderer/components/sessionImport/SearchableSelect.tsx
+msgid "Search {0}"
+msgstr "{0} ara"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search accounts…"
+msgstr "Hesapları ara…"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Search agents"
 msgstr "Aracıları ara"
@@ -11462,10 +11607,18 @@ msgstr "Aracıları ara..."
 msgid "Search branches..."
 msgstr "Şube ara..."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "Search by text or folder"
+#~ msgstr "Metne veya klasöre göre ara"
+
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Dosyaları arayın"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "Search folders…"
+#~ msgstr "Klasörleri ara…"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Search icons"
@@ -11511,6 +11664,10 @@ msgstr "Eklenti ara"
 msgid "Search plugins, skills, and servers..."
 msgstr "Eklenti, beceri ve sunucu ara..."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search projects…"
+msgstr "Projeleri ara…"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
 msgstr "Çekme isteklerinde ara"
@@ -11530,6 +11687,10 @@ msgstr "Çalışma zamanı öğelerini ara…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Search scheduled tasks"
 msgstr "Zamanlanmış görevlerde ara"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search sessions"
+msgstr "Oturumları ara"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
@@ -11565,6 +11726,11 @@ msgstr "Konuları ara"
 msgid "Search Threads"
 msgstr "Konuları Ara"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search title or folder everywhere, message text in what's shown"
+msgstr "Başlık veya klasörü tüm oturumlarda, ileti metnini yalnızca gösterilenlerde ara"
+
+#: src/renderer/components/sessionImport/SearchableSelect.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
 msgstr "Ara…"
@@ -11628,6 +11794,7 @@ msgid "Select account"
 msgstr "Hesap seçin"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "Tümünü seç"
@@ -11989,6 +12156,10 @@ msgstr "Ses girişi düğmesini göster"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "{0, plural, one {# beceri} other {# beceri}} gösteriliyor"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Showing the 200 most recent — narrow the filters to see more"
+msgstr "En son 200 oturum gösteriliyor — daha fazlası için filtreleri daraltın"
 
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -12865,10 +13036,18 @@ msgstr "Masaüstünüzde bir klasör eklemek veya bir depoyu klonlamak için + �
 #~ msgid "Tap + to pair with Poracode on your desktop."
 #~ msgstr "Masaüstünüzdeki Poracode ile eşleştirmek için + öğesine dokunun."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Target account"
+msgstr "Hedef hesap"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "Hedef şube"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Target project"
+msgstr "Hedef proje"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #~ msgid "Target provider"
@@ -13189,6 +13368,10 @@ msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "Bu worktree'ye bağlı iş parçacıkları değişti. Yenileyip tekrar deneyin."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "The transcript is copied into that account's home so it can resume the session. Sessions from the other provider keep their own account."
+msgstr "Dökümü, oturumu sürdürebilmesi için o hesabın ana dizinine kopyalanır. Diğer sağlayıcının oturumları kendi hesabında kalır."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -14165,6 +14348,10 @@ msgstr "{name} kaldır"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Bilinmiyor"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "unknown folder"
+msgstr "bilinmeyen klasör"
 
 #: src/renderer/notifications.ts
 msgid "Unknown project"
