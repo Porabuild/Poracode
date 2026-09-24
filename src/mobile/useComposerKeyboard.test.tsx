@@ -503,4 +503,17 @@ describe("useComposerKeyboard", () => {
 
     expect(pointerDown.defaultPrevented).toBe(false);
   });
+
+  it("does not cancel the pointer event paired with a native caret touch", () => {
+    keyboardMock.offset = 320;
+    render(<ComposerKeyboardHarness />);
+    const input = screen.getByRole("textbox");
+    act(() => input.focus());
+    const touch = createEvent.touchStart(input, { cancelable: true });
+    fireEvent(input, touch);
+    const pointer = createEvent.pointerDown(input, { pointerType: "touch", cancelable: true });
+    fireEvent(input, pointer);
+    expect(touch.defaultPrevented).toBe(false);
+    expect(pointer.defaultPrevented).toBe(false);
+  });
 });

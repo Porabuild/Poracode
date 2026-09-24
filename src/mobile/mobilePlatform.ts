@@ -31,6 +31,11 @@ export function isAndroidRuntime(): boolean {
   return getMobileRuntimePlatform() === "android";
 }
 
+/** Only the native WebView guarantees that the keyboard resizes the layout viewport. */
+export function isNativeAndroidRuntime(): boolean {
+  return (globalThis as CapacitorGlobal).Capacitor?.getPlatform?.() === "android";
+}
+
 /**
  * Reflects the runtime platform onto <html data-mobile-platform> so the
  * stylesheet can scope platform-specific rules (e.g. the iOS input-zoom

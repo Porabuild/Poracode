@@ -14,6 +14,7 @@ export async function pickAndUploadBrowserFiles(
   const input = document.createElement("input");
   input.type = "file";
   input.multiple = true;
+  input.hidden = true;
   const extensions = options.filters?.flatMap((filter) => filter.extensions) ?? [];
   if (extensions.length > 0) {
     input.accept = extensions.map((extension) => `.${extension.replace(/^\./, "")}`).join(",");
@@ -29,6 +30,7 @@ export async function pickAndUploadBrowserFiles(
     };
     input.addEventListener("change", () => finish(Array.from(input.files ?? [])), { once: true });
     input.addEventListener("cancel", () => finish([]), { once: true });
+    document.body.append(input);
     input.click();
   });
   if (files.length === 0) return null;

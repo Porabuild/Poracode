@@ -10,6 +10,7 @@ describe("pickAndUploadBrowserFiles", () => {
     let accept = "";
     vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
       function (this: HTMLInputElement) {
+        expect(this.isConnected).toBe(true);
         accept = this.accept;
         const files = [new File(["one"], "one.md"), new File(["two"], "two.png")];
         Object.defineProperty(this, "files", { configurable: true, value: files });
@@ -30,6 +31,7 @@ describe("pickAndUploadBrowserFiles", () => {
 
     expect(accept).toBe(".md,.png");
     expect(upload).toHaveBeenCalledTimes(2);
+    expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 
   it("returns null when the picker is cancelled", async () => {
@@ -47,5 +49,6 @@ describe("pickAndUploadBrowserFiles", () => {
       }),
     ).resolves.toBeNull();
     expect(upload).not.toHaveBeenCalled();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 });
