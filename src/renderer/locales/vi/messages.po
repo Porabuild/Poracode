@@ -2940,6 +2940,23 @@ msgstr "Đã sao chép mã."
 msgid "Codex"
 msgstr "Codex"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex {0} profile saved."
+msgstr "Đã lưu hồ sơ Codex {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile home directory"
+msgstr "Thư mục home của hồ sơ Codex"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile name"
+msgstr "Tên hồ sơ Codex"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Codex chạy hồ sơ này với CODEX_HOME trỏ tới thư mục bên dưới. Dùng Đăng nhập ở trên để đăng nhập hồ sơ này vào tài khoản riêng của nó."
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
@@ -6162,6 +6179,10 @@ msgstr "Lịch sử"
 msgid "Home"
 msgstr "Trang chủ"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Home directory"
+msgstr "Thư mục home"
+
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
@@ -7836,6 +7857,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
@@ -7938,6 +7960,10 @@ msgstr "Thư mục cấu hình hồ sơ Claude mới"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New code"
 msgstr "Mã mới"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "New Codex profile home directory"
+msgstr "Thư mục home của hồ sơ Codex mới"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"
@@ -9832,6 +9858,10 @@ msgstr "Đã thêm hồ sơ {displayName}."
 #~ msgid "Profile API key"
 #~ msgstr "Khóa API của hồ sơ"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Profile home"
+msgstr "Thư mục hồ sơ"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
 msgstr "Đã xóa hồ sơ, nhưng không thể làm mới trạng thái."
@@ -10666,6 +10696,10 @@ msgstr "Xóa worktree?"
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "Xóa {profileName} sẽ xóa luôn khóa API đã lưu. Các luồng dùng hồ sơ này sẽ không còn tìm thấy tác nhân của chúng."
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
+msgstr "Xóa {profileName} sẽ gỡ nó khỏi Poracode. Thư mục home và thông tin đăng nhập Codex bên trong vẫn còn trên đĩa."
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Xóa {profileName} sẽ bỏ các thiết lập Poracode của nó — biến môi trường, mô hình và effort. Thư mục cấu hình và thông tin đăng nhập Claude bên trong vẫn còn trên đĩa."
@@ -11124,6 +11158,10 @@ msgstr "Chạy {loginCommandDisplay} để đăng nhập."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "Chạy luồng mới trên {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "Chạy tài khoản Codex thứ hai từ CODEX_HOME riêng. Mỗi hồ sơ đăng nhập riêng và giữ các phiên của riêng mình."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -11258,6 +11296,7 @@ msgstr "Độ bão hòa và độ sáng"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11276,6 +11315,10 @@ msgstr "Lưu thay đổi"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Lưu hồ sơ Claude"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Save Codex profile"
+msgstr "Lưu hồ sơ Codex"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Save Cursor GUI runtime"
@@ -13946,6 +13989,10 @@ msgstr "Không thể làm mới trạng thái {agentLabel}."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
 msgstr "Không thể làm mới hồ sơ Claude."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Unable to refresh Codex profiles."
+msgstr "Không thể làm mới hồ sơ Codex."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

@@ -2940,6 +2940,23 @@ msgstr "Code kopiert."
 msgid "Codex"
 msgstr "Codex"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex {0} profile saved."
+msgstr "Codex-{0}-Profil gespeichert."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile home directory"
+msgstr "Home-Verzeichnis des Codex-Profils"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile name"
+msgstr "Name des Codex-Profils"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Codex führt dieses Profil mit CODEX_HOME auf dem unten angegebenen Verzeichnis aus. Verwende oben „Anmelden“, um dieses Profil bei seinem eigenen Konto anzumelden."
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
@@ -6162,6 +6179,10 @@ msgstr "Verlauf"
 msgid "Home"
 msgstr "Start"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Home directory"
+msgstr "Home-Verzeichnis"
+
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
@@ -7836,6 +7857,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
@@ -7938,6 +7960,10 @@ msgstr "Neues Claude-Profilkonfigurationsverzeichnis"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New code"
 msgstr "Neuer Code"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "New Codex profile home directory"
+msgstr "Home-Verzeichnis des neuen Codex-Profils"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"
@@ -9832,6 +9858,10 @@ msgstr "Profil {displayName} hinzugefügt."
 #~ msgid "Profile API key"
 #~ msgstr "Profil-API-Schlüssel"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Profile home"
+msgstr "Profil-Home"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
 msgstr "Profil entfernt, die Status konnten aber nicht aktualisiert werden."
@@ -10666,6 +10696,10 @@ msgstr "Worktree entfernen?"
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "Beim Entfernen von {profileName} wird der gespeicherte API-Schlüssel gelöscht. Threads, die dieses Profil verwenden, finden ihren Agenten nicht mehr."
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
+msgstr "Das Entfernen von {profileName} löscht es aus Poracode. Das Home-Verzeichnis und die darin gespeicherten Codex-Anmeldedaten bleiben auf der Festplatte."
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Beim Entfernen von {profileName} gehen seine Poracode-Einstellungen verloren — Umgebungsvariablen, Modelle und Effort. Sein Konfigurationsverzeichnis und die darin enthaltenen Claude-Anmeldedaten bleiben auf der Festplatte."
@@ -11124,6 +11158,10 @@ msgstr "Führen Sie {loginCommandDisplay} aus, um sich anzumelden."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "Neuen Thread auf {0} starten."
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "Betreibe ein zweites Codex-Konto aus einem eigenen CODEX_HOME. Jedes Profil meldet sich separat an und behält seine eigenen Sitzungen."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -11258,6 +11296,7 @@ msgstr "Sättigung und Helligkeit"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11276,6 +11315,10 @@ msgstr "Änderungen speichern"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude-Profil speichern"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Save Codex profile"
+msgstr "Codex-Profil speichern"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Save Cursor GUI runtime"
@@ -13946,6 +13989,10 @@ msgstr "Der Status „{agentLabel}“ konnte nicht aktualisiert werden."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
 msgstr "Claude-Profile können nicht aktualisiert werden."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Unable to refresh Codex profiles."
+msgstr "Codex-Profile können nicht aktualisiert werden."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

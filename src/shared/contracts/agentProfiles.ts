@@ -38,6 +38,7 @@ export interface AgentProfileDriver {
 
 export const AGENT_PROFILE_DRIVERS: readonly AgentProfileDriver[] = [
   { driver: "claude" },
+  { driver: "codex" },
   { driver: "cursor", credentialEnvVar: "CURSOR_API_KEY" },
 ];
 

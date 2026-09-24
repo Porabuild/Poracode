@@ -1,5 +1,5 @@
 import type { MessageDescriptor } from "@lingui/core";
-import { baseAgentKind, type ProjectLocation } from "@/shared/contracts";
+import { baseAgentKind, type AgentInstanceConfig, type ProjectLocation } from "@/shared/contracts";
 
 export interface ProviderMarkdownImageRootsInput {
   sessionId?: string;
@@ -15,6 +15,8 @@ export interface RendererProviderManifest {
   order: number;
   /** Optional override for automatic utility tasks; otherwise `order` applies. */
   utilityOrder?: number;
+  /** Validate and label an instance whose usage can be collected independently. */
+  profileUsageLabel?: (instance: AgentInstanceConfig) => string | undefined;
   /** Provider-owned roots for relative image paths emitted in transcript markdown. */
   resolveMarkdownImageRoots?: (
     input: ProviderMarkdownImageRootsInput,
