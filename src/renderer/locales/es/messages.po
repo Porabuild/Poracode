@@ -7767,6 +7767,10 @@ msgstr "Mover panel"
 msgid "Move to clean worktree"
 msgstr "Mover a worktree limpio"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Project"
+msgstr "Mover a proyecto"
+
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Mover a espacio de trabajo"
@@ -13182,6 +13186,10 @@ msgstr "el proveedor de destino"
 msgid "The thread session is not available for queued follow-ups."
 msgstr "La sesión del hilo no está disponible para los seguimientos en cola."
 
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "The thread was stopped to move it — start it again in its new project."
+msgstr "Se detuvo el hilo para moverlo. Inícialo de nuevo en su nuevo proyecto."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "El hilo se ejecutará en un worktree separado en una nueva rama."
@@ -13438,6 +13446,10 @@ msgstr "Este atajo global no está disponible. Elige otra combinación de teclas
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Este hilo no admite seguimientos en cola."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "This thread is hosted on another desktop; it can't be moved to a local project."
+msgstr "Este hilo está alojado en otro equipo y no se puede mover a un proyecto local."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
@@ -14724,6 +14736,10 @@ msgstr "Espera a que todos los candidatos terminen antes de abrir una pull reque
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Espera a que el hilo termine de iniciarse antes de moverlo a un worktree."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "Wait for the thread to finish starting before moving it to another project."
+msgstr "Espera a que el hilo termine de iniciarse antes de moverlo a otro proyecto."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

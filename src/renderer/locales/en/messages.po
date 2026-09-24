@@ -7771,6 +7771,10 @@ msgstr "Move panel"
 msgid "Move to clean worktree"
 msgstr "Move to clean worktree"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Project"
+msgstr "Move to Project"
+
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Move to Workspace"
@@ -13186,6 +13190,10 @@ msgstr "the target provider"
 msgid "The thread session is not available for queued follow-ups."
 msgstr "The thread session is not available for queued follow-ups."
 
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "The thread was stopped to move it — start it again in its new project."
+msgstr "The thread was stopped to move it — start it again in its new project."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "The thread will run in a separate worktree on a new branch."
@@ -13442,6 +13450,10 @@ msgstr "This system-wide shortcut is unavailable. Choose another key combination
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "This thread does not support queued follow-ups."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "This thread is hosted on another desktop; it can't be moved to a local project."
+msgstr "This thread is hosted on another desktop; it can't be moved to a local project."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
@@ -14732,6 +14744,10 @@ msgstr "Wait for every candidate to finish before opening a pull request."
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Wait for the thread to finish starting before moving it to a worktree."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "Wait for the thread to finish starting before moving it to another project."
+msgstr "Wait for the thread to finish starting before moving it to another project."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

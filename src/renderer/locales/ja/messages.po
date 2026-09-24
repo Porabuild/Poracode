@@ -7765,6 +7765,10 @@ msgstr "パネルを移動"
 msgid "Move to clean worktree"
 msgstr "クリーンなワークツリーに移動"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Project"
+msgstr "プロジェクトへ移動"
+
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "ワークスペースへ移動"
@@ -13180,6 +13184,10 @@ msgstr "対象プロバイダー"
 msgid "The thread session is not available for queued follow-ups."
 msgstr "キューに入ったフォローアップにはスレッドセッションを利用できません。"
 
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "The thread was stopped to move it — start it again in its new project."
+msgstr "移動するためにスレッドを停止しました。新しいプロジェクトで再起動してください。"
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "スレッドは新しいブランチ上の別のワークツリーで実行されます。"
@@ -13436,6 +13444,10 @@ msgstr "このシステム全体のショートカットは使用できません
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "このスレッドはキューに入ったフォローアップをサポートしていません。"
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "This thread is hosted on another desktop; it can't be moved to a local project."
+msgstr "このスレッドは別のコンピューターで実行されているため、ローカルプロジェクトへ移動できません。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
@@ -14722,6 +14734,10 @@ msgstr "プルリクエストを開く前に、すべての候補が完了する
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "ワークツリーに移動する前に、スレッドの起動が完了するまでお待ちください。"
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "Wait for the thread to finish starting before moving it to another project."
+msgstr "スレッドの起動が完了してから別のプロジェクトへ移動してください。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
