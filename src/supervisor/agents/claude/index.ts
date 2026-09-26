@@ -27,7 +27,7 @@ import {
 import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForConfig } from "./argv";
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
-import { claudeSkillText, leadingSkillIndex } from "./skillPrompt";
+import { claudeSkillText, leadingSkill } from "./skillPrompt";
 import { ClaudeSdkSession } from "./sdkSession";
 import { claudeMcpLaunch } from "./mcp";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
@@ -410,14 +410,10 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       const attachmentLines = attachments.map((s) => `@${shortenHomePath(s.path)}`).join(" ");
       // A leading skill must open the line for the CLI to run it, so blank
       // text before it is dropped.
-      const leadIndex = leadingSkillIndex(rest);
+      const lead = leadingSkill(rest);
       const restStr = rest
-        .slice(Math.max(leadIndex, 0))
-        .map((s) =>
-          s.kind === "skill"
-            ? claudeSkillText(s, s === rest[leadIndex])
-            : inlinePromptSegmentText(s),
-        )
+        .slice(lead ? rest.indexOf(lead) : 0)
+        .map((s) => (s.kind === "skill" ? claudeSkillText(s, lead) : inlinePromptSegmentText(s)))
         .join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },

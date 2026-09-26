@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PromptSegment } from "@/shared/contracts";
-import { claudeSkillText, leadingSkillIndex } from "./skillPrompt";
+import { claudeSkillText, leadingSkill } from "./skillPrompt";
 
 const simplify: Extract<PromptSegment, { kind: "skill" }> = {
   kind: "skill",
@@ -10,9 +10,9 @@ const simplify: Extract<PromptSegment, { kind: "skill" }> = {
   scope: "global",
 };
 
-describe("leadingSkillIndex", () => {
+describe("leadingSkill", () => {
   it("finds a skill that opens the prompt", () => {
-    expect(leadingSkillIndex([simplify, { kind: "text", content: " test" }])).toBe(0);
+    expect(leadingSkill([simplify, { kind: "text", content: " test" }])).toBe(simplify);
   });
 
   it("skips blank text and attachments before the skill", () => {
@@ -22,24 +22,24 @@ describe("leadingSkillIndex", () => {
       simplify,
     ];
 
-    expect(leadingSkillIndex(segments)).toBe(2);
+    expect(leadingSkill(segments)).toBe(simplify);
   });
 
-  it("returns -1 when text comes before the skill", () => {
-    expect(leadingSkillIndex([{ kind: "text", content: "please " }, simplify])).toBe(-1);
+  it("finds nothing when text comes before the skill", () => {
+    expect(leadingSkill([{ kind: "text", content: "please " }, simplify])).toBeUndefined();
   });
 
-  it("returns -1 when the prompt has no skill", () => {
-    expect(leadingSkillIndex([{ kind: "text", content: "hello" }])).toBe(-1);
+  it("finds nothing when the prompt has no skill", () => {
+    expect(leadingSkill([{ kind: "text", content: "hello" }])).toBeUndefined();
   });
 });
 
 describe("claudeSkillText", () => {
-  it("sends a leading skill as its slash command", () => {
-    expect(claudeSkillText(simplify, true)).toBe("/simplify");
+  it("sends the leading skill as its slash command", () => {
+    expect(claudeSkillText(simplify, simplify)).toBe("/simplify");
   });
 
-  it("asks the model to use a skill placed later in the text", () => {
-    expect(claudeSkillText(simplify, false)).toBe("Use the simplify skill.");
+  it("asks the model to use any other skill", () => {
+    expect(claudeSkillText(simplify, undefined)).toBe("Use the simplify skill.");
   });
 });

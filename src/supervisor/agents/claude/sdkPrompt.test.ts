@@ -103,12 +103,14 @@ describe("buildSdkUserMessage", () => {
       expect(blocksOf(message)).toEqual([{ type: "text", text: "/simplify test" }]);
     });
 
-    it("puts inline instructions before the slash command", async () => {
+    it("asks the model to use a skill whose body is inlined", async () => {
+      // Inlined instructions mean the CLI cannot find the skill itself, so
+      // `/simplify` would fail with "Unknown command".
       const message = await buildSdkUserMessage("", [skill], "Portable skill body");
 
       expect(blocksOf(message)).toEqual([
+        { type: "text", text: "Use the simplify skill." },
         { type: "text", text: "Portable skill body" },
-        { type: "text", text: "/simplify" },
       ]);
     });
 
