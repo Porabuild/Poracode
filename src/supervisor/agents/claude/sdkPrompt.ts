@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { PromptSegment } from "@/shared/contracts";
 import { formatDiffCommentPrompt } from "@/shared/promptContent";
+import { claudeSkillText, leadingSkill } from "./skillPrompt";
 
 function isImageAttachment(segment: PromptSegment): boolean {
   return (
@@ -26,6 +27,78 @@ function inferImageMime(path: string): string {
   return "image/png";
 }
 
+type SkillSegment = Extract<PromptSegment, { kind: "skill" }>;
+type ContentBlock = Record<string, unknown>;
+
+/** Image or PDF attachments become their own content block. */
+async function mediaBlock(segment: PromptSegment): Promise<ContentBlock | undefined> {
+  if (segment.kind !== "attachment") return undefined;
+  if (isImageAttachment(segment)) {
+    const bytes = await readFile(segment.path);
+    return {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: segment.mimeType ?? inferImageMime(segment.path),
+        data: bytes.toString("base64"),
+      },
+    };
+  }
+  if (isPdfAttachment(segment)) {
+    const bytes = await readFile(segment.path);
+    return {
+      type: "document",
+      source: { type: "base64", media_type: "application/pdf", data: bytes.toString("base64") },
+    };
+  }
+  return undefined;
+}
+
+function segmentText(segment: PromptSegment, lead: SkillSegment | undefined): string {
+  switch (segment.kind) {
+    case "text":
+      return segment.content;
+    case "diff_comment":
+      return formatDiffCommentPrompt(segment);
+    case "skill":
+      // A skill is sent as text, never as an `@<SKILL.md path>` file mention.
+      return claudeSkillText(segment, lead);
+    case "mcp":
+      // MCP mentions are a plain-text directive for the turn, not a file ref.
+      return `@${segment.name}`;
+    case "file":
+    case "attachment":
+      return `@${segment.path}`;
+    case "thread":
+      return "";
+  }
+}
+
+/**
+ * The CLI runs a slash command only when it opens the last text block of the
+ * message. So attachments go in front as blocks, blank text before the command
+ * is dropped, and mentions of attachments that came first go after it.
+ */
+async function slashCommandContent(
+  segments: readonly PromptSegment[],
+  lead: SkillSegment,
+): Promise<ContentBlock[]> {
+  const blocks: ContentBlock[] = [];
+  const text: string[] = [];
+  const mentions: string[] = [];
+  let started = false;
+  for (const segment of segments) {
+    if (segment === lead) started = true;
+    const block = await mediaBlock(segment);
+    if (block) blocks.push(block);
+    else if (started) text.push(segmentText(segment, lead));
+    else if (segment.kind === "attachment") mentions.push(`@${segment.path}`);
+  }
+  if (mentions.length > 0) text.push(`\n\n${mentions.join(" ")}`);
+  blocks.push({ type: "text", text: text.join("") });
+  return blocks;
+}
+
 export async function buildSdkUserMessage(
   prompt: string,
   segments?: PromptSegment[],
@@ -43,64 +116,32 @@ export async function buildSdkUserMessage(
     } as SDKUserMessage;
   }
 
-  const content: Array<Record<string, unknown>> = [];
-  const textParts: string[] = [];
-  const flushText = () => {
-    if (textParts.length > 0) {
-      content.push({ type: "text", text: textParts.join("") });
-      textParts.length = 0;
+  // Inlined instructions carry the SKILL.md of a skill the CLI cannot find
+  // itself. `/name` would fail with "Unknown command", so that skill stays a
+  // request to the model.
+  const lead = inlineInstructions ? undefined : leadingSkill(segments);
+  const content: ContentBlock[] = [];
+  if (lead) {
+    content.push(...(await slashCommandContent(segments, lead)));
+  } else {
+    const textParts: string[] = [];
+    const flushText = () => {
+      if (textParts.length > 0) {
+        content.push({ type: "text", text: textParts.join("") });
+        textParts.length = 0;
+      }
+    };
+    for (const segment of segments) {
+      const block = await mediaBlock(segment);
+      if (block) {
+        flushText();
+        content.push(block);
+      } else {
+        textParts.push(segmentText(segment, undefined));
+      }
     }
-  };
-  for (const segment of segments) {
-    if (segment.kind === "text") {
-      textParts.push(segment.content);
-      continue;
-    }
-    if (segment.kind === "diff_comment") {
-      textParts.push(formatDiffCommentPrompt(segment));
-      continue;
-    }
-    if (segment.kind === "attachment" && isImageAttachment(segment)) {
-      flushText();
-      const bytes = await readFile(segment.path);
-      const mimeType = segment.mimeType ?? inferImageMime(segment.path);
-      content.push({
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: mimeType,
-          data: bytes.toString("base64"),
-        },
-      });
-      continue;
-    }
-    if (segment.kind === "attachment" && isPdfAttachment(segment)) {
-      flushText();
-      const bytes = await readFile(segment.path);
-      content.push({
-        type: "document",
-        source: {
-          type: "base64",
-          media_type: "application/pdf",
-          data: bytes.toString("base64"),
-        },
-      });
-      continue;
-    }
-    if (segment.kind === "skill") {
-      // A skill is invoked by its invocation text (model-invoked via the SDK's
-      // Skill tool), never as an `@<SKILL.md path>` file mention.
-      textParts.push(segment.invocation);
-      continue;
-    }
-    if (segment.kind === "mcp") {
-      // MCP mentions are a plain-text directive for the turn, not a file ref.
-      textParts.push(`@${segment.name}`);
-      continue;
-    }
-    if ("path" in segment) textParts.push(`@${segment.path}`);
+    flushText();
   }
-  flushText();
   if (content.length === 0 && prompt.length > 0) content.push({ type: "text", text: prompt });
   // Portable-skills fallback: appended to the provider payload only, never to
   // the painted user_message (see StartTurnOptions.inlineInstructions).

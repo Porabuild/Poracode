@@ -32,7 +32,7 @@ function mapCommands(commands: SlashCommand[], skillNames?: ReadonlySet<string>)
       ...base,
       section: "skills" as const,
       skillName: c.name,
-      skillInvocation: `Use the ${c.name} skill.`,
+      skillInvocation: `/${c.name}`,
       skillProvider: "Claude",
       skillScope: "global" as const,
     };
