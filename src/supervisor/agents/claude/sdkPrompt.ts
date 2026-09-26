@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { PromptSegment } from "@/shared/contracts";
 import { formatDiffCommentPrompt } from "@/shared/promptContent";
+import { claudeSkillText, leadingSkillIndex } from "./skillPrompt";
 
 function isImageAttachment(segment: PromptSegment): boolean {
   return (
@@ -43,16 +44,25 @@ export async function buildSdkUserMessage(
     } as SDKUserMessage;
   }
 
+  // The CLI runs a slash command only when it opens the last text block of the
+  // message. With a leading skill, the text collects into one final block and
+  // attachments go in front of it.
+  const leadIndex = leadingSkillIndex(segments);
+  const leadsWithSkill = leadIndex >= 0;
   const content: Array<Record<string, unknown>> = [];
   const textParts: string[] = [];
+  const mentionsAfterCommand: string[] = [];
   const flushText = () => {
     if (textParts.length > 0) {
       content.push({ type: "text", text: textParts.join("") });
       textParts.length = 0;
     }
   };
-  for (const segment of segments) {
+  for (const [index, segment] of segments.entries()) {
     if (segment.kind === "text") {
+      // Text before a leading skill is blank. Leading whitespace would stop
+      // the CLI from reading the slash command.
+      if (index < leadIndex) continue;
       textParts.push(segment.content);
       continue;
     }
@@ -61,7 +71,7 @@ export async function buildSdkUserMessage(
       continue;
     }
     if (segment.kind === "attachment" && isImageAttachment(segment)) {
-      flushText();
+      if (!leadsWithSkill) flushText();
       const bytes = await readFile(segment.path);
       const mimeType = segment.mimeType ?? inferImageMime(segment.path);
       content.push({
@@ -75,7 +85,7 @@ export async function buildSdkUserMessage(
       continue;
     }
     if (segment.kind === "attachment" && isPdfAttachment(segment)) {
-      flushText();
+      if (!leadsWithSkill) flushText();
       const bytes = await readFile(segment.path);
       content.push({
         type: "document",
@@ -88,9 +98,8 @@ export async function buildSdkUserMessage(
       continue;
     }
     if (segment.kind === "skill") {
-      // A skill is invoked by its invocation text (model-invoked via the SDK's
-      // Skill tool), never as an `@<SKILL.md path>` file mention.
-      textParts.push(segment.invocation);
+      // A skill is sent as text, never as an `@<SKILL.md path>` file mention.
+      textParts.push(claudeSkillText(segment, index === leadIndex));
       continue;
     }
     if (segment.kind === "mcp") {
@@ -98,13 +107,22 @@ export async function buildSdkUserMessage(
       textParts.push(`@${segment.name}`);
       continue;
     }
-    if ("path" in segment) textParts.push(`@${segment.path}`);
+    if (!("path" in segment)) continue;
+    // Attachments lead the segments, so their mentions would push a leading
+    // slash command out of first place. Send them after the command instead.
+    if (index < leadIndex) mentionsAfterCommand.push(`@${segment.path}`);
+    else textParts.push(`@${segment.path}`);
   }
+  if (mentionsAfterCommand.length > 0) textParts.push(`\n\n${mentionsAfterCommand.join(" ")}`);
+  // Portable-skills fallback: sent in the provider payload only, never in the
+  // painted user_message (see StartTurnOptions.inlineInstructions). It goes
+  // before a leading slash command so the command stays in the last block.
+  if (leadsWithSkill && inlineInstructions)
+    content.push({ type: "text", text: inlineInstructions });
   flushText();
   if (content.length === 0 && prompt.length > 0) content.push({ type: "text", text: prompt });
-  // Portable-skills fallback: appended to the provider payload only, never to
-  // the painted user_message (see StartTurnOptions.inlineInstructions).
-  if (inlineInstructions) content.push({ type: "text", text: inlineInstructions });
+  if (!leadsWithSkill && inlineInstructions)
+    content.push({ type: "text", text: inlineInstructions });
 
   return {
     type: "user",

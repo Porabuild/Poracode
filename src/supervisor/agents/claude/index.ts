@@ -27,6 +27,7 @@ import {
 import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForConfig } from "./argv";
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
+import { claudeSkillText, leadingSkillIndex } from "./skillPrompt";
 import { ClaudeSdkSession } from "./sdkSession";
 import { claudeMcpLaunch } from "./mcp";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
@@ -276,11 +277,10 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
           linkProjectionFromVersion: "2.1.203",
         },
       ],
-      // Skills are model-invoked through the SDK's Skill tool, which streams
-      // normally. Typing `/name` instead makes the CLI run an opaque local
-      // command that emits no stream events until it finishes (blank working
-      // turn). Projection is unchanged so the Skill tool still discovers them.
-      invocation: "prompt",
+      // `/name` expands the skill and streams a normal turn in both the SDK
+      // and the TUI. It is also the only way to start a skill marked
+      // `disable-model-invocation`, because the model's Skill tool refuses it.
+      invocation: "slash",
       precedence: {
         scopeOrder: ["global", "project"],
         global: ["claude", "agents"],
@@ -408,7 +408,17 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       const attachments = segments.filter((s) => s.kind === "attachment");
       const rest = segments.filter((s) => s.kind !== "attachment");
       const attachmentLines = attachments.map((s) => `@${shortenHomePath(s.path)}`).join(" ");
-      const restStr = rest.map(inlinePromptSegmentText).join("");
+      // A leading skill must open the line for the CLI to run it, so blank
+      // text before it is dropped.
+      const leadIndex = leadingSkillIndex(rest);
+      const restStr = rest
+        .slice(Math.max(leadIndex, 0))
+        .map((s) =>
+          s.kind === "skill"
+            ? claudeSkillText(s, s === rest[leadIndex])
+            : inlinePromptSegmentText(s),
+        )
+        .join("");
       return attachmentLines ? `${restStr}\n\n${attachmentLines} ` : restStr;
     },
     handleOscNotification: iterm2ProgressOscHint,

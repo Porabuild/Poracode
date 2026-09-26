@@ -142,7 +142,7 @@ describe("mapClaudeSlashCommands", () => {
     ]);
   });
 
-  it("splits commands that are also skills into prompt-invoked skill entries", () => {
+  it("splits commands that are also skills into slash-invoked skill entries", () => {
     const mapped = mapClaudeSlashCommands(commands, new Set(["code-review"]));
 
     expect(mapped[0]).not.toHaveProperty("section");
@@ -153,7 +153,7 @@ describe("mapClaudeSlashCommands", () => {
       argumentHint: "<target>",
       section: "skills",
       skillName: "code-review",
-      skillInvocation: "Use the code-review skill.",
+      skillInvocation: "/code-review",
       skillProvider: "Claude",
       skillScope: "global",
     });
@@ -167,7 +167,7 @@ describe("mapClaudeSlashCommands", () => {
     expect(skillSegmentFromSlashCommand(skillCommand)).toEqual({
       kind: "skill",
       name: "code-review",
-      invocation: "Use the code-review skill.",
+      invocation: "/code-review",
       provider: "Claude",
       scope: "global",
     });
