@@ -48,4 +48,46 @@ describe("ThreadCommandPanel", () => {
 
     expect(screen.getByText("[focus]")).not.toHaveClass("poracode-mention-popover__detail");
   });
+
+  it("highlights the part of the name that matches the query", () => {
+    const command: AgentSlashCommand = { id: "auto-mode-setup", label: "auto-mode-setup" };
+    const { container } = render(
+      <ThreadCommandPanel
+        commands={[command]}
+        query="set"
+        activeIndex={0}
+        onSelect={() => {}}
+        onActiveIndexChange={() => {}}
+        listId="slash-popover"
+        appearance="popover"
+      />,
+    );
+
+    expect(screen.getByRole("option")).toHaveTextContent("/auto-mode-setup");
+    expect([...container.querySelectorAll("mark")].map((mark) => mark.textContent)).toEqual([
+      "set",
+    ]);
+  });
+
+  it("does not highlight a skill matched only by its wire id", () => {
+    const skill: AgentSlashCommand = {
+      id: "skill:simplify",
+      label: "skill:simplify",
+      section: "skills",
+      skillName: "simplify",
+    };
+    const { container } = render(
+      <ThreadCommandPanel
+        commands={[skill]}
+        query="skill:s"
+        activeIndex={0}
+        onSelect={() => {}}
+        onActiveIndexChange={() => {}}
+        listId="slash-dock"
+      />,
+    );
+
+    expect(screen.getByRole("option")).toHaveTextContent("simplify");
+    expect(container.querySelector("mark")).toBeNull();
+  });
 });
