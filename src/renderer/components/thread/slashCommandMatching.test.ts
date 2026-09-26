@@ -71,6 +71,23 @@ describe("slashCommandMatch", () => {
     });
   });
 
+  describe("when lowercasing changes the name's length", () => {
+    // "İ".toLowerCase() is "i̇": one UTF-16 unit becomes two.
+    it("highlights the match at its position in the original name", () => {
+      expect(slashCommandMatch(command("İ-setup"), "set")).toEqual({
+        tier: "wordStart",
+        highlight: { start: 2, end: 5 },
+      });
+    });
+
+    it("highlights a match that covers the expanded character", () => {
+      expect(slashCommandMatch(command("İsetup"), "İs")).toEqual({
+        tier: "prefix",
+        highlight: { start: 0, end: 2 },
+      });
+    });
+  });
+
   it("ignores case", () => {
     expect(slashCommandMatch(command("Auto-Mode-Setup"), "SET")).toEqual({
       tier: "wordStart",

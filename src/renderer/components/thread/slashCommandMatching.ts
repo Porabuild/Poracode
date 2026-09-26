@@ -43,6 +43,33 @@ function matchName(
 }
 
 /**
+ * Lowercases `text` and records, for each unit of the result, the span of the
+ * original character it came from. Lowercasing can change length ("İ" becomes
+ * "i̇"), so offsets found in the lowercased text must be mapped back before
+ * they are used to slice the original.
+ */
+function lowercaseWithSourceSpans(text: string): {
+  lowered: string;
+  sourceStart: number[];
+  sourceEnd: number[];
+} {
+  let lowered = "";
+  const sourceStart: number[] = [];
+  const sourceEnd: number[] = [];
+  let index = 0;
+  for (const char of text) {
+    const lowerChar = char.toLowerCase();
+    for (let unit = 0; unit < lowerChar.length; unit++) {
+      sourceStart.push(index);
+      sourceEnd.push(index + char.length);
+    }
+    lowered += lowerChar;
+    index += char.length;
+  }
+  return { lowered, sourceStart, sourceEnd };
+}
+
+/**
  * Matches a slash query against a command's displayed name first, then its
  * wire id, so the tier (and highlight) reflects what the user sees.
  */
@@ -51,12 +78,13 @@ export function slashCommandMatch(
   query: string,
 ): SlashCommandMatch | null {
   const normalizedQuery = query.toLowerCase();
-  const display = matchName(slashCommandDisplayId(command).toLowerCase(), normalizedQuery);
+  const displayName = lowercaseWithSourceSpans(slashCommandDisplayId(command));
+  const display = matchName(displayName.lowered, normalizedQuery);
   if (display) {
-    return {
-      tier: display.tier,
-      highlight: { start: display.start, end: display.start + normalizedQuery.length },
-    };
+    const start = displayName.sourceStart[display.start] ?? 0;
+    const lastUnit = display.start + normalizedQuery.length - 1;
+    const end = normalizedQuery.length === 0 ? start : displayName.sourceEnd[lastUnit]!;
+    return { tier: display.tier, highlight: { start, end } };
   }
   const wire = matchName(command.id.toLowerCase(), normalizedQuery);
   return wire ? { tier: wire.tier, highlight: null } : null;
