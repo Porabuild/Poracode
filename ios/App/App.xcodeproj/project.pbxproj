@@ -12,6 +12,7 @@
 		C72000000000000000000001 /* NativeJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000001 /* NativeJourneyUITests.swift */; };
 		C72000000000000000000002 /* NativeFamilyJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */; };
 		C72000000000000000000003 /* NativeCapableHistoryJourneyUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000004 /* NativeCapableHistoryJourneyUITests.swift */; };
+		C72000000000000000000004 /* NativeE2EPairingLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = C71000000000000000000005 /* NativeE2EPairingLink.swift */; };
 		A1000000000000000000011B /* RemoteMutationClassification.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011B /* RemoteMutationClassification.swift */; };
 		A1000000000000000000011D /* RemoteMutationClassificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000011D /* RemoteMutationClassificationTests.swift */; };
 		A10000000000000000000116 /* GitStateInterestFlush.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000116 /* GitStateInterestFlush.swift */; };
@@ -817,6 +818,7 @@
 		C71000000000000000000001 /* NativeJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeJourneyUITests.swift; sourceTree = "<group>"; };
 		C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFamilyJourneyUITests.swift; sourceTree = "<group>"; };
 		C71000000000000000000004 /* NativeCapableHistoryJourneyUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCapableHistoryJourneyUITests.swift; sourceTree = "<group>"; };
+		C71000000000000000000005 /* NativeE2EPairingLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeE2EPairingLink.swift; sourceTree = "<group>"; };
 		C71000000000000000000002 /* NativeE2ETests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NativeE2ETests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B10000000000000000000116 /* GitStateInterestFlush.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStateInterestFlush.swift; sourceTree = "<group>"; };
 		B1000000000000000000011B /* RemoteMutationClassification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteMutationClassification.swift; sourceTree = "<group>"; };
@@ -2694,6 +2696,7 @@
 				C71000000000000000000001 /* NativeJourneyUITests.swift */,
 				C71000000000000000000003 /* NativeFamilyJourneyUITests.swift */,
 				C71000000000000000000004 /* NativeCapableHistoryJourneyUITests.swift */,
+				C71000000000000000000005 /* NativeE2EPairingLink.swift */,
 			);
 			path = NativeE2ETests;
 			sourceTree = "<group>";
@@ -3159,6 +3162,7 @@
 				C72000000000000000000001 /* NativeJourneyUITests.swift in Sources */,
 				C72000000000000000000002 /* NativeFamilyJourneyUITests.swift in Sources */,
 				C72000000000000000000003 /* NativeCapableHistoryJourneyUITests.swift in Sources */,
+				C72000000000000000000004 /* NativeE2EPairingLink.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

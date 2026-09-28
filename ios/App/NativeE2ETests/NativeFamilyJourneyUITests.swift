@@ -1,5 +1,3 @@
-import UIKit
-import UniformTypeIdentifiers
 import XCTest
 
 /// V6 E.2: device journeys for steer, permission, terminal keystroke, and git.
@@ -57,10 +55,10 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       }
     }
     // The iOS paste-permission system alert appears on physical devices when
-    // `pastePairingURL` reads the pasteboard into the app; the wire-lab
+    // `PairingLinkEntry.enter` reads the pasteboard into the app; the wire-lab
     // journey registers this interruption monitor before launch, so the
     // family journeys mirror it (the monitor fires on the UI interaction
-    // that follows the alert, here the field tap in `pastePairingURL`).
+    // that follows the alert, here the field tap in `PairingLinkEntry.enter`).
     addUIInterruptionMonitor(withDescription: "System network confirmation") { alert in
       let allowPaste = alert.buttons["Allow Paste"]
       if allowPaste.exists {
@@ -248,9 +246,8 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       )
       return
     }
-    XCTAssertTrue(revealPairingLinkField(timeout: 10).exists)
     let primaryPairing = try await pairingURL(hostID: "primary")
-    try pastePairingURL(primaryPairing)
+    try PairingLinkEntry.enter(primaryPairing, into: app)
     try await confirmPairingIfNeeded()
     let homeReady: XCUIElement
     switch peerMode {
@@ -261,7 +258,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       homeReady = app.buttons["native-e2e.session-menu"]
     }
     guard homeReady.waitForExistence(timeout: 20) else {
-      throw FamilyJourneyError.pairingNeverReachedHome
+      throw FamilyJourneyError.pairingNeverReachedHome(PairingLinkEntry.pendingState(in: app))
     }
   }
 
@@ -280,6 +277,10 @@ final class NativeFamilyJourneyUITests: XCTestCase {
     // confirmation can appear after a short fixed wait, and then nothing
     // would ever confirm it. Throw instead of asserting: an XCTAssert failure
     // inside an async test does not unwind the method.
+    //
+    // 20s is the measured bound, not a guess: on the loaded CI runner, Home
+    // appeared 2.6-12s after the Connect tap on every journey that actually
+    // entered a pairing link.
     let deadline = Date().addingTimeInterval(20)
     while Date() < deadline {
       if confirm.exists {
@@ -290,7 +291,7 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       if homeReady.exists { return }
       _ = confirm.waitForExistence(timeout: 0.5)
     }
-    throw FamilyJourneyError.pairingNeverReachedHome
+    throw FamilyJourneyError.pairingNeverReachedHome(PairingLinkEntry.pendingState(in: app))
   }
 
   private func pairingURL(hostID: String) async throws -> URL {
@@ -340,37 +341,6 @@ final class NativeFamilyJourneyUITests: XCTestCase {
       let object = try await self.control(path: "/v1/state")
       return (object["mode"] as? String) == "real"
     }
-  }
-
-  @discardableResult
-  private func revealPairingLinkField(timeout: TimeInterval = 10) -> XCUIElement {
-    let field = app.textFields["native-e2e.pairing-link"]
-    if field.waitForExistence(timeout: timeout) { return field }
-    let expander = app.buttons["native-e2e.pair.manual"]
-    if expander.waitForExistence(timeout: 5) {
-      expander.tap()
-      _ = field.waitForExistence(timeout: timeout)
-    }
-    return field
-  }
-
-  private func pastePairingURL(_ pairingURL: URL) throws {
-    UIPasteboard.general.setItems(
-      [[UTType.plainText.identifier: pairingURL.absoluteString]],
-      options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(30)],
-    )
-    defer { UIPasteboard.general.items = [] }
-    let field = revealPairingLinkField()
-    XCTAssertTrue(field.exists)
-    field.tap()
-    field.press(forDuration: 1)
-    let paste = app.menuItems["Paste"]
-    XCTAssertTrue(paste.waitForExistence(timeout: 5))
-    paste.tap()
-    app.navigationBars.firstMatch.tap()
-    let submit = app.buttons["native-e2e.pair.submit"]
-    XCTAssertTrue(submit.waitForExistence(timeout: 5))
-    submit.tap()
   }
 
   private func waitForJournal(hostID: String, operationID: String, count: Int) async throws {
@@ -445,11 +415,21 @@ final class NativeFamilyJourneyUITests: XCTestCase {
   }
 }
 
-private enum FamilyJourneyError: Error {
+private enum FamilyJourneyError: Error, CustomStringConvertible {
   case invalidHarnessResponse
   case timedOut
   case missingHost
-  case pairingNeverReachedHome
+  case pairingNeverReachedHome(String)
+
+  var description: String {
+    switch self {
+    case .invalidHarnessResponse: return "the harness returned an unexpected response"
+    case .timedOut: return "timed out waiting for the harness journal"
+    case .missingHost: return "the harness has no such host"
+    case let .pairingNeverReachedHome(state):
+      return "pairing never reached Home: \(state)"
+    }
+  }
 }
 
 private struct FamilyScenarioState: Decodable {

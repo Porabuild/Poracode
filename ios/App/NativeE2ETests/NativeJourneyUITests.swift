@@ -1,5 +1,3 @@
-import UIKit
-import UniformTypeIdentifiers
 import XCTest
 
 @MainActor
@@ -47,11 +45,10 @@ final class NativeJourneyUITests: XCTestCase {
     }
 
     app.launch()
-    XCTAssertTrue(revealPairingLinkField(timeout: 10).exists)
 
     _ = try await scenarioAction(["type": "seed-multihost-collision"])
     let primaryPairing = try await pairingURL(hostID: "primary")
-    try pastePairingURL(primaryPairing)
+    try PairingLinkEntry.enter(primaryPairing, into: app)
     confirmPairingIfNeeded()
     let thread = app.buttons["native-e2e.thread.thread-fixture-001"]
     XCTAssertTrue(thread.waitForExistence(timeout: 20))
@@ -156,14 +153,13 @@ final class NativeJourneyUITests: XCTestCase {
     let confirmRemove = app.buttons["Remove"].firstMatch
     XCTAssertTrue(confirmRemove.waitForExistence(timeout: 5))
     confirmRemove.tap()
-    XCTAssertTrue(revealPairingLinkField(timeout: 15).exists)
+    XCTAssertTrue(PairingLinkEntry.revealLinkField(in: app, timeout: 15).exists)
 
     let beforeSecondPair = try await scenarioState().host("primary").operationJournal.count
     let collisionPairing = try await pairingURL(hostID: "collision-b")
     app.terminate()
     app.launch()
-    XCTAssertTrue(revealPairingLinkField(timeout: 10).exists)
-    try pastePairingURL(collisionPairing)
+    try PairingLinkEntry.enter(collisionPairing, into: app)
     confirmPairingIfNeeded()
     XCTAssertTrue(thread.waitForExistence(timeout: 20))
 
@@ -203,7 +199,10 @@ final class NativeJourneyUITests: XCTestCase {
       if home.exists { return }
       _ = confirm.waitForExistence(timeout: 0.5)
     }
-    XCTFail("Pairing neither asked for confirmation nor reached Home within 20s")
+    XCTFail(
+      "Pairing neither asked for confirmation nor reached Home within 20s: "
+        + PairingLinkEntry.pendingState(in: app)
+    )
   }
 
   private func navigateHome() {
@@ -218,41 +217,6 @@ final class NativeJourneyUITests: XCTestCase {
       throw JourneyError.invalidHarnessResponse
     }
     return url
-  }
-
-  /// The pairing-link field lives inside the "Other ways to connect" sheet. It
-  /// auto-expands when scanning is unavailable — always true on the Simulator —
-  /// but expand explicitly so the journey never depends on that.
-  @discardableResult
-  private func revealPairingLinkField(timeout: TimeInterval = 10) -> XCUIElement {
-    let field = app.textFields["native-e2e.pairing-link"]
-    if field.waitForExistence(timeout: timeout) { return field }
-    let expander = app.buttons["native-e2e.pair.manual"]
-    if expander.waitForExistence(timeout: 5) {
-      expander.tap()
-      _ = field.waitForExistence(timeout: timeout)
-    }
-    return field
-  }
-
-  private func pastePairingURL(_ pairingURL: URL) throws {
-    UIPasteboard.general.setItems(
-      [[UTType.plainText.identifier: pairingURL.absoluteString]],
-      options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(30)],
-    )
-    defer { UIPasteboard.general.items = [] }
-    let field = revealPairingLinkField()
-    XCTAssertTrue(field.exists)
-    field.tap()
-    field.press(forDuration: 1)
-    let paste = app.menuItems["Paste"]
-    XCTAssertTrue(paste.waitForExistence(timeout: 5))
-    paste.tap()
-    app.navigationBars.firstMatch.tap()
-    let submit = app.buttons["native-e2e.pair.submit"]
-    XCTAssertTrue(submit.waitForExistence(timeout: 5))
-    XCTAssertTrue(submit.isHittable, "Connect must remain visible after entering a pairing link")
-    submit.tap()
   }
 
   private func waitForConnectionCount(_ expected: Int) async throws {

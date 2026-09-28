@@ -1,5 +1,3 @@
-import UIKit
-import UniformTypeIdentifiers
 import XCTest
 
 /// B1 CAPABLE-HOST iOS visible-recovery journey (integrated into `NativeE2ETests`).
@@ -100,8 +98,8 @@ final class NativeCapableHistoryJourneyUITests: XCTestCase {
     }
 
     app.launch()
-    XCTAssertTrue(revealPairingLinkField(timeout: 20).exists)
-    try pastePairingURL(configuration.pairingURL)
+    try PairingLinkEntry.enter(
+      configuration.pairingURL, into: app, revealTimeout: 20)
     confirmPairingIfNeeded()
 
     // Fresh pair against the owned profile: the seeded thread is reachable.
@@ -296,40 +294,6 @@ final class NativeCapableHistoryJourneyUITests: XCTestCase {
       scrolls += 1
     }
     return element
-  }
-
-  // ── Pairing helpers (same pasteboard flow as the mock journeys) ───────────
-
-  @discardableResult
-  private func revealPairingLinkField(timeout: TimeInterval = 10) -> XCUIElement {
-    let field = app.textFields["native-e2e.pairing-link"]
-    if field.waitForExistence(timeout: timeout) { return field }
-    let expander = app.buttons["native-e2e.pair.manual"]
-    if expander.waitForExistence(timeout: 5) {
-      expander.tap()
-      _ = field.waitForExistence(timeout: timeout)
-    }
-    return field
-  }
-
-  private func pastePairingURL(_ pairingURL: URL) throws {
-    UIPasteboard.general.setItems(
-      [[UTType.plainText.identifier: pairingURL.absoluteString]],
-      options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(30)]
-    )
-    defer { UIPasteboard.general.items = [] }
-    let field = revealPairingLinkField()
-    XCTAssertTrue(field.exists)
-    field.tap()
-    field.press(forDuration: 1)
-    let paste = app.menuItems["Paste"]
-    XCTAssertTrue(paste.waitForExistence(timeout: 5))
-    paste.tap()
-    app.navigationBars.firstMatch.tap()
-    let submit = app.buttons["native-e2e.pair.submit"]
-    XCTAssertTrue(submit.waitForExistence(timeout: 5))
-    XCTAssertTrue(submit.isHittable, "Connect must remain visible after entering a pairing link")
-    submit.tap()
   }
 
   private func confirmPairingIfNeeded() {
