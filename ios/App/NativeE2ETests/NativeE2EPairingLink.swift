@@ -64,6 +64,12 @@ enum PairingLinkEntry {
       guard attempt < pasteAttempts else { break }
       attempt += 1
       field.tap()
+      // A late-landing earlier paste would otherwise be appended to, doubling
+      // the URL; start every attempt from an empty field.
+      let stale = fieldValue(field)
+      if !stale.isEmpty {
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: stale.count))
+      }
       field.press(forDuration: 1)
       let paste = app.menuItems["Paste"]
       if paste.waitForExistence(timeout: 5) {
@@ -120,6 +126,8 @@ enum PairingLinkEntry {
   }
 
   private static func fieldValue(_ field: XCUIElement) -> String {
-    (field.value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let value = (field.value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    // An empty SwiftUI text field reports its placeholder as its value.
+    return value == field.placeholderValue ? "" : value
   }
 }
