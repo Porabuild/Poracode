@@ -222,14 +222,17 @@ test("unicode/space distro: project location translation and UNC round-trips", a
       // Staging service writes into the distro; both views must agree.
       const staged = `${location.linuxPath}/staged-ünïcodé-write.txt`;
       const stagedContent = "staged-through-production-service";
-      await staging.writeTextFile(distro, staged, stagedContent);
+      await staging.writeTextFile(distro, wslLinuxToHostFsPath(distro, staged), stagedContent);
       // The host view of a DrvFs-backed path is its Windows path, never a UNC loop.
       expect(readFileSync(wslLinuxToHostFsPath(distro, staged), "utf8")).toBe(stagedContent);
       const stagedViaDistro = await runInDistro(distro, ["cat", staged]);
       expect(stagedViaDistro.stdout).toContain(stagedContent);
-      const stagedReadBack = await staging.readTextFile(distro, staged);
+      const stagedReadBack = await staging.readTextFile(
+        distro,
+        wslLinuxToHostFsPath(distro, staged),
+      );
       expect(stagedReadBack).toBe(stagedContent);
-      await staging.remove(distro, staged);
+      await staging.remove(distro, wslLinuxToHostFsPath(distro, staged));
 
       rmSync(hostDir, { recursive: true, force: true });
     });
@@ -412,8 +415,11 @@ test("a stalled distro cannot pin the staging service", async (ctx) => {
       // service deadline, not by the sick neighbor.
       const progressStarted = performance.now();
       const progressPath = "/tmp/poracode-lab-progress.txt";
-      await staging.writeTextFile(healthy, progressPath, "progress-marker");
-      const progressReadBack = await staging.readTextFile(healthy, progressPath);
+      await staging.writeTextFile(healthy, toWslUncPath(healthy, progressPath), "progress-marker");
+      const progressReadBack = await staging.readTextFile(
+        healthy,
+        toWslUncPath(healthy, progressPath),
+      );
       const progressMs = performance.now() - progressStarted;
       expect(progressReadBack).toBe("progress-marker");
       expect(progressMs).toBeLessThan(20_000);
@@ -441,12 +447,14 @@ test("a stalled distro cannot pin the staging service", async (ctx) => {
         stalledOutcome === "resolved" ? String(payloadBytes) : "absent",
       );
       const recoveredPath = "/tmp/poracode-lab-recovered.txt";
-      await staging.writeTextFile(stalled, recoveredPath, "recovered");
-      expect(await staging.readTextFile(stalled, recoveredPath)).toBe("recovered");
-      await staging.remove(stalled, recoveredPath);
-      await staging.remove(stalled, stagedDest);
+      await staging.writeTextFile(stalled, toWslUncPath(stalled, recoveredPath), "recovered");
+      expect(await staging.readTextFile(stalled, toWslUncPath(stalled, recoveredPath))).toBe(
+        "recovered",
+      );
+      await staging.remove(stalled, toWslUncPath(stalled, recoveredPath));
+      await staging.remove(stalled, toWslUncPath(stalled, stagedDest));
       try {
-        await staging.remove(healthy, progressPath);
+        await staging.remove(healthy, toWslUncPath(healthy, progressPath));
       } catch {
         // Advisory cleanup.
       }

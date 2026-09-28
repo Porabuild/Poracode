@@ -1,4 +1,4 @@
-import { toWslUncPath } from "@/shared/wsl";
+import { wslLinuxToHostFsPath } from "@/shared/wsl";
 import { getWslStagingService } from "../../wsl/staging";
 import type { WslStagingService } from "../../wsl/staging/service";
 
@@ -40,7 +40,7 @@ export function readWslTextFile(
 ): Promise<string | null> {
   return stagingFor(options).readTextFile(
     distro,
-    toWslUncPath(distro, linuxPath),
+    wslLinuxToHostFsPath(distro, linuxPath),
     callOptions(options),
   );
 }
@@ -54,7 +54,7 @@ export function writeWslTextFile(
 ): Promise<void> {
   return stagingFor(options).writeTextFile(
     distro,
-    toWslUncPath(distro, linuxPath),
+    wslLinuxToHostFsPath(distro, linuxPath),
     content,
     callOptions(options),
   );
@@ -67,7 +67,7 @@ export async function wslPathExists(
 ): Promise<boolean> {
   return stagingFor(options).pathExists(
     distro,
-    toWslUncPath(distro, linuxPath),
+    wslLinuxToHostFsPath(distro, linuxPath),
     callOptions(options),
   );
 }
@@ -80,7 +80,7 @@ export async function readWslDirectory(
 ): Promise<{ name: string; directory: boolean }[]> {
   const result = await stagingFor(options).readDirectory(
     distro,
-    toWslUncPath(distro, linuxDir),
+    wslLinuxToHostFsPath(distro, linuxDir),
     callOptions(options),
   );
   return result.entries;
@@ -91,7 +91,11 @@ export async function ensureWslDirectory(
   linuxDir: string,
   options?: WslFileIoOptions,
 ): Promise<void> {
-  await stagingFor(options).mkdirp(distro, toWslUncPath(distro, linuxDir), callOptions(options));
+  await stagingFor(options).mkdirp(
+    distro,
+    wslLinuxToHostFsPath(distro, linuxDir),
+    callOptions(options),
+  );
 }
 
 /** Copy one in-distro path to another through the staging worker. */
@@ -103,7 +107,10 @@ export async function copyWslFile(
 ): Promise<void> {
   await stagingFor(options).stageFile(
     distro,
-    { src: toWslUncPath(distro, sourceLinuxPath), dest: toWslUncPath(distro, destLinuxPath) },
+    {
+      src: wslLinuxToHostFsPath(distro, sourceLinuxPath),
+      dest: wslLinuxToHostFsPath(distro, destLinuxPath),
+    },
     callOptions(options),
   );
 }
@@ -115,7 +122,11 @@ export async function removeWslPath(
   options?: WslFileIoOptions,
 ): Promise<void> {
   try {
-    await stagingFor(options).remove(distro, toWslUncPath(distro, linuxPath), callOptions(options));
+    await stagingFor(options).remove(
+      distro,
+      wslLinuxToHostFsPath(distro, linuxPath),
+      callOptions(options),
+    );
   } catch {
     // Cleanup is best effort.
   }
