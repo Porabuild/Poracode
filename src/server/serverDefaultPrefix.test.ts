@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { defaultServerPrefix as scriptsDefaultServerPrefix } from "../../scripts/server-host-tools.mjs";
 import { defaultServerPrefix } from "./serverDefaultPrefix";
 import { parseUpgradeCliOptions } from "./serverUpgradeContract";
 
@@ -15,5 +16,18 @@ describe("default server prefix", () => {
     expect(parseUpgradeCliOptions(["--from", "x.tar.gz", "--prefix", "/srv/p"]).prefix).toBe(
       "/srv/p",
     );
+  });
+
+  it("matches the installer scripts' copy for every platform and environment shape", () => {
+    const cases: Array<[NodeJS.Platform, NodeJS.ProcessEnv]> = [
+      ["linux", {}],
+      ["darwin", { LOCALAPPDATA: "ignored" }],
+      ["win32", { LOCALAPPDATA: "D:\\L" }],
+      ["win32", { localappdata: "E:\\l" }],
+      ["win32", { USERPROFILE: "C:\\Users\\Ada" }],
+    ];
+    for (const [platform, env] of cases) {
+      expect(defaultServerPrefix(platform, env)).toBe(scriptsDefaultServerPrefix(platform, env));
+    }
   });
 });

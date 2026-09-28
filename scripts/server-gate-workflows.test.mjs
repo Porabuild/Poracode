@@ -87,7 +87,9 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   assert.equal(corepack.if, "runner.os == 'Windows'");
   assert.match(corepack.run, /corepack enable/u);
   const setupNode = steps.find((step) => step.name === "Setup Node.js");
-  assert.match(String(setupNode.with.cache), /Windows.*''.*pnpm/u);
+  // `cond && '' || x` always yields x ('' is falsy), which re-enabled the
+  // pnpm cache on Windows; the Windows test must select the empty value.
+  assert.equal(String(setupNode.with.cache), "${{ runner.os != 'Windows' && 'pnpm' || '' }}");
   const nativeRebuild = steps.find(
     (step) => step.name === "Build native dependencies for the tarball",
   );

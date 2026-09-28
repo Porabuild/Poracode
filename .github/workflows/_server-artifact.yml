@@ -101,7 +101,8 @@ jobs:
           node-version: "24"
           # The pnpm cache needs pnpm on PATH at setup time, which Windows only
           # has after Corepack below; an empty value disables the cache there.
-          cache: ${{ runner.os == 'Windows' && '' || 'pnpm' }}
+          # `cond && '' || x` always yields x: '' is falsy in expressions.
+          cache: ${{ runner.os != 'Windows' && 'pnpm' || '' }}
 
       # pnpm/action-setup's shim for the pinned pnpm 12 is not runnable on
       # Windows runners ("is not recognized"). Corepack activates exactly

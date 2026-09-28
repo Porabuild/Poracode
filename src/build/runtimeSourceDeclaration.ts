@@ -30,6 +30,9 @@ const configurationFiles = [
   // first-party build inputs and must be declared.
   "scripts/server-native-overlay.mjs",
   "scripts/server-release-install.mjs",
+  // server-release-install.mjs resolves tar/npm and links through the shared
+  // host tools, so they are bundled with it.
+  "scripts/server-host-tools.mjs",
 ];
 const MAX_RUNTIME_INPUT_BYTES = 8 * 1024 * 1024;
 

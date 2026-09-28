@@ -47,6 +47,7 @@ async function fixture() {
     "scripts/prepare-agent-plugins.mjs",
     "scripts/server-native-overlay.mjs",
     "scripts/server-release-install.mjs",
+    "scripts/server-host-tools.mjs",
   ])
     await writeFile(join(root, path), "");
   await writeFile(join(root, "package.json"), JSON.stringify({ private: true, type: "module" }));
