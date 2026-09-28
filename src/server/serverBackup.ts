@@ -2,6 +2,7 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync } from "node:f
 import { isAbsolute, join, relative } from "node:path";
 import Database from "better-sqlite3";
 import { writeFileAtomic } from "@/shared/atomicFile";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
 import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
@@ -140,6 +141,8 @@ export async function createHostDataBackup(
   request.signal?.throwIfAborted();
 
   mkdirSync(destination, { recursive: true, mode: 0o700 });
+  // Inheritable owner-only ACL on Windows so every backup output stays private.
+  restrictToOwner(destination);
 
   const snapshotPath = join(destination, "state.sqlite");
   let database: InstanceType<typeof Database> | undefined;
@@ -167,6 +170,7 @@ export async function createHostDataBackup(
     database?.close();
   }
   chmodSync(snapshotPath, 0o600);
+  restrictToOwner(snapshotPath);
   request.signal?.throwIfAborted();
 
   // Copies every inventoried file and re-verifies the destination by hashing;
@@ -221,6 +225,7 @@ export async function createHostDataBackup(
       mode: 0o600,
     },
   );
+  restrictToOwner(join(destination, SERVER_BACKUP_RECEIPT_FILE));
   return receipt;
 }
 

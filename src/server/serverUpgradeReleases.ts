@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readlinkSync, realpathSync, rmSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 import { UpgradeRefusedError } from "./serverUpgradeContract";
 
 /**
@@ -22,11 +23,13 @@ export function allocateUpgradeReleaseId(now: Date = new Date()): string {
 export function allocateReleaseDirectory(prefix: string, releaseId: string): string {
   const releases = join(prefix, "releases");
   mkdirSync(releases, { recursive: true, mode: 0o700 });
+  restrictToOwner(releases);
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const id = attempt === 0 ? releaseId : `${releaseId}-${attempt}`;
     const directory = join(releases, id);
     try {
       mkdirSync(directory, { mode: 0o700 });
+      restrictToOwner(directory);
       return directory;
     } catch (error) {
       if (

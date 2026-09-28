@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { OwnedHostRuntime } from "@/backend/ownership/HostOwnerController";
 import { readPrivateHostFile } from "@/backend/ownership/privateHostFile";
 import { writeFileAtomic } from "@/shared/atomicFile";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 
 const RELAY_SECRET_FILE = "relay-secret";
 const MAX_RELAY_SECRET_BYTES = 4_096;
@@ -35,9 +36,9 @@ export function readOwnedHeadlessRelaySecret(
   if (injected !== undefined) return injected;
   runtime.credentialCapabilities.assertCanPersistSecrets();
   const secret = randomBytes(32).toString("base64url");
-  writeFileAtomic(join(runtime.lease.paths.dataRoot, RELAY_SECRET_FILE), secret, {
-    encoding: "utf8",
-    mode: 0o600,
-  });
+  const secretPath = join(runtime.lease.paths.dataRoot, RELAY_SECRET_FILE);
+  writeFileAtomic(secretPath, secret, { encoding: "utf8", mode: 0o600 });
+  // Mode bits are a no-op on Windows; enforce owner-only access via ACL there.
+  restrictToOwner(secretPath);
   return secret;
 }

@@ -264,6 +264,7 @@ export async function collectServerDoctorReport(
       migrations,
       upgradeJournal,
       logSource: recentErrors.source,
+      win32: { profileRoot: paths.dataRoot },
     }),
   };
 }

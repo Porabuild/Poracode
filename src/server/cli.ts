@@ -79,6 +79,7 @@ import {
   type PairCliOptions,
   type ServerCliCommand,
 } from "./cliParse";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 import { getRuntimePersistenceSample } from "@/host/db/runtimePersistenceRuntime";
 
 export type {
@@ -354,6 +355,9 @@ async function runInitTls(options: InitTlsCliOptions): Promise<void> {
   if (dirname(keyPath) !== dirname(certPath)) mkdirSync(dirname(keyPath), { recursive: true });
   writeFileSync(certPath, material.cert, { encoding: "utf8", mode: 0o644 });
   writeFileSync(keyPath, material.key, { encoding: "utf8", mode: 0o600 });
+  // Windows ignores mode bits: lock the key (and the default TLS dir) to the owner.
+  restrictToOwner(keyPath);
+  if (options.keyPath === undefined) restrictToOwner(dirname(keyPath));
   if (options.json) {
     process.stdout.write(
       `${JSON.stringify({

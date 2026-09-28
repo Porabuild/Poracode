@@ -5,6 +5,7 @@ import {
   bundledWebClientCacheControl,
   bundledWebClientContentType,
   bundledWebClientDocumentPath,
+  hasUnsafeWindowsPathSegment,
   isLegacyClientPath,
   isSpaNavigationRequest,
 } from "./bundledWebClient";
@@ -35,6 +36,26 @@ describe("bundled web client asset registry", () => {
     expect(bundledWebClientAssetPath("/poracode-ssh-runtime/runtime.bin")).toBe(
       "poracode-ssh-runtime/runtime.bin",
     );
+  });
+
+  it("refuses NTFS alternate data streams and trailing dot/space segments", () => {
+    for (const path of [
+      "/assets/index-abc123.js::$DATA",
+      "/assets/index-abc123.js:stream",
+      "/assets/index-abc123.js.",
+      "/assets/index-abc123.js ",
+      "/assets./index-abc123.js",
+      "/icons /icon-512.png",
+      "/robots.txt.",
+      "/robots.txt:$DATA",
+      "/manifest.webmanifest ",
+      "/poracode-ssh-runtime/runtime.bin:x",
+      "/poracode-ssh-runtime/runtime.bin.",
+    ]) {
+      expect(bundledWebClientAssetPath(path)).toBeNull();
+    }
+    expect(hasUnsafeWindowsPathSegment("assets/a.js")).toBe(false);
+    expect(hasUnsafeWindowsPathSegment("assets/a.js.")).toBe(true);
   });
 
   it("refuses every path outside the explicit allowlist", () => {

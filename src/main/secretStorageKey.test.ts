@@ -12,6 +12,11 @@ const safeStorageMock = vi.hoisted(() => ({
 
 vi.mock("electron", () => ({ safeStorage: safeStorageMock }));
 
+const restrictMock = vi.hoisted(() => ({
+  restrictToOwner: vi.fn<(path: string, deps?: { platform?: NodeJS.Platform }) => void>(),
+}));
+vi.mock("@/shared/restrictToOwner", () => restrictMock);
+
 import { SAFE_STORAGE_LATCH_WARNING, resetSafeStorageHealthForTests } from "./safeStorageHealth";
 import {
   SafeStorageKeyUnavailableError,
@@ -28,6 +33,7 @@ describe("readOrCreateSafeStorageSecretKey", () => {
     resetSafeStorageHealthForTests();
     dir = mkdtempSync(join(tmpdir(), "poracode-safe-storage-"));
     consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    restrictMock.restrictToOwner.mockReset();
     safeStorageMock.decryptString.mockReset();
     safeStorageMock.encryptString.mockReset().mockImplementation((value) => Buffer.from(value));
     safeStorageMock.getSelectedStorageBackend.mockReset().mockReturnValue("gnome_libsecret");
@@ -142,5 +148,12 @@ describe("readOrCreateSafeStorageSecretKey", () => {
       "Unable to encrypt the Poracode secret storage key.",
     );
     expect(() => readFileSync(join(dir, "secret-key.safe"))).toThrow(/ENOENT|no such file/i);
+  });
+
+  it("restricts the newly persisted key file to the owner with the launch platform", () => {
+    readOrCreateSafeStorageSecretKey(dir, "win32");
+    expect(restrictMock.restrictToOwner).toHaveBeenCalledWith(join(dir, "secret-key.safe"), {
+      platform: "win32",
+    });
   });
 });

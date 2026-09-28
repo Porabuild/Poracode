@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import { safeStorage } from "electron";
 import { writeFileAtomic } from "@/shared/atomicFile";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 import { safeStorageHealth } from "./safeStorageHealth";
 
 const SAFE_STORAGE_KEY_FILE = "secret-key.safe";
@@ -58,7 +59,7 @@ export class SafeStorageKeyUnavailableError extends Error {
   }
 }
 
-function createPersistentKey(path: string): string {
+function createPersistentKey(path: string, platform: NodeJS.Platform): string {
   const key = randomBytes(32).toString("base64");
   let encrypted: Buffer;
   try {
@@ -68,6 +69,7 @@ function createPersistentKey(path: string): string {
   }
   try {
     writeFileAtomic(path, encrypted.toString("base64"), { encoding: "utf8", mode: 0o600 });
+    restrictToOwner(path, { platform });
   } catch {
     throw new Error("Unable to persist the encrypted Poracode secret storage key.");
   }
@@ -94,7 +96,7 @@ export function readOrCreateSafeStorageSecretKey(
   try {
     serialized = readFileSync(path, "utf8");
   } catch (error) {
-    if (hasErrorCode(error, "ENOENT")) return createPersistentKey(path);
+    if (hasErrorCode(error, "ENOENT")) return createPersistentKey(path, platform);
     throwSecretStorageError("Unable to read the encrypted Poracode secret storage key.");
   }
 

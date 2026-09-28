@@ -47,6 +47,17 @@ const BUNDLED_SSH_RUNTIME_FILES: ReadonlySet<string> = new Set(["manifest.json",
 /** API/auth namespaces the SPA fallback must never answer for. */
 const RESERVED_ROUTE_SEGMENTS: readonly string[] = ["api", "oauth", ".well-known", "forward"];
 
+/**
+ * True when a "/"-separated relative path holds a segment that NTFS treats
+ * specially: ':' opens an alternate data stream (`app.js::$DATA`), and a
+ * trailing '.' or ' ' is silently stripped by Win32 path normalization, so
+ * `assets/x.js.` resolves to `assets/x.js`. Refused on every platform so the
+ * served surface is identical everywhere.
+ */
+export function hasUnsafeWindowsPathSegment(relative: string): boolean {
+  return relative.split("/").some((segment) => /[:]|[. ]$/u.test(segment));
+}
+
 export function bundledWebClientDocumentPath(pathname: string): string | null {
   return pathname === "/" || pathname === "/index.html" ? "index.html" : null;
 }
@@ -60,6 +71,7 @@ export function bundledWebClientDocumentPath(pathname: string): string | null {
 export function bundledWebClientAssetPath(pathname: string): string | null {
   const relative = pathname.startsWith("/") ? pathname.slice(1) : "";
   if (relative === "" || relative.includes("\\") || relative.includes("\0")) return null;
+  if (hasUnsafeWindowsPathSegment(relative)) return null;
   if (BUNDLED_ROOT_FILES.has(relative)) return relative;
   for (const directory of BUNDLED_ASSET_DIRECTORIES) {
     const prefix = `${directory}/`;

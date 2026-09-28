@@ -10,6 +10,7 @@ import type {
   ServerDoctorReport,
 } from "./serverDoctorTypes";
 import { isPidAlive } from "./serverDoctorIo";
+import { buildWin32Checks, type Win32DoctorInput } from "./serverDoctorWin32";
 
 export function describeHostServices(input: {
   readonly env: NodeJS.ProcessEnv;
@@ -104,6 +105,8 @@ export function buildChecks(input: {
   migrations: ServerDoctorReport["migrations"];
   upgradeJournal: ServerDoctorReport["upgradeJournal"];
   logSource: string | null;
+  /** Windows-only audits (owner-acl, conpty, path-length); inert off win32. */
+  win32?: Win32DoctorInput;
 }): ServerDoctorCheck[] {
   const checks: ServerDoctorCheck[] = [];
 
@@ -360,6 +363,8 @@ export function buildChecks(input: {
             },
     );
   }
+
+  if (input.win32 !== undefined) checks.push(...buildWin32Checks(input.win32, input.layout));
 
   checks.push(
     input.logSource === null

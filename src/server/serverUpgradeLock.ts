@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { hostname as osHostname } from "node:os";
 import { join } from "node:path";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 
 /**
  * D4 per-prefix upgrade lock.
@@ -251,6 +252,7 @@ const defaultFsOps: ServerUpgradeLockFsOps = {
     } finally {
       closeSync(descriptor);
     }
+    restrictToOwner(path);
   },
   unlink: unlinkSync,
   rename: renameSync,
@@ -349,6 +351,8 @@ function createLockFile(
   const text = `${JSON.stringify(record)}\n`;
   const temporary = `${path}.${record.token}.tmp`;
   writeFileSync(temporary, text, { encoding: "utf8", mode: 0o600, flag: "wx" });
+  // A hard link shares this file's ACL, so restricting the temporary covers the lock.
+  restrictToOwner(temporary);
   try {
     ops.link(temporary, path);
     return true;

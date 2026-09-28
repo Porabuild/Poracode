@@ -9,6 +9,7 @@ import {
   bundledWebClientCacheControl,
   bundledWebClientContentType,
   bundledWebClientDocumentPath,
+  hasUnsafeWindowsPathSegment,
   isLegacyClientPath,
   resolveBundledWebClientDir,
 } from "./bundledWebClient";
@@ -68,6 +69,7 @@ async function streamFile(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<boolean> {
+  if (hasUnsafeWindowsPathSegment(relativePath)) return false;
   const rootReal = await realDirectory(root);
   if (rootReal === null) return false;
   const candidate = normalize(join(root, relativePath));

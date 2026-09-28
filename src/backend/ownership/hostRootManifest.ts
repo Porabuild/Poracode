@@ -1,6 +1,7 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { writeFileAtomic } from "@/shared/atomicFile";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 import type { HostOwnerLease } from "./hostOwnerLease";
 import {
   assertHostRootDirectories,
@@ -200,6 +201,8 @@ export function prepareOwnedHostRoot(
     throw new HostImportRequiredError(lease.paths);
   }
   mkdirSync(lease.paths.dataRoot, { recursive: true, mode: 0o700 });
+  // mode is a no-op on Windows; owner-only ACLs make the root private there.
+  restrictToOwner(lease.paths.dataRoot);
   const manifest = createHostRootManifest(lease.paths, { kind: "empty", activation: "ready" });
   writeFileAtomic(
     join(lease.paths.dataRoot, HOST_ROOT_MANIFEST_FILE),
