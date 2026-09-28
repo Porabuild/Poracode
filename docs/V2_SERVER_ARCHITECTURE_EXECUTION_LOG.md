@@ -1043,3 +1043,7 @@ After the z.ai GLM quota was exhausted, independent review and execution continu
 - Android product fixes: a terminal auto-start that failed without a lease left no working retry (`5cb475fc4`, then scoped to the presented pane in `f3f5496a2` after R8 found a cross-project stale re-dispatch), and a Stale start stranded `terminal-start` in `activeOperations`, wedging the pane busy with Start disabled (`9d08529d7`).
 
 Full native qualification dispatch `35856597784` at `9d08529d7` passes every job (iOS AppTests and XCUITest mock/real-peer, Android 14/17 mock and real-peer, WS5 load profile, darwin/linux server artifacts, darwin-x64/linux-arm64 install); core CI passes at the same head.
+
+### Final checkpoint — 2026-09-28 UTC
+
+Rounds R9–R10 (Qoder Qwen3.8-Flash, then Sonnet review) fixed a slow-runner pairing-link paste race in the iOS journeys (`5b30f44f3`, `8235135c2`), made the Android terminal busy-flag release atomic and cleared it on host exit (`cabe891e9`), and isolated iOS bounded-catalog fixtures from earlier tests' sessions (`20ff1cbf7`). At `8235135c2`, full native qualification dispatch `36480529966` passes every job (iOS AppTests and XCUITest mock/real-peer, Android 14/17 mock and real-peer, WS5 load profile, darwin/linux server artifacts, darwin-x64/linux-arm64 install) and core CI passes. The remaining gates are the external ones listed in plan §0.7.
