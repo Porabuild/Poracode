@@ -18,7 +18,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { afterAll, expect, test, vi, type TestContext } from "vitest";
-import { getWslLocationHostFsPath, toWslUncPath } from "@/shared/wsl";
+import { getWslLocationHostFsPath, toWslUncPath, wslLinuxToHostFsPath } from "@/shared/wsl";
 import {
   clearWslHostAccessCache,
   computeWslHostAccess,
@@ -215,7 +215,8 @@ test("unicode/space distro: project location translation and UNC round-trips", a
       const staged = `${location.linuxPath}/staged-ünïcodé-write.txt`;
       const stagedContent = "staged-through-production-service";
       await staging.writeTextFile(distro, staged, stagedContent);
-      expect(readFileSync(toWslUncPath(distro, staged), "utf8")).toBe(stagedContent);
+      // The host view of a DrvFs-backed path is its Windows path, never a UNC loop.
+      expect(readFileSync(wslLinuxToHostFsPath(distro, staged), "utf8")).toBe(stagedContent);
       const stagedViaDistro = await runInDistro(distro, ["cat", staged]);
       expect(stagedViaDistro.stdout).toContain(stagedContent);
       const stagedReadBack = await staging.readTextFile(distro, staged);
@@ -362,20 +363,36 @@ test("a stalled distro cannot pin the staging service", async (ctx) => {
       const stalled = enabledDistro("secondary");
       const healthy = enabledDistro("primary");
 
-      // A 48 MiB payload keeps the UNC copy in flight long enough for the
-      // terminate to land mid-request.
+      // The terminate must land while the UNC copy is in flight. A fast runner
+      // can finish a small copy before it, so grow the payload until one is
+      // still unsettled when the distro is terminated.
       const payloadPath = join(payloadDir, "payload.bin");
-      writeFileSync(payloadPath, Buffer.alloc(48 * 1024 * 1024, 7));
-      const stagedDest = `/tmp/poracode-lab-stall-${Date.now()}.bin`;
-
-      const stalledStage = staging
-        .stageFile(stalled, { src: payloadPath, dest: toWslUncPath(stalled, stagedDest) })
-        .then(
-          () => "resolved" as const,
-          () => "rejected" as const,
-        );
-
-      await delay(300);
+      let stagedDest = "";
+      let stalledStage: Promise<"resolved" | "rejected"> | undefined;
+      for (const mebibytes of [48, 256, 1024]) {
+        writeFileSync(payloadPath, Buffer.alloc(mebibytes * 1024 * 1024, 7));
+        stagedDest = `/tmp/poracode-lab-stall-${Date.now()}.bin`;
+        let settled = false;
+        const attempt = staging
+          .stageFile(stalled, { src: payloadPath, dest: toWslUncPath(stalled, stagedDest) })
+          .then(
+            () => "resolved" as const,
+            () => "rejected" as const,
+          )
+          .finally(() => {
+            settled = true;
+          });
+        await delay(300);
+        if (!settled) {
+          stalledStage = attempt;
+          break;
+        }
+        await attempt;
+        await runInDistro(stalled, ["rm", "-f", stagedDest]);
+      }
+      if (!stalledStage) {
+        throw new Error("every staged copy finished before the distro could be terminated");
+      }
       await terminateDistro(stalled);
 
       // Cross-distro progress: the healthy distro's requests must complete
