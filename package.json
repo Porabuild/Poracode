@@ -135,7 +135,7 @@
     "json5": "^2.2.3",
     "jsonc-parser": "3.3.1",
     "jsqr": "^1.4.0",
-    "katex": "^0.18.7",
+    "katex": "^0.16.47",
     "lucide-react": "1.41.0",
     "material-icon-theme": "^5.38.1",
     "micromatch": "^4.0.8",
