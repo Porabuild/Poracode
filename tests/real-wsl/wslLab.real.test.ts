@@ -368,9 +368,11 @@ test("a stalled distro cannot pin the staging service", async (ctx) => {
       // still unsettled when the distro is terminated.
       const payloadPath = join(payloadDir, "payload.bin");
       let stagedDest = "";
+      let payloadBytes = 0;
       let stalledStage: Promise<"resolved" | "rejected"> | undefined;
       for (const mebibytes of [48, 256, 1024]) {
-        writeFileSync(payloadPath, Buffer.alloc(mebibytes * 1024 * 1024, 7));
+        payloadBytes = mebibytes * 1024 * 1024;
+        writeFileSync(payloadPath, Buffer.alloc(payloadBytes, 7));
         stagedDest = `/tmp/poracode-lab-stall-${Date.now()}.bin`;
         let settled = false;
         const attempt = staging
@@ -406,15 +408,28 @@ test("a stalled distro cannot pin the staging service", async (ctx) => {
       expect(progressReadBack).toBe("progress-marker");
       expect(progressMs).toBeLessThan(20_000);
 
-      // The stalled request must settle bounded — a terminated distro kills
-      // its 9p handles, so resolution is not a legitimate outcome.
+      // The stalled request must settle bounded. WSL restarts a terminated
+      // distro on the next 9P request, so the copy may legitimately finish;
+      // the invariant is that it never leaves a torn file (checked below).
       const stalledOutcome = await stalledStage;
       const stalledMs = performance.now() - progressStarted;
-      expect(stalledOutcome).toBe("rejected");
+      expect(["rejected", "resolved"]).toContain(stalledOutcome);
       expect(stalledMs).toBeLessThan(20_000 + 40_000);
 
       // Recovery: the same service instance serves the rebooted distro again.
       await runInDistro(stalled, ["printf", "rebooted"]);
+      // Temp-file + rename staging: a resolved copy is complete, a rejected
+      // one leaves nothing at the destination.
+      const stagedSize = await runInDistro(stalled, [
+        "sh",
+        "-c",
+        'if [ -e "$1" ]; then stat -c %s "$1"; else printf absent; fi',
+        "sh",
+        stagedDest,
+      ]);
+      expect(stagedSize.stdout.trim()).toBe(
+        stalledOutcome === "resolved" ? String(payloadBytes) : "absent",
+      );
       const recoveredPath = "/tmp/poracode-lab-recovered.txt";
       await staging.writeTextFile(stalled, recoveredPath, "recovered");
       expect(await staging.readTextFile(stalled, recoveredPath)).toBe("recovered");
