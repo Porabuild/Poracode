@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildPromptContentBlocks,
   formatDiffCommentPrompt,
+  hasSendablePromptContent,
   isAudioPath,
   isPdfPath,
   mimeForPath,
@@ -19,6 +20,17 @@ describe("attachment MIME inference", () => {
     expect(mimeForPath("component.tsx")).toBe("text/plain");
     expect(mimeForPath("workflow.yaml")).toBe("text/plain");
     expect(mimeForPath("brief.pdf")).toBe("application/pdf");
+  });
+});
+
+describe("hasSendablePromptContent", () => {
+  it("accepts text, or an attachment with no text at all", () => {
+    expect(hasSendablePromptContent("hi")).toBe(true);
+    expect(hasSendablePromptContent("", [{ kind: "attachment", path: "/tmp/shot.png" }])).toBe(
+      true,
+    );
+    expect(hasSendablePromptContent("   ", [{ kind: "text", content: "" }])).toBe(false);
+    expect(hasSendablePromptContent("")).toBe(false);
   });
 });
 

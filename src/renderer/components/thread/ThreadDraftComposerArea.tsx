@@ -16,7 +16,7 @@ import { hasSelectableReasoning } from "@/shared/agentSelection";
 import { hookEnvForProject, hookEnvKey } from "@/shared/agentHookPluginEnv";
 import { mergeMcpServers } from "@/shared/contracts/mcpServer";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { skillSegmentFromSlashCommand } from "@/shared/promptContent";
+import { hasSendablePromptContent, skillSegmentFromSlashCommand } from "@/shared/promptContent";
 import { friendlyError } from "@/shared/messages";
 import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
@@ -839,7 +839,7 @@ export function ThreadDraftComposerArea(props: {
       (name) => t`Use the ${name} skill.`,
     );
     const flatPrompt = flattenSegments(currentSegments) || fallbackPrompt.trim();
-    if (flatPrompt.length === 0 && !voiceThreadId) {
+    if (!hasSendablePromptContent(flatPrompt, currentSegments) && !voiceThreadId) {
       return;
     }
     const localAction = resolveLocalActionUnlessSkill(
