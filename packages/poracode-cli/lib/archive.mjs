@@ -47,7 +47,7 @@ export function validateRuntimeArchive(options) {
     : resolveTar(options.tarResolution);
   const names = run(...tarCommand(tool, ["-tzf", options.tarball]), { encoding: "utf8" })
     .toString("utf8")
-    .split("\n")
+    .split(/\r?\n/u)
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && line !== ".");
   for (const entry of names) {
@@ -59,7 +59,7 @@ export function validateRuntimeArchive(options) {
   }
   const verbose = run(...tarCommand(tool, ["-tvzf", options.tarball]), { encoding: "utf8" })
     .toString("utf8")
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((line) => line.trim().length > 0);
   for (const line of verbose) {
     const type = line.trimStart()[0];

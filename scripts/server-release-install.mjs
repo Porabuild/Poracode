@@ -108,12 +108,12 @@ export function extractServerTarball(options) {
   const tar = (args) => tarCommand(tool, args);
   const names = run(...tar(["-tzf", options.tarball]), { encoding: "utf8" })
     .toString("utf8")
-    .split("\n")
+    .split(/\r?\n/u)
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && line !== ".");
   const verbose = run(...tar(["-tvzf", options.tarball]), { encoding: "utf8" })
     .toString("utf8")
-    .split("\n")
+    .split(/\r?\n/u)
     .filter((line) => line.trim().length > 0);
   assertSafeTarballEntries(names, verbose);
   mkdirSync(options.destination, { recursive: true });

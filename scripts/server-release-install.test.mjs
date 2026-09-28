@@ -304,3 +304,27 @@ void test("writeCurrentSymlink rides out a transient lock on the old link", () =
   });
   assert.equal(removals, 3);
 });
+
+void test("extractServerTarball refuses a link entry in a CRLF bsdtar listing", () => {
+  const root = tempDir("poracode-release-crlf-");
+  const run = (_command, args) =>
+    args[0] === "-tzf"
+      ? "lib/server.cjs\r\nlib/evil\r\n"
+      : args[0] === "-tvzf"
+        ? "-rw-r--r--  0 u g 1 Jan  1 00:00 lib/server.cjs\r\nlrwxr-xr-x  0 u g 0 Jan  1 00:00 lib/evil -> /etc\r\n"
+        : "";
+  assert.throws(
+    () =>
+      extractServerTarball({
+        tarball: "C:\\dl\\server.tar.gz",
+        destination: join(root, "out"),
+        run,
+        tarResolution: {
+          platform: "win32",
+          env: { SystemRoot: "C:\\Windows" },
+          exists: () => true,
+        },
+      }),
+    /link/iu,
+  );
+});

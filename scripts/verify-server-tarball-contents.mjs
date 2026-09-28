@@ -53,7 +53,7 @@ export function verifyServerTarballContents({ tarball, overlayRoot, targets }) {
       encoding: "utf8",
       maxBuffer: 64 * 1024 * 1024,
     })
-      .split("\n")
+      .split(/\r?\n/u)
       .filter(Boolean)
       .map((entry) => entry.replace(/^\.\//u, "").replace(/\/$/u, "")),
   );
