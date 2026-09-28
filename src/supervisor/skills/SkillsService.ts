@@ -50,7 +50,7 @@ import {
 } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
 import { getPluginCoreSkill, pluginNativeNames } from "@/shared/plugins/catalog";
-import { parseWslUncPath, toWslUncPath } from "@/shared/wsl";
+import { getWslLocationHostFsPath, parseWslUncPath, toWslUncPath } from "@/shared/wsl";
 import type { AgentAdapter, AgentNativePlugin, AgentSkillRootSpec } from "../agents/base";
 import {
   batchWslCommandsAsync,
@@ -1343,7 +1343,7 @@ export class SkillsService {
         homeDisplayPath: linuxHome,
         ...(projectLocation?.kind === "wsl"
           ? {
-              projectFsPath: projectLocation.uncPath,
+              projectFsPath: getWslLocationHostFsPath(projectLocation),
               projectDisplayPath: projectLocation.linuxPath,
               projectLabel: basename(projectLocation.linuxPath) || projectLocation.linuxPath,
             }

@@ -18,7 +18,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
 import { afterAll, expect, test, vi, type TestContext } from "vitest";
-import { toWslUncPath } from "@/shared/wsl";
+import { getWslLocationHostFsPath, toWslUncPath } from "@/shared/wsl";
 import {
   clearWslHostAccessCache,
   computeWslHostAccess,
@@ -189,8 +189,27 @@ test("unicode/space distro: project location translation and UNC round-trips", a
       const viaDistro = await runInDistro(distro, ["cat", linuxMarker]);
       expect(viaDistro.stdout).toContain(markerContent);
 
-      // Host → guest over UNC (the production fs path for WSL projects).
-      expect(readFileSync(toWslUncPath(distro, linuxMarker), "utf8")).toBe(markerContent);
+      // The host fs path of a DrvFs-backed project is the native Windows path:
+      // \\wsl.localhost\<distro>\mnt\c\... loops through 9P and is refused.
+      const hostRoot = getWslLocationHostFsPath(location);
+      expect(location.linuxPath.startsWith("/mnt/")).toBe(true);
+      expect(hostRoot.toLowerCase()).toBe(hostDir.toLowerCase());
+      expect(readFileSync(join(hostRoot, markerName), "utf8")).toBe(markerContent);
+
+      // Host -> guest over UNC still round-trips for a native WSL path.
+      const nativeDir = `/tmp/poracode-lab-ünï ${Date.now()}`;
+      const nativeMarker = `${nativeDir}/${markerName}`;
+      await runInDistro(distro, ["mkdir", "-p", nativeDir]);
+      await runInDistro(distro, [
+        "sh",
+        "-c",
+        'printf %s "$1" > "$2"',
+        "sh",
+        markerContent,
+        nativeMarker,
+      ]);
+      expect(readFileSync(toWslUncPath(distro, nativeMarker), "utf8")).toBe(markerContent);
+      await runInDistro(distro, ["rm", "-rf", nativeDir]);
 
       // Staging service writes into the distro; both views must agree.
       const staged = `${location.linuxPath}/staged-ünïcodé-write.txt`;

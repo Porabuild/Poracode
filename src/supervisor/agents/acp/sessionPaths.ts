@@ -5,7 +5,7 @@ import { RequestError } from "@agentclientprotocol/sdk";
 import type { ProjectLocation } from "@/shared/contracts";
 import { isHomeScopeLocation } from "@/shared/homeScope";
 import { mimeForPath } from "@/shared/promptContent";
-import { toWslUncPath } from "@/shared/wsl";
+import { getWslLocationHostFsPath, toWslUncPath } from "@/shared/wsl";
 
 /**
  * Home-relative directories ACP agents may *read* even though they sit
@@ -107,9 +107,8 @@ export function resolveAcpHostFsPath(location: ProjectLocation, rawPath: string)
     return absolutePath;
   }
   const relative = posix.relative(location.linuxPath, absolutePath);
-  return relative === ""
-    ? location.uncPath
-    : win32.join(location.uncPath, ...relative.split("/").filter(Boolean));
+  const hostRoot = getWslLocationHostFsPath(location);
+  return relative === "" ? hostRoot : win32.join(hostRoot, ...relative.split("/").filter(Boolean));
 }
 
 export function isAcpHomeScopeLocation(location: ProjectLocation): boolean {
