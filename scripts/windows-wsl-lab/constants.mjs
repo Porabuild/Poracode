@@ -11,8 +11,12 @@ export const PRIMARY_DISTRO = "poracode-ci-ubuntu-24-04";
  */
 export const SECONDARY_DISTRO = "Poracode CI Ünïcodé 日本語 24 04";
 
+// Pinned to a dated release: `current/` moves, which would silently invalidate
+// the reviewed WSL_ROOTFS_SHA256, and the old file name no longer exists (404).
+// Update this URL and the repository variable together from the release's
+// SHA256SUMS.
 export const UBUNTU_24_04_ROOTFS_URL =
-  "https://cloud-images.ubuntu.com/wsl/releases/24.04/current/ubuntu-noble-wsl-amd64-ubuntu24.04lts.rootfs.tar.gz";
+  "https://cloud-images.ubuntu.com/wsl/releases/24.04/20240423/ubuntu-noble-wsl-amd64-24.04lts.rootfs.tar.gz";
 export const ROOTFS_CACHE_NAME = "ubuntu-24.04-wsl-amd64.rootfs.tar.gz";
 export const MAX_ROOTFS_BYTES = 3 * 1024 * 1024 * 1024;
 
