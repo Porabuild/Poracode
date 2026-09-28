@@ -16,8 +16,9 @@ export function unsupportedTarget(target, available) {
     "PORACODE_TARGET_UNSUPPORTED",
     `Poracode has no published standalone runtime for ${target}.`,
     `Published targets: ${available.length > 0 ? available.join(", ") : "none yet"}. ` +
-      "Windows standalone is not supported; use the Poracode desktop app or WSL. " +
-      "macOS standalone is published only when the release matrix includes it.",
+      "Windows standalone is published for x64 only; on other Windows architectures use the " +
+      "Poracode desktop app or WSL. macOS standalone is published only when the release " +
+      "matrix includes it.",
   );
 }
 

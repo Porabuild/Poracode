@@ -15,6 +15,8 @@ export interface ExtractServerTarballOptions {
   readonly tarball: string;
   readonly destination: string;
   readonly tar?: string;
+  /** Test seam for `resolveTar` (platform/env/exists/run injection). */
+  readonly tarResolution?: import("./server-host-tools.mjs").HostToolOptions;
   readonly run?: (command: string, args: readonly string[], options?: object) => unknown;
 }
 
@@ -24,7 +26,12 @@ export declare function extractServerTarball(options: ExtractServerTarballOption
 
 export declare function npmInstallRuntimeDependencies(
   releaseDir: string,
-  options?: { readonly npm?: string; readonly run?: unknown },
+  options?: {
+    readonly npm?: string;
+    readonly run?: unknown;
+    readonly ignoreScripts?: boolean;
+    readonly npmResolution?: import("./server-host-tools.mjs").HostToolOptions;
+  },
 ): void;
 
 export interface InstallServerReleaseOptions extends ExtractServerTarballOptions {
@@ -37,4 +44,10 @@ export declare function installServerRelease(options: InstallServerReleaseOption
   readonly overlayApplied: boolean;
 };
 
-export declare function writeCurrentSymlink(prefix: string, releaseDir: string): void;
+export declare function writeCurrentSymlink(
+  prefix: string,
+  releaseDir: string,
+  options?: import("./server-host-tools.mjs").DirectoryLinkOptions & {
+    readonly retry?: import("./server-host-tools.mjs").RetryOptions;
+  },
+): void;

@@ -11,6 +11,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { isAbsolute, normalize, sep } from "node:path";
+import { resolveTar, tarCommand } from "./hostTools.mjs";
 
 export class UnsafeRuntimeArchiveError extends Error {
   constructor(message) {
@@ -41,8 +42,10 @@ function isContainedRelativePath(entry) {
 
 export function validateRuntimeArchive(options) {
   const run = options.run ?? defaultRun;
-  const tar = options.tar ?? "tar";
-  const names = run(tar, ["-tzf", options.tarball], { encoding: "utf8" })
+  const tool = options.tar
+    ? { command: options.tar, baseArgs: [] }
+    : resolveTar(options.tarResolution);
+  const names = run(...tarCommand(tool, ["-tzf", options.tarball]), { encoding: "utf8" })
     .toString("utf8")
     .split("\n")
     .map((line) => line.trim())
@@ -54,7 +57,7 @@ export function validateRuntimeArchive(options) {
       );
     }
   }
-  const verbose = run(tar, ["-tvzf", options.tarball], { encoding: "utf8" })
+  const verbose = run(...tarCommand(tool, ["-tvzf", options.tarball]), { encoding: "utf8" })
     .toString("utf8")
     .split("\n")
     .filter((line) => line.trim().length > 0);
@@ -125,13 +128,15 @@ export function resolveArchiveMembers(names, members) {
  */
 export function extractArchiveMembers(options) {
   const run = options.run ?? defaultRun;
-  const tar = options.tar ?? "tar";
+  const tool = options.tar
+    ? { command: options.tar, baseArgs: [] }
+    : resolveTar(options.tarResolution);
   const members = resolveArchiveMembers(options.names, options.members);
   mkdirSync(options.destination, { recursive: true });
   // An empty member list must extract nothing, not everything: `tar -x` with
   // no members unpacks the whole archive.
   if (members.length > 0) {
-    run(tar, ["-xzf", options.tarball, "-C", options.destination, ...members], {
+    run(...tarCommand(tool, ["-xzf", options.tarball, "-C", options.destination, ...members]), {
       stdio: "pipe",
     });
   }

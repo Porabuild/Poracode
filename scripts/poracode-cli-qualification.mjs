@@ -99,7 +99,11 @@ function buildStubRuntimeTarball(workRoot, version) {
       "appVersion: process.env.PORACODE_APP_VERSION }) + '\\n');\n",
   );
   writeFileSync(join(stage, "resources", "wsl-helpers", "README.md"), "stub helpers\n");
-  for (const script of ["server-release-install.mjs", "server-native-overlay.mjs"]) {
+  for (const script of [
+    "server-release-install.mjs",
+    "server-host-tools.mjs",
+    "server-native-overlay.mjs",
+  ]) {
     cpSync(join(repoRoot, "scripts", script), join(stage, "scripts", script));
   }
   const tarball = join(workRoot, "poracode-server-stub.tar.gz");

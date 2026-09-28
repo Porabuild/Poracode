@@ -24,6 +24,7 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { installCancelled, installLockForeign, installLockTimeout } from "./errors.mjs";
+import { scratchId } from "./hostTools.mjs";
 
 export const RUNTIME_READY_FILE = ".poracode-runtime.json";
 export const LOCK_RECORD_VERSION = 1;
@@ -195,7 +196,7 @@ function classifyLock(lockDir, now) {
  * gone.
  */
 function reclaimAbandonedLock(lockDir, observed) {
-  const quarantine = `${lockDir}.stale-${process.pid}-${randomUUID()}`;
+  const quarantine = `${lockDir}.stale-${process.pid}-${scratchId()}`;
   try {
     renameSync(lockDir, quarantine);
   } catch {
@@ -264,7 +265,7 @@ function releaseOwnedLock(lockDir, token, identity) {
       return;
     }
     if (stat.ino !== identity.ino || stat.dev !== identity.dev) return;
-    const yielded = `${lockDir}.stale-${process.pid}-${randomUUID()}`;
+    const yielded = `${lockDir}.stale-${process.pid}-${scratchId()}`;
     try {
       renameSync(lockDir, yielded);
     } catch {
@@ -363,7 +364,7 @@ export function acquireInstallLock(lockDir, options = {}) {
         // complete record. The existence check above means the rename is only
         // attempted on a vacancy, so an ownerless directory inside the stale
         // window is never silently replaced.
-        const staging = `${lockDir}.new-${process.pid}-${randomUUID()}`;
+        const staging = `${lockDir}.new-${process.pid}-${scratchId()}`;
         try {
           mkdirSync(staging, { recursive: false });
           writeFileSync(join(staging, "owner"), record);

@@ -234,6 +234,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     for (const script of [
       "server-native-overlay.mjs",
       "server-release-install.mjs",
+      "server-host-tools.mjs",
       "install-server-prefix.mjs",
     ]) {
       expect(readFileSync(join(result.stageDir, "scripts", script), "utf8")).toBe(
@@ -261,6 +262,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
       expect.arrayContaining([
         "scripts/install-server-prefix.mjs",
         "scripts/server-release-install.mjs",
+        "scripts/server-host-tools.mjs",
         "scripts/server-native-overlay.mjs",
         "packaging/systemd/poracode-server.service",
       ]),
@@ -286,11 +288,16 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     for (const shippedPath of [
       "scripts/install-server-prefix.mjs",
       "scripts/server-release-install.mjs",
+      "scripts/server-host-tools.mjs",
       "scripts/server-native-overlay.mjs",
       "packaging/systemd/poracode-server.service",
     ]) {
       expect(metadata.files[shippedPath]).toMatch(/^[0-9a-f]{64}$/u);
     }
+    // Additive Windows path-length metadata: the deepest staged member.
+    expect(typeof metadata.longestMemberPath).toBe("string");
+    expect(metadata.longestMemberPath?.length).toBeGreaterThan(0);
+    expect(metadata.longestMemberPath).not.toContain("\\");
   });
 
   it("fails when a required resource directory is missing", () => {
@@ -321,6 +328,33 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
         }),
       ).toThrow(new RegExp(`Required resource directory missing.*${missing}`, "u"));
     }
+  });
+
+  it("refuses to pack a member that cannot be extracted on Windows", () => {
+    const mainBundleDir = tempDir("poracode-tarball-winmember-main-");
+    const overlaySource = tempDir("poracode-tarball-winmember-overlay-");
+    writeFileSync(join(mainBundleDir, "server.cjs"), "module.exports = {};\n");
+    writeFileSync(
+      join(mainBundleDir, "server.ssh-runtime-manifest.json"),
+      `${JSON.stringify({ files: [{ path: "server.cjs" }], dependencies: [] })}\n`,
+    );
+    writeOverlay(overlaySource, { targets: [hostTarget()], withSqlite: true });
+    const resourceRoot = tempDir("poracode-tarball-winmember-res-");
+    writeResourceFixtures(resourceRoot);
+    mkdirSync(join(resourceRoot, "skills"), { recursive: true });
+    writeFileSync(join(resourceRoot, "skills", "aux.md"), "reserved device name\n");
+    expect(() =>
+      assembleServerTarball({
+        outDir: tempDir("poracode-tarball-winmember-out-"),
+        mainBundleDir,
+        overlaySource,
+        webDir: join(tempDir("poracode-tarball-winmember-"), "missing-web"),
+        apiOnly: true,
+        resourceRoot,
+        shrinkwrap: false,
+        sourceRevision: "test-revision",
+      }),
+    ).toThrow(/not Windows-portable[\s\S]*resources\/skills\/aux\.md/u);
   });
 
   it("requires every advertised target in both native modules", () => {
@@ -440,6 +474,7 @@ describe("assembleServerTarball (V6 D.2, plan D2/D3)", () => {
     for (const script of [
       "install-server-prefix.mjs",
       "server-release-install.mjs",
+      "server-host-tools.mjs",
       "server-native-overlay.mjs",
     ]) {
       writeFileSync(

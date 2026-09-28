@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -17,9 +18,11 @@ import {
   assertSafeTarballEntries,
   extractServerTarball,
   installServerRelease,
+  npmInstallRuntimeDependencies,
   RUNTIME_NPM_INSTALL_ARGS,
   RUNTIME_NPM_INSTALL_ARGS_IGNORE_SCRIPTS,
   UnsafeServerTarballError,
+  writeCurrentSymlink,
 } from "./server-release-install.mjs";
 import { runtimePlatformKey } from "./server-native-overlay.mjs";
 
@@ -171,4 +174,133 @@ void test("installServerRelease installs with --ignore-scripts before a survivin
   assert.equal(result.overlayApplied, true);
   assert.deepEqual(npmCalls, [[...RUNTIME_NPM_INSTALL_ARGS_IGNORE_SCRIPTS]]);
   assert.deepEqual(readFileSync(join(prebuildDir, "pty.node")), binding);
+});
+
+void test("extractServerTarball drives the resolved Windows bsdtar for every tar call", () => {
+  const root = tempDir("poracode-release-win-tar-");
+  const calls = [];
+  const run = (command, args) => {
+    calls.push([command, ...args]);
+    return args[0] === "-tzf" ? "lib/server.cjs\n" : args[0] === "-tvzf" ? "-rw-r--r-- lib\n" : "";
+  };
+  extractServerTarball({
+    tarball: "C:\\dl\\server.tar.gz",
+    destination: join(root, "out"),
+    run,
+    tarResolution: {
+      platform: "win32",
+      env: { SystemRoot: "C:\\Windows" },
+      exists: () => true,
+    },
+  });
+  assert.deepEqual(
+    calls.map((call) => call[0]),
+    Array(3).fill("C:\\Windows\\System32\\tar.exe"),
+  );
+  assert.deepEqual(calls[2].slice(1), ["-xzf", "C:\\dl\\server.tar.gz", "-C", join(root, "out")]);
+});
+
+void test("extractServerTarball adds --force-local for a GNU tar on Windows", () => {
+  const root = tempDir("poracode-release-win-gnu-");
+  const calls = [];
+  extractServerTarball({
+    tarball: "C:\\dl\\server.tar.gz",
+    destination: join(root, "out"),
+    run: (command, args) => {
+      calls.push([command, ...args]);
+      return args.includes("-tzf") ? "lib/server.cjs\n" : args.includes("-tvzf") ? "-rw lib\n" : "";
+    },
+    tarResolution: {
+      platform: "win32",
+      env: {},
+      exists: () => false,
+      run: () => "tar (GNU tar) 1.35",
+    },
+  });
+  for (const call of calls) assert.equal(call[1], "--force-local");
+});
+
+void test("an explicit tar override is used verbatim", () => {
+  const root = tempDir("poracode-release-tar-override-");
+  const commands = [];
+  extractServerTarball({
+    tarball: "x.tar.gz",
+    destination: join(root, "out"),
+    tar: "/custom/tar",
+    run: (command, args) => {
+      commands.push(command);
+      return args.includes("-tzf") ? "a\n" : args.includes("-tvzf") ? "-rw a\n" : "";
+    },
+  });
+  assert.deepEqual(commands, ["/custom/tar", "/custom/tar", "/custom/tar"]);
+});
+
+void test("npmInstallRuntimeDependencies runs node + npm-cli.js on Windows", () => {
+  const calls = [];
+  const cli = "C:\\node\\node_modules\\npm\\bin\\npm-cli.js";
+  npmInstallRuntimeDependencies("C:\\rel", {
+    ignoreScripts: true,
+    run: (command, args, options) => calls.push({ command, args, options }),
+    npmResolution: {
+      platform: "win32",
+      execPath: "C:\\node\\node.exe",
+      env: {},
+      exists: (path) => path === cli,
+    },
+  });
+  assert.equal(calls[0].command, "C:\\node\\node.exe");
+  assert.deepEqual(calls[0].args, [cli, ...RUNTIME_NPM_INSTALL_ARGS_IGNORE_SCRIPTS]);
+  assert.equal(calls[0].options.shell, undefined);
+  assert.equal(calls[0].options.cwd, "C:\\rel");
+});
+
+void test("npmInstallRuntimeDependencies uses a validated shell only for the npm.cmd fallback", () => {
+  const calls = [];
+  npmInstallRuntimeDependencies("C:\\rel", {
+    run: (command, args, options) => calls.push({ command, args, options }),
+    npmResolution: { platform: "win32", execPath: "C:\\n\\node.exe", env: {}, exists: () => false },
+  });
+  assert.equal(calls[0].command, "npm.cmd");
+  assert.equal(calls[0].options.shell, true);
+});
+
+void test("an explicit npm override is used verbatim without a shell", () => {
+  const calls = [];
+  npmInstallRuntimeDependencies("/rel", {
+    npm: "/custom/npm",
+    run: (command, args, options) => calls.push({ command, options }),
+  });
+  assert.equal(calls[0].command, "/custom/npm");
+  assert.equal(calls[0].options.shell, undefined);
+});
+
+void test("writeCurrentSymlink replaces a POSIX link and creates a Windows junction on win32", () => {
+  const prefix = tempDir("poracode-current-link-");
+  mkdirSync(join(prefix, "releases", "a"), { recursive: true });
+  mkdirSync(join(prefix, "releases", "b"), { recursive: true });
+  writeCurrentSymlink(prefix, join(prefix, "releases", "a"));
+  writeCurrentSymlink(prefix, join(prefix, "releases", "b"));
+  assert.equal(readlinkSync(join(prefix, "current")), join("releases", "b"));
+
+  const calls = [];
+  writeCurrentSymlink("C:\\p", "C:\\p\\releases\\b", {
+    platform: "win32",
+    rm: () => {},
+    symlink: (...args) => calls.push(args),
+  });
+  assert.deepEqual(calls, [["C:\\p\\releases\\b", join("C:\\p", "current"), "junction"]]);
+});
+
+void test("writeCurrentSymlink rides out a transient lock on the old link", () => {
+  let removals = 0;
+  writeCurrentSymlink("C:\\p", "C:\\p\\releases\\b", {
+    platform: "win32",
+    retry: { sleep: () => {} },
+    rm: () => {
+      removals += 1;
+      if (removals < 3) throw Object.assign(new Error("busy"), { code: "EBUSY" });
+    },
+    symlink: () => {},
+  });
+  assert.equal(removals, 3);
 });

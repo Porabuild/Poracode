@@ -5,7 +5,8 @@
  */
 import { unsupportedTarget } from "./errors.mjs";
 
-export const PUBLISHED_TARGET_DESCRIPTION = "darwin-arm64, darwin-x64, linux-x64, linux-arm64";
+export const PUBLISHED_TARGET_DESCRIPTION =
+  "darwin-arm64, darwin-x64, linux-x64, linux-arm64, win32-x64";
 
 export function runtimeTargetKey(input = {}) {
   const platform = input.platform ?? process.platform;
@@ -15,6 +16,9 @@ export function runtimeTargetKey(input = {}) {
     return `${glibc ? "linux" : "linuxmusl"}-${arch}`;
   }
   if (platform === "darwin") return `darwin-${arch}`;
+  // The pinned manifest decides which Windows arches are published (x64 only
+  // today); an unpublished arch is reported as unsupported with the list.
+  if (platform === "win32") return `win32-${arch}`;
   return null;
 }
 

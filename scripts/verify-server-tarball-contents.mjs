@@ -7,6 +7,7 @@ import {
   readBetterSqlite3Overlay,
   readNodePtyOverlay,
 } from "./server-native-overlay.mjs";
+import { resolveTar, tarCommand } from "./server-host-tools.mjs";
 
 function memberPath(path) {
   if (typeof path !== "string" || path.length === 0 || isAbsolute(path)) {
@@ -48,7 +49,10 @@ export function requiredServerTarballMembers(overlayRoot, targets) {
 
 export function verifyServerTarballContents({ tarball, overlayRoot, targets }) {
   const members = new Set(
-    execFileSync("tar", ["-tzf", tarball], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })
+    execFileSync(...tarCommand(resolveTar(), ["-tzf", tarball]), {
+      encoding: "utf8",
+      maxBuffer: 64 * 1024 * 1024,
+    })
       .split("\n")
       .filter(Boolean)
       .map((entry) => entry.replace(/^\.\//u, "").replace(/\/$/u, "")),

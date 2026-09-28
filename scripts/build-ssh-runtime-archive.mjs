@@ -40,6 +40,7 @@ import {
   sha256File,
   writeStagePackageJson,
 } from "./runtime-closure.mjs";
+import { resolveTar, tarCommand } from "./server-host-tools.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -176,9 +177,9 @@ export function buildSshRuntimeArchive(options = {}) {
     const hash = hashRuntimeDirectory(stage);
     const archiveName = `ssh-runtime-${hash}.tar.gz`;
     const archivePath = join(outDir, archiveName);
-    // Relative archive name + cwd: GNU tar on Windows reads a `C:\…` `-f`
-    // argument as an rsh `host:file` spec; bsdtar treats both the same.
-    execFileSync("tar", ["-czf", archiveName, "-C", stage, "."], {
+    // Relative archive name + cwd keeps a `C:\…` `-f` argument away from GNU
+    // tar's rsh `host:file` parsing; `resolveTar` also prefers Windows bsdtar.
+    execFileSync(...tarCommand(resolveTar(), ["-czf", archiveName, "-C", stage, "."]), {
       stdio: "pipe",
       cwd: outDir,
     });

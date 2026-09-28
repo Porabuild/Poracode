@@ -20,6 +20,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { npmInvocation } from "./server-host-tools.mjs";
 
 /** Version of the packaging-side closure contract this module writes. */
 export const RUNTIME_CLOSURE_FORMAT_VERSION = 1;
@@ -108,21 +109,20 @@ export function writeStagePackageJson(stageDir, input) {
  * in the lock, which is what lets one artifact cover several machine shapes.
  */
 export function generateNpmShrinkwrap(stageDir, options = {}) {
-  const npm = options.npm ?? "npm";
   const run = options.run ?? defaultRun;
-  run(
-    npm,
-    [
-      "install",
-      "--package-lock-only",
-      "--omit=dev",
-      "--ignore-scripts",
-      "--no-audit",
-      "--no-fund",
-      "--loglevel=error",
-    ],
-    stageDir,
-  );
+  const args = [
+    "install",
+    "--package-lock-only",
+    "--omit=dev",
+    "--ignore-scripts",
+    "--no-audit",
+    "--no-fund",
+    "--loglevel=error",
+  ];
+  const invocation = options.npm
+    ? { command: options.npm, args, shell: false }
+    : npmInvocation(args, options.npmResolution);
+  run(invocation.command, invocation.args, stageDir, { shell: invocation.shell });
   const lockPath = join(stageDir, "package-lock.json");
   if (!existsSync(lockPath)) {
     throw new Error(`npm did not write ${lockPath}; cannot freeze the runtime closure`);
@@ -140,8 +140,12 @@ export function generateNpmShrinkwrap(stageDir, options = {}) {
   };
 }
 
-function defaultRun(command, args, cwd) {
-  execFileSync(command, args, { cwd, stdio: "pipe" });
+function defaultRun(command, args, cwd, runOptions = {}) {
+  execFileSync(command, args, {
+    cwd,
+    stdio: "pipe",
+    ...(runOptions.shell ? { shell: true } : {}),
+  });
 }
 
 /** SHA-256 of one file, the integrity unit used across the artifact metadata. */

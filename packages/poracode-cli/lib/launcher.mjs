@@ -13,10 +13,16 @@ import { resolveRuntimeCacheRoot } from "./cache.mjs";
 import { offlineNoCache, PoracodeLauncherError } from "./errors.mjs";
 import { ensureRuntime, runtimeDirectory } from "./install.mjs";
 import { loadRuntimeManifest, selectRuntimeEntry } from "./manifest.mjs";
+import {
+  attachChildSignalHandling,
+  forwardedSignals,
+  runServerStop,
+  signalExitCode,
+  windowsHardKillDeadlineMs,
+} from "./signals.mjs";
 import { requireRuntimeTargetKey } from "./target.mjs";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
 
 export function launcherVersion() {
   const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
@@ -72,7 +78,7 @@ export async function resolveRuntimeDir(input = {}) {
     : selectRuntimeEntry(manifest, target);
   const cacheRoot = resolveRuntimeCacheRoot(env);
   const controller = new AbortController();
-  const handlers = FORWARDED_SIGNALS.map((signal) => {
+  const handlers = forwardedSignals().map((signal) => {
     const handler = () => controller.abort();
     process.on(signal, handler);
     return [signal, handler];
@@ -99,32 +105,43 @@ export async function resolveRuntimeDir(input = {}) {
 
 export function execServer(input) {
   const spawnImpl = input.spawnImpl ?? spawn;
+  const platform = input.platform ?? process.platform;
   const entry = join(input.runtimeDir, "lib", "server.cjs");
+  const childEnv = { ...input.env, PORACODE_APP_VERSION: input.version };
   const child = spawnImpl(process.execPath, [entry, ...input.args], {
     stdio: "inherit",
-    env: { ...input.env, PORACODE_APP_VERSION: input.version },
+    env: childEnv,
   });
-  const forwards = new Map();
-  for (const signal of FORWARDED_SIGNALS) {
-    const forward = () => {
-      try {
-        child.kill(signal);
-      } catch {
-        // The child already exited.
-      }
-    };
-    forwards.set(signal, forward);
-    process.on(signal, forward);
-  }
+  const detach = attachChildSignalHandling({
+    child,
+    platform,
+    hardKillDeadlineMs: windowsHardKillDeadlineMs(childEnv),
+    // `node server.cjs stop` is its own small process; keep the call behind
+    // this seam so the win32 shutdown path is testable without a real server.
+    stop: () =>
+      (input.stopServer ?? runServerStop)({
+        entry,
+        env: childEnv,
+        timeoutMs: windowsHardKillDeadlineMs(childEnv),
+      }),
+    ...(input.processImpl ? { processImpl: input.processImpl } : {}),
+    ...(input.setTimeoutImpl ? { setTimeoutImpl: input.setTimeoutImpl } : {}),
+    ...(input.clearTimeoutImpl ? { clearTimeoutImpl: input.clearTimeoutImpl } : {}),
+  });
   return new Promise((done, fail) => {
     child.on("error", (error) => {
-      for (const [signal, forward] of forwards) process.off(signal, forward);
+      detach();
       fail(error);
     });
     child.on("exit", (code, signal) => {
-      for (const [name, forward] of forwards) process.off(name, forward);
+      detach();
       if (signal) {
-        process.kill(process.pid, signal);
+        // Windows cannot re-raise a signal on itself; report it as an exit code.
+        if (platform === "win32") {
+          done(signalExitCode(signal));
+          return;
+        }
+        (input.killSelf ?? process.kill.bind(process))(process.pid, signal);
         return;
       }
       done(code ?? 0);

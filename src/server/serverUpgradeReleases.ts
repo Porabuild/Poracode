@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readlinkSync, rmSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, mkdirSync, readlinkSync, realpathSync, rmSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { UpgradeRefusedError } from "./serverUpgradeContract";
 
 /**
@@ -51,18 +51,38 @@ export function readCurrentTarget(prefix: string): string | null {
 
 /** Absolute path of a recorded `current` target (absolute or prefix-relative). */
 export function previousReleasePath(prefix: string, previous: string): string {
-  return previous.startsWith("/") ? previous : join(prefix, previous);
+  return isAbsolute(previous) ? previous : join(prefix, previous);
+}
+
+/**
+ * Canonical spelling of a path for identity comparison: resolves symlinks,
+ * junctions, 8.3 short names (`RUNNER~1`) and drive-letter case when the path
+ * exists. A path that does not exist yet canonicalizes its deepest existing
+ * ancestor and re-appends the rest, so a not-yet-created release compares with
+ * the same spelling as its siblings.
+ */
+export function canonicalPath(path: string): string {
+  const absolute = resolve(path);
+  try {
+    return realpathSync.native(absolute);
+  } catch {
+    const parent = dirname(absolute);
+    return parent === absolute ? absolute : join(canonicalPath(parent), basename(absolute));
+  }
 }
 
 /** True when `releaseDir` is the release `current` points at. */
 export function isCurrentRelease(prefix: string, releaseDir: string): boolean {
   const current = readCurrentTarget(prefix);
-  return current !== null && previousReleasePath(prefix, current) === releaseDir;
+  return (
+    current !== null &&
+    canonicalPath(previousReleasePath(prefix, current)) === canonicalPath(releaseDir)
+  );
 }
 
 /** True when `releaseDir` is a direct `<prefix>/releases/<id>` child. */
 export function isDirectReleaseDirectory(prefix: string, releaseDir: string): boolean {
-  return dirname(releaseDir) === join(prefix, "releases");
+  return canonicalPath(dirname(releaseDir)) === canonicalPath(join(prefix, "releases"));
 }
 
 /** Remove a staged (non-current) release directory; never deletes `current`. */

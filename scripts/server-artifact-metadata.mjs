@@ -66,6 +66,10 @@ export function assertServerArtifactMetadata(value) {
   }
   assertString(value.runtime.nodePty, "runtime.nodePty");
   assertString(value.runtime.betterSqlite3, "runtime.betterSqlite3");
+  // Additive since Windows support: absent in older artifacts, so never required.
+  if (value.longestMemberPath !== undefined) {
+    assertString(value.longestMemberPath, "longestMemberPath");
+  }
   return value;
 }
 

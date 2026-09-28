@@ -16,6 +16,8 @@ export interface ServerArtifactMetadata {
   platform: string;
   arch: string;
   targets: string[];
+  /** Deepest staged member path ("/"-separated); additive, absent in older artifacts. */
+  longestMemberPath?: string;
   node: { minimum: string | null; packaging: string };
   runtime: {
     nodePty: string;

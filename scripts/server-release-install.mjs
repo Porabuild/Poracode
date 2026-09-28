@@ -22,8 +22,16 @@
  * install contract it is about to execute.
  */
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
-import { isAbsolute, join, normalize, relative, sep } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { isAbsolute, join, normalize, sep } from "node:path";
+import {
+  npmInvocation,
+  removeDirectoryLink,
+  resolveTar,
+  retryTransientFsSync,
+  tarCommand,
+  writeDirectoryLink,
+} from "./server-host-tools.mjs";
 import { applyServerNativeOverlay } from "./server-native-overlay.mjs";
 
 /** The one npm invocation the standalone runtime install uses. */
@@ -94,29 +102,38 @@ function defaultRun(command, args, options = {}) {
 /** List entries, validate them, then extract into `destination`. */
 export function extractServerTarball(options) {
   const run = options.run ?? defaultRun;
-  const tar = options.tar ?? "tar";
-  const names = run(tar, ["-tzf", options.tarball], { encoding: "utf8" })
+  const tool = options.tar
+    ? { command: options.tar, baseArgs: [] }
+    : resolveTar(options.tarResolution);
+  const tar = (args) => tarCommand(tool, args);
+  const names = run(...tar(["-tzf", options.tarball]), { encoding: "utf8" })
     .toString("utf8")
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.length > 0 && line !== ".");
-  const verbose = run(tar, ["-tvzf", options.tarball], { encoding: "utf8" })
+  const verbose = run(...tar(["-tvzf", options.tarball]), { encoding: "utf8" })
     .toString("utf8")
     .split("\n")
     .filter((line) => line.trim().length > 0);
   assertSafeTarballEntries(names, verbose);
   mkdirSync(options.destination, { recursive: true });
-  run(tar, ["-xzf", options.tarball, "-C", options.destination], { stdio: "pipe" });
+  run(...tar(["-xzf", options.tarball, "-C", options.destination]), { stdio: "pipe" });
   return { entries: names.length };
 }
 
 export function npmInstallRuntimeDependencies(releaseDir, options = {}) {
   const run = options.run ?? defaultRun;
-  const npm = options.npm ?? "npm";
   const args = options.ignoreScripts
     ? RUNTIME_NPM_INSTALL_ARGS_IGNORE_SCRIPTS
     : RUNTIME_NPM_INSTALL_ARGS;
-  run(npm, args, { cwd: releaseDir, stdio: "inherit" });
+  const invocation = options.npm
+    ? { command: options.npm, args: [...args], shell: false }
+    : npmInvocation(args, options.npmResolution);
+  run(invocation.command, invocation.args, {
+    cwd: releaseDir,
+    stdio: "inherit",
+    ...(invocation.shell ? { shell: true } : {}),
+  });
 }
 
 /**
@@ -144,10 +161,14 @@ export function installServerRelease(options) {
   return { releaseDir: options.releaseDir, overlayApplied };
 }
 
-/** Point `<prefix>/current` at a release directory (relative symlink). */
-export function writeCurrentSymlink(prefix, releaseDir) {
+/**
+ * Point `<prefix>/current` at a release directory: a relative symlink on POSIX,
+ * a junction on Windows (no symlink privilege required). The old link is
+ * removed first; removal and creation ride out transient Windows file locks.
+ */
+export function writeCurrentSymlink(prefix, releaseDir, options = {}) {
   const current = join(prefix, "current");
-  rmSync(current, { force: true });
-  const target = relative(prefix, releaseDir) || ".";
-  symlinkSync(target, current, "dir");
+  const retry = options.retry ?? {};
+  retryTransientFsSync(() => removeDirectoryLink(current, options), retry);
+  retryTransientFsSync(() => writeDirectoryLink(current, releaseDir, options), retry);
 }

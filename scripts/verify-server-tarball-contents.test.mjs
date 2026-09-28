@@ -6,7 +6,10 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { verifyServerTarballContents } from "./verify-server-tarball-contents.mjs";
+import {
+  requiredServerTarballMembers,
+  verifyServerTarballContents,
+} from "./verify-server-tarball-contents.mjs";
 
 const execFileAsync = promisify(execFile);
 
@@ -92,5 +95,50 @@ void test("tarball verification follows host and cross-target overlay manifest p
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+void test("required members include nested Windows overlay names as /-separated paths", async () => {
+  const overlay = await mkdtemp(join(tmpdir(), "poracode-tarball-win-members-"));
+  try {
+    await mkdir(join(overlay, "node-pty"), { recursive: true });
+    await mkdir(join(overlay, "better-sqlite3"), { recursive: true });
+    await writeFile(
+      join(overlay, "node-pty", "overlay.json"),
+      JSON.stringify({
+        formatVersion: 2,
+        targets: [
+          {
+            platform: "win32",
+            arch: "x64",
+            dir: "win32-x64",
+            overlayTarget: "node_modules/node-pty/prebuilds/win32-x64",
+            stagedSha256: {
+              "conpty.node": "a",
+              "conpty/conpty.dll": "b",
+              "conpty/OpenConsole.exe": "c",
+            },
+          },
+        ],
+      }),
+    );
+    await writeFile(
+      join(overlay, "better-sqlite3", "overlay.json"),
+      JSON.stringify({
+        formatVersion: 1,
+        targets: [{ dir: "win32-x64", file: "better-sqlite3/win32-x64.node" }],
+      }),
+    );
+    const required = requiredServerTarballMembers(overlay, ["win32-x64"]);
+    for (const member of [
+      "native-overlay/node-pty/win32-x64/conpty.node",
+      "native-overlay/node-pty/win32-x64/conpty/conpty.dll",
+      "native-overlay/node-pty/win32-x64/conpty/OpenConsole.exe",
+      "native-overlay/better-sqlite3/win32-x64.node",
+    ]) {
+      assert.ok(required.includes(member), `${member} must be required`);
+    }
+  } finally {
+    await rm(overlay, { recursive: true, force: true });
   }
 });

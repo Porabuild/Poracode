@@ -33,6 +33,12 @@ import {
   writeStagePackageJson,
 } from "./runtime-closure.mjs";
 import { writeServerArtifactMetadata } from "./server-artifact-metadata.mjs";
+import { resolveTar, tarCommand } from "./server-host-tools.mjs";
+import {
+  assertWindowsPortableMembers,
+  listStagedMembers,
+  longestMemberPath,
+} from "./server-tarball-members.mjs";
 import {
   overlayTargets,
   readBetterSqlite3Overlay,
@@ -279,8 +285,12 @@ export function assembleServerTarball(options = {}) {
     join(repoRoot, "scripts", "server-release-install.mjs"),
     join(stage, "scripts", "server-release-install.mjs"),
   );
+  cpSync(
+    join(repoRoot, "scripts", "server-host-tools.mjs"),
+    join(stage, "scripts", "server-host-tools.mjs"),
+  );
   // The target-host recipe must run from the verified artifact alone: ship the
-  // thin prefix installer (its two imports above are its full module closure)
+  // thin prefix installer (its imports above are its full module closure)
   // and the systemd unit at their documented artifact paths.
   cpSync(
     join(repoRoot, "scripts", "install-server-prefix.mjs"),
@@ -314,10 +324,14 @@ export function assembleServerTarball(options = {}) {
   }
 
   assertNoLinkEntries(stage);
+  const stagedMembers = listStagedMembers(stage);
+  assertWindowsPortableMembers(stage, stagedMembers);
   mkdirSync(outDir, { recursive: true });
   const tarballName = `poracode-server-${rootPackage.version}-${process.platform}-${process.arch}.tar.gz`;
   const tarballPath = join(outDir, tarballName);
-  execFileSync("tar", ["-czf", tarballPath, "-C", stage, "."], { stdio: "pipe" });
+  execFileSync(...tarCommand(resolveTar(), ["-czf", tarballPath, "-C", stage, "."]), {
+    stdio: "pipe",
+  });
   const tarballBytes = readFileSync(tarballPath);
   const sha256 = createHash("sha256").update(tarballBytes).digest("hex");
   writeFileSync(join(outDir, `${tarballName}.sha256`), `${sha256}  ${tarballName}\n`);
@@ -331,6 +345,7 @@ export function assembleServerTarball(options = {}) {
     "native-overlay/better-sqlite3/overlay.json",
     "scripts/install-server-prefix.mjs",
     "scripts/server-release-install.mjs",
+    "scripts/server-host-tools.mjs",
     "scripts/server-native-overlay.mjs",
     "packaging/systemd/poracode-server.service",
   ].filter((path) => existsSync(join(stage, path)));
@@ -342,6 +357,9 @@ export function assembleServerTarball(options = {}) {
     platform: runtimePlatformKey(),
     arch: process.arch,
     targets,
+    // Additive metadata (no format bump): the deepest member, so a Windows
+    // install can preflight `prefix + longestMemberPath` against MAX_PATH.
+    longestMemberPath: longestMemberPath(stagedMembers),
     node: {
       minimum: rootPackage.engines?.node ?? null,
       packaging: process.versions.node,

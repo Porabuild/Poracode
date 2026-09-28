@@ -17,27 +17,26 @@
  * agree on its verified bytes. Crashed staging directories are swept when
  * their recorded pid is gone.
  */
-import { randomUUID } from "node:crypto";
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  renameSync,
-  rmdirSync,
-  rmSync,
-  statSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { extractArchiveMembers, validateRuntimeArchive } from "./archive.mjs";
 import { downloadArtifact, sha256File, stageLocalArtifact } from "./artifact.mjs";
 import { acquireInstallLock, readReadyMarker, writeReadyMarker } from "./cache.mjs";
 import { cacheTampered, cacheUnreadable, installCancelled } from "./errors.mjs";
+import { renameWithRetry, scratchId } from "./hostTools.mjs";
 
 const SHARED_INSTALL_SCRIPTS = [
   "scripts/server-release-install.mjs",
+  "scripts/server-host-tools.mjs",
   "scripts/server-native-overlay.mjs",
 ];
+
+/**
+ * Windows holds directory handles briefly after a process exits (antivirus,
+ * indexers), so recursive removal retries transient EBUSY/EPERM/ENOTEMPTY.
+ */
+const REMOVE_OPTIONS = { recursive: true, force: true, maxRetries: 10, retryDelay: 100 };
 
 /** Lock failures that only cost the duplicate-work optimization, never safety. */
 const LOCK_DEGRADE_CODES = new Set([
@@ -46,7 +45,7 @@ const LOCK_DEGRADE_CODES = new Set([
 ]);
 
 /** Rename failures that mean the destination already exists (or cannot be replaced). */
-const PROMOTION_BUSY_CODES = new Set(["ENOTEMPTY", "EEXIST", "EPERM", "ENOENT"]);
+const PROMOTION_BUSY_CODES = new Set(["ENOTEMPTY", "EEXIST", "EPERM", "EBUSY", "ENOENT"]);
 
 export function runtimeDirectory(cacheRoot, version, target) {
   return join(cacheRoot, version, target);
@@ -72,6 +71,8 @@ function assertReusable(runtimeDir, ready, entry, version, target) {
   return runtimeDir;
 }
 
+const SHORT_STAGING_PREFIX = ".s-";
+
 function pidIsAlive(pid) {
   try {
     process.kill(pid, 0);
@@ -87,8 +88,11 @@ function pidIsAlive(pid) {
  * are touched, so a concurrent live install (however it acquired its lock) is
  * never disturbed.
  */
-function sweepOrphanStaging(cacheRoot, version, target) {
-  const prefix = `.staging-${version}-${target}-`;
+export function sweepOrphanStaging(cacheRoot, version, target) {
+  // `.staging-…` is the POSIX (and pre-Windows) name; `.s-…` is the short
+  // Windows name. Both are swept everywhere so a cache moved between hosts or
+  // upgraded across generations never keeps crash leftovers.
+  const prefixes = [`.staging-${version}-${target}-`, SHORT_STAGING_PREFIX];
   let entries;
   try {
     entries = readdirSync(cacheRoot);
@@ -96,11 +100,24 @@ function sweepOrphanStaging(cacheRoot, version, target) {
     return;
   }
   for (const name of entries) {
-    if (!name.startsWith(prefix)) continue;
+    const prefix = prefixes.find((candidate) => name.startsWith(candidate));
+    if (prefix === undefined) continue;
     const pid = Number.parseInt(name.slice(prefix.length).split("-")[0], 10);
     if (!Number.isSafeInteger(pid) || pid <= 0 || pidIsAlive(pid)) continue;
-    rmSync(join(cacheRoot, name), { recursive: true, force: true });
+    rmSync(join(cacheRoot, name), REMOVE_OPTIONS);
   }
+}
+
+/**
+ * Private staging directory name. Windows uses `.s-<pid>-<8hex>` because the
+ * runtime tree nests `node_modules` deeply and the default `.staging-<version>-
+ * <target>-<pid>-<uuid>` prefix alone can consume ~100 characters of MAX_PATH.
+ */
+export function stagingDirectoryName({ version, target, pid = process.pid, platform }) {
+  const effective = platform ?? process.platform;
+  return effective === "win32"
+    ? `${SHORT_STAGING_PREFIX}${pid}-${scratchId("win32")}`
+    : `.staging-${version}-${target}-${pid}-${scratchId(effective)}`;
 }
 
 /** `rmdir`, never `rm -r`: it can only remove a directory that has no content. */
@@ -122,11 +139,14 @@ function removeEmptyDirectory(directory) {
  * promotion retried once. Markerless, corrupt, or unknown-generation content
  * is refused byte-for-byte, never replaced.
  */
-function publishRuntime(runtimeDir, installedDir, entry, version, target) {
+export function publishRuntime(runtimeDir, installedDir, entry, version, target, io = {}) {
   mkdirSync(dirname(runtimeDir), { recursive: true });
   for (let attempt = 0; ; attempt += 1) {
     try {
-      renameSync(installedDir, runtimeDir);
+      // Antivirus/indexers can make the rename fail with EBUSY/EPERM/EACCES
+      // for a few hundred ms while the destination is still absent; only that
+      // case is retried. A present destination goes straight to adoption.
+      renameWithRetry(installedDir, runtimeDir, io);
       return runtimeDir;
     } catch (error) {
       if (!PROMOTION_BUSY_CODES.has(error?.code)) throw error;
@@ -203,10 +223,7 @@ export async function ensureRuntime(input) {
     if (afterLock) return assertReusable(runtimeDir, afterLock, entry, version, target);
     sweepOrphanStaging(cacheRoot, version, target);
 
-    const stagingRoot = join(
-      cacheRoot,
-      `.staging-${version}-${target}-${process.pid}-${randomUUID()}`,
-    );
+    const stagingRoot = join(cacheRoot, stagingDirectoryName({ version, target }));
     mkdirSync(stagingRoot, { recursive: false });
     try {
       const tarballPath = join(stagingRoot, "runtime.tar.gz");
@@ -276,7 +293,7 @@ export async function ensureRuntime(input) {
       });
       publishRuntime(runtimeDir, installedDir, entry, version, target);
     } finally {
-      rmSync(stagingRoot, { recursive: true, force: true });
+      rmSync(stagingRoot, REMOVE_OPTIONS);
     }
   } finally {
     releaseLock();

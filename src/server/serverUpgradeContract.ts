@@ -3,6 +3,7 @@ import type { HostControlStatusResult } from "@/shared/hostControlProtocol";
 import type { RunningOwnerProbe } from "./serverUpgradeIdentity";
 import type { CandidateMigrationPolicy } from "./serverUpgradeMigrationPolicy";
 import type { ServerServiceTarget } from "./serverUpgradeRestart";
+import { defaultServerPrefix } from "./serverDefaultPrefix";
 
 /**
  * D4 upgrade contract shared by the orchestration, the recovery entry points
@@ -34,7 +35,7 @@ export interface UpgradeCliOptions {
 
 export function parseUpgradeCliOptions(args: readonly string[]): UpgradeCliOptions {
   let from: string | undefined;
-  let prefix = "/opt/poracode";
+  let prefix = defaultServerPrefix();
   let json = false;
   let resume = false;
   let abandonJournal = false;

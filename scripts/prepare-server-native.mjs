@@ -5,6 +5,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { runtimePlatformKey } from "./server-native-overlay.mjs";
+import {
+  assertConptyLoadable,
+  bindingMarker,
+  listWin32PrebuildFiles,
+} from "./server-native-win32.mjs";
 
 const require = createRequire(import.meta.url);
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,6 +32,9 @@ const platformKey = runtimePlatformKey();
 /** V6 D.2 machine shapes carried in addition to the packaging host's own. */
 export const CROSS_TARGETS = ["linux-x64", "linux-arm64", "linuxmusl-x64", "linuxmusl-arm64"];
 
+/** Windows machine shapes; node-pty and better-sqlite3 publish both prebuilds. */
+export const WIN32_TARGETS = ["win32-x64", "win32-arm64"];
+
 /** The packaging host's own `platform-arch` key (docs/STANDALONE_SERVER.md §3.4). */
 export function hostPlatformKey() {
   return platformKey;
@@ -40,12 +48,13 @@ export function hostPlatformKey() {
  * (and vice versa on an Intel runner). The host's own shape is always staged
  * as the host binding, so it never appears here: listing it again would
  * duplicate the overlay entry and demand a `prebuilds/<host>.node` file no
- * cross source provides. Windows desktop packaging never builds a standalone
- * server artifact.
+ * cross source provides. Windows hosts stage the other Windows arch from the
+ * modules' own published prebuilds.
  */
 export function crossTargetsForHost(platform = platformKey, arch = process.arch) {
   const hostTarget = `${platform}-${arch}`;
   if (platform === "darwin") return ["darwin-arm64", "darwin-x64"].filter((t) => t !== hostTarget);
+  if (platform === "win32") return WIN32_TARGETS.filter((t) => t !== hostTarget);
   return CROSS_TARGETS.filter((t) => t !== hostTarget);
 }
 
@@ -240,16 +249,27 @@ async function stageNodePty(requiredTargets) {
   };
 
   const stageFrom = (target, sourceDir) => {
-    const binding = join(sourceDir, "pty.node");
+    const targetPlatform = target.split("-")[0];
+    const binding = join(sourceDir, bindingMarker(targetPlatform));
     if (!existsSync(binding)) return false;
     const stagedDir = join(outputDir, "node-pty", target);
     mkdirSync(stagedDir, { recursive: true });
-    copyFileSync(binding, join(stagedDir, "pty.node"));
-    const files = ["pty.node"];
-    const spawnHelper = join(sourceDir, "spawn-helper");
-    if (existsSync(spawnHelper)) {
-      copyFileSync(spawnHelper, join(stagedDir, "spawn-helper"));
-      files.push("spawn-helper");
+    const files = [];
+    if (targetPlatform === "win32") {
+      // The ConPTY prebuild is a tree (nested conpty/ dir); stage it whole.
+      for (const name of listWin32PrebuildFiles(sourceDir)) {
+        mkdirSync(dirname(join(stagedDir, name)), { recursive: true });
+        copyFileSync(join(sourceDir, name), join(stagedDir, name));
+        files.push(name);
+      }
+    } else {
+      copyFileSync(binding, join(stagedDir, "pty.node"));
+      files.push("pty.node");
+      const spawnHelper = join(sourceDir, "spawn-helper");
+      if (existsSync(spawnHelper)) {
+        copyFileSync(spawnHelper, join(stagedDir, "spawn-helper"));
+        files.push("spawn-helper");
+      }
     }
     staged(target, files);
     console.log(`[poracode-server] staged node-pty ${version} ${target}: ${stagedDir}`);
@@ -278,22 +298,25 @@ async function stageNodePty(requiredTargets) {
   // Host target first: required, and load-validated like ensure-native-deps.
   const hostPrebuildDir = join(nodePtyRoot, "prebuilds", hostTarget);
   const hostBuiltDir = join(nodePtyRoot, "build", "Release");
-  if (
-    !existsSync(join(hostPrebuildDir, "pty.node")) &&
-    !existsSync(join(hostBuiltDir, "pty.node"))
-  ) {
+  const hostMarker = bindingMarker(platformKey);
+  // Windows stages the published prebuild tree only: a node-gyp build/Release
+  // directory holds intermediates that must never ride into the overlay.
+  const hostSourceDirs =
+    platformKey === "win32" ? [hostPrebuildDir] : [hostPrebuildDir, hostBuiltDir];
+  const hostSourceDir = hostSourceDirs.find((dir) => existsSync(join(dir, hostMarker)));
+  if (!hostSourceDir) {
     throw new Error(
       `[poracode-server] node-pty binding not found for ${hostTarget} ` +
-        `(checked ${join(hostPrebuildDir, "pty.node")} and ${join(hostBuiltDir, "pty.node")}). ` +
+        `(checked ${hostSourceDirs.map((dir) => join(dir, hostMarker)).join(" and ")}). ` +
         "Install dependencies with native builds approved (`pnpm approve-builds`), or provide " +
         "the platform prebuild.",
     );
   }
-  require("node-pty"); // A binding the host runtime cannot load must not be staged.
-  stageFrom(
-    hostTarget,
-    existsSync(join(hostPrebuildDir, "pty.node")) ? hostPrebuildDir : hostBuiltDir,
-  );
+  // A binding the host runtime cannot load must not be staged. node-pty's own
+  // loader leaves the native module null on Windows, so load conpty.node there.
+  if (platformKey === "win32") assertConptyLoadable({ sourceDir: hostSourceDir });
+  else require("node-pty");
+  stageFrom(hostTarget, hostSourceDir);
 
   // Cross targets: optional unless --require-target names them. Candidate
   // order matches the documented contract: the module's own published
@@ -302,17 +325,19 @@ async function stageNodePty(requiredTargets) {
   if (
     platformKey.toString().startsWith("linux") ||
     platformKey === "darwin" ||
+    platformKey === "win32" ||
     crossSourcesConfigured()
   ) {
     for (const target of crossTargetsForHost(platformKey, process.arch)) {
       if (target === hostTarget || stagedTargets.some((entry) => entry.dir === target)) continue;
       const publishedPrebuild = join(nodePtyRoot, "prebuilds", target);
-      if (existsSync(join(publishedPrebuild, "pty.node"))) {
+      const marker = bindingMarker(target.split("-")[0]);
+      if (existsSync(join(publishedPrebuild, marker))) {
         stageFrom(target, publishedPrebuild);
         continue;
       }
       const crossSource = join(crossBindingsDir(), target);
-      if (existsSync(join(crossSource, "pty.node"))) {
+      if (existsSync(join(crossSource, marker))) {
         stageFrom(target, crossSource);
         continue;
       }

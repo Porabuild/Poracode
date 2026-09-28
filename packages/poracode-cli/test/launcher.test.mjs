@@ -82,7 +82,11 @@ function buildRuntimeTarball(root, options = {}) {
   );
   writeFileSync(join(stage, "lib", "server.cjs"), options.serverSource ?? STUB_SERVER);
   writeFileSync(join(stage, "resources", "wsl-helpers", "README.md"), "helpers\n");
-  for (const script of ["server-release-install.mjs", "server-native-overlay.mjs"]) {
+  for (const script of [
+    "server-release-install.mjs",
+    "server-host-tools.mjs",
+    "server-native-overlay.mjs",
+  ]) {
     cpSync(join(repoRoot, "scripts", script), join(stage, "scripts", script));
   }
   const tarball = join(root, "runtime.tar.gz");
@@ -1037,6 +1041,10 @@ void test("a member missing from the archive fails closed before any extraction"
     join(repoRoot, "scripts", "server-release-install.mjs"),
     join(stage, "scripts", "server-release-install.mjs"),
   );
+  cpSync(
+    join(repoRoot, "scripts", "server-host-tools.mjs"),
+    join(stage, "scripts", "server-host-tools.mjs"),
+  );
   writeFileSync(join(stage, "lib", "server.cjs"), STUB_SERVER);
   writeFileSync(join(stage, "package.json"), "{}\n");
   const tarball = join(root, "runtime.tar.gz");
@@ -1079,7 +1087,11 @@ void test("member extraction reuses the validated listing instead of listing the
   extractArchiveMembers({
     tarball,
     destination,
-    members: ["scripts/server-release-install.mjs", "scripts/server-native-overlay.mjs"],
+    members: [
+      "scripts/server-release-install.mjs",
+      "scripts/server-host-tools.mjs",
+      "scripts/server-native-overlay.mjs",
+    ],
     names,
     run: countingRun,
   });

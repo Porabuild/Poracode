@@ -10,11 +10,12 @@
 import { realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { defaultServerPrefix } from "./server-host-tools.mjs";
 import { installServerRelease, writeCurrentSymlink } from "./server-release-install.mjs";
 
 function parseArgs(argv) {
   let tarball;
-  let prefix = "/opt/poracode";
+  let prefix = defaultServerPrefix();
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--tarball") tarball = resolve(argv[++index]);
