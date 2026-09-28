@@ -18,6 +18,7 @@ import type {
   HostDescription,
 } from "@/shared/hostControlProtocol";
 import { probeLeaseKernelLock } from "./serverDoctorIo";
+import { requestOwnerShutdown } from "./ownerShutdown";
 import {
   resolveOptionalServerInstallLayout,
   type ServerInstallLayout,
@@ -274,6 +275,10 @@ export async function stopRunningOwner(
     readonly timeoutMs?: number;
     readonly now?: () => number;
     readonly sleep?: (ms: number) => Promise<void>;
+    /** Test seams; default to `process.platform` and the authenticated host-control call. */
+    readonly platform?: NodeJS.Platform;
+    readonly requestShutdown?: typeof requestOwnerShutdown;
+    readonly kill?: (pid: number, signal: NodeJS.Signals) => void;
   } = {},
 ): Promise<void> {
   const paths = probe.paths;
@@ -295,8 +300,21 @@ export async function stopRunningOwner(
     throw new RunningOwnerUnreachableError(
       "The recorded owner PID was reused by an unrelated process; refusing to signal it.",
     );
+  // Windows kill() is TerminateProcess (no drain, no stopped record, no
+  // checkpoint), so the authenticated graceful operation goes first there. An
+  // owner that predates it, or a failed request, falls back to the signal.
+  let graceful = false;
+  if ((options.platform ?? process.platform) === "win32") {
+    try {
+      graceful =
+        (await (options.requestShutdown ?? requestOwnerShutdown)(paths, current.generation)) ===
+        "accepted";
+    } catch {
+      graceful = false;
+    }
+  }
   try {
-    process.kill(current.pid, "SIGTERM");
+    if (!graceful) (options.kill ?? process.kill.bind(process))(current.pid, "SIGTERM");
   } catch (error) {
     if (!(error !== null && typeof error === "object" && "code" in error && error.code === "ESRCH"))
       throw new RunningOwnerUnreachableError(

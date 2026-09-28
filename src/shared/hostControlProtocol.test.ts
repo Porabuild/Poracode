@@ -178,6 +178,36 @@ describe("owner management contract", () => {
       build,
     };
 
+    it("accepts the additive shutdown operation under version 2 with an empty payload only", () => {
+      expect(
+        hostControlRequestSchema.parse({ ...request, operation: "shutdown", payload: {} }),
+      ).toMatchObject({ operation: "shutdown", payload: {} });
+      expect(
+        hostControlRequestSchema.safeParse({
+          ...request,
+          operation: "shutdown",
+          payload: { force: true },
+        }).success,
+      ).toBe(false);
+      expect(
+        hostControlRequestSchema.safeParse({
+          ...request,
+          version: 1,
+          operation: "shutdown",
+          payload: {},
+        }).success,
+      ).toBe(false);
+      expect(
+        hostControlReplySchema.parse({
+          version: HOST_CONTROL_PROTOCOL_VERSION,
+          requestId: request.requestId,
+          ownerGeneration: request.ownerGeneration,
+          ok: true,
+          result: { accepted: true },
+        }),
+      ).toMatchObject({ ok: true, result: { accepted: true } });
+    });
+
     it("accepts the additive status and admit operations under version 2", () => {
       expect(
         hostControlRequestSchema.parse({ ...request, operation: "status", payload: {} }),

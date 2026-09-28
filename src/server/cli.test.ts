@@ -36,6 +36,11 @@ describe("parseServerCliCommand", () => {
     expect(parseServerCliCommand(["status", "--json"])).toBe("status-json");
   });
 
+  it("recognizes the authenticated graceful stop command and rejects extra arguments", () => {
+    expect(parseServerCliCommand(["stop"])).toBe("stop");
+    expect(() => parseServerCliCommand(["stop", "--force"])).toThrow("stop");
+  });
+
   it("recognizes the staged-import activation command", () => {
     expect(parseServerCliCommand(["activate"])).toBe("activate");
     expect(parseServerCliCommand(["activate", "--json"])).toBe("activate");

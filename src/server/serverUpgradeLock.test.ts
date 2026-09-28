@@ -1,8 +1,16 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import {
+  existsSync,
+  linkSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   acquireServerUpgradeLock,
   isServerUpgradeLockHolderAlive,
@@ -12,6 +20,7 @@ import {
   ServerUpgradeBusyError,
   ServerUpgradeLockLostError,
   ServerUpgradeLockUnreadableError,
+  type ServerUpgradeLockFsOps,
   type ServerUpgradeLockRecord,
 } from "./serverUpgradeLock";
 
@@ -150,5 +159,147 @@ describe("server upgrade lock (D4)", () => {
     expect(isServerUpgradeLockHolderAlive(live, () => "not-our-identity")).toBe(true);
     expect(isServerUpgradeLockHolderAlive(live, () => "different")).toBe(false);
     expect(isServerUpgradeLockHolderAlive(record({ pid: 999_999_999 }), () => null)).toBe(false);
+  });
+});
+
+function codeError(code: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(code), { code });
+}
+
+describe("win32 process identity", () => {
+  it("reads the process start ticks through PowerShell without wmic", () => {
+    const run = vi.fn<() => string>(() => "638912345678901234\r\n");
+    expect(readProcessIdentity(4321, { platform: "win32", run })).toBe("win32:638912345678901234");
+    expect(run).toHaveBeenCalledExactlyOnceWith(
+      "powershell.exe",
+      ["-NoProfile", "-Command", "(Get-Process -Id 4321).StartTime.ToUniversalTime().Ticks"],
+      5_000,
+    );
+  });
+
+  it("returns null on failure, timeout or malformed output (conservative)", () => {
+    const failing = () => {
+      throw codeError("ETIMEDOUT");
+    };
+    expect(readProcessIdentity(4321, { platform: "win32", run: failing })).toBeNull();
+    expect(readProcessIdentity(4321, { platform: "win32", run: () => "not ticks" })).toBeNull();
+    expect(readProcessIdentity(4321, { platform: "win32", run: () => "" })).toBeNull();
+    // A live holder with an unreadable identity is still treated as live.
+    expect(
+      isServerUpgradeLockHolderAlive(record({ pid: process.pid, processIdentity: "win32:1" }), () =>
+        readProcessIdentity(process.pid, { platform: "win32", run: failing }),
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects invalid PIDs without running anything", () => {
+    const run = vi.fn<() => string>(() => "1");
+    expect(readProcessIdentity(0, { platform: "win32", run })).toBeNull();
+    expect(run).not.toHaveBeenCalled();
+  });
+});
+
+describe("lock file portability", () => {
+  const passthrough = (
+    overrides: Partial<ServerUpgradeLockFsOps>,
+  ): Partial<ServerUpgradeLockFsOps> => ({
+    sleep: () => undefined,
+    ...overrides,
+  });
+
+  it("records the OS hostname", () => {
+    const lock = acquireServerUpgradeLock({ prefix: sandbox(), releaseId: "r" });
+    expect(lock.record.hostname).toBe(hostname());
+    lock.release();
+  });
+
+  it("falls back to exclusive creation when hard links are unavailable", () => {
+    const prefix = sandbox();
+    const link = vi.fn<() => void>(() => {
+      throw codeError("EPERM");
+    });
+    const lock = acquireServerUpgradeLock({
+      prefix,
+      releaseId: "release-fallback",
+      fsOps: passthrough({ link }),
+    });
+    expect(link).toHaveBeenCalled();
+    expect(readServerUpgradeLockRecord(prefix)?.token).toBe(lock.record.token);
+    lock.assertHeld();
+    lock.release();
+    expect(existsSync(serverUpgradeLockPath(prefix))).toBe(false);
+  });
+
+  it("still reports busy when the fallback finds an existing lock", () => {
+    const prefix = sandbox();
+    const holder = liveChild();
+    return waitForPid(holder).then((pid) => {
+      writeFileSync(
+        serverUpgradeLockPath(prefix),
+        `${JSON.stringify(record({ pid, processIdentity: null }))}\n`,
+      );
+      expect(() =>
+        acquireServerUpgradeLock({
+          prefix,
+          releaseId: "r",
+          fsOps: passthrough({
+            link: () => {
+              throw codeError("EPERM");
+            },
+          }),
+        }),
+      ).toThrow(ServerUpgradeBusyError);
+    });
+  });
+
+  it("does not mask an unrelated link failure with the fallback", () => {
+    expect(() =>
+      acquireServerUpgradeLock({
+        prefix: sandbox(),
+        releaseId: "r",
+        fsOps: passthrough({
+          link: () => {
+            throw codeError("ENOSPC");
+          },
+        }),
+      }),
+    ).toThrow("ENOSPC");
+  });
+
+  it("retries a transient unlink failure on release and stale takeover rename", () => {
+    const prefix = sandbox();
+    writeFileSync(serverUpgradeLockPath(prefix), `${JSON.stringify(record({}))}\n`);
+    let renameFailures = 2;
+    let unlinkFailures = 2;
+    const rename = vi.fn<(from: string, to: string) => void>((from, to) => {
+      if (renameFailures-- > 0) throw codeError("EBUSY");
+      renameSync(from, to);
+    });
+    const unlink = vi.fn<(path: string) => void>((path) => {
+      if (path.endsWith("upgrade.lock") && unlinkFailures-- > 0) throw codeError("EACCES");
+      rmSync(path, { force: true });
+    });
+    const sleep = vi.fn<(ms: number) => void>();
+    const lock = acquireServerUpgradeLock({
+      prefix,
+      releaseId: "r",
+      fsOps: { rename, unlink, sleep, link: linkSync },
+    });
+    expect(rename).toHaveBeenCalledTimes(3);
+    lock.release();
+    expect(existsSync(serverUpgradeLockPath(prefix))).toBe(false);
+    expect(sleep).toHaveBeenCalledTimes(4);
+  });
+
+  it("gives up after a bounded number of transient failures and leaves other codes alone", () => {
+    const prefix = sandbox();
+    writeFileSync(serverUpgradeLockPath(prefix), `${JSON.stringify(record({}))}\n`);
+    const rename = vi.fn<() => void>(() => {
+      throw codeError("EPERM");
+    });
+    expect(() =>
+      acquireServerUpgradeLock({ prefix, releaseId: "r", fsOps: passthrough({ rename }) }),
+    ).toThrow("EPERM");
+    expect(rename).toHaveBeenCalledTimes(6);
   });
 });

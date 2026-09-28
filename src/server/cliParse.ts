@@ -10,6 +10,7 @@ export type ServerCliCommand =
   | "backup"
   | "init-tls"
   | "upgrade"
+  | "stop"
   | "version"
   | "help";
 
@@ -121,6 +122,7 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
     parseInitTlsCliOptions(args.slice(1));
     return "init-tls";
   }
+  if (args.length === 1 && args[0] === "stop") return "stop";
   if (args[0] === "upgrade") {
     parseUpgradeCliOptions(args.slice(1));
     return "upgrade";
@@ -130,7 +132,7 @@ export function parseServerCliCommand(args: readonly string[]): ServerCliCommand
       "activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | " +
       "backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | " +
       "upgrade (--from <tarball> | --resume [--from <tarball>] | --abandon-journal --confirm) [--prefix <path>] [--json] | " +
-      "pair --json [--scope viewer|operator] | status --json | --version | --help]",
+      "pair --json [--scope viewer|operator] | status --json | stop | --version | --help]",
   );
 }
 

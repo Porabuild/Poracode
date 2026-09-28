@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HostControlServer } from "@/backend/ownership/HostControlServer";
 import { publishHostControlDiscovery } from "@/backend/ownership/hostControlDiscovery";
 import { createHostControlResponseProof } from "@/backend/ownership/hostControlAuth";
@@ -12,6 +12,7 @@ import { prepareOwnedHostRoot } from "@/backend/ownership/hostRootManifest";
 import { resolveHostRootPaths, type HostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { readBoundedNodeRequestBody } from "@/shared/http";
 import { hostControlRequestSchema } from "@/shared/hostControlProtocol";
+import { requestOwnerShutdown } from "./ownerShutdown";
 import {
   probeRunningOwner,
   readReleaseBuildIdentity,
@@ -38,7 +39,11 @@ const BUILD = {
 };
 
 async function ownerFixture(
-  options: { kind?: "headless" | "desktop"; withStatus?: boolean } = {},
+  options: {
+    kind?: "headless" | "desktop";
+    withStatus?: boolean;
+    shutdown?: () => void;
+  } = {},
 ): Promise<{ paths: HostRootPaths; lease: HostOwnerLease }> {
   const root = realpathSync.native(mkdtempSync(join(tmpdir(), "poracode-upgrade-identity-")));
   const paths = resolveHostRootPaths(join(root, "profile"));
@@ -72,6 +77,7 @@ async function ownerFixture(
           }),
         }),
     issuePairing: () => "https://fixture.test/pair#token=fixture",
+    ...(options.shutdown ? { shutdown: options.shutdown } : {}),
   });
   await control.start();
   cleanups.push(async () => {
@@ -297,5 +303,115 @@ describe("release build identity (D4)", () => {
     const identity = readReleaseBuildIdentity(release);
     expect(identity.layoutKind).toBeNull();
     expect(identity.version).toBeNull();
+  });
+});
+
+describe("stopRunningOwner graceful path", () => {
+  function probeFor(fixtureOwner: {
+    paths: HostRootPaths;
+    lease: HostOwnerLease;
+  }): RunningOwnerProbe {
+    return {
+      paths: fixtureOwner.paths,
+      generation: fixtureOwner.lease.generation,
+      pid: process.pid,
+      processIdentity: null,
+      kind: "headless",
+      phase: "ready",
+      description: {} as RunningOwnerProbe["description"],
+      status: null,
+    };
+  }
+
+  it("on win32 asks the owner to drain and never signals the PID", async () => {
+    const owner = await ownerFixture();
+    const kill = vi.fn<(pid: number, signal: NodeJS.Signals) => void>();
+    const requestShutdown = vi.fn<typeof requestOwnerShutdown>(async () => {
+      owner.lease.release();
+      return "accepted" as const;
+    });
+    await stopRunningOwner(probeFor(owner), {
+      platform: "win32",
+      requestShutdown,
+      kill,
+      sleep: async () => undefined,
+    });
+    expect(requestShutdown).toHaveBeenCalledExactlyOnceWith(owner.paths, owner.lease.generation);
+    expect(kill).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an owner that predates shutdown", async () => "unsupported" as const],
+    [
+      "a failed request",
+      async (): Promise<"accepted"> => {
+        throw new Error("unreachable");
+      },
+    ],
+  ])("on win32 falls back to the signal for %s", async (_name, requestShutdown) => {
+    const owner = await ownerFixture();
+    const kill = vi.fn<(pid: number, signal: NodeJS.Signals) => void>(() => owner.lease.release());
+    await stopRunningOwner(probeFor(owner), {
+      platform: "win32",
+      requestShutdown,
+      kill,
+      sleep: async () => undefined,
+    });
+    expect(kill).toHaveBeenCalledExactlyOnceWith(process.pid, "SIGTERM");
+  });
+
+  it("keeps SIGTERM on POSIX without calling the graceful operation", async () => {
+    const owner = await ownerFixture();
+    const kill = vi.fn<(pid: number, signal: NodeJS.Signals) => void>(() => owner.lease.release());
+    const requestShutdown = vi.fn<typeof requestOwnerShutdown>();
+    await stopRunningOwner(probeFor(owner), {
+      platform: "linux",
+      requestShutdown,
+      kill,
+      sleep: async () => undefined,
+    });
+    expect(requestShutdown).not.toHaveBeenCalled();
+    expect(kill).toHaveBeenCalledExactlyOnceWith(process.pid, "SIGTERM");
+  });
+
+  it("checks process identity before any graceful request", async () => {
+    const owner = await ownerFixture();
+    const requestShutdown = vi.fn<typeof requestOwnerShutdown>();
+    await expect(
+      stopRunningOwner(
+        { ...probeFor(owner), processIdentity: "identity-that-cannot-match" },
+        {
+          platform: "win32",
+          requestShutdown,
+          kill: vi.fn<(pid: number, signal: NodeJS.Signals) => void>(),
+        },
+      ),
+    ).rejects.toBeInstanceOf(RunningOwnerUnreachableError);
+    expect(requestShutdown).not.toHaveBeenCalled();
+  });
+});
+
+describe("requestOwnerShutdown against a live control server", () => {
+  it("is accepted by an owner that composes shutdown and drains after the reply", async () => {
+    const started = Promise.withResolvers<void>();
+    const owner = await ownerFixture({ shutdown: () => started.resolve() });
+    await expect(requestOwnerShutdown(owner.paths, owner.lease.generation)).resolves.toBe(
+      "accepted",
+    );
+    await started.promise;
+  });
+
+  it("classifies an owner that predates shutdown as unsupported after authenticating it", async () => {
+    const owner = await ownerFixture();
+    await expect(requestOwnerShutdown(owner.paths, owner.lease.generation)).resolves.toBe(
+      "unsupported",
+    );
+  });
+
+  it("refuses to ask a different generation to stop", async () => {
+    const owner = await ownerFixture({ shutdown: vi.fn<() => void>() });
+    await expect(requestOwnerShutdown(owner.paths, randomUUID())).rejects.toThrow(
+      "generation changed",
+    );
   });
 });

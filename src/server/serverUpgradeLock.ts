@@ -1,14 +1,17 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
+  closeSync,
   linkSync,
   mkdirSync,
+  openSync,
   readFileSync,
   renameSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
+import { hostname as osHostname } from "node:os";
 import { join } from "node:path";
 
 /**
@@ -104,9 +107,42 @@ export function isPidAlive(pid: number): boolean {
  * permissions cannot report one; callers must then treat a live PID as the
  * holder (conservative, never steal).
  */
-export function readProcessIdentity(pid: number): string | null {
+export interface ProcessIdentityDeps {
+  readonly platform?: NodeJS.Platform;
+  /** Runs a command and returns stdout; throws on failure or timeout. */
+  readonly run?: (command: string, args: readonly string[], timeoutMs: number) => string;
+}
+
+const WIN32_IDENTITY_TIMEOUT_MS = 5_000;
+
+function defaultRun(command: string, args: readonly string[], timeoutMs: number): string {
+  return execFileSync(command, [...args], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+    timeout: timeoutMs,
+    windowsHide: true,
+  });
+}
+
+export function readProcessIdentity(pid: number, deps: ProcessIdentityDeps = {}): string | null {
   if (!Number.isSafeInteger(pid) || pid <= 0) return null;
-  if (process.platform === "linux") {
+  const platform = deps.platform ?? process.platform;
+  if (platform === "win32") {
+    // Process creation time in .NET ticks (UTC) distinguishes a reused PID.
+    // Any failure (no PowerShell, constrained language mode, timeout) is null:
+    // callers then keep the conservative "live PID is the holder" behavior.
+    try {
+      const output = (deps.run ?? defaultRun)(
+        "powershell.exe",
+        ["-NoProfile", "-Command", `(Get-Process -Id ${pid}).StartTime.ToUniversalTime().Ticks`],
+        WIN32_IDENTITY_TIMEOUT_MS,
+      ).trim();
+      return /^\d{10,20}$/u.test(output) ? `win32:${output}` : null;
+    } catch {
+      return null;
+    }
+  }
+  if (platform === "linux") {
     try {
       const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
       const commandEnd = stat.lastIndexOf(")");
@@ -125,14 +161,14 @@ export function readProcessIdentity(pid: number): string | null {
       return null;
     }
   }
-  if (process.platform === "darwin" || process.platform === "freebsd") {
+  if (platform === "darwin" || platform === "freebsd") {
     try {
-      const output = execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-        timeout: 2_000,
-      }).trim();
-      return output.length > 0 ? `${process.platform}:${output}` : null;
+      const output = (deps.run ?? defaultRun)(
+        "ps",
+        ["-o", "lstart=", "-p", String(pid)],
+        2_000,
+      ).trim();
+      return output.length > 0 ? `${platform}:${output}` : null;
     } catch {
       return null;
     }
@@ -196,6 +232,68 @@ function lockFileExists(path: string): boolean {
   }
 }
 
+/** Filesystem operations behind the lock, injectable so platform branches are testable. */
+export interface ServerUpgradeLockFsOps {
+  readonly link: (existing: string, target: string) => void;
+  /** Exclusive create + write of a whole record (`wx`); throws EEXIST when present. */
+  readonly createExclusive: (path: string, text: string) => void;
+  readonly unlink: (path: string) => void;
+  readonly rename: (from: string, to: string) => void;
+  readonly sleep: (ms: number) => void;
+}
+
+const defaultFsOps: ServerUpgradeLockFsOps = {
+  link: linkSync,
+  createExclusive: (path, text) => {
+    const descriptor = openSync(path, "wx", 0o600);
+    try {
+      writeFileSync(descriptor, text, "utf8");
+    } finally {
+      closeSync(descriptor);
+    }
+  },
+  unlink: unlinkSync,
+  rename: renameSync,
+  sleep: (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms),
+};
+
+const TRANSIENT_FS_CODES = new Set(["EBUSY", "EPERM", "EACCES"]);
+const TRANSIENT_FS_RETRIES = 5;
+const TRANSIENT_FS_DELAY_MS = 10;
+/** Filesystems/platforms where `link` is unavailable but `wx` creation works. */
+const LINK_UNSUPPORTED_CODES = new Set([
+  "EPERM",
+  "EACCES",
+  "ENOSYS",
+  "EOPNOTSUPP",
+  "ENOTSUP",
+  "EXDEV",
+]);
+
+function errorCode(error: unknown): string | undefined {
+  return error !== null && typeof error === "object" && "code" in error
+    ? String(error.code)
+    : undefined;
+}
+
+/**
+ * Antivirus, Windows Search and other openers hold files briefly on Windows,
+ * failing unlink/rename with EBUSY/EPERM/EACCES. Ride that out with a short
+ * bounded retry; ENOENT and every other code propagate immediately.
+ */
+function retryTransient<T>(ops: ServerUpgradeLockFsOps, operation: () => T): T {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return operation();
+    } catch (error) {
+      const code = errorCode(error);
+      if (attempt >= TRANSIENT_FS_RETRIES || code === undefined || !TRANSIENT_FS_CODES.has(code))
+        throw error;
+      ops.sleep(TRANSIENT_FS_DELAY_MS);
+    }
+  }
+}
+
 export interface ServerUpgradeLock {
   readonly path: string;
   readonly record: ServerUpgradeLockRecord;
@@ -210,6 +308,7 @@ class HeldServerUpgradeLock implements ServerUpgradeLock {
   constructor(
     readonly path: string,
     readonly record: ServerUpgradeLockRecord,
+    private readonly ops: ServerUpgradeLockFsOps = defaultFsOps,
   ) {}
 
   assertHeld(): void {
@@ -225,7 +324,7 @@ class HeldServerUpgradeLock implements ServerUpgradeLock {
     const current = readServerUpgradeLockRecordPath(this.path);
     if (current && current.token === this.record.token) {
       try {
-        unlinkSync(this.path);
+        retryTransient(this.ops, () => this.ops.unlink(this.path));
       } catch {
         // A leftover lock is detected as stale by the next acquisition.
       }
@@ -242,23 +341,35 @@ function readServerUpgradeLockRecordPath(path: string): ServerUpgradeLockRecord 
   }
 }
 
-function createLockFile(path: string, record: ServerUpgradeLockRecord): boolean {
+function createLockFile(
+  path: string,
+  record: ServerUpgradeLockRecord,
+  ops: ServerUpgradeLockFsOps,
+): boolean {
+  const text = `${JSON.stringify(record)}\n`;
   const temporary = `${path}.${record.token}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(record)}\n`, {
-    encoding: "utf8",
-    mode: 0o600,
-    flag: "wx",
-  });
+  writeFileSync(temporary, text, { encoding: "utf8", mode: 0o600, flag: "wx" });
   try {
-    linkSync(temporary, path);
+    ops.link(temporary, path);
     return true;
   } catch (error) {
-    if (error !== null && typeof error === "object" && "code" in error && error.code === "EEXIST")
-      return false;
-    throw error;
+    const code = errorCode(error);
+    if (code === "EEXIST") return false;
+    if (code === undefined || !LINK_UNSUPPORTED_CODES.has(code)) throw error;
+    // Hard links can be unavailable (some Windows filesystems, network
+    // shares). Exclusive creation is still atomic for "who owns the name";
+    // a reader that races the write sees an unparsable record and fails
+    // closed as unreadable rather than stealing.
+    try {
+      ops.createExclusive(path, text);
+      return true;
+    } catch (fallback) {
+      if (errorCode(fallback) === "EEXIST") return false;
+      throw fallback;
+    }
   } finally {
     try {
-      unlinkSync(temporary);
+      retryTransient(ops, () => ops.unlink(temporary));
     } catch {
       // The temp name is unique; a leftover is inert.
     }
@@ -273,12 +384,16 @@ export interface AcquireServerUpgradeLockInput {
   readonly hostname?: string;
   readonly now?: Date;
   readonly readIdentity?: (pid: number) => string | null;
+  readonly fsOps?: Partial<ServerUpgradeLockFsOps>;
+  /** Platform/run seams for the default identity reader. */
+  readonly identityDeps?: ProcessIdentityDeps;
 }
 
 export function acquireServerUpgradeLock(input: AcquireServerUpgradeLockInput): ServerUpgradeLock {
   const prefix = input.prefix;
   mkdirSync(prefix, { recursive: true, mode: 0o700 });
   const path = serverUpgradeLockPath(prefix);
+  const ops: ServerUpgradeLockFsOps = { ...defaultFsOps, ...input.fsOps };
   const record: ServerUpgradeLockRecord = {
     formatVersion: SERVER_UPGRADE_LOCK_VERSION,
     token: randomBytes(24).toString("base64url"),
@@ -286,13 +401,13 @@ export function acquireServerUpgradeLock(input: AcquireServerUpgradeLockInput): 
     processIdentity:
       input.processIdentity !== undefined
         ? input.processIdentity
-        : readProcessIdentity(input.pid ?? process.pid),
-    hostname: input.hostname ?? process.env.HOSTNAME ?? "",
+        : readProcessIdentity(input.pid ?? process.pid, input.identityDeps),
+    hostname: input.hostname ?? osHostname(),
     acquiredAt: (input.now ?? new Date()).toISOString(),
     releaseId: input.releaseId,
   };
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    if (createLockFile(path, record)) return new HeldServerUpgradeLock(path, record);
+    if (createLockFile(path, record, ops)) return new HeldServerUpgradeLock(path, record, ops);
     const observed = readServerUpgradeLockRecordPath(path);
     if (observed === null) {
       if (lockFileExists(path)) throw new ServerUpgradeLockUnreadableError(path);
@@ -306,7 +421,7 @@ export function acquireServerUpgradeLock(input: AcquireServerUpgradeLockInput): 
     // classified as stale, or we restored a live holder's lock and are busy.
     const quarantine = `${path}.stale-${record.token}-${attempt}`;
     try {
-      renameSync(path, quarantine);
+      retryTransient(ops, () => ops.rename(path, quarantine));
     } catch (error) {
       if (error !== null && typeof error === "object" && "code" in error && error.code === "ENOENT")
         continue; // Another upgrader took it; retry acquisition.
@@ -322,19 +437,19 @@ export function acquireServerUpgradeLock(input: AcquireServerUpgradeLockInput): 
       // The lock changed between read and rename: put it back (or yield to a
       // newer holder that already created one).
       try {
-        linkSync(quarantine, path);
+        ops.link(quarantine, path);
       } catch {
         // A newer holder exists; the quarantined record is no longer the lock.
       }
       try {
-        unlinkSync(quarantine);
+        retryTransient(ops, () => ops.unlink(quarantine));
       } catch {
         // Best effort.
       }
       throw new ServerUpgradeBusyError(prefix, taken);
     }
     try {
-      unlinkSync(quarantine);
+      retryTransient(ops, () => ops.unlink(quarantine));
     } catch {
       // Best effort; the quarantine name is unique and inert.
     }

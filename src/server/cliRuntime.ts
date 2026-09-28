@@ -66,12 +66,22 @@ export interface ShutdownControl {
    * {@link armFatalStartup}).
    */
   failStartup(error: unknown): void;
+  /**
+   * Begin the same idempotent bounded drain a termination signal starts, for
+   * an authenticated in-process request (host-control `shutdown`). Windows
+   * `kill()` is TerminateProcess, so this is the only graceful stop there.
+   */
+  requestShutdown(reason: string): void;
 }
 
 export function installShutdown(
   prefix: string,
   dispose: () => Promise<void>,
-  options: { readonly drainDeadlineMs?: number } = {},
+  options: {
+    readonly drainDeadlineMs?: number;
+    /** Test seam; defaults to `process.platform`. */
+    readonly platform?: NodeJS.Platform;
+  } = {},
 ): ShutdownControl {
   let shuttingDown = false;
   let forced = false;
@@ -139,7 +149,12 @@ export function installShutdown(
   const terminate = () => shutdown("SIGTERM");
   process.on("SIGINT", interrupt);
   process.on("SIGTERM", terminate);
+  // Windows delivers Ctrl+Break and console-close as SIGBREAK.
+  const handlesSigbreak = (options.platform ?? process.platform) === "win32";
+  const breakSignal = () => shutdown("SIGBREAK");
+  if (handlesSigbreak) process.on("SIGBREAK", breakSignal);
   return {
+    requestShutdown: (reason: string) => shutdown(reason),
     uninstall(): void {
       // A caller that uninstalls shutdown takes lifecycle ownership back, so a
       // pending forced exit is disarmed. Production calls this only before any
@@ -147,6 +162,7 @@ export function installShutdown(
       // failed drain that keeps its deadline is never followed by uninstall.
       process.off("SIGINT", interrupt);
       process.off("SIGTERM", terminate);
+      if (handlesSigbreak) process.off("SIGBREAK", breakSignal);
       if (deadline !== undefined) {
         clearTimeout(deadline);
         deadline = undefined;

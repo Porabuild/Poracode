@@ -5,11 +5,13 @@ import {
   HOST_CONTROL_PROTOCOL_VERSION,
   hostControlPairingResultSchema,
   hostControlReplySchema,
+  hostControlShutdownResultSchema,
   hostControlRequestSchema,
   hostControlStatusResultSchema,
   hostDescriptionSchema,
   type HostControlRequest,
   type HostControlReply,
+  type HostControlShutdownResult,
   type HostControlStatusResult,
   type HostDescription,
 } from "@/shared/hostControlProtocol";
@@ -23,7 +25,9 @@ type ControlResult<Name extends ControlOperation> = Name extends "describe"
   ? HostDescription
   : Name extends "issue-pairing"
     ? { pairingUrl: string }
-    : HostControlStatusResult;
+    : Name extends "shutdown"
+      ? HostControlShutdownResult
+      : HostControlStatusResult;
 /** Operation payloads are validated per operation by the request schema. */
 export type HostControlCallPayload =
   | { readonly preset?: "operator" | "viewer" }
@@ -159,7 +163,9 @@ export async function callHostControl<Name extends ControlOperation>(
                 ? hostDescriptionSchema.parse(reply.result)
                 : operation === "issue-pairing"
                   ? hostControlPairingResultSchema.parse(reply.result)
-                  : hostControlStatusResultSchema.parse(reply.result);
+                  : operation === "shutdown"
+                    ? hostControlShutdownResultSchema.parse(reply.result)
+                    : hostControlStatusResultSchema.parse(reply.result);
             if (
               "dataRoot" in value &&
               (value.dataRoot !== paths.dataRoot ||

@@ -57,6 +57,7 @@ import {
   waitForReadyCandidate,
   waitForRestoredOwner,
 } from "./serverUpgradeCandidate";
+import { stopUpgradeCandidate } from "./serverUpgradeCandidateStop";
 import { installServerRelease } from "../../scripts/server-release-install.mjs";
 import {
   DEFAULT_QUALIFICATION_TIMEOUT_MS,
@@ -238,27 +239,13 @@ export const defaultUpgradeIo: UpgradeIo = {
       );
     return { ownerGeneration: reply.ownerGeneration, status: reply.result };
   },
-  stopCandidate: async (handle) => {
-    if (handle?.target.kind === "systemd") {
-      try {
-        await stopServerService(handle.target);
-      } catch {
-        // Fall through to the authenticated owner stop below.
-      }
-    }
-    if (handle?.child && handle.child.exitCode === null) {
-      handle.child.kill("SIGTERM");
-      const deadline = Date.now() + OWNER_STOP_TIMEOUT_MS;
-      while (handle.child.exitCode === null && Date.now() < deadline) await sleep(OWNER_POLL_MS);
-    }
-    try {
-      const probe = await probeRunningOwner(currentHostRootPaths(), { timeoutMs: 2_000 });
-      if (probe) await stopRunningOwner(probe, { timeoutMs: OWNER_STOP_TIMEOUT_MS });
-    } catch {
-      // Best effort: the caller reports recovery when the candidate cannot be
-      // joined, and the next owner admission still requires the kernel lease.
-    }
-  },
+  stopCandidate: (handle) =>
+    stopUpgradeCandidate(handle, {
+      paths: currentHostRootPaths,
+      probeOwner: probeRunningOwner,
+      stopOwner: stopRunningOwner,
+      sleep,
+    }),
 };
 
 interface UpgradeContext {

@@ -58,6 +58,7 @@ import {
   UpgradeRefusedError,
 } from "./serverUpgrade";
 import { abandonServerUpgrade, resumeServerUpgrade } from "./serverUpgradeRecovery";
+import { stopRunningServer } from "./serverStop";
 import { ServerUpgradeBusyError, ServerUpgradeLockUnreadableError } from "./serverUpgradeLock";
 import { ServerUpgradeServiceTargetError } from "./serverUpgradeRestart";
 import {
@@ -227,6 +228,7 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
       wslHelpersDir: resources.wslHelpersDir,
       buildIdentity,
       staging,
+      requestShutdown: () => shutdownControl.requestShutdown("host-control shutdown request"),
       ...(resources.bundledSkillsDir !== undefined
         ? { bundledSkillsDir: resources.bundledSkillsDir }
         : {}),
@@ -315,6 +317,15 @@ async function printPairingJson(): Promise<void> {
     ...(options.scope ? { preset: options.scope } : {}),
   });
   process.stdout.write(`${JSON.stringify(response)}\n`);
+}
+
+async function runStop(): Promise<void> {
+  const result = await stopRunningServer(profileNamespace());
+  process.stdout.write(
+    result.outcome === "not-running"
+      ? "[poracode-server] no running owner for this profile\n"
+      : `[poracode-server] owner ${result.pid} stopped\n`,
+  );
 }
 
 async function printStatusJson(): Promise<void> {
@@ -509,7 +520,7 @@ function runVersion(): void {
 
 function printHelp(): void {
   process.stdout.write(
-    "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status --json | --version | --help]\n" +
+    "Usage: poracode-server [serve [--config <path>] [--host <host>] [--port <port>] [--trusted-proxies <list>] | activate [--json] [--sign-in-again] | doctor [--json] [--log-file <path>] | backup --to <directory> [--json] | init-tls [--json] [--cert <path>] [--key <path>] | upgrade --from <tarball> [--prefix <path>] [--json] | pair --json [--scope viewer|operator] | status --json | stop | --version | --help]\n" +
       "\nPORACODE_BASE_DIR selects a profile namespace. The server owns its .host-v1 sibling.\n" +
       "Running `serve` (the default) reads an optional JSON config file —\n" +
       "  <profile>/poracode-server.json, or the path given with --config — with fields:\n" +
@@ -541,6 +552,9 @@ function printHelp(): void {
       "  the current release; it refuses while the staged candidate is the active current release and was\n" +
       "  not admitted.\n" +
       "Run status --json with the same profile to inspect the authenticated running owner.\n" +
+      "Run stop with the same profile to ask its authenticated owner to drain and exit (the graceful\n" +
+      "  stop on every platform, and the only one on Windows); it waits for the owner to report stopped\n" +
+      "  and exits non-zero on refusal or timeout.\n" +
       "Pairing credentials are printed only by that explicit command; PID signaling is unsupported.\n",
   );
 }
@@ -565,17 +579,19 @@ export function runCli(): void {
       ? printPairingJson()
       : command === "status-json"
         ? printStatusJson()
-        : command === "activate"
-          ? activateStagedImport(parseActivateCliOptions(process.argv.slice(3)))
-          : command === "doctor"
-            ? runDoctor(parseDoctorCliOptions(process.argv.slice(3)))
-            : command === "backup"
-              ? runBackup(parseBackupCliOptions(process.argv.slice(3)))
-              : command === "init-tls"
-                ? runInitTls(parseInitTlsCliOptions(process.argv.slice(3)))
-                : command === "upgrade"
-                  ? runUpgrade(parseUpgradeCliOptions(process.argv.slice(3)))
-                  : serve(parseServeCliOptions(process.argv.slice(2)));
+        : command === "stop"
+          ? runStop()
+          : command === "activate"
+            ? activateStagedImport(parseActivateCliOptions(process.argv.slice(3)))
+            : command === "doctor"
+              ? runDoctor(parseDoctorCliOptions(process.argv.slice(3)))
+              : command === "backup"
+                ? runBackup(parseBackupCliOptions(process.argv.slice(3)))
+                : command === "init-tls"
+                  ? runInitTls(parseInitTlsCliOptions(process.argv.slice(3)))
+                  : command === "upgrade"
+                    ? runUpgrade(parseUpgradeCliOptions(process.argv.slice(3)))
+                    : serve(parseServeCliOptions(process.argv.slice(2)));
   operation.catch(async (error) => {
     await performanceDiagnostics?.stop();
     if (error instanceof HeadlessCompositionShutdownError) {

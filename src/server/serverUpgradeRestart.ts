@@ -307,6 +307,8 @@ export async function startServerService(
   const child = spawn(process.execPath, [entry], {
     detached: true,
     stdio: "ignore",
+    // No console window for the detached daemon on Windows; ignored elsewhere.
+    windowsHide: true,
     env,
   });
   await new Promise<void>((resolveSpawn, reject) => {

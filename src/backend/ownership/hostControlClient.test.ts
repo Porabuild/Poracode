@@ -230,6 +230,40 @@ describe("D4 status and admit client calls", () => {
     );
   });
 
+  it("classifies an old owner's empty authenticated 400 for shutdown as unsupported", async () => {
+    const test = await fixture((_request, response) => {
+      response.statusCode = 400;
+      response.end();
+    });
+    await expect(callHostControl(test.paths, "shutdown")).rejects.toBeInstanceOf(
+      HostControlUnsupportedOperationError,
+    );
+  });
+
+  it("verifies the signed shutdown acknowledgement", async () => {
+    const test = await fixture(async (request, response, secret) => {
+      const { authorization, input } = await receive(request, secret);
+      expect(input).toMatchObject({ operation: "shutdown", payload: {} });
+      const bytes = Buffer.from(
+        JSON.stringify({
+          version: 2,
+          requestId: input.requestId,
+          ownerGeneration: input.ownerGeneration,
+          ok: true,
+          result: { accepted: true },
+        }),
+      );
+      response.setHeader(
+        "x-poracode-control-proof",
+        createHostControlResponseProof(secret, authorization, 200, bytes),
+      );
+      response.end(bytes);
+    });
+    await expect(callHostControl(test.paths, "shutdown")).resolves.toMatchObject({
+      result: { accepted: true },
+    });
+  });
+
   it("never treats a signed 400 as an unsupported operation", async () => {
     const test = await fixture(async (request, response, secret) => {
       const { authorization } = await receive(request, secret);

@@ -64,6 +64,14 @@ interface HostControlServerOptions {
    * so the callback only performs the state transition.
    */
   admit?(context: HostControlContext, expected: HostControlAdmitPayload): void | Promise<void>;
+  /**
+   * Additive graceful stop. When composed, the owner answers the
+   * authenticated `shutdown` operation and then invokes this callback after
+   * the reply has been flushed (the drain closes this server, so it must not
+   * race the acknowledgement). A host without it answers HTTP 400 like an
+   * older owner. The callback must be idempotent.
+   */
+  shutdown?(): void;
   issuePairing(context: HostControlContext): string | Promise<string>;
   reportError?(error: unknown): void;
   receiptNow?(): number;
@@ -284,6 +292,11 @@ export class HostControlServer {
         response.end();
         return;
       }
+      if (input.operation === "shutdown" && !this.options.shutdown) {
+        response.writeHead(400, { connection: "close" });
+        response.end();
+        return;
+      }
       const outcome: Outcome =
         input.ownerGeneration !== this.generation
           ? { ok: false, error: { code: "generation-mismatch" } }
@@ -309,11 +322,26 @@ export class HostControlServer {
           bytes,
         ),
       });
-      response.end(bytes);
+      response.end(bytes, () => {
+        if (input.operation === "shutdown" && outcome.ok) this.beginShutdown();
+      });
     } finally {
       clearTimeout(timer);
       response.off("close", clientClosed);
     }
+  }
+
+  /** Runs after the acknowledgement is flushed; never throws into the socket. */
+  private beginShutdown(): void {
+    const shutdown = this.options.shutdown;
+    if (!shutdown) return;
+    setImmediate(() => {
+      try {
+        shutdown();
+      } catch (error) {
+        this.options.reportError?.(error);
+      }
+    });
   }
 
   private statusResult(): HostControlStatusResult {
@@ -354,6 +382,12 @@ export class HostControlServer {
     if (input.operation === "status") {
       if (existing) return { ok: false, error: { code: "invalid-request" } };
       return { ok: true, result: this.statusResult() };
+    }
+    // Idempotent and allowed in every state (including held staging): the
+    // drain itself is single-flight in the composition root.
+    if (input.operation === "shutdown") {
+      if (existing) return { ok: false, error: { code: "invalid-request" } };
+      return { ok: true, result: { accepted: true } };
     }
     if (existing) return existing.result;
     if (this.receipts.size >= MAX_RECEIPTS) return { ok: false, error: { code: "capacity" } };

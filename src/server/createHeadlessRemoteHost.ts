@@ -68,6 +68,12 @@ export interface HeadlessRemoteHostOptions {
    * this way so a failed qualification can never have accepted user writes.
    */
   readonly staging?: boolean;
+  /**
+   * Begin the process's bounded graceful drain. When provided, the owner
+   * answers the authenticated host-control `shutdown` operation with it
+   * (Windows cannot signal a drain); absent, that operation is unsupported.
+   */
+  readonly requestShutdown?: () => void;
   /** Bounded staging admission deadline; defaults to 15 minutes. */
   readonly stagingDeadlineMs?: number;
   /** Profile namespace; the owned server root is its versioned sibling. */

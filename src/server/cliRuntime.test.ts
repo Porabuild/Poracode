@@ -17,7 +17,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function fixture(dispose: () => Promise<void>, options?: { readonly drainDeadlineMs?: number }) {
+function fixture(
+  dispose: () => Promise<void>,
+  options?: { readonly drainDeadlineMs?: number; readonly platform?: NodeJS.Platform },
+) {
   const listeners = new Map<string, () => void>();
   vi.spyOn(process, "on").mockImplementation(((event: string, listener: () => void) => {
     listeners.set(event, listener);
@@ -258,5 +261,35 @@ describe("fatal error handlers", () => {
     const without = handlerFixture();
     installFatalErrorHandlers("[synthetic-server]", { rejections: false });
     expect(without.listeners.has("unhandledRejection")).toBe(false);
+  });
+});
+
+describe("CLI shutdown entry points", () => {
+  it("drains once for an authenticated in-process shutdown request", async () => {
+    const dispose = vi.fn<() => Promise<void>>(async () => undefined);
+    const test = fixture(dispose, { drainDeadlineMs: 20 });
+    test.shutdown.requestShutdown("host-control shutdown request");
+    test.shutdown.requestShutdown("host-control shutdown request");
+    test.signal();
+    await tick();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(test.exit).toHaveBeenCalledExactlyOnceWith(0);
+  });
+
+  it("handles SIGBREAK on win32 and removes the handler on uninstall", async () => {
+    const dispose = vi.fn<() => Promise<void>>(async () => undefined);
+    const test = fixture(dispose, { platform: "win32" });
+    test.signal("SIGBREAK");
+    await tick();
+    expect(dispose).toHaveBeenCalledOnce();
+    test.shutdown.uninstall();
+    expect(process.off).toHaveBeenCalledWith("SIGBREAK", expect.any(Function));
+  });
+
+  it("does not register SIGBREAK off win32", () => {
+    const test = fixture(async () => undefined, { platform: "linux" });
+    expect(() => test.signal("SIGBREAK")).toThrow("is not a function");
+    test.shutdown.uninstall();
+    expect(process.off).not.toHaveBeenCalledWith("SIGBREAK", expect.any(Function));
   });
 });

@@ -171,6 +171,17 @@ export const hostControlAdmitPayloadSchema = z.strictObject({
 });
 export type HostControlAdmitPayload = z.infer<typeof hostControlAdmitPayloadSchema>;
 
+/**
+ * Authenticated `shutdown` result (additive operation on control version 2).
+ * The reply only acknowledges that the owner accepted the request and will
+ * begin its normal signal-equivalent drain after answering; completion is
+ * observed through the owner record reaching `phase: "stopped"`.
+ */
+export const hostControlShutdownResultSchema = z.strictObject({
+  accepted: z.literal(true),
+});
+export type HostControlShutdownResult = z.infer<typeof hostControlShutdownResultSchema>;
+
 const requestBase = {
   version: z.literal(HOST_CONTROL_PROTOCOL_VERSION),
   requestId: z.uuid(),
@@ -203,6 +214,15 @@ export const hostControlRequestSchema = z.discriminatedUnion("operation", [
     operation: z.literal("admit"),
     payload: hostControlAdmitPayloadSchema,
   }),
+  // Additive graceful stop for platforms where signals cannot drain (Windows
+  // `kill()` is TerminateProcess). A pre-shutdown version-2 owner authenticates
+  // the request and answers the empty HTTP 400 the client classifies as
+  // unsupported; old clients never send it.
+  z.strictObject({
+    ...requestBase,
+    operation: z.literal("shutdown"),
+    payload: z.strictObject({}),
+  }),
 ]);
 export type HostControlRequest = z.infer<typeof hostControlRequestSchema>;
 
@@ -234,6 +254,7 @@ export const hostControlReplySchema = z.discriminatedUnion("ok", [
       hostDescriptionSchema,
       hostControlPairingResultSchema,
       hostControlStatusResultSchema,
+      hostControlShutdownResultSchema,
     ]),
   }),
   z.strictObject({

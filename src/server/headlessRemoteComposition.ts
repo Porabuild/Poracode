@@ -616,6 +616,7 @@ export async function composeHeadlessRemoteHost(
         context.assertActive();
         releaseAdmission();
       },
+      ...(options.requestShutdown ? { shutdown: options.requestShutdown } : {}),
       issuePairing: (context) => {
         context.assertActive();
         return server.issueIndependentPairingUrl(

@@ -30,6 +30,7 @@ async function fixture(
     start?: boolean;
     reportError?: (error: unknown) => void;
     status?: () => HostControlStatusSource;
+    shutdown?: () => void;
     admit?: (
       context: HostControlContext,
       expected: HostControlAdmitPayload,
@@ -66,6 +67,7 @@ async function fixture(
     ...(options.reportError ? { reportError: options.reportError } : {}),
     ...(options.status ? { status: options.status } : {}),
     ...(options.admit ? { admit: options.admit } : {}),
+    ...(options.shutdown ? { shutdown: options.shutdown } : {}),
   });
   cleanup.push(async () => {
     await control.dispose();
@@ -485,5 +487,51 @@ describe("D4 authenticated upgrade identity", () => {
         payload: { operation: "status", payload: {} },
       }),
     ).toBe(401);
+  });
+});
+
+describe("authenticated graceful shutdown", () => {
+  it("acknowledges shutdown first and only then starts the drain", async () => {
+    const started = Promise.withResolvers<void>();
+    const shutdown = vi.fn<() => void>(() => started.resolve());
+    const test = await fixture({ shutdown });
+    const reply = await callHostControl(test.paths, "shutdown");
+    expect(reply.result).toEqual({ accepted: true });
+    expect(reply.ownerGeneration).toBe(test.lease.generation);
+    await started.promise;
+    expect(shutdown).toHaveBeenCalledOnce();
+    // The operation is not advertised: old peers parse the strict list.
+    const described = await callHostControl(test.paths, "describe");
+    expect(described.result.operations).toEqual(["describe", "issue-pairing"]);
+  });
+
+  it("reports a throwing drain callback instead of crashing the owner", async () => {
+    const reported = Promise.withResolvers<unknown>();
+    const failure = new Error("drain failed");
+    const test = await fixture({
+      shutdown: () => {
+        throw failure;
+      },
+      reportError: (error) => reported.resolve(error),
+    });
+    await callHostControl(test.paths, "shutdown");
+    expect(await reported.promise).toBe(failure);
+  });
+
+  it("answers the authenticated empty 400 when the host does not compose shutdown", async () => {
+    const test = await fixture();
+    expect(await rawCall(test, { payload: { operation: "shutdown", payload: {} } })).toBe(400);
+  });
+
+  it("refuses an unauthenticated shutdown without draining", async () => {
+    const shutdown = vi.fn<() => void>();
+    const test = await fixture({ shutdown });
+    expect(
+      await rawCall(test, {
+        headers: { authorization: "Bearer fixture-remote-access-token" },
+        payload: { operation: "shutdown", payload: {} },
+      }),
+    ).toBe(401);
+    expect(shutdown).not.toHaveBeenCalled();
   });
 });
