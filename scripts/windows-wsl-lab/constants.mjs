@@ -4,12 +4,12 @@
 export const PRIMARY_DISTRO = "poracode-ci-ubuntu-24-04";
 
 /**
- * Secondary lab distro: spaces + Latin-1 accents + CJK, all BMP (no surrogate
- * pairs) so a single argv-encoding bug stays attributable. This is the name
- * shape real users create and the production `wsl.exe -d <name>` paths must
- * survive.
+ * Secondary lab distro: the edge of what `wsl --import` accepts — mixed case,
+ * dots, underscores and dashes. Registered distro names cannot contain spaces
+ * or non-ASCII characters (the first hosted run's import of a Unicode name
+ * failed), so Unicode handling is covered by the parser unit tests instead.
  */
-export const SECONDARY_DISTRO = "Poracode CI Ünïcodé 日本語 24 04";
+export const SECONDARY_DISTRO = "Poracode.CI_Secondary-24.04";
 
 // Pinned to a dated release: `current/` moves, which would silently invalidate
 // the reviewed WSL_ROOTFS_SHA256, and the old file name no longer exists (404).

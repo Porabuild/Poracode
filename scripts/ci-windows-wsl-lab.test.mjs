@@ -33,14 +33,12 @@ import {
 
 void test("the lab's distro names are exactly the qualification matrix", () => {
   assert.match(PRIMARY_DISTRO, /^[a-z0-9-]+$/u, "the primary name is plain ASCII");
-  assert.match(SECONDARY_DISTRO, / /u, "the secondary name contains spaces");
-  // oxlint-disable-next-line no-control-regex -- the ASCII ceiling is the point
-  assert.match(SECONDARY_DISTRO, /[^\u0000-\u007f]/u, "the secondary name is non-ASCII");
-  assert.doesNotMatch(
-    SECONDARY_DISTRO,
-    /[\uD800-\uDFFF]/u,
-    "no astral characters: a single argv encoding bug stays attributable",
-  );
+  // `wsl --import` accepts only letters, digits, dots, underscores and dashes;
+  // the secondary name exercises that edge (mixed case plus every punctuation).
+  assert.match(SECONDARY_DISTRO, /^[A-Za-z0-9._-]+$/u, "the secondary name is importable");
+  assert.match(SECONDARY_DISTRO, /[A-Z]/u, "the secondary name has upper case");
+  assert.match(SECONDARY_DISTRO, /\./u, "the secondary name has a dot");
+  assert.match(SECONDARY_DISTRO, /_/u, "the secondary name has an underscore");
   assert.doesNotThrow(() => assertDistroNameSafe(PRIMARY_DISTRO));
   assert.doesNotThrow(() => assertDistroNameSafe(SECONDARY_DISTRO));
 });
