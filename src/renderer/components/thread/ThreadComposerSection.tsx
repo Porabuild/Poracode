@@ -850,6 +850,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       onRestoreComposerFocus={() => mentionRef.current?.focus()}
                       activeRuntimeRequest={composerRuntimeRequest}
                       filteredCommands={filteredCommands}
+                      slashQuery={slashQuery}
                       slashActiveIndex={slashActiveIndex}
                       commandListId={commandListId}
                       onCloseContextDock={() => setContextDockOpen(false)}

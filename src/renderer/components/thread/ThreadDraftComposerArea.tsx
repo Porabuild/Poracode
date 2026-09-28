@@ -1202,6 +1202,7 @@ export function ThreadDraftComposerArea(props: {
             {showCommandPanel ? (
               <ThreadCommandPanel
                 commands={filteredCommands}
+                query={slashQuery}
                 activeIndex={slashActiveIndex}
                 listId={commandListId}
                 onActiveIndexChange={setSlashActiveIndex}
