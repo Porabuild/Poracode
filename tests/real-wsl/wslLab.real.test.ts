@@ -13,7 +13,14 @@
 // Scenarios register through `test` directly and open with `skipIfDisabled`
 // so the vitest lint rules see a plain test structure.
 
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -193,7 +200,8 @@ test("unicode/space distro: project location translation and UNC round-trips", a
       // \\wsl.localhost\<distro>\mnt\c\... loops through 9P and is refused.
       const hostRoot = getWslLocationHostFsPath(location);
       expect(location.linuxPath.startsWith("/mnt/")).toBe(true);
-      expect(hostRoot.toLowerCase()).toBe(hostDir.toLowerCase());
+      // Translation uses the long form of an 8.3 temp dir (RUNNER~1).
+      expect(hostRoot.toLowerCase()).toBe(realpathSync.native(hostDir).toLowerCase());
       expect(readFileSync(join(hostRoot, markerName), "utf8")).toBe(markerContent);
 
       // Host -> guest over UNC still round-trips for a native WSL path.
@@ -373,7 +381,9 @@ test("a stalled distro cannot pin the staging service", async (ctx) => {
       for (const mebibytes of [48, 256, 1024]) {
         payloadBytes = mebibytes * 1024 * 1024;
         writeFileSync(payloadPath, Buffer.alloc(payloadBytes, 7));
-        stagedDest = `/tmp/poracode-lab-stall-${Date.now()}.bin`;
+        // /var/tmp, not /tmp: /tmp is tmpfs and is wiped when the terminated
+        // distro restarts, which would hide the integrity check below.
+        stagedDest = `/var/tmp/poracode-lab-stall-${Date.now()}.bin`;
         let settled = false;
         const attempt = staging
           .stageFile(stalled, { src: payloadPath, dest: toWslUncPath(stalled, stagedDest) })
