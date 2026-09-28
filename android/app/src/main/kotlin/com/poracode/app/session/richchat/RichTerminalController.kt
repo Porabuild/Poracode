@@ -346,7 +346,9 @@ class RichTerminalController(
                     lease = latest.lease?.copy(generation = generation),
                     processState = TerminalProcessState.Exited,
                     exitCode = exitCode,
-                    activeOperations = latest.activeOperations - OP_WATCH,
+                    // The exit bumps every epoch, so no in-flight operation can release
+                    // its own entry any more; none of them can still succeed.
+                    activeOperations = emptySet(),
                 )
             }
         }
@@ -378,23 +380,18 @@ class RichTerminalController(
         kind: String,
     ): TerminalOperationToken {
         generation += 1L
-        mutableState.update {
-            it.copy(activeOperations = it.activeOperations + kind, failure = null)
-        }
-        return TerminalOperationToken(host.key, terminalId, generation, kind, epochs.next(kind))
+        // Own the slot before publishing busy, so a racing release sees it lost.
+        val token = TerminalOperationToken(host.key, terminalId, generation, kind, epochs.next(kind))
+        mutableState.update { it.copy(activeOperations = it.activeOperations + kind, failure = null) }
+        return token
     }
 
     private fun capture(lease: RichTerminalLease, kind: String): TerminalOperationToken {
-        mutableState.update {
-            it.copy(activeOperations = it.activeOperations + kind, failure = null)
-        }
-        return TerminalOperationToken(
-            lease.host.key,
-            lease.terminalId,
-            lease.generation,
-            kind,
-            epochs.next(kind),
+        val token = TerminalOperationToken(
+            lease.host.key, lease.terminalId, lease.generation, kind, epochs.next(kind),
         )
+        mutableState.update { it.copy(activeOperations = it.activeOperations + kind, failure = null) }
+        return token
     }
 
     private suspend fun <T> run(
@@ -438,13 +435,11 @@ class RichTerminalController(
 
     /** Releases [token]'s kind only while it still owns that kind's epoch slot. */
     private fun releaseOperationIfOwned(token: TerminalOperationToken) {
-        if (!epochs.holds(token.kind, token.epoch)) return
+        // Ownership is checked inside the CAS loop: a newer begin takes the epoch
+        // before publishing busy, so either this retry sees it lost or its add wins.
         mutableState.update {
-            if (token.kind in it.activeOperations) {
-                it.copy(activeOperations = it.activeOperations - token.kind)
-            } else {
-                it
-            }
+            if (!epochs.holds(token.kind, token.epoch) || token.kind !in it.activeOperations) it
+            else it.copy(activeOperations = it.activeOperations - token.kind)
         }
     }
 

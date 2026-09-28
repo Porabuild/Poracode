@@ -74,7 +74,7 @@ internal fun TerminalStatusRow(
     processState: TerminalProcessState?,
     busy: Boolean,
     showRetry: Boolean,
-    hasTerminalLease: Boolean,
+    startsNewTerminal: Boolean,
     onReconnect: () -> Unit,
 ) {
     Row(
@@ -93,11 +93,10 @@ internal fun TerminalStatusRow(
         )
         if (phase == TerminalConnectionPhase.Failed || showRetry) {
             OutlinedButton(onClick = onReconnect, enabled = !busy) {
-                // With a lease the tap re-watches (Reconnect); with none it starts a
-                // fresh shell, so the label matches the action it performs.
+                // The label names the action the tap performs.
                 Text(
                     stringResource(
-                        if (hasTerminalLease) R.string.terminal_reconnect else R.string.terminal_start,
+                        if (startsNewTerminal) R.string.terminal_start else R.string.terminal_reconnect,
                     ),
                 )
             }
