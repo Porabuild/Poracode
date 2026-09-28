@@ -18,6 +18,7 @@ import {
   mkdtempSync,
   readFileSync,
   readlinkSync,
+  realpathSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -67,6 +68,7 @@ function assertArtifactIntegrity({ tarball, artifactPath, prefix }) {
     "scripts/install-server-prefix.mjs",
     "scripts/server-release-install.mjs",
     "scripts/server-native-overlay.mjs",
+    "scripts/server-host-tools.mjs",
     "packaging/systemd/poracode-server.service",
   ]) {
     if (!existsSync(join(current, shippedPath))) {
@@ -313,9 +315,30 @@ async function waitForOwnerPhase(profile, phase, timeoutMs) {
   }
 }
 
-async function stopChild(child) {
+/**
+ * Graceful stop. POSIX qualifies the signal path (SIGTERM drains the daemon);
+ * Windows has no graceful signal (a kill is TerminateProcess), so it goes
+ * through the authenticated `poracode-server stop` host-control command, which
+ * is the supported stop there and waits for the owner to report `stopped`.
+ */
+function requestServerStop({ entry, profile, pid }) {
+  if (process.platform !== "win32") {
+    process.kill(pid, "SIGTERM");
+    return;
+  }
+  const output = execFileSync(process.execPath, [entry, "stop"], {
+    encoding: "utf8",
+    env: serverEnv(profile, null),
+    timeout: 60_000,
+  });
+  if (!/stopped/u.test(output)) {
+    throw new Error(`poracode-server stop did not report a stopped owner: ${output}`);
+  }
+}
+
+async function stopChild(child, { entry, profile }) {
   if (child.exitCode !== null || child.signalCode !== null) return;
-  child.kill("SIGTERM");
+  requestServerStop({ entry, profile, pid: child.pid });
   await new Promise((resolveExit) => {
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
@@ -326,6 +349,17 @@ async function stopChild(child) {
       resolveExit();
     });
   });
+}
+
+/**
+ * A command line valid in sh, cmd.exe and PowerShell alike (no spaces inside
+ * the script, so every shell hands node the same single argument). The needle
+ * only exists in the command's OUTPUT because node performs the arithmetic.
+ * Windows terminals submit with a carriage return, as a real keyboard does.
+ */
+export function terminalTurnInput(platform = process.platform) {
+  const command = `node -e "console.log('pty-'+(128+64)+'-turn')"`;
+  return `${command}${platform === "win32" ? "\r" : "\n"}`;
 }
 
 /** Send one terminal-thread turn and assert its EFFECT comes back (V6 D.1).
@@ -344,7 +378,7 @@ async function runOneThreadTurn({ httpBase, token, shellId, ticket }) {
         const written = await jsonRequest(`${httpBase}/api/threads/${shellId}/terminal/write`, {
           method: "POST",
           token,
-          body: { data: "sh -c 'echo pty-$((128+64))-turn'\n" },
+          body: { data: terminalTurnInput() },
         });
         if (written.status !== 200) {
           throw new Error(`terminal/write ${written.status}: ${JSON.stringify(written.body)}`);
@@ -394,7 +428,7 @@ async function runUpgradePhase({ prefix, tarball, profile, port, httpBase, expec
   const pid = Number(readFileSync(pidPath, "utf8").trim());
   if (!Number.isSafeInteger(pid) || pid <= 0)
     throw new Error(`invalid upgraded daemon pid: ${pid}`);
-  process.kill(pid, "SIGTERM");
+  requestServerStop({ entry, profile, pid });
   await waitForOwnerPhase(profile, "stopped", 20_000);
   return { ok: true, upgradedDaemonPid: pid, current: currentAfter };
 }
@@ -412,10 +446,16 @@ export async function qualifyServerInstall(options) {
         })
       : null;
 
-  const profile = mkdtempSync(join(options.workRoot ?? tmpdir(), "poracode-qualify-profile-"));
+  // Resolve to the long form: Windows runners hand out 8.3 temp paths
+  // (RUNNER~1) that the host canonicalizes differently from the raw string.
+  const profile = realpathSync.native(
+    mkdtempSync(join(options.workRoot ?? tmpdir(), "poracode-qualify-profile-")),
+  );
   // Project files are not legacy profile data. Keeping them in the profile
   // namespace would correctly trigger the host's offline-import admission gate.
-  const project = mkdtempSync(join(options.workRoot ?? tmpdir(), "poracode-qualify-project-"));
+  const project = realpathSync.native(
+    mkdtempSync(join(options.workRoot ?? tmpdir(), "poracode-qualify-project-")),
+  );
   gitInit(project);
 
   const doctorReport = assertDoctorOk(entry, profile, "pre-start");
@@ -456,7 +496,10 @@ export async function qualifyServerInstall(options) {
       token,
       body: {
         shellId,
-        projectLocation: { kind: "posix", path: project },
+        projectLocation: {
+          kind: process.platform === "win32" ? "windows" : "posix",
+          path: project,
+        },
         initialSize: { cols: 80, rows: 24 },
       },
     });
@@ -472,7 +515,7 @@ export async function qualifyServerInstall(options) {
     }
     await runOneThreadTurn({ httpBase, token, shellId, ticket: ticket.body.ticket });
   } finally {
-    await stopChild(child);
+    await stopChild(child, { entry, profile });
   }
 
   // Throws with the observed record when the lease is not cleanly released.

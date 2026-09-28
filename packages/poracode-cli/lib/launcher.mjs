@@ -195,6 +195,7 @@ function printHelp(stream, version) {
       "  poracode serve [--host H] [--port P] [--config PATH]\n" +
       "  poracode pair --json [--scope viewer|operator]\n" +
       "  poracode status --json\n" +
+      "  poracode stop                     gracefully stop this profile's running server\n" +
       "  poracode doctor [--json] [--log-file PATH]\n" +
       "  poracode backup --to DIR [--json]\n" +
       "  poracode init-tls [--json] [--cert PATH] [--key PATH]\n" +

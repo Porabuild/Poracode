@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   readlinkSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -18,7 +19,9 @@ import { callHostControl } from "@/backend/ownership/hostControlClient";
 import { readHostOwnerRecord } from "@/backend/ownership/hostOwnerLease";
 import { canonicalHostPath, resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { installServerPrefix } from "../../scripts/install-server-prefix.mjs";
+import { resolveTar, tarCommand } from "../../scripts/server-host-tools.mjs";
 import { resolveBetterSqliteNativeBindingOptions } from "@/host/db/connection";
+import { stopRunningServer } from "./serverStop";
 import { readReleaseBuildIdentity } from "./serverUpgradeIdentity";
 import { upgradeServerPrefix } from "./serverUpgrade";
 import {
@@ -44,6 +47,15 @@ import {
  * remains a release gate (recorded in tmp/v2-production/d4-review-corrections.md).
  */
 
+/** Run one tar operation with the host's resolved tar (bsdtar on Windows, never Git-bash GNU tar). */
+function runTar(
+  args: readonly string[],
+  options: { encoding?: "utf8"; maxBuffer?: number; stdio?: "pipe" } = {},
+) {
+  const [command, commandArgs] = tarCommand(resolveTar(), [...args]) as [string, string[]];
+  return execFileSync(command, commandArgs, options as never) as unknown as string;
+}
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 // Test hook so the required-mode failure is verifiable without touching dist/.
 const distDir = process.env.PORACODE_SERVER_DIST_DIR?.trim() || join(repoRoot, "dist");
@@ -63,7 +75,7 @@ function findTarball(): string | null {
   for (const name of tarballs) {
     const path = join(distDir, name);
     try {
-      const listing = execFileSync("tar", ["-tzf", path], { encoding: "utf8" });
+      const listing = runTar(["-tzf", path], { encoding: "utf8" });
       if (listing.includes("scripts/server-release-install.mjs")) return path;
     } catch {
       // Unreadable candidate; try the next one.
@@ -75,12 +87,12 @@ function findTarball(): string | null {
 /** A pre-D4 bundle cannot answer the authenticated status/admit operations. */
 function tarballSupportsD4(path: string): boolean {
   try {
-    const members = execFileSync("tar", ["-tzf", path], { encoding: "utf8" }).split(/\r?\n/u);
+    const members = runTar(["-tzf", path], { encoding: "utf8" }).split(/\r?\n/u);
     const entrypointMember = members.find(
       (member) => member.replace(/^\.\//u, "") === "lib/server.cjs",
     );
     if (!entrypointMember) return false;
-    const entrypoint = execFileSync("tar", ["-xzf", path, "-O", entrypointMember], {
+    const entrypoint = runTar(["-xzf", path, "-O", entrypointMember], {
       encoding: "utf8",
       maxBuffer: 256 * 1024 * 1024,
     });
@@ -91,7 +103,7 @@ function tarballSupportsD4(path: string): boolean {
 }
 
 const tarball = findTarball();
-const runnable = tarball !== null && process.platform !== "win32" && tarballSupportsD4(tarball);
+const runnable = tarball !== null && tarballSupportsD4(tarball);
 const required = process.env.PORACODE_REQUIRE_SERVER_IT === "1";
 if (required && !runnable) {
   // Required mode must fail, never pass by skipping: a missing artifact means
@@ -120,7 +132,7 @@ const dirs: string[] = [];
 const envBackup = new Map<string, string | undefined>();
 
 afterEach(
-  () => {
+  async () => {
     // Best-effort daemon reaping so a failed assertion cannot leak a lease
     // holder (and its ports) into the next run.
     for (const workRoot of dirs.splice(0)) {
@@ -128,7 +140,9 @@ afterEach(
       try {
         if (existsSync(pidFile)) {
           const pid = Number(readFileSync(pidFile, "utf8").trim());
-          if (Number.isSafeInteger(pid) && pid > 0) process.kill(pid, "SIGTERM");
+          if (Number.isSafeInteger(pid) && pid > 0) {
+            await requestGracefulStop(join(workRoot, "profile"), pid);
+          }
         }
       } catch {
         // already gone
@@ -145,6 +159,36 @@ afterEach(
   // node_modules rmSync can alone exceed 15s on a loaded full-suite run).
   180_000,
 );
+
+/**
+ * Graceful daemon stop. POSIX signals SIGTERM; a Windows kill is
+ * TerminateProcess (no drain, no lease release), so Windows goes through the
+ * authenticated `stop` host-control operation the product itself ships.
+ */
+async function requestGracefulStop(profile: string, pid: number | null): Promise<void> {
+  if (process.platform === "win32") {
+    await stopRunningServer(profile);
+    return;
+  }
+  if (pid !== null) process.kill(pid, "SIGTERM");
+}
+
+/** Cleanup-only: stop a still-running test daemon child, force-killing as a last resort. */
+async function reapDaemonChild(child: ReturnType<typeof spawn>, profile: string): Promise<void> {
+  if (child.exitCode !== null) return;
+  try {
+    await requestGracefulStop(profile, child.pid ?? null);
+  } catch {
+    child.kill();
+  }
+}
+
+/** Work root under the temp dir in its long form (Windows temp is an 8.3 RUNNER~1 path). */
+function makeWorkRoot(label: string): string {
+  const created = mkdtempSync(join(tmpdir(), label));
+  dirs.push(created);
+  return realpathSync.native(created);
+}
 
 function allocateLoopbackPort(): Promise<number> {
   return new Promise((resolvePort, reject) => {
@@ -312,7 +356,7 @@ async function stopDaemonAt(pidPath: string, profile: string): Promise<void> {
     const pid = Number(readFileSync(pidPath, "utf8").trim());
     if (Number.isSafeInteger(pid) && pid > 0) {
       try {
-        process.kill(pid, "SIGTERM");
+        await requestGracefulStop(profile, pid);
       } catch {
         // already gone
       }
@@ -375,12 +419,12 @@ function buildBrokenTarball(
 ): string {
   const stage = mkdtempSync(join(tmpdir(), "poracode-broken-stage-"));
   dirs.push(stage);
-  execFileSync("tar", ["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
+  runTar(["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
   writeFileSync(join(stage, "lib", "server.cjs"), brokenServerStub(migrationPolicy));
   const archiveDir = mkdtempSync(join(tmpdir(), "poracode-broken-artifact-"));
   dirs.push(archiveDir);
   const brokenTarball = join(archiveDir, "poracode-server-broken.tar.gz");
-  execFileSync("tar", ["-czf", brokenTarball, "-C", stage, "."], { stdio: "pipe" });
+  runTar(["-czf", brokenTarball, "-C", stage, "."], { stdio: "pipe" });
   return brokenTarball;
 }
 
@@ -393,7 +437,7 @@ function buildBrokenTarball(
 function buildDistinctTarball(sourceTarball: string, version: string): string {
   const stage = mkdtempSync(join(tmpdir(), "poracode-distinct-stage-"));
   dirs.push(stage);
-  execFileSync("tar", ["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
+  runTar(["-xzf", sourceTarball, "-C", stage], { stdio: "pipe" });
   const packagePath = join(stage, "package.json");
   const parsed = JSON.parse(readFileSync(packagePath, "utf8")) as Record<string, unknown>;
   writeFileSync(packagePath, `${JSON.stringify({ ...parsed, version }, null, 2)}\n`);
@@ -402,7 +446,7 @@ function buildDistinctTarball(sourceTarball: string, version: string): string {
   const archiveDir = mkdtempSync(join(tmpdir(), "poracode-distinct-artifact-"));
   dirs.push(archiveDir);
   const distinct = join(archiveDir, `poracode-server-${version}.tar.gz`);
-  execFileSync("tar", ["-czf", distinct, "-C", stage, "."], { stdio: "pipe" });
+  runTar(["-czf", distinct, "-C", stage, "."], { stdio: "pipe" });
   return distinct;
 }
 
@@ -465,8 +509,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
     "upgrades a running, lease-holding install from a real tarball and serves from the new release",
     { timeout: 600_000 },
     async () => {
-      const workRoot = mkdtempSync(join(tmpdir(), "poracode-upgrade-it-"));
-      dirs.push(workRoot);
+      const workRoot = makeWorkRoot("poracode-upgrade-it-");
       const prefix = canonicalHostPath(join(workRoot, "prefix"));
       const profile = join(workRoot, "profile");
       const port = await allocateLoopbackPort();
@@ -548,7 +591,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
 
         await stopDaemonAt(pidPath, profile);
       } finally {
-        if (daemon.child.exitCode === null) daemon.child.kill("SIGTERM");
+        await reapDaemonChild(daemon.child, profile);
       }
     },
   );
@@ -557,8 +600,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
     "rolls back a broken tarball, restores the previous install, and the daemon comes back",
     { timeout: 600_000 },
     async () => {
-      const workRoot = mkdtempSync(join(tmpdir(), "poracode-upgrade-it-broken-"));
-      dirs.push(workRoot);
+      const workRoot = makeWorkRoot("poracode-upgrade-it-broken-");
       const prefix = canonicalHostPath(join(workRoot, "prefix"));
       const profile = join(workRoot, "profile");
       const port = await allocateLoopbackPort();
@@ -593,7 +635,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
 
         await stopDaemonAt(join(prefix, "poracode-server.pid"), profile);
       } finally {
-        if (daemon.child.exitCode === null) daemon.child.kill("SIGTERM");
+        await reapDaemonChild(daemon.child, profile);
       }
     },
   );
@@ -602,8 +644,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
     "upgrades a profile reverted to the genuine pre-47 schema with a repacked current artifact",
     { timeout: 900_000 },
     async () => {
-      const workRoot = mkdtempSync(join(tmpdir(), "poracode-upgrade-it-forward-"));
-      dirs.push(workRoot);
+      const workRoot = makeWorkRoot("poracode-upgrade-it-forward-");
       const prefix = canonicalHostPath(join(workRoot, "prefix"));
       const profile = join(workRoot, "profile");
       const port = await allocateLoopbackPort();
@@ -619,7 +660,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
       const daemon = await startDaemon(prefix, profile, port);
       try {
         await waitForHealth(port, true, 30_000);
-        daemon.child.kill("SIGTERM");
+        await requestGracefulStop(profile, daemon.child.pid ?? null);
         await waitForOwnerPhase(profile, "stopped", 20_000);
         // The database is genuinely reverted to the pre-47 shape, so migration
         // 47 is truly pending instead of being a relabeled no-op.
@@ -700,7 +741,7 @@ describe.runIf(runnable)("serverUpgrade real-install integration (V6 D.4)", () =
 
         await stopDaemonAt(join(prefix, "poracode-server.pid"), profile);
       } finally {
-        if (daemon.child.exitCode === null) daemon.child.kill("SIGTERM");
+        await reapDaemonChild(daemon.child, profile);
       }
     },
   );

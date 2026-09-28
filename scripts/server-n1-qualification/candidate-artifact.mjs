@@ -7,13 +7,15 @@
 import { spawnSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveTar, tarCommand } from "../server-host-tools.mjs";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /** Read package.json out of the candidate tarball without extracting it. */
 export function readCandidateVersionFromTarball(tarball) {
   for (const member of ["package.json", "./package.json"]) {
-    const run = spawnSync("tar", ["-xzOf", tarball, member], {
+    const [tarCmd, tarArgs] = tarCommand(resolveTar(), ["-xzOf", tarball, member]);
+    const run = spawnSync(tarCmd, tarArgs, {
       encoding: "utf8",
       timeout: 120_000,
       maxBuffer: 16 * 1024 * 1024,

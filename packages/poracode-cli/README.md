@@ -26,7 +26,8 @@ download path.
 - A missing target, a checksum mismatch, or an unreachable release fails with
   an actionable error. The manifest in a published version lists exactly the
   target keys its release matrix qualified — the defined standalone machine
-  families are `darwin-arm64`, `darwin-x64`, `linux-x64`, and `linux-arm64` —
+  families are `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, and
+  `win32-x64` —
   and anything else fails closed.
 - `PORACODE_SERVER_TARBALL` plus `PORACODE_SERVER_TARBALL_SHA256` install a
   local verified tarball instead of downloading (air-gapped or pre-release use).
@@ -35,8 +36,10 @@ download path.
 
 All arguments after the executable are forwarded to the pinned runtime, so the
 server commands — `serve`, `pair`, `status`, `doctor`, `backup`, `init-tls`,
-`activate`, and `upgrade` — behave exactly as documented for the standalone
-server. `poracode --help` lists them.
+`activate`, `stop`, and `upgrade` — behave exactly as documented for the
+standalone server. `poracode --help` lists them. `poracode stop` asks the
+running server of the selected profile to drain and exit; on Windows it is the
+only graceful stop, and the npm-installed `poracode.cmd` shim runs the launcher.
 
 ## Status
 

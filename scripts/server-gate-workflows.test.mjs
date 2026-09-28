@@ -6,7 +6,10 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
-import { assertOutOfCheckoutCapabilities } from "./server-install-qualification.mjs";
+import {
+  assertOutOfCheckoutCapabilities,
+  terminalTurnInput,
+} from "./server-install-qualification.mjs";
 
 const workflowUrl = (name) => new URL(`../.github/workflows/${name}`, import.meta.url);
 
@@ -71,6 +74,28 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   assert.match(String(darwinLeg.require_targets), /darwin-arm64/u);
   assert.match(String(darwinLeg.require_targets), /darwin-x64/u);
 
+  // Windows x64 is built and qualified natively (no cross build, no rebuild),
+  // with bash as the one run shell and pnpm from Corepack, not action-setup.
+  const windowsLeg = matrixEntries.find((entry) => entry.name === "windows");
+  assert.ok(windowsLeg && windowsLeg.os === "windows-latest");
+  assert.equal(windowsLeg.require_targets, "win32-x64");
+  assert.equal(windowsLeg.cross_build, false);
+  assert.equal(build.defaults.run.shell, "bash");
+  const setupPnpm = steps.find((step) => step.name === "Setup pnpm");
+  assert.equal(setupPnpm.if, "runner.os != 'Windows'");
+  const corepack = steps.find((step) => step.name === "Activate the pinned pnpm (Corepack)");
+  assert.equal(corepack.if, "runner.os == 'Windows'");
+  assert.match(corepack.run, /corepack enable/u);
+  const setupNode = steps.find((step) => step.name === "Setup Node.js");
+  assert.match(String(setupNode.with.cache), /Windows.*''.*pnpm/u);
+  const nativeRebuild = steps.find(
+    (step) => step.name === "Build native dependencies for the tarball",
+  );
+  assert.equal(nativeRebuild.if, "runner.os != 'Windows'");
+  for (const crossStep of steps.filter((step) => /arm64/u.test(step.name ?? ""))) {
+    assert.equal(crossStep.if, "matrix.cross_build");
+  }
+
   const nativeEntries = workflow.jobs.native_qualification.strategy.matrix.include;
   assert.ok(
     nativeEntries.some(
@@ -104,12 +129,19 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   assert.match(assemble.run, /assemble-server-tarball/u);
   assert.match(assemble.run, /prepare-server-native/u);
 
+  // One node script installs without a toolchain on every OS; the POSIX-only
+  // bash symlink recipe is gone.
   const install = steps.find(
     (step) => step.name === "Install outside the checkout without a toolchain",
   );
-  assert.match(install.run, /python3 leaked/u);
-  assert.match(install.run, /make leaked/u);
-  assert.match(install.run, /install-server-prefix/u);
+  assert.match(install.run, /scripts\/ci-install-no-toolchain\.mjs/u);
+  assert.doesNotMatch(install.run, /ln -s|command -v/u);
+  const noToolchain = await readFile(
+    new URL("./ci-install-no-toolchain.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(noToolchain, /leaked into install PATH/u);
+  assert.match(noToolchain, /install-server-prefix/u);
 
   const qualify = steps.find(
     (step) => step.name === "Qualify doctor, start, pair, thread turn, SIGTERM",
@@ -164,6 +196,13 @@ void test("the reusable workflow builds once, qualifies the exact artifact, and 
   assert.match(merge.run, /generate-runtime-manifest\.mjs/u);
   assert.match(merge.run, /--verify/u);
   assert.match(merge.run, /ARGS\+=\(--artifact/u);
+  // Per-leg metadata handling reads env vars in a node script; nothing is
+  // interpolated into node -p source, and win32-x64 is copied by the same
+  // platform-arch naming as every other leg.
+  assert.match(merge.run, /ci-server-artifact-meta\.mjs aggregate-leg/u);
+  for (const step of [...steps, ...aggregateSteps, ...workflow.jobs.native_qualification.steps]) {
+    assert.doesNotMatch(step.run ?? "", /node -p "require\('\$/u);
+  }
   const aggregateUpload = aggregateSteps.find(
     (step) => step.name === "Upload the aggregate qualified artifact",
   );
@@ -366,4 +405,15 @@ void test("release promotes the qualified bytes and never rebuilds the tarball",
     "the OIDC publish job must opt in explicitly; ambient OIDC env is not authority",
   );
   assert.equal((await readWorkflow("release-nightly.yml")).jobs.publish_npm, undefined);
+});
+
+void test("the terminal turn command is valid in sh, cmd.exe and PowerShell and only its output matches", () => {
+  const posix = terminalTurnInput("linux");
+  const windows = terminalTurnInput("win32");
+  assert.ok(posix.endsWith("\n") && windows.endsWith("\r"));
+  for (const input of [posix, windows]) {
+    // The needle is computed by node, so echoed input can never contain it.
+    assert.ok(!input.includes("pty-192-turn"));
+    assert.ok(!/\$\(|`/u.test(input), "no shell-specific expansion syntax");
+  }
 });

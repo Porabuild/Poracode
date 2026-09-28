@@ -33,6 +33,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { npmInvocation, resolveTar, tarCommand } from "./server-host-tools.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageDir = join(repoRoot, "packages", "poracode-cli");
@@ -107,8 +108,15 @@ function buildStubRuntimeTarball(workRoot, version) {
     cpSync(join(repoRoot, "scripts", script), join(stage, "scripts", script));
   }
   const tarball = join(workRoot, "poracode-server-stub.tar.gz");
-  run("tar", ["-czf", tarball, "-C", stage, "."]);
+  const [tarCmd, tarArgs] = tarCommand(resolveTar(), ["-czf", tarball, "-C", stage, "."]);
+  run(tarCmd, tarArgs);
   return tarball;
+}
+
+/** npm without a shell: `npm.cmd` cannot be spawned directly on Windows. */
+function runNpm(args, options) {
+  const invocation = npmInvocation(args);
+  return run(invocation.command, invocation.args, { ...options, shell: invocation.shell });
 }
 
 function launcherVersion() {
@@ -154,6 +162,7 @@ function main() {
   const baseEnv = {
     ...process.env,
     HOME: home,
+    USERPROFILE: home,
     PORACODE_RUNTIME_CACHE_DIR: cacheRoot,
     PORACODE_RUNTIME_TARGET: options.target,
     PORACODE_SERVER_TARBALL: runtimeTarball,
@@ -162,7 +171,7 @@ function main() {
   };
 
   try {
-    const packOutput = run("npm", ["pack", "--pack-destination", workRoot, "--json"], {
+    const packOutput = runNpm(["pack", "--pack-destination", workRoot, "--json"], {
       cwd: packageDir,
       env: baseEnv,
     });
@@ -172,8 +181,7 @@ function main() {
     const packedPath = join(workRoot, packed.filename);
     if (!existsSync(packedPath)) throw new Error(`npm pack did not produce ${packedPath}`);
 
-    run(
-      "npm",
+    runNpm(
       [
         "install",
         packedPath,
@@ -185,19 +193,49 @@ function main() {
       ],
       { cwd: consumer, env: baseEnv },
     );
-    const binPath = join(consumer, "node_modules", ".bin", "poracode");
-    if (!existsSync(binPath)) throw new Error(`npm did not install the poracode bin at ${binPath}`);
+    // npm links the bin as `.bin/poracode` (POSIX symlink) or `.bin/poracode.cmd`
+    // (Windows shim). Both must exist; the checks below run the real script
+    // through node so no shell or shebang is involved.
+    const shimPath = join(
+      consumer,
+      "node_modules",
+      ".bin",
+      process.platform === "win32" ? "poracode.cmd" : "poracode",
+    );
+    if (!existsSync(shimPath))
+      throw new Error(`npm did not install the poracode bin at ${shimPath}`);
+    const binScript = join(consumer, "node_modules", "poracode", "bin", "poracode.mjs");
+    if (!existsSync(binScript)) throw new Error(`the packed launcher is missing ${binScript}`);
+    const bin = (args, runOptions) => run(process.execPath, [binScript, ...args], runOptions);
+    const binFailure = (args, runOptions) =>
+      runExpectingFailure(process.execPath, [binScript, ...args], runOptions);
 
-    const versionOutput = run(binPath, ["--version"], { cwd: emptyCwd, env: baseEnv }).trim();
+    const versionOutput = bin(["--version"], { cwd: emptyCwd, env: baseEnv }).trim();
     if (versionOutput !== launcherVersion()) {
       throw new Error(`poracode --version printed ${versionOutput}, expected ${launcherVersion()}`);
     }
-    const helpOutput = run(binPath, ["--help"], { cwd: emptyCwd, env: baseEnv });
+    if (process.platform === "win32") {
+      // The one real Windows entry point users hit: the npm-generated .cmd shim.
+      const shimVersion = run(
+        process.env.ComSpec || "cmd.exe",
+        ["/d", "/s", "/c", `""${shimPath}" --version"`],
+        { cwd: emptyCwd, env: baseEnv, windowsVerbatimArguments: true },
+      ).trim();
+      if (shimVersion !== launcherVersion()) {
+        throw new Error(
+          `poracode.cmd --version printed ${shimVersion}, expected ${launcherVersion()}`,
+        );
+      }
+    }
+    const helpOutput = run(process.execPath, [binScript, "--help"], {
+      cwd: emptyCwd,
+      env: baseEnv,
+    });
     if (!helpOutput.includes("poracode pair --json")) {
       throw new Error("poracode --help did not list the server commands");
     }
 
-    const doctorOutput = run(binPath, ["doctor", "--json"], { cwd: emptyCwd, env: baseEnv });
+    const doctorOutput = bin(["doctor", "--json"], { cwd: emptyCwd, env: baseEnv });
     const doctor = JSON.parse(doctorOutput.trim().split("\n").at(-1));
     if (doctor.stub === true) {
       if (doctor.argv[0] !== "doctor" || doctor.argv[1] !== "--json") {
@@ -219,7 +257,7 @@ function main() {
       }
     }
 
-    const badChecksum = runExpectingFailure(binPath, ["doctor"], {
+    const badChecksum = binFailure(["doctor"], {
       cwd: emptyCwd,
       env: {
         ...baseEnv,
@@ -234,7 +272,7 @@ function main() {
     // Cache reuse: with the source tarball gone, the verified install must
     // still run and must not consult the network or the removed file.
     rmSync(runtimeTarball);
-    const secondRun = run(binPath, ["doctor", "--json"], { cwd: emptyCwd, env: baseEnv });
+    const secondRun = bin(["doctor", "--json"], { cwd: emptyCwd, env: baseEnv });
     const second = JSON.parse(secondRun.trim().split("\n").at(-1));
     const cachedRuntimeRan =
       second.stub === true || second.versions?.appVersion === launcherVersion();
@@ -242,11 +280,11 @@ function main() {
       throw new Error(`cached runtime did not run: ${secondRun.slice(0, 400)}`);
     }
 
-    const unsupported = runExpectingFailure(binPath, ["doctor"], {
+    const unsupported = binFailure(["doctor"], {
       cwd: emptyCwd,
       env: {
         ...baseEnv,
-        PORACODE_RUNTIME_TARGET: "win32-x64",
+        PORACODE_RUNTIME_TARGET: "freebsd-x64",
         PORACODE_SERVER_TARBALL: "",
         PORACODE_SERVER_TARBALL_SHA256: "",
         PORACODE_RUNTIME_CACHE_DIR: join(workRoot, "cache-unsupported"),

@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { resolveTar, tarCommand } from "./server-host-tools.mjs";
 import { stageOwnedRuntimeTarball } from "./poracode-cli-qualification.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -61,7 +62,8 @@ function buildRuntimeTarball(root, version = "9.9.9") {
     cpSync(join(repoRoot, "scripts", script), join(stage, "scripts", script));
   }
   const tarball = join(root, "poracode-server-stub.tar.gz");
-  execFileSync("tar", ["-czf", tarball, "-C", stage, "."], { stdio: "pipe" });
+  const [tarCmd, tarArgs] = tarCommand(resolveTar(), ["-czf", tarball, "-C", stage, "."]);
+  execFileSync(tarCmd, tarArgs, { stdio: "pipe" });
   return tarball;
 }
 

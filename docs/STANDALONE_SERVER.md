@@ -202,7 +202,7 @@ esac
 #    extracts the release, so no unvalidated path is ever written.
 BOOTSTRAP="$(mktemp -d)"
 mkdir "$BOOTSTRAP/scripts"
-for script in install-server-prefix.mjs server-release-install.mjs server-native-overlay.mjs; do
+for script in install-server-prefix.mjs server-release-install.mjs server-native-overlay.mjs server-host-tools.mjs; do
   tar -xOzf "$TARBALL" "./scripts/$script" > "$BOOTSTRAP/scripts/$script"
 done
 
@@ -235,6 +235,87 @@ refuses to start with a `ServerLayoutError` naming the problem.
 A custom `better-sqlite3` N-API binary can be forced with
 `PORACODE_BETTER_SQLITE3_NATIVE_BINDING` (validated at open; a missing file
 fails loudly).
+
+#### Windows (win32-x64)
+
+Requirements: Node.js >= 24.10 (with the `npm` it ships), and `tar.exe` from
+`%SystemRoot%\System32` (bsdtar, present on Windows 10 1803+ and Windows 11).
+Git for Windows' GNU tar is not used: it reads `C:\x.tar.gz` as `host:file`.
+No compiler, Python or Visual Studio is needed; the artifact ships the
+`win32-x64` ConPTY prebuilds. The artifact is the same `.tar.gz`
+(`poracode-server-<v>-win32-x64.tar.gz`), and the installer is the same
+shipped `scripts/install-server-prefix.mjs`. In PowerShell:
+
+```powershell
+$ErrorActionPreference = "Stop"
+# 1. Verify the bytes before extracting anything. The .sha256 file holds the
+#    lowercase hex digest (optionally followed by the file name).
+$Tarball = Join-Path (Get-Location) "poracode-server-<v>-win32-x64.tar.gz"
+$Expected = ((Get-Content "$Tarball.sha256" -Raw).Trim() -split "\s+")[0]
+$Actual = (Get-FileHash -Algorithm SHA256 $Tarball).Hash.ToLowerInvariant()
+if ($Actual -ne $Expected.ToLowerInvariant()) { throw "checksum mismatch" }
+
+# 2. Bootstrap the shipped installer with bsdtar into an empty directory.
+$Bootstrap = Join-Path $env:TEMP "poracode-bootstrap"
+New-Item -ItemType Directory -Force "$Bootstrap\scripts" | Out-Null
+$Tar = Join-Path $env:SystemRoot "System32\tar.exe"
+foreach ($script in "install-server-prefix.mjs", "server-release-install.mjs",
+  "server-native-overlay.mjs", "server-host-tools.mjs") {
+  & $Tar -xOzf $Tarball "./scripts/$script" | Set-Content -Encoding utf8NoBOM "$Bootstrap\scripts\$script"
+}
+
+# 3. Install. Omitting --prefix uses %LOCALAPPDATA%\Poracode\server.
+node "$Bootstrap\scripts\install-server-prefix.mjs" --tarball $Tarball
+Remove-Item -Recurse -Force $Bootstrap
+node "$env:LOCALAPPDATA\Poracode\server\current\lib\server.cjs" doctor --json
+```
+
+`<prefix>\current` is a directory junction (no elevation or Developer Mode
+needed). Run the server in the foreground with
+`node "$env:LOCALAPPDATA\Poracode\server\current\lib\server.cjs"`, or through
+the launcher (`npx poracode`), which resolves the `win32-x64` runtime.
+
+Stop a running server with `node ...\server.cjs stop` (or `poracode stop`):
+Windows has no graceful process signal, so this authenticated host-control
+request is the supported stop (see §4.4). Do not use `taskkill` or
+`Stop-Process`, which terminate without draining or releasing the owner lease.
+
+Start at logon with Task Scheduler (foreground, not a Windows service). Set
+`PORACODE_BASE_DIR` explicitly so the task and your interactive shell share one
+profile:
+
+```powershell
+$Node = (Get-Command node).Source
+$Server = "$env:LOCALAPPDATA\Poracode\server\current\lib\server.cjs"
+$Action = New-ScheduledTaskAction -Execute $Node -Argument "`"$Server`"" `
+  -WorkingDirectory $env:USERPROFILE
+$Trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$Settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) `
+  -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName "Poracode server" -Action $Action `
+  -Trigger $Trigger -Settings $Settings
+# Task Scheduler passes no environment: set PORACODE_BASE_DIR for the account
+# (persistent, and read by the task at logon), then sign out and in.
+[Environment]::SetEnvironmentVariable("PORACODE_BASE_DIR", "$env:USERPROFILE\.poracode", "User")
+```
+
+To stop the task's server, run `stop` (above) rather than ending the task.
+
+Notes:
+
+- **Profile sharing.** The Poracode desktop app and the standalone server on
+  the same Windows account use one owner-leased profile; only one process owns
+  it at a time. Point the server at a separate `PORACODE_BASE_DIR` if the
+  desktop app runs on the same machine.
+- **WSL port clashes.** The default remote-access port is shared by a server
+  started inside WSL. With WSL mirrored networking, or a WSL server forwarded to
+  localhost, two servers cannot bind the same port; set
+  `PORACODE_REMOTE_ACCESS_PORT` on one of them.
+- **Path length.** Keep the prefix short; `doctor` warns when the prefix plus
+  the longest release member approaches the 260-character limit without
+  `LongPathsEnabled`.
+- The owner-only permission model on Windows is enforced with ACLs (`icacls`)
+  on secret and state files.
 
 ### 3.4 Native closure
 
@@ -392,9 +473,14 @@ a WebSocket going-away close (RFC 6455 1001) before the connection grace ends; a
 socket that ignores it is terminated at that grace, so the announcement never
 extends the stop budget.
 
-There is no authenticated "stop" operation and PID signaling is unsupported:
-the control surface is `describe`/`issue-pairing`, and service managers stop
-the server with SIGTERM.
+**Stop by command.** `poracode-server stop` (`node lib/server.cjs stop`, or
+`poracode stop` through the launcher) finds the authenticated owner of the
+selected profile, asks it over host control to run the same drain, and waits for
+the owner record to report `phase: "stopped"`. It exits 0 when the server is
+stopped or was not running, and non-zero on refusal, an owner too old to support
+`shutdown` (stop that one with its service manager), or a missed deadline. It
+never signals a PID. This is the only graceful stop on Windows, where a process
+signal is a hard kill; on POSIX service managers keep using SIGTERM.
 
 ## 5. Container image
 
@@ -622,12 +708,15 @@ refuses future formats — downgrade across a data migration is unsupported.
 
 ## 10. Support matrix and qualification status
 
-The standalone server is built for **macOS (darwin-arm64, darwin-x64)** and
-**Linux glibc (linux-x64, linux-arm64)**, with musl target keys
-(`linuxmusl-*`) resolved at runtime by glibc detection; a target is published
-only when its release-matrix leg produced and qualified it. Node.js >= 24.10 is
-the floor. Native Windows is a documented non-goal: Windows users run the
-desktop app or the server inside WSL. Unsupported targets fail closed.
+The standalone server is built for **macOS (darwin-arm64, darwin-x64)**,
+**Linux glibc (linux-x64, linux-arm64)**, and **Windows (win32-x64)**, with musl
+target keys (`linuxmusl-*`) resolved at runtime by glibc detection; a target is
+published only when its release-matrix leg produced and qualified it. Windows
+x64 is built and qualified natively on a Windows runner (win32-arm64 is not
+advertised). Node.js >= 24.10 is the floor. The Windows install path and
+service recipe are in §3.3; WSL projects are reached through the Windows host
+(`wsl.exe`), not by running this server inside a distro. Unsupported targets
+fail closed.
 
 Qualification is per frozen artifact. The target install itself is the §3.3
 recipe (the artifact's own shipped installer, no checkout); the source checkout
@@ -637,7 +726,8 @@ only supplies the harness that exercises that installed prefix:
 # 1. Install the frozen bytes with the artifact's own shipped installer per
 #    §3.3, then run the end-to-end loop from the checkout (doctor, boot, health,
 #    pair, one PTY thread turn, SIGTERM drain with lease release, then an
-#    upgrade of the same prefix and second drain).
+#    upgrade of the same prefix and second drain). On Windows the drain is
+#    the authenticated `stop` command and the turn runs in ConPTY.
 node scripts/server-install-qualification.mjs --tarball <tarball> \
   --prefix <prefix> --artifact <server-artifact.json>
 
