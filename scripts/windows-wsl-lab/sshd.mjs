@@ -24,6 +24,13 @@ if [ -x /usr/sbin/sshd ]; then
   printf 'sshd-already-installed\\n'
   exit 0
 fi
+# WSL2 distros share one VM network namespace, so a package postinst that
+# starts the default ssh service on :22 collides with another lab distro's
+# (dpkg exit 1 on the second import). policy-rc.d exit 101 is Debian's
+# "install, don't start" contract; the lab starts sshd itself on its own port.
+printf '#!/bin/sh\\nexit 101\\n' > /usr/sbin/policy-rc.d
+chmod 755 /usr/sbin/policy-rc.d
+trap 'rm -f /usr/sbin/policy-rc.d' EXIT
 apt-get update -qq
 apt-get install -y -qq --no-install-recommends openssh-server
 printf 'sshd-installed\\n'
