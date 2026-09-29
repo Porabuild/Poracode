@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { windowsSystemTool } from "@/shared/windowsSystemTool";
 import {
   existsSync,
   linkSync,
@@ -171,7 +172,7 @@ describe("win32 process identity", () => {
     const run = vi.fn<() => string>(() => "638912345678901234\r\n");
     expect(readProcessIdentity(4321, { platform: "win32", run })).toBe("win32:638912345678901234");
     expect(run).toHaveBeenCalledExactlyOnceWith(
-      "powershell.exe",
+      windowsSystemTool("powershell"),
       ["-NoProfile", "-Command", "(Get-Process -Id 4321).StartTime.ToUniversalTime().Ticks"],
       5_000,
     );

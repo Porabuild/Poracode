@@ -14,6 +14,7 @@ import {
 import { hostname as osHostname } from "node:os";
 import { join } from "node:path";
 import { restrictToOwner } from "@/shared/restrictToOwner";
+import { windowsSystemTool } from "@/shared/windowsSystemTool";
 
 /**
  * D4 per-prefix upgrade lock.
@@ -134,7 +135,7 @@ export function readProcessIdentity(pid: number, deps: ProcessIdentityDeps = {})
     // callers then keep the conservative "live PID is the holder" behavior.
     try {
       const output = (deps.run ?? defaultRun)(
-        "powershell.exe",
+        windowsSystemTool("powershell"),
         ["-NoProfile", "-Command", `(Get-Process -Id ${pid}).StartTime.ToUniversalTime().Ticks`],
         WIN32_IDENTITY_TIMEOUT_MS,
       ).trim();

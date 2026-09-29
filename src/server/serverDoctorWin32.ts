@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { defaultOwnerAclExec, type OwnerAclExec } from "@/shared/restrictToOwner";
 import type { ServerInstallLayout } from "./serverInstallLayout";
 import type { ServerDoctorCheck } from "./serverDoctorTypes";
+import { windowsSystemTool } from "@/shared/windowsSystemTool";
 
 /**
  * Windows-only doctor checks: owner-only profile ACL, the ConPTY runtime
@@ -65,7 +66,9 @@ function describeError(error: unknown): string {
 function checkOwnerAcl(input: Win32DoctorInput, exec: OwnerAclExec): ServerDoctorCheck {
   let output: string;
   try {
-    output = exec("icacls", [input.profileRoot], { timeout: DOCTOR_EXEC_TIMEOUT_MS });
+    output = exec(windowsSystemTool("icacls"), [input.profileRoot], {
+      timeout: DOCTOR_EXEC_TIMEOUT_MS,
+    });
   } catch (error) {
     return {
       name: "owner-acl",
@@ -111,9 +114,13 @@ function checkConpty(
 
 function readLongPathsEnabled(exec: OwnerAclExec): boolean | null {
   try {
-    const output = exec("reg", ["query", LONG_PATHS_KEY, "/v", "LongPathsEnabled"], {
-      timeout: DOCTOR_EXEC_TIMEOUT_MS,
-    });
+    const output = exec(
+      windowsSystemTool("reg"),
+      ["query", LONG_PATHS_KEY, "/v", "LongPathsEnabled"],
+      {
+        timeout: DOCTOR_EXEC_TIMEOUT_MS,
+      },
+    );
     const match = /LongPathsEnabled\s+REG_DWORD\s+(0x[0-9a-f]+|\d+)/iu.exec(output);
     return match?.[1] === undefined ? null : Number(match[1]) !== 0;
   } catch {

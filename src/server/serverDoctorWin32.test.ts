@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { windowsSystemTool } from "@/shared/windowsSystemTool";
 import { describe, expect, it } from "vitest";
 import type { OwnerAclExec } from "@/shared/restrictToOwner";
 import type { ServerInstallLayout } from "./serverInstallLayout";
@@ -31,7 +32,7 @@ function run(fixture: Fixture, platform: NodeJS.Platform = "win32") {
   const calls: string[] = [];
   const exec: OwnerAclExec = (file, args) => {
     calls.push(`${file} ${args.join(" ")}`);
-    const result = file === "icacls" ? fixture.icacls : fixture.reg;
+    const result = file === windowsSystemTool("icacls") ? fixture.icacls : fixture.reg;
     if (result instanceof Error) throw result;
     return result ?? "";
   };

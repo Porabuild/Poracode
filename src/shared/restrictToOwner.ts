@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { statSync } from "node:fs";
+import { windowsSystemTool } from "./windowsSystemTool";
 
 /**
  * POSIX file modes (0o600/0o700) are a silent no-op on Windows, where access is
@@ -74,7 +75,7 @@ export function resolveCurrentUserSid(exec: OwnerAclExec = defaultOwnerAclExec):
   if (cachedOwnerSid !== undefined) return cachedOwnerSid;
   let output: string;
   try {
-    output = exec("whoami", ["/user", "/fo", "csv", "/nh"], {
+    output = exec(windowsSystemTool("whoami"), ["/user", "/fo", "csv", "/nh"], {
       timeout: RESTRICT_TO_OWNER_TIMEOUT_MS,
     });
   } catch (error) {
@@ -132,7 +133,7 @@ export function restrictToOwner(
   const args = [path, "/inheritance:r", "/grant:r", grant];
   if (directory && options.recursive === true) args.push("/T");
   try {
-    exec("icacls", args, { timeout: RESTRICT_TO_OWNER_TIMEOUT_MS });
+    exec(windowsSystemTool("icacls"), args, { timeout: RESTRICT_TO_OWNER_TIMEOUT_MS });
   } catch (error) {
     throw new RestrictToOwnerError(
       path,
