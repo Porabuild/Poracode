@@ -20,6 +20,8 @@ import { hasSendablePromptContent, skillSegmentFromSlashCommand } from "@/shared
 import { friendlyError } from "@/shared/messages";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isQuickComposerWindow, isRemoteSession, readBridge } from "@/renderer/bridge";
+import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { hasAnyClientBridge } from "@/renderer/clientRuntime";
 import {
   AttachmentBar,
@@ -363,6 +365,7 @@ export function ThreadDraftComposerArea(props: {
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
+  const browserImageReadiness = useRemoteBridgeImageReadiness();
   // Remote-project attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = props.project.remoteServerId;
@@ -370,13 +373,19 @@ export function ThreadDraftComposerArea(props: {
     remoteDesktopId ? state.hostUpdateRestarts[remoteDesktopId] !== undefined : false,
   );
   const attachmentImageUrlForPath = remoteDesktopId
-    ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
+    ? (path: string) =>
+        isRemoteSurface
+          ? remoteBridgeLocalImageUrl(path)
+          : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
   // Host-owned environment attachments resolve through the keyed readiness
   // subscription; direct/ssh keep their synchronous endpoint URL.
   const remoteImageReadiness = remoteDesktopId
-    ? environmentImageReadinessFor(remoteDesktopId)
-    : undefined;
+    ? (environmentImageReadinessFor(remoteDesktopId) ??
+      (isRemoteSurface ? browserImageReadiness : undefined))
+    : isRemoteSurface
+      ? browserImageReadiness
+      : undefined;
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
   const projectId = props.project.id;

@@ -5,7 +5,12 @@ import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
+import {
+  remoteBridgeImageRefUrl,
+  remoteBridgeLocalImageUrl,
+} from "@/renderer/browser/remoteBridge";
+import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useThreadHasBackgroundActivity } from "@/renderer/hooks/uiSelectors";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -102,6 +107,7 @@ export function ChatPane(props: ChatPaneProps) {
     checkpointProjectLocation,
   } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
+  const browserImageReadiness = useRemoteBridgeImageReadiness();
   const isRemoteThread = thread.remoteServerId !== undefined;
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
@@ -196,15 +202,22 @@ export function ChatPane(props: ChatPaneProps) {
         ? {
             remoteLocalImageUrl: (url: string) => {
               const platform = targetContext.projectLocation.kind === "windows" ? "win32" : "linux";
-              return useRemoteServersStore
-                .getState()
-                .localImageUrl(thread.remoteServerId!, resolveLocalFileUrlPath(url, platform));
+              const path = resolveLocalFileUrlPath(url, platform);
+              return isRemoteSession()
+                ? remoteBridgeLocalImageUrl(path)
+                : useRemoteServersStore.getState().localImageUrl(thread.remoteServerId!, path);
             },
             remoteImageRefUrl: (ref) =>
-              useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref),
-            remoteImageReadiness: environmentImageReadinessFor(thread.remoteServerId!),
+              isRemoteSession()
+                ? remoteBridgeImageRefUrl(ref)
+                : useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref),
+            remoteImageReadiness:
+              environmentImageReadinessFor(thread.remoteServerId!) ??
+              (isRemoteSession() ? browserImageReadiness : undefined),
           }
-        : {}),
+        : isRemoteSession()
+          ? { remoteImageReadiness: browserImageReadiness }
+          : {}),
     };
   }, [
     project,
@@ -221,6 +234,7 @@ export function ChatPane(props: ChatPaneProps) {
     onRevealProjectFolderInTree,
     canShowProjectEntryInExplorer,
     thread.remoteServerId,
+    browserImageReadiness,
   ]);
 
   useEffect(() => {

@@ -20,11 +20,19 @@ import {
   isRemoteProcedure,
   RemoteTerminalOwnership,
   type RemoteBrowserCommand,
+  type RemoteImageRefValue,
   type RemoteRuntimeItemsPageRequest,
 } from "@/shared/remote";
 import { setRemoteLocalImageResolver } from "@/shared/localImageDisplay";
 import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import { resolveLocalFileUrlPath } from "@/shared/promptContent";
+import {
+  RemoteEnvironmentImageCache,
+  environmentImageRefKey,
+  environmentLocalImageKey,
+} from "@/shared/remote/clientEnvironmentImages";
+import { RemoteEnvironmentClient } from "@/shared/remote/clientEnvironments";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import {
   DEFAULT_KEYBINDINGS,
   keybindingsFileSchema,
@@ -54,6 +62,9 @@ import { pushDesktopSettingsDiff } from "./remoteSettingsSync";
  */
 
 let activeClient: RemoteDesktopClient | null = null;
+let browserImages: RemoteEnvironmentImageCache | null = null;
+let browserImageReadiness: RemoteImageReadiness | undefined;
+const browserImageListeners = new Set<() => void>();
 const pendingClientResolvers = new Set<(client: RemoteDesktopClient) => void>();
 const remoteTerminals = new RemoteTerminalOwnership<true>();
 /** Host OS of the paired desktop (`win32`/`darwin`/`linux`), when known. */
@@ -86,6 +97,35 @@ export function setRemoteBridgeClient(
   client: RemoteDesktopClient | null,
   platform?: NodeJS.Platform | null,
 ): void {
+  if (activeClient !== client) {
+    browserImages?.dispose();
+    browserImages =
+      client && !(client instanceof RemoteEnvironmentClient)
+        ? new RemoteEnvironmentImageCache({
+            fetchBytes: (path, signal) => client.fetchTicketedImageBytes(path, signal),
+            createObjectUrl: (blob) => URL.createObjectURL(blob),
+            revokeObjectUrl: (url) => URL.revokeObjectURL(url),
+          })
+        : null;
+    const images = browserImages;
+    browserImageReadiness = images
+      ? {
+          resolveRef: (ref) => images.resolutionForImageKey(environmentImageRefKey(ref)).url,
+          subscribeRef: (ref, listener) =>
+            images.subscribeImageKey(environmentImageRefKey(ref), listener),
+          requestRef: (ref) => {
+            images.imageRefResolution(ref);
+          },
+          resolvePath: (path) => images.resolutionForImageKey(environmentLocalImageKey(path)).url,
+          subscribePath: (path, listener) =>
+            images.subscribeImageKey(environmentLocalImageKey(path), listener),
+          requestPath: (path) => {
+            images.localImageResolution(path);
+          },
+        }
+      : undefined;
+    for (const listener of browserImageListeners) listener();
+  }
   activeClient = client;
   if (client) {
     for (const resolve of pendingClientResolvers) resolve(client);
@@ -108,6 +148,28 @@ export function getRemoteBridgeClient(): RemoteDesktopClient | null {
   return activeClient;
 }
 
+/** Reactive, bounded browser image cache for the paired desktop. */
+export function getRemoteBridgeImageReadiness(): RemoteImageReadiness | undefined {
+  return browserImageReadiness;
+}
+
+export function subscribeRemoteBridgeImages(listener: () => void): () => void {
+  browserImageListeners.add(listener);
+  return () => browserImageListeners.delete(listener);
+}
+
+/** Renderable image URL for a host path in the browser's current connection. */
+export function remoteBridgeLocalImageUrl(path: string): string {
+  return browserImages
+    ? browserImages.localImageUrl(path)
+    : activeClient?.localImageUrl(path) || "";
+}
+
+/** Renderable image URL for a host-owned inline transcript reference. */
+export function remoteBridgeImageRefUrl(ref: RemoteImageRefValue): string {
+  return browserImages ? browserImages.imageRefUrl(ref) : activeClient?.imageRefUrl(ref) || "";
+}
+
 /**
  * Maps a poracode-local image URL to the desktop's authenticated image
  * endpoint. The PWA has no `process.platform`, so the path decode keys off the
@@ -120,7 +182,7 @@ function remoteLocalImageUrl(client: RemoteDesktopClient, url: string): string {
     const path = hostPlatform
       ? resolveLocalFileUrlPath(url, hostPlatform)
       : decodeLocalFileUrlPath(url);
-    return client.localImageUrl(path) || url;
+    return (browserImages ? browserImages.localImageUrl(path) : client.localImageUrl(path)) || url;
   } catch {
     return url;
   }

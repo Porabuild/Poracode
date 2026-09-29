@@ -53,6 +53,8 @@ import {
 } from "../composer/useAttachments";
 import type { VoiceInputHandle } from "../composer/VoiceInputButton";
 import { isCompactClientSurface, isRemoteSession, readBridge } from "@/renderer/bridge";
+import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { threadProductProperties } from "@/renderer/analytics/posthog";
 import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -241,6 +243,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [hasContent, setHasContent] = useState(false);
   const compactLayout = useCompactLayout();
   const isRemoteSurface = isRemoteSession();
+  const browserImageReadiness = useRemoteBridgeImageReadiness();
   // The remote/mobile surface has no right panel to host the docks.
   const docksPlacement = isRemoteSurface ? "composer" : requestedDocksPlacement;
   const docksInComposer = docksPlacement === "composer";
@@ -273,13 +276,19 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = thread.remoteServerId;
   const attachmentImageUrlForPath = remoteDesktopId
-    ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
+    ? (path: string) =>
+        isRemoteSurface
+          ? remoteBridgeLocalImageUrl(path)
+          : useRemoteServersStore.getState().localImageUrl(remoteDesktopId, path)
     : undefined;
   // Host-owned environment attachments resolve through the keyed readiness
   // subscription; direct/ssh keep their synchronous endpoint URL.
   const remoteImageReadiness = remoteDesktopId
-    ? environmentImageReadinessFor(remoteDesktopId)
-    : undefined;
+    ? (environmentImageReadinessFor(remoteDesktopId) ??
+      (isRemoteSurface ? browserImageReadiness : undefined))
+    : isRemoteSurface
+      ? browserImageReadiness
+      : undefined;
   // Unsent composer content survives leaving this thread. The primary GUI pane
   // keeps this section mounted across thread switches; restore before paint
   // without exposing another thread's editor state.

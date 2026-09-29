@@ -1,9 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
 import type { PrWatch, PrWatchInput, PrWatchKey, ProjectNotes } from "@/shared/contracts";
 import { REMOTE_PROCEDURE_SPECS } from "@/shared/remote";
 import type { RemoteDesktopClient } from "@/shared/remote/client";
 import { DEFAULT_KEYBINDINGS } from "@/shared/keybindings";
-import { installRemoteBridge, setRemoteBridgeClient } from "./remoteBridge";
+import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
+import { toLocalFileUrl } from "@/shared/promptContent";
+import {
+  getRemoteBridgeImageReadiness,
+  installRemoteBridge,
+  setRemoteBridgeClient,
+  subscribeRemoteBridgeImages,
+} from "./remoteBridge";
+import { useRemoteBridgeImageReadiness } from "./useRemoteBridgeImages";
 
 describe("remote bridge", () => {
   afterEach(() => {
@@ -14,6 +23,61 @@ describe("remote bridge", () => {
       writable: true,
       value: undefined,
     });
+  });
+
+  it("publishes a fetched attachment blob to the thumbnail and lightbox resolver", async () => {
+    const createDescriptor = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
+    const revokeDescriptor = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
+    const revoke = vi.fn<(url: string) => void>();
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn<(blob: Blob) => string>(() => "blob:attachment-preview"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revoke });
+    try {
+      const fetchTicketedImageBytes = vi.fn<RemoteDesktopClient["fetchTicketedImageBytes"]>(
+        async () => ({
+          bytes: new Uint8Array([137, 80, 78, 71]),
+          contentType: "image/png",
+        }),
+      );
+      setRemoteBridgeClient(
+        { fetchTicketedImageBytes } as unknown as RemoteDesktopClient,
+        "darwin",
+      );
+      const path = "/tmp/attachment.png";
+      const readiness = getRemoteBridgeImageReadiness();
+      expect(readiness?.resolvePath(path)).toBe("");
+      readiness?.requestPath(path);
+      await vi.waitFor(() => expect(readiness?.resolvePath(path)).toBe("blob:attachment-preview"));
+      expect(fetchTicketedImageBytes).toHaveBeenCalledTimes(1);
+      expect(resolveLocalImageDisplayUrl(toLocalFileUrl(path))).toBe("blob:attachment-preview");
+      const changes = vi.fn<() => void>();
+      const unsubscribe = subscribeRemoteBridgeImages(changes);
+      setRemoteBridgeClient(null);
+      expect(revoke).toHaveBeenCalledWith("blob:attachment-preview");
+      expect(changes).toHaveBeenCalledOnce();
+      unsubscribe();
+    } finally {
+      if (createDescriptor) Object.defineProperty(URL, "createObjectURL", createDescriptor);
+      else Reflect.deleteProperty(URL, "createObjectURL");
+      if (revokeDescriptor) Object.defineProperty(URL, "revokeObjectURL", revokeDescriptor);
+      else Reflect.deleteProperty(URL, "revokeObjectURL");
+    }
+  });
+
+  it("rebinds mounted image consumers when the browser connection changes", () => {
+    const { result, unmount } = renderHook(useRemoteBridgeImageReadiness);
+    expect(result.current).toBeUndefined();
+    act(() => setRemoteBridgeClient({} as RemoteDesktopClient, "darwin"));
+    const first = result.current;
+    expect(first).toBeDefined();
+    act(() => setRemoteBridgeClient(null));
+    expect(result.current).toBeUndefined();
+    act(() => setRemoteBridgeClient({} as RemoteDesktopClient, "darwin"));
+    expect(result.current).toBeDefined();
+    expect(result.current).not.toBe(first);
+    unmount();
   });
 
   it("uploads browser-selected files and returns paired-desktop paths", async () => {

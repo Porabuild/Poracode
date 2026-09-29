@@ -140,6 +140,50 @@ export abstract class RemoteClientTransport extends RemoteClientPinCore {
   }
 
   /**
+   * Fetch image bytes for a browser-owned blob cache. The ticket is minted for
+   * this request alone: the host consumes it on the first GET, so sharing a
+   * ticketed URL between a thumbnail and a lightbox cannot work.
+   */
+  async fetchTicketedImageBytes(
+    requestPath: string,
+    signal: AbortSignal,
+  ): Promise<{ bytes: Uint8Array; contentType: string }> {
+    const url = endpointUrl(this.endpoint, requestPath);
+    const path = url.searchParams.get("path");
+    if (!path) throw new RemoteClientError("An image path is required.", 400, "invalid_path");
+    const result = parseResponse(
+      remoteImageTicketResultSchema,
+      await this.requestJson("/api/files/image-ticket", {
+        method: "POST",
+        body: { path },
+        signal,
+      }),
+      "image ticket",
+    );
+    if (signal.aborted) {
+      throw new RemoteClientError(
+        "Image request was cancelled.",
+        REMOTE_REQUEST_CANCELLED_STATUS,
+        "cancelled",
+      );
+    }
+    url.searchParams.set("ticket", result.ticket);
+    const response = await this.fetchImpl(url, {
+      method: "GET",
+      signal,
+      certFingerprint: this.pinnedCertFingerprint ?? null,
+    });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new RemoteClientError("Image request failed.", response.status, "request_failed");
+    }
+    return {
+      bytes: await readBoundedResponseBody(response, this.maxResponseBodyBytes),
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+    };
+  }
+
+  /**
    * One shared mint: `key` dedupes concurrent resolutions, `pathValue` is the
    * exact server-side path the ticket is bound to (the filesystem path for
    * {@link localImageUrl}, the JSON reference path for {@link imageRefUrl}).

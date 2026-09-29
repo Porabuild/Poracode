@@ -15,13 +15,17 @@ import { getProjectFsPath } from "@/shared/wsl";
 import { resolveProjectLocation } from "@/shared/worktree";
 import type { RemoteImageRefValue } from "@/shared/remote";
 import { environmentImageRefKey } from "@/shared/remote/clientEnvironmentImages";
-import { readBridge } from "@/renderer/bridge";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { imageUrlMetadata } from "@/renderer/utils/imageUrlMetadata";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  remoteBridgeImageRefUrl,
+  remoteBridgeLocalImageUrl,
+} from "@/renderer/browser/remoteBridge";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
 import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
@@ -424,9 +428,13 @@ export function buildGalleryResolversFromState(
   if (remoteServerId) {
     const desktopId = remoteServerId;
     resolvers.imageUrlForPath = (path: string) =>
-      useRemoteServersStore.getState().localImageUrl(desktopId, path);
+      isRemoteSession()
+        ? remoteBridgeLocalImageUrl(path)
+        : useRemoteServersStore.getState().localImageUrl(desktopId, path);
     resolvers.remoteImageRefUrl = (ref) =>
-      useRemoteServersStore.getState().imageRefUrl(desktopId, ref);
+      isRemoteSession()
+        ? remoteBridgeImageRefUrl(ref)
+        : useRemoteServersStore.getState().imageRefUrl(desktopId, ref);
   }
   const project = thread ? state.projects?.find((p) => p.id === thread.projectId) : undefined;
   if (project && thread) {
@@ -439,7 +447,9 @@ export function buildGalleryResolversFromState(
             ? ("win32" as NodeJS.Platform)
             : ("linux" as NodeJS.Platform);
         const imagePath = resolveLocalFileUrlPath(url, platform);
-        return useRemoteServersStore.getState().localImageUrl(remoteServerId, imagePath);
+        return isRemoteSession()
+          ? remoteBridgeLocalImageUrl(imagePath)
+          : useRemoteServersStore.getState().localImageUrl(remoteServerId, imagePath);
       };
     }
     const homeDir = readBridge()?.homeDir ?? undefined;

@@ -1793,6 +1793,42 @@ describe("RemoteDesktopClient image ticket flow", () => {
     expect(mints).toHaveLength(1);
   });
 
+  it("uses a fresh one-time ticket for each blob fetch", async () => {
+    let issued = 0;
+    const used: string[] = [];
+    const mintHeaders: Array<Record<string, string>> = [];
+    const imageHeaders: Array<Record<string, string>> = [];
+    const fetch = vi.fn<RemoteFetch>((url, init) => {
+      const request = new URL(String(url));
+      if (request.pathname === "/api/files/image-ticket") {
+        issued += 1;
+        mintHeaders.push((init?.headers ?? {}) as Record<string, string>);
+        return Promise.resolve(
+          jsonResponse(200, { ticket: `lc_img_${issued}`, expiresAt: "2026-01-01T00:00:30Z" }),
+        );
+      }
+      imageHeaders.push((init?.headers ?? {}) as Record<string, string>);
+      used.push(request.searchParams.get("ticket") ?? "");
+      return Promise.resolve(
+        new Response(new Uint8Array([1, 2, 3]), {
+          headers: { "content-type": "image/png" },
+        }),
+      );
+    });
+    const client = new RemoteDesktopClient(endpoint, "lc_access_test", fetch);
+    const path = `/api/files/image?path=${encodeURIComponent(PATH)}`;
+    const first = await client.fetchTicketedImageBytes(path, new AbortController().signal);
+    const second = await client.fetchTicketedImageBytes(path, new AbortController().signal);
+    expect(first).toEqual({ bytes: new Uint8Array([1, 2, 3]), contentType: "image/png" });
+    expect(second.bytes).toEqual(first.bytes);
+    expect(used).toEqual(["lc_img_1", "lc_img_2"]);
+    expect(mintHeaders.map((headers) => headers.authorization)).toEqual([
+      "Bearer lc_access_test",
+      "Bearer lc_access_test",
+    ]);
+    expect(imageHeaders.every((headers) => headers.authorization === undefined)).toBe(true);
+  });
+
   it("latches off tickets when an older host has no mint route and serves no image URL", async () => {
     let mintCalls = 0;
     const fetch = vi.fn<RemoteFetch>((url) => {

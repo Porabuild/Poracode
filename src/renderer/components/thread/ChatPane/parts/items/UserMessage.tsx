@@ -44,6 +44,8 @@ import { useLongPress } from "@/renderer/hooks/useLongPress";
 import { openThread } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { remoteBridgeLocalImageUrl } from "@/renderer/browser/remoteBridge";
+import { isRemoteSession } from "@/renderer/bridge";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { openUserMessageActions } from "../../userMessageActions";
@@ -91,7 +93,10 @@ export const UserMessage = memo(function UserMessage({
     (state) => state.threads.find((thread) => thread.id === threadId)?.remoteServerId,
   );
   const imageUrlForPath = remoteServerId
-    ? (path: string) => useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
+    ? (path: string) =>
+        isRemoteSession()
+          ? remoteBridgeLocalImageUrl(path)
+          : useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
     : undefined;
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasVisualOverflow, setHasVisualOverflow] = useState(false);
@@ -295,6 +300,9 @@ export const UserMessage = memo(function UserMessage({
               layout="flush"
               imagesAsPreview
               {...(imageUrlForPath ? { imageUrlForPath } : {})}
+              {...(actions?.remoteImageReadiness
+                ? { remoteImageReadiness: actions.remoteImageReadiness }
+                : {})}
               onPreviewImage={(att) => {
                 // Prefer the thread-wide gallery so prev/next walks the whole
                 // history (resolved click-time, no extra subscription); fall
