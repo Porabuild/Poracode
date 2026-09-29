@@ -289,7 +289,7 @@ async function baselineScenario(client) {
           poracodeBridge: typeof window.poracode,
           devBridge: typeof window.__poracodeDev,
           crash: /renderer crash|rendered more hooks/i.test(document.body?.innerText ?? ""),
-          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")),
           draftComposer: Boolean(document.querySelector('textarea[placeholder], [contenteditable="true"], [data-composer-input-anchor]')),
           modelPicker: Boolean(document.querySelector('[aria-label="Select model"], [aria-label="Models"]')),
         }))()`,
@@ -321,7 +321,7 @@ async function welcomeDismissalScenario(client) {
           devBridge: typeof window.__poracodeDev,
           rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
           bodyTextLength: document.body?.innerText.length ?? 0,
-          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")),
         }))()`,
       ),
     (state) => state.devBridge === "object" && state.rootChildren > 0 && state.bodyTextLength > 0,
@@ -331,14 +331,15 @@ async function welcomeDismissalScenario(client) {
     return { dismissed: false, detail: "welcome screen was already dismissed" };
   }
 
-  // Bounded re-click until .poracode-welcome-page is gone (handlers may attach late).
+  // The shared WelcomeBackdrop also uses .poracode-welcome-page. The fixed
+  // overlay is the actual first-launch gate with a primary CTA.
   let clicked = false;
   let dismissed = false;
   for (let attempt = 0; attempt < 5 && !dismissed; attempt += 1) {
     clicked = await evaluate(
       client,
       `(() => {
-        const button = document.querySelector(".poracode-welcome-page button");
+        const button = document.querySelector(".poracode-welcome-page.fixed button");
         if (!(button instanceof HTMLButtonElement)) return false;
         button.click();
         localStorage.setItem("poracode-welcome-seen-v16", "true");
@@ -347,7 +348,7 @@ async function welcomeDismissalScenario(client) {
     );
     if (!clicked) break;
     await new Promise((resolveWait) => setTimeout(resolveWait, 1_500));
-    dismissed = await evaluate(client, `!document.querySelector(".poracode-welcome-page")`);
+    dismissed = await evaluate(client, `!document.querySelector(".poracode-welcome-page.fixed")`);
   }
   assert(clicked, "welcome screen primary action was not clickable");
   const final = await waitForValue(
@@ -359,7 +360,7 @@ async function welcomeDismissalScenario(client) {
           devBridge: typeof window.__poracodeDev,
           rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
           bodyTextLength: document.body?.innerText.length ?? 0,
-          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")),
         }))()`,
       ),
     (state) =>
@@ -373,7 +374,7 @@ async function welcomeDismissalScenario(client) {
   await new Promise((resolveWait) => setTimeout(resolveWait, 1_000));
   const stable = await evaluate(
     client,
-    `({ welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")) })`,
+    `({ welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")) })`,
   );
   assert(!final.welcomeVisible, "welcome screen remained visible after dismissal");
   assert(!stable.welcomeVisible, "welcome screen returned after dismissal verification");
