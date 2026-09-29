@@ -1880,6 +1880,10 @@ msgstr "Назад"
 #~ msgid "Back to files"
 #~ msgstr "Назад к файлам"
 
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Back to latest"
+msgstr "Вернуться к последнему тексту"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #~ msgid "Back to MCP servers"
 #~ msgstr "Назад к серверам MCP"
@@ -4941,6 +4945,10 @@ msgstr "напр., Codex GPT-5.5 fast для быстрых запросов, Op
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "напр. Работа"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Earlier text"
+msgstr "Предыдущий текст"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

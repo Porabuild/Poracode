@@ -1880,6 +1880,10 @@ msgstr "뒤로"
 #~ msgid "Back to files"
 #~ msgstr "파일로 돌아가기"
 
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Back to latest"
+msgstr "최신 텍스트로 돌아가기"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #~ msgid "Back to MCP servers"
 #~ msgstr "MCP 서버로 돌아가기"
@@ -4941,6 +4945,10 @@ msgstr "예: 빠른 조회에는 Codex GPT-5.5 fast, 대규모 리팩터링에�
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "예: 업무"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Earlier text"
+msgstr "이전 텍스트"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

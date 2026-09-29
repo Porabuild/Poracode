@@ -1880,6 +1880,10 @@ msgstr "返回"
 #~ msgid "Back to files"
 #~ msgstr "返回文件"
 
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Back to latest"
+msgstr "返回最新文本"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #~ msgid "Back to MCP servers"
 #~ msgstr "返回 MCP 服务器列表"
@@ -4941,6 +4945,10 @@ msgstr "例如：Codex GPT-5.5 fast 用于快速查询，OpenCode GLM 用于批�
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "例如工作"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Earlier text"
+msgstr "较早的文本"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

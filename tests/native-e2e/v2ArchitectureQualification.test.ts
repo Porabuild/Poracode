@@ -1506,10 +1506,13 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
       structuredRenderedAfter = spec.structuredWorkload
         ? await readStructuredRenderedText(cdp, structuredMarkerPrefix).catch(() => null)
         : null;
+      // A bounded message viewport keeps roughly the same number of DOM
+      // markers while its newest marker advances with the live stream.
       const structuredTextAdvanced =
         structuredRenderedBefore !== null &&
         structuredRenderedAfter !== null &&
-        structuredRenderedAfter.matchCount > structuredRenderedBefore.matchCount &&
+        structuredRenderedBefore.matchCount > 0 &&
+        structuredRenderedAfter.matchCount > 0 &&
         (structuredRenderedAfter.maxTextIndex ?? -1) >
           (structuredRenderedBefore.maxTextIndex ?? -1);
       if (spec.structuredWorkload) {

@@ -1,5 +1,5 @@
 import { Link } from "@heroui/react";
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { useSmoothStreamedText } from "@/renderer/hooks/useSmoothStreamedText";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
@@ -9,6 +9,14 @@ import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { tokenizePlainText } from "./plainTextTokens";
 import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
+import {
+  inspectPlainStream,
+  MAX_RICH_TEXT_CHARS,
+  shouldUseChunkedPlainText,
+} from "./longPlainText";
+import { WindowedPlainText } from "./WindowedPlainText";
+
+export { shouldUseChunkedPlainText } from "./longPlainText";
 
 interface ItemMarkdownProps {
   text: string;
@@ -20,29 +28,28 @@ interface SmoothItemMarkdownProps extends ItemMarkdownProps {
 }
 
 export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
+  const [inspection, setInspection] = useState(() => inspectPlainStream(text, null, isStreaming));
+  const inspectedRef = useRef({ text, isStreaming, inspection });
+  useEffect(() => {
+    const previous = inspectedRef.current;
+    if (previous.text === text && previous.isStreaming === isStreaming) return;
+    const next = inspectPlainStream(text, previous.inspection, isStreaming);
+    inspectedRef.current = { text, isStreaming, inspection: next };
+    setInspection((current) => (current.plain === next.plain ? current : next));
+  }, [text, isStreaming]);
+
+  if (inspection.plain || text.length >= MAX_RICH_TEXT_CHARS)
+    return <WindowedPlainText text={text} />;
+  return <AnimatedStreamMarkdown text={text} isStreaming={isStreaming} />;
+}
+
+function AnimatedStreamMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
   const chunkedPlainText = shouldUseChunkedPlainText(text);
   // Long plain output is still readable as it arrives; limiting DOM updates
   // avoids repeatedly re-laying out an ever-growing paragraph every frame.
   const smoothedText = useSmoothStreamedText(text, isStreaming, chunkedPlainText ? 1_000 : 0);
   const displayedText = isStreaming ? smoothedText : text;
   return <ItemMarkdown text={displayedText} plainText={chunkedPlainText} />;
-}
-
-/**
- * Streamdown reparses its trailing block on each reveal frame. A long plain
- * line is one block, so its parsing cost grows throughout a turn. Its single
- * changing DOM text node also makes Chromium retain large native text-layout
- * allocations. Use stable small spans for genuinely unformatted content,
- * including after completion. Keep the gate conservative so links, file paths,
- * code, math, and other formatting retain full Markdown rendering.
- */
-export function shouldUseChunkedPlainText(text: string): boolean {
-  return (
-    text.length >= 8_192 &&
-    !/[\r\n`*_~$\\<>#|/&@.]/u.test(text) &&
-    !text.includes("](") &&
-    !text.includes("![")
-  );
 }
 
 const PLAIN_TEXT_CHUNK_SIZE = 4_096;

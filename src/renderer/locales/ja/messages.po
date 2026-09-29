@@ -1879,6 +1879,10 @@ msgstr "戻る"
 #~ msgid "Back to files"
 #~ msgstr "ファイルに戻る"
 
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Back to latest"
+msgstr "最新のテキストに戻る"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #~ msgid "Back to MCP servers"
 #~ msgstr "MCPサーバー一覧に戻る"
@@ -4940,6 +4944,10 @@ msgstr "例：クイックな調査には Codex GPT-5.5 fast、大量のリフ�
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "例: 仕事"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Earlier text"
+msgstr "前のテキスト"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

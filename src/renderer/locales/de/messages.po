@@ -1880,6 +1880,10 @@ msgstr "Zurück"
 #~ msgid "Back to files"
 #~ msgstr "Zurück zu Dateien"
 
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Back to latest"
+msgstr "Zurück zum neuesten Text"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #~ msgid "Back to MCP servers"
 #~ msgstr "Zurück zu MCP-Servern"
@@ -4941,6 +4945,10 @@ msgstr "z. B. Codex GPT-5.5 fast für schnelle Recherchen, OpenCode GLM für umf
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "z.B. Arbeit"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Earlier text"
+msgstr "Früherer Text"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

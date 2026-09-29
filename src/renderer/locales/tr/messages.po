@@ -1880,6 +1880,10 @@ msgstr "Geri"
 #~ msgid "Back to files"
 #~ msgstr "Dosyalara dön"
 
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Back to latest"
+msgstr "En son metne dön"
+
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #~ msgid "Back to MCP servers"
 #~ msgstr "MCP sunucularına dön"
@@ -4941,6 +4945,10 @@ msgstr "örn. hızlı aramalar için Codex GPT-5.5 fast, toplu yeniden düzenlem
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "e.g. Work"
 msgstr "örneğin İş"
+
+#: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
+msgid "Earlier text"
+msgstr "Önceki metin"
 
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
