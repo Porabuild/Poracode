@@ -272,17 +272,39 @@ async function startDaemon(prefix: string, profile: string, port: number): Promi
   child.stderr.on("data", (chunk: Buffer) => output.push(chunk.toString("utf8")));
   // Dual start signal: the console line on stdout, or /healthz answering.
   // A build whose console mirroring swallows stdout still boots and serves.
-  const startSignal = await Promise.race([
-    waitForText(child.stdout, "listening at:", 120_000).then(() => "stdout" as const),
-    (async () => {
-      const deadline = Date.now() + 120_000;
-      for (;;) {
-        if (await healthOk(port)) return "health" as const;
-        if (Date.now() >= deadline) throw new Error("daemon never started listening");
-        await new Promise((resolveWait) => setTimeout(resolveWait, 500));
-      }
-    })(),
-  ]);
+  // An early exit fails fast; every startup failure carries the daemon's own
+  // output, which is otherwise invisible in CI.
+  const exited = new Promise<never>((_, reject) => {
+    child.once("exit", (code, signal) =>
+      reject(new Error(`daemon exited before listening (code ${code}, signal ${signal})`)),
+    );
+  });
+  // Consumed here so a later exit (after start or after the kill below) is
+  // never an unhandled rejection; the race still observes it.
+  exited.catch(() => undefined);
+  let startSignal: "stdout" | "health";
+  try {
+    startSignal = await Promise.race([
+      waitForText(child.stdout, "listening at:", 120_000).then(() => "stdout" as const),
+      (async () => {
+        const deadline = Date.now() + 120_000;
+        for (;;) {
+          if (await healthOk(port)) return "health" as const;
+          if (Date.now() >= deadline) throw new Error("daemon never started listening");
+          await new Promise((resolveWait) => setTimeout(resolveWait, 500));
+        }
+      })(),
+      exited,
+    ]);
+  } catch (error) {
+    child.kill();
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}\n--- daemon output ---\n${output
+        .join("")
+        .slice(-4_000)}`,
+      { cause: error },
+    );
+  }
   return {
     child,
     port,
