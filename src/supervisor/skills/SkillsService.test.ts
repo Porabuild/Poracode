@@ -1500,6 +1500,19 @@ describe("SkillsService", () => {
     ).toMatchObject({ enabled: false });
   });
 
+  it("preserves an existing skill link when copy mode is selected", async () => {
+    const managed = join(projectPath, ".agents", "skills", "testing");
+    const projection = join(projectPath, ".claude", "skills", "testing");
+    await writeSkill(managed, "testing");
+    await mkdir(dirname(projection), { recursive: true });
+    await symlink(managed, projection, "dir");
+
+    await service.prepareForLaunch(projectLocation, "claude");
+
+    expect((await lstat(projection)).isSymbolicLink()).toBe(true);
+    expect(await realpath(projection)).toBe(await realpath(managed));
+  });
+
   it("upgrades copied projections to links when the provider version supports them", async () => {
     let providerVersion = "2.1.202";
     const linkedClaude = {

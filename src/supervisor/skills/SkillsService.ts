@@ -1959,11 +1959,10 @@ export class SkillsService {
         const linkedSource = await readDirectoryLinkTarget(destination);
         const managedLink =
           linkedSource !== undefined && isDirectChild(sourceRootFsPath, linkedSource);
-        if (
-          useLinks &&
-          managedLink &&
-          normalizePath(linkedSource) === normalizePath(skill.absolutePath)
-        ) {
+        // A matching link may belong to the project. Keep it even when this
+        // provider currently requests copy mode; replacing it would modify
+        // user-owned filesystem state without changing the projected skill.
+        if (managedLink && normalizePath(linkedSource) === normalizePath(skill.absolutePath)) {
           continue;
         }
         const manifest = managedLink ? undefined : await readManifest(destination);

@@ -112,7 +112,7 @@ const KIND_DIALOG_RESPONDERS: Record<string, DialogResponder[]> = {
       // remote install script through `sh`, so a bare "\r" here is dangerous.
       // Require the modal's own option chrome, not words a model reply could
       // contain: this needle is matched against the whole decoded transcript.
-      needle: /Update\s*available!?[\s\S]*Update\s*now[\s\S]*Skip\s*until\s*next\s*version/i,
+      needle: /1\.\s*Update\s*now[\s\S]*2\.\s*Skip[\s\S]*3\.\s*Skip\s*until\s*next\s*version/i,
       response: "2\r",
       reason: "codex: skip update-available modal (default is Update now!)",
       maxFires: 2,
@@ -405,7 +405,13 @@ async function waitForTurnComplete(
   }
   throw new Error(
     `Timed out after ${timeoutMs}ms waiting for turn to settle on thread ${threadId} ` +
-      `(promptSeen=${promptSeen})`,
+      `(promptSeen=${promptSeen}). ` +
+      `Scrollback tail: ${
+        decodeScrollbackText(runtime.threadSessionManager.readTerminalScrollback(threadId))
+          .slice(-600)
+          .replace(/\s+/g, " ")
+          .trim() || "(empty)"
+      }`,
   );
 }
 
