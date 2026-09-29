@@ -415,6 +415,8 @@ export async function waitForObserverDelivery(input: {
   readonly label: string;
   readonly timeoutMs?: number;
   readonly pollMs?: number;
+  /** The last cycle's specific observation may arrive after earlier counts advance. */
+  readonly acceptSnapshot?: (snapshot: RendererPerfSnapshot | null) => boolean;
 }): Promise<ObserverDeliveryBarrier> {
   const timeoutMs = input.timeoutMs ?? 4_000;
   const pollMs = input.pollMs ?? 100;
@@ -432,7 +434,8 @@ export async function waitForObserverDelivery(input: {
     const longTaskAdvanced = counts.longTask > baseline.longTask;
     const satisfied =
       (!input.requireEventTiming || eventTimingAdvanced) &&
-      (!input.requireLongTask || longTaskAdvanced);
+      (!input.requireLongTask || longTaskAdvanced) &&
+      (input.acceptSnapshot?.(snapshot) ?? true);
     if (satisfied) break;
     if (Date.now() - startedAt >= timeoutMs) break;
     await new Promise((resolve) => setTimeout(resolve, pollMs));
@@ -1198,6 +1201,20 @@ export async function runBlockedControlPhase(input: {
     requireLongTask: true,
     label: `${phase} delivery`,
     timeoutMs: options.blockedObserverTimeoutMs,
+    acceptSnapshot: (snapshot) => {
+      const lastBlock = cycles.at(-1)?.block;
+      if (!lastBlock) return true;
+      return (
+        findQueuedInputEvidence({
+          after: snapshot,
+          block: lastBlock,
+          phaseEvents: [],
+          windowStartMs: before?.capturedAtMonotonicMs ?? null,
+          minDelayMs: options.minQueuedInputDelayMs,
+          earlierBlockEndMs: cycles.at(-2)?.blockEndMs ?? null,
+        }).eventTiming !== null
+      );
+    },
   });
   const after = barrier.snapshot ?? (await readSnapshot(cdp));
   const recorderAfter = await readTrustedInputRecorder(cdp).catch(() => null);

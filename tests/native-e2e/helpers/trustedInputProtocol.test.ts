@@ -9,10 +9,43 @@ import {
   planTrustedInputBatches,
   resolveTrustedInputOptions,
   sliceRecorderEvents,
+  waitForObserverDelivery,
   withComposerDiagnostic,
   type RecorderState,
   type RecorderTrustedEvent,
 } from "./trustedInputProtocol.ts";
+
+it("waits for the evaluated block cycle after earlier observer counts advance", async () => {
+  const snapshot = (eventTimingCount: number, lastCycleDelivered: boolean) =>
+    ({
+      observers: {
+        eventTiming: { sampleCount: eventTimingCount },
+        longTask: { sampleCount: eventTimingCount },
+      },
+      recentEventTimings: lastCycleDelivered ? [{ startMs: 300, inputDelayMs: 250 }] : [],
+    }) as unknown as RendererPerfSnapshot;
+  const before = snapshot(0, false);
+  const early = snapshot(5, false);
+  const lastCycle = snapshot(10, true);
+  const snapshots = [early, lastCycle];
+  const cdp = {
+    snapshot: async () => snapshots.shift() ?? lastCycle,
+  } as unknown as Parameters<typeof waitForObserverDelivery>[0]["cdp"];
+
+  const barrier = await waitForObserverDelivery({
+    cdp,
+    before,
+    requireEventTiming: true,
+    requireLongTask: true,
+    label: "last blocked cycle",
+    pollMs: 1,
+    acceptSnapshot: (candidate) =>
+      candidate?.recentEventTimings.some((event) => event.startMs === 300) ?? false,
+  });
+
+  expect(barrier.polls).toBe(2);
+  expect(barrier.snapshot).toBe(lastCycle);
+});
 
 /**
  * Policy unit tests for the corrected trusted-input/longtask protocol.
