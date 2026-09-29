@@ -22,6 +22,7 @@ import {
   isPluginSupportedForProject,
   resolveInstalledPluginState,
 } from "@/shared/plugins/catalog";
+import { formatSkillInvocation } from "@/shared/promptContent";
 
 const scanCache = new Map<string, SkillScanResult>();
 const pendingScans = new Map<string, Promise<SkillScanResult>>();
@@ -169,15 +170,7 @@ function buildSkillSlashCommand(
   const displayName = localizedSkill?.name ?? skill.name;
   const description = localizedSkill?.description ?? skill.description;
   // A skill's own frontmatter can override the provider-wide form.
-  const kind = skill.invocation ?? invocationKind;
-  const invocation =
-    kind === "dollar"
-      ? `$${skill.name}`
-      : kind === "skill"
-        ? `/skill:${skill.name}`
-        : kind === "prompt"
-          ? `Use the ${skill.name} skill.`
-          : `/${skill.name}`;
+  const invocation = formatSkillInvocation(skill.invocation ?? invocationKind, skill.name);
   return {
     id: skill.name,
     label: description ? `${displayName} — ${description}` : displayName,

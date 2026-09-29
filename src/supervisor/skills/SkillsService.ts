@@ -53,6 +53,7 @@ import {
   skillScanResultSchema,
 } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
+import { formatSkillInvocation } from "@/shared/promptContent";
 import { getPluginCoreSkill, pluginNativeNames } from "@/shared/plugins/catalog";
 import { parseWslUncPath, toWslUncPath } from "@/shared/wsl";
 import type {
@@ -1227,7 +1228,9 @@ export class SkillsService {
   /**
    * Enforce plugin installation policy at the supervisor boundary. Renderer
    * discovery is advisory: a stale or crafted bundled-plugin segment must not
-   * reach a provider after the plugin or contribution has been disabled.
+   * reach a provider after the plugin or contribution has been disabled. The
+   * same boundary re-applies the provider's per-skill invocation rule, so a
+   * client that predates the rule still sends a form the skill can take.
    */
   async filterPluginSkillSegments(
     segments: PromptSegment[],
@@ -1242,9 +1245,63 @@ export class SkillsService {
       ...(adapter ? { capabilities: adapter.capabilities } : {}),
       ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
     });
+    const normalized = await this.applySkillInvocationRules(
+      filtered,
+      adapter,
+      context.projectLocation,
+    );
     const nativePlugins = context.nativePlugins;
-    if (!nativePlugins?.length) return filtered;
-    return filtered.map((segment) => this.rewriteNativePluginSegment(segment, nativePlugins));
+    if (!nativePlugins?.length) return normalized;
+    return normalized.map((segment) => this.rewriteNativePluginSegment(segment, nativePlugins));
+  }
+
+  /**
+   * Re-derive a skill segment's invocation from its SKILL.md with the
+   * provider's `invocationForSkill` rule. Clients built before that rule (an
+   * older paired desktop, or a draft saved by one) send the provider-wide form
+   * for every skill, which can be a form the skill cannot take. Best effort: a
+   * segment whose SKILL.md cannot be read is sent as it came.
+   */
+  private async applySkillInvocationRules(
+    segments: PromptSegment[],
+    adapter: AgentAdapter | undefined,
+    projectLocation: ProjectLocation | undefined,
+  ): Promise<PromptSegment[]> {
+    const invocationFor = adapter?.skillSupport?.invocationForSkill;
+    const withPath = segments.flatMap((segment) =>
+      segment.kind === "skill" && segment.path ? [segment.path] : [],
+    );
+    if (!invocationFor || withPath.length === 0) return segments;
+    const environment = await this.resolveEnvironment(projectLocation);
+    const distro = environment.wsl ? environment.distro : undefined;
+    // Segment paths are display paths (Linux form inside WSL environments).
+    const wslFsPaths = distro
+      ? await this.mapWslLinuxPathsToFsPaths(
+          distro,
+          withPath.filter((path) => path.startsWith("/")),
+        )
+      : new Map<string, string>();
+    return Promise.all(
+      segments.map(async (segment): Promise<PromptSegment> => {
+        if (segment.kind !== "skill" || !segment.path) return segment;
+        const fsPath =
+          distro && segment.path.startsWith("/")
+            ? (wslFsPaths.get(segment.path) ?? this.wslFsPath(distro, segment.path))
+            : segment.path;
+        let content: string;
+        try {
+          const buffer = await readFile(fsPath);
+          if (buffer.length > MAX_SKILL_FILE_BYTES) return segment;
+          content = buffer.toString("utf8");
+        } catch {
+          return segment;
+        }
+        const kind = invocationFor(parseSkillMetadata(content, segment.name).fields);
+        if (!kind) return segment;
+        const invocation = formatSkillInvocation(kind, segment.name);
+        return invocation === segment.invocation ? segment : { ...segment, invocation };
+      }),
+    );
   }
 
   /**

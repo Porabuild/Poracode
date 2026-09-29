@@ -375,7 +375,9 @@ most often forgotten.
       skills cannot take that form, supply `skillSupport.invocationForSkill`
       from the provider folder. The skill scan passes it each SKILL.md's
       scalar frontmatter fields and records the returned form on that entry
-      (see Claude: `user-invocable: false` skills keep the request form).
+      (see Claude: `user-invocable: false` skills keep the request form). The
+      supervisor applies the same rule again to every incoming skill segment,
+      so a paired client that predates a rule still sends a valid form.
 
 > Reference template for a **TUI-only, no-ACP** CLI: `commandcode/`
 > (multi-model + npm install/update + a synthesized terminal Login method).

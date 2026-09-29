@@ -1,4 +1,9 @@
-import type { AgentSlashCommand, CanonicalContentBlock, PromptSegment } from "./contracts";
+import type {
+  AgentSlashCommand,
+  CanonicalContentBlock,
+  PromptSegment,
+  SkillInvocation,
+} from "./contracts";
 
 export const IMAGE_EXTENSIONS = [
   "png",
@@ -232,6 +237,20 @@ export function inlinePromptSegmentText(segment: PromptSegment): string {
       return `@${threadMentionLabel(segment)}`;
     case "text":
       return segment.content;
+  }
+}
+
+/** The text a composer types to invoke the named skill in the given form. */
+export function formatSkillInvocation(kind: SkillInvocation, name: string): string {
+  switch (kind) {
+    case "dollar":
+      return `$${name}`;
+    case "skill":
+      return `/skill:${name}`;
+    case "prompt":
+      return `Use the ${name} skill.`;
+    case "slash":
+      return `/${name}`;
   }
 }
 
