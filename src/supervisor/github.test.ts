@@ -2143,6 +2143,20 @@ describe("GitHub Actions mappers", () => {
 });
 
 describe("resolveClonedProjectPath", () => {
+  it("keeps a DrvFs WSL parent on the UNC path so the clone stays a WSL project", () => {
+    expect(
+      resolveClonedProjectPath(
+        {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/mnt/c/code",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\mnt\\c\\code",
+        },
+        "repo",
+      ),
+    ).toBe("\\\\wsl.localhost\\Ubuntu\\mnt\\c\\code\\repo");
+  });
+
   it("joins posix parents with /", () => {
     expect(resolveClonedProjectPath({ kind: "posix", path: "/home/me/code" }, "repo")).toBe(
       "/home/me/code/repo",

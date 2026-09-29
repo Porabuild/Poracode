@@ -30,7 +30,7 @@ import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { msg } from "@/shared/messages";
 import { poracodeBaseDirFromEnv, resolvePoracodePaths } from "@/shared/poracodePaths";
-import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
+import { getProjectFsPath, getWslLocationHostFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
 import {
   setSessionFsBridgeClient,
@@ -933,9 +933,13 @@ export class SupervisorRuntime {
 
     for (const [threadId, session] of this.sessions) {
       const projectLocation = session.logicalProjectLocation ?? session.projectLocation;
-      const sessionPath =
-        projectLocation.kind === "wsl" ? projectLocation.uncPath : projectLocation.path;
-      if (normalizedTargets.has(normalizePath(sessionPath))) {
+      // A WSL location is matched by its host fs path (native drive path for
+      // DrvFs) and its UNC path, since worktree paths may carry either form.
+      const sessionPaths =
+        projectLocation.kind === "wsl"
+          ? [getWslLocationHostFsPath(projectLocation), projectLocation.uncPath]
+          : [projectLocation.path];
+      if (sessionPaths.some((sessionPath) => normalizedTargets.has(normalizePath(sessionPath)))) {
         threadIds.add(threadId);
       }
     }

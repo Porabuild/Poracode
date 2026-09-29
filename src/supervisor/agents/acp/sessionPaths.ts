@@ -5,7 +5,7 @@ import { RequestError } from "@agentclientprotocol/sdk";
 import type { ProjectLocation } from "@/shared/contracts";
 import { isHomeScopeLocation } from "@/shared/homeScope";
 import { mimeForPath } from "@/shared/promptContent";
-import { getWslLocationHostFsPath, toWslUncPath } from "@/shared/wsl";
+import { getWslLocationHostFsPath, wslLinuxToHostFsPath } from "@/shared/wsl";
 
 /**
  * Home-relative directories ACP agents may *read* even though they sit
@@ -197,7 +197,7 @@ export function resolveAcpWritableHostFsPath(
 
 function toHostFsPathOutsideProject(location: ProjectLocation, normalizedPath: string): string {
   if (location.kind === "wsl" && !isWindowsAbsolutePath(normalizedPath)) {
-    return toWslUncPath(location.distro, normalizedPath);
+    return wslLinuxToHostFsPath(location.distro, normalizedPath);
   }
   return normalizedPath;
 }

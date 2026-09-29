@@ -32,6 +32,13 @@ describe("wslDrvFsToWindowsPath", () => {
     expect(wslDrvFsToWindowsPath("/tmp/mnt/c/x")).toBeNull();
   });
 
+  it("rejects uppercase and non-letter drive segments (WSL mounts lowercase letters only)", () => {
+    expect(wslDrvFsToWindowsPath("/mnt/C/Users/me")).toBeNull();
+    expect(wslDrvFsToWindowsPath("/mnt/1/x")).toBeNull();
+    expect(wslDrvFsToWindowsPath("/mnt/_/x")).toBeNull();
+    expect(wslLinuxToHostFsPath("Debian", "/mnt/C/a")).toBe("\\\\wsl.localhost\\Debian\\mnt\\C\\a");
+  });
+
   it("honours a custom automount root", () => {
     expect(wslDrvFsToWindowsPath("/win/c/Users/me", "/win/")).toBe("C:\\Users\\me");
     expect(wslDrvFsToWindowsPath("/mnt/c/Users/me", "/win")).toBeNull();

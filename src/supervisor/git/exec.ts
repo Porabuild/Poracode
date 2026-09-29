@@ -458,6 +458,11 @@ function detectPlatform(hostname: string): RemoteHostPlatform {
  * Mirrors the join rules of the main process's `createProjectDirectory`: posix
  * uses `/`, while windows and WSL clones live at the parent's UNC path joined
  * with `\` so the renderer can derive the project location from the result.
+ *
+ * The WSL UNC path is intentionally kept even for DrvFs (`/mnt/c/...`) parents:
+ * this is a project identity, not a host fs path, and a `C:\` path would make
+ * the renderer register the clone as a Windows project instead of a WSL one.
+ * Host fs access must use `getWslLocationHostFsPath` instead.
  */
 export function resolveClonedProjectPath(parent: ProjectLocation, name: string): string {
   if (parent.kind === "posix") return posix.join(parent.path, name);
