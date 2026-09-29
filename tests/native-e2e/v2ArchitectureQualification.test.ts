@@ -1960,6 +1960,7 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
         (latencyPopulation.numericBudgetEligible &&
           budgetVerdicts.inputToPaintP95Under50Ms === true &&
           budgetVerdicts.inputToPaintP99Under100Ms === true &&
+          budgetVerdicts.noRoutineTaskOver50Ms === true &&
           (runtimeBulkEventsObserved === 0 || offscreenBulkZeroForInterestedClients === true));
       expect(budgetGatePassed, `budget verdicts: ${JSON.stringify(budgetVerdicts)}`).toBe(true);
 
