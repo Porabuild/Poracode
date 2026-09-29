@@ -22,27 +22,53 @@ interface SmoothItemMarkdownProps extends ItemMarkdownProps {
 export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
   const smoothedText = useSmoothStreamedText(text, isStreaming);
   const displayedText = isStreaming ? smoothedText : text;
-  return (
-    <ItemMarkdown
-      text={displayedText}
-      plainText={isStreaming && shouldUsePlainStreamingText(displayedText)}
-    />
-  );
+  return <ItemMarkdown text={displayedText} plainText={shouldUseChunkedPlainText(displayedText)} />;
 }
 
 /**
- * Streamdown reparses its trailing block on each reveal frame. A long,
- * unbroken plain line is one block, so its parsing cost grows throughout a
- * turn. Use the existing plain-text renderer while such a line streams; the
- * completed message returns to full Markdown. Keep the gate conservative so
- * links, file paths, code, math, and other formatting retain live rendering.
+ * Streamdown reparses its trailing block on each reveal frame. A long plain
+ * line is one block, so its parsing cost grows throughout a turn. Its single
+ * changing DOM text node also makes Chromium retain large native text-layout
+ * allocations. Use stable small spans for genuinely unformatted content,
+ * including after completion. Keep the gate conservative so links, file paths,
+ * code, math, and other formatting retain full Markdown rendering.
  */
-export function shouldUsePlainStreamingText(text: string): boolean {
+export function shouldUseChunkedPlainText(text: string): boolean {
   return (
     text.length >= 8_192 &&
-    !/[\r\n`*_~$\\<>#|/&@]/u.test(text) &&
+    !/[\r\n`*_~$\\<>#|/&@.]/u.test(text) &&
     !text.includes("](") &&
     !text.includes("![")
+  );
+}
+
+const PLAIN_TEXT_CHUNK_SIZE = 4_096;
+
+/** Preserve the exact text while freezing each complete span on append. */
+export function splitStreamingPlainText(text: string): string[] {
+  const chunks: string[] = [];
+  let start = 0;
+  while (start + PLAIN_TEXT_CHUNK_SIZE < text.length) {
+    const hardEnd = start + PLAIN_TEXT_CHUNK_SIZE;
+    const space = text.lastIndexOf(" ", hardEnd);
+    let end = space >= start + PLAIN_TEXT_CHUNK_SIZE / 2 ? space + 1 : hardEnd;
+    // Do not put the two halves of an astral code point in different nodes.
+    const last = text.charCodeAt(end - 1);
+    if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+    chunks.push(text.slice(start, end));
+    start = end;
+  }
+  chunks.push(text.slice(start));
+  return chunks;
+}
+
+function ChunkedPlainText({ text }: { text: string }) {
+  return (
+    <div className="whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] leading-snug text-foreground">
+      {splitStreamingPlainText(text).map((chunk, index) => (
+        <span key={index}>{chunk}</span>
+      ))}
+    </div>
   );
 }
 
@@ -57,9 +83,7 @@ export function ItemMarkdown({ text, plainText = false }: ItemMarkdownProps) {
   const actions = useChatPaneActions();
   const rootNames = actions?.projectRootNames;
   if (plainText) {
-    return (
-      <PlainText text={text} rootNames={rootNames} projectLocation={actions?.projectLocation} />
-    );
+    return <ChunkedPlainText text={text} />;
   }
   return (
     <Suspense

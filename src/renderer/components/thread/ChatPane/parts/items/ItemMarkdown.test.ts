@@ -2,14 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeGfmTableSeparators,
   normalizeShortCodeFenceClosers,
-  shouldUsePlainStreamingText,
+  shouldUseChunkedPlainText,
+  splitStreamingPlainText,
 } from "./ItemMarkdown";
 
 describe("long streaming text", () => {
   const longLine = "[stream-marker] " + "x".repeat(9_000);
 
   it("keeps an unbroken plain stream on the inexpensive renderer", () => {
-    expect(shouldUsePlainStreamingText(longLine)).toBe(true);
+    expect(shouldUseChunkedPlainText(longLine)).toBe(true);
   });
 
   it("retains live Markdown for links, paths, math, and multiline content", () => {
@@ -19,8 +20,25 @@ describe("long streaming text", () => {
       `${longLine} $x^2$`,
       `${longLine}\nNext paragraph`,
     ]) {
-      expect(shouldUsePlainStreamingText(text)).toBe(false);
+      expect(shouldUseChunkedPlainText(text)).toBe(false);
     }
+  });
+
+  it("preserves text and completed chunk boundaries across appends", () => {
+    const prefix = "[marker] " + "x ".repeat(5_000);
+    const before = splitStreamingPlainText(prefix);
+    const after = splitStreamingPlainText(prefix + "more text");
+    expect(before.join("")).toBe(prefix);
+    expect(after.join("")).toBe(prefix + "more text");
+    expect(after.slice(0, -1)).toEqual(before.slice(0, -1));
+  });
+
+  it("keeps a surrogate pair in one chunk", () => {
+    const text = "x".repeat(4_095) + "🙂tail";
+    const chunks = splitStreamingPlainText(text);
+    expect(chunks.join("")).toBe(text);
+    expect(chunks[0]).toHaveLength(4_095);
+    expect(chunks[1]).toBe("🙂tail");
   });
 });
 
