@@ -295,6 +295,42 @@ void test("win32: SIGTERM/SIGBREAK/SIGHUP request a graceful stop, then hard-kil
   }
 });
 
+void test("win32: non-serve subcommands never ask the running owner to stop", async () => {
+  const subcommands = [
+    ["doctor"],
+    ["status", "--json"],
+    ["backup", "--to", "D:\\b"],
+    ["upgrade"],
+    ["stop"],
+    ["pair"],
+    ["--version"],
+  ];
+  for (const args of subcommands) {
+    for (const signal of ["SIGTERM", "SIGBREAK", "SIGHUP"]) {
+      const { child, proc, clock, stops, result } = launch("win32", { args });
+      proc.emit(signal);
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.deepEqual(stops, [], `${args[0]} ${signal}`);
+      assert.deepEqual(child.killed, ["hard"], `${args[0]} ${signal} terminates only the child`);
+      assert.equal(clock.scheduled.length, 0);
+      child.emit("exit", null, "SIGTERM");
+      assert.equal(await result, 128 + 15);
+    }
+  }
+});
+
+void test("win32: serve invocations (default, serve, leading flag) request a graceful stop", async () => {
+  for (const args of [[], ["serve"], ["serve", "--port", "1"], ["--port", "1"]]) {
+    const { child, proc, stops, result } = launch("win32", { args });
+    proc.emit("SIGTERM");
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(stops.length, 1, args.join(" "));
+    assert.deepEqual(child.killed, []);
+    child.emit("exit", 0, null);
+    await result;
+  }
+});
+
 void test("win32: a graceful child exit cancels the hard-kill and keeps its exit code", async () => {
   const { child, proc, clock, result } = launch("win32");
   proc.emit("SIGTERM");

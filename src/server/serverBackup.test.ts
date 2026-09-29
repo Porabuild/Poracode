@@ -6,14 +6,16 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import Database from "better-sqlite3";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 import { LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import {
@@ -21,6 +23,8 @@ import {
   SERVER_BACKUP_RECEIPT_VERSION,
   createHostDataBackup,
 } from "./serverBackup";
+
+vi.mock("@/shared/restrictToOwner", () => ({ restrictToOwner: vi.fn<(path: string) => void>() }));
 
 const fixtures: string[] = [];
 
@@ -232,6 +236,22 @@ describe("createHostDataBackup", () => {
     expect(after.replace(/state\.sqlite-(wal|shm|journal),?/gu, "")).toBe(
       before.replace(/state\.sqlite-(wal|shm|journal),?/gu, ""),
     );
+    fixture.writer.close();
+  });
+
+  it("restricts only the paths the backup created, never an existing parent directory", async () => {
+    const fixture = buildBackupFixture();
+    const parent = join(fixture.root, "existing-parent");
+    mkdirSync(parent);
+    const destination = join(realpathSync(parent), "backup-04");
+    vi.mocked(restrictToOwner).mockClear();
+    await createHostDataBackup({ profileNamespace: fixture.namespace, destination });
+    const restricted = vi.mocked(restrictToOwner).mock.calls.map(([path]) => path);
+    expect(restricted).toContain(destination);
+    expect(restricted).not.toContain(realpathSync(parent));
+    for (const path of restricted) {
+      expect(path === destination || path.startsWith(`${destination}${sep}`)).toBe(true);
+    }
     fixture.writer.close();
   });
 });

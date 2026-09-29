@@ -16,6 +16,7 @@ import { loadRuntimeManifest, selectRuntimeEntry } from "./manifest.mjs";
 import {
   attachChildSignalHandling,
   forwardedSignals,
+  isServeInvocation,
   runServerStop,
   signalExitCode,
   windowsHardKillDeadlineMs,
@@ -115,6 +116,7 @@ export function execServer(input) {
   const detach = attachChildSignalHandling({
     child,
     platform,
+    gracefulStop: isServeInvocation(input.args),
     hardKillDeadlineMs: windowsHardKillDeadlineMs(childEnv),
     // `node server.cjs stop` is its own small process; keep the call behind
     // this seam so the win32 shutdown path is testable without a real server.

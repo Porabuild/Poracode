@@ -1,5 +1,5 @@
-import { join, dirname } from "node:path";
-import { writeSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { writeSync, existsSync } from "node:fs";
 import {
   startNodePerformanceDiagnostics,
   type NodePerformanceDiagnostics,
@@ -79,7 +79,7 @@ import {
   type PairCliOptions,
   type ServerCliCommand,
 } from "./cliParse";
-import { restrictToOwner } from "@/shared/restrictToOwner";
+import { writeInitTlsMaterial } from "./initTlsWrite";
 import { getRuntimePersistenceSample } from "@/host/db/runtimePersistenceRuntime";
 
 export type {
@@ -351,13 +351,13 @@ async function runInitTls(options: InitTlsCliOptions): Promise<void> {
       throw new Error(`Refusing to overwrite existing file: ${path}`);
     }
   }
-  mkdirSync(dirname(certPath), { recursive: true });
-  if (dirname(keyPath) !== dirname(certPath)) mkdirSync(dirname(keyPath), { recursive: true });
-  writeFileSync(certPath, material.cert, { encoding: "utf8", mode: 0o644 });
-  writeFileSync(keyPath, material.key, { encoding: "utf8", mode: 0o600 });
-  // Windows ignores mode bits: lock the key (and the default TLS dir) to the owner.
-  restrictToOwner(keyPath);
-  if (options.keyPath === undefined) restrictToOwner(dirname(keyPath));
+  writeInitTlsMaterial({
+    certPath,
+    keyPath,
+    cert: material.cert,
+    key: material.key,
+    restrictKeyDirectory: options.keyPath === undefined,
+  });
   if (options.json) {
     process.stdout.write(
       `${JSON.stringify({

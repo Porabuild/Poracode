@@ -253,7 +253,17 @@ const defaultFsOps: ServerUpgradeLockFsOps = {
     } finally {
       closeSync(descriptor);
     }
-    restrictToOwner(path);
+    try {
+      restrictToOwner(path);
+    } catch (error) {
+      // Never leave a live-looking lock record behind a failed ACL step.
+      try {
+        unlinkSync(path);
+      } catch {
+        // Best effort; the original failure is what matters.
+      }
+      throw error;
+    }
   },
   unlink: unlinkSync,
   rename: renameSync,

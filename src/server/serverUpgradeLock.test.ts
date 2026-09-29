@@ -12,6 +12,7 @@ import {
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { restrictToOwner } from "@/shared/restrictToOwner";
 import {
   acquireServerUpgradeLock,
   isServerUpgradeLockHolderAlive,
@@ -24,6 +25,8 @@ import {
   type ServerUpgradeLockFsOps,
   type ServerUpgradeLockRecord,
 } from "./serverUpgradeLock";
+
+vi.mock("@/shared/restrictToOwner", () => ({ restrictToOwner: vi.fn<(path: string) => void>() }));
 
 const dirs: string[] = [];
 const children: Array<ReturnType<typeof spawn>> = [];
@@ -229,6 +232,30 @@ describe("lock file portability", () => {
     lock.assertHeld();
     lock.release();
     expect(existsSync(serverUpgradeLockPath(prefix))).toBe(false);
+  });
+
+  it("removes the lock file when restricting the fallback-created lock fails", () => {
+    const prefix = sandbox();
+    const lockPath = serverUpgradeLockPath(prefix);
+    vi.mocked(restrictToOwner).mockImplementation((path) => {
+      if (path === lockPath) throw new Error("icacls failed");
+    });
+    try {
+      expect(() =>
+        acquireServerUpgradeLock({
+          prefix,
+          releaseId: "r",
+          fsOps: passthrough({
+            link: () => {
+              throw codeError("EPERM");
+            },
+          }),
+        }),
+      ).toThrow("icacls failed");
+      expect(existsSync(lockPath)).toBe(false);
+    } finally {
+      vi.mocked(restrictToOwner).mockReset();
+    }
   });
 
   it("still reports busy when the fallback finds an existing lock", () => {

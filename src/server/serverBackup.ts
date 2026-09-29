@@ -1,5 +1,5 @@
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync } from "node:fs";
-import { isAbsolute, join, relative } from "node:path";
+import { dirname, isAbsolute, join, relative } from "node:path";
 import Database from "better-sqlite3";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import { restrictToOwner } from "@/shared/restrictToOwner";
@@ -140,7 +140,11 @@ export async function createHostDataBackup(
   const inventory = await inventoryImportFiles(paths.dataRoot);
   request.signal?.throwIfAborted();
 
-  mkdirSync(destination, { recursive: true, mode: 0o700 });
+  // Parents are created with default ACLs; the destination itself is created
+  // non-recursively (EEXIST if it appeared meanwhile) so the owner-only ACL
+  // below is only ever applied to a directory this backup created.
+  mkdirSync(dirname(destination), { recursive: true });
+  mkdirSync(destination, { mode: 0o700 });
   // Inheritable owner-only ACL on Windows so every backup output stays private.
   restrictToOwner(destination);
 

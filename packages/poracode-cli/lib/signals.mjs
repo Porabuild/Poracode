@@ -13,6 +13,14 @@
  *   server to drain through its own `stop` command, then hard-kill the child
  *   only if it is still alive after the drain deadline plus a margin,
  * - the launcher exits with a code instead of killing itself.
+ *
+ * The graceful `stop` addresses the profile's running owner, so it is only
+ * requested when the child is itself a `serve` invocation. Every other
+ * subcommand (doctor, status, backup, upgrade, ...) is a short-lived client:
+ * a console signal must end that child alone and never drain an unrelated
+ * running daemon. The launcher cannot cheaply tell whether a `serve` child won
+ * ownership or lost it to an existing daemon, so that case still asks the
+ * owner to stop (a documented limitation, bounded by the server's own auth).
  */
 import { spawn } from "node:child_process";
 import { constants as osConstants } from "node:os";
@@ -24,6 +32,21 @@ export const WIN32_FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP
 const DEFAULT_DRAIN_DEADLINE_MS = 10_000;
 /** Grace on top of the drain deadline before the child is hard-killed. */
 export const WIN32_STOP_MARGIN_MS = 5_000;
+
+/**
+ * Mirrors the server's command parsing: no arguments, `serve`, or a leading
+ * `--flag` runs the long-lived server (bare `--help`/`--version` do not).
+ */
+export function isServeInvocation(args) {
+  if (args.length === 0) return true;
+  if (
+    args.length === 1 &&
+    ["--help", "-h", "help", "--version", "-v", "version"].includes(args[0])
+  ) {
+    return false;
+  }
+  return args[0] === "serve" || args[0].startsWith("--");
+}
 
 export function forwardedSignals(platform = process.platform) {
   return platform === "win32" ? WIN32_FORWARDED_SIGNALS : POSIX_FORWARDED_SIGNALS;
@@ -89,6 +112,7 @@ export function attachChildSignalHandling({
   platform = process.platform,
   processImpl = process,
   stop,
+  gracefulStop = true,
   hardKillDeadlineMs,
   setTimeoutImpl = setTimeout,
   clearTimeoutImpl = clearTimeout,
@@ -109,6 +133,11 @@ export function attachChildSignalHandling({
     const requestStop = () => {
       if (stopping) return;
       stopping = true;
+      if (!gracefulStop) {
+        // Not the serve owner: terminate only this child.
+        killChild();
+        return;
+      }
       hardKillTimer = setTimeoutImpl(() => killChild(), hardKillDeadlineMs);
       hardKillTimer?.unref?.();
       Promise.resolve()
