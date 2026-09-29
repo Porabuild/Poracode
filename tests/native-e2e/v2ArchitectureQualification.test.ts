@@ -1594,6 +1594,15 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
             const recoveredAccounting = new FrameClassAccounting();
             const recoveredLabel = `${client.label}-reconnect`;
             accounting.set(recoveredLabel, recoveredAccounting);
+            // Replay can deliver bulk frames during create(), before it
+            // resolves. Install the declared interests before accounting any
+            // of those frames.
+            recoveredAccounting.setInterests([
+              ...fixture.chatThreadIds,
+              ...(fixture.structuredThreadId === null ? [] : [fixture.structuredThreadId]),
+              fixture.terminalThreadId,
+              ...buildProducerStreams(spec.producers).map((stream) => stream.shellId),
+            ]);
             recovered = await ProfileClient.create({
               handle: managedHandle,
               label: recoveredLabel,
@@ -1602,12 +1611,6 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
               onMessage: (frame) =>
                 recoveredAccounting.record(frame.bytes, classifyServerFrame(frame.message)),
             });
-            recoveredAccounting.setInterests([
-              ...fixture.chatThreadIds,
-              ...(fixture.structuredThreadId === null ? [] : [fixture.structuredThreadId]),
-              fixture.terminalThreadId,
-              ...buildProducerStreams(spec.producers).map((stream) => stream.shellId),
-            ]);
             await recovered.watchTerminalReliable(
               fixture.terminalThreadId,
               `${recoveredLabel}-watch-visible-terminal`,
