@@ -14,7 +14,7 @@
  *    tests/native-e2e/helpers/armFreeze.ts; this CLI only refuses earlier and
  *    with a clearer error.
  * 3. Chooses a plan-aligned cell spec for the requested mode:
- *      - sustained: 30-minute sustained mixed-load cell
+ *      - sustained: 30-minute sustained mixed PTY and structured-GUI load cell
  *      - soak:      >=24h steady-state overnight soak cell
  * 4. Creates a unique evidence directory, writes a provenance manifest, then
  *    invokes the pinned vitest cell once, forwarding SIGINT/SIGTERM/SIGHUP and
@@ -137,10 +137,12 @@ export function resolveModeDuration(mode, durationMs) {
  * envelope: four clients, a legacy/no-interests peer, a slow peer, reconnect,
  * two chat panes, one hot terminal, and a 10k-row inactive catalog. The
  * trusted long-task protocol supplies both the real input population used by
- * the latency budgets and the required positive control. PTY-only streams run
- * in the managed mock profile, so no provider credentials are involved. The
- * overnight workflow is a steady-state soak; restart-cycle evidence remains a
- * separate qualification gate and is not implied by this spec.
+ * the latency budgets and the required positive control. Sustained mode also
+ * runs the deterministic ACP child through the production supervisor in an
+ * isolated real-mode profile, proving canonical GUI traffic and offscreen
+ * isolation without provider credentials. The overnight workflow is a
+ * steady-state PTY soak; structured soak and restart-cycle evidence remain
+ * separate qualification gates and are not implied by this spec.
  */
 export function buildCellSpec(mode, durationMs) {
   const shared = Object.freeze({
@@ -155,15 +157,16 @@ export function buildCellSpec(mode, durationMs) {
     protocol: "longtask",
     assertBudgets: true,
     trustedInput: {},
-    structuredWorkload: null,
   });
   if (mode === "sustained") {
     return Object.freeze({
       ...shared,
       id: "v2q-sustained",
       label:
-        "plan §4.2 sustained mixed load: 8 PTY producers, 4 clients, 10k catalog, " +
-        "2 chat panes + terminal panel, slow/legacy/reconnect pressure and trusted input",
+        "plan §4.2 sustained mixed load: 8 PTY producers + canonical GUI stream, " +
+        "4 clients, 10k catalog, 2 chat panes + terminal panel, " +
+        "slow/legacy/reconnect pressure and trusted input",
+      structuredWorkload: Object.freeze({}),
       durationMs,
     });
   }
@@ -172,6 +175,7 @@ export function buildCellSpec(mode, durationMs) {
     id: "v2q-soak",
     label:
       "plan §4.2 steady-state overnight soak: sustained representative envelope held for >=24h",
+    structuredWorkload: null,
     durationMs,
   });
 }

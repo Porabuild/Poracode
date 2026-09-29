@@ -133,7 +133,7 @@ void test("buildCellSpec emits plan-aligned sustained and soak specs", () => {
   assert.equal(sustained.protocol, "longtask");
   assert.equal(sustained.assertBudgets, true);
   assert.deepEqual(sustained.trustedInput, {});
-  assert.equal(sustained.structuredWorkload, null);
+  assert.deepEqual(sustained.structuredWorkload, {});
   assert.equal(sustained.durationMs, 30 * 60_000);
   assert.ok(sustained.label.length > 0);
 
@@ -148,6 +148,7 @@ void test("buildCellSpec emits plan-aligned sustained and soak specs", () => {
   assert.equal(soak.protocol, "longtask");
   assert.equal(soak.assertBudgets, true);
   assert.equal(soak.terminalSurface, "panel");
+  assert.equal(soak.structuredWorkload, null);
   assert.equal(soak.durationMs, 24 * 60 * 60_000);
 
   // The spec must survive the exact JSON round trip the cell consumes.
