@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
+import {
+  normalizeGfmTableSeparators,
+  normalizeShortCodeFenceClosers,
+  shouldUsePlainStreamingText,
+} from "./ItemMarkdown";
+
+describe("long streaming text", () => {
+  const longLine = "[stream-marker] " + "x".repeat(9_000);
+
+  it("keeps an unbroken plain stream on the inexpensive renderer", () => {
+    expect(shouldUsePlainStreamingText(longLine)).toBe(true);
+  });
+
+  it("retains live Markdown for links, paths, math, and multiline content", () => {
+    for (const text of [
+      `${longLine} [file](file.md)`,
+      `${longLine} /tmp/file.md`,
+      `${longLine} $x^2$`,
+      `${longLine}\nNext paragraph`,
+    ]) {
+      expect(shouldUsePlainStreamingText(text)).toBe(false);
+    }
+  });
+});
 
 describe("normalizeShortCodeFenceClosers", () => {
   it("treats a two-backtick line as a closer inside a triple-backtick fence", () => {

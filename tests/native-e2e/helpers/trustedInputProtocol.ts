@@ -1537,11 +1537,31 @@ export async function runTrustedInputProtocol(input: {
     ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
     ...(input.evidenceDir === undefined ? {} : { evidenceDir: input.evidenceDir }),
   });
-  const idle = await runSegmentedTrustedIdlePhase({
-    cdp,
-    options,
-    ...(input.evidenceDir === undefined ? {} : { evidenceDir: input.evidenceDir }),
-  });
+  // Optional diagnostic capture. CPU sampling perturbs timing, so runs using
+  // this flag are for locating hot code and cannot qualify a latency budget.
+  const profileIdle = process.env.V2Q_PROFILE_IDLE === "1" && input.evidenceDir !== undefined;
+  if (profileIdle) {
+    await cdp.send("Profiler.enable");
+    await cdp.send("Profiler.setSamplingInterval", { interval: 1_000 });
+    await cdp.send("Profiler.start");
+  }
+  let idle: SegmentedIdlePhaseResult;
+  try {
+    idle = await runSegmentedTrustedIdlePhase({
+      cdp,
+      options,
+      ...(input.evidenceDir === undefined ? {} : { evidenceDir: input.evidenceDir }),
+    });
+  } finally {
+    if (profileIdle) {
+      const profile = await cdp.send("Profiler.stop");
+      writeFileSync(
+        join(input.evidenceDir!, "trusted-idle-cpu-profile.json"),
+        JSON.stringify(profile),
+      );
+      await cdp.send("Profiler.disable");
+    }
+  }
   const idleSurface = await readSurfaceState(cdp).catch(() => ({
     visibilityState: null,
     hasFocus: null,

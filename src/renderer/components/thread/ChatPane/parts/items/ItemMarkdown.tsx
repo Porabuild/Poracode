@@ -12,6 +12,7 @@ import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
 
 interface ItemMarkdownProps {
   text: string;
+  plainText?: boolean;
 }
 
 interface SmoothItemMarkdownProps extends ItemMarkdownProps {
@@ -20,7 +21,29 @@ interface SmoothItemMarkdownProps extends ItemMarkdownProps {
 
 export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
   const smoothedText = useSmoothStreamedText(text, isStreaming);
-  return <ItemMarkdown text={isStreaming ? smoothedText : text} />;
+  const displayedText = isStreaming ? smoothedText : text;
+  return (
+    <ItemMarkdown
+      text={displayedText}
+      plainText={isStreaming && shouldUsePlainStreamingText(displayedText)}
+    />
+  );
+}
+
+/**
+ * Streamdown reparses its trailing block on each reveal frame. A long,
+ * unbroken plain line is one block, so its parsing cost grows throughout a
+ * turn. Use the existing plain-text renderer while such a line streams; the
+ * completed message returns to full Markdown. Keep the gate conservative so
+ * links, file paths, code, math, and other formatting retain live rendering.
+ */
+export function shouldUsePlainStreamingText(text: string): boolean {
+  return (
+    text.length >= 8_192 &&
+    !/[\r\n`*_~$\\<>#|/&@]/u.test(text) &&
+    !text.includes("](") &&
+    !text.includes("![")
+  );
 }
 
 /**
@@ -30,9 +53,14 @@ export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProp
  * plain-text view that still chips URLs and project paths so the first paint
  * is never blank.
  */
-export function ItemMarkdown({ text }: ItemMarkdownProps) {
+export function ItemMarkdown({ text, plainText = false }: ItemMarkdownProps) {
   const actions = useChatPaneActions();
   const rootNames = actions?.projectRootNames;
+  if (plainText) {
+    return (
+      <PlainText text={text} rootNames={rootNames} projectLocation={actions?.projectLocation} />
+    );
+  }
   return (
     <Suspense
       fallback={
