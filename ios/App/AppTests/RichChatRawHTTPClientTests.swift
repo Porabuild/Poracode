@@ -69,7 +69,13 @@ private final class RichChatRawURLProtocol: URLProtocol {
 }
 
 final class RichChatRawHTTPClientTests: XCTestCase {
+  private var sessions: [URLSession] = []
+
   override func tearDown() {
+    // Cancel every session first so a held-open or reissued load cannot reach
+    // the shared static stub state of a later test.
+    sessions.forEach { $0.invalidateAndCancel() }
+    sessions = []
     RichChatRawURLProtocol.reset()
     super.tearDown()
   }
@@ -156,6 +162,10 @@ final class RichChatRawHTTPClientTests: XCTestCase {
     RichChatRawURLProtocol.holdOpen = true
     let started = expectation(description: "URL loading started")
     let stopped = expectation(description: "URL loading stopped")
+    // URLSession may reissue a held-open load, so stopLoading can fire more
+    // than once; the expectation only needs the first.
+    started.assertForOverFulfill = false
+    stopped.assertForOverFulfill = false
     RichChatRawURLProtocol.startExpectation = started
     RichChatRawURLProtocol.stopExpectation = stopped
     let raw = makeRawClient()
@@ -197,10 +207,12 @@ final class RichChatRawHTTPClientTests: XCTestCase {
   private func makeRawClient() -> RichChatRawHTTPClient {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [RichChatRawURLProtocol.self]
+    let session = URLSession(configuration: configuration)
+    sessions.append(session)
     return RichChatRawHTTPClient(
       endpoint: "https://relay.test/prefix",
       accessToken: "access-secret",
-      session: URLSession(configuration: configuration)
+      session: session
     )
   }
 
