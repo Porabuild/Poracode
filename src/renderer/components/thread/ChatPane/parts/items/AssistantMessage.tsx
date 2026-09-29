@@ -15,6 +15,8 @@ import { CopyTextButton } from "./CopyTextButton";
 import { RemoteImageCard } from "./RemoteImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
 import { SmoothItemMarkdown } from "./ItemMarkdown";
+import { WindowedPlainText } from "./WindowedPlainText";
+import { useWindowedAssistantText } from "./useWindowedAssistantText";
 
 interface AssistantMessageProps {
   threadId: string;
@@ -57,6 +59,7 @@ export const AssistantMessage = memo(function AssistantMessage({
   // Stream/payload arbitration lives in the shared helper so find-in-chat and
   // transcript exports always agree with what this component renders.
   const rawText = assistantDisplayText(item);
+  const visibleBody = useWindowedAssistantText(rawText, isStreaming);
   // Agents (e.g. ACP providers) can embed images directly in a message as image
   // content blocks; render them inline beneath any text.
   const imageSources = useMemo(
@@ -81,7 +84,17 @@ export const AssistantMessage = memo(function AssistantMessage({
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
         {rawText.length > 0 ? (
-          <SmoothItemMarkdown text={rawText} isStreaming={isStreaming} />
+          visibleBody.window ? (
+            <WindowedPlainText
+              text={visibleBody.window.text}
+              hasEarlier={visibleBody.window.start > 0}
+              isBrowsingEarlier={visibleBody.isBrowsingEarlier}
+              onEarlier={visibleBody.showEarlier}
+              onLatest={visibleBody.showLatest}
+            />
+          ) : (
+            <SmoothItemMarkdown text={rawText} isStreaming={isStreaming} />
+          )
         ) : null}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
