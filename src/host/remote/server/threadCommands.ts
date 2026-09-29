@@ -16,10 +16,12 @@ import {
   type Thread,
 } from "@/shared/contracts";
 import { msg } from "@/shared/messages";
+import { clearThreadGroupFields, dissolveGroupMembership } from "@/shared/threadGroups";
 import {
   beginProjectRemoval,
   dbDeleteProject,
   dbDeleteThread,
+  dbFindProjectByLocation,
   dbGetProject,
   dbGetProjects,
   dbGetThread,
@@ -38,7 +40,10 @@ import { RemoteHttpError } from "../auth";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { makeThreadTitle, titlePromptFromSegments } from "@/shared/threadTitle";
 import { resolveHostThreadTitlePrompt } from "@/host/threads/threadLaunchConfig";
-import { discardPersistedProjectExperiments } from "../experimentOwnership";
+import {
+  assertPersistedThreadGroupChangeSafe,
+  discardPersistedProjectExperiments,
+} from "../experimentOwnership";
 import { applyRemoteProjectCommand } from "../projectCommands";
 import type { RemoteServerContext } from "./context";
 import { prepareHostWorktree, removeHostWorktree } from "./hostWorktreeLifecycle";
@@ -86,6 +91,7 @@ export function runProjectCommand(
     {
       getProjects: () => dbGetProjects(),
       getProject: (projectId) => dbGetProject(projectId),
+      findProjectByLocation: (location) => dbFindProjectByLocation(location),
       beginProjectRemoval,
       reorderProject: (input) => dbReorderProjectRelative(input, onCatalogCommitted),
       setProjectWorkspace: (projectId, workspaceId) =>
@@ -188,9 +194,25 @@ export async function applyRemoteThreadCommand(
       }
       return false;
     }
-    case "set-group":
-      updateRemoteThread(command.threadId, (thread) => applyThreadMetadataCommand(thread, command));
+    case "set-group": {
+      const threads = dbGetThreads();
+      const current = threads.find((thread) => thread.id === command.threadId);
+      if (!current) throw new RemoteHttpError("thread_not_found", "Thread not found.", 404);
+      assertPersistedThreadGroupChangeSafe(current.groupId, command.groupId);
+      if (command.groupId) {
+        updateRemoteThread(command.threadId, (thread) =>
+          applyThreadMetadataCommand(thread, {
+            ...command,
+            groupName: command.groupName ?? command.groupId,
+          }),
+        );
+        return false;
+      }
+      for (const clearedId of dissolveGroupMembership(threads, command.threadId).clearedIds) {
+        updateRemoteThread(clearedId, clearThreadGroupFields);
+      }
       return false;
+    }
     case "clear-group": {
       const groupId = dbGetThreads().find((thread) => thread.id === command.threadId)?.groupId;
       updateRemoteThread(command.threadId, (thread) => applyThreadMetadataCommand(thread, command));

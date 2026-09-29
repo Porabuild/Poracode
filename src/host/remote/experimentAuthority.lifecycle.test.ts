@@ -16,6 +16,7 @@ import {
   beginProjectRemoval,
   dbApplyExperimentIntent,
   dbDeleteProject,
+  dbFindProjectByLocation,
   dbGetProjects,
   dbGetState,
   dbGetThreads,
@@ -236,6 +237,7 @@ describe.skipIf(!sqliteAvailable)("experiment authority lifecycle (real sqlite)"
       getProjects: () => dbGetProjects(),
       getProject: (projectId) =>
         dbGetProjects().find((project) => project.id === projectId) ?? null,
+      findProjectByLocation: dbFindProjectByLocation,
       beginProjectRemoval,
       removeProjectExperiments: async (project) => {
         await discardPersistedProjectExperiments(project, async (payload) => ({

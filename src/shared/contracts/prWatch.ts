@@ -20,7 +20,13 @@ export type PrAutomationMode = z.infer<typeof prAutomationModeSchema>;
  * checkout's branch, which cannot repair the PR and can touch unrelated work.
  * Any watch update clears the reason and re-arms the attempt.
  */
-export const prWatchBlockedReasonSchema = z.enum(["agent-unavailable", "worktree-unavailable"]);
+export const prWatchBlockedReasonSchema = z.enum([
+  "agent-unavailable",
+  "worktree-unavailable",
+  // Migration v42 disables automation for this durable pause. Older readers
+  // ignore the new reason but still honor the disabled automation flags.
+  "duplicate-project-watches",
+]);
 export type PrWatchBlockedReason = z.infer<typeof prWatchBlockedReasonSchema>;
 
 export const prWatchInputSchema = prWatchKeySchema

@@ -240,8 +240,8 @@ describe("ThreadSlashCommands", () => {
     typeSlashQuery(editor, "/re");
 
     expect(screen.getByText("Commands")).toBeInTheDocument();
-    expect(screen.getByText("/review")).toBeInTheDocument();
-    expect(screen.queryByText("/help")).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^\/review/u })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^\/help/u })).not.toBeInTheDocument();
   });
 
   it("renders localized skill copy while filtering by its stable invocation id", async () => {
@@ -268,7 +268,7 @@ describe("ThreadSlashCommands", () => {
     const editor = screen.getByRole("textbox");
     typeSlashQuery(editor, "/browser");
 
-    expect(screen.getByText("browser-control")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Skill: browser-control" })).toBeInTheDocument();
     expect(
       screen.getByText("Navega, inspecciona y prueba páginas con el MCP del navegador integrado."),
     ).toBeInTheDocument();
@@ -338,8 +338,8 @@ describe("ThreadSlashCommands", () => {
     typeSlashQuery(editor, "/re");
 
     expect(screen.getByText("Commands")).toBeInTheDocument();
-    expect(screen.getByText("/review")).toBeInTheDocument();
-    expect(screen.queryByText("/help")).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^\/review/u })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^\/help/u })).not.toBeInTheDocument();
   });
 
   it("falls back to capability slash commands in the terminal composer", async () => {
@@ -361,7 +361,7 @@ describe("ThreadSlashCommands", () => {
     typeSlashQuery(editor, "/he");
 
     expect(screen.getByText("Commands")).toBeInTheDocument();
-    expect(screen.getByText("/help")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /^\/help/u })).toBeInTheDocument();
   });
 
   it("shows Poracode Codex server commands instead of CLI commands in GUI chat composer", async () => {
@@ -739,6 +739,20 @@ describe("ThreadSlashCommands", () => {
     expect(filterSlashCommands([command], "skill:sim")).toEqual([command]);
   });
 
+  it("finds commands by a later word and ranks prefix matches first", () => {
+    const setup = { id: "auto-mode-setup", label: "auto-mode-setup" };
+    const reset = { id: "reset", label: "reset" };
+    const status = { id: "status", label: "status" };
+    const session = { id: "session", label: "session" };
+
+    expect(filterSlashCommands([setup, reset, status, session], "s")).toEqual([
+      status,
+      session,
+      setup,
+      reset,
+    ]);
+  });
+
   it("shows the short skill name but submits the ACP-native command", async () => {
     const baseCapabilities = makeAgentStatus().capabilities;
     const onStart = await renderDraftComposer(
@@ -771,7 +785,7 @@ describe("ThreadSlashCommands", () => {
     const option = screen.getByRole("option", { name: "Skill: simplify" });
     expect(option).toBeInTheDocument();
     expect(option.querySelector("svg.lucide-sparkles")).not.toBeNull();
-    expect(screen.getByText("simplify")).toBeInTheDocument();
+    expect(option).toHaveTextContent("simplify");
     expect(screen.queryByText("/skill:simplify")).not.toBeInTheDocument();
 
     fireEvent.keyDown(editor, { key: "Enter" });

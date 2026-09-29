@@ -169,7 +169,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_9ae2178554> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_9ae217855427aca7)
+  static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_828c8638f6> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_828c8638f697179b)
 }
 
 public extension RemoteRootCodecs {

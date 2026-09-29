@@ -57,8 +57,9 @@ describe("database migration registry", () => {
       [47, "remote command receipt principal and request digest"],
       [48, "runtime durable canonical-gap evidence"],
       [49, "runtime history notice acknowledgement"],
+      [50, "deduplicate project locations and repair divergent schema 42"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(49);
+    expect(LATEST_SCHEMA_VERSION).toBe(50);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -96,8 +97,8 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 49,
-      name: "runtime history notice acknowledgement",
+      version: 50,
+      name: "deduplicate project locations and repair divergent schema 42",
       rollback: "forward-only",
     });
     // Migrations below the floor keep their reviewed defaults.

@@ -1,6 +1,6 @@
 # Poracode v2 — Server Architecture and Production Readiness
 
-Status: active implementation and qualification; refined 2026-09-23 UTC after Crossagents rounds R1–R9 (§0.7). **About 90% of the overall goal is achieved; every remaining gate needs hardware, runner enrollment, a first stable release or an explicit product decision. This is not a production-ready declaration.**
+Status: active implementation and qualification; reconciled with `master` and external-project on 2026-09-29 UTC (§0.8). **About 90% of the overall goal is achieved; the remaining production gates need a dedicated capacity window, hardware, runner enrollment, or a first stable release. This is not a production-ready declaration.**
 
 Original audit: `36e1649f017aeccebc202bb9d5c9c6ab0f797709` (`poracode/v2`). The main architecture delta was reconciled into seven scoped implementation/parity commits from `7e9cf2a28` through `80eae5304`, followed by documentation and smoke-harness commit `3811d2485`. Later exact-head CI and Git-burst corrections are grouped into typed-admission, packaging, native and qualification commits from `bad62fa9e` through `3206de989`. Artifact identities below pin the qualified earlier candidate bytes; they do not silently qualify these later source commits.
 
@@ -79,6 +79,8 @@ Additional compatibility lesson: external-project's latest history includes [a s
 
 These additions refine existing correctness/load gates. **Only B7 was a newly identified implementation gap.** It is now implemented, independently accepted and locally exercised after correcting the first review's multi-worktree and error-propagation findings. The other comparisons remain measurement and regression requirements; change code only where they reveal a failure. The overall estimate remains about 80% because the external platform, artifact, soak and upgrade gates still dominate the unfinished work.
 
+**2026-09-29 upstream refresh.** Rechecked external-project `main` at `e518866d28603da273a9357516dd1aef919f1353` against the pinned comparison. Its ownership, shared short-Git admission, live-stream budget and coalescer models still support the existing verdict. The new desktop keep-alive rule in `docs/internals/connection-runtime.md` applies to external-project's selected-thread replay model; Poracode's host-owned durable runtime and bounded renderer interests have a different recovery contract, so no keep-alive expansion is justified by that change. The updated Git driver adds `--no-auto-gc` to recurring fetches to avoid repeated failed maintenance and temporary pack accumulation. Poracode also runs periodic fetches through `GitWorktreeService.performFetch`, so the v2 merge adds that flag to app-initiated fetches and pins the command in its Git tests. The newer `ws.ts` changes are worktree settings, provider refresh/auth and source-control features; they do not change the previously compared shell/detail authority boundary. This is a source comparison, not a Poracode load or disk-fault qualification.
+
 ### 0.7 Crossagents rounds R1–R9 — 2026-09-22/23 UTC
 
 Independent GLM 5.3 FlashX High research, review, execution and test lanes ran in parallel; the coordinator verified each claim against code, tests or evidence before accepting it. Details and evidence paths are in the execution log.
@@ -102,6 +104,10 @@ Independent GLM 5.3 FlashX High research, review, execution and test lanes ran i
 | Real-provider strict journeys        | Required providers are Claude and Codex; Gemini is excluded by product decision (2026-09-28) and remains informational. Local strict runs pass; the Anthropic-backed Claude path and a provider-qualification runner remain unproven | A run with the default Claude profile; runner enrollment                 |
 | Published N−1 persisted upgrade      | Mandatory by product decision (2026-09-28): the first v2 stable release is blocked until it upgrades from a real published v2 server artifact; v1.8.0 ships no server and predates D4                                                | Publish a v2 server artifact, then run the gate against it               |
 | Windows standalone target            | Advertised for v2 by product decision (2026-09-28); implemented (win32-x64 artifact, installer, launcher, graceful `stop`); CI qualification pending                                                                                 | First green Windows leg of the server-artifact workflow                  |
+
+### 0.8 Master reconciliation and review readiness — 2026-09-29 UTC
+
+The v2 branch now includes master through `94bb4ad26`. Its new project deduplication, MCP workspace and thread-group actions, attachment-only input, Home file citations, math rendering, slash matching and file-editor fixes are integrated with host-owned runtime state and generated remote-v3/native contracts. Schema 50 joins the divergent schema-42 histories without reusing a published migration number. The current external-project source refresh is recorded in §0.6 and the execution log. Isolated Electron manual QA and the full deterministic mock smoke passed, with precise evidence in the log. Exact merged-head CI and the external production gates in §0.7 remain separate from source reconciliation; a green PR is a review-ready code candidate, not a production qualification claim.
 
 ## 1. Architectural verdict — original audit
 

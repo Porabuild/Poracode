@@ -15,6 +15,7 @@ export {
 export {
   dbGetProjects,
   dbGetProject,
+  dbFindProjectByLocation,
   dbGetThreads,
   dbGetThreadsPage,
   dbGetThread,

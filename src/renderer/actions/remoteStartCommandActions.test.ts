@@ -123,4 +123,22 @@ describe("applyRemoteThreadStartCommand", () => {
     expect(useAppStore.getState().pendingThreadLaunches["thread-new"]).toBe("next step");
     expect(useAppStore.getState().pendingLaunchUserMessageItemIds["thread-new"]).toBe("user-1");
   });
+
+  it("stamps workspaceId from a start command onto the new thread", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+
+    applyRemoteThreadStartCommand(
+      startCommand({
+        threadId: "thread-home",
+        projectId: project.id,
+        title: "Home chat",
+        workspaceId: "ws-work",
+        launchRuntime: false,
+      }),
+    );
+
+    expect(useAppStore.getState().threads.find((t) => t.id === "thread-home")?.workspaceId).toBe(
+      "ws-work",
+    );
+  });
 });

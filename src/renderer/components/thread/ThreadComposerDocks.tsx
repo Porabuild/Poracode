@@ -56,6 +56,7 @@ type ThreadComposerDocksProps = {
   followUpQueue?: ThreadFollowUpQueueState | null | undefined;
   activeRuntimeRequest: OpenRuntimeRequest | undefined;
   filteredCommands: AgentSlashCommand[];
+  slashQuery: string | null;
   slashActiveIndex: number;
   commandListId: string;
   // Callbacks.
@@ -103,6 +104,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
     followUpQueue,
     activeRuntimeRequest,
     filteredCommands,
+    slashQuery,
     slashActiveIndex,
     commandListId,
     onCloseContextDock,
@@ -220,6 +222,7 @@ export function ThreadComposerDocks(props: ThreadComposerDocksProps) {
       {showCommandPanel ? (
         <ThreadCommandPanel
           commands={filteredCommands}
+          query={slashQuery}
           activeIndex={slashActiveIndex}
           listId={commandListId}
           onActiveIndexChange={onSlashActiveIndexChange}

@@ -419,9 +419,10 @@ public struct RouteprU2DWatchU2DCheckRequest_22fb635ee9: Codable, Sendable, Remo
   }
 }
 
-public enum RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReasonU2DOptionU2D1_f434bf2c3d: String, Codable, Sendable {
+public enum RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReasonU2DOptionU2D1_95e237e577: String, Codable, Sendable {
   case agentU2DUnavailable = "agent-unavailable"
   case worktreeU2DUnavailable = "worktree-unavailable"
+  case duplicateU2DProjectU2DWatches = "duplicate-project-watches"
 }
 
-public typealias RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReason_6a323d2278 = RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReasonU2DOptionU2D1_f434bf2c3d?
+public typealias RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReason_7dccd2754f = RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1U2DBlockedReasonU2DOptionU2D1_95e237e577?

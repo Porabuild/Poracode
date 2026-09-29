@@ -38,6 +38,7 @@ import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./I
 import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
+import { chatRemarkMath, withChatMathRehype } from "@/renderer/markdown/mathPlugins";
 import { remarkAutolinkProjectPaths } from "./remarkAutolinkProjectPaths";
 import { parsePathRefUrl } from "./markdownPathRefs";
 
@@ -50,7 +51,7 @@ type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugin
 // otherwise valid URLs. We control external opens through `MdAnchor` and gate
 // file/folder hrefs there too, so harden is redundant here.
 function buildRehypePlugins(remoteLocalImageUrl?: (url: string) => string): RehypePlugins {
-  return Object.entries(defaultRehypePlugins)
+  const plugins = Object.entries(defaultRehypePlugins)
     .filter(([key]) => key !== "harden")
     .flatMap(([key, plugin]): RehypePlugins[number][] => {
       // Streamdown checks the raw plugin by identity to preserve raw HTML
@@ -61,6 +62,7 @@ function buildRehypePlugins(remoteLocalImageUrl?: (url: string) => string): Rehy
       }
       return [plugin];
     }) as RehypePlugins;
+  return withChatMathRehype(plugins) as RehypePlugins;
 }
 
 const MAX_RAW_HTML_NESTING = 1_000;
@@ -148,6 +150,7 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
   const remarkPlugins = useMemo<RemarkPlugins>(
     () => [
       remarkGfm,
+      chatRemarkMath,
       [
         remarkAutolinkProjectPaths,
         {
@@ -383,9 +386,12 @@ function MdCode(props: { className: string; isBlock?: boolean; children?: ReactN
   if (isBlock) {
     return <code className={props.className || undefined}>{props.children}</code>;
   }
-  if (actions?.projectLocation) {
+  if (actions) {
     const ref = parseProjectPathRef(text, { rootNames: actions.projectRootNames });
-    if (ref) {
+    if (
+      ref &&
+      (actions.projectLocation || (ref.kind === "file" && actions.openProjectRelativePath))
+    ) {
       return renderPathChip(ref, actions.projectLocation, actions);
     }
   }
@@ -433,7 +439,7 @@ function MdAnchor(props: { href: string; children?: ReactNode }) {
 
   const explicitPathRef = parsePathRefUrl(href);
   if (explicitPathRef) {
-    return actions?.projectLocation ? (
+    return actions ? (
       renderPathChip(explicitPathRef, actions.projectLocation, actions)
     ) : (
       <span>{props.children}</span>
@@ -522,10 +528,12 @@ function parseHrefProjectPathRef(
 
 function renderPathChip(
   ref: ProjectPathRef,
-  projectLocation: ProjectLocation,
+  projectLocation: ProjectLocation | undefined,
   actions: NonNullable<ReturnType<typeof useChatPaneActions>>,
 ) {
-  const normalized = normalizeChatProjectPath(ref.path, projectLocation);
+  const normalized = projectLocation
+    ? normalizeChatProjectPath(ref.path, projectLocation)
+    : ref.path;
   if (ref.kind === "file") {
     return (
       <InlineFilePathChip

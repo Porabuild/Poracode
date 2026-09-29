@@ -6,6 +6,17 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+data class RoutepushU2DConfigResponse_f0c513c014(
+    @SerialName("publicKey") val publicKey: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("publicKey", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RoutepushU2DRegisterRequestU2DAlertPreferencesU2DStatuses_72130deafa(
     @SerialName("done") val done: Boolean,
     @SerialName("error") val error: Boolean,
@@ -432,9 +443,4 @@ data class RouteschedulesU2DCommandRequestU2DOptionU2D2_9278450827(
             RemoteFieldDescriptor("task", "RouteschedulesU2DCommandRequestU2DOptionU2D1U2DTask_4529714695", true, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
-}
-
-@Serializable
-enum class RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d {
-    @SerialName("delete") DELETE,
 }

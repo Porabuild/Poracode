@@ -19,6 +19,7 @@ import { settingsTools } from "./tools/settings";
 import { skillTools } from "./tools/skills";
 import { threadTools } from "./tools/threads";
 import { usageTools } from "./tools/usage";
+import { workspaceTools } from "./tools/workspaces";
 import type { AppControlsToolContext, ToolDomain, ToolHandler } from "./tools/types";
 
 export { APP_CONTROLS_MCP_SERVER_INFO } from "./tools/serverInfo";
@@ -51,7 +52,9 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   `When reading the Terminal panel, ${loadPluginCoreSkillPhrase(TERMINAL_CORE_SKILL)}. ` +
   "Read and control the running app: device schedules " +
   "(list/create/update/run/delete), app threads (current/list/get/read/create/send/interrupt/stop/wait/" +
-  "update/open), projects (list/get/create/update), app settings (get/update), provider usage " +
+  "update/open, including sidebar ungroup and Home-thread workspace filing), projects " +
+  "(list/get/create/update, including workspace assignment), workspaces (list/create/update), " +
+  "app settings (get/update), provider usage " +
   "(get_usage), cross-app search (search), and app info (get_app_info). You can also read a " +
   "running workspace terminal panes and their scrollback, queue steer guidance, stage composer " +
   "input, or roll back turns; " +
@@ -60,10 +63,10 @@ export const APP_CONTROLS_MCP_INSTRUCTIONS =
   "worktree list/merge/remove), its GitHub pull requests via the gh CLI (list/get/create/comment/" +
   "merge/update), the user's configured MCP servers (list/probe/add/update/remove — MCP servers " +
   "are managed with these dedicated tools, not update_settings), and installed skills (list/" +
-  "read/enable). Threads and projects are " +
+  "read/enable). Threads, projects, and workspaces are " +
   "the user's own work, visible in their sidebar; treat them as shared state. Explain " +
   "consequential or destructive actions — stopping or interrupting another thread, archiving, " +
-  "marking done, creating a project, or changing settings — to the user before doing them, and " +
+  "marking done, creating a project or workspace, or changing settings — to the user before doing them, and " +
   "never delete their work without asking. When the user explicitly asks in this thread to " +
   "commit a named fix, commit it; when they explicitly ask to push or publish that fix, that " +
   "request authorizes that publication action; do it " +
@@ -94,6 +97,7 @@ const DOMAINS: readonly ToolDomain[] = [
   scheduleTools,
   threadTools,
   projectTools,
+  workspaceTools,
   settingsTools,
   usageTools,
   searchTools,

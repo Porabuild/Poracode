@@ -1,7 +1,7 @@
 import { startTransition } from "react";
 import { toast } from "@heroui/react";
 import type { CloneRepoSource, Project, ProjectLocation } from "@/shared/contracts";
-import { friendlyError } from "@/shared/messages";
+import { friendlyError, msg } from "@/shared/messages";
 import {
   deriveLocationFromPath,
   parentDirOf,
@@ -58,19 +58,24 @@ function registerNewProject(
       kind: "add-existing",
       path: getProjectFsPath(location),
       ...(name ? { name } : {}),
+      ...(getActiveWorkspaceId() ? { workspaceId: getActiveWorkspaceId()! } : {}),
     })
       .then((response) => {
         refreshManagedRootCatalogSoon();
-        const created = response.project as Project | undefined;
-        if (!created) return;
+        const project = response.project as Project | undefined;
+        if (!project) return;
         startTransition(() => {
-          applyRootCatalogProjectRows([created]);
-          captureProductEvent("project.added", {
-            location_kind: location.kind,
-            source,
-          });
-          autoDetectSetupScript(created);
-          useAppStore.getState().openDraft(created.id);
+          applyRootCatalogProjectRows([project]);
+          if (response.created !== false) {
+            captureProductEvent("project.added", {
+              location_kind: location.kind,
+              source,
+            });
+            autoDetectSetupScript(project);
+          } else {
+            toast.info(msg("project.locationConflict"));
+          }
+          useAppStore.getState().openDraft(project.id);
         });
       })
       .catch((error) => toast.danger(friendlyError(error)));
@@ -80,14 +85,21 @@ function registerNewProject(
   startTransition(() => {
     // New projects join the workspace the user is currently looking at,
     // otherwise they'd land unfiled and show up in every workspace.
-    const project = useAppStore
-      .getState()
-      .addProject(location, name || undefined, getActiveWorkspaceId() ?? undefined);
-    captureProductEvent("project.added", {
-      location_kind: location.kind,
-      source,
-    });
-    autoDetectSetupScript(project);
+    const store = useAppStore.getState();
+    const { project, created } = store.addProjectWithResult(
+      location,
+      name || undefined,
+      getActiveWorkspaceId() ?? undefined,
+    );
+    if (created) {
+      captureProductEvent("project.added", {
+        location_kind: location.kind,
+        source,
+      });
+      autoDetectSetupScript(project);
+    } else {
+      toast.info(msg("project.locationConflict"));
+    }
     useAppStore.getState().openDraft(project.id);
   });
 }

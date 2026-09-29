@@ -310,6 +310,8 @@ export interface AppControlsToolContext {
    * hop cannot fail or hang the host-side mutation.
    */
   emitRemoteThreadCommand(command: RemoteThreadCommand): boolean | Promise<boolean>;
+  /** Fails closed when durable experiment ownership cannot be read. */
+  isExperimentGroup(groupId: string): boolean;
   /**
    * The authoritative write: read the current thread row, apply `mutate`, and
    * persist it (preserving sort order). This is the commit the mirror must

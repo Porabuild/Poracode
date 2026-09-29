@@ -1,4 +1,5 @@
-import type { Project, Thread } from "@/shared/contracts";
+import type { Project, ProjectLocation, Thread } from "@/shared/contracts";
+import { projectIdentityKey } from "@/shared/projectIdentity";
 import { getSqlite } from "./connection";
 import { dbAssertNoRunningCheckpointRevert } from "./checkpointRevertOperations";
 import { forgetMainCreatedThread, noteMainCreatedThread } from "./mainCreatedThreads";
@@ -34,6 +35,54 @@ export function dbGetProject(projectId: string): Project | null {
     | ProjectRow
     | undefined;
   return row ? rowToProject(row) : null;
+}
+
+/**
+ * Locate one canonical project without hydrating the full catalog. The narrow
+ * SQLite projection is streamed, so a bounded registration result retains no
+ * unrelated project settings or rows. Path normalization stays shared with
+ * client-side duplicate repair (including Windows separators and WSL distro).
+ */
+export function dbFindProjectByLocation(
+  location: ProjectLocation,
+  platform: NodeJS.Platform = process.platform,
+): Project | null {
+  const identityOptions = { caseInsensitivePosix: platform === "darwin" };
+  const identity = projectIdentityKey({ location }, identityOptions);
+  const rows = getSqlite()
+    .prepare(
+      "SELECT id, location_kind, location_path, location_distro, location_linux_path, location_unc_path FROM projects WHERE location_kind = ?",
+    )
+    .iterate(location.kind) as Iterable<
+    Pick<
+      ProjectRow,
+      | "id"
+      | "location_kind"
+      | "location_path"
+      | "location_distro"
+      | "location_linux_path"
+      | "location_unc_path"
+    >
+  >;
+  for (const row of rows) {
+    const candidateLocation: ProjectLocation =
+      row.location_kind === "wsl"
+        ? {
+            kind: "wsl",
+            distro: row.location_distro!,
+            linuxPath: row.location_linux_path!,
+            uncPath: row.location_unc_path!,
+          }
+        : row.location_kind === "windows"
+          ? { kind: "windows", path: row.location_path! }
+          : { kind: "posix", path: row.location_path! };
+    if (
+      projectIdentityKey({ id: row.id, location: candidateLocation }, identityOptions) === identity
+    ) {
+      return dbGetProject(row.id);
+    }
+  }
+  return null;
 }
 
 export function dbGetThreads(): Thread[] {

@@ -65,8 +65,8 @@ import {
   handleSlashCommandPanelKeyDown,
   resolveAvailableSlashCommands,
   resolveLocalSlashCommandAction,
-  slashCommandDisplayId,
 } from "./threadSlashCommands";
+import { slashCommandDisplayId } from "./slashCommandMatching";
 import { carryOverComposerMcpConfig, composerMcpConfig } from "../composer/carryOverMcpConfig";
 import { useAttachments, type SaveClipboardImage } from "../composer/useAttachments";
 import { flattenSegments } from "../composer/serializeMentions";
@@ -1002,6 +1002,7 @@ export function ContinueInProviderDialog(props: {
                             <ThreadCommandPanel
                               appearance="popover"
                               commands={filteredCommands}
+                              query={slashQuery}
                               activeIndex={slashActiveIndex}
                               listId={commandListId}
                               maxHeight={commandPanelPosition.maxHeight}

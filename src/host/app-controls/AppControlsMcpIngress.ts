@@ -41,6 +41,8 @@ export interface AppControlsMcpIngressDeps {
   supervisor: AppControlsSupervisorCaller;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
   emitRemoteThreadCommand(command: RemoteThreadCommand): boolean | Promise<boolean>;
+  /** Fails closed when durable experiment ownership cannot be read. */
+  isExperimentGroup(groupId: string): boolean;
   updateThreadRow(threadId: string, mutate: (thread: Thread) => Thread): void;
   /** Bounded thread invalidation for host-local writes (optional for legacy embedders). */
   publishThreadsChanged?(threadIds: readonly string[]): void;

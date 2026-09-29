@@ -42,6 +42,7 @@ export const remoteProjectCommandSchema = z.discriminatedUnion("kind", [
     kind: z.literal("add-existing"),
     path: z.string().min(1),
     name: z.string().min(1).optional(),
+    workspaceId: z.string().min(1).optional(),
   }),
   // Create a new empty folder under `parentPath` and register it.
   z.object({
@@ -122,6 +123,8 @@ export type RemoteProjectSettings = z.infer<typeof remoteProjectSettingsSchema>;
 export const remoteProjectCommandResultSchema = z.object({
   projects: z.array(remoteProjectSchema),
   project: remoteProjectSchema.optional(),
+  /** Whether registration made a new row (absent for other commands/older peers). */
+  created: z.boolean().optional(),
 });
 export type RemoteProjectCommandResult = z.infer<typeof remoteProjectCommandResultSchema>;
 
@@ -138,6 +141,7 @@ export type RemoteProjectCommandResult = z.infer<typeof remoteProjectCommandResu
 export const remoteProjectCommandBoundedResultSchema = z.object({
   ok: z.literal(true),
   project: remoteProjectSchema.optional(),
+  created: z.boolean().optional(),
 });
 export type RemoteProjectCommandBoundedResult = z.infer<
   typeof remoteProjectCommandBoundedResultSchema

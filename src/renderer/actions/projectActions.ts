@@ -11,6 +11,8 @@ import type {
 } from "@/shared/contracts";
 import { deriveLocationFromPath } from "@/shared/createProject";
 import { friendlyError, msg as resolveMessage } from "@/shared/messages";
+import { findProjectLocationConflict } from "@/shared/projectIdentity";
+import { currentProjectIdentityOptions } from "@/renderer/state/projectReferences";
 import type { RemoteProjectCommand } from "@/shared/remote";
 import { readBridge } from "@/renderer/bridge";
 import { i18n } from "@/renderer/i18n/i18n";
@@ -335,15 +337,26 @@ export async function relocateProject(projectId: string): Promise<void> {
   if (!picked || picked === currentPath) return;
 
   const newLocation = deriveLocationFromPath(picked, readBridge().platform);
+  if (
+    findProjectLocationConflict(
+      useAppStore.getState().projects,
+      project,
+      newLocation,
+      currentProjectIdentityOptions(),
+    )
+  ) {
+    toast.danger(resolveMessage("project.locationConflict"));
+    return;
+  }
 
   try {
     await readBridge().relocateProject({ projectId, newLocation });
+    store.updateProjectLocation(projectId, newLocation);
   } catch (error) {
     toast.danger(friendlyError(error));
     return;
   }
 
-  store.updateProjectLocation(projectId, newLocation);
   void readBridge()
     .gitWatchProject({ projectId, projectLocation: newLocation })
     .catch(() => undefined);

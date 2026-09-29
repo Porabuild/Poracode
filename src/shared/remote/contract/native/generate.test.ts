@@ -56,9 +56,9 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        // B7.1 git admission diagnostics timing/environment fields moved both
-        // the source fingerprint and the structural-type count (2 new roots).
-        sourceHash: "sha256:bafe4ad753be4f9c9f4fecd10efe22a7ad110be828a791bda1609889535e0783",
+        // Additive project-registration fields and portable sendable-input
+        // shapes change the generated source fingerprint without a wire bump.
+        sourceHash: "sha256:28f3a9800ba703919fafa911449d0d94ad78ec83afa2126a229793113dfa1e3f",
         manifestHash: "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
         counts: {
           routes: 88,

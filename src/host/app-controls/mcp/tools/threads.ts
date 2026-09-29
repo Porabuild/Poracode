@@ -4,7 +4,6 @@ import type {
   AgentKind,
   Project,
   ProjectLocation,
-  RemoteThreadCommand,
   StartThreadPayload,
   Thread,
   ThreadRuntimeSnapshot,
@@ -16,15 +15,11 @@ import {
   messageItemPayloadSchema,
   resolveMcpLaunchSnapshot,
 } from "@/shared/contracts";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { formatDiffCommentPrompt, threadMentionLabel } from "@/shared/promptContent";
 import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import { buildWorktreeLocation, normalizeWorktreePathForComparison } from "@/shared/worktree";
 import { dbGetThreadConversationItemsPage } from "../../../db";
-import {
-  applyThreadMetadataCommand,
-  threadMetadataClosesSession,
-  type ThreadMetadataCommand,
-} from "@/host/remote/server/threadMetadataCommands";
 import {
   assertNotSelf,
   projectIdProp,
@@ -33,6 +28,8 @@ import {
   type AppControlsToolContext,
   type ToolDomain,
 } from "./types";
+import { updateThreadMetadata } from "./threadMetadata";
+import { inheritCallerWorkspaceId, requireWorkspace } from "./workspaceLookup";
 
 /** Statuses `wait_for_thread` treats as settled (turn finished or needs the caller). */
 const SETTLED_STATUSES: ReadonlySet<ThreadStatus> = new Set<ThreadStatus>([
@@ -82,6 +79,7 @@ const createArgsSchema = z.object({
   worktree: z
     .object({ enabled: z.boolean(), branch: z.string().trim().min(1).max(255).optional() })
     .optional(),
+  workspaceId: z.string().trim().min(1).optional(),
 });
 const sendArgsSchema = z.object({
   threadId: z.string().min(1),
@@ -104,15 +102,6 @@ const stageArgsSchema = z.object({
 const rollbackArgsSchema = z.object({
   threadId: z.string().min(1),
   numTurns: z.number().int().min(1).max(ROLLBACK_MAX_TURNS),
-});
-const updateArgsSchema = z.object({
-  threadId: z.string().min(1),
-  rename: z.string().trim().min(1).max(200).optional(),
-  group: z.string().trim().min(1).max(200).optional(),
-  done: z.boolean().optional(),
-  starred: z.boolean().optional(),
-  archived: z.boolean().optional(),
-  acknowledge: z.boolean().optional(),
 });
 
 export const threadTools: ToolDomain = {
@@ -166,7 +155,7 @@ export const threadTools: ToolDomain = {
     {
       name: "create_thread",
       description:
-        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Optionally run it in a fresh git worktree.",
+        "Create and launch a new app thread in a project (visible in the user's sidebar). The calling thread's agent and model are used unless overridden. Optionally run it in a fresh git worktree. For Home threads, workspaceId files the new conversation into a workspace (id or unique name from list_workspaces); omitted Home threads inherit the calling thread's workspace when possible. Project threads follow their project's workspace — use update_project to file a project.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -178,6 +167,7 @@ export const threadTools: ToolDomain = {
           model: { type: "string", minLength: 1 },
           effort: { type: "string", minLength: 1 },
           title: { type: "string", minLength: 1, maxLength: 200 },
+          workspaceId: { type: "string", minLength: 1 },
           worktree: {
             type: "object",
             additionalProperties: false,
@@ -234,7 +224,7 @@ export const threadTools: ToolDomain = {
     {
       name: "update_thread",
       description:
-        "Update a thread's metadata: rename, assign a sidebar group, mark done/not-done, star/unstar, archive/unarchive, or acknowledge a finished thread.",
+        "Update a thread's metadata: rename, assign or remove a sidebar group, file a Home thread into a workspace, mark done/not-done, star/unstar, archive/unarchive, or acknowledge a finished thread. group assigns a sidebar group (clicking a group opens every member). ungroup removes this thread from its group (a leftover pair dissolves). ungroupAll dissolves the whole group. workspaceId files a Home thread (id or unique name from list_workspaces); null unfiles it so it is visible in every workspace. Project threads follow their project's workspace — use update_project for those.",
       inputSchema: {
         type: "object",
         additionalProperties: false,
@@ -243,6 +233,9 @@ export const threadTools: ToolDomain = {
           threadId: threadIdProp,
           rename: { type: "string", minLength: 1, maxLength: 200 },
           group: { type: "string", minLength: 1, maxLength: 200 },
+          ungroup: { type: "boolean" },
+          ungroupAll: { type: "boolean" },
+          workspaceId: { type: ["string", "null"], minLength: 1 },
           done: { type: "boolean" },
           starred: { type: "boolean" },
           archived: { type: "boolean" },
@@ -413,6 +406,17 @@ export const threadTools: ToolDomain = {
         );
       }
       const effort = parsed.effort ?? sourceThread?.config.effort;
+      const homeThread = isHomeProjectId(parsed.projectId);
+      if (parsed.workspaceId && !homeThread) {
+        throw new Error(
+          "workspaceId on create_thread only applies to Home threads. File a project with update_project instead.",
+        );
+      }
+      const workspaceId = homeThread
+        ? parsed.workspaceId
+          ? requireWorkspace(ctx, parsed.workspaceId).id
+          : inheritCallerWorkspaceId(ctx)
+        : undefined;
       return ctx.createThread({
         projectId: parsed.projectId,
         prompt: parsed.prompt,
@@ -421,6 +425,7 @@ export const threadTools: ToolDomain = {
         ...(effort ? { effort } : {}),
         ...(sourceThread?.config.fast !== undefined ? { fast: sourceThread.config.fast } : {}),
         ...(parsed.title ? { title: parsed.title } : {}),
+        ...(workspaceId ? { workspaceId } : {}),
         ...(parsed.worktree?.enabled
           ? { worktree: parsed.worktree.branch ? { branch: parsed.worktree.branch } : {} }
           : {}),
@@ -481,85 +486,7 @@ export const threadTools: ToolDomain = {
       if (settled) return { timedOut: false, ...settled };
       return { timedOut: true, ...waitSnapshot(ctx, threadIds) };
     },
-    update_thread: async (args, ctx) => {
-      const parsed = updateArgsSchema.parse(args);
-      requireThread(ctx, parsed.threadId);
-      const threadId = parsed.threadId;
-      const commands: ThreadMetadataCommand[] = [];
-      const applied: string[] = [];
-      const add = (label: string, command: ThreadMetadataCommand): void => {
-        commands.push(command);
-        applied.push(label);
-      };
-
-      // Fixed field order: rename → group → done → starred → archived →
-      // acknowledge. Each command persists through the same metadata semantics
-      // the remote thread-command route uses (fields and timestamps included).
-      if (parsed.rename !== undefined) {
-        add("rename", { kind: "rename", threadId, title: parsed.rename });
-      }
-      if (parsed.group !== undefined) {
-        add("group", {
-          kind: "set-group",
-          threadId,
-          groupId: parsed.group,
-          groupName: parsed.group,
-        });
-      }
-      if (parsed.done !== undefined) {
-        add("done", { kind: "set-done", threadId, done: parsed.done });
-      }
-      if (parsed.starred !== undefined) {
-        add("starred", { kind: "set-starred", threadId, starred: parsed.starred });
-      }
-      if (parsed.archived !== undefined) {
-        add(
-          "archived",
-          parsed.archived ? { kind: "archive", threadId } : { kind: "unarchive", threadId },
-        );
-      }
-      if (parsed.acknowledge) {
-        add("acknowledge", { kind: "acknowledge", threadId });
-      }
-      if (commands.length === 0) {
-        throw new Error("Provide at least one field to update.");
-      }
-
-      // The durable apply owns done/archive lifecycle: close the supervisor
-      // session here (best effort, exactly like the remote thread-command
-      // route), so a zero-window or headless host never depends on a renderer
-      // to end the run. One close covers both fields when they arrive together.
-      if (commands.some(threadMetadataClosesSession)) {
-        await ctx.supervisor.closeThread({ threadId }).catch(() => undefined);
-      }
-
-      // Authoritative commit before any mirror: a failed durable write emits
-      // nothing and nothing optional may gate the mutation.
-      ctx.updateThreadRow(threadId, (thread) =>
-        commands.reduce((next, command) => applyThreadMetadataCommand(next, command), thread),
-      );
-
-      // Bounded invalidation once, after the commit, so list clients refresh
-      // the affected row without a full catalog read.
-      ctx.publishThreadsChanged?.([threadId]);
-
-      // Best-effort mirror after the commit. A synchronous `false` means no UI
-      // received the change; an asynchronous result cannot be awaited without
-      // letting a delayed native hop hang the update, so it is consumed (and a
-      // rejection reported) without claiming delivery.
-      let sawNoRenderer = false;
-      for (const command of commands) {
-        if (emitThreadMetadataMirror(ctx, command) === false) sawNoRenderer = true;
-      }
-      if (sawNoRenderer) {
-        return {
-          threadId,
-          applied,
-          note: "No Poracode UI is connected; the update was applied directly to the stored thread row.",
-        };
-      }
-      return { threadId, applied };
-    },
+    update_thread: updateThreadMetadata,
     open_thread: (args, ctx) => {
       const { threadId } = threadIdArgsSchema.parse(args);
       requireThread(ctx, threadId);
@@ -643,31 +570,6 @@ export const threadTools: ToolDomain = {
 };
 
 /**
- * Mirror one already-committed metadata command to the renderer store. Returns
- * the delivery flag only when the mirror answers synchronously; a promise is
- * settled in the background so a delayed or rejected native hop can neither
- * gate nor fail the durable update, and its rejection is consumed/reported.
- * `undefined` means delivery could not be observed and must not be claimed.
- */
-function emitThreadMetadataMirror(
-  ctx: AppControlsToolContext,
-  command: RemoteThreadCommand,
-): boolean | undefined {
-  try {
-    const delivery = ctx.emitRemoteThreadCommand(command);
-    if (typeof delivery === "boolean") return delivery;
-    void delivery.then(
-      () => undefined,
-      (error: unknown) => ctx.reportError?.(error),
-    );
-    return undefined;
-  } catch (error) {
-    ctx.reportError?.(error);
-    return undefined;
-  }
-}
-
-/**
  * Build the `startThread` payload that resumes an inactive thread, mirroring the
  * app's own resume path (`performInitialThreadLaunch` / `createAppThread`): the
  * persisted config + sessionRef are reused and the message becomes the resumed
@@ -738,6 +640,7 @@ function threadView(
     done: thread.done,
     starred: thread.starred,
     ...(thread.groupName ? { group: thread.groupName } : {}),
+    ...(thread.workspaceId ? { workspaceId: thread.workspaceId } : {}),
     ...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {}),
     ...(thread.worktreeBranch ? { worktreeBranch: thread.worktreeBranch } : {}),
     ...((snapshot?.errorMessage ?? thread.errorMessage)

@@ -11,6 +11,7 @@ import {
   beginProjectRemoval,
   dbDeleteProject,
   dbDeleteThread,
+  dbFindProjectByLocation,
   dbGetProject,
   dbGetProjects,
   dbGetThread,
@@ -22,7 +23,10 @@ import {
   dbUpsertProject,
   dbUpsertThread,
 } from "@/host/db";
-import { discardPersistedProjectExperiments } from "@/host/remote/experimentOwnership";
+import {
+  discardPersistedProjectExperiments,
+  readPersistedExperiments,
+} from "@/host/remote/experimentOwnership";
 import { applyRemoteProjectCommand } from "@/host/remote/projectCommands";
 import { sortOrderForThread } from "@/host/remote/server/snapshots";
 import { ensureHomeProjectRow } from "@/host/schedules";
@@ -59,6 +63,8 @@ export interface SharedAppControlsIngressDeps {
   applyProjectCommand(command: RemoteProjectCommand): Promise<RemoteProjectCommandResult>;
   updateProject(project: Project): void;
   createThread(request: CreateAppThreadRequest): Promise<CreateAppThreadResult>;
+  /** Fails closed when durable experiment ownership cannot be read. */
+  isExperimentGroup(groupId: string): boolean;
   updateThreadRow(threadId: string, mutate: (thread: Thread) => Thread): void;
   publishThreadsChanged?(threadIds: readonly string[]): void;
 }
@@ -95,6 +101,8 @@ export function buildSharedAppControlsIngressDeps(
   } = params;
   return {
     ...(publishThreadsChanged ? { publishThreadsChanged } : {}),
+    isExperimentGroup: (groupId) =>
+      readPersistedExperiments().some((experiment) => experiment.id === groupId),
     directoryExists: (path) => {
       try {
         return statSync(path).isDirectory();
@@ -106,6 +114,7 @@ export function buildSharedAppControlsIngressDeps(
       const application = await applyRemoteProjectCommand(command, {
         getProjects: dbGetProjects,
         getProject: dbGetProject,
+        findProjectByLocation: dbFindProjectByLocation,
         beginProjectRemoval,
         reorderProject: (input) => dbReorderProjectRelative(input),
         setProjectWorkspace: (projectId, workspaceId) =>
@@ -145,7 +154,7 @@ export function buildSharedAppControlsIngressDeps(
       return parsed;
     },
     updateProject: (project) => {
-      dbUpsertProject(project, -Date.parse(project.createdAt));
+      dbUpdateProject(project);
       publishProjectsChanged();
     },
     createThread: async (request) => {

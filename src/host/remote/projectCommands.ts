@@ -34,6 +34,8 @@ export interface RemoteProjectCommandDeps {
    *  authoritative full list call this; the bounded mode never does. */
   getProjects(): Project[];
   getProject(projectId: string): Project | null;
+  /** One location lookup, without materializing unrelated catalog settings. */
+  findProjectByLocation(location: ProjectLocation): Project | null;
   /**
    * Acquire the shared in-process project-removal guard for the ENTIRE removal
    * span (experiment cleanup awaits, thread-close awaits, and the cascade) and
@@ -261,8 +263,13 @@ function assertSafeCloneUrl(rawUrl: string): void {
   }
 }
 
-function makeProject(location: ProjectLocation, name: string, createdAt: string): Project {
-  return { id: randomUUID(), name, location, createdAt };
+function makeProject(
+  location: ProjectLocation,
+  name: string,
+  createdAt: string,
+  workspaceId?: string,
+): Project {
+  return { id: randomUUID(), name, location, createdAt, ...(workspaceId ? { workspaceId } : {}) };
 }
 
 /**
@@ -284,7 +291,14 @@ export async function applyRemoteProjectCommand(
       const name = command.name?.trim() || nameFromPath(command.path);
       assertValidName(name);
       const location = deriveLocationFromPath(command.path, deps.platform);
-      return register(deps, location, name, options);
+      return register(
+        deps,
+        location,
+        name,
+        Boolean(command.name?.trim()),
+        command.workspaceId,
+        options,
+      );
     }
     case "create": {
       assertValidProjectPath(command.parentPath, deps.platform);
@@ -310,7 +324,7 @@ export async function applyRemoteProjectCommand(
       // as a definite failure.
       options.onEffectBoundary?.();
       const location = deriveLocationFromPath(targetPath, deps.platform);
-      return register(deps, location, command.name, options);
+      return register(deps, location, command.name, true, undefined, options);
     }
     case "clone": {
       assertValidProjectPath(command.parentPath, deps.platform);
@@ -331,7 +345,7 @@ export async function applyRemoteProjectCommand(
         source: command.source,
       });
       const location = deriveLocationFromPath(path, deps.platform);
-      return register(deps, location, command.name, options);
+      return register(deps, location, command.name, true, undefined, options);
     }
     case "update": {
       if (bounded) {
@@ -374,6 +388,16 @@ export async function applyRemoteProjectCommand(
         ...project,
         location: deriveLocationFromPath(command.path, deps.platform),
       });
+      const assertUniqueLocation = (project: Project, location: ProjectLocation): void => {
+        const conflict = deps.findProjectByLocation(location);
+        if (conflict && conflict.id !== project.id) {
+          throw new RemoteHttpError(
+            "project_location_conflict",
+            msg("project.locationConflict"),
+            409,
+          );
+        }
+      };
       if (bounded) {
         const project = deps.getProject(command.projectId);
         if (!project) {
@@ -381,6 +405,7 @@ export async function applyRemoteProjectCommand(
         }
         assertRelocatable(project);
         const updated = relocate(project);
+        assertUniqueLocation(project, updated.location);
         options.onEffectBoundary?.();
         deps.updateProject(updated);
         return boundedResult({ ok: true, project: updated });
@@ -392,6 +417,7 @@ export async function applyRemoteProjectCommand(
       }
       assertRelocatable(project);
       const updated = relocate(project);
+      assertUniqueLocation(project, updated.location);
       options.onEffectBoundary?.();
       deps.updateProject(updated);
       return completeResult({
@@ -528,9 +554,32 @@ function register(
   deps: RemoteProjectCommandDeps,
   location: ProjectLocation,
   name: string,
+  nameOverride: boolean,
+  workspaceId?: string,
   options: RemoteProjectCommandOptions = {},
 ): RemoteProjectCommandApplication {
-  const project = makeProject(location, name, deps.now());
+  const existing = deps.findProjectByLocation(location);
+  if (existing) {
+    const changesName = nameOverride && existing.name !== name;
+    const changesWorkspace = workspaceId !== undefined && existing.workspaceId !== workspaceId;
+    const project =
+      changesName || changesWorkspace
+        ? {
+            ...existing,
+            ...(changesName ? { name } : {}),
+            ...(changesWorkspace ? { workspaceId } : {}),
+          }
+        : existing;
+    if (project !== existing) {
+      options.onEffectBoundary?.();
+      deps.updateProject(project);
+    }
+    if (options.resultMode === "bounded") {
+      return boundedResult({ ok: true, project, created: false });
+    }
+    return completeResult({ projects: deps.getProjects(), project, created: false });
+  }
+  const project = makeProject(location, name, deps.now(), workspaceId);
   // The row write is the first effect of a plain registration; for `create`
   // the directory already exists and called this boundary first.
   options.onEffectBoundary?.();
@@ -538,6 +587,6 @@ function register(
   deps.upsertProject(project, -Date.parse(project.createdAt));
   // Bounded callers get the registration id mapping from this one row — never
   // the catalog; the affected project is already in hand.
-  if (options.resultMode === "bounded") return boundedResult({ ok: true, project });
-  return completeResult({ projects: deps.getProjects(), project });
+  if (options.resultMode === "bounded") return boundedResult({ ok: true, project, created: true });
+  return completeResult({ projects: deps.getProjects(), project, created: true });
 }

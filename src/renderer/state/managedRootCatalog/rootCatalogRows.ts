@@ -2,6 +2,7 @@ import type { Project, Thread } from "@/shared/contracts";
 import type { AppView } from "@/shared/contracts/appView";
 import { isHomeProjectId } from "@/shared/homeScope";
 import { useAppStore } from "@/renderer/state/appStore";
+import { applyProjectStateSnapshot } from "@/renderer/state/projectStateSync";
 import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
 import { reuseRemoteRows } from "@/renderer/state/remoteServers/rowReuse";
 import { removePaneFromView } from "@/renderer/state/slices/helpers";
@@ -215,13 +216,15 @@ export function removeRootCatalogProjects(projectIds: readonly string[]): void {
   // prerequisite), so a membership answer saying "absent" is expected.
   const removed = new Set(projectIds.filter((projectId) => !isHomeProjectId(projectId)));
   if (removed.size === 0) return;
-  useAppStore.setState((state) => {
-    const projects = state.projects.filter(
-      (project) => !isManagedRootRow(project) || !removed.has(project.id),
-    );
-    if (projects.length === state.projects.length) return state;
-    return { projects };
-  });
+  const currentProjects = useAppStore.getState().projects;
+  const projects = currentProjects.filter(
+    (project) => !isManagedRootRow(project) || !removed.has(project.id),
+  );
+  if (projects.length === currentProjects.length) return;
+  // A repaired duplicate may have been removed by the host's migration or a
+  // completed membership walk. Move live drafts, panes and experiments to the
+  // surviving project before the stale row leaves the renderer projection.
+  applyProjectStateSnapshot(projects);
 }
 
 /**

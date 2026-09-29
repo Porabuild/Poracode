@@ -6,6 +6,11 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
 @Serializable
+enum class RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d {
+    @SerialName("delete") DELETE,
+}
+
+@Serializable
 data class RouteschedulesU2DCommandRequestU2DOptionU2D3_e7cab2d2c0(
     @SerialName("id") val id: String,
     @SerialName("kind") val kind: RouteschedulesU2DCommandRequestU2DOptionU2D3U2DKind_4d5989d27d,

@@ -124,8 +124,8 @@ public struct RouteprojectU2DCommandRequestU2DOptionU2D9_93de8c66d5: Codable, Se
   }
 }
 
-public enum RouteprojectU2DCommandRequest_1fe67ecd49: Codable, Sendable {
-  case option1(RouteprojectU2DCommandRequestU2DOptionU2D1_9bb33af2f6)
+public enum RouteprojectU2DCommandRequest_99eeb9896b: Codable, Sendable {
+  case option1(RouteprojectU2DCommandRequestU2DOptionU2D1_468209f9bb)
   case option2(RouteprojectU2DCommandRequestU2DOptionU2D2_2b7595c3da)
   case option3(RouteprojectU2DCommandRequestU2DOptionU2D3_da66851500)
   case option4(RouteprojectU2DCommandRequestU2DOptionU2D4_9bdd26dd83)
@@ -136,8 +136,8 @@ public enum RouteprojectU2DCommandRequest_1fe67ecd49: Codable, Sendable {
   case option9(RouteprojectU2DCommandRequestU2DOptionU2D9_93de8c66d5)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, RouteprojectU2DCommandRequest_1fe67ecd49)] = []
-    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("add-existing")]), let value = try? container.decode(RouteprojectU2DCommandRequestU2DOptionU2D1_9bb33af2f6.self) {
+    var matches: [(Int, RouteprojectU2DCommandRequest_99eeb9896b)] = []
+    if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("add-existing")]), let value = try? container.decode(RouteprojectU2DCommandRequestU2DOptionU2D1_468209f9bb.self) {
       matches.append((1, .option1(value)))
     }
     if RemoteUnionProbe.matchesProperty(decoder, property: "kind", literals: [.string("create")]), let value = try? container.decode(RouteprojectU2DCommandRequestU2DOptionU2D2_2b7595c3da.self) {
@@ -165,8 +165,8 @@ public enum RouteprojectU2DCommandRequest_1fe67ecd49: Codable, Sendable {
       matches.append((9, .option9(value)))
     }
     guard matches.count == 1 else {
-      let detail = matches.isEmpty ? "No union option matched RouteprojectU2DCommandRequest_1fe67ecd49" : "Ambiguous union RouteprojectU2DCommandRequest_1fe67ecd49 matched options " + matches.map { String($0.0) }.joined(separator: ", ")
-      throw DecodingError.typeMismatch(RouteprojectU2DCommandRequest_1fe67ecd49.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
+      let detail = matches.isEmpty ? "No union option matched RouteprojectU2DCommandRequest_99eeb9896b" : "Ambiguous union RouteprojectU2DCommandRequest_99eeb9896b matched options " + matches.map { String($0.0) }.joined(separator: ", ")
+      throw DecodingError.typeMismatch(RouteprojectU2DCommandRequest_99eeb9896b.self, .init(codingPath: decoder.codingPath, debugDescription: detail))
     }
     self = matches[0].1
   }
@@ -258,49 +258,55 @@ public struct RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_e21c843ae3: 
   }
 }
 
-public struct RouteprojectU2DCommandResponseU2DOptionU2D1_265118ebb2: Codable, Sendable, RemoteModelMetadata {
+public struct RouteprojectU2DCommandResponseU2DOptionU2D1_14718e26f6: Codable, Sendable, RemoteModelMetadata {
+  public var created: RemoteField<Bool> = .missing
   public var project: RemoteField<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_e21c843ae3> = .missing
   public var projects: [RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_e21c843ae3]
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "created", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "project", typeName: "RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_e21c843ae3", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "projects", typeName: "[RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_e21c843ae3]", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case created = "created"
     case project = "project"
     case projects = "projects"
   }
 }
 
-public struct RouteprojectU2DCommandResponseU2DOptionU2D2_d2bab3e892: Codable, Sendable, RemoteModelMetadata {
+public struct RouteprojectU2DCommandResponseU2DOptionU2D2_40c956264d: Codable, Sendable, RemoteModelMetadata {
+  public var created: RemoteField<Bool> = .missing
   public var ok: ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1
   public var project: RemoteField<RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_e21c843ae3> = .missing
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
   public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "created", typeName: "Bool", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "ok", typeName: "ProcedureensureThreadRunningRequestU2DMentionHandoff_d2dd3595e1", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
     .init(wireName: "project", typeName: "RouteprojectU2DCommandResponseU2DOptionU2D1U2DProject_e21c843ae3", required: false, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
   ]
   public static let semanticValidatorIds: [String] = []
   private enum CodingKeys: String, CodingKey {
+    case created = "created"
     case ok = "ok"
     case project = "project"
   }
 }
 
-public enum RouteprojectU2DCommandResponse_2d1bbead0e: Codable, Sendable {
-  case option1(RouteprojectU2DCommandResponseU2DOptionU2D1_265118ebb2)
-  case option2(RouteprojectU2DCommandResponseU2DOptionU2D2_d2bab3e892)
+public enum RouteprojectU2DCommandResponse_c544067fff: Codable, Sendable {
+  case option1(RouteprojectU2DCommandResponseU2DOptionU2D1_14718e26f6)
+  case option2(RouteprojectU2DCommandResponseU2DOptionU2D2_40c956264d)
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
-    var matches: [(Int, RouteprojectU2DCommandResponse_2d1bbead0e)] = []
-    if RemoteUnionProbe.matchesObject(decoder), let value = try? container.decode(RouteprojectU2DCommandResponseU2DOptionU2D1_265118ebb2.self) {
+    var matches: [(Int, RouteprojectU2DCommandResponse_c544067fff)] = []
+    if RemoteUnionProbe.matchesObject(decoder), let value = try? container.decode(RouteprojectU2DCommandResponseU2DOptionU2D1_14718e26f6.self) {
       self = .option1(value); return
     }
-    if RemoteUnionProbe.matchesObject(decoder), let value = try? container.decode(RouteprojectU2DCommandResponseU2DOptionU2D2_d2bab3e892.self) {
+    if RemoteUnionProbe.matchesObject(decoder), let value = try? container.decode(RouteprojectU2DCommandResponseU2DOptionU2D2_40c956264d.self) {
       self = .option2(value); return
     }
-    throw DecodingError.typeMismatch(RouteprojectU2DCommandResponse_2d1bbead0e.self, .init(codingPath: decoder.codingPath, debugDescription: "No union option matched RouteprojectU2DCommandResponse_2d1bbead0e"))
+    throw DecodingError.typeMismatch(RouteprojectU2DCommandResponse_c544067fff.self, .init(codingPath: decoder.codingPath, debugDescription: "No union option matched RouteprojectU2DCommandResponse_c544067fff"))
   }
   public func encode(to encoder: Encoder) throws {
     var container = encoder.singleValueContainer()
@@ -434,15 +440,3 @@ public struct RouteprojectU2DNotesU2DReadResponseU2DNotesU2DOptionU2D1_bc92ea89e
 }
 
 public typealias RouteprojectU2DNotesU2DReadResponseU2DNotes_6df40201d8 = RouteprojectU2DNotesU2DReadResponseU2DNotesU2DOptionU2D1_bc92ea89e2?
-
-public struct RouteprojectU2DNotesU2DReadResponse_d1eba06c8a: Codable, Sendable, RemoteModelMetadata {
-  public var notes: RemoteField<RouteprojectU2DNotesU2DReadResponseU2DNotesU2DOptionU2D1_bc92ea89e2>
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "notes", typeName: "RouteprojectU2DNotesU2DReadResponseU2DNotesU2DOptionU2D1_bc92ea89e2", required: true, nullable: true, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case notes = "notes"
-  }
-}

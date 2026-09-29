@@ -64,6 +64,8 @@ export interface CreateAppThreadRequest {
   worktree?: { branch?: string };
   existingWorktree?: { path: string; branch: string };
   prNumber?: number;
+  /** Home-thread workspace tag; ignored for real projects. */
+  workspaceId?: string;
 }
 
 export interface CreateAppThreadResult {
@@ -134,9 +136,12 @@ export async function createAppThread(
       ),
     ) ||
     "New thread";
+  const homeWorkspaceId =
+    isHomeProjectId(project.id) && request.workspaceId ? request.workspaceId : undefined;
   const thread: Thread = {
     id: threadId,
     projectId: project.id,
+    ...(homeWorkspaceId ? { workspaceId: homeWorkspaceId } : {}),
     title,
     agentKind: request.agentKind,
     config,
@@ -176,6 +181,7 @@ export async function createAppThread(
     ...(branch ? { worktreeBranch: branch } : {}),
     ...(request.prNumber !== undefined ? { prNumber: request.prNumber } : {}),
     ...(createdWorktree ? { isNewWorktree: true } : {}),
+    ...(homeWorkspaceId ? { workspaceId: homeWorkspaceId } : {}),
   });
 
   const startPayload: StartThreadPayload = {

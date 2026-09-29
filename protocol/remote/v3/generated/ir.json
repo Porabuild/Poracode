@@ -2021,7 +2021,6 @@
             "type": "string"
           },
           "prompt": {
-            "minLength": 1,
             "type": "string"
           },
           "segments": {
@@ -15709,7 +15708,6 @@
             "x-poracode-unknownFields": "strip"
           },
           "prompt": {
-            "minLength": 1,
             "type": "string"
           },
           "segments": {
@@ -31213,7 +31211,8 @@
                         {
                           "enum": [
                             "agent-unavailable",
-                            "worktree-unavailable"
+                            "worktree-unavailable",
+                            "duplicate-project-watches"
                           ],
                           "type": "string"
                         },
@@ -31485,7 +31484,8 @@
                     {
                       "enum": [
                         "agent-unavailable",
-                        "worktree-unavailable"
+                        "worktree-unavailable",
+                        "duplicate-project-watches"
                       ],
                       "type": "string"
                     },
@@ -32784,6 +32784,10 @@
                 "path": {
                   "minLength": 1,
                   "type": "string"
+                },
+                "workspaceId": {
+                  "minLength": 1,
+                  "type": "string"
                 }
               },
               "required": [
@@ -33637,6 +33641,9 @@
             {
               "additionalProperties": true,
               "properties": {
+                "created": {
+                  "type": "boolean"
+                },
                 "project": {
                   "$ref": "#/$defs/__schema0"
                 },
@@ -33656,6 +33663,9 @@
             {
               "additionalProperties": true,
               "properties": {
+                "created": {
+                  "type": "boolean"
+                },
                 "ok": {
                   "const": true,
                   "type": "boolean"
@@ -40265,9 +40275,7 @@
                 }
               },
               "required": [
-                "kind",
-                "groupId",
-                "groupName"
+                "kind"
               ],
               "type": "object",
               "x-poracode-unknownFields": "strip"
@@ -43294,7 +43302,6 @@
               "x-poracode-unknownFields": "strip"
             },
             "prompt": {
-              "minLength": 1,
               "type": "string"
             },
             "segments": {
@@ -44449,7 +44456,6 @@
               "x-poracode-unknownFields": "strip"
             },
             "prompt": {
-              "minLength": 1,
               "type": "string"
             },
             "segments": {
@@ -45075,7 +45081,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:bafe4ad753be4f9c9f4fecd10efe22a7ad110be828a791bda1609889535e0783",
+  "sourceHash": "sha256:28f3a9800ba703919fafa911449d0d94ad78ec83afa2126a229793113dfa1e3f",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

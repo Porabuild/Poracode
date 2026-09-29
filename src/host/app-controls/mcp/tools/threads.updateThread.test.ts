@@ -64,6 +64,8 @@ function harness(overrides: { thread?: Thread } = {}): Harness {
   const ctx = {
     identity: {},
     getThread: (threadId: string) => (threadId === thread.id ? thread : null),
+    getThreads: () => [thread],
+    isExperimentGroup: () => false,
     getProjects: () => [],
     getProject: () => null,
     supervisor: { closeThread },

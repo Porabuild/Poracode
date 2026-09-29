@@ -15,7 +15,7 @@ import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contra
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
 import { resolveProjectLocation } from "@/shared/worktree";
 import { friendlyError } from "@/shared/messages";
-import { buildPromptContentBlocks } from "@/shared/promptContent";
+import { buildPromptContentBlocks, hasSendablePromptContent } from "@/shared/promptContent";
 import { resolveThreadTitlePrompt, titlePromptFromSegments } from "@/shared/threadTitle";
 import { captureThreadPromptSubmitted, captureThreadStarted } from "@/renderer/analytics/posthog";
 import { readBridge } from "@/renderer/bridge";
@@ -109,7 +109,7 @@ export async function performInitialThreadLaunch(input: {
   const optimisticUserMessageItemId =
     userMessageItemId ??
     (providerSwitch
-      ? allocateInitialUserMessageItemId(thread, prompt)
+      ? allocateInitialUserMessageItemId(thread, prompt, segments)
       : (retainedReplay?.replay?.userMessageItemId ??
         appendOptimisticInitialUserMessage(thread, prompt, segments)));
   if (optimisticUserMessageItemId && !providerSwitch) {
@@ -720,7 +720,7 @@ export function appendOptimisticInitialUserMessage(
   prompt: string,
   segments?: PromptSegment[],
 ): string | undefined {
-  const itemId = allocateInitialUserMessageItemId(thread, prompt);
+  const itemId = allocateInitialUserMessageItemId(thread, prompt, segments);
   if (!itemId) return undefined;
 
   useAppStore.getState().applyRuntimeEvent(thread.id, {
@@ -738,9 +738,17 @@ export function appendOptimisticInitialUserMessage(
   return itemId;
 }
 
-function allocateInitialUserMessageItemId(thread: Thread, prompt: string): string | undefined {
+function allocateInitialUserMessageItemId(
+  thread: Thread,
+  prompt: string,
+  segments?: PromptSegment[],
+): string | undefined {
   const presentation = thread.presentationMode ?? "terminal";
-  if (presentation !== "gui" || prompt.length === 0 || thread.sessionRef !== undefined) {
+  if (
+    presentation !== "gui" ||
+    !hasSendablePromptContent(prompt, segments) ||
+    thread.sessionRef !== undefined
+  ) {
     return undefined;
   }
   return `user-${crypto.randomUUID()}`;

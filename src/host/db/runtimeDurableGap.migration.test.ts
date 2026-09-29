@@ -124,7 +124,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
 
   it("appends the evidence tables and the singleton epoch row to a schema-47 profile", () => {
     downgradeToSchema47WithoutEvidenceTables();
-    expect(LATEST_SCHEMA_VERSION).toBe(49);
+    expect(LATEST_SCHEMA_VERSION).toBe(50);
 
     initDatabase(dbPath);
     const sqlite = rawDatabase();
@@ -141,7 +141,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
       ).toEqual({ epoch: 0, armed: 0 });
       expect(
         sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-      ).toEqual({ value: "49" });
+      ).toEqual({ value: "50" });
       expect(tableExists(NOTICE_TABLE, sqlite)).toBe(true);
     } finally {
       sqlite.close();
@@ -227,7 +227,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
       expect(tableExists(NOTICE_TABLE, sqlite)).toBe(true);
       expect(
         sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get(),
-      ).toEqual({ value: "49" });
+      ).toEqual({ value: "50" });
     } finally {
       sqlite.close();
     }

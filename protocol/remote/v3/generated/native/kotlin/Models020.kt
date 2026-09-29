@@ -31,12 +31,12 @@ data class RouteprU2DWatchU2DUpsertRequest_8be1194a62(
 }
 
 @Serializable
-data class RouteprU2DWatchU2DUpsertResponse_7e3e58fba7(
-    @SerialName("watch") val watch: RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1_4e69a9e250,
+data class RouteprU2DWatchU2DUpsertResponse_256bdb1376(
+    @SerialName("watch") val watch: RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1_c76246bf47,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("watch", "RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1_4e69a9e250", true, false, null, null, null, null, null, null, null, null, listOf("pr-watch.agent-required-when-enabled")),
+            RemoteFieldDescriptor("watch", "RouteprU2DWatchU2DReadResponseU2DWatchU2DOptionU2D1_c76246bf47", true, false, null, null, null, null, null, null, null, null, listOf("pr-watch.agent-required-when-enabled")),
         ), listOf())
     }
 }

@@ -95,4 +95,38 @@ describe("experimentStore", () => {
 
     expect(Object.keys(useExperimentStore.getState().experiments)).toEqual(["experiment-2"]);
   });
+
+  it("remaps experiments when a duplicate project is collapsed", () => {
+    useExperimentStore.getState().addExperiment(experiment({ projectId: "duplicate" }));
+
+    useExperimentStore.getState().remapProjectIds(new Map([["duplicate", "project-1"]]));
+
+    expect(useExperimentStore.getState().experiments["experiment-1"]?.projectId).toBe("project-1");
+  });
+
+  it("retains candidate ownership when a thread row is missing", () => {
+    const record = experiment({
+      candidates: [
+        ...experiment().candidates,
+        {
+          threadId: "thread-3",
+          agentKind: "codex",
+          worktreePath: "C:/repo/three",
+          worktreeBranch: "poracode/three",
+          worktreeOwnerToken: "experiment-1:thread-3",
+          worktreeState: "owned",
+        },
+      ],
+      crown: {
+        threadId: "thread-3",
+        source: "user",
+        createdAt: "2026-07-13T00:01:00.000Z",
+      },
+    });
+    useExperimentStore.getState().addExperiment(record);
+
+    useExperimentStore.getState().reconcileExperiments(new Set(["project-1"]));
+
+    expect(useExperimentStore.getState().experiments["experiment-1"]).toEqual(record);
+  });
 });

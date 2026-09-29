@@ -5,6 +5,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { readBridge } from "@/renderer/bridge";
 import { isCompactLayoutViewport } from "@/renderer/adaptiveLayout";
+import { activateFileEditorContext } from "@/renderer/actions/fileEditorContext";
 import { updateProjectScripts } from "@/renderer/actions/projectActions";
 import { captureRendererException } from "@/renderer/diagnostics/sentry";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -98,13 +99,7 @@ export async function openFileInEditor(
 ): Promise<void> {
   const fileEditor = useFileEditorStore.getState();
   const targetContext = buildFileEditorContext(project, worktreePath, worktreeBranch);
-  const currentRoot = fileEditor.rootContext;
-  const isSameContext =
-    currentRoot?.projectId === targetContext.projectId &&
-    currentRoot?.worktreePath === targetContext.worktreePath;
-  if (!isSameContext) {
-    fileEditor.setRootContext(targetContext);
-  }
+  if (!activateFileEditorContext(targetContext)) return;
   const openOptions = typeof options === "number" ? { lineNumber: options } : options;
   let gitDiff: { diff: string } | undefined;
   if (openOptions?.gitDiff && shouldOpenGitDiffEditor(openOptions.gitDiff.status)) {

@@ -64,6 +64,7 @@ function deps(overrides: Partial<AppControlsMcpIngressDeps> = {}): AppControlsMc
     } as unknown as ScheduleService,
     getThread: (id) => (id === thread.id ? thread : null),
     getThreads: () => [thread],
+    isExperimentGroup: () => false,
     getProjects: () => [{ id: "project-1", name: "Alpha" } as Project],
     getProject: (id) => (id === "project-1" ? ({ id, name: "Alpha" } as Project) : null),
     getProjectNotes: () => null,

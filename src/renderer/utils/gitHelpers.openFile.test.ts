@@ -6,6 +6,7 @@ const { editor, layout } = vi.hoisted(() => ({
   layout: { compact: false },
   editor: {
     rootContext: null,
+    buffers: {},
     setRootContext: vi.fn<(context: unknown) => void>(),
     openFile: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   },

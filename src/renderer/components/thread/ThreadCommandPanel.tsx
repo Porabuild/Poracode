@@ -2,17 +2,47 @@ import { useEffect } from "react";
 import { Sparkles, Terminal } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { AgentSlashCommand } from "@/shared/contracts";
-import { slashCommandDisplayId } from "./threadSlashCommands";
+import { isSkillCommand, slashCommandDisplayId, slashCommandMatch } from "./slashCommandMatching";
 import { ThreadDockHeader, ThreadDockSection } from "./ThreadDockUI";
 
 interface ThreadCommandPanelProps {
   commands: AgentSlashCommand[];
+  /** Current slash query; the matched part of each name is highlighted. */
+  query?: string | null;
   activeIndex: number;
   onSelect: (command: AgentSlashCommand) => void;
   onActiveIndexChange: (index: number) => void;
   listId: string;
   appearance?: "dock" | "popover";
   maxHeight?: number;
+}
+
+/**
+ * The label is a flex row with a gap, so the prefix and name stay in one flex
+ * item: bare text when nothing is highlighted, one wrapper span when it is.
+ */
+function CommandName(props: { command: AgentSlashCommand; query: string | null }) {
+  const prefix = isSkillCommand(props.command) ? "" : "/";
+  const name = slashCommandDisplayId(props.command);
+  const highlight = props.query ? slashCommandMatch(props.command, props.query)?.highlight : null;
+  if (!highlight) {
+    return (
+      <>
+        {prefix}
+        {name}
+      </>
+    );
+  }
+  return (
+    <span>
+      {prefix}
+      {name.slice(0, highlight.start)}
+      <mark className="bg-transparent text-accent">
+        {name.slice(highlight.start, highlight.end)}
+      </mark>
+      {name.slice(highlight.end)}
+    </span>
+  );
 }
 
 export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
@@ -107,12 +137,10 @@ export function ThreadCommandPanel(props: ThreadCommandPanelProps) {
                           : "flex shrink-0 items-center gap-1 font-bold text-foreground"
                       }
                     >
-                      {cmd.section === "skills" ? (
+                      {isSkillCommand(cmd) ? (
                         <Sparkles aria-hidden="true" className="size-3" />
-                      ) : (
-                        "/"
-                      )}
-                      {displayId}
+                      ) : null}
+                      <CommandName command={cmd} query={props.query ?? null} />
                     </span>
                     {cmd.description && (
                       <span

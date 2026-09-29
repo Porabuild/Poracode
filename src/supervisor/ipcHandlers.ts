@@ -1,4 +1,9 @@
 import type { ListPluginsPayload } from "@/shared/contracts";
+import {
+  editQueuedThreadFollowUpPayloadSchema,
+  sendThreadInputPayloadSchema,
+  setPendingSteerPayloadSchema,
+} from "@/shared/contracts";
 import { defineSupervisorIpcHandlers, type SupervisorIpcHandlerMap } from "@/shared/ipc";
 import { getProjectFsPath } from "@/shared/wsl";
 import type { SupervisorRuntime } from "./supervisorRuntime";
@@ -64,7 +69,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     getAvailableWindowsShells: () => runtime.getAvailableWindowsShells(),
     startThread: (payload) => threads.startThread(payload),
     ensureThreadRunning: (payload) => threads.ensureThreadRunning(payload),
-    sendThreadInput: (payload) => threads.sendThreadInput(payload),
+    sendThreadInput: (payload) =>
+      threads.sendThreadInput(sendThreadInputPayloadSchema.parse(payload)),
     interruptThread: (payload) => threads.interruptThread(payload),
     controlThreadGoal: (payload) => threads.controlThreadGoal(payload),
     connectThreadVoice: (payload) => threads.connectThreadVoice(payload),
@@ -72,12 +78,15 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     rollbackThreadConversation: (payload) => threads.rollbackThreadConversation(payload),
     createRevertAnchor: (payload) => threads.createRevertAnchor(payload),
     restoreToRevertAnchor: (payload) => threads.restoreToRevertAnchor(payload),
-    setPendingSteer: (payload) => threads.setPendingSteer(payload),
+    setPendingSteer: (payload) =>
+      threads.setPendingSteer(setPendingSteerPayloadSchema.parse(payload)),
     clearPendingSteer: (payload) => threads.clearPendingSteer(payload),
-    queueThreadFollowUp: (payload) => threads.queueThreadFollowUp(payload),
+    queueThreadFollowUp: (payload) =>
+      threads.queueThreadFollowUp(setPendingSteerPayloadSchema.parse(payload)),
     removeQueuedThreadFollowUp: (payload) => threads.removeQueuedThreadFollowUp(payload),
     reorderQueuedThreadFollowUp: (payload) => threads.reorderQueuedThreadFollowUp(payload),
-    editQueuedThreadFollowUp: (payload) => threads.editQueuedThreadFollowUp(payload),
+    editQueuedThreadFollowUp: (payload) =>
+      threads.editQueuedThreadFollowUp(editQueuedThreadFollowUpPayloadSchema.parse(payload)),
     steerQueuedThreadFollowUp: (payload) => threads.steerQueuedThreadFollowUp(payload),
     pauseThreadFollowUps: (payload) => threads.pauseThreadFollowUps(payload),
     resumeThreadFollowUps: ({ threadId }) => threads.resumeThreadFollowUps(threadId),

@@ -221,7 +221,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EPrU2DWatchU2DReadU2EResponse: RemoteRootCodec<RouteprU2DWatchU2DReadResponse_d5dfa02f74> = .init(id: "route.pr-watch-read.response", schema: RemoteSchemas.schema_d5dfa02f74fb7cf8)
+  static let routeU2EPrU2DWatchU2DReadU2EResponse: RemoteRootCodec<RouteprU2DWatchU2DReadResponse_db50e6f480> = .init(id: "route.pr-watch-read.response", schema: RemoteSchemas.schema_db50e6f4807973d0)
 }
 
 public extension RemoteRootCodecs {
@@ -229,7 +229,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EPrU2DWatchU2DUpsertU2EResponse: RemoteRootCodec<RouteprU2DWatchU2DUpsertResponse_7e3e58fba7> = .init(id: "route.pr-watch-upsert.response", schema: RemoteSchemas.schema_7e3e58fba723ce2c)
+  static let routeU2EPrU2DWatchU2DUpsertU2EResponse: RemoteRootCodec<RouteprU2DWatchU2DUpsertResponse_256bdb1376> = .init(id: "route.pr-watch-upsert.response", schema: RemoteSchemas.schema_256bdb1376d852bd)
 }
 
 public extension RemoteRootCodecs {
@@ -265,11 +265,11 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DCommandU2ERequest: RemoteRootCodec<RouteprojectU2DCommandRequest_1fe67ecd49> = .init(id: "route.project-command.request", schema: RemoteSchemas.schema_1fe67ecd49cb8480)
+  static let routeU2EProjectU2DCommandU2ERequest: RemoteRootCodec<RouteprojectU2DCommandRequest_99eeb9896b> = .init(id: "route.project-command.request", schema: RemoteSchemas.schema_99eeb9896b1917b9)
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EProjectU2DCommandU2EResponse: RemoteRootCodec<RouteprojectU2DCommandResponse_2d1bbead0e> = .init(id: "route.project-command.response", schema: RemoteSchemas.schema_2d1bbead0ef7ff60)
+  static let routeU2EProjectU2DCommandU2EResponse: RemoteRootCodec<RouteprojectU2DCommandResponse_c544067fff> = .init(id: "route.project-command.response", schema: RemoteSchemas.schema_c544067fff1936a6)
 }
 
 public extension RemoteRootCodecs {

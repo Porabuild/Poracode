@@ -14,6 +14,16 @@ import type { AppStoreState } from "./slices/shared";
 import { createSubAgentOverlaySlice } from "./slices/subAgentOverlaySlice";
 import { createThreadSlice } from "./slices/threadSlice";
 import { createViewSlice } from "./slices/viewSlice";
+import { dedupeProjects } from "@/shared/projectIdentity";
+import {
+  currentProjectIdentityOptions,
+  mergeDraftContent,
+  mergePendingComposerSeeds,
+  remapProjectRecord,
+  remapProjectGroupLayouts,
+  remapProjectView,
+  remapThreadProjectIds,
+} from "./projectReferences";
 
 export { makeThreadTitle } from "./slices/helpers";
 export type { AppStoreState } from "./slices/shared";
@@ -69,30 +79,31 @@ export const useAppStore = create<AppStoreState>()(
           const state =
             (persistedState as (Partial<AppStoreState> & { threads?: Thread[] }) | undefined) ??
             ({} as Partial<AppStoreState>);
-          // Desktop hydration is preferences-only: the persisted payload has
-          // NO catalog keys, so resident catalog rows (installed by the managed
-          // root walk while this read was in flight) are the catalog. Browser
-          // hydration keeps its persisted catalog rows.
+          // Desktop hydration is preferences-only; the host catalog may have
+          // arrived while this read was in flight. Browser clients can hydrate
+          // their persisted catalog rows.
           const persistedCatalog = state.projects !== undefined || state.threads !== undefined;
-          const threads = persistedCatalog
-            ? (state.threads ?? currentState.threads).map((t) => ({
-                ...normalizeStoredThreadStatus(t),
-                ...(t.archived ? { archivedAt: t.archivedAt ?? t.updatedAt } : {}),
-                done: t.done ?? false,
-                doneAt: t.done ? (t.doneAt ?? t.updatedAt) : undefined,
-              }))
-            : currentState.threads;
-          const projects =
+          const selectedProjects =
             persistedCatalog && state.projects !== undefined
               ? state.projects
               : currentState.projects;
-          // A preference the user changed while the read was in flight must
-          // not be overwritten by the older persisted value.
-          const view =
+          const deduped = dedupeProjects(selectedProjects, currentProjectIdentityOptions());
+          const projects = deduped.projects;
+          const selectedThreads = persistedCatalog
+            ? (state.threads ?? currentState.threads).map((thread) => ({
+                ...normalizeStoredThreadStatus(thread),
+                ...(thread.archived ? { archivedAt: thread.archivedAt ?? thread.updatedAt } : {}),
+                done: thread.done ?? false,
+                doneAt: thread.done ? (thread.doneAt ?? thread.updatedAt) : undefined,
+              }))
+            : currentState.threads;
+          const threads = remapThreadProjectIds(selectedThreads, deduped.duplicateIds);
+          // Preserve user edits made while persisted preferences were loading.
+          const selectedView =
             state.view !== undefined && isPristineView(currentState.view)
               ? state.view
               : currentState.view;
-          const groupLayouts =
+          const selectedGroupLayouts =
             state.groupLayouts !== undefined && isPristineGroupLayouts(currentState.groupLayouts)
               ? state.groupLayouts
               : currentState.groupLayouts;
@@ -100,8 +111,26 @@ export const useAppStore = create<AppStoreState>()(
             ...currentState,
             projects,
             threads,
-            view,
-            groupLayouts,
+            view: remapProjectView(selectedView, deduped.duplicateIds),
+            groupLayouts: remapProjectGroupLayouts(selectedGroupLayouts, deduped.duplicateIds),
+            draftContents: remapProjectRecord(
+              state.draftContents ?? currentState.draftContents,
+              deduped.duplicateIds,
+              mergeDraftContent,
+            ),
+            pendingDraftWorktreeSelections: remapProjectRecord(
+              state.pendingDraftWorktreeSelections ?? currentState.pendingDraftWorktreeSelections,
+              deduped.duplicateIds,
+            ),
+            pendingComposerSeeds: remapProjectRecord(
+              state.pendingComposerSeeds ?? currentState.pendingComposerSeeds,
+              deduped.duplicateIds,
+              mergePendingComposerSeeds,
+            ),
+            draftContentDiscardRequests: remapProjectRecord(
+              state.draftContentDiscardRequests ?? currentState.draftContentDiscardRequests,
+              deduped.duplicateIds,
+            ),
             lastRuntimeConfigByThreadId: Object.fromEntries(
               threads.map((thread) => [thread.id, thread.config]),
             ),

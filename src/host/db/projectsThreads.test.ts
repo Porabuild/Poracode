@@ -14,6 +14,7 @@ import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import { LATEST_SCHEMA_VERSION } from "./migrations";
 import {
   dbDeleteThread,
+  dbFindProjectByLocation,
   dbGetThread,
   dbGetState,
   dbGetProject,
@@ -115,6 +116,46 @@ describe("projectsThreads (real sqlite round-trip)", () => {
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
+  });
+
+  it("finds normalized locations without loading unrelated projects", () => {
+    dbUpsertProject(
+      {
+        id: "windows-project",
+        name: "Windows project",
+        location: { kind: "windows", path: "C:\\Work\\App" },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      1,
+    );
+    dbUpsertProject(
+      {
+        id: "wsl-project",
+        name: "WSL project",
+        location: {
+          kind: "wsl",
+          distro: "Ubuntu",
+          linuxPath: "/home/user/app",
+          uncPath: "\\\\wsl.localhost\\Ubuntu\\home\\user\\app",
+        },
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+      2,
+    );
+
+    expect(dbFindProjectByLocation({ kind: "posix", path: "/tmp/project/" })?.id).toBe("project-1");
+    expect(dbFindProjectByLocation({ kind: "windows", path: "c:/work/app/" })?.id).toBe(
+      "windows-project",
+    );
+    expect(
+      dbFindProjectByLocation({
+        kind: "wsl",
+        distro: "ubuntu",
+        linuxPath: "/home/user/app/",
+        uncPath: "unused-for-identity",
+      })?.id,
+    ).toBe("wsl-project");
+    expect(dbFindProjectByLocation({ kind: "posix", path: "/tmp/other" })).toBeNull();
   });
 
   it("pages threads in stable (sort_order, id) order with resumable cursors", () => {

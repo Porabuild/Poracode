@@ -25,12 +25,17 @@ export const checkpointRevertBodySchema = checkpointRevertPayloadSchema.omit({
   threadId: true,
 });
 
-export const threadSendBodySchema = sendThreadInputPayloadSchema.omit({ threadId: true });
+// The portable route inventory describes the path-scoped structure. The host
+// injects threadId and re-parses the canonical payload (including its
+// cross-field sendable-content refinement) before any effect.
+const { threadId: _sendThreadId, ...threadSendShape } = sendThreadInputPayloadSchema.shape;
+export const threadSendBodySchema = z.object(threadSendShape);
 
 /** Goal HTTP body is the control action only; threadId is in the path. */
 export const threadGoalHttpBodySchema = threadGoalControlSchema;
 
-export const threadSteerSetBodySchema = setPendingSteerPayloadSchema.omit({ threadId: true });
+const { threadId: _steerThreadId, ...threadSteerShape } = setPendingSteerPayloadSchema.shape;
+export const threadSteerSetBodySchema = z.object(threadSteerShape);
 
 export const terminalWriteBodySchema = writeTerminalPayloadSchema.omit({ threadId: true });
 

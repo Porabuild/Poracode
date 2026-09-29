@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
+import { repairDuplicateProjects } from "./projectDeduplication";
 import { HEAD_CHARS } from "./runtimeStreamCap";
 import { writeItemStreams } from "./runtimeStreamStore";
 
@@ -807,6 +808,24 @@ export const DATABASE_MIGRATIONS = [
           last_acknowledged_at   INTEGER NOT NULL
         );
       `);
+    },
+  },
+  {
+    version: 50,
+    name: "deduplicate project locations and repair divergent schema 42",
+    // Master used schema 42 for project deduplication while v2 used it for
+    // main-created thread ownership. Reassert that table for profiles upgraded
+    // from either lineage, then apply the project repair on both paths.
+    // Removing duplicate identities and remapping their references is not a
+    // code-only rollback: preserve a pre-upgrade backup.
+    rollback: "forward-only",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        CREATE TABLE IF NOT EXISTS main_created_threads (
+          thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE
+        );
+      `);
+      repairDuplicateProjects(sqlite);
     },
   },
 ] as const satisfies readonly DatabaseMigration[];

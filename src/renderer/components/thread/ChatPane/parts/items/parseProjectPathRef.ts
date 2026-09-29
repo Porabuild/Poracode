@@ -3,7 +3,7 @@ export type ProjectPathRef =
   | { kind: "folder"; path: string };
 
 const PATH_EXTENSION_RE =
-  /\.(tsx?|jsx?|mjs|cjs|json|mdx?|css|scss|rs|go|py|toml|yaml|yml|vue|svelte|html?|txt)$/i;
+  /\.(tsx?|jsx?|mjs|cjs|json|mdx?|css|scss|rs|go|py|toml|yaml|yml|vue|svelte|html?|txt|pdf|pptx?|docx?|xlsx?|csv|tsv|png|jpe?g|gif|webp|svg)$/i;
 
 export const PROJECT_PATH_TOKEN_SOURCE = String.raw`(?<![A-Za-z0-9_:/@.\\-])(\/?(?:[A-Za-z0-9_@.][A-Za-z0-9_@.-]*(?:[\\/][A-Za-z0-9_@.-]+)+|[A-Za-z0-9_@-][A-Za-z0-9_@.-]*\.[A-Za-z][A-Za-z0-9-]*))(?::(\d+)(?:-\d+)?)?`;
 

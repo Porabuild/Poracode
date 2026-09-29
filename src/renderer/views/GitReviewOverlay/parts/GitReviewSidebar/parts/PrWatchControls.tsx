@@ -24,6 +24,11 @@ function automationMode(watch: PrWatch | null | undefined): PrAutomationMode {
  * leaving the PR looking watched when nothing will happen.
  */
 function blockedMessage(reason: NonNullable<PrWatch["blockedReason"]>): string {
+  if (reason === "duplicate-project-watches") {
+    return i18n._(
+      msg`Duplicate projects had different automation threads. Review those threads, then choose an automation mode to resume.`,
+    );
+  }
   if (reason === "agent-unavailable") {
     return i18n._(
       msg`Automation is paused: the configured helper agent is unavailable. Check the agent connection and helper settings.`,
@@ -61,7 +66,9 @@ export function PrWatchControls(props: {
   const triggerLabel = blocked
     ? mode === "merge"
       ? t`PR automation paused: Auto Merge`
-      : t`PR automation paused: Auto Fix`
+      : mode === "fix"
+        ? t`PR automation paused: Auto Fix`
+        : t`PR automation paused`
     : mode === "merge"
       ? t`PR automation: Auto Merge`
       : mode === "fix"

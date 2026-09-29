@@ -4,6 +4,7 @@ import { useLingui } from "@lingui/react/macro";
 import { ArrowLeft } from "lucide-react";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobilePageBottomBar } from "@/renderer/components/layout/MobilePageBottomActions";
+import { isHomeProjectId } from "@/shared/homeScope";
 import { PageLayout } from "@/renderer/components/layout/PageLayout";
 import {
   overlaySidebarColumnClass,
@@ -30,8 +31,8 @@ export function FileEditorOverlay(props: { onClose: () => void }) {
   const hasDirtyBuffers = Object.values(buffers).some(
     (buffer) => buffer.status === "ready" && buffer.isDirty,
   );
-  const isRemoteRoot = rootContext.remoteServerId !== undefined;
-  const showTree = !isRemoteRoot;
+  const showTree =
+    rootContext.remoteServerId === undefined && !isHomeProjectId(rootContext.projectId);
 
   function requestClose() {
     if (hasDirtyBuffers && !window.confirm(t`Discard unsaved editor changes?`)) {

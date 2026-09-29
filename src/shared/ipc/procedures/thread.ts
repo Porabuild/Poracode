@@ -21,15 +21,15 @@ import {
   logoutAcpAgentPayloadSchema,
   removeAcpRegistryAgentPayloadSchema,
   removeQueuedThreadFollowUpPayloadSchema,
-  editQueuedThreadFollowUpPayloadSchema,
+  editQueuedThreadFollowUpPortableSchema,
   reorderQueuedThreadFollowUpPayloadSchema,
   resizeTerminalPayloadSchema,
   resolveThreadServerRequestPayloadSchema,
   restoreToRevertAnchorPayloadSchema,
   rollbackThreadConversationPayloadSchema,
-  sendThreadInputPayloadSchema,
+  sendThreadInputPortableSchema,
   setAcpRegistryAgentAuthPayloadSchema,
-  setPendingSteerPayloadSchema,
+  setPendingSteerPortableSchema,
   stageThreadInputPayloadSchema,
   startShellPayloadSchema,
   startThreadPayloadSchema,
@@ -255,7 +255,7 @@ export const threadProcedures = {
   sendThreadInput: definePayloadProcedure<SendThreadInputPayload, void, "supervisor">(
     "sendThreadInput",
     "supervisor",
-    sendThreadInputPayloadSchema,
+    sendThreadInputPortableSchema,
   ),
   interruptThread: definePayloadProcedure<InterruptThreadPayload, void, "supervisor">(
     "interruptThread",
@@ -306,7 +306,7 @@ export const threadProcedures = {
   setPendingSteer: definePayloadProcedure<SetPendingSteerPayload, void, "supervisor">(
     "setPendingSteer",
     "supervisor",
-    setPendingSteerPayloadSchema,
+    setPendingSteerPortableSchema,
   ),
   clearPendingSteer: definePayloadProcedure<ClearPendingSteerPayload, void, "supervisor">(
     "clearPendingSteer",
@@ -316,7 +316,7 @@ export const threadProcedures = {
   queueThreadFollowUp: definePayloadProcedure<SetPendingSteerPayload, void, "supervisor">(
     "queueThreadFollowUp",
     "supervisor",
-    setPendingSteerPayloadSchema,
+    setPendingSteerPortableSchema,
     omittedResultSchema,
   ),
   removeQueuedThreadFollowUp: definePayloadProcedure<
@@ -346,7 +346,7 @@ export const threadProcedures = {
   >(
     "editQueuedThreadFollowUp",
     "supervisor",
-    editQueuedThreadFollowUpPayloadSchema,
+    editQueuedThreadFollowUpPortableSchema,
     omittedResultSchema,
   ),
   steerQueuedThreadFollowUp: definePayloadProcedure<

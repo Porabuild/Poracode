@@ -12,6 +12,7 @@ import {
 import { forgetRemovedWorktreeGroup } from "./worktreeActions";
 import { primeWorktreeGitState } from "./worktreeLaunchActions";
 import { applyRemoteThreadStartCommand } from "./remoteStartCommandActions";
+import { applyRemoteSetGroupCommand } from "./remoteGroupCommandActions";
 
 /**
  * Host-origin thread-command application (the desktop's forwarded-command
@@ -65,13 +66,7 @@ export function applyForwardedRemoteThreadCommand(command: RemoteThreadCommand):
       // Orchestrator grouping: pulls the parent thread into the sidebar
       // group its children are created in.
       case "set-group":
-        useAppStore.setState((state) => ({
-          threads: state.threads.map((t) =>
-            t.id === command.threadId
-              ? { ...t, groupId: command.groupId, groupName: command.groupName }
-              : t,
-          ),
-        }));
+        applyRemoteSetGroupCommand(command.threadId, command.groupId, command.groupName);
         break;
       case "clear-group":
         useAppStore.setState((state) => {
@@ -93,6 +88,11 @@ export function applyForwardedRemoteThreadCommand(command: RemoteThreadCommand):
           }
           return { threads };
         });
+        break;
+      case "set-workspace":
+        useAppStore
+          .getState()
+          .setThreadWorkspace(command.threadId, command.workspaceId ?? undefined);
         break;
       case "set-worktree": {
         useAppStore

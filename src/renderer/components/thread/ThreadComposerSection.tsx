@@ -1020,6 +1020,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           pendingSteer={composerPendingSteer}
                           activeRuntimeRequest={composerRuntimeRequest}
                           filteredCommands={filteredCommands}
+                          slashQuery={slashQuery}
                           slashActiveIndex={slashActiveIndex}
                           commandListId={commandListId}
                           onCloseContextDock={() => setContextDockOpen(false)}

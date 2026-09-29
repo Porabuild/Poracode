@@ -260,6 +260,18 @@ export function skillSegmentFromSlashCommand(
   };
 }
 
+/**
+ * Whether a submission carries anything to send: typed text, or an attachment
+ * on its own. A screenshot with no caption is a complete message — the
+ * supervisor formats the attachment path into the prompt the agent reads.
+ */
+export function hasSendablePromptContent(
+  prompt: string,
+  segments?: readonly PromptSegment[],
+): boolean {
+  return prompt.trim().length > 0 || (segments?.some((s) => s.kind === "attachment") ?? false);
+}
+
 export function buildPromptContentBlocks(
   prompt: string,
   segments?: PromptSegment[],

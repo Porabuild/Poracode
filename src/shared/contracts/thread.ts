@@ -289,14 +289,37 @@ export const startThreadResultSchema = z.object({
 });
 export type StartThreadResult = z.infer<typeof startThreadResultSchema>;
 
-export const sendThreadInputPayloadSchema = z.object({
+/**
+ * A submission needs typed text or an attachment: a screenshot sent on its own
+ * arrives with an empty prompt and the attachment in `segments`. Applied as a
+ * refinement so the payload's `prompt` stays a plain string for callers.
+ */
+const sendableInput = {
+  message: "prompt or an attachment is required",
+  path: ["prompt"],
+};
+function hasSendableInput(input: {
+  prompt: string;
+  segments?: readonly z.infer<typeof promptSegmentSchema>[] | undefined;
+}): boolean {
+  return (
+    input.prompt.length > 0 ||
+    (input.segments?.some((segment) => segment.kind === "attachment") ?? false)
+  );
+}
+
+export const sendThreadInputPortableSchema = z.object({
   threadId: z.string().min(1),
-  prompt: z.string().min(1),
+  prompt: z.string(),
   segments: z.array(promptSegmentSchema).optional(),
   config: threadConfigSchema,
   /** See {@link startThreadPayloadSchema.userMessageItemId}. */
   userMessageItemId: z.string().min(1).optional(),
 });
+export const sendThreadInputPayloadSchema = sendThreadInputPortableSchema.refine(
+  hasSendableInput,
+  sendableInput,
+);
 export type SendThreadInputPayload = z.infer<typeof sendThreadInputPayloadSchema>;
 
 export const interruptThreadPayloadSchema = z.object({
@@ -420,12 +443,16 @@ export const checkpointRevertResultSchema = z.object({
 });
 export type CheckpointRevertResult = z.infer<typeof checkpointRevertResultSchema>;
 
-export const setPendingSteerPayloadSchema = z.object({
+export const setPendingSteerPortableSchema = z.object({
   threadId: z.string().min(1),
-  prompt: z.string().min(1),
+  prompt: z.string(),
   segments: z.array(promptSegmentSchema).optional(),
   config: threadConfigSchema,
 });
+export const setPendingSteerPayloadSchema = setPendingSteerPortableSchema.refine(
+  hasSendableInput,
+  sendableInput,
+);
 export type SetPendingSteerPayload = z.infer<typeof setPendingSteerPayloadSchema>;
 
 export const clearPendingSteerPayloadSchema = z.object({
@@ -450,13 +477,16 @@ export type ReorderQueuedThreadFollowUpPayload = z.infer<
   typeof reorderQueuedThreadFollowUpPayloadSchema
 >;
 
-export const editQueuedThreadFollowUpPayloadSchema = removeQueuedThreadFollowUpPayloadSchema.extend(
-  {
+export const editQueuedThreadFollowUpPortableSchema =
+  removeQueuedThreadFollowUpPayloadSchema.extend({
     /** Optional concurrency token; older clients can still edit without one. */
     expectedStagedAt: z.number().finite().optional(),
-    prompt: z.string().min(1),
+    prompt: z.string(),
     segments: z.array(promptSegmentSchema).optional(),
-  },
+  });
+export const editQueuedThreadFollowUpPayloadSchema = editQueuedThreadFollowUpPortableSchema.refine(
+  hasSendableInput,
+  sendableInput,
 );
 export type EditQueuedThreadFollowUpPayload = z.infer<typeof editQueuedThreadFollowUpPayloadSchema>;
 
@@ -590,15 +620,16 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
      */
     providerSwitch: providerSwitchSchema.optional(),
   }),
-  // Assigns an existing thread to a sidebar group. Used to pull an
-  // orchestrator parent into the group its children are created in; the
-  // renderer owns thread metadata, so this routes through its store like the
-  // other metadata commands instead of writing the DB directly.
+  // Assigns an existing thread to a sidebar group, or removes it from one.
+  // Used to pull an orchestrator parent into the group its children are
+  // created in, and to undo that grouping. Omit groupId/groupName to ungroup;
+  // the renderer owns thread metadata, so this routes through its store like
+  // the other metadata commands instead of writing the DB directly.
   z.object({
     kind: z.literal("set-group"),
     threadId: z.string().min(1),
-    groupId: z.string().min(1),
-    groupName: z.string().min(1),
+    groupId: z.string().min(1).optional(),
+    groupName: z.string().min(1).optional(),
   }),
   // Removes an existing sidebar-group assignment. The host also dissolves a
   // one-thread remainder so snapshots preserve the renderer's group invariant.

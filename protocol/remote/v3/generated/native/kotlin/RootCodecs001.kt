@@ -71,8 +71,8 @@ val RemoteRootCodecs.procedureU2EDiscoverExternalMcpServersU2ERequest: RemoteRoo
 val RemoteRootCodecs.procedureU2EDiscoverExternalMcpServersU2EResult: RemoteRootCodec<ProcedurediscoverExternalMcpServersResult_f71a677b4d>
     get() = RemoteRootCodec("procedure.discoverExternalMcpServers.result", serializer<ProcedurediscoverExternalMcpServersResult_f71a677b4d>(), schema_f71a677b4df4bd5e)
 
-val RemoteRootCodecs.procedureU2EEditQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedureeditQueuedThreadFollowUpRequest_d8eb2e4656>
-    get() = RemoteRootCodec("procedure.editQueuedThreadFollowUp.request", serializer<ProcedureeditQueuedThreadFollowUpRequest_d8eb2e4656>(), schema_d8eb2e4656d10170)
+val RemoteRootCodecs.procedureU2EEditQueuedThreadFollowUpU2ERequest: RemoteRootCodec<ProcedureeditQueuedThreadFollowUpRequest_50d5adf9e9>
+    get() = RemoteRootCodec("procedure.editQueuedThreadFollowUp.request", serializer<ProcedureeditQueuedThreadFollowUpRequest_50d5adf9e9>(), schema_50d5adf9e97ef8bd)
 
 val RemoteRootCodecs.procedureU2EEnsureThreadRunningU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_74c691ec4c>
     get() = RemoteRootCodec("procedure.ensureThreadRunning.request", serializer<ProcedureensureThreadRunningRequest_74c691ec4c>(), schema_74c691ec4ce7238a)

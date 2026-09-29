@@ -60,6 +60,21 @@ matters for `.pptx`/`.pdf` and Windows paths containing spaces or parentheses:
 the previous generic autolinker picked up only the path suffix and classified
 the artifact as a folder.
 
+Transcript formatting also applies in Home scope, independently of project
+actions. Explicit links render without a project root and use Home's individual
+file opener. Home resolves references on its own filesystem and reads them through
+the existing external-file IPC; its editor does not mount a project tree or start
+a language server. Project indexing and checkpoint/revert remain disabled there.
+Changing editor contexts prompts before discarding unsaved buffers. Remote Home
+opens require a host-aware caller and are never redirected to the client's local
+filesystem.
+
+Home preserves absolute targets without converting them to project-relative
+paths and rebuilding them. This preserves case-sensitive POSIX/WSL paths, UNC
+hosts, and literal filename characters. Ordinary inline-code and Markdown file
+references can use the same file-opening capability; common document, spreadsheet,
+presentation, and image extensions are recognized as files by the shared parser.
+
 Markdown code boundaries come from the existing CommonMark parser, including
 list and blockquote containers. Complete directives are temporarily masked with
 the same number of UTF-16 code units for classification, preserving line breaks
@@ -77,7 +92,7 @@ punctuation and percent sequences cannot truncate or alter the link destination.
 
 ## Compatibility audit
 
-This changes display interpretation only. Canonical event writers, saved
+Rendering and file-opening actions reuse the existing data contracts. Canonical event writers, saved
 transcripts, SQLite schemas, renderer persisted stores, IPC payloads, and deployed
 helpers retain their existing shapes. Old transcripts remain valid and render
 through the newly declared hook immediately; no migration or cache/version bump

@@ -13,6 +13,12 @@ import {
   type GuiSlashCommandRegistration,
   type LocalSlashCommandAction,
 } from "@/renderer/components/providers/providerSlashCommands";
+import {
+  isSkillCommand,
+  slashCommandDisplayId,
+  slashCommandMatch,
+  type SlashCommandMatchTier,
+} from "./slashCommandMatching";
 
 export type { LocalSlashCommandAction };
 
@@ -41,20 +47,6 @@ function activeGuiSlashCommands(
 }
 
 const EMPTY_SLASH_COMMANDS: AgentSlashCommand[] = [];
-
-function isSkillCommand(command: AgentSlashCommand): boolean {
-  return command.section === "skills";
-}
-
-export function slashCommandDisplayId(command: AgentSlashCommand): string {
-  return isSkillCommand(command) ? (command.skillName ?? command.id) : command.id;
-}
-
-function slashCommandMatches(command: AgentSlashCommand, query: string): boolean {
-  const displayId = slashCommandDisplayId(command).toLowerCase();
-  const wireId = command.id.toLowerCase();
-  return displayId.startsWith(query) || wireId.startsWith(query);
-}
 
 function withoutSkillCommands(
   commands: readonly AgentSlashCommand[] | undefined,
@@ -288,8 +280,16 @@ export function filterSlashCommands(
     return EMPTY_SLASH_COMMANDS;
   }
 
-  const normalizedQuery = query.toLowerCase();
-  return commands.filter((command) => slashCommandMatches(command, normalizedQuery));
+  const byTier: Record<SlashCommandMatchTier, AgentSlashCommand[]> = {
+    prefix: [],
+    wordStart: [],
+    substring: [],
+  };
+  for (const command of commands) {
+    const match = slashCommandMatch(command, query);
+    if (match) byTier[match.tier].push(command);
+  }
+  return [...byTier.prefix, ...byTier.wordStart, ...byTier.substring];
 }
 
 export interface SlashCommandPanelKeyDownContext {

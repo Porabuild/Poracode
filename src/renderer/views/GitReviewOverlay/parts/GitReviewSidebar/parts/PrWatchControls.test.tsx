@@ -347,6 +347,28 @@ describe("PrWatchControls", () => {
     );
   });
 
+  it("explains the explicit resume needed after conflicting duplicate watches", async () => {
+    bridge.getPrWatch.mockResolvedValue({
+      projectId: project.id,
+      prNumber: 42,
+      headBranch: "feature/pr-watch",
+      watchEnabled: false,
+      autoMerge: false,
+      lastCommentCursor: null,
+      lastReviewCommentCursor: null,
+      lastReviewCursor: null,
+      lastCheckKey: null,
+      activeThreadId: null,
+      lastError: null,
+      blockedReason: "duplicate-project-watches",
+    });
+    render(<PrWatchControls projectId={project.id} prNumber={42} headBranch="feature/pr-watch" />);
+    fireEvent.click(await screen.findByRole("button", { name: "PR automation paused" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Duplicate projects had different automation threads. Review those threads, then choose an automation mode to resume.",
+    );
+  });
+
   it("shows a fresh launch error instead of a stale block", async () => {
     bridge.getPrWatch.mockResolvedValue({
       projectId: project.id,

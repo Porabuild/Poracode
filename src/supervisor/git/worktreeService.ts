@@ -184,7 +184,10 @@ export class GitWorktreeService {
     }
     if (!remotes.split(/\r?\n/).includes(remote)) return;
 
-    const args = ["fetch", remote];
+    // This path serves both explicit fetches and periodic refreshes. Disable
+    // automatic maintenance so a damaged repository cannot make every poll
+    // retry a failed gc and accumulate large temporary packs.
+    const args = ["fetch", "--no-auto-gc", remote];
     if (prune) args.push("--prune");
     await execGit(location, args, { timeout: GIT_NETWORK_TIMEOUT });
   }
