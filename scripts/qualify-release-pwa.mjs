@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const REPOSITORY = "Porabuild/Poracode";
 export const RELEASE_CHECKS = [
-  { file: "ci.yml", name: "CI", gate: "CI required gate" },
+  { file: "ci.yml", name: "CI", gate: "Test" },
   { file: "native-ci.yml", name: "Native clients", gate: "Native required gate" },
 ];
 const SHA = /^[a-f0-9]{40}$/;

@@ -352,7 +352,7 @@ jobs:
         run: pnpm run test:perf:remote
 
   ci_gate:
-    name: CI required gate
+    name: Test
     if: ${{ always() }}
     needs:
       [changes, typecheck, lint, fmt, web_build, runtime_deps, rust_helper, test_shard, test_perf]

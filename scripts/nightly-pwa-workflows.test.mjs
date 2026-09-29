@@ -23,7 +23,7 @@ void test("both qualification workflows run on the actual V2 and integration hea
 void test("core qualification has an unconditional gate covering every CI job", async () => {
   const { jobs } = await load("ci");
   assert.ok(jobs.ci_gate, "A workflow conclusion alone must not hide skipped required jobs");
-  assert.equal(jobs.ci_gate.name, "CI required gate");
+  assert.equal(jobs.ci_gate.name, "Test");
   assert.equal(jobs.ci_gate.if, "${{ always() }}");
   assert.deepEqual(
     [...jobs.ci_gate.needs].sort(),
