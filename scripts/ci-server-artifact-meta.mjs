@@ -75,7 +75,10 @@ if (invokedDirectly) {
   try {
     const command = process.argv[2];
     if (command === "native-target") {
-      process.stdout.write(`${verifyNativeTarget().tarball}\n`);
+      // Same-step consumers read these lines: $GITHUB_ENV only reaches later
+      // steps, so the qualify step cannot use it.
+      const { tarball, meta } = verifyNativeTarget();
+      process.stdout.write(`${tarball}\n${meta}\n`);
     } else if (command === "aggregate-leg") {
       const { destination, version } = copyAggregateLeg();
       // Line one is the copied metadata path, line two the leg version.

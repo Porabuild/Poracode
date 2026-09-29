@@ -340,8 +340,11 @@ jobs:
           PORACODE_EXPECT_COMPUTER_USE: ${{ matrix.computer_use }}
         run: |
           set -euo pipefail
-          # Sets TARBALL and META (verified advertisement and sha256) in $GITHUB_ENV.
-          node scripts/ci-server-artifact-meta.mjs native-target
+          # Verified advertisement and sha256; $GITHUB_ENV would only reach
+          # later steps, so this step reads the script's output.
+          NATIVE_RESULT=$(node scripts/ci-server-artifact-meta.mjs native-target)
+          TARBALL=$(printf '%s\n' "$NATIVE_RESULT" | sed -n 1p)
+          META=$(printf '%s\n' "$NATIVE_RESULT" | sed -n 2p)
           PREFIX="$RUNNER_TEMP/poracode-native-prefix"
           node scripts/install-server-prefix.mjs --tarball "$TARBALL" --prefix "$PREFIX"
           test -f "$PREFIX/current/lib/server.cjs"
