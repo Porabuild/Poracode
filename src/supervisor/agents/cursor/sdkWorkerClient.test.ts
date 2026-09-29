@@ -363,13 +363,16 @@ describe("spawnCursorSdkWorker", () => {
 
   it("gives start a longer budget than other requests by default", async () => {
     // Run creation waits on backend provisioning, which is far more variable
-    // than the other worker RPCs: a 250ms ack must succeed for `start` while
-    // the same delay still times out `reload` under a 40ms override.
-    const slowStart = makeDelayedMethodFixture("start", 250);
+    // than the other worker RPCs: a 1.5s ack must succeed for `start` while
+    // the same delay still times out `reload` under a 1s override. Leave the
+    // real child enough time to acknowledge initialize under parallel CI load.
+    const shortTimeoutMs = 1_000;
+    const delayedAckMs = 1_500;
+    const slowStart = makeDelayedMethodFixture("start", delayedAckMs);
     const starter = await spawnCursorSdkWorker({
       projectLocation: nativeProjectLocation(slowStart.directory),
       workerPath: slowStart.path,
-      requestTimeoutMs: 40,
+      requestTimeoutMs: shortTimeoutMs,
     });
     await starter.initialize({
       createOptions: {
@@ -382,11 +385,11 @@ describe("spawnCursorSdkWorker", () => {
     });
     await starter.dispose();
 
-    const slowReload = makeDelayedMethodFixture("reload", 250);
+    const slowReload = makeDelayedMethodFixture("reload", delayedAckMs);
     const reloader = await spawnCursorSdkWorker({
       projectLocation: nativeProjectLocation(slowReload.directory),
       workerPath: slowReload.path,
-      requestTimeoutMs: 40,
+      requestTimeoutMs: shortTimeoutMs,
     });
     await reloader.initialize({
       createOptions: {
@@ -395,7 +398,7 @@ describe("spawnCursorSdkWorker", () => {
       },
     });
     await expect(reloader.reload()).rejects.toThrow(
-      "Cursor SDK worker request reload timed out after 40ms.",
+      "Cursor SDK worker request reload timed out after 1s.",
     );
     await reloader.dispose();
   });
