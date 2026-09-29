@@ -1,4 +1,4 @@
-import type { PromptSegment } from "@/shared/contracts";
+import type { PromptSegment, SkillInvocation } from "@/shared/contracts";
 
 type SkillSegment = Extract<PromptSegment, { kind: "skill" }>;
 
@@ -23,4 +23,15 @@ export function leadingSkill(segments: readonly PromptSegment[]): SkillSegment |
  */
 export function claudeSkillText(segment: SkillSegment, lead: SkillSegment | undefined): string {
   return segment === lead ? segment.invocation : `Use the ${segment.name} skill.`;
+}
+
+/**
+ * Claude skills marked `user-invocable: false` are hidden from the CLI's slash
+ * commands, so `/name` does nothing for them. The model can still start them
+ * through its Skill tool, so they keep the request form.
+ */
+export function claudeSkillInvocationFor(
+  frontmatter: Readonly<Record<string, string>>,
+): SkillInvocation | undefined {
+  return frontmatter["user-invocable"]?.toLowerCase() === "false" ? "prompt" : undefined;
 }

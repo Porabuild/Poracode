@@ -27,7 +27,7 @@ import {
 import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForConfig } from "./argv";
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
-import { claudeSkillText, leadingSkill } from "./skillPrompt";
+import { claudeSkillInvocationFor, claudeSkillText, leadingSkill } from "./skillPrompt";
 import { ClaudeSdkSession } from "./sdkSession";
 import { claudeMcpLaunch } from "./mcp";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
@@ -280,7 +280,9 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       // `/name` expands the skill and streams a normal turn in both the SDK
       // and the TUI. It is also the only way to start a skill marked
       // `disable-model-invocation`, because the model's Skill tool refuses it.
+      // Skills marked `user-invocable: false` keep the request form instead.
       invocation: "slash",
+      invocationForSkill: claudeSkillInvocationFor,
       precedence: {
         scopeOrder: ["global", "project"],
         global: ["claude", "agents"],

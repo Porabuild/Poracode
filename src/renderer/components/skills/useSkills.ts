@@ -168,12 +168,14 @@ function buildSkillSlashCommand(
   const { localizedPlugin, localizedSkill } = resolveLocalizedPluginSkill(localizedPlugins, skill);
   const displayName = localizedSkill?.name ?? skill.name;
   const description = localizedSkill?.description ?? skill.description;
+  // A skill's own frontmatter can override the provider-wide form.
+  const kind = skill.invocation ?? invocationKind;
   const invocation =
-    invocationKind === "dollar"
+    kind === "dollar"
       ? `$${skill.name}`
-      : invocationKind === "skill"
+      : kind === "skill"
         ? `/skill:${skill.name}`
-        : invocationKind === "prompt"
+        : kind === "prompt"
           ? `Use the ${skill.name} skill.`
           : `/${skill.name}`;
   return {

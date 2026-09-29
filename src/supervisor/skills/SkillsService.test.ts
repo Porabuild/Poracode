@@ -1386,6 +1386,41 @@ describe("SkillsService", () => {
     expect(scan.effectiveSkillIds).toEqual([expect.stringMatching(/^global:first:review:/u)]);
   });
 
+  it("records a per-skill invocation from the provider's frontmatter rule", async () => {
+    const ruleAdapter = {
+      kind: "rule",
+      label: "Rule",
+      binary: "rule",
+      capabilities: {},
+      skillSupport: {
+        roots: [{ id: "rule", label: "Rule", projectPath: ".rule/skills" }],
+        invocation: "slash",
+        invocationForSkill: (frontmatter: Readonly<Record<string, string>>) =>
+          frontmatter["model-only"] === "true" ? "prompt" : undefined,
+      },
+    } as unknown as AgentAdapter;
+    const ruleService = new SkillsService({
+      adapters: new Map([["rule", ruleAdapter]]),
+      homeDirectory: () => home,
+      env: {},
+    });
+    await writeSkill(join(projectPath, ".rule", "skills", "plain"), "plain");
+    const modelOnlyPath = join(projectPath, ".rule", "skills", "hidden");
+    await mkdir(modelOnlyPath, { recursive: true });
+    await writeFile(
+      join(modelOnlyPath, "SKILL.md"),
+      '---\nname: hidden\ndescription: "Hidden"\nmodel-only: true\n---\n',
+      "utf8",
+    );
+
+    const scan = await ruleService.scan({ projectLocation, agentKind: "rule" });
+
+    expect(scan.invocation).toBe("slash");
+    const byName = new Map(scan.skills.map((skill) => [skill.name, skill]));
+    expect(byName.get("hidden")?.invocation).toBe("prompt");
+    expect(byName.get("plain")).not.toHaveProperty("invocation");
+  });
+
   it("excludes skills disabled by the provider-native catalog", async () => {
     const nativeAdapter = {
       kind: "native",

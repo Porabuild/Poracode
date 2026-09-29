@@ -55,7 +55,12 @@ import {
 import { compareVersions } from "@/shared/changelog";
 import { getPluginCoreSkill, pluginNativeNames } from "@/shared/plugins/catalog";
 import { parseWslUncPath, toWslUncPath } from "@/shared/wsl";
-import type { AgentAdapter, AgentNativePlugin, AgentSkillRootSpec } from "../agents/base";
+import type {
+  AgentAdapter,
+  AgentNativePlugin,
+  AgentSkillRootSpec,
+  AgentSkillSupport,
+} from "../agents/base";
 import {
   batchWslCommandsAsync,
   quotePosixShellArg,
@@ -251,6 +256,8 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
+type SkillInvocationResolver = NonNullable<AgentSkillSupport["invocationForSkill"]>;
+
 function parseScalar(value: string): string {
   const trimmed = value.trim();
   if (trimmed.length === 0) return "";
@@ -277,6 +284,8 @@ function parseSkillMetadata(
   hasFrontmatter: boolean;
   hasName: boolean;
   hasDescription: boolean;
+  /** Top-level scalar fields, for provider rules such as `invocationForSkill`. */
+  fields: Record<string, string>;
 } {
   const normalized = content.replace(/^\uFEFF/u, "").replace(/\r\n?/gu, "\n");
   const match = /^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/u.exec(normalized);
@@ -287,17 +296,20 @@ function parseSkillMetadata(
       hasFrontmatter: false,
       hasName: false,
       hasDescription: false,
+      fields: {},
     };
   }
   let name = folderName;
   let description = "";
   let hasName = false;
   let hasDescription = false;
+  const fields: Record<string, string> = {};
   const lines = match[1]?.split("\n") ?? [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]!;
     const field = /^([A-Za-z][A-Za-z0-9_-]*):\s*(.*)$/u.exec(line);
     if (!field) continue;
+    if (field[1] !== "description") fields[field[1]!] = parseScalar(field[2] ?? "");
     if (field[1] === "name") {
       hasName = true;
       name = parseScalar(field[2] ?? "");
@@ -315,7 +327,7 @@ function parseSkillMetadata(
     }
     description = block.filter(Boolean).join(rawDescription.trim().startsWith("|") ? "\n" : " ");
   }
-  return { name, description, hasFrontmatter: true, hasName, hasDescription };
+  return { name, description, hasFrontmatter: true, hasName, hasDescription, fields };
 }
 
 function validateSkillMetadata(
@@ -841,6 +853,7 @@ export class SkillsService {
     const environment = await this.resolveEnvironment(payload.projectLocation, payload.wslDistro);
     const activeAdapter = payload.agentKind ? this.adapters.get(payload.agentKind) : undefined;
     const roots = await this.roots(environment, activeAdapter ? [activeAdapter] : undefined);
+    const invocationFor = activeAdapter?.skillSupport?.invocationForSkill;
     const issues: SkillScanIssue[] = [];
     const skills: SkillEntry[] = [];
 
@@ -849,10 +862,13 @@ export class SkillsService {
       Promise.all(
         roots.map(async (root) => {
           const rootIssues: SkillScanIssue[] = [];
-          return { skills: await this.scanRoot(root, rootIssues), issues: rootIssues };
+          return {
+            skills: await this.scanRoot(root, rootIssues, invocationFor),
+            issues: rootIssues,
+          };
         }),
       ),
-      this.scanProviderBuiltIns(roots, builtInIssues),
+      this.scanProviderBuiltIns(roots, builtInIssues, invocationFor),
     ]);
     skills.push(
       ...this.pluginSkillPolicy.resolveScanEntries(
@@ -1915,13 +1931,17 @@ export class SkillsService {
     };
   }
 
-  private async scanRoot(root: LocatedRoot, issues: SkillScanIssue[]): Promise<SkillEntry[]> {
+  private async scanRoot(
+    root: LocatedRoot,
+    issues: SkillScanIssue[],
+    invocationFor?: SkillInvocationResolver,
+  ): Promise<SkillEntry[]> {
     const activeIssues: SkillScanIssue[] = [];
     const disabledIssues: SkillScanIssue[] = [];
     const [active, disabled] = await Promise.all([
-      this.scanRootState(root, root.fsPath, true, activeIssues),
+      this.scanRootState(root, root.fsPath, true, activeIssues, invocationFor),
       root.mutable
-        ? this.scanRootState(root, disabledRoot(root.fsPath), false, disabledIssues)
+        ? this.scanRootState(root, disabledRoot(root.fsPath), false, disabledIssues, invocationFor)
         : Promise.resolve([]),
     ]);
     issues.push(...activeIssues, ...disabledIssues);
@@ -1933,6 +1953,7 @@ export class SkillsService {
     rootPath: string,
     enabled: boolean,
     issues: SkillScanIssue[],
+    invocationFor?: SkillInvocationResolver,
   ): Promise<SkillEntry[]> {
     let directories;
     try {
@@ -2027,11 +2048,13 @@ export class SkillsService {
               hasFrontmatter: false,
               hasName: false,
               hasDescription: false,
+              fields: {},
             };
         const metadataInvalidReason = content
           ? validateSkillMetadata(metadata, directory.name)
           : undefined;
         const invalidReason = fileInvalidReason ?? metadataInvalidReason;
+        const invocation = invocationFor?.(metadata.fields);
         sourcePath ??= manifest?.sourcePath;
         return {
           id: `${root.scope}:${root.providerId}:${directory.name}:${enabled ? "on" : "off"}`,
@@ -2059,6 +2082,7 @@ export class SkillsService {
           linked,
           ...(sourcePath ? { sourcePath } : {}),
           ...(invalidReason ? { invalidReason } : {}),
+          ...(invocation ? { invocation } : {}),
         };
       }),
     );
@@ -2068,6 +2092,7 @@ export class SkillsService {
   private async scanProviderBuiltIns(
     roots: LocatedRoot[],
     issues: SkillScanIssue[],
+    invocationFor?: SkillInvocationResolver,
   ): Promise<SkillEntry[]> {
     const skills: SkillEntry[] = [];
     const scans = await Promise.all(
@@ -2086,7 +2111,13 @@ export class SkillsService {
             mutable: false,
           };
           return {
-            skills: await this.scanRootState(builtInRoot, builtInRoot.fsPath, true, rootIssues),
+            skills: await this.scanRootState(
+              builtInRoot,
+              builtInRoot.fsPath,
+              true,
+              rootIssues,
+              invocationFor,
+            ),
             issues: rootIssues,
           };
         }),

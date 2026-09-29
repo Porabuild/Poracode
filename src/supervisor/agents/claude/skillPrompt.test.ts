@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PromptSegment } from "@/shared/contracts";
-import { claudeSkillText, leadingSkill } from "./skillPrompt";
+import { claudeSkillInvocationFor, claudeSkillText, leadingSkill } from "./skillPrompt";
 
 const simplify: Extract<PromptSegment, { kind: "skill" }> = {
   kind: "skill",
@@ -31,6 +31,19 @@ describe("leadingSkill", () => {
 
   it("finds nothing when the prompt has no skill", () => {
     expect(leadingSkill([{ kind: "text", content: "hello" }])).toBeUndefined();
+  });
+});
+
+describe("claudeSkillInvocationFor", () => {
+  it("keeps the request form for skills hidden from slash commands", () => {
+    expect(claudeSkillInvocationFor({ "user-invocable": "false" })).toBe("prompt");
+    expect(claudeSkillInvocationFor({ "user-invocable": "False" })).toBe("prompt");
+  });
+
+  it("leaves other skills on the default slash form", () => {
+    expect(claudeSkillInvocationFor({})).toBeUndefined();
+    expect(claudeSkillInvocationFor({ "user-invocable": "true" })).toBeUndefined();
+    expect(claudeSkillInvocationFor({ "disable-model-invocation": "true" })).toBeUndefined();
   });
 });
 
