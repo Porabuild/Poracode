@@ -69,7 +69,9 @@ function ChunkedPlainText({ text }: { text: string }) {
   return (
     <div className="whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] leading-snug text-foreground">
       {splitStreamingPlainText(text).map((chunk, index) => (
-        <span key={index}>{chunk}</span>
+        <div key={index} style={{ contentVisibility: "auto", containIntrinsicSize: "auto 1200px" }}>
+          {chunk}
+        </div>
       ))}
     </div>
   );
