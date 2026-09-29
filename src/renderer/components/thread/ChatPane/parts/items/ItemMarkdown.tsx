@@ -20,9 +20,12 @@ interface SmoothItemMarkdownProps extends ItemMarkdownProps {
 }
 
 export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
-  const smoothedText = useSmoothStreamedText(text, isStreaming);
+  const chunkedPlainText = shouldUseChunkedPlainText(text);
+  // Long plain output is still readable as it arrives; limiting DOM updates
+  // avoids repeatedly re-laying out an ever-growing paragraph every frame.
+  const smoothedText = useSmoothStreamedText(text, isStreaming, chunkedPlainText ? 1_000 : 0);
   const displayedText = isStreaming ? smoothedText : text;
-  return <ItemMarkdown text={displayedText} plainText={shouldUseChunkedPlainText(displayedText)} />;
+  return <ItemMarkdown text={displayedText} plainText={chunkedPlainText} />;
 }
 
 /**
