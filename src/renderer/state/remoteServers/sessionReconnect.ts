@@ -33,6 +33,7 @@ import { resetTruncateRecoveryEpoch } from "@/renderer/state/remote/truncateReco
 import { releaseRemoteTerminalsForServer } from "@/renderer/remoteProcedureRouter";
 import { waitForHostUpdateReconnect } from "./hostUpdateReconnect";
 import { clearRemoteGitState } from "./gitState";
+import { disposeDirectImageSession } from "./directImages";
 import { removeRemoteAppRows, syncRemoteAppRows } from "./appRows";
 import { removeCachedProjects } from "./projectCache";
 import {
@@ -494,6 +495,7 @@ export function createSessionReconnectActions(deps: SessionReconnectActionDeps) 
       }
 
       const removeRecord = (server: RemoteServerRecord | undefined, key: string) => {
+        disposeDirectImageSession(key);
         setRemoteHostUpdateReconnectSeq(key, nextRemoteHostUpdateSequence());
         deleteRemoteHostUpdateRequestSeq(key);
         invalidateRemoteServerRefresh(key);

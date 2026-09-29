@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { environmentImageRefKey } from "@/shared/remote/clientEnvironmentImages";
+import {
+  environmentImageRefKey,
+  environmentLocalImageKey,
+} from "@/shared/remote/clientEnvironmentImages";
+import { isRemoteSession } from "@/renderer/bridge";
+import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
@@ -20,7 +25,11 @@ import {
 const EMPTY_IDS: readonly string[] = [];
 const EMPTY_BY_ID: Record<string, never> = {};
 const EMPTY_GALLERY: readonly ThreadGalleryImage[] = [];
-const EMPTY_COLLECTION: ThreadGalleryCollection = { images: EMPTY_GALLERY, pendingRemoteRefs: [] };
+const EMPTY_COLLECTION: ThreadGalleryCollection = {
+  images: EMPTY_GALLERY,
+  pendingRemoteRefs: [],
+  pendingRemotePaths: [],
+};
 
 /**
  * Ordered gallery of every renderable image in a thread's loaded history:
@@ -59,6 +68,13 @@ export function useThreadGalleryImages(
     threadId ? (s.runtimeStructuralVersionByThread[threadId] ?? 0) : 0,
   );
   const remoteServerId = thread?.remoteServerId;
+  const browserImageReadiness = useRemoteBridgeImageReadiness();
+  const imageReadinessFor = useRemoteServersStore((s) => s.imageReadinessFor);
+  const remoteServerRecord = useRemoteServersStore((s) =>
+    remoteServerId
+      ? s.servers.find((server) => (server.connectionId ?? server.desktopId) === remoteServerId)
+      : undefined,
+  );
   const remoteRevision = useRemoteServersStore((s) =>
     selectRemoteGalleryRevision(s, remoteServerId),
   );
@@ -94,30 +110,51 @@ export function useThreadGalleryImages(
   ]);
   const images = collection.images;
   const pendingRefs = collection.pendingRemoteRefs;
-  const pendingKey = pendingRefs.map(environmentImageRefKey).join("\n");
+  const pendingPaths = collection.pendingRemotePaths;
+  const pendingKey = [
+    ...pendingRefs.map(environmentImageRefKey),
+    ...pendingPaths.map(environmentLocalImageKey),
+  ].join("\n");
   const pendingRefsRef = useRef(pendingRefs);
+  const pendingPathsRef = useRef(pendingPaths);
   useEffect(() => {
     pendingRefsRef.current = pendingRefs;
+    pendingPathsRef.current = pendingPaths;
   });
 
   useEffect(() => {
     if (!threadId || remoteServerId === undefined || pendingKey.length === 0) return;
+    if (!isRemoteSession() && !remoteServerRecord) return;
     // Re-resolve the readiness surface at effect time: it is bound to the live
     // session, and a real environment-client rebuild is picked up by the
     // subscription itself (which rebinds mounted listeners).
-    const readiness = environmentImageReadinessFor(remoteServerId);
+    const readiness = isRemoteSession()
+      ? (environmentImageReadinessFor(remoteServerId) ?? browserImageReadiness)
+      : imageReadinessFor(remoteServerId);
     if (!readiness) return;
     const refs = pendingRefsRef.current;
+    const paths = pendingPathsRef.current;
     const onTransition = () => {
       invalidateCachedThreadGallery(threadId);
       setReadinessRevision((revision) => revision + 1);
     };
-    const unsubscribes = refs.map((ref) => readiness.subscribeRef(ref, onTransition));
+    const unsubscribes = [
+      ...refs.map((ref) => readiness.subscribeRef(ref, onTransition)),
+      ...paths.map((path) => readiness.subscribePath(path, onTransition)),
+    ];
     for (const ref of refs) readiness.requestRef(ref);
+    for (const path of paths) readiness.requestPath(path);
     return () => {
       for (const unsubscribe of unsubscribes) unsubscribe();
     };
-  }, [threadId, remoteServerId, pendingKey]);
+  }, [
+    threadId,
+    remoteServerId,
+    pendingKey,
+    browserImageReadiness,
+    imageReadinessFor,
+    remoteServerRecord,
+  ]);
 
   const previousImagesRef = useRef<readonly ThreadGalleryImage[] | undefined>(undefined);
   useEffect(() => {

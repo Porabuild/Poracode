@@ -17,6 +17,7 @@ import type {
 } from "@/shared/remote";
 import type { HostServiceCapabilities } from "@/shared/hostControlProtocol";
 import type { SshConnectionConfig } from "@/shared/ssh";
+import type { RemoteImageReadiness } from "./environmentSessions";
 
 /** Transport reachability is offline; reachable protocol or action failures are errors. */
 export type RemoteServerStatus = "connecting" | "online" | "offline" | "error";
@@ -328,6 +329,7 @@ export interface RemoteServersState {
   pickAndUploadFiles(desktopId: string, attachmentThreadId: string): Promise<string[] | null>;
   localImageUrl(connectionKey: string, path: string): string;
   imageRefUrl(connectionKey: string, ref: RemoteImageRefValue): string;
+  imageReadinessFor(connectionKey: string): RemoteImageReadiness | undefined;
   /**
    * Pure keyed readiness read for environment image consumers driving
    * `useSyncExternalStore`: `""` while pending, failed, evicted, or unknown.

@@ -67,11 +67,16 @@ import { createRemoteServerClientBindings } from "@/renderer/state/remoteServers
 import {
   configureEnvironmentSessions,
   environmentChildGrantSubject,
+  environmentImageReadinessFor,
   environmentImageUrl,
   requestEnvironmentImage,
   subscribeEnvironmentImage,
   __resetEnvironmentSessionsForTest,
 } from "@/renderer/state/remoteServers/environmentSessions";
+import {
+  __resetDirectImageSessionsForTest,
+  directImageUrl,
+} from "@/renderer/state/remoteServers/directImages";
 import {
   environmentTransportHasParent,
   remoteConnectionKey,
@@ -164,6 +169,7 @@ export const useRemoteServersStore = create<RemoteServersState>()(
         reportRemoteServerError,
         clientForServer,
         requireClient,
+        directImagesFor,
         withClient,
         checkHostUpdateInBackground,
       } = createRemoteServerClientBindings({ set, get }, certPinForDesktop);
@@ -362,6 +368,8 @@ export const useRemoteServersStore = create<RemoteServersState>()(
 
         localImageUrl: (connectionKey, path) => {
           try {
+            const direct = directImagesFor(connectionKey);
+            if (direct) return directImageUrl(direct, { kind: "path", path });
             return requireClient(connectionKey).localImageUrl(path);
           } catch {
             return "";
@@ -370,11 +378,16 @@ export const useRemoteServersStore = create<RemoteServersState>()(
 
         imageRefUrl: (connectionKey, ref) => {
           try {
+            const direct = directImagesFor(connectionKey);
+            if (direct) return directImageUrl(direct, { kind: "ref", ref });
             return requireClient(connectionKey).imageRefUrl(ref);
           } catch {
             return "";
           }
         },
+
+        imageReadinessFor: (connectionKey) =>
+          environmentImageReadinessFor(connectionKey) ?? directImagesFor(connectionKey)?.readiness,
 
         listEnvironmentDependents: (connectionKey) => {
           const parentRef = { kind: "connection", connectionId: connectionKey } as const;
@@ -490,6 +503,7 @@ registerRemoteProcedureHost({
  * would otherwise bleed across tests.
  */
 export function __resetRemoteServersStoreForTest(): void {
+  __resetDirectImageSessionsForTest();
   closeAllRemoteServerEventSockets();
   __resetEnvironmentSessionsForTest();
   __resetStandaloneOwnerForTest();

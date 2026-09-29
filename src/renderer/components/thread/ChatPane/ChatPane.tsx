@@ -108,6 +108,18 @@ export function ChatPane(props: ChatPaneProps) {
   } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const browserImageReadiness = useRemoteBridgeImageReadiness();
+  const remoteImageServer = useRemoteServersStore((state) =>
+    thread.remoteServerId
+      ? state.servers.find(
+          (server) => (server.connectionId ?? server.desktopId) === thread.remoteServerId,
+        )
+      : undefined,
+  );
+  const imageReadinessFor = useRemoteServersStore((state) => state.imageReadinessFor);
+  const desktopImageReadiness =
+    remoteImageServer && thread.remoteServerId && !isRemoteSession()
+      ? imageReadinessFor(thread.remoteServerId)
+      : undefined;
   const isRemoteThread = thread.remoteServerId !== undefined;
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
@@ -211,9 +223,9 @@ export function ChatPane(props: ChatPaneProps) {
               isRemoteSession()
                 ? remoteBridgeImageRefUrl(ref)
                 : useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref),
-            remoteImageReadiness:
-              environmentImageReadinessFor(thread.remoteServerId!) ??
-              (isRemoteSession() ? browserImageReadiness : undefined),
+            remoteImageReadiness: isRemoteSession()
+              ? (environmentImageReadinessFor(thread.remoteServerId!) ?? browserImageReadiness)
+              : desktopImageReadiness,
           }
         : isRemoteSession()
           ? { remoteImageReadiness: browserImageReadiness }
@@ -235,6 +247,7 @@ export function ChatPane(props: ChatPaneProps) {
     canShowProjectEntryInExplorer,
     thread.remoteServerId,
     browserImageReadiness,
+    desktopImageReadiness,
   ]);
 
   useEffect(() => {

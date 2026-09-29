@@ -79,6 +79,17 @@ describe("threadGalleryImages", () => {
     expect(gallery[0]).toMatchObject({ fileName: "a.png", mime: "image/png" });
   });
 
+  it("retains a pending remote attachment path until its image bytes are ready", () => {
+    const items = [userItem("u1", [attachmentImage("/tmp/a.png", "a.png")])];
+    const pending = collectThreadGallery(items, { imageUrlForPath: () => "" });
+    expect(pending.images).toEqual([]);
+    expect(pending.pendingRemotePaths).toEqual(["/tmp/a.png"]);
+
+    const ready = collectThreadGallery(items, { imageUrlForPath: () => "blob:attachment" });
+    expect(ready.pendingRemotePaths).toEqual([]);
+    expect(ready.images[0]?.src).toBe("blob:attachment");
+  });
+
   it("collects assistant image blocks and markdown images newest-first", () => {
     const items = [
       assistantItem(

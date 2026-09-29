@@ -369,6 +369,13 @@ export function ThreadDraftComposerArea(props: {
   // Remote-project attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = props.project.remoteServerId;
+  const remoteImageServer = useRemoteServersStore((state) =>
+    remoteDesktopId
+      ? state.servers.find(
+          (server) => (server.connectionId ?? server.desktopId) === remoteDesktopId,
+        )
+      : undefined,
+  );
   const hostUpdateRestarting = useRemoteServersStore((state) =>
     remoteDesktopId ? state.hostUpdateRestarts[remoteDesktopId] !== undefined : false,
   );
@@ -380,12 +387,14 @@ export function ThreadDraftComposerArea(props: {
     : undefined;
   // Host-owned environment attachments resolve through the keyed readiness
   // subscription; direct/ssh keep their synchronous endpoint URL.
-  const remoteImageReadiness = remoteDesktopId
-    ? (environmentImageReadinessFor(remoteDesktopId) ??
-      (isRemoteSurface ? browserImageReadiness : undefined))
-    : isRemoteSurface
-      ? browserImageReadiness
-      : undefined;
+  const remoteImageReadiness =
+    remoteDesktopId && remoteImageServer
+      ? isRemoteSurface
+        ? (environmentImageReadinessFor(remoteDesktopId) ?? browserImageReadiness)
+        : useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
+      : isRemoteSurface
+        ? browserImageReadiness
+        : undefined;
   const inboxKey = props.paneId ?? `draft:${props.project.id}`;
   const fallbackInboxKey = `draft:${props.project.id}`;
   const projectId = props.project.id;

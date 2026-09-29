@@ -49,6 +49,8 @@ export interface ThreadGalleryCollection {
    * lightbox picks the image up when its blob lands.
    */
   readonly pendingRemoteRefs: RemoteImageRefValue[];
+  /** Remote user-attachment paths awaiting a renderable blob URL. */
+  readonly pendingRemotePaths: string[];
 }
 
 export interface ThreadGalleryResolvers {
@@ -80,8 +82,10 @@ export function collectThreadGallery(
 ): ThreadGalleryCollection {
   const gallery: ThreadGalleryImage[] = [];
   const pendingRemoteRefs: RemoteImageRefValue[] = [];
+  const pendingRemotePaths: string[] = [];
   const seen = new Set<string>();
   const seenPending = new Set<string>();
+  const seenPendingPaths = new Set<string>();
   const push = (image: ThreadGalleryImage | null | undefined) => {
     if (!image || !image.src) return;
     // One source is one gallery image even when repeated with different alt
@@ -107,8 +111,13 @@ export function collectThreadGallery(
         const att = attachments[j];
         if (!att) continue;
         const mime = att.mimeType ?? mimeForPath(att.path);
+        const src = attachmentImageUrl(att, resolvers.imageUrlForPath);
+        if (!src && !seenPendingPaths.has(att.path)) {
+          seenPendingPaths.add(att.path);
+          pendingRemotePaths.push(att.path);
+        }
         push({
-          src: attachmentImageUrl(att, resolvers.imageUrlForPath),
+          src,
           ...(att.name ? { alt: att.name, fileName: att.name } : {}),
           ...(mime ? { mime } : {}),
         });
@@ -153,7 +162,7 @@ export function collectThreadGallery(
       push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
     }
   }
-  return { images: gallery, pendingRemoteRefs };
+  return { images: gallery, pendingRemoteRefs, pendingRemotePaths };
 }
 
 /** Image-only compatibility wrapper for synchronous click-time collectors. */

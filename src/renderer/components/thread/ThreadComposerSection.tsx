@@ -275,6 +275,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   // Remote-thread attachments are stored on the paired desktop; resolve
   // previews through its image endpoint instead of the local-file protocol.
   const remoteDesktopId = thread.remoteServerId;
+  const remoteImageServer = useRemoteServersStore((state) =>
+    remoteDesktopId
+      ? state.servers.find(
+          (server) => (server.connectionId ?? server.desktopId) === remoteDesktopId,
+        )
+      : undefined,
+  );
   const attachmentImageUrlForPath = remoteDesktopId
     ? (path: string) =>
         isRemoteSurface
@@ -283,12 +290,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     : undefined;
   // Host-owned environment attachments resolve through the keyed readiness
   // subscription; direct/ssh keep their synchronous endpoint URL.
-  const remoteImageReadiness = remoteDesktopId
-    ? (environmentImageReadinessFor(remoteDesktopId) ??
-      (isRemoteSurface ? browserImageReadiness : undefined))
-    : isRemoteSurface
-      ? browserImageReadiness
-      : undefined;
+  const remoteImageReadiness =
+    remoteDesktopId && remoteImageServer
+      ? isRemoteSurface
+        ? (environmentImageReadinessFor(remoteDesktopId) ?? browserImageReadiness)
+        : useRemoteServersStore.getState().imageReadinessFor(remoteDesktopId)
+      : isRemoteSurface
+        ? browserImageReadiness
+        : undefined;
   // Unsent composer content survives leaving this thread. The primary GUI pane
   // keeps this section mounted across thread switches; restore before paint
   // without exposing another thread's editor state.

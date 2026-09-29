@@ -10,6 +10,7 @@ import { i18n } from "@/renderer/i18n/i18n";
 import { resetTruncateReloadBackoff } from "@/renderer/state/remote/truncateRecovery";
 import { syncDesktopBrowserBridgeClient } from "./browserBridge";
 import { environmentSessionForServer } from "./environmentSessions";
+import { directImageSessionFor } from "./directImages";
 import { remoteConnectionKey } from "./types";
 import {
   nextRemoteHostUpdateSequence,
@@ -152,6 +153,13 @@ export function createRemoteServerClientBindings(
     return clientForServer(server);
   };
 
+  const directImagesFor = (connectionKey: string) => {
+    const server = get().servers.find((entry) => remoteConnectionKey(entry) === connectionKey);
+    if (!server || server.transport?.kind === "environment") return undefined;
+    const identity = `${server.endpoint}\0${server.accessToken}\0${certPinForDesktop(connectionKey) ?? ""}`;
+    return directImageSessionFor(connectionKey, identity, () => clientForServer(server));
+  };
+
   const withClient = async <Result>(
     desktopId: string,
     invoke: (client: RemoteDesktopClient) => Promise<Result>,
@@ -215,6 +223,7 @@ export function createRemoteServerClientBindings(
     reportRemoteServerError,
     clientForServer,
     requireClient,
+    directImagesFor,
     withClient,
     checkHostUpdateInBackground,
   };
