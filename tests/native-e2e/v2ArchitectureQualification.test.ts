@@ -258,6 +258,25 @@ function hold(durationMs: number, onTick: () => Promise<void>): Promise<void> {
   })();
 }
 
+interface RendererContinuityState {
+  readonly timeOriginMs: number;
+  readonly viewKind: string | null;
+  readonly paneIds: readonly string[];
+  readonly composerCount: number;
+}
+
+function readRendererContinuity(cdp: ManagedCdpClient): Promise<RendererContinuityState> {
+  return cdp.evaluate<RendererContinuityState>(
+    `(() => {` +
+      ` const view = window.__poracodeDev?.stores?.app?.getState()?.view;` +
+      ` return { timeOriginMs: performance.timeOrigin,` +
+      ` viewKind: view?.kind ?? null,` +
+      ` paneIds: view?.kind === "thread" ? view.panes : [],` +
+      ` composerCount: document.querySelectorAll("[data-composer-input-anchor]").length };` +
+      ` })()`,
+  );
+}
+
 let armRecord: ArmRecord | undefined;
 let session: ManagedAppSession | undefined;
 let cdp: ManagedCdpClient | undefined;
@@ -877,6 +896,7 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
       mkdirSync(evidenceDir, { recursive: true });
       writeJson(join(evidenceDir, "node-perf-summary.json"), summarizeNodePerfDirectory(perfDir));
       writeJson(join(evidenceDir, "timeline.json"), timeline);
+      writeJson(join(evidenceDir, "host-load-samples.json"), hostLoad?.allSamples() ?? []);
       writeJson(
         join(evidenceDir, "client-accounting.json"),
         Object.fromEntries(
@@ -922,6 +942,7 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
     async () => {
       const spec = requireCell();
       if (!cdp || !session || !fixture || !armRecord) throw new Error("cell setup incomplete");
+      const steadyCdp = cdp;
       const evidenceDir = join(OUT_DIR, "evidence");
       const windowStartedAtMs = Date.now();
       const clientsBefore = clients.map((client) => ({
@@ -931,6 +952,21 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
       }));
 
       const beforeSteady = (await cdp.snapshot()) as unknown as RendererPerfSnapshot | null;
+      const rendererAtSteady = await readRendererContinuity(steadyCdp);
+      const expectedPaneIds = [
+        ...fixture.chatThreadIds,
+        ...(fixture.structuredThreadId === null ? [] : [fixture.structuredThreadId]),
+      ];
+      writeJson(join(evidenceDir, "renderer-continuity-start.json"), {
+        rendererAtSteady,
+        expectedPaneIds,
+      });
+      expect(
+        rendererAtSteady.viewKind === "thread" &&
+          expectedPaneIds.every((id) => rendererAtSteady.paneIds.includes(id)) &&
+          rendererAtSteady.composerCount > 0,
+        `steady window must start with its declared renderer panes: ${JSON.stringify(rendererAtSteady)}`,
+      ).toBe(true);
       mark("steadyStart");
 
       const legacyIndex = spec.legacyClient ? spec.clients - 1 : -1;
@@ -1287,6 +1323,26 @@ describe.skipIf(!cell)(`v2 architecture qualification cell (${cell?.id ?? "none"
       const controlLatencies: number[] = [];
       let refreshIndex = 0;
       await hold(spec.durationMs, async () => {
+        const rendererNow = await readRendererContinuity(steadyCdp).catch(() => null);
+        if (
+          rendererNow === null ||
+          rendererNow.timeOriginMs !== rendererAtSteady.timeOriginMs ||
+          rendererNow.viewKind !== "thread" ||
+          !expectedPaneIds.every((id) => rendererNow.paneIds.includes(id)) ||
+          rendererNow.composerCount === 0
+        ) {
+          mark("rendererContinuityLost");
+          writeJson(join(evidenceDir, "renderer-continuity-lost.json"), {
+            rendererAtSteady,
+            rendererNow,
+            expectedPaneIds,
+            elapsedMs: Date.now() - windowStartedAtMs,
+          });
+          await steadyCdp.captureDiagnosticEvidence(evidenceDir, "renderer-continuity-lost");
+          throw new Error(
+            `renderer document or declared panes changed during steady load: ${JSON.stringify(rendererNow)}`,
+          );
+        }
         const client = clients[0];
         if (!client) return;
         const started = performance.now();
