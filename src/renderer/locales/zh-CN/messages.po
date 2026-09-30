@@ -7766,6 +7766,10 @@ msgstr "移动面板"
 msgid "Move to clean worktree"
 msgstr "移至干净的工作树"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Project"
+msgstr "移至项目"
+
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "移动到工作区"
@@ -13181,6 +13185,10 @@ msgstr "目标提供商"
 msgid "The thread session is not available for queued follow-ups."
 msgstr "聊天线程会话不可用于排队的后续消息。"
 
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "The thread was stopped to move it — start it again in its new project."
+msgstr "为了移动线程，已将其停止。请在新项目中重新启动。"
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "线程将在新分支上的独立工作树中运行。"
@@ -13437,6 +13445,10 @@ msgstr "此全局快捷键不可用。请选择其他按键组合。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "此线程不支持排队的后续消息。"
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "This thread is hosted on another desktop; it can't be moved to a local project."
+msgstr "此线程在另一台电脑上运行，无法移至本地项目。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
@@ -14723,6 +14735,10 @@ msgstr "请等待所有候选项完成后再创建拉取请求。"
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "请等待线程启动完成，然后再将其移至工作树。"
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "Wait for the thread to finish starting before moving it to another project."
+msgstr "请等待线程完成启动后再将其移至其他项目。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

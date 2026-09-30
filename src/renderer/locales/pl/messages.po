@@ -7767,6 +7767,10 @@ msgstr "Przenieś panel"
 msgid "Move to clean worktree"
 msgstr "Przenieś do czystego drzewa roboczego"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Project"
+msgstr "Przenieś do projektu"
+
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Przenieś do obszaru roboczego"
@@ -13182,6 +13186,10 @@ msgstr "docelowego dostawcy"
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Sesja wątku jest niedostępna dla wiadomości uzupełniających w kolejce."
 
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "The thread was stopped to move it — start it again in its new project."
+msgstr "Wątek został zatrzymany na czas przenoszenia — uruchom go ponownie w nowym projekcie."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Wątek będzie działać w osobnym drzewie roboczym na nowej gałęzi."
@@ -13438,6 +13446,10 @@ msgstr "Ten skrót globalny jest niedostępny. Wybierz inną kombinację klawisz
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Ten wątek nie obsługuje wiadomości uzupełniających w kolejce."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "This thread is hosted on another desktop; it can't be moved to a local project."
+msgstr "Ten wątek działa na innym komputerze i nie można go przenieść do projektu lokalnego."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
@@ -14724,6 +14736,10 @@ msgstr "Przed otwarciem pull requesta zaczekaj, aż wszyscy kandydaci zakończą
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Poczekaj, aż wątek zakończy uruchamianie, przed przeniesieniem go do drzewa roboczego."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "Wait for the thread to finish starting before moving it to another project."
+msgstr "Poczekaj, aż wątek zakończy uruchamianie, zanim przeniesiesz go do innego projektu."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

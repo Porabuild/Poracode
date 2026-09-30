@@ -7767,6 +7767,10 @@ msgstr "Paneli taşı"
 msgid "Move to clean worktree"
 msgstr "Temiz çalışma ağacına taşı"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Project"
+msgstr "Projeye taşı"
+
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Çalışma alanına taşı"
@@ -13182,6 +13186,10 @@ msgstr "hedef sağlayıcı"
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
 
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "The thread was stopped to move it — start it again in its new project."
+msgstr "İş parçacığı taşınmak için durduruldu — yeni projesinde yeniden başlatın."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Konu, yeni bir şubede ayrı bir çalışma ağacında çalışacak."
@@ -13438,6 +13446,10 @@ msgstr "Bu sistem genelindeki kısayol kullanılamıyor. Başka bir tuş birleş
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Bu konu, kuyruğa alınan takip mesajlarını desteklemiyor."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "This thread is hosted on another desktop; it can't be moved to a local project."
+msgstr "Bu iş parçacığı başka bir bilgisayarda barındırılıyor; yerel bir projeye taşınamaz."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
@@ -14724,6 +14736,10 @@ msgstr "Pull request açmadan önce tüm adayların çalışmasını tamamlamas�
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Çalışma ağacına taşımadan önce konunun başlamasının bitmesini bekleyin."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "Wait for the thread to finish starting before moving it to another project."
+msgstr "Başka bir projeye taşımadan önce iş parçacığının başlatılmasını bekleyin."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."

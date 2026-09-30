@@ -103,6 +103,13 @@ export interface ThreadSlice {
     worktreeBranch?: string,
     options?: { preserveProvisioning?: boolean },
   ) => void;
+  /**
+   * Re-file a thread under a different project. Clears `worktreePath` and
+   * `worktreeBranch` — a worktree belongs to the project it was created
+   * under, so carrying it across would leave the thread pointing at a
+   * directory of a project it no longer belongs to.
+   */
+  moveThreadToProject: (threadId: string, projectId: string) => void;
   updateThreadConfig: (threadId: string, config: ThreadConfig) => void;
   updateThreadRuntime: (
     threadId: string,
@@ -530,6 +537,25 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         provisioningWorktreeThreadIds: options?.preserveProvisioning
           ? state.provisioningWorktreeThreadIds
           : provisioningWorktreeThreadIds,
+      };
+    }),
+  moveThreadToProject: (threadId, projectId) =>
+    set((state) => {
+      if (!state.threads.some((thread) => thread.id === threadId)) return {};
+      return {
+        threads: state.threads.map((thread) => {
+          if (thread.id !== threadId) return thread;
+          const {
+            worktreePath: _droppedWorktreePath,
+            worktreeBranch: _droppedWorktreeBranch,
+            ...rest
+          } = thread;
+          return {
+            ...rest,
+            projectId,
+            updatedAt: new Date().toISOString(),
+          };
+        }),
       };
     }),
   updateThreadConfig: (threadId, config) =>

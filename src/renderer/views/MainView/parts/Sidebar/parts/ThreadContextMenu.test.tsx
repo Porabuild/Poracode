@@ -214,3 +214,50 @@ describe("ThreadContextMenu project actions", () => {
     expect(useAppStore.getState().view).toBe(before.view);
   });
 });
+
+describe("ThreadContextMenu move to project", () => {
+  const otherProject: Project = {
+    id: "p2",
+    name: "Other Project",
+    location: { kind: "windows", path: "C:\\other" },
+    createdAt: "2026-07-01T00:00:00.000Z",
+  } as Project;
+
+  const remoteProject: Project = {
+    id: "remote:d1:project:p3",
+    name: "Remote Project",
+    location: { kind: "posix", path: "/repo", remoteServerId: "d1" },
+    createdAt: "2026-07-01T00:00:00.000Z",
+    remoteServerId: "d1",
+    remoteId: "p3",
+  } as Project;
+
+  beforeEach(() => {
+    resetDevTerminalStore();
+    usePanelStore.setState({ githubActionsContext: null });
+    useSharedSettings.setState({ workspaces: [] } as never);
+    useAppStore.setState({ projects: [project, otherProject, remoteProject] });
+  });
+
+  it("lists other local projects and moves the thread when one is chosen", async () => {
+    const target = thread();
+    useAppStore.setState({ threads: [target] });
+    await renderMenu(target, project);
+
+    fireEvent.pointerEnter(screen.getByRole("menuitem", { name: "Move to Project" }));
+    expect(await screen.findByRole("menuitem", { name: "Other Project" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Poracode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Remote Project" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitem", { name: "Other Project" }));
+
+    expect(useAppStore.getState().threads[0]?.projectId).toBe(otherProject.id);
+  });
+
+  it("omits Move to Project when there is nowhere to move to", async () => {
+    useAppStore.setState({ projects: [project, remoteProject] });
+    await renderMenu(thread(), project);
+
+    expect(screen.queryByRole("menuitem", { name: "Move to Project" })).not.toBeInTheDocument();
+  });
+});

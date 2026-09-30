@@ -6,6 +6,7 @@ import {
   Columns2,
   FileDiff,
   FlaskConical,
+  FolderInput,
   GitFork,
   Loader2,
   Pencil,
@@ -27,6 +28,7 @@ import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { applyWorkspaceMenuChoice } from "@/renderer/components/workspace/workspaceMenuKeys";
 import { useWorkspaceMenuItems } from "@/renderer/components/workspace/workspaceMenuItems";
 import { useGitStore } from "@/renderer/state/gitStore";
+import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { ContextMenu, type ContextMenuItem } from "@/renderer/components/common/ContextMenu";
 import { readBridge } from "@/renderer/bridge";
 import { resolveActionIcon } from "@/renderer/utils/actionIcons";
@@ -41,6 +43,7 @@ import {
 import { applyRemoteSetGroupCommand } from "@/renderer/actions/remoteGroupCommandActions";
 import { openGitReview } from "@/renderer/actions/panelActions";
 import { moveThreadToWorktree } from "@/renderer/actions/moveThreadToWorktreeActions";
+import { moveThreadToProject } from "@/renderer/actions/moveThreadToProjectActions";
 import {
   gitPull,
   gitPush,
@@ -119,6 +122,13 @@ export function ThreadContextMenu(props: {
     workspaceMenuItem !== undefined &&
     !thread.remoteServerId &&
     !isExperimentCandidate;
+  // Targets for "Move to Project": every other project except ones the host
+  // owns (remoteOwner) — there is no remote command for this move, so a
+  // projected project can never be a destination.
+  const allProjects = useAppStore((state) => state.projects);
+  const moveToProjectTargets = allProjects.filter(
+    (candidate) => candidate.id !== thread.projectId && remoteOwner(candidate) === undefined,
+  );
   const runningActionIds = useRunningProjectActionIds(project.id, thread.worktreePath);
   const runActionItems: ContextMenuItem[] = [];
   for (const action of project.scripts?.actions ?? []) {
@@ -263,6 +273,20 @@ export function ThreadContextMenu(props: {
           icon: <Star className="size-3.5" />,
         },
         ...(showMoveToWorkspace && workspaceMenuItem ? [workspaceMenuItem] : []),
+        ...(!isExperimentCandidate && moveToProjectTargets.length > 0
+          ? [
+              {
+                type: "submenu" as const,
+                id: "move-to-project",
+                label: t`Move to Project`,
+                icon: <FolderInput className="size-3.5" />,
+                items: moveToProjectTargets.map((target) => ({
+                  id: `move-to-project:${target.id}`,
+                  label: target.name,
+                })),
+              },
+            ]
+          : []),
         ...(!isExperimentCandidate
           ? [
               {
@@ -396,6 +420,9 @@ export function ThreadContextMenu(props: {
             ...(anchorPosition ? { anchorPosition } : {}),
             ...(returnFocusElement ? { returnFocusElement } : {}),
           });
+        if (key.startsWith("move-to-project:")) {
+          void moveThreadToProject(thread.id, key.slice("move-to-project:".length));
+        }
         if (key.startsWith("action:")) {
           runProjectAction(project.id, key.slice("action:".length), thread.worktreePath);
         }

@@ -7767,6 +7767,10 @@ msgstr "Di chuyển bảng điều khiển"
 msgid "Move to clean worktree"
 msgstr "Chuyển sang cây làm việc sạch"
 
+#: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
+msgid "Move to Project"
+msgstr "Chuyển sang dự án"
+
 #: src/renderer/components/workspace/workspaceMenuItems.tsx
 msgid "Move to Workspace"
 msgstr "Chuyển tới không gian làm việc"
@@ -13182,6 +13186,10 @@ msgstr "nhà cung cấp mục tiêu"
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn tiếp theo trong hàng đợi."
 
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "The thread was stopped to move it — start it again in its new project."
+msgstr "Luồng đã được dừng để chuyển đi — hãy khởi động lại trong dự án mới."
+
 #: src/renderer/components/thread/MoveThreadToWorktreeDialog.tsx
 #~ msgid "The thread will run in a separate worktree on a new branch."
 #~ msgstr "Luồng sẽ chạy trong một cây làm việc riêng trên một nhánh mới."
@@ -13438,6 +13446,10 @@ msgstr "Phím tắt toàn hệ thống này không khả dụng. Hãy chọn t�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Cuộc trò chuyện này không hỗ trợ tin nhắn tiếp theo trong hàng đợi."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "This thread is hosted on another desktop; it can't be moved to a local project."
+msgstr "Luồng này đang chạy trên một máy tính khác nên không thể chuyển sang dự án cục bộ."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread is not ready for Steer."
@@ -14724,6 +14736,10 @@ msgstr "Hãy đợi tất cả ứng viên hoàn tất trước khi mở pull re
 #: src/renderer/actions/moveThreadToWorktreeActions.ts
 msgid "Wait for the thread to finish starting before moving it to a worktree."
 msgstr "Đợi luồng khởi động xong trước khi chuyển nó sang cây làm việc."
+
+#: src/renderer/actions/moveThreadToProjectActions.ts
+msgid "Wait for the thread to finish starting before moving it to another project."
+msgstr "Đợi luồng khởi động xong trước khi chuyển sang dự án khác."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "Wait for the thread to finish starting."
