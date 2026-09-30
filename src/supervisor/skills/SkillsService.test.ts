@@ -13,7 +13,7 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, parse } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LoadedPlugin, ProjectLocation } from "@/shared/contracts";
+import type { LoadedPlugin, ProjectLocation, PromptSegment } from "@/shared/contracts";
 import type { InstalledPlugins } from "@/shared/contracts/plugin";
 import {
   installPlugin,
@@ -1422,6 +1422,94 @@ describe("SkillsService", () => {
 
     const scan = await precedenceService.scan({ projectLocation, agentKind: "precedence" });
     expect(scan.effectiveSkillIds).toEqual([expect.stringMatching(/^global:first:review:/u)]);
+  });
+
+  it("records a per-skill invocation from the provider's frontmatter rule", async () => {
+    const ruleAdapter = {
+      kind: "rule",
+      label: "Rule",
+      binary: "rule",
+      capabilities: {},
+      skillSupport: {
+        roots: [{ id: "rule", label: "Rule", projectPath: ".rule/skills" }],
+        invocation: "slash",
+        invocationForSkill: (frontmatter: Readonly<Record<string, string>>) =>
+          frontmatter["model-only"] === "true" ? "prompt" : undefined,
+      },
+    } as unknown as AgentAdapter;
+    const ruleService = new SkillsService({
+      adapters: new Map([["rule", ruleAdapter]]),
+      homeDirectory: () => home,
+      env: {},
+    });
+    await writeSkill(join(projectPath, ".rule", "skills", "plain"), "plain");
+    const modelOnlyPath = join(projectPath, ".rule", "skills", "hidden");
+    await mkdir(modelOnlyPath, { recursive: true });
+    await writeFile(
+      join(modelOnlyPath, "SKILL.md"),
+      '---\nname: hidden\ndescription: "Hidden"\nmodel-only: true\n---\n',
+      "utf8",
+    );
+
+    const scan = await ruleService.scan({ projectLocation, agentKind: "rule" });
+
+    expect(scan.invocation).toBe("slash");
+    const byName = new Map(scan.skills.map((skill) => [skill.name, skill]));
+    expect(byName.get("hidden")?.invocation).toBe("prompt");
+    expect(byName.get("plain")).not.toHaveProperty("invocation");
+  });
+
+  it("re-applies the provider's per-skill rule to segments at the host boundary", async () => {
+    const ruleAdapter = {
+      kind: "rule",
+      label: "Rule",
+      binary: "rule",
+      capabilities: {},
+      skillSupport: {
+        roots: [{ id: "rule", label: "Rule", projectPath: ".rule/skills" }],
+        invocation: "slash",
+        invocationForSkill: (frontmatter: Readonly<Record<string, string>>) =>
+          frontmatter["model-only"] === "true" ? "prompt" : undefined,
+      },
+    } as unknown as AgentAdapter;
+    const ruleService = new SkillsService({
+      adapters: new Map([["rule", ruleAdapter]]),
+      homeDirectory: () => home,
+      env: {},
+    });
+    const plainPath = join(projectPath, ".rule", "skills", "plain");
+    await writeSkill(plainPath, "plain");
+    const hiddenPath = join(projectPath, ".rule", "skills", "hidden");
+    await mkdir(hiddenPath, { recursive: true });
+    await writeFile(
+      join(hiddenPath, "SKILL.md"),
+      '---\nname: hidden\ndescription: "Hidden"\nmodel-only: true\n---\n',
+      "utf8",
+    );
+    const segment = (name: string, path: string): PromptSegment => ({
+      kind: "skill",
+      name,
+      path,
+      invocation: `/${name}`,
+      provider: "Rule",
+      scope: "project",
+    });
+
+    // A client that predates the rule sends the provider-wide slash form.
+    const segments = await ruleService.filterPluginSkillSegments(
+      [
+        segment("hidden", join(hiddenPath, "SKILL.md")),
+        segment("plain", join(plainPath, "SKILL.md")),
+        segment("gone", join(projectPath, ".rule", "skills", "gone", "SKILL.md")),
+      ],
+      { agentKind: "rule", projectLocation },
+    );
+
+    expect(segments.map((item) => (item.kind === "skill" ? item.invocation : undefined))).toEqual([
+      "Use the hidden skill.",
+      "/plain",
+      "/gone",
+    ]);
   });
 
   it("excludes skills disabled by the provider-native catalog", async () => {

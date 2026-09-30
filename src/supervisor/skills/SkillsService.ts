@@ -49,9 +49,15 @@ import {
   skillScanResultSchema,
 } from "@/shared/contracts";
 import { compareVersions } from "@/shared/changelog";
+import { formatSkillInvocation } from "@/shared/promptContent";
 import { getPluginCoreSkill, pluginNativeNames } from "@/shared/plugins/catalog";
 import { getWslLocationHostFsPath, parseWslUncPath, toWslUncPath } from "@/shared/wsl";
-import type { AgentAdapter, AgentNativePlugin, AgentSkillRootSpec } from "../agents/base";
+import type {
+  AgentAdapter,
+  AgentNativePlugin,
+  AgentSkillRootSpec,
+  AgentSkillSupport,
+} from "../agents/base";
 import {
   batchWslCommandsAsync,
   quotePosixShellArg,
@@ -221,6 +227,8 @@ async function resolveWslWindowsPaths(
   );
   return results.map((result) => (result?.ok && result.stdout ? result.stdout : undefined));
 }
+
+type SkillInvocationResolver = NonNullable<AgentSkillSupport["invocationForSkill"]>;
 
 export class SkillsService {
   private readonly adapters: ReadonlyMap<AgentKind, AgentAdapter>;
@@ -567,6 +575,7 @@ export class SkillsService {
     const environment = await this.resolveEnvironment(payload.projectLocation, payload.wslDistro);
     const activeAdapter = payload.agentKind ? this.adapters.get(payload.agentKind) : undefined;
     const roots = await this.roots(environment, activeAdapter ? [activeAdapter] : undefined);
+    const invocationFor = activeAdapter?.skillSupport?.invocationForSkill;
     const issues: SkillScanIssue[] = [];
     const skills: SkillEntry[] = [];
 
@@ -575,10 +584,13 @@ export class SkillsService {
       Promise.all(
         roots.map(async (root) => {
           const rootIssues: SkillScanIssue[] = [];
-          return { skills: await this.scanRoot(root, rootIssues), issues: rootIssues };
+          return {
+            skills: await this.scanRoot(root, rootIssues, invocationFor),
+            issues: rootIssues,
+          };
         }),
       ),
-      this.scanProviderBuiltIns(roots, builtInIssues),
+      this.scanProviderBuiltIns(roots, builtInIssues, invocationFor),
     ]);
     skills.push(
       ...this.pluginSkillPolicy.resolveScanEntries(
@@ -937,7 +949,9 @@ export class SkillsService {
   /**
    * Enforce plugin installation policy at the supervisor boundary. Renderer
    * discovery is advisory: a stale or crafted bundled-plugin segment must not
-   * reach a provider after the plugin or contribution has been disabled.
+   * reach a provider after the plugin or contribution has been disabled. The
+   * same boundary re-applies the provider's per-skill invocation rule, so a
+   * client that predates the rule still sends a form the skill can take.
    */
   async filterPluginSkillSegments(
     segments: PromptSegment[],
@@ -952,9 +966,63 @@ export class SkillsService {
       ...(adapter ? { capabilities: adapter.capabilities } : {}),
       ...(context.presentationMode ? { presentationMode: context.presentationMode } : {}),
     });
+    const normalized = await this.applySkillInvocationRules(
+      filtered,
+      adapter,
+      context.projectLocation,
+    );
     const nativePlugins = context.nativePlugins;
-    if (!nativePlugins?.length) return filtered;
-    return filtered.map((segment) => this.rewriteNativePluginSegment(segment, nativePlugins));
+    if (!nativePlugins?.length) return normalized;
+    return normalized.map((segment) => this.rewriteNativePluginSegment(segment, nativePlugins));
+  }
+
+  /**
+   * Re-derive a skill segment's invocation from its SKILL.md with the
+   * provider's `invocationForSkill` rule. Clients built before that rule (an
+   * older paired desktop, or a draft saved by one) send the provider-wide form
+   * for every skill, which can be a form the skill cannot take. Best effort: a
+   * segment whose SKILL.md cannot be read is sent as it came.
+   */
+  private async applySkillInvocationRules(
+    segments: PromptSegment[],
+    adapter: AgentAdapter | undefined,
+    projectLocation: ProjectLocation | undefined,
+  ): Promise<PromptSegment[]> {
+    const invocationFor = adapter?.skillSupport?.invocationForSkill;
+    const withPath = segments.flatMap((segment) =>
+      segment.kind === "skill" && segment.path ? [segment.path] : [],
+    );
+    if (!invocationFor || withPath.length === 0) return segments;
+    const environment = await this.resolveEnvironment(projectLocation);
+    const distro = environment.wsl ? environment.distro : undefined;
+    // Segment paths are display paths (Linux form inside WSL environments).
+    const wslFsPaths = distro
+      ? await this.mapWslLinuxPathsToFsPaths(
+          distro,
+          withPath.filter((path) => path.startsWith("/")),
+        )
+      : new Map<string, string>();
+    return Promise.all(
+      segments.map(async (segment): Promise<PromptSegment> => {
+        if (segment.kind !== "skill" || !segment.path) return segment;
+        const fsPath =
+          distro && segment.path.startsWith("/")
+            ? (wslFsPaths.get(segment.path) ?? this.wslFsPath(distro, segment.path))
+            : segment.path;
+        let content: string;
+        try {
+          const buffer = await readFile(fsPath);
+          if (buffer.length > MAX_SKILL_FILE_BYTES) return segment;
+          content = buffer.toString("utf8");
+        } catch {
+          return segment;
+        }
+        const kind = invocationFor(parseSkillMetadata(content, segment.name).fields);
+        if (!kind) return segment;
+        const invocation = formatSkillInvocation(kind, segment.name);
+        return invocation === segment.invocation ? segment : { ...segment, invocation };
+      }),
+    );
   }
 
   /**
@@ -1641,13 +1709,17 @@ export class SkillsService {
     };
   }
 
-  private async scanRoot(root: LocatedRoot, issues: SkillScanIssue[]): Promise<SkillEntry[]> {
+  private async scanRoot(
+    root: LocatedRoot,
+    issues: SkillScanIssue[],
+    invocationFor?: SkillInvocationResolver,
+  ): Promise<SkillEntry[]> {
     const activeIssues: SkillScanIssue[] = [];
     const disabledIssues: SkillScanIssue[] = [];
     const [active, disabled] = await Promise.all([
-      this.scanRootState(root, root.fsPath, true, activeIssues),
+      this.scanRootState(root, root.fsPath, true, activeIssues, invocationFor),
       root.mutable
-        ? this.scanRootState(root, disabledRoot(root.fsPath), false, disabledIssues)
+        ? this.scanRootState(root, disabledRoot(root.fsPath), false, disabledIssues, invocationFor)
         : Promise.resolve([]),
     ]);
     issues.push(...activeIssues, ...disabledIssues);
@@ -1659,6 +1731,7 @@ export class SkillsService {
     rootPath: string,
     enabled: boolean,
     issues: SkillScanIssue[],
+    invocationFor?: SkillInvocationResolver,
   ): Promise<SkillEntry[]> {
     let directories;
     try {
@@ -1753,11 +1826,13 @@ export class SkillsService {
               hasFrontmatter: false,
               hasName: false,
               hasDescription: false,
+              fields: {},
             };
         const metadataInvalidReason = content
           ? validateSkillMetadata(metadata, directory.name)
           : undefined;
         const invalidReason = fileInvalidReason ?? metadataInvalidReason;
+        const invocation = invocationFor?.(metadata.fields);
         sourcePath ??= manifest?.sourcePath;
         return {
           id: `${root.scope}:${root.providerId}:${directory.name}:${enabled ? "on" : "off"}`,
@@ -1785,6 +1860,7 @@ export class SkillsService {
           linked,
           ...(sourcePath ? { sourcePath } : {}),
           ...(invalidReason ? { invalidReason } : {}),
+          ...(invocation ? { invocation } : {}),
         };
       }),
     );
@@ -1794,6 +1870,7 @@ export class SkillsService {
   private async scanProviderBuiltIns(
     roots: LocatedRoot[],
     issues: SkillScanIssue[],
+    invocationFor?: SkillInvocationResolver,
   ): Promise<SkillEntry[]> {
     const skills: SkillEntry[] = [];
     const scans = await Promise.all(
@@ -1812,7 +1889,13 @@ export class SkillsService {
             mutable: false,
           };
           return {
-            skills: await this.scanRootState(builtInRoot, builtInRoot.fsPath, true, rootIssues),
+            skills: await this.scanRootState(
+              builtInRoot,
+              builtInRoot.fsPath,
+              true,
+              rootIssues,
+              invocationFor,
+            ),
             issues: rootIssues,
           };
         }),

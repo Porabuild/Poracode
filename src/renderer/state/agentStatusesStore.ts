@@ -272,9 +272,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 35,
-      // v35 mirrors supervisor STATUS_CACHE_VERSION=38. Refresh derived model
-      // catalogs and their declared Fast capabilities before showing cached statuses.
+      version: 36,
+      // v36 mirrors supervisor STATUS_CACHE_VERSION=40. Re-probe skill slash
+      // commands so cached skill invocations pick up the provider's current
+      // form, and refresh derived model catalogs and their declared Fast
+      // capabilities before showing cached statuses.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

@@ -32,6 +32,8 @@ export function parseSkillMetadata(
   hasFrontmatter: boolean;
   hasName: boolean;
   hasDescription: boolean;
+  /** Top-level scalar fields, for provider rules such as `invocationForSkill`. */
+  fields: Record<string, string>;
 } {
   const normalized = content.replace(/^\uFEFF/u, "").replace(/\r\n?/gu, "\n");
   const match = /^---\s*\n([\s\S]*?)\n---(?:\s*\n|$)/u.exec(normalized);
@@ -42,17 +44,20 @@ export function parseSkillMetadata(
       hasFrontmatter: false,
       hasName: false,
       hasDescription: false,
+      fields: {},
     };
   }
   let name = folderName;
   let description = "";
   let hasName = false;
   let hasDescription = false;
+  const fields: Record<string, string> = {};
   const lines = match[1]?.split("\n") ?? [];
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]!;
     const field = /^([A-Za-z][A-Za-z0-9_-]*):\s*(.*)$/u.exec(line);
     if (!field) continue;
+    if (field[1] !== "description") fields[field[1]!] = parseScalar(field[2] ?? "");
     if (field[1] === "name") {
       hasName = true;
       name = parseScalar(field[2] ?? "");
@@ -70,7 +75,7 @@ export function parseSkillMetadata(
     }
     description = block.filter(Boolean).join(rawDescription.trim().startsWith("|") ? "\n" : " ");
   }
-  return { name, description, hasFrontmatter: true, hasName, hasDescription };
+  return { name, description, hasFrontmatter: true, hasName, hasDescription, fields };
 }
 
 export function validateSkillMetadata(

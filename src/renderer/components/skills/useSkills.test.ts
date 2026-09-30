@@ -312,4 +312,37 @@ describe("buildSkillSlashCommands", () => {
       expect(provider).toBeTruthy();
     },
   );
+
+  it("lets a skill's own invocation override the scan-wide form", () => {
+    const skill = (name: string): SkillScanResult["skills"][number] => ({
+      id: `project:agents:${name}:on`,
+      name,
+      description: `${name} skill`,
+      folderName: name,
+      absolutePath: `/project/.agents/skills/${name}`,
+      skillFilePath: `/project/.agents/skills/${name}/SKILL.md`,
+      rootPath: "/project/.agents/skills",
+      providerId: "agents",
+      providerLabel: "Shared agents",
+      scope: "project",
+      scopeLabel: "Project",
+      origin: "managed",
+      enabled: true,
+      mutable: true,
+      valid: true,
+      linked: false,
+    });
+    const scan: SkillScanResult = {
+      skills: [skill("plain"), { ...skill("hidden"), invocation: "prompt" }],
+      effectiveSkillIds: ["project:agents:plain:on", "project:agents:hidden:on"],
+      invocation: "slash",
+      issues: [],
+      canLinkToGlobal: true,
+    };
+
+    expect(buildSkillSlashCommands(scan).map((command) => command.skillInvocation)).toEqual([
+      "/plain",
+      "Use the hidden skill.",
+    ]);
+  });
 });
