@@ -57,6 +57,7 @@ import {
   type RemoteProcedureHost,
 } from "@/renderer/remoteProcedureRouter";
 import type { PreloadIpcTransport } from "./preloadIpcTransport";
+import { LoopbackIntakeStartup } from "./loopbackIntakeStartup";
 import {
   HOST_TRANSPORT_VERSION,
   type HostEventListener,
@@ -110,6 +111,7 @@ const managedLoopback: {
   intake: DesktopLoopbackIntake | null;
   discoveryTimer: ReturnType<typeof setTimeout> | null;
 } = { transport: null, intake: null, discoveryTimer: null };
+const intakeStartup = new LoopbackIntakeStartup();
 
 /** Test seams for the wiring-created intake (real-server loopback tests drive
  * the socket with the `ws` package instead of the DOM WebSocket). */
@@ -447,6 +449,12 @@ export function retryManagedParentDescriptor(): void {
 }
 
 export function attachManagedLoopbackPreload(transport: PreloadIpcTransport): void {
+  if (managedLoopback.transport && managedLoopback.transport !== transport) {
+    cancelLoopbackDiscoveryRetry();
+    managedLoopback.intake?.dispose();
+    managedLoopback.intake = null;
+    intakeStartup.invalidate();
+  }
   managedLoopback.transport = transport;
 }
 
@@ -527,7 +535,21 @@ function shouldRouteManagedLoopbackRequest(name: IpcProcedureName): boolean {
  * No-op unless the managed Electron runtime is installed (attached and browser
  * flavors already run their own remote stacks).
  */
-export async function startDesktopLoopbackEventIntake(): Promise<void> {
+export function startDesktopLoopbackEventIntake(): Promise<void> {
+  return intakeStartup.run(async (isCurrent) => {
+    try {
+      await startOwnedDesktopLoopbackIntake(isCurrent);
+    } catch (error) {
+      if (!isCurrent()) return;
+      managedLoopback.intake?.dispose();
+      managedLoopback.intake = null;
+      console.error(error);
+      scheduleLoopbackDiscoveryRetry();
+    }
+  });
+}
+
+async function startOwnedDesktopLoopbackIntake(isCurrentStartup: () => boolean): Promise<void> {
   const { transport } = managedLoopback;
   const installedRuntime = getRuntime?.() ?? null;
   if (!transport || !installedRuntime) return;
@@ -538,6 +560,10 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
     return;
   }
   if (managedLoopback.intake) return;
+  const isCurrentBootstrap = () =>
+    isCurrentStartup() &&
+    managedLoopback.transport === transport &&
+    getRuntime?.() === installedRuntime;
   let bootstrap: ManagedLoopbackBootstrap | null = null;
   try {
     bootstrap =
@@ -545,6 +571,7 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
   } catch {
     bootstrap = null;
   }
+  if (!isCurrentBootstrap()) return;
   const pairingToken = bootstrap ? parsePairingCredential(bootstrap.pairingUrl) : null;
   if (!bootstrap || !pairingToken || !isLoopbackEndpoint(bootstrap.endpoint)) {
     scheduleLoopbackDiscoveryRetry();
@@ -554,16 +581,24 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
   // Loaded before the intake is constructed so the sync callbacks below can
   // mirror terminal lifecycle without their own imports (V6 B.1 cycle note).
   const feed = await loadTerminalFeed();
+  if (!isCurrentBootstrap()) return;
   // A1: the renderer interest registry is loaded lazily for the same reason —
   // it reads the bridge, which evaluates the client runtime, which imports this
   // barrel (module-scope import would close the evaluation cycle, V6 B.1).
   const eventInterests = await import("@/renderer/state/rendererEventInterests");
+  if (!isCurrentBootstrap()) return;
   let intake: DesktopLoopbackIntake | null = null;
+  const isCurrentIntake = () =>
+    isCurrentStartup() &&
+    managedLoopback.transport === transport &&
+    intake !== null &&
+    managedLoopback.intake === intake;
   const recoverIntake = (): void => {
     if (managedLoopback.intake !== intake || intake === null) return;
     intake.dispose();
     managedLoopback.intake = null;
     intake = null;
+    intakeStartup.invalidate();
     void startDesktopLoopbackEventIntake();
   };
   intake = new DesktopLoopbackIntake({
@@ -581,12 +616,14 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
     readItemInterests: () => eventInterests.snapshotRendererEventInterests().runtimeThreadIds,
     subscribeItemInterests: (listener) => eventInterests.subscribeRendererEventInterests(listener),
     onItemInterestsTruncated: (droppedCount) => {
+      if (!isCurrentIntake()) return;
       // Truthful window-local capacity state (A1): the thread surface shows the
       // overload with recovery guidance instead of a console-only warning, and
       // the state clears as soon as the wire carries every retained thread.
       useLiveStreamCapacityStore.getState().setDroppedRuntimeThreadCount(droppedCount);
     },
     onItemInterestsApplied: (threadIds) => {
+      if (!isCurrentIntake()) return;
       // The registry's only wire-coverage input: a lease's `continuous` must
       // never claim coverage the bounded array did not carry.
       eventInterests.noteRendererEventInterestWireCoverage(threadIds);
@@ -594,6 +631,7 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
     onCredentialExhausted: recoverIntake,
     onRecoveryExhausted: recoverIntake,
     dispatch: (event, seq, space) => {
+      if (!isCurrentIntake()) return;
       // Catalog membership rides the same dispatch as the desktop reducer:
       // the root adapter schedules a bounded follow-up pass, never a write.
       publishManagedLoopbackMembershipEvent(event.type);
@@ -611,10 +649,12 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
       }
       transport.dispatchSequencedEvent(event, seq, space ?? "loopback");
     },
-    requestRebuild: (threadIds) => transport.rebuildSubscribedState(threadIds),
+    requestRebuild: (threadIds) => {
+      if (isCurrentIntake()) transport.rebuildSubscribedState(threadIds);
+    },
     onActiveChanged: (active) => {
       const owner = intake;
-      if (!owner) return;
+      if (!owner || !isCurrentIntake()) return;
       if (active) {
         cancelLoopbackDiscoveryRetry();
         // Terminal leg first: watchers switch to the feed before the
@@ -685,6 +725,7 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
       }
     },
     onTerminalReady: (send) => {
+      if (!isCurrentIntake()) return;
       feed.setRemoteTerminalSocketSender(
         feed.managedTerminalFeedId(),
         send as (message: RemoteWebSocketClientMessage) => boolean,
@@ -692,13 +733,16 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
       );
     },
     onTerminalLost: () => {
+      if (!isCurrentIntake()) return;
       feed.setRemoteTerminalSocketSender(feed.managedTerminalFeedId(), null);
     },
-    onServerFrame: (message) =>
-      feed.handleRemoteTerminalServerMessage(
+    onServerFrame: (message) => {
+      if (!isCurrentIntake()) return false;
+      return feed.handleRemoteTerminalServerMessage(
         feed.managedTerminalFeedId(),
         message as RemoteWebSocketServerMessage,
-      ),
+      );
+    },
     // The declaration gate reads the endpoint adoption recorded by the
     // authenticated descriptor preflight plus the installed bounded consumer.
     // The preflight runs before every ticket mint/upgrade, so each upgrade
@@ -720,7 +764,7 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
       const descriptor = await new RemoteDesktopClient(base, accessToken, undefined, {
         requestTimeoutMs: timeoutMs,
       }).environment();
-      if (signal.aborted) return;
+      if (signal.aborted || !isCurrentIntake()) return;
       noteManagedLoopbackBoundedCatalogChangesVerdict(
         endpoint,
         environmentAdvertisesBoundedCatalogChanges(descriptor),
@@ -730,7 +774,9 @@ export async function startDesktopLoopbackEventIntake(): Promise<void> {
     // a catalog change the host could not deliver on this socket: restart the
     // bounded catalog passes through the existing membership seam (the
     // adapter's resync branch) in addition to the subscribed-thread rebuild.
-    onResyncRequired: () => publishManagedLoopbackMembershipEvent("resync-required"),
+    onResyncRequired: () => {
+      if (isCurrentIntake()) publishManagedLoopbackMembershipEvent("resync-required");
+    },
   });
   managedLoopback.intake = intake;
   // A4: activation failure is not terminal. The intake owns its bounded local
@@ -761,6 +807,7 @@ export function resetDesktopLoopbackIntakeForTest(): void {
     managedLoopback.discoveryTimer = null;
   }
   managedLoopback.intake?.dispose();
+  intakeStartup.invalidate();
   managedLoopback.intake = null;
   managedLoopback.transport = null;
   registerManagedLoopbackProcedureHost(null);

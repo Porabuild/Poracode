@@ -12,6 +12,8 @@ import { RemoteHttpError } from "../auth";
 vi.mock("@/host/db", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   dbGetState: vi.fn<() => string | null>(() => null),
+  dbGetProjects: () => [{ id: "project-1", location: { kind: "posix", path: "/repo" } }],
+  dbGetThreads: () => [],
 }));
 
 const LOCATION = { kind: "posix", path: "/repo" } as const;

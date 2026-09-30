@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { closeDatabase, initDatabase } from "@/host/db";
+import { closeDatabase, dbUpsertProject, initDatabase } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import {
@@ -78,6 +78,15 @@ describe.skipIf(!sqliteAvailable)("startThread procedure receipt wiring", () => 
     if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
     dir = mkdtempSync(join(tmpdir(), "poracode-procedure-receipts-"));
     initDatabase(join(dir, "state.sqlite"));
+    dbUpsertProject(
+      {
+        id: "project-1",
+        name: "Repo",
+        createdAt: "2026-01-01",
+        location: { kind: "posix", path: "/tmp/repo" },
+      },
+      0,
+    );
     callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(
       async () => ({ threadId: "t1" }) as never,
     );

@@ -1,14 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
-import {
-  dbGetProject,
-  dbGetProjects,
-  dbGetThread,
-  dbGetThreads,
-  dbMarkLiveThreadsInactive,
-  dbUpdateProject,
-} from "@/host/db";
+import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "@/host/db";
 import {
   BackendHostCore,
   RevertCheckpointRefusedError,
@@ -16,7 +9,7 @@ import {
 } from "@/backend/BackendHostCore";
 import { BackendDurableServices } from "@/backend/BackendDurableServices";
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
-import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
+import { createSharedSettingsFileReader } from "@/host/sharedSettingsFile";
 import { createPersistentRemoteAuthStore, RemoteHttpError } from "@/host/remote/auth";
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
 import {
@@ -51,7 +44,8 @@ import {
   shouldAdvertiseMdns,
   type MdnsAdvertiser,
 } from "@/host/remote/mdnsAdvertiser";
-import { isThreadTurnActive, resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { resolveMcpLaunchSnapshot } from "@/shared/contracts";
+import { inactivateLiveThreads } from "@/backend/inactivateLiveThreads";
 import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import { startRelayHost, type RelayHostHandle } from "./relay/relayHost";
 
@@ -103,7 +97,7 @@ export async function composeHeadlessRemoteHost(
   const relaySecret = options.relayUrl
     ? readOwnedHeadlessRelaySecret(runtime, options.relaySecret)
     : undefined;
-  const getSharedSettings = () => readSharedSettingsFile(paths.settingsPath);
+  const getSharedSettings = createSharedSettingsFileReader(paths.settingsPath);
 
   // These are assigned after the core is constructed and before its supervisor
   // starts, so the event callback always sees the completed composition.
@@ -328,27 +322,15 @@ export async function composeHeadlessRemoteHost(
         // Match the desktop backend: a supervisor crash leaves durable rows
         // `working`, and without a renderer launch sweep those statuses stay
         // live. Clients then try to steer a session that no longer exists.
-        const interrupted = dbGetThreads().filter((thread) => isThreadTurnActive(thread.status));
-        dbMarkLiveThreadsInactive();
+        const { queueEvents, inactiveEvents } = inactivateLiveThreads();
         // No `thread-exited` is emitted for the sessions that died with the old
         // supervisor process, so their cached background-task levels would
         // otherwise shadow the fresh supervisor's live reads forever.
         serverRef?.clearBackgroundTaskLevels();
-        for (const thread of dbGetThreads()) {
-          serverRef?.publishSupervisorEvent({
-            type: "thread-follow-up-queue",
-            threadId: thread.id,
-            queue: null,
-          });
+        for (const event of queueEvents) {
+          serverRef?.publishSupervisorEvent(event);
         }
-        for (const thread of interrupted) {
-          const event = {
-            type: "thread-state" as const,
-            threadId: thread.id,
-            status: "inactive" as const,
-            attention: "none" as const,
-            canResumeWithConfig: thread.canResumeWithConfig,
-          };
+        for (const event of inactiveEvents) {
           options.onSupervisorEvent?.(event);
           durableServices?.observeSupervisorEvent(event);
           serverRef?.publishSupervisorEvent(event);

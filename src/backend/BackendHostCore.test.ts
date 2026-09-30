@@ -57,7 +57,10 @@ const mocks = vi.hoisted(() => ({
   supervisorConstructorError: null as Error | null,
 }));
 
-vi.mock("@/host/db", () => ({
+vi.mock("@/host/db", async () => ({
+  assertCheckpointRevertOperationTargetMatches: (
+    await import("@/host/db/checkpointRevertOperations")
+  ).assertCheckpointRevertOperationTargetMatches,
   initDatabase: mocks.initDatabase,
   closeDatabase: mocks.closeDatabase,
   attachRuntimePersistenceDurableGapFromCurrentConnection:

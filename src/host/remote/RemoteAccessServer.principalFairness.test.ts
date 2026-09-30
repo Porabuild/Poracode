@@ -583,6 +583,10 @@ describe("principal fairness: aggregate queued output", () => {
         peakAliceBuffered,
         serverSocketsFor(server, "alice")[0]?.bufferedAmount ?? 0,
       );
+      // Prove Bob is draining each frame before sending another. A timer
+      // alone lets CPU contention freeze both peers and invalidates the
+      // test's healthy-versus-frozen comparison.
+      await expect(bobWs.next()).resolves.toMatchObject({ type: "event" });
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
 

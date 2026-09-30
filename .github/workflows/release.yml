@@ -183,6 +183,17 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.RELEASE_DEPLOY_KEY }}
 
+      - name: Setup pnpm for upgrade qualification
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js for upgrade qualification
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+
+      - name: Install upgrade qualification dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
       # Same-bytes gate (plan D3): every downloaded tarball must hash to the
       # value its leg recorded, and the launcher manifest must point at those
       # exact bytes for every advertised target, before anything is published.
@@ -215,6 +226,44 @@ jobs:
           node scripts/generate-runtime-manifest.mjs --verify "${ARGS[@]}" \
             --manifest "$ASSETS/poracode-runtime-manifest.json"
         shell: bash
+
+      # Persisted-state qualification uses the exact downloaded Linux artifact
+      # on this native runner. No predecessor is a failure, including the first
+      # v2 stable release; the product's bootstrap policy requires one.
+      - name: Require the published N-1 persisted upgrade
+        env:
+          ASSETS: ${{ runner.temp }}/release-assets
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          N1_EVIDENCE_DIR: ${{ runner.temp }}/stable-n1-evidence
+        run: |
+          set -euo pipefail
+          TARBALL=$(node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { join } from "node:path";
+            const meta = JSON.parse(readFileSync(join(process.env.ASSETS, "server-artifact-linux-x64.json"), "utf8"));
+            if (meta.version !== process.env.RELEASE_VERSION || !meta.targets.includes("linux-x64")) {
+              throw new Error("N-1 candidate must be the qualified release linux-x64 artifact");
+            }
+            process.stdout.write(join(process.env.ASSETS, meta.tarball.name));
+          ')
+          node scripts/server-n1-qualification.mjs \
+            --candidate-tarball "$TARBALL" \
+            --candidate-version "$RELEASE_VERSION" \
+            --repo "$RELEASE_REPO" \
+            --target linux-x64 \
+            --out-dir "$N1_EVIDENCE_DIR"
+        shell: bash
+
+      - name: Upload stable N-1 qualification evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stable-n1-qualification-${{ github.run_id }}
+          path: ${{ runner.temp }}/stable-n1-evidence
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Create release commit and staging tag
         id: stage_release

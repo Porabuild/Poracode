@@ -78,17 +78,17 @@ describe.skipIf(!sqliteAvailable)("checkpoint revert anchor migration", () => {
     db.close();
   }
 
-  it("upgrades a schema-45 journal in place and keeps resumable rows anchor-capable", () => {
+  it("upgrades a schema-45 journal without treating unconfirmed rollback as undispatched", () => {
     seedV45Database();
 
     initDatabase(dbPath);
     const row = dbGetCheckpointRevertOperation("legacy-op");
     expect(row).not.toBeNull();
     expect(row?.providerAnchorJson).toBeNull();
-    expect(row?.providerPhase).toBe("pending");
+    expect(row?.providerPhase).toBe("ambiguous");
     expect(row?.numTurns).toBe(2);
 
-    // The resumed row can carry an anchor like any post-upgrade operation.
+    // The data repair preserves the anchor column and all frozen plan fields.
     dbUpdateCheckpointRevertPhases("legacy-op", {
       providerAnchorJson: JSON.stringify({
         version: 1,

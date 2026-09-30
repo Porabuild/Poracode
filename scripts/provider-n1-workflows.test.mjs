@@ -21,8 +21,8 @@ const RUNNER_LABELS = ["self-hosted", "macOS", "ARM64", "provider-qualification"
 const JOBS = ["providers", "server_n1"];
 
 // Workflows that must never invoke this one: the cells stay out of required
-// PR/push/release gates until external runner credentials exist AND a first
-// stable published server release provides a real N-1 predecessor.
+// gates: live provider credentials belong on the labeled runner. Stable
+// release independently requires the shared N-1 script on a hosted runner.
 const GATE_WORKFLOWS = [
   "ci.yml",
   "native-ci.yml",

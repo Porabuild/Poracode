@@ -504,15 +504,12 @@ describe("WslBridgeServer", () => {
     await manager.dispose();
   });
 
-  it("replaces a running 2.16.0 helper with the 2.17.0 symlink-rejection build", async () => {
-    // 2.17.0 exists to force out 2.16.0 deployments that predate
-    // symlink-ancestor mutation rejection: that behavior shipped while the
-    // constant still said 2.16.0, so only a bump makes the handshake evict
-    // the unhardened helpers (the rejection itself is pinned by
-    // bridge.test.ts "rejects mutations through a symbolic-link ancestor").
+  it("replaces a running 2.17.0 helper with the 2.18.0 file-containment build", async () => {
+    // The previous deployment permits project-relative symlinks to escape.
+    // Rejection must run in the deployed helper, not just the host client.
     const helpersDir = mkdtempSync(join(tmpdir(), "lc-bridge-helpers-"));
     tempDirs.push(helpersDir);
-    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.16.0";\n`, "utf8");
+    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.17.0";\n`, "utf8");
 
     const children: FakeChild[] = [];
     const manager = new WslBridgeServer({
@@ -529,9 +526,8 @@ describe("WslBridgeServer", () => {
       deploy: () => ({ home: "/h", linuxBaseDir: "/h/.poracode" }),
       spawn: () => {
         const child = new FakeChild();
-        // First child is the pre-rejection helper still running from before
-        // the app update; every fresh spawn serves the restaged 2.17.0.
-        const version = children.length === 0 ? "2.16.0" : "2.17.0";
+        // First child predates the app update; fresh spawns serve 2.18.0.
+        const version = children.length === 0 ? "2.17.0" : "2.18.0";
         const port = children.length === 0 ? 9200 : 9201;
         children.push(child);
         setImmediate(() => {
@@ -546,7 +542,7 @@ describe("WslBridgeServer", () => {
 
     const first = await manager.ensureBridge("Ubuntu");
     // The app update restaged the helper: same distro, new bundled constant.
-    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.17.0";\n`, "utf8");
+    writeFileSync(join(helpersDir, "bridge.mjs"), `const BRIDGE_VERSION = "2.18.0";\n`, "utf8");
     const second = await manager.ensureBridge("Ubuntu");
 
     expect(children).toHaveLength(2);
@@ -556,8 +552,8 @@ describe("WslBridgeServer", () => {
     await manager.dispose();
   });
 
-  it("ships 2.17.0 as the bundled bridge version", () => {
-    expect(readBundledHelperVersion("bridge.mjs", "BRIDGE_VERSION", __dirname)).toBe("2.17.0");
+  it("ships 2.18.0 as the bundled bridge version", () => {
+    expect(readBundledHelperVersion("bridge.mjs", "BRIDGE_VERSION", __dirname)).toBe("2.18.0");
   });
 
   it("does not respawn when booted version matches the bundled version", async () => {

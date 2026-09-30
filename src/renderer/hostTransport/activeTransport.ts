@@ -1,10 +1,10 @@
 import type { IpcProcedureName } from "@/shared/ipc";
-import { assertHostTransportVersion, type HostTransport } from "./types";
+import { assertHostTransportVersion, type HostRequestTransport } from "./types";
 
-let activeHostTransport: HostTransport | null = null;
+let activeHostTransport: HostRequestTransport | null = null;
 
 /** Install the one live HostTransport after the version stamp checks. */
-export function activateHostTransport(transport: HostTransport): HostTransport {
+export function activateHostTransport<T extends HostRequestTransport>(transport: T): T {
   assertHostTransportVersion(transport.version);
   activeHostTransport = transport;
   return transport;

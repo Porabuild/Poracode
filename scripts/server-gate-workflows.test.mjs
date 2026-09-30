@@ -13,6 +13,37 @@ import {
 
 const workflowUrl = (name) => new URL(`../.github/workflows/${name}`, import.meta.url);
 
+void test("stable publication requires exact-candidate published N-1 proof before creating a tag", async () => {
+  const workflow = await readWorkflow("release.yml");
+  const steps = workflow.jobs.release.steps;
+  const index = (name) => steps.findIndex((step) => step.name === name);
+  const gateIndex = index("Require the published N-1 persisted upgrade");
+  assert.ok(gateIndex > index("Verify every qualified server artifact"));
+  assert.ok(gateIndex < index("Create release commit and staging tag"));
+  const gate = steps[gateIndex];
+  assert.equal(gate["continue-on-error"], undefined);
+  assert.equal(gate.if, undefined);
+  assert.match(gate.run, /set -euo pipefail/u);
+  assert.match(gate.run, /server-artifact-linux-x64\.json/u);
+  assert.match(gate.run, /server-n1-qualification\.mjs/u);
+  for (const flag of [
+    "--candidate-tarball",
+    "--candidate-version",
+    "--repo",
+    "--target linux-x64",
+    "--out-dir",
+  ]) {
+    assert.ok(gate.run.includes(flag));
+  }
+  assert.doesNotMatch(gate.run, /\|\| true|assemble-server|build:server/u);
+  assert.equal(gate.env.RELEASE_VERSION, "${{ needs.prepare.outputs.version }}");
+  assert.equal(gate.env.ASSETS, "${{ runner.temp }}/release-assets");
+  const evidence = steps[index("Upload stable N-1 qualification evidence")];
+  assert.equal(evidence.if, "${{ !cancelled() }}");
+  assert.equal(evidence.with.path, gate.env.N1_EVIDENCE_DIR);
+  assert.ok(workflow.jobs.publish_npm.needs.includes("release"));
+});
+
 async function readWorkflow(name) {
   return parse(await readFile(workflowUrl(name), "utf8"));
 }

@@ -152,6 +152,7 @@ vi.mock("@/host/sharedSettingsFile", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/host/sharedSettingsFile")>();
   return {
     readSharedSettingsFile: () => h.sharedSettings,
+    createSharedSettingsFileReader: () => () => h.sharedSettings,
     patchSharedSettingsFile: () => ({}),
     writeSharedSettingsFile: (path: string, settings: SharedSettings) => {
       actual.writeSharedSettingsFile(path, settings);

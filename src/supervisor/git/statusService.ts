@@ -8,8 +8,9 @@ import {
   type GitStatusResult,
   type ProjectLocation,
 } from "@/shared/contracts";
-import { getProjectFsPath, toWslUncPath } from "@/shared/wsl";
+import { getProjectFsPath, joinProjectPosixPath, toWslUncPath } from "@/shared/wsl";
 import type { WslBridgeClient } from "../wsl/bridge/client";
+import { normalizeProjectRelativePath, resolveContainedProjectEntryPath } from "../projectPaths";
 import {
   execGit,
   execGitBatchWslBridge,
@@ -503,6 +504,7 @@ export class GitStatusService {
     staged?: boolean,
     maxBuffer?: number,
   ): Promise<GitDiffResult> {
+    if (filePath) filePath = normalizeProjectRelativePath(filePath);
     const args = ["diff"];
     if (staged) args.push("--cached");
     if (filePath) args.push("--", filePath);
@@ -523,6 +525,23 @@ export class GitStatusService {
       if (headDiff.trim()) diff = headDiff;
     }
     if (!diff.trim() && filePath) {
+      // Deleted/index-only paths need no live file. Only the no-index fallback
+      // reads working-tree bytes, so enforce the boundary at that point.
+      try {
+        if (location.kind === "wsl") {
+          if (!this.wslClient) throw new Error("WSL bridge unavailable.");
+          const result = await this.wslClient.stat(
+            location,
+            [joinProjectPosixPath(location, filePath)],
+            { follow: true },
+          );
+          if (!result.stats[0]?.exists) return { diff };
+        } else {
+          await resolveContainedProjectEntryPath(location, filePath);
+        }
+      } catch {
+        return { diff };
+      }
       diff = await execGit(location, ["diff", "--no-index", "--", "/dev/null", filePath], {
         timeout: GIT_DIFF_TIMEOUT,
         allowNonZeroExit: true,
@@ -580,6 +599,7 @@ export class GitStatusService {
     filePath: string,
     staged: boolean,
   ): Promise<GitFileContentResult> {
+    filePath = normalizeProjectRelativePath(filePath);
     if (staged) {
       const [oldContent, newContent] = await Promise.all([
         execGit(location, ["show", `HEAD:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch(
@@ -598,17 +618,26 @@ export class GitStatusService {
       return { oldContent, newContent };
     }
 
-    const repoPath = getProjectFsPath(location);
     const [oldContent, newContent] = await Promise.all([
       execGit(location, ["show", `:${filePath}`], { timeout: GIT_DIFF_TIMEOUT }).catch((error) => {
         if (isGitProcessAdmissionError(error)) throw error;
         return ""; // expected for untracked files not in the index
       }),
-      readFile(join(repoPath, filePath), "utf-8").catch(
+      this.readProjectWorkingFile(location, filePath).catch(
         () => "", // expected for deleted files
       ),
     ]);
     return { oldContent, newContent };
+  }
+
+  private async readProjectWorkingFile(location: ProjectLocation, path: string): Promise<string> {
+    if (location.kind === "wsl") {
+      if (!this.wslClient) throw new Error("WSL bridge unavailable.");
+      const result = await this.wslClient.readFile(location, joinProjectPosixPath(location, path));
+      if (result.tooLarge) throw new Error("File exceeds the read limit.");
+      return Buffer.from(result.contentBase64, "base64").toString("utf8");
+    }
+    return readFile(await resolveContainedProjectEntryPath(location, path), "utf8");
   }
 
   private splitCombinedDiff(raw: string): Record<string, string> {

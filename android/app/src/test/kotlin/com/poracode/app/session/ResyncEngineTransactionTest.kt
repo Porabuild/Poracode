@@ -2,11 +2,16 @@ package com.poracode.app.session
 
 import com.poracode.app.protocol.ThreadHydrationCoordinator
 import com.poracode.app.transport.RemoteApiGateway
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -141,5 +146,61 @@ class ResyncEngineTransactionTest {
         assertEquals(0, commits)
         // The ORIGINAL captured socket gate was released; a replacement is never touched.
         assertTrue(socket.resyncPending)
+    }
+
+    @Test
+    fun cancelledAttemptCannotReleaseReplacementGates() = runTest {
+        val release = CompletableDeferred<Unit>()
+        var fetches = 0
+        val (engine, owner, _) = buildEngine(fetchShell = {
+            fetches += 1
+            if (fetches == 1) awaitCancellation()
+            release.await()
+            shell()
+        })
+        engine.launchResync("original")
+        runCurrent()
+        engine.reset()
+        owner.bumpSocketIdentity()
+        engine.launchResync("replacement")
+        runCurrent()
+        assertTrue(engine.pending)
+        assertFalse(engine.allowsLiveEvents)
+        release.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(engine.pending)
+        assertTrue(engine.allowsLiveEvents)
+    }
+
+    @Test
+    fun lateSuccessCannotReleaseReplacementGates() = runTest {
+        val oldRelease = CompletableDeferred<Unit>()
+        val newRelease = CompletableDeferred<Unit>()
+        var fetches = 0
+        var commits = 0
+        val (engine, owner, _) = buildEngine(
+            fetchShell = {
+                fetches += 1
+                if (fetches == 1) withContext(NonCancellable) { oldRelease.await() }
+                else newRelease.await()
+                shell()
+            },
+            onCommit = { commits += 1 },
+        )
+        engine.launchResync("original")
+        runCurrent()
+        engine.reset()
+        owner.bumpSocketIdentity()
+        engine.launchResync("replacement")
+        runCurrent()
+        oldRelease.complete(Unit)
+        runCurrent()
+        assertTrue(engine.pending)
+        assertFalse(engine.allowsLiveEvents)
+        assertEquals(0, commits)
+        newRelease.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(1, commits)
+        assertTrue(engine.allowsLiveEvents)
     }
 }

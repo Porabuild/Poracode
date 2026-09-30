@@ -2,12 +2,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { closeDatabase, initDatabase } from "@/host/db";
+import { closeDatabase, dbUpsertProject, initDatabase } from "@/host/db";
 import {
   GIT_ADMISSION_QUEUE_FULL_CODE,
   GitProcessAdmissionRefusalError,
 } from "@/shared/gitProcessAdmission";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
+import { HOME_PROJECT_ID } from "@/shared/homeScope";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -16,7 +17,10 @@ import {
 
 const servers: RemoteAccessServer[] = [];
 
-async function exchangePairingUrl(pairingUrl: string): Promise<string> {
+async function exchangePairingUrl(
+  pairingUrl: string,
+  scopes = ["session:read", "session:operate"],
+): Promise<string> {
   const credential = new URLSearchParams(new URL(pairingUrl).hash.slice(1)).get("token");
   expect(credential).toBeTruthy();
   const response = await fetch(new URL("/oauth/token", new URL(pairingUrl).origin), {
@@ -25,7 +29,7 @@ async function exchangePairingUrl(pairingUrl: string): Promise<string> {
     body: JSON.stringify({
       grantType: "pairing-token",
       credential,
-      scopes: ["session:read", "session:operate"],
+      scopes,
       client: { label: "Procedure ownership test", deviceType: "mobile" },
     }),
   });
@@ -50,6 +54,15 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
     if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
     dir = mkdtempSync(join(tmpdir(), "poracode-procedure-ownership-"));
     initDatabase(join(dir, "state.sqlite"));
+    dbUpsertProject(
+      {
+        id: "project-1",
+        name: "Repo",
+        location: { kind: "posix", path: "/tmp/repo" },
+        createdAt: "2026-01-01",
+      },
+      0,
+    );
     callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => ({}) as never);
     const server = new RemoteAccessServer({
       truncateThreadRuntime: () => {},
@@ -109,6 +122,45 @@ describe.skipIf(!sqliteAvailable)("procedure passthrough ownership", () => {
     const response = await call("readThreadBackgroundTasks", { threadId: "t1" });
     expect(response.status).toBe(200);
     expect(callSupervisor).toHaveBeenCalledWith("readThreadBackgroundTasks", { threadId: "t1" });
+  });
+
+  it("refuses a viewer's project-relative file read from an unregistered private root", async () => {
+    const response = await call("readProjectFile", {
+      projectLocation: { kind: "posix", path: join(dir, "private") },
+      path: "synthetic.txt",
+    });
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "project_location_not_registered" },
+    });
+    expect(callSupervisor).not.toHaveBeenCalled();
+  });
+
+  it("requires host-file management authority for reads rooted at synthetic Home", async () => {
+    dbUpsertProject(
+      {
+        id: HOME_PROJECT_ID,
+        name: "Home",
+        location: { kind: "posix", path: dir },
+        createdAt: "2026-01-01",
+      },
+      1,
+    );
+    const payload = { projectLocation: { kind: "posix", path: dir }, path: "synthetic.txt" };
+    expect((await call("readProjectFile", payload)).status).toBe(403);
+    expect(callSupervisor).not.toHaveBeenCalled();
+    token = await exchangePairingUrl(servers[0]!.issuePairingUrl(), [
+      "session:read",
+      "projects:manage",
+    ]);
+    callSupervisor.mockResolvedValueOnce({
+      path: "synthetic.txt",
+      status: "ready",
+      modifiedAtMs: 1,
+      content: "synthetic fixture",
+    } as never);
+    expect((await call("readProjectFile", payload)).status).toBe(200);
+    expect(callSupervisor).toHaveBeenCalledWith("readProjectFile", payload);
   });
 
   it("returns Git admission pressure as a typed retryable response", async () => {

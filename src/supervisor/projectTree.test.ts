@@ -75,6 +75,45 @@ describe("ProjectTreeService", () => {
     expect(readFileSync(join(tempDir, "note.txt"), "utf8")).toBe("x\r\ny\r\n");
   });
 
+  it.skipIf(process.platform === "win32")(
+    "confines symlink reads, listings and editor saves to the real project root",
+    async () => {
+      const outside = mkdtempSync(join(tmpdir(), "poracode-file-boundary-"));
+      try {
+        writeFileSync(join(outside, "synthetic.txt"), "private fixture");
+        symlinkSync(outside, join(tempDir, "escape"), "dir");
+        await expect(
+          service.readProjectFile({ projectLocation: location, path: "escape/synthetic.txt" }),
+        ).rejects.toThrow("escapes the project root");
+        await expect(
+          service.listProjectTree({ projectLocation: location, directoryPath: "escape" }),
+        ).rejects.toThrow("escapes the project root");
+        await expect(
+          service.writeProjectFile({
+            projectLocation: location,
+            path: "escape/synthetic.txt",
+            content: "changed",
+            baseModifiedAtMs: 0,
+          }),
+        ).rejects.toThrow("escapes the project root");
+        expect(readFileSync(join(outside, "synthetic.txt"), "utf8")).toBe("private fixture");
+        writeFileSync(join(tempDir, "inside.txt"), "inside fixture");
+        symlinkSync(join(tempDir, "inside.txt"), join(tempDir, "inside-link.txt"));
+        await expect(
+          service.readProjectFile({ projectLocation: location, path: "inside-link.txt" }),
+        ).resolves.toMatchObject({ content: "inside fixture" });
+        await expect(
+          service.readExternalFile({
+            projectLocation: location,
+            absolutePath: join(outside, "synthetic.txt"),
+          }),
+        ).resolves.toMatchObject({ content: "private fixture" });
+      } finally {
+        rmSync(outside, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("marks binary files as non-editable", async () => {
     writeFileSync(join(tempDir, "image.bin"), Buffer.from([0x61, 0x00, 0x62]));
 

@@ -40,6 +40,7 @@ vi.mock("node:fs/promises", async () => {
   return {
     ...actual,
     mkdir: mkdirMock,
+    realpath: async (path: unknown) => String(path),
     readFile: readFileMock,
     rm: rmMock,
     stat: statMock,

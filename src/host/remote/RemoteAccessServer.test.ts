@@ -3262,6 +3262,9 @@ describe("RemoteAccessServer", () => {
   });
 
   it("allows paired clients to poll workflow manifests through the remote bridge", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      createTestProject({ location: { kind: "posix", path: "/tmp/example" } }),
+    ]);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
       if (name === "workflowGetRun") return { run: null } as never;
       throw new Error(`unexpected supervisor call: ${name}`);
@@ -3306,6 +3309,9 @@ describe("RemoteAccessServer", () => {
   });
 
   it("allows paired clients to bulk-fetch pull requests through the remote bridge", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      createTestProject({ location: { kind: "posix", path: "/tmp/example" } }),
+    ]);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
       if (name === "ghListPrs") return { prs: {} } as never;
       throw new Error(`unexpected supervisor call: ${name}`);
@@ -3344,6 +3350,9 @@ describe("RemoteAccessServer", () => {
   });
 
   it("allows paired clients to list the global pull request rows", async () => {
+    vi.mocked(dbGetProjects).mockReturnValue([
+      createTestProject({ location: { kind: "posix", path: "/tmp/example" } }),
+    ]);
     const callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async (name) => {
       if (name === "ghListPullRequests") {
         return { pullRequests: [], viewerLogin: "remote-user" } as never;
@@ -7051,6 +7060,9 @@ describe("RemoteAccessServer", () => {
       "content-type": "application/json",
     };
     const projectLocation = { kind: "posix", path: "/tmp/repo" };
+    vi.mocked(dbGetProjects).mockReturnValue([
+      createTestProject({ location: { kind: "posix", path: "/tmp/repo" } }),
+    ]);
 
     // A read procedure forwards to the supervisor with the validated payload.
     const statusResponse = await fetch(new URL("/api/git/call", info.httpBaseUrl), {

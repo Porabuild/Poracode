@@ -7,6 +7,7 @@ import {
   initDatabase,
   dbClaimCheckpointRevertOperation,
   dbGetCheckpointRevertOperation,
+  assertCheckpointRevertOperationTargetMatches,
   dbHasThreadRuntimeItem,
   dbUpdateCheckpointRevertPhases,
   acknowledgeRuntimeThreadGap,
@@ -602,6 +603,13 @@ export class BackendHostCore {
           removedCompletedTurnAnchors: [],
         };
       }
+      assertCheckpointRevertOperationTargetMatches(existing, {
+        threadId: input.threadId,
+        checkpointItemId: input.checkpointItemId,
+        ...(input.projectLocation !== undefined
+          ? { explicitProjectLocationJson: JSON.stringify(input.projectLocation) }
+          : {}),
+      });
       if (
         existing.outcome === "completed" ||
         existing.outcome === "completed_local_only" ||
@@ -734,6 +742,7 @@ export class BackendHostCore {
           }
         } else if (!anchorJson && row.providerPhase === "pending") {
           // Anchor-unsupported fallback: the legacy relative rollback.
+          row = this.bumpPhase(journalKey, row, { providerPhase: "ambiguous" });
           try {
             await this.supervisorClient.call(
               "rollbackThreadConversation",

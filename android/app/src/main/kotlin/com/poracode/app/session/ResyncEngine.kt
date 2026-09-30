@@ -65,6 +65,7 @@ class ResyncEngine(
 
     /** Bounded foreground-only retry after failed authoritative shell+history. */
     private val authoritativeRetryAttempt = AtomicInteger(0)
+    private var attemptGeneration = 0L
 
     val allowsLiveEvents: Boolean
         get() = !sessionCoordinator.pending && !authoritativeRefreshRequired
@@ -99,6 +100,7 @@ class ResyncEngine(
         if (!isForeground()) {
             // Gap/resync-required observed while background: force authoritative refresh
             // on next foreground. Clear gates without starting network.
+            attemptGeneration += 1
             jobs.cancel(SessionLifecycleJobs.RESYNC)
             jobs.cancel(SessionLifecycleJobs.RESYNC_HISTORY)
             sessionCoordinator.reset()
@@ -118,6 +120,7 @@ class ResyncEngine(
      * or the live session lacks an authoritative baseline.
      */
     fun abandonForBackground() {
+        attemptGeneration += 1
         val resyncWasActive = pending || sessionCoordinator.pending
         val socketHadResync = currentSocket()?.resyncPending == true
         val retryWasActive = authoritativeRefreshRequired
@@ -137,6 +140,7 @@ class ResyncEngine(
     }
 
     fun reset() {
+        attemptGeneration += 1
         jobs.cancel(SessionLifecycleJobs.RESYNC)
         jobs.cancel(SessionLifecycleJobs.RESYNC_HISTORY)
         jobs.cancel(SessionLifecycleJobs.RETRY)
@@ -163,7 +167,8 @@ class ResyncEngine(
 
     fun launchResync(reason: String) {
         if (!noteNeedsResync(reason)) return
-        val job = scope.launch { runResync(reason) }
+        val attempt = ++attemptGeneration
+        val job = scope.launch { runResync(reason, attempt) }
         jobs.replace(SessionLifecycleJobs.RESYNC, job)
     }
 
@@ -178,11 +183,13 @@ class ResyncEngine(
         val action = sessionCoordinator.noteNeedsResync()
         pending = sessionCoordinator.pending
         if (action != ResyncCoordinator.Action.BeginRefresh) return
-        val job = scope.launch { runResync("foreground_authoritative") }
+        val attempt = ++attemptGeneration
+        val job = scope.launch { runResync("foreground_authoritative", attempt) }
         jobs.replace(SessionLifecycleJobs.RESYNC, job)
     }
 
-    private suspend fun runResync(reason: String) {
+    private suspend fun runResync(reason: String, attempt: Long) {
+        if (attemptGeneration != attempt) return
         @Suppress("UNUSED_VARIABLE")
         val ignored = reason
         if (!isForeground()) {
@@ -217,6 +224,7 @@ class ResyncEngine(
             }
 
             // Stale host/socket/session/api/thread identity — do not partial commit.
+            if (attemptGeneration != attempt) return
             if (owner.sessionGeneration != identity.sessionGeneration ||
                 owner.apiIdentity != identity.apiIdentity ||
                 owner.socketIdentity != identity.socketIdentity ||
@@ -284,11 +292,14 @@ class ResyncEngine(
                 }
             }
         } catch (e: CancellationException) {
-            sessionCoordinator.noteFailure()
-            pending = false
-            identity.socket?.markResyncPending()
+            if (attemptGeneration == attempt) {
+                sessionCoordinator.noteFailure()
+                pending = false
+                identity.socket?.markResyncPending()
+            }
             throw e
         } catch (e: RemoteClientException) {
+            if (attemptGeneration != attempt) return
             if (e.isUnauthorized) {
                 sessionCoordinator.reset()
                 pending = false
@@ -298,10 +309,11 @@ class ResyncEngine(
                 identity.socket?.markResyncPending()
                 onUnauthorized(e.message)
             } else {
-                handleFailure(e, identity = identity)
+                handleFailure(e, identity = identity, attempt = attempt)
             }
         } catch (e: Exception) {
-            handleFailure(e, identity = identity)
+            if (attemptGeneration != attempt) return
+            handleFailure(e, identity = identity, attempt = attempt)
         }
     }
 
@@ -327,14 +339,14 @@ class ResyncEngine(
      * transactional success. Background cancels the retry job; stale host/socket
      * identity cannot mutate a replacement.
      */
-    private fun handleFailure(error: Exception?, identity: CapturedIdentity) {
+    private fun handleFailure(error: Exception?, identity: CapturedIdentity, attempt: Long) {
         sessionCoordinator.noteFailure()
         pending = false
         // Release captured socket pending only — never touch a replacement socket.
         identity.socket?.markResyncPending()
         authoritativeRefreshRequired = true
         if (isForeground()) {
-            scheduleAuthoritativeRetry(identity)
+            scheduleAuthoritativeRetry(identity, attempt)
         } else {
             jobs.cancel(SessionLifecycleJobs.RETRY)
         }
@@ -343,18 +355,19 @@ class ResyncEngine(
         }
     }
 
-    private fun scheduleAuthoritativeRetry(identity: CapturedIdentity) {
-        val attempt = authoritativeRetryAttempt.incrementAndGet()
-        if (attempt > MAX_AUTHORITATIVE_RETRIES) {
+    private fun scheduleAuthoritativeRetry(identity: CapturedIdentity, generation: Long) {
+        val retryAttempt = authoritativeRetryAttempt.incrementAndGet()
+        if (retryAttempt > MAX_AUTHORITATIVE_RETRIES) {
             userInvokableAuthoritativeRefresh = true
             onFailureMessage(
                 "Could not refresh the session. Tap to retry.",
             )
             return
         }
-        val delayMs = AUTHORITATIVE_RETRY_BASE_MS * attempt
+        val delayMs = AUTHORITATIVE_RETRY_BASE_MS * retryAttempt
         val job = scope.launch {
             delay(delayMs)
+            if (attemptGeneration != generation) return@launch
             if (!isForeground()) return@launch
             if (!authoritativeRefreshRequired) return@launch
             // Stale host/socket/session — do not mutate replacement.
@@ -368,7 +381,8 @@ class ResyncEngine(
             val action = sessionCoordinator.noteNeedsResync()
             pending = sessionCoordinator.pending
             if (action != ResyncCoordinator.Action.BeginRefresh) return@launch
-            runResync("authoritative_retry_$attempt")
+            val attempt = ++attemptGeneration
+            runResync("authoritative_retry_$retryAttempt", attempt)
         }
         jobs.replace(SessionLifecycleJobs.RETRY, job)
     }

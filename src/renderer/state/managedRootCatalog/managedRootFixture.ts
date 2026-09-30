@@ -309,7 +309,10 @@ export function wsSocketFactory(url: string) {
 }
 
 export function electronHost(
-  getBootstrap: () => { endpoint: string; pairingUrl: string } | null,
+  getBootstrap: () =>
+    | ReturnType<typeof bootstrapPayloadFor>
+    | null
+    | Promise<ReturnType<typeof bootstrapPayloadFor> | null>,
   preloadProcedures?: Record<string, (args: unknown[]) => unknown>,
 ): ElectronHostBridge {
   return {

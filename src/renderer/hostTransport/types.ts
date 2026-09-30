@@ -8,8 +8,8 @@ import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
  * backend-host protocol into `CLIENT_HOST_HOP_VERSION`; this stays the
  * in-process TypeScript interface stamp (not a serialized wire hop).
  */
-export const HOST_TRANSPORT_VERSION = 1 as const;
-export const PREVIOUS_HOST_TRANSPORT_VERSION = 0 as const;
+export const HOST_TRANSPORT_VERSION = 2 as const;
+export const PREVIOUS_HOST_TRANSPORT_VERSION = 1 as const;
 
 /** Old-reader / future-reader refusal for the in-process HostTransport stamp. */
 export function assertHostTransportVersion(
@@ -36,14 +36,17 @@ export type HostEventListener = (
 ) => void;
 
 /**
- * The single data plane a client runtime holds after bootstrap IPC.
- * Preload IPC, loopback HTTP/WS, and remote HTTP/WS implement this; the
- * runtime never forks request/event/terminal legs itself.
+ * Request routing shared by every runtime. Paired runtimes deliver live
+ * events through the remote stores, independently of this request handle.
  */
-export interface HostTransport {
+export interface HostRequestTransport {
   readonly version: typeof HOST_TRANSPORT_VERSION;
   readonly identity: HostIdentity;
   readonly capabilities: HostServiceCapabilities;
   request(name: IpcProcedureName, args: unknown[]): Promise<unknown>;
+}
+
+/** Managed desktop transports also own the supervisor event intake. */
+export interface HostTransport extends HostRequestTransport {
   subscribeEvents(listener: HostEventListener): () => void;
 }

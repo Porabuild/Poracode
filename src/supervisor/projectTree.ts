@@ -2,7 +2,7 @@ import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
 import type { Dirent, Stats } from "node:fs";
 import { cp, lstat, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join, posix, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, posix, resolve } from "node:path";
 import type {
   BrowseHostDirectoryPayload,
   BrowseHostDirectoryResult,
@@ -41,6 +41,11 @@ import {
 } from "./projectFileContent";
 import { writeNativeEditorFile } from "./projectFileWrites";
 import type { WslBridgeClient } from "./wsl/bridge/client";
+import {
+  normalizeProjectRelativePath as normalizeRelativePath,
+  resolveProjectEntryPath,
+  resolveContainedProjectEntryPath,
+} from "./projectPaths";
 
 const MAX_HOST_BROWSE_ENTRIES = 4_000;
 
@@ -74,21 +79,6 @@ async function listWindowsDriveRoots(): Promise<HostDirectoryEntry[]> {
 type RawFileRead =
   | { kind: "tooLarge"; modifiedAtMs: number }
   | { kind: "ok"; buffer: Buffer; modifiedAtMs: number };
-
-function normalizeRelativePath(input: string): string {
-  const normalized = input.replace(/\\/g, "/").replace(/^\/+|\/+$/g, "");
-  if (!normalized) return "";
-  const parts = normalized.split("/");
-  const resolvedParts: string[] = [];
-  for (const part of parts) {
-    if (!part || part === ".") continue;
-    if (part === "..") {
-      throw new Error("Path traversal is not allowed.");
-    }
-    resolvedParts.push(part);
-  }
-  return resolvedParts.join("/");
-}
 
 function joinRelativePath(parentPath: string, name: string): string {
   return parentPath ? `${parentPath}/${name}` : name;
@@ -156,7 +146,7 @@ export class ProjectTreeService {
       );
     }
 
-    const fullPath = this.resolveEntryPath(payload.projectLocation, directoryPath);
+    const fullPath = await this.resolveContainedEntryPath(payload.projectLocation, directoryPath);
     const entries = await readdir(fullPath, { withFileTypes: true });
     const visible = entries.filter((entry) => entry.name !== ".git");
 
@@ -919,16 +909,7 @@ export class ProjectTreeService {
   }
 
   private resolveEntryPath(location: ProjectLocation, path: string): string {
-    const rootPath = resolve(getProjectFsPath(location));
-    const candidatePath = resolve(
-      rootPath,
-      ...normalizeRelativePath(path).split("/").filter(Boolean),
-    );
-    const relativePath = relative(rootPath, candidatePath);
-    if (relativePath.startsWith("..") || relativePath === ".." || isAbsolute(relativePath)) {
-      throw new Error("Path escapes the project root.");
-    }
-    return candidatePath;
+    return resolveProjectEntryPath(location, path);
   }
 
   /**
@@ -951,7 +932,7 @@ export class ProjectTreeService {
       symlinks.map(async (entry) => {
         try {
           const path = joinRelativePath(directoryPath, entry.name);
-          const full = this.resolveEntryPath(location, path);
+          const full = await this.resolveContainedEntryPath(location, path);
           if ((await stat(full)).isDirectory()) dirNames.add(entry.name);
         } catch {
           // broken symlink
@@ -970,8 +951,12 @@ export class ProjectTreeService {
     location: ProjectLocation,
     relativePath: string,
   ): Promise<{ fullPath: string; fileStat: Stats }> {
-    const fullPath = this.resolveEntryPath(location, relativePath);
+    const fullPath = await this.resolveContainedEntryPath(location, relativePath);
     return { fullPath, fileStat: await stat(fullPath) };
+  }
+
+  private resolveContainedEntryPath(location: ProjectLocation, path: string): Promise<string> {
+    return resolveContainedProjectEntryPath(location, path);
   }
 
   private async directoryHasVisibleChildren(fullPath: string): Promise<boolean> {

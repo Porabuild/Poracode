@@ -233,7 +233,7 @@ export function installAttachedElectronClientRuntime(
   const parsed = parseStandaloneAttachInfo(attach);
   if (!parsed) throw new Error("Invalid standalone attach configuration.");
   const hostCapabilities = negotiatedHostCapabilities(parsed.capabilities);
-  const transport = activateHostTransport(
+  activateHostTransport(
     new RemoteHttpWsTransport(async (name, args) => {
       if (isRemoteRoutableProcedure(name)) {
         const decision = routeRemoteProcedure(name, parseIpcProcedureArgs(name, args));
@@ -257,7 +257,9 @@ export function installAttachedElectronClientRuntime(
   const procedures = createProcedureBridge(requestActiveHost);
   const native: PoracodeNativeBridge = {
     ...host,
-    onSupervisorEvent: (listener) => transport.subscribeEvents(listener),
+    // Attach live events are already applied by remote stores. This native
+    // bridge compatibility surface has no managed supervisor to subscribe to.
+    onSupervisorEvent: () => () => {},
   };
   installClientRuntime({
     version: PORACODE_CLIENT_RUNTIME_VERSION,

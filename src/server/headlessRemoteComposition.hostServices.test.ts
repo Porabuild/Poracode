@@ -112,6 +112,7 @@ vi.mock("@/host/supervisor/SupervisorClient", () => ({
 
 vi.mock("@/host/sharedSettingsFile", () => ({
   readSharedSettingsFile: () => h.sharedSettings,
+  createSharedSettingsFileReader: () => () => h.sharedSettings,
   patchSharedSettingsFile: () => ({}),
   writeSharedSettingsFile: () => undefined,
 }));

@@ -65,6 +65,28 @@ export interface ClaimCheckpointRevertOperationInput {
   explicitProjectLocationJson?: string | null;
 }
 
+export function assertCheckpointRevertOperationTargetMatches(
+  row: CheckpointRevertOperationRow,
+  input: Pick<
+    ClaimCheckpointRevertOperationInput,
+    "threadId" | "checkpointItemId" | "explicitProjectLocationJson"
+  >,
+): void {
+  if (row.threadId !== input.threadId || row.checkpointItemId !== input.checkpointItemId) {
+    throw new Error(
+      `Checkpoint revert operation key "${row.operationKey}" was already used for a different target.`,
+    );
+  }
+  if (
+    input.explicitProjectLocationJson !== undefined &&
+    input.explicitProjectLocationJson !== row.projectLocationJson
+  ) {
+    throw new Error(
+      `Checkpoint revert operation key "${row.operationKey}" was already used with a different project location.`,
+    );
+  }
+}
+
 const PROVIDER_PHASES: readonly CheckpointRevertProviderPhase[] = [
   "pending",
   "completed",
@@ -232,24 +254,12 @@ export function dbClaimCheckpointRevertOperation(
       .get(input.operationKey) as Record<string, unknown> | undefined;
     if (existing) {
       const row = rowToOperation(existing as Parameters<typeof rowToOperation>[0]);
-      if (row.threadId !== input.threadId || row.checkpointItemId !== input.checkpointItemId) {
-        throw new Error(
-          `Checkpoint revert operation key "${input.operationKey}" was already used for a different target.`,
-        );
-      }
       // Only caller-controlled inputs conflict. An explicitly supplied project
       // location that differs from the frozen plan is a retarget attempt and
       // must fail before any side effect. An omitted location means the frozen
       // plan was server-resolved: derived drift never conflicts, and resume
       // paths keep using the frozen copy rather than silently retargeting.
-      if (
-        input.explicitProjectLocationJson !== undefined &&
-        input.explicitProjectLocationJson !== row.projectLocationJson
-      ) {
-        throw new Error(
-          `Checkpoint revert operation key "${input.operationKey}" was already used with a different project location.`,
-        );
-      }
+      assertCheckpointRevertOperationTargetMatches(row, input);
       // Settled outcomes replay verbatim. `running` (crash mid-operation) and
       // `failed` (a retryable phase) resume from the recorded phases; the
       // destructive provider phase is never re-run regardless, because it is

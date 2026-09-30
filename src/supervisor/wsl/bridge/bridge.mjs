@@ -38,6 +38,7 @@ import {
   opendirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   rmSync,
   statSync,
@@ -56,7 +57,8 @@ import { createRequire } from "node:module";
 // 2.17.0: forces replacement of 2.16.0 helpers deployed before
 // symlink-ancestor mutation rejection — that behavior shipped while the
 // constant still said 2.16.0, so the handshake cannot tell them apart.
-const BRIDGE_VERSION = "2.17.0";
+// 2.18.0: project reads, listings and editor writes reject symlink escapes.
+const BRIDGE_VERSION = "2.18.0";
 
 /**
  * Lazily loads `@parcel/watcher` (staged next to this script as
@@ -263,8 +265,25 @@ function resolveSafePath(projectRoot, target) {
   if (typeof target !== "string" || !isAbsolute(target)) return null;
   const normRoot = normalize(projectRoot);
   const normTarget = normalize(target);
-  if (normTarget !== normRoot && !normTarget.startsWith(normRoot + "/")) return null;
+  if (normTarget !== normRoot && !normTarget.startsWith(normRoot === "/" ? "/" : normRoot + "/"))
+    return null;
   return normTarget;
+}
+
+function resolveContainedReadPath(projectRoot, target) {
+  const safe = resolveSafePath(projectRoot, target);
+  if (!safe) return null;
+  try {
+    const root = realpathSync(projectRoot);
+    const candidate = realpathSync(safe);
+    const tail = relative(root, candidate);
+    return isAbsolute(tail) || tail.split("/")[0] === ".." ? null : candidate;
+  } catch (err) {
+    // Preserve the endpoint's existing missing-file response. The eventual
+    // read/stat cannot succeed when realpath failed with ENOENT.
+    if (err?.code === "ENOENT") return safe;
+    return null;
+  }
 }
 
 function pathHasSymlink(projectRoot, target, includeTarget = true) {
@@ -304,7 +323,7 @@ function classifyDirent(dirent) {
 }
 
 function readdirHandler(req, body) {
-  const target = resolveSafePath(body.projectRoot, body.path);
+  const target = resolveContainedReadPath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
   let entries;
   try {
@@ -321,14 +340,15 @@ function readdirHandler(req, body) {
     const full = resolvePath(target, d.name);
     if (type === "symlink") {
       let isDirectoryLink = false;
+      const contained = resolveContainedReadPath(body.projectRoot, full);
       try {
-        isDirectoryLink = statSync(full).isDirectory();
+        isDirectoryLink = contained !== null && statSync(contained).isDirectory();
       } catch {
         // broken symlink; report as symlink, no directory hint
       }
       const entry = { name: d.name, type, isDirectoryLink };
       if (includeChildCount && isDirectoryLink) {
-        entry.hasChildren = dirHasVisibleChildren(full);
+        entry.hasChildren = dirHasVisibleChildren(contained);
       }
       result.push(entry);
       continue;
@@ -370,7 +390,9 @@ function statHandler(req, body) {
     return { status: 400, code: "EINVAL", message: "paths must be an array" };
   const results = [];
   for (const rawPath of body.paths) {
-    const target = resolveSafePath(body.projectRoot, rawPath);
+    const target = body.follow
+      ? resolveContainedReadPath(body.projectRoot, rawPath)
+      : resolveSafePath(body.projectRoot, rawPath);
     if (!target) {
       results.push({ path: rawPath, exists: false, code: "ESCAPE" });
       continue;
@@ -526,7 +548,7 @@ function findHandler(req, body) {
 }
 
 function readFileHandler(req, body) {
-  const target = resolveSafePath(body.projectRoot, body.path);
+  const target = resolveContainedReadPath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
   let st;
   try {
@@ -563,7 +585,7 @@ function readFileHandler(req, body) {
 }
 
 function writeFileHandler(req, body) {
-  const target = resolveSafePath(body.projectRoot, body.path);
+  const target = resolveContainedReadPath(body.projectRoot, body.path);
   if (!target) return { status: 400, code: "ESCAPE", message: "path escapes projectRoot" };
   if (typeof body.contentBase64 !== "string") {
     return { status: 400, code: "EINVAL", message: "contentBase64 required" };

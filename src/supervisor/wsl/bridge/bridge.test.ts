@@ -28,6 +28,51 @@ const describeOnPosix = process.platform === "linux" ? describe : describe.skip;
 const SECRET = "integration-test-secret";
 const BRIDGE_SCRIPT = join(__dirname, "bridge.mjs");
 
+it.skipIf(process.platform === "win32")(
+  "confines bridge file reads, writes and listings after symlink resolution",
+  async () => {
+    const root = mkdtempSync(join(tmpdir(), "poracode-bridge-boundary-"));
+    const outside = mkdtempSync(join(tmpdir(), "poracode-bridge-private-"));
+    const bridge = await startBridge();
+    try {
+      writeFileSync(join(outside, "synthetic.txt"), "private fixture");
+      symlinkSync(outside, join(root, "escape"), "dir");
+      for (const [endpoint, path, extra] of [
+        ["read", join(root, "escape", "synthetic.txt"), {}],
+        [
+          "write",
+          join(root, "escape", "synthetic.txt"),
+          { contentBase64: Buffer.from("changed").toString("base64") },
+        ],
+        ["readdir", join(root, "escape"), {}],
+      ] as const) {
+        const response = await post(`${bridge.baseUrl}/v1/fs/${endpoint}`, {
+          projectRoot: root,
+          path,
+          ...extra,
+        });
+        expect(response.status).toBe(400);
+        expect(response.body).toMatchObject({ code: "ESCAPE" });
+      }
+      expect(readFileSync(join(outside, "synthetic.txt"), "utf8")).toBe("private fixture");
+      writeFileSync(join(root, "inside.txt"), "inside fixture");
+      symlinkSync(join(root, "inside.txt"), join(root, "inside-link.txt"));
+      expect(
+        (
+          await post(`${bridge.baseUrl}/v1/fs/read`, {
+            projectRoot: root,
+            path: join(root, "inside-link.txt"),
+          })
+        ).status,
+      ).toBe(200);
+    } finally {
+      await bridge.dispose();
+      rmSync(root, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
+    }
+  },
+);
+
 interface RunningBridge {
   child: ChildProcess;
   baseUrl: string;

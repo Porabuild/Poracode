@@ -5,6 +5,7 @@ export {
   type HostEventListener,
   type HostIdentity,
   type HostTransport,
+  type HostRequestTransport,
 } from "./types";
 export { MANAGED_LOOPBACK_DESKTOP_ID } from "./managedIdentity";
 export { PreloadIpcTransport, ElectronBackendTransport } from "./preloadIpcTransport";

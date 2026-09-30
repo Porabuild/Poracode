@@ -174,6 +174,7 @@ export {
 } from "./db/remoteCommandReceipts";
 
 export {
+  assertCheckpointRevertOperationTargetMatches,
   dbAssertNoRunningCheckpointRevert,
   dbClaimCheckpointRevertOperation,
   dbCountRollbackTurnsAfterCheckpoint,

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { writeFileAtomic } from "@/shared/atomicFile";
 import type {
   AgentInstanceConfig,
@@ -20,13 +20,41 @@ function serializeSharedSettings(settings: SharedSettings): string {
   return `${JSON.stringify(settings, null, 2)}\n`;
 }
 
+function readNormalizedSharedSettingsFile(settingsPath: string): SharedSettings {
+  return normalizeSharedSettings(JSON.parse(readFileSync(settingsPath, "utf8")));
+}
+
+/** Projection reader for hot event paths. File metadata is checked each time
+ * because supervisor writers can replace settings outside this process.
+ * Failed reads are never cached; returned snapshots never share mutable state.
+ */
+export function createSharedSettingsFileReader(settingsPath: string): () => SharedSettings {
+  let cached: { fingerprint: string; settings: SharedSettings } | undefined;
+  const fingerprint = (): string => {
+    const info = statSync(settingsPath, { bigint: true });
+    return `${info.dev}:${info.ino}:${info.size}:${info.mtimeNs}:${info.ctimeNs}`;
+  };
+  return () => {
+    try {
+      const before = fingerprint();
+      if (cached?.fingerprint === before) return structuredClone(cached.settings);
+      const settings = readNormalizedSharedSettingsFile(settingsPath);
+      cached = fingerprint() === before ? { fingerprint: before, settings } : undefined;
+      return structuredClone(settings);
+    } catch {
+      cached = undefined;
+      return structuredClone(readSharedSettingsFile(settingsPath));
+    }
+  };
+}
+
 export function readSharedSettingsFile(settingsPath: string): SharedSettings {
   if (!existsSync(settingsPath)) {
     return { ...defaultSharedSettings };
   }
 
   try {
-    return normalizeSharedSettings(JSON.parse(readFileSync(settingsPath, "utf8")));
+    return readNormalizedSharedSettingsFile(settingsPath);
   } catch (error) {
     console.warn("[settings] failed to read shared settings, using defaults:", error);
     return { ...defaultSharedSettings };

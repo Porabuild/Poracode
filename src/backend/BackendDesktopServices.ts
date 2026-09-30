@@ -1,4 +1,5 @@
-import { dbGetThreads, dbMarkLiveThreadsInactive, onProjectThreadDataChanged } from "@/host/db";
+import { dbGetThreads, onProjectThreadDataChanged } from "@/host/db";
+import { inactivateLiveThreads } from "./inactivateLiveThreads";
 import { resolvePoracodePaths } from "@/shared/poracodePaths";
 import { runOwnedExperimentWorktreePreparation } from "@/host/remote/experimentOwnership";
 import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
@@ -29,7 +30,6 @@ import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
 import { readOrCreateRemoteAccessIdentity } from "@/host/remote/identity";
 import { requestLegacyDataMigration } from "@/host/legacyDataMigration";
 import {
-  isThreadTurnActive,
   type CreateExperimentWorktreesPayload,
   type RemoteThreadCommand,
 } from "@/shared/contracts";
@@ -431,23 +431,8 @@ export class BackendDesktopServices {
   }
 
   markLiveThreadsInactive(): SupervisorEvent[] {
-    const threads = dbGetThreads();
-    const interrupted = threads.filter((thread) => isThreadTurnActive(thread.status));
-    dbMarkLiveThreadsInactive();
-    return [
-      ...threads.map<SupervisorEvent>((thread) => ({
-        type: "thread-follow-up-queue",
-        threadId: thread.id,
-        queue: null,
-      })),
-      ...interrupted.map<SupervisorEvent>((thread) => ({
-        type: "thread-state",
-        threadId: thread.id,
-        status: "inactive",
-        attention: "none",
-        canResumeWithConfig: thread.canResumeWithConfig,
-      })),
-    ];
+    const { queueEvents, inactiveEvents } = inactivateLiveThreads();
+    return [...queueEvents, ...inactiveEvents];
   }
 
   databaseChanged(call: BackendDatabaseCall): void {

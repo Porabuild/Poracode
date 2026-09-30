@@ -828,6 +828,21 @@ export const DATABASE_MIGRATIONS = [
       repairDuplicateProjects(sqlite);
     },
   },
+  {
+    version: 51,
+    name: "fence unconfirmed relative checkpoint rollback",
+    rollback: "forward-only",
+    migrate: (sqlite) => {
+      sqlite.exec(`
+        UPDATE checkpoint_revert_operations
+        SET provider_phase = 'ambiguous'
+        WHERE outcome IN ('running', 'failed')
+          AND provider_phase = 'pending'
+          AND provider_anchor_json IS NULL
+          AND num_turns > 0;
+      `);
+    },
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;

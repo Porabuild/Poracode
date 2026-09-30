@@ -115,7 +115,14 @@ vi.mock("@/host/db", () => ({
   dbDeleteThread: vi.fn<AnyFn>(),
   dbGetProject: vi.fn<() => null>(() => null),
   dbGetProjectNotes: vi.fn<() => null>(() => null),
-  dbGetProjects: vi.fn<() => never[]>(() => []),
+  dbGetProjects: () => [
+    {
+      id: "fixture-project",
+      name: "Fixture",
+      createdAt: "2026-01-01",
+      location: { kind: "posix", path: "/fixture" },
+    },
+  ],
   dbGetThread: vi.fn<() => null>(() => null),
   dbGetThreadCompletedTurns: vi.fn<() => never[]>(() => []),
   dbGetThreadContextUsage: vi.fn<() => null>(() => null),
