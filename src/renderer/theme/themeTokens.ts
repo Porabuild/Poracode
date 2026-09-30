@@ -35,6 +35,14 @@ export interface ThemeSpec {
   sidebar?: string;
   /** Optional explicit content-area background. Defaults to `bg`. */
   content?: string;
+  /** Optional explicit composer (prompt input) fill. Defaults to `surface` stepped toward `fg`. */
+  composer?: string;
+  /**
+   * Paint the docked sidebar with `sidebar` instead of letting the content
+   * background show through it. Off by default, where `sidebar` only tints the
+   * side chrome (window header, floating pills, gallery preview).
+   */
+  sidebarFill?: boolean;
 }
 
 /**
@@ -83,6 +91,7 @@ export const MANAGED_THEME_VARS = [
   "--border",
   "--separator",
   "--sidebar-background",
+  "--sidebar-panel-background",
   "--content-background",
   "--composer-surface",
 ] as const;
@@ -147,7 +156,8 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--border": border,
     "--separator": fade(border, 75),
     "--sidebar-background": sidebar,
+    "--sidebar-panel-background": spec.sidebarFill ? sidebar : content,
     "--content-background": content,
-    "--composer-surface": mix(surface, 90, fg),
+    "--composer-surface": spec.composer ?? mix(surface, 90, fg),
   };
 }
