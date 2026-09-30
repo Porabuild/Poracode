@@ -2944,6 +2944,23 @@ msgstr "Code copied. "
 msgid "Codex"
 msgstr "Codex"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex {0} profile saved."
+msgstr "Codex {0} profile saved."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile home directory"
+msgstr "Codex profile home directory"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile name"
+msgstr "Codex profile name"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
@@ -6166,6 +6183,10 @@ msgstr "History"
 msgid "Home"
 msgstr "Home"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Home directory"
+msgstr "Home directory"
+
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
@@ -7840,6 +7861,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
@@ -7942,6 +7964,10 @@ msgstr "New Claude profile config directory"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New code"
 msgstr "New code"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "New Codex profile home directory"
+msgstr "New Codex profile home directory"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"
@@ -9836,6 +9862,10 @@ msgstr "Profile {displayName} added."
 #~ msgid "Profile API key"
 #~ msgstr "Profile API key"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Profile home"
+msgstr "Profile home"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
 msgstr "Profile removed, but statuses could not be refreshed."
@@ -10670,6 +10700,10 @@ msgstr "Remove worktree?"
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
+msgstr "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
@@ -11128,6 +11162,10 @@ msgstr "Run {loginCommandDisplay} to sign in."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "Run a new thread on {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -11262,6 +11300,7 @@ msgstr "Saturation and brightness"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11280,6 +11319,10 @@ msgstr "Save changes"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Save Claude profile"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Save Codex profile"
+msgstr "Save Codex profile"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Save Cursor GUI runtime"
@@ -13950,6 +13993,10 @@ msgstr "Unable to refresh {agentLabel} status."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
 msgstr "Unable to refresh Claude profiles."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Unable to refresh Codex profiles."
+msgstr "Unable to refresh Codex profiles."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

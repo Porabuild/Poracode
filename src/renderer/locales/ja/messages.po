@@ -2939,6 +2939,23 @@ msgstr "コードがコピーされました。"
 msgid "Codex"
 msgstr "Codex"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex {0} profile saved."
+msgstr "Codex {0} プロファイルが保存されました。"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile home directory"
+msgstr "Codex プロファイルのホームディレクトリ"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile name"
+msgstr "Codex プロファイル名"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Codex はこのプロファイルを、CODEX_HOME を下記のディレクトリに設定して実行します。上の「ログイン」で、このプロファイルを専用のアカウントにサインインさせてください。"
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
@@ -6161,6 +6178,10 @@ msgstr "履歴"
 msgid "Home"
 msgstr "ホーム"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Home directory"
+msgstr "ホームディレクトリ"
+
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
@@ -7834,6 +7855,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
@@ -7936,6 +7958,10 @@ msgstr "新しい Claude プロファイル設定ディレクトリ"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New code"
 msgstr "新しいコード"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "New Codex profile home directory"
+msgstr "新しい Codex プロファイルのホームディレクトリ"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"
@@ -9830,6 +9856,10 @@ msgstr "プロファイル {displayName} を追加しました。"
 #~ msgid "Profile API key"
 #~ msgstr "プロファイルのAPIキー"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Profile home"
+msgstr "プロファイルのホーム"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
 msgstr "プロファイルを削除しましたが、ステータスを更新できませんでした。"
@@ -10664,6 +10694,10 @@ msgstr "ワークツリーを削除しますか?"
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "{profileName} を削除すると、保存されたAPIキーも削除されます。このプロファイルを使用しているスレッドはエージェントを見つけられなくなります。"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
+msgstr "{profileName} を削除すると Poracode から取り除かれます。ホームディレクトリとその中の Codex 認証情報はディスクに残ります。"
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "{profileName} を削除すると、Poracodeの設定（環境変数、モデル、Effort）が失われます。設定ディレクトリとその中のClaude認証情報はディスクに残ります。"
@@ -11122,6 +11156,10 @@ msgstr "{loginCommandDisplay}を実行してサインインします。"
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "{0} で新しいスレッドを実行します。"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "独自の CODEX_HOME から 2 つ目の Codex アカウントを実行します。各プロファイルは個別にサインインし、独自のセッションを保持します。"
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -11256,6 +11294,7 @@ msgstr "彩度と明度"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11274,6 +11313,10 @@ msgstr "変更を保存"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Claude プロフィールを保存"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Save Codex profile"
+msgstr "Codex プロファイルを保存"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Save Cursor GUI runtime"
@@ -13944,6 +13987,10 @@ msgstr "{agentLabel}ステータスを更新できません。"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
 msgstr "Claude プロファイルを更新できません。"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Unable to refresh Codex profiles."
+msgstr "Codex プロファイルを更新できません。"
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx

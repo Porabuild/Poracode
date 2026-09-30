@@ -143,6 +143,32 @@ describe("profile agent registry", () => {
       adapters.find((adapter) => adapter.kind === "cursor:work")?.baseSpawnEnv,
     ).toBeUndefined();
   });
+
+  it("registers Codex profiles with their own adapter kinds", () => {
+    const adapters = buildAgentRegistry([
+      {
+        id: "work",
+        driver: "codex",
+        displayName: "Work",
+        config: { homeDir: "~/.codex-work" },
+      },
+    ]);
+
+    expect(adapters.find((adapter) => adapter.kind === "codex:work")).toMatchObject({
+      label: "Codex Work",
+      binary: "codex",
+    });
+    // The base Codex adapter stays registered alongside the profile.
+    expect(adapters.find((adapter) => adapter.kind === "codex")).toBeDefined();
+  });
+
+  it("skips a Codex profile whose config is invalid instead of failing the registry", () => {
+    const adapters = buildAgentRegistry([
+      { id: "broken", driver: "codex", displayName: "Broken", config: {} },
+    ]);
+    expect(adapters.find((adapter) => adapter.kind === "codex:broken")).toBeUndefined();
+    expect(adapters.find((adapter) => adapter.kind === "codex")).toBeDefined();
+  });
 });
 
 describe("first-class ACP registry aliases", () => {

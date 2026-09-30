@@ -2940,6 +2940,23 @@ msgstr "Код скопійовано. "
 msgid "Codex"
 msgstr "Codex"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex {0} profile saved."
+msgstr "Профіль Codex {0} збережено."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile home directory"
+msgstr "Домашній каталог профілю Codex"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex profile name"
+msgstr "Назва профілю Codex"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Codex runs this profile with CODEX_HOME set to the directory below. Use Login above to sign this profile in to its own account."
+msgstr "Codex запускає цей профіль із CODEX_HOME, що вказує на каталог нижче. Натисніть «Увійти» вище, щоб увійти в окремий обліковий запис цього профілю."
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
@@ -6162,6 +6179,10 @@ msgstr "Історія"
 msgid "Home"
 msgstr "Головна"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Home directory"
+msgstr "Домашній каталог"
+
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Home folder"
@@ -7836,6 +7857,7 @@ msgstr "my-mcp-server"
 #: src/renderer/components/workspace/WorkspaceNameDialog.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Name"
@@ -7938,6 +7960,10 @@ msgstr "Новий каталог конфігурації профілю Claude
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "New code"
 msgstr "Новий код"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "New Codex profile home directory"
+msgstr "Домашній каталог нового профілю Codex"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileSettings.tsx
 msgid "New Cursor profile API key"
@@ -9832,6 +9858,10 @@ msgstr "Профіль {displayName} додано."
 #~ msgid "Profile API key"
 #~ msgstr "Ключ API профілю"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Profile home"
+msgstr "Каталог профілю"
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile removed, but statuses could not be refreshed."
 msgstr "Профіль видалено, але оновити статуси не вдалося."
@@ -10666,6 +10696,10 @@ msgstr "Видалити worktree?"
 msgid "Removing {profileName} deletes its saved API key. Threads that use this profile will no longer find their agent."
 msgstr "Під час видалення {profileName} збережений API-ключ буде стерто. Треди, що використовують цей профіль, більше не знайдуть свого агента."
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Removing {profileName} drops it from Poracode. Its home directory and the Codex credentials inside it stay on disk."
+msgstr "Видалення {profileName} прибере профіль із Poracode. Його домашній каталог і облікові дані Codex у ньому залишаться на диску."
+
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Видалення {profileName} скидає його налаштування Poracode — змінні середовища, моделі та effort. Каталог конфігурації та дані Claude у ньому залишаться на диску."
@@ -11124,6 +11158,10 @@ msgstr "Запустіть {loginCommandDisplay}, щоб увійти."
 #~ msgid "Run a new thread on {0}."
 #~ msgstr "Запустити новий потік на {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Run a second Codex account from its own CODEX_HOME. Each profile signs in separately and keeps its own sessions."
+msgstr "Запускайте другий обліковий запис Codex із власного CODEX_HOME. Кожен профіль входить окремо та зберігає власні сесії."
+
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunDetail.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsRunList.tsx
 msgid "Run actions"
@@ -11258,6 +11296,7 @@ msgstr "Насиченість та яркість"
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ProviderMcpServersSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
@@ -11276,6 +11315,10 @@ msgstr "Зберегти зміни"
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Save Claude profile"
 msgstr "Зберегти профіль Claude"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Save Codex profile"
+msgstr "Зберегти профіль Codex"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Save Cursor GUI runtime"
@@ -13946,6 +13989,10 @@ msgstr "Не вдалося оновити статус {agentLabel}."
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
 msgid "Unable to refresh Claude profiles."
 msgstr "Не вдалося оновити профілі Claude."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Unable to refresh Codex profiles."
+msgstr "Не вдалося оновити профілі Codex."
 
 #. placeholder {0}: agent.label
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
