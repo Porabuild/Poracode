@@ -383,6 +383,8 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#e4e4e7",
       sidebar: "#fafafa",
+      sidebarFill: true,
+      composer: "#ffffff",
     },
     dark: {
       bg: "#0a0a0a",
@@ -392,6 +394,8 @@ export const THEME_SPECS: AppThemeSpec[] = [
       accentFg: "#ffffff",
       border: "#191919",
       sidebar: "#000000",
+      sidebarFill: true,
+      composer: "#111111",
     },
   },
 ];
