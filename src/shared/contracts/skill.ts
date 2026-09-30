@@ -40,6 +40,10 @@ export const skillInvalidReasonSchema = z.enum([
 ]);
 export type SkillInvalidReason = z.infer<typeof skillInvalidReasonSchema>;
 
+/** How an agent's composer invokes a named skill. */
+export const skillInvocationSchema = z.enum(["slash", "dollar", "prompt", "skill"]);
+export type SkillInvocation = z.infer<typeof skillInvocationSchema>;
+
 export const skillEntrySchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
@@ -67,6 +71,8 @@ export const skillEntrySchema = z.object({
   importState: skillImportStateSchema.optional(),
   sourcePath: z.string().min(1).optional(),
   invalidReason: skillInvalidReasonSchema.optional(),
+  /** Per-skill override of the scan-wide `invocation`, from the skill's frontmatter. */
+  invocation: skillInvocationSchema.optional(),
 });
 export type SkillEntry = z.infer<typeof skillEntrySchema>;
 
@@ -80,7 +86,7 @@ export type SkillScanIssue = z.infer<typeof skillScanIssueSchema>;
 export const skillScanResultSchema = z.object({
   skills: z.array(skillEntrySchema),
   effectiveSkillIds: z.array(z.string()),
-  invocation: z.enum(["slash", "dollar", "prompt", "skill"]).nullable(),
+  invocation: skillInvocationSchema.nullable(),
   issues: z.array(skillScanIssueSchema),
   canLinkToGlobal: z.boolean(),
 });
