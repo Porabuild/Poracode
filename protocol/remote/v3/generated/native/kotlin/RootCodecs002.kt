@@ -98,8 +98,8 @@ val RemoteRootCodecs.procedureU2ERollbackThreadConversationU2ERequest: RemoteRoo
 val RemoteRootCodecs.procedureU2EScanSkillsU2ERequest: RemoteRootCodec<ProcedurescanSkillsRequest_eb5b966723>
     get() = RemoteRootCodec("procedure.scanSkills.request", serializer<ProcedurescanSkillsRequest_eb5b966723>(), schema_eb5b966723ac7023)
 
-val RemoteRootCodecs.procedureU2EScanSkillsU2EResult: RemoteRootCodec<ProcedurescanSkillsResult_a6d4c4f03b>
-    get() = RemoteRootCodec("procedure.scanSkills.result", serializer<ProcedurescanSkillsResult_a6d4c4f03b>(), schema_a6d4c4f03b250194)
+val RemoteRootCodecs.procedureU2EScanSkillsU2EResult: RemoteRootCodec<ProcedurescanSkillsResult_f958c6e1fa>
+    get() = RemoteRootCodec("procedure.scanSkills.result", serializer<ProcedurescanSkillsResult_f958c6e1fa>(), schema_f958c6e1fa6d616c)
 
 val RemoteRootCodecs.procedureU2ESearchProjectFilesU2ERequest: RemoteRootCodec<ProceduresearchProjectFilesRequest_c4ad1400e2>
     get() = RemoteRootCodec("procedure.searchProjectFiles.request", serializer<ProceduresearchProjectFilesRequest_c4ad1400e2>(), schema_c4ad1400e2e98f57)

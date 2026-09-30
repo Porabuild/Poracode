@@ -269,7 +269,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EScanSkillsU2EResult: RemoteRootCodec<ProcedurescanSkillsResult_a6d4c4f03b> = .init(id: "procedure.scanSkills.result", schema: RemoteSchemas.schema_a6d4c4f03b250194)
+  static let procedureU2EScanSkillsU2EResult: RemoteRootCodec<ProcedurescanSkillsResult_f958c6e1fa> = .init(id: "procedure.scanSkills.result", schema: RemoteSchemas.schema_f958c6e1fa6d616c)
 }
 
 public extension RemoteRootCodecs {

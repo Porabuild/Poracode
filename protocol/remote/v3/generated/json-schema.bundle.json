@@ -16674,6 +16674,17 @@
       "x-poracode-unknownFields": "strip"
     },
     "procedure.scanSkills.result": {
+      "$defs": {
+        "__schema0": {
+          "enum": [
+            "slash",
+            "dollar",
+            "prompt",
+            "skill"
+          ],
+          "type": "string"
+        }
+      },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
       "properties": {
@@ -16689,13 +16700,7 @@
         "invocation": {
           "anyOf": [
             {
-              "enum": [
-                "slash",
-                "dollar",
-                "prompt",
-                "skill"
-              ],
-              "type": "string"
+              "$ref": "#/$defs/__schema0"
             },
             {
               "type": "null"
@@ -16779,6 +16784,9 @@
                   "description-too-long"
                 ],
                 "type": "string"
+              },
+              "invocation": {
+                "$ref": "#/$defs/__schema0"
               },
               "linked": {
                 "type": "boolean"
@@ -42150,5 +42158,5 @@
   },
   "manifestHash": "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
   "protocolVersion": 12,
-  "sourceHash": "sha256:28f3a9800ba703919fafa911449d0d94ad78ec83afa2126a229793113dfa1e3f"
+  "sourceHash": "sha256:cf211eec6e40725ba33d5d1bf30e50f201a4d9bf200071f9e2c195279934a2fb"
 }

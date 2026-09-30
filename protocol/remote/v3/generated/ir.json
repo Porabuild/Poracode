@@ -17389,6 +17389,17 @@
       "result": {
         "kind": "json",
         "schema": {
+          "$defs": {
+            "__schema0": {
+              "enum": [
+                "slash",
+                "dollar",
+                "prompt",
+                "skill"
+              ],
+              "type": "string"
+            }
+          },
           "$schema": "https://json-schema.org/draft/2020-12/schema",
           "additionalProperties": true,
           "properties": {
@@ -17404,13 +17415,7 @@
             "invocation": {
               "anyOf": [
                 {
-                  "enum": [
-                    "slash",
-                    "dollar",
-                    "prompt",
-                    "skill"
-                  ],
-                  "type": "string"
+                  "$ref": "#/$defs/__schema0"
                 },
                 {
                   "type": "null"
@@ -17494,6 +17499,9 @@
                       "description-too-long"
                     ],
                     "type": "string"
+                  },
+                  "invocation": {
+                    "$ref": "#/$defs/__schema0"
                   },
                   "linked": {
                     "type": "boolean"
@@ -45081,7 +45089,7 @@
     "void-envelope.omit-result",
     "void-result.omit-field"
   ],
-  "sourceHash": "sha256:28f3a9800ba703919fafa911449d0d94ad78ec83afa2126a229793113dfa1e3f",
+  "sourceHash": "sha256:cf211eec6e40725ba33d5d1bf30e50f201a4d9bf200071f9e2c195279934a2fb",
   "unknownObjectFields": "ignore",
   "webSocket": {
     "clientMessages": [

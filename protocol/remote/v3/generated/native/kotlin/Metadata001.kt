@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 12
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:28f3a9800ba703919fafa911449d0d94ad78ec83afa2126a229793113dfa1e3f"
+    const val sourceHash = "sha256:cf211eec6e40725ba33d5d1bf30e50f201a4d9bf200071f9e2c195279934a2fb"
     const val manifestHash = "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -221,7 +221,7 @@ object RemoteContractMetadata {
         RemoteProcedureDescriptor("restoreToRevertAnchor", "session:operate", "thread", "omitted", "ProcedurerestoreToRevertAnchorRequest_a6f03a5c40", "RemoteUnit"),
         RemoteProcedureDescriptor("resumeThreadFollowUps", "session:operate", "thread", "omitted", "ProcedurecancelExtractContextRequest_09b78d9c1d", "RemoteUnit"),
         RemoteProcedureDescriptor("rollbackThreadConversation", "session:operate", "thread", "omitted", "ProcedurerollbackThreadConversationRequest_b50a220194", "RemoteUnit"),
-        RemoteProcedureDescriptor("scanSkills", "session:read", "optionalProjectLocation", "json", "ProcedurescanSkillsRequest_eb5b966723", "ProcedurescanSkillsResult_a6d4c4f03b"),
+        RemoteProcedureDescriptor("scanSkills", "session:read", "optionalProjectLocation", "json", "ProcedurescanSkillsRequest_eb5b966723", "ProcedurescanSkillsResult_f958c6e1fa"),
         RemoteProcedureDescriptor("searchProjectFiles", "session:read", "projectLocation", "json", "ProceduresearchProjectFilesRequest_c4ad1400e2", "ProceduresearchProjectFilesResult_2465ffaaf2"),
         RemoteProcedureDescriptor("searchProjectTree", "session:read", "projectLocation", "json", "ProceduresearchProjectFilesRequest_c4ad1400e2", "ProceduresearchProjectTreeResult_ed3d977334"),
         RemoteProcedureDescriptor("setSkillEnabled", "session:operate", "optionalProjectLocation", "omitted", "ProceduresetSkillEnabledRequest_38462ff398", "RemoteUnit"),

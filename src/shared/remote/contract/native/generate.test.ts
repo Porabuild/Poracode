@@ -58,7 +58,7 @@ describe("remote v3 native binding generator", () => {
         generatorVersion: 3,
         // Additive project-registration fields and portable sendable-input
         // shapes change the generated source fingerprint without a wire bump.
-        sourceHash: "sha256:28f3a9800ba703919fafa911449d0d94ad78ec83afa2126a229793113dfa1e3f",
+        sourceHash: "sha256:cf211eec6e40725ba33d5d1bf30e50f201a4d9bf200071f9e2c195279934a2fb",
         manifestHash: "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
         counts: {
           routes: 88,
