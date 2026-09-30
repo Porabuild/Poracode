@@ -122,16 +122,19 @@ export function useVisibleThreadTodoDockState(threadId: string): ThreadTodoDockS
 }
 
 /**
- * Whether the Docks tab has content to show for the focused thread. Panel
- * visibility and the auxiliary panel — the two hosts of the docks layer — must
- * agree on this, so the informational-dock dismissal plumbing lives here.
+ * Whether the focused thread can show Thread Info, including an empty page
+ * reached with Back. Panel visibility and the auxiliary panel must agree on
+ * this so completing the last task cannot discard the return destination.
  * Image availability is handled separately because the panel's explicit open
  * state, rather than the existence of gallery content, owns dismissal.
  */
-export function useDocksPanelHasContent(): boolean {
+export function useThreadDocksPanelAvailable(): boolean {
   const currentThreadId = useFocusedThreadId();
   const docksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
   const threadDocksPanelOpen = usePanelStore((s) => s.threadDocksPanelOpen);
+  const isReturnTarget = usePanelStore(
+    (s) => currentThreadId !== null && s.threadDocksReturnThreadId === currentThreadId,
+  );
   const retiredTodoSourceItemId = useThreadTodoDockStore((state) =>
     currentThreadId ? state.byThreadId[currentThreadId]?.retiredSourceItemId : undefined,
   );
@@ -145,15 +148,17 @@ export function useDocksPanelHasContent(): boolean {
     currentThreadId ? state.dismissedTasksKeyByThread[currentThreadId] : undefined,
   );
   return useAppStore((state) =>
-    currentThreadId !== null && docksPlacement === "right" && threadDocksPanelOpen
-      ? selectThreadHasDockContent(
-          state,
-          currentThreadId,
-          retiredTodoSourceItemId,
-          dismissedAgentIds,
-          dismissedGoal,
-          dismissedBackgroundTasksKey,
-        )
+    currentThreadId !== null && threadDocksPanelOpen
+      ? isReturnTarget ||
+        (docksPlacement === "right" &&
+          selectThreadHasDockContent(
+            state,
+            currentThreadId,
+            retiredTodoSourceItemId,
+            dismissedAgentIds,
+            dismissedGoal,
+            dismissedBackgroundTasksKey,
+          ))
       : false,
   );
 }

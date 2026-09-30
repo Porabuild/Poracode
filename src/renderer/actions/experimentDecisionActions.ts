@@ -4,6 +4,7 @@ import {
   type CaptureExperimentSnapshotResult,
   type Experiment,
   type ExperimentCandidate,
+  type ExperimentCrown,
   type ExperimentJudgeMode,
   type Project,
   type ProjectLocation,
@@ -32,13 +33,17 @@ import {
   withExperimentOperation,
 } from "./experimentOperationState";
 import {
+  commitManagedExperimentChange,
+  commitManagedExperimentRemoval,
+  requireManagedExperimentAuthority,
+} from "@/renderer/state/managedRootCatalog/rootExperimentAuthority";
+import {
   detachThreadFromWorktree,
-  persistExperimentOwnershipState,
   resolveCandidateWorktreePath,
 } from "./experimentWorktreeActions";
 import { runGitMergeToSource, showGitOperationFailure } from "./gitCommandRunner";
 import { applyDefaultPrAutomation } from "./prAutomationActions";
-import { buildExperimentResponseTranscript } from "./experimentResponseTranscript";
+import { readExperimentResponseTranscript } from "./experimentResponseReads";
 
 export interface ExperimentJudgeSelection {
   agentKind: string;
@@ -132,6 +137,14 @@ export async function crownExperiment(
   onProgress?: (event: ExperimentJudgeProgressEvent) => void,
 ): Promise<boolean> {
   return withExperimentOperation(experimentId, async () => {
+    // The crown is durable host state: refuse before starting the judge
+    // provider work when the experiment authority is unavailable.
+    try {
+      await requireManagedExperimentAuthority();
+    } catch (error) {
+      toast.danger(friendlyError(error));
+      return false;
+    }
     const experiment = useExperimentStore.getState().experiments[experimentId];
     if (!experiment) return false;
     const project = useAppStore
@@ -179,13 +192,17 @@ export async function crownExperiment(
       );
     });
     try {
+      // R1: candidate responses page the bounded runtime-items routes to
+      // exhaustion. A page budget overrun throws typed, so a truncated
+      // transcript can never enter the judge as if it were complete.
       const responses =
         judgeMode === "responses"
           ? await Promise.all(
               experiment.candidates.map(async (candidate) => ({
                 threadId: candidate.threadId,
-                response: buildExperimentResponseTranscript(
-                  await readBridge().dbGetThreadRuntimeItems(candidate.threadId),
+                response: await readExperimentResponseTranscript(
+                  (input) => readBridge().dbGetThreadRuntimeItemsPage(input),
+                  candidate.threadId,
                 ),
               })),
             )
@@ -204,7 +221,7 @@ export async function crownExperiment(
         candidates: experimentSnapshotCandidates(experiment),
       });
       const judgeLabel = judgeModel ? `${judgeAgent.label} · ${judgeModel}` : judgeAgent.label;
-      useExperimentStore.getState().setExperimentCrown(experimentId, {
+      const crown: ExperimentCrown = {
         threadId: result.winnerThreadId,
         rationale: result.rationale,
         assessments: result.assessments,
@@ -213,7 +230,11 @@ export async function crownExperiment(
         modelLabel: judgeLabel,
         ...(judgeMode === "changes" ? { snapshotHash: result.hash } : {}),
         createdAt: new Date().toISOString(),
-      });
+      };
+      const confirmed = await commitManagedExperimentChange(experimentId, (record) => ({
+        record: { ...record, crown, updatedAt: crown.createdAt },
+      }));
+      if (!confirmed) return false;
       captureProductEvent("experiment.winner_selected", {
         ...agentConfigProductProperties({
           agentKind: judgeAgent.kind,
@@ -260,21 +281,42 @@ export function cancelExperimentJudge(experimentId: string): void {
 export function setManualExperimentCrown(experimentId: string, threadId: string): void {
   const experiment = useExperimentStore.getState().experiments[experimentId];
   if (!experiment?.candidates.some((candidate) => candidate.threadId === threadId)) return;
-  useExperimentStore.getState().setExperimentCrown(experimentId, {
+  const crown: ExperimentCrown = {
     threadId,
     source: "user",
     createdAt: new Date().toISOString(),
-  });
-  captureProductEvent("experiment.winner_selected", {
-    candidate_count: experiment.candidates.length,
-    source: "user",
-  });
+  };
+  // Optimistic paint; the confirmed host record is projected by the authority.
+  useExperimentStore
+    .getState()
+    .upsertExperiment({ ...experiment, crown, updatedAt: crown.createdAt });
+  void commitManagedExperimentChange(experimentId, (record) => ({
+    record: { ...record, crown, updatedAt: crown.createdAt },
+  }))
+    .then((confirmed) => {
+      if (!confirmed) return;
+      captureProductEvent("experiment.winner_selected", {
+        candidate_count: experiment.candidates.length,
+        source: "user",
+      });
+    })
+    .catch((error) => {
+      toast.danger(friendlyError(error));
+    });
 }
 
 export async function mergeExperimentWinner(experimentId: string): Promise<boolean> {
   return withExperimentOperation(experimentId, async () => {
     const experiment = useExperimentStore.getState().experiments[experimentId];
     if (!experiment?.crown) return false;
+    // The decided record is durable host state: refuse before the git merge
+    // and worktree cleanup effects when the authority is unavailable.
+    try {
+      await requireManagedExperimentAuthority();
+    } catch (error) {
+      toast.danger(friendlyError(error));
+      return false;
+    }
     const project = useAppStore
       .getState()
       .projects.find((item) => item.id === experiment.projectId);
@@ -352,11 +394,32 @@ export async function mergeExperimentWinner(experimentId: string): Promise<boole
       }
 
       const cleanupResults = await cleanupExperimentCandidates(project, experiment.candidates);
+      const cleanedThreadIds = new Set(
+        experiment.candidates
+          .filter((_candidate, index) => cleanupResults[index])
+          .map((candidate) => candidate.threadId),
+      );
       cleanupResults.forEach((removed, index) => {
         if (removed) detachThreadFromWorktree(experiment.candidates[index]!.threadId);
       });
       const cleanupComplete = cleanupResults.every(Boolean);
-      useExperimentStore.getState().decideExperiment(experimentId, winner.threadId);
+      const decidedAt = new Date().toISOString();
+      const confirmed = await commitManagedExperimentChange(experimentId, (record) => ({
+        record: {
+          ...record,
+          winnerThreadId: winner.threadId,
+          status: "decided",
+          updatedAt: decidedAt,
+        },
+        // Visible-state parity for the candidates whose cleanup is confirmed:
+        // a candidate whose worktree removal failed keeps its host row as-is.
+        rows: record.candidates.flatMap((candidate) =>
+          cleanedThreadIds.has(candidate.threadId)
+            ? [{ threadId: candidate.threadId, worktree: null, retire: "done" as const }]
+            : [],
+        ),
+      }));
+      if (!confirmed) return false;
       captureProductEvent("experiment.completed", {
         action: "merged",
         candidate_count: experiment.candidates.length,
@@ -388,6 +451,12 @@ export async function createExperimentCandidatePr(
       .projects.find((item) => item.id === experiment.projectId);
     const candidate = experiment.candidates.find((item) => item.threadId === threadId);
     if (!project || !candidate) return false;
+    try {
+      await requireManagedExperimentAuthority();
+    } catch (error) {
+      toast.danger(friendlyError(error));
+      return false;
+    }
     if (hasActiveExperimentCandidate(experimentId)) {
       toast.warning(i18n._(msg`Wait for every candidate to finish before opening a pull request.`));
       return false;
@@ -448,6 +517,9 @@ export async function createExperimentCandidatePr(
         headBranch: candidate.worktreeBranch,
         ...(candidate.worktreePath ? { worktreePath: candidate.worktreePath } : {}),
       });
+      // The host confirms the release (record removal + group-field clear on
+      // every candidate row) before the local projection drops the experiment.
+      await commitManagedExperimentRemoval(experimentId, "release");
       const candidateIds = new Set(experiment.candidates.map((item) => item.threadId));
       const appStore = useAppStore.getState();
       if (appStore.view.kind === "experiment" && appStore.view.experimentId === experimentId) {
@@ -460,8 +532,6 @@ export async function createExperimentCandidatePr(
             : thread,
         ),
       }));
-      useExperimentStore.getState().removeExperiment(experimentId);
-      await persistExperimentOwnershipState([...candidateIds]).catch(() => undefined);
       captureProductEvent("experiment.completed", {
         action: "pull_request",
         candidate_count: experiment.candidates.length,
@@ -478,6 +548,15 @@ export async function createExperimentCandidatePr(
 
 export async function retryExperimentCleanup(experimentId: string): Promise<boolean> {
   return withExperimentOperation(experimentId, async () => {
+    // The cleanup result is durable host state: refuse before stopping any
+    // candidate runtime or removing any worktree when the experiment authority
+    // is unavailable (the same pre-effect gate as every other action).
+    try {
+      await requireManagedExperimentAuthority();
+    } catch (error) {
+      toast.danger(friendlyError(error));
+      return false;
+    }
     const experiment = useExperimentStore.getState().experiments[experimentId];
     if (experiment?.status !== "decided" || !experiment.winnerThreadId) return false;
     const project = useAppStore
@@ -497,7 +576,51 @@ export async function retryExperimentCleanup(experimentId: string): Promise<bool
     cleanupResults.forEach((removed, index) => {
       if (removed) detachThreadFromWorktree(pending[index]!.threadId);
     });
+    const cleanedThreadIds = new Set(
+      pending
+        .filter((_candidate, index) => cleanupResults[index])
+        .map((candidate) => candidate.threadId),
+    );
     const cleanupComplete = cleanupResults.every(Boolean);
+    // The physical removal is only half of the cleanup: the durable record must
+    // confirm it, or every authoritative projection resurrects the stale owned
+    // row. One confirmed replace records exactly the candidates whose worktrees
+    // were removed (partial results included) as removed without a path, with
+    // the narrow retire rows; the rebase planner derives everything from the
+    // authoritative record, so concurrent changes to other fields or candidates
+    // survive.
+    if (cleanedThreadIds.size > 0) {
+      try {
+        await commitManagedExperimentChange(experimentId, (record) => ({
+          record: {
+            ...record,
+            candidates: record.candidates.map((candidate) => {
+              if (
+                !cleanedThreadIds.has(candidate.threadId) ||
+                candidate.worktreeState === "removed"
+              )
+                return candidate;
+              const { worktreePath: _removedPath, ...candidateWithoutPath } = candidate;
+              return { ...candidateWithoutPath, worktreeState: "removed" as const };
+            }),
+            updatedAt: new Date().toISOString(),
+          },
+          rows: record.candidates.flatMap((candidate) =>
+            cleanedThreadIds.has(candidate.threadId)
+              ? [{ threadId: candidate.threadId, worktree: null, retire: "done" as const }]
+              : [],
+          ),
+        }));
+      } catch (error) {
+        // The worktrees are already gone, but the host may or may not have
+        // applied this replace. Stay truthful: report no success, roll nothing
+        // back, and leave the retry path available until an authoritative
+        // projection proves the removal.
+        toast.danger(friendlyError(error));
+        void refreshGitProject({ id: project.id, location: project.location }, "manual", "full");
+        return false;
+      }
+    }
     if (!cleanupComplete) {
       toast.warning(i18n._(msg`Some experiment worktrees could not be removed.`));
     }
@@ -509,22 +632,34 @@ export async function retryExperimentCleanup(experimentId: string): Promise<bool
 export async function discardExperiment(experimentId: string): Promise<boolean> {
   const experiment = useExperimentStore.getState().experiments[experimentId];
   if (!experiment) return false;
+  try {
+    await requireManagedExperimentAuthority();
+  } catch (error) {
+    toast.danger(friendlyError(error));
+    return false;
+  }
 
   const pendingOperation = getPendingExperimentOperation(experimentId);
   const appStore = useAppStore.getState();
   const project = appStore.projects.find((item) => item.id === experiment.projectId);
   const candidateIds = experiment.candidates.map((candidate) => candidate.threadId);
+
+  if (pendingOperation) await pendingOperation;
+  // Close sessions and remove the local worktrees first, then let the host
+  // confirm the retirement + record/row deletion. A host refusal leaves every
+  // local row and the durable record intact.
+  const cleanupResults = await cleanupExperimentCandidates(project, experiment.candidates);
+  const cleanupComplete = cleanupResults.every(Boolean);
+  try {
+    await commitManagedExperimentRemoval(experimentId, "delete");
+  } catch (error) {
+    toast.danger(friendlyError(error));
+    return false;
+  }
   if (appStore.view.kind === "experiment" && appStore.view.experimentId === experimentId) {
     appStore.openHome();
   }
-  useExperimentStore.getState().removeExperiment(experimentId);
   for (const threadId of candidateIds) useAppStore.getState().deleteThread(threadId);
-  const persistRemoval = persistExperimentOwnershipState(candidateIds).catch(() => undefined);
-
-  if (pendingOperation) await pendingOperation;
-  const cleanupResults = await cleanupExperimentCandidates(project, experiment.candidates);
-  const cleanupComplete = cleanupResults.every(Boolean);
-  await persistRemoval;
   if (!cleanupComplete) {
     toast.warning(i18n._(msg`Some experiment worktrees could not be removed.`));
   }

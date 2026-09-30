@@ -34,6 +34,7 @@ import {
   classifyInlineImageCandidate,
   findRenderableInlineImageCandidate,
   inlineImagePayloadRenders,
+  normalizeInlineImageDataUrl,
   type InlineImageClassification,
 } from "@/shared/inlineImagePayload";
 import { readImageDimensions } from "@/shared/imageDimensions";
@@ -64,6 +65,24 @@ export interface ImageViewSource {
    * round trip to arrive.
    */
   preview?: string;
+  /**
+   * Host-held reference this source resolves from, carried while the
+   * authenticated blob fetch is pending so a subscriber can continue the
+   * resolution without another store event (R3).
+   */
+  remoteRef?: RemoteImageRefValue;
+  /** True while {@link remoteRef} has no resolved URL yet. */
+  pending?: boolean;
+}
+
+export interface ImageViewSourceOptions {
+  /**
+   * When a per-record resolver is supplied and returns "" while the
+   * authenticated fetch is pending, return a placeholder source (with
+   * `remoteRef`/`pending`) instead of falling back to the generic tool-call
+   * accordion. Only environment-aware callers that also subscribe set this.
+   */
+  readonly pendingAsPlaceholder?: boolean;
 }
 
 /**
@@ -84,21 +103,22 @@ export function imageViewRendersInline(payload: unknown): boolean {
 export function resolveImageViewSource(
   payload: unknown,
   remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
+  options?: ImageViewSourceOptions,
 ): ImageViewSource | null {
   const ref = readStatus(payload) === "error" ? null : findDisplayableImageRef(payload);
-  if (ref) return imageViewSourceFromRef(ref, payload, remoteImageRefUrl);
+  if (ref) return imageViewSourceFromRef(ref, payload, remoteImageRefUrl, options);
   const found = findRenderableInlineImageCandidate(payload);
   if (!found) return null;
-  const { value, classification } = found;
-  const src = buildSrc(value, classification);
-  if (!src) return null;
-  const mime = classification.mime;
+  const { value } = found;
+  const built = buildSrc(value, found.classification);
+  if (!built) return null;
+  const mime = built.classification.mime;
   const extension = EXTENSION_BY_MIME[mime] ?? "png";
   const promptText = readPromptText(payload);
   const alt = promptText ?? i18n._(msg`Generated image`);
-  const dimensions = readImageDimensions(value, classification);
+  const dimensions = readImageDimensions(built.src, built.classification);
   return {
-    src,
+    src: built.src,
     mime,
     extension,
     fileName: buildFileName(promptText ?? "", extension),
@@ -120,9 +140,13 @@ function imageViewSourceFromRef(
   ref: RemoteImageRefValue,
   payload: unknown,
   remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
+  options?: ImageViewSourceOptions,
 ): ImageViewSource | null {
-  const src = remoteImageRefUrl?.(ref) || resolveRemoteImageRefUrl(ref);
-  if (!src) return null;
+  // A per-record resolver owns the ref: when it reports "not yet" (""), the
+  // global fallback resolver must NOT be consulted (it is bound to whichever
+  // connection is active and could resolve against the wrong host).
+  const src = remoteImageRefUrl ? remoteImageRefUrl(ref) : (resolveRemoteImageRefUrl(ref) ?? "");
+  if (!src && !(remoteImageRefUrl && options?.pendingAsPlaceholder === true)) return null;
   const extension = EXTENSION_BY_MIME[ref.mime] ?? "png";
   const promptText = readPromptText(payload);
   return {
@@ -135,6 +159,7 @@ function imageViewSourceFromRef(
       ? { width: ref.width, height: ref.height }
       : {}),
     ...(ref.preview ? { preview: ref.preview } : {}),
+    ...(!src ? { remoteRef: ref, pending: true } : {}),
   };
 }
 
@@ -150,11 +175,12 @@ export function imageViewSourceFromImageBlock(
     name?: unknown;
   },
   remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
+  options?: ImageViewSourceOptions,
 ): ImageViewSource | null {
   const ref = readRemoteImageRef(block.dataUrl);
   if (ref) {
-    const src = remoteImageRefUrl?.(ref) || resolveRemoteImageRefUrl(ref);
-    if (!src) return null;
+    const src = remoteImageRefUrl ? remoteImageRefUrl(ref) : (resolveRemoteImageRefUrl(ref) ?? "");
+    if (!src && !(remoteImageRefUrl && options?.pendingAsPlaceholder === true)) return null;
     const extension = EXTENSION_BY_MIME[ref.mime] ?? "png";
     const name =
       typeof block.name === "string" && block.name.trim().length > 0
@@ -170,24 +196,25 @@ export function imageViewSourceFromImageBlock(
         ? { width: ref.width, height: ref.height }
         : {}),
       ...(ref.preview ? { preview: ref.preview } : {}),
+      ...(!src ? { remoteRef: ref, pending: true } : {}),
     };
   }
   if (typeof block.dataUrl !== "string" || block.dataUrl.length === 0) return null;
-  const classification = classifyInlineImageCandidate(block.dataUrl);
-  if (!classification) return null;
-  const src = buildSrc(block.dataUrl, classification);
-  if (!src) return null;
-  const mime =
-    typeof block.mimeType === "string" && block.mimeType.startsWith("image/")
-      ? block.mimeType
-      : classification.mime;
+  const guessed = classifyInlineImageCandidate(block.dataUrl);
+  if (!guessed) return null;
+  const built = buildSrc(block.dataUrl, guessed);
+  if (!built) return null;
+  // The format comes from the bytes, with the data-URL label as the only
+  // fallback; a block's own `mimeType` is deliberately unused so the download
+  // name cannot disagree with what the pixels actually are.
+  const mime = built.classification.mime;
   const extension = EXTENSION_BY_MIME[mime] ?? "png";
   const name =
     typeof block.name === "string" && block.name.trim().length > 0 ? block.name.trim() : undefined;
   const alt = name ?? i18n._(msg`Generated image`);
-  const dimensions = readImageDimensions(block.dataUrl, classification);
+  const dimensions = readImageDimensions(built.src, built.classification);
   return {
-    src,
+    src: built.src,
     mime,
     extension,
     fileName: buildFileName(name ?? "", extension),
@@ -231,17 +258,33 @@ function readExplicitDimensions(
     : undefined;
 }
 
-function buildSrc(value: string, classification: InlineImageClassification): string | null {
-  switch (classification.kind) {
-    case "dataUrl":
-      return value;
-    case "rawSvg":
-      return `data:image/svg+xml;utf8,${encodeURIComponent(value.trim())}`;
-    case "base64": {
-      const clean = value.replace(/\s+/g, "");
-      return clean.length > 0 ? `data:${classification.mime};base64,${clean}` : null;
-    }
+/**
+ * Build the `<img>`-ready source, repairing a provider's inline payload so what
+ * reaches `src` is something Chromium can decode. Returns null for anything that
+ * cannot be repaired — a URL-safe alphabet under a `;base64` label, an empty
+ * body, or bytes that are not an image at all — so the row falls back to the
+ * inert accordion instead of painting a broken picture.
+ *
+ * The returned classification always describes the emitted `src` (a data URL)
+ * rather than the incoming value, so downstream readers such as the header
+ * dimension probe parse the right thing.
+ */
+function buildSrc(
+  value: string,
+  classification: InlineImageClassification,
+): { src: string; classification: InlineImageClassification } | null {
+  if (classification.kind === "rawSvg") {
+    return {
+      src: `data:image/svg+xml;utf8,${encodeURIComponent(value.trim())}`,
+      classification: { kind: "dataUrl", mime: "image/svg+xml" },
+    };
   }
+  const normalized = normalizeInlineImageDataUrl(value, classification.mime);
+  if (!normalized) return null;
+  return {
+    src: normalized.dataUrl,
+    classification: { kind: "dataUrl", mime: normalized.mime },
+  };
 }
 
 function readPromptText(payload: unknown): string | undefined {

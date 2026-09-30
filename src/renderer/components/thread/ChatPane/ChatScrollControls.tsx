@@ -131,6 +131,13 @@ export const ChatScrollControls = forwardRef<
     initialRevealLayoutChangeUntilRef.current = 0;
   }
 
+  function cancelScheduledPin() {
+    if (pinRafRef.current !== null) {
+      cancelAnimationFrame(pinRafRef.current);
+      pinRafRef.current = null;
+    }
+  }
+
   function markVirtualizerLayoutChange(extendInitialReveal: boolean) {
     // LegendList applies measured sizes and visible-content compensation over
     // multiple animation frames. A short deadline is more robust than counting
@@ -166,10 +173,7 @@ export const ChatScrollControls = forwardRef<
     cancelScheduledExplicitPin();
     cancelScheduledLayoutSync();
     pinHoldoffUntilRef.current = 0;
-    if (pinRafRef.current !== null) {
-      cancelAnimationFrame(pinRafRef.current);
-      pinRafRef.current = null;
-    }
+    cancelScheduledPin();
     // End the open-storm coalesce immediately so a first scroll-away is not
     // still treated as a measurement settle that wants to re-pin / coalesce.
     threadOpenCoalesceUntilRef.current = 0;
@@ -722,9 +726,7 @@ export const ChatScrollControls = forwardRef<
   }, [scrollRef, contentRef, threadId, initialScrollSettled]);
 
   const syncPinnedContentChange = useEffectEvent(() => {
-    if (pinRafRef.current !== null) {
-      cancelAnimationFrame(pinRafRef.current);
-    }
+    cancelScheduledPin();
     if (stickToBottomRef.current) {
       scrollToBottom({ reconcileVirtualizer: true });
       if (!initialScrollSettled) {
@@ -739,12 +741,6 @@ export const ChatScrollControls = forwardRef<
         scheduleInitialScrollSettle();
       }
     });
-    return () => {
-      if (pinRafRef.current !== null) {
-        cancelAnimationFrame(pinRafRef.current);
-        pinRafRef.current = null;
-      }
-    };
   });
 
   useLayoutEffect(() => {
@@ -780,6 +776,7 @@ export const ChatScrollControls = forwardRef<
   useEffect(() => cancelScheduledLayoutSync, []);
   useEffect(() => cancelScheduledInitialSettle, []);
   useEffect(() => cancelScheduledExplicitPin, []);
+  useEffect(() => cancelScheduledPin, []);
 
   function handleScrollButtonPress() {
     // The button is an explicit request to resume following the tail. Do not
@@ -790,22 +787,25 @@ export const ChatScrollControls = forwardRef<
   }
 
   const button = (
-    <Button
-      isIconOnly
-      variant="tertiary"
-      size="sm"
-      aria-label={t`Scroll to bottom`}
-      onPress={handleScrollButtonPress}
-      /* Same 28px glass pill as the composer bubbles. In the fallback it is
+    <span className="contents" aria-hidden={!showScrollDown}>
+      <Button
+        isIconOnly
+        variant="tertiary"
+        size="sm"
+        aria-label={t`Scroll to bottom`}
+        isDisabled={!showScrollDown}
+        onPress={handleScrollButtonPress}
+        /* Same 28px glass pill as the composer bubbles. In the fallback it is
          centered via a negative margin, not `-translate-x-1/2`: HeroUI's pressed
          state animates `transform`, which would fight a translate and snap the
          button sideways on click. */
-      className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} size-7 min-w-0 rounded-full text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
-        bubbleSlot ? "" : "absolute bottom-4 left-1/2 z-10 -ml-3.5"
-      } ${showScrollDown ? "opacity-100" : "pointer-events-none opacity-0"}`}
-    >
-      <ArrowDown className="size-3.5" strokeWidth={2.5} />
-    </Button>
+        className={`${floatingGlassSurfaceClass} ${floatingGlassBubbleClass} size-7 min-w-0 rounded-full text-muted transition-[opacity,color] duration-200 ease-out hover:text-foreground ${
+          bubbleSlot ? "" : "absolute bottom-4 left-1/2 z-10 -ml-3.5"
+        } ${showScrollDown ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      >
+        <ArrowDown className="size-3.5" strokeWidth={2.5} />
+      </Button>
+    </span>
   );
 
   return bubbleSlot ? createPortal(button, bubbleSlot) : button;

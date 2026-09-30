@@ -56,7 +56,7 @@ vi.mock("../base", async (importOriginal) => ({
 }));
 
 import { cursorDetectionSpec } from "./detection";
-import type { DetectionSpec } from "../base";
+import { primeWslLaunchEnvironment, type DetectionSpec } from "../base";
 
 type ProbeCtx = Parameters<NonNullable<DetectionSpec["capabilitiesProbe"]>>[0];
 
@@ -80,6 +80,7 @@ describe("cursor detection probes honor ctx.probeEnv", () => {
     mocks.readWslLoginShellCommandOutputAsync
       .mockReset()
       .mockResolvedValue({ ok: true, stdout: "", stderr: "" });
+    primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
   });
 
   it("runs the whoami/about status probes under the profile key", async () => {

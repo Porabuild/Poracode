@@ -48,7 +48,12 @@ export function createAcpStructuredSession(
   input: CreateStructuredSessionInput,
   overrides?: Pick<
     AcpStructuredSessionOptions,
-    "assumedMcpCapabilities" | "behavior" | "textStreamExtension" | "stderrTurnSignalParser"
+    | "assumedMcpCapabilities"
+    | "behavior"
+    | "textStreamExtension"
+    | "stderrTurnSignalParser"
+    | "resolveMode"
+    | "resolveModelConfig"
   >,
 ): AcpStructuredSession | undefined {
   if (!shouldSpawnAcpSession(input)) {
@@ -76,6 +81,9 @@ export function createAcpStructuredSession(
       ? { extensionSessionUpdateTransform: input.acpExtensionSessionUpdateTransform }
       : {}),
     ...(input.acpInitializeMeta ? { initializeMeta: input.acpInitializeMeta } : {}),
+    ...(input.acpClientCapabilitiesMeta
+      ? { clientCapabilitiesMeta: input.acpClientCapabilitiesMeta }
+      : {}),
     ...(input.acpExtensionNotificationHandler
       ? { extensionNotificationHandler: input.acpExtensionNotificationHandler }
       : {}),
@@ -90,6 +98,8 @@ export function createAcpStructuredSession(
     ...(overrides?.assumedMcpCapabilities
       ? { assumedMcpCapabilities: overrides.assumedMcpCapabilities }
       : {}),
+    ...(overrides?.resolveMode ? { resolveMode: overrides.resolveMode } : {}),
+    ...(overrides?.resolveModelConfig ? { resolveModelConfig: overrides.resolveModelConfig } : {}),
     ...(overrides?.behavior ? { behavior: overrides.behavior } : {}),
     ...(overrides?.textStreamExtension
       ? { textStreamExtension: overrides.textStreamExtension }

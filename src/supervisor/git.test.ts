@@ -40,6 +40,7 @@ vi.mock("node:fs/promises", async () => {
   return {
     ...actual,
     mkdir: mkdirMock,
+    realpath: async (path: unknown) => String(path),
     readFile: readFileMock,
     rm: rmMock,
     stat: statMock,
@@ -1237,7 +1238,7 @@ describe("GitService WSL bridge exec", () => {
         2,
         expect.objectContaining({ distro: "Ubuntu" }),
         expect.objectContaining({
-          args: [...GIT_QUOTEPATH_PREFIX, "fetch", "origin"],
+          args: [...GIT_QUOTEPATH_PREFIX, "fetch", "--no-auto-gc", "origin"],
           loginEnv: true,
         }),
       );
@@ -1281,7 +1282,7 @@ describe("GitService WSL bridge exec", () => {
       expect(gitExec).toHaveBeenLastCalledWith(
         expect.objectContaining({ distro: "Ubuntu" }),
         expect.objectContaining({
-          args: [...GIT_QUOTEPATH_PREFIX, "fetch", "origin", "--prune"],
+          args: [...GIT_QUOTEPATH_PREFIX, "fetch", "--no-auto-gc", "origin", "--prune"],
           loginEnv: true,
         }),
       );
@@ -1980,7 +1981,7 @@ describe("GitService.pullFromSource", () => {
       execFileMock.mock.calls.some(
         (c: unknown[]) =>
           Array.isArray(c[1]) &&
-          gitSubcommandArgs(c[1] as string[]).join(" ") === "fetch origin --prune",
+          gitSubcommandArgs(c[1] as string[]).join(" ") === "fetch --no-auto-gc origin --prune",
       ),
     ).toBe(true);
   });

@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { type DevTerminalTab, useDevTerminalStore } from "./devTerminalStore";
+import { beginShellLaunch, wasShellLaunched } from "@/renderer/utils/shellStartRegistry";
+import {
+  type DevTerminalTab,
+  resetDevTerminalStore,
+  useDevTerminalStore,
+} from "./devTerminalStore";
 
 function tab(id: string, projectId: string, worktreePath?: string): DevTerminalTab {
   return {
@@ -204,6 +209,96 @@ describe("devTerminalStore run-action tabs", () => {
     store.markShellExited(actionTab.id);
 
     expect(useDevTerminalStore.getState().runningTabs).toEqual({});
+  });
+});
+
+describe("devTerminalStore forgets deferred shell starts with tab state", () => {
+  beforeEach(() => {
+    useDevTerminalStore.setState({
+      isOpen: false,
+      explicitlyOpened: false,
+      activeProjectId: null,
+      activeWorktreePath: null,
+      tabs: [],
+      activeTabId: null,
+      focusRequestId: 0,
+      tabActivity: {},
+      streamingTabs: {},
+      runningTabs: {},
+    });
+  });
+
+  function seedMarks(...shellIds: readonly string[]) {
+    for (const shellId of shellIds) beginShellLaunch(shellId);
+  }
+
+  function expectMarks(shellIds: readonly string[], launched: boolean) {
+    for (const shellId of shellIds) expect(wasShellLaunched(shellId)).toBe(launched);
+  }
+
+  it("removeTab forgets the tab's and its split's marks", () => {
+    const store = useDevTerminalStore.getState();
+    const added = store.addTab("p1", "Dev");
+    const splitId = store.splitTab(added.id);
+    seedMarks(added.id, splitId);
+
+    store.removeTab(added.id);
+
+    expect(useDevTerminalStore.getState().tabs).toHaveLength(0);
+    expectMarks([added.id, splitId], false);
+  });
+
+  it("removeTabsForProject forgets every removed tab's and split's marks", () => {
+    const store = useDevTerminalStore.getState();
+    const first = store.addTab("p1", "Dev");
+    const second = store.addTab("p1", "Dev");
+    const splitId = store.splitTab(second.id);
+    const other = store.addTab("p2", "Other");
+    seedMarks(first.id, second.id, splitId, other.id);
+
+    store.removeTabsForProject("p1");
+
+    expectMarks([first.id, second.id, splitId], false);
+    expect(wasShellLaunched(other.id)).toBe(true);
+  });
+
+  it("removeTabsForWorktree forgets every removed tab's and split's marks", () => {
+    const store = useDevTerminalStore.getState();
+    const worktreePath = "/repo/.poracode/worktrees/feature";
+    const worktreeTab = store.addTab("p1", "feature", worktreePath);
+    const worktreeSplit = store.splitTab(worktreeTab.id);
+    const projectTab = store.addTab("p1", "Dev");
+    seedMarks(worktreeTab.id, worktreeSplit, projectTab.id);
+
+    store.removeTabsForWorktree(worktreePath);
+
+    expectMarks([worktreeTab.id, worktreeSplit], false);
+    expect(wasShellLaunched(projectTab.id)).toBe(true);
+  });
+
+  it("closeSplit forgets the split's mark", () => {
+    const store = useDevTerminalStore.getState();
+    const added = store.addTab("p1", "Dev");
+    const splitId = store.splitTab(added.id);
+    seedMarks(added.id, splitId);
+
+    store.closeSplit(added.id);
+
+    expect(wasShellLaunched(splitId)).toBe(false);
+    expect(wasShellLaunched(added.id)).toBe(true);
+  });
+
+  it("resetDevTerminalStore forgets every tab's and split's marks", () => {
+    const store = useDevTerminalStore.getState();
+    const first = store.addTab("p1", "Dev");
+    const second = store.addTab("p1", "Dev");
+    const splitId = store.splitTab(second.id);
+    seedMarks(first.id, second.id, splitId);
+
+    resetDevTerminalStore();
+
+    expect(useDevTerminalStore.getState().tabs).toHaveLength(0);
+    expectMarks([first.id, second.id, splitId], false);
   });
 });
 // @vitest-environment node

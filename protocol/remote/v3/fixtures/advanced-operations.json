@@ -1,0 +1,268 @@
+{
+  "cases": [
+    {
+      "procedure": "createFileCheckpoint",
+      "request": {
+        "threadId": "thread-advanced",
+        "checkpointItemId": "item-user-1",
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" }
+      },
+      "response": {
+        "result": {
+          "checkpoint": {
+            "threadId": "thread-advanced",
+            "checkpointItemId": "item-user-1",
+            "ref": "refs/poracode/item-user-1",
+            "commit": "1111111",
+            "capturedAt": "2026-08-12T10:01:10.000Z"
+          }
+        }
+      }
+    },
+    {
+      "procedure": "finalizeFileCheckpoint",
+      "request": {
+        "threadId": "thread-advanced",
+        "checkpointItemId": "item-assistant-1",
+        "baseCheckpointItemId": "item-user-1",
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" }
+      },
+      "response": {
+        "result": {
+          "checkpoint": {
+            "threadId": "thread-advanced",
+            "checkpointItemId": "item-assistant-1",
+            "ref": "refs/poracode/item-assistant-1",
+            "commit": "2222222",
+            "capturedAt": "2026-08-12T10:01:20.000Z",
+            "baseCheckpointItemId": "item-user-1",
+            "baseRef": "refs/poracode/item-user-1",
+            "changedFiles": [
+              { "path": "Sources/New.swift", "status": "added" },
+              {
+                "path": "Sources/Renamed.swift",
+                "oldPath": "Sources/Old.swift",
+                "status": "renamed"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "procedure": "subagentSubscribe",
+      "request": { "threadId": "thread-advanced", "parentItemId": "parent-1" },
+      "response": {
+        "result": {
+          "history": [{ "type": "session.started", "threadId": "subagent-1" }]
+        }
+      }
+    },
+    {
+      "procedure": "subagentUnsubscribe",
+      "request": { "threadId": "thread-advanced", "parentItemId": "parent-1" },
+      "response": {}
+    },
+    {
+      "procedure": "stageThreadInput",
+      "request": {
+        "threadId": "thread-advanced",
+        "prompt": "Review the selected context",
+        "segments": [
+          { "kind": "text", "content": "Context" },
+          { "kind": "file", "path": "Sources/App.swift" },
+          { "kind": "attachment", "path": "/tmp/image.png", "mimeType": "image/png" },
+          {
+            "kind": "diff_comment",
+            "path": "Sources/App.swift",
+            "lineNumber": 12,
+            "side": "new",
+            "staged": false,
+            "body": "Check this branch"
+          },
+          {
+            "kind": "skill",
+            "name": "review",
+            "path": "/skills/review",
+            "invocation": "$review",
+            "provider": "local",
+            "scope": "project"
+          },
+          { "kind": "mcp", "id": "mcp-1", "name": "docs" }
+        ]
+      },
+      "response": {}
+    },
+    {
+      "procedure": "workflowGetRun",
+      "request": {
+        "manifestPath": "/srv/advanced/workflow.json",
+        "location": { "kind": "posix", "path": "/srv/advanced" },
+        "includeAgentChats": true,
+        "transcriptDir": "/srv/advanced/transcripts"
+      },
+      "response": {
+        "result": {
+          "run": {
+            "runId": "run-1",
+            "status": "running",
+            "agentCount": 1,
+            "phases": [
+              {
+                "title": "Build",
+                "agents": [
+                  {
+                    "agentId": "agent-1",
+                    "label": "Builder",
+                    "state": "running",
+                    "chat": [{ "role": "assistant", "text": "Working" }]
+                  }
+                ]
+              }
+            ],
+            "unphasedAgents": []
+          },
+          "mtimeMs": 1770000000000
+        }
+      }
+    },
+    {
+      "procedure": "workflowAgentChat",
+      "request": {
+        "threadId": "thread-advanced",
+        "transcriptDir": "/srv/advanced/transcripts",
+        "agentId": "agent-1",
+        "agentFinished": false,
+        "location": { "kind": "posix", "path": "/srv/advanced" }
+      },
+      "response": {
+        "result": {
+          "events": [
+            {
+              "type": "content.delta",
+              "threadId": "thread-advanced",
+              "itemId": "item-1",
+              "stream": "assistant_text",
+              "delta": "Working"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "procedure": "readAbsoluteFile",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "absolutePath": "/srv/advanced/README.md"
+      },
+      "response": {
+        "result": { "status": "ready", "content": "Hello", "modifiedAtMs": 1770000000000 }
+      }
+    },
+    {
+      "procedure": "readExternalFile",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "absolutePath": "/tmp/external.txt"
+      },
+      "response": {
+        "result": {
+          "path": "/tmp/external.txt",
+          "status": "ready",
+          "modifiedAtMs": 1770000000001,
+          "content": "External",
+          "hasBom": false,
+          "lineEnding": "lf"
+        }
+      }
+    },
+    {
+      "procedure": "writeExternalFile",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "absolutePath": "/tmp/external.txt",
+        "content": "Updated",
+        "baseModifiedAtMs": 1770000000001
+      },
+      "response": { "result": { "modifiedAtMs": 1770000000002 } }
+    },
+    {
+      "procedure": "createProjectEntry",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "path": "Sources/New.swift",
+        "type": "file"
+      },
+      "response": {}
+    },
+    {
+      "procedure": "renameProjectEntry",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "path": "Sources/New.swift",
+        "nextName": "Renamed.swift"
+      },
+      "response": {}
+    },
+    {
+      "procedure": "moveProjectEntry",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "path": "Sources/Renamed.swift",
+        "nextParentPath": "Archive"
+      },
+      "response": {}
+    },
+    {
+      "procedure": "deleteProjectEntry",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "path": "Archive/Renamed.swift"
+      },
+      "response": {}
+    },
+    {
+      "procedure": "generateCommitMessage",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "agentKind": "codex",
+        "effort": "medium",
+        "fast": true,
+        "language": "en",
+        "model": "model-1"
+      },
+      "response": { "result": { "message": "Add advanced operations foundation" } }
+    },
+    {
+      "procedure": "generateTitle",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "agentKind": "codex",
+        "prompt": "Implement the foundation",
+        "effort": "medium",
+        "fast": false,
+        "language": "en",
+        "model": "model-1"
+      },
+      "response": { "result": { "title": "Advanced operations foundation" } }
+    },
+    {
+      "procedure": "generatePrSummary",
+      "request": {
+        "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
+        "agentKind": "codex",
+        "branch": "feature/advanced",
+        "baseBranch": "main",
+        "effort": "medium",
+        "language": "en",
+        "model": "model-1"
+      },
+      "response": {
+        "result": {
+          "title": "Add advanced operations",
+          "description": "Adds validated remote-v3 adapters."
+        }
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { resolveBetterSqliteNativeBindingOptions } from "./db";
+import { resolveBetterSqliteNativeBindingOptions } from "@/host/db";
 
 describe("resolveBetterSqliteNativeBindingOptions", () => {
   it("uses an explicit better-sqlite3 native binding path when it exists", () => {

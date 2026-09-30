@@ -51,6 +51,8 @@ class MockResizeObserver {
 function resetSidebarOverlayStore() {
   useSidebarOverlayStore.setState({
     isCollapsed: false,
+    userCollapsed: false,
+    isAutoCollapsed: false,
     isNarrow: false,
     closingOverlay: false,
     overlayReady: false,
@@ -130,5 +132,34 @@ describe("useSidebarOverlayEffects", () => {
     });
 
     expect(useSidebarOverlayStore.getState().isCollapsed).toBe(false);
+  });
+
+  it("restores the user preference when a wide shell remounts after auto-collapse", () => {
+    const first = render(<Harness />);
+    const firstShell = screen.getByTestId("shell");
+
+    act(() => {
+      MockResizeObserver.notify(firstShell, 700);
+    });
+    expect(useSidebarOverlayStore.getState()).toMatchObject({
+      isCollapsed: true,
+      userCollapsed: false,
+      isAutoCollapsed: true,
+      isNarrow: true,
+    });
+
+    first.unmount();
+    render(<Harness />);
+    const secondShell = screen.getByTestId("shell");
+
+    act(() => {
+      MockResizeObserver.notify(secondShell, 1200);
+    });
+    expect(useSidebarOverlayStore.getState()).toMatchObject({
+      isCollapsed: false,
+      userCollapsed: false,
+      isAutoCollapsed: false,
+      isNarrow: false,
+    });
   });
 });

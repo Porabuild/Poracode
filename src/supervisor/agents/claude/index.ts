@@ -18,6 +18,7 @@ import {
   detectAgentInstall,
   detectProbeLocation,
   iterm2ProgressOscHint,
+  prepareAgentLocationEnvironment,
   resolveWslHomeDirectory,
   shortenHomePath,
   type AgentAdapter,
@@ -66,30 +67,33 @@ interface ClaudeAdapterOptions {
   modelEfforts?: Record<string, string[]>;
 }
 
-function resolveTildePath(rawPath: string, location: ProjectLocation): string {
+async function resolveTildePath(rawPath: string, location: ProjectLocation): Promise<string> {
   const trimmed = rawPath.trim();
   if (trimmed !== "~" && !trimmed.startsWith("~/")) {
     return trimmed;
   }
   const suffix = trimmed === "~" ? "" : trimmed.slice(2);
   if (location.kind === "wsl") {
-    const home = resolveWslHomeDirectory(location.distro);
+    // Awaits the bounded authoritative WSL probe; never a synchronous UNC or
+    // `wsl.exe` guess. Keeps `~` unresolved when the distro cannot be reached,
+    // matching the previous failure behavior.
+    const home = await resolveWslHomeDirectory(location.distro);
     return home ? posixPath.join(home, suffix) : trimmed;
   }
   return path.join(homedir(), suffix);
 }
 
-function profileEnvForLocation(
+async function profileEnvForLocation(
   configDir: string | undefined,
   customEnv: Record<string, string> | undefined,
   location: ProjectLocation,
-): Record<string, string> | undefined {
+): Promise<Record<string, string> | undefined> {
   // customEnv already has its empty keys filtered out (resolveInstanceEnv).
   // CLAUDE_CONFIG_DIR is set last so the profile's identity always wins over a
   // user-supplied override of the same key.
   const env: Record<string, string> = { ...customEnv };
   if (configDir?.trim()) {
-    env.CLAUDE_CONFIG_DIR = resolveTildePath(configDir, location);
+    env.CLAUDE_CONFIG_DIR = await resolveTildePath(configDir, location);
   }
   return Object.keys(env).length > 0 ? env : undefined;
 }
@@ -211,7 +215,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     options.modelEfforts,
   );
 
-  function buildClaudeOneShotCommand(
+  async function buildClaudeOneShotCommand(
     model: string,
     effort: string | undefined,
     prompt: string | undefined,
@@ -241,7 +245,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
       // calls pass no other --settings, so a single inline flag is safe here.
       args.push("--settings", JSON.stringify({ fastMode: true }));
     }
-    const env = location ? profileEnv(location) : undefined;
+    const env = location ? await profileEnv(location) : undefined;
     return {
       command: "claude",
       args,
@@ -312,12 +316,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installClaudePlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installClaudePlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallClaudePlugin(ctx);
+      await uninstallClaudePlugin(ctx);
     },
     async pluginLaunchExtras(ctx) {
       const paths = getClaudePluginPaths(ctx);
@@ -332,12 +336,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
               kind,
               label,
               capabilities,
-              statusProbe: (probeCtx: DetectProbeCtx) => {
-                const env = profileEnv(probeCtx.location);
+              statusProbe: async (probeCtx: DetectProbeCtx) => {
+                const env = await profileEnv(probeCtx.location);
                 return probeClaudeStatus(probeCtx, env ? { env } : undefined);
               },
-              capabilitiesProbe: (probeCtx: DetectProbeCtx) => {
-                const env = profileEnv(probeCtx.location);
+              capabilitiesProbe: async (probeCtx: DetectProbeCtx) => {
+                const env = await profileEnv(probeCtx.location);
                 return probeClaudeCapabilities(probeCtx, env ? { env } : undefined);
               },
             };
@@ -357,12 +361,12 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         ),
       };
     },
-    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
+    async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const assignedId = randomUUID();
       const args = buildClaudeArgs(config, prompt, undefined, assignedId);
-      const mcp = claudeMcpLaunch(location, launchOptions?.mcpServers);
+      const mcp = await claudeMcpLaunch(location, launchOptions?.mcpServers);
       args.splice(claudeExtraArgsPosition(args, prompt), 0, ...mcp.args);
-      const env = profileEnv(location);
+      const env = await profileEnv(location);
       return {
         ...mcp,
         binary: "claude",
@@ -371,11 +375,11 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         sessionRef: createKnownSessionRef(assignedId),
       };
     },
-    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+    async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const args = buildClaudeArgs(config, prompt, sessionRef.providerSessionId);
-      const mcp = claudeMcpLaunch(location, launchOptions?.mcpServers);
+      const mcp = await claudeMcpLaunch(location, launchOptions?.mcpServers);
       args.splice(claudeExtraArgsPosition(args, prompt), 0, ...mcp.args);
-      const env = profileEnv(location);
+      const env = await profileEnv(location);
       return { ...mcp, binary: "claude", args, ...(env ? { env } : {}) };
     },
     extraArgsPosition: claudeExtraArgsPosition,
@@ -385,17 +389,18 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     },
     async createStructuredSession(input: CreateStructuredSessionInput) {
       if (input.presentationMode !== "gui") return undefined;
-      const env = profileEnv(input.projectLocation);
+      const env = await profileEnv(input.projectLocation);
       return ClaudeSdkSession.create({ ...input, ...(env ? { env } : {}) });
     },
     async buildAcpLogoutCommand(ctx) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildAgentCommand(
         location,
         "claude",
         ["auth", "logout"],
         undefined,
-        profileEnv(location),
+        await profileEnv(location),
       );
     },
     buildDirectInput(prompt, segments) {
@@ -425,7 +430,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     oscHintsDeferToHookPlugin: true,
     workingSilenceTimeoutMs: null,
     defaultOneShotModel: "haiku",
-    buildOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
+    async buildOneShotCommand(model, effort, prompt, location, fast, oneShotOptions) {
       return buildClaudeOneShotCommand(
         model,
         effort,
@@ -447,7 +452,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
           : [],
       );
     },
-    buildTextOnlyOneShotCommand(model, effort, prompt, location, fast) {
+    async buildTextOnlyOneShotCommand(model, effort, prompt, location, fast) {
       return buildClaudeOneShotCommand(model, effort, prompt, location, fast, [
         "--safe-mode",
         "--tools",
@@ -457,7 +462,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         "--strict-mcp-config",
       ]);
     },
-    buildContextExtractionCommand(sessionRef, location, model) {
+    async buildContextExtractionCommand(sessionRef, location, model) {
       // The resumed session is read-only here; --no-session-persistence
       // prevents the extraction turn from being written back to disk.
       const args = [
@@ -468,7 +473,7 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
         model ?? "haiku",
         "--no-session-persistence",
       ];
-      const env = profileEnv(location);
+      const env = await profileEnv(location);
       return {
         command: "claude",
         args,

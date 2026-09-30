@@ -1,12 +1,13 @@
-import {
-  formatResetCountdown,
-  projectWindowUsage,
-  usageWindowDisplayLabel,
-} from "@poracode/agents-usage/formatters";
+import { formatResetCountdown, projectWindowUsage } from "@poracode/agents-usage/formatters";
 import type { UsageProjection } from "@poracode/agents-usage/formatters";
 import type { UsageWindow } from "@poracode/agents-usage/types";
 import { useState } from "react";
-import { formatPaceSummary, formatWindowSecondaryValue, formatWindowValue } from "./usageFormat";
+import {
+  usageWindowDisplayLabel,
+  formatPaceSummary,
+  formatWindowSecondaryValue,
+  formatWindowValue,
+} from "./usageFormat";
 import { usageToneColor } from "./usageTone";
 
 /**
@@ -16,7 +17,11 @@ import { usageToneColor } from "./usageTone";
  * The trajectory and marker are toned by the *projected* level, so a bar
  * heading into the red signals it before current usage gets there.
  */
-function UsageBarTrack(props: { usedPercent: number; projection: UsageProjection | undefined }) {
+function UsageBarTrack(props: {
+  label: string;
+  usedPercent: number;
+  projection: UsageProjection | undefined;
+}) {
   const { projection } = props;
   const used = Math.max(0, Math.min(100, props.usedPercent));
   const projected = projection ? Math.min(100, projection.projectedPercent) : undefined;
@@ -28,7 +33,14 @@ function UsageBarTrack(props: { usedPercent: number; projection: UsageProjection
   const showMarker = hasTrajectory && projection?.lastsToReset === true && projected < 99.5;
 
   return (
-    <div className="relative mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--separator)]">
+    <div
+      className="relative mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--separator)]"
+      role="progressbar"
+      aria-label={props.label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={used}
+    >
       {hasTrajectory ? (
         <div
           className="absolute inset-y-0"
@@ -76,8 +88,9 @@ export function UsageWindowBars(props: {
   windows: readonly UsageWindow[];
   className?: string;
   showReset?: boolean;
+  showPace?: boolean;
 }) {
-  const { windows, className, showReset = true } = props;
+  const { windows, className, showReset = true, showPace = true } = props;
   // Snapshot once per mount: the countdown/projection labels below are
   // relative to this render's clock rather than an impure render-time read.
   const [now] = useState(() => Date.now());
@@ -87,15 +100,16 @@ export function UsageWindowBars(props: {
         const reset =
           showReset && w.resetsAt !== undefined ? formatResetCountdown(w.resetsAt, now) : undefined;
         const secondary = formatWindowSecondaryValue(w);
+        const label = usageWindowDisplayLabel(w);
         const projection = projectWindowUsage(w, now);
         const pace =
-          projection && w.resetsAt !== undefined
+          showPace && projection && w.resetsAt !== undefined
             ? formatPaceSummary(projection, w.resetsAt, now)
             : undefined;
         return (
           <div key={w.id}>
             <div className="flex items-center justify-between gap-3 text-xs">
-              <span className="text-muted">{usageWindowDisplayLabel(w)}</span>
+              <span className="text-muted">{label}</span>
               <span className="tabular-nums text-foreground">
                 {reset || secondary ? (
                   <span className="text-[11px] text-muted">
@@ -105,7 +119,7 @@ export function UsageWindowBars(props: {
                 {formatWindowValue(w)}
               </span>
             </div>
-            <UsageBarTrack usedPercent={w.usedPercent} projection={projection} />
+            <UsageBarTrack label={label} usedPercent={w.usedPercent} projection={projection} />
             {pace ? <PaceLine pace={pace} className="mt-1 text-[11px]" /> : null}
           </div>
         );

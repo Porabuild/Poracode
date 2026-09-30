@@ -120,6 +120,9 @@ export function getUtilityTaskCandidates<T extends UtilityTaskCandidateAgent>(
     (agent) =>
       agent.installed !== false &&
       agent.authState !== "missing" &&
+      // An install whose probe reached no verdict carries no model catalog;
+      // admitting it would only resolve to an empty model and a failed run.
+      agent.capabilities.models.length > 0 &&
       (!options.requireOneShot || agent.capabilities.supportsOneShot === true),
   );
   if (provider === "auto") {

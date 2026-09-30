@@ -6,6 +6,7 @@ import type { AgentAdapter } from "@/supervisor/agents/base";
 import { SubagentSpawnError } from "./errors";
 import { buildUnrestrictedChildConfig, resolveSubagentExecution } from "./types";
 import type { SpawnAgentRequest, SpawnAgentSelection } from "./types";
+import { compactResultPrompt } from "./compactResult";
 
 export interface ResolvedSpawnAttempt {
   adapter: AgentAdapter;
@@ -20,10 +21,13 @@ export interface ResolvedSpawnAttempt {
    * different process than the validated model was chosen for.
    */
   execution: CrossagentExecution;
+  /** Whether this presentation can reopen its provider session after disposal. */
+  supportsResume?: boolean;
 }
 
 export interface PreparedSubagentRun {
   prompt: string;
+  resultMode?: "compact";
   projectLocation: ProjectLocation;
   background: boolean;
   retryMode: "startup" | "any-failure";
@@ -35,6 +39,13 @@ interface SpawnPlanDeps {
   /** `null` means user-disabled; `undefined` means no cached status is available. */
   getStatusCapabilities?: (kind: AgentKind) => AgentCapability | null | undefined;
 }
+
+const WORKER_INSTRUCTIONS =
+  "You are a delegated worker. Complete only the assigned scope and report evidence to the coordinator. " +
+  "The coordinator owns scheduling and integration. Do not spawn nested agents or delegate through any tool " +
+  "unless this assignment explicitly permits it, even if a loaded workflow normally recommends delegation. " +
+  "Make routine decisions within the brief yourself. If a missing decision or ownership conflict blocks progress, " +
+  "return the specific blocker rather than expanding scope. Follow the assignment's verification and reporting requirements.";
 
 /**
  * Validate and resolve a complete primary + fallback chain before any child is
@@ -61,8 +72,10 @@ export function prepareSubagentRun(
     }
   });
 
+  const workerPrompt = `${WORKER_INSTRUCTIONS}\n\n${prompt}`;
   return {
-    prompt,
+    prompt: request.resultMode === "compact" ? compactResultPrompt(workerPrompt) : workerPrompt,
+    ...(request.resultMode ? { resultMode: request.resultMode } : {}),
     projectLocation: parent.projectLocation,
     background: request.background === true,
     retryMode: request.retryMode ?? "startup",
@@ -130,6 +143,7 @@ function resolveAttempt(
     provider: selection.agent,
     model,
     execution,
+    supportsResume: execution === "structured" && capabilities.supportsResume === true,
     label: runName ? `${runName} — ${selectionLabel}` : selectionLabel,
     config: buildUnrestrictedChildConfig(
       {

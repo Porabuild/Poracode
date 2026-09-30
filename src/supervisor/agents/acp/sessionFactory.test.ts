@@ -28,6 +28,15 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
       .mockReturnValue({ sessionId: "session-1" } as unknown as AcpStructuredSession);
   }
 
+  it("forwards the declared mode resolver", () => {
+    const createSpy = spyOnCreate();
+    const resolveMode = () => "unrestricted";
+    createAcpStructuredSession({ command: "test-agent", args: ["acp"] }, makeInput(), {
+      resolveMode,
+    });
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({ resolveMode });
+  });
+
   it("applies input.baseSpawnEnv to the spawned ACP command", () => {
     const createSpy = spyOnCreate();
 
@@ -117,6 +126,19 @@ describe("createAcpStructuredSession baseSpawnEnv merge", () => {
 
     expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
       initializeMeta: { "qwen.daemon.activeWorkHeartbeat": { v: 1 } },
+    });
+  });
+
+  it("forwards client capability metadata to the ACP session", () => {
+    const createSpy = spyOnCreate();
+
+    createAcpStructuredSession(
+      { command: "agent", args: ["acp"] },
+      makeInput({ acpClientCapabilitiesMeta: { parameterizedModelPicker: true } }),
+    );
+
+    expect(createSpy.mock.calls[0]?.[3]).toMatchObject({
+      clientCapabilitiesMeta: { parameterizedModelPicker: true },
     });
   });
 

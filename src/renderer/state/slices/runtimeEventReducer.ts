@@ -1,5 +1,7 @@
+import { applyBackgroundTaskReduce } from "@/shared/remote/contract/backgroundTaskReduce";
 import type {
   BackgroundTask,
+  ErrorItemPayload,
   RuntimeEvent,
   ThreadContextUsage,
   ToolCallPayload,
@@ -8,6 +10,7 @@ import { coalesceRuntimeEvents } from "@/shared/coalesce";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { recordRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import type { AppStoreState } from "./shared";
+import { applyRuntimeTruncation } from "./runtimeTruncation";
 import {
   type CompletedTurnRecord,
   type OpenRuntimeRequest,
@@ -491,8 +494,12 @@ function eventAffectsStructuralVersion(event: RuntimeEvent): boolean {
     case "item.updated":
     case "item.completed":
     case "turn.completed":
+    case "runtime.truncated":
     case "error":
       return true;
+    case "warning":
+      // A notice appends an item; a hidden warning changes nothing.
+      return event.presentation === "notice";
     default:
       return false;
   }
@@ -508,18 +515,27 @@ function applyRuntimeEventToRuntimeState(
   }
 
   switch (event.type) {
+    case "runtime.truncated":
+      return applyRuntimeTruncation(state, threadId, event);
+
     case "session.started":
-    case "warning":
       // No item state to mutate. Status flows through the existing thread-state channel.
       return {};
+
+    case "warning":
+      // Warnings stay out of the thread unless the producer asks for a notice;
+      // a notice reuses the error item (and its dock) with a warning severity.
+      return event.presentation === "notice"
+        ? appendErrorItem(state, threadId, { message: event.message, severity: "warning" })
+        : {};
 
     case "session.exited":
       // Background work dies with the agent process; nothing will ever report
       // it drained, so the list must not outlive the session.
-      return replaceBackgroundTasks(state, threadId, []);
+      return replaceBackgroundTasks(state, threadId, "session.exited", []);
 
     case "background_tasks.changed":
-      return replaceBackgroundTasks(state, threadId, event.tasks);
+      return replaceBackgroundTasks(state, threadId, event.type, event.tasks);
 
     case "usage.spent":
       // Token consumption is persisted by the main-process usage ledger; the
@@ -590,61 +606,64 @@ function applyRuntimeEventToRuntimeState(
       };
     }
 
-    case "error": {
-      const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
-      const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
-      const item: RuntimeChatItem = {
-        id: `err-${crypto.randomUUID()}`,
-        type: "error",
-        state: "completed",
-        payload: { message: event.message },
-        streams: {},
-      };
-      return {
-        runtimeItemIdsByThread: {
-          ...state.runtimeItemIdsByThread,
-          [threadId]: [...existingIds, item.id],
-        },
-        runtimeItemsByIdByThread: {
-          ...state.runtimeItemsByIdByThread,
-          [threadId]: { ...existingItems, [item.id]: item },
-        },
-      };
-    }
+    case "error":
+      return appendErrorItem(state, threadId, { message: event.message });
 
     default:
       return {};
   }
 }
 
+/** Append a completed `error` item (an error, or a notice with warning severity). */
+function appendErrorItem(
+  state: RuntimeEventState,
+  threadId: string,
+  payload: ErrorItemPayload,
+): Partial<RuntimeEventState> {
+  const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
+  const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
+  const item: RuntimeChatItem = {
+    id: `err-${crypto.randomUUID()}`,
+    type: "error",
+    state: "completed",
+    payload,
+    streams: {},
+  };
+  return {
+    runtimeItemIdsByThread: {
+      ...state.runtimeItemIdsByThread,
+      [threadId]: [...existingIds, item.id],
+    },
+    runtimeItemsByIdByThread: {
+      ...state.runtimeItemsByIdByThread,
+      [threadId]: { ...existingItems, [item.id]: item },
+    },
+  };
+}
+
 /** REPLACE the thread's live background task list; an empty list drops the key. */
 function replaceBackgroundTasks(
   state: RuntimeEventState,
   threadId: string,
+  eventType: string,
   tasks: readonly BackgroundTask[],
 ): Partial<RuntimeEventState> {
   const prev = state.runtimeBackgroundTasksByThread[threadId];
-  if (tasks.length === 0) {
+  const next = applyBackgroundTaskReduce({
+    eventType,
+    incoming: tasks,
+    previous: prev ?? null,
+  });
+  if (next === null) {
     if (!prev) return {};
     const { [threadId]: _dropped, ...rest } = state.runtimeBackgroundTasksByThread;
     return { runtimeBackgroundTasksByThread: rest };
   }
-  if (
-    prev &&
-    prev.length === tasks.length &&
-    prev.every(
-      (task, index) =>
-        task.taskId === tasks[index]!.taskId &&
-        task.kind === tasks[index]!.kind &&
-        task.description === tasks[index]!.description,
-    )
-  ) {
-    return {};
-  }
+  if (next === prev) return {};
   return {
     runtimeBackgroundTasksByThread: {
       ...state.runtimeBackgroundTasksByThread,
-      [threadId]: tasks.map((task) => ({ ...task })),
+      [threadId]: next.map((task) => ({ ...task })),
     },
   };
 }
@@ -716,22 +735,46 @@ export function mergeCompletedTurns(
 ): ReadonlyArray<CompletedTurnRecord> {
   if (incoming.length === 0) return existing;
   const byWindow = new Map<string, CompletedTurnRecord>();
-  for (const turn of existing) {
-    byWindow.set(completedTurnKey(turn), turn);
-  }
   let changed = false;
-  for (const turn of incoming) {
-    const key = completedTurnKey(turn);
-    if (byWindow.has(key)) continue;
-    byWindow.set(key, turn);
+  for (const turn of existing) {
+    const key = completedTurnWindowKey(turn);
+    const current = byWindow.get(key);
+    if (!current) {
+      byWindow.set(key, turn);
+      continue;
+    }
     changed = true;
+    const preferred = preferCompletedTurn(current, turn);
+    if (preferred !== current) byWindow.set(key, preferred);
+  }
+  for (const turn of incoming) {
+    const key = completedTurnWindowKey(turn);
+    const current = byWindow.get(key);
+    if (!current) {
+      byWindow.set(key, turn);
+      changed = true;
+      continue;
+    }
+    const preferred = preferCompletedTurn(current, turn);
+    if (preferred !== current) {
+      byWindow.set(key, preferred);
+      changed = true;
+    }
   }
   if (!changed) return existing;
   return [...byWindow.values()].sort((a, b) => a.startedAt - b.startedAt || a.endedAt - b.endedAt);
 }
 
-function completedTurnKey(turn: CompletedTurnRecord): string {
-  return `${turn.startedAt}:${turn.endedAt}:${turn.anchorItemId ?? ""}`;
+function completedTurnWindowKey(turn: CompletedTurnRecord): string {
+  return `${turn.startedAt}:${turn.endedAt}`;
+}
+
+function preferCompletedTurn(
+  current: CompletedTurnRecord,
+  incoming: CompletedTurnRecord,
+): CompletedTurnRecord {
+  if (!current.anchorItemId && incoming.anchorItemId) return incoming;
+  return current;
 }
 
 /** Shallow-merge two payloads so item.updated layers on top of started. */

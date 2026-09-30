@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
-import { isMac, isWindows } from "@/renderer/bridge";
+import { isWindows } from "@/renderer/bridge";
+import { hasMacWindowChrome, hasNativeWindowChrome } from "./windowChrome";
 
 /**
  * Shared left-sidebar chrome: main app thread list, overflow/git/settings/file-editor panels.
@@ -25,8 +26,11 @@ export const macosTrafficLightPadClass = "poracode-mac-traffic-light-pad" as con
  * Windows/Linux (titleBarOverlay controls) so header actions stay clear of window buttons.
  */
 export function overlayHeaderStyle(): CSSProperties {
+  if (!hasNativeWindowChrome()) {
+    return { height: 32 };
+  }
   const height = "env(titlebar-area-height, 32px)";
-  if (isMac()) {
+  if (hasMacWindowChrome()) {
     return { height };
   }
   return {

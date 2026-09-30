@@ -15,6 +15,7 @@ import type {
   BackgroundTask,
   ProjectLocation,
   PromptSegment,
+  ProviderRevertAnchor,
   RuntimeEvent,
   SessionRef,
   SkillInvocation,
@@ -30,13 +31,22 @@ import type {
 import type { OscNotification, OscShellEvent, OscTitle } from "@/shared/osc";
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 
+/**
+ * A value an adapter/installer may produce synchronously or through awaited
+ * orchestration. Adapters stay free to keep synchronous implementations; the
+ * runtime always awaits, so WSL staging (an async worker operation) can flow
+ * through a signature that was previously synchronous without a provider
+ * branch anywhere in shared code.
+ */
+export type Awaitable<T> = T | Promise<T>;
+
 export interface CommandSpec {
   command: string;
   args: string[];
   cwd?: string;
   sessionRef?: SessionRef;
   /** Best-effort cleanup for per-launch resources such as temporary MCP configs. */
-  cleanup?: () => void;
+  cleanup?: () => Awaitable<void>;
   /**
    * Environment variables that should be set for the agent process.
    * For WSL commands these are baked into the shell script as `export` statements
@@ -192,6 +202,27 @@ export interface StructuredSessionHandle {
   updateMcpServers?(mcpServers: readonly ResolvedMcpServer[]): Promise<void>;
   readThread?(): Promise<ThreadHistory>;
   rollbackThread?(numTurns: number, config?: ThreadConfig): Promise<ThreadHistory>;
+  /**
+   * WS2 stage 3: compute an ABSOLUTE revert target for the last `numTurns`
+   * completed turns without mutating session or provider state. The returned
+   * anchor is durable JSON the backend journals before any restore side
+   * effect, so a resumed operation restores from the stored anchor instead of
+   * recomputing against a possibly-mutated conversation (the over-rollback
+   * window). Implementations declare this capability by defining the method;
+   * sessions without it fall back to the relative `rollbackThread` contract.
+   */
+  createRevertAnchor?(numTurns: number, config?: ThreadConfig): Promise<ProviderRevertAnchor>;
+  /**
+   * Applies a previously created anchor. Must be idempotent: re-issuing an
+   * anchor that was already applied converges on the same conversation
+   * position instead of rolling back further. Receives the turn config
+   * alongside the anchor because providers re-derive launch overrides from it
+   * on a resume.
+   */
+  restoreToRevertAnchor?(
+    anchor: ProviderRevertAnchor,
+    config?: ThreadConfig,
+  ): Promise<ThreadHistory>;
   setListener(listener: StructuredSessionListener): void;
   dispose(): Promise<void>;
 }
@@ -241,6 +272,12 @@ export interface CreateStructuredSessionInput {
   acpExtensionSessionUpdateTransform?: AcpExtensionSessionUpdateTransform;
   /** Vendor metadata added to the ACP `initialize` request. */
   acpInitializeMeta?: Record<string, unknown>;
+  /**
+   * Extra keys merged into `initialize.clientCapabilities._meta`. Agents that
+   * gate Session Config Options on an undocumented client capability
+   * advertise them here.
+   */
+  acpClientCapabilitiesMeta?: Record<string, unknown>;
   /**
    * Handle vendor ACP extension notifications (e.g. Cursor's `cursor/task`)
    * that carry metadata absent from the standard `session/update` stream.
@@ -318,7 +355,7 @@ export interface AgentArgvSpec {
   env?: Record<string, string>;
   sessionRef?: SessionRef;
   preferShell?: boolean;
-  cleanup?: () => void;
+  cleanup?: () => Awaitable<void>;
 }
 
 export interface DetectProbeCtx {
@@ -435,20 +472,25 @@ export interface AgentMetadata {
 }
 
 export interface AgentLauncher {
+  /**
+   * May be synchronous or async; the runtime awaits. An adapter that stages
+   * launch helpers (e.g. WSL MCP extensions) returns a promise instead of
+   * blocking the supervisor control loop.
+   */
   buildLaunchArgv(
     location: ProjectLocation,
     config: ThreadConfig,
     prompt: string,
     sessionRef?: SessionRef,
     launchOptions?: AgentLaunchOptions,
-  ): AgentArgvSpec;
+  ): Awaitable<AgentArgvSpec>;
   buildResumeArgv(
     location: ProjectLocation,
     config: ThreadConfig,
     prompt: string,
     sessionRef: SessionRef,
     launchOptions?: AgentLaunchOptions,
-  ): AgentArgvSpec;
+  ): Awaitable<AgentArgvSpec>;
   /**
    * Index at which hook-launch extra CLI args are inserted into the argv.
    * Omit to append at the end. Adapters whose CLIs read trailing tokens as
@@ -638,7 +680,7 @@ export interface AgentOneShotRunner {
     location?: ProjectLocation,
     fast?: boolean,
     options?: OneShotGenerationOptions,
-  ): OneShotGenerationCommand | undefined;
+  ): Awaitable<OneShotGenerationCommand | undefined>;
   runOneShot?(input: RunOneShotInput): Promise<string>;
   /**
    * Build a provider-enforced text-only one-shot invocation. Unlike the
@@ -651,14 +693,16 @@ export interface AgentOneShotRunner {
     prompt?: string,
     location?: ProjectLocation,
     fast?: boolean,
-  ): OneShotGenerationCommand | undefined;
+  ): Awaitable<OneShotGenerationCommand | undefined>;
   /** Run a provider-enforced text-only one-shot through a structured runtime. */
   runTextOnlyOneShot?(input: RunOneShotInput): Promise<string>;
   buildContextExtractionCommand?(
     sessionRef: SessionRef,
     location: ProjectLocation,
     model?: string,
-  ): { command: string; args: string[]; stdin?: string; env?: Record<string, string> } | undefined;
+  ): Awaitable<
+    { command: string; args: string[]; stdin?: string; env?: Record<string, string> } | undefined
+  >;
 }
 
 /**
@@ -798,8 +842,6 @@ export interface AgentAdapter
     input: Omit<ManageAgentCredentialsPayload, "agentKind">,
   ): Promise<ManageAgentCredentialsResult>;
 
-  /** Run this provider inside WSL when its project lives on native Windows. */
-  readonly windowsProjectExecution?: "wsl";
   readonly skillSupport?: AgentSkillSupport;
   /** Release provider-owned shared processes after all thread sessions have closed. */
   shutdown?(): void | Promise<void>;

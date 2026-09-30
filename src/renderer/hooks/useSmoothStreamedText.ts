@@ -38,7 +38,11 @@ function getReducedMotionSnapshot(): boolean {
 const subscribeToNothing = () => () => {};
 const getFalseSnapshot = () => false;
 
-export function useSmoothStreamedText(text: string, isStreaming: boolean): string {
+export function useSmoothStreamedText(
+  text: string,
+  isStreaming: boolean,
+  minEmitIntervalMs = 0,
+): string {
   const reduceMotion = useSyncExternalStore(
     isStreaming ? subscribeToReducedMotion : subscribeToNothing,
     isStreaming ? getReducedMotionSnapshot : getFalseSnapshot,
@@ -55,7 +59,13 @@ export function useSmoothStreamedText(text: string, isStreaming: boolean): strin
   const idleSinceRef = useRef<number | null>(null);
   const frameRef = useRef<number | null>(null);
   const lastFrameRef = useRef(0);
+  const lastEmitAtRef = useRef(0);
+  const minEmitIntervalRef = useRef(minEmitIntervalMs);
   const tickRef = useRef<(now: number) => void>(() => undefined);
+
+  useEffect(() => {
+    minEmitIntervalRef.current = minEmitIntervalMs;
+  }, [minEmitIntervalMs]);
 
   // Latest-tick holder: assigned in an effect (never during render). The tick
   // closure only touches refs and the stable setRevealed, so one assignment on
@@ -96,8 +106,14 @@ export function useSmoothStreamedText(text: string, isStreaming: boolean): strin
       }
 
       const nextCount = Math.floor(shownRef.current);
-      if (nextCount !== emittedRef.current) {
+      if (
+        nextCount !== emittedRef.current &&
+        (minEmitIntervalRef.current === 0 ||
+          lastEmitAtRef.current === 0 ||
+          now - lastEmitAtRef.current >= minEmitIntervalRef.current)
+      ) {
         emittedRef.current = nextCount;
+        lastEmitAtRef.current = now;
         setRevealed(nextCount >= target.length ? target : target.slice(0, nextCount));
       }
 
@@ -105,6 +121,10 @@ export function useSmoothStreamedText(text: string, isStreaming: boolean): strin
         frameRef.current = requestAnimationFrame((nextNow) => tickRef.current(nextNow));
       } else if (idleSinceRef.current !== null && now - idleSinceRef.current < IDLE_GRACE_MS) {
         // Keep tick loop warm for a short window so next chunk arrival doesn't stutter
+        frameRef.current = requestAnimationFrame((nextNow) => tickRef.current(nextNow));
+      } else if (nextCount !== emittedRef.current) {
+        // A cadence-limited stream still has unseen text even when its reveal
+        // position has caught up; keep the frame loop alive until it is emitted.
         frameRef.current = requestAnimationFrame((nextNow) => tickRef.current(nextNow));
       } else {
         lastFrameRef.current = 0;
@@ -151,6 +171,7 @@ export function useSmoothStreamedText(text: string, isStreaming: boolean): strin
       lastChunkTimeRef.current = 0;
       idleSinceRef.current = null;
       lastFrameRef.current = 0;
+      lastEmitAtRef.current = 0;
       setRevealed(text);
       return;
     }

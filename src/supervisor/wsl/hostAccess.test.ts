@@ -1,9 +1,53 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeWslHostAccess,
   parseDefaultRouteGateway,
   parseNetworkingMode,
   parseResolvConfNameserver,
 } from "./hostAccess";
+
+describe("computeWslHostAccess", () => {
+  it("uses the bounded async reader only after the live probe fails", async () => {
+    const calls: Array<{ distro: string; path: string }> = [];
+    await expect(
+      computeWslHostAccess("Pōrā código", {
+        probe: async () => undefined,
+        readTextFile: async (distro, path) => {
+          calls.push({ distro, path });
+          return "nameserver 172.20.144.1\n";
+        },
+      }),
+    ).resolves.toEqual({ kind: "gateway", ip: "172.20.144.1" });
+    expect(calls).toEqual([
+      {
+        distro: "Pōrā código",
+        path: "\\\\wsl.localhost\\Pōrā código\\etc\\resolv.conf",
+      },
+    ]);
+  });
+
+  it("does not touch the fallback reader when the live probe succeeds", async () => {
+    await expect(
+      computeWslHostAccess("Ubuntu", {
+        probe: async () => ({ kind: "loopback" }),
+        readTextFile: async () => {
+          throw new Error("fallback must not run");
+        },
+      }),
+    ).resolves.toEqual({ kind: "loopback" });
+  });
+
+  it("treats a timed-out or missing fallback as unresolved", async () => {
+    await expect(
+      computeWslHostAccess("Stopped", {
+        probe: async () => undefined,
+        readTextFile: async () => {
+          throw new Error("timed out after 60000ms");
+        },
+      }),
+    ).resolves.toBeUndefined();
+  });
+});
 
 describe("parseNetworkingMode", () => {
   it("reads `mirrored` from the first line", () => {

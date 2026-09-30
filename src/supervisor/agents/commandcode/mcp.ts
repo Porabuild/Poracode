@@ -1,12 +1,12 @@
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { stageLaunchHelper } from "../base/launchHelper";
 
-export function commandCodeMcpLaunch(
+export async function commandCodeMcpLaunch(
   location: ProjectLocation,
   servers: readonly ResolvedMcpServer[] = [],
-): { args: string[]; env?: Record<string, string>; cleanup?: () => void } {
+): Promise<{ args: string[]; env?: Record<string, string>; cleanup?: () => Promise<void> }> {
   if (!servers.length) return { args: [] };
-  const helper = stageLaunchHelper(location, "commandcode-mcp-mod.mjs", "commandcode");
+  const helper = await stageLaunchHelper(location, "commandcode-mcp-mod.mjs", "commandcode");
   return {
     args: ["--mod", helper.path],
     env: {

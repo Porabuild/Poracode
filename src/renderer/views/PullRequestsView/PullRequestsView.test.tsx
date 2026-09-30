@@ -367,4 +367,38 @@ describe("PullRequestsView", () => {
       );
     expect(rowTitles).toEqual([newerWslSummary.pr.title, summary.pr.title]);
   });
+
+  it("queries only projects owned by the selected remote desktop", async () => {
+    const firstRemote: Project = {
+      ...windowsProject,
+      id: "remote-one-project",
+      remoteServerId: "desktop-1",
+      remoteId: "project-1",
+      location: {
+        kind: "windows",
+        path: "C:\\work\\first",
+        remoteServerId: "desktop-1",
+      },
+    };
+    const secondRemote: Project = {
+      ...windowsProject,
+      id: "remote-two-project",
+      remoteServerId: "desktop-2",
+      remoteId: "project-2",
+      location: {
+        kind: "windows",
+        path: "C:\\work\\second",
+        remoteServerId: "desktop-2",
+      },
+    };
+    useAppStore.setState({ projects: [firstRemote, secondRemote] });
+
+    render(<PullRequestsView remoteDesktopId="desktop-2" />);
+
+    expect(await screen.findByText(summary.pr.title)).toBeInTheDocument();
+    expect(bridge.ghListPullRequests).toHaveBeenCalledTimes(1);
+    expect(bridge.ghListPullRequests).toHaveBeenCalledWith({
+      projectLocation: secondRemote.location,
+    });
+  });
 });

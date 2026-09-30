@@ -236,6 +236,22 @@ export function resolveComposerMcpScope(
   return scopes?.terminal ?? "none";
 }
 
+/**
+ * A provider command whose argument is the substance of a new thread (for
+ * example a goal objective). When a thread's first prompt is
+ * `/<command> <argument>`, its title derives from the argument instead of the
+ * raw command text.
+ */
+export const threadTitleCommandSchema = z.object({
+  /** Command name without the leading slash; matched case-insensitively. */
+  command: z.string().min(1),
+  /** Leading verbs that still take the content argument (`/goal edit <objective>`). */
+  argumentSubcommands: z.array(z.string().min(1)).optional(),
+  /** Whole arguments that are control verbs rather than content; those keep the typed title. */
+  controlArguments: z.array(z.string().min(1)).optional(),
+});
+export type ThreadTitleCommand = z.infer<typeof threadTitleCommandSchema>;
+
 export const agentCapabilitySchema = z.object({
   /** Short provider-owned runtime badge shown in structured composers (for example ACP / SDK). */
   runtimeLabel: z.string().min(1).optional(),
@@ -371,6 +387,8 @@ export const agentCapabilitySchema = z.object({
    * renderer treats that catalog as authoritative even when it is empty.
    */
   reportsSkillCatalog: z.boolean().optional(),
+  /** Commands whose argument titles a thread they start (see `threadTitleCommandSchema`). */
+  threadTitleCommands: z.array(threadTitleCommandSchema).optional(),
   /**
    * Optional capability overrides for providers whose terminal and GUI runtimes
    * expose different model surfaces. Consumers merge the active presentation's

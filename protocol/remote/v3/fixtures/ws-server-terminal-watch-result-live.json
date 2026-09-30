@@ -1,0 +1,20 @@
+{
+  "type": "terminal-watch-result",
+  "id": "terminal-fixture-001",
+  "cursorSync": {
+    "version": 1,
+    "watchId": "watch-fixture-001",
+    "result": {
+      "status": "ready",
+      "generation": "instance-fixture-aaa",
+      "fromCursor": 0,
+      "toCursor": 11,
+      "data": "hello world",
+      "processState": "running",
+      "terminalSize": {
+        "cols": 120,
+        "rows": 30
+      }
+    }
+  }
+}

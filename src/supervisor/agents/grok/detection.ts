@@ -17,6 +17,7 @@ import {
 } from "../base";
 import { buildContextSizeCapabilities } from "../contextWindowLabel";
 import { getAgentProbeCwd, resolveProbeSpawnCwd } from "../probeCwd";
+import { foldGrokFastModels } from "./fastMode";
 
 // Approval policies surfaced to Poracode. Grok only honors `--always-approve`
 // (bypass) at launch — `--permission-mode <MODE>` is silently ignored by both
@@ -107,7 +108,9 @@ async function probeCapabilities(
 
   const providerMetadata = buildGrokProviderMetadata(probe?.acpMeta);
 
-  return {
+  // Grok lists Fast as its own model (`grok-4.7-build-fast`). The picker
+  // shows one model plus the shared Fast toggle.
+  return foldGrokFastModels({
     ...grokDefaultCapabilities,
     ...(probe?.models?.length ? { models: probe.models } : {}),
     // Grok advertises effort tiers in model `_meta`, not standard ACP
@@ -134,7 +137,7 @@ async function probeCapabilities(
     preferTerminalLogin: true,
     ...(probe?.authState ? { authState: probe.authState } : {}),
     ...(providerMetadata ? { providerMetadata } : {}),
-  };
+  });
 }
 
 /**

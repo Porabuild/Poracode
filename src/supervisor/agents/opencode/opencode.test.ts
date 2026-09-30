@@ -475,12 +475,12 @@ describe("createOpenCodeAdapter", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("buildLaunchArgv returns no --session and no sessionRef when launchOptions is empty", () => {
+  it("buildLaunchArgv returns no --session and no sessionRef when launchOptions is empty", async () => {
     // Defensive path: if SDK allocation never ran (failed, skipped, structured
     // session disabled), the TUI is launched without `--session` and OpenCode
     // creates a fresh session itself — same as before Shape A.
     const adapter = createOpenCodeAdapter();
-    const argv = adapter.buildLaunchArgv(
+    const argv = await adapter.buildLaunchArgv(
       { kind: "windows", path: "C:\\repo" },
       { model: "" },
       "",
@@ -500,11 +500,11 @@ describe("createOpenCodeAdapter", () => {
     expect(adapter.isReadyForInitialPrompt?.("...esc to interrupt")).toBe(false);
   });
 
-  it("buildLaunchArgv promotes launchOptions.resumeThreadId to --session and sessionRef", () => {
+  it("buildLaunchArgv promotes launchOptions.resumeThreadId to --session and sessionRef", async () => {
     // This is the post-SDK path: the structured session captured a freshly
     // allocated session id and stashed it in launchOptions before disposing.
     const adapter = createOpenCodeAdapter();
-    const argv = adapter.buildLaunchArgv(
+    const argv = await adapter.buildLaunchArgv(
       { kind: "windows", path: "C:\\repo" },
       { model: "opencode/big-pickle" },
       "hello",
@@ -523,9 +523,9 @@ describe("createOpenCodeAdapter", () => {
     expect(argv.preferShell).toBe(true);
   });
 
-  it("injects custom MCPs through a per-launch OpenCode config overlay", () => {
+  it("injects custom MCPs through a per-launch OpenCode config overlay", async () => {
     const adapter = createOpenCodeAdapter();
-    const argv = adapter.buildLaunchArgv(
+    const argv = await adapter.buildLaunchArgv(
       { kind: "windows", path: "C:\\repo" },
       { model: "" },
       "",
@@ -552,9 +552,9 @@ describe("createOpenCodeAdapter", () => {
     expect(Object.values(argv.env ?? {})).toContain("Bearer secret");
   });
 
-  it("enables trusted session routing when a terminal launch hosts Crossagents", () => {
+  it("enables trusted session routing when a terminal launch hosts Crossagents", async () => {
     const adapter = createOpenCodeAdapter();
-    const argv = adapter.buildLaunchArgv(
+    const argv = await adapter.buildLaunchArgv(
       { kind: "windows", path: "C:\\repo" },
       { model: "" },
       "",
@@ -578,9 +578,9 @@ describe("createOpenCodeAdapter", () => {
     expect(argv.env?.PORACODE_OPENCODE_SESSION_ROUTING).toBe("1");
   });
 
-  it("does not override OpenCode config when no custom MCP is selected", () => {
+  it("does not override OpenCode config when no custom MCP is selected", async () => {
     const adapter = createOpenCodeAdapter();
-    const argv = adapter.buildResumeArgv(
+    const argv = await adapter.buildResumeArgv(
       { kind: "windows", path: "C:\\repo" },
       { model: "" },
       "",
@@ -591,9 +591,9 @@ describe("createOpenCodeAdapter", () => {
     expect(argv.env).toBeUndefined();
   });
 
-  it("buildResumeArgv opts into shell resolution for the terminal TUI", () => {
+  it("buildResumeArgv opts into shell resolution for the terminal TUI", async () => {
     const adapter = createOpenCodeAdapter();
-    const argv = adapter.buildResumeArgv(
+    const argv = await adapter.buildResumeArgv(
       { kind: "windows", path: "C:\\repo" },
       { model: "opencode/big-pickle" },
       "continue",

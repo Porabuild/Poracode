@@ -50,9 +50,40 @@ const WEB_PUSH_KEY_PATTERN = /^[A-Za-z0-9_-]+$/;
 const MAX_WEB_PUSH_ENDPOINT_LENGTH = 4096;
 const MAX_PAYLOAD_BYTES = 4096;
 const MAX_COLLAPSE_ID_BYTES = 64;
+const PUSH_ROUTING_VERSION = 1;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_ROUTE_ID_LENGTH = 512;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function containsAsciiControl(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index);
+    if (codeUnit < 0x20 || codeUnit === 0x7f) return true;
+  }
+  return false;
+}
+
+function validRouteId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= MAX_ROUTE_ID_LENGTH &&
+    !containsAsciiControl(value)
+  );
+}
+
+function validateRoutingData(value: Record<string, unknown>): string | null {
+  const { version, clientConnectionId, desktopId, threadId } = value;
+  if (version !== PUSH_ROUTING_VERSION) return "payload.version must be 1";
+  if (typeof clientConnectionId !== "string" || !UUID_PATTERN.test(clientConnectionId)) {
+    return "payload.clientConnectionId must be a UUID";
+  }
+  if (!validRouteId(desktopId)) return "payload.desktopId is invalid";
+  if (!validRouteId(threadId)) return "payload.threadId is invalid";
+  return null;
 }
 
 function isAllowedWebPushEndpoint(value: string): boolean {
@@ -164,6 +195,20 @@ export function parsePushRequest(raw: unknown): ParseResult {
     return { ok: false, error: `payload exceeds ${MAX_PAYLOAD_BYTES} bytes` };
   }
 
+  if (platform === "ios") {
+    const aps = payload.aps;
+    if (isPlainObject(aps) && aps.poracode !== undefined) {
+      return { ok: false, error: "iOS routing data must be outside aps" };
+    }
+    if (payload.poracode !== undefined) {
+      if (!isPlainObject(payload.poracode)) {
+        return { ok: false, error: "payload.poracode must be a JSON object" };
+      }
+      const routingError = validateRoutingData(payload.poracode);
+      if (routingError) return { ok: false, error: routingError };
+    }
+  }
+
   // Android and web pushes both carry an explicit user-visible notification.
   // iOS payloads are opaque APNs envelopes and skip this shape check.
   if (platform === "android" || platform === "web") {
@@ -182,10 +227,20 @@ export function parsePushRequest(raw: unknown): ParseResult {
     if (typeof body !== "string" || body.length === 0) {
       return { ok: false, error: "payload.body must be a non-empty string" };
     }
-    if (platform === "web") {
-      if (typeof threadId !== "string" || threadId.length === 0) {
-        return { ok: false, error: "payload.threadId must be a non-empty string" };
+    if (!validRouteId(threadId)) {
+      return { ok: false, error: "payload.threadId is invalid" };
+    }
+    if (platform === "android") {
+      const hasVersionedField =
+        payload.version !== undefined ||
+        payload.clientConnectionId !== undefined ||
+        payload.desktopId !== undefined;
+      if (hasVersionedField) {
+        const routingError = validateRoutingData(payload);
+        if (routingError) return { ok: false, error: routingError };
       }
+    }
+    if (platform === "web") {
       if (typeof url !== "string" || !/^\/(?!\/)[^?#]*$/.test(url)) {
         return { ok: false, error: "payload.url must be a same-origin absolute path" };
       }

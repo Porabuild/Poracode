@@ -1,0 +1,160 @@
+package com.poracode.app.storage
+
+import com.poracode.app.model.ClientConnectionId
+import java.util.Base64
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class HostTransactionJournalTest {
+    private val id = ClientConnectionId("00000000-0000-0000-0000-000000000001")
+
+    @Test
+    fun phasesRoundTripWithExactTargetBytes() {
+        val registry = "{\"formatVersion\":2}".toByteArray()
+        val record = HostTransactionJournal.make(
+            operationId = 42,
+            kind = HostTransactionJournal.Kind.Add,
+            connectionId = id,
+            targetRegistryBytes = registry,
+            targetVaultAccount = HostVault.account(id),
+            targetVaultBytes = "secret".toByteArray(),
+        )
+        HostTransactionJournal.Phase.entries.forEach { phase ->
+            val decoded = HostTransactionJournal.decode(
+                HostTransactionJournal.encode(record.withPhase(phase)),
+            ) as HostTransactionJournal.Decode.Current
+            assertEquals(phase, decoded.record.phase)
+            assertTrue(registry.contentEquals(decoded.record.targetRegistryBytes))
+            assertTrue("secret".toByteArray().contentEquals(decoded.record.targetVaultBytes))
+        }
+    }
+
+    @Test
+    fun futureCorruptAndAccountSwapAreRejected() {
+        assertEquals(
+            HostTransactionJournal.Decode.Future,
+            HostTransactionJournal.decode("{\"version\":999}".toByteArray()),
+        )
+        assertEquals(
+            HostTransactionJournal.Decode.Corrupt,
+            HostTransactionJournal.decode("not-json".toByteArray()),
+        )
+        val swapped = """{
+            "version":1,"operationId":1,"kind":"Add",
+            "connectionId":"${id.value}","phase":"Intent",
+            "targetRegistryBase64":"${Base64.getEncoder().encodeToString("x".toByteArray())}",
+            "targetVaultAccount":"host-vault.00000000-0000-0000-0000-000000000002",
+            "targetVaultBase64":"${Base64.getEncoder().encodeToString("secret".toByteArray())}"
+        }""".trimIndent()
+        assertEquals(
+            HostTransactionJournal.Decode.Corrupt,
+            HostTransactionJournal.decode(swapped.toByteArray()),
+        )
+    }
+
+    @Test
+    fun versionOneJournalRemainsRecoverableAfterRenameJournalUpgrade() {
+        val current = HostTransactionJournal.encode(
+            HostTransactionJournal.make(
+                operationId = 7,
+                kind = HostTransactionJournal.Kind.Select,
+                connectionId = id,
+                targetRegistryBytes = "registry".toByteArray(),
+            ),
+        ).toString(Charsets.UTF_8)
+        val versionOne = current.replace("\"version\":3", "\"version\":1")
+
+        val decoded = HostTransactionJournal.decode(versionOne.toByteArray())
+
+        assertTrue(decoded is HostTransactionJournal.Decode.Current)
+        assertEquals(1, (decoded as HostTransactionJournal.Decode.Current).record.version)
+    }
+
+    /**
+     * Pre-upgrade regression fixture: a version-2 journal (single deleted vault
+     * account, no cascade list) must still decode and keep its exact meaning
+     * after format 3 added `deleteVaultAccounts`.
+     */
+    @Test
+    fun versionTwoJournalDecodesWithCascadeDefaultEmpty() {
+        val registry = Base64.getEncoder().encodeToString("registry".toByteArray())
+        val versionTwo = """{
+            "version":2,"operationId":9,"kind":"Remove",
+            "connectionId":"${id.value}","phase":"Intent",
+            "targetRegistryBase64":"$registry",
+            "deleteVaultAccount":"${HostVault.account(id)}"
+        }""".trimIndent()
+
+        val decoded = HostTransactionJournal.decode(versionTwo.toByteArray())
+
+        assertTrue(decoded is HostTransactionJournal.Decode.Current)
+        val record = (decoded as HostTransactionJournal.Decode.Current).record
+        assertEquals(2, record.version)
+        assertEquals(HostVault.account(id), record.deleteVaultAccount)
+        assertTrue(record.deleteVaultAccounts.isEmpty())
+    }
+
+    @Test
+    fun cascadeDeleteAccountsRoundTrip() {
+        val other = ClientConnectionId("00000000-0000-0000-0000-000000000002")
+        val record = HostTransactionJournal.make(
+            operationId = 11,
+            kind = HostTransactionJournal.Kind.Remove,
+            connectionId = id,
+            targetRegistryBytes = "registry".toByteArray(),
+            deleteVaultAccount = HostVault.account(id),
+            deleteVaultAccounts = listOf(HostVault.account(other)),
+        )
+
+        val decoded = HostTransactionJournal.decode(HostTransactionJournal.encode(record))
+            as HostTransactionJournal.Decode.Current
+
+        assertEquals(listOf(HostVault.account(other)), decoded.record.deleteVaultAccounts)
+    }
+
+    @Test
+    fun cascadeDeleteAccountsRejectConflictsAndForeignAccounts() {
+        val other = ClientConnectionId("00000000-0000-0000-0000-000000000002")
+        val duplicate = HostTransactionJournal.encode(
+            HostTransactionJournal.make(
+                operationId = 12,
+                kind = HostTransactionJournal.Kind.Remove,
+                connectionId = id,
+                targetRegistryBytes = "registry".toByteArray(),
+                deleteVaultAccounts = listOf(HostVault.account(other), HostVault.account(other)),
+            ),
+        )
+        assertEquals(
+            HostTransactionJournal.Decode.Corrupt,
+            HostTransactionJournal.decode(duplicate),
+        )
+
+        val conflictingTarget = HostTransactionJournal.encode(
+            HostTransactionJournal.make(
+                operationId = 13,
+                kind = HostTransactionJournal.Kind.Add,
+                connectionId = id,
+                targetRegistryBytes = "registry".toByteArray(),
+                targetVaultAccount = HostVault.account(id),
+                targetVaultBytes = "secret".toByteArray(),
+                deleteVaultAccounts = listOf(HostVault.account(id)),
+            ),
+        )
+        assertEquals(
+            HostTransactionJournal.Decode.Corrupt,
+            HostTransactionJournal.decode(conflictingTarget),
+        )
+
+        val foreign = HostTransactionJournal.encode(
+            HostTransactionJournal.make(
+                operationId = 14,
+                kind = HostTransactionJournal.Kind.Remove,
+                connectionId = id,
+                targetRegistryBytes = "registry".toByteArray(),
+                deleteVaultAccounts = listOf("not-a-vault-account"),
+            ),
+        )
+        assertEquals(HostTransactionJournal.Decode.Corrupt, HostTransactionJournal.decode(foreign))
+    }
+}

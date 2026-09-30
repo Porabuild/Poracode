@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { layout, prepare } from "@chenglou/pretext";
 import { splitPath } from "@/shared/pathUtils";
+import { StartTruncatedText } from "./StartTruncatedText";
 
 interface PathDisplayProps {
   path: string;
@@ -140,13 +141,7 @@ function CssPathDisplay({
         <span className={`min-w-0 truncate ${basenameClassName}`}>{basename}</span>
         {trailing}
       </span>
-      {dir && (
-        <span
-          className={`ml-1 min-w-0 overflow-hidden text-left text-ellipsis whitespace-nowrap [direction:rtl] ${dirClassName}`}
-        >
-          {dir}
-        </span>
-      )}
+      {dir && <StartTruncatedText className={`ml-1 ${dirClassName}`}>{dir}</StartTruncatedText>}
     </span>
   );
 }

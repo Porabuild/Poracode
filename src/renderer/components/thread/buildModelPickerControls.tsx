@@ -10,6 +10,10 @@ import type {
 import { baseAgentKind } from "@/shared/contracts";
 import { migrateCursorBaseId, parseCursorModelId } from "@/shared/cursorModelId";
 import {
+  defaultFastEnabled,
+  normalizeProviderModelConfig,
+} from "@/renderer/components/providers/modelConfig";
+import {
   statusToMenuProvider,
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu/parts/buildItems";
@@ -19,7 +23,10 @@ import {
   providerMenuKey,
   providerVisibilityKey,
 } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
-import { getComposerControls } from "@/renderer/components/providers/providerComposer";
+import {
+  getComposerConfigBehavior,
+  getComposerControls,
+} from "@/renderer/components/providers/providerComposer";
 import { EffortIcon } from "@/renderer/components/providers/EffortIcon";
 import {
   capabilitiesForPresentation,
@@ -55,6 +62,8 @@ export type BuildModelPickerControlsInput = {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   includeFastToggle?: boolean;
+  /** Ask before applying a context-size change (see `ComposerConfigBehavior`). */
+  confirmContextChange?: boolean;
   onProviderModelChange: (next: {
     agentKind: string;
     model: string;
@@ -174,16 +183,28 @@ export function patchConfigForModelChange(
     fast?: boolean;
     thinking?: boolean;
   },
+  agentKind = "",
 ): ModelPickerConfigPatch {
   const nextReasoning = modelSelectionFor(capabilities, model).reasoning;
   const effortValid = current.effort ? nextReasoning.values.includes(current.effort) : true;
   const nextContextIds = capabilities.modelContextSizes?.[model];
-  const nextContextDefault = nextContextIds?.[0] ?? capabilities.defaultContextSize;
+  const inheritedContext =
+    current.contextSize && nextContextIds?.includes(current.contextSize)
+      ? current.contextSize
+      : undefined;
+  // Always write contextSize so a model with no window does not keep the
+  // previous model's size through `{ ...thread.config, ...patch }`.
+  const nextContextSize =
+    inheritedContext ??
+    nextContextIds?.[0] ??
+    (nextContextIds ? "" : (capabilities.defaultContextSize ?? ""));
   return {
     model,
     effort: effortValid && current.effort ? current.effort : (nextReasoning.default ?? ""),
-    ...(nextContextDefault ? { contextSize: nextContextDefault } : {}),
-    fast: supportsUsableFastMode(capabilities, model) ? (current.fast ?? true) : false,
+    contextSize: nextContextSize,
+    fast: supportsUsableFastMode(capabilities, model)
+      ? (current.fast ?? defaultFastEnabled(agentKind))
+      : false,
     thinking: capabilities.thinkingModels?.includes(model) ?? false,
   };
 }
@@ -218,6 +239,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
     isDisabled,
     hideLabelOnWrap = true,
     includeFastToggle = true,
+    confirmContextChange,
     onProviderModelChange,
     onConfigPatch,
   } = input;
@@ -261,6 +283,7 @@ export function buildModelPickerControls(input: BuildModelPickerControlsInput): 
       contextSizes: selectableContextSizes,
       ...(selectableContextSizes.length > 0 && contextSize ? { contextValue: contextSize } : {}),
       onContextChange: (value) => onConfigPatch({ contextSize: value }),
+      ...(confirmContextChange ? { confirmContextChange } : {}),
       thinkingSupported: supportsThinking,
       thinkingValue: thinking === true,
       onThinkingChange: (value) => onConfigPatch({ thinking: value }),
@@ -357,6 +380,7 @@ function normalizeCursorComposerConfig(
     ...config,
     model: baseModel,
     ...(parsed.effort && !config.effort ? { effort: parsed.effort } : {}),
+    ...(parsed.contextSize && !config.contextSize ? { contextSize: parsed.contextSize } : {}),
     fast: config.fast ?? parsed.fast,
     thinking: config.thinking ?? parsed.thinking,
   };
@@ -380,19 +404,20 @@ export function buildControls(
     agentStatus.capabilities,
     presentationMode,
   );
+  const normalizedConfig = normalizeProviderModelConfig(
+    thread.agentKind,
+    normalizeCursorComposerConfig(thread.agentKind, thread.config, presentationCapabilities),
+    presentationCapabilities.models,
+  );
   // The model a thread already runs with stays selectable in its own composer
   // even if it is hidden for this surface — otherwise the picker has no entry
   // to label it from and shows the raw model id.
   const filteredCaps = withModelVisible(
     filterHiddenModels(presentationCapabilities, hiddenModelIds),
     presentationCapabilities,
-    thread.config?.model,
+    normalizedConfig.model,
   );
-  const effectiveConfig = normalizeCursorComposerConfig(
-    thread.agentKind,
-    thread.config,
-    filteredCaps,
-  );
+  const effectiveConfig = normalizedConfig;
   const isDisabled = !thread.canResumeWithConfig && thread.status !== "launching";
   const onPatch = (patch: Partial<ThreadConfig>) => {
     const config = { ...thread.config, ...effectiveConfig, ...patch };
@@ -423,15 +448,54 @@ export function buildControls(
       ...(machineKey ? { machineKey } : {}),
       presentationMode,
       isDisabled,
-      onProviderModelChange: ({ model }) => {
+      // A started session is reloaded to apply a new size; drafts apply it at launch.
+      ...(thread.sessionRef &&
+      getComposerConfigBehavior(thread.agentKind)?.contextSizeChangeReloadsSession
+        ? { confirmContextChange: true }
+        : {}),
+      onProviderModelChange: ({ model: selectedModel }) => {
+        const current = normalizeProviderModelConfig(
+          thread.agentKind,
+          thread.config,
+          presentationCapabilities.models,
+        );
+        const picked = normalizeProviderModelConfig(
+          thread.agentKind,
+          { model: selectedModel },
+          filteredCaps.models,
+        );
+        const model = picked.model ?? selectedModel;
+        if (
+          current.model &&
+          current.model !== model &&
+          current.fast === true &&
+          thread.config.fast !== true
+        ) {
+          onModelPreferenceChange?.(current.model, {
+            ...(thread.config.effort ? { effort: thread.config.effort } : {}),
+            fast: true,
+          });
+        }
         const preference = modelPreferences?.[model];
+        const fast =
+          preference?.fast ??
+          (picked.model !== selectedModel
+            ? picked.fast
+            : current.model === model
+              ? current.fast
+              : undefined);
         onPatch(
-          patchConfigForModelChange(filteredCaps, model, {
-            ...(preference?.effort !== undefined ? { effort: preference.effort } : {}),
-            ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
-            ...(preference?.fast !== undefined ? { fast: preference.fast } : {}),
-            ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
-          }),
+          patchConfigForModelChange(
+            filteredCaps,
+            model,
+            {
+              ...(preference?.effort !== undefined ? { effort: preference.effort } : {}),
+              ...(effectiveConfig.contextSize ? { contextSize: effectiveConfig.contextSize } : {}),
+              ...(fast !== undefined ? { fast } : {}),
+              ...(effectiveConfig.thinking ? { thinking: effectiveConfig.thinking } : {}),
+            },
+            thread.agentKind,
+          ),
         );
       },
       onConfigPatch: onPatch,

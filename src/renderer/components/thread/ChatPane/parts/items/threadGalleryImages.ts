@@ -14,20 +14,44 @@ import {
 import { getProjectFsPath } from "@/shared/wsl";
 import { resolveProjectLocation } from "@/shared/worktree";
 import type { RemoteImageRefValue } from "@/shared/remote";
-import { readBridge } from "@/renderer/bridge";
+import { environmentImageRefKey } from "@/shared/remote/clientEnvironmentImages";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { imageUrlMetadata } from "@/renderer/utils/imageUrlMetadata";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import {
+  remoteBridgeImageRefUrl,
+  remoteBridgeLocalImageUrl,
+} from "@/renderer/browser/remoteBridge";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
 import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
 import { resolveThreadMarkdownImageRoots } from "@/renderer/components/thread/threadMarkdownImageRoots";
-import { imageViewSourceFromImageBlock, resolveImageViewSource } from "./imageViewSource";
+import {
+  imageViewSourceFromImageBlock,
+  resolveImageViewSource,
+  type ImageViewSource,
+} from "./imageViewSource";
 
 /** Renderable thread image for galleries, mosaics, and the fullscreen lightbox. */
 export type ThreadGalleryImage = LightboxImage;
+
+/** One collection pass: the renderable images plus the host-held refs still pending. */
+export interface ThreadGalleryCollection {
+  readonly images: readonly ThreadGalleryImage[];
+  /**
+   * Environment-held references the transcript currently presents as pending
+   * (resolved URL is still empty). Consumers subscribe to these keys through
+   * the existing bounded keyed readiness surface so an already-open gallery or
+   * lightbox picks the image up when its blob lands.
+   */
+  readonly pendingRemoteRefs: RemoteImageRefValue[];
+  /** Remote user-attachment paths awaiting a renderable blob URL. */
+  readonly pendingRemotePaths: string[];
+}
 
 export interface ThreadGalleryResolvers {
   /** Resolve a user-attachment path (remote desktop image endpoint). */
@@ -48,14 +72,20 @@ export interface ThreadGalleryResolvers {
  * before markdown, document tails before heads). Skips sub-agent children
  * (they render in the overlay, not the main transcript) and anything that
  * cannot resolve to a renderable URL on this client (remote refs without a
- * session).
+ * session). Host-held refs whose authenticated blob is still pending are
+ * reported separately (not as images) so the consumer can subscribe to their
+ * readiness keys instead of dropping them until an incidental re-render.
  */
-export function collectThreadGalleryImages(
+export function collectThreadGallery(
   items: readonly RuntimeChatItem[],
   resolvers: ThreadGalleryResolvers = {},
-): ThreadGalleryImage[] {
+): ThreadGalleryCollection {
   const gallery: ThreadGalleryImage[] = [];
+  const pendingRemoteRefs: RemoteImageRefValue[] = [];
+  const pendingRemotePaths: string[] = [];
   const seen = new Set<string>();
+  const seenPending = new Set<string>();
+  const seenPendingPaths = new Set<string>();
   const push = (image: ThreadGalleryImage | null | undefined) => {
     if (!image || !image.src) return;
     // One source is one gallery image even when repeated with different alt
@@ -63,6 +93,13 @@ export function collectThreadGalleryImages(
     if (seen.has(image.src)) return;
     seen.add(image.src);
     gallery.push(image);
+  };
+  const pushPending = (source: ImageViewSource) => {
+    if (!source.remoteRef || source.src) return;
+    const key = environmentImageRefKey(source.remoteRef);
+    if (seenPending.has(key)) return;
+    seenPending.add(key);
+    pendingRemoteRefs.push(source.remoteRef);
   };
 
   for (let i = items.length - 1; i >= 0; i--) {
@@ -74,8 +111,13 @@ export function collectThreadGalleryImages(
         const att = attachments[j];
         if (!att) continue;
         const mime = att.mimeType ?? mimeForPath(att.path);
+        const src = attachmentImageUrl(att, resolvers.imageUrlForPath);
+        if (!src && !seenPendingPaths.has(att.path)) {
+          seenPendingPaths.add(att.path);
+          pendingRemotePaths.push(att.path);
+        }
         push({
-          src: attachmentImageUrl(att, resolvers.imageUrlForPath),
+          src,
           ...(att.name ? { alt: att.name, fileName: att.name } : {}),
           ...(mime ? { mime } : {}),
         });
@@ -87,9 +129,11 @@ export function collectThreadGalleryImages(
         const source = imageViewSourceFromImageBlock(
           blocks[j] as { dataUrl?: unknown; mimeType?: unknown; name?: unknown },
           resolvers.remoteImageRefUrl,
+          { pendingAsPlaceholder: true },
         );
-        if (source)
-          push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+        if (!source) continue;
+        pushPending(source);
+        push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
       }
       // Pure text deltas intentionally do not invalidate the gallery cache.
       // Collect markdown once the item completes, when its structural version
@@ -111,12 +155,22 @@ export function collectThreadGalleryImages(
       const source = resolveImageViewSource(
         item.payload as ToolCallPayload | undefined,
         resolvers.remoteImageRefUrl,
+        { pendingAsPlaceholder: true },
       );
-      if (source)
-        push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+      if (!source) continue;
+      pushPending(source);
+      push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
     }
   }
-  return gallery;
+  return { images: gallery, pendingRemoteRefs, pendingRemotePaths };
+}
+
+/** Image-only compatibility wrapper for synchronous click-time collectors. */
+export function collectThreadGalleryImages(
+  items: readonly RuntimeChatItem[],
+  resolvers: ThreadGalleryResolvers = {},
+): readonly ThreadGalleryImage[] {
+  return collectThreadGallery(items, resolvers).images;
 }
 
 /** Mirrors `imageViewSource`'s status check: errored tool calls show the accordion. */
@@ -383,9 +437,13 @@ export function buildGalleryResolversFromState(
   if (remoteServerId) {
     const desktopId = remoteServerId;
     resolvers.imageUrlForPath = (path: string) =>
-      useRemoteServersStore.getState().localImageUrl(desktopId, path);
+      isRemoteSession()
+        ? remoteBridgeLocalImageUrl(path)
+        : useRemoteServersStore.getState().localImageUrl(desktopId, path);
     resolvers.remoteImageRefUrl = (ref) =>
-      useRemoteServersStore.getState().imageRefUrl(desktopId, ref);
+      isRemoteSession()
+        ? remoteBridgeImageRefUrl(ref)
+        : useRemoteServersStore.getState().imageRefUrl(desktopId, ref);
   }
   const project = thread ? state.projects?.find((p) => p.id === thread.projectId) : undefined;
   if (project && thread) {
@@ -398,7 +456,9 @@ export function buildGalleryResolversFromState(
             ? ("win32" as NodeJS.Platform)
             : ("linux" as NodeJS.Platform);
         const imagePath = resolveLocalFileUrlPath(url, platform);
-        return useRemoteServersStore.getState().localImageUrl(remoteServerId, imagePath);
+        return isRemoteSession()
+          ? remoteBridgeLocalImageUrl(imagePath)
+          : useRemoteServersStore.getState().localImageUrl(remoteServerId, imagePath);
       };
     }
     const homeDir = readBridge()?.homeDir ?? undefined;
@@ -436,7 +496,9 @@ export function selectRemoteGalleryRevision(
   remoteServerId: string | undefined,
 ): string {
   if (!remoteServerId) return "";
-  const server = state.servers.find((entry) => entry.desktopId === remoteServerId);
+  // `remoteServerId` on a projected thread is the CONNECTION key, which for a
+  // host-owned environment is not the child host identity.
+  const server = state.servers.find((entry) => remoteConnectionKey(entry) === remoteServerId);
   const status = state.runtime[remoteServerId]?.status ?? "offline";
   return `${server?.endpoint ?? ""}\0${server?.accessToken ?? ""}\0${status}`;
 }
@@ -446,10 +508,18 @@ interface GalleryCacheEntry {
   itemsById: Record<string, RuntimeChatItem>;
   resolverKey: string;
   revision: GalleryCacheRevision;
-  result: ThreadGalleryImage[];
+  result: ThreadGalleryCollection;
 }
 
 const galleryCache = new Map<string, GalleryCacheEntry>();
+
+/**
+ * Drops one thread's cached collection. Readiness transitions call this so the
+ * next collection pass (from any subscriber) sees the newly resolved URL.
+ */
+export function invalidateCachedThreadGallery(threadId: string): void {
+  galleryCache.delete(threadId);
+}
 
 function readCachedGallery(
   threadId: string,
@@ -457,7 +527,7 @@ function readCachedGallery(
   itemsById: Record<string, RuntimeChatItem>,
   resolvers: ThreadGalleryResolvers,
   revision: GalleryCacheRevision,
-): ThreadGalleryImage[] | null {
+): ThreadGalleryCollection | null {
   const cached = galleryCache.get(threadId);
   if (
     cached &&
@@ -479,8 +549,8 @@ function writeCachedGallery(
   itemsById: Record<string, RuntimeChatItem>,
   resolvers: ThreadGalleryResolvers,
   revision: GalleryCacheRevision,
-  result: ThreadGalleryImage[],
-): ThreadGalleryImage[] {
+  result: ThreadGalleryCollection,
+): ThreadGalleryCollection {
   if (galleryCache.size > 200) galleryCache.clear();
   galleryCache.set(threadId, {
     itemIds,
@@ -503,10 +573,10 @@ export function getCachedThreadGallery(
   itemsById: Record<string, RuntimeChatItem>,
   resolvers: ThreadGalleryResolvers,
   revision: GalleryCacheRevision,
-): ThreadGalleryImage[] {
+): ThreadGalleryCollection {
   const cached = readCachedGallery(threadId, itemIds, itemsById, resolvers, revision);
   if (cached) return cached;
   const items = itemIds.map((id) => itemsById[id]).filter((item) => item !== undefined);
-  const result = collectThreadGalleryImages(items, resolvers);
+  const result = collectThreadGallery(items, resolvers);
   return writeCachedGallery(threadId, itemIds, itemsById, resolvers, revision, result);
 }

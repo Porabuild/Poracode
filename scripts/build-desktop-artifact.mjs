@@ -53,6 +53,7 @@ const RUNTIME_DEPS = [
   "jsonc-parser",
   "micromatch",
   "node-pty",
+  "sharp",
   "smol-toml",
   "vscode-jsonrpc",
   "ws",
@@ -509,6 +510,14 @@ extraResources:
     to: plugins
     filter:
       - "**/*"
+  # Immutable preassembled SSH runtime archive (C3/S3). Built by
+  # scripts/build-ssh-runtime-archive.mjs from the frozen closure before
+  # packaging; the desktop loader prefers it and only stages a bundle when it
+  # is absent or built from different sources.
+  - from: resources/ssh-runtime-archive
+    to: ssh-runtime-archive
+    filter:
+      - "**/*"
   - from: build/icon${runtimeIconSuffix}.png
     to: app-icon.png
   - from: build/tray-icon${iconSuffix}.ico
@@ -529,6 +538,12 @@ asarUnpack:
   - node_modules/better-sqlite3/**/*
   - dist/main/claudeSdkProbeWorker.mjs
   - dist/main/cursorSdkWorker.mjs
+  # The remote HTTP bridge is the utility-process module path main forks; keep
+  # it outside the archive so packaged startup never depends on asar module
+  # resolution inside a utility child.
+  - dist/main/remoteHttpBridge.cjs
+  # Same rule for the SSH environment utility: main forks this file path.
+  - dist/main/sshEnvironmentWorker.cjs
   - node_modules/@anthropic-ai/claude-agent-sdk/**/*
 
 afterPack: build/after-pack.cjs

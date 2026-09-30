@@ -57,7 +57,14 @@ session and make wrong ports, shared state, and duplicate launches possible.
 The smoke runner owns and tears down its app. The managed launcher keeps one app
 alive for repeated manual actions, and its owner process performs every stop.
 
-The one-command runner below allocates its own free ports, so each invocation spawns a fully isolated dev app. Runs from multiple worktrees can execute side by side without colliding on the Vite or CDP port.
+Never symlink an entire `node_modules` directory between worktrees or invoke
+`pnpm` through such a link: pnpm 12 can reconcile links relative to the other
+worktree and rewrite the target checkout's dependency tree. Use a checkout-local
+install (`pnpm install --frozen-lockfile`) or invoke already-installed tooling
+directly without sharing the directory. Session staging creates its own temporary
+build links and replaces them with copied runtime dependencies before launch.
+
+The one-command runner allocates its own free ports and builds a session-owned development app. Main, backend, supervisor, preload, workers, native dependencies, resources, and renderer assets are snapshots; checkout rebuilds cannot change a lazy child or chunk load. Runs can coexist without sharing runtime files or renderer/CDP ports.
 
 ```sh
 node .agents/skills/interactive-testing/scripts/run-poracode-smoke.mjs --scope changed --mode mock
@@ -74,12 +81,18 @@ isolated profile and compiled runtime, dismisses and verifies the first-launch
 welcome screen, runs the integration suite, writes screenshots/report artifacts
 under `~/.poracode-smoke`, and tears down the process automatically. Managed
 launches never reclaim an occupied port or rebuild another session's runtime.
+The frozen renderer keeps the DEV test bridge for deterministic controls. This is
+development integration evidence, not a production artifact or performance build.
+For deliberate UI hot reload, add `--rendererViteHMR` to either launcher: only the
+renderer then follows the checkout through Vite. The session records that mode;
+do not describe an HMR run as a frozen candidate.
+
 No provider credentials, PTY input, git mutations, MCP server, mobile device, or
 native update flow is required for the default mock run.
 
 **`HOME` and provider detection — no drift between test and app.** Poracode's own state is always isolated via `PORACODE_BASE_DIR`, independent of `HOME`. Provider _detection_, however, resolves each CLI through the login-shell `command -v` (e.g. `kimi` → `~/.kimi-code/bin/kimi`) and reads credentials under the home dir — so it only matches the real app when `HOME` is the real home. Therefore:
 
-- **Mock mode** sandboxes `HOME`/`APPDATA` and uses a mock keychain (deterministic isolation; providers are mocked). Real providers legitimately show **"Not found"** here — that is expected, not a bug, and mock gates never depend on real credentials.
+- **Mock mode** sandboxes `HOME`/`APPDATA` and uses a mock keychain (deterministic isolation; providers are mocked). The supervisor also refuses to spawn real provider CLIs (`PORACODE_MOCK_AGENTS=1`): thread launches, one-shots, and provider sign-in/logout fail with an "Agent launch refused" error instead of executing a real binary. Real providers legitimately show **"Not found"** here — that is expected, not a bug, and mock gates never depend on real credentials.
 - **Real mode** (`--mode real`) keeps the **real `HOME`**, so authenticated providers (Kimi, Qwen, …) can detect as in the shipped app. Always verify a provider-dependent surface in real mode; never diagnose a real detection issue from a mock-mode "Not found".
 
 Real `HOME` is necessary but not always sufficient: detection probes `command -v <binary>` in a login+interactive shell with **`cwd: homedir()`**, so a CLI whose bin dir is on `PATH` only via a _project-scoped_ mechanism (direnv `.envrc`, `asdf` local, `mise`, a per-repo `.env`) is invisible to the detector even though it works inside the project — direnv unloads at the home cwd. Symptom: the app log prints `direnv: unloading` and the provider shows "Not found". Fix in the environment, not the app: put the binary on a globally-resolvable `PATH` (e.g. symlink into `~/.local/bin`, as qwen/grok are). This is why `~/.kimi-code/bin/kimi` (direnv-only) can miss while `~/.local/bin`-installed providers detect fine.
@@ -117,16 +130,24 @@ complete, request verified teardown from any shell with:
 node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs stop
 ```
 
-The stop command returns success only after the owner has closed both ports,
-removed its isolated build, and marked `session.json` stopped. Ctrl-C in the
+The stop command returns success only after the owner has joined its owned
+process groups, closed both ports, removed its isolated build, and marked
+`session.json` stopped. On POSIX, a child that outlives its wrapper receives
+escalated signals; an unverified group is left untouched and teardown fails
+with artifacts retained. Ctrl-C in the
 owning terminal is a fallback and uses the same teardown path, but some Windows
 PTY hosts report the outer shell interruption as exit 1 even after clean
 teardown. A cold renderer transform can take about a minute on
 a busy Windows checkout; `state: "starting"` still owns the launch, so wait for
 `READY` or a concrete failure instead of starting another app.
+`stop` allows 60 seconds for escalation and removing copied runtime files;
+`--timeout <seconds>` changes that deadline without weakening teardown checks.
 
-The launcher reuses an existing healthy debug session for this checkout instead
-of launching a duplicate. Only use `--new` when concurrent same-checkout apps
+The launcher reuses an existing healthy debug session only when its source bytes
+and requested renderer mode still match this checkout. Source edits or switching
+`--rendererViteHMR` require stopping the old session or explicitly using `--new`;
+explicit `info --session` remains available to inspect an older baseline.
+Only use `--new` when concurrent same-checkout apps
 are the behavior under test. If more than one session exists, every helper
 refuses to guess; pass the exact session printed by its launcher:
 
@@ -134,9 +155,23 @@ refuses to guess; pass the exact session printed by its launcher:
 node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs info --session "<session.json path printed by launcher>"
 ```
 
-The authoritative `<run-id>/session.json` records the unique token, lifecycle,
-repo/worktree, app URL, distinct ports, base directory, isolated build, and
-owner PIDs. `ports.json` remains report metadata, not an attachment instruction.
+The authoritative `<run-id>/session.json` (schema 2) records the unique token,
+lifecycle, checkout, URL/ports, base directory, owner PIDs, and runtime source SHA,
+dirty status, source/artifact hashes, paths, and renderer mode. `runtime-manifest.json`
+retains the build identity after teardown removes `runtime/`. Schema 1 sessions
+remain inspectable/stoppable, but cannot be reused as isolated-build evidence.
+Native helper compilation uses a session-owned Cargo target directory; installed
+production dependencies (including lazy `createRequire` paths) are copied and validated with the staged
+`ensure-native-deps.mjs --electron-native` before the artifact hash is recorded.
+Managed launches clear inherited helper/plugin/native-module overrides so those
+paths cannot silently select a checkout artifact.
+Verify the running session's retained files before recording final evidence:
+
+```sh
+node .agents/skills/interactive-testing/scripts/poracode-cdp.mjs verify-runtime --session "<session.json>"
+```
+
+`ports.json` remains report metadata, not an attachment instruction.
 Never invent a port or copy one from another run. The helpers accept a complete
 explicit port + URL pair only for deliberate unmanaged-app diagnosis; they
 reject either value alone and have no `9222`/`3100` fallback.
@@ -163,6 +198,28 @@ Exit meanings:
 - `2`: `--mode real` was selected and real manual gates remain.
 
 The runner first dismisses the welcome screen through its real primary action and verifies the overlay stays absent. It then checks boot/render health, the preload and dev bridges, crash-screen markers, runtime exceptions, unhandled rejections, console errors, and screenshots. Depending on the plan it also walks every Settings section, opens thread search, runs the dedicated Browser harness, and executes mock IPC/project/provider/auth/terminal/runtime checks against the isolated fixture.
+
+Renderer mock gates load optional modules through the bundled `__poracodeDev`
+loaders; never import `/src/...` URLs from CDP scripts, since frozen renderer
+snapshots do not serve Vite's source namespace. The quick-composer mock gate uses
+the separate version-2 `__poracodeSmokeNative` bridge, registered only for an
+unpackaged development app with mock agents and restricted to the current main
+window's top frame. It drives the actual native overlay and submits through its
+normal IPC path, intercepting provider launch at main-renderer thread creation.
+Its `mocked` result does not acknowledge the real quick-composer gate: global
+shortcut/tray invocation, OS dragging/reopening, visual dismissal motion, and a
+real provider-backed thread handoff still require the manual workflow below.
+
+For a mock shutdown check, the same guarded bridge exposes `closeMainWindow()`
+(the actual native window close method, respecting close-to-tray) and `quitApp()`
+(the actual app quit method). Check `version === 2` first. Invoke through the
+managed CDP helper, then verify process exit, owner teardown and any diagnostic
+end records; dispatch or a closed CDP target alone does not prove shutdown.
+Use `--await` when a CDP evaluation needs a promise result, such as confirming a
+fixture setting before closing. Do not use HTML `window.close()` to test native
+close: Electron's sandboxed renderer can destroy the window without firing the
+native close callback. These mock probes do not acknowledge OS menu/shortcut
+coverage or replace managed owner cleanup.
 
 Do not acknowledge a real gate before exercising it. After completing real gates through real controls, record them:
 
@@ -216,6 +273,8 @@ coordinates. Re-query selectors after navigation, portal opening, or hot reload;
 HeroUI menus and dialogs render in portals. A successful click/type confirms
 safe input dispatch, not application behavior; immediately evaluate or
 screenshot the expected state change before marking the gate passed.
+Smoke drivers share these pointer checks through `scripts/poracode-cdp-actions.mjs`;
+import that module rather than duplicating dispatch logic or importing the CLI.
 
 For a changed provider, start a fresh thread in the isolated project, observe the user row and first provider output, then stop it. For a permission flow, request a harmless read-only command and choose Deny unless the user authorized execution. For terminal changes, verify a real PTY launch, input, resize, interrupt, and stop. For git/file changes, mutate only the fixture repository.
 

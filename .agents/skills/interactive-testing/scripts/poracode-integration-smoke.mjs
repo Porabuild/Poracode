@@ -13,9 +13,12 @@ import {
   manualGates,
   productionRoots,
 } from "./smoke-scenarios.mjs";
+import { finalizeManualOutcomes, recordManualGate } from "./smoke-gate-outcomes.mjs";
 import { inspectCdpWindowTargets } from "./poracode-cdp-target.mjs";
 import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 import { mockLiveVoiceGate } from "./smoke-live-voice.mjs";
+import { runSettingsScenario } from "./smoke-settings.mjs";
+import { mockQuickComposerGate } from "./smoke-quick-composer.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
@@ -193,6 +196,14 @@ async function runSmoke(plan) {
   try {
     await client.send("Page.enable");
     await client.send("Runtime.enable");
+    // Electron can keep the managed main window hidden after overlay checks.
+    // Hidden documents suspend exit animations and retain closed modal content.
+    await evaluate(client, "window.poracode.focusWindow()", true);
+    await waitForValue(
+      () => evaluate(client, "document.visibilityState"),
+      (visibility) => visibility === "visible",
+      "visible main window",
+    );
     await runScenario(report, "welcome-dismissal", () => welcomeDismissalScenario(client));
     await installWindowErrorCollector(client);
     await runScenario(report, "baseline", () => baselineScenario(client));
@@ -241,10 +252,7 @@ async function runSmoke(plan) {
       .map((value) => value.trim())
       .filter(Boolean),
   );
-  for (const item of report.manual) {
-    if (mode === "mock") item.status = "mocked";
-    else if (acknowledged.has(item.gate)) item.status = "acknowledged";
-  }
+  finalizeManualOutcomes(report, { mode, acknowledged });
   report.finishedAt = new Date().toISOString();
   const reportPath = join(outDir, "smoke-report.json");
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
@@ -281,7 +289,7 @@ async function baselineScenario(client) {
           poracodeBridge: typeof window.poracode,
           devBridge: typeof window.__poracodeDev,
           crash: /renderer crash|rendered more hooks/i.test(document.body?.innerText ?? ""),
-          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")),
           draftComposer: Boolean(document.querySelector('textarea[placeholder], [contenteditable="true"], [data-composer-input-anchor]')),
           modelPicker: Boolean(document.querySelector('[aria-label="Select model"], [aria-label="Models"]')),
         }))()`,
@@ -313,7 +321,7 @@ async function welcomeDismissalScenario(client) {
           devBridge: typeof window.__poracodeDev,
           rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
           bodyTextLength: document.body?.innerText.length ?? 0,
-          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")),
         }))()`,
       ),
     (state) => state.devBridge === "object" && state.rootChildren > 0 && state.bodyTextLength > 0,
@@ -323,14 +331,15 @@ async function welcomeDismissalScenario(client) {
     return { dismissed: false, detail: "welcome screen was already dismissed" };
   }
 
-  // Bounded re-click until .poracode-welcome-page is gone (handlers may attach late).
+  // The shared WelcomeBackdrop also uses .poracode-welcome-page. The fixed
+  // overlay is the actual first-launch gate with a primary CTA.
   let clicked = false;
   let dismissed = false;
   for (let attempt = 0; attempt < 5 && !dismissed; attempt += 1) {
     clicked = await evaluate(
       client,
       `(() => {
-        const button = document.querySelector(".poracode-welcome-page button");
+        const button = document.querySelector(".poracode-welcome-page.fixed button");
         if (!(button instanceof HTMLButtonElement)) return false;
         button.click();
         localStorage.setItem("poracode-welcome-seen-v16", "true");
@@ -339,7 +348,7 @@ async function welcomeDismissalScenario(client) {
     );
     if (!clicked) break;
     await new Promise((resolveWait) => setTimeout(resolveWait, 1_500));
-    dismissed = await evaluate(client, `!document.querySelector(".poracode-welcome-page")`);
+    dismissed = await evaluate(client, `!document.querySelector(".poracode-welcome-page.fixed")`);
   }
   assert(clicked, "welcome screen primary action was not clickable");
   const final = await waitForValue(
@@ -351,7 +360,7 @@ async function welcomeDismissalScenario(client) {
           devBridge: typeof window.__poracodeDev,
           rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
           bodyTextLength: document.body?.innerText.length ?? 0,
-          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")),
+          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")),
         }))()`,
       ),
     (state) =>
@@ -365,7 +374,7 @@ async function welcomeDismissalScenario(client) {
   await new Promise((resolveWait) => setTimeout(resolveWait, 1_000));
   const stable = await evaluate(
     client,
-    `({ welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page")) })`,
+    `({ welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")) })`,
   );
   assert(!final.welcomeVisible, "welcome screen remained visible after dismissal");
   assert(!stable.welcomeVisible, "welcome screen returned after dismissal verification");
@@ -381,136 +390,18 @@ async function welcomeDismissalScenario(client) {
 }
 
 async function settingsScenario(client) {
-  const mcpFixture = await startMcpProbeFixture();
-  const configuredMcpServers = [
-    {
-      id: "smoke-mcp-connected",
-      name: "smoke-connected",
-      description: "Deterministic MCP probe fixture",
-      enabled: true,
-      timeoutMs: 30_000,
-      transport: { type: "http", url: `${mcpFixture.origin}/mcp`, headers: {} },
-    },
-    {
-      id: "smoke-mcp-auth",
-      name: "smoke-auth",
-      description: "Deterministic OAuth challenge fixture",
-      enabled: true,
-      timeoutMs: 30_000,
-      transport: { type: "http", url: `${mcpFixture.origin}/auth`, headers: {} },
-    },
-  ];
-  await evaluate(
+  return runSettingsScenario({
     client,
-    `window.__poracodeDev.stores.sharedSettings.getState().setMcpServers(${JSON.stringify(configuredMcpServers)})`,
-  );
-  const sections = [
-    "profile",
-    "general",
-    "audio",
-    "appearance",
-    "terminal",
-    "threads",
-    "git",
-    "worktrees",
-    "notifications",
-    "ai",
-    "search",
-    "shortcuts",
-    "remoteAccess",
-    "remoteServers",
-    "agentsGeneral",
-    "skills",
-    "mcpServers",
-    "plugins",
-    "browser",
-    "usage",
-    "archived",
-    "changelog",
-    "about",
-  ];
-  let mcpListScreenshotPath;
-  let mcpScreenshotPath;
-  let mcpImportScreenshotPath;
-  let pluginsScreenshotPath;
-  let skillsScreenshotPath;
-  let skillsImportScreenshotPath;
-  let skillsImportDestinationsScreenshotPath;
-  let skillsMarketplaceScreenshotPath;
-  let skillsTargetsScreenshotPath;
-  for (const section of sections) {
-    await evaluate(
-      client,
-      `window.__poracodeDev.openSettings(${JSON.stringify(section)}); new Promise((resolve) => setTimeout(resolve, 200))`,
-      true,
-    );
-    const state = await waitForValue(
-      () =>
-        evaluate(
-          client,
-          `(() => ({
-            hasContent: Boolean(document.querySelector('[data-settings-scroll-area="true"]')),
-            textLength: document.body.innerText.length,
-            crash: /renderer crash|rendered more hooks/i.test(document.body.innerText),
-          }))()`,
-        ),
-      (candidate) => candidate.hasContent && candidate.textLength > 0,
-      `settings section ${section}`,
-    );
-    assert(state.hasContent && state.textLength > 0, `settings section ${section} did not render`);
-    assert(!state.crash, `settings section ${section} rendered a crash screen`);
-    if (section === "skills") {
-      await waitForValue(
-        () =>
-          evaluate(
-            client,
-            `(() => ({
-              hasSearch: Boolean(document.querySelector('[aria-label="Search skills"]')),
-              text: document.body.innerText,
-            }))()`,
-          ),
-        (result) => result.hasSearch && (mode === "real" || result.text.includes("smoke-global")),
-        "skills settings fixture",
-      );
-      if (mode === "mock") {
-        ({
-          skillsImportScreenshotPath,
-          skillsImportDestinationsScreenshotPath,
-          skillsMarketplaceScreenshotPath,
-          skillsTargetsScreenshotPath,
-        } = await skillsSectionDeepDive(client));
-      }
-      skillsScreenshotPath = join(outDir, "smoke-02-skills.png");
-      await screenshot(client, skillsScreenshotPath);
-    }
-    if (section === "mcpServers") {
-      if (mode === "mock") {
-        ({ mcpListScreenshotPath, mcpScreenshotPath, mcpImportScreenshotPath } =
-          await mcpServersSectionDeepDive(client, mcpFixture));
-      }
-    }
-    if (section === "plugins") {
-      ({ pluginsScreenshotPath } = await pluginsSectionDeepDive(client));
-    }
-  }
-  const screenshotPath = join(outDir, "smoke-02-settings.png");
-  await screenshot(client, screenshotPath);
-  await evaluate(client, "window.__poracodeDev.closeSettings()");
-  await evaluate(client, "window.__poracodeDev.stores.sharedSettings.getState().setMcpServers([])");
-  await mcpFixture.close();
-  return {
-    sections,
-    screenshotPath,
-    ...(mcpListScreenshotPath ? { mcpListScreenshotPath } : {}),
-    ...(mcpScreenshotPath ? { mcpScreenshotPath } : {}),
-    ...(mcpImportScreenshotPath ? { mcpImportScreenshotPath } : {}),
-    ...(pluginsScreenshotPath ? { pluginsScreenshotPath } : {}),
-    ...(skillsScreenshotPath ? { skillsScreenshotPath } : {}),
-    ...(skillsImportScreenshotPath ? { skillsImportScreenshotPath } : {}),
-    ...(skillsImportDestinationsScreenshotPath ? { skillsImportDestinationsScreenshotPath } : {}),
-    ...(skillsMarketplaceScreenshotPath ? { skillsMarketplaceScreenshotPath } : {}),
-    ...(skillsTargetsScreenshotPath ? { skillsTargetsScreenshotPath } : {}),
-  };
+    evaluate,
+    waitForValue,
+    screenshot,
+    outDir,
+    mode,
+    startMcpProbeFixture,
+    skillsSectionDeepDive,
+    mcpServersSectionDeepDive,
+    pluginsSectionDeepDive,
+  });
 }
 
 async function pluginsSectionDeepDive(client) {
@@ -1076,11 +967,23 @@ async function mcpServersSectionDeepDive(client, mcpFixture) {
     () =>
       evaluate(
         client,
-        `document.body.innerText.includes("smoke_external") && document.body.innerText.includes("Workspace")`,
+        `!document.body.innerText.includes("Import external agent MCP servers") && Boolean(document.querySelector('button[aria-label="Delete smoke_external"]')?.getClientRects().length)`,
       ),
     Boolean,
     "MCP project import persistence",
   );
+  const persisted = await evaluate(
+    client,
+    `(async () => {
+    const { loopback } = await window.__poracodeDev.loadHostDiagnostics();
+    const activation = loopback.readManagedLoopbackActivation();
+    if (!activation) throw new Error("Managed host is not active for MCP persistence verification");
+    const settings = await activation.client.projectSettings("smoke-project");
+    return settings.mcpServers?.some(server => server.name === "smoke_external") === true;
+  })()`,
+    true,
+  );
+  assert(persisted, "MCP import was visible but absent from authoritative project settings");
   await evaluate(
     client,
     `document.querySelector('button[aria-label="Delete smoke_external"]')?.click()`,
@@ -1466,13 +1369,15 @@ async function runMockIntegrations(report, client, gates) {
   const passed = [];
   for (const gate of gates) {
     try {
+      // A previous gate may leave Settings covering the next gate's draft controls.
+      await resetDrivenState(client);
       const detail = await runMockGate(client, gate, fixture);
-      report.manual.find((item) => item.gate === gate).status = "mocked";
-      report.manual.find((item) => item.gate === gate).detail = detail;
+      recordManualGate(report, gate, "mocked", detail);
       passed.push(gate);
       console.log(`MOCK PASS: ${gate} - ${detail}`);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
+      recordManualGate(report, gate, "fail", detail);
       report.automated.push({ id: `mock:${gate}`, status: "fail", detail });
       console.log(`MOCK FAIL: ${gate} - ${detail}`);
     }
@@ -1629,7 +1534,7 @@ async function runMockGate(client, gate, fixture) {
     }
     case "provider-skill-delivery": {
       const expected = {
-        claude: "prompt",
+        claude: "slash",
         codex: "dollar",
         gemini: "prompt",
         opencode: "prompt",
@@ -1678,6 +1583,17 @@ async function runMockGate(client, gate, fixture) {
     case "project-mutations":
       assert(fixture.project.id === "smoke-project", "isolated project fixture is not selected");
       return "isolated seeded project was loaded and selected";
+    case "quick-composer":
+      return mockQuickComposerGate({
+        client,
+        evaluate,
+        waitForValue,
+        waitForTarget,
+        connectTarget,
+        screenshot,
+        outDir,
+        fixture,
+      });
     case "provider-live": {
       const state = await evaluate(
         client,
@@ -1730,7 +1646,7 @@ async function runMockGate(client, gate, fixture) {
       assert(controls.selectControls > 0, "provider model/approval controls did not render");
       return `provider ${state.kind} was hydrated and selector UI rendered without external credentials`;
     }
-    case "remote-mobile": {
+    case "remote-client": {
       const pairing = await bridgeInvoke(client, "getRemoteAccessPairing");
       assert(pairing && typeof pairing === "object", "remote pairing bridge returned no result");
       return "remote pairing state bridge returned successfully";
@@ -1746,13 +1662,30 @@ async function runMockGate(client, gate, fixture) {
       );
       return "runtime request store and resolution IPC contract were checked";
     }
-    case "terminal-pty":
+    case "terminal-pty": {
       assert(fixture.bridgeKeys.includes("startThread"), "thread launch bridge is missing");
-      assert(
-        /\bCLI\b/i.test(await evaluate(client, "document.body.innerText")),
-        "terminal presentation control did not render",
+      await evaluate(
+        client,
+        `window.__poracodeDev.stores.app.getState().openDraft(${JSON.stringify(fixture.project.id)})`,
+      );
+      await waitForValue(
+        () =>
+          evaluate(
+            client,
+            `(() => {
+              const tab = document.querySelector('[data-draft-controls] [role="tab"][data-tab-id="terminal"]');
+              if (!tab) return false;
+              const rect = tab.getBoundingClientRect();
+              const style = getComputedStyle(tab);
+              return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden"
+                && !tab.disabled && tab.getAttribute("aria-disabled") !== "true";
+            })()`,
+          ),
+        (visible) => visible === true,
+        "visible, enabled terminal presentation control in the fixture draft",
       );
       return "terminal launch contract and entry point were checked without spawning a real provider";
+    }
     case "visual-a11y": {
       const result = await evaluate(
         client,
@@ -1772,7 +1705,7 @@ async function runMockGate(client, gate, fixture) {
       return "interactive labels and dark-theme baseline were checked";
     }
     default:
-      return `mock gate acknowledged: ${gate}`;
+      throw new Error(`mock gate "${gate}" is unknown or has no deterministic mock implementation`);
   }
 }
 
@@ -1797,17 +1730,17 @@ async function installWindowErrorCollector(client) {
   );
 }
 
-async function waitForTarget() {
+async function waitForTarget(windowKind = "main") {
   const started = Date.now();
   let cdpRespondedWithPages = false;
   let lastPageUrls = [];
   while (Date.now() - started < timeoutMs) {
     try {
-      const inspection = await inspectCdpWindowTargets({ port, appUrl, windowKind: "main" });
+      const inspection = await inspectCdpWindowTargets({ port, appUrl, windowKind });
       if (inspection.ready.length === 1) return inspection.ready[0];
       if (inspection.ready.length > 1) {
         throw new Error(
-          `multiple ready main targets match ${appUrl}: ${inspection.ready.map((target) => target.id).join(", ")}`,
+          `multiple ready ${windowKind} targets match ${appUrl}: ${inspection.ready.map((target) => target.id).join(", ")}`,
         );
       }
       if (inspection.candidates.length === 0 && inspection.pageTargets.length > 0) {
@@ -1919,8 +1852,14 @@ function printReport(report, reportPath) {
   }
   for (const item of report.manual) {
     const statusLabel =
-      item.status === "acknowledged" ? "ACK" : item.status === "mocked" ? "MOCK" : "MANUAL";
-    console.log(`${statusLabel}: ${item.gate}`);
+      item.status === "acknowledged"
+        ? "ACK"
+        : item.status === "mocked"
+          ? "MOCK"
+          : item.status === "fail"
+            ? "FAIL"
+            : "MANUAL";
+    console.log(`${statusLabel}: ${item.gate}${item.status === "fail" ? ` - ${item.detail}` : ""}`);
   }
   console.log(`Console/runtime errors: ${report.errors.length}`);
   console.log(`Report: ${reportPath}`);

@@ -45,3 +45,44 @@ describe("PtyLifecycle.resize", () => {
     expect(session.ptyExited).toBe(false);
   });
 });
+
+describe("PtyLifecycle shutdown", () => {
+  it("joins every tracked PTY until its exit callback resolves", async () => {
+    const lifecycle = new PtyLifecycle();
+    const first = runtimeWithResize(() => {});
+    const second = runtimeWithResize(() => {});
+    lifecycle.track(first);
+    lifecycle.track(second);
+
+    let settled = false;
+    const waiting = lifecycle.waitForAllExits().then(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    lifecycle.resolveExit(first);
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    lifecycle.resolveExit(second);
+    await waiting;
+    expect(settled).toBe(true);
+  });
+
+  it("reports an unconfirmed PTY instead of treating the deadline as an exit", async () => {
+    vi.useFakeTimers();
+    try {
+      const lifecycle = new PtyLifecycle();
+      const session = runtimeWithResize(() => {});
+      lifecycle.track(session);
+
+      const waiting = lifecycle.waitForAllExits();
+      await vi.advanceTimersByTimeAsync(2_000);
+
+      await expect(waiting).resolves.toBe(false);
+      expect(session.ptyExited).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

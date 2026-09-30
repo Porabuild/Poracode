@@ -7,7 +7,7 @@ import { isHomeProjectId } from "@/shared/homeScope";
  * client only imports the ones the user wants in their sidebar:
  *
  * - The remote's built-in **Home scope** row is never mirrored. It is not a real
- *   project (it is re-created on every launch and exists so the mobile client
+ *   project (it is re-created on every launch and exists so browser clients
  *   can run home-scoped threads); this client already has its own Home scope.
  * - Anything the user excluded is skipped. Exclusion is purely local state, so
  *   it applies — and can be changed — while the server is offline.

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="runtime_context_label">Contexte</string>
+    <string name="runtime_context_usage">Utilisation du contexte</string>
+    <string name="runtime_context_show_details">Afficher les détails d’utilisation du contexte</string>
+    <string name="runtime_context_hide_details">Masquer les détails d’utilisation du contexte</string>
+    <string name="runtime_context_percent_full">Rempli à %1$d%%</string>
+    <string name="runtime_context_percent">%1$d%%</string>
+    <string name="runtime_context_used_and_limit">%1$s / %2$s jetons</string>
+    <string name="runtime_context_used_value">%1$s utilisés</string>
+    <string name="runtime_context_limit_value">Limite : %1$s</string>
+    <string name="runtime_context_used">Utilisés</string>
+    <string name="runtime_context_unknown">Inconnu</string>
+    <string name="runtime_context_provider_unreported">Le fournisseur n’a pas indiqué l’utilisation des jetons.</string>
+    <string name="runtime_context_summary">%1$s : %2$s</string>
+    <string name="runtime_context_compact_thousands">%1$s k</string>
+    <string name="runtime_context_compact_millions">%1$s M</string>
+</resources>

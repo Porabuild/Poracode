@@ -24,6 +24,7 @@ import {
   parseCodexVersionLine,
   probeCodexCliSemver,
 } from "./install";
+import { clearExecutablePathCache, primeWslLaunchEnvironment } from "../../base";
 import { buildNativeHookCommandHead } from "../../plugin/installerBase";
 
 const forwardPath = "C:\\Users\\demo\\.poracode\\agent-plugins\\codex\\forward.mjs";
@@ -58,15 +59,28 @@ afterEach(() => {
 });
 
 describe("getCodexPluginPaths", () => {
-  it("places Codex hooks under Poracode's private CODEX_HOME", () => {
+  it("places Codex hooks under Poracode's private CODEX_HOME", async () => {
     const baseDir = mkdtempSync(join(tmpdir(), "poracode-codex-paths-"));
-    const paths = getCodexPluginPaths({ envKind: "posix", baseDir });
+    const paths = await getCodexPluginPaths({ envKind: "posix", baseDir });
 
     expect(paths.pluginDir).toBe(join(baseDir, "agent-plugins", "codex"));
     expect(paths.codexHomeDir).toBe(join(baseDir, "agent-plugins", "codex", "home"));
     expect(paths.codexHooksPath).toBe(
       join(baseDir, "agent-plugins", "codex", "home", "hooks.json"),
     );
+  });
+
+  it("resolves the WSL private home instead of pinning a cold empty result", async () => {
+    const distro = `PoracodeCodexPaths${process.pid}`;
+    clearExecutablePathCache();
+    const ctx = { envKind: "wsl" as const, wslDistro: distro };
+    const cold = await getCodexPluginPaths(ctx);
+    expect(cold.codexHomeDir).toBe("");
+
+    primeWslLaunchEnvironment(distro, { shellPath: "/bin/bash", home: "/home/probe" });
+    const warm = await getCodexPluginPaths(ctx);
+    expect(warm.codexHomeDir).toBe("/home/probe/.poracode/agent-plugins/codex/home");
+    expect(warm.codexHooksPath).toBe("/home/probe/.poracode/agent-plugins/codex/home/hooks.json");
   });
 });
 

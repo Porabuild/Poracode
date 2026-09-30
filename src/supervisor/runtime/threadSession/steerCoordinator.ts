@@ -401,6 +401,9 @@ export class SteerCoordinator {
       ...(options?.userMessageItemId ? { userMessageItemId: options.userMessageItemId } : {}),
       ...(inlineInstructions ? { inlineInstructions } : {}),
     };
+    // Adopt the replacement snapshot before interrupt so a thread-state echo
+    // cannot resurrect the previous model / effort / Fast.
+    session.config = turn.config;
     // Capability-based: non-interrupting steer enqueues onto the running turn
     // (subagents survive, no watchdog); others use the interrupt-drain path.
     // A renderer can request this path from optimistic `working` state while

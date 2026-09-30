@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "id": "omitted",
+      "response": {}
+    },
+    {
+      "id": "all-transports",
+      "response": {
+        "mcpServers": [
+          {
+            "id": "fixture-stdio",
+            "name": "fixture_stdio",
+            "description": "Local fixture server",
+            "enabled": true,
+            "timeoutMs": 15000,
+            "disabledTools": ["delete_file"],
+            "transport": {
+              "type": "stdio",
+              "command": "node",
+              "args": ["./scripts/mcp-fixture.mjs", "--stdio"],
+              "env": { "FIXTURE_MODE": "read-only" },
+              "cwd": "/srv/fixture"
+            }
+          },
+          {
+            "id": "fixture-http",
+            "name": "fixture_http",
+            "description": "HTTP fixture server",
+            "enabled": false,
+            "timeoutMs": 30000,
+            "transport": {
+              "type": "http",
+              "url": "https://mcp.example.test/rpc",
+              "headers": { "X-Fixture-Client": "poracode" }
+            }
+          },
+          {
+            "id": "fixture-sse",
+            "name": "fixture_sse",
+            "description": "SSE fixture server",
+            "enabled": true,
+            "timeoutMs": 45000,
+            "transport": {
+              "type": "sse",
+              "url": "https://mcp.example.test/events",
+              "headers": { "Accept-Language": "en" }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

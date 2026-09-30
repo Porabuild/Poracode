@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode, type TransitionEvent } from "react";
+import { useEffect, useRef, useState, type ReactNode, type TransitionEvent } from "react";
 import { pushEscapeHandler } from "./overlayEscapeStack";
 
 export type OverlayShellMode = "fixed" | "absolute";
+const EXIT_FALLBACK_MS = 200;
 
 /**
  * Shared overlay wrapper with fade-in/fade-out animation.
@@ -33,6 +34,9 @@ export function OverlayShell(props: {
   // Set when Escape starts the fade-out: the surface must not fade back in if
   // `open` toggles while the exit transition is still running.
   const [escapeClosing, setEscapeClosing] = useState(false);
+  // Guards the unmount path so the fallback timer and transitionEnd can't both
+  // fire onExited.
+  const exitCompletedRef = useRef(false);
   // Overlays that clear their own context on close (e.g. the GitHub Actions
   // view) drop their children in the same render that flips `open` to false,
   // which would blank the surface before the fade-out ran. Keep the last open
@@ -58,12 +62,32 @@ export function OverlayShell(props: {
     }
   }
 
+  // A completed exit must not block the next open's unmount path.
+  useEffect(() => {
+    if (open) exitCompletedRef.current = false;
+  }, [open]);
+
   // Delay to allow the DOM to render at opacity-0 before transitioning
   useEffect(() => {
     if (!open || instantEnter || escapeClosing) return;
     const raf = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(raf);
   }, [open, instantEnter, escapeClosing]);
+
+  // Browsers may omit transitionend when a tab is backgrounded, rendering is
+  // throttled, or reduced-motion styles remove the transition. Never leave an
+  // invisible full-window surface mounted indefinitely.
+  useEffect(() => {
+    if (!mounted || visible) return;
+    const timer = setTimeout(() => {
+      if (open && !escapeClosing) return;
+      if (exitCompletedRef.current) return;
+      exitCompletedRef.current = true;
+      setMounted(false);
+      onExited?.();
+    }, EXIT_FALLBACK_MS);
+    return () => clearTimeout(timer);
+  }, [mounted, onExited, open, visible, escapeClosing]);
 
   // Close on Escape via the overlay escape stack — only the topmost overlay
   // dismisses, so a transient overlay floating above this one (e.g. the
@@ -84,6 +108,8 @@ export function OverlayShell(props: {
     if (event.target !== event.currentTarget) return;
     if (event.propertyName !== "opacity") return;
     if (!visible) {
+      if (exitCompletedRef.current) return;
+      exitCompletedRef.current = true;
       setMounted(false);
       onExited?.();
     }
@@ -102,7 +128,7 @@ export function OverlayShell(props: {
       // overlay is responsible for painting its own chrome on the first frame.
       {...(visible ? { "data-overlay-visible": "" } : {})}
       className={`${positionClass} flex flex-col bg-background transition-opacity duration-150 ${
-        visible ? "opacity-100" : "opacity-0"
+        visible ? "opacity-100" : "pointer-events-none opacity-0"
       }`}
       onTransitionEnd={handleTransitionEnd}
     >

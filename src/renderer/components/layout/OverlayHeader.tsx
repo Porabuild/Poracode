@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { isMac } from "@/renderer/bridge";
 import {
   macosTrafficLightGutterClass,
   overlayHeaderStyle,
 } from "@/renderer/components/layout/sidebarChrome";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
 
 /**
  * Shared header bar for overlay-style layouts (main app, git review, settings).
@@ -22,8 +22,8 @@ export function OverlayHeader(props: {
       className="poracode-overlay-header flex shrink-0 items-center gap-3 bg-[var(--content-background)] px-2"
       style={overlayHeaderStyle()}
     >
-      {/* Space for macOS traffic lights */}
-      {isMac() && <div className={macosTrafficLightGutterClass} />}
+      {/* Space for macOS traffic lights — Electron only; the web client has no inset chrome. */}
+      {hasMacWindowChrome() && <div className={macosTrafficLightGutterClass} />}
 
       {onTitleClick ? (
         <button

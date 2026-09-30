@@ -28,6 +28,11 @@ export type { CostEstimate } from "./cost";
 export { aggregateOpenCodeUsage, OPENCODE_LIMITS } from "./openCode";
 export type { OpenCodeCostRow } from "./openCode";
 export {
+  fetchOpenCodeGoApiUsage,
+  parseOpenCodeGoApiWindows,
+  OPENCODE_GO_USAGE_ENDPOINT,
+} from "./openCodeGoApi";
+export {
   fetchOpenCodeSubscriptionText,
   fetchOpenCodeWorkspaceId,
   isOpenCodeSessionLive,
@@ -132,9 +137,7 @@ export {
 } from "./collectors/muse";
 export {
   collectMuseDashboard,
-  museJazoest,
   museSpendWindow,
-  parseMuseCometTokens,
   parseMuseQuotaWindows,
   parseMuseSpend,
   MUSE_DASHBOARD_URL,

@@ -39,7 +39,8 @@ describe("remoteThreadCommandSchema grouping and workspace", () => {
       remoteThreadCommandSchema.parse({
         kind: "set-workspace",
         threadId: "t1",
+        workspaceId: null,
       }),
-    ).toEqual({ kind: "set-workspace", threadId: "t1" });
+    ).toEqual({ kind: "set-workspace", threadId: "t1", workspaceId: null });
   });
 });

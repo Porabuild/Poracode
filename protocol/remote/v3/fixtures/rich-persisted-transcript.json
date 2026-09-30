@@ -1,0 +1,65 @@
+{
+  "runtimeItems": [
+    {
+      "id": "rich-user-1",
+      "type": "user_message",
+      "state": "completed",
+      "payload": { "content": [{ "kind": "text", "text": "Review the fixture." }] },
+      "streams": {}
+    },
+    {
+      "id": "rich-assistant-1",
+      "type": "assistant_message",
+      "state": "completed",
+      "payload": { "content": [{ "kind": "text", "text": "Starting review." }] },
+      "streams": { "assistant_text": "Starting review." }
+    },
+    {
+      "id": "rich-parent-tool",
+      "type": "tool_call",
+      "state": "completed",
+      "payload": {
+        "name": "reviewAgent",
+        "status": "success",
+        "isSubAgent": true,
+        "result": { "summary": "No blockers" }
+      },
+      "streams": {}
+    },
+    {
+      "id": "rich-child-reasoning",
+      "type": "reasoning",
+      "state": "completed",
+      "payload": { "summary": "Checked contract boundaries", "durationMs": 40 },
+      "streams": { "reasoning_text": "Checking schemas." },
+      "parentItemId": "rich-parent-tool"
+    },
+    {
+      "id": "rich-child-answer",
+      "type": "assistant_message",
+      "state": "completed",
+      "payload": { "content": [{ "kind": "text", "text": "Child result." }] },
+      "streams": { "assistant_text": "Child result." },
+      "parentItemId": "rich-parent-tool"
+    },
+    {
+      "id": "rich-assistant-2",
+      "type": "assistant_message",
+      "state": "completed",
+      "payload": { "content": [{ "kind": "text", "text": "Review complete." }] },
+      "streams": { "assistant_text": "Review complete." }
+    }
+  ],
+  "completedTurns": [
+    {
+      "startedAt": "2026-08-12T10:01:10.000Z",
+      "endedAt": "2026-08-12T10:01:12.000Z",
+      "anchorItemId": "rich-assistant-1"
+    },
+    {
+      "startedAt": "2026-08-12T10:01:20.000Z",
+      "endedAt": "2026-08-12T10:01:25.000Z",
+      "anchorItemId": "rich-assistant-2"
+    }
+  ]
+}

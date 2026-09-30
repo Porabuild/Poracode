@@ -120,6 +120,84 @@ describe("OpencodeSdkSession", () => {
     expect(dispose).toHaveBeenCalledTimes(1);
   });
 
+  it("createRevertAnchor plans the absolute revert target; restoreToRevertAnchor applies it idempotently", async () => {
+    const revert = vi
+      .fn<(input: Record<string, unknown>) => Promise<{ data: unknown }>>()
+      .mockResolvedValue({ data: null });
+    const messages = vi
+      .fn<
+        (
+          input: Record<string, unknown>,
+        ) => Promise<{ data: Array<{ info: Record<string, unknown> }> }>
+      >()
+      .mockResolvedValue({
+        data: [
+          { info: { id: "msg-u1", role: "user" } },
+          { info: { id: "msg-a1", role: "assistant" } },
+          { info: { id: "msg-u2", role: "user" } },
+          { info: { id: "msg-a2", role: "assistant" } },
+        ],
+      });
+    mocks.acquireOpenCodeServer.mockResolvedValue({
+      eventClient: {
+        global: {
+          event: vi.fn<() => Promise<{ stream: AsyncGenerator<unknown> }>>().mockResolvedValue({
+            stream: streamOf({ payload: serverConnectedEvent() }),
+          }),
+        },
+      },
+      client: {
+        command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
+        session: {
+          create: vi
+            .fn<() => Promise<{ data: { id: string } }>>()
+            .mockResolvedValue({ data: { id: "ses_test" } }),
+          messages,
+          revert,
+        },
+      },
+      baseUrl: "http://127.0.0.1:0",
+      handle: {},
+      dispose: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    });
+
+    const session = await OpencodeSdkSession.create({
+      threadId: "thread-opencode-anchor",
+      projectLocation,
+      config,
+      presentationMode: "gui",
+    });
+    session.setListener({
+      onClose: () => {},
+      onError: () => {},
+      onUpdate: () => {},
+      onRuntimeEvent: () => {},
+    });
+    await session.activate();
+    await session.openThread(config);
+
+    // Pure planning: the anchor freezes the target assistant message and the
+    // provider revert endpoint is never called.
+    const anchor = await session.createRevertAnchor(1);
+    expect(anchor).toEqual({ version: 1, data: { messageId: "msg-a1" } });
+    expect(revert).not.toHaveBeenCalled();
+
+    // Restore applies the anchor in place; re-issuing it converges (OpenCode
+    // revert is position-based), which makes the restore idempotent.
+    await session.restoreToRevertAnchor(anchor);
+    expect(revert).toHaveBeenCalledTimes(1);
+    expect(revert).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionID: "ses_test", messageID: "msg-a1" }),
+    );
+    await session.restoreToRevertAnchor(anchor);
+    expect(revert).toHaveBeenCalledTimes(2);
+    expect(revert).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sessionID: "ses_test", messageID: "msg-a1" }),
+    );
+
+    await session.dispose();
+  });
+
   it("does not report user-aborted session errors to the listener", async () => {
     const onError = vi.fn<(message: string) => void>();
     let releaseErrors!: () => void;
@@ -292,7 +370,13 @@ describe("OpencodeSdkSession", () => {
       })
       .mockResolvedValueOnce({
         eventClient: secondEvent,
-        client: { session: { promptAsync } },
+        client: {
+          session: {
+            promptAsync,
+            abort: async () => ({ data: true }),
+            status: async () => ({ data: {} }),
+          },
+        },
         baseUrl: "http://127.0.0.1:2",
         handle: {},
         onServerExit: () => vi.fn<() => void>(),
@@ -581,6 +665,17 @@ describe("OpencodeSdkSession", () => {
       {
         directory: "/other-repo",
         payload: {
+          id: "evt-wrong-directory-unrelated",
+          type: "session.status",
+          properties: { sessionID: "ses_other", status: { type: "busy" } },
+        },
+      },
+      {
+        directory: "/other-repo",
+        payload: {
+          // Directory key misses, but the sessionID claim rescues this event:
+          // OpenCode realpaths the request directory, so a lexical-vs-realpath
+          // mismatch must never strand this session's events.
           id: "evt-wrong-directory",
           type: "session.status",
           properties: { sessionID: "ses_test", status: { type: "busy" } },
@@ -747,14 +842,18 @@ describe("OpencodeSdkSession", () => {
           event.delta === "Hi",
       ),
     ).toBeDefined();
-    expect(updates.filter((update) => update.status === "working")).toHaveLength(1);
+    // One working update from the correct-directory event plus one rescued
+    // from the mismatched-directory stamp via sessionID routing. Unrelated
+    // sessions stay dropped regardless of directory.
+    expect(updates.filter((update) => update.status === "working")).toHaveLength(2);
     expect(updates.some((update) => update.status === "idle")).toBe(true);
 
     await session.dispose();
   });
 
-  it("forwards retry session status to listener and emits error runtime event", async () => {
+  it("forwards retry session status to listener and emits only a warning runtime event", async () => {
     const runtimeEvents: RuntimeEvent[] = [];
+    const onError = vi.fn<(message: string) => void>();
     const updates: Array<{ status?: string; attention?: string; errorMessage?: string }> = [];
     const wrappedEvents = [
       { payload: serverConnectedEvent() },
@@ -786,6 +885,8 @@ describe("OpencodeSdkSession", () => {
       client: {
         command: { list: vi.fn<() => Promise<{ data: [] }>>().mockResolvedValue({ data: [] }) },
         session: {
+          abort: async () => ({ data: true }),
+          status: async () => ({ data: {} }),
           create: vi
             .fn<() => Promise<{ data: { id: string } }>>()
             .mockResolvedValue({ data: { id: "ses_test" } }),
@@ -804,7 +905,7 @@ describe("OpencodeSdkSession", () => {
     });
     session.setListener({
       onClose: () => {},
-      onError: () => {},
+      onError,
       onUpdate: (upd) => updates.push(upd),
       onRuntimeEvent: (event) => runtimeEvents.push(event),
     });
@@ -814,7 +915,7 @@ describe("OpencodeSdkSession", () => {
 
     await vi.waitFor(() => {
       // Retry is a transient working state — the detail lives in the
-      // transcript error row, never as a sticky thread errorMessage.
+      // warning event, never as an error row or sticky thread errorMessage.
       expect(updates).toContainEqual(
         expect.objectContaining({
           status: "working",
@@ -822,11 +923,15 @@ describe("OpencodeSdkSession", () => {
         }),
       );
       expect(runtimeEvents).toContainEqual({
-        type: "error",
+        type: "warning",
         threadId: "thread-opencode",
         message: "Rate limit exceeded. Please try again later.",
       });
     });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(runtimeEvents.some((event) => event.type === "error")).toBe(false);
+    expect(updates.some((update) => update.status === "error" || update.errorMessage)).toBe(false);
 
     await session.dispose();
   });
@@ -1496,6 +1601,7 @@ describe("OpencodeSdkSession", () => {
             .fn<(input: unknown) => Promise<{ data: { id: string } }>>()
             .mockResolvedValue({ data: { id: "ses_steer" } }),
           abort,
+          status: async () => ({ data: {} }),
           promptAsync,
         },
       },

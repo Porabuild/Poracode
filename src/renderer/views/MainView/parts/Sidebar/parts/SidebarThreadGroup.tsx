@@ -15,12 +15,17 @@ import type { Project } from "@/shared/contracts";
 import { ContextMenu, type ContextMenuEntry } from "@/renderer/components/common/ContextMenu";
 import { ConfirmDialog } from "@/renderer/components/common/ConfirmDialog";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
-import { discardExperiment } from "@/renderer/actions/experimentActions";
+import {
+  discardExperiment,
+  renameExperimentWithAuthority,
+} from "@/renderer/actions/experimentActions";
 import { archiveThread, deleteThread, markThreadDone } from "@/renderer/actions/threadActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import { dispatchManagedRootThreadGroupIntents } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useIsWorktreeCollapsed, useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { ExperimentGroupHeader } from "./ExperimentGroupHeader";
 import { InlineRenameInput } from "./InlineRenameInput";
 import { SyncBadge } from "./SyncBadge";
@@ -36,9 +41,9 @@ export function SidebarThreadGroup(props: {
 }) {
   const { entry, editingThreadId, setEditingThreadId } = props;
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const groupKey = entry.group.groupId;
   const experiment = useExperimentStore((state) => state.experiments[groupKey]);
-  const renameExperiment = useExperimentStore((state) => state.renameExperiment);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const [discardPending, setDiscardPending] = useState(false);
   const collapseKey = `group:${groupKey}`;
@@ -186,12 +191,7 @@ export function SidebarThreadGroup(props: {
               canOpenAll={activeThreads.length >= 2}
               isRenaming={isRenamingGroup}
               onRenameCommit={(newName) => {
-                useAppStore.setState((state) => ({
-                  threads: state.threads.map((thread) =>
-                    thread.groupId === groupKey ? { ...thread, groupName: newName } : thread,
-                  ),
-                }));
-                renameExperiment(experiment.id, newName);
+                void renameExperimentWithAuthority(experiment.id, newName);
                 setEditingThreadId(null);
               }}
               onRenameCancel={() => setEditingThreadId(null)}
@@ -202,10 +202,12 @@ export function SidebarThreadGroup(props: {
               projectSyncBadge={projectSyncBadge}
             />
           ) : (
-            <div className="group flex w-full items-center gap-1 rounded px-2 py-1">
+            <div
+              className={`group flex w-full items-center gap-1 rounded px-2 ${compactLayout ? "" : "py-1"}`}
+            >
               <button
                 type="button"
-                className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-medium text-muted transition-colors hover:text-foreground"
+                className={`flex min-w-0 flex-1 items-center gap-1.5 text-left text-xs font-medium text-muted ${compactLayout ? "poracode-sidebar-touch-row" : "transition-colors hover:text-foreground"}`}
                 onClick={() => toggleWorktreeCollapsed(collapseKey)}
               >
                 <ChevronRight
@@ -219,11 +221,7 @@ export function SidebarThreadGroup(props: {
                     ariaLabel={t`Rename Group`}
                     initialValue={entry.group.groupName}
                     onCommit={(newName) => {
-                      useAppStore.setState((state) => ({
-                        threads: state.threads.map((thread) =>
-                          thread.groupId === groupKey ? { ...thread, groupName: newName } : thread,
-                        ),
-                      }));
+                      renameThreadGroup(groupKey, newName);
                       setEditingThreadId(null);
                     }}
                     onCancel={() => setEditingThreadId(null)}
@@ -240,8 +238,8 @@ export function SidebarThreadGroup(props: {
                   </>
                 )}
               </button>
-              {projectSyncBadge}
-              {!isRenamingGroup && activeThreads.length >= 2 && (
+              {compactLayout ? null : projectSyncBadge}
+              {!compactLayout && !isRenamingGroup && activeThreads.length >= 2 && (
                 <Tooltip delay={300}>
                   <Tooltip.Trigger>
                     <button
@@ -262,34 +260,36 @@ export function SidebarThreadGroup(props: {
                 <span className="relative w-[2.4ch] shrink-0">
                   <RelativeTime
                     iso={latestThreadUpdatedAt}
-                    className="block text-center font-mono text-[10px] tabular-nums text-muted group-hover:invisible"
+                    className={`block text-center font-mono text-[10px] tabular-nums text-muted ${compactLayout ? "" : "group-hover:invisible"}`}
                   />
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-label={
-                      threadRemoveAction === "archive"
-                        ? t`Archive ${entry.group.groupName}`
-                        : t`Delete ${entry.group.groupName}`
-                    }
-                    className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      removeGroupThreads();
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
+                  {compactLayout ? null : (
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label={
+                        threadRemoveAction === "archive"
+                          ? t`Archive ${entry.group.groupName}`
+                          : t`Delete ${entry.group.groupName}`
+                      }
+                      className={`absolute inset-0 flex items-center justify-center rounded text-muted/55 opacity-0 transition group-hover:opacity-100 ${threadRemoveAction === "archive" ? "hover:text-warning" : "hover:text-danger"}`}
+                      onClick={(event) => {
                         event.stopPropagation();
                         removeGroupThreads();
-                      }
-                    }}
-                  >
-                    {threadRemoveAction === "archive" ? (
-                      <Archive className="size-3.5" />
-                    ) : (
-                      <Trash2 className="size-3.5" />
-                    )}
-                  </div>
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.stopPropagation();
+                          removeGroupThreads();
+                        }
+                      }}
+                    >
+                      {threadRemoveAction === "archive" ? (
+                        <Archive className="size-3.5" />
+                      ) : (
+                        <Trash2 className="size-3.5" />
+                      )}
+                    </div>
+                  )}
                 </span>
               )}
             </div>
@@ -313,6 +313,10 @@ export function SidebarThreadGroup(props: {
 }
 
 function clearThreadGroup(groupKey: string) {
+  const clearedThreadIds = useAppStore
+    .getState()
+    .threads.filter((thread) => thread.groupId === groupKey)
+    .map((thread) => thread.id);
   useAppStore.setState((state) => {
     const updatedThreads = state.threads.map((t) =>
       t.groupId === groupKey ? { ...t, groupId: undefined, groupName: undefined } : t,
@@ -323,4 +327,20 @@ function clearThreadGroup(groupKey: string) {
         : state.view;
     return { threads: updatedThreads, view };
   });
+  // The local paint clears the group; the host assignment changes only through
+  // the explicit clear-group command for each affected root row.
+  dispatchManagedRootThreadGroupIntents(clearedThreadIds.map((threadId) => ({ threadId })));
+}
+
+/** Rename one thread group: every member row carries the group name. */
+function renameThreadGroup(groupKey: string, groupName: string): void {
+  const members = useAppStore.getState().threads.filter((thread) => thread.groupId === groupKey);
+  useAppStore.setState((state) => ({
+    threads: state.threads.map((thread) =>
+      thread.groupId === groupKey ? { ...thread, groupName } : thread,
+    ),
+  }));
+  dispatchManagedRootThreadGroupIntents(
+    members.map((thread) => ({ threadId: thread.id, groupId: groupKey, groupName })),
+  );
 }

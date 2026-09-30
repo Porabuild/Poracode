@@ -118,6 +118,16 @@ describe("RemoteAccessSettings", () => {
     });
   });
 
+  it("opens the canonical desktop client in a browser", async () => {
+    render(<RemoteAccessSettings />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+
+    expect(bridgeMock.openExternal).toHaveBeenCalledWith(
+      "https://desktop.tailnet.ts.net/#token=lc_pair_test",
+    );
+  });
+
   it("shows the rotated pairing code when a device pairs", async () => {
     render(<RemoteAccessSettings />);
 
@@ -179,5 +189,14 @@ describe("RemoteAccessSettings", () => {
 
     expect(await screen.findByText("lc_pair_manual")).toBeInTheDocument();
     expect(bridgeMock.refreshRemoteAccessPairing).toHaveBeenCalledTimes(1);
+  });
+
+  it("mints a viewer QR from the pairing access control", async () => {
+    render(<RemoteAccessSettings />);
+    expect(await screen.findByText("lc_pair_test")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Viewer" }));
+    await waitFor(() => {
+      expect(bridgeMock.refreshRemoteAccessPairing).toHaveBeenCalledWith({ preset: "viewer" });
+    });
   });
 });

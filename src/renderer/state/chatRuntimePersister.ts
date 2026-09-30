@@ -5,7 +5,16 @@ import { captureRendererException } from "../diagnostics/sentry";
 import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "../components/thread/ChatPane/chatPaneSelectors";
 import { readBridge } from "../bridge";
+import { hasClientCapability } from "../clientRuntime";
 import { useAppStore } from "./appStore";
+import {
+  isManagedRootHistoryThread,
+  isManagedRootThreadAbsentError,
+  loadManagedRootRuntimeItemsPage,
+  noteManagedRootHistoryFailure,
+  readManagedRootHistoryPage,
+} from "./managedRootCatalog/rootHistory";
+import { toCompletedTurnRecords } from "./remoteServers/catalog/boundedHistory";
 import {
   toRuntimeChatItem,
   type CompletedTurnRecord,
@@ -16,8 +25,30 @@ const RUNTIME_PAGE_SCAN_SIZE = 500;
 const RUNTIME_TIMELINE_PAGE_SIZE = 40;
 const MAX_CACHED_THREAD_TRANSCRIPTS = 10;
 const MAX_CACHED_THREAD_RUNTIME_ITEMS = 5_000;
+/**
+ * BEHAVIOR CHANGE (Gate 4 Batch 1, bounded visible window): a LIVE thread
+ * (retained by an open ChatPane) previously grew its in-memory transcript
+ * without bound — `MAX_CACHED_THREAD_RUNTIME_ITEMS` only evicts INACTIVE
+ * threads, so an open thread streaming for hours accumulated every item. The
+ * visible window below bounds that live growth by estimated bytes while the
+ * DB (and the existing older-page cursor) remains the durable source.
+ */
+/** Byte budget for the most recent history kept visible of a live thread. */
+const VISIBLE_WINDOW_TAIL_BYTES = 6 * 1024 * 1024;
+/** Byte budget of explicitly user-paged history kept pinned at the front. */
+const VISIBLE_WINDOW_PAGED_PROTECTED_BYTES = 2 * 1024 * 1024;
+/** Minimum new items between window passes; bounds the pass frequency. */
+const WINDOW_BOUND_MIN_GROWTH_ITEMS = 400;
+/** A full re-measure + trim pass runs at most this often per thread. */
+const WINDOW_BOUND_PASS_INTERVAL_MS = 5_000;
+/** Hard cap on retained completed-turn records (anchor metadata is small but unbounded). */
+const MAX_CACHED_COMPLETED_TURN_RECORDS = 500;
+
 const hydratedThreadRuntimeIds = new Set<string>();
-const pendingThreadRuntimeHydrations = new Map<string, Promise<boolean>>();
+const pendingThreadRuntimeHydrations = new Map<
+  string,
+  { cancelled: boolean; readonly promise: Promise<boolean> }
+>();
 const olderRuntimePageCursorByThread = new Map<string, number | null>();
 const pendingOlderRuntimePages = new Map<
   string,
@@ -25,6 +56,226 @@ const pendingOlderRuntimePages = new Map<
 >();
 const retainedThreadRuntimeCounts = new Map<string, number>();
 const inactiveThreadRuntimeLru = new Set<string>();
+
+/**
+ * Per-thread byte ledger for the bounded visible window. Sizes are UTF-16
+ * length estimates (JSON payload + stream buckets), not exact UTF-8 bytes —
+ * they bound memory, they do not bill bytes. All state is session-local and
+ * never persisted, so no storage version participates.
+ */
+interface ThreadWindowLedger {
+  bytesByItemId: Map<string, number>;
+  measuredBytes: number;
+  measuredCount: number;
+  pagedProtectedIds: Set<string>;
+  pagedProtectedOrder: string[];
+  pagedProtectedBytes: number;
+  lastPassAtMs: number;
+}
+
+const threadWindowLedgers = new Map<string, ThreadWindowLedger>();
+
+/**
+ * Reconcile options for DB hydration paths. Against the local backend the
+ * same-build host settles orphaned Crossagent rows itself at boot and on
+ * every supervisor reset, so a running Crossagent row in that database is a
+ * live run of the currently attached supervisor — terminating it at
+ * hydration is exactly the false "Failed" the reconcile exists to prevent,
+ * so such rows are preserved outright. Non-local sources (remote hosts,
+ * which may predate the sweep) keep the terminate-and-self-heal behavior:
+ * an orphaned row there is settled by nothing, and a live one recovers on
+ * its next progress frame.
+ */
+function hydrationReconcileOptions(): { preserveObservedLive: true; preserveCrossagent?: boolean } {
+  return hasClientCapability("localBackend")
+    ? { preserveObservedLive: true, preserveCrossagent: true }
+    : { preserveObservedLive: true };
+}
+
+function estimateRuntimeItemBytes(item: RuntimeChatItem | undefined): number {
+  if (!item) return 0;
+  // id/type/state fields plus per-item object overhead approximation.
+  let bytes = 96;
+  if (item.payload !== undefined) {
+    try {
+      bytes += JSON.stringify(item.payload)?.length ?? 0;
+    } catch {
+      // A non-serializable payload still occupies memory; charge a page.
+      bytes += 1024;
+    }
+  }
+  for (const value of Object.values(item.streams)) bytes += value.length;
+  return bytes;
+}
+
+function getThreadWindowLedger(threadId: string): ThreadWindowLedger {
+  let ledger = threadWindowLedgers.get(threadId);
+  if (!ledger) {
+    ledger = {
+      bytesByItemId: new Map(),
+      measuredBytes: 0,
+      measuredCount: 0,
+      pagedProtectedIds: new Set(),
+      pagedProtectedOrder: [],
+      pagedProtectedBytes: 0,
+      lastPassAtMs: 0,
+    };
+    threadWindowLedgers.set(threadId, ledger);
+  }
+  return ledger;
+}
+
+function forgetThreadWindowLedger(threadId: string): void {
+  threadWindowLedgers.delete(threadId);
+}
+
+/**
+ * Registers explicitly user-paged items (an `loadOlderThreadRuntimeItems`
+ * prepend) as protected window history so the bound cannot discard the page
+ * the user just scrolled to. Protection is FIFO-capped at
+ * {@link VISIBLE_WINDOW_PAGED_PROTECTED_BYTES}: the OLDEST paged history
+ * loses protection first, so a reader who pages deep keeps their recent
+ * pages and the total stays bounded.
+ */
+function markRuntimeItemsPaged(threadId: string, items: readonly RuntimeChatItem[]): void {
+  if (items.length === 0) return;
+  const ledger = getThreadWindowLedger(threadId);
+  for (const item of items) {
+    if (ledger.pagedProtectedIds.has(item.id)) continue;
+    ledger.pagedProtectedIds.add(item.id);
+    ledger.pagedProtectedOrder.push(item.id);
+    ledger.pagedProtectedBytes += estimateRuntimeItemBytes(item);
+  }
+  while (
+    ledger.pagedProtectedBytes > VISIBLE_WINDOW_PAGED_PROTECTED_BYTES &&
+    ledger.pagedProtectedOrder.length > 0
+  ) {
+    const oldest = ledger.pagedProtectedOrder.shift()!;
+    const bytes = ledger.bytesByItemId.get(oldest) ?? 0;
+    if (ledger.pagedProtectedIds.delete(oldest)) ledger.pagedProtectedBytes -= bytes;
+  }
+}
+
+/**
+ * Bounds the visible window of LIVE (retained) threads to
+ * {@link VISIBLE_WINDOW_TAIL_BYTES} of recent history plus the protected
+ * paged prefix. Trimming removes a middle range — everything between the
+ * protected prefix and the recent tail — and drops completed-turn records
+ * anchored in the trimmed range. The DB keeps every row and remains
+ * authoritative, but NOTE: the trimmed middle is NOT lazily restorable in
+ * this session — the older-page cursor only pages strictly older than the
+ * last page boundary, while the trimmed middle sits at newer DB positions,
+ * and hydration early-returns while the thread stays cached. The gap is
+ * closed on the next real rehydration (thread leaves the 10-thread LRU or
+ * the app restarts).
+ *
+ * Passes are gated (≥ 400 new items or ≥ 5 s since the last pass) so the
+ * re-measure walk stays amortized; between passes at most the gated growth
+ * is unbounded, which is itself bounded by the drain cadence.
+ */
+export function boundVisibleThreadRuntimeWindows(threadIds: readonly string[]): void {
+  for (const threadId of threadIds) {
+    const state = useAppStore.getState();
+    const itemIds = state.runtimeItemIdsByThread[threadId];
+    if (!itemIds) {
+      forgetThreadWindowLedger(threadId);
+      continue;
+    }
+    const ledger = getThreadWindowLedger(threadId);
+    const nowMs = Date.now();
+    if (
+      nowMs - ledger.lastPassAtMs < WINDOW_BOUND_PASS_INTERVAL_MS &&
+      itemIds.length - ledger.measuredCount < WINDOW_BOUND_MIN_GROWTH_ITEMS
+    ) {
+      continue;
+    }
+    ledger.lastPassAtMs = nowMs;
+
+    // Full re-measure: streaming deltas mutate EXISTING items, so byte sizes
+    // go stale without a fresh walk. Cost is proportional to the visible
+    // window (a few MB stringify), amortized by the pass gate.
+    const itemsById = state.runtimeItemsByIdByThread[threadId] ?? {};
+    const bytesByItemId = new Map<string, number>();
+    let measuredBytes = 0;
+    for (const id of itemIds) {
+      const bytes = estimateRuntimeItemBytes(itemsById[id]);
+      bytesByItemId.set(id, bytes);
+      measuredBytes += bytes;
+    }
+    ledger.bytesByItemId = bytesByItemId;
+    ledger.measuredBytes = measuredBytes;
+    ledger.measuredCount = itemIds.length;
+
+    // Protected contiguous prefix: explicitly paged history (byte-capped at
+    // registration) plus pinned goal rows, which must stay visible because
+    // the composer dock reads them.
+    let protectedEnd = 0;
+    while (protectedEnd < itemIds.length) {
+      const id = itemIds[protectedEnd]!;
+      if (!ledger.pagedProtectedIds.has(id) && itemsById[id]?.type !== "goal") break;
+      protectedEnd += 1;
+    }
+
+    // Recent tail: walk backwards until the byte budget is spent. The newest
+    // item is always kept even when it alone exceeds the budget. Goal rows
+    // and live non-completed rows are unbreakable: the composer dock reads
+    // in-memory goals wherever they sit (a mid-session goal drifts backward
+    // as newer payload arrives), and trimming a still-streaming row would
+    // silently drop its remaining events for the whole session (the reducer
+    // no-ops updates for absent ids).
+    let tailStart = itemIds.length;
+    let tailBytes = 0;
+    for (let index = itemIds.length - 1; index >= protectedEnd; index -= 1) {
+      const id = itemIds[index]!;
+      const item = itemsById[id];
+      const unbreakable = item?.type === "goal" || (item != null && item.state !== "completed");
+      const bytes = bytesByItemId.get(id) ?? 0;
+      if (
+        index < itemIds.length - 1 &&
+        !unbreakable &&
+        tailBytes + bytes > VISIBLE_WINDOW_TAIL_BYTES
+      )
+        break;
+      tailBytes += bytes;
+      tailStart = index;
+    }
+
+    const trimCount = tailStart - protectedEnd;
+    if (measuredBytes > VISIBLE_WINDOW_TAIL_BYTES + ledger.pagedProtectedBytes && trimCount > 0) {
+      const removedIds = itemIds.slice(protectedEnd, tailStart);
+      useAppStore.getState().trimThreadRuntimeItems(threadId, protectedEnd, trimCount);
+      for (const id of removedIds) {
+        const removedBytes = bytesByItemId.get(id) ?? 0;
+        ledger.measuredBytes -= removedBytes;
+        bytesByItemId.delete(id);
+        if (ledger.pagedProtectedIds.has(id)) {
+          // Defensive: a trimmed paged row must not keep its protection charge.
+          ledger.pagedProtectedIds.delete(id);
+          ledger.pagedProtectedBytes = Math.max(0, ledger.pagedProtectedBytes - removedBytes);
+        }
+      }
+      ledger.measuredCount = itemIds.length - trimCount;
+      // Trimmed rows void the selector memo caches the same way evictions do.
+      clearRuntimeItemStoreSelectorCacheForThread(threadId);
+      boundThreadCompletedTurns(threadId, new Set(removedIds));
+    } else {
+      boundThreadCompletedTurns(threadId, null);
+    }
+  }
+}
+
+/** Drops turn records anchored in trimmed ranges and enforces the record cap. */
+function boundThreadCompletedTurns(threadId: string, removedIds: ReadonlySet<string> | null): void {
+  const turns = useAppStore.getState().runtimeCompletedTurnsByThread[threadId];
+  if (!turns || turns.length === 0) return;
+  let kept = removedIds
+    ? turns.filter((turn) => !turn.anchorItemId || !removedIds.has(turn.anchorItemId))
+    : turns;
+  if (kept.length > MAX_CACHED_COMPLETED_TURN_RECORDS) {
+    kept = kept.slice(-MAX_CACHED_COMPLETED_TURN_RECORDS);
+  }
+  if (kept !== turns) useAppStore.getState().replaceThreadCompletedTurns(threadId, kept);
+}
 
 /**
  * Seed the older-page cursor when a remote thread snapshot supplies its tail.
@@ -69,6 +320,38 @@ export function hasHydratedThreadRuntimeItems(threadId: string): boolean {
   return hydratedThreadRuntimeIds.has(threadId);
 }
 
+/**
+ * Optional older-history continuation for threads whose transcript is not fed
+ * by the local DB (remote/pairing surfaces register one). Invoked alongside
+ * the local older-items load, so reaching the top of a remote transcript also
+ * continues any non-item older level (B4 `ct1.` completed turns).
+ */
+export type OlderThreadHistoryContinuation = (threadId: string) => Promise<boolean> | boolean;
+
+let olderThreadHistoryContinuation: OlderThreadHistoryContinuation | null = null;
+
+export function setOlderThreadHistoryContinuation(
+  continuation: OlderThreadHistoryContinuation | null,
+): void {
+  olderThreadHistoryContinuation = continuation;
+}
+
+/**
+ * Optional invalidation for a thread's non-item older-history continuation
+ * (remote/pairing surfaces register one). Called when the local timeline is
+ * reset or evicted so a continuation cursor into the replaced transcript
+ * cannot survive and append stale older history.
+ */
+export type OlderThreadHistoryInvalidation = (threadId: string) => void;
+
+let olderThreadHistoryInvalidation: OlderThreadHistoryInvalidation | null = null;
+
+export function setOlderThreadHistoryInvalidation(
+  invalidation: OlderThreadHistoryInvalidation | null,
+): void {
+  olderThreadHistoryInvalidation = invalidation;
+}
+
 export function retainThreadRuntimeItems(threadId: string): void {
   retainedThreadRuntimeCounts.set(threadId, (retainedThreadRuntimeCounts.get(threadId) ?? 0) + 1);
   inactiveThreadRuntimeLru.delete(threadId);
@@ -88,6 +371,12 @@ export function releaseThreadRuntimeItems(threadId: string): void {
 }
 
 export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boolean> {
+  // A registered continuation may extend a different older-history level
+  // (remote completed turns) even when this thread has no older item cursor.
+  const historyContinuation = olderThreadHistoryContinuation;
+  if (historyContinuation) {
+    void Promise.resolve(historyContinuation(threadId)).catch(() => false);
+  }
   const cursor = olderRuntimePageCursorByThread.get(threadId);
   if (cursor === undefined || cursor === null) return false;
   const pending = pendingOlderRuntimePages.get(threadId);
@@ -95,12 +384,23 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
 
   const request = { cancelled: false, promise: Promise.resolve(false) };
   const load = (async () => {
-    const page = await readBridge().dbGetThreadRuntimeItemsPage({
-      threadId,
-      beforePosition: cursor,
-      limit: RUNTIME_PAGE_SCAN_SIZE,
-      targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
-    });
+    const managedRootPage = isManagedRootHistoryThread(threadId);
+    const page = managedRootPage
+      ? await loadManagedRootRuntimeItemsPage({
+          threadId,
+          beforePosition: cursor,
+          limit: RUNTIME_PAGE_SCAN_SIZE,
+          targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
+        })
+      : await readBridge().dbGetThreadRuntimeItemsPage({
+          threadId,
+          beforePosition: cursor,
+          limit: RUNTIME_PAGE_SCAN_SIZE,
+          targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
+        });
+    // A root thread without a live bounded tail has no bounded source: this is
+    // a truthful stop, never a fallback to the local-DB page read.
+    if (page === undefined) return false;
     if (request.cancelled || !hydratedThreadRuntimeIds.has(threadId)) {
       return false;
     }
@@ -108,7 +408,12 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
     if (page.items.length === 0) return false;
     const items = compactRuntimeItemsForHydration(page.items.map(toRuntimeChatItem));
     useAppStore.getState().prependThreadRuntimeItems(threadId, items);
-    useAppStore.getState().reconcileStaleSubAgents(threadId, { preserveObservedLive: true });
+    useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
+    // The user explicitly loaded this page: protect it from the window bound
+    // (byte-capped) and re-bound the window since the tail may have grown
+    // while the read was in flight.
+    markRuntimeItemsPaged(threadId, items);
+    boundVisibleThreadRuntimeWindows([threadId]);
     evictOversizedInactiveThreadRuntimeItems([threadId]);
     evictInactiveThreadRuntimeItems();
     return true;
@@ -136,26 +441,52 @@ export async function loadOlderThreadRuntimeItems(threadId: string): Promise<boo
 export async function hydrateThreadRuntimeItems(threadId: string): Promise<void> {
   if (hydratedThreadRuntimeIds.has(threadId)) return;
   const pending = pendingThreadRuntimeHydrations.get(threadId);
-  if (pending) {
-    await pending;
+  if (pending && !pending.cancelled) {
+    await pending.promise;
     return;
   }
 
-  const hydration = hydrateThreadRuntimeItemsFromDb(threadId);
-  pendingThreadRuntimeHydrations.set(threadId, hydration);
+  // Surface loading/error for the pane's first read so an opening thread does
+  // not flash a false "No messages yet" (WS6). Only meaningful while the
+  // transcript is still empty; a re-hydration of a retained thread is silent.
+  const isEmptyBefore =
+    (useAppStore.getState().runtimeItemIdsByThread[threadId]?.length ?? 0) === 0;
+  if (isEmptyBefore) useAppStore.getState().setRuntimeHydrationStatus(threadId, "pending");
+  const request = { cancelled: false, promise: Promise.resolve(false) };
+  const hydration = hydrateThreadRuntimeItemsFromDb(threadId, request);
+  request.promise = hydration;
+  pendingThreadRuntimeHydrations.set(threadId, request);
   try {
     const completed = await hydration;
+    // A reset superseded this read mid-flight: it owns neither the hydration
+    // marker nor the visible status — the replacement read owns both.
+    if (request.cancelled) return;
     if (completed) {
       hydratedThreadRuntimeIds.add(threadId);
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, null);
       evictOversizedInactiveThreadRuntimeItems([threadId]);
       evictInactiveThreadRuntimeItems();
+    } else if (isEmptyBefore) {
+      useAppStore.getState().setRuntimeHydrationStatus(threadId, "failed");
     }
   } finally {
-    pendingThreadRuntimeHydrations.delete(threadId);
+    if (pendingThreadRuntimeHydrations.get(threadId) === request) {
+      pendingThreadRuntimeHydrations.delete(threadId);
+    }
   }
 }
 
-async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolean> {
+async function hydrateThreadRuntimeItemsFromDb(
+  threadId: string,
+  request: { readonly cancelled: boolean },
+): Promise<boolean> {
+  // The managed desktop's own threads read their transcript through the SAME
+  // bounded HTTP contract remote threads use (items + completed turns +
+  // `ct1.` cursor + durable notice) over the ONE loopback client. The ordinary
+  // root path must never invoke the unbounded local completed-turns read.
+  if (isManagedRootHistoryThread(threadId)) {
+    return hydrateManagedRootThreadRuntimeItems(threadId, request);
+  }
   const bridge = readBridge();
   const [itemsResult, turnsResult, contextResult, latestGoalResult] = await Promise.allSettled([
     Promise.resolve().then(() =>
@@ -169,31 +500,15 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
     Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
     Promise.resolve().then(() => bridge.dbGetLatestThreadGoalItem({ threadId })),
   ]);
+  // A reset superseded this read while it was in flight: install nothing and
+  // claim no cursor — the replacement read owns both.
+  if (request.cancelled) return false;
 
   if (itemsResult.status === "fulfilled") {
     olderRuntimePageCursorByThread.set(threadId, itemsResult.value.nextCursor);
   }
   if (itemsResult.status === "fulfilled" && itemsResult.value.items.length > 0) {
-    // Persisted rows can contain raw tool runs or legacy synthetic summaries;
-    // normalize both forms during hydration.
-    const persistedItems = itemsResult.value.items.map(toRuntimeChatItem);
-    const state = useAppStore.getState();
-    const existingItemIds = state.runtimeItemIdsByThread[threadId] ?? [];
-    if (existingItemIds.length === 0) {
-      state.hydrateThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(persistedItems));
-    } else {
-      const existingItemIdSet = new Set(existingItemIds);
-      const overlapIndex = persistedItems.findIndex((item) => existingItemIdSet.has(item.id));
-      const persistedPrefix =
-        overlapIndex < 0 ? persistedItems : persistedItems.slice(0, overlapIndex);
-      state.prependThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(persistedPrefix));
-    }
-    // Any sub-agent tool_call that was mid-flight when the prior session
-    // ended will hydrate here as still "running" and show up in the active
-    // sub-agent dock forever. Reconcile in place so those rows render as
-    // terminated immediately instead of waiting for a live event that will
-    // never come.
-    useAppStore.getState().reconcileStaleSubAgents(threadId, { preserveObservedLive: true });
+    installHydratedRuntimeItems(threadId, itemsResult.value.items);
   } else if (itemsResult.status === "rejected") {
     console.warn(
       "[chat] failed to hydrate runtime items for thread %s",
@@ -223,7 +538,11 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
       if (!Number.isFinite(startedAt) || !Number.isFinite(endedAt)) return [];
       return [{ startedAt, endedAt, anchorItemId: row.anchorItemId }];
     });
-    useAppStore.getState().hydrateThreadCompletedTurns(threadId, records);
+    // Bounded visible window: keep only the most recent records so a
+    // thousands-of-turns thread cannot accumulate anchor metadata forever.
+    useAppStore
+      .getState()
+      .hydrateThreadCompletedTurns(threadId, records.slice(-MAX_CACHED_COMPLETED_TURN_RECORDS));
   } else if (turnsResult.status === "rejected") {
     console.warn(
       "[chat] failed to hydrate completed turns for thread %s",
@@ -250,6 +569,102 @@ async function hydrateThreadRuntimeItemsFromDb(threadId: string): Promise<boolea
     contextResult.status !== "rejected" &&
     latestGoalResult.status !== "rejected"
   );
+}
+
+/**
+ * Persisted rows can contain raw tool runs or legacy synthetic summaries;
+ * normalize both forms during hydration. An existing transcript keeps the
+ * already-loaded prefix and prepends only the disjoint part.
+ */
+function installHydratedRuntimeItems(
+  threadId: string,
+  persistedItems: readonly PersistedRuntimeItem[],
+): void {
+  const items = persistedItems.map(toRuntimeChatItem);
+  const state = useAppStore.getState();
+  const existingItemIds = state.runtimeItemIdsByThread[threadId] ?? [];
+  if (existingItemIds.length === 0) {
+    state.hydrateThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(items));
+  } else {
+    const existingItemIdSet = new Set(existingItemIds);
+    const overlapIndex = items.findIndex((item) => existingItemIdSet.has(item.id));
+    const persistedPrefix = overlapIndex < 0 ? items : items.slice(0, overlapIndex);
+    state.prependThreadRuntimeItems(threadId, compactRuntimeItemsForHydration(persistedPrefix));
+  }
+  // Any sub-agent tool_call that was mid-flight when the prior session ended
+  // will hydrate here as still "running" and show up in the active sub-agent
+  // dock forever. Reconcile in place so those rows render as terminated
+  // immediately instead of waiting for a live event that will never come.
+  // Crossagent rows are kept whole against the local backend (see
+  // hydrationReconcileOptions); a run whose start this renderer never saw then
+  // stays running until its authoritative settle tile, and one mis-terminated
+  // against a non-local source self-heals on its next live progress frame.
+  useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
+}
+
+/**
+ * Managed-root hydration from ONE bounded history read. The page carries the
+ * transcript tail, the newest completed turns with a `ct1.` continuation
+ * cursor, context usage and the durable notice; recording the tail is what
+ * makes older-item pages and the `ct1.` walk continue over the same bounded
+ * routes.
+ */
+async function hydrateManagedRootThreadRuntimeItems(
+  threadId: string,
+  request: { readonly cancelled: boolean },
+): Promise<boolean> {
+  let page: Awaited<ReturnType<typeof readManagedRootHistoryPage>>;
+  try {
+    // The bounded history response already carries the latest goal, including
+    // goals before the tail window. A separate DB read would duplicate work
+    // and dispatch a host-owned operation to the supervisor.
+    page = await readManagedRootHistoryPage(threadId);
+  } catch (error) {
+    // A reset superseded this read mid-flight: install nothing, seed no
+    // cursor, and surface no failure of its own (the replacement read owns
+    // the outcome).
+    if (request.cancelled) return false;
+    if (isManagedRootThreadAbsentError(error)) {
+      // An unpersisted or authoritatively removed row has no transcript to
+      // lose. A later pass/pin fills the empty transcript when it is created.
+      olderRuntimePageCursorByThread.set(threadId, null);
+      return true;
+    }
+    console.warn(
+      "[chat] failed to hydrate the managed root transcript for thread %s",
+      threadId,
+      error,
+    );
+    captureRendererException(error, { featureArea: "runtime-persistence" });
+    noteManagedRootHistoryFailure(threadId, error);
+    return false;
+  }
+
+  if (request.cancelled) return false;
+  if (page.runtimeItems.length > 0) {
+    installHydratedRuntimeItems(threadId, page.runtimeItems);
+  }
+  const existingItemIds = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
+  seedOlderThreadRuntimeItemsCursor(threadId, page.runtimeNextCursor ?? null, {
+    preserveExistingCursor: runtimePageOverlapsExistingTranscript(
+      page.runtimeItems,
+      existingItemIds,
+    ),
+  });
+  const records = toCompletedTurnRecords(page.completedTurns).slice(
+    -MAX_CACHED_COMPLETED_TURN_RECORDS,
+  );
+  if (page.completedTurnsNextCursor === null) {
+    // A complete tail replaces the level, so reverted turns can be dropped.
+    useAppStore.getState().replaceThreadCompletedTurns(threadId, records);
+  } else {
+    // A tail with older history merges losslessly with already-loaded pages.
+    useAppStore.getState().hydrateThreadCompletedTurns(threadId, records);
+  }
+  if (page.contextUsage) {
+    useAppStore.getState().hydrateThreadContextUsage(threadId, page.contextUsage);
+  }
+  return true;
 }
 
 /**
@@ -281,12 +696,45 @@ function evictThreadRuntimeItems(threadId: string): void {
   hydratedThreadRuntimeIds.delete(threadId);
   olderRuntimePageCursorByThread.delete(threadId);
   cancelPendingOlderRuntimePage(threadId);
+  // The transcript is gone: its non-item older-history continuation must not
+  // survive to feed a future hydration with pre-eviction cursors.
+  olderThreadHistoryInvalidation?.(threadId);
+  forgetThreadWindowLedger(threadId);
   clearRuntimeItemStoreSelectorCacheForThread(threadId);
   useAppStore.getState().evictThreadRuntimeItems(threadId);
 }
 
+/**
+ * WS6 P1-10: a `thread-reset` (loss-range rebuild) wipes the in-memory
+ * transcript. Without clearing the hydration marker, the next ChatPane mount
+ * early-returns "already hydrated" and the transcript would stay empty.
+ * Re-seeds the thread from the local DB, which still holds the events the
+ * live stream lost (the backend persists them before broadcast).
+ */
+export async function rehydrateThreadRuntimeItemsAfterReset(threadId: string): Promise<boolean> {
+  hydratedThreadRuntimeIds.delete(threadId);
+  olderRuntimePageCursorByThread.delete(threadId);
+  // An in-flight older page from before the reset must not prepend across the
+  // reset boundary or write back its stale cursor after the fresh read.
+  cancelPendingOlderRuntimePage(threadId);
+  // Same for an in-flight FIRST hydration: awaiting it would adopt the
+  // pre-reset read — installing pre-reset rows, re-seeding the pre-reset
+  // cursor, and marking the thread hydrated. Supersede it so a fresh read
+  // serves the rebuilt transcript instead.
+  cancelPendingThreadRuntimeHydration(threadId);
+  // The non-item older level (bounded completed turns) follows the same reset.
+  olderThreadHistoryInvalidation?.(threadId);
+  await hydrateThreadRuntimeItems(threadId);
+  return useAppStore.getState().runtimeHydrationStatus[threadId] !== "failed";
+}
+
 function cancelPendingOlderRuntimePage(threadId: string): void {
   const pending = pendingOlderRuntimePages.get(threadId);
+  if (pending) pending.cancelled = true;
+}
+
+function cancelPendingThreadRuntimeHydration(threadId: string): void {
+  const pending = pendingThreadRuntimeHydrations.get(threadId);
   if (pending) pending.cancelled = true;
 }
 

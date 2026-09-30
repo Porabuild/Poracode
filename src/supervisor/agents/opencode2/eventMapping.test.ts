@@ -551,26 +551,47 @@ describe("mapOpenCode2Event", () => {
     expect(typesOf(repeat)).toEqual(["turn.started", "turn.completed", "error"]);
   });
 
-  it("surfaces a retry notice once, even when the turn then fails identically", () => {
-    const state = stateFor();
-    const events = mapAll(state, [
-      event("session.execution.started", { sessionID: SESSION }),
-      event("session.retry.scheduled", {
-        sessionID: SESSION,
-        assistantMessageID: ASSISTANT,
-        attempt: 2,
-        at: 123,
-        error: { type: "RateLimit", message: "slow down" },
-      }),
-      event("session.execution.failed", {
-        sessionID: SESSION,
-        error: { type: "RateLimit", message: "slow down" },
-      }),
-    ]);
-    // The retry paints the row; the terminal execution failure of the same
-    // problem settles the turn without a duplicate row.
-    expect(typesOf(events)).toEqual(["turn.started", "error", "turn.completed"]);
-  });
+  it.each(["completed", "failed"] as const)(
+    "keeps retry notices non-fatal when the turn ends %s",
+    (outcome) => {
+      const state = stateFor();
+      const events = mapAll(state, [
+        event("session.execution.started", { sessionID: SESSION }),
+        event("session.retry.scheduled", {
+          sessionID: SESSION,
+          assistantMessageID: ASSISTANT,
+          attempt: 2,
+          at: 123,
+          error: { type: "RateLimit", message: "slow down" },
+        }),
+      ]);
+      expect(typesOf(events)).toEqual(["turn.started", "warning"]);
+      expect(state.turnActive).toBe(true);
+
+      const settled = mapAll(
+        state,
+        outcome === "failed"
+          ? [
+              event("session.step.failed", {
+                sessionID: SESSION,
+                assistantMessageID: ASSISTANT,
+                error: { type: "RateLimit", message: "slow down" },
+              }),
+              event("session.execution.failed", {
+                sessionID: SESSION,
+                error: { type: "RateLimit", message: "slow down" },
+              }),
+            ]
+          : [event("session.execution.succeeded", { sessionID: SESSION })],
+      );
+      // Retry warnings must not consume the dedup key for a later final error.
+      expect(settled.filter((entry) => entry.type === "error")).toEqual(
+        outcome === "failed" ? [{ type: "error", threadId: "thread-1", message: "slow down" }] : [],
+      );
+      expect(settled.at(-1)).toMatchObject({ type: "turn.completed", state: outcome });
+      expect(state.turnActive).toBe(false);
+    },
+  );
 
   it("tolerates a stream that settles before its deltas (beta reordering)", () => {
     const state = stateFor();

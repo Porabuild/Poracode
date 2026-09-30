@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Logout command tests only assert argv wrapping; skip WSL PATH probes that
 // hang when the full suite spawns many wsl.exe processes in parallel.
@@ -14,16 +14,17 @@ vi.mock("../base/processRuntime", async (importActual) => {
   };
 });
 import {
+  buildCursorAcpModelPickerCapabilities,
+  buildCursorModelPickerCapabilities,
   buildCursorTerminalAuthMethod,
   isCursorSemverSupportedForHooks,
+  mergeCursorAcpPickerControlsFromCli,
   parseCursorAboutOutput,
   parseCursorLogoutHelpOutput,
   parseCursorVersionLine,
   parseCursorWhoamiOutput,
 } from "./detection";
 import {
-  buildCursorAcpModelPickerCapabilities,
-  buildCursorModelPickerCapabilities,
   buildCursorProbeSpec,
   createCursorAdapter,
   createCursorProfileAdapter,
@@ -33,6 +34,7 @@ import {
 } from "./index";
 import { buildCursorArgs } from "./argv";
 import { CursorSdkSession } from "./sdkSession";
+import { primeWslLaunchEnvironment } from "../base";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
@@ -98,7 +100,7 @@ describe("createCursorAdapter capabilities", () => {
     ).toThrow("Cursor profiles require a CURSOR_API_KEY");
   });
 
-  it("does not pass SDK-local session ids to cursor-agent context extraction", () => {
+  it("does not pass SDK-local session ids to cursor-agent context extraction", async () => {
     const adapter = createCursorAdapter();
     const location = { kind: "posix" as const, path: "/repo" };
     expect(
@@ -111,12 +113,14 @@ describe("createCursorAdapter capabilities", () => {
       ),
     ).toBeUndefined();
     expect(
-      adapter.buildContextExtractionCommand?.(
-        {
-          providerSessionId: "cli-chat-123",
-          discoveredAt: "2026-07-27T00:00:00.000Z",
-        },
-        location,
+      (
+        await adapter.buildContextExtractionCommand?.(
+          {
+            providerSessionId: "cli-chat-123",
+            discoveredAt: "2026-07-27T00:00:00.000Z",
+          },
+          location,
+        )
       )?.args,
     ).toContain("--resume=cli-chat-123");
   });
@@ -459,7 +463,7 @@ describe("buildCursorModelPickerCapabilities", () => {
 });
 
 describe("buildCursorAcpModelPickerCapabilities", () => {
-  it("keeps exact ACP values and folds default parameters into labels", () => {
+  it("keeps exact ACP values and folds only context into labels", () => {
     const capabilities = buildCursorAcpModelPickerCapabilities([
       { id: "default[]", label: "Auto" },
       { id: "composer-2[fast=true]", label: "composer-2" },
@@ -483,18 +487,18 @@ describe("buildCursorAcpModelPickerCapabilities", () => {
 
     expect(capabilities.models).toEqual([
       { id: "default[]", label: "Auto" },
-      { id: "composer-2[fast=true]", label: "Composer 2 · Fast" },
+      { id: "composer-2[fast=true]", label: "Composer 2" },
       {
         id: "gpt-5.5[context=272k,reasoning=medium,fast=false]",
-        label: "GPT-5.5 · 272K · Medium",
+        label: "GPT-5.5 · 272K",
       },
       {
         id: "gpt-5.1-codex-max[reasoning=medium,fast=false]",
-        label: "Codex 5.1 Max · Medium",
+        label: "Codex 5.1 Max",
       },
       {
         id: "claude-opus-4-7[thinking=true,context=300k,effort=xhigh]",
-        label: "Opus 4.7 · 300K · Extra High",
+        label: "Opus 4.7 · 300K",
       },
       {
         id: "claude-sonnet-4[thinking=false,context=200k]",
@@ -512,6 +516,142 @@ describe("buildCursorAcpModelPickerCapabilities", () => {
       "claude-opus-4-7[thinking=true,context=300k,effort=xhigh]",
       "claude-sonnet-4[thinking=false,context=200k]",
     ]);
+  });
+
+  it("keeps parameterized ACP models as base ids and records advertised controls", () => {
+    const capabilities = buildCursorAcpModelPickerCapabilities(
+      [
+        { id: "default", label: "Auto" },
+        { id: "grok-4.6", label: "Grok 4.6" },
+        { id: "composer-2.5", label: "Composer 2.5" },
+      ],
+      {
+        efforts: ["low", "medium", "high", "xhigh"],
+        modelEfforts: {
+          "grok-4.6": ["low", "medium", "high", "xhigh"],
+          "composer-2.5": [],
+        },
+        fastModels: ["grok-4.6", "composer-2.5"],
+      },
+    );
+
+    expect(capabilities.models.map((model) => model.id)).toEqual([
+      "default",
+      "composer-2.5",
+      "grok-4.6",
+    ]);
+    expect(capabilities.efforts).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(capabilities.modelEfforts["grok-4.6"]).toEqual(["low", "medium", "high", "xhigh"]);
+    expect(capabilities.modelEfforts["composer-2.5"]).toEqual([]);
+    expect(capabilities.fastModels).toEqual(["grok-4.6", "composer-2.5"]);
+    expect(capabilities.models.map((model) => model.label)).toEqual([
+      "Auto",
+      "Composer 2.5",
+      "Grok 4.6",
+    ]);
+    expect(capabilities.defaultContextSize).toBeUndefined();
+    expect(capabilities.models.every((model) => !model.label.includes("·"))).toBe(true);
+  });
+
+  it("does not publish an abstract Default context on parameterized ACP", () => {
+    const capabilities = buildCursorAcpModelPickerCapabilities(
+      [
+        { id: "default", label: "Auto" },
+        { id: "gpt-5.5", label: "GPT-5.5" },
+      ],
+      {
+        efforts: ["medium"],
+        modelEfforts: { "gpt-5.5": ["medium"] },
+        contextSizes: [
+          { id: "default", label: "Default" },
+          { id: "272k", label: "272K" },
+          { id: "1m", label: "1M" },
+        ],
+        modelContextSizes: {
+          "gpt-5.5": ["default", "272k", "1m"],
+          default: ["default"],
+        },
+      },
+    );
+
+    expect(capabilities.contextSizes).toEqual([
+      { id: "272k", label: "272K" },
+      { id: "1m", label: "1M" },
+    ]);
+    expect(capabilities.modelContextSizes).toEqual({
+      "gpt-5.5": ["272k", "1m"],
+    });
+    expect(capabilities.defaultContextSize).toBeUndefined();
+  });
+});
+
+describe("mergeCursorAcpPickerControlsFromCli", () => {
+  it("fills unprobed ACP models from the CLI catalog", () => {
+    const acp = buildCursorAcpModelPickerCapabilities(
+      [
+        { id: "default", label: "Auto" },
+        { id: "gpt-5.5", label: "GPT-5.5" },
+      ],
+      { efforts: [], modelEfforts: {} },
+    );
+    const cli = buildCursorModelPickerCapabilities([
+      { id: "auto", label: "Auto" },
+      { id: "gpt-5.5-high", label: "GPT-5.5 High" },
+      { id: "gpt-5.5-extra-high", label: "GPT-5.5 Extra High" },
+      { id: "gpt-5.5-high-fast", label: "GPT-5.5 High Fast" },
+    ]);
+
+    const merged = mergeCursorAcpPickerControlsFromCli(acp, cli);
+    expect(merged.modelEfforts["gpt-5.5"]).toEqual(["high", "xhigh"]);
+    expect(merged.fastModels).toContain("gpt-5.5");
+  });
+
+  it("does not import CLI Default context into parameterized ACP", () => {
+    const acp = buildCursorAcpModelPickerCapabilities(
+      [
+        { id: "default", label: "Auto" },
+        { id: "composer-2.5", label: "Composer 2.5" },
+        { id: "gpt-5.5", label: "GPT-5.5" },
+      ],
+      { efforts: [], modelEfforts: {} },
+    );
+    const cli = buildCursorModelPickerCapabilities([
+      { id: "auto", label: "Auto" },
+      { id: "composer-2.5", label: "Composer 2.5" },
+      { id: "composer-2.5", label: "Composer 2.5 1M" },
+      { id: "gpt-5.5-high", label: "GPT-5.5 High" },
+      { id: "gpt-5.5-high", label: "GPT-5.5 1M High" },
+    ]);
+
+    const merged = mergeCursorAcpPickerControlsFromCli(acp, cli);
+    expect(merged.contextSizes?.some((size) => size.id === "default")).toBeFalsy();
+    expect(merged.modelContextSizes?.["composer-2.5"]?.includes("default")).toBeFalsy();
+    expect(merged.modelContextSizes?.["gpt-5.5"]).toEqual(["272k", "1m"]);
+    expect(merged.defaultContextSize).toBeUndefined();
+  });
+
+  it("does not overwrite ACP-confirmed empty Effort or Context ladders from CLI", () => {
+    const acp = buildCursorAcpModelPickerCapabilities(
+      [
+        { id: "default", label: "Auto" },
+        { id: "composer-2.5", label: "Composer 2.5" },
+        { id: "gpt-5.5", label: "GPT-5.5" },
+      ],
+      {
+        efforts: ["high", "xhigh"],
+        modelEfforts: { "composer-2.5": [], "gpt-5.5": ["high", "xhigh"] },
+      },
+    );
+    const cli = buildCursorModelPickerCapabilities([
+      { id: "auto", label: "Auto" },
+      { id: "composer-2.5", label: "Composer 2.5" },
+      { id: "composer-2.5-medium", label: "Composer 2.5 Medium" },
+      { id: "gpt-5.5-high", label: "GPT-5.5 High" },
+    ]);
+
+    const merged = mergeCursorAcpPickerControlsFromCli(acp, cli);
+    expect(merged.modelEfforts["composer-2.5"]).toEqual([]);
+    expect(merged.modelEfforts["gpt-5.5"]).toEqual(["high", "xhigh"]);
   });
 });
 
@@ -580,6 +720,10 @@ describe("buildCursorProbeSpec", () => {
       expect(cmdArgs).toEqual(["--list-models"]);
     },
   );
+});
+
+beforeEach(() => {
+  primeWslLaunchEnvironment("Ubuntu", { shellPath: "/bin/bash", home: "/home/demo" });
 });
 
 describe("Cursor logout support", () => {

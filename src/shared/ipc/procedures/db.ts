@@ -1,16 +1,21 @@
 import { z } from "zod";
-import { projectSchema } from "../../contracts";
+import { projectSchema, threadContextUsageSchema } from "../../contracts";
 import type { Project, ProjectNotes, Thread, ThreadContextUsage } from "../../contracts";
-import { defineIpcProcedure, defineNoArgProcedure, definePayloadProcedure } from "../core";
+import {
+  defineIpcProcedure,
+  defineNoArgProcedure,
+  definePayloadProcedure,
+  omittedResultSchema,
+} from "../core";
 import {
   dbDeleteProjectPayloadSchema,
   dbDeleteThreadPayloadSchema,
   dbGetCompletedTurnsPayloadSchema,
   dbGetProjectNotesPayloadSchema,
-  dbPersistExperimentStatePayloadSchema,
   dbGetRuntimeItemsPayloadSchema,
   dbGetRuntimeItemsPagePayloadSchema,
   dbGetThreadContextUsagePayloadSchema,
+  dbGetThreadsPagePayloadSchema,
   dbTruncateRuntimeItemsPayloadSchema,
   dbReplaceCompletedTurnsPayloadSchema,
   dbReplaceRuntimeItemsPayloadSchema,
@@ -19,11 +24,15 @@ import {
   dbStateKeySchema,
   dbStatePayloadSchema,
   dbSyncAllPayloadSchema,
+  dbSyncChangesPayloadSchema,
   persistedThreadSchema,
-  type DbPersistExperimentStatePayload,
+  persistedRuntimeItemSchema,
+  persistedThreadPageRemoteSchema,
+  persistedCompletedTurnSchema,
   type PersistedCompletedTurn,
   type PersistedRuntimeItem,
   type PersistedRuntimePage,
+  type PersistedThreadPage,
 } from "../schemas";
 
 export const dbProcedures = {
@@ -58,16 +67,24 @@ export const dbProcedures = {
     z.infer<typeof dbDeleteThreadPayloadSchema>,
     void,
     "main-local"
-  >("dbDeleteThread", "main-local", dbDeleteThreadPayloadSchema, (threadId) =>
-    dbDeleteThreadPayloadSchema.parse({ threadId }),
+  >(
+    "dbDeleteThread",
+    "main-local",
+    dbDeleteThreadPayloadSchema,
+    (threadId) => dbDeleteThreadPayloadSchema.parse({ threadId }),
+    omittedResultSchema,
   ),
   dbDeleteProject: defineIpcProcedure<
     [string],
     z.infer<typeof dbDeleteProjectPayloadSchema>,
     void,
     "main-local"
-  >("dbDeleteProject", "main-local", dbDeleteProjectPayloadSchema, (projectId) =>
-    dbDeleteProjectPayloadSchema.parse({ projectId }),
+  >(
+    "dbDeleteProject",
+    "main-local",
+    dbDeleteProjectPayloadSchema,
+    (projectId) => dbDeleteProjectPayloadSchema.parse({ projectId }),
+    omittedResultSchema,
   ),
   dbSyncAll: defineIpcProcedure<
     [Project[], Thread[], string],
@@ -77,29 +94,48 @@ export const dbProcedures = {
   >("dbSyncAll", "main-local", dbSyncAllPayloadSchema, (projects, threads, viewJson) =>
     dbSyncAllPayloadSchema.parse({ projects, threads, viewJson }),
   ),
-  dbPersistExperimentState: definePayloadProcedure<
-    DbPersistExperimentStatePayload,
+  dbSyncChanges: definePayloadProcedure<
+    z.infer<typeof dbSyncChangesPayloadSchema>,
     void,
     "main-local"
-  >("dbPersistExperimentState", "main-local", dbPersistExperimentStatePayloadSchema),
+  >("dbSyncChanges", "main-local", dbSyncChangesPayloadSchema),
   dbGetThreadRuntimeItems: defineIpcProcedure<
     [string],
     z.infer<typeof dbGetRuntimeItemsPayloadSchema>,
     PersistedRuntimeItem[],
     "main-local"
-  >("dbGetThreadRuntimeItems", "main-local", dbGetRuntimeItemsPayloadSchema, (threadId) =>
-    dbGetRuntimeItemsPayloadSchema.parse({ threadId }),
+  >(
+    "dbGetThreadRuntimeItems",
+    "main-local",
+    dbGetRuntimeItemsPayloadSchema,
+    (threadId) => dbGetRuntimeItemsPayloadSchema.parse({ threadId }),
+    z.array(persistedRuntimeItemSchema),
   ),
   dbGetThreadRuntimeItemsPage: definePayloadProcedure<
     z.infer<typeof dbGetRuntimeItemsPagePayloadSchema>,
     PersistedRuntimePage,
     "main-local"
   >("dbGetThreadRuntimeItemsPage", "main-local", dbGetRuntimeItemsPagePayloadSchema),
+  dbGetThreadsPage: definePayloadProcedure<
+    z.infer<typeof dbGetThreadsPagePayloadSchema>,
+    PersistedThreadPage,
+    "main-local"
+  >(
+    "dbGetThreadsPage",
+    "main-local",
+    dbGetThreadsPagePayloadSchema,
+    persistedThreadPageRemoteSchema,
+  ),
   dbGetLatestThreadGoalItem: definePayloadProcedure<
     z.infer<typeof dbGetRuntimeItemsPayloadSchema>,
     PersistedRuntimeItem | null,
     "main-local"
-  >("dbGetLatestThreadGoalItem", "main-local", dbGetRuntimeItemsPayloadSchema),
+  >(
+    "dbGetLatestThreadGoalItem",
+    "main-local",
+    dbGetRuntimeItemsPayloadSchema,
+    persistedRuntimeItemSchema.nullable(),
+  ),
   dbTruncateThreadRuntimeAfter: definePayloadProcedure<
     z.infer<typeof dbTruncateRuntimeItemsPayloadSchema>,
     void,
@@ -109,32 +145,55 @@ export const dbProcedures = {
     z.infer<typeof dbReplaceRuntimeItemsPayloadSchema>,
     void,
     "main-local"
-  >("dbReplaceThreadRuntimeItems", "main-local", dbReplaceRuntimeItemsPayloadSchema),
+  >(
+    "dbReplaceThreadRuntimeItems",
+    "main-local",
+    dbReplaceRuntimeItemsPayloadSchema,
+    omittedResultSchema,
+  ),
   dbGetThreadCompletedTurns: defineIpcProcedure<
     [string],
     z.infer<typeof dbGetCompletedTurnsPayloadSchema>,
     PersistedCompletedTurn[],
     "main-local"
-  >("dbGetThreadCompletedTurns", "main-local", dbGetCompletedTurnsPayloadSchema, (threadId) =>
-    dbGetCompletedTurnsPayloadSchema.parse({ threadId }),
+  >(
+    "dbGetThreadCompletedTurns",
+    "main-local",
+    dbGetCompletedTurnsPayloadSchema,
+    (threadId) => dbGetCompletedTurnsPayloadSchema.parse({ threadId }),
+    z.array(persistedCompletedTurnSchema),
   ),
   dbReplaceThreadCompletedTurns: definePayloadProcedure<
     z.infer<typeof dbReplaceCompletedTurnsPayloadSchema>,
     void,
     "main-local"
-  >("dbReplaceThreadCompletedTurns", "main-local", dbReplaceCompletedTurnsPayloadSchema),
+  >(
+    "dbReplaceThreadCompletedTurns",
+    "main-local",
+    dbReplaceCompletedTurnsPayloadSchema,
+    omittedResultSchema,
+  ),
   dbReplaceThreadRuntimeSnapshot: definePayloadProcedure<
     z.infer<typeof dbReplaceRuntimeSnapshotPayloadSchema>,
     void,
     "main-local"
-  >("dbReplaceThreadRuntimeSnapshot", "main-local", dbReplaceRuntimeSnapshotPayloadSchema),
+  >(
+    "dbReplaceThreadRuntimeSnapshot",
+    "main-local",
+    dbReplaceRuntimeSnapshotPayloadSchema,
+    omittedResultSchema,
+  ),
   dbGetThreadContextUsage: defineIpcProcedure<
     [string],
     z.infer<typeof dbGetThreadContextUsagePayloadSchema>,
     ThreadContextUsage | null,
     "main-local"
-  >("dbGetThreadContextUsage", "main-local", dbGetThreadContextUsagePayloadSchema, (threadId) =>
-    dbGetThreadContextUsagePayloadSchema.parse({ threadId }),
+  >(
+    "dbGetThreadContextUsage",
+    "main-local",
+    dbGetThreadContextUsagePayloadSchema,
+    (threadId) => dbGetThreadContextUsagePayloadSchema.parse({ threadId }),
+    threadContextUsageSchema.strict().nullable(),
   ),
   dbGetProjectNotes: defineIpcProcedure<
     [string],

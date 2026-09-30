@@ -38,7 +38,7 @@ it("refuses unrepresentable Muse options", () => {
     expect(() => museNativeMcpConfig().entry(item)).toThrow(/not supported/u);
 });
 
-it("offers native setup only where Muse executes on the host", () => {
+it("offers native setup on POSIX only until the Windows settings path is confirmed", () => {
   const adapter = createMuseAdapter();
   expect(adapter.nativeMcpConfig?.({ envKind: "posix" })).toBeDefined();
   expect(adapter.nativeMcpConfig?.({ envKind: "windows" })).toBeUndefined();

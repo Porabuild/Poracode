@@ -9,11 +9,10 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { toWslUncPath } from "@/shared/wsl";
 import type { ResolvedMcpServer } from "@/shared/contracts";
 import type { GeminiMcpServerConfig as GeminiMcpServerEntry } from "../../userMcp";
 import { buildGeminiMcpServers } from "../../userMcp";
-import type { AgentEnvContext } from "../../base";
+import type { AgentEnvContext, Awaitable } from "../../base";
 import {
   FORWARD_RUNTIME_FILE,
   buildNativeHookCommandHeads,
@@ -25,21 +24,28 @@ import {
   getNativeHookWrapperFilename,
   getNativePluginBaseDir,
   getWslPluginBaseDirs,
-  hasNativeHookWrapper,
   isWslPluginContext,
   memoByCtx,
   readBundledPluginVersion,
   readPluginManifest,
+  readPluginManifestWith,
+  readWslTextFile,
+  resolvePluginVerificationIo,
   removeStagedPluginDir,
+  removeWslPath,
+  resolveWslPluginBaseDirs,
   stagePluginAssetsToWsl,
+  writeWslTextFile,
   writeNativeHookWrapper,
+  wslPathExists,
   type PluginManifest,
+  type PluginVerificationTarget,
 } from "../../plugin/installerBase";
 
 export interface GeminiPluginPaths {
   pluginDir: string;
   settingsPath: string;
-  version: string;
+  version?: string;
 }
 
 interface GeminiHookEntry {
@@ -113,16 +119,9 @@ function computeGeminiPluginPaths(ctx?: AgentEnvContext): GeminiPluginPaths {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "gemini");
     if (!wsl) return { pluginDir: "", settingsPath: "", version: "0.0.0" };
-    let version = "0.0.0";
-    try {
-      version = readPluginManifest(wsl.uncBase).version;
-    } catch {
-      // staged manifest missing or distro unreachable
-    }
     return {
       pluginDir: wsl.linuxBase,
       settingsPath: `${wsl.linuxBase}/settings.json`,
-      version,
     };
   }
   const pluginDir = getNativePluginBaseDir("gemini", ctx?.baseDir);
@@ -145,27 +144,37 @@ export function getGeminiPluginPaths(ctx?: AgentEnvContext): GeminiPluginPaths {
   return geminiPluginPathsMemo.call(ctx);
 }
 
-function resolveSettingsWritePath(ctx: AgentEnvContext | undefined, settingsPath: string): string {
-  return isWslPluginContext(ctx) ? toWslUncPath(ctx.wslDistro, settingsPath) : settingsPath;
-}
-
 /**
  * Ensure Gemini has a Poracode-owned system settings file for MCP projection,
  * even when the optional status-hook plugin could not be installed. Existing
  * hook settings are preserved; a missing file is created only when requested.
+ * WSL reads/writes run through the staging worker — never a synchronous UNC
+ * handle on the launch path.
  */
-export function ensureGeminiLaunchSettingsFile(
+export async function ensureGeminiLaunchSettingsFile(
   ctx: AgentEnvContext | undefined,
   createIfMissing: boolean,
-): string | undefined {
+): Promise<string | undefined> {
+  if (isWslPluginContext(ctx)) {
+    const dirs = await resolveWslPluginBaseDirs(ctx.wslDistro, "gemini");
+    if (!dirs) return undefined;
+    const settingsPath = `${dirs.linuxBase}/settings.json`;
+    try {
+      if (await wslPathExists(ctx.wslDistro, settingsPath)) return settingsPath;
+      if (!createIfMissing) return undefined;
+      await writeWslTextFile(ctx.wslDistro, settingsPath, "{}\n");
+      return settingsPath;
+    } catch {
+      return undefined;
+    }
+  }
   const paths = getGeminiPluginPaths(ctx);
   if (!paths.settingsPath) return undefined;
-  const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
-  if (existsSync(settingsPath)) return paths.settingsPath;
+  if (existsSync(paths.settingsPath)) return paths.settingsPath;
   if (!createIfMissing) return undefined;
   try {
-    mkdirSync(dirname(settingsPath), { recursive: true });
-    writeFileSync(settingsPath, "{}\n", "utf8");
+    mkdirSync(dirname(paths.settingsPath), { recursive: true });
+    writeFileSync(paths.settingsPath, "{}\n", "utf8");
     return paths.settingsPath;
   } catch {
     return undefined;
@@ -173,26 +182,37 @@ export function ensureGeminiLaunchSettingsFile(
 }
 
 /** Snapshot the managed settings into a file consumed by one CLI process only. */
-export function createGeminiThreadSettingsFile(
+export async function createGeminiThreadSettingsFile(
   ctx: AgentEnvContext | undefined,
-): { settingsPath: string; cleanup: () => void } | undefined {
-  const paths = getGeminiPluginPaths(ctx);
-  if (!paths.settingsPath) return undefined;
-  const sourcePath = resolveSettingsWritePath(ctx, paths.settingsPath);
-  if (!existsSync(sourcePath)) return undefined;
-
+): Promise<{ settingsPath: string; cleanup: () => Awaitable<void> } | undefined> {
   const fileName = `.poracode-thread-${randomUUID()}.json`;
-  const settingsPath = isWslPluginContext(ctx)
-    ? `${paths.pluginDir.replace(/\/$/u, "")}/${fileName}`
-    : join(paths.pluginDir, fileName);
-  const writePath = resolveSettingsWritePath(ctx, settingsPath);
+  if (isWslPluginContext(ctx)) {
+    const dirs = await resolveWslPluginBaseDirs(ctx.wslDistro, "gemini");
+    if (!dirs) return undefined;
+    const threadPath = `${dirs.linuxBase}/${fileName}`;
+    try {
+      const source = await readWslTextFile(ctx.wslDistro, `${dirs.linuxBase}/settings.json`);
+      if (source === null) return undefined;
+      await writeWslTextFile(ctx.wslDistro, threadPath, source);
+    } catch {
+      return undefined;
+    }
+    return {
+      settingsPath: threadPath,
+      cleanup: () => removeWslPath(ctx.wslDistro, threadPath),
+    };
+  }
+
+  const paths = getGeminiPluginPaths(ctx);
+  if (!paths.settingsPath || !existsSync(paths.settingsPath)) return undefined;
+  const writePath = join(paths.pluginDir, fileName);
   try {
-    copyFileSync(sourcePath, writePath);
+    copyFileSync(paths.settingsPath, writePath);
   } catch {
     return undefined;
   }
   return {
-    settingsPath,
+    settingsPath: writePath,
     cleanup: () => {
       try {
         unlinkSync(writePath);
@@ -203,32 +223,46 @@ export function createGeminiThreadSettingsFile(
   };
 }
 
-function updateGeminiSettings(
-  settingsPath: string,
-  mutate: (settings: GeminiSettings) => void,
-): void {
-  try {
-    const settings = JSON.parse(readFileSync(settingsPath, "utf8")) as GeminiSettings;
-    mutate(settings);
-    writeFileSync(settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
-  } catch {
-    // Best-effort; stale settings should not block thread launch.
-  }
+function applyGeminiMcpServers(
+  settings: GeminiSettings,
+  servers: readonly ResolvedMcpServer[],
+): GeminiSettings {
+  const mcpServers: Record<string, GeminiMcpServerEntry> = buildGeminiMcpServers(servers);
+  if (Object.keys(mcpServers).length > 0) settings.mcpServers = mcpServers;
+  else delete settings.mcpServers;
+  return settings;
 }
 
 /** Replace the complete per-thread MCP projection with one settings-file update. */
-export function syncGeminiLaunchMcpSettings(
+export async function syncGeminiLaunchMcpSettings(
   ctx: AgentEnvContext,
   servers: readonly ResolvedMcpServer[],
-): void {
+): Promise<void> {
+  if (isWslPluginContext(ctx)) {
+    const dirs = await resolveWslPluginBaseDirs(ctx.wslDistro, "gemini");
+    if (!dirs) return;
+    const settingsPath = `${dirs.linuxBase}/settings.json`;
+    try {
+      const raw = await readWslTextFile(ctx.wslDistro, settingsPath);
+      if (raw === null) return;
+      const settings = applyGeminiMcpServers(JSON.parse(raw) as GeminiSettings, servers);
+      await writeWslTextFile(ctx.wslDistro, settingsPath, `${JSON.stringify(settings, null, 2)}\n`);
+    } catch {
+      // Best-effort; stale settings should not block thread launch.
+    }
+    return;
+  }
   const paths = getGeminiPluginPaths(ctx);
   if (!paths.settingsPath) return;
-  const settingsPath = resolveSettingsWritePath(ctx, paths.settingsPath);
-  updateGeminiSettings(settingsPath, (settings) => {
-    const mcpServers: Record<string, GeminiMcpServerEntry> = buildGeminiMcpServers(servers);
-    if (Object.keys(mcpServers).length > 0) settings.mcpServers = mcpServers;
-    else delete settings.mcpServers;
-  });
+  try {
+    const settings = applyGeminiMcpServers(
+      JSON.parse(readFileSync(paths.settingsPath, "utf8")) as GeminiSettings,
+      servers,
+    );
+    writeFileSync(paths.settingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+  } catch {
+    // Best-effort; stale settings should not block thread launch.
+  }
 }
 
 export interface InstallGeminiPluginOptions {
@@ -243,10 +277,12 @@ export interface InstallGeminiPluginOptions {
   resolvedNodePath?: string | undefined;
 }
 
-export function installGeminiPlugin(
+export async function installGeminiPlugin(
   ctx?: AgentEnvContext,
   options?: InstallGeminiPluginOptions,
-): { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string } {
+): Promise<
+  { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string }
+> {
   let sourceDir: string;
   try {
     sourceDir = resolveSourceDir();
@@ -306,14 +342,16 @@ export function installGeminiPlugin(
   };
 }
 
-function installGeminiPluginWsl(
+async function installGeminiPluginWsl(
   distro: string,
   sourceDir: string,
   manifest: PluginManifest,
   resolvedNodePath: string,
   servers: readonly ResolvedMcpServer[],
-): { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string } {
-  const staged = stagePluginAssetsToWsl(distro, sourceDir, "gemini", {
+): Promise<
+  { ok: true; paths: GeminiPluginPaths; version: string } | { ok: false; reason: string }
+> {
+  const staged = await stagePluginAssetsToWsl(distro, sourceDir, "gemini", {
     includeForwardRuntime: true,
   });
   if (!staged.ok) return staged;
@@ -321,17 +359,15 @@ function installGeminiPluginWsl(
   const linuxPluginDir = staged.linuxPluginDir;
   const linuxSettingsPath = `${linuxPluginDir}/settings.json`;
   const linuxForwardPath = `${linuxPluginDir}/forward.mjs`;
-  const uncSettingsPath = toWslUncPath(distro, linuxSettingsPath);
   const headExpression = buildWslHookCommandHead(resolvedNodePath, linuxForwardPath);
 
   try {
-    mkdirSync(dirname(uncSettingsPath), { recursive: true });
     const mcpServers = buildGeminiMcpServers(servers);
     const settings = renderGeminiSettings({
       headExpression,
       ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {}),
     });
-    writeFileSync(uncSettingsPath, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+    await writeWslTextFile(distro, linuxSettingsPath, `${JSON.stringify(settings, null, 2)}\n`);
   } catch (error) {
     return {
       ok: false,
@@ -356,38 +392,50 @@ function installGeminiPluginWsl(
   };
 }
 
-export function isGeminiPluginInstalled(ctx?: AgentEnvContext): {
-  installed: boolean;
-  version?: string;
-} {
+export async function isGeminiPluginInstalled(
+  ctx?: AgentEnvContext,
+): Promise<{ installed: boolean; version?: string }> {
   if (isWslPluginContext(ctx)) {
     const wsl = getWslPluginBaseDirs(ctx.wslDistro, "gemini");
     if (!wsl) return { installed: false };
-    return verifyGeminiInstallAt(wsl.uncBase, "wsl");
+    return verifyGeminiInstallAt(wsl.linuxBase, "wsl", { distro: ctx.wslDistro });
   }
   return verifyGeminiInstallAt(getNativePluginBaseDir("gemini", ctx?.baseDir), "native");
 }
 
-export function uninstallGeminiPlugin(ctx?: AgentEnvContext): void {
-  removeStagedPluginDir("gemini", ctx);
+export async function uninstallGeminiPlugin(ctx?: AgentEnvContext): Promise<void> {
+  await removeStagedPluginDir("gemini", ctx);
 }
 
-function verifyGeminiInstallAt(
+const GEMINI_VERIFY_ASSETS = [
+  "plugin.json",
+  "forward.mjs",
+  FORWARD_RUNTIME_FILE,
+  "settings.json",
+] as const;
+
+async function verifyGeminiInstallAt(
   readableDir: string,
   target: "native" | "wsl",
-): { installed: boolean; version?: string } {
-  if (!existsSync(join(readableDir, "plugin.json"))) return { installed: false };
-  if (!existsSync(join(readableDir, "forward.mjs"))) return { installed: false };
-  if (!existsSync(join(readableDir, FORWARD_RUNTIME_FILE))) return { installed: false };
-  if (!existsSync(join(readableDir, "settings.json"))) return { installed: false };
-  if (!hasNativeHookWrapper(readableDir, target)) return { installed: false };
+  options?: PluginVerificationTarget,
+): Promise<{ installed: boolean; version?: string }> {
+  const io = resolvePluginVerificationIo(target, options);
+  for (const asset of GEMINI_VERIFY_ASSETS) {
+    if (!(await io.pathExists(io.joinPath(readableDir, asset)))) return { installed: false };
+  }
+  if (
+    target === "native" &&
+    !(await io.pathExists(io.joinPath(readableDir, getNativeHookWrapperFilename())))
+  ) {
+    return { installed: false };
+  }
   try {
-    const settings = JSON.parse(readFileSync(join(readableDir, "settings.json"), "utf8")) as {
-      hooks?: Record<string, unknown>;
-    };
+    const raw = await io.readTextFile(io.joinPath(readableDir, "settings.json"));
+    if (raw === null) return { installed: false };
+    const settings = JSON.parse(raw) as { hooks?: Record<string, unknown> };
     if (!hasGeminiHooks(settings.hooks)) return { installed: false };
-    const version = readPluginManifest(readableDir).version;
-    return { installed: true, version };
+    const manifest = await readPluginManifestWith(io, readableDir);
+    return { installed: true, version: manifest.version };
   } catch {
     return { installed: false };
   }

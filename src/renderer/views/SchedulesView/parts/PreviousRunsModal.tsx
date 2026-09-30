@@ -15,6 +15,12 @@ interface PreviousRunsModalProps {
   formatDateTime: (iso: string) => string;
   onOpenRunThread: (threadId: string) => void;
   onClose: () => void;
+  /** Overrides the local bridge fetch — machine-scoped callers route to a host. */
+  fetchRuns?: ((id: string) => Promise<ScheduledTaskRun[]>) | undefined;
+  /** Maps a run's host-side thread id to the id this workspace knows. Remote
+   * machines return host ids in runs; without this the rows render as
+   * deleted threads even when the thread is mirrored locally. */
+  resolveThreadId?: ((hostThreadId: string) => string) | undefined;
 }
 
 function RunStatusIcon({ status, label }: { status: ScheduledTaskRun["status"]; label: string }) {
@@ -35,15 +41,19 @@ function RunRow({
   statusLabel,
   formatDateTime,
   onOpen,
+  resolveThreadId,
 }: {
   run: ScheduledTaskRun;
   statusLabel: string;
   formatDateTime: (iso: string) => string;
   onOpen: (threadId: string) => void;
+  resolveThreadId?: ((hostThreadId: string) => string) | undefined;
 }) {
   // Reactive lookup so the row's provider icon and title track live thread
-  // state (e.g. renames) while the modal stays open.
-  const thread = useThread(run.threadId);
+  // state (e.g. renames) while the modal stays open. Remote runs carry the
+  // HOST's thread id — resolve it before the lookup; `onOpen` still receives
+  // the raw id so machine-scoped callers can do their own mapping.
+  const thread = useThread(resolveThreadId ? resolveThreadId(run.threadId) : run.threadId);
   const agentStatuses = useAgentStatusesStore((state) => state.agentStatuses);
   const agent = thread ? agentStatuses.find((status) => status.kind === thread.agentKind) : null;
   const model = thread?.config.model;
@@ -98,6 +108,8 @@ export function PreviousRunsModal({
   formatDateTime,
   onOpenRunThread,
   onClose,
+  fetchRuns,
+  resolveThreadId,
 }: PreviousRunsModalProps) {
   const { t } = useLingui();
   const [runs, setRuns] = useState<ScheduledTaskRun[] | null>(null);
@@ -124,8 +136,7 @@ export function PreviousRunsModal({
     if (!taskId) return;
     let cancelled = false;
     const load = () => {
-      void readBridge()
-        .getScheduleRuns({ id: taskId })
+      void (fetchRuns ? fetchRuns(taskId) : readBridge().getScheduleRuns({ id: taskId }))
         .then((next) => {
           if (cancelled) return;
           setRuns(next);
@@ -149,7 +160,7 @@ export function PreviousRunsModal({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [taskId, isRunning]);
+  }, [taskId, isRunning, fetchRuns]);
 
   function statusLabel(status: ScheduledTaskRun["status"]): string {
     switch (status) {
@@ -198,6 +209,7 @@ export function PreviousRunsModal({
                     statusLabel={statusLabel(run.status)}
                     formatDateTime={formatDateTime}
                     onOpen={openRun}
+                    resolveThreadId={resolveThreadId}
                   />
                 ))}
               </div>

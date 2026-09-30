@@ -1,5 +1,5 @@
 import { useDeferredValue, useState, type Key, type ReactNode } from "react";
-import { Button, Input, ListBox, Popover } from "@heroui/react";
+import { Button, ListBox, Popover } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, Minus, Search, Zap } from "lucide-react";
 import {
@@ -131,11 +131,15 @@ export function ModelVisibilityPopover(props: {
     const item = items.find((candidate) => candidate.id === id);
     if (item?.type === "model") setModelHidden(item.hiddenModelsKey, item.modelId);
     else if (item?.type === "header-sub") toggleGroup(item.id);
-    else if (item?.type === "header-provider" && props.providerToggle) {
-      props.providerToggle.onCheckedChange(
-        item.providerKind,
-        uncheckedKinds.has(item.providerKind),
-      );
+    else if (item?.type === "header-provider") {
+      if (props.providerToggle) {
+        props.providerToggle.onCheckedChange(
+          item.providerKind,
+          uncheckedKinds.has(item.providerKind),
+        );
+      } else {
+        toggleGroup(item.id);
+      }
     }
   }
 
@@ -156,14 +160,14 @@ export function ModelVisibilityPopover(props: {
           </span>
         </Button>
       </Popover.Trigger>
-      <Popover.Content placement="bottom end" maxHeight={448} className="w-80 p-0">
+      <Popover.Content placement="bottom end" maxHeight={512} className="w-96 p-0">
         {/* max-h-[inherit] tracks the available-height cap React Aria sets on the
             popover element, so the list shrinks near screen edges instead of
             overflowing the window. */}
         <Popover.Dialog className="flex max-h-[inherit] flex-col overflow-hidden !p-0">
           <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2">
             <Search className="size-3.5 shrink-0 text-muted" />
-            <Input
+            <input
               aria-label={t`Search models`}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted outline-none"
               placeholder={t`Search models...`}
@@ -185,23 +189,21 @@ export function ModelVisibilityPopover(props: {
               )}
             </span>
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-auto min-w-0 p-0 text-[10px] text-foreground/70 hover:text-foreground"
-                onPress={() => setAllHidden(false)}
+              <button
+                type="button"
+                className="text-foreground/70 hover:text-foreground"
+                onClick={() => setAllHidden(false)}
               >
                 <Trans>Show all</Trans>
-              </Button>
+              </button>
               <span className="text-muted/40">·</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-auto min-w-0 p-0 text-[10px] text-foreground/70 hover:text-foreground"
-                onPress={() => setAllHidden(true)}
+              <button
+                type="button"
+                className="text-foreground/70 hover:text-foreground"
+                onClick={() => setAllHidden(true)}
               >
                 <Trans>Hide all</Trans>
-              </Button>
+              </button>
             </div>
           </div>
           {items.length === 0 ? (
@@ -215,23 +217,43 @@ export function ModelVisibilityPopover(props: {
               onAction={activateItem}
               className="poracode-menu no-scrollbar min-h-0 overflow-y-auto py-1.5"
             >
-              {items.map((item) => (
-                <ModelVisibilityRow
-                  key={item.id}
-                  item={item}
-                  isVisible={
-                    item.type === "model" ? !isHidden(item.hiddenModelsKey, item.modelId) : false
+              {(() => {
+                let underSub = false;
+                return items.map((item) => {
+                  if (item.type === "header-provider" || item.type === "header-plain") {
+                    underSub = false;
+                  } else if (item.type === "header-sub") {
+                    underSub = true;
                   }
-                  isProviderUnchecked={
-                    (item.type === "model" || item.type === "header-sub") &&
-                    uncheckedKinds.has(item.providerKind)
-                  }
-                  {...(item.type === "header-sub" ? { subGroupState: groupState(item.id) } : {})}
-                  {...(item.type === "header-provider" && props.providerToggle
-                    ? { providerState: providerState(item.providerKind) }
-                    : {})}
-                />
-              ))}
+                  const indent = item.type === "model" && underSub;
+                  return (
+                    <ModelVisibilityRow
+                      key={item.id}
+                      item={item}
+                      isVisible={
+                        item.type === "model"
+                          ? !isHidden(item.hiddenModelsKey, item.modelId)
+                          : false
+                      }
+                      isProviderUnchecked={
+                        (item.type === "model" || item.type === "header-sub") &&
+                        uncheckedKinds.has(item.providerKind)
+                      }
+                      {...(item.type === "header-sub"
+                        ? { subGroupState: groupState(item.id) }
+                        : {})}
+                      {...(item.type === "header-provider"
+                        ? {
+                            providerState: props.providerToggle
+                              ? providerState(item.providerKind)
+                              : groupState(item.id),
+                          }
+                        : {})}
+                      {...(indent ? { indent: true } : {})}
+                    />
+                  );
+                });
+              })()}
             </ListBox>
           )}
           {props.footer ? (
@@ -245,12 +267,12 @@ export function ModelVisibilityPopover(props: {
   );
 }
 
-function checkGlyph(state: CheckState) {
+function checkGlyph(state: CheckState, sizeClass = "size-3") {
   const checkClass = state === "none" ? "opacity-0" : "opacity-100 text-foreground";
   return state === "some" ? (
-    <Minus className={`size-3 shrink-0 transition-opacity ${checkClass}`} />
+    <Minus className={`${sizeClass} shrink-0 transition-opacity ${checkClass}`} />
   ) : (
-    <Check className={`size-3 shrink-0 transition-opacity ${checkClass}`} />
+    <Check className={`${sizeClass} shrink-0 transition-opacity ${checkClass}`} />
   );
 }
 
@@ -284,8 +306,13 @@ function ModelVisibilityRow(props: {
   /** Whole provider is unchecked — its child rows render dimmed and inert. */
   isProviderUnchecked?: boolean;
   subGroupState?: CheckState;
-  /** Present only when provider headers are checkable. */
+  /**
+   * Always set for provider headers. With `providerToggle` it reflects the
+   * provider pause checkbox; otherwise the visibility of the provider's models.
+   */
   providerState?: CheckState;
+  /** Model nested under a sub-provider header — indent to match the hierarchy. */
+  indent?: boolean;
 }) {
   const { item, isVisible, isProviderUnchecked, subGroupState, providerState } = props;
   const { t } = useLingui();
@@ -299,7 +326,7 @@ function ModelVisibilityRow(props: {
         textValue={item.label}
         isDisabled={isProviderUnchecked === true}
         {...checkAria(state)}
-        className={`poracode-menu-item group mx-1.5 mb-1 flex h-7 cursor-default items-center border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80${uncheckedClass}`}
+        className={`poracode-menu-item group mx-1.5 flex h-6 cursor-default items-center pl-4 pr-2 text-[10px] font-normal italic tracking-normal text-muted/60${uncheckedClass}`}
       >
         {checkGlyph(state)}
         <span className="ml-1 min-w-0 truncate">{item.label}</span>
@@ -320,22 +347,23 @@ function ModelVisibilityRow(props: {
     );
   }
   if (item.type === "header-provider") {
+    const state = providerState ?? "all";
     return (
       <ListBox.Item
         id={item.id}
         textValue={item.label}
-        {...(providerState ? checkAria(providerState) : { isDisabled: true })}
-        className={`mx-1.5 mb-1 flex h-7 items-center gap-1.5 border-b border-border/40 bg-overlay px-2 text-[10px] font-semibold uppercase tracking-wider text-muted/80 data-[disabled=true]:opacity-100 ${providerState ? "poracode-menu-item group cursor-default" : ""}`}
+        {...checkAria(state)}
+        className="poracode-menu-item group mx-1.5 mb-1 mt-2 flex h-8 cursor-default items-center gap-2 border-b border-border bg-overlay px-2 text-sm font-semibold text-foreground first:mt-0"
       >
-        {providerState ? checkGlyph(providerState) : null}
+        {checkGlyph(state, "size-3.5")}
         <ProviderIcon
           kind={item.providerKind}
           {...(item.providerIcon ? { icon: item.providerIcon } : {})}
           tone="active"
-          className="size-3"
+          className="size-3.5"
         />
         <span className="min-w-0 truncate">{item.label}</span>
-        {providerState ? <CheckStateHint state={providerState} /> : null}
+        <CheckStateHint state={state} />
       </ListBox.Item>
     );
   }
@@ -351,7 +379,7 @@ function ModelVisibilityRow(props: {
       textValue={item.label}
       isDisabled={isProviderUnchecked === true}
       aria-selected={isVisible}
-      className={`poracode-menu-item group mx-1.5 flex h-7 cursor-default items-center text-foreground${uncheckedClass}`}
+      className={`poracode-menu-item group mx-1.5 flex h-7 cursor-default items-center text-foreground${props.indent ? " pl-4" : ""}${uncheckedClass}`}
     >
       <Check
         className={`size-3 shrink-0 transition-opacity ${isVisible ? "opacity-100" : "opacity-0"}`}

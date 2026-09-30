@@ -38,7 +38,7 @@ export function parseEnabledCodexPlugins(raw: string): AgentNativePlugin[] {
 export async function listNativeCodexPlugins(
   ctx: AgentEnvContext,
 ): Promise<readonly AgentNativePlugin[]> {
-  const paths = getCodexPluginPaths(ctx);
+  const paths = await getCodexPluginPaths(ctx);
   if (ctx.envKind === "wsl" && ctx.wslDistro) {
     const homePrefix = paths.codexHomeDir
       ? `if [ -d ${quotePosixShellArg(paths.codexHomeDir)} ]; then export CODEX_HOME=${quotePosixShellArg(paths.codexHomeDir)}; fi; `

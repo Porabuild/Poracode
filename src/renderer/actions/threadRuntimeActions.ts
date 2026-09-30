@@ -23,6 +23,11 @@ import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { useAppStore } from "@/renderer/state/appStore";
 import { captureFileCheckpoint } from "@/renderer/state/fileCheckpointActions";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
+import {
+  isRemoteCommandOutcomeUncertainError,
+  notifyThreadCommandOutcomeUncertain,
+  reconcileThreadCommandOutcome,
+} from "./threadCommandOutcomeActions";
 import { performInitialThreadLaunch } from "./threadLaunchActions";
 
 /** Resolve a thread and its on-disk project location from the store. */
@@ -37,22 +42,25 @@ function resolveThreadProjectLocation(
   return { thread, projectLocation: resolveProjectLocation(project.location, thread.worktreePath) };
 }
 
-/** Minimal transport a prompt submit needs; the desktop injects the local IPC
- * bridge, the mobile PWA injects the remote desktop client. */
+/** Minimal transport a prompt submit needs; runtime adapters inject either the
+ * local IPC bridge or the authenticated remote client. */
 export interface ThreadInputTransport {
   sendThreadInput: (payload: SendThreadInputPayload) => Promise<unknown>;
 }
 
 /**
  * Submit a prompt to a running thread — the single implementation behind the
- * desktop action ({@link submitThreadInput}) and the mobile PWA's remote
- * `sendPrompt`. Optimistically paints the user_message for GUI threads (the
+ * local action ({@link submitThreadInput}) and remote browser prompt sends.
+ * Optimistically paints the user_message for GUI threads (the
  * supervisor reuses the same item id, so the live event dedupes), flips the
  * runtime to "working", runs the injected checkpoint capture (desktop-only),
- * then forwards the prompt over the injected transport. On error, rolls back
- * the optimistic working-state flip and forces the active turn closed —
- * rejecting so promise-chained UI (e.g. the mobile dock collapse) only reacts
- * to a successful send.
+ * then forwards the prompt over the injected transport. A definite failure
+ * rolls back the optimistic working-state flip and forces the active turn
+ * closed. An uncertain outcome (the host's typed `command_outcome_uncertain`
+ * 409, i.e. the command may have committed) keeps the optimistic paint and
+ * working state, runs exactly one bounded authoritative read, never resends,
+ * and still rejects with the original error so promise-chained UI can tell the
+ * two apart and never paints a definite failure.
  */
 export async function performThreadInputSubmit(input: {
   thread: Thread;
@@ -127,6 +135,16 @@ export async function performThreadInputSubmit(input: {
       ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
     });
   } catch (error) {
+    // The host could not establish whether the command committed. Keep the
+    // optimistic paint and working state, explain the uncertainty, and run
+    // exactly one bounded authoritative read — never a resend. The original
+    // error still propagates so callers classify it instead of painting a
+    // definite failure.
+    if (isRemoteCommandOutcomeUncertainError(error)) {
+      notifyThreadCommandOutcomeUncertain();
+      await reconcileThreadCommandOutcome(thread);
+      throw error;
+    }
     // The host session is gone (thread unloaded, supervisor restarted) but the
     // thread can still be resumed: relaunch it with this prompt instead of
     // dropping it. The optimistic paint stays — the relaunch reuses its item id.
@@ -144,6 +162,9 @@ export async function performThreadInputSubmit(input: {
             : {}),
         });
       } catch (resumeError) {
+        // The relaunch already reconciled an uncertain start (and never
+        // resends); rolling back here would force-close a turn that may exist.
+        if (isRemoteCommandOutcomeUncertainError(resumeError)) throw resumeError;
         rollbackOptimisticWorking();
         throw resumeError;
       }
@@ -182,10 +203,13 @@ export async function submitThreadInput(
     resumeLaunch: async (resume) => {
       // Re-resolve the thread: the pre-send snapshot can miss a sessionRef
       // discovered since, and the resume payload must carry the latest one.
+      // Abort if the thread or project disappeared (or changed ownership)
+      // between send and resume — relaunching a deleted row would recreate it.
       const latest = resolveThreadProjectLocation(threadId);
+      if (!latest || Boolean(remoteOwner(latest.thread)) !== Boolean(owner)) return;
       await performInitialThreadLaunch({
-        thread: latest?.thread ?? thread,
-        projectLocation: latest?.projectLocation ?? projectLocation,
+        thread: latest.thread,
+        projectLocation: latest.projectLocation,
         prompt: resume.prompt,
         ...(resume.segments ? { segments: resume.segments } : {}),
         ...(resume.userMessageItemId ? { userMessageItemId: resume.userMessageItemId } : {}),
@@ -263,9 +287,7 @@ export function changeThreadConfig(threadId: string, config: ThreadConfig): void
 }
 
 /**
- * Drop a queued steer message. Shared by the desktop composer's pending-steer
- * strip and the mobile PWA's action-dock card, which hosts the same strip
- * outside the compact composer.
+ * Drop a queued steer message through either local or remote transport.
  */
 export function clearThreadPendingSteer(threadId: string): void {
   void readBridge()

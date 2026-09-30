@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Columns2 } from "lucide-react";
@@ -14,7 +14,8 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { closeAllPanels } from "@/renderer/actions/panelActions";
 import {
   clearEagerShellStart,
-  startShellWithCurrentSettings,
+  startDeferredPanelShell,
+  wasShellStartedDeferred,
   wasShellStartedEagerly,
 } from "@/renderer/utils/shellUtils";
 import { formatProjectScopeLabel } from "@/renderer/utils/projectScopeLabel";
@@ -24,10 +25,11 @@ import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
 import { buildWorktreeLocation } from "@/shared/worktree";
 import { BottomTerminalLayout } from "./parts/BottomTerminalLayout";
 import { RightTerminalLayout } from "./parts/RightTerminalLayout";
+import { MobileTerminalLayout } from "./parts/MobileTerminalLayout";
 
 export function DevTerminalPanel(props: {
   hideHeader?: boolean;
-  positionOverride?: "bottom" | "right";
+  positionOverride?: "bottom" | "right" | "mobile";
   onEmpty?: () => void;
   watchTerminal?: (terminalId: string, listener: TerminalFeedListener) => () => void;
 }) {
@@ -48,7 +50,6 @@ export function DevTerminalPanel(props: {
   const updateTabTitle = useDevTerminalStore((s) => s.updateTabTitle);
   const savedTerminalPosition = useSharedSettings((s) => s.terminalPosition);
   const terminalPosition = props.positionOverride ?? savedTerminalPosition;
-  const spawnedRef = useRef(new Set<string>());
 
   const projectTabs = tabs.filter((tab) => {
     if (tab.projectId !== activeProjectId) return false;
@@ -71,6 +72,7 @@ export function DevTerminalPanel(props: {
   const activeTab = projectTabs.find((tab) => tab.id === selectedTabId);
 
   const isBottom = terminalPosition === "bottom";
+  const isMobile = terminalPosition === "mobile";
 
   // Cross-fade when switching between project and worktree contexts.
   const isOpen = useDevTerminalStore((s) => s.isOpen);
@@ -115,7 +117,12 @@ export function DevTerminalPanel(props: {
   // actual viewport instead of the 120-col fallback — xterm never reflows
   // pre-wrapped scrollback, so getting the very first lines right matters.
   function handleTerminalResize(terminalId: string, size: TerminalSize) {
-    if (spawnedRef.current.has(terminalId)) return;
+    // A shell this renderer session started and has not seen exit is still
+    // live on the backend; a panel remount (mobile utility page switch,
+    // right-panel host swap) must re-attach to it, not re-issue the
+    // destructive startShell, which kills the PTY and drops its scrollback.
+    // Cleared on exit, tab close, and failed start, so recovery always works.
+    if (wasShellStartedDeferred(terminalId)) return;
     // Run actions and setup scripts start their shell before the surface
     // mounts; re-issuing startShell would kill that PTY (and the command or
     // process running in it). The surface resizes the live PTY on its own.
@@ -131,14 +138,12 @@ export function DevTerminalPanel(props: {
     const location = owningTab.worktreePath
       ? buildWorktreeLocation(project.location, owningTab.worktreePath)
       : project.location;
-    spawnedRef.current.add(terminalId);
-    void startShellWithCurrentSettings({
+    void startDeferredPanelShell({
       shellId: terminalId,
       projectLocation: location,
       ...(owningTab.worktreePath ? { worktreePath: owningTab.worktreePath } : {}),
       initialSize: size,
     }).catch((error) => {
-      spawnedRef.current.delete(terminalId);
       toast.danger(friendlyError(error));
     });
   }
@@ -149,14 +154,12 @@ export function DevTerminalPanel(props: {
       void readBridge()
         .closeThread({ threadId: tab.splitId })
         .catch(() => undefined);
-      spawnedRef.current.delete(tab.splitId);
       clearEagerShellStart(tab.splitId);
     }
     removeTab(tab.id);
     void readBridge()
       .closeThread({ threadId: tab.id })
       .catch(() => undefined);
-    spawnedRef.current.delete(tab.id);
     clearEagerShellStart(tab.id);
 
     const remainingInContext = remaining.filter((other) => {
@@ -165,7 +168,7 @@ export function DevTerminalPanel(props: {
       return !other.worktreePath;
     });
     if (remainingInContext.length === 0) {
-      if (!isBottom) closeAllPanels();
+      if (!isBottom && !isMobile) closeAllPanels();
       useDevTerminalStore.getState().closePanel();
       onEmpty?.();
     }
@@ -193,7 +196,7 @@ export function DevTerminalPanel(props: {
       void readBridge()
         .closeThread({ threadId: splitId })
         .catch(() => undefined);
-      spawnedRef.current.delete(splitId);
+      clearEagerShellStart(splitId);
     }
   }
 
@@ -235,6 +238,26 @@ export function DevTerminalPanel(props: {
         </button>
       </div>
     ) : null;
+
+  if (isMobile) {
+    return (
+      <MobileTerminalLayout
+        tabs={tabs}
+        projectTabs={projectTabs}
+        selectedTabId={selectedTabId}
+        activeTab={activeTab}
+        focusRequestId={focusRequestId}
+        markTabActive={markTabActive}
+        updateTabTitle={updateTabTitle}
+        fadeStyle={fadeStyle}
+        emptyState={emptyState}
+        handleCloseTab={handleCloseTab}
+        handleSelectionChange={handleSelectionChange}
+        onTerminalResize={handleTerminalResize}
+        {...(watchTerminal ? { watchTerminal } : {})}
+      />
+    );
+  }
 
   if (isBottom) {
     return (

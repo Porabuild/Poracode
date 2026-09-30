@@ -69,7 +69,15 @@ function capabilitiesEqual(
   if (a.models.length !== b.models.length) return false;
   if (a.efforts.length !== b.efforts.length) return false;
   for (let i = 0; i < a.models.length; i++) {
-    if (a.models[i]!.id !== b.models[i]!.id) return false;
+    const previous = a.models[i]!;
+    const next = b.models[i]!;
+    if (
+      previous.id !== next.id ||
+      previous.label !== next.label ||
+      previous.description !== next.description ||
+      previous.tooltipDescription !== next.tooltipDescription
+    )
+      return false;
   }
   for (let i = 0; i < a.efforts.length; i++) {
     if (a.efforts[i] !== b.efforts[i]) return false;
@@ -264,11 +272,11 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 31,
-      // v31 mirrors supervisor STATUS_CACHE_VERSION=34: re-probe skill slash
+      version: 36,
+      // v36 mirrors supervisor STATUS_CACHE_VERSION=40. Re-probe skill slash
       // commands so cached skill invocations pick up the provider's current
-      // form.
-
+      // form, and refresh derived model catalogs and their declared Fast
+      // capabilities before showing cached statuses.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {

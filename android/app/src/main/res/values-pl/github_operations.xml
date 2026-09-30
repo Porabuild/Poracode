@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="workspace_github">GitHub</string><string name="github_unavailable">Narzędzie GitHub CLI jest niedostępne dla tego projektu.</string><string name="github_pull_requests">Żądania ściągnięcia</string><string name="github_actions">Akcje</string><string name="github_repositories">Repozytoria</string>
+    <string name="github_confirm_title">Potwierdź akcję GitHub</string><string name="github_confirm_message">Ta akcja może usunąć lub trwale zmienić zdalne dane GitHub.</string><string name="github_confirm">Kontynuuj</string><string name="github_refresh">Odśwież GitHub</string><string name="github_no_pull_requests">Nie znaleziono żądań ściągnięcia.</string>
+    <string name="github_pr_title">Tytuł żądania</string><string name="github_head_branch">Gałąź źródłowa</string><string name="github_base_branch">Gałąź bazowa</string><string name="github_create_pr">Utwórz żądanie ściągnięcia</string><string name="github_pr_summary">#%1$d · %2$s · %3$s</string><string name="github_select_pr">Wybierz żądanie ściągnięcia do sprawdzenia.</string><string name="github_pr_number">Żądanie ściągnięcia #%1$d</string>
+    <string name="github_ready">Oznacz jako gotowe</string><string name="github_update_branch">Aktualizuj gałąź</string><string name="github_reopen">Otwórz ponownie</string><string name="github_close">Zamknij</string><string name="github_merge">Scal</string><string name="github_approve">Zatwierdź</string><string name="github_post_comment">Opublikuj komentarz</string>
+    <string name="github_details">Szczegóły</string><string name="github_checks">Kontrole</string><string name="github_files">Pliki</string><string name="github_reviews">Recenzje</string><string name="github_dispatch">Uruchom przepływ</string><string name="github_rerun">Uruchom ponownie</string><string name="github_cancel_run">Anuluj wykonanie</string><string name="github_delete_run">Usuń wykonanie</string><string name="github_discover_accounts">Znajdź konta GitHub</string><string name="github_account">%1$s na %2$s</string>
+    <string name="github_change_reconciled">Wynik był niepewny. Poracode nie ponowił akcji i tylko raz pobrał najnowszy stan GitHub.</string>
+    <string name="github_request_changes">Poproś o zmiany</string>
+    <string name="github_comment_decision">Skomentuj</string>
+    <string name="github_submit_review">Wyślij recenzję</string>
+    <string name="github_submit">Wyślij</string>
+    <string name="github_body">Treść</string>
+    <string name="github_merge_method_merge">Scal</string>
+    <string name="github_merge_method_squash">Squash</string>
+    <string name="github_merge_method_rebase">Rebase</string>
+    <string name="github_merge_admin">Scal z uprawnieniami administratora</string>
+    <string name="github_overview">Przegląd</string>
+    <string name="github_conversation">Rozmowa</string>
+    <string name="github_comments">Komentarze</string>
+    <string name="github_review_threads">Wątki recenzji</string>
+    <string name="github_description">Opis</string>
+    <string name="github_commits">Commity</string>
+    <string name="github_no_files">Ten pull request nie ma zmienionych plików.</string>
+    <string name="github_no_checks">Brak testów dla tego pull requesta.</string>
+    <string name="github_no_conversation">Brak komentarzy i recenzji.</string>
+    <string name="github_no_diff">Brak różnic dla tego pliku.</string>
+    <string name="github_loading_details">Wczytywanie szczegółów pull requesta…</string>
+    <string name="github_back_to_files">Wróć do plików</string>
+    <string name="github_back_to_list">Wróć do listy</string>
+    <string name="github_open_externally">Otwórz w przeglądarce</string>
+    <string name="github_thread_resolved">Rozwiązany</string>
+    <string name="github_thread_unresolved">Nierozwiązany</string>
+    <string name="github_ref">Ref</string>
+    <string name="github_rerun_failed">Uruchom ponownie nieudane zadania</string>
+    <string name="github_pr_branches">#%1$d · %2$s → %3$s</string>
+    <string name="github_additions">+%1$d</string>
+    <string name="github_deletions">−%1$d</string>
+    <string name="github_changed_files">Pliki: %1$d</string>
+    <string name="github_workflow_summary">%1$s · %2$s</string>
+    <string name="github_run_summary">Uruchomienie #%1$d · próba %2$d · %3$s · %4$s</string>
+    <string name="github_run_revision">%1$s @ %2$s</string>
+</resources>

@@ -9,11 +9,13 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import type { RemoteAccessTailscaleStatus } from "@/shared/ipc";
 import type { RemoteAccessPairingInfo, RemoteAccessSessionSummary } from "@/shared/remote";
 import {
+  buildDesktopPairingUrl,
   normalizePairingEndpoint,
   parsePairingUrlParts,
   retargetPairingUrl,
 } from "@/shared/remote/pairingUrl";
 import { SettingRow, SettingsPage } from "./SettingsForm";
+import { ManagedHostEnvironmentsSection } from "./ManagedHostEnvironmentsSection";
 
 interface PairingViewState {
   readonly info: RemoteAccessPairingInfo | null;
@@ -269,6 +271,8 @@ function PairingReady(props: {
   info: Extract<RemoteAccessPairingInfo, { status: "ready" }>;
   isRefreshing: boolean;
   revokingSessionId: string | null;
+  pairingPreset: "operator" | "viewer";
+  onPairingPresetChange: (preset: "operator" | "viewer") => void;
   onRefresh: () => void;
   onRevoke: (sessionId: string) => void;
 }) {
@@ -290,6 +294,9 @@ function PairingReady(props: {
     : normalizePairingEndpoint(props.info.httpBaseUrl);
   const pairingUrl = retargetPairingUrl(props.info.pairingUrl, selectedEndpoint);
   const pairingToken = pairingTokenFromUrl(pairingUrl);
+  const desktopPairingUrl = pairingToken
+    ? buildDesktopPairingUrl({ httpBaseUrl: selectedEndpoint, credential: pairingToken })
+    : pairingUrl;
   const remainingMs = usePairingCodeRemainingMs(props.info.pairingExpiresAt);
   const countdown = formatCountdown(remainingMs);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -370,7 +377,7 @@ function PairingReady(props: {
             <Button
               size="sm"
               variant="tertiary"
-              onPress={() => void readBridge().openExternal(pairingUrl)}
+              onPress={() => void readBridge().openExternal(desktopPairingUrl)}
             >
               <ExternalLink className="size-3.5" />
               <Trans>Open</Trans>
@@ -387,6 +394,33 @@ function PairingReady(props: {
           </div>
           <p className="text-xs text-muted">
             {remainingMs > 0 ? t`This code expires in ${countdown}` : t`This code has expired.`}
+          </p>
+          <ToggleButtonGroup
+            aria-label={t`Pairing access`}
+            className="h-8 [&_button]:h-8 [&_button]:min-h-0 [&_button]:min-w-0 [&_button]:px-3"
+            selectionMode="single"
+            disallowEmptySelection
+            size="sm"
+            selectedKeys={[props.pairingPreset]}
+            onSelectionChange={(keys) => {
+              const next = [...keys][0];
+              if (next === "operator" || next === "viewer") props.onPairingPresetChange(next);
+            }}
+          >
+            <ToggleButton id="operator">
+              <Trans>Operator</Trans>
+            </ToggleButton>
+            <ToggleButton id="viewer">
+              <ToggleButtonGroup.Separator />
+              <Trans>Viewer</Trans>
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <p className="text-xs text-muted">
+            {props.pairingPreset === "viewer" ? (
+              <Trans>This QR grants read-only viewer access.</Trans>
+            ) : (
+              <Trans>This QR grants full operator access.</Trans>
+            )}
           </p>
         </div>
 
@@ -735,6 +769,7 @@ export function RemoteAccessSettings() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
   const [revokingSessionId, setRevokingSessionId] = useState<string | null>(null);
+  const [pairingPreset, setPairingPreset] = useState<"operator" | "viewer">("operator");
   const isLoading = state.info === null && state.error === null;
 
   useEffect(() => {
@@ -778,7 +813,9 @@ export function RemoteAccessSettings() {
     let cancelled = false;
     const rotate = async () => {
       try {
-        const info = await readBridge().refreshRemoteAccessPairing();
+        const info = await readBridge().refreshRemoteAccessPairing({
+          preset: pairingPreset,
+        });
         if (!cancelled) setState(pairingViewStateFromInfo(info));
       } catch {
         // Keep the current code on a transient failure; "New code" still works.
@@ -793,12 +830,12 @@ export function RemoteAccessSettings() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [pairingExpiresAt]);
+  }, [pairingExpiresAt, pairingPreset]);
 
-  const refresh = async () => {
+  const refresh = async (preset: "operator" | "viewer" = pairingPreset) => {
     setIsRefreshing(true);
     try {
-      const info = await readBridge().refreshRemoteAccessPairing();
+      const info = await readBridge().refreshRemoteAccessPairing({ preset });
       setState(pairingViewStateFromInfo(info));
     } catch (error) {
       const message = friendlyError(error, t`Unable to load remote access pairing.`);
@@ -885,22 +922,38 @@ export function RemoteAccessSettings() {
         <div className="rounded-lg border border-danger/30 px-4 py-3 text-sm text-danger">
           {state.error}
         </div>
-      ) : state.info?.status === "ready" ? (
+      ) : (
         <div className="space-y-10">
-          <PairingReady
-            key={state.info.tailscaleHttpBaseUrl ? "tailscale" : "local"}
-            info={state.info}
-            isRefreshing={isRefreshing}
-            revokingSessionId={revokingSessionId}
-            onRefresh={() => void refresh()}
-            onRevoke={(sessionId) => void revokeSession(sessionId)}
-          />
-          <RemoteAccessAdvanced
-            onPairingChanged={(info) => setState(pairingViewStateFromInfo(info))}
-          />
-          <RemotePushSection />
+          {state.info?.status === "ready" ? (
+            <>
+              <PairingReady
+                key={state.info.tailscaleHttpBaseUrl ? "tailscale" : "local"}
+                info={state.info}
+                isRefreshing={isRefreshing}
+                revokingSessionId={revokingSessionId}
+                pairingPreset={pairingPreset}
+                onPairingPresetChange={(preset) => {
+                  setPairingPreset(preset);
+                  void refresh(preset);
+                }}
+                onRefresh={() => void refresh()}
+                onRevoke={(sessionId) => void revokeSession(sessionId)}
+              />
+              <RemoteAccessAdvanced
+                onPairingChanged={(info) => setState(pairingViewStateFromInfo(info))}
+              />
+              <RemotePushSection />
+            </>
+          ) : null}
+          {/*
+            The desktop's own host-owned environments are managed through the
+            live loopback authority, independent of whether remote access is
+            advertised — so this exists in the OFF state too (managed-parent
+            integration).
+          */}
+          <ManagedHostEnvironmentsSection />
         </div>
-      ) : null}
+      )}
     </SettingsPage>
   );
 }

@@ -11,7 +11,10 @@ import {
   X,
 } from "lucide-react";
 import { BROWSER_SESSION_PARTITION } from "@/shared/browserPartition";
-import { isMac, readBridge } from "@/renderer/bridge";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
+import { readBridge } from "@/renderer/bridge";
+import { hasMacWindowChrome } from "@/renderer/components/layout/windowChrome";
+import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useBrowserPanelStore } from "@/renderer/state/browserPanelStore";
 import { usePanelStore } from "@/renderer/state/panelStore";
 import {
@@ -23,6 +26,7 @@ import { BrowserBookmarkBar } from "./parts/BrowserBookmarkBar";
 import { BrowserEmptyState } from "./parts/BrowserEmptyState";
 import { BrowserTabStrip } from "./parts/BrowserTabStrip";
 import { BrowserToolbar } from "./parts/BrowserToolbar";
+import { RemoteBrowserMirror } from "./RemoteBrowserMirror";
 import { extractBrowserToWindow, injectBrowserToMain } from "./browserWindowActions";
 import { useElementPicker } from "./hooks/useElementPicker";
 
@@ -30,6 +34,7 @@ const DEFAULT_HOME = "https://duckduckgo.com";
 
 export function BrowserPanel(props: { visible: boolean; surface?: "main" | "window" }) {
   const { t } = useLingui();
+  const compact = useCompactLayout();
   const tabs = useBrowserPanelStore((s) => s.tabs);
   const activeTabId = useBrowserPanelStore((s) => s.activeTabId);
   const browserPanelOpen = usePanelStore((s) => s.browserPanelOpen);
@@ -40,6 +45,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
   const setBrowserOverlayMaximized = usePanelStore((s) => s.setBrowserOverlayMaximized);
   const setRightPanelTab = usePanelStore((s) => s.setRightPanelTab);
   const isWindowSurface = props.surface === "window";
+  const nativeBrowserWebContents = hasClientCapability("nativeBrowserWebContents");
   const visible = props.visible || browserOverlayOpen || isWindowSurface;
   const [menuPreviewDataUrl, setMenuPreviewDataUrl] = useState<string | null>(null);
   const {
@@ -115,7 +121,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     setBrowserPanelOpen(true);
     setRightPanelTab("browser");
   };
-  const extractButton = (
+  const extractButton = nativeBrowserWebContents ? (
     <button
       type="button"
       className={headerButtonClass}
@@ -125,7 +131,26 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
     >
       <PictureInPicture2 className="size-3.5" />
     </button>
+  ) : null;
+  const toolbar = (
+    <BrowserToolbar
+      onPick={onPick}
+      pickerActive={pickerActive}
+      pickerTargets={threadTargets}
+      hasPendingPick={pendingPickerAttachment !== null}
+      pendingPickAnchor={
+        pendingPickerAttachment &&
+        typeof pendingPickerAttachment.anchorX === "number" &&
+        typeof pendingPickerAttachment.anchorY === "number"
+          ? { x: pendingPickerAttachment.anchorX, y: pendingPickerAttachment.anchorY }
+          : null
+      }
+      onChoosePickTarget={chooseTargetForPendingPick}
+      onCancelPendingPick={cancelPendingPick}
+      onMenuPreviewChange={setMenuPreviewDataUrl}
+    />
   );
+  const tabStrip = hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />;
   return (
     <div
       ref={rootRef}
@@ -143,7 +168,7 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           } flex shrink-0 items-center gap-1 border-b border-[color:var(--border)] bg-[var(--content-background)] px-2`}
           style={hasWindowHeader ? overlayHeaderStyle() : { height: "32px" }}
         >
-          {isMac() && hasWindowHeader ? (
+          {hasMacWindowChrome() && hasWindowHeader ? (
             <div className={macosTrafficLightGutterClass} aria-hidden />
           ) : null}
           {hasWindowHeader ? (
@@ -215,33 +240,22 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           )}
         </div>
       ) : null}
-      <BrowserToolbar
-        onPick={onPick}
-        pickerActive={pickerActive}
-        pickerTargets={threadTargets}
-        hasPendingPick={pendingPickerAttachment !== null}
-        pendingPickAnchor={
-          pendingPickerAttachment &&
-          typeof pendingPickerAttachment.anchorX === "number" &&
-          typeof pendingPickerAttachment.anchorY === "number"
-            ? { x: pendingPickerAttachment.anchorX, y: pendingPickerAttachment.anchorY }
-            : null
-        }
-        onChoosePickTarget={chooseTargetForPendingPick}
-        onCancelPendingPick={cancelPendingPick}
-        onMenuPreviewChange={setMenuPreviewDataUrl}
-      />
-      {hasWindowHeader ? null : <BrowserTabStrip onCreateTab={createTab} />}
-      <BrowserBookmarkBar />
+      {compact ? null : toolbar}
+      {compact ? null : tabStrip}
+      {compact ? null : <BrowserBookmarkBar />}
       <div className="relative flex-1 overflow-hidden bg-[var(--content-background)]">
-        {tabs.map((tab) => (
-          <BrowserTabWebview
-            key={tab.tabId}
-            tabId={tab.tabId}
-            initialSrc={tab.url}
-            visible={visible && !menuPreviewDataUrl && tab.tabId === activeTabId}
-          />
-        ))}
+        {nativeBrowserWebContents ? (
+          tabs.map((tab) => (
+            <BrowserTabWebview
+              key={tab.tabId}
+              tabId={tab.tabId}
+              initialSrc={tab.url}
+              visible={visible && !menuPreviewDataUrl && tab.tabId === activeTabId}
+            />
+          ))
+        ) : (
+          <RemoteBrowserMirror activeTabId={activeTabId} visible={visible && !menuPreviewDataUrl} />
+        )}
         {menuPreviewDataUrl ? (
           <img
             src={menuPreviewDataUrl}
@@ -256,6 +270,13 @@ export function BrowserPanel(props: { visible: boolean; surface?: "main" | "wind
           </div>
         ) : null}
       </div>
+      {compact ? (
+        <div className="poracode-mobile-browser-chrome" data-mobile-browser-chrome="">
+          {tabStrip}
+          <BrowserBookmarkBar />
+          {toolbar}
+        </div>
+      ) : null}
     </div>
   );
 }

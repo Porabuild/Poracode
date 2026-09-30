@@ -7,12 +7,14 @@ import {
   GitBranch,
   GitCommitHorizontal,
   LoaderCircle,
+  MoreHorizontal,
   RefreshCw,
   RotateCcw,
   Trash2,
   X,
 } from "lucide-react";
 import type { GitHubActionsRun } from "@/shared/contracts";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { RelativeTime } from "@/renderer/components/common/RelativeTime";
 import { openExternalWithFeedback } from "@/renderer/utils/openExternal";
 import { StatusIndicator } from "./GitHubActionsRunList";
@@ -37,6 +39,7 @@ export function GitHubActionsRunDetail(props: {
   onDelete: () => void;
 }) {
   const { t } = useLingui();
+  const compactLayout = useCompactLayout();
   const completed = props.run.status.toLowerCase() === "completed";
   const failed = props.run.conclusion.toLowerCase() === "failure";
 
@@ -58,86 +61,162 @@ export function GitHubActionsRunDetail(props: {
             {props.run.workflowName} #{props.run.number}
           </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button
-            size="sm"
-            variant="secondary"
-            isDisabled={completed || props.isPending}
-            onPress={props.onCancel}
-          >
-            <CircleStop className="size-3.5" />
-            <Trans>Cancel workflow</Trans>
-          </Button>
-          <ButtonGroup size="sm" variant="secondary">
-            <Button isDisabled={!completed || props.isPending} onPress={() => props.onRerun(false)}>
-              <RotateCcw className="size-3.5" />
-              <Trans>Re-run all jobs</Trans>
-            </Button>
-            {failed ? (
-              <Dropdown>
-                <Button
-                  isIconOnly
-                  aria-label={t`Run actions`}
-                  isDisabled={!completed || props.isPending}
-                >
-                  <ButtonGroup.Separator />
-                  <ChevronDown className="size-3.5" />
-                </Button>
-                <Dropdown.Popover placement="bottom end">
-                  <Dropdown.Menu aria-label={t`Run actions`} onAction={() => props.onRerun(true)}>
-                    <Dropdown.Item id="rerun-failed" textValue={t`Re-run failed jobs`}>
-                      <RotateCcw className="size-3.5" />
-                      <Label>
-                        <Trans>Re-run failed jobs</Trans>
-                      </Label>
-                    </Dropdown.Item>
-                  </Dropdown.Menu>
-                </Dropdown.Popover>
-              </Dropdown>
-            ) : null}
-          </ButtonGroup>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            aria-label={t`Refresh run`}
-            isDisabled={props.loading}
-            onPress={props.onRefresh}
-          >
-            <RefreshCw className={`size-3.5 ${props.loading ? "animate-spin" : ""}`} />
-          </Button>
-          {props.run.url ? (
+        {compactLayout ? (
+          <Dropdown>
             <Button
               isIconOnly
               size="sm"
               variant="ghost"
-              aria-label={t`Open on GitHub`}
-              onPress={() => openExternalWithFeedback(props.run.url)}
+              aria-label={t`Run actions`}
+              isDisabled={props.isPending}
             >
-              <ExternalLink className="size-3.5" />
+              <MoreHorizontal className="size-4" />
             </Button>
-          ) : null}
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            className="text-danger"
-            aria-label={t`Delete workflow run`}
-            isDisabled={!completed || props.isPending}
-            onPress={props.onDelete}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="ghost"
-            aria-label={t`Close run details`}
-            onPress={props.onClose}
-          >
-            <X className="size-4" />
-          </Button>
-        </div>
+            <Dropdown.Popover placement="bottom end">
+              <Dropdown.Menu
+                aria-label={t`Run actions`}
+                onAction={(key) => {
+                  if (key === "refresh") props.onRefresh();
+                  if (key === "open" && props.run.url) openExternalWithFeedback(props.run.url);
+                  if (key === "cancel") props.onCancel();
+                  if (key === "rerun") props.onRerun(false);
+                  if (key === "rerun-failed") props.onRerun(true);
+                  if (key === "delete") props.onDelete();
+                }}
+              >
+                <Dropdown.Item id="refresh" textValue={t`Refresh run`}>
+                  <RefreshCw className="size-3.5" />
+                  <Label>
+                    <Trans>Refresh run</Trans>
+                  </Label>
+                </Dropdown.Item>
+                {props.run.url ? (
+                  <Dropdown.Item id="open" textValue={t`Open on GitHub`}>
+                    <ExternalLink className="size-3.5" />
+                    <Label>
+                      <Trans>Open on GitHub</Trans>
+                    </Label>
+                  </Dropdown.Item>
+                ) : null}
+                <Dropdown.Item id="cancel" textValue={t`Cancel workflow`} isDisabled={completed}>
+                  <CircleStop className="size-3.5" />
+                  <Label>
+                    <Trans>Cancel workflow</Trans>
+                  </Label>
+                </Dropdown.Item>
+                <Dropdown.Item id="rerun" textValue={t`Re-run all jobs`} isDisabled={!completed}>
+                  <RotateCcw className="size-3.5" />
+                  <Label>
+                    <Trans>Re-run all jobs</Trans>
+                  </Label>
+                </Dropdown.Item>
+                {failed ? (
+                  <Dropdown.Item id="rerun-failed" textValue={t`Re-run failed jobs`}>
+                    <RotateCcw className="size-3.5" />
+                    <Label>
+                      <Trans>Re-run failed jobs</Trans>
+                    </Label>
+                  </Dropdown.Item>
+                ) : null}
+                <Dropdown.Item
+                  id="delete"
+                  textValue={t`Delete workflow run`}
+                  variant="danger"
+                  isDisabled={!completed}
+                >
+                  <Trash2 className="size-3.5" />
+                  <Label>
+                    <Trans>Delete workflow run</Trans>
+                  </Label>
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown.Popover>
+          </Dropdown>
+        ) : (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              isDisabled={completed || props.isPending}
+              onPress={props.onCancel}
+            >
+              <CircleStop className="size-3.5" />
+              <Trans>Cancel workflow</Trans>
+            </Button>
+            <ButtonGroup size="sm" variant="secondary">
+              <Button
+                isDisabled={!completed || props.isPending}
+                onPress={() => props.onRerun(false)}
+              >
+                <RotateCcw className="size-3.5" />
+                <Trans>Re-run all jobs</Trans>
+              </Button>
+              {failed ? (
+                <Dropdown>
+                  <Button
+                    isIconOnly
+                    aria-label={t`Run actions`}
+                    isDisabled={!completed || props.isPending}
+                  >
+                    <ButtonGroup.Separator />
+                    <ChevronDown className="size-3.5" />
+                  </Button>
+                  <Dropdown.Popover placement="bottom end">
+                    <Dropdown.Menu aria-label={t`Run actions`} onAction={() => props.onRerun(true)}>
+                      <Dropdown.Item id="rerun-failed" textValue={t`Re-run failed jobs`}>
+                        <RotateCcw className="size-3.5" />
+                        <Label>
+                          <Trans>Re-run failed jobs</Trans>
+                        </Label>
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown.Popover>
+                </Dropdown>
+              ) : null}
+            </ButtonGroup>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label={t`Refresh run`}
+              isDisabled={props.loading}
+              onPress={props.onRefresh}
+            >
+              <RefreshCw className={`size-3.5 ${props.loading ? "animate-spin" : ""}`} />
+            </Button>
+            {props.run.url ? (
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label={t`Open on GitHub`}
+                onPress={() => openExternalWithFeedback(props.run.url)}
+              >
+                <ExternalLink className="size-3.5" />
+              </Button>
+            ) : null}
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className="text-danger"
+              aria-label={t`Delete workflow run`}
+              isDisabled={!completed || props.isPending}
+              onPress={props.onDelete}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              aria-label={t`Close run details`}
+              onPress={props.onClose}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       <dl className="grid grid-cols-2 gap-x-5 gap-y-3 border-b border-[var(--hairline)] px-4 py-4 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { RemoteClientError } from "@/shared/remote/client";
 import type { RemoteThreadLaunchResult } from "@/renderer/state/remoteServers/types";
 
 function deferred<T>() {
@@ -85,6 +86,11 @@ const mocks = vi.hoisted(() => {
       vi.fn<(project: Project, path: string, branch?: string) => Promise<boolean>>(),
     refreshGitProject: vi.fn<(project: unknown, reason: string, scope: string) => Promise<void>>(),
     generateTitleAsync: vi.fn<(...args: unknown[]) => void>(),
+    notifyThreadCommandOutcomeUncertain: vi.fn<() => void>(),
+    reconcileThreadCommandOutcome: vi.fn<(thread: Thread) => Promise<boolean>>(async () => true),
+    reconcileRemoteThreadCommandOutcome: vi.fn<
+      (desktopId: string, remoteId: string) => Promise<boolean>
+    >(async () => true),
   };
 });
 
@@ -155,6 +161,16 @@ vi.mock("./worktreeLaunchActions", () => ({
 vi.mock("./worktreeActions", () => ({
   performWorktreeRemoval: mocks.performWorktreeRemoval,
 }));
+
+vi.mock("./threadCommandOutcomeActions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./threadCommandOutcomeActions")>();
+  return {
+    ...actual,
+    notifyThreadCommandOutcomeUncertain: mocks.notifyThreadCommandOutcomeUncertain,
+    reconcileThreadCommandOutcome: mocks.reconcileThreadCommandOutcome,
+    reconcileRemoteThreadCommandOutcome: mocks.reconcileRemoteThreadCommandOutcome,
+  };
+});
 
 import { performInitialThreadLaunch, startThreadFromDraft } from "./threadLaunchActions";
 
@@ -594,7 +610,7 @@ describe("startThreadFromDraft host transport", () => {
     expect(mocks.appState.queueThreadLaunch).not.toHaveBeenCalled();
   });
 
-  it("launches a helper thread through the same flow and runs setup from the client", async () => {
+  it("launches a helper thread through the same flow and leaves setup on the host", async () => {
     mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
     mocks.createWorktree.mockResolvedValue({
       path: "/srv/worktrees/feature",
@@ -630,11 +646,7 @@ describe("startThreadFromDraft host transport", () => {
       },
       { isPendingLaunchOwned: expect.any(Function) },
     );
-    expect(mocks.runWorktreeSetupScript).toHaveBeenCalledWith(
-      remoteProject,
-      "/srv/worktrees/feature",
-      "pnpm install",
-    );
+    expect(mocks.runWorktreeSetupScript).not.toHaveBeenCalled();
   });
 
   it("shows the same optimistic GUI launch while a remote worktree is provisioning", async () => {
@@ -789,6 +801,37 @@ describe("startThreadFromDraft host transport", () => {
     });
   });
 
+  it("retains remote worktree context when the host start outcome is transport-ambiguous", async () => {
+    mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
+    mocks.createWorktree.mockResolvedValue({ path: "/srv/worktrees/feature" });
+    // A dispatched timeout: the start may have committed, so nothing may be
+    // unwound and no definite failure may be painted.
+    mocks.remoteState.launchRemoteThread.mockRejectedValue(
+      new RemoteClientError("timed out", 0, "timeout", {
+        requestPhase: "dispatched",
+        requestMayHaveCommitted: true,
+      }),
+    );
+
+    await expect(
+      startThreadFromDraft(remoteProject, {
+        agentKind: "codex",
+        config: { model: "gpt-5.6" },
+        prompt: "build remotely",
+        worktreeBranch: "feature",
+        worktreeIsNewBranch: true,
+      }),
+    ).rejects.toMatchObject({ status: 0, code: "timeout" });
+
+    expect(mocks.performWorktreeRemoval).not.toHaveBeenCalled();
+    expect(mocks.notifyThreadCommandOutcomeUncertain).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileRemoteThreadCommandOutcome).toHaveBeenCalledTimes(1);
+    expect(mocks.appState.updateThreadRuntime).not.toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.objectContaining({ status: "error" }),
+    );
+  });
+
   it("refuses to launch on a remote project whose server is offline", async () => {
     mocks.remoteState.servers = [{ desktopId: "d1", hostMode: "helper" }];
     mocks.remoteState.runtime = { d1: { status: "offline" } };
@@ -874,11 +917,25 @@ describe("performInitialThreadLaunch host transport", () => {
       projectLocation: { kind: "posix", path: "/srv/repo" },
       agentKind: "codex",
       prompt: "",
+      ensureRunning: true,
       initialSize,
     });
     // The host resolves MCP from its own settings; clients must not inject any.
     expect(startInput).not.toHaveProperty("mcpServers");
     expect(mocks.bridge.startThread).not.toHaveBeenCalled();
+  });
+
+  it("keeps an empty launch carrying a user message on the mutation path", async () => {
+    await performInitialThreadLaunch({
+      thread: remoteThread,
+      projectLocation: { kind: "posix", path: "/srv/repo", remoteServerId: "d1" },
+      prompt: "",
+      userMessageItemId: "user-existing",
+      initialSize,
+    });
+    const input = mocks.remoteClient.startThread.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(input).not.toHaveProperty("ensureRunning");
+    expect(input).toHaveProperty("userMessageItemId", "user-existing");
   });
 
   it("forwards providerSwitch on a switched remote launch and drops the stale session", async () => {
@@ -904,6 +961,7 @@ describe("performInitialThreadLaunch host transport", () => {
     });
     // The new provider has no session to resume — the stale ref must not ship.
     expect(startInput).not.toHaveProperty("sessionRef");
+    expect(startInput).not.toHaveProperty("ensureRunning");
   });
 
   it("lets the supervisor order a switched prompt after the handoff divider", async () => {

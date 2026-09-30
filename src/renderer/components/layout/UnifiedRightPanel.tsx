@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode, useRef } from "react";
-import { Dropdown, Label } from "@heroui/react";
+import { Button, Dropdown, Label, Tooltip } from "@heroui/react";
 import {
+  ArrowLeft,
   Ellipsis,
   Lock,
   LockOpen,
@@ -49,6 +50,8 @@ export function UnifiedRightPanel(props: {
   subagentTitle?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the usage tab is active. */
   usageHeaderActions?: ReactNode;
+  /** Tab-specific action buttons rendered in the header when the ports tab is active. */
+  portsHeaderActions?: ReactNode;
   /** Tab-specific action buttons rendered in the header when the docks tab is active. */
   docksHeaderActions?: ReactNode;
   showTerminalTab?: boolean;
@@ -61,6 +64,7 @@ export function UnifiedRightPanel(props: {
   showSubagentTab?: boolean;
   showBrowserTab?: boolean;
   onCloseSubagent?: () => void;
+  onBackSubagent?: () => void;
   projectName: string | undefined;
   onExpandGitToOverlay?: () => void;
   onExpandFilesToOverlay?: () => void;
@@ -100,6 +104,7 @@ export function UnifiedRightPanel(props: {
     subagentModel,
     subagentTitle,
     usageHeaderActions,
+    portsHeaderActions,
     docksHeaderActions,
     showTerminalTab = true,
     showFilesTab = true,
@@ -111,6 +116,7 @@ export function UnifiedRightPanel(props: {
     showSubagentTab = false,
     showBrowserTab = true,
     onCloseSubagent,
+    onBackSubagent,
     projectName,
     onExpandGitToOverlay,
     onExpandFilesToOverlay,
@@ -276,6 +282,9 @@ export function UnifiedRightPanel(props: {
   const lockLabel = followsThread
     ? t`Unlock panel from the open thread`
     : t`Lock panel to the open thread`;
+  const lockHint = followsThread
+    ? t`Switching threads updates this panel to the focused thread's project and worktree.`
+    : t`Switching threads keeps this panel on the current project and worktree.`;
   const overflowActive =
     overflowedTabs.some((tab) => isTabOnScreen(tab.id)) || (lockOverflowed && followsThread);
 
@@ -345,6 +354,7 @@ export function UnifiedRightPanel(props: {
             </button>
           )}
           {activeTab === "usage" ? usageHeaderActions : null}
+          {activeTab === "ports" ? portsHeaderActions : null}
         </div>
         <div className="flex-1" />
         <div
@@ -389,15 +399,23 @@ export function UnifiedRightPanel(props: {
           );
         })}
         {onToggleFollowsThread && !lockOverflowed ? (
-          <button
-            type="button"
-            className={`${dragCtl} ${panelHeaderTabIconButtonClass(followsThread)}`}
-            title={lockLabel}
-            aria-pressed={followsThread}
-            onClick={onToggleFollowsThread}
-          >
-            {followsThread ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
-          </button>
+          <Tooltip delay={300}>
+            <button
+              type="button"
+              className={`${dragCtl} ${panelHeaderTabIconButtonClass(followsThread)}`}
+              aria-label={lockLabel}
+              aria-pressed={followsThread}
+              onClick={onToggleFollowsThread}
+            >
+              {followsThread ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
+            </button>
+            <Tooltip.Content placement="bottom" className="max-w-64">
+              <div className="flex flex-col gap-0.5 py-0.5 text-left">
+                <p className="font-medium">{lockLabel}</p>
+                <p className="text-xs text-muted">{lockHint}</p>
+              </div>
+            </Tooltip.Content>
+          </Tooltip>
         ) : null}
         {headerOverflow.showTrigger ? (
           <Dropdown>
@@ -459,8 +477,20 @@ export function UnifiedRightPanel(props: {
       </div>
       {hasSubagentTitle ? (
         <div className="poracode-right-panel-subagent-meta flex h-6 shrink-0 items-center gap-2 border-b border-[color:var(--border)] px-3">
+          {onBackSubagent ? (
+            <Button
+              isIconOnly
+              size="sm"
+              variant="ghost"
+              className={`${dragCtl} ${panelHeaderIconButtonClass} size-5 min-h-0 min-w-0`}
+              aria-label={t`Back to Thread Info`}
+              onPress={onBackSubagent}
+            >
+              <ArrowLeft className="size-3.5" />
+            </Button>
+          ) : null}
           <div className="min-w-0 flex-1">{subagentTitle}</div>
-          {onCloseSubagent ? (
+          {!onBackSubagent && onCloseSubagent ? (
             <button
               type="button"
               className={`${dragCtl} ${panelHeaderIconButtonClass}`}

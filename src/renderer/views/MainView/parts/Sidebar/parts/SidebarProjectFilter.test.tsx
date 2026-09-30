@@ -1,4 +1,5 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { useState } from "react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project } from "@/shared/contracts";
@@ -153,6 +154,53 @@ describe("SidebarProjectFilter", () => {
     expect(onChange).toHaveBeenCalledWith(null);
   });
 
+  it("keeps the mobile project drawer open while the controlled selection changes", async () => {
+    responsiveMenuState.mobile = true;
+
+    function ControlledFilter() {
+      const [value, setValue] = useState<ReadonlySet<string> | null>(null);
+      return (
+        <SidebarProjectFilter
+          projects={projects}
+          filterableProjectIds={new Set(projects.map((candidate) => candidate.id))}
+          threadCounts={threadCounts}
+          value={value}
+          onChange={(next) => setValue(next ? new Set(next) : null)}
+        />
+      );
+    }
+
+    render(<ControlledFilter />);
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+    const beta = (await screen.findByText("Beta")).closest("button");
+    expect(beta).not.toBeNull();
+    fireEvent.pointerDown(beta!, { pointerType: "touch" });
+    fireEvent.click(beta!);
+
+    expect(screen.getByRole("dialog", { name: "Filter by project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Filter by project", hidden: true })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(beta).not.toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Alpha").closest("button")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("animates the mobile project drawer before unmounting it", async () => {
+    responsiveMenuState.mobile = true;
+    renderFilter(null);
+    fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+    const dialog = await screen.findByRole("dialog", { name: "Filter by project" });
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    expect(screen.getByRole("dialog", { name: "Filter by project" })).toBeInTheDocument();
+    expect(document.querySelector(".m-sheet-backdrop")).toHaveAttribute("data-closing", "true");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Filter by project" })).toBeNull(),
+    );
+  });
+
   it("closes when the trigger is pressed again", async () => {
     renderFilter(null);
     await openMenu();
@@ -170,6 +218,44 @@ describe("SidebarProjectFilter", () => {
 
     expect(screen.getByRole("menuitemcheckbox", { name: /Alpha/ })).toHaveTextContent("2");
     expect(screen.getByRole("menuitemcheckbox", { name: /Gamma/ })).toHaveTextContent("0");
+  });
+
+  it("renders one divider when every listed project is unavailable", async () => {
+    render(
+      <SidebarProjectFilter
+        projects={projects}
+        filterableProjectIds={new Set()}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+      />,
+    );
+    const menu = await openMenu();
+
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Project actions for Beta" })).toHaveClass("ms-auto");
+  });
+
+  it("keeps a single divider between All projects and a filterable-only list", async () => {
+    renderFilter(null);
+    const menu = await openMenu();
+
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(1);
+  });
+
+  it("separates filterable and unavailable projects with one extra divider", async () => {
+    render(
+      <SidebarProjectFilter
+        projects={projects}
+        filterableProjectIds={new Set(["a"])}
+        threadCounts={threadCounts}
+        value={null}
+        onChange={vi.fn<(next: string[] | null) => void>()}
+      />,
+    );
+    const menu = await openMenu();
+
+    expect(menu.querySelectorAll('[role="separator"]')).toHaveLength(2);
   });
 
   describe("project overflow menu", () => {
@@ -237,6 +323,48 @@ describe("SidebarProjectFilter", () => {
       ).toBe(undefined);
     });
 
+    it("stacks project and nested action drawers on mobile", async () => {
+      responsiveMenuState.mobile = true;
+      render(
+        <SidebarProjectFilter
+          projects={projects}
+          filterableProjectIds={new Set(["a", "c"])}
+          threadCounts={threadCounts}
+          value={null}
+          onChange={vi.fn<(next: string[] | null) => void>()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Project actions for Beta" }));
+
+      expect(await screen.findByRole("dialog", { name: "Beta" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Project Settings" })).toBeInTheDocument();
+      expect(screen.queryByRole("menuitem", { name: "Project Settings" })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Git" }));
+
+      expect(await screen.findByRole("dialog", { name: "Git" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Review Changes" })).toBeInTheDocument();
+      expect(document.querySelectorAll(".m-sheet")).toHaveLength(3);
+    });
+
+    it("opens settings for a selectable project on mobile without changing the filter", async () => {
+      responsiveMenuState.mobile = true;
+      const onChange = renderFilter(null);
+
+      fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+      const projectActions = await screen.findByRole("button", {
+        name: "Project actions for Beta",
+      });
+      expect(projectActions.className).not.toContain("hover:bg-");
+      fireEvent.click(projectActions);
+      fireEvent.click(await screen.findByRole("button", { name: "Project Settings" }));
+
+      expect(usePanelStore.getState().projectSettingsId).toBe("b");
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
     it("hides host actions while a project is disabled", async () => {
       const disabledProject = { ...projects[1]!, disabled: true };
       useAppStore.setState({ projects: [projects[0]!, disabledProject], threads: [] });
@@ -273,7 +401,8 @@ describe("SidebarProjectFilter", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
       fireEvent.click(await screen.findByRole("button", { name: "Project actions for Beta" }));
-      fireEvent.click(await screen.findByRole("menuitem", { name: "Enable Project" }));
+      expect(await screen.findByRole("dialog", { name: "Beta" })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Enable Project" }));
 
       expect(
         useAppStore.getState().projects.find((candidate) => candidate.id === "b")?.disabled,
@@ -316,6 +445,27 @@ describe("SidebarProjectFilter", () => {
         "aria-disabled",
         "true",
       );
+    });
+
+    it("offers only the local sync action for a mirrored project on mobile", async () => {
+      responsiveMenuState.mobile = true;
+      const mirrored = {
+        ...projects[1]!,
+        remoteServerId: "desktop-1",
+        remoteId: "remote-b",
+      } as Project;
+      useRemoteServersStore.setState({
+        servers: [{ desktopId: "desktop-1", label: "Poracode on MacBook 16" }],
+        runtime: { "desktop-1": { status: "online", projects: [mirrored], threads: [] } },
+      } as never);
+      useAppStore.setState({ projects: [mirrored], threads: [] });
+      renderFilter(null, vi.fn(), [mirrored]);
+
+      fireEvent.click(screen.getByRole("button", { name: "Filter by project" }));
+      fireEvent.click(await screen.findByRole("button", { name: "Project actions for Beta" }));
+
+      expect(await screen.findByRole("button", { name: "Stop syncing" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Disable Project" })).not.toBeInTheDocument();
     });
 
     it("right-aligns the overflow button on unavailable rows like the selectable ones", async () => {

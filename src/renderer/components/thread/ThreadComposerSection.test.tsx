@@ -1,7 +1,8 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
+import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, GitStatusResult, Thread } from "@/shared/contracts";
 import "@/renderer/components/providers/bootstrap";
@@ -23,6 +24,7 @@ import type { ThreadErrorDockState } from "./threadErrorState";
 
 const bridgeMock = vi.hoisted(() => ({
   isRemoteSession: vi.fn<() => boolean>(() => false),
+  isCompactClientSurface: vi.fn<() => boolean>(() => false),
   clearPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   interruptThread: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   setPendingSteer: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -31,6 +33,7 @@ const bridgeMock = vi.hoisted(() => ({
   refreshAgentStatuses: vi
     .fn<() => Promise<{ windows: AgentStatus[]; wsl: AgentStatus[] }>>()
     .mockResolvedValue({ windows: [], wsl: [] }),
+  getProviderUsage: vi.fn<() => Promise<undefined>>().mockResolvedValue(undefined),
 }));
 
 const runtimeActions = vi.hoisted(() => ({
@@ -83,6 +86,7 @@ vi.mock("../composer/ComposerAddMenu", () => ({
 
 vi.mock("../../bridge", () => ({
   isRemoteSession: bridgeMock.isRemoteSession,
+  isCompactClientSurface: bridgeMock.isCompactClientSurface,
   readBridge: () => ({
     pickFiles: vi.fn<() => Promise<string[] | undefined>>().mockResolvedValue(undefined),
     clearPendingSteer: bridgeMock.clearPendingSteer,
@@ -92,12 +96,14 @@ vi.mock("../../bridge", () => ({
     getThreadFollowUpQueue: bridgeMock.getThreadFollowUpQueue,
     writeTerminal: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     refreshAgentStatuses: bridgeMock.refreshAgentStatuses,
+    getProviderUsage: bridgeMock.getProviderUsage,
   }),
 }));
 
 const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
 
 vi.mock("./ThreadComposer", () => ({
+  resolveComposerControlIcon: () => null,
   ThreadComposer: (props: {
     controls?: Array<{
       kind?: string;
@@ -245,7 +251,11 @@ function pasteImageFile(editor: HTMLElement, file: File) {
 }
 
 describe("ThreadComposerSection", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
+    composerDraftStorage()?.flush();
+    localStorage.clear();
     useSharedSettings.setState({
       collapseTerminalComposer: false,
       followUpBehavior: "steer",
@@ -274,6 +284,7 @@ describe("ThreadComposerSection", () => {
     bridgeMock.queueThreadFollowUp.mockReset().mockResolvedValue(undefined);
     bridgeMock.getThreadFollowUpQueue.mockReset().mockResolvedValue(null);
     bridgeMock.isRemoteSession.mockReturnValue(false);
+    bridgeMock.isCompactClientSurface.mockReturnValue(false);
     bridgeMock.clearPendingSteer.mockClear();
     bridgeMock.clearPendingSteer.mockResolvedValue(undefined);
     bridgeMock.refreshAgentStatuses.mockClear();
@@ -662,6 +673,117 @@ describe("ThreadComposerSection", () => {
     expect(screen.queryByRole("button", { name: "Collapse composer" })).not.toBeInTheDocument();
   });
 
+  it("starts the canonical GUI composer in the old PWA floating dock on compact layouts", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    renderComposer();
+
+    const input = screen.getByRole("textbox");
+    const section = input.closest(".poracode-thread-composer-section");
+    const dock = input.closest(".m-thread-compose-dock");
+    expect(section).toHaveAttribute("data-compact-collapsed");
+    expect(section?.querySelector("[inert]")).toBeNull();
+    expect(dock).not.toHaveAttribute("data-expanded");
+    expect(dock).not.toHaveAttribute("data-input-has-content");
+
+    // WebKit leaves a filler <br> in an empty contenteditable. Compact chrome
+    // must follow the composer's semantic text state, not DOM child count, or
+    // the full selector row flashes together with the compact summary.
+    input.innerHTML = "<br>";
+    fireEvent.input(input);
+    expect(dock).not.toHaveAttribute("data-input-has-content");
+
+    typeComposerText(input, "Follow up");
+    expect(dock).toHaveAttribute("data-input-has-content");
+
+    fireEvent.focus(input);
+
+    expect(dock).toHaveAttribute("data-expanded");
+    fireEvent.click(screen.getByRole("button", { name: "Collapse composer" }));
+    expect(dock).not.toHaveAttribute("data-expanded");
+  });
+
+  it("collapses the compact floating dock after the canonical submit succeeds", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const { onSubmitInput } = renderComposer();
+    const input = screen.getByRole("textbox");
+    const dock = input.closest(".m-thread-compose-dock");
+    typeComposerText(input, "Ship it");
+    fireEvent.focus(input);
+
+    expect(dock).toHaveAttribute("data-expanded");
+    fireEvent.click(screen.getByRole("button", { name: "send" }));
+
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("Ship it", [{ kind: "text", content: "Ship it" }]);
+      expect(dock).not.toHaveAttribute("data-expanded");
+    });
+  });
+
+  it("submits on unmodified Enter on the desktop PWA composer", async () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    const { onSubmitInput } = renderComposer();
+    const input = screen.getByRole("textbox");
+    typeComposerText(input, "Ship it from desktop");
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(onSubmitInput).toHaveBeenCalledWith("Ship it from desktop", [
+        { kind: "text", content: "Ship it from desktop" },
+      ]);
+    });
+  });
+
+  it("keeps unmodified Enter as a newline on the compact PWA composer", async () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+    const { onSubmitInput } = renderComposer();
+    const input = screen.getByRole("textbox");
+    typeComposerText(input, "Keep writing");
+    const event = createEvent.keyDown(input, { key: "Enter" });
+    fireEvent(input, event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(onSubmitInput).not.toHaveBeenCalled();
+    expect(input).toHaveTextContent("Keep writing");
+  });
+
   it("preserves an unsent draft when the composer unmounts and restores it on remount", async () => {
     const { unmount } = renderComposer();
 
@@ -680,8 +802,10 @@ describe("ThreadComposerSection", () => {
     await waitFor(() => {
       expect(screen.getByRole("textbox").textContent).toContain("half-written thought");
     });
-    // The draft is consumed on restore so a later real send can't resurrect it.
-    expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+    // Active drafts retain their checkpoint until cleared or submitted.
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "half-written thought" },
+    ]);
   });
 
   it("appends rapid queued inputs to an existing draft as separate blocks", async () => {
@@ -893,7 +1017,9 @@ describe("ThreadComposerSection", () => {
       "src",
       "poracode-local://local/C:/attachments/reverted.png",
     );
-    expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "reverted draft" },
+    ]);
     fireEvent.click(screen.getByText("send"));
     await waitFor(() =>
       expect(onSubmitInput).toHaveBeenCalledWith("reverted draft", [
@@ -1024,7 +1150,9 @@ describe("ThreadComposerSection", () => {
     expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
       { kind: "text", content: "first thread draft" },
     ]);
-    expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]).toBeUndefined();
+    expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]?.segments).toEqual([
+      { kind: "text", content: "second thread draft" },
+    ]);
   });
 
   it("restores an unsent image attachment preview after switching threads", async () => {
@@ -1153,7 +1281,7 @@ describe("ThreadComposerSection", () => {
   it("defers an explicit focus request while the terminal composer is collapsed", async () => {
     useSharedSettings.setState({ collapseTerminalComposer: true });
     renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
-    const input = screen.getByRole("textbox");
+    const input = screen.getByRole("textbox", { hidden: true });
     const outsideButton = document.createElement("button");
     document.body.appendChild(outsideButton);
     outsideButton.focus();
@@ -1170,6 +1298,28 @@ describe("ThreadComposerSection", () => {
       expect(input).toHaveFocus();
       expect(useAppStore.getState().pendingComposerFocusThreadId).toBeNull();
     });
+    outsideButton.remove();
+  });
+
+  it("drops an explicit focus request on compact touch surfaces instead of focusing", async () => {
+    bridgeMock.isCompactClientSurface.mockReturnValue(true);
+    renderComposer();
+    const input = screen.getByRole("textbox");
+    const outsideButton = document.createElement("button");
+    document.body.appendChild(outsideButton);
+    outsideButton.focus();
+
+    act(() => {
+      useAppStore.getState().requestComposerFocus(guiThread.id);
+    });
+
+    // The compact dock owns focus via the guarded tap choreography; a deferred
+    // raw focus() would land mid keyboard-rise and iOS pans the page for it.
+    await waitFor(() => {
+      expect(useAppStore.getState().pendingComposerFocusThreadId).toBeNull();
+    });
+    expect(input).not.toHaveFocus();
+    expect(outsideButton).toHaveFocus();
     outsideButton.remove();
   });
 
@@ -1213,6 +1363,19 @@ describe("ThreadComposerSection", () => {
     ]);
   });
 
+  it("checkpoints an active GUI draft before unmount and removes it after sending", async () => {
+    const { onSubmitInput } = renderComposer();
+    typeComposerText(screen.getByRole("textbox"), "reload 日本語");
+    window.dispatchEvent(new Event("pagehide"));
+    expect(composerDraftStorage()?.load("thread")[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "reload 日本語" },
+    ]);
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(onSubmitInput).toHaveBeenCalled());
+    composerDraftStorage()?.flush();
+    expect(composerDraftStorage()?.load("thread")[guiThread.id]).toBeUndefined();
+  });
+
   it("does not leave a draft behind once the message is sent", async () => {
     const { unmount, onSubmitInput } = renderComposer();
 
@@ -1232,7 +1395,7 @@ describe("ThreadComposerSection", () => {
 
   it("does not re-save an in-flight terminal send as a stale draft when navigating away", async () => {
     // Terminal threads clear the composer only after the send resolves, so the
-    // unmount cleanup must skip saving while a submit is in flight.
+    // checkpoint must skip saving while a submit is in flight.
     let resolveSubmit: (() => void) | undefined;
     const onSubmitInput = vi.fn<(prompt: string, segments?: unknown) => Promise<void>>(
       () =>
@@ -1295,7 +1458,9 @@ describe("ThreadComposerSection", () => {
     await waitFor(() => {
       expect(screen.getByRole("textbox").textContent).toContain("resume me");
     });
-    expect(useAppStore.getState().threadDraftContents[terminalThread.id]).toBeUndefined();
+    expect(useAppStore.getState().threadDraftContents[terminalThread.id]?.segments).toEqual([
+      { kind: "text", content: "resume me" },
+    ]);
   });
 
   it("clears the GUI ACP composer as soon as a direct send starts", async () => {
@@ -1445,6 +1610,8 @@ describe("ThreadComposerSection", () => {
       expect(savedDraft?.attachments[0]?.path).toBe(
         "C:\\attachments\\thread-gui-idle\\image-1.png",
       );
+      composerDraftStorage()?.flush();
+      expect(composerDraftStorage()?.load("thread")[guiThread.id]).toEqual(savedDraft);
     } finally {
       Reflect.deleteProperty(URL, "createObjectURL");
       Reflect.deleteProperty(URL, "revokeObjectURL");
@@ -1695,6 +1862,41 @@ describe("ThreadComposerSection", () => {
     fireEvent.click(screen.getByText("send"));
 
     expect(onSubmitInput).not.toHaveBeenCalled();
+  });
+
+  it("shows compact authentication as a key bubble that opens the sign-in card", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        media: query,
+        matches: query === "(max-width: 767px)",
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => true,
+      })),
+    );
+
+    renderComposer({
+      agentStatus: { ...codexGuiStatus, authState: "missing", loginCommand: "codex login" },
+    });
+
+    const authBubble = screen.getByRole("button", { name: "Sign in required" });
+    expect(authBubble.parentElement).toHaveClass("m-chip-row__trailing");
+    expect(authBubble.parentElement?.lastElementChild).toBe(authBubble);
+    expect(screen.queryByText("Codex: Run codex login before this thread can run.")).toBeNull();
+
+    fireEvent.click(authBubble);
+
+    expect(authBubble).toHaveAttribute("aria-expanded", "true");
+    const description = screen.getByText("Codex: Run codex login before this thread can run.");
+    expect(description).toBeVisible();
+    expect(description).toHaveClass("line-clamp-2", "whitespace-normal");
+    expect(description).not.toHaveClass("truncate");
+    expect(description.parentElement).toHaveAttribute("data-stacked", "true");
+    expect(screen.getByRole("button", { name: "Login" })).toBeVisible();
   });
 
   it("shows a concise command in the auth dock for wrapped WSL login", () => {

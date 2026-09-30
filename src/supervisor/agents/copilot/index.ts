@@ -9,6 +9,7 @@ import {
   detectAgentInstall,
   detectProbeLocation,
   iterm2ProgressOscHint,
+  prepareAgentLocationEnvironment,
   shellExecOscHint,
   type AgentAdapter,
   type AgentEnvContext,
@@ -109,19 +110,19 @@ export function createCopilotAdapter(): AgentAdapter {
     async installPlugin(ctx) {
       const node = await resolveInstallNodePath(ctx);
       if (!node.ok) return node;
-      const result = installCopilotPlugin(ctx, { resolvedNodePath: node.nodePath });
+      const result = await installCopilotPlugin(ctx, { resolvedNodePath: node.nodePath });
       if (!result.ok) return result;
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCopilotPlugin(ctx);
+      await uninstallCopilotPlugin(ctx);
     },
     // No `pluginLaunchExtras` needed — Copilot CLI auto-loads
     // `${COPILOT_HOME ?? ~/.copilot}/hooks/poracode-status.json` written at
     // install time, and `PORACODE_HOOK_*` env is injected by the coordinator.
-    buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
+    async buildLaunchArgv(location, config, prompt, _sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId ?? randomUUID();
-      const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
+      const mcp = await writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
       return {
         binary: "copilot",
         args: buildCopilotArgs(config, prompt, sessionId, launchOptions, mcp?.argument),
@@ -130,9 +131,9 @@ export function createCopilotAdapter(): AgentAdapter {
         sessionRef: createKnownSessionRef(sessionId),
       };
     },
-    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+    async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       const sessionId = launchOptions?.resumeThreadId ?? sessionRef.providerSessionId;
-      const mcp = writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
+      const mcp = await writeCopilotMcpConfig(location, sessionId, launchOptions?.mcpServers ?? []);
       return {
         binary: "copilot",
         args: buildCopilotArgs(config, prompt, sessionId, launchOptions, mcp?.argument),
@@ -144,6 +145,7 @@ export function createCopilotAdapter(): AgentAdapter {
       // Resume/presentation gating lives in `createAcpStructuredSession` so
       // every ACP-speaking provider behaves identically — we just hand it the
       // command and let it decide whether to actually spawn.
+      await prepareAgentLocationEnvironment(input.projectLocation);
       const args = ["--acp", "--stdio"];
       if (input.config.approvalPolicy === "never") {
         args.push("--yolo");
@@ -157,6 +159,7 @@ export function createCopilotAdapter(): AgentAdapter {
     },
     async buildAcpAuthCommand(ctx?: AgentEnvContext) {
       const location = detectProbeLocation(ctx);
+      await prepareAgentLocationEnvironment(location, { signal: ctx?.signal });
       return buildCopilotCommand(
         location,
         ["--acp", "--stdio"],

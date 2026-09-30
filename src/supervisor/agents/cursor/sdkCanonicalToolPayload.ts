@@ -7,6 +7,7 @@
  */
 
 import type { CanonicalItemType, ToolCallProgress } from "@/shared/contracts";
+import { normalizeInlineImageDataUrl } from "@/shared/inlineImagePayload";
 import {
   classifyFileChangeKind,
   normalizeDiffSummaryForKind,
@@ -123,7 +124,11 @@ export function cursorSdkToolPayload(tool: CursorSdkToolItem): Record<string, un
   const serverId = readStringField(args, "providerIdentifier", "serverId", "server_id");
   const mcpArgs =
     tool.itemType === "mcp_tool_call" && args && "args" in args ? args.args : tool.args;
-  const images = readToolImages(tool.classificationName, result);
+  // Cursor says with `truncated.result` that it cut the payload down for
+  // transport, so those bytes are a partial image. Painting them shows the
+  // corrupt half of a picture, which is worse than the accordion this returns
+  // the row to.
+  const images = tool.resultTruncated ? [] : readToolImages(tool.classificationName, result);
   return {
     name: tool.name,
     ...(kind ? { kind } : {}),
@@ -332,22 +337,25 @@ function readToolImages(toolName: string, result: unknown): string[] {
   const value = objectValue(result);
   const images: string[] = [];
   if (normalizeToolName(toolName) === "generateimage") {
+    // Cursor's GenerateImageSuccessSchema is `{ filePath, imageData }` with no
+    // format field, so the declared type cannot be trusted — or supplied.
     const data = readUntrimmedString(value, "imageData");
-    if (data) images.push(asDataUrl(data, "image/png"));
+    const normalized = data ? normalizeInlineImageDataUrl(data) : null;
+    if (normalized) images.push(normalized.dataUrl);
   }
   if (Array.isArray(value?.content)) {
     for (const content of value.content) {
       const image = objectValue(objectValue(content)?.image);
       const data = readUntrimmedString(image, "data");
       if (!data) continue;
-      images.push(asDataUrl(data, readStringField(image, "mimeType") ?? "image/png"));
+      const normalized = normalizeInlineImageDataUrl(
+        data,
+        readStringField(image, "mimeType") ?? undefined,
+      );
+      if (normalized) images.push(normalized.dataUrl);
     }
   }
   return images;
-}
-
-function asDataUrl(data: string, mimeType: string): string {
-  return data.startsWith("data:") ? data : `data:${mimeType};base64,${data}`;
 }
 
 function normalizeToolName(name: string): string {

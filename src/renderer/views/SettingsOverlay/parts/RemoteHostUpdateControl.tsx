@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Button, Spinner, toast } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { RefreshCw } from "lucide-react";
+import { CircleAlert, RefreshCw, ServerCog } from "lucide-react";
 import { useAsyncOperation } from "@/renderer/hooks/useAsyncOperation";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
-import type { RemoteServerRecord } from "@/renderer/state/remoteServers/types";
+import { remoteConnectionKey, type RemoteServerRecord } from "@/renderer/state/remoteServers/types";
 
 export function RemoteHostUpdateControl({
   server,
@@ -14,12 +14,13 @@ export function RemoteHostUpdateControl({
   readonly isOnline: boolean;
 }) {
   const { t } = useLingui();
+  const connectionKey = remoteConnectionKey(server);
   const getHostUpdateState = useRemoteServersStore((s) => s.getHostUpdateState);
   const checkHostUpdate = useRemoteServersStore((s) => s.checkHostUpdate);
   const installHostUpdate = useRemoteServersStore((s) => s.installHostUpdate);
-  const updateState = useRemoteServersStore((s) => s.hostUpdates[server.desktopId]);
+  const updateState = useRemoteServersStore((s) => s.hostUpdates[connectionKey]);
   const restarting = useRemoteServersStore(
-    (s) => s.hostUpdateRestarts[server.desktopId] !== undefined,
+    (s) => s.hostUpdateRestarts[connectionKey] !== undefined,
   );
   const [checked, setChecked] = useState(false);
   const { busy, error, run } = useAsyncOperation();
@@ -31,38 +32,43 @@ export function RemoteHostUpdateControl({
 
   useEffect(() => {
     if (!isOnline) return;
-    void getHostUpdateState(server.desktopId).catch(() => undefined);
-  }, [getHostUpdateState, isOnline, server.desktopId]);
+    void getHostUpdateState(connectionKey).catch(() => undefined);
+  }, [getHostUpdateState, isOnline, connectionKey]);
 
   useEffect(() => {
     if (!isUpdating) return;
     const timer = setInterval(() => {
-      void getHostUpdateState(server.desktopId).catch(() => undefined);
+      void getHostUpdateState(connectionKey).catch(() => undefined);
     }, 1_000);
     return () => clearInterval(timer);
-  }, [getHostUpdateState, isUpdating, server.desktopId]);
+  }, [getHostUpdateState, isUpdating, connectionKey]);
 
   const check = () =>
     run(async () => {
       setChecked(true);
-      await checkHostUpdate(server.desktopId);
+      await checkHostUpdate(connectionKey);
     });
 
   const install = () =>
     run(async () => {
-      await installHostUpdate(server.desktopId);
+      await installHostUpdate(connectionKey);
       toast.success(t`The host is restarting to install the update.`);
     });
 
   const currentVersion = updateState?.currentVersion ?? server.appVersion;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 py-1 pl-5">
-      {currentVersion ? (
-        <span className="text-xs text-muted">
-          <Trans>Host version: {currentVersion}</Trans>
-        </span>
-      ) : null}
+    <div className="flex min-h-12 flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl bg-default-50 px-3 py-2.5">
+      <div className="flex size-7 shrink-0 items-center justify-center rounded-xl bg-default-100 text-muted">
+        <ServerCog className="size-4" />
+      </div>
+      <div className="mr-auto min-w-0">
+        {currentVersion ? (
+          <span className="block truncate text-xs font-medium text-foreground/80">
+            <Trans>Host version: {currentVersion}</Trans>
+          </span>
+        ) : null}
+      </div>
       {restarting ? (
         <span role="status" className="flex items-center gap-1.5 text-xs text-muted">
           <Spinner size="sm" color="current" aria-hidden="true" />
@@ -97,11 +103,17 @@ export function RemoteHostUpdateControl({
         </span>
       ) : null}
       {updateStatus?.type === "error" ? (
-        <span className="text-xs text-danger">
+        <span className="flex items-center gap-1 text-xs text-danger">
+          <CircleAlert className="size-3.5 shrink-0" />
           <Trans>Host update failed.</Trans>
         </span>
       ) : null}
-      {error ? <span className="text-xs text-danger">{error}</span> : null}
+      {error ? (
+        <span className="flex items-center gap-1 text-xs text-danger">
+          <CircleAlert className="size-3.5 shrink-0" />
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -83,7 +83,7 @@ describe("ChatScrollControls", () => {
           virtualScrollToBottom={() => {}}
         />,
       );
-      const button = getByRole("button", { name: "Scroll to bottom" });
+      const button = getByRole("button", { hidden: true });
       expect(slot).toContainElement(button);
       expect(container).not.toContainElement(button);
       // Shares the composer bubble material instead of floating over the pane.
@@ -109,11 +109,7 @@ describe("ChatScrollControls", () => {
         virtualScrollToBottom={() => {}}
       />,
     );
-    expect(getByRole("button", { name: "Scroll to bottom" })).toHaveClass(
-      "absolute",
-      "bottom-4",
-      "left-1/2",
-    );
+    expect(getByRole("button", { hidden: true })).toHaveClass("absolute", "bottom-4", "left-1/2");
   });
 
   it("skips scrollTop writes and virtualizer reconcile when already at bottom", () => {
@@ -794,7 +790,7 @@ describe("ChatScrollControls", () => {
     });
     const controlsRef = createRef<ChatScrollControlsHandle>();
     const virtualScrollToBottom = vi.fn<() => void>();
-    const { getByRole } = renderWithI18n(
+    const { getByRole, queryByRole } = renderWithI18n(
       <Harness
         scrollEl={scrollEl}
         controlsRef={controlsRef}
@@ -802,14 +798,22 @@ describe("ChatScrollControls", () => {
       />,
     );
 
+    expect(queryByRole("button", { name: "Scroll to bottom" })).toBeNull();
+    const hiddenButton = getByRole("button", { hidden: true });
+    expect(hiddenButton).toBeDisabled();
+
     virtualScrollToBottom.mockClear();
     act(() => {
       controlsRef.current?.markUserScrollIntent();
       controlsRef.current?.disableStickToBottom();
       scrollTop = 400;
+      fireEvent.scroll(scrollEl);
     });
 
-    fireEvent.click(getByRole("button", { name: "Scroll to bottom" }));
+    const visibleButton = getByRole("button", { name: "Scroll to bottom" });
+    expect(visibleButton).toBeEnabled();
+    expect(visibleButton).toHaveAttribute("tabindex", "0");
+    fireEvent.click(visibleButton);
 
     expect(virtualScrollToBottom).toHaveBeenCalledOnce();
     expect(scrollTop).toBe(1000);
@@ -852,6 +856,7 @@ describe("ChatScrollControls", () => {
       controlsRef.current?.markUserScrollIntent();
       controlsRef.current?.disableStickToBottom();
       scrollTop = 400;
+      fireEvent.scroll(scrollEl);
     });
 
     fireEvent.click(getByRole("button", { name: "Scroll to bottom" }));
@@ -969,5 +974,73 @@ describe("ChatScrollControls", () => {
 
     expect(virtualScrollToBottom).toHaveBeenCalled();
     expect(scrollTop).toBe(700);
+  });
+
+  it("cancels pending pins and the delayed reveal on unmount", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const animationFrames = new Map<number, FrameRequestCallback>();
+    let nextAnimationFrameHandle = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      nextAnimationFrameHandle += 1;
+      animationFrames.set(nextAnimationFrameHandle, callback);
+      return nextAnimationFrameHandle;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => {
+      animationFrames.delete(handle);
+    });
+    let scrollTop = 800;
+    const scrollEl = document.createElement("div");
+    Object.defineProperties(scrollEl, {
+      scrollHeight: { configurable: true, get: () => 1000 },
+      clientHeight: { configurable: true, get: () => 200 },
+      scrollTop: {
+        configurable: true,
+        get: () => scrollTop,
+        set: (value: number) => {
+          scrollTop = value;
+        },
+      },
+    });
+    const onInitialScrollSettled = vi.fn<() => void>();
+
+    const view = renderWithI18n(
+      <Harness
+        scrollEl={scrollEl}
+        controlsRef={createRef<ChatScrollControlsHandle>()}
+        virtualScrollToBottom={() => undefined}
+        initialScrollSettled={false}
+        initialScrollRevealDelayMs={50}
+        onInitialScrollSettled={onInitialScrollSettled}
+      />,
+    );
+
+    // Unmount before the pending pin frame fires. Every scheduled frame and
+    // timer must be gone so no post-teardown settle can be rescheduled.
+    view.unmount();
+    expect(animationFrames.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+
+    // Flush the way a live rAF loop would: a surviving pin frame would call
+    // scheduleInitialScrollSettle and arm fresh frames plus a reveal timeout.
+    let steps = 0;
+    while (animationFrames.size > 0 && steps < 10) {
+      const callbacks = [...animationFrames.values()];
+      animationFrames.clear();
+      steps += 1;
+      act(() => callbacks.forEach((callback) => callback(0)));
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      now += 500;
+    }
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
+
+    expect(onInitialScrollSettled).not.toHaveBeenCalled();
+    expect(animationFrames.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

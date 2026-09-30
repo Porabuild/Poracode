@@ -1,12 +1,37 @@
-import { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./SubagentRunManager";
-import type { McpToolResult, SubagentWaitOptions } from "./types";
+import { DEFAULT_WAIT_TIMEOUT_MS, MAX_WAIT_TIMEOUT_MS } from "./waitTiming";
+import type { McpToolResult, SubagentWaitOptions, SubagentWaitResult } from "./types";
 
 /** Shared `timeout_s` schema description for the blocking wait tools. */
 export const TIMEOUT_S_DESCRIPTION =
-  'Max seconds for this wait call (capped at 240). A timeout leaves the subagent running; status "running" means call wait_for_agent again when its result is still required, not cancel it because time elapsed.';
+  'Max seconds for this wait call (default and cap 480). Returns immediately when the required work is done or needs input. Omit for routine waits; short values repeatedly wake the coordinator. A timeout leaves the subagent running; status "running" means call wait_for_agent again when its result is still required, not steer or cancel it because time elapsed.';
 
-export function jsonResult(value: unknown): McpToolResult {
-  return { content: [{ type: "text", text: JSON.stringify(value, null, 2) }] };
+export const WAIT_AGAIN_INSTRUCTION =
+  "Call crossagents.wait_for_agent with only required running IDs. Do not poll status or steer just because the worker is still running. Do not end the turn expecting a completion notification.";
+
+export function jsonResult(value: unknown, instruction?: string): McpToolResult {
+  return {
+    content: [
+      { type: "text", text: JSON.stringify(value) },
+      ...(instruction ? [{ type: "text" as const, text: instruction }] : []),
+    ],
+  };
+}
+
+type RunToolValue = SubagentWaitResult & { run_id?: string };
+
+/** One short continuation cue per response, regardless of the number of running children. */
+export function runToolResult(
+  value: RunToolValue | RunToolValue[] | { runs: RunToolValue[] },
+): McpToolResult {
+  const runs = Array.isArray(value) ? value : "runs" in value ? value.runs : [value];
+  return jsonResult(
+    value,
+    runs.some((run) => (run.pending_requests ?? 0) > 0)
+      ? "A worker needs input or approval. Attend to its pending request before waiting again; do not resend the task or steer it."
+      : runs.some((run) => run.status === "running")
+        ? WAIT_AGAIN_INSTRUCTION
+        : undefined,
+  );
 }
 
 export function errorResult(message: string): McpToolResult {
@@ -46,6 +71,7 @@ export function parseWaitOptions(
   args: Record<string, unknown>,
   runId?: string,
 ): SubagentWaitOptions {
+  const outputMode = parseOutputMode(args);
   if (args.full_output === true) return { fullOutput: true };
   const cursors = args.after_output_chars_by_run;
   const runCursor =
@@ -54,10 +80,21 @@ export function parseWaitOptions(
       : undefined;
   const afterOutputChars = runCursor ?? finiteNumber(args.after_output_chars);
   return {
+    outputMode,
     fullOutput: false,
     afterOutputChars:
       afterOutputChars !== undefined && Number.isInteger(afterOutputChars)
         ? Math.max(0, afterOutputChars)
         : 0,
   };
+}
+
+export function parseOutputMode(
+  args: Record<string, unknown>,
+): NonNullable<SubagentWaitOptions["outputMode"]> {
+  const mode = args.output_mode;
+  if (mode !== undefined && mode !== "quiet" && mode !== "progress") {
+    throw new Error("output_mode must be quiet or progress");
+  }
+  return mode ?? "quiet";
 }

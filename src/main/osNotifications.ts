@@ -1,6 +1,8 @@
 import { Notification, type BrowserWindow } from "electron";
 import { IPC_EVENT_CHANNELS } from "@/shared/ipc";
 import type { ShowNotificationPayload } from "@/shared/ipc/schemas";
+import type { ThreadStatus } from "@/shared/contracts";
+import type { UserNotification, UserNotificationCategory } from "@/shared/threadNotification";
 import { showAndFocusWindow } from "./window/showAndFocusWindow";
 
 // Electron's Notification is a thin JS wrapper over a native object. If the
@@ -59,4 +61,41 @@ export function showOsNotification(
     return false;
   }
   return true;
+}
+
+/**
+ * Zero-window desktop fallback (G2.4): thread notifications normally surface
+ * through the mounted renderer (localized Web Notification + toast + sound).
+ * With no renderer mounted (tray/hidden mode) nothing would show at all, so
+ * main shows the OS notification itself. English-only detail strings match
+ * the backend-composed `notify-user` payload precedent; main does not load
+ * the renderer i18n catalogs.
+ */
+export function showUserNotificationFallback(
+  notification: UserNotification,
+  getMainWindow: () => BrowserWindow | null,
+): boolean {
+  return showOsNotification(
+    {
+      title: notification.projectName,
+      body: `${notification.threadTitle}\n${statusDetail(notification.category, notification.status)}`,
+      threadId: notification.threadId,
+    },
+    getMainWindow,
+  );
+}
+
+function statusDetail(category: UserNotificationCategory, status: ThreadStatus): string {
+  switch (category) {
+    case "done":
+      return status === "finished"
+        ? "Finished · Waiting for your input"
+        : "Done · Waiting for your input";
+    case "needsAttention":
+      return status === "needs_approval"
+        ? "Needs Attention · Approval required"
+        : "Needs Attention · Reply required";
+    case "error":
+      return "Error · Agent encountered an error";
+  }
 }

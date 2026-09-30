@@ -25,7 +25,10 @@ import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMe
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
+import { dispatchManagedRootProjectDraftConfig } from "@/renderer/state/managedRootCatalog/rootCatalogIntents";
 import { capabilitiesForPresentation, filterHiddenModels } from "@/shared/agentSelection";
+import { normalizeProviderModelConfig } from "@/renderer/components/providers/modelConfig";
 import type { ProviderModelPreference } from "@/shared/settings";
 import {
   appendProviderComposerControls,
@@ -165,8 +168,14 @@ export function ThreadDraftView(props: {
   quickComposer?: boolean;
   composerPlaceholder?: string;
   restoreWorktreeSelectionToken?: number;
-  /** Override whether unmodified Enter submits instead of inserting a newline. */
+  /**
+   * Override whether unmodified Enter submits instead of inserting a newline.
+   * Defaults to submit on desktop (Electron and desktop PWA) and newline on
+   * compact/mobile PWA.
+   */
   submitOnEnter?: boolean;
+  /** Override mount autofocus for embedded draft-composer surfaces. */
+  autoFocusComposer?: boolean;
   pickFiles?: () => Promise<string[] | null>;
   saveClipboardImage?: SaveClipboardImage;
   paneAlign?: "left" | "center" | "right";
@@ -207,7 +216,11 @@ export function ThreadDraftView(props: {
   const remoteConnection = useRemoteServersStore((state) => {
     const { remoteServerId } = project;
     if (!remoteServerId) return "local";
-    if (!state.servers.some((server) => server.desktopId === remoteServerId)) return "missing";
+    // Projected projects carry the CONNECTION key, which for a host-owned
+    // environment is the locally minted id, not the child host identity.
+    if (!state.servers.some((server) => remoteConnectionKey(server) === remoteServerId)) {
+      return "missing";
+    }
     return state.runtime[remoteServerId]?.status ?? "connecting";
   });
   const hostUpdateRestarting = useRemoteServersStore((state) =>
@@ -330,7 +343,18 @@ export function ThreadDraftView(props: {
   }, [effectiveAgentKind]);
 
   // --- Per-provider config memory (app-wide via shared settings) ---
-  const updateProjectDraftConfig = useAppStore((s) => s.updateProjectDraftConfig);
+  // Root projects persist `lastDraftConfig` host-side as an explicit narrow
+  // intent; the store write keeps the local paint immediate, and a failed
+  // command is surfaced while the next authoritative pass restores the host
+  // value. The ref keeps the wrapper identity stable for effect deps.
+  const updateProjectDraftConfigStore = useAppStore((s) => s.updateProjectDraftConfig);
+  const updateProjectDraftConfigRef = useRef(
+    (projectId: string, draftConfig: ProjectDraftConfig) => {
+      updateProjectDraftConfigStore(projectId, draftConfig);
+      dispatchManagedRootProjectDraftConfig(projectId, draftConfig);
+    },
+  );
+  const updateProjectDraftConfig = updateProjectDraftConfigRef.current;
   const setProviderConfig = useSharedSettings((s) => s.setProviderConfig);
   const setProviderModelPreference = useSharedSettings((s) => s.setProviderModelPreference);
   const effectiveAgentKindRef = useRef(effectiveAgentKind);
@@ -947,18 +971,33 @@ export function ThreadDraftView(props: {
         worktreeMode: effectiveWorktreeMode,
       });
     } else {
+      const picked = normalizeProviderModelConfig(
+        selectedAgentForConfig.kind,
+        { model: nextModel },
+        selectedAgentForConfig.capabilities.models,
+      );
+      const targetModel = picked.model ?? nextModel;
       const modelPreference = resolveProviderModelPreference(
         effectiveAgentKind as AgentStatus["kind"],
-        nextModel,
+        targetModel,
         providerConfigsRef.current,
         providerModelPreferencesRef.current,
       );
       latestConfigPatchRef.current(
-        patchConfigForModelChange(selectedAgentForConfig.capabilities, nextModel, {
-          ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
-          ...(contextSize ? { contextSize } : {}),
-          ...(modelPreference?.fast !== undefined ? { fast: modelPreference.fast } : {}),
-        }),
+        patchConfigForModelChange(
+          selectedAgentForConfig.capabilities,
+          targetModel,
+          {
+            ...(modelPreference?.effort !== undefined ? { effort: modelPreference.effort } : {}),
+            ...(contextSize ? { contextSize } : {}),
+            ...(modelPreference?.fast !== undefined
+              ? { fast: modelPreference.fast }
+              : picked.fast !== undefined
+                ? { fast: picked.fast }
+                : {}),
+          },
+          effectiveAgentKind ?? selectedAgent.kind,
+        ),
       );
     }
   };
@@ -1194,7 +1233,6 @@ export function ThreadDraftView(props: {
         <ThreadDraftCompactHeader
           alignClass={alignClass}
           dragHandleRef={props.dragHandleRef}
-          paneDraggable={(props.paneCount ?? 1) > 1}
           headerNeedsTrafficLightPad={headerNeedsTrafficLightPad}
           onClose={props.onClose}
           projectId={project.id}
@@ -1275,6 +1313,9 @@ export function ThreadDraftView(props: {
             presentationMode={presentationMode}
             {...(props.composerPlaceholder ? { placeholder: props.composerPlaceholder } : {})}
             {...(props.submitOnEnter !== undefined ? { submitOnEnter: props.submitOnEnter } : {})}
+            {...(props.autoFocusComposer !== undefined
+              ? { autoFocus: props.autoFocusComposer }
+              : {})}
             {...(props.pickFiles ? { pickFiles: props.pickFiles } : {})}
             {...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {})}
             onConfigChange={onConfigPatch}

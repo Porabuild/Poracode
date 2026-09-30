@@ -1,4 +1,4 @@
-import type { IpcProcedureName } from "../ipc";
+import type { SupervisorProcedureName } from "../ipc";
 import type { RemoteAccessScope } from "./protocol";
 
 export type RemoteProcedureOwner =
@@ -6,12 +6,20 @@ export type RemoteProcedureOwner =
   | "projectLocation"
   | "worktreeLocation"
   | "location"
+  | "parentLocation"
   | "runtime"
   | "optionalProjectLocation"
   | "skillLocations"
   | "thread"
   | "project"
-  | "terminal";
+  | "terminal"
+  /**
+   * Desktop-scoped: the call addresses the host this runtime is attached to
+   * (the managed desktop's loopback host, the standalone-attach desktop, or
+   * the browser's paired host) rather than a payload-carried project/thread
+   * owner. The host resolves its own desktop id (V6 B.2).
+   */
+  | "desktop";
 
 interface RemoteProcedureSpec {
   readonly scope: RemoteAccessScope;
@@ -63,7 +71,7 @@ export const REMOTE_PROCEDURE_SPECS = {
 
   // Skills and MCP
   scanSkills: read("optionalProjectLocation"),
-  listSkillMarketplace: read("none"),
+  listSkillMarketplace: read("desktop"),
   setSkillEnabled: operate("optionalProjectLocation"),
   deleteSkill: operate("optionalProjectLocation"),
   importSkills: operate("skillLocations"),
@@ -164,7 +172,34 @@ export const REMOTE_PROCEDURE_SPECS = {
   ghRerunWorkflowRun: operate("projectLocation"),
   ghCancelWorkflowRun: operate("projectLocation"),
   ghDeleteWorkflowRun: operate("projectLocation"),
-} as const satisfies Partial<Record<IpcProcedureName, RemoteProcedureSpec>>;
+
+  // V6 B.2: former IPC-only / remote-noop names. Loopback HTTP is the data
+  // plane; paired clients invoke the same allowlisted passthrough.
+  // R1: this table is SUPERVISOR-typed — the satisfies constraint below turns
+  // any main-local IPC name (raw DB or local-shell procedure) into a compile
+  // error, closing the misroute class that sent `dbDeleteThread` and the
+  // legacy goal read to the supervisor as HTTP 500s. Main-local reads that
+  // remote legs genuinely need ride the bounded-history adapter
+  // (`REMOTE_IPC_ADAPTER_SPECS`) or stay local (`NON_ROUTER_PROJECT_PROCEDURES`).
+  gitWatchProject: operate("projectLocation"),
+  gitWatchWorktrees: operate("project"),
+  gitUnwatchProject: operate("project"),
+  startThread: operate("projectLocation"),
+  ensureThreadRunning: operate("projectLocation"),
+  createRevertAnchor: operate("thread"),
+  restoreToRevertAnchor: operate("thread"),
+  relocateProject: manageProjects("project"),
+  cloneRepo: manageProjects("parentLocation"),
+  extractContext: operate("thread"),
+  cancelExtractContext: operate("thread"),
+  connectThreadVoice: operate("thread"),
+  disconnectThreadVoice: operate("thread"),
+  lspStart: operate("projectLocation"),
+  readTerminalScrollback: read("thread"),
+  readTerminalSize: read("thread"),
+  readTerminalSnapshot: read("thread"),
+  readThreadBackgroundTasks: read("thread"),
+} as const satisfies Partial<Record<SupervisorProcedureName, RemoteProcedureSpec>>;
 
 export type RemoteProcedureName = keyof typeof REMOTE_PROCEDURE_SPECS;
 
@@ -194,20 +229,6 @@ export function isRemoteFollowUpQueueProcedure(
   return remoteFollowUpQueueProcedures.has(procedure);
 }
 
-/** Renderer procedures that become no-ops when their owner is remote. */
-export const REMOTE_NOOP_PROCEDURES = {
-  gitWatchProject: "projectLocation",
-  gitWatchWorktrees: "project",
-  gitUnwatchProject: "project",
-  revealProjectEntry: "projectLocation",
-} as const satisfies Partial<Record<IpcProcedureName, RemoteProcedureOwner>>;
-
-export type RemoteNoopProcedureName = keyof typeof REMOTE_NOOP_PROCEDURES;
-
 export function isRemoteProcedure(name: string): name is RemoteProcedureName {
   return Object.hasOwn(REMOTE_PROCEDURE_SPECS, name);
-}
-
-export function isRemoteNoopProcedure(name: string): name is RemoteNoopProcedureName {
-  return Object.hasOwn(REMOTE_NOOP_PROCEDURES, name);
 }

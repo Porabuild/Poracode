@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 describe("agent status cache", () => {
-  it("invalidates v31 snapshots so MCP capabilities are re-probed", () => {
+  it("invalidates v37 snapshots before derived model capability refresh", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
     const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
@@ -48,8 +48,19 @@ describe("agent status cache", () => {
     writeFileSync(
       statusCachePath,
       JSON.stringify({
-        version: 31,
-        windows: [{ kind: "example", installed: true, capabilities: {} }],
+        version: 37,
+        windows: [
+          {
+            kind: "example",
+            installed: true,
+            capabilities: {
+              models: [
+                { id: "standard", label: "Standard" },
+                { id: "accelerated", label: "Accelerated" },
+              ],
+            },
+          },
+        ],
         wsl: [],
       }),
     );
@@ -57,31 +68,33 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(34);
+    expect(STATUS_CACHE_VERSION).toBe(40);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
-  it("invalidates v32 snapshots so OpenCode 2 and per-provider credentials are re-probed", () => {
-    const dataDir = makeTempDir();
-    process.env.PORACODE_DATA_DIR = dataDir;
-    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
-    mkdirSync(cacheDir, { recursive: true });
-    writeFileSync(
-      statusCachePath,
-      JSON.stringify({
-        version: 32,
-        // Cached before OpenCode 2 reported its connected AI providers: the
-        // settings panel would show "no providers connected" until a refresh.
-        windows: [{ kind: "example", installed: true, authState: "authenticated" }],
-        wsl: [],
-      }),
-    );
-    const runtime = makeRuntime(() => {});
-    const service = runtime.agentStatusService as unknown as {
-      readCachedStatuses(distros: string[]): unknown;
-    };
-    expect(STATUS_CACHE_VERSION).toBe(34);
-    expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
-  });
+
+  it.each([32, 33, 34, 35, 36, 37, 38, 39])(
+    "invalidates pre-integration v%i status snapshots",
+    (version) => {
+      const dataDir = makeTempDir();
+      process.env.PORACODE_DATA_DIR = dataDir;
+      const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+      mkdirSync(cacheDir, { recursive: true });
+      writeFileSync(
+        statusCachePath,
+        JSON.stringify({
+          version,
+          windows: [{ kind: "example", installed: true, capabilities: {} }],
+          wsl: [],
+        }),
+      );
+      const runtime = makeRuntime(() => {});
+      const service = runtime.agentStatusService as unknown as {
+        readCachedStatuses(distros: string[]): unknown;
+      };
+      expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
+    },
+  );
+
   it("invalidates v33 snapshots so skill invocations are re-probed", () => {
     const dataDir = makeTempDir();
     process.env.PORACODE_DATA_DIR = dataDir;
@@ -119,7 +132,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(34);
+    expect(STATUS_CACHE_VERSION).toBe(40);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
@@ -309,7 +322,6 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -353,7 +365,6 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -430,7 +441,6 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -477,7 +487,137 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(34);
+    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v35 Muse statuses cached under WSL-routed Windows detection", () => {
+    // Pre-v36 detection routed native Windows projects into WSL for Muse, so
+    // the Windows status always reported `installed: false`. v36 probes the
+    // Windows host natively; the stale negative must be re-probed.
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 35,
+        windows: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: false,
+            authState: "missing",
+            capabilities: { presentationModes: ["terminal", "gui"] },
+            envKind: "windows",
+          },
+        ],
+        wsl: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { presentationModes: ["terminal", "gui"] },
+            envKind: "wsl",
+            wslDistro: "Ubuntu",
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses(["Ubuntu"]);
+
+    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v38 Muse statuses cached without thread title commands", () => {
+    // Pre-v39 statuses lack `threadTitleCommands`, so a cached Muse status
+    // would keep titling `/goal <objective>` threads from the raw command.
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 38,
+        windows: [
+          {
+            kind: "muse",
+            label: "Muse Code",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { presentationModes: ["terminal", "gui"] },
+            envKind: "windows",
+          },
+        ],
+        wsl: [],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v36 Cursor ACP statuses cached before parameterized picker", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 36,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: {
+              models: [{ id: "gpt-5.5[context=272k,reasoning=medium]", label: "GPT-5.5" }],
+              presentationModes: ["terminal", "gui"],
+            },
+          },
+        ],
+      }),
+    );
+
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (wslDistros: readonly string[]) => {
+          windows: AgentStatus[];
+          wsl: AgentStatus[];
+          fromCache: boolean;
+        };
+      }
+    ).readCachedStatuses([]);
+
+    expect(STATUS_CACHE_VERSION).toBe(40);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -506,7 +646,6 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -539,7 +678,47 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(34);
+    expect(STATUS_CACHE_VERSION).toBe(40);
+    expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+
+  it("invalidates v33 caches carrying a Cursor SDK install derived from PATH", () => {
+    // Pre-v34 detection re-derived the SDK install location on every pass by
+    // asking a package manager for its global root, so a cached
+    // `sdk.installed: false` could describe an installation that was intact on
+    // disk and merely unresolvable from that process. Serving it would keep the
+    // tile red until something forced a re-probe; v34 re-probes once so the
+    // resolved root is recorded instead.
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 33,
+        windows: [
+          {
+            kind: "cursor",
+            label: "Cursor",
+            installed: true,
+            authState: "authenticated",
+            capabilities: { models: [] },
+            runtimeVariants: {
+              acp: { installed: true, presentationMode: "gui" },
+              sdk: { installed: false, presentationMode: "gui", authState: "unknown" },
+            },
+          },
+        ],
+      }),
+    );
+    const runtime = makeRuntime(() => {});
+    const cached = (
+      runtime.agentStatusService as unknown as {
+        readCachedStatuses: (distros: readonly string[]) => unknown;
+      }
+    ).readCachedStatuses([]);
+    expect(STATUS_CACHE_VERSION).toBe(40);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

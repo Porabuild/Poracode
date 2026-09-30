@@ -9,9 +9,13 @@ import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { tokenizePlainText } from "./plainTextTokens";
 import { DeferredItemMarkdownInner } from "@/renderer/deferredFeatures";
+import { shouldUseChunkedPlainText } from "./longPlainText";
+
+export { shouldUseChunkedPlainText } from "./longPlainText";
 
 interface ItemMarkdownProps {
   text: string;
+  plainText?: boolean;
 }
 
 interface SmoothItemMarkdownProps extends ItemMarkdownProps {
@@ -19,8 +23,44 @@ interface SmoothItemMarkdownProps extends ItemMarkdownProps {
 }
 
 export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProps) {
-  const smoothedText = useSmoothStreamedText(text, isStreaming);
-  return <ItemMarkdown text={isStreaming ? smoothedText : text} />;
+  const chunkedPlainText = shouldUseChunkedPlainText(text);
+  // Long plain output is still readable as it arrives; limiting DOM updates
+  // avoids repeatedly re-laying out an ever-growing paragraph every frame.
+  const smoothedText = useSmoothStreamedText(text, isStreaming, chunkedPlainText ? 1_000 : 0);
+  const displayedText = isStreaming ? smoothedText : text;
+  return <ItemMarkdown text={displayedText} plainText={chunkedPlainText} />;
+}
+
+const PLAIN_TEXT_CHUNK_SIZE = 4_096;
+
+/** Preserve the exact text while freezing each complete span on append. */
+export function splitStreamingPlainText(text: string): string[] {
+  const chunks: string[] = [];
+  let start = 0;
+  while (start + PLAIN_TEXT_CHUNK_SIZE < text.length) {
+    const hardEnd = start + PLAIN_TEXT_CHUNK_SIZE;
+    const space = text.lastIndexOf(" ", hardEnd);
+    let end = space >= start + PLAIN_TEXT_CHUNK_SIZE / 2 ? space + 1 : hardEnd;
+    // Do not put the two halves of an astral code point in different nodes.
+    const last = text.charCodeAt(end - 1);
+    if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+    chunks.push(text.slice(start, end));
+    start = end;
+  }
+  chunks.push(text.slice(start));
+  return chunks;
+}
+
+function ChunkedPlainText({ text }: { text: string }) {
+  return (
+    <div className="whitespace-pre-wrap break-words text-[length:var(--lc-chat-font-size)] leading-snug text-foreground">
+      {splitStreamingPlainText(text).map((chunk, index) => (
+        <div key={index} style={{ contentVisibility: "auto", containIntrinsicSize: "auto 1200px" }}>
+          {chunk}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /**
@@ -30,9 +70,12 @@ export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProp
  * plain-text view that still chips URLs and project paths so the first paint
  * is never blank.
  */
-export function ItemMarkdown({ text }: ItemMarkdownProps) {
+export function ItemMarkdown({ text, plainText = false }: ItemMarkdownProps) {
   const actions = useChatPaneActions();
   const rootNames = actions?.projectRootNames;
+  if (plainText) {
+    return <ChunkedPlainText text={text} />;
+  }
   return (
     <Suspense
       fallback={

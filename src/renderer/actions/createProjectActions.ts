@@ -1,7 +1,7 @@
 import { startTransition } from "react";
 import { toast } from "@heroui/react";
-import { msg } from "@/shared/messages";
-import type { CloneRepoSource, ProjectLocation } from "@/shared/contracts";
+import type { CloneRepoSource, Project, ProjectLocation } from "@/shared/contracts";
+import { friendlyError, msg } from "@/shared/messages";
 import {
   deriveLocationFromPath,
   parentDirOf,
@@ -15,6 +15,13 @@ import { captureProductEvent } from "@/renderer/analytics/productAnalytics";
 import { readBridge } from "@/renderer/bridge";
 import { loadHomeScopeLocation } from "@/renderer/actions/projectActions";
 import { useAppStore } from "@/renderer/state/appStore";
+import {
+  isApplyingHostOriginatedManagedRootMutation,
+  isManagedRootDesktopRuntime,
+  sendManagedRootProjectCommand,
+} from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import { applyRootCatalogProjectRows } from "@/renderer/state/managedRootCatalog/rootCatalogRows";
+import { refreshManagedRootCatalogSoon } from "@/renderer/state/managedRootCatalog/rootCatalogAdapter";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { getActiveWorkspaceId } from "@/renderer/state/workspaceStore";
 import { autoDetectSetupScript } from "@/renderer/utils/gitHelpers";
@@ -42,6 +49,38 @@ function registerNewProject(
   source: "clone" | "existing" | "scratch",
 ): void {
   useSharedSettings.getState().setLastUsedProjectDir(runtimeKeyForLocation(location), lastUsedDir);
+
+  if (isManagedRootDesktopRuntime() && !isApplyingHostOriginatedManagedRootMutation()) {
+    // B4: the host owns project rows. The directory already exists (created or
+    // cloned by the caller); this is the explicit registration intent, and the
+    // returned authoritative row is installed locally before its draft opens.
+    void sendManagedRootProjectCommand({
+      kind: "add-existing",
+      path: getProjectFsPath(location),
+      ...(name ? { name } : {}),
+      ...(getActiveWorkspaceId() ? { workspaceId: getActiveWorkspaceId()! } : {}),
+    })
+      .then((response) => {
+        refreshManagedRootCatalogSoon();
+        const project = response.project as Project | undefined;
+        if (!project) return;
+        startTransition(() => {
+          applyRootCatalogProjectRows([project]);
+          if (response.created !== false) {
+            captureProductEvent("project.added", {
+              location_kind: location.kind,
+              source,
+            });
+            autoDetectSetupScript(project);
+          } else {
+            toast.info(msg("project.locationConflict"));
+          }
+          useAppStore.getState().openDraft(project.id);
+        });
+      })
+      .catch((error) => toast.danger(friendlyError(error)));
+    return;
+  }
 
   startTransition(() => {
     // New projects join the workspace the user is currently looking at,

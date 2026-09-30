@@ -1,10 +1,19 @@
+import {
+  __resetRemoteServersStoreForTest,
+  useRemoteServersStore,
+} from "./state/remoteServersStore";
+import { isBrowserClientRuntime, resetClientRuntimeForTest } from "./clientRuntime";
+import type { RemoteDesktopClient } from "@/shared/remote/client";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
+import type { RemoteServerRecord, RemoteSocketLike } from "./state/remoteServers/types";
+import { remoteThreadId } from "./state/remoteProjection";
 import { Fragment, type ReactNode } from "react";
 import { toast } from "@heroui/react";
 import { act, fireEvent, renderHook, screen, waitFor } from "@testing-library/react";
 import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Experiment, RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
+import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import type {
   QuickComposerSubmission,
   SupervisorEvent,
@@ -12,6 +21,7 @@ import type {
   UpdateStatus,
 } from "@/shared/ipc";
 import { useAppStore } from "./state/appStore";
+import { removeRootCatalogProjects } from "./state/managedRootCatalog/rootCatalogRows";
 import { useThreadFollowUpQueueStore } from "./state/threadFollowUpQueueStore";
 import { useGitStore } from "./state/gitStore";
 import { usePanelStore } from "./state/panelStore";
@@ -27,7 +37,6 @@ import { openThread, unloadThread } from "@/renderer/actions/threadActions";
 const {
   bridge,
   quickComposerSubmitListeners,
-  projectStateChangedListeners,
   remoteThreadCommandListeners,
   runWorktreeSetupScript,
   sharedSettingsState,
@@ -38,7 +47,6 @@ const {
   const quickListeners: Array<(submission: QuickComposerSubmission) => void> = [];
   const supervisorListeners: Array<(event: SupervisorEvent) => void> = [];
   const threadOpenListeners: Array<(event: ThreadOpenRequestedEvent) => void> = [];
-  const projectListeners: Array<(event: { projects: unknown[] }) => void> = [];
   return {
     remoteThreadCommandListeners: listeners,
     runWorktreeSetupScript: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -59,7 +67,6 @@ const {
     quickComposerSubmitListeners: quickListeners,
     supervisorEventListeners: supervisorListeners,
     threadOpenRequestedListeners: threadOpenListeners,
-    projectStateChangedListeners: projectListeners,
     bridge: {
       windowKind: "main",
       pickFolder: vi.fn<() => Promise<null>>().mockResolvedValue(null),
@@ -183,9 +190,13 @@ const {
       onSupervisorEvent: vi.fn<(listener: (event: SupervisorEvent) => void) => () => void>(
         (listener) => {
           supervisorListeners.push(listener);
-          return () => undefined;
+          return () => {
+            const index = supervisorListeners.indexOf(listener);
+            if (index >= 0) supervisorListeners.splice(index, 1);
+          };
         },
       ),
+      onBackendSupervisorReset: vi.fn<() => () => void>(() => () => undefined),
       startShell: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitWatchProject: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       gitWatchWorktrees: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -202,30 +213,34 @@ const {
         (listener: (command: RemoteThreadCommand) => void) => () => void
       >((listener) => {
         listeners.push(listener);
-        return () => undefined;
+        return () => {
+          const index = listeners.indexOf(listener);
+          if (index >= 0) listeners.splice(index, 1);
+        };
       }),
       onSharedSettingsChanged: vi.fn<() => () => void>(() => () => undefined),
-      onProjectStateChanged: vi.fn<
-        (listener: (event: { projects: unknown[] }) => void) => () => void
-      >((listener) => {
-        projectListeners.push(listener);
-        return () => undefined;
-      }),
       onGitStateChanged: vi.fn<() => () => void>(() => () => undefined),
+      onUserNotification: vi.fn<() => () => void>(() => () => undefined),
       onPrWatchMerged: vi.fn<() => () => void>(() => () => undefined),
       onPrWatchStatus: vi.fn<() => () => void>(() => () => undefined),
       onThreadOpenRequested: vi.fn<
         (listener: (event: ThreadOpenRequestedEvent) => void) => () => void
       >((listener) => {
         threadOpenListeners.push(listener);
-        return () => undefined;
+        return () => {
+          const index = threadOpenListeners.indexOf(listener);
+          if (index >= 0) threadOpenListeners.splice(index, 1);
+        };
       }),
       notifyQuickComposerMainReady: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       onQuickComposerSubmit: vi.fn<
         (listener: (submission: QuickComposerSubmission) => void) => () => void
       >((listener) => {
         quickListeners.push(listener);
-        return () => undefined;
+        return () => {
+          const index = quickListeners.indexOf(listener);
+          if (index >= 0) quickListeners.splice(index, 1);
+        };
       }),
       publishRemoteGitSummaries: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
       appendUsageEvents: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -256,21 +271,25 @@ vi.mock("./components/ui/provider", () => ({
   useResolvedAppearance: () => "dark" as const,
 }));
 
-vi.mock("./views/MainView/parts/AppShell/AppShell", () => ({
-  AppShell: (props: { sidebar: ReactNode; content: ReactNode }) => (
-    <div>
-      <div>{props.sidebar}</div>
-      <div>{props.content}</div>
-    </div>
-  ),
-  useSidebar: () => ({
-    isCollapsed: false,
-    closingOverlay: false,
-    isOverlay: false,
-    collapse: () => {},
-    expand: () => {},
-  }),
-}));
+vi.mock("./views/MainView/parts/AppShell/AppShell", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./views/MainView/parts/AppShell/AppShell")>();
+  return {
+    SidebarContext: actual.SidebarContext,
+    AppShell: (props: { sidebar: ReactNode; content: ReactNode }) => (
+      <div>
+        <div>{props.sidebar}</div>
+        <div>{props.content}</div>
+      </div>
+    ),
+    useSidebar: () => ({
+      isCollapsed: false,
+      closingOverlay: false,
+      isOverlay: false,
+      collapse: () => {},
+      expand: () => {},
+    }),
+  };
+});
 
 vi.mock("./components/layout/SplitPaneContainer", () => ({
   SplitPaneContainer: (props: {
@@ -485,6 +504,25 @@ describe("App", () => {
     });
     sharedSettingsState.current.workspaces = [];
     useWorkspaceStore.setState({ activeWorkspaceId: null });
+    // The reload-lane App mounts (e.g. re-attaches a restored remote thread)
+    // push per-mount supervisor listeners (git-refresh watcher, etc.) that the
+    // previous no-op unsubscribe mocks leaked. Keep only the module-level
+    // main-window handlers so later `supervisorEventListeners.at(-1)` lookups
+    // still resolve the runtime batcher instead of a stale watcher.
+    // Truncation is a safety net: fixed mocks now remove on unmount, but tests
+    // that render without unmounting (e.g. recovery screen) would still leak.
+    if (supervisorEventListeners.length > 1) supervisorEventListeners.splice(1);
+    if (remoteThreadCommandListeners.length > 1) remoteThreadCommandListeners.splice(1);
+    if (threadOpenRequestedListeners.length > 1) threadOpenRequestedListeners.splice(1);
+    if (quickComposerSubmitListeners.length > 1) quickComposerSubmitListeners.splice(1);
+    // Runtime batcher module state must not bleed across tests: a leftover
+    // pending frame would suppress the next test's schedule (handle already
+    // non-null) and hide its `applyRuntimeEventBatches` call.
+    useAppStore.setState({
+      runtimeItemIdsByThread: {},
+      runtimeItemsByIdByThread: {},
+      runtimeStructuralVersionByThread: {},
+    });
   });
 
   afterEach(() => {
@@ -576,6 +614,204 @@ describe("App", () => {
     });
     expect(danger).not.toHaveBeenCalled();
     unsubscribe();
+  });
+
+  it("reconnects saved desktop servers after remote settings hydrate", async () => {
+    resetClientRuntimeForTest();
+    expect(isBrowserClientRuntime()).toBe(false);
+    const originalConnect = useRemoteServersStore.getState().connectAll;
+    const connect = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    useRemoteServersStore.setState({ connectAll: connect });
+    vi.spyOn(useRemoteServersStore.persist, "hasHydrated").mockReturnValue(false);
+    let finishHydration!: () => void;
+    vi.spyOn(useRemoteServersStore.persist, "rehydrate").mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishHydration = resolve;
+        }),
+    );
+    const view = render(<App />);
+    try {
+      await waitFor(() => expect(useRemoteServersStore.persist.rehydrate).toHaveBeenCalled());
+      expect(connect).not.toHaveBeenCalled();
+      await act(async () => {
+        finishHydration();
+      });
+      await waitFor(() => expect(connect).toHaveBeenCalledTimes(1));
+    } finally {
+      view.unmount();
+      useRemoteServersStore.setState({ connectAll: originalConnect });
+    }
+  });
+
+  it("re-attaches a restored remote thread's live subscription after a reload", async () => {
+    resetClientRuntimeForTest();
+    __resetRemoteServersStoreForTest();
+    localStorage.clear();
+    // The secure vault hydrates asynchronously; settle it so a MainView-driven
+    // rehydrate at mount cannot wipe the servers seeded below.
+    await act(async () => {
+      await useRemoteServersStore.persist.rehydrate();
+    });
+    await vi.waitFor(() => {
+      const persistedServers = JSON.parse(localStorage.getItem("poracode-remote-servers")!).state
+        .servers;
+      if (persistedServers.length !== 0)
+        throw new Error("Remote server reset is not persisted yet");
+    });
+    const remoteProjectRow = {
+      id: "p1",
+      name: "Remote App",
+      location: { kind: "posix", path: "/r/app" },
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    const remoteThreadRow = {
+      id: "rt-1",
+      projectId: "p1",
+      title: "Remote GUI thread",
+      agentKind: "claude",
+      status: "idle",
+      presentationMode: "terminal",
+    } as unknown as Thread;
+    const projectedThreadId = remoteThreadId("d1", "rt-1");
+    const serverRecord: RemoteServerRecord = {
+      desktopId: "d1",
+      label: "Server One",
+      remoteLabel: "Server One",
+      endpoint: "http://192.168.1.9:38987/",
+      accessToken: "acc-token",
+      scopes: ["session:read", "projects:manage"],
+    };
+    const remoteThreadHistory = async () => ({
+      snapshotSeq: 1,
+      thread: remoteThreadRow,
+      runtimeItems: [],
+      completedTurns: [],
+      contextUsage: null,
+      updatedAt: "now",
+    });
+    const remoteSnapshot = async () => ({
+      snapshotSeq: 1,
+      projects: [remoteProjectRow],
+      threads: [remoteThreadRow],
+      runtimeSummariesByThread: {},
+      updatedAt: "now",
+    });
+    const remoteClient = {
+      // The store pushes the rotating-token lifecycle onto its client at
+      // connect (V5 4.6); this mock has no refresh behavior to drive.
+      setTokenLifecycle: vi.fn<() => void>(),
+      environment: async () => ({
+        protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
+        hostMode: "desktop",
+        desktopId: "d1",
+        label: "Server One",
+        appVersion: "1.0",
+        auth: {
+          policy: "remote-reachable",
+          bootstrapMethods: ["one-time-token"],
+          sessionMethods: ["bearer-access-token"],
+          scopes: ["session:read", "projects:manage"],
+        },
+        endpoints: {
+          httpBaseUrl: "http://192.168.1.9:38987/",
+          wsBaseUrl: "ws://192.168.1.9:38987/",
+        },
+      }),
+      agentStatuses: async () => ({ windows: [], wsl: [], updatedAt: "now" }),
+      snapshot: remoteSnapshot,
+      // The startup refresh probes the B4 bounded shell read first; this older
+      // host negotiates `legacy` and the assembled snapshot paints.
+      boundedShellSnapshot: async () => ({
+        negotiation: "legacy" as const,
+        page: await remoteSnapshot(),
+      }),
+      threadHistory: remoteThreadHistory,
+      // Production opens a restored remote thread through the B4 bounded
+      // read; this older host negotiates `legacy` with the same snapshot.
+      boundedThreadHistory: async () => ({
+        negotiation: "legacy" as const,
+        page: await remoteThreadHistory(),
+      }),
+      websocketTicket: async () => "ticket-1",
+      websocketUrl: (
+        _ticket: string,
+        _lastSeenSeq: number,
+        options: { threadItemInterests?: readonly string[] },
+      ) => {
+        connectInterests.push(options?.threadItemInterests);
+        return "ws://192.168.1.9:38987/ws?ticket=ticket-1";
+      },
+      checkHostUpdate: async () => ({
+        currentVersion: "1.0",
+        status: { type: "update-not-available" },
+      }),
+      parseSocketMessage: (value: string) => JSON.parse(value),
+    } as unknown as RemoteDesktopClient;
+    const sockets: RemoteSocketLike[] = [];
+    const connectInterests: Array<readonly string[] | undefined> = [];
+    const originalClientFactory = useRemoteServersStore.getState().clientFactory;
+    const originalSocketFactory = useRemoteServersStore.getState().socketFactory;
+    useRemoteServersStore.setState({
+      clientFactory: () => remoteClient,
+      socketFactory: () => {
+        const socket: RemoteSocketLike = {
+          close: vi.fn<() => void>(),
+          send: vi.fn<(data: string) => void>(),
+          onmessage: null,
+          onclose: null,
+        };
+        sockets.push(socket);
+        return socket;
+      },
+      servers: [serverRecord],
+    });
+    // Post-reload state: the persisted view renders from the local cache while
+    // the projected thread row only (re)arrives when the startup refreshServer
+    // mirror runs, and the live subscription (`openThread`) is still null.
+    useAppStore.setState({ view: { kind: "thread", panes: [projectedThreadId] } });
+
+    const view = render(<App />);
+    try {
+      // The restored pane re-attaches through the same openRemoteThread
+      // pipeline a thread click uses, registering its thread-item-interests
+      // with the host (in the connect URL and/or on the live socket) without
+      // navigating the restored view away.
+      await waitFor(() =>
+        expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-1"),
+      );
+      await waitFor(() => {
+        const registrations = [
+          ...connectInterests,
+          ...sockets.flatMap((socket) =>
+            (
+              socket.send as NonNullable<RemoteSocketLike["send"]> as ReturnType<typeof vi.fn>
+            ).mock.calls.map((call) => {
+              const frame = JSON.parse(call[0] as string) as {
+                type: string;
+                threadIds: string[];
+              };
+              return frame.type === "thread-item-interests" ? frame.threadIds : [];
+            }),
+          ),
+        ];
+        expect(registrations).toContainEqual(["rt-1"]);
+      });
+      expect(useAppStore.getState().view).toEqual({ kind: "thread", panes: [projectedThreadId] });
+      expect(
+        useAppStore.getState().threads.find((thread) => thread.id === projectedThreadId),
+      ).toBeTruthy();
+    } finally {
+      view.unmount();
+      __resetRemoteServersStoreForTest();
+      useRemoteServersStore.setState({
+        clientFactory: originalClientFactory,
+        socketFactory: originalSocketFactory,
+        servers: [],
+        runtime: {},
+        openThread: null,
+      });
+    }
   });
 
   it("offers recovery controls when initial hydration does not finish", async () => {
@@ -907,7 +1143,7 @@ describe("App", () => {
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("runs setup once and headlessly for a worktree newly created from the PWA", () => {
+  it("mirrors a host-prepared worktree into desktop git state without rerunning setup", () => {
     const project = {
       id: "project-1",
       name: "Repo",
@@ -934,13 +1170,11 @@ describe("App", () => {
       });
     });
 
-    expect(runWorktreeSetupScript).toHaveBeenCalledTimes(1);
-    expect(runWorktreeSetupScript).toHaveBeenCalledWith(
-      project,
-      "C:\\worktrees\\mobile-fix",
-      "direnv allow\npnpm ci",
-      { openTerminalPanel: false },
-    );
+    expect(runWorktreeSetupScript).not.toHaveBeenCalled();
+    expect(bridge.gitWatchWorktrees).toHaveBeenCalledWith({
+      projectId: project.id,
+      worktreePaths: ["C:\\worktrees\\mobile-fix"],
+    });
   });
 
   it("does not run setup when the PWA reuses an existing worktree", () => {
@@ -976,48 +1210,6 @@ describe("App", () => {
     });
 
     expect(runWorktreeSetupScript).not.toHaveBeenCalled();
-  });
-
-  it("adopts project changes made outside the renderer before the next store sync", () => {
-    const project = {
-      id: "mcp-project-1",
-      name: "MCP project",
-      location: { kind: "windows" as const, path: "C:\\mcp-project" },
-      createdAt: "2026-07-21T00:00:00.000Z",
-    };
-    useAppStore.setState({ projects: [] });
-    render(<App />);
-
-    act(() => {
-      projectStateChangedListeners.at(-1)?.({ projects: [project] });
-    });
-
-    expect(useAppStore.getState().projects).toEqual([project]);
-    act(() => {
-      useExperimentStore.setState({
-        experiments: {
-          "experiment-1": {
-            id: "experiment-1",
-            projectId: project.id,
-            title: "Experiment",
-            prompt: "Test project reconciliation",
-            baseBranch: "main",
-            baseCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-            candidates: [],
-            status: "running",
-            createdAt: "2026-07-21T00:00:00.000Z",
-            updatedAt: "2026-07-21T00:00:00.000Z",
-          } satisfies Experiment,
-        },
-      });
-    });
-    expect(useExperimentStore.getState().experiments).toHaveProperty("experiment-1");
-
-    act(() => {
-      projectStateChangedListeners.at(-1)?.({ projects: [] });
-    });
-
-    expect(useExperimentStore.getState().experiments).toEqual({});
   });
 
   it("creates and launches the thread submitted by the quick composer", async () => {
@@ -1062,7 +1254,8 @@ describe("App", () => {
       agentKind: "codex",
       presentationMode: "gui",
     });
-    expect(screen.getByText("sent from overlay")).toHaveAttribute(
+    // The launch bridge call can precede React's first non-loading render.
+    expect(await screen.findByText("sent from overlay")).toHaveAttribute(
       "data-pending-launch",
       "__none__",
     );
@@ -1130,7 +1323,7 @@ describe("App", () => {
         projectSettingsId: "duplicate",
         gitReviewContext: { projectId: "duplicate" },
       });
-      projectStateChangedListeners.at(-1)?.({ projects: [canonical] });
+      removeRootCatalogProjects(["duplicate"]);
     });
     const state = useAppStore.getState();
     expect(state.projects).toEqual([canonical]);
@@ -1260,7 +1453,7 @@ describe("App", () => {
     expect(bridge.startThread).not.toHaveBeenCalled();
   });
 
-  it("hydrates the selected GUI thread transcript before initial render", async () => {
+  it("requests the selected GUI thread transcript while showing the persisted thread", async () => {
     useAppStore.persist.hasHydrated = vi.fn<() => boolean>().mockReturnValue(true);
     useAppStore.persist.onHydrate = vi.fn<() => () => void>(() => () => undefined);
     useAppStore.persist.onFinishHydration = vi.fn<() => () => void>(() => () => undefined);
@@ -1318,13 +1511,12 @@ describe("App", () => {
       });
     });
     expect(bridge.dbGetThreadRuntimeItems).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("thread-view-thread-visible-gui")).not.toBeInTheDocument();
-
-    resolveRuntimeItems({ items: [], nextCursor: null });
 
     await waitFor(() => {
       expect(screen.getByTestId("thread-view-thread-visible-gui")).toBeInTheDocument();
     });
+
+    resolveRuntimeItems({ items: [], nextCursor: null });
   });
 
   it("queues launch for the selected thread after persisted state hydrates", async () => {

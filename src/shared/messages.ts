@@ -15,6 +15,12 @@ const messages = {
   "voice.connectionFailed": "The voice connection failed. Try again.",
   "voice.cancelled": "The voice connection was cancelled.",
   "supervisor.sendTerminalInput": "Send terminal input",
+  // ── App startup ───────────────────────────────────────────
+  "startup.failure.title": "Poracode could not start",
+  "startup.failure.body":
+    "Poracode failed to start:\n\n{detail}\n\nRetry (for example, once the other owner has finished starting) or quit.",
+  "startup.failure.retry": "Retry",
+  "startup.failure.quit": "Quit",
   // ── Git: general ──────────────────────────────────────────
   "git.commandFailed": "Git {command} failed: {detail}",
   "github.accountUnavailable":
@@ -161,6 +167,12 @@ const messages = {
   // ── OpenCode ──────────────────────────────────────────
   "opencode.retryFallback": "OpenCode request failed, retrying...",
 
+  // ── Codex ─────────────────────────────────────────────────
+  "codex.compactUnavailableDuringTurn":
+    "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes.",
+  "codex.compactFailed": "Codex could not compact the conversation: {detail}",
+  "codex.modelRerouted": "Model rerouted from {fromModel} to {toModel}.",
+
   // ── App update ────────────────────────────────────────────
   "update.error": "Update error: {detail}",
   "update.serviceUnavailable": "The update service is temporarily unavailable.",
@@ -174,6 +186,18 @@ const messages = {
   "remote.helper.timeout": "Timed out waiting for Poracode Helper.",
   "remote.helper.startFailed":
     "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
+  "remote.helper.ownerUnverified":
+    "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect.",
+  "remote.helper.ownerUnresponsive":
+    "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect.",
+  "remote.helper.ownerIncompatible":
+    "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version.",
+  "remote.helper.ownerConflict":
+    "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect.",
+  "remote.helper.busy":
+    "Another Poracode client is preparing this connection. Try again in a moment.",
+  "remote.helper.drainTimeout":
+    "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again.",
   "ssh.runtimeManifest.invalid": "Poracode SSH runtime manifest is missing or invalid: {path}",
   "remote.project.invalidName": "Enter a valid project name.",
   "remote.project.invalidPath": "Enter a valid absolute project path.",
@@ -193,6 +217,13 @@ const messages = {
 
   // ── Thread runtime notices ────────────────────────────────
   "thread.compact.noop": "Nothing to compact yet — the conversation is still small.",
+  "thread.goal.none": "No active goal in this session.",
+  "thread.goal.invalidState": "The goal can't do that in its current state.",
+  "thread.goal.editUsage": "Usage: /goal edit <objective>",
+  "thread.goal.unsupported":
+    "This version of Muse Code does not support session goals. Update Muse Code and try again.",
+  "desktop.promotion.progress.title": "Poracode",
+  "desktop.promotion.progress.body": "Promoting this profile into the owned data root…",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -357,6 +388,31 @@ const errorPatterns: Array<{
   {
     test: /Poracode Helper failed to start|Poracode SSH requires (?:Node 24\.10 or newer|npm)|Uploaded Poracode runtime archive was not found|No remote loopback port is available for Poracode/i,
     key: "remote.helper.startFailed",
+  },
+  {
+    test: /^The remote host has a Poracode Helper this client cannot verify\./,
+    key: "remote.helper.ownerUnverified",
+  },
+  {
+    test: /^A Poracode Helper owns this connection but is not responding\./,
+    key: "remote.helper.ownerUnresponsive",
+  },
+  {
+    test: /^The remote host runs an incompatible Poracode Helper \(/,
+    key: "remote.helper.ownerIncompatible",
+    params: (raw) => ({ version: raw.match(/\(([^)]*)\)/)?.[1] ?? "unknown" }),
+  },
+  {
+    test: /^Another Poracode owner already holds this connection's data root\./,
+    key: "remote.helper.ownerConflict",
+  },
+  {
+    test: /^Another Poracode client is (?:preparing this connection|installing the remote runtime)\./,
+    key: "remote.helper.busy",
+  },
+  {
+    test: /^The remote helper did not stop within its shutdown window/,
+    key: "remote.helper.drainTimeout",
   },
   {
     // undici and browser fetch collapse transport failures into these opaque

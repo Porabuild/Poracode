@@ -83,6 +83,29 @@ function makeConfigSync(
 }
 
 describe("AcpSessionConfigSync", () => {
+  it("uses the declared mode resolver for initial and subsequent turns", async () => {
+    const { connection } = makeConfigSync();
+    const sync = new AcpSessionConfigSync(
+      connection as unknown as ClientSideConnection,
+      (config) => (config.mode === "plan" ? "planning" : "unrestricted"),
+    );
+    sync.rememberOptions(["planning", "unrestricted"], []);
+    await sync.applyTurnConfig("session-1", { model: "", mode: "agent" }, undefined);
+    expect(connection.setSessionMode).toHaveBeenLastCalledWith({
+      sessionId: "session-1",
+      modeId: "unrestricted",
+    });
+    await sync.applyTurnConfig(
+      "session-1",
+      { model: "", mode: "plan" },
+      { model: "", mode: "agent" },
+    );
+    expect(connection.setSessionMode).toHaveBeenLastCalledWith({
+      sessionId: "session-1",
+      modeId: "planning",
+    });
+    expect(sync.resolvePlanModeId()).toBe("planning");
+  });
   it("applies mode, unstable model fallback, and effort changes before a new turn", async () => {
     const { connection, sync } = makeConfigSync();
     const nextConfig: ThreadConfig = {
@@ -862,4 +885,138 @@ describe("AcpSessionConfigSync", () => {
       ["reasoning_effort", "high"],
     ]);
   });
+
+  it("applies effort, thinking, fast, and context as separate config options", async () => {
+    const afterModelOptions = [
+      modelSelectOption("model-b"),
+      {
+        id: "thinking",
+        category: "thought_level",
+        type: "select",
+        currentValue: "false",
+        options: [
+          { value: "false", name: "Off" },
+          { value: "true", name: "On" },
+        ],
+      },
+      {
+        id: "effort",
+        category: "thought_level",
+        type: "select",
+        currentValue: "high",
+        options: [
+          { value: "low", name: "Low" },
+          { value: "high", name: "High" },
+          { value: "extra-high", name: "Extra High" },
+        ],
+      },
+      {
+        id: "fast",
+        category: "model_config",
+        type: "select",
+        currentValue: "true",
+        options: [
+          { value: "false", name: "Off" },
+          { value: "true", name: "Fast" },
+        ],
+      },
+      {
+        id: "context",
+        category: "model_config",
+        type: "select",
+        currentValue: "272k",
+        options: [
+          { value: "272k", name: "272K" },
+          { value: "1m", name: "1M" },
+        ],
+      },
+    ];
+    const { connection, sync } = makeConfigSync({
+      configOptions: [modelSelectOption(), thoughtLevelOption()],
+    });
+    connection.setSessionConfigOption.mockResolvedValue({ configOptions: afterModelOptions });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      {
+        ...previousConfig,
+        model: "model-b",
+        effort: "xhigh",
+        thinking: true,
+        fast: false,
+        contextSize: "1m",
+      },
+      previousConfig,
+    );
+
+    expect(
+      connection.setSessionConfigOption.mock.calls.map(([call]) => [call.configId, call.value]),
+    ).toEqual([
+      ["model", "model-b"],
+      ["effort", "extra-high"],
+      ["thinking", "true"],
+      ["fast", "false"],
+      ["context", "1m"],
+    ]);
+  });
+
+  it("applies effort and fast on a later turn without changing the model", async () => {
+    const { connection, sync } = makeConfigSync({
+      configOptions: [
+        modelSelectOption(),
+        thoughtLevelOption(),
+        {
+          id: "fast",
+          category: "model_config",
+          type: "select",
+          currentValue: "true",
+          options: [
+            { value: "false", name: "Off" },
+            { value: "true", name: "Fast" },
+          ],
+        },
+      ],
+    });
+
+    await sync.applyTurnConfig(
+      "session-1",
+      { ...previousConfig, effort: "high", fast: false },
+      { ...previousConfig, effort: "low", fast: true },
+    );
+
+    expect(
+      connection.setSessionConfigOption.mock.calls.map(([call]) => [call.configId, call.value]),
+    ).toEqual([
+      ["thought-level", "high"],
+      ["fast", "false"],
+    ]);
+  });
+});
+
+it("uses a provider resolver for effort-only changes to opaque model variants", async () => {
+  const { connection } = makeConfigSync();
+  const resolver = vi.fn<() => { configId: string; value: string }>(() => ({
+    configId: "model",
+    value: "opaque-high-fast",
+  }));
+  const sync = new AcpSessionConfigSync(
+    connection as unknown as ClientSideConnection,
+    undefined,
+    resolver,
+  );
+  sync.rememberOptions([], [modelSelectOption("opaque-low")]);
+  connection.setSessionConfigOption.mockResolvedValue({
+    configOptions: [modelSelectOption("opaque-high-fast")],
+  });
+  await sync.applyTurnConfig(
+    "session",
+    { model: "family", effort: "high", fast: true },
+    { model: "family", effort: "low" },
+  );
+  expect(connection.setSessionConfigOption).toHaveBeenCalledWith({
+    sessionId: "session",
+    configId: "model",
+    value: "opaque-high-fast",
+  });
+  expect(connection.request).not.toHaveBeenCalled();
 });

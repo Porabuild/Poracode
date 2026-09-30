@@ -1,0 +1,43 @@
+{
+  "snapshotSeq": 42,
+  "projects": [
+    {
+      "id": "project-fixture-001",
+      "name": "Fixture Project",
+      "location": {
+        "kind": "posix",
+        "path": "/Users/fixture/project"
+      },
+      "createdAt": "2026-08-12T10:00:00.000Z"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-fixture-001",
+      "projectId": "project-fixture-001",
+      "title": "Fixture thread",
+      "agentKind": "codex",
+      "config": {
+        "model": "gpt-5"
+      },
+      "status": "idle",
+      "attention": "none",
+      "presentationMode": "gui",
+      "createdAt": "2026-08-12T10:01:00.000Z",
+      "updatedAt": "2026-08-12T10:02:00.000Z"
+    }
+  ],
+  "runtimeSummariesByThread": {
+    "thread-fixture-001": {
+      "itemCount": 1,
+      "latestItemId": "item-fixture-assistant",
+      "latestItemType": "assistant_message",
+      "latestItemState": "completed",
+      "contextUsage": {
+        "usedTokens": 128,
+        "maxTokens": 8192
+      }
+    }
+  },
+  "updatedAt": "2026-08-12T10:02:00.000Z"
+}

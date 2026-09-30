@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Tooltip } from "@heroui/react";
-import { Activity, Bot, ListChecks, Target } from "lucide-react";
+import { Activity, Bot, ListChecks } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
 import type { ThreadDockKind } from "@/shared/settings";
 import { toggleThreadDocksPanel } from "@/renderer/actions/panelActions";
@@ -14,6 +14,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { formatElapsed } from "@/renderer/utils/formatTime";
 import type { ThreadGoalDockState } from "./threadGoalState";
+import { ThreadGoalStatusIcon } from "./ThreadGoalStatusIcon";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useGoalElapsedSeconds } from "./threadGoalTiming";
 import type { ThreadDocksSummary } from "./useThreadDocksSummary";
@@ -97,11 +98,7 @@ function GoalBubble({ state, active }: { state: ThreadGoalDockState; active: boo
       label={t`Goal`}
       tooltip={state.objective}
       active={active}
-      icon={
-        <Target
-          className={`size-3.5 shrink-0 ${state.status === "active" ? "text-foreground" : "text-muted"}`}
-        />
-      }
+      icon={<ThreadGoalStatusIcon status={state.status} />}
     >
       {elapsedSeconds > 0 ? (
         <span className="[font-variant-numeric:tabular-nums]">{formatElapsed(elapsedSeconds)}</span>

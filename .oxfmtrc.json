@@ -1,3 +1,4 @@
 {
-  "endOfLine": "lf"
+  "endOfLine": "lf",
+  "ignorePatterns": ["protocol/remote/v3/generated/**"]
 }

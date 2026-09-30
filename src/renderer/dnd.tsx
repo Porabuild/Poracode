@@ -14,6 +14,7 @@ import {
   useDragDropManager,
 } from "@dnd-kit/react";
 import { isSortable } from "@dnd-kit/react/sortable";
+import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import type { PaneLayout, PaneLayoutAxis, PaneLayoutInsertTarget } from "@/shared/paneLayout";
 import { findPanePath } from "@/shared/paneLayout";
 import { paneInsertZoneId } from "./components/layout/paneInsertZone";
@@ -378,7 +379,7 @@ function DndManagerBridge({ managerRef }: { managerRef: React.RefObject<DragDrop
   return null;
 }
 
-export function AppDndProvider(props: {
+interface AppDndProviderProps {
   children: React.ReactNode;
   onSidebarSortEnd: (
     source: DragSourceData,
@@ -392,7 +393,23 @@ export function AppDndProvider(props: {
   onMainPanelDrop: (source: MainPanelDropSource) => void;
   onPanelDockDrop: (source: PanelTabDragSource, target: PanelDockTarget) => void;
   paneLayout: PaneLayout;
-}) {
+}
+
+export function AppDndProvider(props: AppDndProviderProps) {
+  const compactLayout = useCompactLayout();
+
+  if (compactLayout) {
+    return <CompactDndProvider>{props.children}</CompactDndProvider>;
+  }
+
+  return <DesktopAppDndProvider {...props} />;
+}
+
+export function CompactDndProvider(props: { children: React.ReactNode }) {
+  return <DragDropProvider sensors={[]}>{props.children}</DragDropProvider>;
+}
+
+function DesktopAppDndProvider(props: AppDndProviderProps) {
   const pointer = useRef({ x: 0, y: 0 });
   const paneIndicatorRef = useRef<PaneDropIndicator | null>(null);
   const mainPanelDropActiveRef = useRef(false);

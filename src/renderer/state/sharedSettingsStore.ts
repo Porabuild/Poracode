@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { readBridge } from "../bridge";
+import { hasAnyClientBridge, isStandaloneAttachRuntime } from "../clientRuntime";
 import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
@@ -172,6 +173,17 @@ interface SharedSettingsState extends SharedSettings {
     key: K,
     value: SharedSettings["usage"][K],
   ) => void;
+  /**
+   * Update one supervisor host execution-slot bound. Each value is a
+   * nonnegative finite **safe** integer with no ceiling; `0` stays explicitly
+   * unlimited/transitional. Invalid values (negative, fractional, non-finite,
+   * unsafe) are ignored so the persisted document can never carry a value the
+   * shared schema would reject as a whole.
+   */
+  setHostResourceAdmissionSetting: <K extends keyof SharedSettings["hostResourceAdmission"]>(
+    key: K,
+    value: SharedSettings["hostResourceAdmission"][K],
+  ) => void;
   setProviderConfig: (agentKind: string, config: ProviderDraftConfig) => void;
   setProviderModelPreference: (
     agentKind: string,
@@ -230,7 +242,7 @@ interface SharedSettingsState extends SharedSettings {
 
 const RECENT_MODELS_LIMIT = 16;
 function hasBridge(): boolean {
-  return typeof window !== "undefined" && window.poracode !== undefined;
+  return hasAnyClientBridge();
 }
 
 function loadFallbackSettings(): SharedSettings {
@@ -253,6 +265,25 @@ function loadFallbackSettings(): SharedSettings {
  */
 let initialLoadDone = !hasBridge();
 let pendingSharedSettingsWrite: Promise<void> | undefined;
+let queuedSharedSettingsWrite: SharedSettingsInput | undefined;
+
+function drainSharedSettingsWrites(): void {
+  if (pendingSharedSettingsWrite || !queuedSharedSettingsWrite) return;
+  pendingSharedSettingsWrite = (async () => {
+    while (queuedSharedSettingsWrite) {
+      const settings = queuedSharedSettingsWrite;
+      queuedSharedSettingsWrite = undefined;
+      await readBridge()
+        .setSharedSettings(settings)
+        .catch(() => undefined);
+    }
+  })().finally(() => {
+    pendingSharedSettingsWrite = undefined;
+    // A setter can run after the loop observes an empty queue but before this
+    // finalizer. Recheck so that update cannot be stranded.
+    drainSharedSettingsWrites();
+  });
+}
 
 function persistSettings(settings: SharedSettingsInput): void {
   if (typeof window === "undefined") {
@@ -262,20 +293,20 @@ function persistSettings(settings: SharedSettingsInput): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
   if (hasBridge() && initialLoadDone) {
-    const write = readBridge().setSharedSettings(settings);
-    pendingSharedSettingsWrite = write;
-    void write
-      .catch(() => undefined)
-      .then(() => {
-        if (pendingSharedSettingsWrite === write) {
-          pendingSharedSettingsWrite = undefined;
-        }
-      });
+    // Whole-document writes must stay ordered. Coalesce changes that arrive
+    // while one write is in flight so a slower older IPC call can never land
+    // after the newest settings and resurrect stale plugin/provider state.
+    queuedSharedSettingsWrite = settings;
+    drainSharedSettingsWrites();
   }
 }
 
 export async function waitForPendingSharedSettings(): Promise<void> {
-  await pendingSharedSettingsWrite;
+  for (;;) {
+    const pending = pendingSharedSettingsWrite;
+    if (!pending) return;
+    await pending;
+  }
 }
 
 /**
@@ -290,7 +321,7 @@ export async function flushSharedSettings(): Promise<void> {
     return;
   }
   if (pendingSharedSettingsWrite) {
-    await pendingSharedSettingsWrite;
+    await waitForPendingSharedSettings();
     return;
   }
   await readBridge().setSharedSettings(selectSharedSettings(useSharedSettings.getState()));
@@ -817,6 +848,15 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     set({ usage: { ...current, [key]: value } });
     persistSettings(selectSharedSettings(get()));
   },
+  setHostResourceAdmissionSetting: (key, value) => {
+    if (!Number.isSafeInteger(value) || value < 0) return;
+    const current = get().hostResourceAdmission;
+    if (current[key] === value) return;
+    // Spread (rather than a replacement literal) so a newer writer's unknown
+    // sub-keys already held in this session are never dropped by an edit here.
+    set({ hostResourceAdmission: { ...current, [key]: value } });
+    persistSettings(selectSharedSettings(get()));
+  },
   setProviderConfig: (agentKind, config) => {
     if (!config.model.trim()) {
       return;
@@ -1172,6 +1212,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     browser: state.browser,
     audio: state.audio,
     usage: state.usage,
+    hostResourceAdmission: state.hostResourceAdmission,
     crossagentRoutingGuide: state.crossagentRoutingGuide,
   };
 }
@@ -1201,11 +1242,15 @@ export function whenSharedSettingsHydrated(): Promise<void> {
 }
 
 export function applyExternalSharedSettings(partial: Partial<SharedSettings>): void {
-  useSharedSettings.setState((state) => ({ ...state, ...partial }));
+  useSharedSettings.setState((state) => ({ ...state, ...partial, sharedSettingsHydrated: true }));
   cacheSettingsSnapshot(selectSharedSettings(useSharedSettings.getState()));
+  // Owner-pushed settings are authoritative (paired desktop values arriving
+  // over the remote sync, or a remote client's edit): mark the store hydrated
+  // so persistence and hydration waiters proceed without a local read-back.
+  initialLoadDone = true;
 }
 
-if (hasBridge()) {
+if (hasBridge() && !isStandaloneAttachRuntime()) {
   void readBridge()
     .getSharedSettings()
     .then((settings) => {

@@ -20,6 +20,13 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "voice.connectionFailed": msg({ message: "The voice connection failed. Try again." }),
   "voice.cancelled": msg({ message: "The voice connection was cancelled." }),
   "supervisor.sendTerminalInput": msg({ message: "Send terminal input" }),
+  "startup.failure.title": msg({ message: "Poracode could not start" }),
+  "startup.failure.body": msg({
+    message:
+      "Poracode failed to start:\n\n{detail}\n\nRetry (for example, once the other owner has finished starting) or quit.",
+  }),
+  "startup.failure.retry": msg({ message: "Retry" }),
+  "startup.failure.quit": msg({ message: "Quit" }),
   "supervisor.followUpQueue.guiOnly": msg({
     message: "Queued follow-ups are only supported for chat threads.",
   }),
@@ -222,6 +229,16 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   "opencode.retryFallback": msg({
     message: "OpenCode request failed, retrying...",
   }),
+  "codex.compactUnavailableDuringTurn": msg({
+    message:
+      "Codex can't compact the conversation while a turn is running. Send /compact again once it finishes.",
+  }),
+  "codex.compactFailed": msg({
+    message: "Codex could not compact the conversation: {detail}",
+  }),
+  "codex.modelRerouted": msg({
+    message: "Model rerouted from {fromModel} to {toModel}.",
+  }),
   "acp.authenticationUnverified": msg({
     message:
       "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
@@ -259,6 +276,29 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
     message:
       "Poracode Helper failed to start. Check that Node 24.10 or newer and npm are installed on the remote machine.",
   }),
+  "remote.helper.ownerUnverified": msg({
+    message:
+      "The remote host has a Poracode Helper this client cannot verify. Stop the remote helper, then reconnect.",
+  }),
+  "remote.helper.ownerUnresponsive": msg({
+    message:
+      "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect.",
+  }),
+  "remote.helper.ownerIncompatible": msg({
+    message:
+      "The remote host runs an incompatible Poracode Helper ({version}). Stop the remote helper, then reconnect to install this app's version.",
+  }),
+  "remote.helper.ownerConflict": msg({
+    message:
+      "Another Poracode owner already holds this connection's data root. Stop it on the remote host, then reconnect.",
+  }),
+  "remote.helper.busy": msg({
+    message: "Another Poracode client is preparing this connection. Try again in a moment.",
+  }),
+  "remote.helper.drainTimeout": msg({
+    message:
+      "The remote helper did not stop within its shutdown window and was left running. Stop it on the remote host, then try again.",
+  }),
   "ssh.runtimeManifest.invalid": msg({
     message: "Poracode SSH runtime manifest is missing or invalid: {path}",
   }),
@@ -289,6 +329,17 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
   }),
   "thread.compact.noop": msg({
     message: "Nothing to compact yet — the conversation is still small.",
+  }),
+  "thread.goal.none": msg({ message: "No active goal in this session." }),
+  "thread.goal.invalidState": msg({ message: "The goal can't do that in its current state." }),
+  "thread.goal.editUsage": msg({ message: "Usage: /goal edit <objective>" }),
+  "thread.goal.unsupported": msg({
+    message:
+      "This version of Muse Code does not support session goals. Update Muse Code and try again.",
+  }),
+  "desktop.promotion.progress.title": msg({ message: "Poracode" }),
+  "desktop.promotion.progress.body": msg({
+    message: "Promoting this profile into the owned data root…",
   }),
 };
 

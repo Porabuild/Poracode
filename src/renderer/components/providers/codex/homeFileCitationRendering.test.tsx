@@ -24,6 +24,8 @@ vi.mock("@/renderer/state/chatRuntimePersister", () => ({
   loadOlderThreadRuntimeItems: vi.fn<() => Promise<boolean>>().mockResolvedValue(false),
   releaseThreadRuntimeItems: vi.fn<() => void>(),
   retainThreadRuntimeItems: vi.fn<() => void>(),
+  setOlderThreadHistoryContinuation: vi.fn<() => void>(),
+  setOlderThreadHistoryInvalidation: vi.fn<() => void>(),
 }));
 
 vi.mock("@/renderer/state/fileCheckpointActions", () => ({

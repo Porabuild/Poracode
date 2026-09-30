@@ -1,0 +1,148 @@
+name: V2 performance qualification
+
+# Repeatable plan §4.2 performance qualification cells, driven by
+# scripts/v2-perf-qualify.mjs over tests/native-e2e/v2ArchitectureQualification.test.ts.
+#
+# - sustained: the 30-minute sustained mixed-load cell (A0-10 shape), weekly
+#   on schedule plus manual dispatch, on the macos-26 hosted runner (the 90
+#   minute job cap stays well inside the 360 minute hosted maximum).
+# - soak: the >=24h overnight soak (A0-11 shape), manual dispatch only, on the
+#   clearly labeled self-hosted macOS ARM64 qualification runner. A soak can
+#   never fit a hosted runner (6h job cap), and its timeout-minutes override
+#   (26h) is only valid there.
+#
+# Deliberately no push/pull_request triggers: measurement windows need a quiet
+# machine, not a per-PR gate. Evidence is uploaded on failure but not on
+# cancellation (an interrupted run has no complete cell to archive).
+
+on:
+  schedule:
+    - cron: "23 6 * * 1" # Weekly sustained cell, Monday 06:23 UTC (off-minute)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: >-
+          Qualification mode: sustained runs on the hosted macos-26 runner;
+          soak requires the labeled self-hosted macOS ARM64 qualification runner
+        required: true
+        type: choice
+        default: sustained
+        options:
+          - sustained
+          - soak
+
+permissions:
+  contents: read
+
+concurrency:
+  # Serialize per mode: a second soak must never share the qualification
+  # machine with a running one (the cell requires an uncontended host).
+  group: v2-perf-qualification-${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'sustained' }}
+  cancel-in-progress: false
+
+env:
+  PNPM_CONFIG_ENABLE_GLOBAL_VIRTUAL_STORE: "false"
+
+jobs:
+  sustained:
+    name: Sustained 30m cell (macos-26)
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'sustained') }}
+    runs-on: macos-26
+    timeout-minutes: 90 # 30m cell + install + managed-launcher build + teardown headroom; hosted max is 360
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      # The managed qualification session launches this checkout as the frozen
+      # arm (its own Electron plus real supervisor PTYs); both binaries are
+      # skipped by --ignore-scripts and provisioned here.
+      - name: Provision Electron and node-pty
+        run: |
+          node scripts/ensure-native-deps.mjs --electron-native
+          scripts/ci-rebuild-node-pty.sh
+
+      - name: Qualification runner self-tests
+        run: node --test scripts/v2-perf-qualify.test.mjs scripts/v2-perf-qualify-workflows.test.mjs
+
+      - name: Run sustained qualification cell
+        env:
+          V2Q_EVIDENCE_DIR: ${{ runner.temp }}/v2-perf-evidence
+        run: |
+          set -euo pipefail
+          node scripts/v2-perf-qualify.mjs sustained --arm "$PWD" --out "$V2Q_EVIDENCE_DIR"
+
+      - name: Upload sustained evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v2-perf-sustained-${{ github.run_id }}
+          path: ${{ runner.temp }}/v2-perf-evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  soak:
+    name: Overnight soak (self-hosted macOS ARM64 qualification runner)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'soak' }}
+    # The clearly labeled self-hosted macOS ARM64 qualification runner: enroll
+    # it with exactly these labels. It must stay idle for the whole window —
+    # the cell's contamination gate refuses a noisy host, and the concurrency
+    # group above only serializes per mode. Node 24 + pnpm must be reachable
+    # through the actions below (they provision both on the runner).
+    runs-on: [self-hosted, macOS, ARM64, v2-perf-qualification]
+    timeout-minutes: 1560 # 26h: 24h cell + install + managed-launcher build + teardown headroom
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          # The arm freeze gate requires an exactly clean src/ at the exact
+          # checkout HEAD; the default deep clean guarantees it on a reused
+          # self-hosted workspace.
+          clean: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Provision Electron and node-pty
+        run: |
+          node scripts/ensure-native-deps.mjs --electron-native
+          scripts/ci-rebuild-node-pty.sh
+
+      - name: Qualification runner self-tests
+        run: node --test scripts/v2-perf-qualify.test.mjs scripts/v2-perf-qualify-workflows.test.mjs
+
+      - name: Run overnight soak cell
+        env:
+          V2Q_EVIDENCE_DIR: ${{ runner.temp }}/v2-perf-evidence
+        run: |
+          set -euo pipefail
+          node scripts/v2-perf-qualify.mjs soak --arm "$PWD" --out "$V2Q_EVIDENCE_DIR"
+
+      - name: Upload soak evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v2-perf-soak-${{ github.run_id }}
+          path: ${{ runner.temp }}/v2-perf-evidence
+          if-no-files-found: warn
+          retention-days: 30

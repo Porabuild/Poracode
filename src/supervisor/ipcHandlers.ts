@@ -1,4 +1,9 @@
 import type { ListPluginsPayload } from "@/shared/contracts";
+import {
+  editQueuedThreadFollowUpPayloadSchema,
+  sendThreadInputPayloadSchema,
+  setPendingSteerPayloadSchema,
+} from "@/shared/contracts";
 import { defineSupervisorIpcHandlers, type SupervisorIpcHandlerMap } from "@/shared/ipc";
 import { getProjectFsPath } from "@/shared/wsl";
 import type { SupervisorRuntime } from "./supervisorRuntime";
@@ -59,21 +64,29 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     authenticateAcpAgent: (payload) => registry.authenticateAcpAgent(payload),
     logoutAcpAgent: (payload) => registry.logoutAcpAgent(payload),
     getThreadSnapshots: () => threads.getThreadSnapshots(),
+    getResourceAdmissionStatus: () => runtime.getResourceAdmissionStatus(),
     getTerminalShellSnapshots: () => threads.getTerminalShellSnapshots(),
     getAvailableWindowsShells: () => runtime.getAvailableWindowsShells(),
     startThread: (payload) => threads.startThread(payload),
-    sendThreadInput: (payload) => threads.sendThreadInput(payload),
+    ensureThreadRunning: (payload) => threads.ensureThreadRunning(payload),
+    sendThreadInput: (payload) =>
+      threads.sendThreadInput(sendThreadInputPayloadSchema.parse(payload)),
     interruptThread: (payload) => threads.interruptThread(payload),
     controlThreadGoal: (payload) => threads.controlThreadGoal(payload),
     connectThreadVoice: (payload) => threads.connectThreadVoice(payload),
     disconnectThreadVoice: (payload) => threads.disconnectThreadVoice(payload),
     rollbackThreadConversation: (payload) => threads.rollbackThreadConversation(payload),
-    setPendingSteer: (payload) => threads.setPendingSteer(payload),
+    createRevertAnchor: (payload) => threads.createRevertAnchor(payload),
+    restoreToRevertAnchor: (payload) => threads.restoreToRevertAnchor(payload),
+    setPendingSteer: (payload) =>
+      threads.setPendingSteer(setPendingSteerPayloadSchema.parse(payload)),
     clearPendingSteer: (payload) => threads.clearPendingSteer(payload),
-    queueThreadFollowUp: (payload) => threads.queueThreadFollowUp(payload),
+    queueThreadFollowUp: (payload) =>
+      threads.queueThreadFollowUp(setPendingSteerPayloadSchema.parse(payload)),
     removeQueuedThreadFollowUp: (payload) => threads.removeQueuedThreadFollowUp(payload),
     reorderQueuedThreadFollowUp: (payload) => threads.reorderQueuedThreadFollowUp(payload),
-    editQueuedThreadFollowUp: (payload) => threads.editQueuedThreadFollowUp(payload),
+    editQueuedThreadFollowUp: (payload) =>
+      threads.editQueuedThreadFollowUp(editQueuedThreadFollowUpPayloadSchema.parse(payload)),
     steerQueuedThreadFollowUp: (payload) => threads.steerQueuedThreadFollowUp(payload),
     pauseThreadFollowUps: (payload) => threads.pauseThreadFollowUps(payload),
     resumeThreadFollowUps: ({ threadId }) => threads.resumeThreadFollowUps(threadId),
@@ -84,11 +97,13 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     resolveThreadServerRequest: (payload) => threads.resolveThreadServerRequest(payload),
     reloadAgentMcpServers: (payload) => threads.reloadAgentMcpServers(payload),
     closeThread: (payload) => threads.closeThread(payload),
+    closeThreadConfirmed: (payload) => threads.closeThreadConfirmed(payload),
     startShell: (payload) => threads.startShell(payload),
     extractContext: (payload) => generation.extractContext(payload),
     cancelExtractContext: ({ threadId }) => generation.cancelExtractContext(threadId),
     readTerminalScrollback: ({ threadId }) => threads.readTerminalScrollback(threadId),
     readTerminalSize: ({ threadId }) => threads.readTerminalSize(threadId),
+    readTerminalSnapshot: ({ threadId }) => threads.readTerminalSnapshot(threadId),
     readThreadBackgroundTasks: ({ threadId }) => [...threads.readThreadBackgroundTasks(threadId)],
     subagentSubscribe: (payload) => threads.subagentSubscribe(payload),
     subagentUnsubscribe: async (payload) => {

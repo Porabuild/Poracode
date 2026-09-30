@@ -11,17 +11,43 @@ import type {
 } from "@/shared/contracts";
 import type { CrossagentMcpHttpConfig } from "@/supervisor/agents/crossagentMcp";
 import type { WslHostAccessResolver } from "@/supervisor/wsl/hostAccess";
+import type { HostResourceAdmission } from "../hostResourceAdmission";
 import type { AgentAdapter, AgentNativePlugin } from "../../agents/base";
 import type { WindowsShellPreference } from "../../shellPreference";
 
 export interface ThreadSessionManagerOptions {
-  emit(event: SupervisorEvent): void;
+  /**
+   * Broadcast one supervisor event. Canonical envelopes may carry the buffer's
+   * exact byte estimate so the sender's credit ledger charges the same value
+   * the buffer gated on (one estimate, no re-serialization drift).
+   */
+  emit(event: SupervisorEvent, meta?: { estimatedBytes?: number }): void;
   isDev: boolean;
   logsDir: string;
   settingsPath: string;
   readDisableCliHookPlugin(): boolean;
   adapters: Map<AgentKind, AgentAdapter>;
   resolveWindowsShell(runtime?: "preferred" | "powershell"): WindowsShellPreference;
+  /**
+   * Optional: the supervisor's one host execution-slot owner. When absent (unit
+   * harnesses), the manager creates its own explicit-unlimited owner so
+   * counting/retirement semantics are still exercised.
+   */
+  admission?: HostResourceAdmission;
+  /**
+   * Optional: bounded structured-disposal join deadline used by retirement.
+   * Production uses the shared lifecycle constant; focused harnesses tighten
+   * it so a permanently hanging provider disposal is exercised without a
+   * multi-second wait. The deadline never cancels the disposal.
+   */
+  structuredDisposalTimeoutMs?: number;
+  /**
+   * Optional: remaining canonical bytes the host will credit right now
+   * (sender ledger window). When a negotiated credit window is active, the
+   * canonical event buffer holds rather than emitting past it; absent (legacy
+   * host), the static buffer bounds apply.
+   */
+  canonicalCapacity?(): number;
   /**
    * Optional: provides CLI hook plugin ingress env vars + extra CLI args injected
    * into every agent PTY spawn. The supervisor boots a single

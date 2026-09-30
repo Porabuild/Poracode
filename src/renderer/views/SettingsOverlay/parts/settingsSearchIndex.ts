@@ -139,6 +139,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Show voice input button`,
     description: msg`Show the microphone button in the composer.`,
     keywords: "mic microphone dictation speech composer",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -146,6 +147,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Microphone`,
     description: msg`Device used by the composer voice input button.`,
     keywords: "mic input device audio source",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -153,6 +155,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Test microphone`,
     description: msg`Check the live input level from the selected device.`,
     keywords: "mic check level meter input test",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -160,6 +163,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input language`,
     description: msg`Language the speech model should expect when transcribing composer dictation.`,
     keywords: "transcription dictation speech locale",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -167,6 +171,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Voice input model`,
     description: msg`Fastest uses Whisper tiny; Better uses Whisper base.`,
     keywords: "whisper transcription speech model tiny base quality speed",
+    desktopOnly: true,
   },
   {
     section: "audio",
@@ -174,6 +179,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Use WebGPU acceleration`,
     description: msg`Run local transcription on the GPU when available.`,
     keywords: "gpu acceleration hardware transcription performance",
+    desktopOnly: true,
   },
 
   // Appearance
@@ -275,6 +281,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Collapse terminal composer`,
     description: msg`Start the composer collapsed in terminal-native threads. A collapsed composer routes browser element picks straight to the terminal.`,
     keywords: "collapse composer terminal-native threads input minimize",
+    desktopOnly: true,
   },
   {
     section: "terminal",
@@ -352,6 +359,31 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsSearchEntry[] = [
     title: msg`Confirm before deleting threads`,
     description: msg`Show a confirmation before permanently deleting a thread.`,
     keywords: "confirm delete thread worktree remove ask warning",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveAgentSessions",
+    title: msg`Max active agent sessions`,
+    description: msg`Bounds how many agent sessions can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords: "resource admission execution slots limit concurrency capacity host agent sessions",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveTerminalShells",
+    title: msg`Max active terminal shells`,
+    description: msg`Bounds how many terminal shells can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords: "resource admission execution slots limit concurrency capacity host terminal shells",
+    desktopOnly: true,
+  },
+  {
+    section: "threads",
+    anchor: "threads.maxActiveGenerationHelpers",
+    title: msg`Max active generation helpers`,
+    description: msg`Bounds how many short-lived generation helpers (thread titles, commit messages, conflict resolution) can run at once on this host. Counts logical execution slots, not OS processes or memory. 0 means unlimited.`,
+    keywords:
+      "resource admission execution slots limit concurrency capacity host generation helpers titles commits conflict resolution",
     desktopOnly: true,
   },
 

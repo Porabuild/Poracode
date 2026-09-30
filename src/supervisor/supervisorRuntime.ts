@@ -1,7 +1,7 @@
 import { NativeMcpSetupCoordinator } from "./runtime/nativeMcpSetupCoordinator";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { join } from "node:path";
 import type {
   AgentKind,
   CaptureExperimentSnapshotPayload,
@@ -29,8 +29,8 @@ import { crossagentRankingPreferences } from "@/shared/crossagentRanking";
 import type { CrossagentRoutingState } from "@/shared/crossagentRanking";
 import type { ConfirmCrossagentRoutingOverridePayload } from "@/shared/ipc/procedures/mcp";
 import { msg } from "@/shared/messages";
-import { resolvePoracodePaths } from "@/shared/poracodePaths";
-import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
+import { poracodeBaseDirFromEnv, resolvePoracodePaths } from "@/shared/poracodePaths";
+import { getProjectFsPath, getWslLocationHostFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { prefetchNativeNodeRuntime } from "./runtime/prefetchNativeNode";
 import {
   setSessionFsBridgeClient,
@@ -64,6 +64,14 @@ import { UsageService } from "./runtime/usageService";
 import { setWslCredentialProjectScope } from "./runtime/wslCredentials";
 import { AgentRegistryService } from "./runtime/agentRegistryService";
 import { GenerationService } from "./runtime/generationService";
+import {
+  HostResourceAdmissionOwner,
+  type HostResourceAdmission,
+  type HostResourceAdmissionPolicy,
+  type ResolvedHostResourceAdmission,
+} from "./runtime/hostResourceAdmission";
+import type { HostResourceAdmissionStatus } from "@/shared/hostResourceAdmission";
+import { gitProcessAdmissionUsage } from "./git/gitProcessAdmission";
 import { type SessionRuntime, type ShellSessionRuntime } from "./runtime/sessionTypes";
 import { ThreadSessionManager, writeSubmittedPrompt } from "./runtime/threadSessionManager";
 import { CliHookPluginCoordinator } from "./runtime/cliHookPluginCoordinator";
@@ -86,6 +94,7 @@ import { WslBridgeServer } from "./wsl/bridge";
 import { WslBridgeClient } from "./wsl/bridge/client";
 import { resolveWslHelpersDir } from "./wsl/wslDeploy";
 import { resolveWslHostAccess } from "./wsl/hostAccess";
+import { disposeWslStagingService } from "./wsl/staging";
 import { McpOAuthService } from "./mcp/McpOAuthService";
 import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
@@ -106,6 +115,31 @@ function toPublicExperimentSnapshot(
   };
 }
 
+export interface SupervisorRuntimeOptions {
+  /**
+   * Remaining canonical bytes the host will credit right now (B1 sender
+   * ledger). Wired into the canonical event buffer so a negotiated credit
+   * window bounds bytes already handed to IPC, not just the local queue.
+   */
+  canonicalCapacity?(): number;
+  /**
+   * Host execution-slot policy for the one shared admission owner. Defaults to
+   * the settings-backed policy resolved by the shared settings cache (which
+   * falls back to the explicit unlimited pre-measurement default only when no
+   * valid policy was ever observed). Tests may inject a fixed getter.
+   */
+  hostResourceAdmissionPolicy?(): HostResourceAdmissionPolicy;
+}
+
+/**
+ * Broadcast one supervisor event with an optional exact byte estimate (B1
+ * credit accounting: the sender charges the same value the buffer gated on).
+ */
+export type SupervisorRuntimeEmit = (
+  event: SupervisorEvent,
+  meta?: { estimatedBytes?: number },
+) => void;
+
 export class SupervisorRuntime {
   private readonly isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
   private readonly baseDir: string;
@@ -113,6 +147,12 @@ export class SupervisorRuntime {
   private readonly settingsPath: string;
   private readonly acpIconsDir: string;
   private readonly sharedSettingsCache: SupervisorSharedSettingsCache;
+  /**
+   * The one host execution-slot owner: threads, shells, subagent children and
+   * generation helpers all acquire through this instance. Explicitly unlimited
+   * until the measurement phase supplies numbers.
+   */
+  readonly hostResourceAdmission: HostResourceAdmission;
   // The service cluster is public on purpose: `createSupervisorIpcHandlers`
   // maps IPC procedures straight onto these services — this class only wires
   // them together and hosts the few cross-service orchestrations below.
@@ -169,16 +209,16 @@ export class SupervisorRuntime {
 
   private wslBridgeClient: WslBridgeClient | undefined;
 
-  constructor(private readonly emit: (event: SupervisorEvent) => void) {
-    // Defensive: `process.env.X = undefined` coerces to the literal string
-    // "undefined" in Node, and we've been bitten by that path creating
-    // `./undefined/settings.json` in cwd. Also reject bare relative paths —
-    // the supervisor must always operate out of an absolute baseDir so
-    // writes land somewhere predictable regardless of cwd at spawn time.
-    const rawBaseDir = process.env.PORACODE_DATA_DIR?.trim();
-    const envBaseDir =
-      rawBaseDir && rawBaseDir !== "undefined" && isAbsolute(rawBaseDir) ? rawBaseDir : undefined;
-    const baseDir = envBaseDir ?? join(homedir(), ".poracode");
+  constructor(
+    private readonly emit: SupervisorRuntimeEmit,
+    options: SupervisorRuntimeOptions = {},
+  ) {
+    // Defensive: the env parse (in `poracodeBaseDirFromEnv`) rejects the
+    // literal "undefined" string and bare relative paths — we've been bitten
+    // by that path creating `./undefined/settings.json` in cwd, and the
+    // supervisor must always operate out of an absolute baseDir so writes
+    // land somewhere predictable regardless of cwd at spawn time.
+    const baseDir = poracodeBaseDirFromEnv() ?? join(homedir(), ".poracode");
     this.baseDir = baseDir;
     this.mcpOAuthService = new McpOAuthService({ baseDir });
     this.mcpProbeService = new McpProbeService({
@@ -189,6 +229,9 @@ export class SupervisorRuntime {
     this.settingsPath = paths.settingsPath;
     this.acpIconsDir = paths.acpIconsDir;
     this.sharedSettingsCache = new SupervisorSharedSettingsCache(this.settingsPath);
+    this.hostResourceAdmission = new HostResourceAdmissionOwner(
+      options.hostResourceAdmissionPolicy ?? (() => this.resolveHostResourceAdmissionPolicy()),
+    );
     this.disposeWindowsPowerShellPreference = setWindowsPowerShellPreferenceResolver(() => {
       const preference = this.resolveWindowsPowerShell();
       return preference.kind === "cmd"
@@ -353,6 +396,7 @@ export class SupervisorRuntime {
     // closures resolve it lazily at call time).
     this.subagentRunManager = new SubagentRunManager({
       adapters: this.adapters,
+      admission: this.hostResourceAdmission,
       // Validate spawn selections against the persisted status pipeline — the
       // same source list_agents/get_agent (and the composer) are served from —
       // so the executor never disagrees with the roster it advertised.
@@ -433,7 +477,9 @@ export class SupervisorRuntime {
       settingsPath: this.settingsPath,
       readDisableCliHookPlugin: () => this.sharedSettingsCache.read().disableCliHookPlugin,
       adapters: this.adapters,
+      admission: this.hostResourceAdmission,
       resolveWindowsShell: (runtime) => this.resolveWindowsShell(runtime),
+      ...(options.canonicalCapacity ? { canonicalCapacity: options.canonicalCapacity } : {}),
       ...(this.wslHookBridge ? { wslBridge: this.wslHookBridge } : {}),
       resolvePluginEnvForSpawn: (input) =>
         this.cliHookPluginCoordinator.resolvePluginEnvForSpawn(input),
@@ -544,6 +590,7 @@ export class SupervisorRuntime {
 
     this.generationService = new GenerationService({
       adapters: this.adapters,
+      hostResourceAdmission: this.hostResourceAdmission,
       readTerminalScrollback: (threadId) =>
         this.threadSessionManager.readTerminalScrollback(threadId),
       wslBridgeClient: this.wslBridgeClient,
@@ -583,6 +630,69 @@ export class SupervisorRuntime {
 
   getAvailableWindowsShells() {
     return process.platform === "win32" ? this.getCachedAvailableWindowsShells() : [];
+  }
+
+  /**
+   * Additive on-demand diagnostic: effective admission policy, how it was
+   * resolved, and live usage. Read from the same settings cache as every
+   * other consumer; this never starts work and never forces a file read when
+   * the cache is warm.
+   */
+  getResourceAdmissionStatus(): HostResourceAdmissionStatus {
+    const resolved = this.sharedSettingsCache.readHostResourceAdmission();
+    this.logHostResourceAdmissionResolution(resolved);
+    return {
+      resolution: resolved.resolution,
+      policy: resolved.policy,
+      usage: this.hostResourceAdmission.usage(),
+      gitProcesses: gitProcessAdmissionUsage(),
+    };
+  }
+
+  private admissionResolutionLogKey: string | undefined;
+
+  /**
+   * The one admission getter: the owner reads it per acquire, the cache owns
+   * the document, and `lastGood` inside the cache keeps a previously valid
+   * finite policy in force across transient read/parse failures.
+   */
+  private resolveHostResourceAdmissionPolicy(): HostResourceAdmissionPolicy {
+    const resolved = this.sharedSettingsCache.readHostResourceAdmission();
+    this.logHostResourceAdmissionResolution(resolved);
+    return resolved.policy;
+  }
+
+  private logHostResourceAdmissionResolution(resolved: ResolvedHostResourceAdmission): void {
+    const { resolution, policy } = resolved;
+    const logKey = [
+      resolution.kind,
+      resolution.problem ?? "",
+      policy.maxActiveAgentSessions,
+      policy.maxActiveTerminalShells,
+      policy.maxActiveGenerationHelpers,
+      policy.refuseNewStarts ?? "",
+    ].join(":");
+    if (logKey === this.admissionResolutionLogKey) return;
+    this.admissionResolutionLogKey = logKey;
+    const limits =
+      `agent sessions ${policy.maxActiveAgentSessions || "unlimited"}, ` +
+      `terminal shells ${policy.maxActiveTerminalShells || "unlimited"}, ` +
+      `generation helpers ${policy.maxActiveGenerationHelpers || "unlimited"}`;
+    if (resolution.kind === "unavailable") {
+      console.error(
+        `[supervisor] host resource admission settings are ${resolution.problem ?? "invalid"}; ` +
+          `refusing new counted starts until a valid policy is readable (limits ${limits}).`,
+      );
+      return;
+    }
+    if (resolution.kind === "retained") {
+      console.warn(
+        `[supervisor] host resource admission settings are ${resolution.problem ?? "invalid"}; ` +
+          `keeping the last known valid policy (${limits}).`,
+      );
+      return;
+    }
+    console.log(`[supervisor] host resource admission policy (${resolution.kind}): ${limits}.`);
   }
 
   queueThreadFollowUp(
@@ -823,9 +933,13 @@ export class SupervisorRuntime {
 
     for (const [threadId, session] of this.sessions) {
       const projectLocation = session.logicalProjectLocation ?? session.projectLocation;
-      const sessionPath =
-        projectLocation.kind === "wsl" ? projectLocation.uncPath : projectLocation.path;
-      if (normalizedTargets.has(normalizePath(sessionPath))) {
+      // A WSL location is matched by its host fs path (native drive path for
+      // DrvFs) and its UNC path, since worktree paths may carry either form.
+      const sessionPaths =
+        projectLocation.kind === "wsl"
+          ? [getWslLocationHostFsPath(projectLocation), projectLocation.uncPath]
+          : [projectLocation.path];
+      if (sessionPaths.some((sessionPath) => normalizedTargets.has(normalizePath(sessionPath)))) {
         threadIds.add(threadId);
       }
     }
@@ -1030,11 +1144,25 @@ export class SupervisorRuntime {
     this.mcpOAuthService.dispose();
     this.lspManager.dispose();
     await this._projectWatcher?.dispose();
-    await this.threadSessionManager.dispose();
+    const ptysExited = await this.threadSessionManager.dispose();
+    // Subagent custody is owned by the run manager, not the thread session
+    // manager: join/retry every child retirement still holding capacity
+    // (bounded per child) before reporting shutdown.
+    await this.subagentRunManager.retryRetirements().catch((error) => {
+      console.warn("[supervisor] subagent retirement retry failed:", error);
+    });
+    if (!ptysExited) {
+      throw new Error("Supervisor PTY shutdown was not confirmed before the deadline.");
+    }
     this.crossagentMcpIngress.dispose();
     this.sharedSettingsCache.dispose();
     await this.cliHookPluginCoordinator.dispose().catch((error) => {
       console.warn("[supervisor] CLI hook plugin coordinator dispose failed:", error);
+    });
+    // Join per-distro staging workers so no isolated filesystem handle
+    // outlives the runtime that owned it.
+    await disposeWslStagingService().catch((error) => {
+      console.warn("[supervisor] WSL staging worker dispose failed:", error);
     });
     await Promise.all(
       [...this.adapters.values()].map(async (adapter) => {

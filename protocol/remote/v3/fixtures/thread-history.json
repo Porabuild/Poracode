@@ -1,0 +1,48 @@
+{
+  "snapshotSeq": 42,
+  "thread": {
+    "id": "thread-fixture-001",
+    "projectId": "project-fixture-001",
+    "title": "Fixture thread",
+    "agentKind": "codex",
+    "config": {
+      "model": "gpt-5"
+    },
+    "status": "idle",
+    "attention": "none",
+    "presentationMode": "gui",
+    "createdAt": "2026-08-12T10:01:00.000Z",
+    "updatedAt": "2026-08-12T10:02:00.000Z"
+  },
+  "runtimeItems": [
+    {
+      "id": "item-fixture-assistant",
+      "type": "assistant_message",
+      "state": "completed",
+      "payload": {
+        "content": [
+          {
+            "kind": "text",
+            "text": "Fixture response"
+          }
+        ]
+      },
+      "streams": {
+        "assistant_text": "Fixture response"
+      }
+    }
+  ],
+  "runtimeNextCursor": null,
+  "completedTurns": [
+    {
+      "startedAt": "2026-08-12T10:01:10.000Z",
+      "endedAt": "2026-08-12T10:01:12.000Z",
+      "anchorItemId": "item-fixture-assistant"
+    }
+  ],
+  "contextUsage": {
+    "usedTokens": 128,
+    "maxTokens": 8192
+  },
+  "updatedAt": "2026-08-12T10:02:00.000Z"
+}

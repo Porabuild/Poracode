@@ -62,10 +62,10 @@ export async function extractContext(
 ): Promise<ExtractContextResult> {
   // Primary path: adapter-specific extraction via --resume + print mode
   if (adapter.buildContextExtractionCommand) {
-    const cmd = adapter.buildContextExtractionCommand(sessionRef, location, model);
+    const cmd = await adapter.buildContextExtractionCommand(sessionRef, location, model);
     if (cmd) {
       const extractionCommand = withCommandBaseSpawnEnv(cmd, adapter.baseSpawnEnv);
-      const spawnSpec = buildOneShotSpec(
+      const spawnSpec = await buildOneShotSpec(
         location,
         extractionCommand.command,
         extractionCommand.args,

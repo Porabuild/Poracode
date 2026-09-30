@@ -27,17 +27,22 @@ import { MAX_CONCURRENT_CHILDREN_PER_PARENT, type SubagentRunManager } from "./S
 import {
   errorResult,
   jsonResult,
+  runToolResult,
+  WAIT_AGAIN_INSTRUCTION,
   parseWaitOptions,
+  parseOutputMode,
   parseWaitTimeoutMs,
   TIMEOUT_S_DESCRIPTION,
 } from "./toolResult";
-import { parseRunIds, parseSpawnRequest, parseSpawnRequests } from "./toolRequests";
+import { parseRunIds, parseSpawnRequests } from "./toolRequests";
+import { resolveSelectionArgs, spawnAgent } from "./toolSpawn";
+import { dispatchWorkflow } from "./toolWorkflow";
+import { steerAgent } from "./toolSteer";
 import { rankingCandidateOf, resolveSubagentExecution } from "./types";
 import type {
   McpToolResult,
   ExplicitSpawnAgentSelection,
   ModelTier,
-  SpawnAgentSelection,
   SpawnableAgent,
   SpawnableAgentSummary,
   ToolSpec,
@@ -70,27 +75,12 @@ export function classifyModelTier(modelId: string, modelLabel: string): ModelTie
 
 const CROSSAGENTS_CORE_SKILL = uniqueCoreSkillForBuiltInMcp("crossagents");
 
-/** Base routing guidance always included in the MCP `initialize` instructions. */
+/** Keep bootstrap small: some clients repeat initialize instructions in every tool description. */
 export const CROSSAGENT_MCP_INSTRUCTIONS_BASE = [
-  "Use the Crossagents MCP server to delegate lightweight, ephemeral work to the other AI agents connected to this Poracode session.",
-  `Before the first spawn_agent call, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} — it is this plugin's core skill.`,
-  "Every tool named below belongs to this server. Hosts that namespace MCP tools expose them under this server's name (for example `crossagents__list_agents` or `mcp__crossagents__list_agents`), so resolve each bare name against your own tool list and call the crossagents entry — never the same bare name under another server such as `poracode`.",
-  "Delegate only once the user has explicitly asked you to involve another agent in this thread, for example via an @Crossagents mention or a direct request to delegate or get a second opinion. That ask authorizes delegation for the rest of the thread, so later turns may spawn as the work requires; until then, never spawn subagents on your own initiative.",
-  "Call list_agents when provider selection matters; call get_agent only when you need one provider's detailed models, reasoning options, Fast availability, or permissions preset.",
-  "Classify every task with 1-5 concise lowercase tags and pass the same tags to list_agents and spawn_agent. Prefer this vocabulary when applicable: frontend, ui, design, backend, mobile, simulator, implementation, bugfix, review, testing, research, refactor, docs, devops, data. Crossagents learns tag-to-selection affinity from user-explicit selection choices without an extra model call.",
-  "Explicit provider, model, reasoning, and Fast values always win. When the user does not specify them, omit those fields and Crossagents will resolve matching manual task routes first, then learned task tags, global explicit Crossagents usage, frequently used and favorite composer selections, then built-in order.",
-  "When the user explicitly asks to always prefer a provider/model for a kind of task, call set_routing_preference with its tags and selection. This persistent manual override ranks before learned affinity. Use remove_routing_preference when the user asks to forget or reset it; do not create or remove persistent preferences without clear user intent.",
-  "This server hosts one delegation lane: ephemeral subagent runs whose output streams into your own thread.",
-  "Use spawn_agent for delegation: it waits by default. Set background=true only when the parent has useful work to do before the result; this returns a run_id and never injects a new message into the parent thread. At the next synchronization point, call wait_for_agent for every background result the task requires. Each wait is bounded only to stay below the MCP client's transport timeout: status=running means the server kept the child active, and the elapsed wait does not by itself mean the run stalled. When its result is required, keep waiting across as many wait_for_agent calls as necessary. Never cancel or abandon a run solely because 180 seconds or any other wait duration elapsed, it has not produced a final answer yet, or it is still investigating. Cancel only when the user explicitly asks or the task is no longer needed for a reason unrelated to elapsed time.",
-  "wait_for_agent and get_status support incremental output: pass the previous result's total_output_chars as after_output_chars on the next call, so repeated waits return only newer text and identical retries remain safe. Output is clipped to a short tail while the run is still working; clipped text requires full_output=true if genuinely needed.",
-  `Pass tasks=[...] to the same spawn_agent call to launch up to ${MAX_CONCURRENT_CHILDREN_PER_PARENT} independent agents in parallel. Each parent thread can have at most ${MAX_CONCURRENT_CHILDREN_PER_PARENT} running agents across all calls; wait for an existing run to finish before spawning beyond that limit.`,
-  "Use ordered fallbacks to retry startup failures on another model or provider. Retrying after a dispatched turn requires retry_on='any-failure' because it may repeat side effects.",
-  "Background runs also survive interruption of the current parent turn, but still stop when the parent thread closes.",
-  "Give each subagent a self-contained prompt — it does not share your conversation context.",
-  "Use steer_agent to send a follow-up message to a running child: corrections, new evidence, or narrowed scope. The child keeps its session and context and continues with your message. It is a message, not a result: keep waiting for the child to finish. list_runs.can_steer is false only while a child is still starting, has finished, or is processing a previous message.",
-  "For larger batches, call list_runs with include_capacity=true to inspect available_slots (a snapshot, not a reservation). Use wait_for_agent with run_ids and wait_mode='any' to collect the next completed result and refill free slots; omit already-settled runs from the next wait. Scope concurrent edits to distinct files or clearly separated responsibilities. Include the objective, relevant context, constraints, and acceptance checks in each prompt. Ask for findings with file references, verification evidence, and unresolved risks; validate the returned work before integrating it.",
-  "Always set name on spawn_agent and on every tasks=[...] entry: a short, specific label describing what that subagent will do (for example `Review runtime findings`). Users see this label in the thread; do not omit it or repeat provider/model/reasoning values there — Crossagents appends those automatically.",
-  "For long-lived, first-class app threads the user sees in the sidebar (optionally in their own git worktree) — e.g. one ticket or feature per thread — use the always-on `poracode` MCP server's thread tools (create_thread, list_threads, get_thread, read_thread, send_to_thread, wait_for_thread, interrupt_thread, stop_thread) instead.",
+  "Delegate only after the user's explicit request in this thread; authorization persists.",
+  `Before first delegation, ${loadPluginCoreSkillPhrase(CROSSAGENTS_CORE_SKILL)} once using its known path or ID.`,
+  "Resolve crossagents-qualified tool names and only needed schemas together. Reuse loaded instructions and batch independent setup.",
+  "Known selections can spawn directly; use get_agent for missing model details and list_agents only when the provider is unknown.",
 ].join(" ");
 
 export function buildSubagentInstructions(routingGuide?: string): string {
@@ -128,6 +118,13 @@ const SUBAGENT_SELECTION_PROPERTIES = {
   },
 } as const;
 
+const OUTPUT_MODE_PROPERTY = {
+  type: "string",
+  enum: ["quiet", "progress"],
+  description:
+    "quiet is the default: running reads contain status, unread cursor, errors and pending request counts, without worker narration. Settled evidence is unchanged. progress restores narration; full_output retrieves the complete transcript.",
+} as const;
+
 const FULL_OUTPUT_PROPERTY = {
   type: "boolean",
   description:
@@ -161,6 +158,12 @@ const TASK_TAGS_PROPERTY = {
 const SUBAGENT_TASK_PROPERTIES = {
   ...SUBAGENT_SELECTION_PROPERTIES,
   prompt: { type: "string", description: "Self-contained task for the subagent." },
+  result_mode: {
+    type: "string",
+    enum: ["compact"],
+    description:
+      "Worker authors a structured final report. Reads return that report, not narration; full_output retrieves evidence. Missing/invalid reports are explicit errors. Omit for legacy output.",
+  },
   tags: TASK_TAGS_PROPERTY,
   name: {
     type: "string",
@@ -197,9 +200,61 @@ const SUBAGENT_REQUEST_PROPERTIES = {
 
 const RAW_TOOLS: ToolSpec[] = [
   {
+    name: "run_workflow",
+    description:
+      "Manage a host-scheduled task graph (native macOS/Linux only; Windows/WSL unsupported). start validates all stages and declared write scopes before launch; dependencies receive worker-authored compact reports. Failed checks, important findings or invalid reports block downstream work. No automatic publication or parent-message injection. Requires the same delegation authorization as spawn_agent.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["start", "status", "wait", "cancel", "list"],
+          default: "start",
+        },
+        workflow_id: { type: "string", description: "Required for status, wait and cancel." },
+        background: {
+          type: "boolean",
+          description:
+            "On start, return immediately only when useful independent work remains. Default waits for completion, attention or timeout.",
+        },
+        ...SUBAGENT_SELECTION_PROPERTIES,
+        tasks: {
+          type: "array",
+          minItems: 1,
+          maxItems: 16,
+          items: {
+            type: "object",
+            required: ["id", "prompt", "write_scope"],
+            properties: {
+              ...SUBAGENT_TASK_PROPERTIES,
+              retry_on: {
+                type: "string",
+                enum: ["startup"],
+                description: "Workflows retry startup failures only.",
+              },
+              id: { type: "string" },
+              depends_on: { type: "array", items: { type: "string" } },
+              write_scope: {
+                type: "array",
+                items: { type: "string" },
+                description:
+                  "Exact project-relative files/directories owned by this task. [] means read-only. Concurrent scopes must not overlap.",
+              },
+            },
+          },
+        },
+        timeout_s: {
+          type: "number",
+          description:
+            "Max seconds for this call (default and cap 480). Returns when the workflow finishes or needs attention. Timeout leaves stages running; continue with run_workflow action=wait and workflow_id when results remain required.",
+        },
+      },
+    },
+  },
+  {
     name: "list_agents",
     description:
-      "List currently spawnable providers in resolved routing order, including task-tag affinity, rank, ranking source, usage count, learned tags, preferred selection, execution lane, default model, and model count. Pass the task's tags here and again to spawn_agent.",
+      "Choose an unknown provider from the ranked roster. Skip when the provider is already known: get_agent supplies its options, or spawn directly with known selection values.",
     inputSchema: {
       type: "object",
       properties: { tags: TASK_TAGS_PROPERTY },
@@ -208,12 +263,16 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "get_agent",
     description:
-      "Get one currently spawnable provider by id, including its task-tag affinity, learned tags, preference and rank, models, model-specific reasoning values, Fast availability, permissions, and execution lane.",
+      "Get one provider's models, reasoning, Fast and permission options directly by ID; no list_agents prerequisite. Supply model to return only that exact model. Skip this call when the required selection values are already known.",
     inputSchema: {
       type: "object",
       required: ["id"],
       properties: {
-        id: { type: "string", description: "Provider id from list_agents." },
+        id: { type: "string", description: "Known provider ID, or one chosen from list_agents." },
+        model: {
+          type: "string",
+          description: "Optional exact model value to limit returned model details.",
+        },
         tags: TASK_TAGS_PROPERTY,
       },
     },
@@ -241,6 +300,7 @@ const RAW_TOOLS: ToolSpec[] = [
           description: TIMEOUT_S_DESCRIPTION,
         },
         full_output: FULL_OUTPUT_PROPERTY,
+        output_mode: OUTPUT_MODE_PROPERTY,
       },
       // No root-level union here: Cursor's backend rejects tool schemas that carry
       // `oneOf` at the root and fails the whole turn with a provider error. Callers
@@ -315,6 +375,7 @@ const RAW_TOOLS: ToolSpec[] = [
           description: TIMEOUT_S_DESCRIPTION,
         },
         full_output: FULL_OUTPUT_PROPERTY,
+        output_mode: OUTPUT_MODE_PROPERTY,
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
         after_output_chars_by_run: AFTER_OUTPUT_CHARS_BY_RUN_PROPERTY,
         wait_mode: {
@@ -338,6 +399,7 @@ const RAW_TOOLS: ToolSpec[] = [
       properties: {
         run_id: { type: "string" },
         full_output: FULL_OUTPUT_PROPERTY,
+        output_mode: OUTPUT_MODE_PROPERTY,
         after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
       },
     },
@@ -345,17 +407,29 @@ const RAW_TOOLS: ToolSpec[] = [
   {
     name: "list_runs",
     description:
-      "List this parent thread's subagent runs, including background work, current status, and retry attempt. With include_capacity=true, return { runs, capacity: { running, limit, available_slots } } to plan the next batch.",
+      "List this parent thread's subagent runs, including background work, current status, and retry attempt. With include_capacity=true, return { runs, capacity: { running, stopping?, limit, available_slots } }; stopping workers retain their slots until cleanup succeeds.",
     inputSchema: { type: "object", properties: { include_capacity: { type: "boolean" } } },
   },
   {
     name: "steer_agent",
     description:
-      "Send a follow-up message to a running child owned by this parent, like sending a message to a chat. The child keeps its session and context and continues with your message. Returns once the message is delivered; keep waiting for the child's result.",
+      "Send a follow-up after the complete result, or rarely correct active work. A completed structured worker resumes the same provider session ID and conversation; returns a new run_id with continued_from. Use the new ID for waiting/cancel/steering; old reports and workflows stay unchanged. Only the latest completed run of a resumable worker can continue. Coordinate its write ownership first. Active steering is only for a material requirement, verified invalid assumption or ownership conflict that cannot wait; never for status or reminders. It may interrupt/restart a turn. Waits for the result by default; background=true returns after acceptance. If still running, wait_for_agent on the returned run_id; do not resend.",
     inputSchema: {
       type: "object",
       required: ["run_id", "prompt"],
-      properties: { run_id: { type: "string" }, prompt: { type: "string", minLength: 1 } },
+      properties: {
+        run_id: { type: "string" },
+        prompt: { type: "string", minLength: 1 },
+        background: {
+          type: "boolean",
+          description:
+            "Return accepted when useful independent work remains. Default false waits for the worker result. Accepted does not mean the message has been processed; wait_for_agent on the returned run_id. A completed follow-up starts in the background only when true.",
+        },
+        timeout_s: { type: "number", description: TIMEOUT_S_DESCRIPTION },
+        full_output: FULL_OUTPUT_PROPERTY,
+        output_mode: OUTPUT_MODE_PROPERTY,
+        after_output_chars: AFTER_OUTPUT_CHARS_PROPERTY,
+      },
     },
   },
   {
@@ -389,8 +463,14 @@ const BASE_TOOLS: ToolSpec[] = RAW_TOOLS.map((tool) => ({
       : {
           readOnlyHint: false,
           destructiveHint:
-            tool.name === "spawn_agent" || tool.name === "steer_agent" || tool.name === "cancel",
-          openWorldHint: tool.name === "spawn_agent" || tool.name === "steer_agent",
+            tool.name === "spawn_agent" ||
+            tool.name === "run_workflow" ||
+            tool.name === "steer_agent" ||
+            tool.name === "cancel",
+          openWorldHint:
+            tool.name === "spawn_agent" ||
+            tool.name === "run_workflow" ||
+            tool.name === "steer_agent",
         },
 }));
 
@@ -552,235 +632,6 @@ export interface SubagentToolContext {
   removeRoutingOverride?: (tags: readonly string[]) => void | Promise<void>;
 }
 
-interface ResolvedSelectionArgs {
-  args: Record<string, unknown>;
-  tags: string[];
-  explicitFields: ExplicitSpawnAgentSelection["explicitFields"];
-  inheritedFallbacks?: SpawnAgentSelection[];
-  inheritedRetryMode?: "startup" | "any-failure";
-}
-
-function resolveSelectionArgs(
-  args: Record<string, unknown>,
-  agents: readonly SpawnableAgent[],
-): ResolvedSelectionArgs {
-  const requestedProvider =
-    typeof args.provider === "string" && args.provider.length > 0 ? args.provider : undefined;
-  const requestedModel =
-    typeof args.model === "string" && args.model.length > 0 ? args.model : undefined;
-  const requestedReasoning =
-    typeof args.reasoning === "string" && args.reasoning.length > 0 ? args.reasoning : undefined;
-  const requestedFast = typeof args.fast === "boolean" ? args.fast : undefined;
-  const tags = normalizeCrossagentTags(args.tags);
-  const explicitFields = {
-    provider: requestedProvider !== undefined,
-    model: requestedModel !== undefined,
-    effort: requestedReasoning !== undefined,
-    fast: requestedFast !== undefined,
-  };
-  const eligibleAgents = agents.flatMap((candidate) => {
-    if (requestedProvider && candidate.provider.value !== requestedProvider) return [];
-    const preference = candidate.preference;
-    const modelIds = requestedModel
-      ? [requestedModel]
-      : [
-          ...new Set([
-            ...(preference?.model ? [preference.model] : []),
-            candidate.defaultModel,
-            ...candidate.models.map((model) => model.value),
-          ]),
-        ];
-    const model = modelIds
-      .map((modelId) => candidate.models.find((option) => option.value === modelId))
-      .find(
-        (option) =>
-          option !== undefined &&
-          (!requestedReasoning || option.reasoning.values.includes(requestedReasoning)) &&
-          (requestedFast !== true || option.fast?.available === true),
-      );
-    return model ? [{ agent: candidate, model }] : [];
-  });
-  const selected = eligibleAgents[0];
-  if (!selected) {
-    if (requestedProvider) {
-      throw new Error(
-        `Provider or requested selection is not currently available: ${requestedProvider}`,
-      );
-    }
-    throw new Error("No available Crossagents provider supports the requested selection");
-  }
-  const { agent, model: modelOption } = selected;
-  const provider = agent.provider.value;
-
-  const preferred = agent.preference ?? {
-    rank: 1,
-    source: "built-in" as const,
-    usageCount: 0,
-    model: agent.defaultModel,
-    fast: false,
-    matchedTags: [],
-    learnedTags: [],
-  };
-  const model = modelOption.value;
-  const usePreferredDetails = preferred.model === model;
-  const reasoning =
-    requestedReasoning ??
-    (usePreferredDetails ? preferred.reasoning : undefined) ??
-    modelOption.reasoning.default;
-  const fast =
-    requestedFast !== undefined ? requestedFast : usePreferredDetails ? preferred.fast : false;
-
-  const override = agent.preference?.override;
-  const primaryFromOverride =
-    override !== undefined &&
-    override.agentKind === provider &&
-    (override.modelId === undefined || override.modelId === model) &&
-    (override.effort === undefined || override.effort === reasoning) &&
-    (override.fast === undefined || override.fast === fast);
-  const inheritedFallbacks = primaryFromOverride
-    ? override.fallbacks?.map((fallback) => ({
-        agent: fallback.agentKind,
-        ...(fallback.modelId ? { model: fallback.modelId } : {}),
-        ...(fallback.effort ? { effort: fallback.effort } : {}),
-        ...(typeof fallback.fast === "boolean" ? { fast: fallback.fast } : {}),
-      }))
-    : undefined;
-  const inheritedRetryMode = primaryFromOverride ? override.retryMode : undefined;
-
-  return {
-    explicitFields,
-    tags,
-    args: {
-      ...args,
-      provider,
-      model,
-      ...(reasoning ? { reasoning } : {}),
-      fast,
-    },
-    ...(inheritedFallbacks ? { inheritedFallbacks } : {}),
-    ...(inheritedRetryMode ? { inheritedRetryMode } : {}),
-  };
-}
-
-async function spawnAgent(
-  args: Record<string, unknown>,
-  ctx: SubagentToolContext,
-): Promise<McpToolResult> {
-  const timeoutMs = parseWaitTimeoutMs(args);
-  const background = args.background === true;
-  const rosterCache = new Map<string, Promise<SpawnableAgent[]>>();
-  const agentsFor = (selectionArgs: Record<string, unknown>) => {
-    const selectionTags = normalizeCrossagentTags(selectionArgs.tags);
-    const key = selectionTags.join("\0");
-    const cached = rosterCache.get(key);
-    if (cached) return cached;
-    const pending = ctx.listSpawnableAgents(selectionTags);
-    rosterCache.set(key, pending);
-    return pending;
-  };
-
-  // The published schema is union-free for Cursor compatibility, so the
-  // either/or contract is enforced here: a call carrying both shapes is
-  // ambiguous and must fail instead of silently picking one branch.
-  if (args.tasks !== undefined && args.prompt !== undefined) {
-    return errorResult("Pass either prompt or tasks, not both.");
-  }
-  if (Array.isArray(args.tasks)) {
-    const tasks = args.tasks;
-    if (tasks.length > MAX_CONCURRENT_CHILDREN_PER_PARENT) {
-      return errorResult(`tasks supports at most ${MAX_CONCURRENT_CHILDREN_PER_PARENT} entries`);
-    }
-    const batchSelection = {
-      ...(typeof args.provider === "string" ? { provider: args.provider } : {}),
-      ...(typeof args.model === "string" ? { model: args.model } : {}),
-      ...(typeof args.reasoning === "string" ? { reasoning: args.reasoning } : {}),
-      ...(typeof args.fast === "boolean" ? { fast: args.fast } : {}),
-      ...(typeof args.permissions === "string" ? { permissions: args.permissions } : {}),
-    };
-    const resolvedTasks: Array<ResolvedSelectionArgs | null> = await Promise.all(
-      tasks.map(async (task) => {
-        if (!task || typeof task !== "object" || Array.isArray(task)) {
-          return null;
-        }
-        const { provider, model, reasoning, fast, permissions, ...taskProperties } = task as Record<
-          string,
-          unknown
-        >;
-        const taskArgs = {
-          ...batchSelection,
-          ...taskProperties,
-          ...(typeof provider === "string" && provider.length > 0 ? { provider } : {}),
-          ...(typeof model === "string" && model.length > 0 ? { model } : {}),
-          ...(typeof reasoning === "string" && reasoning.length > 0 ? { reasoning } : {}),
-          ...(typeof fast === "boolean" ? { fast } : {}),
-          ...(typeof permissions === "string" ? { permissions } : {}),
-        };
-        return resolveSelectionArgs(taskArgs, await agentsFor(taskArgs));
-      }),
-    );
-    const requests = parseSpawnRequests(
-      {
-        ...args,
-        tasks: resolvedTasks.map((entry, index) => entry?.args ?? tasks[index]),
-      },
-      resolvedTasks.map((entry) => ({
-        fallbacks: entry?.inheritedFallbacks,
-        retryMode: entry?.inheritedRetryMode,
-      })),
-    ).map((request) => {
-      const { background: _taskBackground, ...rest } = request;
-      return background ? { ...rest, background: true as const } : rest;
-    });
-    const runs = ctx.runManager.spawnMany(ctx.parentThreadId, requests);
-    const explicitSelections = requests.flatMap((request, index) => {
-      const explicitFields = resolvedTasks[index]?.explicitFields;
-      const tags = resolvedTasks[index]?.tags ?? [];
-      return explicitFields && Object.values(explicitFields).some(Boolean)
-        ? [{ selection: request, explicitFields, tags }]
-        : [];
-    });
-    if (explicitSelections.length > 0) ctx.recordExplicitSelections?.(explicitSelections);
-    if (background) {
-      return jsonResult({
-        runs: runs.map(({ runId }) => ({
-          run_id: runId,
-          status: "running",
-          output: "",
-        })),
-      });
-    }
-    return jsonResult({
-      runs: await ctx.runManager.waitForMany(
-        runs.map(({ runId }) => runId),
-        timeoutMs,
-        ctx.parentThreadId,
-        { fullOutput: args.full_output === true, currentAttemptOnly: true },
-      ),
-    });
-  }
-
-  const resolved = resolveSelectionArgs(args, await agentsFor(args));
-  const request = parseSpawnRequest(
-    resolved.args,
-    resolved.inheritedFallbacks,
-    resolved.inheritedRetryMode,
-  );
-  const { runId } = ctx.runManager.spawn(ctx.parentThreadId, request);
-  if (Object.values(resolved.explicitFields).some(Boolean)) {
-    ctx.recordExplicitSelections?.([
-      { selection: request, explicitFields: resolved.explicitFields, tags: resolved.tags },
-    ]);
-  }
-  if (background) {
-    return jsonResult({ run_id: runId, status: "running", output: "" });
-  }
-  const result = await ctx.runManager.waitFor(runId, timeoutMs, ctx.parentThreadId, {
-    fullOutput: args.full_output === true,
-    currentAttemptOnly: true,
-  });
-  return jsonResult({ run_id: runId, ...result });
-}
-
 async function setRoutingPreference(
   args: Record<string, unknown>,
   ctx: SubagentToolContext,
@@ -883,10 +734,18 @@ export async function dispatchTool(
       case "get_agent": {
         const id = typeof args.id === "string" ? args.id : "";
         if (!id) return errorResult("id is required");
+        if (args.model !== undefined && (typeof args.model !== "string" || !args.model.trim())) {
+          return errorResult("model must be a non-empty model value");
+        }
         const agent = (await ctx.listSpawnableAgents(normalizeCrossagentTags(args.tags))).find(
           (candidate) => candidate.provider.value === id,
         );
-        return agent ? jsonResult(agent) : errorResult(`Unknown provider id: ${id}`);
+        if (!agent) return errorResult(`Unknown provider id: ${id}`);
+        if (args.model === undefined) return jsonResult(agent);
+        const model = agent.models.find((candidate) => candidate.value === args.model);
+        return model
+          ? jsonResult({ ...agent, models: [model] })
+          : errorResult(`Unknown model value for ${id}: ${args.model}`);
       }
       case "list_routing_preferences":
         return ctx.listRoutingOverrides
@@ -898,6 +757,8 @@ export async function dispatchTool(
         return await removeRoutingPreference(args, ctx);
       case "spawn_agent":
         return await spawnAgent(args, ctx);
+      case "run_workflow":
+        return await dispatchWorkflow(args, ctx);
       // Hidden compatibility aliases for provider sessions initialized against
       // the earlier, wider tool catalog.
       case "spawn_agents": {
@@ -906,9 +767,10 @@ export async function dispatchTool(
           background: true as const,
         }));
         const runs = ctx.runManager.spawnMany(ctx.parentThreadId, requests);
-        return jsonResult({ run_ids: runs.map(({ runId }) => runId) });
+        return jsonResult({ run_ids: runs.map(({ runId }) => runId) }, WAIT_AGAIN_INSTRUCTION);
       }
       case "wait_for_agent": {
+        parseOutputMode(args);
         if (args.wait_mode !== undefined && args.wait_mode !== "all" && args.wait_mode !== "any") {
           return errorResult("wait_mode must be all or any");
         }
@@ -917,7 +779,7 @@ export async function dispatchTool(
         }
         if (Array.isArray(args.run_ids)) {
           const runIds = parseRunIds(args);
-          return jsonResult(
+          return runToolResult(
             await ctx.runManager.waitForMany(
               runIds,
               parseWaitTimeoutMs(args),
@@ -929,7 +791,7 @@ export async function dispatchTool(
         }
         const runId = typeof args.run_id === "string" ? args.run_id : "";
         if (!runId) return errorResult("run_id is required");
-        return jsonResult(
+        return runToolResult(
           await ctx.runManager.waitFor(
             runId,
             parseWaitTimeoutMs(args),
@@ -939,8 +801,9 @@ export async function dispatchTool(
         );
       }
       case "wait_for_agents": {
+        parseOutputMode(args);
         const runIds = parseRunIds(args);
-        return jsonResult(
+        return runToolResult(
           await ctx.runManager.waitForMany(
             runIds,
             parseWaitTimeoutMs(args),
@@ -955,7 +818,7 @@ export async function dispatchTool(
       case "get_status": {
         const runId = typeof args.run_id === "string" ? args.run_id : "";
         if (!runId) return errorResult("run_id is required");
-        return jsonResult(
+        return runToolResult(
           ctx.runManager.getStatus(runId, ctx.parentThreadId, parseWaitOptions(args)),
         );
       }
@@ -974,14 +837,8 @@ export async function dispatchTool(
         await ctx.runManager.cancel(runId, ctx.parentThreadId);
         return jsonResult({ ok: true });
       }
-      case "steer_agent": {
-        const runId = typeof args.run_id === "string" ? args.run_id : "";
-        const prompt = typeof args.prompt === "string" ? args.prompt : "";
-        if (!runId) return errorResult("run_id is required");
-        if (!prompt.trim()) return errorResult("prompt must not be empty");
-        await ctx.runManager.steer(runId, prompt, ctx.parentThreadId);
-        return jsonResult({ run_id: runId, status: "accepted" });
-      }
+      case "steer_agent":
+        return await steerAgent(args, ctx);
       default:
         return errorResult(`Unknown tool: ${name}`);
     }

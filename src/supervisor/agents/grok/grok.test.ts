@@ -167,9 +167,9 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     rmSync(grokHome, { recursive: true, force: true });
   });
 
-  it("pre-assigns a fresh UUID with -s and returns it as the session ref", () => {
+  it("pre-assigns a fresh UUID with -s and returns it as the session ref", async () => {
     const adapter = createGrokAdapter();
-    const result = adapter.buildLaunchArgv(location, config, "", undefined, {});
+    const result = await adapter.buildLaunchArgv(location, config, "", undefined, {});
     expect(result.args[0]).toBe("--no-auto-update");
     expect(result.args.slice(1, 3)).toEqual(["--rules", GROK_AUTOMATION_RULES]);
     expect(result.args[3]).toBe("-s");
@@ -177,12 +177,12 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     expect(result.sessionRef?.providerSessionId).toBe(result.args[4]);
   });
 
-  it("resumes a known id with -r when the session dir has materialized", () => {
+  it("resumes a known id with -r when the session dir has materialized", async () => {
     mkdirSync(join(grokHome, "sessions", encodeURIComponent(projectDir), SESSION_ID), {
       recursive: true,
     });
     const adapter = createGrokAdapter();
-    const result = adapter.buildLaunchArgv(
+    const result = await adapter.buildLaunchArgv(
       location,
       config,
       "",
@@ -199,9 +199,9 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
   });
 
-  it("re-assigns a known id with -s when the session never materialized", () => {
+  it("re-assigns a known id with -s when the session never materialized", async () => {
     const adapter = createGrokAdapter();
-    const result = adapter.buildLaunchArgv(
+    const result = await adapter.buildLaunchArgv(
       location,
       config,
       "",
@@ -218,14 +218,14 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     expect(result.sessionRef?.providerSessionId).toBe(SESSION_ID);
   });
 
-  it("resumes a known UUID after the project directory moves", () => {
+  it("resumes a known UUID after the project directory moves", async () => {
     const originalProjectDir = join(tmpdir(), "grok-original-proj");
     mkdirSync(join(grokHome, "sessions", encodeURIComponent(originalProjectDir), SESSION_ID), {
       recursive: true,
     });
 
     const adapter = createGrokAdapter();
-    const result = adapter.buildLaunchArgv(
+    const result = await adapter.buildLaunchArgv(
       location,
       config,
       "",
@@ -241,9 +241,14 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     ]);
   });
 
-  it("buildResumeArgv applies the same materialization fallback", () => {
+  it("buildResumeArgv applies the same materialization fallback", async () => {
     const adapter = createGrokAdapter();
-    const fresh = adapter.buildResumeArgv(location, config, "", createKnownSessionRef(SESSION_ID));
+    const fresh = await adapter.buildResumeArgv(
+      location,
+      config,
+      "",
+      createKnownSessionRef(SESSION_ID),
+    );
     expect(fresh.args.slice(0, 5)).toEqual([
       "--no-auto-update",
       "--rules",
@@ -255,7 +260,7 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     mkdirSync(join(grokHome, "sessions", encodeURIComponent(projectDir), SESSION_ID), {
       recursive: true,
     });
-    const materialized = adapter.buildResumeArgv(
+    const materialized = await adapter.buildResumeArgv(
       location,
       config,
       "",
@@ -270,7 +275,7 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
     ]);
   });
 
-  it("does not project custom MCP servers into Grok's global config", () => {
+  it("does not project custom MCP servers into Grok's global config", async () => {
     const server = {
       id: "vercel",
       name: "Vercel",
@@ -280,10 +285,10 @@ describe("createGrokAdapter buildLaunchArgv / buildResumeArgv session flags", ()
       transport: { type: "http", url: "https://mcp.vercel.com", headers: {} },
     } satisfies McpServer;
     const adapter = createGrokAdapter();
-    adapter.buildLaunchArgv(location, config, "", undefined, {
+    await adapter.buildLaunchArgv(location, config, "", undefined, {
       mcpServers: [server],
     });
-    adapter.buildResumeArgv(location, config, "", createKnownSessionRef(SESSION_ID), {
+    await adapter.buildResumeArgv(location, config, "", createKnownSessionRef(SESSION_ID), {
       mcpServers: [server],
     });
 

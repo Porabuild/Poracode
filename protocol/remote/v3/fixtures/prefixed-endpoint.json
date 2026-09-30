@@ -1,0 +1,9 @@
+{
+  "endpoint": "https://relay.example.test/tunnels/desktop-fixture-001",
+  "httpPath": "/api/snapshot",
+  "expectedHttpUrl": "https://relay.example.test/tunnels/desktop-fixture-001/api/snapshot",
+  "webSocketPath": "/ws",
+  "ticket": "lc_ws_fixture_001",
+  "lastSeenSeq": 0,
+  "expectedWebSocketUrl": "wss://relay.example.test/tunnels/desktop-fixture-001/ws?ticket=lc_ws_fixture_001&lastSeenSeq=0"
+}

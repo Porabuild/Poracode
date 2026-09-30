@@ -1,0 +1,114 @@
+# Native E2E harness
+
+Loopback host used by iOS/Android remote-pairing tests. It is fixture-only: the
+control plane never invents protocol responses or returns pairing secrets.
+
+## Run
+
+```sh
+pnpm native:e2e                 # focused Vitest suite (ephemeral ports)
+PORACODE_NATIVE_E2E_SLOT=0 pnpm native:e2e:mock-host
+PORACODE_NATIVE_E2E_SLOT=1 pnpm native:e2e:real-host
+```
+
+CLI modes take ports from `PORACODE_NATIVE_E2E_SLOT` only
+(`base = 49152 + slot * 8`). Offsets: P0 app host, P1 control, P2 relay,
+P3 production host, P4 upstream. Occupied ports fail; CLI will not fall back
+to ephemeral ports.
+
+## Control plane
+
+Authenticated with `Authorization: Harness <capability>` (constant-time compare).
+
+| Method | Path                         | Purpose                                   |
+| ------ | ---------------------------- | ----------------------------------------- |
+| GET    | `/healthz`                   | Liveness, no secrets                      |
+| GET    | `/v1/state`                  | Booleans / counts / enums                 |
+| POST   | `/v1/reset`                  | Reset lab state                           |
+| POST   | `/v1/checkpoints/:fixtureId` | Allowlisted checkpoint                    |
+| POST   | `/v1/faults/:fixtureId`      | Allowlisted fault                         |
+| POST   | `/v1/frames/:fixtureId`      | Allowlisted frame                         |
+| POST   | `/v1/real/restart`           | Production host restart (blocker in mock) |
+
+There is no `/pair`, `/emit`, or `/shutdown`. Pairing material is written to
+`secrets/pairing.json` (0600) in the run directory and consumed/deleted after
+exchange. `ready.json` and `/v1/state` never include tokens, tickets, fragments,
+or the control capability.
+
+## Real-peer device journeys (E.2)
+
+The terminal-keystroke and git family journeys run against BOTH peers. In
+`mock` (default) they poll the mock operation journal; in `real` (device tests
+`NATIVE_E2E_PEER_MODE=real` + a pairing credential) they pair with the
+production host and assert in-UI completion via `/v1/state` `mode=real`, while
+the observable PTY-echo / repo-index effects are asserted harness-side by
+`realHostObservableEffects.test.ts`.
+
+Real-mode harness startup mints one extra one-time pairing credential for the
+OUT-OF-PROCESS peer and writes it to `secrets/real-peer-pairing.json` (0600,
+deleted with the run dir). The device CI legs consume it through:
+
+- `scripts/native-e2e.mjs ios-ui` with `NATIVE_E2E_PEER_MODE=real` — starts the
+  real harness instead of the mock one, reads the minted credential (never a
+  workflow env var; `NATIVE_E2E_PAIRING_URL` remains an operator override), and
+  injects peerMode/pairing/control into the 0600 xctestrun. Scope the run with
+  `NATIVE_E2E_IOS_ONLY_TESTING` (comma-separated `-only-testing` targets).
+- `scripts/native-e2e.mjs android-real` — API 37 CI leg: starts the real
+  harness as a direct cli.ts child, `adb reverse`s its control + production
+  ports into the emulator (the pairing URL carries `127.0.0.1`, reached
+  through the reverse), and drives
+  `Android37WireLabFamilyInstrumentedTest` with
+  `-Pandroid.testInstrumentationRunnerArguments.peerMode=real`.
+
+Both legs require `dist/main/server.cjs` to be built first (the iOS mock
+journey does not, and stays the fast path).
+
+## Run directory
+
+`.tmp/native-e2e/run-<timestamp>-<pid>-<nonce>/` (0700) with a `.native-e2e-run`
+marker. Cleanup may recursively delete only a validated marker-bearing directory
+under that parent. `PORACODE_NATIVE_E2E_KEEP=1` retains sanitized artifacts and
+always deletes `secrets/`.
+
+## Coverage
+
+`harness/operation-map.json` locks the 266 manifest-derived keys (88 routes,
+126 procedures, 9 client WS, 11 server WS, 16 replay, 16 runtime). The mock-host
+profile positively covers all 266 operations with schema-validated generated
+requests, producer-shaped procedure goldens, stateful route/procedure fixtures,
+binary image bytes, raw upload bytes, and a real 302 forward-entry exchange.
+There are no residual operation-level mock gaps. Loading or negatively
+exercising inventory never counts as a positive pass. Mutations require a
+follow-up evidence record (for example `gitStage` then `getGitStatus`).
+
+The only intentionally unsupported mock variant is provider/external project
+creation (`project-command` kinds `create` and `clone`), which remains a truthful
+501 because it would otherwise fake a provider or network integration. Other
+deterministic variants of that authoritative route positively cover the route.
+
+`operationMap.test.ts` locks the map's `manifestHash` over the live protocol
+manifest plus the generated inventory `sourceHash`. Regenerating
+`protocol/remote/v3/generated/inventory.json` changes that hash, so refresh the
+committed map in the same change:
+
+```
+node --experimental-transform-types --disable-warning=ExperimentalWarning \
+  tests/native-e2e/harness/refreshOperationMap.ts
+```
+
+The lock test fails with that same command when the hash drifts, and both the
+core `Lint` job (`.github/workflows/ci.yml`) and the native remote-v3 contract
+job (`.github/workflows/native-ci.yml`) run it, so drift fails where protocol
+changes are made instead of late in the native foundation job.
+
+## Real host
+
+`pnpm native:e2e:real-host` starts `dist/main/server.cjs` with a disposable
+profile namespace in `PORACODE_BASE_DIR`, waits on
+`/.well-known/poracode/environment`, and pairs only through authenticated
+`pair --json`. Fixture preparation holds a temporary owner lease, uses a synthetic
+storage key, and writes the mapped `.host-v1` root. `RealHostHandle.baseDir` remains
+the actual database/fixture root; `profileNamespace` is the CLI input. Cleanup
+tracks both the namespace and its owned/lease siblings. Missing artifacts surface as
+`missing-server-artifact` rather than a fake pass. Production has no fault or
+emit injection.

@@ -112,6 +112,7 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   zai: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
+  devin: { rings: { outer: ["daily"], inner: ["weekly"] } },
   // Kimi For Coding reads the Kimi Code CLI credential automatically; the
   // API-key paste is the fallback for users without a CLI sign-in. The 5h
   // request rate limit is the fast outer ring, the weekly membership quota the
@@ -119,10 +120,8 @@ const RENDERER_META: Record<string, Omit<UsageProvider, "id" | "label">> = {
   kimi: {
     rings: { outer: ["session-5h"], inner: ["weekly"] },
   },
-  // Muse Code signs in via the in-app dev.meta.ai browser session — the
-  // dashboard is the source for its quota meters and billed spend. The CLI's
-  // device-code credential stands in for plan + account until then. The 5h
-  // window is the fast outer ring, the weekly quota the slower inner one.
+  // Muse Code reuses the CLI login; optional browser auth adds billed spend
+  // and fallback meters. The 5h window is the fast ring, weekly the slower one.
   muse: {
     supportsBrowserLogin: true,
     rings: { outer: ["session-5h"], inner: ["weekly"] },
@@ -227,6 +226,11 @@ export function supportsApiKeyLogin(providerId: string): boolean {
 /** True when the provider's plan badge can be known locally but its meters need browser auth. */
 export function needsBrowserSessionForUsage(providerId: string): boolean {
   return USAGE_PROVIDER_BY_ID.get(baseAgentKind(providerId))?.needsBrowserSessionForUsage === true;
+}
+
+/** Optional browser billing can be added even when primary usage already works. */
+export function browserSessionAddsDetails(providerId: string): boolean {
+  return USAGE_PROVIDER_BY_ID.get(baseAgentKind(providerId))?.browserSessionForDetails === true;
 }
 
 /** Providers whose windows share one reset clock (one header countdown, no per-window resets). */
@@ -352,4 +356,18 @@ export function resolveDisplayedProviders(
     }
   }
   return ordered;
+}
+
+/** Pull a contextually selected provider into a separate current-provider section. */
+export function separateCurrentUsageProvider<T extends { readonly id: string }>(
+  providers: readonly T[],
+  providerId: string | null,
+): { current: T | undefined; rest: readonly T[] } {
+  if (!providerId) return { current: undefined, rest: providers };
+  const index = providers.findIndex((provider) => provider.id === providerId);
+  if (index < 0) return { current: undefined, rest: providers };
+  return {
+    current: providers[index],
+    rest: [...providers.slice(0, index), ...providers.slice(index + 1)],
+  };
 }

@@ -1,0 +1,11 @@
+self-hosted-runner:
+  labels:
+    - windows11
+    - poracode-wsl-mirrored
+    - v2-perf-qualification
+    - poracode-physical-ios
+    - poracode-physical-android
+    - provider-qualification
+
+# Qualification workflows validate their repository variables at runtime.
+config-variables: null

@@ -181,14 +181,16 @@ export function createCodexAdapter(): AgentAdapter {
       return { ok: true, version: result.version };
     },
     async uninstallPlugin(ctx) {
-      uninstallCodexPlugin(ctx);
+      await uninstallCodexPlugin(ctx);
     },
     async pluginLaunchExtras(ctx) {
-      const paths = getCodexPluginPaths(ctx);
+      const paths = await getCodexPluginPaths(ctx);
       const hooksFeatureFlag = await resolveCodexHooksFeatureFlag(ctx);
       return {
         args: ["--enable", hooksFeatureFlag],
-        env: { CODEX_HOME: paths.codexHomeDir },
+        // An unresolved WSL home must leave CODEX_HOME unset rather than pin
+        // it to "" (which Codex would resolve relative to its cwd).
+        ...(paths.codexHomeDir ? { env: { CODEX_HOME: paths.codexHomeDir } } : {}),
       };
     },
     handleOscNotification: codexOscHint,
@@ -200,7 +202,7 @@ export function createCodexAdapter(): AgentAdapter {
       capabilities = status.capabilities;
       return status;
     },
-    buildLaunchArgv(location: ProjectLocation, config, prompt, sessionRef, launchOptions) {
+    async buildLaunchArgv(location: ProjectLocation, config, prompt, sessionRef, launchOptions) {
       preSpawnStartedAt = Date.now();
       if (location.kind === "wsl") {
         preSpawnRolloutIds = new Set();
@@ -219,7 +221,7 @@ export function createCodexAdapter(): AgentAdapter {
       }
       return buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions);
     },
-    buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
+    async buildResumeArgv(location, config, prompt, sessionRef, launchOptions) {
       return buildCodexArgvFor(location, config, prompt, sessionRef, launchOptions);
     },
     extraArgsPosition: codexExtraArgsPosition,

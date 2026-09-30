@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
 	<!-- NOTE: NSSupportsLiveActivities (and NSSupportsLiveActivitiesFrequentUpdates)
-	     must be set to YES in the APP target's Info.plist, not here.
-	     scripts/configure-mobile-native.mjs adds them automatically. -->
+	     must be set to YES in the APP target's Info.plist, not here. They are
+	     maintained by hand in ios/App/App/Info.plist. -->
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

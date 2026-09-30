@@ -126,9 +126,9 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
   };
   const config: ThreadConfig = { model: "gemini-2.5-pro" };
 
-  it("assigns a stable session UUID at launch and returns it as sessionRef", () => {
+  it("assigns a stable session UUID at launch and returns it as sessionRef", async () => {
     const adapter = createGeminiAdapter();
-    const argv = adapter.buildLaunchArgv(project, config, "hi");
+    const argv = await adapter.buildLaunchArgv(project, config, "hi");
 
     if (argv === undefined) throw new Error("expected argv");
     expect(argv.binary).toBe("gemini");
@@ -141,9 +141,9 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
     expect(argv.sessionRef?.providerSessionId).toBe(uuid);
   });
 
-  it("uses --resume (not --session-id) on resume", () => {
+  it("uses --resume (not --session-id) on resume", async () => {
     const adapter = createGeminiAdapter();
-    const argv = adapter.buildResumeArgv(project, config, "hi", {
+    const argv = await adapter.buildResumeArgv(project, config, "hi", {
       providerSessionId: "11111111-1111-4111-8111-111111111111",
       discoveredAt: "2026-05-15T00:00:00.000Z",
     });
@@ -154,13 +154,13 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
     expect(argv.args).not.toContain("--session-id");
   });
 
-  it("carries custom MCP settings without depending on hook-plugin launch extras", () => {
+  it("carries custom MCP settings without depending on hook-plugin launch extras", async () => {
     const baseDir = mkdtempSync(join(tmpdir(), "poracode-gemini-mcp-"));
     const previousDataDir = process.env.PORACODE_DATA_DIR;
     process.env.PORACODE_DATA_DIR = baseDir;
     try {
       const adapter = createGeminiAdapter();
-      const argv = adapter.buildLaunchArgv(project, config, "hi", undefined, {
+      const argv = await adapter.buildLaunchArgv(project, config, "hi", undefined, {
         mcpServers: [
           {
             id: "memory-id",
@@ -177,7 +177,7 @@ describe("createGeminiAdapter buildLaunchArgv", () => {
       expect(JSON.parse(readFileSync(settingsPath!, "utf8"))).toMatchObject({
         mcpServers: { memory: { command: "memory-server", timeout: 30_000 } },
       });
-      argv.cleanup?.();
+      await argv.cleanup?.();
       expect(existsSync(settingsPath!)).toBe(false);
     } finally {
       if (previousDataDir === undefined) delete process.env.PORACODE_DATA_DIR;

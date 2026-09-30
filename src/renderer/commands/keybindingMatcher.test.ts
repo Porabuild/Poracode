@@ -1,5 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { bindingForPlatform, canonicalizeKeybinding, eventToKeybinding } from "./keybindingMatcher";
+import {
+  bindingForPlatform,
+  canonicalizeKeybinding,
+  eventToKeybinding,
+  formatCommandShortcut,
+} from "./keybindingMatcher";
+
+describe("formatCommandShortcut", () => {
+  it("formats the first binding for a command per platform and tolerates unbound ids", () => {
+    const keybindings = [
+      { command: "palette.open", key: "Ctrl+Shift+P", mac: "Meta+Shift+P" },
+      { command: "palette.open", key: "Ctrl+K", mac: "Meta+K" },
+    ];
+
+    expect(formatCommandShortcut("palette.open", keybindings, "darwin")).toBe("⌘⇧P");
+    expect(formatCommandShortcut("palette.open", keybindings, "win32")).toBe("Ctrl+Shift+P");
+    expect(formatCommandShortcut("editor.toggle-markdown-preview", keybindings, "linux")).toBe("");
+  });
+});
 
 describe("keybindingMatcher", () => {
   it("chooses platform-specific bindings over the shared key", () => {

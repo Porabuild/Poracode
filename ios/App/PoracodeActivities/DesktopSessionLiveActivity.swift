@@ -46,18 +46,24 @@ struct DesktopSessionLiveActivity: Widget {
                     if !rest.isEmpty {
                         VStack(spacing: 4) {
                             ForEach(rest, id: \.threadId) { thread in
-                                ThreadRowView(thread: thread)
+                                ThreadRowView(thread: thread, attributes: context.attributes)
                             }
                         }
                     }
                 }
             } compactLeading: {
-                Image(systemName: "terminal.fill")
-                    .foregroundStyle(.secondary)
+                CompactActivityLink(context: context) {
+                    Image(systemName: "terminal.fill")
+                        .foregroundStyle(.secondary)
+                }
             } compactTrailing: {
-                StatusDot(status: context.state.primaryStatus)
+                CompactActivityLink(context: context) {
+                    StatusDot(status: context.state.primaryStatus)
+                }
             } minimal: {
-                StatusDot(status: context.state.primaryStatus)
+                CompactActivityLink(context: context) {
+                    StatusDot(status: context.state.primaryStatus)
+                }
             }
         }
     }
@@ -76,12 +82,12 @@ private struct LockScreenView: View {
                     .font(.headline)
                     .lineLimit(1)
                 Spacer()
-                Text("\(context.state.runningCount) running")
+                Text(ThreadStatusDisplay.runningCount(context.state.runningCount))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             ForEach(context.state.topThreads, id: \.threadId) { thread in
-                ThreadRowView(thread: thread)
+                ThreadRowView(thread: thread, attributes: context.attributes)
             }
         }
         .padding()
@@ -91,8 +97,18 @@ private struct LockScreenView: View {
 @available(iOS 16.2, *)
 private struct ThreadRowView: View {
     let thread: DesktopSessionAttributes.ContentState.ThreadRow
+    let attributes: DesktopSessionAttributes
 
     var body: some View {
+        if let destination = attributes.destinationURL(threadId: thread.threadId) {
+            Link(destination: destination) { row }
+                .buttonStyle(.plain)
+        } else {
+            row
+        }
+    }
+
+    private var row: some View {
         HStack(spacing: 8) {
             StatusDot(status: thread.status)
             VStack(alignment: .leading, spacing: 2) {
@@ -112,6 +128,52 @@ private struct ThreadRowView: View {
                     .foregroundStyle(ThreadStatusDisplay.color(for: thread.status))
             }
         }
+    }
+}
+
+@available(iOS 16.2, *)
+private struct CompactActivityLink<Content: View>: View {
+    let context: ActivityViewContext<DesktopSessionAttributes>
+    let content: Content
+
+    init(
+        context: ActivityViewContext<DesktopSessionAttributes>,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.context = context
+        self.content = content()
+    }
+
+    var body: some View {
+        if let thread = context.state.topThreads.first,
+           let destination = context.attributes.destinationURL(threadId: thread.threadId)
+        {
+            Link(destination: destination) { content }
+        } else {
+            content
+        }
+    }
+}
+
+@available(iOS 16.2, *)
+private extension DesktopSessionAttributes {
+    func destinationURL(threadId: String) -> URL? {
+        guard let routing, routing.version == 1 else { return nil }
+        var components = URLComponents()
+        components.scheme = "poracode"
+        components.host = "notification"
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-._~")
+        let values = [
+            ("version", String(routing.version)),
+            ("clientConnectionId", routing.clientConnectionId),
+            ("desktopId", routing.desktopId),
+            ("threadId", threadId),
+        ]
+        components.percentEncodedQuery = values.map { key, value in
+            "\(key)=\(value.addingPercentEncoding(withAllowedCharacters: allowed) ?? "")"
+        }.joined(separator: "&")
+        return components.url
     }
 }
 

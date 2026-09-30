@@ -1,39 +1,38 @@
 ---
 name: subagent-delegation
-description: Delegate independent, bounded work to the best available Poracode agents and consolidate verified results. Use for parallel research, independent reviews, specialist work, or non-overlapping implementation; do not delegate trivial, sequential, tightly coupled, or context-heavy work.
+description: Coordinate explicitly requested delegation through research, scoped execution and verification with minimal parent overhead.
 ---
 
 # Crossagents
 
-Use Poracode's `crossagents` MCP when independent, bounded work can run in parallel or a specialist or independent second opinion will materially improve the result. The coordinator remains responsible for understanding the problem, protecting shared state, and validating the final answer.
+Delegate only after an explicit user request in this thread; that authorization persists. Honor the user's provider, model, reasoning and scope. Child permissions do not expand it.
 
-## Decide whether to delegate
+## Start once
 
-Delegate when at least one of these is true:
+Use the skill path or ID already in context; avoid rediscovering it. Resolve server-qualified tool names and only the schemas needed next in one pass. Reuse loaded instructions, tool bindings and results. When supported, batch independent setup calls in one code execution and print only decision-relevant fields, errors and requested evidence.
 
-- two or more subtasks can run independently;
-- a distinct provider or specialist perspective is valuable;
-- an independent review reduces correctness or security risk;
-- a bounded search, test, or implementation lane can return a concrete artifact.
+Known provider/model IDs can go straight to `spawn_agent`; the host validates them. For an unfamiliar selection, call `get_agent` directly when the provider ID is known (`model` narrows its response on supported hosts). Use `list_agents` only to choose or identify a provider. Omit unspecified selection fields to use configured routing; persist preferences only when the user asks. Never print the entire tool catalog or reload descriptions between stages.
 
-Do not delegate a trivial task, a sequence whose next step depends on the previous result, overlapping edits, or work that would require copying most of the conversation. Do not delegate merely to avoid understanding the task.
+## Coordinate complete assignments
 
-## Workflow
+As coordinator, delegate research, implementation and verification; own architecture, dependencies, evidence checks and integration. For shared unknowns, collect read-only research first, settle decisions, then launch dependent execution. Parallelize independent questions and non-overlapping work. Avoid duplicating worker investigation or implementing its task while waiting.
 
-1. Classify the work with one to five concise task tags. Use `list_agents` when selection matters; call `get_agent` only when you need a provider's detailed models, reasoning choices, Fast support, or permission information.
-2. Omit provider, model, reasoning, and Fast unless the user chose them or the task requires a deliberate override. Let Crossagents apply learned and configured routing.
-3. Split the work into concrete subtasks with clear deliverables and non-overlapping edit scope. Every prompt must be self-contained and include relevant context, constraints, authority, expected output, and verification.
-4. For one short task, call `spawn_agent` in the foreground. Set `background=true` only when the coordinator has useful independent work to do before synchronization. Submit independent tasks together through one `tasks` call for actual parallelism.
-5. At the next real synchronization point, wait once for every required background result. Do not repeatedly poll. Cancel or continue without a stalled optional run.
-6. Inspect returned evidence and changes, resolve disagreements or shared-worktree conflicts, and verify the combined result against the original request.
+Each brief needs an objective, settled decisions/references, exact write ownership (or read-only scope), constraints, acceptance checks and a concise outcome. Workers choose routine details and run focused checks before reporting. No nested delegation unless explicitly assigned. Review a completed candidate; consolidate corrections. Keep review proportional to risk and reuse passing checks when their inputs are unchanged. Have each lane owner load its specialized implementation/review instructions; the parent loads them only when it owns that work.
 
-## Safety and retries
+## Run and collect
 
-- Child agents have powerful permissions. Their prompt must not authorize actions beyond the user's request.
-- Use startup-only fallback retries by default. `any-failure` can repeat writes or external side effects and requires explicit justification and authority.
-- Do not allow multiple agents to edit the same files concurrently. Assign exact ownership or make review lanes read-only.
-- Treat a confident child response as a claim, not proof. Check the relevant files, commands, tests, sources, or runtime state yourself.
+Set a descriptive `name` and 1–5 task `tags`; select `result_mode="compact"` when advertised. Launch independent tasks together with `tasks`. For known dependencies, `run_workflow` schedules the graph and forwards compact reports; give each stage `id`, `write_scope` and any `depends_on`. Declared scopes are not sandboxes. Failed/unrun checks, important findings and invalid reports block descendants; research requirements belong in summary/evidence, not defect findings. Workflow support is native macOS/Linux only.
 
-## Output
+Spawn, workflow and steer calls wait by default. Use `background=true` only with useful independent work, then join all required results before ending the turn. Workers survive parent-turn interruption but stop on parent close; completion never injects a parent message.
 
-Lead with the consolidated result. Mention delegated lanes only when it helps explain evidence, disagreement, limitations, or provider diversity. State what was verified and what remains uncertain.
+Waits default to 480 seconds (eight minutes, also the cap) and return as soon as required work finishes or needs input; omit routine timeout overrides. Keep required joins in the same pending code execution where supported, returning for completion, a blocker/error or a request needing attention. If the harness yields, resume that same call using its longest allowed wait, rather than a short interval by habit. Respect caller responsiveness limits. UI progress needs no status query. Continue waiting for required running work; elapsed time alone never justifies steering, cancellation or abandonment.
+
+Default quiet reads preserve unread output and expose control state/errors. Keep compact reports; treat them as claims and verify relevant evidence. Use `get_status` or `full_output=true` only for a specific missing fact. With progress reads, carry returned cursors; after `wait_mode="any"`, join only remaining runs. Save durable evidence within assigned ownership: runs/workflows are memory-only and retained histories are bounded.
+
+## Correct and reuse
+
+After the complete result, send one consolidated correction through `steer_agent`. Supported completed workers resume the same provider session/context; use the returned new `run_id` and `continued_from`. Old reports/workflows stay unchanged; coordinate write ownership before this standalone follow-up. `continued_by` identifies a later receipt. Failed pre-dispatch startup permits an explicit retry from the original receipt after cleanup; dispatched failures do not.
+
+Active steering is rare: a changed requirement, verified invalid assumption or ownership conflict that cannot wait. Batch known corrections, then wait for the full result. Another active steer needs a new material fact. Never send reminders, progress requests or speculative suggestions. `accepted`/`can_steer` indicate input availability, not that an earlier message was processed. A running result calls for waiting, not resending.
+
+Use the live schema on older hosts: unsupported compact/workflow/reuse options require concise standalone tasks; delivery-only steering requires a subsequent wait. Honor the live host cap; older hosts may allow only 240 seconds. Startup retries are the default; replaying dispatched work requires explicit justification and authority.

@@ -1,18 +1,19 @@
-import { performPageActions, readPerformSteps } from "./perform";
+import { performPageActions, readPerformSteps } from "@/host/browser/mcp/tools/perform";
 import {
   addInitScript,
   addInitStyle,
   evaluateOneShotStyle,
   removeInitScript,
-} from "../../cdp/tools";
+} from "@/host/browser/cdp/tools";
 
-import { setCursorOverlayVisible } from "../../cursorOverlay";
-import { agentTabOpts, clampInteger, requireTab, resolveTabId } from "./helpers";
+import { setCursorOverlayVisible } from "@/host/browser/cursorOverlay";
+import { clampInteger } from "@/host/browser/mcp/tools/helpers";
+import { agentTabOpts, requireTab, resolveTabId } from "./helpers";
 import { runScreenshotTool } from "./screenshot";
-import { compactToolSpec, normalizeToolName, TOOLS } from "./specs";
+import { compactToolSpec, normalizeToolName, TOOLS } from "@/host/browser/mcp/tools/specs";
 import type { ToolContext } from "./types";
 
-import { dispatchPageTool, PAGE_TOOL_NAMES } from "./page";
+import { dispatchPageTool, PAGE_TOOL_NAMES } from "@/host/browser/mcp/tools/page";
 
 /** Raw dispatch returning JS objects. The MCP wrapper formats these into the
  *  proper content shape. */

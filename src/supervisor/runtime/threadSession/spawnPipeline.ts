@@ -1,6 +1,10 @@
+import { CROSSAGENT_MCP_TIMEOUT_MS } from "@/supervisor/crossagentMcp/waitTiming";
 import { randomUUID } from "node:crypto";
-import { setTimeout as sleep } from "node:timers/promises";
 import { spawn } from "node-pty";
+import {
+  MockAgentLaunchBlockedError,
+  assertAgentLaunchAllowed,
+} from "@/supervisor/agentLaunchGuard";
 import {
   applyHomeScopePermissions,
   type UnrestrictedPermissionCapabilities,
@@ -64,6 +68,11 @@ import {
 } from "../../agents/base";
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { ensureNodePtySpawnHelperExecutable } from "../../nodePty";
+import {
+  acquireOrHandoff,
+  type HostResourceAdmission,
+  type HostResourceLease,
+} from "../hostResourceAdmission";
 import type { QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
 import { effectiveProjectLocation, withLogicalProjectLocation } from "../sessionTypes";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
@@ -79,6 +88,7 @@ import { shouldPrimeNativeProjectShellEnv } from "./helpers";
 import type { ThreadSessionManagerOptions } from "./managerOptions";
 import type { PtyLifecycle } from "./ptyLifecycle";
 import type { RuntimeEventRouter } from "./runtimeEventRouter";
+import type { SessionRetirement } from "./sessionRetirement";
 import {
   StructuredRuntimeDiagnosticError,
   structuredRuntimeFeatureArea,
@@ -105,6 +115,11 @@ export interface SpawnThreadInput {
    */
   extraEnv?: Record<string, string>;
   structuredSession?: StructuredSessionHandle;
+  /**
+   * Pre-admitted host execution slot for this runtime generation. Activated
+   * when the runtime is attached; released by observed retirement.
+   */
+  resourceLease?: HostResourceLease;
   sessionRef?: SessionRef;
   pendingLaunchPrompt?: string;
   pendingTerminalPreInputs?: string[][];
@@ -247,7 +262,7 @@ export function composeResolvedMcpServers(
   return [
     ...snapshot.mcpServers,
     http("browser", browserMcp),
-    http("crossagents", crossagentMcp, 300_000, "approve"),
+    http("crossagents", crossagentMcp, CROSSAGENT_MCP_TIMEOUT_MS, "approve"),
     http("computer-use", computerUseMcp),
     http("chrome", chromeMcp),
     http("app-controls", appControlsMcp),
@@ -271,6 +286,10 @@ export interface SpawnPipelineContext {
   pendingStartInterrupts: Set<string>;
   pendingStartAborts: Set<string>;
   ptyLifecycle: PtyLifecycle;
+  /** One host execution-slot owner shared with every counted launch funnel. */
+  admission: HostResourceAdmission;
+  /** Shared join/retry retirement for process-effect teardown. */
+  retirement: SessionRetirement;
   outputPipeline: ThreadOutputPipeline;
   runtimeEventRouter: RuntimeEventRouter;
   sessionRuntimeLifecycle: Pick<SessionRuntimeLifecycle, "attach">;
@@ -297,28 +316,11 @@ export interface SpawnPipelineContext {
 }
 
 export async function resolveThreadExecution(
-  adapter: AgentAdapter,
   projectLocation: ProjectLocation,
   config: ThreadConfig,
 ): Promise<{ location: ProjectLocation; config: ThreadConfig }> {
-  const { executionEnvironment, ...baseConfig } = config;
-  const location = await resolveAgentProjectLocation(
-    adapter,
-    projectLocation,
-    executionEnvironment,
-  );
-  return {
-    location,
-    config:
-      adapter.windowsProjectExecution === "wsl" &&
-      projectLocation.kind === "windows" &&
-      location.kind === "wsl"
-        ? {
-            ...baseConfig,
-            executionEnvironment: { kind: "wsl", distro: location.distro },
-          }
-        : baseConfig,
-  };
+  const location = await resolveAgentProjectLocation(projectLocation, config.executionEnvironment);
+  return { location, config };
 }
 
 /**
@@ -331,7 +333,13 @@ export class SpawnPipeline {
   constructor(private readonly ctx: SpawnPipelineContext) {}
 
   async startThreadInner(
-    payload: StartThreadPayload & { threadId: string },
+    payload: StartThreadPayload & {
+      threadId: string;
+      /** Pre-admitted execution slot for this start (see ThreadSessionManager). */
+      resourceLease?: HostResourceLease;
+      /** Live generation being replaced; successor starts only after its release. */
+      predecessorLease?: HostResourceLease;
+    },
   ): Promise<StartThreadResult> {
     const ctx = this.ctx;
     // A provider switch abandons whatever turn the old session still has open.
@@ -344,14 +352,22 @@ export class SpawnPipeline {
       ctx.runtimeEventRouter.flush();
     }
     await ctx.closeThread({ threadId: payload.threadId });
+    if (payload.predecessorLease && payload.predecessorLease.state !== "released") {
+      // Retirement was not confirmed (unconfirmed PTY exit / failed structured
+      // dispose): the predecessor keeps the slot and no successor may start.
+      payload.resourceLease?.cancel();
+      throw new Error(
+        `Thread ${payload.threadId} predecessor retirement was not confirmed; replacement not started.`,
+      );
+    }
     if (ctx.pendingStartAborts.delete(payload.threadId)) {
       ctx.pendingStartInterrupts.delete(payload.threadId);
+      payload.resourceLease?.cancel();
       return { threadId: payload.threadId };
     }
 
     const adapter = this.requireAdapter(payload.agentKind);
     const { location: executionLocation, config: runtimeConfig } = await resolveThreadExecution(
-      adapter,
       payload.projectLocation,
       payload.config,
     );
@@ -593,7 +609,22 @@ export class SpawnPipeline {
       payload.sessionRef,
       requestedPresentation,
     );
-    if (await this.abortPendingStart(payload.threadId, structuredSession)) {
+    // Tracks a created-but-unpublished provider handle so every escape path
+    // retires it before the admission slot is settled: a rejected dispose
+    // retains the slot instead of freeing capacity for a possibly-live process.
+    const unpublishedAttempt = this.trackUnpublishedHandle(
+      payload.resourceLease,
+      structuredSession,
+    );
+    const abortPendingStart = async (): Promise<boolean> => {
+      if (!ctx.pendingStartAborts.delete(payload.threadId)) {
+        return false;
+      }
+      ctx.pendingStartInterrupts.delete(payload.threadId);
+      await unpublishedAttempt.abandon();
+      return true;
+    };
+    if (await abortPendingStart()) {
       return { threadId: payload.threadId };
     }
 
@@ -601,14 +632,14 @@ export class SpawnPipeline {
       try {
         await structuredSession.activate();
       } catch (error) {
-        await structuredSession.dispose();
+        await unpublishedAttempt.abandon();
         if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
           return { threadId: payload.threadId };
         }
         throw error;
       }
     }
-    if (await this.abortPendingStart(payload.threadId, structuredSession)) {
+    if (await abortPendingStart()) {
       return { threadId: payload.threadId };
     }
 
@@ -620,14 +651,14 @@ export class SpawnPipeline {
           payload.sessionRef,
         );
       } catch (error) {
-        await structuredSession.dispose();
+        await unpublishedAttempt.abandon();
         if (ctx.pendingStartInterrupts.delete(payload.threadId)) {
           return { threadId: payload.threadId };
         }
         throw error;
       }
     }
-    if (await this.abortPendingStart(payload.threadId, structuredSession)) {
+    if (await abortPendingStart()) {
       return { threadId: payload.threadId };
     }
 
@@ -667,29 +698,37 @@ export class SpawnPipeline {
         payload.sessionRef ??
         (openedStructuredThreadId ? createKnownSessionRef(openedStructuredThreadId) : undefined);
       const startInterrupted = ctx.pendingStartInterrupts.delete(payload.threadId);
-      const session = this.spawnThread({
-        threadId: payload.threadId,
-        adapter,
-        agentKind: payload.agentKind,
-        ...(executionLocation !== payload.projectLocation
-          ? { logicalProjectLocation: payload.projectLocation }
-          : {}),
-        projectLocation: executionLocation,
-        config: runtimeConfig,
-        initialSize: payload.initialSize,
-        launchPrompt: "",
-        structuredSession,
-        ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
-        presentationMode: requestedPresentation,
-        initialStatus: optimisticUserMessageItemId && !startInterrupted ? "working" : "idle",
-        initialAttention: optimisticUserMessageItemId && !startInterrupted ? "working" : "none",
-        suppressInitialStructuredIdle:
-          optimisticUserMessageItemId !== undefined && !startInterrupted,
-        mcpLaunchSnapshot,
-        threadMentionToolsAvailable,
-        launchConfig,
-        nativePlugins,
-      });
+      let session: SessionRuntime;
+      try {
+        session = this.spawnThread({
+          threadId: payload.threadId,
+          adapter,
+          agentKind: payload.agentKind,
+          ...(executionLocation !== payload.projectLocation
+            ? { logicalProjectLocation: payload.projectLocation }
+            : {}),
+          projectLocation: executionLocation,
+          config: runtimeConfig,
+          initialSize: payload.initialSize,
+          launchPrompt: "",
+          structuredSession,
+          ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
+          ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
+          presentationMode: requestedPresentation,
+          initialStatus: optimisticUserMessageItemId && !startInterrupted ? "working" : "idle",
+          initialAttention: optimisticUserMessageItemId && !startInterrupted ? "working" : "none",
+          suppressInitialStructuredIdle:
+            optimisticUserMessageItemId !== undefined && !startInterrupted,
+          mcpLaunchSnapshot,
+          threadMentionToolsAvailable,
+          launchConfig,
+          nativePlugins,
+        });
+      } catch (error) {
+        await unpublishedAttempt.abandon();
+        throw error;
+      }
+      unpublishedAttempt.detach();
       if (
         !startInterrupted &&
         !payload.sessionRef &&
@@ -759,14 +798,14 @@ export class SpawnPipeline {
       executionLocation,
     );
     const argv = payload.sessionRef
-      ? adapter.buildResumeArgv(
+      ? await adapter.buildResumeArgv(
           executionLocation,
           launchConfig,
           launchPrompt,
           payload.sessionRef,
           launchOptionsWithMcp,
         )
-      : adapter.buildLaunchArgv(
+      : await adapter.buildLaunchArgv(
           executionLocation,
           launchConfig,
           launchPrompt,
@@ -796,63 +835,78 @@ export class SpawnPipeline {
         payload.sessionRef,
       );
     }
-    argv.args = await applyLaunchArgsConfigRewrite(
-      adapter,
-      argv.args,
-      runtimeConfig,
-      executionLocation,
-    );
+    try {
+      argv.args = await applyLaunchArgsConfigRewrite(
+        adapter,
+        argv.args,
+        runtimeConfig,
+        executionLocation,
+      );
+    } catch (error) {
+      await argv.cleanup?.();
+      await unpublishedAttempt.abandon();
+      throw error;
+    }
     if (shouldPrimeNativeProjectShellEnv(executionLocation)) {
       await primeProjectShellEnv(executionLocation.path);
     }
-    const command = resolveLaunchSpec(executionLocation, argv);
+    const command = await resolveLaunchSpec(executionLocation, argv);
 
     const keepStructuredSession = structuredSession && useStructuredFlow;
     if (structuredSession && !keepStructuredSession) {
-      await structuredSession.dispose();
+      unpublishedAttempt.detach();
+      // Discarding a non-kept handle must not silently drop a failed
+      // disposal: a rejection retains {lease, handle} custody so a later
+      // start can retry the cleanup instead of leaking the reservation.
+      await ctx.retirement.discardStructuredHandle(payload.resourceLease, structuredSession);
     }
     if (ctx.pendingStartAborts.delete(payload.threadId)) {
       ctx.pendingStartInterrupts.delete(payload.threadId);
-      if (structuredSession && keepStructuredSession) {
-        await structuredSession.dispose();
-      }
-      command.cleanup?.();
+      await unpublishedAttempt.abandon();
+      await command.cleanup?.();
       return { threadId: payload.threadId };
     }
 
     const resolvedSessionRef = payload.sessionRef ?? command.sessionRef;
-    this.spawnThread({
-      threadId: payload.threadId,
-      adapter,
-      agentKind: payload.agentKind,
-      ...(executionLocation !== payload.projectLocation
-        ? { logicalProjectLocation: payload.projectLocation }
-        : {}),
-      projectLocation: executionLocation,
-      config: runtimeConfig,
-      initialSize: payload.initialSize,
-      launchPrompt,
-      command,
-      ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
-      ...(keepStructuredSession ? { structuredSession } : {}),
-      ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
-      mcpLaunchSnapshot,
-      threadMentionToolsAvailable,
-      launchConfig,
-      nativePlugins,
-      ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
-      presentationMode: requestedPresentation,
-      ...(deferToTerminal && !useStructuredFlow
-        ? (() => {
-            const preInputs = adapter.buildTerminalPreInputs?.(runtimeConfig);
-            return {
-              ...(preInputs ? { pendingTerminalPreInputs: preInputs } : {}),
-              pendingTerminalPrompt: initialPrompt,
-              ...(effectiveSegments ? { pendingTerminalSegments: effectiveSegments } : {}),
-            };
-          })()
-        : {}),
-    });
+    try {
+      this.spawnThread({
+        threadId: payload.threadId,
+        adapter,
+        agentKind: payload.agentKind,
+        ...(executionLocation !== payload.projectLocation
+          ? { logicalProjectLocation: payload.projectLocation }
+          : {}),
+        projectLocation: executionLocation,
+        config: runtimeConfig,
+        initialSize: payload.initialSize,
+        launchPrompt,
+        command,
+        ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
+        ...(keepStructuredSession ? { structuredSession } : {}),
+        ...(payload.resourceLease ? { resourceLease: payload.resourceLease } : {}),
+        ...(resolvedSessionRef ? { sessionRef: resolvedSessionRef } : {}),
+        mcpLaunchSnapshot,
+        threadMentionToolsAvailable,
+        launchConfig,
+        nativePlugins,
+        ...(shouldQueueInitialPrompt ? { pendingLaunchPrompt: initialPrompt } : {}),
+        presentationMode: requestedPresentation,
+        ...(deferToTerminal && !useStructuredFlow
+          ? (() => {
+              const preInputs = adapter.buildTerminalPreInputs?.(runtimeConfig);
+              return {
+                ...(preInputs ? { pendingTerminalPreInputs: preInputs } : {}),
+                pendingTerminalPrompt: initialPrompt,
+                ...(effectiveSegments ? { pendingTerminalSegments: effectiveSegments } : {}),
+              };
+            })()
+          : {}),
+      });
+    } catch (error) {
+      await unpublishedAttempt.abandon();
+      throw error;
+    }
+    unpublishedAttempt.detach();
 
     return { threadId: payload.threadId };
   }
@@ -866,11 +920,11 @@ export class SpawnPipeline {
     if (!session.sessionRef) {
       throw new Error("Session cannot be restarted without a known session reference.");
     }
-    // Re-resolve the execution location so restarts honor a changed default
-    // distro or an updated executionEnvironment instead of reusing a stale
-    // cached UNC from the previous session.
+    // Re-resolve the execution location so restarts honor an updated
+    // executionEnvironment instead of reusing a stale cached UNC from the
+    // previous session.
     const { location: executionLocation, config } = session.logicalProjectLocation
-      ? await resolveThreadExecution(session.adapter, session.logicalProjectLocation, turnConfig)
+      ? await resolveThreadExecution(session.logicalProjectLocation, turnConfig)
       : { location: session.projectLocation, config: turnConfig };
     session.projectLocation = executionLocation;
     session.config = config;
@@ -880,6 +934,19 @@ export class SpawnPipeline {
     const usesTerminalPresentation =
       (session.presentationMode ?? session.adapter.capabilities.presentationMode) === "terminal";
     const useStructuredFlow = isServerControlled || !usesTerminalPresentation;
+    // A retained failed cleanup for this thread is joined/retried before the
+    // successor reservation, so a restart retry can free the slot instead of
+    // hitting a duplicate-key refusal that looks like capacity exhaustion.
+    if (ctx.retirement.hasAbandoned("agent-session", session.threadId)) {
+      await ctx.retirement.retryAbandoned("agent-session", session.threadId);
+    }
+    // Admit before teardown. A same-logical-thread replacement hands the single
+    // slot over; a capacity refusal here leaves the live session untouched.
+    const resourceLease = acquireOrHandoff(this.ctx.admission, session.resourceLease, {
+      resourceClass: "agent-session",
+      key: session.threadId,
+    });
+    const predecessorLease = session.resourceLease;
     session.ignoreExit = true;
     ctx.outputPipeline.clearSessionTimers(session);
     // Subagent maps from the prior session would otherwise leak across resume:
@@ -887,12 +954,24 @@ export class SpawnPipeline {
     // subscriptions from the dead session are stale once the structured
     // session is replaced. `closeThread` already does this on full teardown.
     ctx.runtimeEventRouter.clearAllForThread(session.threadId);
-    await session.structuredSession?.dispose();
-    if (session.structuredSession) {
-      await sleep(150);
+    const retirement = await ctx.retirement.retireAgentSession(session);
+    if (!retirement.confirmed || (predecessorLease && predecessorLease.state !== "released")) {
+      // Unconfirmed retirement: cancel the successor so no second generation
+      // starts; the predecessor keeps the slot counted until it exits.
+      resourceLease.cancel();
+      throw new Error(
+        `Thread ${session.threadId} predecessor retirement was not confirmed; restart not started.`,
+        retirement.error !== undefined ? { cause: retirement.error } : undefined,
+      );
     }
-    ctx.ptyLifecycle.kill(session);
+    if (retirement.error) {
+      console.warn(
+        `[supervisor] thread ${session.threadId} structured dispose failed after its process effect retired:`,
+        retirement.error,
+      );
+    }
     if (!ctx.isCurrentSession(session)) {
+      resourceLease.cancel();
       return;
     }
 
@@ -904,6 +983,7 @@ export class SpawnPipeline {
     }
     await this.ctx.options.prepareSkillsForLaunch?.(session.projectLocation, session.agentKind);
     if (!ctx.isCurrentSession(session)) {
+      resourceLease.cancel();
       return;
     }
 
@@ -942,8 +1022,9 @@ export class SpawnPipeline {
       session.sessionRef,
       session.presentationMode,
     );
+    const unpublishedAttempt = this.trackUnpublishedHandle(resourceLease, structuredSession);
     if (!ctx.isCurrentSession(session)) {
-      await structuredSession?.dispose();
+      await unpublishedAttempt.abandon();
       return;
     }
 
@@ -951,12 +1032,12 @@ export class SpawnPipeline {
       try {
         await structuredSession.activate();
       } catch (error) {
-        await structuredSession.dispose();
+        await unpublishedAttempt.abandon();
         throw error;
       }
     }
     if (!ctx.isCurrentSession(session)) {
-      await structuredSession?.dispose();
+      await unpublishedAttempt.abandon();
       return;
     }
 
@@ -964,36 +1045,45 @@ export class SpawnPipeline {
       try {
         await structuredSession.openThread(launchConfig, session.sessionRef);
       } catch (error) {
-        await structuredSession.dispose();
+        await unpublishedAttempt.abandon();
         throw error;
       }
     }
     if (!ctx.isCurrentSession(session)) {
-      await structuredSession?.dispose();
+      await unpublishedAttempt.abandon();
       return;
     }
 
     if (!usesTerminalPresentation) {
       if (!structuredSession) {
+        resourceLease.cancel();
         throw new Error(`Thread ${session.threadId} cannot restart without a structured session.`);
       }
-      const replacement = this.spawnThread({
-        threadId: session.threadId,
-        agentKind: session.agentKind,
-        adapter: session.adapter,
-        ...withLogicalProjectLocation(session),
-        projectLocation: session.projectLocation,
-        config,
-        initialSize: session.terminalSize,
-        launchPrompt: "",
-        structuredSession,
-        sessionRef: session.sessionRef,
-        mcpLaunchSnapshot,
-        threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
-        launchConfig,
-        ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
-        ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
-      });
+      let replacement: SessionRuntime;
+      try {
+        replacement = this.spawnThread({
+          threadId: session.threadId,
+          agentKind: session.agentKind,
+          adapter: session.adapter,
+          ...withLogicalProjectLocation(session),
+          projectLocation: session.projectLocation,
+          config,
+          initialSize: session.terminalSize,
+          launchPrompt: "",
+          structuredSession,
+          resourceLease,
+          sessionRef: session.sessionRef,
+          mcpLaunchSnapshot,
+          threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
+          launchConfig,
+          ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
+          ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
+        });
+      } catch (error) {
+        await unpublishedAttempt.abandon();
+        throw error;
+      }
+      unpublishedAttempt.detach();
       if (prompt.trim().length > 0 && structuredSession.startTurn) {
         // Retry/recovery callers preserve the id of a user message that was
         // already broadcast before the old session stopped. Reuse it without
@@ -1040,10 +1130,10 @@ export class SpawnPipeline {
       resolvedMcpServers,
     );
     if (!ctx.isCurrentSession(session)) {
-      await structuredSession?.dispose();
+      await unpublishedAttempt.abandon();
       return;
     }
-    const argv = session.adapter.buildResumeArgv(
+    const argv = await session.adapter.buildResumeArgv(
       session.projectLocation,
       launchConfig,
       launchPrompt,
@@ -1064,53 +1154,94 @@ export class SpawnPipeline {
         session.sessionRef,
       );
     }
-    argv.args = await applyLaunchArgsConfigRewrite(
-      session.adapter,
-      argv.args,
-      config,
-      session.projectLocation,
-    );
+    try {
+      argv.args = await applyLaunchArgsConfigRewrite(
+        session.adapter,
+        argv.args,
+        config,
+        session.projectLocation,
+      );
+    } catch (error) {
+      await argv.cleanup?.();
+      await unpublishedAttempt.abandon();
+      throw error;
+    }
     if (shouldPrimeNativeProjectShellEnv(session.projectLocation)) {
       await primeProjectShellEnv(session.projectLocation.path);
     }
     if (!ctx.isCurrentSession(session)) {
-      await structuredSession?.dispose();
-      argv.cleanup?.();
+      await unpublishedAttempt.abandon();
+      await argv.cleanup?.();
       return;
     }
-    const command = resolveLaunchSpec(session.projectLocation, argv);
+    const command = await resolveLaunchSpec(session.projectLocation, argv);
 
     const keepStructuredSession = structuredSession && useStructuredFlow;
     if (structuredSession && !keepStructuredSession) {
-      await structuredSession.dispose();
+      unpublishedAttempt.detach();
+      // See `startThreadInner`: a failed disposal is retained, not dropped.
+      await ctx.retirement.discardStructuredHandle(resourceLease, structuredSession);
     }
     if (!ctx.isCurrentSession(session)) {
-      if (structuredSession && keepStructuredSession) {
-        await structuredSession.dispose();
-      }
-      command.cleanup?.();
+      await unpublishedAttempt.abandon();
+      await command.cleanup?.();
       return;
     }
 
-    this.spawnThread({
-      threadId: session.threadId,
-      agentKind: session.agentKind,
-      adapter: session.adapter,
-      ...withLogicalProjectLocation(session),
-      projectLocation: session.projectLocation,
-      config,
-      initialSize: session.terminalSize,
-      launchPrompt,
-      command,
-      ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
-      ...(keepStructuredSession ? { structuredSession } : {}),
-      sessionRef: session.sessionRef,
-      mcpLaunchSnapshot,
-      threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
-      launchConfig,
-      ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
-      ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
-    });
+    try {
+      this.spawnThread({
+        threadId: session.threadId,
+        agentKind: session.agentKind,
+        adapter: session.adapter,
+        ...withLogicalProjectLocation(session),
+        projectLocation: session.projectLocation,
+        config,
+        initialSize: session.terminalSize,
+        launchPrompt,
+        command,
+        ...(Object.keys(cliHookExtras.env).length > 0 ? { extraEnv: cliHookExtras.env } : {}),
+        ...(keepStructuredSession ? { structuredSession } : {}),
+        resourceLease,
+        sessionRef: session.sessionRef,
+        mcpLaunchSnapshot,
+        threadMentionToolsAvailable: hasThreadMentionTools(resolvedMcpServers),
+        launchConfig,
+        ...(session.nativePlugins ? { nativePlugins: session.nativePlugins } : {}),
+        ...(session.presentationMode ? { presentationMode: session.presentationMode } : {}),
+      });
+    } catch (error) {
+      await unpublishedAttempt.abandon();
+      throw error;
+    }
+  }
+
+  /**
+   * Tracks a created-but-unpublished provider handle across a start/restart
+   * attempt. `detach()` stops tracking when the handle is published or handed
+   * to `discardStructuredHandle` (that path owns its own retention);
+   * `abandon()` drops the handle first and then settles the admission slot
+   * through the shared retirement owner, so a rejecting dispose retains
+   * {lease, handle} custody instead of freeing capacity for a possibly-live
+   * process.
+   */
+  private trackUnpublishedHandle(
+    lease: HostResourceLease | undefined,
+    handle: StructuredSessionHandle | undefined,
+  ): { abandon: () => Promise<void>; detach: () => void } {
+    let unpublished = handle;
+    return {
+      abandon: async () => {
+        const pending = unpublished;
+        unpublished = undefined;
+        await this.ctx.retirement.abandonLease(
+          lease,
+          pending ? () => pending.dispose() : undefined,
+        );
+      },
+      detach: () => {
+        unpublished = undefined;
+      },
+    };
   }
 
   spawnThread(input: SpawnThreadInput): SessionRuntime {
@@ -1160,6 +1291,10 @@ export class SpawnPipeline {
       : undefined;
     let pty;
     if (command) {
+      // Mock-QA enforcement: mock sessions must never execute a real provider
+      // CLI — their sandboxed HOME/mock keychain do not extend to spawned
+      // processes. See `agentLaunchGuard`.
+      assertAgentLaunchAllowed("thread-pty");
       ensureNodePtySpawnHelperExecutable();
       const ptyEnv = {
         ...sanitizedProcessEnv,
@@ -1177,7 +1312,9 @@ export class SpawnPipeline {
         });
       } catch (error) {
         try {
-          command.cleanup?.();
+          void Promise.resolve(command.cleanup?.()).catch(() => {
+            // Best-effort cleanup must not hide the spawn failure.
+          });
         } catch {
           // Best-effort cleanup must not hide the spawn failure.
         }
@@ -1202,6 +1339,7 @@ export class SpawnPipeline {
       agentKind: input.agentKind,
       adapter: input.adapter,
       ...(pty ? { pty } : {}),
+      ...(input.resourceLease ? { resourceLease: input.resourceLease } : {}),
       ...(pty && command?.cleanup ? { launchCleanup: command.cleanup } : {}),
       ...withLogicalProjectLocation(input),
       projectLocation: input.projectLocation,
@@ -1242,6 +1380,9 @@ export class SpawnPipeline {
     };
 
     ctx.sessionRuntimeLifecycle.attach(session);
+    // The process effect exists once the runtime is published: a PTY spawn
+    // succeeded and/or a structured handle is attached. Idempotent.
+    input.resourceLease?.activate();
 
     return session;
   }
@@ -1512,6 +1653,9 @@ export class SpawnPipeline {
     if (!adapter.createStructuredSession) {
       return undefined;
     }
+    // Mock-QA enforcement: refuse every structured provider session (ACP,
+    // vendor SDKs, app-servers alike) before the adapter can spawn its process.
+    assertAgentLaunchAllowed("thread-structured");
     try {
       return await adapter.createStructuredSession({
         threadId,
@@ -1528,6 +1672,12 @@ export class SpawnPipeline {
       });
     } catch (error) {
       console.error("[supervisor] structured session creation failed:", error);
+      // A mock-mode refusal is itself the actionable message (it names the
+      // guard and the escape hatch) — surface it verbatim instead of the
+      // generic structured-runtime diagnostic.
+      if (error instanceof MockAgentLaunchBlockedError) {
+        throw error;
+      }
       const diagnosticError = new StructuredRuntimeDiagnosticError("session-creation", agentKind);
       if (presentationMode === "gui") {
         // The startThread IPC boundary owns GUI startup failures. Throw one
@@ -1545,18 +1695,6 @@ export class SpawnPipeline {
       });
       return undefined;
     }
-  }
-
-  private async abortPendingStart(
-    threadId: string,
-    structuredSession: StructuredSessionHandle | undefined,
-  ): Promise<boolean> {
-    if (!this.ctx.pendingStartAborts.delete(threadId)) {
-      return false;
-    }
-    this.ctx.pendingStartInterrupts.delete(threadId);
-    await structuredSession?.dispose();
-    return true;
   }
 
   private emitOptimisticWorkingState(

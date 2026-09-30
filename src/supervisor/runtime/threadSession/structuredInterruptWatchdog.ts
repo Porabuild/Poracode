@@ -1,3 +1,4 @@
+import type { StructuredSessionHandle } from "../../agents/base";
 import type { SessionRuntime } from "../sessionTypes";
 import { STRUCTURED_INTERRUPT_FORCE_STOP_MS } from "./userInterrupt";
 
@@ -12,6 +13,11 @@ export interface StructuredInterruptWatchdogContext {
   sessions: Map<string, SessionRuntime>;
   isDisposed(): boolean;
   completeForcedInterrupt(session: SessionRuntime): void;
+  /**
+   * Dispose a force-stopped structured session and settle its execution slot:
+   * a confirmed dispose releases the slot, a rejected one retains it.
+   */
+  disposeForceStoppedSession(session: SessionRuntime, handle: StructuredSessionHandle): void;
 }
 
 /**
@@ -83,9 +89,9 @@ export class StructuredInterruptWatchdog {
     interruptedSession?.forceCompleteTurn?.();
     session.ignoreExit = true;
     session.structuredSession = undefined;
-    void Promise.resolve(interruptedSession?.dispose()).catch((error) => {
-      console.error("[supervisor] failed to dispose force-stopped structured session:", error);
-    });
+    if (interruptedSession) {
+      this.ctx.disposeForceStoppedSession(session, interruptedSession);
+    }
     this.ctx.completeForcedInterrupt(session);
   }
 }

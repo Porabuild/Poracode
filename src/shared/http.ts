@@ -59,7 +59,12 @@ export async function readBoundedResponseBody(
 /**
  * Reads a Node request body, aborting once the accumulated size exceeds
  * `maxBytes`. The caller supplies `onOverflow` so each site keeps its own
- * error type/message.
+ * error type/message. After an overflow the rest of the request is still
+ * drained (without being retained): responding while the client is mid-upload
+ * leaves unread bytes in the socket, so the subsequent close RSTs the
+ * connection and the client sees `ECONNRESET` instead of the caller's 413 —
+ * the same contract as HookIngress's drain-then-reject readBody. The drain is
+ * bounded by the request itself: the loop ends at this request's final chunk.
  */
 export async function readBoundedNodeRequestBody(
   req: AsyncIterable<Buffer | Uint8Array | string>,
@@ -68,14 +73,18 @@ export async function readBoundedNodeRequestBody(
 ): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let total = 0;
+  let overflow: Error | undefined;
   for await (const chunk of req) {
+    if (overflow) continue;
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     total += buffer.length;
     if (total > maxBytes) {
-      throw onOverflow();
+      overflow = onOverflow();
+      continue;
     }
     chunks.push(buffer);
   }
+  if (overflow) throw overflow;
   return Buffer.concat(chunks);
 }
 

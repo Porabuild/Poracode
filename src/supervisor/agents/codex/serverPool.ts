@@ -19,6 +19,12 @@ interface ServerSnapshot {
 interface PoolEntry {
   ready: Promise<ServerSnapshot>;
   leases: number;
+  /**
+   * Set when the final lease was released while an acquisition was still
+   * resolving its async pool key. The process is torn down once the pending
+   * acquisition either reserves a lease or finishes without one.
+   */
+  pendingTeardown?: boolean;
 }
 
 export interface AcquiredCodexAppServer {
@@ -30,6 +36,14 @@ const THREAD_SCOPED_MCP_SERVER_IDS = new Set(["app-controls", "browser", "chrome
 const pool = new Map<string, PoolEntry>();
 const spawnedAppServers = new Set<ChildProcess>();
 const spawnedConnections = new Set<CodexAppServerConnection>();
+/**
+ * Acquisitions that have not reserved a lease yet because their pool key is
+ * still being computed (skill-conflict reads are worker-backed). While any
+ * acquisition is pending, a released last lease defers teardown so the
+ * in-flight acquisition can still join the live process instead of spawning a
+ * duplicate.
+ */
+let pendingAcquisitions = 0;
 
 function executionRuntimeKey(location: ProjectLocation): string {
   switch (location.kind) {
@@ -59,10 +73,10 @@ function normalizedMcpServer(server: ResolvedMcpServer): ResolvedMcpServer {
   };
 }
 
-function poolFingerprint(
+async function poolFingerprint(
   location: ProjectLocation,
   mcpServers: readonly ResolvedMcpServer[],
-): string {
+): Promise<string> {
   const normalizedServers = mcpServers.map(normalizedMcpServer);
   const mcp = buildCodexMcp(normalizedServers);
   return createHash("sha256")
@@ -70,27 +84,34 @@ function poolFingerprint(
       JSON.stringify({
         servers: normalizedServers,
         env: mcp.env,
-        skillConflictArgs: buildCodexMcpSkillConflictArgs(location, normalizedServers),
+        skillConflictArgs: await buildCodexMcpSkillConflictArgs(location, normalizedServers),
       }),
     )
     .digest("hex");
 }
 
-export function codexAppServerPoolKey(
+/**
+ * Identity of one shareable app-server process. Async because the skill
+ * fingerprint reads the distro's codex home through the WSL staging worker
+ * (never a synchronous UNC handle) before the key can be computed.
+ */
+export async function codexAppServerPoolKey(
   location: ProjectLocation,
   mcpServers: readonly ResolvedMcpServer[],
   wslExecPath?: string,
   wslNodePath?: string,
-): string {
+): Promise<string> {
   return [
     executionRuntimeKey(location),
     wslExecPath ?? "",
     wslNodePath ?? "",
-    poolFingerprint(location, mcpServers),
+    await poolFingerprint(location, mcpServers),
   ].join("|");
 }
 
-function spawnAppServer(command: ReturnType<typeof buildCodexAppServerCommand>): ChildProcess {
+function spawnAppServer(
+  command: Awaited<ReturnType<typeof buildCodexAppServerCommand>>,
+): ChildProcess {
   return spawn(command.command, command.args, {
     cwd: command.cwd ?? process.cwd(),
     env: {
@@ -111,7 +132,7 @@ async function spawnAndWire(
   onExit: (appServer: ChildProcess, connection: CodexAppServerConnection) => void,
 ): Promise<ServerSnapshot> {
   const appServer = spawnAppServer(
-    buildCodexAppServerCommand(input.projectLocation, {
+    await buildCodexAppServerCommand(input.projectLocation, {
       ...(wslExecPath !== undefined ? { wslExecPath } : {}),
       ...(wslNodePath !== undefined ? { wslNodePath } : {}),
       ...(input.mcpServers !== undefined ? { mcpServers: input.mcpServers } : {}),
@@ -142,56 +163,88 @@ async function spawnAndWire(
   return { appServer, connection, transport };
 }
 
+function teardownEntry(key: string, entry: PoolEntry, snapshot: ServerSnapshot): void {
+  if (pool.get(key) === entry) pool.delete(key);
+  spawnedConnections.delete(snapshot.connection);
+  spawnedAppServers.delete(snapshot.appServer);
+  snapshot.connection.dispose(new Error("Last Codex app-server pool lease released."));
+  if (!snapshot.appServer.killed) {
+    terminateChildProcessTree(snapshot.appServer);
+  }
+}
+
+/** Run deferred teardowns once no acquisition is still computing its pool key. */
+function flushPendingTeardowns(): void {
+  if (pendingAcquisitions > 0) return;
+  for (const [key, entry] of [...pool]) {
+    if (!entry.pendingTeardown || entry.leases > 0) continue;
+    void entry.ready
+      .then((snapshot) => teardownEntry(key, entry, snapshot))
+      .catch(() => {
+        if (pool.get(key) === entry) pool.delete(key);
+      });
+  }
+}
+
 export async function acquireCodexAppServer(
   input: CreateStructuredSessionInput,
   wslExecPath?: string,
 ): Promise<AcquiredCodexAppServer> {
-  const wslNodePath =
-    input.projectLocation.kind === "wsl"
-      ? (await resolveNodeForDistro(input.projectLocation.distro)).nodePath
-      : undefined;
-  const mcpServers = input.mcpServers ?? [];
-  const key = codexAppServerPoolKey(input.projectLocation, mcpServers, wslExecPath, wslNodePath);
-  let entry = pool.get(key);
-  if (!entry) {
-    const ready = spawnAndWire(input, wslExecPath, wslNodePath, (appServer, connection) => {
-      spawnedAppServers.delete(appServer);
-      spawnedConnections.delete(connection);
-      if (pool.get(key) === entry) pool.delete(key);
-    });
-    entry = { ready, leases: 0 };
-    pool.set(key, entry);
-    ready.catch(() => {
-      if (pool.get(key) === entry) pool.delete(key);
-    });
-  }
-
-  entry.leases += 1;
-  let snapshot: ServerSnapshot;
+  pendingAcquisitions += 1;
   try {
-    snapshot = await entry.ready;
-  } catch (error) {
-    entry.leases -= 1;
-    throw error;
-  }
-  let released = false;
-  return {
-    connection: snapshot.connection,
-    dispose: () => {
-      if (released) return;
-      released = true;
-      entry.leases -= 1;
-      if (entry.leases > 0) return;
+    const wslNodePath =
+      input.projectLocation.kind === "wsl"
+        ? (await resolveNodeForDistro(input.projectLocation.distro)).nodePath
+        : undefined;
+    const mcpServers = input.mcpServers ?? [];
+    const key = await codexAppServerPoolKey(
+      input.projectLocation,
+      mcpServers,
+      wslExecPath,
+      wslNodePath,
+    );
+    let entry = pool.get(key);
+    if (!entry) {
+      const ready = spawnAndWire(input, wslExecPath, wslNodePath, (appServer, connection) => {
+        spawnedAppServers.delete(appServer);
+        spawnedConnections.delete(connection);
+        if (pool.get(key) === entry) pool.delete(key);
+      });
+      entry = { ready, leases: 0 };
+      pool.set(key, entry);
+      ready.catch(() => {
+        if (pool.get(key) === entry) pool.delete(key);
+      });
+    }
 
-      if (pool.get(key) === entry) pool.delete(key);
-      spawnedConnections.delete(snapshot.connection);
-      spawnedAppServers.delete(snapshot.appServer);
-      snapshot.connection.dispose(new Error("Last Codex app-server pool lease released."));
-      if (!snapshot.appServer.killed) {
-        terminateChildProcessTree(snapshot.appServer);
-      }
-    },
-  };
+    entry.pendingTeardown = false;
+    entry.leases += 1;
+    let snapshot: ServerSnapshot;
+    try {
+      snapshot = await entry.ready;
+    } catch (error) {
+      entry.leases -= 1;
+      throw error;
+    }
+    let released = false;
+    return {
+      connection: snapshot.connection,
+      dispose: () => {
+        if (released) return;
+        released = true;
+        entry.leases -= 1;
+        if (entry.leases > 0) return;
+        if (pendingAcquisitions > 0) {
+          entry.pendingTeardown = true;
+          return;
+        }
+        teardownEntry(key, entry, snapshot);
+      },
+    };
+  } finally {
+    pendingAcquisitions -= 1;
+    flushPendingTeardowns();
+  }
 }
 
 export function shutdownSpawnedCodexAppServers(): void {

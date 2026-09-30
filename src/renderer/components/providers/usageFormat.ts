@@ -1,4 +1,8 @@
-import { formatResetCountdown, projectWindowUsage } from "@poracode/agents-usage/formatters";
+import {
+  usageWindowDisplayLabel as baseUsageWindowDisplayLabel,
+  formatResetCountdown,
+  projectWindowUsage,
+} from "@poracode/agents-usage/formatters";
 import type { UsageProjection } from "@poracode/agents-usage/formatters";
 import type { UsageCredits, UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
 import { msg } from "@lingui/core/macro";
@@ -211,4 +215,8 @@ export function usageStatusText(
     default:
       return snapshot.error ?? i18n._(msg`Error`);
   }
+}
+
+export function usageWindowDisplayLabel(window: UsageWindow): string {
+  return window.id === "daily" ? i18n._(msg`Daily`) : baseUsageWindowDisplayLabel(window);
 }

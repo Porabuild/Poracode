@@ -56,9 +56,58 @@ describe("processTree", () => {
       expect.objectContaining({
         stdio: "ignore",
         windowsHide: true,
+        // A wedged taskkill must time out instead of hanging the caller.
+        timeout: expect.any(Number),
       }),
     );
+    const options = taskkillSpawnSyncMock.mock.calls[0]?.[2] as { timeout?: number };
+    expect(options.timeout).toBeGreaterThan(0);
     expect(processKillSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to a direct kill when taskkill times out instead of hanging", () => {
+    const processKillSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
+    // A timed-out spawnSync reports an ETIMEDOUT error and no exit status.
+    taskkillSpawnSyncMock.mockReturnValue({
+      pid: 0,
+      output: [],
+      stdout: null,
+      stderr: null,
+      status: null,
+      signal: null,
+      error: Object.assign(new Error("spawnSync taskkill ETIMEDOUT"), { code: "ETIMEDOUT" }),
+    });
+
+    Object.defineProperty(process, "platform", {
+      configurable: true,
+      value: "win32",
+    });
+
+    terminateProcessTree(4242);
+
+    expect(taskkillSpawnSyncMock).toHaveBeenCalledTimes(1);
+    expect(processKillSpy).toHaveBeenCalledWith(4242);
+  });
+
+  it("falls back to a direct kill when taskkill fails without success", () => {
+    const processKillSpy = vi.spyOn(process, "kill").mockImplementation(() => true);
+    taskkillSpawnSyncMock.mockReturnValue({
+      pid: 0,
+      output: [],
+      stdout: null,
+      stderr: null,
+      status: 128,
+      signal: null,
+    });
+
+    Object.defineProperty(process, "platform", {
+      configurable: true,
+      value: "win32",
+    });
+
+    terminateProcessTree(4242);
+
+    expect(processKillSpy).toHaveBeenCalledWith(4242);
   });
 
   it("falls back to process.kill on non-Windows platforms", () => {

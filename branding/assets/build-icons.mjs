@@ -258,7 +258,7 @@ async function main() {
   }
 
   if (wants("pwa")) {
-    console.log("pwa/ (mobile PWA icons):");
+    console.log("pwa/ (installable app icons):");
     const pwa = `${OUT}/pwa`;
     await mkdir(pwa, { recursive: true });
     for (const variant of PWA_VARIANTS) await buildPwaVariant(pwa, variant);

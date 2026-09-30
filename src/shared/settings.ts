@@ -20,6 +20,7 @@ import {
   worktreeStorageModeSchema,
   mcpServerListSchema,
   installedPluginsSchema,
+  normalizeBuiltInMcpDisabledTools,
   workspaceListSchema,
 } from "./contracts";
 import {
@@ -27,6 +28,10 @@ import {
   machineScopeModesSchema,
   machineSettingsEntrySchema,
 } from "./machineSettings";
+import {
+  DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS,
+  hostResourceAdmissionSettingsSchema,
+} from "./hostResourceAdmission";
 import { parseMachineKey } from "./machines";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
@@ -600,7 +605,7 @@ export const sharedSettingsSchema = z.object({
    * Which one is *active* is not stored here but per-window (see the renderer's
    * `workspaceStore`), so switching in one window leaves the others alone.
    *
-   * Not part of `remoteSettingsSchema`, so paired clients (mobile PWA) receive no
+   * Not part of `remoteSettingsSchema`, so paired browser clients receive no
    * workspace list and therefore show every project — add it to that allowlist if
    * workspaces should scope remote sessions too.
    */
@@ -681,6 +686,16 @@ export const sharedSettingsSchema = z.object({
   audio: audioSettingsSchema,
   /** Provider usage tracking (auto-refresh cadence, per-provider opt-out, cost). */
   usage: usageSettingsSchema,
+  /**
+   * Supervisor execution-slot bounds. Each value is a nonnegative finite safe
+   * integer with no arbitrary ceiling; `0` is explicitly unlimited and is the
+   * pre-measurement transitional default, not a validated protective number.
+   * The count bounds supervisor execution slots (agent sessions, user terminal
+   * shells, short-lived generation helpers), never provider descendants, OS
+   * processes or RSS. The supervisor reads the raw document through its own
+   * settings cache; a present invalid value never becomes unlimited.
+   */
+  hostResourceAdmission: hostResourceAdmissionSettingsSchema,
   /**
    * Free-text routing instructions appended to the Crossagents MCP server
    * `instructions`, guiding how an agent picks which connected agent/model to
@@ -793,7 +808,7 @@ export const defaultSharedSettings: SharedSettings = {
   worktreeBasePath: "",
   wslWorktreeBasePath: "",
   gitReviewMode: "panel",
-  prCreateMode: "dialog",
+  prCreateMode: "auto",
   prAutomationDefault: "off",
   prMergeMethod: "squash",
   commitDefaultAction: "commit-push",
@@ -852,6 +867,7 @@ export const defaultSharedSettings: SharedSettings = {
     collapsedProviders: [],
     selectedRingGroups: {},
   },
+  hostResourceAdmission: { ...DEFAULT_HOST_RESOURCE_ADMISSION_SETTINGS },
   crossagentRoutingGuide: "",
 };
 
@@ -1560,46 +1576,54 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
   settings: SharedSettings;
   acpAliasMigrated: boolean;
 } {
+  const migratedValue = sanitizeLegacyMcpServerUrls(value);
   const normalized = normalizeObjectFromSchema(
     sharedSettingsSchema.shape,
     defaultSharedSettings,
-    value,
+    migratedValue,
   );
-  const parsed = z.record(z.string(), z.unknown()).safeParse(value);
+  const parsed = z.record(z.string(), z.unknown()).safeParse(migratedValue);
   if (!parsed.success) return { settings: normalized, acpAliasMigrated: false };
+  return migrateSharedSettingsValues(
+    { ...normalized, machineSettings: normalizeMachineSettings(parsed.data.machineSettings) },
+    parsed.data,
+  );
+}
 
-  const hasAutomationMode = prAutomationModeSchema.safeParse(
-    parsed.data.prAutomationDefault,
-  ).success;
+/** Applies existing migrations to validated values; object spreads retain private future fields. */
+export function migrateSharedSettingsValues(
+  normalized: SharedSettings,
+  source: Record<string, unknown>,
+): { settings: SharedSettings; acpAliasMigrated: boolean } {
+  const hasAutomationMode = prAutomationModeSchema.safeParse(source.prAutomationDefault).success;
   const legacyAutomationMode =
-    parsed.data.prAutoMergeDefault === true
-      ? "merge"
-      : parsed.data.prWatchDefault === true
-        ? "fix"
-        : "off";
+    source.prAutoMergeDefault === true ? "merge" : source.prWatchDefault === true ? "fix" : "off";
   // Unversioned settings file: migrate the two legacy sleep booleans into
   // the single `preventSleep` enum. An explicit valid value always wins.
   const hasPreventSleep = sharedSettingsSchema.shape.preventSleep.safeParse(
-    parsed.data.preventSleep,
+    source.preventSleep,
   ).success;
   const hasLegacyPreventSleepKeys =
-    "preventSleepWhileWorking" in parsed.data || "remoteAccessPreventSleep" in parsed.data;
+    "preventSleepWhileWorking" in source || "remoteAccessPreventSleep" in source;
   const migratedPreventSleep =
     !hasPreventSleep && hasLegacyPreventSleepKeys
-      ? parsed.data.remoteAccessPreventSleep === true
+      ? source.remoteAccessPreventSleep === true
         ? ("while-remote-access" as const)
         : ("while-working" as const)
       : normalized.preventSleep;
-  const usage = z.record(z.string(), z.unknown()).safeParse(parsed.data.usage);
+  const usage = z.record(z.string(), z.unknown()).safeParse(source.usage);
   const disabledProviders = usage.success
     ? z.array(z.string()).safeParse(usage.data.disabledProviders)
     : undefined;
   return migrateAntigravityAcpAliasState(
     migrateRetiredQwenPreviewModel({
       ...normalized,
-      machineSettings: normalizeMachineSettings(parsed.data.machineSettings),
       sidebarShortcutOrder: normalizeSidebarShortcutOrder(normalized.sidebarShortcutOrder),
       threadDocksOrder: normalizeThreadDocksOrder(normalized.threadDocksOrder),
+      // Legacy `chrome_`-prefixed tool names are normalized once here at the
+      // load boundary so the Zod schema (and the remote-v3 wire derived from
+      // it) can stay transform-free.
+      disabledBuiltInMcpTools: normalizeBuiltInMcpDisabledTools(normalized.disabledBuiltInMcpTools),
       prAutomationDefault: hasAutomationMode
         ? normalized.prAutomationDefault
         : legacyAutomationMode,
@@ -1614,6 +1638,44 @@ function normalizeSharedSettingsStateImpl(value: unknown): {
       },
     }),
   );
+}
+
+/**
+ * Older unversioned settings accepted URL userinfo and fragments for HTTP/SSE
+ * MCP transports. Strip those credential-bearing components before the
+ * stricter schema parses the list so one legacy entry does not reset all MCP
+ * servers to the default empty list.
+ */
+export function sanitizeLegacyMcpServerUrls(value: unknown): unknown {
+  const root = z.record(z.string(), z.unknown()).safeParse(value);
+  if (!root.success || !Array.isArray(root.data.mcpServers)) return value;
+  return {
+    ...(value as Record<string, unknown>),
+    mcpServers: root.data.mcpServers.map((entry) => {
+      const server = z.record(z.string(), z.unknown()).safeParse(entry);
+      if (!server.success) return entry;
+      const transport = z.record(z.string(), z.unknown()).safeParse(server.data.transport);
+      if (
+        !transport.success ||
+        (transport.data.type !== "http" && transport.data.type !== "sse") ||
+        typeof transport.data.url !== "string"
+      ) {
+        return entry;
+      }
+      try {
+        const url = new URL(transport.data.url);
+        url.username = "";
+        url.password = "";
+        url.hash = "";
+        return {
+          ...(entry as Record<string, unknown>),
+          transport: { ...(server.data.transport as Record<string, unknown>), url: url.toString() },
+        };
+      } catch {
+        return entry;
+      }
+    }),
+  };
 }
 
 export function normalizeSharedSettings(value: unknown): SharedSettings {
