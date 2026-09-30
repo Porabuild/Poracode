@@ -130,6 +130,42 @@ describe("useKeyboardOffset", () => {
     expect(visibility.current).toBe(300);
   });
 
+  it("lifts the Android Chrome PWA composer when only the visual viewport shrinks", () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Linux; Android 15) Chrome/140" });
+    vi.stubGlobal("Capacitor", { getPlatform: () => "web" });
+    setWindowHeight(800);
+    setDocumentHeight(800);
+    const visualViewport = installVisualViewport({ height: 800 });
+    const { result } = renderHook(() => useKeyboardGeometry());
+
+    act(() => {
+      visualViewport.viewport.height = 480;
+      visualViewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 320, visibilityOffset: 320 });
+
+    act(() => {
+      visualViewport.viewport.height = 800;
+      visualViewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 0 });
+  });
+
+  it("does not double-lift an Android browser that resizes the layout viewport", () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Linux; Android 15) Chrome/140" });
+    setWindowHeight(800);
+    setDocumentHeight(800);
+    const visualViewport = installVisualViewport({ height: 800 });
+    const { result } = renderHook(() => useKeyboardGeometry());
+    act(() => {
+      setWindowHeight(480);
+      setDocumentHeight(480);
+      visualViewport.viewport.height = 480;
+      visualViewport.dispatch();
+    });
+    expect(result.current).toEqual({ liftOffset: 0, visibilityOffset: 320 });
+  });
+
   it("uses Android window innerHeight when documentElement keeps its pre-keyboard height", async () => {
     vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
     setWindowHeight(923);
