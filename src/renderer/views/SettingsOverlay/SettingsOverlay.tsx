@@ -15,6 +15,7 @@ import { normalizeAnalyticsProvider } from "@/shared/analytics/posthogPrivacy";
 import { ProfileSettings } from "./parts/ProfileSettings";
 import { AppearanceSettings } from "./parts/AppearanceSettings";
 import { BrowserSettings } from "./parts/BrowserSettings";
+import { ImportSettings } from "./parts/ImportSettings";
 import { UsageSettings } from "./parts/UsageSettings";
 import { AudioSettings } from "./parts/AudioSettings";
 import { GeneralSettings } from "./parts/GeneralSettings";
@@ -66,6 +67,7 @@ const SECTION_VIEWS: Partial<Record<SettingsSection, () => ReactNode>> = {
   plugins: () => <PluginsSettings />,
   browser: () => <BrowserSettings />,
   usage: () => <UsageSettings />,
+  import: () => <ImportSettings />,
   archived: () => <ArchivedThreadsSettings />,
   changelog: () => <ChangelogSettings />,
   about: () => <AboutSettings />,

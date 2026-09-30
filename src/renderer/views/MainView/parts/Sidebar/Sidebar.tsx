@@ -1,4 +1,13 @@
-import { ChevronRight, Globe, House, PanelLeft, Plus, Search, Settings2 } from "lucide-react";
+import {
+  ChevronRight,
+  Download,
+  Globe,
+  House,
+  PanelLeft,
+  Plus,
+  Search,
+  Settings2,
+} from "lucide-react";
 import { startTransition, useEffect, useLayoutEffect, useState } from "react";
 import { useShallow } from "zustand/shallow";
 import { Trans, useLingui } from "@lingui/react/macro";
@@ -6,6 +15,7 @@ import { AnimatedTerminalIcon } from "@/renderer/components/common/AnimatedTermi
 import { getAppName } from "@/shared/appName";
 import type { Thread } from "@/shared/contracts";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
+import { ImportSessionsDialog } from "@/renderer/components/sessionImport/ImportSessionsDialog";
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { ThreadProviderIcon } from "@/renderer/components/providers/ThreadProviderIcon";
 import {
@@ -39,6 +49,7 @@ import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useIsPanelTabVisible } from "@/renderer/state/panelDockSelectors";
 import { usePanelStore } from "@/renderer/state/panelStore";
+import { importScopeForProject, useImportDialogStore } from "@/renderer/state/importDialogStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
@@ -185,6 +196,12 @@ export function Sidebar() {
   const remoteAccessEnabled = useSharedSettings((s) => s.remoteAccessEnabled);
   const currentProjectId = useCurrentProjectId();
   const currentWorktreePath = useCurrentWorktreePath();
+  // The collapsed rail's import button scopes to the project in view; with
+  // none it falls back to the unscoped list, same as Settings.
+  const currentProject = useAppStore((state) =>
+    state.projects.find((project) => project.id === currentProjectId),
+  );
+  const importDialog = useImportDialogStore();
   const sortMode = usePanelStore((s) => s.threadSortMode);
   const listLayout = usePanelStore((s) => s.threadListLayout);
   const settingsOpen = usePanelStore((s) => s.settingsOpen);
@@ -317,6 +334,13 @@ export function Sidebar() {
               isActive={appView.kind === "draft"}
               onPress={() => openNewThread()}
             />
+            <SidebarButton
+              iconOnly
+              icon={<Download className="size-3.5" />}
+              label={t`Import session`}
+              isActive={importDialog.open}
+              onPress={() => importDialog.openFor(importScopeForProject(currentProject))}
+            />
           </div>
           <CollapsedThreadRail />
 
@@ -441,6 +465,7 @@ export function Sidebar() {
         <ProviderUsageRail orientation="row" />
         <SidebarFooterNav remoteAccessStatus={remoteAccessStatus} />
       </div>
+      <ImportSessionsDialog />
     </div>
   );
 }

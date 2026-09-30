@@ -7,6 +7,7 @@ import {
   hasHydratedThreadRuntimeItems,
   hydrateThreadRuntimeItems,
   loadOlderThreadRuntimeItems,
+  rehydrateThreadRuntimeItems,
   releaseThreadRuntimeItems,
   retainThreadRuntimeItems,
   seedOlderThreadRuntimeItemsCursor,
@@ -227,6 +228,32 @@ describe("paged runtime hydration", () => {
     ]);
     await expect(loadOlderThreadRuntimeItems("paged-thread")).resolves.toBe(false);
     expect(bridge.dbGetThreadRuntimeItemsPage).toHaveBeenCalledTimes(2);
+  });
+
+  it("rehydrates a transcript that was opened before main finished writing it", async () => {
+    // The pane mounted mid-import: the DB had nothing yet.
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({ items: [], nextCursor: null });
+    retainThreadRuntimeItems("imported");
+    await hydrateThreadRuntimeItems("imported");
+    expect(hasHydratedThreadRuntimeItems("imported")).toBe(true);
+    expect(useAppStore.getState().runtimeItemIdsByThread["imported"]).toBeUndefined();
+
+    bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
+      items: [makeItem({ id: "replayed", type: "assistant_message" })],
+      nextCursor: null,
+    });
+    await rehydrateThreadRuntimeItems("imported");
+
+    expect(useAppStore.getState().runtimeItemIdsByThread["imported"]).toEqual(["replayed"]);
+    expect(hasHydratedThreadRuntimeItems("imported")).toBe(true);
+    releaseThreadRuntimeItems("imported");
+  });
+
+  it("leaves an unopened thread alone on rehydrate so its first open reads the DB", async () => {
+    await rehydrateThreadRuntimeItems("never-opened");
+
+    expect(bridge.dbGetThreadRuntimeItemsPage).not.toHaveBeenCalled();
+    expect(hasHydratedThreadRuntimeItems("never-opened")).toBe(false);
   });
 
   it("keeps the remote snapshot cursor through ChatPane hydration", async () => {

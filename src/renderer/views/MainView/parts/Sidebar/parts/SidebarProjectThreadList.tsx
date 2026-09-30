@@ -11,6 +11,10 @@ import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threa
 import { useSidebarUiStore, useThreadListLimit } from "@/renderer/state/sidebarUiStore";
 import { useWorkspaceThreadFilter } from "@/renderer/state/workspaceSelectors";
 import { useExperimentCandidateOrder } from "@/renderer/state/experimentStore";
+import { Download } from "lucide-react";
+import { useLingui } from "@lingui/react/macro";
+import { SidebarButton } from "@/renderer/components/common/SidebarButton";
+import { importScopeForProject, useImportDialogStore } from "@/renderer/state/importDialogStore";
 import { NewThreadButton } from "./NewThreadButton";
 import { buildSidebarProjectRows } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
@@ -44,15 +48,20 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
 
   return (
     <div className="space-y-0.5">
-      <NewThreadButton
-        projectId={project.id}
-        hasDraft={hasDraft}
-        isActive={isDraftActive}
-        isDraggingAnything={!!source}
-        canOpenAsPanel={currentThreadCount > 0 && currentThreadCount < 3}
-        onPress={() => openNewThread(project.id)}
-        onOpenAsPanel={() => openNewThreadSideBySide(project.id)}
-      />
+      <div className="group flex items-center gap-0.5">
+        <div className="min-w-0 flex-1">
+          <NewThreadButton
+            projectId={project.id}
+            hasDraft={hasDraft}
+            isActive={isDraftActive}
+            isDraggingAnything={!!source}
+            canOpenAsPanel={currentThreadCount > 0 && currentThreadCount < 3}
+            onPress={() => openNewThread(project.id)}
+            onOpenAsPanel={() => openNewThreadSideBySide(project.id)}
+          />
+        </div>
+        <ImportSessionButton project={project} />
+      </div>
 
       <div>
         {rows.map((row) =>
@@ -70,5 +79,23 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Opens the import dialog scoped to this project: only its folder's sessions
+ * are listed, and the imported threads land here.
+ */
+function ImportSessionButton(props: { project: Project }) {
+  const { t } = useLingui();
+  const openFor = useImportDialogStore((state) => state.openFor);
+  return (
+    <SidebarButton
+      iconOnly
+      size="xs"
+      icon={<Download className="size-3.5" />}
+      label={t`Import session`}
+      onPress={() => openFor(importScopeForProject(props.project))}
+    />
   );
 }

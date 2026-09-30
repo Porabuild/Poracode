@@ -433,6 +433,10 @@ msgstr "{agentLabel}:{statusLabel}。マウスを移動するとステータス�
 msgid "{agentLead} needs your input to continue."
 msgstr "{agentLead}が続行するには入力が必要です。"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{alreadyImported} session(s) were already imported."
+msgstr "{alreadyImported} 件のセッションは既にインポートされています。"
+
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# 件のコミット} other {# 件のコミット}}"
@@ -813,6 +817,7 @@ msgstr "現在の変更を受け入れる"
 msgid "Accept Incoming Change"
 msgstr "受信した変更を受け入れる"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "アカウント"
@@ -1274,6 +1279,7 @@ msgstr "スレッドが対応を必要としたら通知"
 msgid "All"
 msgstr "全期間"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
 msgstr "すべてのアカウント"
@@ -1301,6 +1307,10 @@ msgstr "すべての推論レベル"
 msgid "All files"
 msgstr "すべてのファイル"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "All folders"
+#~ msgstr "すべてのフォルダー"
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
 msgstr "すべてのマシン"
@@ -1310,9 +1320,14 @@ msgid "All plugins are up to date."
 msgstr "すべてのプラグインは最新です。"
 
 #: src/mobile/views/ThreadsView.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "すべてのプロジェクト"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All providers"
+msgstr "すべてのプロバイダー"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
@@ -1995,6 +2010,14 @@ msgstr "ブランチ"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserDockSlot.tsx
 msgid "Bring back to panel"
 msgstr "パネルに戻す"
+
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Bring conversations you started in an agent CLI into Poracode. Transcript files are read, never modified."
+msgstr "エージェントの CLI で開始した会話を Poracode に取り込みます。会話記録ファイルは読み取りのみで、変更されません。"
+
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+#~ msgid "Bring conversations you started in Codex CLI or Claude Code into Poracode. Transcript files are read, never modified."
+#~ msgstr "Codex CLI や Claude Code で始めた会話を Poracode に取り込みます。トランスクリプトファイルは読み取るだけで、変更されることはありません。"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -2939,6 +2962,10 @@ msgstr "コードがコピーされました。"
 msgid "Codex"
 msgstr "Codex"
 
+#: src/renderer/components/providers/codex/manifest.ts
+msgid "Codex CLI"
+msgstr "Codex CLI"
+
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
@@ -3598,6 +3625,11 @@ msgstr "コンテキストを抽出できませんでした。"
 msgid "Could not generate commit message: {detail}"
 msgstr "コミットメッセージを生成できませんでした:{detail}"
 
+#. placeholder {0}: session.preview
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Could not import {0}."
+msgstr "{0} をインポートできませんでした。"
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3606,6 +3638,10 @@ msgstr "{0} のプルリクエストを読み込めませんでした。"
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "このPDFを開けませんでした。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Could not read existing CLI sessions."
+msgstr "既存の CLI セッションを読み取れませんでした。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -5643,6 +5679,10 @@ msgstr "フォルダ"
 msgid "Folder name"
 msgstr "フォルダ名"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Folder no longer exists — imports into the project chosen above."
+msgstr "フォルダーが存在しません — 上で選択したプロジェクトにインポートします。"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Folder on the server"
 msgstr "サーバー上のフォルダー"
@@ -6243,6 +6283,10 @@ msgstr "秘密鍵ファイルのパス"
 msgid "Idle"
 msgstr "アイドル状態"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "If the folder is missing, import into"
+msgstr "フォルダーがない場合のインポート先"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Ignored an unrecognized field in plugin.json."
 msgstr "plugin.json の不明なフィールドを無視しました。"
@@ -6263,9 +6307,32 @@ msgstr "画像プレビュー"
 msgid "Images"
 msgstr "画像"
 
+#. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Import"
+msgstr "インポート"
+
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Import {0} session(s)"
+msgstr "{0} 件のセッションをインポート"
+
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Import {0} sessions"
+msgstr "{0} 件のセッションをインポート"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "Import a conversation from Codex CLI or Claude Code. The thread keeps its provider session, so your next message continues where you left off."
+#~ msgstr "Codex CLI または Claude Code の会話をインポートします。スレッドはプロバイダーのセッションを保持するため、次のメッセージは中断した場所から続きます。"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
 msgstr "再度インポート"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Import an existing conversation. The thread keeps its provider session, so your next message continues where you left off."
+msgstr "既存の会話をインポートします。スレッドにはプロバイダーのセッションが保持されるため、次のメッセージから続きを始められます。"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import and restart"
@@ -6292,6 +6359,10 @@ msgstr "外部エージェントのスキルをインポート"
 msgid "Import external skills"
 msgstr "外部スキルをインポート"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Import into account"
+msgstr "アカウントにインポート"
+
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import Lightcode data"
 msgstr "Lightcode データをインポート"
@@ -6312,6 +6383,16 @@ msgstr "インポート方法"
 msgid "Import selected"
 msgstr "選択項目をインポート"
 
+#: src/renderer/components/sessionImport/ImportSessionsDialog.tsx
+#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
+#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
+msgid "Import session"
+msgstr "セッションをインポート"
+
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Import sessions"
+msgstr "セッションのインポート"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "{destinationProjectName} にインポート"
@@ -6324,6 +6405,10 @@ msgstr "グローバルにインポート"
 #~ msgid "Import to Project"
 #~ msgstr "プロジェクトにインポート"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Imported"
+msgstr "インポート済み"
+
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -6335,9 +6420,29 @@ msgstr "グローバルにインポート"
 msgid "Imported {0} skills."
 msgstr "{0} 個のスキルをインポートしました。"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Imported {imported} session(s)."
+msgstr "{imported} 件のセッションをインポートしました。"
+
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "1 個のスキルをインポートしました。"
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+msgid "Imported from {providerLabel} — text only, tool calls are not shown."
+msgstr "{providerLabel} からインポート — テキストのみ表示され、ツール呼び出しは表示されません。"
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+#~ msgid "Imported from Claude Code — text only, tool calls are not shown."
+#~ msgstr "Claude Code からインポート — テキストのみ。ツール呼び出しは表示されません。"
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+#~ msgid "Imported from Codex CLI — text only, tool calls are not shown."
+#~ msgstr "Codex CLI からインポート — テキストのみ。ツール呼び出しは表示されません。"
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Imported session"
+msgstr "インポートしたセッション"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -8211,6 +8316,10 @@ msgstr "実験候補 {threadId} のチャット回答がありません。"
 msgid "No checks reported for this PR."
 msgstr "この PR についてはチェックが報告されていません。"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "No Codex or Claude Code sessions found on this computer."
+#~ msgstr "このコンピューターに Codex または Claude Code のセッションは見つかりませんでした。"
+
 #: src/renderer/commands/CommandPalette.tsx
 msgid "No commands found"
 msgstr "コマンドが見つかりません"
@@ -8310,6 +8419,10 @@ msgstr "履歴はまだありません"
 msgid "No icons found"
 msgstr "アイコンが見つかりません"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No importable sessions found on this computer."
+msgstr "このコンピューターにインポート可能なセッションはありません。"
+
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "このプロジェクトで利用できる、選択可能なモデルを持つインストール済みエージェントはありません。"
@@ -8333,6 +8446,10 @@ msgstr "Lightcode データが見つかりませんでした。"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "これらのフィルターに一致するマーケットプレイススキルはありません。"
+
+#: src/renderer/components/sessionImport/SearchableSelect.tsx
+msgid "No matches"
+msgstr "一致なし"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -8425,6 +8542,11 @@ msgstr "この実行で有効なプラグインはありません"
 msgid "No plugins match your search."
 msgstr "検索条件に一致するプラグインはありません。"
 
+#. placeholder {0}: session.preview
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "No project to import into — pick one for {0}."
+msgstr "インポート先のプロジェクトがありません — {0} のプロジェクトを選択してください。"
+
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "No projects"
 msgstr "プロジェクトがありません"
@@ -8493,6 +8615,14 @@ msgstr "このスレッドにはランタイム アイテムがまだありま�
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "接続済みのサーバーはまだありません。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions could be imported."
+msgstr "セッションを 1 件もインポートできませんでした。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions match the current filters."
+msgstr "現在のフィルターに一致するセッションはありません。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -9852,6 +9982,7 @@ msgstr "プロファイル"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -9964,6 +10095,7 @@ msgstr "対応エージェント向けにPoracodeによって提供および管�
 msgid "provider"
 msgstr "プロバイダー"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Provider"
 msgstr "プロバイダー"
@@ -11239,6 +11371,10 @@ msgstr "ランタイムデバッグ"
 msgid "Runtime options"
 msgstr "実行時オプション"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Same account as the session"
+msgstr "セッションと同じアカウント"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
@@ -11448,6 +11584,15 @@ msgstr "SDK 未インストール"
 msgid "Search"
 msgstr "検索"
 
+#. placeholder {0}: props.label
+#: src/renderer/components/sessionImport/SearchableSelect.tsx
+msgid "Search {0}"
+msgstr "{0} を検索"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search accounts…"
+msgstr "アカウントを検索…"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Search agents"
 msgstr "エージェントを検索"
@@ -11460,10 +11605,18 @@ msgstr "エージェントを検索..."
 msgid "Search branches..."
 msgstr "ブランチを検索..."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "Search by text or folder"
+#~ msgstr "テキストまたはフォルダーで検索"
+
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "ファイルの検索"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+#~ msgid "Search folders…"
+#~ msgstr "フォルダーを検索…"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Search icons"
@@ -11509,6 +11662,10 @@ msgstr "プラグインを検索"
 msgid "Search plugins, skills, and servers..."
 msgstr "プラグイン・スキル・サーバーを検索..."
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search projects…"
+msgstr "プロジェクトを検索…"
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
 msgstr "プルリクエストを検索"
@@ -11528,6 +11685,10 @@ msgstr "ランタイム項目を検索…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Search scheduled tasks"
 msgstr "スケジュールタスクを検索"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search sessions"
+msgstr "セッションを検索"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
@@ -11563,6 +11724,11 @@ msgstr "スレッドを検索する"
 msgid "Search Threads"
 msgstr "スレッドの検索"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search title or folder everywhere, message text in what's shown"
+msgstr "タイトルとフォルダーは全件から、メッセージ本文は表示中の項目から検索"
+
+#: src/renderer/components/sessionImport/SearchableSelect.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
 msgstr "検索…"
@@ -11626,6 +11792,7 @@ msgid "Select account"
 msgstr "アカウントの選択"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "すべて選択"
@@ -11987,6 +12154,10 @@ msgstr "音声入力ボタンを表示"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "{0, plural, other {# 件のスキル}}を表示中"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Showing the 200 most recent — narrow the filters to see more"
+msgstr "最新の 200 件を表示中 — フィルターを絞るとさらに表示できます"
 
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
@@ -12863,10 +13034,18 @@ msgstr "+ をタップしてデスクトップでフォルダーを追加する�
 #~ msgid "Tap + to pair with Poracode on your desktop."
 #~ msgstr "+ をタップしてデスクトップの Poracode とペアリングしてください。"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Target account"
+msgstr "インポート先アカウント"
+
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "対象ブランチ"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Target project"
+msgstr "対象プロジェクト"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #~ msgid "Target provider"
@@ -13187,6 +13366,10 @@ msgstr "キューに入ったフォローアップにはスレッドセッショ
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "このワークツリーに関連付けられたスレッドが変更されました。更新してもう一度お試しください。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "The transcript is copied into that account's home so it can resume the session. Sessions from the other provider keep their own account."
+msgstr "セッションを再開できるよう、トランスクリプトはそのアカウントのホームにコピーされます。もう一方のプロバイダーのセッションは元のアカウントのままです。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -14163,6 +14346,10 @@ msgstr "{name}をアンインストール"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "不明"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "unknown folder"
+msgstr "不明なフォルダー"
 
 #: src/renderer/notifications.ts
 msgid "Unknown project"

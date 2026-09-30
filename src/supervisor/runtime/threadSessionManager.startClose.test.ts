@@ -426,6 +426,48 @@ describe("ThreadSessionManager start guards", () => {
     );
   });
 
+  it("delivers the prompt of a launch that resumes a provider session", async () => {
+    // A thread created around an existing session (an import) or relaunched
+    // by the renderer after the host lost it arrives as one start with both a
+    // sessionRef and the user's message; that message must reach the agent.
+    const startTurn = vi.fn<NonNullable<StructuredSessionHandle["startTurn"]>>(
+      async () => undefined,
+    );
+    const structuredSession: StructuredSessionHandle = {
+      ...createStructuredSession(Promise.resolve()),
+      openThread: vi.fn<NonNullable<StructuredSessionHandle["openThread"]>>(
+        async () => "ses_existing",
+      ),
+      startTurn,
+    };
+    const adapter = createAdapter("claude", structuredSession);
+    const manager = createManager("claude", adapter);
+
+    await manager.startThread({
+      threadId: "resumed-with-prompt",
+      projectLocation: { kind: "windows", path: "C:\\repo" },
+      agentKind: "claude",
+      config: { model: "claude/model" },
+      prompt: "continue where we left off",
+      initialSize: { cols: 80, rows: 24 },
+      presentationMode: "gui",
+      sessionRef: { providerSessionId: "ses_existing", discoveredAt: "2026-09-21T09:00:00.000Z" },
+      userMessageItemId: "user-painted-by-renderer",
+    });
+
+    await vi.waitFor(() => expect(startTurn).toHaveBeenCalledTimes(1));
+    expect(structuredSession.openThread).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ providerSessionId: "ses_existing" }),
+    );
+    expect(startTurn).toHaveBeenCalledWith(
+      "continue where we left off",
+      expect.anything(),
+      undefined,
+      expect.objectContaining({ userMessageItemId: "user-painted-by-renderer" }),
+    );
+  });
+
   it("settles a closed working session so consumers never freeze at working", async () => {
     const structuredSession = createStructuredSession(Promise.resolve());
     const adapter = createAdapter("codex", structuredSession);
