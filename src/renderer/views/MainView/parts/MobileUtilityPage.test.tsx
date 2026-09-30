@@ -156,6 +156,7 @@ describe("MobileUtilityPage", () => {
 
     expect(screen.getByText(`Notes for ${projectTwo.id}`)).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Project" })).toBeNull());
-    expect(screen.getByRole("button", { name: "Project" })).toHaveTextContent("Website");
+    // Modal removal can precede React Aria restoring the background's accessibility.
+    expect(await screen.findByRole("button", { name: "Project" })).toHaveTextContent("Website");
   });
 });
