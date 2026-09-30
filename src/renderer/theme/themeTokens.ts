@@ -43,6 +43,8 @@ export interface ThemeSpec {
    * side chrome (window header, floating pills, gallery preview).
    */
   sidebarFill?: boolean;
+  /** Optional explicit fill for the selected row in the docked sidebar. Defaults to `--row-active`. */
+  sidebarRowActive?: string;
 }
 
 /**
@@ -92,6 +94,7 @@ export const MANAGED_THEME_VARS = [
   "--separator",
   "--sidebar-background",
   "--sidebar-panel-background",
+  "--sidebar-row-active",
   "--content-background",
   "--composer-surface",
 ] as const;
@@ -157,6 +160,7 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--separator": fade(border, 75),
     "--sidebar-background": sidebar,
     "--sidebar-panel-background": spec.sidebarFill ? sidebar : content,
+    "--sidebar-row-active": spec.sidebarRowActive ?? "var(--row-active)",
     "--content-background": content,
     "--composer-surface": spec.composer ?? mix(surface, 90, fg),
   };

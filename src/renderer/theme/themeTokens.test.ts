@@ -21,6 +21,13 @@ describe("buildVariant", () => {
     expect(vars["--sidebar-panel-background"]).toBe("#000000");
   });
 
+  it("uses the shared selected-row wash in the sidebar unless one is given", () => {
+    expect(buildVariant(spec, "dark")["--sidebar-row-active"]).toBe("var(--row-active)");
+    expect(
+      buildVariant({ ...spec, sidebarRowActive: "#1a1a1a" }, "dark")["--sidebar-row-active"],
+    ).toBe("#1a1a1a");
+  });
+
   it("derives the composer fill from the surface unless one is given", () => {
     expect(buildVariant(spec, "dark")["--composer-surface"]).toContain("color-mix");
     expect(buildVariant({ ...spec, composer: "#141414" }, "dark")["--composer-surface"]).toBe(
