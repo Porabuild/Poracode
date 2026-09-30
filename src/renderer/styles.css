@@ -971,6 +971,9 @@
        wallpaper blur (more glassy, but tinted by whatever's on the desktop). */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 35%, transparent);
     --content-background: var(--background);
+    /* Fill of the opaque docked sidebar. Matches the content pane unless a
+       theme preset opts into a distinct sidebar color (`sidebarFill`). */
+    --sidebar-panel-background: var(--content-background);
     /* Floating chrome that hovers over the conversation — thread tool rail,
        changes bubble, scroll-to-bottom. One shared surface so the three read as
        a set, tinted like the sidebar (side chrome) rather than the pane beneath
@@ -1000,6 +1003,9 @@
        border-white/x hairlines so every surface follows the active theme. */
     --row-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
     --row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
+    /* Selected-row fill inside the docked sidebar. Follows --row-active unless a
+       theme preset sets its own (`sidebarRowActive`). */
+    --sidebar-row-active: var(--row-active);
     --hairline: color-mix(in oklab, var(--foreground) 9%, transparent);
     --hairline-strong: color-mix(in oklab, var(--foreground) 15%, transparent);
   }
@@ -1408,6 +1414,12 @@ html[data-window-kind="quickComposer"] #root {
   z-index: 20;
 }
 
+/* Rows inside the docked sidebar take the sidebar's selected-row fill. The
+   glass rules below are more specific and still override it. */
+.poracode-sidebar-aside {
+  --row-active: var(--sidebar-row-active);
+}
+
 /* === Translucent ("liquid glass") sidebar ===================================
    Opt-in via the Appearance toggle (default off). Two paths:
 
@@ -1426,7 +1438,7 @@ html[data-window-kind="quickComposer"] #root {
       for the floating *overlay* sidebar, which genuinely sits over content.
 
    These rules are intentionally unlayered so they win over Tailwind utilities
-   (e.g. the sidebar's bg-[var(--content-background)] header class). */
+   (e.g. the sidebar's bg-[var(--sidebar-panel-background)] fill and header class). */
 
 /* 1. Native material: clear opaque window layers, keep main content opaque.
    index.html's boot script sets an inline opaque background on <html> to avoid a

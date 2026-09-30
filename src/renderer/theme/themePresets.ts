@@ -369,6 +369,36 @@ export const THEME_SPECS: AppThemeSpec[] = [
       sidebar: "#1d1e19",
     },
   },
+
+  // T3 Code — the app's stock light / dark palettes. Colors from T3 Code
+  // (pingdotgg/t3code, MIT).
+  {
+    id: "t3code",
+    label: "T3 Code",
+    light: {
+      bg: "#fcfcfc",
+      surface: "#ffffff",
+      fg: "#27272a",
+      accent: "#1b4ed8",
+      accentFg: "#ffffff",
+      border: "#e4e4e7",
+      sidebar: "#fafafa",
+      sidebarFill: true,
+      composer: "#ffffff",
+    },
+    dark: {
+      bg: "#0a0a0a",
+      surface: "#111111",
+      fg: "#f5f5f5",
+      accent: "#346bf1",
+      accentFg: "#ffffff",
+      border: "#191919",
+      sidebar: "#000000",
+      sidebarFill: true,
+      sidebarRowActive: "#1a1b1b",
+      composer: "#111111",
+    },
+  },
 ];
 
 export const APP_THEME_PRESETS: AppThemePreset[] = THEME_SPECS.map((spec) => ({
