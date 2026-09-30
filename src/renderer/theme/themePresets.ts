@@ -395,6 +395,7 @@ export const THEME_SPECS: AppThemeSpec[] = [
       border: "#191919",
       sidebar: "#000000",
       sidebarFill: true,
+      sidebarRowActive: "#1a1b1b",
       composer: "#111111",
     },
   },
