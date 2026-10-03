@@ -15,6 +15,7 @@ import { remoteTerminalOwner } from "@/renderer/remoteProcedureRouter";
 export type RemoteTerminalListener = TerminalFeedListener;
 
 const feeds = new Map<string, ReturnType<typeof createTerminalFeed>>();
+const exitListeners = new Set<(id: string) => void>();
 
 function feedFor(desktopId: string) {
   const current = feeds.get(desktopId);
@@ -74,6 +75,15 @@ export function emitRemoteTerminalExited(
   exitCode: number | null,
 ): void {
   feedFor(desktopId).emitExited(id, exitCode);
+  for (const listener of exitListeners) listener(id);
+}
+
+/** Calls `listener` whenever a remote terminal exits, whether or not a view watches it. */
+export function onRemoteTerminalExited(listener: (id: string) => void): () => void {
+  exitListeners.add(listener);
+  return () => {
+    exitListeners.delete(listener);
+  };
 }
 
 /** Drops the sender and all subscriptions (e.g. when the store disconnects). */

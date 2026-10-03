@@ -62,12 +62,13 @@ export function BottomTerminalLayout(props: {
     useBottomTerminalSidebarResize();
   const runningTabs = useDevTerminalStore((state) => state.runningTabs);
 
-  // Build flat entries: primary tabs + their split children
+  // Build flat entries: primary tabs + their split children. Once a tab's main
+  // shell exits, its split fills the tab and its one row shows the split.
   type TabRow = { id: string; tab: DevTerminalTab; isSplit: boolean };
   const tabRows: TabRow[] = [];
   for (const tab of projectTabs) {
     tabRows.push({ id: tab.id, tab, isSplit: false });
-    if (tab.splitId) tabRows.push({ id: tab.splitId, tab, isSplit: true });
+    if (tab.splitId && !tab.mainExited) tabRows.push({ id: tab.splitId, tab, isSplit: true });
   }
 
   return (
@@ -106,6 +107,8 @@ export function BottomTerminalLayout(props: {
               <Tabs.List aria-label={t`Terminal tabs`} className="w-full *:h-6">
                 {tabRows.map(({ id, tab, isSplit }) => {
                   const parentSelected = selectedTabId === tab.id;
+                  const rowTitle =
+                    isSplit || tab.mainExited ? (tab.splitTitle ?? tab.title) : tab.title;
                   return (
                     <Tabs.Tab
                       key={id}
@@ -124,11 +127,8 @@ export function BottomTerminalLayout(props: {
                         onAction={(key) => handleTabContextAction(tab, key)}
                       >
                         <span className="flex min-w-0 flex-1 items-center gap-1">
-                          <span
-                            className="truncate"
-                            title={isSplit ? (tab.splitTitle ?? tab.title) : tab.title}
-                          >
-                            {isSplit ? (tab.splitTitle ?? tab.title) : tab.title}
+                          <span className="truncate" title={rowTitle}>
+                            {rowTitle}
                           </span>
                           {!isSplit && tab.runActionId ? (
                             <>

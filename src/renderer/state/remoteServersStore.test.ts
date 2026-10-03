@@ -18,7 +18,7 @@ import type {
 import { useAgentStatusesStore } from "./agentStatusesStore";
 import { useAppStore } from "./appStore";
 import { useGitStore } from "./gitStore";
-import { watchRemoteTerminal } from "./remoteTerminalFeed";
+import { onRemoteTerminalExited, watchRemoteTerminal } from "./remoteTerminalFeed";
 import { remoteProjectId, remoteThreadId } from "./remoteProjection";
 import { renameProject } from "../actions/projectActions";
 import { routeRemoteProcedure } from "../remoteProcedureRouter";
@@ -2045,6 +2045,34 @@ describe("useRemoteServersStore", () => {
       rows: 30,
     });
     expect(closeShell).toHaveBeenCalledWith({ threadId: "shell:remote" });
+  });
+
+  it("reports a remote shell exit even when no view watches the terminal", async () => {
+    const socket = makeSocket();
+    const startShell = vi.fn<RemoteDesktopClient["startShell"]>(async () => {});
+    useRemoteServersStore.getState().setClientFactory(factoryFor(makeClient({ startShell })));
+    useRemoteServersStore.getState().setSocketFactory(() => socket);
+    await useRemoteServersStore
+      .getState()
+      .pairServer({ endpoint: "192.168.1.9:38987", token: "a" });
+    const location = useAppStore
+      .getState()
+      .projects.find((project) => project.remoteServerId === "d1")?.location;
+    expect(location).toBeDefined();
+    await invokeRemoteRoute("startShell", { shellId: "shell:remote", projectLocation: location! });
+    const onExited = vi.fn<(id: string) => void>();
+    const unsubscribe = onRemoteTerminalExited(onExited);
+
+    socket.onmessage?.({
+      data: JSON.stringify({
+        type: "event",
+        seq: 2,
+        event: { type: "thread-exited", threadId: "shell:remote", exitCode: 0 },
+      }),
+    });
+    unsubscribe();
+
+    expect(onExited).toHaveBeenCalledWith("shell:remote");
   });
 
   it("routes a remote thread interrupt through the central bridge owner", async () => {
