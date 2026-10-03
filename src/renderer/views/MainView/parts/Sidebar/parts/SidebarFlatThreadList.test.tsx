@@ -36,11 +36,11 @@ vi.mock("./NewThreadButton", () => ({
 vi.mock("./SidebarThreadRow", () => ({
   SeeMoreThreadsButton: () => <button type="button">see-more</button>,
   SidebarThreadRow: (props: {
-    row: { key: string };
+    row: { key: string; sortDisabled?: boolean };
     project: { name: string };
     projectTag?: React.ReactNode;
   }) => (
-    <div data-testid="row">
+    <div data-testid="row" data-sort-disabled={String(props.row.sortDisabled ?? false)}>
       {props.row.key} in {props.project.name}
       {props.projectTag}
     </div>
@@ -146,6 +146,55 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText(`new-thread:${HOME_PROJECT_ID}`)).toBeInTheDocument();
     expect(screen.getByText(/thread:h1 in Home/)).toBeInTheDocument();
     expect(screen.getByText(/thread:p1 in Poracode/)).toBeInTheDocument();
+  });
+
+  it("shows manual order across projects with starred threads first and lets live rows reorder", () => {
+    useAppStore.setState({
+      projects: [homeProject, localProject, secondLocalProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-04T10:00:00.000Z", { done: true }),
+        makeThread("p2", "local-1", "2026-08-03T10:00:00.000Z"),
+        makeThread("s2", "local-2", "2026-08-02T10:00:00.000Z", { starred: true }),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="manual" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(rows.map((row) => row.textContent?.split(" in ")[0])).toEqual([
+      "thread:s2",
+      "thread:p1",
+      "thread:p2",
+      "done-label",
+      "thread:s1",
+    ]);
+    expect(rows.map((row) => row.dataset.sortDisabled)).toEqual([
+      "false",
+      "false",
+      "false",
+      "false",
+      "true",
+    ]);
+  });
+
+  it("keeps date order and locks reordering outside manual order", () => {
+    useAppStore.setState({
+      projects: [homeProject, localProject, secondLocalProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(rows.map((row) => row.textContent?.split(" in ")[0])).toEqual([
+      "thread:s1",
+      "thread:p1",
+    ]);
+    expect(rows.map((row) => row.dataset.sortDisabled)).toEqual(["true", "true"]);
   });
 
   it("keeps Home threads and the new-thread row when the only workspace project is unreachable", () => {

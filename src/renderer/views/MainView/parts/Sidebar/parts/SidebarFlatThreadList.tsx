@@ -30,17 +30,12 @@ import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
 import {
   buildSidebarProjectRows,
+  FLAT_THREAD_LIST_ID,
   SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE,
   type SidebarRow,
 } from "./sidebarProjectRows";
 import type { ThreadSortMode } from "./sortMode";
 import { SeeMoreThreadsButton, SidebarThreadRow } from "./SidebarThreadRow";
-
-/**
- * `threadListLimits`/`revealMoreThreads` scope key for the flat list's single
- * "See more" pager. Not a real project id.
- */
-const FLAT_LIST_SCOPE = "__flat__";
 
 /** The project a row belongs to: a thread's own, or its group's first member's. */
 function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | undefined {
@@ -55,8 +50,8 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
  * row labelled with its project instead. Worktree and provider groups keep
  * grouping; their headers carry the project tag for their children. The single
  * "New thread" row targets the most recently active project. Sorting follows
- * the shared sort mode, except per-project manual order, which has no meaning
- * across projects and falls back to last-updated.
+ * the shared sort mode. Manual order is the global thread order, which spans
+ * projects, so rows can be dragged past other projects' threads.
  */
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const workspaceProjectIds = useWorkspaceProjectIds();
@@ -70,7 +65,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const revealMoreThreads = useSidebarUiStore((s) => s.revealMoreThreads);
   const flatListProjectFilter = useSidebarUiStore((s) => s.flatListProjectFilter);
   const setFlatListProjectFilter = useSidebarUiStore((s) => s.setFlatListProjectFilter);
-  const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
+  const visibleLimit = useThreadListLimit(FLAT_THREAD_LIST_ID, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
   const currentThreadCount = useCurrentThreadIdsCount();
   const source = useDragSource();
   // Own scroll container (the grouped/empty bodies use Sidebar's): the
@@ -154,9 +149,9 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const isDraftActive = useIsCurrentProjectDraft(latestProjectId ?? "");
 
   const rows = buildSidebarProjectRows({
-    projectId: FLAT_LIST_SCOPE,
+    projectId: FLAT_THREAD_LIST_ID,
     projectThreads: threads,
-    sortMode: props.sortMode === "created" ? "created" : "updated",
+    sortMode: props.sortMode,
     collapsedWorktrees,
     visibleLimit,
     liveBackgroundThreadIds,
@@ -216,7 +211,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
                 <SeeMoreThreadsButton
                   key={row.key}
                   onPress={() =>
-                    revealMoreThreads(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE)
+                    revealMoreThreads(FLAT_THREAD_LIST_ID, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE)
                   }
                 />
               );
