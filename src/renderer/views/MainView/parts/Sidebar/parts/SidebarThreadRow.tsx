@@ -56,7 +56,7 @@ function DoneSectionLabel(props: { row: Extract<SidebarRow, { kind: "section-lab
         onClick={() => toggleWorktreeCollapsed(row.collapseKey)}
       >
         <span className="shrink-0">{t(row.label)}</span>
-        <span aria-hidden className="h-px min-w-0 flex-1 bg-border" />
+        <span aria-hidden className="h-px min-w-0 flex-1 bg-[var(--hairline)]" />
         {hasRemoveAction ? <span aria-hidden className="w-[18px] shrink-0" /> : null}
         <ChevronDown
           className={`size-3.5 shrink-0 transition-transform ${row.collapsed ? "" : "rotate-180"}`}
