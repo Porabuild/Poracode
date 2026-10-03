@@ -67,6 +67,24 @@ export const SIDEBAR_THREAD_LIST_PAGE_SIZE = 10;
  */
 export const SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE = 20;
 
+/**
+ * List id of the flat (cross-project) list, passed to `buildSidebarProjectRows`
+ * as its `projectId` and used as its "See more" pager scope. Not a real
+ * project id.
+ */
+export const FLAT_THREAD_LIST_ID = "__flat__";
+
+/** Drag-and-drop sort group of the reorderable rows in one sidebar list. */
+function sidebarSortGroup(listId: string): string {
+  return `project-entries:${listId}`;
+}
+
+/**
+ * Sort group of the flat list's rows. It mixes projects, so reordering in it
+ * moves threads in the global thread order rather than within one project.
+ */
+export const FLAT_THREAD_LIST_SORT_GROUP = sidebarSortGroup(FLAT_THREAD_LIST_ID);
+
 const EMPTY_THREAD_ID_SET: ReadonlySet<string> = new Set();
 
 /**
@@ -278,7 +296,7 @@ export function buildSidebarProjectRows(input: {
   doneVisibleLimit?: number;
 }): SidebarRow[] {
   const rows: SidebarRow[] = [];
-  const dndGroup = `project-entries:${input.projectId}`;
+  const dndGroup = sidebarSortGroup(input.projectId);
   const liveBackgroundThreadIds = input.liveBackgroundThreadIds ?? EMPTY_THREAD_ID_SET;
   const isCollapsed = (key: string) =>
     input.expandAllGroups ? false : isSidebarGroupCollapsed(input.collapsedWorktrees, key);

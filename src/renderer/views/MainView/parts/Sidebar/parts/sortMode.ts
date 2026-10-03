@@ -22,9 +22,9 @@ export const sortModeLabel: Record<ThreadSortMode, MessageDescriptor> = {
 /**
  * How the thread list is structured — orthogonal to the sort order above.
  * `grouped` renders one section per project; `flat` renders one cross-project
- * list (the PWA layout) with each row labelled by its project. Manual sort
- * only applies to the grouped layout; the flat list falls back to last-updated
- * order.
+ * list (the PWA layout) with each row labelled by its project. Both layouts
+ * show the same manual order: the flat list shows the global thread order, and
+ * each project section shows its own threads in that order.
  */
 export type ThreadListLayout = "grouped" | "flat";
 

@@ -2,7 +2,12 @@
 
 import { describe, expect, it } from "vitest";
 import type { Thread } from "@/shared/contracts";
-import { isReorderNoOp, reorderIds, reorderThreadsInProject } from "./reorder";
+import {
+  isReorderNoOp,
+  reorderIds,
+  reorderThreadsAcrossProjects,
+  reorderThreadsInProject,
+} from "./reorder";
 
 function makeThread(input: {
   id: string;
@@ -73,5 +78,42 @@ describe("reorderThreadsInProject", () => {
     ];
 
     expect(reorderThreadsInProject(threads, "a1", "b1", "after")).toBe(threads);
+  });
+});
+
+describe("reorderThreadsAcrossProjects", () => {
+  const threads = [
+    makeThread({ id: "a1", projectId: "alpha", title: "Alpha 1" }),
+    makeThread({ id: "b1", projectId: "beta", title: "Beta 1" }),
+    makeThread({ id: "a2", projectId: "alpha", title: "Alpha 2" }),
+    makeThread({ id: "b2", projectId: "beta", title: "Beta 2" }),
+  ];
+
+  it("moves a thread next to another project's thread", () => {
+    expect(
+      reorderThreadsAcrossProjects(threads, "b2", "a1", "after").map((thread) => thread.id),
+    ).toEqual(["a1", "b2", "b1", "a2"]);
+  });
+
+  it("puts the thread right next to a same-project target", () => {
+    expect(
+      reorderThreadsAcrossProjects(threads, "a1", "a2", "after").map((thread) => thread.id),
+    ).toEqual(["b1", "a2", "a1", "b2"]);
+  });
+
+  it("gives each project the same order as reorderThreadsInProject", () => {
+    const projectOrder = (list: typeof threads, projectId: string) =>
+      list.filter((thread) => thread.projectId === projectId).map((thread) => thread.id);
+
+    const across = reorderThreadsAcrossProjects(threads, "a2", "a1", "before");
+    const inProject = reorderThreadsInProject(threads, "a2", "a1", "before");
+
+    expect(projectOrder(across, "alpha")).toEqual(projectOrder(inProject, "alpha"));
+    expect(projectOrder(across, "beta")).toEqual(projectOrder(inProject, "beta"));
+  });
+
+  it("returns the same array for a no-op drop", () => {
+    expect(reorderThreadsAcrossProjects(threads, "a1", "b1", "before")).toBe(threads);
+    expect(reorderThreadsAcrossProjects(threads, "a1", "missing", "after")).toBe(threads);
   });
 });

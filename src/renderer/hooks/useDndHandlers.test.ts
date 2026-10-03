@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { Project, Thread } from "@/shared/contracts";
+import { useAppStore } from "@/renderer/state/appStore";
+import { FLAT_THREAD_LIST_SORT_GROUP } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveProjectReorder, resolveThreadReorder, useDndHandlers } from "./useDndHandlers";
 
 const showFilesPanel = vi.fn<(projectId: string, worktreePath?: string) => void>();
@@ -18,10 +20,10 @@ vi.mock("@/renderer/actions/terminalActions", () => ({
     showTerminalPanel(projectId, worktreePath),
 }));
 
-function makeThread(id: string, starred = false): Thread {
+function makeThread(id: string, starred = false, projectId = "project-1"): Thread {
   return {
     id,
-    projectId: "project-1",
+    projectId,
     title: id,
     agentKind: "codex",
     config: { model: "gpt-5.4" },
@@ -116,6 +118,70 @@ describe("resolveThreadReorder", () => {
         finalIndex: 2,
       }),
     ).toEqual({ targetId: "c", placement: "after" });
+  });
+});
+
+describe("flat list thread reorder", () => {
+  function flatSource(threadId: string, projectId: string, sortIndex: number) {
+    return {
+      type: "thread" as const,
+      threadId,
+      projectId,
+      sortGroup: FLAT_THREAD_LIST_SORT_GROUP,
+      sortIndex,
+    };
+  }
+
+  it("accepts a hovered thread from another project", () => {
+    expect(
+      resolveThreadReorder({
+        threads: [makeThread("a"), makeThread("b", false, "project-2")],
+        source: flatSource("a", "project-1", 0),
+        target: flatSource("b", "project-2", 1),
+        initialIndex: 0,
+        finalIndex: 1,
+      }),
+    ).toEqual({ targetId: "b", placement: "after" });
+  });
+
+  it("drops the move when no thread was hovered", () => {
+    expect(
+      resolveThreadReorder({
+        threads: [makeThread("a"), makeThread("b", false, "project-2")],
+        source: flatSource("a", "project-1", 0),
+        target: null,
+        initialIndex: 0,
+        finalIndex: 1,
+      }),
+    ).toBeNull();
+  });
+
+  it("moves the thread in the global order on drop", () => {
+    useAppStore.setState({
+      threads: [
+        makeThread("a1"),
+        makeThread("b1", false, "project-2"),
+        makeThread("a2"),
+        makeThread("b2", false, "project-2"),
+      ],
+    });
+    const { result } = renderHook(() => useDndHandlers());
+
+    result.current.handleSortEnd(
+      flatSource("b2", "project-2", 3),
+      3,
+      2,
+      FLAT_THREAD_LIST_SORT_GROUP,
+      FLAT_THREAD_LIST_SORT_GROUP,
+      flatSource("a2", "project-1", 2),
+    );
+
+    expect(useAppStore.getState().threads.map((thread) => thread.id)).toEqual([
+      "a1",
+      "b1",
+      "b2",
+      "a2",
+    ]);
   });
 });
 
