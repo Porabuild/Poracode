@@ -659,7 +659,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     const composer = mentionRef.current;
     if (!composer || !revertedContent) return;
     const draft = revertedPromptToDraft(revertedContent, availableCommands);
-    composer.restoreFromSegments(draft.segments);
+    // Undoable, so Ctrl+Z brings back whatever the user had typed before the revert.
+    composer.restoreFromSegments(draft.segments, { undoable: true });
     latestSegmentsRef.current = draft.segments;
     attachments.restore(draft.attachments);
     useRevertedPromptStore.getState().consume(thread.id);

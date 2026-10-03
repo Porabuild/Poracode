@@ -145,8 +145,12 @@ export interface MentionInputHandle {
   serializeSegments(): PromptSegment[];
   /** Flatten to a display string (convenience). */
   serialize(): string;
-  /** Rebuild the editor content from previously serialized segments. */
-  restoreFromSegments(segments: PromptSegment[]): void;
+  /**
+   * Rebuild the editor content from previously serialized segments. This
+   * starts a fresh undo history unless `undoable` is set, in which case the
+   * restore is one undo step on top of what the user had typed.
+   */
+  restoreFromSegments(segments: PromptSegment[], options?: { undoable?: boolean }): void;
   /** Whether the caret is on the editor's first or last visual line. */
   caretLineEdges(): CaretLineEdges;
   /** Focus the editor with the caret at the start or end of its content. */
@@ -598,13 +602,21 @@ export const MentionInput = forwardRef<
       if (!editorRef.current) return "";
       return flattenSegments(serializeToSegments(editorRef.current));
     },
-    restoreFromSegments(segments: PromptSegment[]) {
+    restoreFromSegments(segments: PromptSegment[], options?: { undoable?: boolean }) {
       const editor = editorRef.current;
       if (!editor) return;
-      voicePreviewRef.current = null;
-      editor.innerHTML = "";
-      appendPromptSegments(editor, segments);
-      onTextChange(hasEditorContent(editor));
+      const restore = () => {
+        voicePreviewRef.current = null;
+        editor.innerHTML = "";
+        appendPromptSegments(editor, segments);
+        onTextChange(hasEditorContent(editor));
+      };
+      if (options?.undoable) {
+        undoHistory.edit(restore);
+      } else {
+        restore();
+        undoHistory.reset();
+      }
     },
     caretLineEdges() {
       if (!editorRef.current) return { first: false, last: false };
@@ -628,6 +640,7 @@ export const MentionInput = forwardRef<
           lastSlashQueryRef.current = null;
           onSlashCommandChange?.(null);
         }
+        undoHistory.reset();
       }
     },
     insertText(text: string) {
@@ -691,17 +704,21 @@ export const MentionInput = forwardRef<
         return;
       }
 
-      const node = document.createTextNode(`${preview.dataset.voicePrefix ?? ""}${trimmed}`);
-      preview.replaceWith(node);
-      voicePreviewRef.current = null;
-      const sel = window.getSelection();
-      const range = document.createRange();
-      range.setStartAfter(node);
-      range.collapse(true);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      checkMentionState();
-      notifyTextChange();
+      // Snapshots leave the preview out, so this step goes from the text
+      // before dictation straight to the committed transcript.
+      undoHistory.edit(() => {
+        const node = document.createTextNode(`${preview.dataset.voicePrefix ?? ""}${trimmed}`);
+        preview.replaceWith(node);
+        voicePreviewRef.current = null;
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.setStartAfter(node);
+        range.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        checkMentionState();
+        notifyTextChange();
+      });
     },
     clearVoiceTranscriptPreview() {
       clearVoicePreviewNode();

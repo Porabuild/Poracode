@@ -233,6 +233,57 @@ describe("MentionInput undo history", () => {
     expect(editor.textContent).toBe("see");
   });
 
+  it("undoes a committed voice transcript as one step, skipping the previews", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "note");
+    editor.focus();
+    placeCaret(editor.firstChild!, 4);
+    act(() => ref.current?.previewVoiceTranscript("hel"));
+    act(() => ref.current?.previewVoiceTranscript("hello there"));
+    act(() => ref.current?.commitVoiceTranscript("hello there"));
+    expect(editor.textContent).toBe("note hello there");
+
+    undo(editor);
+    expect(editor.textContent).toBe("note");
+    redo(editor);
+    expect(editor.textContent).toBe("note hello there");
+  });
+
+  it("starts a fresh history when a saved draft is restored", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "typed");
+    act(() => ref.current?.restoreFromSegments([{ kind: "text", content: "draft" }]));
+
+    undo(editor);
+    expect(editor.textContent).toBe("draft");
+  });
+
+  it("can restore content as an undoable step", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "typed");
+    act(() =>
+      ref.current?.restoreFromSegments([{ kind: "text", content: "reverted" }], {
+        undoable: true,
+      }),
+    );
+
+    undo(editor);
+    expect(editor.textContent).toBe("typed");
+  });
+
+  it("starts a fresh history after clear", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "sent");
+    act(() => ref.current?.clear());
+
+    undo(editor);
+    expect(editor.textContent).toBe("");
+  });
+
   it("keeps pasted line breaks as <br> elements", () => {
     const { editor, ref } = renderInput();
     caretAtEnd(editor);
