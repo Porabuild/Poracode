@@ -101,6 +101,19 @@ describe("MentionInput undo history", () => {
     expect(editor.textContent).toBe("");
   });
 
+  it("replaces a native undo that skipped beforeinput with its own step", () => {
+    const { editor } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "one");
+    paste(editor, " two");
+
+    // document.execCommand("undo") runs Chromium's stack without a beforeinput.
+    editor.textContent = "something stale";
+    fireEvent.input(editor, { inputType: "historyUndo" });
+
+    expect(editor.textContent).toBe("one");
+  });
+
   it("blocks native undo when there is nothing left to undo", () => {
     const { editor } = renderInput();
     const event = createEvent.keyDown(editor, { key: "z", ctrlKey: true });
