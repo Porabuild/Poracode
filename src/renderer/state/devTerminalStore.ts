@@ -11,6 +11,8 @@ export interface DevTerminalTab {
   /** When set, a second shell is shown side-by-side within this tab. */
   splitId?: string;
   splitTitle?: string;
+  /** The tab's own shell exited while its split shell still runs. The split then fills the tab. */
+  mainExited?: boolean;
 }
 
 interface DevTerminalState {
@@ -69,6 +71,7 @@ interface DevTerminalActions {
   splitTab: (tabId: string) => string;
   /** Remove the split shell from the given tab. Returns the removed split ID if any. */
   closeSplit: (tabId: string) => string | undefined;
+  markMainShellExited: (tabId: string) => void;
   markTabActive: (tabId: string) => void;
   clearTabActivity: (tabId: string) => void;
   /** Note PTY output for a shell, flagging it as streaming until output idles. */
@@ -315,6 +318,11 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     });
     return splitId;
   },
+
+  markMainShellExited: (tabId) =>
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, mainExited: true } : t)),
+    })),
 
   markTabActive: (tabId) => {
     const { activeTabId, tabActivity } = get();
