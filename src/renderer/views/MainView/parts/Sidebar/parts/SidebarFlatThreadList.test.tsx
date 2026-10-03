@@ -148,7 +148,7 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText(/thread:p1 in Poracode/)).toBeInTheDocument();
   });
 
-  it("shows manual order across projects with starred threads first and lets rows reorder", () => {
+  it("shows manual order across projects with starred threads first and lets live rows reorder", () => {
     useAppStore.setState({
       projects: [homeProject, localProject, secondLocalProject],
       threads: [
@@ -165,14 +165,16 @@ describe("SidebarFlatThreadList", () => {
     expect(rows.map((row) => row.textContent?.split(" in ")[0])).toEqual([
       "thread:s2",
       "thread:p1",
-      "thread:s1",
       "thread:p2",
+      "done-label",
+      "thread:s1",
     ]);
     expect(rows.map((row) => row.dataset.sortDisabled)).toEqual([
       "false",
       "false",
       "false",
       "false",
+      "true",
     ]);
   });
 

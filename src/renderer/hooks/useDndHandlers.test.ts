@@ -121,6 +121,29 @@ describe("resolveThreadReorder", () => {
   });
 });
 
+describe("manual index fallback with done threads", () => {
+  it("skips done threads, which sit in the locked Done section", () => {
+    const threads = [makeThread("a"), makeThread("done"), makeThread("b"), makeThread("c")];
+    threads[1] = { ...threads[1]!, done: true };
+
+    expect(
+      resolveThreadReorder({
+        threads,
+        source: {
+          type: "thread",
+          threadId: "a",
+          projectId: "project-1",
+          sortGroup: "project-entries:project-1",
+          sortIndex: 0,
+        },
+        target: null,
+        initialIndex: 0,
+        finalIndex: 1,
+      }),
+    ).toEqual({ targetId: "b", placement: "after" });
+  });
+});
+
 describe("flat list thread reorder", () => {
   function flatSource(threadId: string, projectId: string, sortIndex: number) {
     return {

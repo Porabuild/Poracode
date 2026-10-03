@@ -251,6 +251,26 @@ function orderManualExperimentCandidates(
   return ordered;
 }
 
+/**
+ * The Done header. Its archive/delete action covers every done thread in the
+ * list, including ones behind "See more", but never experiment candidates.
+ */
+function doneSectionLabel(
+  allDoneThreads: Thread[],
+  candidateOrder: ReadonlyMap<string, number> | undefined,
+): SidebarRow {
+  const doneThreads = candidateOrder
+    ? allDoneThreads.filter((thread) => !candidateOrder.has(thread.id))
+    : allDoneThreads;
+  return {
+    kind: "section-label",
+    key: "done-label",
+    label: msg`Done`,
+    doneThreads,
+    hasProtectedDoneThreads: doneThreads.length < allDoneThreads.length,
+  };
+}
+
 export function buildSidebarProjectRows(input: {
   projectId: string;
   projectThreads: Thread[];
@@ -272,14 +292,24 @@ export function buildSidebarProjectRows(input: {
     input.expandAllGroups ? false : isSidebarGroupCollapsed(input.collapsedWorktrees, key);
 
   if (input.sortMode === "manual") {
+    // Live threads keep the stored order, starred first. Done threads sink
+    // into a trailing Done section ordered by last update, as in the date
+    // modes, and can't be dragged.
     const orderedThreads = orderManualExperimentCandidates(
-      [...input.projectThreads].sort((a, b) => Number(b.starred) - Number(a.starred)),
+      input.projectThreads
+        .filter((thread) => !thread.done)
+        .sort((a, b) => Number(b.starred) - Number(a.starred)),
       input.experimentCandidateOrder,
     );
-    const { visible, hiddenCount } = selectVisible(orderedThreads, input.visibleLimit, (t) =>
-      threadIsProtected(t, liveBackgroundThreadIds),
+    const doneThreads = input.projectThreads
+      .filter((thread) => thread.done)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const { visible, hiddenCount } = selectVisible(
+      [...orderedThreads, ...doneThreads],
+      input.visibleLimit,
+      (t) => threadIsProtected(t, liveBackgroundThreadIds),
     );
-    orderedThreads.forEach((thread, idx) => {
+    const pushThreadRow = (thread: Thread, idx: number, sortDisabled = false) => {
       if (!visible.has(thread)) return;
       rows.push({
         kind: "thread",
@@ -289,8 +319,14 @@ export function buildSidebarProjectRows(input: {
         group: dndGroup,
         showWorktreeBadge: true,
         showWorktreeFilesButton: !!thread.worktreePath,
+        ...(sortDisabled ? { sortDisabled: true } : {}),
       });
-    });
+    };
+    orderedThreads.forEach((thread, idx) => pushThreadRow(thread, idx));
+    if (doneThreads.some((thread) => visible.has(thread))) {
+      rows.push(doneSectionLabel(doneThreads, input.experimentCandidateOrder));
+    }
+    doneThreads.forEach((thread, i) => pushThreadRow(thread, orderedThreads.length + i, true));
     if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });
     return rows;
   }
@@ -352,17 +388,7 @@ export function buildSidebarProjectRows(input: {
     const allDoneThreads = doneEntries.flatMap((entry) =>
       entry.kind === "thread" ? [entry.thread] : entry.group.threads,
     );
-    const candidateOrder = input.experimentCandidateOrder;
-    const doneThreads = candidateOrder
-      ? allDoneThreads.filter((thread) => !candidateOrder.has(thread.id))
-      : allDoneThreads;
-    rows.push({
-      kind: "section-label",
-      key: "done-label",
-      label: msg`Done`,
-      doneThreads,
-      hasProtectedDoneThreads: doneThreads.length < allDoneThreads.length,
-    });
+    rows.push(doneSectionLabel(allDoneThreads, input.experimentCandidateOrder));
   }
   pushList(doneVisible, starredVisible.length + activeVisible.length);
   if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });

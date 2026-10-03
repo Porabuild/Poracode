@@ -82,10 +82,13 @@ export function resolveThreadReorder(input: {
   if (acrossProjects) return null;
 
   const projectWideSort = source.sortGroup?.startsWith("project-entries:") ?? false;
+  // Manual mode renders done threads in a locked Done section after the live
+  // ones, so only live threads line up with the sortable indices.
   const groupThreads = threads
     .filter(
       (t) =>
         t.projectId === source.projectId &&
+        !t.done &&
         (projectWideSort || (t.worktreePath ?? undefined) === source.worktreePath),
     )
     .sort((a, b) => Number(b.starred) - Number(a.starred));
