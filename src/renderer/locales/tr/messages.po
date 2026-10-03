@@ -11411,6 +11411,10 @@ msgstr "Terminal geri kaydırma arabelleği için kaydırma hızı çarpanı."
 msgid "Scroll to bottom"
 msgstr "Aşağıya doğru kaydır"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "İsteme kaydır: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"
