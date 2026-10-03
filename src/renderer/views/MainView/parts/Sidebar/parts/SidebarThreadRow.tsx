@@ -8,6 +8,7 @@ import { ConfirmationPopover } from "@/renderer/components/common/ConfirmationPo
 import { SidebarButton } from "@/renderer/components/common/SidebarButton";
 import { chatRowRailClass } from "@/renderer/components/thread/ChatPane/parts/items/chatRow";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import type { SidebarRow } from "./sidebarProjectRows";
 import { SidebarThreadGroup } from "./SidebarThreadGroup";
 import { SidebarWorktreeGroup } from "./SidebarWorktreeGroup";
@@ -29,6 +30,7 @@ function DoneSectionLabel(props: { row: Extract<SidebarRow, { kind: "section-lab
   const { row } = props;
   const { t } = useLingui();
   const [isOpen, setIsOpen] = useState(false);
+  const toggleWorktreeCollapsed = useSidebarUiStore((state) => state.toggleWorktreeCollapsed);
   const threadRemoveAction = useSharedSettings((state) => state.threadRemoveAction);
   const isArchive = threadRemoveAction === "archive";
   const actionLabel = isArchive ? t`Archive done threads` : t`Delete done threads`;
@@ -41,42 +43,60 @@ function DoneSectionLabel(props: { row: Extract<SidebarRow, { kind: "section-lab
     setIsOpen(false);
   };
 
+  const hasRemoveAction = row.doneThreads.length > 0;
+
+  // The archive/delete button is a sibling of the toggle, not a child, so it
+  // sits over a reserved slot between the rule and the chevron.
   return (
-    <div className="group flex w-full items-center px-1.5 pb-0.5 pt-2 text-[10px] font-medium uppercase tracking-wider text-muted">
-      <span>{t(row.label)}</span>
-      {row.doneThreads.length > 0 ? (
-        <ConfirmationPopover
-          isOpen={isOpen}
-          onOpenChange={setIsOpen}
-          title={actionLabel}
-          body={
-            row.hasProtectedDoneThreads
-              ? isArchive
-                ? t`Experiment candidates will remain; all other threads in Done will be archived.`
-                : t`Experiment candidates will remain; all other threads in Done will be permanently deleted.`
-              : isArchive
-                ? t`All threads in Done will be archived.`
-                : t`All threads in Done will be permanently deleted.`
-          }
-          actions={[
-            {
-              label: isArchive ? t`Archive` : t`Delete`,
-              variant: isArchive ? "secondary" : "danger",
-              onPress: removeDoneThreads,
-            },
-          ]}
-          trigger={
-            <Button
-              isIconOnly
-              size="sm"
-              variant="ghost"
-              aria-label={actionLabel}
-              className={`ml-auto size-[18px] min-w-0 p-0 opacity-0 transition-[opacity,color,background-color] group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none"} ${isArchive ? "hover:bg-warning/10 hover:text-warning" : "hover:bg-danger/10 hover:text-danger"}`}
-            >
-              {isArchive ? <Archive className="size-3.5" /> : <Trash2 className="size-3.5" />}
-            </Button>
-          }
+    <div className="group relative flex w-full items-center pb-0.5 pt-2">
+      <button
+        type="button"
+        aria-expanded={!row.collapsed}
+        className="flex min-w-0 flex-1 items-center gap-2 px-1.5 text-left text-xs font-medium text-muted transition-colors hover:text-foreground"
+        onClick={() => toggleWorktreeCollapsed(row.collapseKey)}
+      >
+        <span className="shrink-0">{t(row.label)}</span>
+        <span aria-hidden className="h-px min-w-0 flex-1 bg-[var(--hairline)]" />
+        {hasRemoveAction ? <span aria-hidden className="w-[18px] shrink-0" /> : null}
+        <ChevronDown
+          className={`size-3.5 shrink-0 transition-transform ${row.collapsed ? "" : "rotate-180"}`}
         />
+      </button>
+      {hasRemoveAction ? (
+        <span className="absolute bottom-0.5 right-7 top-2 flex items-center">
+          <ConfirmationPopover
+            isOpen={isOpen}
+            onOpenChange={setIsOpen}
+            title={actionLabel}
+            body={
+              row.hasProtectedDoneThreads
+                ? isArchive
+                  ? t`Experiment candidates will remain; all other threads in Done will be archived.`
+                  : t`Experiment candidates will remain; all other threads in Done will be permanently deleted.`
+                : isArchive
+                  ? t`All threads in Done will be archived.`
+                  : t`All threads in Done will be permanently deleted.`
+            }
+            actions={[
+              {
+                label: isArchive ? t`Archive` : t`Delete`,
+                variant: isArchive ? "secondary" : "danger",
+                onPress: removeDoneThreads,
+              },
+            ]}
+            trigger={
+              <Button
+                isIconOnly
+                size="sm"
+                variant="ghost"
+                aria-label={actionLabel}
+                className={`size-[18px] min-w-0 p-0 opacity-0 transition-[opacity,color,background-color] group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 ${isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none"} ${isArchive ? "hover:bg-warning/10 hover:text-warning" : "hover:bg-danger/10 hover:text-danger"}`}
+              >
+                {isArchive ? <Archive className="size-3.5" /> : <Trash2 className="size-3.5" />}
+              </Button>
+            }
+          />
+        </span>
       ) : null}
     </div>
   );
