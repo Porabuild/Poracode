@@ -858,11 +858,10 @@ export const MentionInput = forwardRef<
   const handleNativeBeforeInput = useEffectEvent((e: InputEvent) => {
     if (e.inputType === "historyUndo" || e.inputType === "historyRedo") {
       e.preventDefault();
-      if (e.inputType === "historyUndo") undoHistory.undo();
-      else undoHistory.redo();
+      undoHistory.apply(e.inputType === "historyUndo" ? "undo" : "redo");
       return;
     }
-    if (!e.isComposing) undoHistory.sync();
+    if (!e.isComposing) undoHistory.beforeInput(e.inputType);
   });
   useEffect(() => {
     const editor = editorRef.current;
@@ -877,8 +876,7 @@ export const MentionInput = forwardRef<
     const historyAction = historyActionForKey(e);
     if (historyAction) {
       e.preventDefault();
-      if (historyAction === "undo") undoHistory.undo();
-      else undoHistory.redo();
+      undoHistory.apply(historyAction);
       return;
     }
     // Caller-owned submit shortcuts take precedence over autocomplete. Plain
@@ -940,10 +938,7 @@ export const MentionInput = forwardRef<
             prev?.dataset?.threadMentionId
           ) {
             e.preventDefault();
-            undoHistory.edit(() => {
-              prev.remove();
-              notifyTextChange();
-            });
+            removeChip(prev);
             return;
           }
         }
@@ -958,15 +953,19 @@ export const MentionInput = forwardRef<
             child?.dataset?.threadMentionId
           ) {
             e.preventDefault();
-            undoHistory.edit(() => {
-              child.remove();
-              notifyTextChange();
-            });
+            removeChip(child);
             return;
           }
         }
       }
     }
+  }
+
+  function removeChip(chip: Element) {
+    undoHistory.edit(() => {
+      chip.remove();
+      notifyTextChange();
+    });
   }
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
@@ -975,10 +974,7 @@ export const MentionInput = forwardRef<
     if (!chip || !e.currentTarget.contains(chip)) return;
     e.preventDefault();
     e.stopPropagation();
-    undoHistory.edit(() => {
-      chip.remove();
-      notifyTextChange();
-    });
+    removeChip(chip);
   }
 
   function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
@@ -1000,7 +996,8 @@ export const MentionInput = forwardRef<
     }
 
     e.preventDefault();
-    const text = e.clipboardData.getData("text/plain");
+    // Windows puts \r\n line endings on the clipboard.
+    const text = e.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
     const sel = window.getSelection();
     if (!text || !sel || sel.rangeCount === 0) return;
     undoHistory.edit(() => {
@@ -1043,8 +1040,8 @@ export const MentionInput = forwardRef<
         data-placeholder={placeholder}
         className={editorClassName}
         onInput={handleInput}
-        onCompositionStart={() => undoHistory.sync()}
-        onCompositionEnd={() => undoHistory.commit()}
+        onCompositionStart={undoHistory.compositionStart}
+        onCompositionEnd={undoHistory.compositionEnd}
         onKeyDown={handleKeyDown}
         onMouseDown={handleMouseDown}
         onPaste={handlePaste}

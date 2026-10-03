@@ -284,6 +284,48 @@ describe("MentionInput undo history", () => {
     expect(editor.textContent).toBe("");
   });
 
+  it("puts the caret after the redone edit even if it moved before the undo", () => {
+    const { editor } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "abc");
+    placeCaret(editor.firstChild!, 1);
+
+    undo(editor);
+    redo(editor);
+    const selection = window.getSelection()!;
+    expect(selection.anchorNode?.textContent?.slice(0, selection.anchorOffset)).toBe("abc");
+  });
+
+  it("undoes moving text by drag and drop as one step", () => {
+    const { editor } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "ab");
+    const nativeEdit = (inputType: string, change: () => void) => {
+      fireEvent(editor, new InputEvent("beforeinput", { inputType }));
+      change();
+      fireEvent.input(editor, { inputType });
+    };
+    nativeEdit("deleteByDrag", () => {
+      editor.textContent = "b";
+    });
+    nativeEdit("insertFromDrop", () => {
+      editor.textContent = "ba";
+      caretAtEnd(editor);
+    });
+
+    undo(editor);
+    expect(editor.textContent).toBe("ab");
+  });
+
+  it("drops carriage returns from pasted Windows line endings", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "one\r\ntwo");
+
+    expect(editor.textContent).not.toContain("\r");
+    expect(ref.current?.serialize()).toBe("one\ntwo");
+  });
+
   it("keeps pasted line breaks as <br> elements", () => {
     const { editor, ref } = renderInput();
     caretAtEnd(editor);
