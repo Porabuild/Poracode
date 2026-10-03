@@ -156,7 +156,8 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText(/thread:p1 in Poracode/)).toBeInTheDocument();
   });
 
-  it("shows manual order across projects with starred threads first and lets rows reorder", () => {
+  it("shows manual order across projects with starred threads first and lets live rows reorder", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": false } });
     useAppStore.setState({
       projects: [homeProject, localProject, secondLocalProject],
       threads: [
@@ -167,21 +168,27 @@ describe("SidebarFlatThreadList", () => {
       ],
     });
 
-    render(<SidebarFlatThreadList sortMode="manual" />);
+    const { container } = render(<SidebarFlatThreadList sortMode="manual" />);
 
     const rows = screen.getAllByTestId("row");
     expect(rows.map((row) => row.textContent?.split(" in ")[0])).toEqual([
       "thread:s2",
       "thread:p1",
-      "thread:s1",
       "thread:p2",
+      "done-label",
+      "thread:s1",
     ]);
     expect(rows.map((row) => row.dataset.sortDisabled)).toEqual([
       "false",
       "false",
       "false",
       "false",
+      "true",
     ]);
+    // Done is pinned below the scrolling rows, as in the date modes.
+    const scroller = container.querySelector(".overflow-y-auto");
+    expect(scroller?.contains(screen.getByText(/^thread:p2 in/))).toBe(true);
+    expect(scroller?.contains(screen.getByText(/^done-label in/))).toBe(false);
   });
 
   it("keeps date order and locks reordering outside manual order", () => {
