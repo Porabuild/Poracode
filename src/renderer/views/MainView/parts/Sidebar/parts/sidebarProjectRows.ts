@@ -44,6 +44,11 @@ export type SidebarRow =
       label: MessageDescriptor;
       doneThreads: Thread[];
       hasProtectedDoneThreads: boolean;
+      /** Key into the sidebar collapse map; see {@link sidebarDoneSectionKey}. */
+      collapseKey: string;
+      collapsed: boolean;
+      /** Every done thread in the list, including any hidden behind "See more". */
+      doneCount: number;
     }
   | { kind: "see-more"; key: string; hiddenCount: number };
 
@@ -59,15 +64,21 @@ export const SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE = 20;
 const EMPTY_THREAD_ID_SET: ReadonlySet<string> = new Set();
 
 /**
- * Collapse state for both group kinds lives in one map: worktree groups are
- * keyed by worktree path and start collapsed on launch; manual thread groups
- * are keyed `group:<groupId>` and start expanded.
+ * Collapse state for every collapsible sidebar section lives in one map:
+ * worktree groups are keyed by worktree path and start collapsed on launch;
+ * manual thread groups are keyed `group:<groupId>` and start expanded; a list's
+ * Done section is keyed by {@link sidebarDoneSectionKey} and starts collapsed.
  */
 export function isSidebarGroupCollapsed(
   collapsedWorktrees: Record<string, boolean>,
   key: string,
 ): boolean {
   return collapsedWorktrees[key] ?? !key.startsWith("group:");
+}
+
+/** Collapse-map key for the Done section of one thread list (a project or the flat list). */
+export function sidebarDoneSectionKey(listId: string): string {
+  return `done:${listId}`;
 }
 
 /** Pinned or attention-needing threads are never hidden behind "See more". */
@@ -86,6 +97,11 @@ function entryIsProtected(
 ): boolean {
   if (entry.kind === "thread") return threadIsProtected(entry.thread, liveBackgroundThreadIds);
   return entry.group.threads.some((t) => threadIsProtected(t, liveBackgroundThreadIds));
+}
+
+function entryHasThread(entry: ThreadListEntry, threadIds: ReadonlySet<string>): boolean {
+  if (entry.kind === "thread") return threadIds.has(entry.thread.id);
+  return entry.group.threads.some((t) => threadIds.has(t.id));
 }
 
 /**
@@ -244,6 +260,8 @@ export function buildSidebarProjectRows(input: {
   visibleLimit: number;
   /** Threads with live background activity — kept visible like working ones. */
   liveBackgroundThreadIds?: ReadonlySet<string>;
+  /** Threads open in a pane — kept visible even inside a collapsed Done section. */
+  openThreadIds?: ReadonlySet<string>;
   /** Canonical candidate positions for experiment groups. */
   experimentCandidateOrder?: ReadonlyMap<string, number>;
 }): SidebarRow[] {
@@ -300,15 +318,25 @@ export function buildSidebarProjectRows(input: {
   const doneEntries = datedDoneEntries
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map((item) => item.entry);
+  const doneCollapseKey = sidebarDoneSectionKey(input.projectId);
+  const doneCollapsed = isCollapsed(doneCollapseKey);
+  // A collapsed Done section lists only entries holding an open thread, so the
+  // selection doesn't vanish; the rest take no "See more" slots.
+  const openThreadIds = input.openThreadIds ?? EMPTY_THREAD_ID_SET;
+  const openDoneEntries = new Set(
+    doneEntries.filter((entry) => entryHasThread(entry, openThreadIds)),
+  );
+  const listedDoneEntries = doneCollapsed ? [...openDoneEntries] : doneEntries;
 
   const { visible, hiddenCount } = selectVisible(
-    [...starredEntries, ...activeEntries, ...doneEntries],
+    [...starredEntries, ...activeEntries, ...listedDoneEntries],
     input.visibleLimit,
-    (e) => entryIsProtected(e, liveBackgroundThreadIds),
+    (e) =>
+      entryIsProtected(e, liveBackgroundThreadIds) || (doneCollapsed && openDoneEntries.has(e)),
   );
   const starredVisible = starredEntries.filter((e) => visible.has(e));
   const activeVisible = activeEntries.filter((e) => visible.has(e));
-  const doneVisible = doneEntries.filter((e) => visible.has(e));
+  const doneVisible = listedDoneEntries.filter((e) => visible.has(e));
   let ungroupedIndex = 0;
 
   const nextUngroupedIndex = () => ungroupedIndex++;
@@ -330,7 +358,8 @@ export function buildSidebarProjectRows(input: {
 
   pushList(starredVisible);
   pushList(activeVisible, starredVisible.length);
-  if (doneVisible.length > 0) {
+  // The header carries the toggle, so it stays even when "See more" hides every done entry.
+  if (doneEntries.length > 0) {
     const allDoneThreads = doneEntries.flatMap((entry) =>
       entry.kind === "thread" ? [entry.thread] : entry.group.threads,
     );
@@ -338,12 +367,16 @@ export function buildSidebarProjectRows(input: {
     const doneThreads = candidateOrder
       ? allDoneThreads.filter((thread) => !candidateOrder.has(thread.id))
       : allDoneThreads;
+    const doneCount = allDoneThreads.length;
     rows.push({
       kind: "section-label",
       key: "done-label",
-      label: msg`Done`,
+      label: msg`Done (${doneCount})`,
       doneThreads,
       hasProtectedDoneThreads: doneThreads.length < allDoneThreads.length,
+      collapseKey: doneCollapseKey,
+      collapsed: doneCollapsed,
+      doneCount,
     });
   }
   pushList(doneVisible, starredVisible.length + activeVisible.length);

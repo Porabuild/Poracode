@@ -11,6 +11,7 @@ import {
 import { openNewThread, openNewThreadSideBySide } from "@/renderer/actions/threadActions";
 import { useDragSource } from "@/renderer/dnd";
 import {
+  useCurrentThreadIds,
   useCurrentThreadIdsCount,
   useHasDraft,
   useIsCurrentProjectDraft,
@@ -71,6 +72,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const flatListProjectFilter = useSidebarUiStore((s) => s.flatListProjectFilter);
   const setFlatListProjectFilter = useSidebarUiStore((s) => s.setFlatListProjectFilter);
   const visibleLimit = useThreadListLimit(FLAT_LIST_SCOPE, SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE);
+  const currentThreadIds = useCurrentThreadIds();
   const currentThreadCount = useCurrentThreadIdsCount();
   const source = useDragSource();
   // Own scroll container (the grouped/empty bodies use Sidebar's): the
@@ -160,6 +162,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     collapsedWorktrees,
     visibleLimit,
     liveBackgroundThreadIds,
+    openThreadIds: new Set(currentThreadIds),
     ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
 
