@@ -1,4 +1,11 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useEffectEvent,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import type { LucideIcon } from "lucide-react";
 import type {
   AgentSlashCommand,
@@ -19,6 +26,7 @@ import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
+import { historyActionForKey, useComposerUndoHistory } from "./useComposerUndoHistory";
 
 /**
  * A composer MCP server offered as an `@`-mention (Browser, Crossagents, Computer
@@ -377,6 +385,11 @@ export const MentionInput = forwardRef<
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const undoHistory = useComposerUndoHistory(editorRef, () => {
+    voicePreviewRef.current = null;
+    checkMentionState();
+    notifyTextChange();
+  });
 
   const fileResults = useDebouncedFileSearch(
     projectLocation,
@@ -802,13 +815,41 @@ export const MentionInput = forwardRef<
     notifyTextChange();
   }
 
-  function handleInput() {
+  function handleInput(e: React.FormEvent<HTMLDivElement>) {
     checkMentionState();
     notifyTextChange();
+    const native = e.nativeEvent as InputEvent;
+    if (!native.isComposing) undoHistory.commitInput(native.inputType ?? "");
   }
+
+  // React's onBeforeInput is built from keypress events and has no inputType,
+  // so listen for the native event.
+  const handleNativeBeforeInput = useEffectEvent((e: InputEvent) => {
+    if (e.inputType === "historyUndo" || e.inputType === "historyRedo") {
+      e.preventDefault();
+      if (e.inputType === "historyUndo") undoHistory.undo();
+      else undoHistory.redo();
+      return;
+    }
+    if (!e.isComposing) undoHistory.sync();
+  });
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const listener = (e: InputEvent) => handleNativeBeforeInput(e);
+    editor.addEventListener("beforeinput", listener);
+    return () => editor.removeEventListener("beforeinput", listener);
+  }, []);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    const historyAction = historyActionForKey(e);
+    if (historyAction) {
+      e.preventDefault();
+      if (historyAction === "undo") undoHistory.undo();
+      else undoHistory.redo();
+      return;
+    }
     // Caller-owned submit shortcuts take precedence over autocomplete. Plain
     // Enter still accepts the highlighted suggestion below.
     const modifiedEnter = e.key === "Enter" && (e.ctrlKey || e.metaKey);
@@ -914,14 +955,23 @@ export const MentionInput = forwardRef<
     e.preventDefault();
     const text = e.clipboardData.getData("text/plain");
     const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(document.createTextNode(text));
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    notifyTextChange();
+    if (!text || !sel || sel.rangeCount === 0) return;
+    undoHistory.edit(() => {
+      const range = sel.getRangeAt(0);
+      // Same <br> line breaks as restored drafts, so the serializer reads both alike.
+      const fragment = document.createDocumentFragment();
+      appendPromptSegments(fragment, [{ kind: "text", content: text }]);
+      const lastNode = fragment.lastChild;
+      range.deleteContents();
+      if (lastNode) {
+        range.insertNode(fragment);
+        range.setStartAfter(lastNode);
+      }
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      notifyTextChange();
+    });
   }
 
   const editorClassName = compact
@@ -946,6 +996,8 @@ export const MentionInput = forwardRef<
         data-placeholder={placeholder}
         className={editorClassName}
         onInput={handleInput}
+        onCompositionStart={() => undoHistory.sync()}
+        onCompositionEnd={() => undoHistory.commit()}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
         onClick={checkMentionState}
