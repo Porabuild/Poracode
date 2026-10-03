@@ -8107,6 +8107,10 @@ msgstr "최근 본 다음 채팅"
 msgid "Next run {0}"
 msgstr "다음 실행: {0}"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Next sent message"
+msgstr "다음에 보낸 메시지"
+
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
 msgstr "다음 탭"
@@ -9783,6 +9787,10 @@ msgstr "최근 본 이전 채팅"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Previous runs"
 msgstr "이전 실행"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Previous sent message"
+msgstr "이전에 보낸 메시지"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"

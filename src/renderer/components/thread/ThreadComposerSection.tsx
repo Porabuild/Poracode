@@ -97,6 +97,7 @@ import {
 } from "@/renderer/components/skills/useSkills";
 import { useDelayedPendingSteer } from "./useDelayedPendingSteer";
 import { revertedPromptToDraft, useRevertedPromptStore } from "./revertedPrompt";
+import { usePromptRecall } from "./usePromptRecall";
 
 type ThreadComposerSectionProps = {
   threadId: string;
@@ -597,6 +598,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     });
   }
 
+  const handlePromptRecallKey = usePromptRecall({
+    threadId: thread.id,
+    mentionRef,
+    attachments,
+    availableCommands,
+    skillCommandsResolved,
+  });
+
   useEffect(() => {
     setSlashActiveIndex(0);
   }, [slashQuery]);
@@ -967,6 +976,8 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         ) {
                           return true;
                         }
+
+                        if (!usesTerminalPresentation && handlePromptRecallKey(e)) return true;
 
                         if (showTerminalComposer) {
                           if (e.key === "Tab" && e.shiftKey && !e.ctrlKey && !e.metaKey) {
