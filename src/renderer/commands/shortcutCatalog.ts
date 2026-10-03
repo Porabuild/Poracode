@@ -105,6 +105,22 @@ export const LOCAL_SHORTCUTS: readonly LocalShortcut[] = [
     keys: ["Shift+Enter"],
   },
   {
+    id: "composer.previous-sent-message",
+    title: msg`Previous sent message`,
+    description: msg`Composer`,
+    group: "Composer",
+    when: "composerFocus",
+    keys: ["ArrowUp"],
+  },
+  {
+    id: "composer.next-sent-message",
+    title: msg`Next sent message`,
+    description: msg`Composer`,
+    group: "Composer",
+    when: "composerFocus",
+    keys: ["ArrowDown"],
+  },
+  {
     id: "terminal.copy",
     title: msg`Copy selection`,
     description: msg`Terminal`,

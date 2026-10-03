@@ -19,6 +19,7 @@ import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
+import { caretLineEdges, type CaretLineEdges } from "./caretLine";
 
 /**
  * A composer MCP server offered as an `@`-mention (Browser, Crossagents, Computer
@@ -137,6 +138,10 @@ export interface MentionInputHandle {
   serialize(): string;
   /** Rebuild the editor content from previously serialized segments. */
   restoreFromSegments(segments: PromptSegment[]): void;
+  /** Whether the caret is on the editor's first or last visual line. */
+  caretLineEdges(): CaretLineEdges;
+  /** Focus the editor with the caret at the start or end of its content. */
+  placeCaret(at: "start" | "end"): void;
   focus(): void;
   clear(): void;
   insertText(text: string): void;
@@ -253,12 +258,12 @@ function normalizeEmptyEditor(editor: HTMLDivElement): void {
   editor.innerHTML = "";
 }
 
-function placeCaretAtEnd(editor: HTMLDivElement): Range | null {
+function placeCaretAtEdge(editor: HTMLDivElement, edge: "start" | "end" = "end"): Range | null {
   const sel = window.getSelection();
   if (!sel) return null;
   const range = document.createRange();
   range.selectNodeContents(editor);
-  range.collapse(false);
+  range.collapse(edge === "start");
   sel.removeAllRanges();
   sel.addRange(range);
   return range;
@@ -428,7 +433,7 @@ export const MentionInput = forwardRef<
     const sel = window.getSelection();
     const selectionInsideEditor =
       sel?.rangeCount && sel.anchorNode ? editor.contains(sel.anchorNode) : false;
-    const range = selectionInsideEditor ? sel!.getRangeAt(0) : placeCaretAtEnd(editor);
+    const range = selectionInsideEditor ? sel!.getRangeAt(0) : placeCaretAtEdge(editor);
     if (!range) return;
 
     const precedingRange = document.createRange();
@@ -473,6 +478,16 @@ export const MentionInput = forwardRef<
       appendPromptSegments(editor, segments);
       onTextChange(hasEditorContent(editor));
     },
+    caretLineEdges() {
+      if (!editorRef.current) return { first: false, last: false };
+      return caretLineEdges(editorRef.current);
+    },
+    placeCaret(at: "start" | "end") {
+      const editor = editorRef.current;
+      if (!editor) return;
+      editor.focus();
+      placeCaretAtEdge(editor, at);
+    },
     focus() {
       editorRef.current?.focus();
     },
@@ -500,7 +515,7 @@ export const MentionInput = forwardRef<
         !options?.atEnd && selection?.rangeCount && selection.anchorNode
           ? editor.contains(selection.anchorNode)
           : false;
-      const range = selectionInsideEditor ? selection!.getRangeAt(0) : placeCaretAtEnd(editor);
+      const range = selectionInsideEditor ? selection!.getRangeAt(0) : placeCaretAtEdge(editor);
       if (!range) return;
 
       const precedingRange = document.createRange();
@@ -552,7 +567,7 @@ export const MentionInput = forwardRef<
       const sel = window.getSelection();
       const selectionInsideEditor =
         sel?.rangeCount && sel.anchorNode ? editor.contains(sel.anchorNode) : false;
-      const range = selectionInsideEditor ? sel!.getRangeAt(0) : placeCaretAtEnd(editor);
+      const range = selectionInsideEditor ? sel!.getRangeAt(0) : placeCaretAtEdge(editor);
       if (!range) return;
 
       const precedingRange = document.createRange();
