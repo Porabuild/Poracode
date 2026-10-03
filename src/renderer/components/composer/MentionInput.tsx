@@ -25,6 +25,7 @@ import { createThreadMentionChipElement } from "./ThreadMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
+import { CHIP_SELECTOR } from "./editorSnapshot";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
 import { historyActionForKey, useComposerUndoHistory } from "./useComposerUndoHistory";
 
@@ -239,13 +240,7 @@ function detectTriggerRange(triggerChar: string): Range | null {
 }
 
 function hasEditorContent(editor: HTMLDivElement): boolean {
-  if (
-    editor.querySelector(
-      "[data-mention-path], [data-slash-command], [data-diff-comment-path], [data-mcp-id], [data-thread-mention-id]",
-    )
-  ) {
-    return true;
-  }
+  if (editor.querySelector(CHIP_SELECTOR)) return true;
   return (editor.textContent ?? "").trim().length > 0;
 }
 
@@ -433,6 +428,10 @@ export const MentionInput = forwardRef<
   }
 
   function insertPlainText(text: string) {
+    undoHistory.edit(() => insertPlainTextAtCaret(text));
+  }
+
+  function insertPlainTextAtCaret(text: string) {
     const editor = editorRef.current;
     const trimmed = text.trim();
     if (!editor || !trimmed) return;
@@ -466,6 +465,122 @@ export const MentionInput = forwardRef<
       preview.remove();
     }
     voicePreviewRef.current = null;
+    notifyTextChange();
+  }
+
+  function insertSegmentsAtCaret(
+    segments: PromptSegment[],
+    options?: { atEnd?: boolean; focus?: boolean },
+  ) {
+    const editor = editorRef.current;
+    if (!editor || segments.length === 0) return;
+
+    if (options?.focus !== false) editor.focus();
+    const selection = window.getSelection();
+    const selectionInsideEditor =
+      !options?.atEnd && selection?.rangeCount && selection.anchorNode
+        ? editor.contains(selection.anchorNode)
+        : false;
+    const range = selectionInsideEditor ? selection!.getRangeAt(0) : placeCaretAtEnd(editor);
+    if (!range) return;
+
+    const precedingRange = document.createRange();
+    precedingRange.selectNodeContents(editor);
+    precedingRange.setEnd(range.startContainer, range.startOffset);
+    const fragment = document.createDocumentFragment();
+    const firstSegment = segments[0];
+    const hasExplicitLeadingWhitespace =
+      firstSegment?.kind === "text" && /^\s/.test(firstSegment.content);
+    if (
+      precedingRange.toString().length > 0 &&
+      !/\s$/.test(precedingRange.toString()) &&
+      !hasExplicitLeadingWhitespace
+    ) {
+      fragment.appendChild(document.createTextNode(" "));
+    }
+    appendPromptSegments(fragment, segments);
+    const lastNode = fragment.lastChild;
+    if (!lastNode) return;
+
+    range.deleteContents();
+    range.insertNode(fragment);
+    range.setStartAfter(lastNode);
+    range.collapse(true);
+    if (options?.focus !== false) {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+    checkMentionState();
+    notifyTextChange();
+  }
+
+  function replaceSlashQuery(command: string | AgentSlashCommand) {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const range = detectTriggerRange("/");
+    if (!range) return;
+
+    const sel = window.getSelection();
+    if (!sel) return;
+
+    sel.removeAllRanges();
+    sel.addRange(range);
+    range.deleteContents();
+
+    const skill = typeof command === "string" ? undefined : skillSegmentFromSlashCommand(command);
+    const chip = createSlashCommandChipElement(
+      typeof command === "string"
+        ? command
+        : {
+            id: command.id,
+            ...(command.skillName ? { skillName: command.skillName } : {}),
+            ...(skill ? skillChipDataset(skill) : {}),
+          },
+    );
+    range.insertNode(chip);
+
+    // Trailing space keeps the cursor visually separate from the chip and
+    // matches the legacy "/id " plain-text behavior.
+    const space = document.createTextNode(" ");
+    chip.after(space);
+
+    // Strip any browser-inserted empty siblings before the chip
+    // (empty text nodes, lone <br>, empty wrappers) that would render as
+    // a blank line above the badge.
+    let prev: Node | null = chip.previousSibling;
+    while (prev) {
+      const next: Node | null = prev.previousSibling;
+      if (prev.nodeType === Node.TEXT_NODE && (prev.textContent ?? "") === "") {
+        prev.parentNode?.removeChild(prev);
+      } else if (prev.nodeType === Node.ELEMENT_NODE) {
+        const el = prev as HTMLElement;
+        const isBr = el.tagName === "BR";
+        const isEmptyWrapper =
+          (el.tagName === "DIV" || el.tagName === "P") &&
+          el.childNodes.length === 0 &&
+          (el.textContent ?? "") === "";
+        if (isBr || isEmptyWrapper) {
+          el.remove();
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+      prev = next;
+    }
+
+    const newRange = document.createRange();
+    newRange.setStartAfter(space);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    if (lastSlashQueryRef.current !== null) {
+      lastSlashQueryRef.current = null;
+      onSlashCommandChange?.(null);
+    }
     notifyTextChange();
   }
 
@@ -504,46 +619,7 @@ export const MentionInput = forwardRef<
       insertPlainText(text);
     },
     insertSegments(segments: PromptSegment[], options?: { atEnd?: boolean; focus?: boolean }) {
-      const editor = editorRef.current;
-      if (!editor || segments.length === 0) return;
-
-      if (options?.focus !== false) editor.focus();
-      const selection = window.getSelection();
-      const selectionInsideEditor =
-        !options?.atEnd && selection?.rangeCount && selection.anchorNode
-          ? editor.contains(selection.anchorNode)
-          : false;
-      const range = selectionInsideEditor ? selection!.getRangeAt(0) : placeCaretAtEnd(editor);
-      if (!range) return;
-
-      const precedingRange = document.createRange();
-      precedingRange.selectNodeContents(editor);
-      precedingRange.setEnd(range.startContainer, range.startOffset);
-      const fragment = document.createDocumentFragment();
-      const firstSegment = segments[0];
-      const hasExplicitLeadingWhitespace =
-        firstSegment?.kind === "text" && /^\s/.test(firstSegment.content);
-      if (
-        precedingRange.toString().length > 0 &&
-        !/\s$/.test(precedingRange.toString()) &&
-        !hasExplicitLeadingWhitespace
-      ) {
-        fragment.appendChild(document.createTextNode(" "));
-      }
-      appendPromptSegments(fragment, segments);
-      const lastNode = fragment.lastChild;
-      if (!lastNode) return;
-
-      range.deleteContents();
-      range.insertNode(fragment);
-      range.setStartAfter(lastNode);
-      range.collapse(true);
-      if (options?.focus !== false) {
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-      }
-      checkMentionState();
-      notifyTextChange();
+      undoHistory.edit(() => insertSegmentsAtCaret(segments, options));
     },
     previewVoiceTranscript(text: string) {
       const editor = editorRef.current;
@@ -616,73 +692,7 @@ export const MentionInput = forwardRef<
       clearVoicePreviewNode();
     },
     insertSlashCommand(command: string | AgentSlashCommand) {
-      const editor = editorRef.current;
-      if (!editor) return;
-
-      const range = detectTriggerRange("/");
-      if (!range) return;
-
-      const sel = window.getSelection();
-      if (!sel) return;
-
-      sel.removeAllRanges();
-      sel.addRange(range);
-      range.deleteContents();
-
-      const skill = typeof command === "string" ? undefined : skillSegmentFromSlashCommand(command);
-      const chip = createSlashCommandChipElement(
-        typeof command === "string"
-          ? command
-          : {
-              id: command.id,
-              ...(command.skillName ? { skillName: command.skillName } : {}),
-              ...(skill ? skillChipDataset(skill) : {}),
-            },
-      );
-      range.insertNode(chip);
-
-      // Trailing space keeps the cursor visually separate from the chip and
-      // matches the legacy "/id " plain-text behavior.
-      const space = document.createTextNode(" ");
-      chip.after(space);
-
-      // Strip any browser-inserted empty siblings before the chip
-      // (empty text nodes, lone <br>, empty wrappers) that would render as
-      // a blank line above the badge.
-      let prev: Node | null = chip.previousSibling;
-      while (prev) {
-        const next: Node | null = prev.previousSibling;
-        if (prev.nodeType === Node.TEXT_NODE && (prev.textContent ?? "") === "") {
-          prev.parentNode?.removeChild(prev);
-        } else if (prev.nodeType === Node.ELEMENT_NODE) {
-          const el = prev as HTMLElement;
-          const isBr = el.tagName === "BR";
-          const isEmptyWrapper =
-            (el.tagName === "DIV" || el.tagName === "P") &&
-            el.childNodes.length === 0 &&
-            (el.textContent ?? "") === "";
-          if (isBr || isEmptyWrapper) {
-            el.remove();
-          } else {
-            break;
-          }
-        } else {
-          break;
-        }
-        prev = next;
-      }
-
-      const newRange = document.createRange();
-      newRange.setStartAfter(space);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-
-      if (lastSlashQueryRef.current !== null) {
-        lastSlashQueryRef.current = null;
-        onSlashCommandChange?.(null);
-      }
-      notifyTextChange();
+      undoHistory.edit(() => replaceSlashQuery(command));
     },
   }));
 
@@ -710,6 +720,10 @@ export const MentionInput = forwardRef<
   }
 
   function insertMention(entry: MentionEntry) {
+    undoHistory.edit(() => replaceMentionQuery(entry));
+  }
+
+  function replaceMentionQuery(entry: MentionEntry) {
     if (!editorRef.current) return;
 
     const range = detectTriggerRange("@");
@@ -909,8 +923,10 @@ export const MentionInput = forwardRef<
             prev?.dataset?.threadMentionId
           ) {
             e.preventDefault();
-            prev.remove();
-            notifyTextChange();
+            undoHistory.edit(() => {
+              prev.remove();
+              notifyTextChange();
+            });
             return;
           }
         }
@@ -925,13 +941,27 @@ export const MentionInput = forwardRef<
             child?.dataset?.threadMentionId
           ) {
             e.preventDefault();
-            child.remove();
-            notifyTextChange();
+            undoHistory.edit(() => {
+              child.remove();
+              notifyTextChange();
+            });
             return;
           }
         }
       }
     }
+  }
+
+  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    const button = (e.target as Element).closest?.("[data-chip-remove]");
+    const chip = button?.closest(CHIP_SELECTOR);
+    if (!chip || !e.currentTarget.contains(chip)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    undoHistory.edit(() => {
+      chip.remove();
+      notifyTextChange();
+    });
   }
 
   function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
@@ -999,6 +1029,7 @@ export const MentionInput = forwardRef<
         onCompositionStart={() => undoHistory.sync()}
         onCompositionEnd={() => undoHistory.commit()}
         onKeyDown={handleKeyDown}
+        onMouseDown={handleMouseDown}
         onPaste={handlePaste}
         onClick={checkMentionState}
         {...({ placeholder } as React.HTMLAttributes<HTMLDivElement>)}

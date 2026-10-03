@@ -29,13 +29,9 @@ export function createDiffCommentChipElement(comment: DiffCommentSegment): HTMLS
   remove.className = "poracode-diff-comment-chip__delete";
   remove.innerHTML =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>';
-  remove.addEventListener("mousedown", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const parent = chip.parentElement;
-    chip.remove();
-    parent?.dispatchEvent(new Event("input", { bubbles: true }));
-  });
+  // MentionInput handles the click, so the button keeps working after undo
+  // rebuilds the chip from HTML.
+  remove.dataset.chipRemove = "true";
   chip.appendChild(remove);
 
   return chip;
