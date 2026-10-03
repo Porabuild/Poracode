@@ -50,7 +50,13 @@ export type SidebarRow =
       /** Every done thread in the list, including any hidden behind "See more". */
       doneCount: number;
     }
-  | { kind: "see-more"; key: string; hiddenCount: number };
+  | {
+      kind: "see-more";
+      key: string;
+      hiddenCount: number;
+      /** Set when the row pages a separately paged Done section, not the main list. */
+      section?: "done";
+    };
 
 /** Default number of list items shown per project before the "See more" row. */
 export const SIDEBAR_THREAD_LIST_PAGE_SIZE = 10;
@@ -264,6 +270,12 @@ export function buildSidebarProjectRows(input: {
   openThreadIds?: ReadonlySet<string>;
   /** Canonical candidate positions for experiment groups. */
   experimentCandidateOrder?: ReadonlyMap<string, number>;
+  /**
+   * Pages the Done section on its own with this limit, for a list that shows
+   * Done apart from its other rows. Done entries then take no `visibleLimit`
+   * slots. Without it, Done shares the list's page.
+   */
+  doneVisibleLimit?: number;
 }): SidebarRow[] {
   const rows: SidebarRow[] = [];
   const dndGroup = `project-entries:${input.projectId}`;
@@ -321,22 +333,31 @@ export function buildSidebarProjectRows(input: {
   const doneCollapseKey = sidebarDoneSectionKey(input.projectId);
   const doneCollapsed = isCollapsed(doneCollapseKey);
   // A collapsed Done section lists only entries holding an open thread, so the
-  // selection doesn't vanish; the rest take no "See more" slots.
+  // selection doesn't vanish.
   const openThreadIds = input.openThreadIds ?? EMPTY_THREAD_ID_SET;
-  const openDoneEntries = new Set(
-    doneEntries.filter((entry) => entryHasThread(entry, openThreadIds)),
-  );
-  const listedDoneEntries = doneCollapsed ? [...openDoneEntries] : doneEntries;
+  const listedDoneEntries = doneCollapsed
+    ? doneEntries.filter((entry) => entryHasThread(entry, openThreadIds))
+    : doneEntries;
 
-  const { visible, hiddenCount } = selectVisible(
-    [...starredEntries, ...activeEntries, ...listedDoneEntries],
+  const isEntryProtected = (e: ThreadListEntry) => entryIsProtected(e, liveBackgroundThreadIds);
+  // An expanded inline Done shares the list's page. Otherwise Done is paged on
+  // its own: by `doneVisibleLimit` when given, or in full while collapsed.
+  const doneSharesMainPage = input.doneVisibleLimit === undefined && !doneCollapsed;
+  const mainPage = selectVisible(
+    [...starredEntries, ...activeEntries, ...(doneSharesMainPage ? listedDoneEntries : [])],
     input.visibleLimit,
-    (e) =>
-      entryIsProtected(e, liveBackgroundThreadIds) || (doneCollapsed && openDoneEntries.has(e)),
+    isEntryProtected,
   );
-  const starredVisible = starredEntries.filter((e) => visible.has(e));
-  const activeVisible = activeEntries.filter((e) => visible.has(e));
-  const doneVisible = listedDoneEntries.filter((e) => visible.has(e));
+  const donePage = doneSharesMainPage
+    ? mainPage
+    : selectVisible(
+        listedDoneEntries,
+        input.doneVisibleLimit ?? listedDoneEntries.length,
+        isEntryProtected,
+      );
+  const starredVisible = starredEntries.filter((e) => mainPage.visible.has(e));
+  const activeVisible = activeEntries.filter((e) => mainPage.visible.has(e));
+  const doneVisible = listedDoneEntries.filter((e) => donePage.visible.has(e));
   let ungroupedIndex = 0;
 
   const nextUngroupedIndex = () => ungroupedIndex++;
@@ -356,8 +377,17 @@ export function buildSidebarProjectRows(input: {
     });
   };
 
+  const pushMainSeeMore = () => {
+    if (mainPage.hiddenCount > 0) {
+      rows.push({ kind: "see-more", key: "see-more", hiddenCount: mainPage.hiddenCount });
+    }
+  };
+
   pushList(starredVisible);
   pushList(activeVisible, starredVisible.length);
+  // A main-list pager that covers no done entries goes above the Done header,
+  // so it doesn't read as part of Done.
+  if (!doneSharesMainPage) pushMainSeeMore();
   // The header carries the toggle, so it stays even when "See more" hides every done entry.
   if (doneEntries.length > 0) {
     const allDoneThreads = doneEntries.flatMap((entry) =>
@@ -380,7 +410,16 @@ export function buildSidebarProjectRows(input: {
     });
   }
   pushList(doneVisible, starredVisible.length + activeVisible.length);
-  if (hiddenCount > 0) rows.push({ kind: "see-more", key: "see-more", hiddenCount });
+  if (doneSharesMainPage) {
+    pushMainSeeMore();
+  } else if (donePage.hiddenCount > 0) {
+    rows.push({
+      kind: "see-more",
+      key: "done-see-more",
+      hiddenCount: donePage.hiddenCount,
+      section: "done",
+    });
+  }
 
   return rows;
 }

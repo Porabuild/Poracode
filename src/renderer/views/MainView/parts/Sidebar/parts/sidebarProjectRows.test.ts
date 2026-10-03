@@ -448,4 +448,88 @@ describe("buildSidebarProjectRows — collapsible Done section", () => {
     });
     expect(seeMore(rows)).toMatchObject({ hiddenCount: 5 });
   });
+
+  it("puts See more above a collapsed Done header", () => {
+    const rows = build(
+      [
+        ...Array.from({ length: 12 }, (_, i) => makeThread({ id: `live-${i}` })),
+        makeThread({ id: "done-1", done: true }),
+      ],
+      10,
+      "updated",
+    );
+
+    expect(rows.slice(-2).map((row) => row.kind)).toEqual(["see-more", "section-label"]);
+  });
+
+  it("keeps an open done thread under a collapsed header out of the main page", () => {
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        ...Array.from({ length: 10 }, (_, i) => makeThread({ id: `live-${i}` })),
+        makeThread({ id: "done-open", done: true }),
+      ],
+      sortMode: "updated",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      openThreadIds: new Set(["done-open"]),
+    });
+
+    expect(threadRows(rows).map((row) => row.thread.id)).toEqual([
+      ...Array.from({ length: 10 }, (_, i) => `live-${i}`),
+      "done-open",
+    ]);
+    expect(seeMore(rows)).toBeUndefined();
+  });
+});
+
+describe("buildSidebarProjectRows — separately paged Done section", () => {
+  function buildPaged(threads: Thread[], doneVisibleLimit: number, collapsed = false) {
+    return buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: threads,
+      sortMode: "updated",
+      collapsedWorktrees: collapsed ? {} : DONE_EXPANDED,
+      visibleLimit: 10,
+      doneVisibleLimit,
+    });
+  }
+
+  it("keeps done threads out of the main page even when expanded", () => {
+    const rows = buildPaged(
+      [
+        ...Array.from({ length: 12 }, (_, i) => makeThread({ id: `live-${i}` })),
+        ...Array.from({ length: 5 }, (_, i) => makeThread({ id: `done-${i}`, done: true })),
+      ],
+      20,
+    );
+
+    const ids = threadRows(rows).map((row) => row.thread.id);
+    expect(ids.filter((id) => id.startsWith("live-"))).toHaveLength(10);
+    expect(ids.filter((id) => id.startsWith("done-"))).toHaveLength(5);
+    expect(rows.filter((row) => row.kind === "see-more")).toEqual([
+      expect.objectContaining({ hiddenCount: 2 }),
+    ]);
+  });
+
+  it("pages done threads with their own See more row after them", () => {
+    const rows = buildPaged(
+      [
+        makeThread({ id: "live" }),
+        ...Array.from({ length: 25 }, (_, i) =>
+          makeThread({ id: `done-${i}`, done: true, updatedAt: OLD }),
+        ),
+      ],
+      20,
+    );
+
+    expect(threadRows(rows).filter((row) => row.thread.done)).toHaveLength(20);
+    expect(rows.at(-1)).toEqual({
+      kind: "see-more",
+      key: "done-see-more",
+      hiddenCount: 5,
+      section: "done",
+    });
+    expect(rows.filter((row) => row.kind === "see-more")).toHaveLength(1);
+  });
 });
