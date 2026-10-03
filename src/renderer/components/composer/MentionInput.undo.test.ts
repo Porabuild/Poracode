@@ -1,12 +1,13 @@
 import { createElement, createRef } from "react";
-import { createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { Globe } from "lucide-react";
 import type { PromptSegment } from "@/shared/contracts";
-import { MentionInput, type MentionInputHandle } from "./MentionInput";
+import { MentionInput, type McpMentionItem, type MentionInputHandle } from "./MentionInput";
 
 vi.mock("./MentionPopover", () => ({ MentionPopover: () => null }));
 
-function renderInput() {
+function renderInput(props: { mcpMentions?: McpMentionItem[] } = {}) {
   const ref = createRef<MentionInputHandle>();
   render(
     createElement(MentionInput, {
@@ -14,6 +15,7 @@ function renderInput() {
       projectLocation: undefined,
       onTextChange: vi.fn<(hasText: boolean) => void>(),
       onSubmit: vi.fn<(segments: PromptSegment[]) => void>(),
+      ...props,
       ref,
     }),
   );
@@ -38,10 +40,10 @@ function typeText(editor: HTMLElement, text: string) {
   fireEvent(editor, new InputEvent("beforeinput", { inputType: "insertText", data: text }));
   const selection = window.getSelection()!;
   const range = selection.getRangeAt(0);
-  const node = document.createTextNode(text);
-  range.insertNode(node);
+  range.insertNode(document.createTextNode(text));
   editor.normalize();
-  caretAtEnd(editor);
+  const last = editor.lastChild!;
+  placeCaret(last, last.nodeType === Node.TEXT_NODE ? (last as Text).length : 0);
   fireEvent.input(editor, { inputType: "insertText", data: text });
 }
 
@@ -54,6 +56,10 @@ function paste(editor: HTMLElement, text: string) {
 
 function undo(editor: HTMLElement) {
   fireEvent.keyDown(editor, { key: "z", ctrlKey: true });
+}
+
+function redo(editor: HTMLElement) {
+  fireEvent.keyDown(editor, { key: "z", ctrlKey: true, shiftKey: true });
 }
 
 describe("MentionInput undo history", () => {
@@ -159,6 +165,72 @@ describe("MentionInput undo history", () => {
     expect(editor.textContent).toBe("a");
     fireEvent.keyDown(editor, { key: "y", ctrlKey: true });
     expect(editor.textContent).toBe("aかな");
+  });
+
+  it("undoes and redoes a slash command chip", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    typeText(editor, "/rev");
+    act(() => ref.current?.insertSlashCommand("review"));
+    expect(editor.querySelector("[data-slash-command]")).not.toBeNull();
+
+    undo(editor);
+    expect(editor.querySelector("[data-slash-command]")).toBeNull();
+    expect(editor.textContent).toBe("/rev");
+    redo(editor);
+    expect(editor.querySelector("[data-slash-command]")).not.toBeNull();
+  });
+
+  it("undoes an @ mention chip back to the typed query", () => {
+    const { editor } = renderInput({
+      mcpMentions: [
+        { id: "browser", name: "Browser", icon: Globe, detail: "MCP server", enabled: true },
+      ],
+    });
+    caretAtEnd(editor);
+    typeText(editor, "@bro");
+    fireEvent.keyDown(editor, { key: "Enter" });
+    expect(editor.querySelector("[data-mcp-id]")).not.toBeNull();
+
+    undo(editor);
+    expect(editor.querySelector("[data-mcp-id]")).toBeNull();
+    expect(editor.textContent).toBe("@bro");
+  });
+
+  it("brings back a chip removed with Backspace", () => {
+    const { editor, ref } = renderInput();
+    act(() => ref.current?.insertSegments([{ kind: "file", path: "src/a.ts" }]));
+    caretAtEnd(editor);
+    fireEvent.keyDown(editor, { key: "Backspace" });
+    expect(editor.querySelector("[data-mention-path]")).toBeNull();
+
+    undo(editor);
+    expect(editor.querySelector("[data-mention-path]")).not.toBeNull();
+  });
+
+  it("brings back a chip removed with its x button, which still works afterwards", () => {
+    const { editor, ref } = renderInput();
+    act(() => ref.current?.insertSegments([{ kind: "file", path: "src/a.ts" }]));
+    const removeChip = () =>
+      fireEvent.mouseDown(editor.querySelector(".poracode-mention-chip__delete")!);
+
+    removeChip();
+    expect(editor.querySelector("[data-mention-path]")).toBeNull();
+    undo(editor);
+    expect(editor.querySelector("[data-mention-path]")).not.toBeNull();
+    removeChip();
+    expect(editor.querySelector("[data-mention-path]")).toBeNull();
+  });
+
+  it("undoes segments inserted by other parts of the app", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "see");
+    act(() => ref.current?.insertSegments([{ kind: "file", path: "src/a.ts" }]));
+
+    undo(editor);
+    expect(editor.querySelector("[data-mention-path]")).toBeNull();
+    expect(editor.textContent).toBe("see");
   });
 
   it("keeps pasted line breaks as <br> elements", () => {
