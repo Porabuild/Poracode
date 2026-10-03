@@ -11410,6 +11410,10 @@ msgstr "Multiplicateur de vitesse de défilement pour le tampon de défilement d
 msgid "Scroll to bottom"
 msgstr "Faire défiler vers le bas"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "Faire défiler jusqu'à l'invite : {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"

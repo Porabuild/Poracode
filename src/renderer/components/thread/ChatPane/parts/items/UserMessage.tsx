@@ -54,6 +54,7 @@ import { InlineFilePathChip } from "./InlineFilePathChip";
 import { PluginIcon } from "@/renderer/components/plugins/PluginIcon";
 import { ItemMarkdown } from "./ItemMarkdown";
 import { extractSelectorPayloads } from "./SelectorBadge";
+import { buildUserPromptText } from "./userPromptText";
 import {
   hasUserMessageVisualOverflow,
   shouldNotifyUserMessageHeightChange,
@@ -389,21 +390,6 @@ function firstInlineContentBlock(
       (block.kind === "file" && block.source !== "attachment")
     );
   });
-}
-
-function buildUserPromptText(content: CanonicalContentBlock[]): string {
-  return content
-    .map((block) => {
-      if (block.kind === "text") return block.text;
-      if (block.kind === "skill")
-        return block.pluginName ? `@${block.pluginName}` : block.invocation;
-      if (block.kind === "diff_comment") return formatDiffCommentPrompt(block);
-      if (block.kind === "mcp") return `@${block.name}`;
-      if (block.kind === "thread") return `@${threadMentionLabel(block)}`;
-      if (block.kind === "file" && block.source !== "attachment") return block.path;
-      return "";
-    })
-    .join("");
 }
 
 function renderUserMessageInlineContent(

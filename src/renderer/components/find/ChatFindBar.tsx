@@ -16,7 +16,7 @@ import {
 
 export type ScrollToIndex = (
   index: number,
-  options?: { align?: "start" | "center" | "end" },
+  options?: { align?: "start" | "center" | "end"; animated?: boolean },
 ) => void;
 
 interface ChatFindBarProps {

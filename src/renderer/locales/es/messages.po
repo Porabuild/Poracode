@@ -11411,6 +11411,10 @@ msgstr "Multiplicador de la velocidad de desplazamiento del búfer de historial 
 msgid "Scroll to bottom"
 msgstr "Desplazar al final"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "Desplazar al prompt: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"
