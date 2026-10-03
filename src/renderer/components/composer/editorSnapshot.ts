@@ -56,7 +56,9 @@ function opaqueAncestor(root: Node, node: Node): Node | null {
 function offsetOf(root: Node, container: Node, offset: number): number {
   const opaque = opaqueAncestor(root, container);
   if (opaque) return lengthBefore(root, opaque);
-  if (container.nodeType === Node.TEXT_NODE) return lengthBefore(root, container) + offset;
+  if (container.nodeType === Node.TEXT_NODE) {
+    return lengthBefore(root, container) + Math.min(offset, (container as Text).length);
+  }
   const child = container.childNodes[offset];
   if (child) return lengthBefore(root, child);
   return lengthBefore(root, container) + lengthOf(container);
@@ -92,18 +94,22 @@ export function captureEditorSnapshot(editor: HTMLElement): EditorSnapshot {
   const clone = editor.cloneNode(true) as HTMLElement;
   for (const preview of clone.querySelectorAll(VOICE_PREVIEW_SELECTOR)) preview.remove();
 
+  // Read the anchor and focus points rather than building a Range, so a
+  // selection whose offsets no longer fit the DOM can't throw here.
   const selection = window.getSelection();
-  const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-  const inside =
-    range && editor.contains(range.startContainer) && editor.contains(range.endContainer);
+  const anchor = selection?.anchorNode;
+  const focus = selection?.focusNode;
+  if (!selection || !anchor || !focus || !editor.contains(anchor) || !editor.contains(focus)) {
+    return { html: clone.innerHTML, selection: null };
+  }
+  const anchorOffset = offsetOf(editor, anchor, selection.anchorOffset);
+  const focusOffset = offsetOf(editor, focus, selection.focusOffset);
   return {
     html: clone.innerHTML,
-    selection: inside
-      ? {
-          start: offsetOf(editor, range.startContainer, range.startOffset),
-          end: offsetOf(editor, range.endContainer, range.endOffset),
-        }
-      : null,
+    selection: {
+      start: Math.min(anchorOffset, focusOffset),
+      end: Math.max(anchorOffset, focusOffset),
+    },
   };
 }
 
