@@ -96,6 +96,16 @@ export function useComposerUndoHistory(
     },
     /** Record a native edit, merging runs of typing or deleting into one step. */
     commitInput(inputType: string) {
+      if (inputType === "historyUndo" || inputType === "historyRedo") {
+        // Chromium ran its own undo without a cancelable beforeinput, as
+        // document.execCommand("undo") does. Put back the step the history
+        // knows and take ours instead.
+        const editor = editorRef.current;
+        if (!editor) return;
+        restoreEditorSnapshot(editor, history(editor).current());
+        apply(inputType === "historyUndo" ? "undo" : "redo");
+        return;
+      }
       commit(groupForInputType(inputType));
     },
     /** Call when an IME composition starts. */
