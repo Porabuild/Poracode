@@ -2,7 +2,11 @@ import { act, fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { dynamicActivate } from "@/renderer/i18n/i18n";
-import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import {
+  type DevTerminalTab,
+  resetDevTerminalStore,
+  useDevTerminalStore,
+} from "@/renderer/state/devTerminalStore";
 import { BottomTerminalLayout } from "./BottomTerminalLayout";
 
 vi.mock("./TerminalSurfaces", () => ({
@@ -17,15 +21,16 @@ const actionTab = {
   createdAt: "2026-08-08T00:00:00.000Z",
 };
 
-function renderLayout(options: { showActionTab?: boolean } = {}) {
-  const projectTabs = options.showActionTab ? [actionTab] : [];
+function renderLayout(options: { showActionTab?: boolean; tab?: DevTerminalTab } = {}) {
+  const shownTab = options.tab ?? (options.showActionTab ? actionTab : undefined);
+  const projectTabs = shownTab ? [shownTab] : [];
   return render(
     <BottomTerminalLayout
       tabs={projectTabs}
       projectTabs={projectTabs}
       activeScopeLabel="Poracode / feature"
-      selectedTabId={options.showActionTab ? actionTab.id : "__add__"}
-      activeTab={options.showActionTab ? actionTab : undefined}
+      selectedTabId={shownTab?.id ?? "__add__"}
+      activeTab={shownTab}
       focusRequestId={0}
       markTabActive={vi.fn<() => void>()}
       updateTabTitle={vi.fn<() => void>()}
@@ -75,6 +80,22 @@ describe("BottomTerminalLayout", () => {
 
     expect(sidebar).toHaveStyle({ width: "210px" });
     expect(localStorage.getItem("poracode-bottom-terminal-sidebar-width")).toBe("210");
+  });
+
+  it("shows one row named after the split once the main shell exited", () => {
+    renderLayout({
+      tab: {
+        id: "shell:main",
+        projectId: "project-1",
+        title: "main",
+        createdAt: "2026-08-08T00:00:00.000Z",
+        splitId: "shell:split",
+        splitTitle: "split",
+        mainExited: true,
+      },
+    });
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["split", ""]);
   });
 
   it("announces whether an action-owned tab is idle or running", () => {

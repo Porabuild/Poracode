@@ -31,6 +31,8 @@ import {
   toggleStarThread,
 } from "./actions/threadActions";
 import { deleteWorktreeGroup } from "./actions/worktreeActions";
+import { closeExitedShell } from "./actions/terminalTabActions";
+import { onRemoteTerminalExited } from "./state/remoteTerminalFeed";
 import { installRemoteGitSummaryPublisher } from "./remoteGitSummaries";
 import { installRemoteProjectWorkspaceSync } from "./state/remoteServers/appRows";
 import { applyExternalSharedSettings } from "./state/sharedSettingsStore";
@@ -185,7 +187,7 @@ function handleSupervisorEvent(event: SupervisorEvent): void {
     if (event.type === "thread-output") {
       useDevTerminalStore.getState().noteShellOutput(event.threadId);
     } else if (event.type === "thread-exited") {
-      useDevTerminalStore.getState().markShellExited(event.threadId);
+      closeExitedShell(event.threadId);
     }
     return;
   }
@@ -355,6 +357,9 @@ export function installUpdateStatusSync(
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
       readBridge().onSupervisorEvent(handleSupervisorEvent),
+      onRemoteTerminalExited((terminalId) => {
+        if (terminalId.startsWith("shell:")) closeExitedShell(terminalId);
+      }),
       installRuntimeEventScheduling(),
       installUpdateStatusSync(),
       // Thread-metadata commands issued from paired remote clients (mobile PWA).
