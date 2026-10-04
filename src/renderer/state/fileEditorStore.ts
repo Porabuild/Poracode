@@ -11,6 +11,7 @@ import { captureRendererException } from "../diagnostics/sentry";
 import { hasUnresolvedConflicts } from "@/renderer/utils/mergeConflicts";
 import { useGitStore } from "./gitStore";
 import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
+import { isImagePath } from "@/shared/promptContent";
 
 /**
  * Paths in the file editor are either project-relative (e.g. `src/foo.ts`)
@@ -66,6 +67,7 @@ function externalReadAsProjectResult(result: ReadExternalFileResult): ReadProjec
     ...base,
     status: result.status,
     ...(result.contentBase64 !== undefined ? { contentBase64: result.contentBase64 } : {}),
+    ...(result.sizeBytes !== undefined ? { sizeBytes: result.sizeBytes } : {}),
   };
 }
 
@@ -86,6 +88,8 @@ export interface FileEditorBuffer {
   modifiedAtMs: number;
   content: string;
   binaryContentBase64?: string;
+  /** Size of a file shown in a viewer instead of the text editor. */
+  sizeBytes?: number;
   savedContent: string;
   lineEnding: "lf" | "crlf";
   hasBom: boolean;
@@ -196,6 +200,15 @@ async function maybeStageResolvedConflict(
   }
 }
 
+/**
+ * An image the text editor can't open (binary, or over the size cap). The tab
+ * shows it in an image viewer that loads the file by URL, so the buffer only
+ * tracks the file's mtime and size.
+ */
+export function isViewerBuffer(buffer: Pick<FileEditorBuffer, "path" | "status">): boolean {
+  return (buffer.status === "binary" || buffer.status === "too_large") && isImagePath(buffer.path);
+}
+
 function buildBuffer(result: ReadProjectFileResult): FileEditorBuffer {
   if (result.status !== "ready") {
     return {
@@ -204,6 +217,7 @@ function buildBuffer(result: ReadProjectFileResult): FileEditorBuffer {
       modifiedAtMs: result.modifiedAtMs,
       content: "",
       ...(result.contentBase64 !== undefined ? { binaryContentBase64: result.contentBase64 } : {}),
+      ...(result.sizeBytes !== undefined ? { sizeBytes: result.sizeBytes } : {}),
       savedContent: "",
       lineEnding: "lf",
       hasBom: false,
@@ -452,6 +466,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         ...(existing.binaryContentBase64 !== undefined
           ? { contentBase64: existing.binaryContentBase64 }
           : {}),
+        ...(existing.sizeBytes !== undefined ? { sizeBytes: existing.sizeBytes } : {}),
       };
       return cachedResult;
     }
@@ -701,7 +716,9 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
 
     const paths = Object.entries(buffers)
       .filter(([path, buf]) => {
-        if (buf.status !== "ready" || buf.isDirty || buf.isLoading) return false;
+        if (buf.isLoading) return false;
+        if (isViewerBuffer(buf)) return true;
+        if (buf.status !== "ready" || buf.isDirty) return false;
         // Filesystem events triggered by our own save round-trip don't need
         // to rebuild the buffer — suppress for a short window so Monaco
         // doesn't lose focus / blink on Ctrl+S.
@@ -727,6 +744,14 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         if (entry.status !== "fulfilled") continue;
         const { path, result } = entry.value;
         const current = nextBuffers[path];
+        if (current && isViewerBuffer(current)) {
+          // Viewers reload from the file itself, keyed by its mtime.
+          if (result.modifiedAtMs !== current.modifiedAtMs || result.status !== current.status) {
+            nextBuffers[path] = withGitDiff(buildBuffer(result), current.gitDiff);
+            changed = true;
+          }
+          continue;
+        }
         // Skip if the buffer was modified by the user while we were reading
         if (!current || current.isDirty || current.status !== "ready") continue;
 

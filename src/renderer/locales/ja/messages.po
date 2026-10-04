@@ -9106,6 +9106,7 @@ msgstr "git review を右側のパネルまたはページ全体として開き�
 msgid "Open image {0} of {1}"
 msgstr "画像 {0}/{1} を開く"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -12195,6 +12196,7 @@ msgstr "ブラウザパネルの表示／非表示を切り替えます"
 msgid "Show or hide the sidebar"
 msgstr "サイドバーの表示／非表示を切り替えます"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "プレビューを表示"
@@ -12227,6 +12229,7 @@ msgstr "サイドバーを表示"
 msgid "Show skills from {0}"
 msgstr "{0} のスキルを表示"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "ソースを表示"
@@ -13749,6 +13752,10 @@ msgstr "このセッションはディスク上で変更されました。一覧
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "このセッションはすでにインポート中です。"
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "この SVG は表示できません。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."

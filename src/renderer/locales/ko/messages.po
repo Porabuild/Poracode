@@ -9108,6 +9108,7 @@ msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 msgid "Open image {0} of {1}"
 msgstr "이미지 {0}/{1} 열기"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -12197,6 +12198,7 @@ msgstr "브라우저 패널을 표시하거나 숨깁니다."
 msgid "Show or hide the sidebar"
 msgstr "사이드바를 표시하거나 숨깁니다."
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "미리보기 표시"
@@ -12229,6 +12231,7 @@ msgstr "사이드바 표시"
 msgid "Show skills from {0}"
 msgstr "{0}의 스킬 표시"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "소스 표시"
@@ -13751,6 +13754,10 @@ msgstr "이 세션이 디스크에서 변경되었습니다. 목록을 새로 �
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "이 세션을 이미 가져오는 중입니다."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "이 SVG를 표시할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."

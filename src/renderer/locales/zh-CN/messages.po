@@ -9107,6 +9107,7 @@ msgstr "将 git review 作为右侧面板或整页打开。"
 msgid "Open image {0} of {1}"
 msgstr "打开图片 {0}/{1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -12196,6 +12197,7 @@ msgstr "显示或隐藏浏览器面板"
 msgid "Show or hide the sidebar"
 msgstr "显示或隐藏侧边栏"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "显示预览"
@@ -12228,6 +12230,7 @@ msgstr "显示侧边栏"
 msgid "Show skills from {0}"
 msgstr "显示来自 {0} 的技能"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "显示来源"
@@ -13750,6 +13753,10 @@ msgstr "此会话在磁盘上已更改。请刷新列表后重试。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "此会话正在导入中。"
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "无法显示此 SVG。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."

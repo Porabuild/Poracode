@@ -56,7 +56,7 @@ async function listWindowsDriveRoots(): Promise<HostDirectoryEntry[]> {
 const MAX_EDITABLE_FILE_SIZE = 1_000_000;
 
 type RawFileRead =
-  | { kind: "tooLarge"; modifiedAtMs: number }
+  | { kind: "tooLarge"; modifiedAtMs: number; sizeBytes: number }
   | { kind: "ok"; buffer: Buffer; modifiedAtMs: number };
 
 function normalizeRelativePath(input: string): string {
@@ -347,11 +347,21 @@ export class ProjectTreeService {
           );
 
     if (raw.kind === "tooLarge") {
-      return { path, status: "too_large", modifiedAtMs: raw.modifiedAtMs };
+      return {
+        path,
+        status: "too_large",
+        modifiedAtMs: raw.modifiedAtMs,
+        sizeBytes: raw.sizeBytes,
+      };
     }
 
     if (isBinaryBuffer(raw.buffer)) {
-      return { path, status: "binary", modifiedAtMs: raw.modifiedAtMs };
+      return {
+        path,
+        status: "binary",
+        modifiedAtMs: raw.modifiedAtMs,
+        sizeBytes: raw.buffer.length,
+      };
     }
 
     const hasBom = raw.buffer.subarray(0, BOM.length).equals(BOM);
@@ -412,11 +422,11 @@ export class ProjectTreeService {
     }
 
     if (raw.kind === "tooLarge") {
-      return { status: "too_large", modifiedAtMs: raw.modifiedAtMs };
+      return { status: "too_large", modifiedAtMs: raw.modifiedAtMs, sizeBytes: raw.sizeBytes };
     }
 
     if (isBinaryBuffer(raw.buffer)) {
-      return { status: "binary", modifiedAtMs: raw.modifiedAtMs };
+      return { status: "binary", modifiedAtMs: raw.modifiedAtMs, sizeBytes: raw.buffer.length };
     }
 
     const hasBom = raw.buffer.subarray(0, BOM.length).equals(BOM);
@@ -480,11 +490,21 @@ export class ProjectTreeService {
     }
 
     if (raw.kind === "tooLarge") {
-      return { path: payload.absolutePath, status: "too_large", modifiedAtMs: raw.modifiedAtMs };
+      return {
+        path: payload.absolutePath,
+        status: "too_large",
+        modifiedAtMs: raw.modifiedAtMs,
+        sizeBytes: raw.sizeBytes,
+      };
     }
 
     if (isBinaryBuffer(raw.buffer)) {
-      return { path: payload.absolutePath, status: "binary", modifiedAtMs: raw.modifiedAtMs };
+      return {
+        path: payload.absolutePath,
+        status: "binary",
+        modifiedAtMs: raw.modifiedAtMs,
+        sizeBytes: raw.buffer.length,
+      };
     }
 
     const hasBom = raw.buffer.subarray(0, BOM.length).equals(BOM);
@@ -645,7 +665,7 @@ export class ProjectTreeService {
     const fileStat = await stat(absolutePath);
     if (!fileStat.isFile()) throw new Error("Only files can be read.");
     if (fileStat.size > maxBytes) {
-      return { kind: "tooLarge", modifiedAtMs: fileStat.mtimeMs };
+      return { kind: "tooLarge", modifiedAtMs: fileStat.mtimeMs, sizeBytes: fileStat.size };
     }
     const buffer = await readFile(absolutePath);
     return { kind: "ok", buffer, modifiedAtMs: fileStat.mtimeMs };
@@ -661,7 +681,7 @@ export class ProjectTreeService {
       maxBytes,
     });
     if (result.tooLarge) {
-      return { kind: "tooLarge", modifiedAtMs: result.mtimeMs };
+      return { kind: "tooLarge", modifiedAtMs: result.mtimeMs, sizeBytes: result.size };
     }
     return {
       kind: "ok",
@@ -678,7 +698,7 @@ export class ProjectTreeService {
     const { fullPath, fileStat } = await this.statFollowingWslSymlinks(location, relativePath);
     if (!fileStat.isFile()) throw new Error("Only files can be opened in the editor.");
     if (fileStat.size > maxBytes) {
-      return { kind: "tooLarge", modifiedAtMs: fileStat.mtimeMs };
+      return { kind: "tooLarge", modifiedAtMs: fileStat.mtimeMs, sizeBytes: fileStat.size };
     }
     const buffer = await readFile(fullPath);
     return { kind: "ok", buffer, modifiedAtMs: fileStat.mtimeMs };
@@ -695,7 +715,7 @@ export class ProjectTreeService {
       maxBytes,
     });
     if (result.tooLarge) {
-      return { kind: "tooLarge", modifiedAtMs: result.mtimeMs };
+      return { kind: "tooLarge", modifiedAtMs: result.mtimeMs, sizeBytes: result.size };
     }
     return {
       kind: "ok",

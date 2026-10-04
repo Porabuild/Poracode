@@ -1,6 +1,12 @@
+import { useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ChevronLeft, Loader2, Save } from "lucide-react";
+import { ChevronLeft, Code, Eye, Loader2, Save } from "lucide-react";
+import { ImageFileView } from "@/renderer/components/media/ImageFileView";
+import { SvgFileView } from "@/renderer/components/media/SvgFileView";
+import { resolveFileDisplayUrl } from "@/renderer/utils/fileDisplayUrl";
 import type { AbsoluteFileReadStatus } from "@/shared/contracts";
+import { getBasename } from "@/shared/pathUtils";
+import { isImagePath, isSvgPath } from "@/shared/promptContent";
 import { HighlightedEditor } from "../HighlightedEditor";
 import { Fab } from "../components";
 import type { OpenFileApi } from "./useOpenFile";
@@ -22,6 +28,15 @@ export function MobileFileEditor(props: {
 }) {
   const { t } = useLingui();
   const { openFile, isDirty, saving, saveOpenFile, setOpenFileContent } = props.fileApi;
+  // The SVG rendered view is per file; opening another file shows its source.
+  const [renderedPath, setRenderedPath] = useState<string | null>(null);
+  const canRender = openFile?.status === "ready" && !openFile.isLoading && isSvgPath(openFile.path);
+  const showRendered = canRender && renderedPath === openFile.path;
+  const isImageViewer =
+    !!openFile &&
+    !openFile.isLoading &&
+    (openFile.status === "binary" || openFile.status === "too_large") &&
+    isImagePath(openFile.path);
   return (
     <div className="m-files-editor">
       <header className="m-files-editor__head">
@@ -37,12 +52,24 @@ export function MobileFileEditor(props: {
           {openFile?.path ?? props.initialFilePath}
           {isDirty ? " *" : ""}
         </span>
+        {canRender ? (
+          <button
+            className="m-topbar-icon"
+            type="button"
+            aria-label={showRendered ? t`Show source` : t`Show preview`}
+            onClick={() => setRenderedPath(showRendered ? null : openFile.path)}
+          >
+            {showRendered ? <Code className="size-5" /> : <Eye className="size-5" />}
+          </button>
+        ) : null}
       </header>
       {openFile?.isLoading ? (
         <div className="m-files-status">
           <Loader2 className="size-5 m-spin" />
           <Trans>Loading…</Trans>
         </div>
+      ) : openFile && showRendered ? (
+        <SvgFileView path={openFile.path} content={openFile.content} />
       ) : openFile?.status === "ready" ? (
         <HighlightedEditor
           value={openFile.content}
@@ -52,6 +79,17 @@ export function MobileFileEditor(props: {
             : {})}
           {...(openFile.readOnly ? { readOnly: true } : {})}
           onChange={(next) => setOpenFileContent(openFile.path, next)}
+        />
+      ) : openFile && isImageViewer ? (
+        <ImageFileView
+          src={resolveFileDisplayUrl({
+            projectLocation: props.fileApi.projectLocation,
+            path: openFile.path,
+            version: openFile.modifiedAtMs,
+          })}
+          fileName={getBasename(openFile.path)}
+          sizeBytes={openFile.sizeBytes}
+          fallback={<div className="m-files-status">{fileStatusMessage(openFile.status)}</div>}
         />
       ) : openFile ? (
         <div className="m-files-status">{fileStatusMessage(openFile.status)}</div>
