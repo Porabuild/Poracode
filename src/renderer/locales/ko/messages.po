@@ -2281,6 +2281,14 @@ msgstr "브랜치를 전환할 수 없습니다. 먼저 변경 사항을 커밋�
 msgid "Category"
 msgstr "카테고리"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "홈 변경"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "프로필 홈을 변경할까요?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "프로젝트 폴더 변경"
@@ -13418,6 +13426,10 @@ msgstr "이 플러그인의 Poracode 설정이 유효하지 않아 무시되었�
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "이 플러그인의 스킬을 읽을 수 없습니다."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "이 프로필에는 이미 스레드가 있습니다. 세션은 현재 홈 디렉터리에 남아 있으므로 변경한 후에는 재개할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."

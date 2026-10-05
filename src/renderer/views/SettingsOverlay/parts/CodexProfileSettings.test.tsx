@@ -107,6 +107,13 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => {
   return { useSharedSettings, flushSharedSettings: flushSharedSettingsMock };
 });
 
+const appState = {
+  threads: [] as Array<{ id: string; agentKind: string }>,
+};
+vi.mock("@/renderer/state/appStore", () => ({
+  useAppStore: (selector: (state: typeof appState) => unknown) => selector(appState),
+}));
+
 vi.mock("@/renderer/state/agentStatusesStore", () => ({
   useAgentStatusesStore: (selector: (state: typeof statusState) => unknown) =>
     selector(statusState),
@@ -130,6 +137,7 @@ function codexProfile(overrides: Partial<AgentInstanceConfig> = {}): AgentInstan
 }
 
 beforeEach(() => {
+  appState.threads = [];
   settingsState.agentInstances = {};
   settingsState.setAgentInstance.mockReset();
   settingsState.removeAgentInstance.mockReset();
@@ -146,8 +154,8 @@ beforeEach(() => {
 });
 
 describe("defaultCodexHomeDir", () => {
-  it("derives a tilde-relative home from the profile name", () => {
-    expect(defaultCodexHomeDir("Work Account")).toBe("~/.poracode/codex-profiles/work-account");
+  it("derives a tilde-relative home from the allocated profile id", () => {
+    expect(defaultCodexHomeDir("work-account-2")).toBe("~/.poracode/codex-profiles/work-account-2");
   });
 });
 
@@ -174,6 +182,43 @@ describe("CodexProfileSettings", () => {
     );
     expect(toastMock.success).toHaveBeenCalledWith("Profile Work added.");
   });
+
+  it.each([
+    ["Review Work 1", "Review Work-1", "review-work-1", "review-work-1-2"],
+    ["Работа", "仕事", "profile", "profile-2"],
+  ])(
+    "keeps the default homes of %s and %s apart even though their names slugify alike",
+    async (firstName, secondName, firstId, secondId) => {
+      settingsState.agentInstances = {
+        [firstId]: codexProfile({
+          id: firstId,
+          displayName: firstName,
+          config: { homeDir: defaultCodexHomeDir(firstId) },
+        }),
+      };
+      render(<CodexProfileSettings />);
+      fireEvent.click(screen.getByRole("button", { name: /add profile/i }));
+      fireEvent.change(screen.getByLabelText("New profile name"), {
+        target: { value: secondName },
+      });
+      // The live default shown to the user is the one that gets persisted.
+      expect(screen.getByLabelText("New Codex profile home directory")).toHaveAttribute(
+        "placeholder",
+        `~/.poracode/codex-profiles/${secondId}`,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Create profile" }));
+
+      await vi.waitFor(() =>
+        expect(createProfileMock).toHaveBeenCalledWith({
+          driver: "codex",
+          id: secondId,
+          displayName: secondName,
+          config: { homeDir: `~/.poracode/codex-profiles/${secondId}` },
+        }),
+      );
+      expect(defaultCodexHomeDir(secondId)).not.toBe(defaultCodexHomeDir(firstId));
+    },
+  );
 
   it("lists a profile with its home dir and opens its page", () => {
     settingsState.agentInstances = { work: codexProfile() };
@@ -227,6 +272,49 @@ describe("CodexProfileProviderSettings", () => {
     await vi.waitFor(() =>
       expect(refreshAgentStatusesMock).toHaveBeenCalledWith([], { agentKinds: ["codex:work"] }),
     );
+  });
+});
+
+describe("CodexProfileProviderSettings home changes", () => {
+  const warning = /This profile already has threads/;
+
+  it("saves a home change directly when the profile has no threads", () => {
+    settingsState.agentInstances = { work: codexProfile() };
+    appState.threads = [{ id: "t1", agentKind: "codex:other" }];
+    render(<CodexProfileProviderSettings instanceId="work" />);
+
+    fireEvent.change(screen.getByLabelText("Codex profile home directory"), {
+      target: { value: "~/.codex-work" },
+    });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save Codex profile" }));
+    expect(settingsState.setAgentInstance).toHaveBeenCalledTimes(1);
+  });
+
+  it("warns and asks before moving the home of a profile that has threads", () => {
+    settingsState.agentInstances = { work: codexProfile() };
+    appState.threads = [{ id: "t1", agentKind: "codex:work" }];
+    render(<CodexProfileProviderSettings instanceId="work" />);
+
+    // A rename alone keeps the home, so it neither warns nor asks.
+    fireEvent.change(screen.getByLabelText("Codex profile name"), {
+      target: { value: "Work 2" },
+    });
+    expect(screen.queryByText(warning)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Codex profile home directory"), {
+      target: { value: "~/.codex-work" },
+    });
+    expect(screen.getByText(warning)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save Codex profile" }));
+    expect(settingsState.setAgentInstance).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Change home" }));
+    expect(settingsState.setAgentInstance).toHaveBeenCalledWith({
+      ...codexProfile(),
+      displayName: "Work 2",
+      config: { homeDir: "~/.codex-work" },
+    });
   });
 });
 

@@ -2281,6 +2281,14 @@ msgstr "无法切换分支 - 首先提交或存储您的更改"
 msgid "Category"
 msgstr "类别"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "更改主目录"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "更改配置文件主目录？"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "更改项目文件夹"
@@ -13417,6 +13425,10 @@ msgstr "此插件的 Poracode 设置无效，已被忽略。"
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "无法读取此插件的技能。"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "此配置文件已有线程。它们的会话保留在当前主目录中，因此更改后将无法恢复。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."

@@ -2281,6 +2281,14 @@ msgstr "Невозможно переключить ветки — сначал�
 msgid "Category"
 msgstr "Категория"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "Изменить каталог"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "Изменить каталог профиля?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Изменить папку проекта"
@@ -13418,6 +13426,10 @@ msgstr "Настройки Poracode этого плагина проигнори
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "Не удалось прочитать навыки этого плагина."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "У этого профиля уже есть треды. Их сессии остаются в текущем домашнем каталоге, поэтому после его изменения их нельзя будет возобновить."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."

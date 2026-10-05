@@ -2281,6 +2281,14 @@ msgstr "Không thể chuyển nhánh — trước tiên hãy commit hoặc stash
 msgid "Category"
 msgstr "Danh mục"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "Thay đổi thư mục"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "Thay đổi thư mục hồ sơ?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Thay đổi thư mục dự án"
@@ -13418,6 +13426,10 @@ msgstr "Cài đặt Poracode của plugin này bị bỏ qua vì không hợp l�
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "Không đọc được các skill của plugin này."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "Hồ sơ này đã có luồng. Các phiên của chúng vẫn nằm trong thư mục home hiện tại, nên sẽ không thể tiếp tục sau khi bạn thay đổi."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."

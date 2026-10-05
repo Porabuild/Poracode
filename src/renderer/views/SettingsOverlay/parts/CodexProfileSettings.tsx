@@ -10,8 +10,9 @@ import {
   type AgentInstanceConfig,
   type CodexProfileInstanceConfig,
 } from "@/shared/contracts";
-import { Input } from "@/renderer/components/common";
+import { ConfirmDialog, Input } from "@/renderer/components/common";
 import { readBridge } from "@/renderer/bridge";
+import { useAppStore } from "@/renderer/state/appStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { currentWslDistros } from "@/renderer/utils/acpRegistryAuth";
 import { AgentProfileList } from "./AgentProfileList";
@@ -20,16 +21,20 @@ import type {
   NativeAgentSettingsPanelProps,
 } from "./agentRegistryNative";
 import { CodexProviderSettings } from "./CodexProviderSettings";
-import { slugifyProfileName } from "./profileIds";
 
 /**
  * Codex profiles are a second account: each one owns a `CODEX_HOME` with its
  * own `auth.json`, `config.toml`, and `sessions/`. Sign-in happens through the
  * regular Login button on the profile page (the auth method carries the
  * profile's `CODEX_HOME`), so the only per-profile setting is the directory.
+ *
+ * The default home is keyed by the allocated instance id, never the display
+ * name: distinct names can slugify alike ("Work 1" / "Work-1", or any two
+ * non-Latin names), and two profiles sharing a home would share credentials
+ * and sessions.
  */
-export function defaultCodexHomeDir(name: string): string {
-  return `~/.poracode/codex-profiles/${slugifyProfileName(name)}`;
+export function defaultCodexHomeDir(profileId: string): string {
+  return `~/.poracode/codex-profiles/${profileId}`;
 }
 
 function refreshCodexProfile(kind?: string): void {
@@ -68,10 +73,16 @@ function CodexProfileEditor(props: {
 }) {
   const { t } = useLingui();
   const setAgentInstance = useSharedSettings((s) => s.setAgentInstance);
+  const profileKind = codexProfileKind(props.instance.id);
+  // Archived threads count too: they can still be restored and resumed.
+  const hasThreads = useAppStore((s) =>
+    s.threads.some((thread) => thread.agentKind === profileKind),
+  );
   // Seeded once from props; the editor is keyed by instance id so it re-seeds
   // when a different profile takes its place.
   const [name, setName] = useState(props.instance.displayName ?? props.instance.id);
   const [homeDir, setHomeDir] = useState(props.config.homeDir);
+  const [confirmHomeChange, setConfirmHomeChange] = useState(false);
 
   const displayLabel = props.instance.displayName ?? props.instance.id;
   const trimmedName = name.trim();
@@ -80,14 +91,33 @@ function CodexProfileEditor(props: {
     trimmedName !== (props.instance.displayName ?? props.instance.id) ||
     trimmedHomeDir !== props.config.homeDir;
   const canSave = trimmedName.length > 0 && trimmedHomeDir.length > 0 && dirty;
+  // A thread resumes from the rollout files in the home it ran under, so
+  // moving the home strands every existing thread's session.
+  const strandsThreads = hasThreads && trimmedHomeDir !== props.config.homeDir;
 
-  const save = () => {
+  const commit = () => {
     if (!canSave) return;
     const config: CodexProfileInstanceConfig = { homeDir: trimmedHomeDir };
     setAgentInstance({ ...props.instance, displayName: trimmedName, config });
-    refreshCodexProfile(codexProfileKind(props.instance.id));
+    refreshCodexProfile(profileKind);
     toast.success(t`Codex ${trimmedName || displayLabel} profile saved.`);
   };
+
+  const save = () => {
+    if (!canSave) return;
+    if (strandsThreads) {
+      setConfirmHomeChange(true);
+      return;
+    }
+    commit();
+  };
+
+  const strandedThreadsWarning = (
+    <Trans>
+      This profile already has threads. Their sessions stay in the current home directory, so they
+      can't be resumed after you change it.
+    </Trans>
+  );
 
   return (
     <div className="space-y-4 border-t border-border/10 pt-4">
@@ -138,6 +168,21 @@ function CodexProfileEditor(props: {
           />
         </div>
       </section>
+      {strandsThreads ? <p className="text-xs text-warning">{strandedThreadsWarning}</p> : null}
+
+      <ConfirmDialog
+        isOpen={confirmHomeChange}
+        title={t`Change profile home?`}
+        body={strandedThreadsWarning}
+        confirmLabel={t`Change home`}
+        confirmVariant="primary"
+        status="warning"
+        onConfirm={() => {
+          setConfirmHomeChange(false);
+          commit();
+        }}
+        onClose={() => setConfirmHomeChange(false)}
+      />
     </div>
   );
 }
@@ -166,7 +211,7 @@ export const codexProfileSupport: NativeAgentProfileSupport = {
   field: {
     ariaLabel: msg`New Codex profile home directory`,
     // Live default shown as the placeholder and used verbatim when left empty.
-    placeholderFor: (name) => defaultCodexHomeDir(name),
+    placeholderFor: (_name, id) => defaultCodexHomeDir(id),
   },
   RowSubtitle: CodexProfileHomeDir,
   removalBody: (profileName) => (

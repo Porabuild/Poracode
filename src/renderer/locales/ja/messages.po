@@ -2280,6 +2280,14 @@ msgstr "ブランチを切り替えることはできません - 最初に変更
 msgid "Category"
 msgstr "カテゴリ"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "ホームを変更"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "プロファイルのホームを変更しますか？"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "プロジェクトフォルダーを変更"
@@ -13416,6 +13424,10 @@ msgstr "このプラグインの Poracode 設定は無効なため無視され�
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "このプラグインのスキルを読み取れませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "このプロファイルにはすでにスレッドがあります。セッションは現在のホームディレクトリに残るため、変更後は再開できなくなります。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."

@@ -2281,6 +2281,14 @@ msgstr "No se pueden cambiar las ramas — confirma o guarda tus cambios en stas
 msgid "Category"
 msgstr "Categoría"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "Cambiar home"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "¿Cambiar el home del perfil?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Cambiar la carpeta del proyecto"
@@ -13418,6 +13426,10 @@ msgstr "Se ignoraron los ajustes de Poracode de este plugin porque no son válid
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "No se pudieron leer las skills de este plugin."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "Este perfil ya tiene hilos. Sus sesiones permanecen en el directorio home actual, por lo que no podrán reanudarse después de cambiarlo."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."

@@ -47,8 +47,13 @@ export interface NativeAgentAcpRegistryAlias {
 export interface NativeAgentProfileField {
   ariaLabel: MessageDescriptor;
   placeholder?: MessageDescriptor;
-  /** Derived placeholder that doubles as the value when left empty. */
-  placeholderFor?: (name: string) => string;
+  /**
+   * Derived placeholder that doubles as the value when left empty. `id` is the
+   * collision-free instance id the profile will be created with; derive
+   * anything that must stay unique per profile (a config/home directory) from
+   * it rather than from `name`, since distinct names can slugify alike.
+   */
+  placeholderFor?: (name: string, id: string) => string;
   /** Rendered masked and never echoed back once saved. */
   secret?: boolean;
   /** Blocks submission while empty. */

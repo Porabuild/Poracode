@@ -404,7 +404,10 @@ declarations, none of which is a new branch in shared code:
       only what differs: the one extra add-form field, the row subtitle
       component, the removal-consequence copy, and `createPayload`. Optional
       `onCreated` pins provider settings that must exist before the first
-      detection pass (Cursor pins its GUI runtime there).
+      detection pass (Cursor pins its GUI runtime there). A default that must
+      be unique per profile (a config/home directory) comes from the allocated
+      id that `field.placeholderFor(name, id)` receives, never from the name:
+      distinct names can slugify alike, and a shared home shares credentials.
 - [ ] **Profile page** — the provider's `settingsPanel` already receives
       instance-scoped kinds; branch on your own
       `extract<Provider>ProfileInstanceId(agentKind)` to render the per-profile
@@ -413,8 +416,9 @@ declarations, none of which is a new branch in shared code:
 Do NOT add per-provider profile branches to `mergeManagedSharedSettings`,
 `ProviderIcon`, `SettingsSidebar`, `SingleAgentSettings`, or the IPC surface —
 they are all driven by the registry above. Reference implementations:
-`cursor` (single sealed credential) and `claude` (free-form environment plus an
-opaque per-profile `config`).
+`cursor` (single sealed credential), `claude` (free-form environment plus an
+opaque per-profile `config`), and `codex` (a per-profile `CODEX_HOME` with its
+own hook overlay, skill root, native-plugin discovery, and pooled app-server).
 
 ## Plugin Architecture
 

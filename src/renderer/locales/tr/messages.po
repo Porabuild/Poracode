@@ -2281,6 +2281,14 @@ msgstr "Dallar değiştirilemiyor; önce değişikliklerinizi commit edin veya s
 msgid "Category"
 msgstr "Kategori"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "Dizini değiştir"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "Profil dizini değiştirilsin mi?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Proje klasörünü değiştir"
@@ -13418,6 +13426,10 @@ msgstr "Bu eklentinin Poracode ayarları geçersiz olduğu için yok sayıldı."
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "Bu eklentinin becerileri okunamadı."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "Bu profilin zaten konuları var. Oturumları geçerli ana dizinde kalır, bu yüzden dizini değiştirdikten sonra sürdürülemezler."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."

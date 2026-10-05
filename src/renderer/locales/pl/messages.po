@@ -2281,6 +2281,14 @@ msgstr "Nie można przełączać gałęzi — najpierw zatwierdź lub ukryj zmia
 msgid "Category"
 msgstr "Kategoria"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "Zmień katalog"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "Zmienić katalog profilu?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Zmień folder projektu"
@@ -13418,6 +13426,10 @@ msgstr "Ustawienia Poracode tej wtyczki zostały zignorowane, ponieważ są niep
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "Nie udało się odczytać umiejętności tej wtyczki."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "Ten profil ma już wątki. Ich sesje pozostają w bieżącym katalogu domowym, więc po jego zmianie nie będzie można ich wznowić."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."

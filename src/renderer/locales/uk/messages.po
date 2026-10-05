@@ -2281,6 +2281,14 @@ msgstr "Неможливо перемкнути гілки — спочатку 
 msgid "Category"
 msgstr "Категорія"
 
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change home"
+msgstr "Змінити каталог"
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "Change profile home?"
+msgstr "Змінити каталог профілю?"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/GeneralSection.tsx
 msgid "Change project folder"
 msgstr "Змінити папку проєкту"
@@ -13418,6 +13426,10 @@ msgstr "Налаштування Poracode цього плагіна проігн
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This plugin's skills could not be read."
 msgstr "Не вдалося прочитати навички цього плагіна."
+
+#: src/renderer/views/SettingsOverlay/parts/CodexProfileSettings.tsx
+msgid "This profile already has threads. Their sessions stay in the current home directory, so they can't be resumed after you change it."
+msgstr "Цей профіль уже має треди. Їхні сесії залишаються в поточному домашньому каталозі, тож після його зміни їх не вдасться відновити."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
