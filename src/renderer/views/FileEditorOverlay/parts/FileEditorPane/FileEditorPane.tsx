@@ -4,7 +4,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { MarkdownPreview } from "../MarkdownPreview";
 import { Editor, type BeforeMount, type Monaco, type OnMount } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
-import { useFileEditorStore } from "@/renderer/state/fileEditorStore";
+import { isViewerBuffer, useFileEditorStore } from "@/renderer/state/fileEditorStore";
 import { macosTrafficLightPadClass } from "@/renderer/components/layout/sidebarChrome";
 import {
   useActiveBufferContent,
@@ -24,7 +24,9 @@ import { useMergeConflictContribution } from "./parts/mergeConflict/useMergeConf
 import { useGitDiffContribution } from "./parts/gitDiff/useGitDiffContribution";
 import { setActiveFindEditor } from "@/renderer/components/find/editorFindBridge";
 import { openPdfPreview } from "@/renderer/components/pdf";
-import { isPdfPath } from "@/shared/promptContent";
+import { isPdfPath, isSvgPath } from "@/shared/promptContent";
+import { SvgFileView } from "@/renderer/components/media/SvgFileView";
+import { EditorImageView } from "./parts/EditorMediaViews";
 
 export { getLanguageFromPath } from "./parts/langMap";
 
@@ -70,6 +72,8 @@ export function FileEditorPane(props: {
   const [showPreview, setShowPreview] = useState(false);
 
   const isMarkdown = activePath ? isMarkdownFile(activePath) : false;
+  const isSvg = activePath ? isSvgPath(activePath) : false;
+  const hasRenderedView = isMarkdown || isSvg;
 
   const { notifyDidSave } = useLspSync({ monaco: monacoInstance, activePath, bufferStatus });
 
@@ -133,7 +137,7 @@ export function FileEditorPane(props: {
       {props.showTabs ? (
         <TabStripHeader
           isDirty={isDirty}
-          isMarkdown={isMarkdown}
+          hasRenderedView={hasRenderedView}
           showPreview={showPreview}
           setShowPreview={setShowPreview}
           activePath={activePath}
@@ -160,7 +164,7 @@ export function FileEditorPane(props: {
               </span>
               <div className="flex-1" />
               <EditorToolbar
-                isMarkdown={isMarkdown}
+                hasRenderedView={hasRenderedView}
                 showPreview={showPreview}
                 setShowPreview={setShowPreview}
                 isDirty={isDirty}
@@ -180,6 +184,7 @@ export function FileEditorPane(props: {
             onMonacoReady={setMonacoInstance}
             showPreview={showPreview}
             isMarkdown={isMarkdown}
+            isSvg={isSvg}
             onSave={(path) => void handleSave(path)}
           />
         </>
@@ -194,7 +199,7 @@ export function FileEditorPane(props: {
 
 function TabStripHeader(props: {
   isDirty: boolean;
-  isMarkdown: boolean;
+  hasRenderedView: boolean;
   showPreview: boolean;
   setShowPreview: React.Dispatch<React.SetStateAction<boolean>>;
   activePath: string | null;
@@ -238,7 +243,7 @@ function TabStripHeader(props: {
 
       <div className="poracode-content-over-drag-region flex items-center gap-1.5">
         <EditorToolbar
-          isMarkdown={props.isMarkdown}
+          hasRenderedView={props.hasRenderedView}
           showPreview={props.showPreview}
           setShowPreview={props.setShowPreview}
           isDirty={props.isDirty}
@@ -260,9 +265,11 @@ function EditorBody(props: {
   onMonacoReady: (monaco: Monaco) => void;
   showPreview: boolean;
   isMarkdown: boolean;
+  isSvg: boolean;
   onSave: (path: string) => void;
 }) {
-  const { activePath, projectLocation, bufferStatus, monacoTheme, showPreview, isMarkdown } = props;
+  const { activePath, projectLocation, bufferStatus, monacoTheme, showPreview, isMarkdown, isSvg } =
+    props;
   const content = useActiveBufferContent();
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null);
   const [editorState, setEditorState] = useState<{
@@ -334,6 +341,8 @@ function EditorBody(props: {
         <PdfBrowserPlaceholder path={activePath} projectLocation={projectLocation} />
       ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
         <MarkdownPreview content={content ?? ""} />
+      ) : bufferStatus === "ready" && showPreview && isSvg ? (
+        <SvgFileView path={activePath} content={content ?? ""} />
       ) : bufferStatus === "ready" ? (
         <Editor
           path={modelPath}
@@ -352,16 +361,30 @@ function EditorBody(props: {
             </div>
           }
         />
+      ) : isViewerBuffer({ path: activePath, status: bufferStatus }) ? (
+        <EditorImageView
+          path={activePath}
+          projectLocation={projectLocation}
+          fallback={<FileStatusMessage status={bufferStatus} />}
+        />
       ) : (
-        <div className="flex h-full items-center justify-center px-8 text-center text-sm text-muted">
-          {bufferStatus === "binary" ? (
-            <Trans>Binary files can't be edited here.</Trans>
-          ) : bufferStatus === "too_large" ? (
-            <Trans>This file is too large for the built-in editor.</Trans>
-          ) : (
-            <Trans>This file uses an unsupported encoding.</Trans>
-          )}
-        </div>
+        <FileStatusMessage status={bufferStatus} />
+      )}
+    </div>
+  );
+}
+
+function FileStatusMessage(props: {
+  status: NonNullable<ReturnType<typeof useActiveBufferStatus>>;
+}) {
+  return (
+    <div className="flex h-full items-center justify-center px-8 text-center text-sm text-muted">
+      {props.status === "binary" ? (
+        <Trans>Binary files can't be edited here.</Trans>
+      ) : props.status === "too_large" ? (
+        <Trans>This file is too large for the built-in editor.</Trans>
+      ) : (
+        <Trans>This file uses an unsupported encoding.</Trans>
       )}
     </div>
   );

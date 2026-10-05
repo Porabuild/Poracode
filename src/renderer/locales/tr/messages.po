@@ -9108,6 +9108,7 @@ msgstr "Git incelemesini sağ taraftaki panel veya tam sayfa olarak açın."
 msgid "Open image {0} of {1}"
 msgstr "{0}/{1} görselini aç"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -12201,6 +12202,7 @@ msgstr "Tarayıcı panelini göster veya gizle"
 msgid "Show or hide the sidebar"
 msgstr "Kenar çubuğunu göster veya gizle"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "Önizlemeyi göster"
@@ -12233,6 +12235,7 @@ msgstr "Kenar çubuğunu göster"
 msgid "Show skills from {0}"
 msgstr "{0} becerilerini göster"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "Kaynağı göster"
@@ -13755,6 +13758,10 @@ msgstr "Bu oturum diskte değişti. Listeyi yenileyip tekrar deneyin."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "Bu oturum zaten içe aktarılıyor."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Bu SVG görüntülenemiyor."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."

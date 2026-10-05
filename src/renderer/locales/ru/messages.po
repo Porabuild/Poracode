@@ -9108,6 +9108,7 @@ msgstr "Открывать просмотр Git как панель справа
 msgid "Open image {0} of {1}"
 msgstr "Открыть изображение {0} из {1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -12201,6 +12202,7 @@ msgstr "Показать или скрыть панель браузера"
 msgid "Show or hide the sidebar"
 msgstr "Показать или скрыть боковую панель"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "Показать предпросмотр"
@@ -12233,6 +12235,7 @@ msgstr "Показать боковую панель"
 msgid "Show skills from {0}"
 msgstr "Показать навыки из {0}"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "Показать источник"
@@ -13755,6 +13758,10 @@ msgstr "Эта сессия изменилась на диске. Обновит
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "Эта сессия уже импортируется."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Этот SVG невозможно отобразить."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."

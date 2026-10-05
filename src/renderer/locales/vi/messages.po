@@ -9108,6 +9108,7 @@ msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải h
 msgid "Open image {0} of {1}"
 msgstr "Mở hình ảnh {0}/{1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -12201,6 +12202,7 @@ msgstr "Hiển thị hoặc ẩn bảng điều khiển trình duyệt"
 msgid "Show or hide the sidebar"
 msgstr "Hiển thị hoặc ẩn thanh bên"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "Hiển thị bản xem trước"
@@ -12233,6 +12235,7 @@ msgstr "Hiển thị thanh bên"
 msgid "Show skills from {0}"
 msgstr "Hiện skill từ {0}"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "Hiển thị nguồn"
@@ -13755,6 +13758,10 @@ msgstr "Phiên này đã thay đổi trên đĩa. Hãy làm mới danh sách r�
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "Phiên này đang được nhập."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Không thể hiển thị SVG này."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."

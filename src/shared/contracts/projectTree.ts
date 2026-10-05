@@ -112,6 +112,8 @@ export interface ReadProjectFileResult {
   content?: string;
   /** Base64 bytes for previewable binary files such as PDFs. */
   contentBase64?: string;
+  /** File size, set for `binary` and `too_large` results. Older hosts omit it. */
+  sizeBytes?: number;
   lineEnding?: "lf" | "crlf";
   hasBom?: boolean;
 }
@@ -128,6 +130,8 @@ export interface ReadAbsoluteFileResult {
   status: AbsoluteFileReadStatus;
   modifiedAtMs?: number;
   content?: string;
+  /** File size, set for `binary` and `too_large` results. Older hosts omit it. */
+  sizeBytes?: number;
 }
 
 /**
@@ -171,6 +175,8 @@ export interface ReadExternalFileResult {
   content?: string;
   /** Base64 bytes for previewable binary files such as PDFs. */
   contentBase64?: string;
+  /** File size, set for `binary` and `too_large` results. Older hosts omit it. */
+  sizeBytes?: number;
   lineEnding?: "lf" | "crlf";
   hasBom?: boolean;
 }

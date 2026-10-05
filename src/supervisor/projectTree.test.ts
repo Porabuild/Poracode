@@ -76,6 +76,28 @@ describe("ProjectTreeService", () => {
     });
 
     expect(result.status).toBe("binary");
+    expect(result.sizeBytes).toBe(3);
+  });
+
+  it("reports the size of files too large to edit", async () => {
+    writeFileSync(join(tempDir, "large.png"), Buffer.alloc(1_000_001));
+
+    const projectResult = await service.readProjectFile({
+      projectLocation: location,
+      path: "large.png",
+    });
+    const absoluteResult = await service.readAbsoluteFile({
+      projectLocation: location,
+      absolutePath: join(tempDir, "large.png"),
+    });
+    const externalResult = await service.readExternalFile({
+      projectLocation: location,
+      absolutePath: join(tempDir, "large.png"),
+    });
+
+    expect(projectResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
+    expect(absoluteResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
+    expect(externalResult).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
   });
 
   it("treats PDFs as binary without loading body bytes", async () => {
@@ -345,6 +367,30 @@ describe("ProjectTreeService WSL external files", () => {
     // The bridge must be anchored at the file's own directory, not the project
     // root — otherwise its containment check rejects the path.
     expect(bridge.reads.at(-1)?.projectRoot).toBe("/home/user/.poracode/worktrees/repo/branch");
+  });
+
+  it("reports the size of binary and oversized files on WSL", async () => {
+    const projectRoot = "/home/user/work/repo";
+    bridge.files.set(`${projectRoot}/icon.png`, {
+      content: Buffer.from([0x89, 0x00, 0x50]),
+      mtimeMs: 1000,
+    });
+    bridge.files.set(`${projectRoot}/clip.png`, {
+      content: Buffer.alloc(1_000_001),
+      mtimeMs: 1000,
+    });
+
+    const binary = await service.readProjectFile({
+      projectLocation: makeWslLocation(projectRoot),
+      path: "icon.png",
+    });
+    const tooLarge = await service.readProjectFile({
+      projectLocation: makeWslLocation(projectRoot),
+      path: "clip.png",
+    });
+
+    expect(binary).toMatchObject({ status: "binary", sizeBytes: 3 });
+    expect(tooLarge).toMatchObject({ status: "too_large", sizeBytes: 1_000_001 });
   });
 
   it("writeExternalFile saves a path outside the project root on WSL", async () => {

@@ -9108,6 +9108,7 @@ msgstr "Abrir la revisión de Git como un panel a la derecha o como una página 
 msgid "Open image {0} of {1}"
 msgstr "Abrir imagen {0} de {1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -12201,6 +12202,7 @@ msgstr "Mostrar u ocultar el panel del navegador"
 msgid "Show or hide the sidebar"
 msgstr "Mostrar u ocultar la barra lateral"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show preview"
 msgstr "Mostrar vista previa"
@@ -12233,6 +12235,7 @@ msgstr "Mostrar barra lateral"
 msgid "Show skills from {0}"
 msgstr "Mostrar skills de {0}"
 
+#: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorToolbar.tsx
 msgid "Show source"
 msgstr "Mostrar fuente"
@@ -13755,6 +13758,10 @@ msgstr "Esta sesión cambió en el disco. Actualiza la lista e inténtalo de nue
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This session is already being imported."
 msgstr "Esta sesión ya se está importando."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Este SVG no se puede mostrar."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."

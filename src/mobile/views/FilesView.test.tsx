@@ -141,6 +141,62 @@ describe("FilesView", () => {
     });
   });
 
+  it("shows an image the editor can't open in the image viewer", async () => {
+    bridge.readProjectFile.mockResolvedValue({
+      path: "assets/logo.png",
+      status: "binary",
+      modifiedAtMs: 77,
+      sizeBytes: 2048,
+    });
+    render(
+      <FilesView
+        target={{ project, projectLocation: project.location, rootLabel: project.name }}
+        refreshSignal={0}
+        initialFilePath="assets/logo.png"
+      />,
+    );
+
+    const image = await screen.findByAltText("logo.png");
+
+    expect(image).toHaveAttribute("src", "poracode-local://local/C:/repo/assets/logo.png?v=77");
+    expect(screen.getByText("2.0 KB")).toBeInTheDocument();
+    expect(screen.queryByText("Binary files can't be edited here.")).not.toBeInTheDocument();
+
+    fireEvent.error(image);
+
+    expect(screen.getByText("Binary files can't be edited here.")).toBeInTheDocument();
+  });
+
+  it("toggles an SVG between its source and the rendered image", async () => {
+    const source = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+    bridge.readProjectFile.mockResolvedValue({
+      path: "icon.svg",
+      status: "ready",
+      modifiedAtMs: 1,
+      content: source,
+    });
+    render(
+      <FilesView
+        target={{ project, projectLocation: project.location, rootLabel: project.name }}
+        refreshSignal={0}
+        initialFilePath="icon.svg"
+      />,
+    );
+
+    expect(await screen.findByLabelText("Editor icon.svg")).toHaveValue(source);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show preview" }));
+
+    expect(screen.getByAltText("icon.svg")).toHaveAttribute(
+      "src",
+      `data:image/svg+xml;charset=utf-8,${encodeURIComponent(source)}`,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Show source" }));
+
+    expect(screen.getByLabelText("Editor icon.svg")).toHaveValue(source);
+  });
+
   it("opens Home files without mounting a tree and returns to its caller", async () => {
     const homeProject = { ...project, id: HOME_PROJECT_ID, name: "Home" };
     const target = {

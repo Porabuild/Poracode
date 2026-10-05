@@ -3,7 +3,8 @@ import { Tooltip } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 
 export function EditorToolbar(props: {
-  isMarkdown: boolean;
+  /** The file has a rendered view (markdown, SVG) the user can toggle to. */
+  hasRenderedView: boolean;
   showPreview: boolean;
   setShowPreview: (v: boolean | ((v: boolean) => boolean)) => void;
   isDirty: boolean;
@@ -14,7 +15,7 @@ export function EditorToolbar(props: {
 }) {
   const { t } = useLingui();
   const {
-    isMarkdown,
+    hasRenderedView,
     showPreview,
     setShowPreview,
     isDirty,
@@ -26,7 +27,7 @@ export function EditorToolbar(props: {
 
   return (
     <>
-      {isMarkdown ? (
+      {hasRenderedView ? (
         <Tooltip delay={300}>
           <Tooltip.Trigger>
             <button

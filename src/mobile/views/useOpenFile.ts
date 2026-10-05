@@ -13,6 +13,8 @@ export interface OpenFileState {
   readonly savedContent: string;
   readonly isLoading: boolean;
   readonly readOnly: boolean;
+  /** Set for files shown in a viewer instead of the editor. */
+  readonly sizeBytes?: number;
 }
 
 function isAbsolutePath(path: string): boolean {
@@ -29,6 +31,7 @@ function buildOpenFile(
     readonly status: AbsoluteFileReadStatus;
     readonly modifiedAtMs?: number;
     readonly content?: string;
+    readonly sizeBytes?: number;
   },
   readOnly: boolean,
 ): OpenFileState {
@@ -41,10 +44,12 @@ function buildOpenFile(
     savedContent: content,
     isLoading: false,
     readOnly,
+    ...(result.sizeBytes !== undefined ? { sizeBytes: result.sizeBytes } : {}),
   };
 }
 
 export interface OpenFileApi {
+  readonly projectLocation: ProjectLocation;
   readonly openFile: OpenFileState | null;
   readonly isDirty: boolean;
   readonly saving: boolean;
@@ -218,6 +223,7 @@ export function useOpenFile(props: {
   }, [openFile?.path ?? null]);
 
   return {
+    projectLocation: props.projectLocation,
     openFile,
     isDirty,
     saving,
