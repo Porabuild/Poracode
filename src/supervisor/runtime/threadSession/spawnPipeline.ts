@@ -429,7 +429,8 @@ export class SpawnPipeline {
     // structured-session work (process spawn + ACP handshake +
     // newSession/loadSession) runs. When the renderer has already painted an
     // optimistic message and shipped its id with the payload, we reuse that
-    // id end-to-end so the chat pane never sees a duplicate.
+    // id end-to-end so the chat pane never sees a duplicate. Provider switches
+    // and resumes paint later, once the structured session has opened.
     let optimisticUserMessageItemId =
       !payload.providerSwitch &&
       !usesTerminalPresentation &&
@@ -644,15 +645,25 @@ export class SpawnPipeline {
           payload.agentKind,
           payload.providerSwitch.handoffItemId,
         );
-        if (initialPrompt.length > 0) {
-          optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
-            payload.threadId,
-            initialPrompt,
-            payload.segments,
-            payload.userMessageItemId,
-          );
-          this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
-        }
+      }
+      // The early paint skips two launches whose prompt still has to reach the
+      // agent: a provider switch (the message follows the handoff divider) and
+      // a resume that carries a prompt. A client that finds the host session
+      // gone (`Unknown thread session` after a supervisor restart or unload)
+      // relaunches with the message instead of dropping it — the renderer's
+      // `resumeLaunch` and the `send_to_thread` tool both do — so, exactly like
+      // `restartThread`, the reopened session delivers it as its first turn.
+      // Painted only now that the provider session has opened, reusing the
+      // client's id so the message is shown and sent exactly once. A
+      // prompt-less reopen paints nothing and starts no turn.
+      if (optimisticUserMessageItemId === undefined && initialPrompt.length > 0) {
+        optimisticUserMessageItemId = ctx.emitOptimisticUserMessage(
+          payload.threadId,
+          initialPrompt,
+          payload.segments,
+          payload.userMessageItemId,
+        );
+        this.emitOptimisticWorkingState(payload.threadId, runtimeConfig, optimisticLaunchConfig);
       }
       if (transcriptHandoffLost || handoffMentionUnresolved) {
         ctx.runtimeEventRouter.append(payload.threadId, {
@@ -690,12 +701,7 @@ export class SpawnPipeline {
         launchConfig,
         nativePlugins,
       });
-      if (
-        !startInterrupted &&
-        !payload.sessionRef &&
-        initialPrompt.length > 0 &&
-        structuredSession.startTurn
-      ) {
+      if (!startInterrupted && initialPrompt.length > 0 && structuredSession.startTurn) {
         const startOptions = {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
