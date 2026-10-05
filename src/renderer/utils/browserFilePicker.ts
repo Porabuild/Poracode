@@ -8,6 +8,9 @@ export interface BrowserFilePickerOptions {
   }) => Promise<string>;
 }
 
+/** Delay after the window regains focus before a picker with no files counts as cancelled. */
+export const PICKER_CANCEL_FALLBACK_MS = 1000;
+
 export async function pickAndUploadBrowserFiles(
   options: BrowserFilePickerOptions,
 ): Promise<string[] | null> {
@@ -22,14 +25,27 @@ export async function pickAndUploadBrowserFiles(
 
   const files = await new Promise<File[]>((resolve) => {
     let settled = false;
+    let focusTimer: ReturnType<typeof setTimeout> | undefined;
     const finish = (selected: File[]) => {
       if (settled) return;
       settled = true;
+      clearTimeout(focusTimer);
+      window.removeEventListener("focus", handleWindowFocus);
       input.remove();
       resolve(selected);
     };
+    // Browsers without the input `cancel` event only signal a dismissed picker
+    // by refocusing the window. Give a real selection time to deliver `change`
+    // (its files are already populated by then) before treating it as cancel.
+    function handleWindowFocus() {
+      clearTimeout(focusTimer);
+      focusTimer = setTimeout(() => {
+        if ((input.files?.length ?? 0) === 0) finish([]);
+      }, PICKER_CANCEL_FALLBACK_MS);
+    }
     input.addEventListener("change", () => finish(Array.from(input.files ?? [])), { once: true });
     input.addEventListener("cancel", () => finish([]), { once: true });
+    window.addEventListener("focus", handleWindowFocus);
     document.body.append(input);
     input.click();
   });

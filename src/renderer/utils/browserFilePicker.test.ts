@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pickAndUploadBrowserFiles } from "./browserFilePicker";
+import { PICKER_CANCEL_FALLBACK_MS, pickAndUploadBrowserFiles } from "./browserFilePicker";
 
 describe("pickAndUploadBrowserFiles", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
+    for (const input of document.querySelectorAll('input[type="file"]')) input.remove();
   });
 
   it("applies extension filters and uploads every selected file", async () => {
@@ -49,6 +51,47 @@ describe("pickAndUploadBrowserFiles", () => {
       }),
     ).resolves.toBeNull();
     expect(upload).not.toHaveBeenCalled();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it("cleans up a dismissed picker when the browser never fires cancel", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => undefined);
+    const upload = vi.fn<() => Promise<string>>(async () => "/unused");
+    const picked = pickAndUploadBrowserFiles({ attachmentThreadId: "thread-1", upload });
+    expect(document.querySelector('input[type="file"]')).not.toBeNull();
+
+    window.dispatchEvent(new Event("focus"));
+    await vi.advanceTimersByTimeAsync(PICKER_CANCEL_FALLBACK_MS);
+
+    await expect(picked).resolves.toBeNull();
+    expect(upload).not.toHaveBeenCalled();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
+  });
+
+  it("waits for change when files are selected before the window refocuses", async () => {
+    vi.useFakeTimers();
+    let picker: HTMLInputElement | undefined;
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
+      function (this: HTMLInputElement) {
+        picker = this;
+      },
+    );
+    const upload = vi.fn<(input: { fileName: string }) => Promise<string>>(
+      async ({ fileName }) => `/remote/${fileName}`,
+    );
+    const picked = pickAndUploadBrowserFiles({ attachmentThreadId: "thread-1", upload });
+    Object.defineProperty(picker, "files", {
+      configurable: true,
+      value: [new File(["late"], "late.txt")],
+    });
+
+    window.dispatchEvent(new Event("focus"));
+    await vi.advanceTimersByTimeAsync(PICKER_CANCEL_FALLBACK_MS * 2);
+    expect(picker?.isConnected).toBe(true);
+    picker?.dispatchEvent(new Event("change"));
+
+    await expect(picked).resolves.toEqual(["/remote/late.txt"]);
     expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 });
