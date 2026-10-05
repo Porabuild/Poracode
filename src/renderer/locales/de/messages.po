@@ -11652,6 +11652,10 @@ msgstr "Scrollgeschwindigkeitsmultiplikator für den Terminal-Scrollback-Puffer.
 msgid "Scroll to bottom"
 msgstr "Nach unten scrollen"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "Zum Prompt scrollen: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"

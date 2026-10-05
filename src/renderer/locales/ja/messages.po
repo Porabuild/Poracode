@@ -11650,6 +11650,10 @@ msgstr "端末のスクロールバック バッファのスクロール速度�
 msgid "Scroll to bottom"
 msgstr "一番下までスクロール"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "プロンプトまでスクロール: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"

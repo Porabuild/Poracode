@@ -11652,6 +11652,10 @@ msgstr "Multiplicador de velocidade de rolagem para o buffer de rolagem do termi
 msgid "Scroll to bottom"
 msgstr "Rolar até o fim"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "Rolar até o prompt: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"

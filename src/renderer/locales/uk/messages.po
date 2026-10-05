@@ -11652,6 +11652,10 @@ msgstr "Множник швидкості прокручування буфер�
 msgid "Scroll to bottom"
 msgstr "Прокрутити вниз"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "Прокрутити до промпту: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"

@@ -11651,6 +11651,10 @@ msgstr "终端回滚缓冲区的滚动速度倍增器。"
 msgid "Scroll to bottom"
 msgstr "滚动到底部"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "滚动到提示：{preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"

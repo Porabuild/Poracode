@@ -41,6 +41,7 @@ import { createChatPaneFileActions } from "./chatPaneFileActions";
 import { ImportedThreadNotice } from "./parts/ImportedThreadNotice";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
+import { StickyPrompt } from "./StickyPrompt";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
 import { resolveThreadTranscriptMarkdownFormatter } from "../threadTranscriptMarkdown";
 
@@ -465,6 +466,20 @@ export function ChatPane(props: ChatPaneProps) {
                 return;
               }
               showSubAgentPanel(threadId, parentItemId, projectLocation);
+            }}
+          />
+          <StickyPrompt
+            key={`sticky-prompt:${threadId}`}
+            threadId={threadId}
+            entries={timelineEntries}
+            scrollElement={scrollEl}
+            isEnabled={isInitialScrollSettled}
+            onScrollToEntry={(index) => {
+              // Leave the tail before the jump so a streaming reply cannot
+              // re-pin the view to the bottom while it scrolls up.
+              scrollControlsRef.current?.markUserScrollIntent();
+              scrollControlsRef.current?.disableStickToBottom();
+              scrollToIndexRef.current?.(index, { align: "start", animated: true });
             }}
           />
           <ChatFindBar

@@ -11652,6 +11652,10 @@ msgstr "Mnożnik prędkości przewijania dla bufora przewijania terminala."
 msgid "Scroll to bottom"
 msgstr "Przewiń w dół"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "Przewiń do promptu: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"
