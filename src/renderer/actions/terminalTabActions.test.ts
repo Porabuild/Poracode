@@ -5,7 +5,10 @@ vi.mock("./panelActions", () => ({ closeAllPanels: vi.fn<() => void>() }));
 import { closeAllPanels } from "./panelActions";
 import { closeExitedShell, removeTerminalTab } from "./terminalTabActions";
 import { resetDevTerminalStore, useDevTerminalStore } from "@/renderer/state/devTerminalStore";
+import { usePanelStore } from "@/renderer/state/panelStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+
+const FILES_CONTEXT = { projectId: "p1", projectName: "Project", rootLabel: "Project" };
 
 function openProjectTab(projectId = "p1") {
   const store = useDevTerminalStore.getState();
@@ -15,6 +18,16 @@ function openProjectTab(projectId = "p1") {
   return tab;
 }
 
+function resetPanelStore() {
+  usePanelStore.setState({
+    rightPanelTab: "terminal",
+    rightPanelSplit: null,
+    filesPanelContext: null,
+    browserPanelOpen: false,
+    notesPanelOpen: false,
+  });
+}
+
 function tabById(id: string) {
   return useDevTerminalStore.getState().tabs.find((tab) => tab.id === id);
 }
@@ -22,6 +35,7 @@ function tabById(id: string) {
 describe("closeExitedShell", () => {
   beforeEach(() => {
     resetDevTerminalStore();
+    resetPanelStore();
     useSharedSettings.setState({ terminalPosition: "bottom" });
     vi.mocked(closeAllPanels).mockClear();
   });
@@ -55,6 +69,95 @@ describe("closeExitedShell", () => {
 
     expect(closeAllPanels).toHaveBeenCalledTimes(1);
     expect(useDevTerminalStore.getState().isOpen).toBe(false);
+  });
+
+  it("keeps the active Files tab when the terminal behind it exits", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    const tab = openProjectTab();
+    usePanelStore.setState({ rightPanelTab: "files", filesPanelContext: FILES_CONTEXT });
+
+    closeExitedShell(tab.id);
+
+    expect(closeAllPanels).not.toHaveBeenCalled();
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "files",
+      filesPanelContext: FILES_CONTEXT,
+    });
+    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+  });
+
+  it("keeps the active Browser tab when the terminal behind it exits", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    const tab = openProjectTab();
+    usePanelStore.setState({ rightPanelTab: "browser", browserPanelOpen: true });
+
+    closeExitedShell(tab.id);
+
+    expect(closeAllPanels).not.toHaveBeenCalled();
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "browser",
+      browserPanelOpen: true,
+    });
+  });
+
+  it("keeps a split that does not hold the terminal when the terminal behind it exits", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    const tab = openProjectTab();
+    const split = { tab: "notes", placement: "bottom" } as const;
+    usePanelStore.setState({
+      rightPanelTab: "files",
+      rightPanelSplit: split,
+      filesPanelContext: FILES_CONTEXT,
+      notesPanelOpen: true,
+    });
+
+    closeExitedShell(tab.id);
+
+    expect(closeAllPanels).not.toHaveBeenCalled();
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "files",
+      rightPanelSplit: split,
+      filesPanelContext: FILES_CONTEXT,
+      notesPanelOpen: true,
+    });
+  });
+
+  it("closes only the split section when the terminal in it exits", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    const tab = openProjectTab();
+    usePanelStore.setState({
+      rightPanelTab: "files",
+      rightPanelSplit: { tab: "terminal", placement: "bottom" },
+      filesPanelContext: FILES_CONTEXT,
+    });
+
+    closeExitedShell(tab.id);
+
+    expect(closeAllPanels).not.toHaveBeenCalled();
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "files",
+      rightPanelSplit: null,
+      filesPanelContext: FILES_CONTEXT,
+    });
+  });
+
+  it("hands the panel to the split sibling when the active terminal exits", () => {
+    useSharedSettings.setState({ terminalPosition: "right" });
+    const tab = openProjectTab();
+    usePanelStore.setState({
+      rightPanelTab: "terminal",
+      rightPanelSplit: { tab: "files", placement: "bottom" },
+      filesPanelContext: FILES_CONTEXT,
+    });
+
+    closeExitedShell(tab.id);
+
+    expect(closeAllPanels).not.toHaveBeenCalled();
+    expect(usePanelStore.getState()).toMatchObject({
+      rightPanelTab: "files",
+      rightPanelSplit: null,
+      filesPanelContext: FILES_CONTEXT,
+    });
   });
 
   it("leaves the panel alone when the exited tab belongs to a scope it is not showing", () => {
@@ -126,6 +229,7 @@ describe("closeExitedShell", () => {
 describe("removeTerminalTab", () => {
   beforeEach(() => {
     resetDevTerminalStore();
+    resetPanelStore();
     useSharedSettings.setState({ terminalPosition: "bottom" });
     vi.mocked(closeAllPanels).mockClear();
   });
