@@ -1771,8 +1771,7 @@ msgid "Auto-show terminal panel"
 msgstr "Автопоказ панели терминала"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "Автоматически"
 
@@ -2551,7 +2550,7 @@ msgstr "Выберите как минимум двух кандидатов и 
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "Выберите автоматически или укажите обнаруженную оболочку для новых терминалов."
 
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Choose color for {label}"
 msgstr "Выбрать цвет для {label}"
 
@@ -6209,7 +6208,7 @@ msgid "Help me create a schedule. Ask for any missing details, then use the Pora
 msgstr "Помоги мне создать расписание. Спроси недостающие детали, а затем создай его с помощью элементов управления расписаниями Poracode."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Hex color"
 msgstr "HEX-цвет"
 
@@ -6347,7 +6346,7 @@ msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Hue"
 msgstr "Оттенок"
 
@@ -11470,7 +11469,7 @@ msgid "Same provider order on all machines"
 msgstr "Одинаковый порядок провайдеров на всех компьютерах"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Saturation and brightness"
 msgstr "Насыщенность и яркость"
 

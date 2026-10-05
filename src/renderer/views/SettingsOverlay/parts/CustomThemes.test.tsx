@@ -62,6 +62,8 @@ describe("custom theme settings", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Background" }), {
       target: { value: "#xyz" },
     });
+    fireEvent.blur(screen.getByRole("textbox", { name: "Background" }));
+    expect(screen.getByRole("textbox", { name: "Background" })).toHaveValue("#xyz");
     expect(screen.getByRole("button", { name: "Save and apply" })).toBeDisabled();
     expect(screen.getByRole("alert")).toHaveTextContent("valid hex colors");
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));

@@ -1771,8 +1771,7 @@ msgid "Auto-show terminal panel"
 msgstr "터미널 패널 자동 표시"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "자동"
 
@@ -2551,7 +2550,7 @@ msgstr "후보를 두 개 이상 선택하고 프롬프트를 입력하세요."
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "자동으로 선택하거나 새 터미널에 사용할 감지된 셸을 지정합니다."
 
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Choose color for {label}"
 msgstr "{label} 색상 선택"
 
@@ -6209,7 +6208,7 @@ msgid "Help me create a schedule. Ask for any missing details, then use the Pora
 msgstr "일정 생성을 도와주세요. 누락된 세부 정보를 물어본 다음 Poracode 일정 제어를 사용하여 만들어 주세요."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Hex color"
 msgstr "16진수 색상"
 
@@ -6347,7 +6346,7 @@ msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Hue"
 msgstr "색상"
 
@@ -11470,7 +11469,7 @@ msgid "Same provider order on all machines"
 msgstr "모든 기기에서 동일한 프로바이더 순서"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Saturation and brightness"
 msgstr "채도와 밝기"
 

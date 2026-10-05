@@ -1771,8 +1771,7 @@ msgid "Auto-show terminal panel"
 msgstr "Terminal-Panel automatisch anzeigen"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "Automatisch"
 
@@ -2551,7 +2550,7 @@ msgstr "Wählen Sie mindestens zwei Kandidaten aus und geben Sie einen Prompt ei
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "Automatisch auswählen oder für neue Terminals eine erkannte Shell festlegen."
 
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Choose color for {label}"
 msgstr "Farbe für {label} auswählen"
 
@@ -6209,7 +6208,7 @@ msgid "Help me create a schedule. Ask for any missing details, then use the Pora
 msgstr "Hilf mir, einen Zeitplan zu erstellen. Frage nach fehlenden Details und erstelle ihn dann mit den Poracode-Zeitplansteuerungen für mich."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Hex color"
 msgstr "Hex-Farbe"
 
@@ -6347,7 +6346,7 @@ msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Hue"
 msgstr "Farbton"
 
@@ -11470,7 +11469,7 @@ msgid "Same provider order on all machines"
 msgstr "Gleiche Provider-Reihenfolge auf allen Computern"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Saturation and brightness"
 msgstr "Sättigung und Helligkeit"
 

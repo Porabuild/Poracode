@@ -1771,8 +1771,7 @@ msgid "Auto-show terminal panel"
 msgstr "自动显示终端面板"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Automatic"
 msgstr "自动"
 
@@ -2551,7 +2550,7 @@ msgstr "请选择至少两个候选项并输入提示。"
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "自动选择，或为新终端指定检测到的 shell。"
 
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Choose color for {label}"
 msgstr "为{label}选择颜色"
 
@@ -6209,7 +6208,7 @@ msgid "Help me create a schedule. Ask for any missing details, then use the Pora
 msgstr "帮助我创建计划。询问缺失的详细信息，然后使用 Poracode 计划控件为我创建。"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Hex color"
 msgstr "十六进制颜色"
 
@@ -6347,7 +6346,7 @@ msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Hue"
 msgstr "色调"
 
@@ -11469,7 +11468,7 @@ msgid "Same provider order on all machines"
 msgstr "所有设备使用相同的提供方顺序"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
 msgid "Saturation and brightness"
 msgstr "饱和度与亮度"
 
