@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T15:02:59.657296+00:00",
+  "updatedAt": "2026-10-05T16:30:28.423313+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,9 +34,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R114 Codex6.1SolMax native-observation review completed and joined",
+    "lastAgent": "R118 Codex6.1SolMax measurement-gate review completed and joined",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No native policy correction recommended; 28 pure checks reported, 11 evidence seals and seven unchanged helpers independently verified",
+    "agentState": "Four static findings corrected before launch. Original witness refusal and corrected fixed-census refusal remain failed; exact original stale PID not retained.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -46,9 +46,9 @@
       "state": "R115 immutable 5fb2c6ada including mobile modal styles; all eight build stages, 7555 source/3712 output files, 199-package/23489-file/374-edge closure and finalized 1753 web files PASS. Rich96 canonical/live groups/media and genuine execution scoped PASS; full PWA qualification FAIL. No new resource savings."
     },
     "buildSession": null,
-    "nextAction": "Prepare matched browser GUI/resource windows on the same immutable reference/current builds. Add bounded bidirectional saved-summary traversal and actual input/reader/media checks outside measured windows. Preserve exhausted native/attribution diagnostics; no unchanged standalone relaunch.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round115/r115-saved-compact-residual/declaration.json",
+    "nextAction": "Review and integrate surviving-addition accounting and evidence retention into the three originally unused required arms. Preserve both failed reference attempts; no third reference1 restart/reset. Independent current/ref2 pairing can advance remaining required qualification, while full opposite-order p95 remains unproved. Full richPWA/offline and finalaudit still open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round118/gui-correction-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -72,7 +72,7 @@
       "actualModelRoster": "Actual installed/authenticated/selectable fixture-model roster PASS",
       "richPresentation": "96 scripted GUI calls; 24 case types per light/heavy/bursty profile; source/canonical negative oracle PASS",
       "genuineExecution": "Supervisor-owned standalone child and ordered two-stage workflow: three actual fixture reads with native source custody and exact dependency receipts PASS",
-      "liveGroupsAndMedia": "8\u219216\u21928 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
+      "liveGroupsAndMedia": "8→16→8 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
       "savedCompactPwa": "R116 scopedPASS saved gallery exact dimensions/navigation and compact390x844 canonical replay with actually activated PWA worker. Full saved-summary scanFAIL3/4; rich offline/reconnect remains unqualified.",
       "retirement": "Both strict owner cleanup verdicts PASS; 380 original PID numbers freshly ESRCH before correction; 175 historical rows in correction cleanup",
       "evidence": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
@@ -305,7 +305,31 @@
       "privateRamOrGpuClaim": false,
       "fullF5Signoff": false,
       "originalFirstCurrentArmFailed": true,
-      "postCleanupCorrectedCanonicalQualified": true
+      "postCleanupCorrectedCanonicalQualified": true,
+      "ioAttribution": {
+        "result": "tmp/v2-streaming-perf-20260930/round117/io-diagnostic-analysis.json",
+        "qualifiedDiagnosticArms": 2,
+        "validMetadataSamples": 460,
+        "allSixLargeBurstsOverlapCheckpointReset": true,
+        "diskDeltaPercent": 2.6156299840510266,
+        "logicalDeltaPercent": 18.234888090484482,
+        "provenanceDeleteReinsertRuledOutForGenericFixture": true,
+        "overallIoResolved": false,
+        "cpuGainCostNeutralProved": false,
+        "storagePolicyChanged": false
+      }
+    },
+    "matchedGuiCurrent": {
+      "state": "two-reference-attempts-failed-cleanly",
+      "result": "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+      "newOfflineChecksPassed": 43,
+      "ordinaryNativeSamples": 41,
+      "inputDispatches": 200,
+      "inputP95Qualified": false,
+      "matchedGainClaim": false,
+      "unusedRequiredArms": ["r118-gui-current1", "r118-gui-current2", "r118-gui-ref2"],
+      "dynamicNativeEnvelope": "Surviving owned additions bounded without dropping their CPU; original fixed-census refusal preserved. Dynamic accounting/integration remains unvalidated live.",
+      "rawEvidenceRetention": "Input/page/boundary observations now saved before validation refusal; source-only correction, lost original observations unrecoverable."
     }
   },
   "milestones": [
@@ -581,7 +605,7 @@
       "at": "2026-10-05T15:02:59.657296+00:00",
       "round": "R116-final",
       "result": "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-      "summary": "Real two-stage navigation, saved authenticated gallery and compact390x844 replay/activated worker PASS. Summary scan retainsFAIL3/4. Four backend measured arms/576richcalls/800reads requalified: appCPU8\u201312%lower, supervisor5\u201314%lower versusR78 v2; p95mixed+0.61/-2.79ms, no repeatable material worsening. Original schema54 observerFAIL preserved; corrected stopped-DB audit and negative checks qualify data without repeating that arm. F5 inprogress; 13/18 tasks, zero final signoffs."
+      "summary": "Real two-stage navigation, saved authenticated gallery and compact390x844 replay/activated worker PASS. Summary scan retainsFAIL3/4. Four backend measured arms/576richcalls/800reads requalified: appCPU8–12%lower, supervisor5–14%lower versusR78 v2; p95mixed+0.61/-2.79ms, no repeatable material worsening. Original schema54 observerFAIL preserved; corrected stopped-DB audit and negative checks qualify data without repeating that arm. F5 inprogress; 13/18 tasks, zero final signoffs."
     },
     {
       "at": "2026-10-05T14:01:59.919944+00:00",
@@ -725,7 +749,7 @@
       "at": "2026-10-04T18:26:37.413028+00:00",
       "round": "round87",
       "result": "tmp/v2-streaming-perf-20260930/round87/catalog-d0-review.json",
-      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38\u219240); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
+      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38→40); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
     },
     {
       "at": "2026-10-04T18:38:22.821265+00:00",
@@ -735,7 +759,7 @@
     },
     {
       "at": "2026-10-04T20:20:43.342415+00:00",
-      "round": "round88\u2013round91",
+      "round": "round88–round91",
       "result": "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
       "summary": "Reviewed offline prewarm/cancellation ownership fix compiledR89, original root+nested offline native gatesPASS R90. R91 desktop driver correction208tests/reviewPASS; nativeearlier A-warm observer unmatched2API requests/4responses preventsqualification. All127PIDs/4ports/78seals/fulldeps/canonical/exactAretiredverified. FlashX7source/report seals+nativeidgapverified; candidatecorrection notyetimplemented/qualified. All requiredchildrenjoined."
     },
@@ -868,6 +892,12 @@
       "round": "R108-commit",
       "result": "tmp/v2-streaming-perf-20260930/round108/reader-commit-verification.json",
       "summary": "Latest user authorizeslocal commitspercompletedchunk, supersedingolderno-commit preference; no publication. Bounded ACPread chunk5filescommitted b46bf4447. Staged-source149checks/4skip andhooks type-awarelint/format/fulltypecheck PASS; all7549worktreefilebytes preserved; otherperformance changes remainunstaged. Goalcontrolleractive."
+    },
+    {
+      "at": "2026-10-05T16:30:28.423313+00:00",
+      "round": "R117/R118",
+      "result": "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+      "summary": "I/O checkpoint/reset correlation established; provenance row churn ruled out for generic fixture, costneutrality notproved. MatchedGUI firstreference/correction failcleanly; owned utility birth exposes fixed-census design flaw.43offlinechecksPASS, surviving-addition CPUinterval andpre-validation evidence retention prepared; threeunusedrequiredarms remain. Counts13/18,0signoffs."
     }
   ],
   "tasks": [
@@ -992,12 +1022,13 @@
       "title": "Supervisor/chat/native resource attribution",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Repair rejected-profile evidence retention and bounded trace scope without launching another diagnostic in this finished lane; F3 current renderer/GPU/native allocation and working-release proof remains open before final qualification.",
+      "nextAction": "Keep the exhausted profile/trace lane closed; renderer/parser/native allocation and working-release attribution remain open. Review surviving-addition CPU accounting and pre-validation evidence retention for the unused required GUI arms.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
         "tmp/v2-streaming-perf-20260930/round97/root-round97-result.json",
-        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json"
       ]
     },
     {
@@ -1006,7 +1037,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Prepare matched browser GUI/resource windows on the same immutable reference/current builds. Add bounded bidirectional saved-summary traversal and actual input/reader/media checks outside measured windows. Preserve exhausted native/attribution diagnostics; no unchanged standalone relaunch.",
+      "nextAction": "Run remaining required current/ref2 GUI arms after observer review, with ordinary/rich source gates, full tool-payload oracle, saved summaries/gallery and natural release. Rich offline/reconnect and final candidate workflow coverage remain separate open gates.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1014,7 +1045,8 @@
         "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
         "tmp/v2-streaming-perf-20260930/round107/root-round107-result.json",
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
-        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json"
       ]
     },
     {
@@ -1023,8 +1055,11 @@
       "title": "Final matched p95 and resources",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Backend opposite-order pairs qualified with corrected read-only canonical audit; whole GUI/renderer/GPU-process, GUI/PTY memory and input p95 scopes remain open.",
-      "evidence": ["tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"]
+      "nextAction": "Use the three unused required arms with reviewed dynamic accounting; preserve failed references. Full opposite-order GUI input, renderer/GPU-process and GUI/PTY working-release memory comparisons remain unproved.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json"
+      ]
     },
     {
       "id": "F6-audit",
@@ -1210,5 +1245,16 @@
     "unchangedFurtherLaunchesAllowed": false,
     "evidence": "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
     "note": "Two-stage navigation actualPASS; material validation stopped on3/4 summaries. Independent saved gallery/compact checks PASS. Original three failed reports preserved."
+  },
+  "matchedGuiBudget": {
+    "round": "R118",
+    "requiredArms": 4,
+    "originalRequiredArmsStarted": 1,
+    "correctionLaunchesUsed": 1,
+    "correctionLaunchLimit": 1,
+    "unusedRequiredArms": ["r118-gui-current1", "r118-gui-current2", "r118-gui-ref2"],
+    "furtherReference1Restart": false,
+    "resetOnNewRoundLabel": false,
+    "evidence": "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json"
   }
 }
