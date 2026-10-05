@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T21:15:14.230372+00:00",
+  "updatedAt": "2026-10-05T21:49:28.790268+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,9 +34,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R121 Codex6.1SolMax final cache correction review completed/joined; root verified all four current source hashes; no Important blockers",
+    "lastAgent": "R125 Codex6.1SolMax generated native wrapper review completed/joined; root verified ten original hashes and addressed four blockers before R126 sole correction",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No required agent pending. Reviewed source committed/pushed; new production saved/compact/offline/reconnect regression passes, normal cleanup passes. Exact-head CI remains pending during confirmed GitHub Actions incident.",
+    "agentState": "No required agent pending; native two-attempt scope consumed, all seven current witnessed incarnations freshly absent. Rich live controls scoped PASS; complete native verdict FAIL on replacement-document helper. Both pushed-head CI workflows passed.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -46,9 +46,9 @@
       "state": "Current source1cd256a4a immutable production build: all eight stages,7558source/3712dist/1753web files and199package/23489file/374edge runtime closure PASS. Saved desktop/compact, exact cached-tail offline rows, inline image and reconnect scoped PASS; no new resource savings or physical-device qualification."
     },
     "buildSession": null,
-    "nextAction": "Collect current exact-head CI after hosted-runner recovery. Complete remaining native Electron/PTY lifecycle and rich GUI coverage, then one bounded matched p95/resource comparison and F6 audit; keep physical-device/private GPU and RAM limits explicit. Avoid marginal tuning and exhausted unchanged diagnostic reruns.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round124/declaration.json",
+    "nextAction": "Finalize the evidence audit and remaining gates: current saved native replay/PTY/clean quit, actual request/permission/steer controls, Safari/long-session qualification, and matched p95/resource evidence. R125/R126 two-attempt/one-correction scope is consumed; do not repeat unchanged or reset historical budgets. No marginal tuning.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round126/root-round126-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round126/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -214,12 +214,14 @@
       "qualificationScope": "CI foundation/functionality, not final GUI or whole-app resource measurements"
     },
     "remoteCi": {
-      "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
-      "coreCI": "PASS",
-      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37315951902",
-      "nativeCI": "PASS",
-      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37315952282",
-      "scope": "Both completed success on the immutable R115 source head; new documentation checkpoint must have its own CI receipt."
+      "head": "d3ecd7a8925c30078f7ca52ae7ba66230a1ecd1e",
+      "coreRun": 37374852741,
+      "nativeRun": 37374853136,
+      "coreResult": "success",
+      "nativeResult": "success",
+      "coreEvidence": "tmp/v2-streaming-perf-20260930/round125/core-ci-final.json",
+      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round125/native-ci-final.json",
+      "scope": "Exact pushed checkpoint; any subsequent documentation commit needs a separate receipt."
     },
     "imageReuse": {
       "state": "source/regression verified; current native live/saved inventory two images; decode/navigation qualification remains open",
@@ -447,17 +449,14 @@
       "compiledUiEvidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
     },
     "docsHeadCI": {
-      "head": "0ab319649d3d023abc9e344afdf17610b0a500c3",
-      "coreRun": 37367843951,
-      "nativeRun": 37367844291,
-      "coreResult": "failure",
-      "nativeResult": "failure",
-      "reason": "Required hosted jobs not acquired after multiple attempts; no job steps ran for cancelled jobs",
-      "iOSAppTests": "success",
-      "nativeFoundation": "success",
-      "coreEvidence": "tmp/v2-streaming-perf-20260930/round121/docs-head-core-ci.json",
-      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round121/docs-head-native-ci.json",
-      "runnerAnnotation": "tmp/v2-streaming-perf-20260930/round121/docs-head-typecheck-runner-annotations.json"
+      "head": "d3ecd7a8925c30078f7ca52ae7ba66230a1ecd1e",
+      "coreRun": 37374852741,
+      "nativeRun": 37374853136,
+      "coreResult": "success",
+      "nativeResult": "success",
+      "coreEvidence": "tmp/v2-streaming-perf-20260930/round125/core-ci-final.json",
+      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round125/native-ci-final.json",
+      "scope": "Exact pushed checkpoint; any subsequent documentation commit needs a separate receipt."
     },
     "previousVerifiedSourceCI": {
       "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
@@ -472,6 +471,44 @@
       "publishedStart": "2026-10-05T19:11:00Z",
       "observedAt": "2026-10-05T21:15:14.230372+00:00",
       "state": "Investigating degraded availability, job failures and hosted-runner assignment delays; supports infrastructure attribution, not a source-code CI pass."
+    },
+    "priorDocsHeadCI": {
+      "head": "0ab319649d3d023abc9e344afdf17610b0a500c3",
+      "coreRun": 37367843951,
+      "nativeRun": 37367844291,
+      "coreResult": "failure",
+      "nativeResult": "failure",
+      "reason": "Required hosted jobs not acquired after multiple attempts; no job steps ran for cancelled jobs",
+      "iOSAppTests": "success",
+      "nativeFoundation": "success",
+      "coreEvidence": "tmp/v2-streaming-perf-20260930/round121/docs-head-core-ci.json",
+      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round121/docs-head-native-ci.json",
+      "runnerAnnotation": "tmp/v2-streaming-perf-20260930/round121/docs-head-typecheck-runner-annotations.json"
+    },
+    "nativeResidualQualification": {
+      "state": "scoped-live-pass-overall-fail",
+      "candidate": "round122",
+      "attempts": 2,
+      "corrections": 1,
+      "remainingCorrections": 0,
+      "counterReset": false,
+      "passed": [
+        "native startup/ownership/model admission",
+        "48 scripted rich calls across 24 tool-card shapes",
+        "canonical conservation and seq+1 negative oracle",
+        "live groups 8→16→8",
+        "two PNG decode/navigation/close 320x240/1024x768"
+      ],
+      "notReached": [
+        "saved native semantic projection",
+        "current real PTY sequence",
+        "detached native clean quit"
+      ],
+      "failure": "Replacement-document observeGui read document.documentElement while null; test helper failure, product regression unproved",
+      "cleanup": "PASS; seven current owned PIDs freshly ESRCH",
+      "resourceGainClaim": false,
+      "originalFailure": "tmp/v2-streaming-perf-20260930/round125/root-round125-result.json",
+      "evidence": "tmp/v2-streaming-perf-20260930/round126/root-round126-result.json"
     }
   },
   "milestones": [
