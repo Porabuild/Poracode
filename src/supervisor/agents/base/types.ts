@@ -18,6 +18,7 @@ import type {
   PromptSegment,
   RuntimeEvent,
   SessionRef,
+  SkillInvocation,
   ThreadAttention,
   ThreadConfig,
   ThreadPresentationMode,
@@ -754,7 +755,16 @@ export interface AgentSkillSupport {
   /** Provider roots that need a Poracode-owned copy of canonical skills. */
   readonly projectionRoots?: readonly AgentSkillRootSpec[];
   /** How the provider invokes a named skill from its composer. */
-  readonly invocation: "slash" | "dollar" | "prompt" | "skill";
+  readonly invocation: SkillInvocation;
+  /**
+   * Per-skill override of `invocation`, read from the scalar fields of the
+   * skill's SKILL.md frontmatter. Use it when some skills cannot take the
+   * provider's default form, for example a skill only the model may start.
+   * Return `undefined` to keep the default.
+   */
+  readonly invocationForSkill?: (
+    frontmatter: Readonly<Record<string, string>>,
+  ) => SkillInvocation | undefined;
   /** Provider-native duplicate resolution, using root ids plus canonical `agents`. */
   readonly precedence?: {
     readonly scopeOrder?: readonly ("global" | "project")[];

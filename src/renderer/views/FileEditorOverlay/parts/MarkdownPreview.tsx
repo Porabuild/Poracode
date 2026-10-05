@@ -1,17 +1,20 @@
 import type { ComponentProps } from "react";
 import remarkGfm from "remark-gfm";
 import { Streamdown, defaultRehypePlugins, type Components } from "streamdown";
+import { chatRemarkMath, withChatMathRehype } from "@/renderer/markdown/mathPlugins";
 
 type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugins"]>;
 
 // Streamdown ships `raw` (inline HTML) and `sanitize` by default, which is what
 // the preview needs. `harden` rewrites hrefs outside its allowlist into
 // "[blocked]" spans; external opens are already gated through the anchor below.
-const rehypePlugins = Object.entries(defaultRehypePlugins)
-  .filter(([key]) => key !== "harden")
-  .map(([, plugin]) => plugin) as RehypePlugins;
+const rehypePlugins = withChatMathRehype(
+  Object.entries(defaultRehypePlugins)
+    .filter(([key]) => key !== "harden")
+    .map(([, plugin]) => plugin) as RehypePlugins,
+) as RehypePlugins;
 
-const remarkPlugins = [remarkGfm];
+const remarkPlugins = [remarkGfm, chatRemarkMath];
 
 const components: Components = {
   a({ href, children }) {

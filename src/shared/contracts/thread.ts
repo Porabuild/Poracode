@@ -259,14 +259,35 @@ export interface StartThreadResult {
   threadId: string;
 }
 
-export const sendThreadInputPayloadSchema = z.object({
-  threadId: z.string().min(1),
-  prompt: z.string().min(1),
-  segments: z.array(promptSegmentSchema).optional(),
-  config: threadConfigSchema,
-  /** See {@link startThreadPayloadSchema.userMessageItemId}. */
-  userMessageItemId: z.string().min(1).optional(),
-});
+/**
+ * A submission needs typed text or an attachment: a screenshot sent on its own
+ * arrives with an empty prompt and the attachment in `segments`. Applied as a
+ * refinement so the payload's `prompt` stays a plain string for callers.
+ */
+const sendableInput = {
+  message: "prompt or an attachment is required",
+  path: ["prompt"],
+};
+function hasSendableInput(input: {
+  prompt: string;
+  segments?: readonly z.infer<typeof promptSegmentSchema>[] | undefined;
+}): boolean {
+  return (
+    input.prompt.length > 0 ||
+    (input.segments?.some((segment) => segment.kind === "attachment") ?? false)
+  );
+}
+
+export const sendThreadInputPayloadSchema = z
+  .object({
+    threadId: z.string().min(1),
+    prompt: z.string(),
+    segments: z.array(promptSegmentSchema).optional(),
+    config: threadConfigSchema,
+    /** See {@link startThreadPayloadSchema.userMessageItemId}. */
+    userMessageItemId: z.string().min(1).optional(),
+  })
+  .refine(hasSendableInput, sendableInput);
 export type SendThreadInputPayload = z.infer<typeof sendThreadInputPayloadSchema>;
 
 export const interruptThreadPayloadSchema = z.object({
@@ -298,12 +319,14 @@ export type RollbackThreadConversationPayload = z.infer<
   typeof rollbackThreadConversationPayloadSchema
 >;
 
-export const setPendingSteerPayloadSchema = z.object({
-  threadId: z.string().min(1),
-  prompt: z.string().min(1),
-  segments: z.array(promptSegmentSchema).optional(),
-  config: threadConfigSchema,
-});
+export const setPendingSteerPayloadSchema = z
+  .object({
+    threadId: z.string().min(1),
+    prompt: z.string(),
+    segments: z.array(promptSegmentSchema).optional(),
+    config: threadConfigSchema,
+  })
+  .refine(hasSendableInput, sendableInput);
 export type SetPendingSteerPayload = z.infer<typeof setPendingSteerPayloadSchema>;
 
 export const clearPendingSteerPayloadSchema = z.object({
@@ -328,14 +351,14 @@ export type ReorderQueuedThreadFollowUpPayload = z.infer<
   typeof reorderQueuedThreadFollowUpPayloadSchema
 >;
 
-export const editQueuedThreadFollowUpPayloadSchema = removeQueuedThreadFollowUpPayloadSchema.extend(
-  {
+export const editQueuedThreadFollowUpPayloadSchema = removeQueuedThreadFollowUpPayloadSchema
+  .extend({
     /** Optional concurrency token; older clients can still edit without one. */
     expectedStagedAt: z.number().finite().optional(),
-    prompt: z.string().min(1),
+    prompt: z.string(),
     segments: z.array(promptSegmentSchema).optional(),
-  },
-);
+  })
+  .refine(hasSendableInput, sendableInput);
 export type EditQueuedThreadFollowUpPayload = z.infer<typeof editQueuedThreadFollowUpPayloadSchema>;
 
 export const resumeThreadFollowUpsPayloadSchema = z.object({

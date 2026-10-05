@@ -46,6 +46,7 @@ import {
 } from "../composer/MentionInput";
 import { useThreadMentionItems } from "../composer/useThreadMentionItems";
 import {
+  attachmentsFromPaths,
   storableAttachment,
   useAttachments,
   type SaveClipboardImage,
@@ -244,6 +245,26 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const composerSessionRef = useRef({ threadId: thread.id });
   if (composerSessionRef.current.threadId !== thread.id) {
     composerSessionRef.current = { threadId: thread.id };
+  }
+  const composerMountedRef = useRef(false);
+  useEffect(() => {
+    composerMountedRef.current = true;
+    return () => {
+      composerMountedRef.current = false;
+    };
+  }, []);
+  // A file pick/upload can resolve after this reused composer has moved to
+  // another thread (or unmounted). Attach only while the originating thread is
+  // still shown; otherwise park the files in that thread's saved draft so they
+  // never leak into the thread the user switched to.
+  function attachPickedFiles(originThreadId: string, paths: string[]) {
+    if (composerMountedRef.current && composerSessionRef.current.threadId === originThreadId) {
+      attachments.addFiles(paths);
+      return;
+    }
+    useAppStore
+      .getState()
+      .appendThreadDraftAttachments(originThreadId, attachmentsFromPaths(paths));
   }
   const preparedThreadIdRef = useRef<string | null>(null);
   const restoredThreadIdRef = useRef<string | null>(null);
@@ -850,6 +871,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       onRestoreComposerFocus={() => mentionRef.current?.focus()}
                       activeRuntimeRequest={composerRuntimeRequest}
                       filteredCommands={filteredCommands}
+                      slashQuery={slashQuery}
                       slashActiveIndex={slashActiveIndex}
                       commandListId={commandListId}
                       onCloseContextDock={() => setContextDockOpen(false)}
@@ -1060,13 +1082,14 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                           }}
                           showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
                           onPickFiles={() => {
+                            const originThreadId = thread.id;
                             void (
                               props.pickFiles
                                 ? props.pickFiles()
                                 : readBridge().pickFiles({ attachmentThreadId: thread.id })
                             )
                               .then((paths) => {
-                                if (paths) attachments.addFiles(paths);
+                                if (paths) attachPickedFiles(originThreadId, paths);
                               })
                               .catch((error: unknown) => toast.danger(friendlyError(error)));
                           }}

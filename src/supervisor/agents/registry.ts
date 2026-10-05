@@ -19,7 +19,7 @@ import type { AgentAdapter } from "./base";
 import { createClaudeAdapter, createClaudeProfileAdapter } from "./claude";
 import { createCommandCodeAdapter } from "./commandcode";
 import { createCopilotAdapter } from "./copilot";
-import { createCodexAdapter } from "./codex";
+import { createCodexAdapter, createCodexProfileAdapter } from "./codex";
 import { createCursorAdapter, createCursorProfileAdapter } from "./cursor";
 import { createFactoryAdapter, createFactoryAcpRegistryAdapter } from "./factory";
 import { createGeminiAdapter } from "./gemini";
@@ -118,6 +118,7 @@ export function buildAgentRegistryEntries(
   // `driver` to `AGENT_PROFILE_DRIVERS`) — not another filter/flatMap block.
   const profileAdapterFactories: Record<string, (instance: AgentInstanceConfig) => AgentAdapter> = {
     claude: createClaudeProfileAdapter,
+    codex: createCodexProfileAdapter,
     cursor: createCursorProfileAdapter,
   };
   const profileAdapters = userInstances

@@ -1034,7 +1034,7 @@ describe("ClaudeSdkSession", () => {
         description: "Review the current diff",
         section: "skills",
         skillName: "code-review",
-        skillInvocation: "Use the code-review skill.",
+        skillInvocation: "/code-review",
         skillProvider: "Claude",
         skillScope: "global",
       },

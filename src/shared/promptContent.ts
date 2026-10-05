@@ -1,4 +1,9 @@
-import type { AgentSlashCommand, CanonicalContentBlock, PromptSegment } from "./contracts";
+import type {
+  AgentSlashCommand,
+  CanonicalContentBlock,
+  PromptSegment,
+  SkillInvocation,
+} from "./contracts";
 
 export const IMAGE_EXTENSIONS = [
   "png",
@@ -235,6 +240,20 @@ export function inlinePromptSegmentText(segment: PromptSegment): string {
   }
 }
 
+/** The text a composer types to invoke the named skill in the given form. */
+export function formatSkillInvocation(kind: SkillInvocation, name: string): string {
+  switch (kind) {
+    case "dollar":
+      return `$${name}`;
+    case "skill":
+      return `/skill:${name}`;
+    case "prompt":
+      return `Use the ${name} skill.`;
+    case "slash":
+      return `/${name}`;
+  }
+}
+
 export function skillSegmentFromSlashCommand(
   command: AgentSlashCommand | undefined,
 ): Extract<PromptSegment, { kind: "skill" }> | undefined {
@@ -258,6 +277,18 @@ export function skillSegmentFromSlashCommand(
     ...(command.pluginId ? { pluginId: command.pluginId } : {}),
     ...(command.pluginName ? { pluginName: command.pluginName } : {}),
   };
+}
+
+/**
+ * Whether a submission carries anything to send: typed text, or an attachment
+ * on its own. A screenshot with no caption is a complete message — the
+ * supervisor formats the attachment path into the prompt the agent reads.
+ */
+export function hasSendablePromptContent(
+  prompt: string,
+  segments?: readonly PromptSegment[],
+): boolean {
+  return prompt.trim().length > 0 || (segments?.some((s) => s.kind === "attachment") ?? false);
 }
 
 export function buildPromptContentBlocks(

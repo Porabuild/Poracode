@@ -29,6 +29,38 @@ describe("createClaudeAdapter skill roots", () => {
   });
 });
 
+describe("createClaudeAdapter skill invocation", () => {
+  const adapter = createClaudeAdapter();
+  const simplify = {
+    kind: "skill" as const,
+    name: "simplify",
+    invocation: "/simplify",
+    provider: "Claude",
+    scope: "global" as const,
+  };
+
+  it("sends skills as slash commands", () => {
+    expect(adapter.skillSupport?.invocation).toBe("slash");
+  });
+
+  it("types a leading skill into the terminal as its slash command", () => {
+    expect(
+      adapter.formatPromptSegments?.([
+        { kind: "attachment", path: "/repo/notes.md" },
+        { kind: "text", content: " " },
+        simplify,
+        { kind: "text", content: " test" },
+      ]),
+    ).toBe("/simplify test\n\n@/repo/notes.md ");
+  });
+
+  it("asks the model to use a skill that is not at the start", () => {
+    expect(adapter.formatPromptSegments?.([{ kind: "text", content: "please " }, simplify])).toBe(
+      "please Use the simplify skill.",
+    );
+  });
+});
+
 describe("createClaudeAdapter handleOscTitle", () => {
   const adapter = createClaudeAdapter();
 

@@ -9,6 +9,7 @@ import type {
   UserInputOption,
 } from "@/shared/contracts";
 import { friendlyError } from "@/shared/messages";
+import { hasSendablePromptContent } from "@/shared/promptContent";
 import type { FollowUpBehavior } from "@/shared/settings";
 import { readBridge } from "@/renderer/bridge";
 import {
@@ -107,7 +108,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   );
   const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
-  if (flat.length === 0 || !ctx.canSubmit) return;
+  if (!hasSendablePromptContent(flat, allSegments) || !ctx.canSubmit) return;
   const clearComposerText = () => {
     ctx.setPrompt("");
     ctx.setHasContent(false);

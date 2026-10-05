@@ -181,6 +181,29 @@ describe("submitThreadInput resume wiring", () => {
     mocks.appState.threads = [createThread()];
   });
 
+  it("paints and sends an attachment-only message", async () => {
+    const thread = createThread();
+    const attachmentOnly: PromptSegment[] = [{ kind: "attachment", path: "/tmp/shot.png" }];
+
+    await expect(
+      performThreadInputSubmit({
+        thread,
+        prompt: "",
+        segments: attachmentOnly,
+        transport: mocks.bridge,
+      }),
+    ).resolves.toBeUndefined();
+
+    // The screenshot shows in the chat right away, like typed text would.
+    expect(mocks.appState.applyRuntimeEvent).toHaveBeenCalledWith(
+      "thread-1",
+      expect.objectContaining({ type: "item.started", itemType: "user_message" }),
+    );
+    expect(mocks.bridge.sendThreadInput).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "", segments: attachmentOnly }),
+    );
+  });
+
   it("relaunches with the freshest thread snapshot and the optimistic item id", async () => {
     mocks.bridge.sendThreadInput.mockRejectedValueOnce(
       new Error("Unknown thread session: thread-1"),

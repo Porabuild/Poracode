@@ -57,7 +57,7 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v32 snapshots so OpenCode 2 and per-provider credentials are re-probed", () => {
@@ -79,7 +79,47 @@ describe("agent status cache", () => {
     const service = runtime.agentStatusService as unknown as {
       readCachedStatuses(distros: string[]): unknown;
     };
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
+    expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
+  });
+  it("invalidates v33 snapshots so skill invocations are re-probed", () => {
+    const dataDir = makeTempDir();
+    process.env.PORACODE_DATA_DIR = dataDir;
+    const { cacheDir, statusCachePath } = resolvePoracodePaths(dataDir);
+    mkdirSync(cacheDir, { recursive: true });
+    writeFileSync(
+      statusCachePath,
+      JSON.stringify({
+        version: 33,
+        // Cached while a provider still sent its skills as a sentence, which
+        // cannot start a skill the model is not allowed to invoke.
+        windows: [
+          {
+            kind: "example",
+            installed: true,
+            capabilities: {
+              slashCommands: [
+                {
+                  id: "review",
+                  label: "review",
+                  section: "skills",
+                  skillName: "review",
+                  skillInvocation: "Use the review skill.",
+                  skillProvider: "Example",
+                  skillScope: "global",
+                },
+              ],
+            },
+          },
+        ],
+        wsl: [],
+      }),
+    );
+    const runtime = makeRuntime(() => {});
+    const service = runtime.agentStatusService as unknown as {
+      readCachedStatuses(distros: string[]): unknown;
+    };
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(service.readCachedStatuses([])).toEqual({ windows: [], wsl: [], fromCache: false });
   });
   it("invalidates v11 caches produced before successful ACP sessions established auth", () => {
@@ -269,7 +309,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -313,7 +353,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -390,7 +430,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses([]);
 
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -437,7 +477,7 @@ describe("agent status cache", () => {
       }
     ).readCachedStatuses(["Ubuntu"]);
 
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -466,7 +506,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 
@@ -499,7 +539,7 @@ describe("agent status cache", () => {
         readCachedStatuses: (distros: readonly string[]) => unknown;
       }
     ).readCachedStatuses(["Ubuntu"]);
-    expect(STATUS_CACHE_VERSION).toBe(33);
+    expect(STATUS_CACHE_VERSION).toBe(34);
     expect(cached).toEqual({ windows: [], wsl: [], fromCache: false });
   });
 

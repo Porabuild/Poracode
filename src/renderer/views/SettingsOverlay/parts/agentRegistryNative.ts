@@ -11,7 +11,7 @@ import type {
 } from "@/shared/contracts";
 import { isMac, isWindows, readBridge } from "@/renderer/bridge";
 import { ClaudeAgentSettingsPanel, claudeProfileSupport } from "./ClaudeProfileSettings";
-import { CodexProviderSettings } from "./CodexProviderSettings";
+import { CodexAgentSettingsPanel, codexProfileSupport } from "./CodexProfileSettings";
 import { cursorProfileSupport } from "./CursorProfileSettings";
 import { CursorProviderSettings } from "./CursorProviderSettings";
 import { OpenCode2ProviderSettings } from "./OpenCode2ProviderSettings";
@@ -47,8 +47,13 @@ export interface NativeAgentAcpRegistryAlias {
 export interface NativeAgentProfileField {
   ariaLabel: MessageDescriptor;
   placeholder?: MessageDescriptor;
-  /** Derived placeholder that doubles as the value when left empty. */
-  placeholderFor?: (name: string) => string;
+  /**
+   * Derived placeholder that doubles as the value when left empty. `id` is the
+   * collision-free instance id the profile will be created with; derive
+   * anything that must stay unique per profile (a config/home directory) from
+   * it rather than from `name`, since distinct names can slugify alike.
+   */
+  placeholderFor?: (name: string, id: string) => string;
   /** Rendered masked and never echoed back once saved. */
   secret?: boolean;
   /** Blocks submission while empty. */
@@ -198,7 +203,8 @@ export const NATIVE_AGENT_REGISTRY_ENTRIES: NativeAgentRegistryEntry[] = [
         windows:
           "if (Get-Command powershell -ErrorAction SilentlyContinue) { powershell -ExecutionPolicy ByPass -c \"irm https://chatgpt.com/codex/install.ps1 | iex\" } elseif (Get-Command npm -ErrorAction SilentlyContinue) { npm install -g @openai/codex } else { Write-Host 'No supported installer found. Install Windows PowerShell or Node.js/npm first, then refresh detected agents.' }",
       }),
-    settingsPanel: CodexProviderSettings,
+    settingsPanel: CodexAgentSettingsPanel,
+    profiles: codexProfileSupport,
   },
   {
     id: "claude",

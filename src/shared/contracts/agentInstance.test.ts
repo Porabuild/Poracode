@@ -5,15 +5,19 @@ import {
   agentInstanceConfigSchema,
   baseAgentKind,
   claudeProfileKind,
+  codexProfileKind,
   cursorProfileKind,
   extractAcpGenericInstanceId,
   extractClaudeProfileInstanceId,
+  extractCodexProfileInstanceId,
   extractCursorProfileInstanceId,
   isAcpGenericKind,
   isClaudeProfileKind,
+  isCodexProfileKind,
   isCursorProfileKind,
   parseAcpGenericInstanceConfig,
   parseClaudeProfileInstanceConfig,
+  parseCodexProfileInstanceConfig,
 } from "./agentInstance";
 
 /**
@@ -129,6 +133,28 @@ describe("Claude profile instance helpers", () => {
     expect(isClaudeProfileKind("claude")).toBe(false);
     expect(extractClaudeProfileInstanceId("claude:work")).toBe("work");
     expect(extractClaudeProfileInstanceId("codex")).toBeUndefined();
+  });
+});
+
+describe("Codex profile instance helpers", () => {
+  it("parses a Codex profile home directory", () => {
+    expect(parseCodexProfileInstanceConfig({ homeDir: "~/.codex-work" })).toEqual({
+      homeDir: "~/.codex-work",
+    });
+  });
+
+  it("rejects an empty Codex profile home directory", () => {
+    expect(() => parseCodexProfileInstanceConfig({ homeDir: "" })).toThrow(Error);
+    expect(() => parseCodexProfileInstanceConfig({})).toThrow(Error);
+  });
+
+  it("maps profile ids to synthetic Codex provider kinds", () => {
+    expect(codexProfileKind("work")).toBe("codex:work");
+    expect(isCodexProfileKind("codex:work")).toBe(true);
+    expect(isCodexProfileKind("codex")).toBe(false);
+    expect(extractCodexProfileInstanceId("codex:work")).toBe("work");
+    expect(extractCodexProfileInstanceId("claude:work")).toBeUndefined();
+    expect(baseAgentKind(codexProfileKind("work"))).toBe("codex");
   });
 });
 

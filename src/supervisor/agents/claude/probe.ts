@@ -31,21 +31,21 @@ export function claudeTerminalAuthMethod(env?: Record<string, string>): AgentTer
 export const CLAUDE_NATIVE_SKILL_PROVIDER = "Claude";
 
 /**
- * Prompt-style invocation for a model-invoked skill. Per the Agent SDK docs a
- * skill is invoked by the model through the `Skill` tool, which streams events
- * normally; sending the bare `/name` slash text instead makes the CLI run an
- * opaque local command that emits nothing until it finishes.
+ * The CLI starts a skill when the prompt begins with `/name`. It expands the
+ * SKILL.md into the conversation and runs a normal, streamed model turn. The
+ * model's `Skill` tool refuses skills marked `disable-model-invocation`, so a
+ * prompt that asks the model to use the skill cannot start those. The literal
+ * slash form works for every skill the user can invoke.
  */
 export function claudeSkillInvocation(name: string): string {
-  return `Use the ${name} skill.`;
+  return `/${name}`;
 }
 
 /**
  * `skillNames` are the entries the SDK reports under `skills` on the session's
- * `system` init message. Bundled skills appear in *both* that list and the
- * slash-command list, so a command whose name is a known skill is re-flavored
- * as a skill entry (model-invoked, streams) instead of a slash command
- * (opaque local command, no stream events).
+ * `system` init message. Skills appear in *both* that list and the
+ * slash-command list, so a command whose name is a known skill becomes a skill
+ * entry. The composer then shows it as a skill chip.
  */
 export function mapClaudeSlashCommands(
   commands: readonly SlashCommand[],

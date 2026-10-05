@@ -41,6 +41,7 @@ rule is about control flow and data shape, not about erasing history.
    `acpExtensionNotificationHandler` (vendor JSON-RPC notifications).
    Probe customization uses `normalizeProbeResult` for discovered capabilities
    and `modelLabel` for fallback labels when the agent supplies no display name.
+   Skill frontmatter rules use `skillSupport.invocationForSkill`.
 
 Message payloads can declare `turnIndependent: true` when a conversation stream
 publishes messages outside an agent execution turn. The shared renderer persists
@@ -391,6 +392,13 @@ most often forgotten.
       current provider set and staged asset shape.
 - [ ] OSC status (title spinner / iTerm2 progress) → `handleOscTitle`/
       `handleOscNotification` (see Grok). Only wire when the CLI actually emits OSC.
+- [ ] Skills → `skillSupport` with `roots` and a default `invocation`. When some
+      skills cannot take that form, supply `skillSupport.invocationForSkill`
+      from the provider folder. The skill scan passes it each SKILL.md's
+      scalar frontmatter fields and records the returned form on that entry
+      (see Claude: `user-invocable: false` skills keep the request form). The
+      supervisor applies the same rule again to every incoming skill segment,
+      so a paired client that predates a rule still sends a valid form.
 
 > Reference template for a **TUI-only, no-ACP** CLI: `commandcode/`
 > (multi-model + npm install/update + a synthesized terminal Login method).
@@ -425,7 +433,10 @@ declarations, none of which is a new branch in shared code:
       only what differs: the one extra add-form field, the row subtitle
       component, the removal-consequence copy, and `createPayload`. Optional
       `onCreated` pins provider settings that must exist before the first
-      detection pass (Cursor pins its GUI runtime there).
+      detection pass (Cursor pins its GUI runtime there). A default that must
+      be unique per profile (a config/home directory) comes from the allocated
+      id that `field.placeholderFor(name, id)` receives, never from the name:
+      distinct names can slugify alike, and a shared home shares credentials.
 - [ ] **Profile page** — the provider's `settingsPanel` already receives
       instance-scoped kinds; branch on your own
       `extract<Provider>ProfileInstanceId(agentKind)` to render the per-profile
@@ -434,8 +445,9 @@ declarations, none of which is a new branch in shared code:
 Do NOT add per-provider profile branches to `mergeManagedSharedSettings`,
 `ProviderIcon`, `SettingsSidebar`, `SingleAgentSettings`, or the IPC surface —
 they are all driven by the registry above. Reference implementations:
-`cursor` (single sealed credential) and `claude` (free-form environment plus an
-opaque per-profile `config`).
+`cursor` (single sealed credential), `claude` (free-form environment plus an
+opaque per-profile `config`), and `codex` (a per-profile `CODEX_HOME` with its
+own hook overlay, skill root, native-plugin discovery, and pooled app-server).
 
 ## Plugin Architecture
 

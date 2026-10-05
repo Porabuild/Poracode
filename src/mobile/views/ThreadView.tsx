@@ -336,6 +336,7 @@ export function ThreadView(props: ThreadViewProps) {
     >
       <ThreadComposerSection
         {...commonProps}
+        pickFiles={() => readBridge().pickFiles({ attachmentThreadId: thread.id })}
         autoFocusComposer={submitOnEnter}
         composerPlaceholder={t`Follow up...`}
         submitOnEnter={submitOnEnter}

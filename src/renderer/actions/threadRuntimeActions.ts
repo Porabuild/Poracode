@@ -13,7 +13,7 @@ import { isHomeProjectId } from "@/shared/homeScope";
 import { friendlyError } from "@/shared/messages";
 import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import { resolveProjectLocation } from "@/shared/worktree";
-import { buildPromptContentBlocks } from "@/shared/promptContent";
+import { buildPromptContentBlocks, hasSendablePromptContent } from "@/shared/promptContent";
 import { readBridge } from "@/renderer/bridge";
 import {
   captureThreadPromptSubmitted,
@@ -83,7 +83,7 @@ export async function performThreadInputSubmit(input: {
   let optimisticUserMessageItemId: string | undefined;
   let markedWorking = false;
   const store = useAppStore.getState();
-  if (presentation === "gui" && prompt.length > 0) {
+  if (presentation === "gui" && hasSendablePromptContent(prompt, segments)) {
     optimisticUserMessageItemId = `user-${crypto.randomUUID()}`;
     store.applyRuntimeEvent(thread.id, {
       type: "item.started",
