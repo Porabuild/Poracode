@@ -2,6 +2,7 @@ import type { RemoteThreadSnapshot } from "@/shared/remote";
 
 const DATABASE_NAME = "poracode-browser-cache";
 const STORE_NAME = "threadSnapshots";
+const CACHE_ACCESS_TIMEOUT_MS = 5_000;
 const MAX_CACHED_THREAD_SNAPSHOTS = 20;
 
 interface CachedThreadSnapshot {
@@ -19,7 +20,27 @@ function openDatabase(): Promise<IDBDatabase> {
     // v2 adds the updatedAt prune index; a v1 store upgrades in place and
     // its cached rows keep working (WS6 P1-11b).
     const request = indexedDB.open(DATABASE_NAME, 2);
+    let settled = false;
+    const finish = (error: unknown, database?: IDBDatabase): void => {
+      if (settled) {
+        database?.close();
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve(database!);
+    };
+    const timer = setTimeout(
+      () => finish(new Error("Browser cache open timed out.")),
+      CACHE_ACCESS_TIMEOUT_MS,
+    );
+    request.onblocked = () => finish(new Error("Browser cache upgrade is blocked."));
     request.onupgradeneeded = () => {
+      if (settled) {
+        request.transaction?.abort();
+        return;
+      }
       const store = request.result.objectStoreNames.contains(STORE_NAME)
         ? request.transaction!.objectStore(STORE_NAME)
         : request.result.createObjectStore(STORE_NAME, { keyPath: "threadId" });
@@ -27,8 +48,8 @@ function openDatabase(): Promise<IDBDatabase> {
         store.createIndex(UPDATED_AT_INDEX, "updatedAt");
       }
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("Unable to open browser cache."));
+    request.onsuccess = () => finish(null, request.result);
+    request.onerror = () => finish(request.error ?? new Error("Unable to open browser cache."));
   }).catch((error: unknown) => {
     databasePromise = null;
     throw error;
@@ -77,12 +98,36 @@ export async function readCachedBrowserThreadSnapshot(
 ): Promise<RemoteThreadSnapshot | null> {
   if (typeof indexedDB === "undefined") return null;
   try {
+    const deadline = performance.now() + CACHE_ACCESS_TIMEOUT_MS;
     const database = await openDatabase();
+    const remaining = deadline - performance.now();
+    if (remaining <= 0) return null;
     return await new Promise<RemoteThreadSnapshot | null>((resolve, reject) => {
-      const request = database.transaction(STORE_NAME).objectStore(STORE_NAME).get(threadId);
+      const transaction = database.transaction(STORE_NAME);
+      const request = transaction.objectStore(STORE_NAME).get(threadId);
+      let settled = false;
+      const finish = (error: unknown, snapshot: RemoteThreadSnapshot | null = null): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve(snapshot);
+      };
+      const timer = setTimeout(() => {
+        try {
+          transaction.abort();
+        } catch {
+          /* Already completed. */
+        }
+        finish(new Error("Browser cache read timed out."));
+      }, remaining);
       request.onsuccess = () =>
-        resolve((request.result as CachedThreadSnapshot | undefined)?.snapshot ?? null);
-      request.onerror = () => reject(request.error ?? new Error("Unable to read browser cache."));
+        finish(null, (request.result as CachedThreadSnapshot | undefined)?.snapshot ?? null);
+      request.onerror = () => finish(request.error ?? new Error("Unable to read browser cache."));
+      transaction.onabort = () =>
+        finish(transaction.error ?? new Error("Unable to read browser cache."));
+      transaction.onerror = () =>
+        finish(transaction.error ?? new Error("Unable to read browser cache."));
     });
   } catch (error) {
     console.warn("[browser-cache] unable to read thread snapshot", error);

@@ -2,6 +2,8 @@
 
 Poracode keeps data and deployed artifacts across app upgrades. A change can work in a clean profile and still fail for existing users when an old cache, renderer store, helper, or plugin remains on disk. Treat every serialized or deployed boundary as an upgrade contract.
 
+Browser initial chat hydration can read a validated, owner-matched cached snapshot before host-derived reads. It retains the cached runtime cursor, image payloads, completed-turn window, context and latest goal through the existing hydration installer; host snapshots and resets remain authoritative. Provisional cached tasks retain their last-known status until a host update can reconcile them. Older valid rows without optional projection metadata use the exact owner-encoded view key and normalize metadata only in memory. Provisional notices seed only an absent notice entry and cannot replace current notice, gap or recovery state. Cache access has a five-second bound; a blocked or abandoned upgrade cannot hold hydration indefinitely, commit a late migration, or leak a late-opened connection. The row shape, version-2 database and `updatedAt` index remain unchanged. Valid version-1 rows still upgrade in place and hydrate; no wire, IPC, database-schema or cache-format bump is needed. Compatibility tests cover that old row, a held-open version-1 connection, late success, timeout, foreign/malformed snapshots and current/cancelled hydration ownership.
+
 The optional LegendList `onContentSizeCommit` capability is a same-bundle
 React/web layout notification, emitted after its DOM sizer commits the rendered
 row-stack size. ESM/CJS React and React Native web mirrors plus all declaration

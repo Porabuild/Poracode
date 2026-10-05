@@ -2,7 +2,15 @@ import type { PersistedRuntimeItem } from "@/shared/ipc";
 import { captureRendererException } from "../diagnostics/sentry";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "../components/thread/ChatPane/chatPaneSelectors";
 import { readBridge } from "../bridge";
-import { hasClientCapability } from "../clientRuntime";
+import { hasClientCapability, isBrowserClientRuntime } from "../clientRuntime";
+import {
+  browserRuntimeHydrationResults,
+  readBrowserRuntimeHydrationCache,
+} from "../browser/runtimeHydrationCache";
+import {
+  readThreadHistoryNotice,
+  recordThreadHistoryNoticeRead,
+} from "./remote/historyNoticeStore";
 import { useAppStore } from "./appStore";
 import {
   isManagedRootHistoryThread,
@@ -374,19 +382,51 @@ async function hydrateThreadRuntimeItemsFromDb(
   if (isManagedRootHistoryThread(threadId)) {
     return hydrateManagedRootThreadRuntimeItems(threadId, request);
   }
+  // Browser startup can restore the same complete cached snapshot already
+  // written by the remote installer. Routing four derived reads to the host
+  // would both duplicate its tail response and fail this initial read offline.
+  const initialState = useAppStore.getState();
+  const initialVersion = initialState.runtimeStructuralVersionByThread[threadId] ?? 0;
+  let cachedSnapshot = isBrowserClientRuntime()
+    ? await readBrowserRuntimeHydrationCache(
+        initialState.threads.find((thread) => thread.id === threadId),
+      )
+    : null;
+  if (request.cancelled) return false;
+  // An authoritative snapshot installed while IndexedDB was pending owns its
+  // cursor and payload, including an intentionally empty replacement.
+  if (hydratedThreadRuntimeIds.has(threadId)) return true;
+  const currentState = useAppStore.getState();
+  const currentThread = currentState.threads.find((thread) => thread.id === threadId);
+  if (
+    (currentState.runtimeStructuralVersionByThread[threadId] ?? 0) !== initialVersion ||
+    !currentThread ||
+    currentThread.remoteServerId !== cachedSnapshot?.thread.remoteServerId ||
+    currentThread.remoteId !== cachedSnapshot?.thread.remoteId
+  )
+    cachedSnapshot = null;
+  if (cachedSnapshot?.thread.remoteServerId && !readThreadHistoryNotice(threadId)) {
+    recordThreadHistoryNoticeRead(
+      threadId,
+      cachedSnapshot.thread.remoteServerId,
+      cachedSnapshot.runtimeNotice,
+    );
+  }
   const bridge = readBridge();
-  const [itemsResult, turnsResult, contextResult, latestGoalResult] = await Promise.allSettled([
-    Promise.resolve().then(() =>
-      bridge.dbGetThreadRuntimeItemsPage({
-        threadId,
-        limit: RUNTIME_PAGE_SCAN_SIZE,
-        targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
-      }),
-    ),
-    Promise.resolve().then(() => bridge.dbGetThreadCompletedTurns(threadId)),
-    Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
-    Promise.resolve().then(() => bridge.dbGetLatestThreadGoalItem({ threadId })),
-  ]);
+  const [itemsResult, turnsResult, contextResult, latestGoalResult] = cachedSnapshot
+    ? browserRuntimeHydrationResults(cachedSnapshot)
+    : await Promise.allSettled([
+        Promise.resolve().then(() =>
+          bridge.dbGetThreadRuntimeItemsPage({
+            threadId,
+            limit: RUNTIME_PAGE_SCAN_SIZE,
+            targetTimelineEntryCount: RUNTIME_TIMELINE_PAGE_SIZE,
+          }),
+        ),
+        Promise.resolve().then(() => bridge.dbGetThreadCompletedTurns(threadId)),
+        Promise.resolve().then(() => bridge.dbGetThreadContextUsage(threadId)),
+        Promise.resolve().then(() => bridge.dbGetLatestThreadGoalItem({ threadId })),
+      ]);
   // A reset superseded this read while it was in flight: install nothing and
   // claim no cursor — the replacement read owns both.
   if (request.cancelled) return false;
@@ -395,7 +435,9 @@ async function hydrateThreadRuntimeItemsFromDb(
     runtimeHistoryBoundary(threadId).cursor = itemsResult.value.nextCursor;
   }
   if (itemsResult.status === "fulfilled" && itemsResult.value.items.length > 0) {
-    installHydratedRuntimeItems(threadId, itemsResult.value.items, itemsResult.value.nextCursor);
+    installHydratedRuntimeItems(threadId, itemsResult.value.items, itemsResult.value.nextCursor, {
+      provisional: cachedSnapshot !== null,
+    });
   } else if (itemsResult.status === "rejected") {
     console.warn(
       "[chat] failed to hydrate runtime items for thread %s",
@@ -467,6 +509,7 @@ function installHydratedRuntimeItems(
   threadId: string,
   persistedItems: readonly PersistedRuntimeItem[],
   cursor: number | null,
+  options: { readonly provisional?: boolean } = {},
 ): void {
   const items = persistedItems.map(toRuntimeChatItem);
   const boundary = runtimeHistoryBoundary(threadId);
@@ -498,7 +541,11 @@ function installHydratedRuntimeItems(
   // hydrationReconcileOptions); a run whose start this renderer never saw then
   // stays running until its authoritative settle tile, and one mis-terminated
   // against a non-local source self-heals on its next live progress frame.
-  useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
+  // Cached rows describe last-known work, not an authoritative orphan verdict.
+  // The host refresh reconciles them after reconnect.
+  if (!options.provisional) {
+    useAppStore.getState().reconcileStaleSubAgents(threadId, hydrationReconcileOptions());
+  }
 }
 
 /**

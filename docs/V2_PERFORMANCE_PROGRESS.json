@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T20:07:24.037843+00:00",
+  "updatedAt": "2026-10-05T21:07:34.326658+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,21 +34,21 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R120 Sol6.1Max review completed/joined; root verified reviewed source hashes and corrections; 72 prelaunch checks passed",
+    "lastAgent": "R121 Codex6.1SolMax final cache correction review completed/joined; root verified all four current source hashes; no Important blockers",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No required agent pending. Declared residual attempt failed; separate guarded recovery passed; no owned run remains live.",
+    "agentState": "No required agent pending. R121 failed live qualification retained, normal cleanup passed; current cache source full quality passed, ready to commit/push and freshly build.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
       "identity": "tmp/v2-streaming-perf-20260930/round115/build-identity.json",
       "verification": "tmp/v2-streaming-perf-20260930/round115/candidate-verification.json",
-      "state": "R115 immutable 5fb2c6ada including mobile modal styles; all eight build stages, 7555 source/3712 output files, 199-package/23489-file/374-edge closure and finalized 1753 web files PASS. Rich96 canonical/live groups/media and genuine execution scoped PASS; full PWA qualification FAIL. No new resource savings."
+      "state": "R115 immutable 5fb2c6ada including mobile modal styles; all eight build stages, 7555 source/3712 output files, 199-package/23489-file/374-edge closure and finalized 1753 web files PASS. Rich96 canonical/live groups/media and genuine execution scoped PASS; full PWA qualification FAIL. No new resource savings. Current browser cache source differs; old artifact cannot qualify the new correction."
     },
     "buildSession": null,
-    "nextAction": "Integrate projected cache lookup and production snapshot projection, bounded separate wire files, durable phase reporting, and mandatory finalization before considering any explicitly declared materially revised qualification. Preserve original failures and all cumulative counters. Do not repeat this consumed run.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round120/root-round120-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round120/declaration.json",
+    "nextAction": "Commit/push reviewed cache correction and collect exact-head CI; freeze fresh current production candidate for one affected saved/compact/offline/reconnect UI check. Preserve original failed runs and cumulative launch counters.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round121/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -72,7 +72,7 @@
       "actualModelRoster": "Actual installed/authenticated/selectable fixture-model roster PASS",
       "richPresentation": "96 scripted GUI calls; 24 case types per light/heavy/bursty profile; source/canonical negative oracle PASS",
       "genuineExecution": "Supervisor-owned standalone child and ordered two-stage workflow: three actual fixture reads with native source custody and exact dependency receipts PASS",
-      "liveGroupsAndMedia": "8\u219216\u21928 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
+      "liveGroupsAndMedia": "8→16→8 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
       "savedCompactPwa": "R116 scopedPASS saved gallery exact dimensions/navigation and compact390x844 canonical replay with actually activated PWA worker. Full saved-summary scanFAIL3/4; rich offline/reconnect remains unqualified.",
       "retirement": "Both strict owner cleanup verdicts PASS; 380 original PID numbers freshly ESRCH before correction; 175 historical rows in correction cleanup",
       "evidence": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
@@ -140,15 +140,17 @@
       "updatesNotPerformed": true
     },
     "currentWholeBranchQuality": {
-      "run": "R113 combined checks",
-      "testsPassed": 19345,
+      "run": "R121 final source correction, bounded eight workers",
+      "testsPassed": 19358,
+      "testsFailed": 0,
       "testsSkipped": 100,
-      "suitesPassed": 1718,
+      "suitesPassed": 1720,
       "suitesSkipped": 5,
       "typecheck": "pass",
       "lint": "pass",
       "format": "pass",
-      "evidence": "tmp/v2-streaming-perf-20260930/round113/full-tests.log"
+      "evidence": "tmp/v2-streaming-perf-20260930/round121/source-cache-fix-quality.json",
+      "originalTimeoutPreserved": true
     },
     "comprehensiveCheckpoint": {
       "state": "committed: 0ffb496f4 all458files; 403a6777d older-page image projection; pushed to origin/poracode/v2",
@@ -358,18 +360,21 @@
       "readyFixtureSourceProof": "PASS production root+credential initialization before DBseed, laterowner generation reopen,61canonicalrows/originalDBhashpreserved; no app launch",
       "currentGuiPwaQualified": false,
       "performanceGainClaim": false,
-      "cumulativeOwnedServerAttempts": 3,
+      "cumulativeOwnedServerAttempts": 4,
       "residualAttemptFailed": true,
-      "normalCleanupPass": false,
-      "externalGuardedRecoveryPass": true,
-      "historicalPidNumbersAbsent": 18,
+      "normalCleanupPass": true,
+      "externalGuardedRecoveryPass": false,
+      "historicalPidNumbersAbsent": 259,
       "desktopAndCompactObservedRows": 19,
       "desktopGalleryControls": "PASS scoped",
       "compactDocumentAndWorker": "PASS scoped",
-      "offlineReplay": "UNTESTED after cache receipt failure",
-      "reconnectRowCoverage": "FAIL owning-history settlement deadline",
+      "offlineReplay": "FAIL: twelve cached rows including two image tools, zero DOM rows; visible Messages could not be loaded",
+      "reconnectRowCoverage": "FAIL owning-history settlement deadline; old-document request and body-read cap retained",
       "semanticQualification": false,
-      "futureHelperChecksPassed": 5
+      "futureHelperChecksPassed": 5,
+      "state": "failed-live-run-retained; source-correction-reviewed; current-build-unqualified",
+      "evidence": "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
+      "retirement": "R121 normal cleanup PASS; all259 recorded PID numbers freshly ESRCH. Original R119/R120 failures retained."
     },
     "ciRepair": {
       "originalHead": "bf8cd8ea3d328b834f53808a257c9db91c16e457",
@@ -397,6 +402,56 @@
         "passed": 1500,
         "failed": 0
       }
+    },
+    "browserCacheCorrection": {
+      "state": "source-full-quality-pass; ready-to-commit-push; current-build-unqualified",
+      "ownerMatching": "Schema-valid snapshot and exact projected thread key; explicit foreign projection rejected; legacy missing optional projection metadata normalized only in memory",
+      "compatibility": "Database version2, row schema and wire protocol unchanged; valid v1-to-v2 upgrade regression passes",
+      "behavior": "Initial cached runtime/turn/context/goal avoids four host reads; current authoritative installation/reset/cancellation wins; notices preserved; cached child-task status remains provisional",
+      "cacheDeadlineMilliseconds": 5000,
+      "focusedTestsPassed": 93,
+      "review": "tmp/v2-streaming-perf-20260930/round121/final-production-review-verification.json",
+      "fullLint": "pass",
+      "typecheck": "pass",
+      "originalFinalUnitResult": {
+        "passed": 19357,
+        "failed": 1,
+        "skipped": 100,
+        "failure": "Actual Monaco import exceeds unchanged15000ms deadline",
+        "log": "tmp/v2-streaming-perf-20260930/round121/complete-final-unit.log"
+      },
+      "isolatedFailureRecheck": {
+        "passed": 3,
+        "failed": 0,
+        "log": "tmp/v2-streaming-perf-20260930/round121/monaco-timeout-isolated-recheck.log"
+      },
+      "finalUnitLog": "tmp/v2-streaming-perf-20260930/round121/final-unit-bounded-workers.log",
+      "compiledUiQualification": false,
+      "wholeAppGainClaim": false,
+      "finalUnitResult": {
+        "passed": 19358,
+        "skipped": 100,
+        "failed": 0,
+        "suitesPassed": 1720,
+        "suitesSkipped": 5,
+        "maxWorkers": 8,
+        "deadlineMilliseconds": 15000,
+        "log": "tmp/v2-streaming-perf-20260930/round121/final-unit-bounded-workers.log"
+      },
+      "qualityReceipt": "tmp/v2-streaming-perf-20260930/round121/source-cache-fix-quality.json"
+    },
+    "docsHeadCI": {
+      "head": "0ab319649d3d023abc9e344afdf17610b0a500c3",
+      "coreRun": 37367843951,
+      "nativeRun": 37367844291,
+      "coreResult": "failure",
+      "nativeResult": "failure",
+      "reason": "Required hosted jobs not acquired after multiple attempts; no job steps ran for cancelled jobs",
+      "iOSAppTests": "success",
+      "nativeFoundation": "success",
+      "coreEvidence": "tmp/v2-streaming-perf-20260930/round121/docs-head-core-ci.json",
+      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round121/docs-head-native-ci.json",
+      "runnerAnnotation": "tmp/v2-streaming-perf-20260930/round121/docs-head-typecheck-runner-annotations.json"
     }
   },
   "milestones": [
@@ -672,7 +727,7 @@
       "at": "2026-10-05T15:02:59.657296+00:00",
       "round": "R116-final",
       "result": "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-      "summary": "Real two-stage navigation, saved authenticated gallery and compact390x844 replay/activated worker PASS. Summary scan retainsFAIL3/4. Four backend measured arms/576richcalls/800reads requalified: appCPU8\u201312%lower, supervisor5\u201314%lower versusR78 v2; p95mixed+0.61/-2.79ms, no repeatable material worsening. Original schema54 observerFAIL preserved; corrected stopped-DB audit and negative checks qualify data without repeating that arm. F5 inprogress; 13/18 tasks, zero final signoffs."
+      "summary": "Real two-stage navigation, saved authenticated gallery and compact390x844 replay/activated worker PASS. Summary scan retainsFAIL3/4. Four backend measured arms/576richcalls/800reads requalified: appCPU8–12%lower, supervisor5–14%lower versusR78 v2; p95mixed+0.61/-2.79ms, no repeatable material worsening. Original schema54 observerFAIL preserved; corrected stopped-DB audit and negative checks qualify data without repeating that arm. F5 inprogress; 13/18 tasks, zero final signoffs."
     },
     {
       "at": "2026-10-05T14:01:59.919944+00:00",
@@ -816,7 +871,7 @@
       "at": "2026-10-04T18:26:37.413028+00:00",
       "round": "round87",
       "result": "tmp/v2-streaming-perf-20260930/round87/catalog-d0-review.json",
-      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38\u219240); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
+      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38→40); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
     },
     {
       "at": "2026-10-04T18:38:22.821265+00:00",
@@ -826,7 +881,7 @@
     },
     {
       "at": "2026-10-04T20:20:43.342415+00:00",
-      "round": "round88\u2013round91",
+      "round": "round88–round91",
       "result": "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
       "summary": "Reviewed offline prewarm/cancellation ownership fix compiledR89, original root+nested offline native gatesPASS R90. R91 desktop driver correction208tests/reviewPASS; nativeearlier A-warm observer unmatched2API requests/4responses preventsqualification. All127PIDs/4ports/78seals/fulldeps/canonical/exactAretiredverified. FlashX7source/report seals+nativeidgapverified; candidatecorrection notyetimplemented/qualified. All requiredchildrenjoined."
     },
@@ -971,6 +1026,12 @@
       "round": "R120",
       "result": "tmp/v2-streaming-perf-20260930/round120/root-round120-result.json",
       "summary": "R120 declared residual attempt3 failed at wire artifact bound; original ordinary cleanup bypassed. Separate guarded recovery passes18PIDabsences, stopped canonical and frozen source audits pass. Desktop/compact19rows and saved gallery controls observed, semantic ledger lost; offline untested and reconnect settlement failed. Five future helper checks pass; no unchanged retry, resource gain or milestone closure. Repair-head f6d4002d6 core/native CI pass and1500iOS tests pass."
+    },
+    {
+      "at": "2026-10-05T21:03:00.983983+00:00",
+      "round": "R121",
+      "result": "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
+      "summary": "Cumulative server4/browser2 revised qualification fails offline gallery and reconnect; 25 history receipts retained, canonical/source and normal cleanup PASS,259PIDnumbers absent. Browser cache bypass traced and corrected;93 focused tests and lint/typecheck pass; final unit19358PASS/100skip with eight workers and unchanged15000ms deadline; original Monaco timeout retained. New compiled qualification still open. Counts13/18,0signoffs; no resource gain claim."
     }
   ],
   "tasks": [
@@ -1043,7 +1104,7 @@
       "title": "PWA worker policy and offline recovery",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Integrate projected cache lookup and production snapshot projection, bounded separate wire files, durable phase reporting, and mandatory finalization before considering any explicitly declared materially revised qualification. Preserve original failures and all cumulative counters. Do not repeat this consumed run.",
+      "nextAction": "Reviewed browser cache correction needs fresh compiled saved/compact/offline/reconnect qualification. Original live failures remain failed; no unchanged rerun or reset of cumulative counters.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -1067,7 +1128,8 @@
         "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-        "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json"
+        "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
+        "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json"
       ]
     },
     {
@@ -1096,7 +1158,7 @@
       "title": "Supervisor/chat/native resource attribution",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Keep the exhausted profile/trace lane closed; renderer/parser/native allocation and working-release attribution remain open. Review surviving-addition CPU accounting and pre-validation evidence retention for the unused required GUI arms.",
+      "nextAction": "Keep exhausted profile/trace and R118 GUI diagnostic lanes closed. Complete materially corrected functional coverage before a new bounded comparison; physical GPU/VRAM/private-memory attribution remains open.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
@@ -1111,7 +1173,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Integrate projected cache lookup and production snapshot projection, bounded separate wire files, durable phase reporting, and mandatory finalization before considering any explicitly declared materially revised qualification. Preserve original failures and all cumulative counters. Do not repeat this consumed run.",
+      "nextAction": "Reviewed browser cache correction needs fresh compiled saved/compact/offline/reconnect qualification. Original live failures remain failed; no unchanged rerun or reset of cumulative counters.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1122,7 +1184,8 @@
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
-        "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json"
+        "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
+        "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json"
       ]
     },
     {
@@ -1340,14 +1403,14 @@
     "originalOwnedServerAttempts": 1,
     "correctionOwnedServerAttempts": 1,
     "correctionLimit": 1,
-    "actualBrowserAttempts": 1,
+    "actualBrowserAttempts": 2,
     "furtherUnchangedLaunchesAllowed": false,
     "resetOnNewRoundLabel": false,
     "failuresPreserved": true,
-    "evidence": "tmp/v2-streaming-perf-20260930/round120/root-round120-result.json",
-    "latestRound": "R120",
-    "additionalMateriallyRevisedResidualAttempts": 1,
-    "cumulativeOwnedServerAttempts": 3,
+    "evidence": "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
+    "latestRound": "R121",
+    "additionalMateriallyRevisedResidualAttempts": 2,
+    "cumulativeOwnedServerAttempts": 4,
     "additionalCorrectionsUsed": 0
   }
 }
