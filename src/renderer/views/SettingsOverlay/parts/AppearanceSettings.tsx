@@ -11,7 +11,8 @@ import { applySidebarGlassTint, sidebarGlassTintDefault } from "@/renderer/theme
 import { useNativeMaterialActive } from "@/renderer/hooks/useGlassState";
 import { Select, ToggleSwitch } from "@/renderer/components/common";
 import { SettingRow, SettingsPage } from "./SettingsForm";
-import { ThemeGallery, ThemeSwatch } from "./ThemeGallery";
+import { ThemeGallery } from "./ThemeGallery";
+import { ThemeSwatch } from "./ThemeSwatch";
 import {
   fontSizeOptions,
   themeOptions,
@@ -131,8 +132,13 @@ export function AppearanceSettings() {
               </Trans>
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            <span className="text-sm text-foreground">{activePreset.label}</span>
+          <div className="flex min-w-0 shrink-0 items-center gap-2.5">
+            <span
+              className="max-w-[35vw] truncate text-sm text-foreground sm:max-w-[16rem]"
+              title={activePreset.label}
+            >
+              {activePreset.label}
+            </span>
             <ThemeSwatch vars={activeVars} />
             <ChevronDown
               className={`size-4 text-muted transition-transform ${themeOpen ? "rotate-180" : ""}`}

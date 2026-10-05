@@ -4,31 +4,31 @@ import { z } from "zod";
 export const CUSTOM_THEME_VERSION = 1;
 export const MAX_CUSTOM_THEMES = 100;
 export const MAX_THEME_JSON_LENGTH = 32_768;
-const hexColor = z.string().regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
+export const hexColorSchema = z.string().regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/);
 
 export const themePaletteSchema = z.object({
   /** Editor/content background (the largest surface). */
-  bg: hexColor,
+  bg: hexColorSchema,
   /** Panel/card surface; other fills are derived from this anchor. */
-  surface: hexColor,
+  surface: hexColorSchema,
   /** Primary text color. */
-  fg: hexColor,
+  fg: hexColorSchema,
   /** Primary action color. */
-  accent: hexColor,
+  accent: hexColorSchema,
   /** Text drawn on the accent. */
-  accentFg: hexColor,
+  accentFg: hexColorSchema,
   /** Hairline border/separator base color. */
-  border: hexColor,
+  border: hexColorSchema,
   /** Side chrome background; defaults to surface. */
-  sidebar: hexColor.optional(),
+  sidebar: hexColorSchema.optional(),
   /** Main content background; defaults to bg. */
-  content: hexColor.optional(),
+  content: hexColorSchema.optional(),
   /** Prompt input fill; defaults to surface stepped toward fg. */
-  composer: hexColor.optional(),
+  composer: hexColorSchema.optional(),
   /** Give the docked sidebar its own fill instead of the content background. */
   sidebarFill: z.boolean().optional(),
   /** Selected sidebar row fill; defaults to the shared foreground wash. */
-  sidebarRowActive: hexColor.optional(),
+  sidebarRowActive: hexColorSchema.optional(),
 });
 
 export type ThemePalette = z.infer<typeof themePaletteSchema>;

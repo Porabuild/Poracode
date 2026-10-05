@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— biểu thị màu nền tự động hoặc màu không hợp lệ."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -2443,6 +2447,10 @@ msgstr "Kiểm tra các bản cập nhật"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Kiểm tra tiến độ gần đây của tôi và đưa ra một đề xuất cụ thể về việc cần làm tiếp theo."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "Kiểm tra màu không hợp lệ trong bảng màu {invalidPaletteName}."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2765,6 +2773,7 @@ msgstr "Nhân bản…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "Đóng"
 
@@ -3242,6 +3251,7 @@ msgstr "Đã hoàn tất"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Composer background"
 msgstr "Nền ô nhập"
@@ -3452,6 +3462,7 @@ msgstr "Console"
 msgid "Contains sensitive values; add manually"
 msgstr "Có chứa giá trị nhạy cảm; hãy thêm thủ công"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Content background"
 msgstr "Nền nội dung"
@@ -4145,6 +4156,10 @@ msgstr "Cửa sổ ngữ cảnh tùy chỉnh"
 msgid "custom path"
 msgstr "đường dẫn tùy chỉnh"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "Giao diện tùy chỉnh"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "Luân chuyển chế độ cho phép"
@@ -4170,6 +4185,7 @@ msgstr "Hằng ngày"
 msgid "Daily brief"
 msgstr "Bản tóm tắt hằng ngày"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -6113,6 +6129,10 @@ msgstr "Nội dung mục tiêu"
 msgid "Goals set"
 msgstr "Mục tiêu đã đặt"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "Tương phản tốt"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "Đã hiểu"
@@ -7000,6 +7020,7 @@ msgstr "tokens trọn đời"
 msgid "Lifetime tokens"
 msgstr "Tokens trọn đời"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -7259,6 +7280,10 @@ msgstr "Đang tìm máy chủ phát triển…"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "Các worktree và nhánh không được chọn sẽ bị xóa. Lịch sử phiên của chúng sẽ được giữ lại."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "Tương phản thấp"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -10396,6 +10421,10 @@ msgstr "Bị giới hạn tốc độ · thử lại sau {retry}"
 msgid "Rate limited. Try again shortly."
 msgstr "Bị giới hạn tốc độ. Hãy thử lại sau giây lát."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "Tỷ lệ cho các bề mặt đục của giao diện. Nên đạt ít nhất 4,5:1 cho chữ."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
 msgstr "Áp dụng lại các thay đổi cục bộ có xung đột"
@@ -11781,6 +11810,10 @@ msgstr "Đang tìm kiếm..."
 msgid "Searching…"
 msgstr "Đang tìm kiếm…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "Chữ phụ"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Danh mục tập trung vào bảo mật với siêu dữ liệu skill đã được xác minh."
@@ -11898,6 +11931,7 @@ msgstr "Chọn…"
 #~ msgid "Selected project"
 #~ msgstr "Dự án đã chọn"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
 msgstr "Hàng được chọn ở thanh bên"
@@ -12225,6 +12259,7 @@ msgstr "Hiển thị cạnh tên dự án."
 #~ msgid "Sidebar"
 #~ msgstr "Thanh bên"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Sidebar background"
 msgstr "Nền thanh bên"
@@ -12921,6 +12956,7 @@ msgstr "Hỗ trợ:"
 msgid "Supports Fast mode"
 msgstr "Hỗ trợ chế độ nhanh"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Surface"
 msgstr "Bề mặt"
@@ -13212,6 +13248,11 @@ msgstr "Kiểm tra micrô"
 msgid "Text color"
 msgstr "Màu chữ"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "Độ tương phản chữ"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text on accent"
 msgstr "Chữ trên màu nhấn"

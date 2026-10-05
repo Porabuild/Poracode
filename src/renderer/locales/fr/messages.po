@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— indique un remplissage automatique ou une couleur invalide."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -2443,6 +2447,10 @@ msgstr "Vérifier les mises à jour"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Examine mes progrès récents et donne-moi une recommandation précise pour la suite."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "Vérifiez les couleurs invalides dans la palette {invalidPaletteName}."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2765,6 +2773,7 @@ msgstr "Clonage…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "Fermer"
 
@@ -3242,6 +3251,7 @@ msgstr "Terminé"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Composer background"
 msgstr "Arrière-plan de la zone de saisie"
@@ -3452,6 +3462,7 @@ msgstr "Console"
 msgid "Contains sensitive values; add manually"
 msgstr "Contient des valeurs sensibles ; ajoutez-le manuellement"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Content background"
 msgstr "Arrière-plan du contenu"
@@ -4145,6 +4156,10 @@ msgstr "Fenêtre de contexte personnalisée"
 msgid "custom path"
 msgstr "chemin personnalisé"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "Thème personnalisé"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "Parcourir les modes d'autorisation"
@@ -4170,6 +4185,7 @@ msgstr "Tous les jours"
 msgid "Daily brief"
 msgstr "Brief quotidien"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -6113,6 +6129,10 @@ msgstr "Description de l'objectif"
 msgid "Goals set"
 msgstr "Objectifs définis"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "Bon contraste"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "Compris"
@@ -7000,6 +7020,7 @@ msgstr "tokens cumulés"
 msgid "Lifetime tokens"
 msgstr "Tokens cumulés"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -7259,6 +7280,10 @@ msgstr "Recherche de serveurs de développement…"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "Les arbres de travail et les branches des candidats non retenus seront supprimés. L’historique de leurs sessions sera conservé."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "Contraste faible"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -10395,6 +10420,10 @@ msgstr "Débit limité · réessayez dans {retry}"
 msgid "Rate limited. Try again shortly."
 msgstr "Débit limité. Réessayez sous peu."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "Rapports pour les surfaces opaques du thème. Visez au moins 4,5:1 pour le texte."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
 msgstr "La réapplication des modifications locales entraîne des conflits"
@@ -11780,6 +11809,10 @@ msgstr "Recherche..."
 msgid "Searching…"
 msgstr "Recherche…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "Texte secondaire"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Annuaire axé sur la sécurité avec des métadonnées de skills vérifiées."
@@ -11897,6 +11930,7 @@ msgstr "Sélectionner…"
 #~ msgid "Selected project"
 #~ msgstr "Projet sélectionné"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
 msgstr "Ligne sélectionnée de la barre latérale"
@@ -12224,6 +12258,7 @@ msgstr "Affichée à côté du nom du projet."
 #~ msgid "Sidebar"
 #~ msgstr "Barre latérale"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Sidebar background"
 msgstr "Arrière-plan de la barre latérale"
@@ -12920,6 +12955,7 @@ msgstr "Prise en charge :"
 msgid "Supports Fast mode"
 msgstr "Compatible avec le mode rapide"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Surface"
 msgstr "Surface"
@@ -13211,6 +13247,11 @@ msgstr "Tester le micro"
 msgid "Text color"
 msgstr "Couleur du texte"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "Contraste du texte"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text on accent"
 msgstr "Texte sur l’accent"

@@ -1,3 +1,4 @@
+import { downloadTextFile } from "@/renderer/utils/downloadTextFile";
 import { useState, type ReactNode } from "react";
 import { Input, Modal, Tooltip } from "@heroui/react";
 import {
@@ -296,15 +297,11 @@ export function McpServersManager(props: {
   };
 
   const exportServers = () => {
-    const blob = new Blob([`${serializeMcpServersJson(defaultSource.servers)}\n`], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "poracode-mcp-servers.json";
-    anchor.click();
-    URL.revokeObjectURL(url);
+    downloadTextFile(
+      "poracode-mcp-servers.json",
+      `${serializeMcpServersJson(defaultSource.servers)}\n`,
+      "application/json",
+    );
   };
 
   const hasVisibleRows =

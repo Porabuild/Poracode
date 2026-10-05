@@ -1,5 +1,4 @@
 import { CustomThemes } from "./CustomThemes";
-export { ThemeSwatch } from "./ThemeSwatch";
 import { startTransition, type CSSProperties } from "react";
 import { Check } from "lucide-react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -24,6 +23,7 @@ export function ThemeGallery() {
 
   return (
     <div className="space-y-3">
+      <CustomThemes />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {presets.map((preset) => (
           <ThemeCard
@@ -39,7 +39,6 @@ export function ThemeGallery() {
           />
         ))}
       </div>
-      <CustomThemes />
     </div>
   );
 }
@@ -66,7 +65,7 @@ function ThemeCard(props: {
         <div className="flex h-16" style={{ background: "var(--content-background)" }}>
           <div
             className="w-1/3 border-r p-1.5"
-            style={{ background: "var(--sidebar-background)", borderColor: "var(--border)" }}
+            style={{ background: "var(--sidebar-panel-background)", borderColor: "var(--border)" }}
           >
             <div className="h-1.5 w-3/4 rounded-full" style={{ background: "var(--muted)" }} />
             <div

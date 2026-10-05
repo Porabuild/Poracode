@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "—는 자동 채우기 또는 유효하지 않은 색상을 의미합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -2443,6 +2447,10 @@ msgstr "업데이트 확인"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "최근 진행 상황을 확인하고 다음에 할 일에 대한 구체적인 권장 사항 하나를 알려 주세요."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "{invalidPaletteName} 팔레트에 유효하지 않은 색상이 있는지 확인하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2765,6 +2773,7 @@ msgstr "복제 중…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "닫기"
 
@@ -3242,6 +3251,7 @@ msgstr "완료됨"
 msgid "Composer"
 msgstr "작성기"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Composer background"
 msgstr "입력창 배경"
@@ -3452,6 +3462,7 @@ msgstr "콘솔"
 msgid "Contains sensitive values; add manually"
 msgstr "민감한 값이 포함되어 있습니다. 직접 추가하세요"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Content background"
 msgstr "콘텐츠 배경"
@@ -4145,6 +4156,10 @@ msgstr "사용자 지정 컨텍스트 창"
 msgid "custom path"
 msgstr "사용자 지정 경로"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "사용자 지정 테마"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "권한 모드 순환"
@@ -4170,6 +4185,7 @@ msgstr "매일"
 msgid "Daily brief"
 msgstr "일일 브리핑"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -6113,6 +6129,10 @@ msgstr "목표 내용"
 msgid "Goals set"
 msgstr "설정한 목표"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "좋은 대비"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "확인"
@@ -7000,6 +7020,7 @@ msgstr "누적 토큰"
 msgid "Lifetime tokens"
 msgstr "누적 토큰"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -7259,6 +7280,10 @@ msgstr "개발 서버를 찾는 중…"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "선정되지 않은 작업 트리와 브랜치는 제거됩니다. 세션 기록은 유지됩니다."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "낮은 대비"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -10396,6 +10421,10 @@ msgstr "속도 제한 · {retry} 후 다시 시도"
 msgid "Rate limited. Try again shortly."
 msgstr "속도 제한에 도달했습니다. 잠시 후 다시 시도하세요."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "테마의 불투명한 표면에 대한 비율입니다. 텍스트 대비는 최소 4.5:1을 목표로 하세요."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
 msgstr "로컬 변경 사항을 다시 적용하면 충돌이 발생합니다."
@@ -11781,6 +11810,10 @@ msgstr "검색 중..."
 msgid "Searching…"
 msgstr "검색 중…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "보조 텍스트"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "검증된 스킬 메타데이터를 제공하는 보안 중심 디렉터리입니다."
@@ -11898,6 +11931,7 @@ msgstr "선택…"
 #~ msgid "Selected project"
 #~ msgstr "선택한 프로젝트"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
 msgstr "선택된 사이드바 행"
@@ -12225,6 +12259,7 @@ msgstr "프로젝트 이름 옆에 표시됩니다."
 #~ msgid "Sidebar"
 #~ msgstr "사이드바"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Sidebar background"
 msgstr "사이드바 배경"
@@ -12921,6 +12956,7 @@ msgstr "지원:"
 msgid "Supports Fast mode"
 msgstr "고속 모드 지원"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Surface"
 msgstr "표면"
@@ -13212,6 +13248,11 @@ msgstr "마이크 테스트"
 msgid "Text color"
 msgstr "텍스트 색상"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "텍스트 대비"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text on accent"
 msgstr "강조색 위의 텍스트"

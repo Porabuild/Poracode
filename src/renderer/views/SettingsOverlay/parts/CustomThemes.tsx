@@ -118,7 +118,6 @@ export function CustomThemes() {
         onConfirm={() => {
           if (deleting) removeCustomTheme(deleting.id);
           setDeleting(null);
-          if (editing?.id === deleting?.id) setEditing(null);
         }}
       />
     </div>

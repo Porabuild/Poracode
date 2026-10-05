@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— 表示自动填充或无效颜色。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -2443,6 +2447,10 @@ msgstr "检查更新"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "检查我最近的进展，并针对下一步给出一条明确建议。"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "请检查{invalidPaletteName}配色中是否有无效颜色。"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2765,6 +2773,7 @@ msgstr "克隆…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "关闭"
 
@@ -3242,6 +3251,7 @@ msgstr "已完成"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Composer background"
 msgstr "输入框背景"
@@ -3452,6 +3462,7 @@ msgstr "控制台"
 msgid "Contains sensitive values; add manually"
 msgstr "包含敏感值；请手动添加"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Content background"
 msgstr "内容背景"
@@ -4145,6 +4156,10 @@ msgstr "自定义上下文窗口"
 msgid "custom path"
 msgstr "自定义路径"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "自定义主题"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "循环切换权限模式"
@@ -4170,6 +4185,7 @@ msgstr "每天"
 msgid "Daily brief"
 msgstr "每日简报"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -6113,6 +6129,10 @@ msgstr "目标内容"
 msgid "Goals set"
 msgstr "已设目标"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "对比度良好"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "知道了"
@@ -7000,6 +7020,7 @@ msgstr "累计token数"
 msgid "Lifetime tokens"
 msgstr "累计token数"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -7259,6 +7280,10 @@ msgstr "正在查找开发服务器…"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "未胜出的工作树和分支将被移除。其会话历史将保留。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "对比度较低"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -10395,6 +10420,10 @@ msgstr "已限速 · {retry} 后重试"
 msgid "Rate limited. Try again shortly."
 msgstr "已限速。请稍后重试。"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "这些比率适用于主题的不透明表面。文字对比度建议至少为 4.5:1。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
 msgstr "重新应用本地更改有冲突"
@@ -11780,6 +11809,10 @@ msgstr "正在搜索..."
 msgid "Searching…"
 msgstr "正在搜索…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "次要文字"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "注重安全并提供已验证技能元数据的目录。"
@@ -11897,6 +11930,7 @@ msgstr "选择…"
 #~ msgid "Selected project"
 #~ msgstr "所选项目"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
 msgstr "侧栏选中行"
@@ -12224,6 +12258,7 @@ msgstr "显示在项目名称旁。"
 #~ msgid "Sidebar"
 #~ msgstr "侧边栏"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Sidebar background"
 msgstr "侧栏背景"
@@ -12920,6 +12955,7 @@ msgstr "支持："
 msgid "Supports Fast mode"
 msgstr "支持快速模式"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Surface"
 msgstr "表面"
@@ -13211,6 +13247,11 @@ msgstr "测试麦克风"
 msgid "Text color"
 msgstr "文字颜色"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "文字对比度"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text on accent"
 msgstr "强调色上的文字"

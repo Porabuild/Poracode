@@ -1,6 +1,6 @@
 import { Label, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
-import type { ThemePalette } from "@/shared/customThemes";
+import { hexColorSchema, type ThemePalette } from "@/shared/customThemes";
 import { Input, ToggleSwitch } from "@/renderer/components/common";
 
 export function CustomThemePalette(props: {
@@ -25,8 +25,7 @@ export function CustomThemePalette(props: {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {fields.map(({ key, label, required }) => {
           const value = props.palette[key] ?? "";
-          const invalid =
-            (required || value !== "") && !/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(value);
+          const invalid = (required || value !== "") && !hexColorSchema.safeParse(value).success;
           return (
             <TextField key={key} isRequired={required} isInvalid={invalid}>
               <Label className="text-xs">{label}</Label>

@@ -91,6 +91,7 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     fg,
     [
       { color: bg, floor: MUTED_BG_FLOOR },
+      { color: content, floor: MUTED_BG_FLOOR },
       { color: surface, floor: MUTED_PANEL_FLOOR },
       { color: sidebar, floor: MUTED_PANEL_FLOOR },
     ],

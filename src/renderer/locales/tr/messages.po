@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— otomatik dolgu veya geçersiz renk anlamına gelir."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -2443,6 +2447,10 @@ msgstr "Güncellemeleri kontrol edin"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Son ilerlememi kontrol et ve sırada ne yapmam gerektiğine dair tek bir net öneri ver."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "{invalidPaletteName} paletinde geçersiz renkleri kontrol edin."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2765,6 +2773,7 @@ msgstr "Klonlanıyor…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "Kapat"
 
@@ -3242,6 +3251,7 @@ msgstr "Tamamlandı"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Composer background"
 msgstr "Giriş alanı arka planı"
@@ -3452,6 +3462,7 @@ msgstr "Konsol"
 msgid "Contains sensitive values; add manually"
 msgstr "Hassas değerler içeriyor; elle ekleyin"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Content background"
 msgstr "İçerik arka planı"
@@ -4145,6 +4156,10 @@ msgstr "Özel bağlam penceresi"
 msgid "custom path"
 msgstr "özel yol"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "Özel tema"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "İzin modunu değiştir"
@@ -4170,6 +4185,7 @@ msgstr "Günlük"
 msgid "Daily brief"
 msgstr "Günlük özet"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -6113,6 +6129,10 @@ msgstr "Hedef açıklaması"
 msgid "Goals set"
 msgstr "Belirlenen hedefler"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "İyi kontrast"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "Anladım"
@@ -7000,6 +7020,7 @@ msgstr "toplam token"
 msgid "Lifetime tokens"
 msgstr "Toplam token"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -7259,6 +7280,10 @@ msgstr "Geliştirme sunucuları aranıyor…"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "Seçilmeyen adayların çalışma ağaçları ve şubeleri kaldırılacak. Oturum geçmişleri korunacak."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "Düşük kontrast"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -10396,6 +10421,10 @@ msgstr "Hız sınırlı · {retry} sonra tekrar deneyin"
 msgid "Rate limited. Try again shortly."
 msgstr "Hız sınırlı. Kısa süre sonra tekrar deneyin."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "Temanın opak yüzeyleri için oranlar. Metin için en az 4,5:1 hedefleyin."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
 msgstr "Yerel değişikliklerin yeniden uygulanmasında çakışmalar var"
@@ -11781,6 +11810,10 @@ msgstr "Aranıyor..."
 msgid "Searching…"
 msgstr "Aranıyor…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "İkincil metin"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Doğrulanmış beceri meta verileri sunan güvenlik odaklı dizin."
@@ -11898,6 +11931,7 @@ msgstr "Seç…"
 #~ msgid "Selected project"
 #~ msgstr "Seçili proje"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
 msgstr "Seçili kenar çubuğu satırı"
@@ -12225,6 +12259,7 @@ msgstr "Proje adının yanında gösterilir."
 #~ msgid "Sidebar"
 #~ msgstr "Kenar çubuğu"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Sidebar background"
 msgstr "Kenar çubuğu arka planı"
@@ -12921,6 +12956,7 @@ msgstr "Destek:"
 msgid "Supports Fast mode"
 msgstr "Hızlı modu destekler"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Surface"
 msgstr "Yüzey"
@@ -13212,6 +13248,11 @@ msgstr "Mikrofonu test edin"
 msgid "Text color"
 msgstr "Metin rengi"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "Metin kontrastı"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text on accent"
 msgstr "Vurgu üzerindeki metin"

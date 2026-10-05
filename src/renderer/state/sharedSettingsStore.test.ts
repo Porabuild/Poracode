@@ -1,3 +1,5 @@
+import { MAX_CUSTOM_THEMES } from "@/shared/customThemes";
+import { THEME_SPECS } from "@/renderer/theme/themePresets";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins";
 import { useSharedSettings, waitForPendingSharedSettings } from "./sharedSettingsStore";
@@ -15,6 +17,8 @@ describe("sharedSettingsStore", () => {
     seedBuiltInPlugins();
     useSharedSettings.setState({
       themeMode: "dark",
+      themePreset: "default",
+      customThemes: [],
       staleThreadUnloadMinutes: 20,
       followUpBehavior: "steer",
       audio: {
@@ -52,6 +56,25 @@ describe("sharedSettingsStore", () => {
   it("switches theme mode", () => {
     useSharedSettings.getState().setThemeMode("light");
     expect(useSharedSettings.getState().themeMode).toBe("light");
+  });
+
+  it("rejects a new theme at the limit while allowing an existing theme to be edited", () => {
+    const themes = Array.from({ length: MAX_CUSTOM_THEMES }, (_, index) => ({
+      ...THEME_SPECS[0]!,
+      version: 1 as const,
+      id: `custom:theme-${index}`,
+      label: `Theme ${index}`,
+    }));
+    useSharedSettings.setState({ customThemes: themes, themePreset: themes[0]!.id });
+    expect(
+      useSharedSettings.getState().saveCustomTheme({ ...themes[0]!, id: "custom:overflow" }),
+    ).toBe(false);
+    expect(useSharedSettings.getState().themePreset).toBe(themes[0]!.id);
+    expect(
+      useSharedSettings.getState().saveCustomTheme({ ...themes[0]!, label: "Edited theme" }),
+    ).toBe(true);
+    expect(useSharedSettings.getState().customThemes).toHaveLength(MAX_CUSTOM_THEMES);
+    expect(useSharedSettings.getState().customThemes[0]!.label).toBe("Edited theme");
   });
 
   it("updates the Windows shell path and arguments", () => {

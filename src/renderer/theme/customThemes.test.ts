@@ -1,3 +1,4 @@
+import { contrastRatio } from "./colorMath";
 import { afterEach, describe, expect, it } from "vitest";
 import { type CustomTheme } from "@/shared/customThemes";
 import { THEME_SPECS, getThemePreset } from "./themePresets";
@@ -78,5 +79,21 @@ describe("custom theme application", () => {
     );
     bootstrapAppThemeFromCache();
     expect(document.documentElement.style.getPropertyValue("--background")).toBe("");
+  });
+});
+
+describe("custom content readability", () => {
+  it.each([
+    { mode: "dark" as const, bg: "#202020", surface: "#262626", fg: "#e0e0e0", content: "#3c3c3c" },
+    {
+      mode: "light" as const,
+      bg: "#ffffff",
+      surface: "#ffffff",
+      fg: "#222222",
+      content: "#e4e4e4",
+    },
+  ])("derives muted text against the actual $mode content background", ({ mode, ...palette }) => {
+    const vars = buildVariant({ ...theme[mode], ...palette }, mode);
+    expect(contrastRatio(vars["--muted"]!, palette.content)).toBeGreaterThanOrEqual(4.5);
   });
 });

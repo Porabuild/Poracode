@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— は自動設定の塗りつぶし、または無効な色を示します。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -2442,6 +2446,10 @@ msgstr "アップデートをチェックする"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "最近の進捗を確認し、次に何をすべきか具体的な提案を1つしてください。"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "{invalidPaletteName}パレットに無効な色がないか確認してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2764,6 +2772,7 @@ msgstr "クローン作成中…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "閉じる"
 
@@ -3241,6 +3250,7 @@ msgstr "完了"
 msgid "Composer"
 msgstr "コンポーザー"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Composer background"
 msgstr "入力欄の背景"
@@ -3451,6 +3461,7 @@ msgstr "コンソール"
 msgid "Contains sensitive values; add manually"
 msgstr "機密値が含まれています。手動で追加してください"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Content background"
 msgstr "コンテンツの背景"
@@ -4144,6 +4155,10 @@ msgstr "カスタムコンテキストウィンドウ"
 msgid "custom path"
 msgstr "カスタムパス"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "カスタムテーマ"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "許可モードを切り替え"
@@ -4169,6 +4184,7 @@ msgstr "毎日"
 msgid "Daily brief"
 msgstr "デイリーブリーフ"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -6112,6 +6128,10 @@ msgstr "目標の内容"
 msgid "Goals set"
 msgstr "設定した目標数"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "十分なコントラスト"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "了解"
@@ -6999,6 +7019,7 @@ msgstr "累計トークン"
 msgid "Lifetime tokens"
 msgstr "累計トークン"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -7258,6 +7279,10 @@ msgstr "開発サーバーを検索しています…"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "敗者のワークツリーとブランチは削除されます。セッション履歴は保持されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "低いコントラスト"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -10394,6 +10419,10 @@ msgstr "レート制限あり · {retry}後に再試行"
 msgid "Rate limited. Try again shortly."
 msgstr "レート制限あり。しばらくしてからもう一度お試しください。"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "テーマの不透明な面での比率です。文字は4.5:1以上を目安にしてください。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
 msgstr "ローカルの変更を再適用すると競合が発生する"
@@ -11779,6 +11808,10 @@ msgstr "検索中..."
 msgid "Searching…"
 msgstr "検索中…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "補助テキスト"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "検証済みのスキルメタデータを備えたセキュリティ重視のディレクトリ。"
@@ -11896,6 +11929,7 @@ msgstr "選択…"
 #~ msgid "Selected project"
 #~ msgstr "選択したプロジェクト"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
 msgstr "サイドバーの選択行"
@@ -12223,6 +12257,7 @@ msgstr "プロジェクト名の横に表示されます。"
 #~ msgid "Sidebar"
 #~ msgstr "サイドバー"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Sidebar background"
 msgstr "サイドバーの背景"
@@ -12919,6 +12954,7 @@ msgstr "サポート:"
 msgid "Supports Fast mode"
 msgstr "高速モードに対応"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Surface"
 msgstr "サーフェス"
@@ -13210,6 +13246,11 @@ msgstr "マイクをテスト"
 msgid "Text color"
 msgstr "文字色"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "文字のコントラスト"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text on accent"
 msgstr "アクセント上の文字"

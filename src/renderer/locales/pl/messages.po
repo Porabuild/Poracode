@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— oznacza automatyczne wypełnienie lub nieprawidłowy kolor."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -2443,6 +2447,10 @@ msgstr "Sprawdź aktualizacje"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Sprawdź moje ostatnie postępy i podaj jedną konkretną rekomendację, co zrobić dalej."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "Sprawdź paletę „{invalidPaletteName}” pod kątem nieprawidłowych kolorów."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2765,6 +2773,7 @@ msgstr "Klonowanie…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "Zamknij"
 
@@ -3242,6 +3251,7 @@ msgstr "Ukończono"
 msgid "Composer"
 msgstr "Kompozytor"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Composer background"
 msgstr "Tło pola wprowadzania"
@@ -3452,6 +3462,7 @@ msgstr "Konsola"
 msgid "Contains sensitive values; add manually"
 msgstr "Zawiera poufne wartości; dodaj ręcznie"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Content background"
 msgstr "Tło treści"
@@ -4145,6 +4156,10 @@ msgstr "Niestandardowe okno kontekstu"
 msgid "custom path"
 msgstr "niestandardowa ścieżka"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "Własny motyw"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "Przełączaj tryb uprawnień"
@@ -4170,6 +4185,7 @@ msgstr "Codziennie"
 msgid "Daily brief"
 msgstr "Codzienne podsumowanie"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -6113,6 +6129,10 @@ msgstr "Treść celu"
 msgid "Goals set"
 msgstr "Ustawione cele"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "Dobry kontrast"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "Rozumiem"
@@ -7000,6 +7020,7 @@ msgstr "tokeny ogółem"
 msgid "Lifetime tokens"
 msgstr "Tokeny ogółem"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -7259,6 +7280,10 @@ msgstr "Szukanie serwerów deweloperskich…"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "Drzewa robocze i gałęzie odrzuconych kandydatów zostaną usunięte. Historia ich sesji zostanie zachowana."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "Niski kontrast"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -10396,6 +10421,10 @@ msgstr "Osiągnięto limit żądań · spróbuj ponownie za {retry}"
 msgid "Rate limited. Try again shortly."
 msgstr "Osiągnięto limit żądań. Spróbuj ponownie wkrótce."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "Wartości dla nieprzezroczystych powierzchni motywu. Dąż do kontrastu co najmniej 4,5:1 dla tekstu."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
 msgstr "Ponowne zastosowanie zmian lokalnych powoduje konflikty"
@@ -11781,6 +11810,10 @@ msgstr "Wyszukiwanie..."
 msgid "Searching…"
 msgstr "Wyszukiwanie…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "Tekst drugorzędny"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Katalog ukierunkowany na bezpieczeństwo ze zweryfikowanymi metadanymi skilli."
@@ -11898,6 +11931,7 @@ msgstr "Wybierz…"
 #~ msgid "Selected project"
 #~ msgstr "Wybrany projekt"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
 msgstr "Wybrany wiersz paska bocznego"
@@ -12225,6 +12259,7 @@ msgstr "Wyświetlana obok nazwy projektu."
 #~ msgid "Sidebar"
 #~ msgstr "Pasek boczny"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Sidebar background"
 msgstr "Tło paska bocznego"
@@ -12921,6 +12956,7 @@ msgstr "Wsparcie:"
 msgid "Supports Fast mode"
 msgstr "Obsługuje tryb szybki"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Surface"
 msgstr "Powierzchnia"
@@ -13212,6 +13248,11 @@ msgstr "Przetestuj mikrofon"
 msgid "Text color"
 msgstr "Kolor tekstu"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "Kontrast tekstu"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text on accent"
 msgstr "Tekst na akcencie"

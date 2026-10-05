@@ -17,6 +17,10 @@ msgstr ""
 msgid "-y @modelcontextprotocol/server-memory"
 msgstr "-y @modelcontextprotocol/server-memory"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "— means an automatic fill or an invalid color."
+msgstr "— means an automatic fill or an invalid color."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "…"
 msgstr "…"
@@ -2447,6 +2451,10 @@ msgstr "Check for updates"
 msgid "Check my recent progress and give me one focused recommendation for what to do next."
 msgstr "Check my recent progress and give me one focused recommendation for what to do next."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Check the {invalidPaletteName} palette for invalid colors."
+msgstr "Check the {invalidPaletteName} palette for invalid colors."
+
 #: src/renderer/views/SettingsOverlay/parts/AudioSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Check the live input level from the selected device."
@@ -2769,6 +2777,7 @@ msgstr "Cloning…"
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/BrowserPanel.tsx
 #: src/renderer/views/QuickComposerOverlay/QuickComposerOverlay.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 msgid "Close"
 msgstr "Close"
 
@@ -3246,6 +3255,7 @@ msgstr "Completed"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Composer background"
 msgstr "Composer background"
@@ -3456,6 +3466,7 @@ msgstr "Console"
 msgid "Contains sensitive values; add manually"
 msgstr "Contains sensitive values; add manually"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Content background"
 msgstr "Content background"
@@ -4149,6 +4160,10 @@ msgstr "Custom context window"
 msgid "custom path"
 msgstr "custom path"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Custom theme"
+msgstr "Custom theme"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Cycle permission mode"
 msgstr "Cycle permission mode"
@@ -4174,6 +4189,7 @@ msgstr "Daily"
 msgid "Daily brief"
 msgstr "Daily brief"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
@@ -6117,6 +6133,10 @@ msgstr "Goal objective"
 msgid "Goals set"
 msgstr "Goals set"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Good contrast"
+msgstr "Good contrast"
+
 #: src/renderer/views/WhatsNewOverlay.tsx
 msgid "Got it"
 msgstr "Got it"
@@ -7004,6 +7024,7 @@ msgstr "lifetime tokens"
 msgid "Lifetime tokens"
 msgstr "Lifetime tokens"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
@@ -7263,6 +7284,10 @@ msgstr "Looking for dev servers…"
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "Losing worktrees and branches will be removed. Their session history will remain."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Low contrast"
+msgstr "Low contrast"
 
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
@@ -10400,6 +10425,10 @@ msgstr "Rate limited · retry in {retry}"
 msgid "Rate limited. Try again shortly."
 msgstr "Rate limited. Try again shortly."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+msgstr "Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Re-applying local changes has conflicts"
 msgstr "Re-applying local changes has conflicts"
@@ -11785,6 +11814,10 @@ msgstr "Searching..."
 msgid "Searching…"
 msgstr "Searching…"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Secondary text"
+msgstr "Secondary text"
+
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 #~ msgid "Security-focused directory with verified skill metadata."
 #~ msgstr "Security-focused directory with verified skill metadata."
@@ -11902,6 +11935,7 @@ msgstr "Select…"
 #~ msgid "Selected project"
 #~ msgstr "Selected project"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Selected sidebar row"
 msgstr "Selected sidebar row"
@@ -12229,6 +12263,7 @@ msgstr "Shown next to the project name."
 #~ msgid "Sidebar"
 #~ msgstr "Sidebar"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Sidebar background"
 msgstr "Sidebar background"
@@ -12925,6 +12960,7 @@ msgstr "Support:"
 msgid "Supports Fast mode"
 msgstr "Supports Fast mode"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Surface"
 msgstr "Surface"
@@ -13216,6 +13252,11 @@ msgstr "Test microphone"
 msgid "Text color"
 msgstr "Text color"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
+msgid "Text contrast"
+msgstr "Text contrast"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeContrast.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Text on accent"
 msgstr "Text on accent"

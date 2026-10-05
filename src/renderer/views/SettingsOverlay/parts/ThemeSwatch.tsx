@@ -13,7 +13,7 @@ export function ThemeSwatch(props: { vars: CSSProperties; className?: string }) 
     >
       <div
         className="flex w-1/3 flex-col justify-center gap-1 px-1"
-        style={{ background: "var(--sidebar-background)" }}
+        style={{ background: "var(--sidebar-panel-background)" }}
       >
         <span className="h-1 w-full rounded-full" style={{ background: "var(--muted)" }} />
         <span className="h-1 w-2/3 rounded-full" style={{ background: "var(--muted)" }} />
