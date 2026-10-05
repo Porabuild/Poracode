@@ -1,0 +1,45 @@
+/* Compact web dialogs use the available visual viewport, including when the
+   keyboard is open. The adaptive-layout marker keeps Electron dialogs intact. */
+html[data-compact-layout] :is(.modal__container, .alert-dialog__container) {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+  background: var(--overlay);
+}
+
+/* Include the container in the selector to override the shared dialog radius
+   and per-dialog desktop width caps, including the 640–767px compact range. */
+html[data-compact-layout]
+  :is(.modal__container, .alert-dialog__container)
+  > :is(.modal__dialog, .alert-dialog__dialog) {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  padding-inline: var(--m-page-inline);
+}
+
+html[data-compact-layout] :is(.modal__header, .alert-dialog__header) {
+  flex-shrink: 0;
+}
+
+html[data-compact-layout] :is(.modal__body, .alert-dialog__body) {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+html[data-compact-layout] :is(.modal__footer, .alert-dialog__footer) {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
