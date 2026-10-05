@@ -690,27 +690,25 @@ export class SpawnPipeline {
         launchConfig,
         nativePlugins,
       });
-      if (!startInterrupted && initialPrompt.length > 0 && structuredSession.startTurn) {
-        // A launch that resumes a provider session can carry a prompt too: the
-        // renderer relaunches a thread this host no longer holds with the
-        // message that triggered it (`resumeLaunch`), and a thread created
-        // around an existing session (an import) has no runtime to restart.
-        // The optimistic paint above skips resumes, so the message is emitted
-        // here — reusing the renderer's id when it already painted one.
-        const userMessageItemId =
-          optimisticUserMessageItemId ??
-          ctx.emitOptimisticUserMessage(
-            payload.threadId,
-            initialPrompt,
-            payload.segments,
-            payload.userMessageItemId,
-          );
+      if (
+        !startInterrupted &&
+        !payload.sessionRef &&
+        initialPrompt.length > 0 &&
+        structuredSession.startTurn
+      ) {
         const startOptions = {
-          userMessageItemId,
+          ...(optimisticUserMessageItemId
+            ? { userMessageItemId: optimisticUserMessageItemId }
+            : {}),
           ...(inlineInstructions ? { inlineInstructions } : {}),
         };
         void structuredSession
-          .startTurn(initialPrompt, launchConfig, effectiveSegments, startOptions)
+          .startTurn(
+            initialPrompt,
+            launchConfig,
+            effectiveSegments,
+            Object.keys(startOptions).length > 0 ? startOptions : undefined,
+          )
           .catch((error) => {
             if (ctx.sessions.get(session.threadId)?.instanceId !== session.instanceId) {
               return;
