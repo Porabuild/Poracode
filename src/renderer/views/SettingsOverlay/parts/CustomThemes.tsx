@@ -68,6 +68,7 @@ export function CustomThemes() {
               variant="ghost"
               onPress={() => {
                 importGeneration.current++;
+                setImportError(false);
                 setEditing(activeCustom);
               }}
             >

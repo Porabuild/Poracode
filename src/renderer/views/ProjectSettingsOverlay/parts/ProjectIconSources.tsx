@@ -1,15 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import {
-  ColorArea,
-  ColorField,
-  ColorPicker,
-  ColorSlider,
-  ColorSwatch,
-  parseColor,
-  type Color,
-} from "@heroui/react";
+import { ColorPicker, parseColor, type Color } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import type { Project } from "@/shared/contracts";
+import { ColorPickerControls } from "@/renderer/components/common/ColorPickerControls";
 import { projectIconImageUrl } from "@/renderer/components/common/ProjectIcon";
 import {
   customProjectIconColorHex,
@@ -222,28 +215,7 @@ function CustomColorSwatch(props: {
         {...(stored ? { style: { backgroundColor: stored, backgroundImage: "none" } } : {})}
       />
       <ColorPicker.Popover className="gap-2">
-        <ColorArea
-          aria-label={t`Saturation and brightness`}
-          className="max-w-full"
-          colorSpace="hsb"
-          xChannel="saturation"
-          yChannel="brightness"
-        >
-          <ColorArea.Thumb />
-        </ColorArea>
-        <ColorSlider aria-label={t`Hue`} channel="hue" className="px-1" colorSpace="hsb">
-          <ColorSlider.Track>
-            <ColorSlider.Thumb />
-          </ColorSlider.Track>
-        </ColorSlider>
-        <ColorField aria-label={t`Hex color`}>
-          <ColorField.Group variant="secondary">
-            <ColorField.Prefix>
-              <ColorSwatch size="xs" />
-            </ColorField.Prefix>
-            <ColorField.Input />
-          </ColorField.Group>
-        </ColorField>
+        <ColorPickerControls />
       </ColorPicker.Popover>
     </ColorPicker>
   );

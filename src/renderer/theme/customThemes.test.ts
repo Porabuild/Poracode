@@ -42,6 +42,15 @@ describe("custom theme application", () => {
     applyAppTheme(root, "dark", theme.id, []);
     for (const key of MANAGED_THEME_VARS) expect(root.style.getPropertyValue(key)).toBe("");
   });
+  it("applies and clears an explicit selected-row override for glass sidebars", () => {
+    const root = document.createElement("div");
+    applyAppTheme(root, "dark", theme.id, [theme]);
+    expect(root.style.getPropertyValue("--sidebar-row-active-override")).toBe("#1a1a1a");
+    applyAppTheme(root, "light", theme.id, [theme]);
+    expect(root.style.getPropertyValue("--sidebar-row-active-override")).toBe("");
+    applyAppTheme(root, "dark", "default");
+    expect(root.style.getPropertyValue("--sidebar-row-active-override")).toBe("");
+  });
   it("preserves the previous derived composer and content/sidebar relationship", () => {
     const vars = buildVariant(THEME_SPECS[0]!.dark, "dark");
     expect(vars["--composer-surface"]).toContain("color-mix");

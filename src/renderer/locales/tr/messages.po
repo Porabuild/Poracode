@@ -6207,8 +6207,7 @@ msgstr "Üstbilgiler"
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Bir zamanlama oluşturmama yardım et. Eksik ayrıntıları sor, ardından Poracode zamanlama kontrollerini kullanarak benim için oluştur."
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "Hex renk"
 
@@ -6345,8 +6344,7 @@ msgstr "HTTP (akış destekli)"
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "Ton"
 
@@ -11468,8 +11466,7 @@ msgstr "Çalışma zamanı seçenekleri"
 msgid "Same provider order on all machines"
 msgstr "Tüm makinelerde aynı sağlayıcı sırası"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "Doygunluk ve parlaklık"
 

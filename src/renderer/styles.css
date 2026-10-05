@@ -1433,7 +1433,7 @@ html[data-window-kind="quickComposer"] #root {
       for the floating *overlay* sidebar, which genuinely sits over content.
 
    These rules are intentionally unlayered so they win over Tailwind utilities
-   (e.g. the sidebar's bg-[var(--content-background)] header class). */
+   (e.g. the sidebar's bg-[var(--sidebar-panel-background)] header class). */
 
 /* 1. Native material: clear opaque window layers, keep main content opaque.
    index.html's boot script sets an inline opaque background on <html> to avoid a
@@ -1453,7 +1453,10 @@ html[data-sidebar-glass="on"][data-theme="dark"]
   /* The regular dark-theme active wash is intentionally strong on opaque
      lists. On glass it reads as a bright solid slab, so let more of the
      sidebar material show through while retaining separation from hover. */
-  --row-active: color-mix(in oklab, var(--foreground) 12%, transparent);
+  --row-active: var(
+    --sidebar-row-active-override,
+    color-mix(in oklab, var(--foreground) 12%, transparent)
+  );
 }
 /* Faint tint so sidebar text/icons stay legible over the live OS blur. The
    sidebar header (shared .poracode-overlay-header class) is forced transparent

@@ -6206,8 +6206,7 @@ msgstr "ヘッダー"
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "スケジュール作成を手伝ってください。不足している詳細を確認し、Poracodeのスケジュール操作を使って作成してください。"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "16進カラー"
 
@@ -6344,8 +6343,7 @@ msgstr "HTTP（ストリーミング対応）"
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "色相"
 
@@ -11466,8 +11464,7 @@ msgstr "実行時オプション"
 msgid "Same provider order on all machines"
 msgstr "すべてのマシンで同じプロバイダー順序"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "彩度と明度"
 

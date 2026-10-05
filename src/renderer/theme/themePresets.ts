@@ -1,4 +1,3 @@
-import type { CustomTheme } from "@/shared/customThemes";
 /**
  * Catalog of selectable app themes.
  *
@@ -14,6 +13,8 @@ import type { CustomTheme } from "@/shared/customThemes";
  * comment color so contrast stays readable everywhere (see `themeTokens`). To
  * add a theme, append one `THEME_SPECS` entry.
  */
+
+import type { CustomTheme } from "@/shared/customThemes";
 
 import { buildVariant, type ThemeSpec, type ThemeVariantVars } from "./themeTokens";
 

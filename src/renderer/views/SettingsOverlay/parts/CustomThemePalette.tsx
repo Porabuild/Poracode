@@ -43,7 +43,6 @@ export function CustomThemePalette(props: {
         })}
       </div>
       <ToggleSwitch
-        aria-label={t`Use sidebar background for the docked sidebar`}
         isSelected={props.palette.sidebarFill ?? false}
         onChange={(sidebarFill) => props.onChange({ ...props.palette, sidebarFill })}
       >

@@ -1,6 +1,6 @@
-import { customThemesSchema } from "./customThemes";
 import { z } from "zod";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
+import { customThemesSchema } from "./customThemes";
 import {
   agentInstanceConfigMapSchema,
   installedAcpRegistryAgentSchema,

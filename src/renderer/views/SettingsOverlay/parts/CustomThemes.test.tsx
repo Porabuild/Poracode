@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { AppProvider } from "@/renderer/components/ui/provider";
+import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import { ThemeGallery } from "./ThemeGallery";
 
 vi.mock("@/renderer/utils/downloadTextFile", () => ({
@@ -65,7 +66,9 @@ describe("custom theme settings", () => {
     fireEvent.blur(screen.getByRole("textbox", { name: "Background" }));
     expect(screen.getByRole("textbox", { name: "Background" })).toHaveValue("#xyz");
     expect(screen.getByRole("button", { name: "Save and apply" })).toBeDisabled();
-    expect(screen.getByRole("alert")).toHaveTextContent("valid hex colors");
+    expect(
+      screen.getByText("Enter a theme name and valid hex colors in both palettes."),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(useSharedSettings.getState().customThemes).toEqual([]);
     expect(useSharedSettings.getState().themePreset).toBe("default");
@@ -85,6 +88,41 @@ describe("custom theme settings", () => {
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(useSharedSettings.getState().themePreset).toBe("default");
+  });
+  it("dismisses nested picker and palette menus before the editor and settings overlay", async () => {
+    const onExited = vi.fn<() => void>();
+    const { container } = render(
+      <OverlayShell open instantEnter onExited={onExited}>
+        <ThemeGallery />
+      </OverlayShell>,
+    );
+    const overlay = container.querySelector("[data-overlay-surface]")!;
+    fireEvent.click(screen.getByRole("button", { name: "Create custom theme" }));
+    fireEvent.click(screen.getByRole("button", { name: "Choose color for Accent" }));
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Hex color" }), {
+      key: "Escape",
+      code: "Escape",
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: "Hex color" })).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("dialog", { name: "Custom theme" })).toBeInTheDocument();
+    expect(overlay).toHaveAttribute("data-overlay-visible");
+    fireEvent.click(screen.getByRole("button", { name: "Dark Palette mode" }));
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
+    expect(screen.getByRole("dialog", { name: "Custom theme" })).toBeInTheDocument();
+    expect(overlay).toHaveAttribute("data-overlay-visible");
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(overlay).toHaveAttribute("data-overlay-visible");
+    expect(useSharedSettings.getState().customThemes).toEqual([]);
+    fireEvent.keyDown(screen.getByRole("button", { name: "Create custom theme" }), {
+      key: "Escape",
+      code: "Escape",
+    });
+    fireEvent.transitionEnd(overlay, { propertyName: "opacity" });
+    expect(onExited).toHaveBeenCalledOnce();
   });
   it("shows live contrast guidance for both palettes without blocking save", () => {
     render(<ThemeGallery />);
@@ -161,6 +199,7 @@ describe("custom theme settings", () => {
     fireEvent.blur(composerHex);
     expect(screen.getByRole("button", { name: "Automatic" })).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Automatic" }));
+    expect(composerHex).toHaveFocus();
     expect(screen.getByRole("button", { name: "Automatic" })).toBeDisabled();
     fireEvent.keyDown(composerHex, { key: "Escape", code: "Escape" });
     await waitFor(() =>
@@ -187,9 +226,7 @@ describe("custom theme settings", () => {
     fireEvent.click(screen.getByRole("button", { name: "Light Palette mode" }));
     fireEvent.click(screen.getByRole("option", { name: "Dark" }));
     await waitFor(() =>
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "Check the Light palette for invalid colors.",
-      ),
+      expect(screen.getByText("Check the Light palette for invalid colors.")).toBeInTheDocument(),
     );
     expect(screen.getByRole("button", { name: "Save and apply" })).toBeDisabled();
   });

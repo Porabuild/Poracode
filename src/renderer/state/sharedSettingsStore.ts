@@ -1,6 +1,6 @@
-import { customThemeSchema, MAX_CUSTOM_THEMES, type CustomTheme } from "@/shared/customThemes";
 import { create } from "zustand";
 import { readBridge } from "../bridge";
+import { customThemeSchema, MAX_CUSTOM_THEMES, type CustomTheme } from "@/shared/customThemes";
 import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
@@ -344,13 +344,12 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
     if (!parsed.success) return false;
     const current = get().customThemes;
     const previous = current.find((entry) => entry.id === parsed.data.id);
-    const exists = previous !== undefined;
     if (previous && JSON.stringify(previous) === JSON.stringify(parsed.data)) {
       get().setThemePreset(parsed.data.id);
       return true;
     }
-    if (!exists && current.length >= MAX_CUSTOM_THEMES) return false;
-    const customThemes = exists
+    if (!previous && current.length >= MAX_CUSTOM_THEMES) return false;
+    const customThemes = previous
       ? current.map((entry) => (entry.id === parsed.data.id ? parsed.data : entry))
       : [...current, parsed.data];
     set({ customThemes, themePreset: parsed.data.id });

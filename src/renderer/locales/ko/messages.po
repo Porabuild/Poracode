@@ -6207,8 +6207,7 @@ msgstr "헤더"
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "일정 생성을 도와주세요. 누락된 세부 정보를 물어본 다음 Poracode 일정 제어를 사용하여 만들어 주세요."
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "16진수 색상"
 
@@ -6345,8 +6344,7 @@ msgstr "HTTP(스트리밍 가능)"
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "색상"
 
@@ -11468,8 +11466,7 @@ msgstr "런타임 옵션"
 msgid "Same provider order on all machines"
 msgstr "모든 기기에서 동일한 프로바이더 순서"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "채도와 밝기"
 

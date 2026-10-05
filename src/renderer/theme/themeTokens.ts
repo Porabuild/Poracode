@@ -69,6 +69,7 @@ export const MANAGED_THEME_VARS = [
   "--sidebar-background",
   "--sidebar-panel-background",
   "--sidebar-row-active",
+  "--sidebar-row-active-override",
   "--content-background",
   "--composer-surface",
 ] as const;
@@ -138,6 +139,8 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     // Resolve the base wash here; referring back to --row-active would cycle
     // when a sidebar scopes --row-active to this token.
     "--sidebar-row-active": spec.sidebarRowActive ?? fade(fg, mode === "light" ? 11 : 20),
+    // Explicit authored fills also take precedence over the glass-sidebar wash.
+    "--sidebar-row-active-override": spec.sidebarRowActive ?? "",
     "--content-background": content,
     "--composer-surface": spec.composer ?? mix(surface, 90, fg),
   };

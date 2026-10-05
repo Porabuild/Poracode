@@ -1,4 +1,3 @@
-import { normalizeCustomThemes, type CustomTheme } from "@/shared/customThemes";
 /**
  * Applies a theme preset's variant to the document root as inline CSS custom
  * properties. Inline properties win over the `.light` / `.dark` rules in
@@ -6,6 +5,8 @@ import { normalizeCustomThemes, type CustomTheme } from "@/shared/customThemes";
  * managed properties — letting styles.css stay the source of truth — rather
  * than by re-setting equivalent values.
  */
+
+import { normalizeCustomThemes, type CustomTheme } from "@/shared/customThemes";
 
 import { resolveThemeMode } from "@/shared/themeMode";
 import type { ThemeMode } from "@/shared/contracts";

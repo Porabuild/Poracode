@@ -1,4 +1,3 @@
-import { downloadTextFile } from "@/renderer/utils/downloadTextFile";
 import { useState, type ReactNode } from "react";
 import { Input, Modal, Tooltip } from "@heroui/react";
 import {
@@ -16,6 +15,7 @@ import {
   Upload,
   Users,
 } from "lucide-react";
+import { downloadTextFile } from "@/renderer/utils/downloadTextFile";
 import { Plural, Trans, useLingui } from "@lingui/react/macro";
 import {
   BUILT_IN_MCP_SERVER_NAMES,

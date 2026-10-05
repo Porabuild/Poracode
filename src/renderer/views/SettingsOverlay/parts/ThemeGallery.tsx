@@ -1,4 +1,3 @@
-import { CustomThemes } from "./CustomThemes";
 import { startTransition, type CSSProperties } from "react";
 import { Check } from "lucide-react";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -8,6 +7,7 @@ import {
   buildThemePreset,
   type AppThemePreset,
 } from "@/renderer/theme/themePresets";
+import { CustomThemes } from "./CustomThemes";
 
 /**
  * Selectable grid of app themes. Each card previews the preset using the
@@ -84,7 +84,9 @@ function ThemeCard(props: {
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 px-0.5">
-        <span className="truncate text-xs font-medium text-foreground">{preset.label}</span>
+        <span title={preset.label} className="truncate text-xs font-medium text-foreground">
+          {preset.label}
+        </span>
         {selected ? <Check className="size-3.5 shrink-0 text-accent" /> : null}
       </div>
     </button>

@@ -6207,8 +6207,7 @@ msgstr "Header"
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Hilf mir, einen Zeitplan zu erstellen. Frage nach fehlenden Details und erstelle ihn dann mit den Poracode-Zeitplansteuerungen für mich."
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "Hex-Farbe"
 
@@ -6345,8 +6344,7 @@ msgstr "HTTP (streamfähig)"
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "Farbton"
 
@@ -11468,8 +11466,7 @@ msgstr "Laufzeitoptionen"
 msgid "Same provider order on all machines"
 msgstr "Gleiche Provider-Reihenfolge auf allen Computern"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "Sättigung und Helligkeit"
 

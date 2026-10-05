@@ -100,7 +100,7 @@ export function CustomThemeEditor(props: { initial: CustomTheme; onClose: () => 
               />
               <CustomThemeContrast theme={draft} />
               {!parsed.success ? (
-                <p role="alert" className="text-xs text-danger">
+                <p className="text-xs text-danger">
                   {hiddenPaletteInvalid ? (
                     <Trans>Check the {invalidPaletteName} palette for invalid colors.</Trans>
                   ) : (
@@ -117,7 +117,7 @@ export function CustomThemeEditor(props: { initial: CustomTheme; onClose: () => 
               ) : null}
             </div>
           </Modal.Body>
-          <Modal.Footer>
+          <Modal.Footer className="flex-wrap">
             <Button slot="close" size="sm" variant="ghost" className="text-muted">
               <Trans>Cancel</Trans>
             </Button>

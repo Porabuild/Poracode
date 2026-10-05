@@ -6207,8 +6207,7 @@ msgstr "Encabezados"
 msgid "Help me create a schedule. Ask for any missing details, then use the Poracode schedule controls to create it for me."
 msgstr "Ayúdame a crear una programación. Pregunta por los detalles que falten y usa los controles de programación de Poracode para crearla."
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hex color"
 msgstr "Color hex"
 
@@ -6345,8 +6344,7 @@ msgstr "HTTP (transmisión continua)"
 msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Hue"
 msgstr "Tono"
 
@@ -11468,8 +11466,7 @@ msgstr "Opciones de runtime"
 msgid "Same provider order on all machines"
 msgstr "Mismo orden de proveedores en todas las máquinas"
 
-#: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
-#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorField.tsx
+#: src/renderer/components/common/ColorPickerControls.tsx
 msgid "Saturation and brightness"
 msgstr "Saturación y brillo"
 

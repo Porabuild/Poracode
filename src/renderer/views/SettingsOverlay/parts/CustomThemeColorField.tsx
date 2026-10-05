@@ -1,18 +1,10 @@
 import { useState } from "react";
-import {
-  ColorArea,
-  ColorField,
-  ColorPicker,
-  ColorSlider,
-  ColorSwatch,
-  Label,
-  parseColor,
-  type Color,
-} from "@heroui/react";
+import { ColorField, ColorPicker, ColorSwatch, Label, parseColor, type Color } from "@heroui/react";
 import { Pipette } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { hexColorSchema } from "@/shared/customThemes";
 import { Button } from "@/renderer/components/common";
+import { ColorPickerControls } from "@/renderer/components/common/ColorPickerControls";
 
 export function CustomThemeColorField(props: {
   label: string;
@@ -55,7 +47,6 @@ export function CustomThemeColorField(props: {
         <Label className="text-xs [overflow-wrap:anywhere]">{label}</Label>
         <ColorField.Group className="mt-auto" variant="secondary">
           <ColorField.Input
-            aria-label={label}
             value={props.value}
             maxLength={7}
             placeholder={props.isOptional ? t`Automatic` : "#rrggbb"}
@@ -74,34 +65,20 @@ export function CustomThemeColorField(props: {
       </ColorField>
       <ColorPicker.Popover className="gap-2">
         <span className="px-1 text-xs font-medium">{label}</span>
-        <ColorArea
-          aria-label={t`Saturation and brightness`}
-          className="max-w-full"
-          colorSpace="hsb"
-          xChannel="saturation"
-          yChannel="brightness"
-        >
-          <ColorArea.Thumb />
-        </ColorArea>
-        <ColorSlider aria-label={t`Hue`} channel="hue" className="px-1" colorSpace="hsb">
-          <ColorSlider.Track>
-            <ColorSlider.Thumb />
-          </ColorSlider.Track>
-        </ColorSlider>
-        <ColorField aria-label={t`Hex color`}>
-          <ColorField.Group variant="secondary">
-            <ColorField.Prefix>
-              <ColorSwatch size="xs" />
-            </ColorField.Prefix>
-            <ColorField.Input />
-          </ColorField.Group>
-        </ColorField>
+        <ColorPickerControls />
         {props.isOptional && (
           <Button
             size="sm"
             variant="ghost"
             isDisabled={props.value === ""}
-            onPress={() => props.onChange("")}
+            onPress={(event) => {
+              props.onChange("");
+              // Focus a stable control before this action becomes disabled.
+              event.target
+                .closest('[data-slot="color-picker-popover"]')
+                ?.querySelector<HTMLInputElement>('input[type="text"]')
+                ?.focus();
+            }}
           >
             <Trans>Automatic</Trans>
           </Button>
