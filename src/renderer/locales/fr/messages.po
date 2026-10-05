@@ -1771,6 +1771,7 @@ msgid "Auto-show terminal panel"
 msgstr "Afficher automatiquement le panneau de terminal"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Automatic"
 msgstr "Automatique"
@@ -2549,6 +2550,10 @@ msgstr "Choisissez au moins deux candidats et saisissez une invite."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "Choisissez automatiquement ou utilisez un shell détecté pour les nouveaux terminaux."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+msgid "Choose color for {label}"
+msgstr "Choisir la couleur de {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6204,6 +6209,7 @@ msgid "Help me create a schedule. Ask for any missing details, then use the Pora
 msgstr "Aide-moi à créer une planification. Demande les détails manquants, puis utilise les contrôles de planification Poracode pour la créer."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Hex color"
 msgstr "Couleur hex"
 
@@ -6341,6 +6347,7 @@ msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Hue"
 msgstr "Teinte"
 
@@ -11462,6 +11469,7 @@ msgid "Same provider order on all machines"
 msgstr "Même ordre de fournisseurs sur toutes les machines"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Saturation and brightness"
 msgstr "Saturation et luminosité"
 

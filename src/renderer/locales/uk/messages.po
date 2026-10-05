@@ -1771,6 +1771,7 @@ msgid "Auto-show terminal panel"
 msgstr "Автоматично показувати панель термінала"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Automatic"
 msgstr "Автоматично"
@@ -2549,6 +2550,10 @@ msgstr "Виберіть щонайменше двох кандидатів і �
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "Виберіть автоматично або вкажіть виявлену оболонку для нових терміналів."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+msgid "Choose color for {label}"
+msgstr "Вибрати колір для {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6204,6 +6209,7 @@ msgid "Help me create a schedule. Ask for any missing details, then use the Pora
 msgstr "Допоможи мені створити розклад. Запитай відсутні деталі, а потім створи його за допомогою елементів керування розкладами Poracode."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Hex color"
 msgstr "HEX-колір"
 
@@ -6341,6 +6347,7 @@ msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Hue"
 msgstr "Відтінок"
 
@@ -11463,8 +11470,9 @@ msgid "Same provider order on all machines"
 msgstr "Однаковий порядок провайдерів на всіх комп’ютерах"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Saturation and brightness"
-msgstr "Насиченість та яркість"
+msgstr "Насиченість та яскравість"
 
 #: src/mobile/views/MobileFileEditor.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx

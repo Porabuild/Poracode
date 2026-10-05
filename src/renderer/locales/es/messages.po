@@ -1771,6 +1771,7 @@ msgid "Auto-show terminal panel"
 msgstr "Mostrar el panel del terminal automáticamente"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Automatic"
 msgstr "Automático"
@@ -2549,6 +2550,10 @@ msgstr "Elige al menos dos candidatos e introduce un prompt."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #~ msgid "Choose automatically or override with a detected shell for new terminals."
 #~ msgstr "Elige automáticamente o reemplaza la selección con un shell detectado para los terminales nuevos."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
+msgid "Choose color for {label}"
+msgstr "Elegir color para {label}"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -6204,6 +6209,7 @@ msgid "Help me create a schedule. Ask for any missing details, then use the Pora
 msgstr "Ayúdame a crear una programación. Pregunta por los detalles que falten y usa los controles de programación de Poracode para crearla."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Hex color"
 msgstr "Color hex"
 
@@ -6341,6 +6347,7 @@ msgid "https://example.com/mcp"
 msgstr "https://example.com/mcp"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Hue"
 msgstr "Tono"
 
@@ -11463,6 +11470,7 @@ msgid "Same provider order on all machines"
 msgstr "Mismo orden de proveedores en todas las máquinas"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeColorPicker.tsx
 msgid "Saturation and brightness"
 msgstr "Saturación y brillo"
 

@@ -2,6 +2,7 @@ import { Label, TextField } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { hexColorSchema, type ThemePalette } from "@/shared/customThemes";
 import { Input, ToggleSwitch } from "@/renderer/components/common";
+import { CustomThemeColorPicker } from "./CustomThemeColorPicker";
 
 export function CustomThemePalette(props: {
   palette: ThemePalette;
@@ -26,23 +27,31 @@ export function CustomThemePalette(props: {
         {fields.map(({ key, label, required }) => {
           const value = props.palette[key] ?? "";
           const invalid = (required || value !== "") && !hexColorSchema.safeParse(value).success;
+          const changeColor = (color: string) => {
+            const next = { ...props.palette };
+            if (!required && color === "") delete next[key];
+            else next[key] = color;
+            props.onChange(next);
+          };
           return (
-            <TextField key={key} isRequired={required} isInvalid={invalid}>
-              <Label className="text-xs">{label}</Label>
-              <Input
-                aria-label={label}
-                value={value}
-                maxLength={7}
-                placeholder={required ? "#rrggbb" : t`Automatic`}
-                className="font-mono text-xs"
-                onChange={(event) => {
-                  const next = { ...props.palette };
-                  const color = event.target.value.trim();
-                  if (!required && color === "") delete next[key];
-                  else next[key] = color;
-                  props.onChange(next);
-                }}
-              />
+            <TextField key={key} isRequired={required} isInvalid={invalid} className="min-w-0">
+              <Label className="text-xs [overflow-wrap:anywhere]">{label}</Label>
+              <div className="mt-auto flex items-center gap-1">
+                <Input
+                  aria-label={label}
+                  value={value}
+                  maxLength={7}
+                  placeholder={required ? "#rrggbb" : t`Automatic`}
+                  className="min-w-0 flex-1 font-mono text-xs"
+                  onChange={(event) => changeColor(event.target.value.trim())}
+                />
+                <CustomThemeColorPicker
+                  label={label}
+                  value={value}
+                  isOptional={!required}
+                  onChange={changeColor}
+                />
+              </div>
             </TextField>
           );
         })}

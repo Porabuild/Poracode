@@ -46,7 +46,7 @@ export function CustomThemeEditor(props: { initial: CustomTheme; onClose: () => 
       }}
     >
       <Modal.Container>
-        <Modal.Dialog className="sm:max-w-[460px]">
+        <Modal.Dialog className="sm:max-w-[640px]">
           <Modal.CloseTrigger aria-label={t`Close`} />
           <Modal.Header>
             <Modal.Heading>

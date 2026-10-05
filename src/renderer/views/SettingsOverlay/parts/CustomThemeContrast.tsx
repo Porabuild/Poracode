@@ -1,3 +1,4 @@
+import { Disclosure } from "@heroui/react";
 import { Check, TriangleAlert } from "lucide-react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { ThemeDocument } from "@/shared/customThemes";
@@ -16,48 +17,69 @@ export function CustomThemeContrast(props: { theme: ThemeDocument }) {
     { key: "sidebarRowActive", label: t`Selected sidebar row` },
     { key: "accent", label: t`Text on accent` },
   ] as const;
+  const hasLowContrast = [...Object.values(light), ...Object.values(dark)].some(
+    (value) => value !== null && value < TEXT_CONTRAST_MINIMUM,
+  );
   return (
-    <div className="space-y-1">
-      <table className="w-full text-xs">
-        <caption className="mb-1 text-left font-medium text-foreground">
-          <Trans>Text contrast</Trans>
-        </caption>
-        <thead>
-          <tr className="text-muted">
-            <th scope="col" className="text-left font-normal">
-              <Trans>Surface</Trans>
-            </th>
-            <th scope="col" className="text-right font-normal">
-              <Trans>Light</Trans>
-            </th>
-            <th scope="col" className="text-right font-normal">
-              <Trans>Dark</Trans>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ key, label }) => (
-            <tr key={key}>
-              <th scope="row" className="py-1 text-left font-normal text-muted">
-                {label}
-              </th>
-              <td className="text-right">
-                <ContrastRatio value={light[key]} />
-              </td>
-              <td className="text-right">
-                <ContrastRatio value={dark[key]} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="text-xs text-muted">
-        <Trans>— means an automatic fill or an invalid color.</Trans>
-      </p>
-      <p className="text-xs text-muted">
-        <Trans>Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text.</Trans>
-      </p>
-    </div>
+    <Disclosure>
+      <Disclosure.Heading>
+        <Disclosure.Trigger className="flex w-full items-center gap-2 text-left text-xs">
+          <span className="flex-1 font-medium">
+            <Trans>Text contrast</Trans>
+          </span>
+          {hasLowContrast && (
+            <span className="inline-flex items-center gap-1 text-warning">
+              <TriangleAlert className="size-3" aria-hidden />
+              <Trans>Low contrast</Trans>
+            </span>
+          )}
+          <Disclosure.Indicator className="shrink-0 text-muted" />
+        </Disclosure.Trigger>
+      </Disclosure.Heading>
+      <Disclosure.Content>
+        <Disclosure.Body className="space-y-1 pt-2">
+          <table className="w-full text-xs">
+            <caption className="sr-only">
+              <Trans>Text contrast</Trans>
+            </caption>
+            <thead>
+              <tr className="text-muted">
+                <th scope="col" className="text-left font-normal">
+                  <Trans>Surface</Trans>
+                </th>
+                <th scope="col" className="text-right font-normal">
+                  <Trans>Light</Trans>
+                </th>
+                <th scope="col" className="text-right font-normal">
+                  <Trans>Dark</Trans>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ key, label }) => (
+                <tr key={key}>
+                  <th scope="row" className="py-1 text-left font-normal text-muted">
+                    {label}
+                  </th>
+                  <td className="text-right">
+                    <ContrastRatio value={light[key]} />
+                  </td>
+                  <td className="text-right">
+                    <ContrastRatio value={dark[key]} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-muted">
+            <Trans>— means an automatic fill or an invalid color.</Trans>
+          </p>
+          <p className="text-xs text-muted">
+            <Trans>Ratios for opaque theme surfaces. Aim for at least 4.5:1 for text.</Trans>
+          </p>
+        </Disclosure.Body>
+      </Disclosure.Content>
+    </Disclosure>
   );
 }
 
