@@ -70,6 +70,24 @@ describe("getCodexPluginPaths", () => {
   });
 });
 
+describe("getCodexPluginPaths with a profile overlay", () => {
+  it("places a profile's hooks under a per-profile CODEX_HOME overlay", () => {
+    const baseDir = mkdtempSync(join(tmpdir(), "poracode-codex-profile-paths-"));
+    const overlay = { profileId: "work", sourceHomeDir: join(baseDir, "codex-work") };
+    const paths = getCodexPluginPaths({ envKind: "posix", baseDir }, overlay);
+
+    expect(paths.pluginDir).toBe(join(baseDir, "agent-plugins", "codex"));
+    expect(
+      paths.codexHomeDir.startsWith(join(baseDir, "agent-plugins", "codex", "profiles", "work")),
+    ).toBe(true);
+    expect(paths.codexHooksPath).toBe(join(paths.codexHomeDir, "hooks.json"));
+    // The base (non-profile) paths are unaffected by profile lookups.
+    expect(getCodexPluginPaths({ envKind: "posix", baseDir }).codexHomeDir).toBe(
+      join(baseDir, "agent-plugins", "codex", "home"),
+    );
+  });
+});
+
 describe("probeCodexCliSemver", () => {
   it("does not use shell:true for Windows version probes", () => {
     Object.defineProperty(process, "platform", { value: "win32", configurable: true });
