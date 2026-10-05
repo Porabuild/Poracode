@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T10:06:09.463999+00:00",
+  "updatedAt": "2026-10-05T10:53:53.717479+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -33,10 +33,10 @@
     }
   },
   "currentWork": {
-    "requiredAgent": "632f1eb1c318",
-    "lastAgent": "R108 SolMax and FlashX complete; R109 FlashX metadata audit returned partial report",
+    "requiredAgent": null,
+    "lastAgent": "R112 Codex6.1SolMax image reuse design review completed",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "Read-only bounded group/gallery review running; R110nativestartupFAIL EPERM+ESRCH,13knownownersretired; branchwidechecks preparing userauthorizedcommitall",
+    "agentState": "Complete: read-only design recommends per-coordinate authenticated byte comparison and cache-local URL ownership; implementation pending",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -46,7 +46,7 @@
       "state": "R109 Electron44.4.4 mirroredoverride;8stagesPASS7549source3712outputs and199package runtimeclosure byteverified;131tests/hooksPASS; nativeStop/quit/zero errorsPASS. OverallGUIFAIL(group/media), no new performance gain."
     },
     "buildSession": null,
-    "nextAction": "Finish branch quality/i18n and comprehensive localcommit per user. Group/media actualcontrols, richPWA, resource/pairedperformance/audit remainopen. No unchanged native startup retry or permission-row suppression.",
+    "nextAction": "Commit and push verified native CI configuration repair; verify new remote checks. Then authenticated image reuse, corrected live/replay media/group controls, rich PWA, resource pairs and audit remain open.",
     "lastResult": "tmp/v2-streaming-perf-20260930/round110/root-round110-result.json",
     "lastDeclaration": "tmp/v2-streaming-perf-20260930/round102/r107-affected-residual-gui/declaration.json",
     "liveRootHandles": [],
@@ -109,16 +109,16 @@
       "repositoryTrackerStatus": "active"
     },
     "commitPolicy": {
-      "authorizedBy": "User: commit all current changes; continue per verified big chunk",
+      "authorizedBy": "User: commit all current changes; commit per completed big chunk; push and fix CI",
       "localCompletedVerifiedChunks": true,
-      "push": false,
+      "push": true,
       "publish": false,
       "installedAppReplacement": false
     },
     "lastLocalCommit": {
-      "sha": "8dad2e103b76876f04845083b5b8aa2f7c489f90",
-      "title": "fix(deps): update Electron for sandbox initialization fix",
-      "verification": "tmp/v2-streaming-perf-20260930/round109/commit-verification.json"
+      "sha": "403a6777dca15228d98f222900cc741695b7c254",
+      "title": "fix(remote): project images in bounded older history pages",
+      "verification": "tmp/v2-streaming-perf-20260930/round111/commit.log"
     },
     "dependencyUpdate": {
       "state": "committed-and-scoped-native-verified",
@@ -150,10 +150,65 @@
       "logs": "tmp/v2-streaming-perf-20260930/round110/all-commit-*"
     },
     "comprehensiveCheckpoint": {
-      "state": "allcurrenttracked/nonignoredchanges authorized andqualityverified; commit inprogress",
-      "authorization": "User: we have way more uncommited changes, commit all",
+      "state": "committed: 0ffb496f4 all458files; 403a6777d older-page image projection; pushed to origin/poracode/v2",
+      "authorization": "User: commit all; then push and fix CI",
       "goalRemainsActive": true,
       "remainingQualificationOpen": true
+    },
+    "pushedChecks": {
+      "headSha": "403a6777dca15228d98f222900cc741695b7c254",
+      "coreCI": "PASS",
+      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37297610011",
+      "nativeCI": "FAIL foundation: virtual projection/Lingui transforms absent from dedicated config; AndroidPASS, iOS in progress",
+      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37297610182",
+      "correction": "Dedicated native config loads existing projection discovery and Lingui/Babel transforms; all3collection failures reproduced before correction; 1046targeted testsPASS; full current-build foundationPASS1935tests/5skip in82suites/3skip"
+    },
+    "olderHistoryImages": {
+      "state": "committed_scoped_pass",
+      "commit": "403a6777d",
+      "checksPassed": 51,
+      "canonicalBytesPreserved": true,
+      "evidence": "tmp/v2-streaming-perf-20260930/round111/older-images-after.log",
+      "nativeCurrentFinalQualification": false
+    },
+    "mediaReuseDesign": {
+      "state": "review_complete_implementation_pending",
+      "evidence": "tmp/v2-streaming-perf-20260930/round112/image-reuse-review.md",
+      "authentication": "Each coordinate fetches and authenticates before exact MIME/length/byte reuse; no cross-authority pool",
+      "scope": "Design only; no browser performance or resource gain claim"
+    },
+    "liveVsSavedGrouping": {
+      "state": "source_contract_pass_native_pending",
+      "checksPassed": 80,
+      "actualCanonicalRows": 61,
+      "hydratedRows": 27,
+      "savedSummaries": 4,
+      "mixedSummaries": 2,
+      "liveMixedGroups": 2,
+      "segmentsPerLiveMixedGroup": 16,
+      "canonicalUnchanged": true,
+      "evidence": "tmp/v2-streaming-perf-20260930/round112/hydration-contract.json",
+      "correction": "Exercise 8/16/8 live overflow before Page.reload; qualify saved inert summaries afterward; no unchanged native startup replay"
+    },
+    "nativeCIRepair": {
+      "state": "local_verified_ready_to_commit_push",
+      "affectedErrors": [
+        "missing_runtime_projection_virtual_module",
+        "untransformed_po_catalog",
+        "unexpanded_lingui_macros"
+      ],
+      "targetedTestsPassed": 1046,
+      "fullFoundationTestsPassed": 1935,
+      "fullFoundationTestsSkipped": 5,
+      "fullFoundationSuitesPassed": 82,
+      "fullFoundationSuitesSkipped": 3,
+      "sourceBuild": "build:electron, prepare:server-native, prepare:package-assets PASS",
+      "typecheck": "PASS",
+      "touchedLint": "PASS",
+      "touchedFormat": "PASS",
+      "evidence": "tmp/v2-streaming-perf-20260930/round112/native-foundation-current-build.log",
+      "originalFailurePreserved": true,
+      "qualificationScope": "CI foundation/functionality, not final GUI or whole-app resource measurements"
     }
   },
   "milestones": [
@@ -553,7 +608,7 @@
       "at": "2026-10-04T18:26:37.413028+00:00",
       "round": "round87",
       "result": "tmp/v2-streaming-perf-20260930/round87/catalog-d0-review.json",
-      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38\u219240); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
+      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38→40); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
     },
     {
       "at": "2026-10-04T18:38:22.821265+00:00",
@@ -563,7 +618,7 @@
     },
     {
       "at": "2026-10-04T20:20:43.342415+00:00",
-      "round": "round88\u2013round91",
+      "round": "round88–round91",
       "result": "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
       "summary": "Reviewed offline prewarm/cancellation ownership fix compiledR89, original root+nested offline native gatesPASS R90. R91 desktop driver correction208tests/reviewPASS; nativeearlier A-warm observer unmatched2API requests/4responses preventsqualification. All127PIDs/4ports/78seals/fulldeps/canonical/exactAretiredverified. FlashX7source/report seals+nativeidgapverified; candidatecorrection notyetimplemented/qualified. All requiredchildrenjoined."
     },
