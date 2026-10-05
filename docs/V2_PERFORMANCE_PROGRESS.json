@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T21:07:34.326658+00:00",
+  "updatedAt": "2026-10-05T21:15:14.230372+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -36,19 +36,19 @@
     "requiredAgent": null,
     "lastAgent": "R121 Codex6.1SolMax final cache correction review completed/joined; root verified all four current source hashes; no Important blockers",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No required agent pending. R121 failed live qualification retained, normal cleanup passed; current cache source full quality passed, ready to commit/push and freshly build.",
+    "agentState": "No required agent pending. Reviewed source committed/pushed; new production saved/compact/offline/reconnect regression passes, normal cleanup passes. Exact-head CI remains pending during confirmed GitHub Actions incident.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
-      "identity": "tmp/v2-streaming-perf-20260930/round115/build-identity.json",
-      "verification": "tmp/v2-streaming-perf-20260930/round115/candidate-verification.json",
-      "state": "R115 immutable 5fb2c6ada including mobile modal styles; all eight build stages, 7555 source/3712 output files, 199-package/23489-file/374-edge closure and finalized 1753 web files PASS. Rich96 canonical/live groups/media and genuine execution scoped PASS; full PWA qualification FAIL. No new resource savings. Current browser cache source differs; old artifact cannot qualify the new correction."
+      "identity": "tmp/v2-streaming-perf-20260930/round122/build-identity.json",
+      "verification": "tmp/v2-streaming-perf-20260930/round122/runtime-layout.json",
+      "state": "Current source1cd256a4a immutable production build: all eight stages,7558source/3712dist/1753web files and199package/23489file/374edge runtime closure PASS. Saved desktop/compact, exact cached-tail offline rows, inline image and reconnect scoped PASS; no new resource savings or physical-device qualification."
     },
     "buildSession": null,
-    "nextAction": "Commit/push reviewed cache correction and collect exact-head CI; freeze fresh current production candidate for one affected saved/compact/offline/reconnect UI check. Preserve original failed runs and cumulative launch counters.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round121/declaration.json",
+    "nextAction": "Collect current exact-head CI after hosted-runner recovery. Complete remaining native Electron/PTY lifecycle and rich GUI coverage, then one bounded matched p95/resource comparison and F6 audit; keep physical-device/private GPU and RAM limits explicit. Avoid marginal tuning and exhausted unchanged diagnostic reruns.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round124/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -120,9 +120,9 @@
       "installedAppReplacement": false
     },
     "lastLocalCommit": {
-      "sha": "efae3dd33f83815a0140cbbfcbebd609c1b3a92d",
-      "title": "fix(images): share authenticated blobs and refresh evicted galleries",
-      "verification": "tmp/v2-streaming-perf-20260930/round113/root-round113-result.json"
+      "sha": "1cd256a4ab88f410c0f6a56b77fc424aa5c2f9b1",
+      "title": "fix(browser): hydrate offline chats from owned cached snapshots",
+      "verification": "tmp/v2-streaming-perf-20260930/round121/source-cache-fix-quality.json"
     },
     "dependencyUpdate": {
       "state": "committed-and-scoped-native-verified",
@@ -159,12 +159,12 @@
       "remainingQualificationOpen": true
     },
     "pushedChecks": {
-      "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
-      "coreCI": "PASS",
-      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37315951902",
-      "nativeCI": "PASS",
-      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37315952282",
-      "scope": "Both completed success on the immutable R115 source head; new documentation checkpoint must have its own CI receipt."
+      "headSha": "1cd256a4ab88f410c0f6a56b77fc424aa5c2f9b1",
+      "coreCI": "pending",
+      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37373959623",
+      "nativeCI": "pending",
+      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37373959785",
+      "scope": "Exact source-head runs started; hosted-runner delays confirmed by GitHub incident3q1yb5m7ltvb. Final verdict pending."
     },
     "olderHistoryImages": {
       "state": "committed_scoped_pass",
@@ -360,21 +360,25 @@
       "readyFixtureSourceProof": "PASS production root+credential initialization before DBseed, laterowner generation reopen,61canonicalrows/originalDBhashpreserved; no app launch",
       "currentGuiPwaQualified": false,
       "performanceGainClaim": false,
-      "cumulativeOwnedServerAttempts": 4,
-      "residualAttemptFailed": true,
+      "cumulativeOwnedServerAttempts": 7,
+      "residualAttemptFailed": false,
       "normalCleanupPass": true,
       "externalGuardedRecoveryPass": false,
-      "historicalPidNumbersAbsent": 259,
+      "historicalPidNumbersAbsent": 232,
       "desktopAndCompactObservedRows": 19,
       "desktopGalleryControls": "PASS scoped",
       "compactDocumentAndWorker": "PASS scoped",
-      "offlineReplay": "FAIL: twelve cached rows including two image tools, zero DOM rows; visible Messages could not be loaded",
-      "reconnectRowCoverage": "FAIL owning-history settlement deadline; old-document request and body-read cap retained",
-      "semanticQualification": false,
+      "offlineReplay": "PASS exact seven visible IDs from twelve cached rows; uncached older history and host image reference unavailable offline",
+      "reconnectRowCoverage": "PASS complete current geometry traversal and both image decode/navigation controls; no native wire receipt claim",
+      "semanticQualification": true,
       "futureHelperChecksPassed": 5,
-      "state": "failed-live-run-retained; source-correction-reviewed; current-build-unqualified",
-      "evidence": "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
-      "retirement": "R121 normal cleanup PASS; all259 recorded PID numbers freshly ESRCH. Original R119/R120 failures retained."
+      "state": "current-production-scoped-pass; final-goal-gates-open",
+      "evidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
+      "retirement": "R122/R123 failed controls retained with normal cleanup; R124 corrected control passes. All recorded PID numbers freshly absent:204/204/232 respectively.",
+      "currentGuiPwaScope": "Affected saved desktop/compact, activated PWA and exact offline cached tail only; physical-device qualification open",
+      "semanticQualificationScope": "Offline cached-tail DOM only",
+      "originalFailedRunsRemainFailed": true,
+      "cachedTailGuiPwaQualified": true
     },
     "ciRepair": {
       "originalHead": "bf8cd8ea3d328b834f53808a257c9db91c16e457",
@@ -404,7 +408,7 @@
       }
     },
     "browserCacheCorrection": {
-      "state": "source-full-quality-pass; ready-to-commit-push; current-build-unqualified",
+      "state": "committed-pushed; source/full-quality/current-production-regression-pass",
       "ownerMatching": "Schema-valid snapshot and exact projected thread key; explicit foreign projection rejected; legacy missing optional projection metadata normalized only in memory",
       "compatibility": "Database version2, row schema and wire protocol unchanged; valid v1-to-v2 upgrade regression passes",
       "behavior": "Initial cached runtime/turn/context/goal avoids four host reads; current authoritative installation/reset/cancellation wins; notices preserved; cached child-task status remains provisional",
@@ -426,7 +430,7 @@
         "log": "tmp/v2-streaming-perf-20260930/round121/monaco-timeout-isolated-recheck.log"
       },
       "finalUnitLog": "tmp/v2-streaming-perf-20260930/round121/final-unit-bounded-workers.log",
-      "compiledUiQualification": false,
+      "compiledUiQualification": true,
       "wholeAppGainClaim": false,
       "finalUnitResult": {
         "passed": 19358,
@@ -438,7 +442,9 @@
         "deadlineMilliseconds": 15000,
         "log": "tmp/v2-streaming-perf-20260930/round121/final-unit-bounded-workers.log"
       },
-      "qualityReceipt": "tmp/v2-streaming-perf-20260930/round121/source-cache-fix-quality.json"
+      "qualityReceipt": "tmp/v2-streaming-perf-20260930/round121/source-cache-fix-quality.json",
+      "uiScope": "Saved desktop/compact and exact seven-visible-row offline cached tail; inline320x240 decode offline; host reference unavailable offline, both320x240 and1024x768 after reconnect. No physical mobile or resource gain claim.",
+      "compiledUiEvidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
     },
     "docsHeadCI": {
       "head": "0ab319649d3d023abc9e344afdf17610b0a500c3",
@@ -452,6 +458,20 @@
       "coreEvidence": "tmp/v2-streaming-perf-20260930/round121/docs-head-core-ci.json",
       "nativeEvidence": "tmp/v2-streaming-perf-20260930/round121/docs-head-native-ci.json",
       "runnerAnnotation": "tmp/v2-streaming-perf-20260930/round121/docs-head-typecheck-runner-annotations.json"
+    },
+    "previousVerifiedSourceCI": {
+      "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
+      "coreCI": "PASS",
+      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37315951902",
+      "nativeCI": "PASS",
+      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37315952282",
+      "scope": "Both completed success on the immutable R115 source head; new documentation checkpoint must have its own CI receipt."
+    },
+    "actionsIncident": {
+      "url": "https://www.githubstatus.com/incidents/3q1yb5m7ltvb",
+      "publishedStart": "2026-10-05T19:11:00Z",
+      "observedAt": "2026-10-05T21:15:14.230372+00:00",
+      "state": "Investigating degraded availability, job failures and hosted-runner assignment delays; supports infrastructure attribution, not a source-code CI pass."
     }
   },
   "milestones": [
@@ -1032,6 +1052,12 @@
       "round": "R121",
       "result": "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
       "summary": "Cumulative server4/browser2 revised qualification fails offline gallery and reconnect; 25 history receipts retained, canonical/source and normal cleanup PASS,259PIDnumbers absent. Browser cache bypass traced and corrected;93 focused tests and lint/typecheck pass; final unit19358PASS/100skip with eight workers and unchanged15000ms deadline; original Monaco timeout retained. New compiled qualification still open. Counts13/18,0signoffs; no resource gain claim."
+    },
+    {
+      "at": "2026-10-05T21:15:14.230372+00:00",
+      "round": "R122-R124",
+      "result": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
+      "summary": "Source cache fix1cd256a4a committed/pushed; fresh production build and closure PASS. Original desktop-control-on-compact and downward-search-at-bottom failures preserved; corrected real input passes19requiredphases, exact sevenofflineDOMIDs, inline decode and bothimages afterreconnect. Canonical unchanged and204/204/232recordedPIDnumbers freshly absent. Cumulative server7/browser5 retained. CI pending during confirmed Actions runner incident.13/18tasks,0finalsignoffs; no new resource-gain claim."
     }
   ],
   "tasks": [
@@ -1104,7 +1130,7 @@
       "title": "PWA worker policy and offline recovery",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reviewed browser cache correction needs fresh compiled saved/compact/offline/reconnect qualification. Original live failures remain failed; no unchanged rerun or reset of cumulative counters.",
+      "nextAction": "Current compiled cached-tail/offline/reconnect gate passes with host-held image explicitly unavailable offline. Real Safari/physical-device and long-session qualification remain distinct.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -1129,7 +1155,8 @@
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
-        "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json"
+        "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
+        "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
       ]
     },
     {
@@ -1173,7 +1200,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reviewed browser cache correction needs fresh compiled saved/compact/offline/reconnect qualification. Original live failures remain failed; no unchanged rerun or reset of cumulative counters.",
+      "nextAction": "Current compiled saved/compact/offline/reconnect cache regression passes; complete remaining affected native Electron/PTY media and lifecycle coverage using existing rich fixtures.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1185,7 +1212,8 @@
         "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
         "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
-        "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json"
+        "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
+        "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
       ]
     },
     {
@@ -1403,14 +1431,15 @@
     "originalOwnedServerAttempts": 1,
     "correctionOwnedServerAttempts": 1,
     "correctionLimit": 1,
-    "actualBrowserAttempts": 2,
+    "actualBrowserAttempts": 5,
     "furtherUnchangedLaunchesAllowed": false,
     "resetOnNewRoundLabel": false,
     "failuresPreserved": true,
-    "evidence": "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
-    "latestRound": "R121",
-    "additionalMateriallyRevisedResidualAttempts": 2,
-    "cumulativeOwnedServerAttempts": 4,
-    "additionalCorrectionsUsed": 0
+    "evidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
+    "latestRound": "R124",
+    "additionalMateriallyRevisedResidualAttempts": 5,
+    "cumulativeOwnedServerAttempts": 7,
+    "additionalCorrectionsUsed": 0,
+    "latestScope": "Current cache source followed by layout-aware compact control and endpoint-direction corrections; every original failed declaration remains consumed and retained."
   }
 }
