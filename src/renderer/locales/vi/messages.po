@@ -8291,6 +8291,10 @@ msgstr "Cuộc trò chuyện đã xem gần đây tiếp theo"
 msgid "Next run {0}"
 msgstr "Lần chạy tiếp theo: {0}"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Next sent message"
+msgstr "Tin nhắn đã gửi tiếp theo"
+
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
 msgstr "Tab tiếp theo"
@@ -9987,6 +9991,10 @@ msgstr "Cuộc trò chuyện đã xem gần đây trước đó"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Previous runs"
 msgstr "Các lần chạy trước"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Previous sent message"
+msgstr "Tin nhắn đã gửi trước"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"

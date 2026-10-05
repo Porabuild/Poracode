@@ -8290,6 +8290,10 @@ msgstr "下一个最近查看的聊天"
 msgid "Next run {0}"
 msgstr "下次运行：{0}"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Next sent message"
+msgstr "下一条已发送消息"
+
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
 msgstr "下一个选项卡"
@@ -9986,6 +9990,10 @@ msgstr "上一个最近查看的聊天"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Previous runs"
 msgstr "历史运行"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Previous sent message"
+msgstr "上一条已发送消息"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"

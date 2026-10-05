@@ -8291,6 +8291,10 @@ msgstr "Siguiente chat visto recientemente"
 msgid "Next run {0}"
 msgstr "Próxima ejecución: {0}"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Next sent message"
+msgstr "Mensaje enviado siguiente"
+
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
 msgstr "Pestaña siguiente"
@@ -9987,6 +9991,10 @@ msgstr "Chat anterior visto recientemente"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Previous runs"
 msgstr "Ejecuciones anteriores"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Previous sent message"
+msgstr "Mensaje enviado anterior"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"

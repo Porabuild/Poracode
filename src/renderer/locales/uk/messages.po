@@ -8291,6 +8291,10 @@ msgstr "Наступний нещодавно переглянутий чат"
 msgid "Next run {0}"
 msgstr "Наступний запуск: {0}"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Next sent message"
+msgstr "Наступне надіслане повідомлення"
+
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
 msgstr "Наступна вкладка"
@@ -9987,6 +9991,10 @@ msgstr "Попередній нещодавно переглянутий чат"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Previous runs"
 msgstr "Попередні запуски"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Previous sent message"
+msgstr "Попереднє надіслане повідомлення"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"

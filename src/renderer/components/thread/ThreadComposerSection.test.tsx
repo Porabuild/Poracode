@@ -3,7 +3,12 @@ import { toast } from "@heroui/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentStatus, GitStatusResult, Thread } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  CanonicalContentBlock,
+  GitStatusResult,
+  Thread,
+} from "@/shared/contracts";
 import "@/renderer/components/providers/bootstrap";
 import * as skills from "@/renderer/components/skills/useSkills";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -1310,6 +1315,148 @@ describe("ThreadComposerSection", () => {
     unmount();
 
     expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+  });
+
+  describe("prompt recall", () => {
+    function seedPrompts(threadId: string, contents: CanonicalContentBlock[][]) {
+      const items = contents.map((content, index) => ({
+        id: `user-${index}`,
+        type: "user_message" as const,
+        state: "completed" as const,
+        streams: {},
+        payload: { content },
+      }));
+      useAppStore.setState({
+        runtimeItemIdsByThread: { [threadId]: items.map((item) => item.id) },
+        runtimeItemsByIdByThread: {
+          [threadId]: Object.fromEntries(items.map((item) => [item.id, item])),
+        },
+      });
+    }
+
+    function seedTextPrompts(threadId: string, texts: string[]) {
+      seedPrompts(
+        threadId,
+        texts.map((text) => [{ kind: "text", text }]),
+      );
+    }
+
+    function press(editor: HTMLElement, key: "ArrowUp" | "ArrowDown") {
+      fireEvent.keyDown(editor, { key });
+    }
+
+    it("steps through the thread's prompts with Up and Down from an empty composer", () => {
+      seedTextPrompts(guiThread.id, ["first", "second"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      expect(input.textContent).toBe("second");
+      press(input, "ArrowUp");
+      expect(input.textContent).toBe("first");
+      press(input, "ArrowDown");
+      expect(input.textContent).toBe("second");
+      press(input, "ArrowDown");
+      expect(input.textContent).toBe("");
+    });
+
+    it("leaves Up to the caret when the composer has a draft", () => {
+      seedTextPrompts(guiThread.id, ["sent before"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+      typeComposerText(input, "half-written");
+
+      press(input, "ArrowUp");
+
+      expect(input.textContent).toBe("half-written");
+    });
+
+    it("stops browsing once the recalled prompt is edited", () => {
+      seedTextPrompts(guiThread.id, ["first", "second"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      typeComposerText(input, "second, edited");
+      press(input, "ArrowUp");
+
+      expect(input.textContent).toBe("second, edited");
+    });
+
+    it("moves through a multi-line prompt before stepping to the next one", () => {
+      seedTextPrompts(guiThread.id, ["older", "line one\nline two"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      expect(input.textContent).toBe("line oneline two");
+      // The caret lands on the first line, so Down belongs to the editor.
+      press(input, "ArrowDown");
+      expect(input.textContent).toBe("line oneline two");
+      press(input, "ArrowUp");
+      expect(input.textContent).toBe("older");
+    });
+
+    it("restores a recalled prompt's attachments for resend", async () => {
+      seedPrompts(guiThread.id, [
+        [
+          { kind: "text", text: "see this" },
+          {
+            kind: "image",
+            path: "C:\\tmp\\shot",
+            mimeType: "image/png",
+            dataUrl: "",
+            source: "attachment",
+          },
+        ],
+      ]);
+      const { onSubmitInput } = renderComposer();
+
+      press(screen.getByRole("textbox"), "ArrowUp");
+      fireEvent.click(screen.getByText("send"));
+
+      await waitFor(() => {
+        expect(onSubmitInput).toHaveBeenCalledWith("see this", [
+          { kind: "attachment", path: "C:\\tmp\\shot", mimeType: "image/png" },
+          { kind: "text", content: "see this" },
+        ]);
+      });
+    });
+
+    it("keeps its place when a new prompt lands while browsing", () => {
+      seedTextPrompts(guiThread.id, ["first", "second"]);
+      renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      act(() => seedTextPrompts(guiThread.id, ["first", "second", "queued follow-up"]));
+      press(input, "ArrowUp");
+
+      expect(input.textContent).toBe("first");
+    });
+
+    it("leaves the arrows to terminal threads", () => {
+      seedTextPrompts(terminalThread.id, ["sent before"]);
+      renderComposer({ thread: terminalThread, agentStatus: claudeTerminalStatus });
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+
+      expect(input.textContent).toBe("");
+    });
+
+    it("ends browsing when the user leaves the thread", () => {
+      seedTextPrompts(guiThread.id, ["first", "second"]);
+      const { rerender } = renderComposer();
+      const input = screen.getByRole("textbox");
+
+      press(input, "ArrowUp");
+      rerender(composerElement({ thread: secondGuiThread }));
+      rerender(composerElement());
+      press(screen.getByRole("textbox"), "ArrowUp");
+
+      expect(screen.getByRole("textbox").textContent).toBe("second");
+    });
   });
 
   it("does not re-save an in-flight terminal send as a stale draft when navigating away", async () => {

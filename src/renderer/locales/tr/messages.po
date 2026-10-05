@@ -8291,6 +8291,10 @@ msgstr "Sonraki son görüntülenen sohbet"
 msgid "Next run {0}"
 msgstr "Sonraki çalıştırma: {0}"
 
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Next sent message"
+msgstr "Sonraki gönderilen mesaj"
+
 #: src/renderer/commands/registry.ts
 msgid "Next tab"
 msgstr "Sonraki sekme"
@@ -9987,6 +9991,10 @@ msgstr "Önceki son görüntülenen sohbet"
 #: src/renderer/views/SchedulesView/parts/ScheduleRow.tsx
 msgid "Previous runs"
 msgstr "Önceki çalıştırmalar"
+
+#: src/renderer/commands/shortcutCatalog.ts
+msgid "Previous sent message"
+msgstr "Önceki gönderilen mesaj"
 
 #: src/renderer/commands/registry.ts
 msgid "Previous tab"
