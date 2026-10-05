@@ -11651,6 +11651,10 @@ msgstr "터미널 스크롤백 버퍼의 스크롤 속도 승수입니다."
 msgid "Scroll to bottom"
 msgstr "맨 아래로 스크롤"
 
+#: src/renderer/components/thread/ChatPane/StickyPrompt.tsx
+msgid "Scroll to prompt: {preview}"
+msgstr "프롬프트로 스크롤: {preview}"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "SDK"
 #~ msgstr "SDK"
