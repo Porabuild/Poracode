@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T12:13:05.338019+00:00",
+  "updatedAt": "2026-10-05T13:08:31.296992+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,20 +34,20 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R113 Codex6.1SolMax authenticated image reuse implementation completed",
+    "lastAgent": "R114 Codex6.1SolMax native-observation review completed and joined",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "Complete: coordinator inspected implementation and independently reproduced resource/job fixtures; combined checks pass",
+    "agentState": "No native policy correction recommended; 28 pure checks reported, 11 evidence seals and seven unchanged helpers independently verified",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
-      "identity": "tmp/v2-streaming-perf-20260930/round109/build-identity.json",
-      "verification": "tmp/v2-streaming-perf-20260930/round109/candidate-verification.json",
-      "state": "R109 Electron44.4.4 mirroredoverride;8stagesPASS7549source3712outputs and199package runtimeclosure byteverified;131tests/hooksPASS; nativeStop/quit/zero errorsPASS. OverallGUIFAIL(group/media), no new performance gain."
+      "identity": "tmp/v2-streaming-perf-20260930/round114/build-identity.json",
+      "verification": "tmp/v2-streaming-perf-20260930/round114/candidate-verification.json",
+      "state": "R114 current HEAD efae3dd33; eight build stages PASS. All7554source/3712outputs and199package/23489file/374edge runtime closure verified. Current native rich96/canonical/replay/negative/quit PASS; original media phases FAIL, correction fails native discovery before controls. No new performance gain."
     },
     "buildSession": null,
-    "nextAction": "Commit and push R113 authenticated image reuse and ready-coordinate eviction repair; verify CI. Final-build rich media/group, PWA, matched resource pairs and audit remain open.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round113/root-round113-result.json",
+    "nextAction": "Independent current-candidate rich browser/PWA qualification with corrected visible/hit-tested gallery wait. Preserve R114 original and correction failures; no unchanged third Electron launch or diagnostic-budget reset.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round114/root-round114-result.json",
     "lastDeclaration": "tmp/v2-streaming-perf-20260930/round102/r107-affected-residual-gui/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
@@ -116,9 +116,9 @@
       "installedAppReplacement": false
     },
     "lastLocalCommit": {
-      "sha": "ea100d07e489168ee303ee99f6d914c2878b0e71",
-      "title": "fix(test): load native foundation build transforms",
-      "verification": "tmp/v2-streaming-perf-20260930/round112/root-round112-result.json"
+      "sha": "efae3dd33f83815a0140cbbfcbebd609c1b3a92d",
+      "title": "fix(images): share authenticated blobs and refresh evicted galleries",
+      "verification": "tmp/v2-streaming-perf-20260930/round113/root-round113-result.json"
     },
     "dependencyUpdate": {
       "state": "committed-and-scoped-native-verified",
@@ -208,13 +208,13 @@
       "qualificationScope": "CI foundation/functionality, not final GUI or whole-app resource measurements"
     },
     "remoteCi": {
-      "commit": "ea100d07e489168ee303ee99f6d914c2878b0e71",
+      "commit": "efae3dd33f83815a0140cbbfcbebd609c1b3a92d",
       "state": "all-required-checks-passed",
-      "core": "https://github.com/Porabuild/Poracode/actions/runs/37299544321",
-      "native": "https://github.com/Porabuild/Poracode/actions/runs/37299544959"
+      "core": "https://github.com/Porabuild/Poracode/actions/runs/37308089221",
+      "native": "https://github.com/Porabuild/Poracode/actions/runs/37308089341"
     },
     "imageReuse": {
-      "state": "source-and-regression-verified; final-build media qualification open",
+      "state": "source/regression verified; current native live/saved inventory two images; decode/navigation qualification remains open",
       "result": "tmp/v2-streaming-perf-20260930/round113/root-round113-result.json",
       "independentFetches": 3,
       "fixtureObjectUrls": {
@@ -233,6 +233,37 @@
       "galleryCacheFormat": 2,
       "scope": "Synthetic resource counters and React DOM regressions; no app RAM/GPU/p95 savings claimed",
       "mockSmoke": "Default isolated development smoke passed 6 cases and 5 mock gates. Final source fingerprint differs; not final-candidate/media qualification. Teardown window-bounds persistence error preserved."
+    },
+    "richGuiCurrent": {
+      "result": "tmp/v2-streaming-perf-20260930/round114/root-round114-result.json",
+      "originalRun": "FAIL preserved",
+      "correctionRun": "FAIL before controls; one correction consumed",
+      "scriptedCalls": 96,
+      "profiles": [24, 24, 48],
+      "caseTypesEach": 24,
+      "canonicalReplay": "PASS",
+      "nativeQuit": "PASS: zero exit and exact bounds",
+      "liveGroupSegments": [8, 16, 8],
+      "liveGroupEvidence": "Assertions reached gallery, Show-all screenshot retained; parent media phase remains failed",
+      "savedInertSummaries": 4,
+      "mixedSeventeenMemberSummaries": 2,
+      "galleryInventory": {
+        "live": 2,
+        "saved": 2
+      },
+      "galleryDecodeNavigation": "UNTESTED: outside-viewport guard at opening; visible/hit-tested settled-target correction staged but native gate prevented its execution",
+      "knownRetired": 26,
+      "unwitnessedCorrectionPidsAbsentNow": 4,
+      "unexpectedConsoleErrors": 0,
+      "runtimeErrors": 0,
+      "nativePolicyRelaxed": false,
+      "wholeAppSavingsClaim": false
+    },
+    "sharedWorktreeChange": {
+      "paths": ["src/renderer/tailwind.css", "src/renderer/components/common/mobileModals.css"],
+      "ownership": "concurrent work; preserved, not edited or staged by this lane",
+      "candidateIncludesChanges": false,
+      "clarification": "Optional ownership/readiness question pending; independent preparation continues"
     }
   },
   "milestones": [
