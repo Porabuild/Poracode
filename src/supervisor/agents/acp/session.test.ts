@@ -25,6 +25,7 @@ import { shouldSpawnAcpSession } from "./sessionFactory";
 import type { AcpTextStreamExtension } from "./canonicalMapping/textStreamExtension";
 import { ACP_INLINE_CONTENT_MAX_BYTES } from "./sessionContentBlocks";
 import { resolveAcpPromptFailureMessage, shouldEmitAcpPromptRpcErrorItem } from "./sessionErrors";
+import * as textFileRead from "./sessionTextFileRead";
 
 function makeInput(
   overrides: Partial<CreateStructuredSessionInput> = {},
@@ -940,6 +941,39 @@ describe("ACP client protocol helpers", () => {
     );
 
     await expect(read({ sessionId: "session-1", path: outside })).rejects.toThrow("Invalid params");
+  });
+
+  it("maps a ranged read failure without notifying file-read completion", async () => {
+    const projectRoot = makePosixProject();
+    const path = join(projectRoot, "notes.txt");
+    const { session } = makeConfigSyncSession();
+    const internal = session as unknown as {
+      projectLocation: { kind: "windows" | "posix"; path: string };
+      handleReadTextFile(params: {
+        sessionId: string;
+        path: string;
+        line: number;
+        limit: number;
+      }): Promise<unknown>;
+      notifyClientFileRead(path: string): void;
+    };
+    internal.projectLocation = { kind: HOST_KIND, path: projectRoot };
+    const fault = Object.assign(new Error("fixture close EIO"), { code: "EIO" });
+    const reader = vi.spyOn(textFileRead, "readTextFileContent").mockRejectedValueOnce(fault);
+    const completion = vi.spyOn(internal, "notifyClientFileRead");
+    try {
+      await expect(
+        internal.handleReadTextFile({ sessionId: "session-1", path, line: 1, limit: 1 }),
+      ).rejects.toMatchObject({
+        code: -32603,
+        data: { path, code: "EIO", message: fault.message },
+      });
+      expect(reader).toHaveBeenCalledWith(path, 1, 1);
+      expect(completion).not.toHaveBeenCalled();
+    } finally {
+      reader.mockRestore();
+      completion.mockRestore();
+    }
   });
 
   it("serves ACP fs reads and writes anywhere when the workspace is Home", async () => {

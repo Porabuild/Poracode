@@ -11,7 +11,7 @@
 
 import { spawn as spawnChild, type ChildProcess } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { homedir } from "node:os";
 import { Readable, Writable } from "node:stream";
@@ -88,6 +88,7 @@ import { AcpSessionConfigSync } from "./sessionConfigSync";
 import { isMissingPathError, toAcpFsRequestError } from "./sessionFsErrors";
 import { createAcpLocalImageResolver } from "./sessionLocalImages";
 import { AcpPlanModeToolTracker } from "./sessionPlanMode";
+import { readTextFileContent } from "./sessionTextFileRead";
 import {
   isAcpHomeScopeLocation,
   resolveAcpGlobalSkillFallbackHostFsPath,
@@ -96,7 +97,6 @@ import {
   resolveAcpWritableHostFsPath,
   resolveSessionCwd,
   resolveSpawnCwd,
-  sliceTextFileContent,
   toAcpResourceUri,
 } from "./sessionPaths";
 
@@ -1479,9 +1479,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       this.fsAgentHomeDirs,
     );
     try {
-      const fullContent = await readFile(path, "utf8");
+      const content = await readTextFileContent(path, params.line, params.limit);
       this.notifyClientFileRead(params.path);
-      return { content: sliceTextFileContent(fullContent, params.line, params.limit) };
+      return { content };
     } catch (error: unknown) {
       const fallbackPath = resolveAcpGlobalSkillFallbackHostFsPath(
         this.projectLocation,
@@ -1489,9 +1489,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       );
       if (fallbackPath && fallbackPath !== path && isMissingPathError(error)) {
         try {
-          const fullContent = await readFile(fallbackPath, "utf8");
+          const content = await readTextFileContent(fallbackPath, params.line, params.limit);
           this.notifyClientFileRead(params.path);
-          return { content: sliceTextFileContent(fullContent, params.line, params.limit) };
+          return { content };
         } catch {
           // Keep the original project-path error so a missing skill stays
           // resource-not-found for the path the agent asked about.

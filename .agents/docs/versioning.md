@@ -1503,3 +1503,7 @@ provider probe -> supervisor agent-status cache -> IPC/event -> renderer Zustand
 ```
 
 If provider discovery semantics change, an old value can survive in either cache. Review both `STATUS_CACHE_VERSION` and the renderer store version, then test an upgrade fixture containing the previous version and stale data.
+
+### Ranged ACP filesystem reads
+
+ACP ranged text reads now scan UTF-8 incrementally and close the file after the requested lines. The existing unrestricted read and slicing contract remains unchanged, including CRLF normalization only for ranged reads, Unicode/invalid-byte decoding, trailing empty lines, path authority, missing-skill fallback and filesystem errors. This is per-request I/O with no retained cache or serialized state; ACP request/response shapes, capabilities and wire versions remain valid. New supervisor/server bundle hashes identify the implementation. Differential text/error/close checks and real child filesystem/dependent-workflow tests cover the boundary.
