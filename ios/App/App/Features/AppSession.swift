@@ -196,8 +196,9 @@ final class AppSession {
         await pairing.pair(with: input)
     }
 
-    func unpair() async {
-        await unpairSelectedOrLegacy()
+    /// Tests can keep removal cleanup on the same isolated dependencies as the session.
+    func unpair(registrations: PushRegistrationController? = nil) async {
+        await unpairSelectedOrLegacy(registrations: registrations)
     }
 
     func refreshSnapshot() async {

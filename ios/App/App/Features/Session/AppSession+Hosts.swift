@@ -1,13 +1,13 @@
 import Foundation
 
 extension AppSession {
-    func unpairSelectedOrLegacy() async {
+    func unpairSelectedOrLegacy(registrations: PushRegistrationController? = nil) async {
         if state.phase == .localStoreInconsistent {
             await pairing.clearInconsistentLocalStorage()
             return
         }
         if let id = state.selectedConnectionId, !state.hosts.isEmpty {
-            await removeHost(id)
+            await removeHost(id, registrations: registrations)
             return
         }
         await pairing.unpair()

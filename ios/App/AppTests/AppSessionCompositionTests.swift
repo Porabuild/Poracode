@@ -1118,12 +1118,14 @@ final class AppSessionCompositionTests: XCTestCase {
       throw TestAsyncTimeoutError.timedOut("testUnpairGatedThenPairBFailureDoesNotResurrect")
     }
     try await withThrowingTaskGroup(of: Void.self) { group in
+      defer {
+        group.cancelAll()
+        work.cancel()
+        timeout.cancel()
+      }
       group.addTask { try await work.value }
       group.addTask { try await timeout.value }
       try await group.next()
-      group.cancelAll()
-      work.cancel()
-      timeout.cancel()
     }
   }
 
@@ -1166,8 +1168,9 @@ final class AppSessionCompositionTests: XCTestCase {
     let socketsAfterBootstrap = sockets.count
     XCTAssertGreaterThanOrEqual(socketsAfterBootstrap, 1)
 
+    let push = try await PushHarness.make(hosts: [], catalog: session.deps.hostCatalog)
     await session.deps.hostCatalog.setMutationCheckpoint { await gate.wait() }
-    async let unpairDone: Void = session.unpair()
+    async let unpairDone: Void = session.unpair(registrations: push.controller)
     try await gate.waitUntilWaiting()
     await session.pair(with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b"))
     await gate.resume()
@@ -1198,12 +1201,14 @@ final class AppSessionCompositionTests: XCTestCase {
       )
     }
     try await withThrowingTaskGroup(of: Void.self) { group in
+      defer {
+        group.cancelAll()
+        work.cancel()
+        timeout.cancel()
+      }
       group.addTask { try await work.value }
       group.addTask { try await timeout.value }
       try await group.next()
-      group.cancelAll()
-      work.cancel()
-      timeout.cancel()
     }
   }
 
@@ -1251,8 +1256,9 @@ final class AppSessionCompositionTests: XCTestCase {
       )
     )
     await session.bootstrap()
+    let push = try await PushHarness.make(hosts: [], catalog: session.deps.hostCatalog)
     await session.deps.hostCatalog.setMutationCheckpoint { await gate.wait() }
-    async let unpairDone: Void = session.unpair()
+    async let unpairDone: Void = session.unpair(registrations: push.controller)
     try await gate.waitUntilWaiting()
     await session.pair(with: .init(manualBaseURL: "https://b.test", manualToken: "pair-b"))
     await gate.resume()

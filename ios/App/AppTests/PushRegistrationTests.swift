@@ -197,7 +197,7 @@ final class PushRegistrationTests: XCTestCase {
   }
 }
 
-private struct PushHarness {
+struct PushHarness {
   var controller: PushRegistrationController
   var recorder: PushAPIRecorder
   var state: PushClientStateStore
@@ -206,9 +206,9 @@ private struct PushHarness {
 
   static func make(
     hosts specs: [(String, [Int]?)],
+    catalog: HostCatalog = HostCatalog.ephemeralForTests(),
     deliveryEnabled: Bool = true
   ) async throws -> PushHarness {
-    let catalog = HostCatalog.ephemeralForTests()
     let pushIO = InMemoryKeychainIO()
     let vault = PushTokenVault(io: pushIO)
     let state = PushClientStateStore(
@@ -277,7 +277,7 @@ private struct PushHarness {
   }
 }
 
-private actor PushAPIRecorder {
+actor PushAPIRecorder {
   struct RegistrationCall: Sendable {
     var endpoint: String
     var accessToken: String
