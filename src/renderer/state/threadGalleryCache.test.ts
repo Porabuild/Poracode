@@ -25,6 +25,8 @@ function input() {
     images: [{ src: "data:image/png;base64,eA==" }],
     pendingRemoteRefs: [],
     pendingRemotePaths: [],
+    readyRemoteRefs: [],
+    readyRemotePaths: [],
   };
   return { ids, items, revision, result };
 }
@@ -321,7 +323,13 @@ describe("document-local thread gallery cache", () => {
     const before = input();
     for (let index = 0; index < 200; index++) write(`thread-${index}`, before);
     const replacement = input();
-    replacement.result = { images: [], pendingRemoteRefs: [], pendingRemotePaths: [] };
+    replacement.result = {
+      images: [],
+      pendingRemoteRefs: [],
+      pendingRemotePaths: [],
+      readyRemoteRefs: [],
+      readyRemotePaths: [],
+    };
     write("thread-0", replacement);
 
     expect(read("thread-0", before)).toBeNull();
@@ -347,3 +355,35 @@ describe("document-local thread gallery cache", () => {
     expect(read("thread-other", value)).toBeNull();
   });
 });
+
+it.each([undefined, 1])(
+  "retires a warm pre-upgrade collection format %s without serving its old shape",
+  (format) => {
+    const value = input();
+    let entry: Record<string, unknown> | undefined;
+    const originalSet = Map.prototype.set;
+    const capture = vi.spyOn(Map.prototype, "set").mockImplementation(function (
+      this: Map<unknown, unknown>,
+      key: unknown,
+      stored: unknown,
+    ) {
+      if (
+        key === "pre-upgrade" &&
+        stored &&
+        typeof stored === "object" &&
+        Object.hasOwn(stored, "itemsById")
+      )
+        entry = stored as Record<string, unknown>;
+      return originalSet.call(this, key, stored);
+    });
+    write("pre-upgrade", value);
+    capture.mockRestore();
+    expect(entry).toBeDefined();
+    if (!entry) throw Error("Missing captured cache entry");
+    entry.formatVersion = format;
+    entry.result = { images: value.result.images, pendingRemoteRefs: [], pendingRemotePaths: [] };
+    expect(read("pre-upgrade", value)).toBeNull();
+    write("pre-upgrade", value);
+    expect(read("pre-upgrade", value)).toEqual(value.result);
+  },
+);

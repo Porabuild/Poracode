@@ -5,12 +5,21 @@ import type {
 } from "@/renderer/components/thread/ChatPane/parts/items/threadGalleryImages";
 import type { GalleryCacheRevision } from "./threadGalleryCache";
 
+/** Volatile document cache: v2 carries ready-coordinate provenance. */
+export const GALLERY_CACHE_FORMAT_VERSION = 2;
+
 export const GALLERY_CACHE_ENTRY_MAX_BYTES = 16 * 1024 * 1024;
 export const GALLERY_CACHE_MAX_RECORDS = 2048;
 export const GALLERY_CACHE_MAX_PATH_PARTS = 8192;
 export const GALLERY_CACHE_MAX_REF_PATH_PARTS = 64;
 
-const COLLECTION_FIELDS = ["images", "pendingRemoteRefs", "pendingRemotePaths"];
+const COLLECTION_FIELDS = [
+  "images",
+  "pendingRemoteRefs",
+  "pendingRemotePaths",
+  "readyRemoteRefs",
+  "readyRemotePaths",
+];
 const IMAGE_FIELDS = ["src", "alt", "fileName", "mime"];
 const REF_FIELDS = ["threadId", "itemId", "path", "mime", "bytes", "width", "height", "preview"];
 const REVISION_FIELDS = ["structuralVersion", "remoteRevision", "locale", "imageAuthority"];
@@ -180,6 +189,7 @@ function copyRef(value: unknown, budget: GalleryBudget): RemoteImageRefValue {
 }
 
 interface GalleryCacheMetadata {
+  readonly formatVersion: typeof GALLERY_CACHE_FORMAT_VERSION;
   readonly estimatedBytes: number;
   readonly structuralVersion: number;
   readonly remoteRevision: string;
@@ -218,7 +228,13 @@ export function admitGalleryCacheSnapshot(
     for (const key of COLLECTION_FIELDS) budget.primitive(key);
     const images = readArray(fields.images, budget).map((image) => copyImage(image, budget));
     const refs = readArray(fields.pendingRemoteRefs, budget).map((ref) => copyRef(ref, budget));
+    const readyRefs = readArray(fields.readyRemoteRefs, budget).map((ref) => copyRef(ref, budget));
     const paths = readArray(fields.pendingRemotePaths, budget).map((value) => {
+      if (typeof value !== "string") throw REFUSED;
+      budget.primitive(value);
+      return value;
+    });
+    const readyPaths = readArray(fields.readyRemotePaths, budget).map((value) => {
       if (typeof value !== "string") throw REFUSED;
       budget.primitive(value);
       return value;
@@ -228,11 +244,12 @@ export function admitGalleryCacheSnapshot(
         ? metadata.imageAuthority
         : new WeakRef(metadata.imageAuthority);
     const common = {
+      formatVersion: GALLERY_CACHE_FORMAT_VERSION,
       structuralVersion: metadata.structuralVersion,
       remoteRevision: metadata.remoteRevision,
       locale: metadata.locale,
       imageAuthority,
-    };
+    } as const;
     if (budget.bytes > GALLERY_CACHE_ENTRY_MAX_BYTES) {
       metadataBudget.charge(16); // Additional weak result handle.
       return {
@@ -250,6 +267,8 @@ export function admitGalleryCacheSnapshot(
         images: Object.freeze(images),
         pendingRemoteRefs: Object.freeze(refs),
         pendingRemotePaths: Object.freeze(paths),
+        readyRemoteRefs: Object.freeze(readyRefs),
+        readyRemotePaths: Object.freeze(readyPaths),
       }),
       estimatedBytes: budget.bytes,
     };

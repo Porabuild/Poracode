@@ -2006,3 +2006,9 @@ so new bundles receive a new source identity. Prior complete artifacts remain
 valid with their prior quit behavior; no persisted-state migration is needed.
 
 Electron is pinned to `44.4.4`, including the mirrored workspace override and lockfile resolution used by React DevTools. This same-major update includes the upstream sandbox initialization fix (electron/electron#54155). Native dependencies are checked by the existing Electron-aware installer, and qualification uses isolated profiles and a newly frozen artifact. Application state, runtime payloads, IPC and wire formats do not change; their versions remain valid. The dependency version and build identity distinguish this runtime from the preserved 44.0.0 artifact.
+
+### Authenticated image reuse and gallery readiness — volatile cache format 2
+
+The instance-local environment-image pool shares immutable Blob/URL resources only after each coordinate finishes its own authenticated, capped response and exact MIME/byte comparison. Resource ownership, comparison pins and unsettled jobs are volatile same-bundle state; disposal retires the pool. Public image resolution, canonical images, persisted data, transport, IPC, wire and deployed helper formats remain unchanged. No durable migration or protocol bump is required.
+
+The volatile thread-gallery snapshot now includes `readyRemoteRefs` and `readyRemotePaths` alongside pending coordinates. `GALLERY_CACHE_FORMAT_VERSION = 2` stamps admission metadata; lookup rejects and removes missing/format-1 entries before reading their older three-field shape. Both owned and byte-overflow weak admission paths validate and charge the new fields. Pre-upgrade regression fixtures prove old warm snapshots are refused and recomputed. Collector, admission, hook and empty snapshots all use the five-field shape.

@@ -2,6 +2,7 @@ import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
 import type { ThreadGalleryCollection } from "@/renderer/components/thread/ChatPane/parts/items/threadGalleryImages";
 import {
   admitGalleryCacheSnapshot,
+  GALLERY_CACHE_FORMAT_VERSION,
   readGalleryCacheRevision,
   type GalleryCacheAdmission,
 } from "./galleryCacheAdmission";
@@ -54,6 +55,10 @@ export function readThreadGalleryCache(
 ): ThreadGalleryCollection | null {
   const cached = galleryCache.get(threadId);
   if (!cached) return null;
+  if (cached.formatVersion !== GALLERY_CACHE_FORMAT_VERSION) {
+    forgetThreadGalleryCache(threadId);
+    return null;
+  }
   const cachedIds = cached.itemIds.deref();
   const cachedItems = cached.itemsById.deref();
   if (cachedIds === undefined || cachedItems === undefined) return null;

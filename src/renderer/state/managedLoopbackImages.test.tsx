@@ -67,7 +67,7 @@ describe("managed loopback image custody", () => {
     );
     await waitFor(() => expect(session.readiness.resolveRef(ref)).toBe("blob:managed-image-1"));
     expect(listener).toHaveBeenCalledOnce();
-    expect(session.readiness.resolvePath("/tmp/image.png")).toBe("blob:managed-image-2");
+    expect(session.readiness.resolvePath("/tmp/image.png")).toBe("blob:managed-image-1");
     unsubscribe();
     failManagedParentAuthority("descriptor unavailable");
     expect(readManagedLoopbackImageSession()).toBe(session);
@@ -115,7 +115,12 @@ describe("managed loopback image custody", () => {
     expect(readManagedLoopbackImageSession()).toBe(session);
     session.readiness.requestRef(ref);
     session.readiness.requestRef({ ...ref, itemId: "second-image" });
-    await waitFor(() => expect(createObjectUrl).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(session.readiness.resolveRef({ ...ref, itemId: "second-image" })).toBe(
+        "blob:managed-image-1",
+      ),
+    );
+    expect(createObjectUrl).toHaveBeenCalledOnce();
     expect(ticketAuthorizations).toEqual(["Bearer initial-access", "Bearer rotated-access"]);
     expect(listener).toHaveBeenCalledOnce();
     expect(revokeObjectUrl).not.toHaveBeenCalled();

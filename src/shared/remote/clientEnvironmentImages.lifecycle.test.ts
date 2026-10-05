@@ -174,13 +174,13 @@ describe("RemoteEnvironmentImageCache lifecycle", () => {
     expect(harness.fetches).toHaveLength(1);
   });
 
-  it("aborts the queued work when a generation is replaced by eviction", async () => {
+  it("reserves an aborted generation's slot until the fetch actually settles", async () => {
     const harness = cacheHarness({ maxEntries: 1, maxConcurrentFetches: 1 });
     harness.cache.localImageResolution("/tmp/a.png");
     harness.cache.localImageResolution("/tmp/b.png");
-    // Entry-bound pressure evicted the older in-flight generation; the queued
-    // key is promoted and the stale completion must be dropped.
-    expect(harness.fetches).toHaveLength(2);
+    // Entry-bound pressure aborts the old generation, but this injected fetch
+    // ignores abort. The replacement stays queued until it actually settles.
+    expect(harness.fetches).toHaveLength(1);
     expect(harness.fetches[0]?.signal.aborted).toBe(true);
 
     const keyB = environmentLocalImageKey("/tmp/b.png");

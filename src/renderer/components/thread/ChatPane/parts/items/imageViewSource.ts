@@ -67,9 +67,8 @@ export interface ImageViewSource {
    */
   preview?: string;
   /**
-   * Host-held reference this source resolves from, carried while the
-   * authenticated blob fetch is pending so a subscriber can continue the
-   * resolution without another store event (R3).
+   * Host-held coordinate retained through readiness and eviction so subscribers
+   * can replace or remove its URL without an unrelated transcript store event.
    */
   remoteRef?: RemoteImageRefValue;
   /** True while {@link remoteRef} has no resolved URL yet. */
@@ -172,7 +171,8 @@ function imageViewSourceFromRef(
       ? { width: ref.width, height: ref.height }
       : {}),
     ...(ref.preview ? { preview: ref.preview } : {}),
-    ...(!src ? { remoteRef: ref, pending: true } : {}),
+    remoteRef: ref,
+    ...(!src ? { pending: true } : {}),
   };
 }
 
@@ -209,7 +209,8 @@ export function imageViewSourceFromImageBlock(
         ? { width: ref.width, height: ref.height }
         : {}),
       ...(ref.preview ? { preview: ref.preview } : {}),
-      ...(!src ? { remoteRef: ref, pending: true } : {}),
+      remoteRef: ref,
+      ...(!src ? { pending: true } : {}),
     };
   }
   if (typeof block.dataUrl !== "string" || block.dataUrl.length === 0) return null;

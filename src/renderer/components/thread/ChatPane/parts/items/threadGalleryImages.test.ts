@@ -417,3 +417,61 @@ describe("threadGalleryImages host-held readiness (C1 R3/F8)", () => {
     expect(selectRemoteGalleryRevision(state, CHILD_DESKTOP)).not.toContain(environment.endpoint);
   });
 });
+
+it("retains both ready coordinates when identical resolved URLs collapse to one gallery entry", () => {
+  const refs = ["older", "newer"].map((itemId) => ({
+    threadId: "thread",
+    itemId,
+    path: ["images", 0],
+    mime: "image/png",
+    bytes: 4,
+  }));
+  const items = refs.map(
+    (ref) =>
+      ({
+        id: ref.itemId,
+        type: "image_view",
+        state: "completed",
+        streams: {},
+        payload: { images: [remoteImageRef(ref)] },
+      }) as RuntimeChatItem,
+  );
+  const collection = collectThreadGallery(items, { remoteImageRefUrl: () => "blob:shared" });
+  expect(collection.images).toHaveLength(1);
+  expect(collection.readyRemoteRefs.map((ref) => ref.itemId)).toEqual(["newer", "older"]);
+  expect(collection.pendingRemoteRefs).toEqual([]);
+});
+
+it("tracks ready and pending remote Markdown paths while keeping native paths outside byte-cache readiness", () => {
+  const item = assistantItem(
+    "image",
+    [],
+    "![first](images/ready.png) ![second](images/pending.png)",
+  );
+  const remote = collectThreadGallery([item], {
+    projectRoot: "/project",
+    remoteLocalImageUrl: (url) => (url.endsWith("/ready.png") ? "blob:ready" : ""),
+  });
+  expect(remote.images.map((image) => image.src)).toEqual(["blob:ready"]);
+  expect(remote.readyRemotePaths).toEqual(["/project/images/ready.png"]);
+  expect(remote.pendingRemotePaths).toEqual(["/project/images/pending.png"]);
+  const native = collectThreadGallery([item], {
+    projectRoot: "/project",
+    remoteLocalImageUrl: (url) => url,
+  });
+  expect(native.images).toHaveLength(2);
+  expect(native.readyRemotePaths).toEqual([]);
+  expect(native.pendingRemotePaths).toEqual([]);
+});
+
+it("uses the host path decoder for ready Windows Markdown provenance", () => {
+  const collection = collectThreadGallery(
+    [assistantItem("image", [], "![win](/images/ready.png)")],
+    {
+      projectRoot: "/project",
+      remoteLocalImageUrl: () => "blob:windows",
+      localImagePathForUrl: () => "C:/project/ready.png",
+    },
+  );
+  expect(collection.readyRemotePaths).toEqual(["C:/project/ready.png"]);
+});

@@ -27,6 +27,8 @@ function fixture() {
     ],
     pendingRemoteRefs: [ref],
     pendingRemotePaths: ["/project/image.png"],
+    readyRemoteRefs: [],
+    readyRemotePaths: [],
   };
   const revision: GalleryCacheRevision = {
     structuralVersion: 1,
@@ -102,6 +104,8 @@ describe("owned gallery snapshot admission", () => {
       images: [{ src: "" }],
       pendingRemoteRefs: [],
       pendingRemotePaths: [],
+      readyRemoteRefs: [],
+      readyRemotePaths: [],
     };
     const base = admitGalleryCacheSnapshot("thread", "roots", revision, result)!.estimatedBytes;
     result.images[0]!.src = "x".repeat((GALLERY_CACHE_ENTRY_MAX_BYTES - base) / 2);
@@ -219,6 +223,8 @@ describe("owned gallery snapshot admission", () => {
         })),
         pendingRemoteRefs: [],
         pendingRemotePaths: [],
+        readyRemoteRefs: [],
+        readyRemotePaths: [],
       };
       expect(admitGalleryCacheSnapshot("thread", "roots", value.revision, result)).not.toBeNull();
       const getter = vi.fn<() => string>(() => "x");
@@ -242,6 +248,8 @@ describe("owned gallery snapshot admission", () => {
       images: overflow ? [{ src: "x".repeat(GALLERY_CACHE_ENTRY_MAX_BYTES) }] : [],
       pendingRemoteRefs: refs,
       pendingRemotePaths: [],
+      readyRemoteRefs: [],
+      readyRemotePaths: [],
     };
     expect(admitGalleryCacheSnapshot("thread", "roots", value.revision, result)).not.toBeNull();
     const getter = vi.fn<() => string>(() => "part");
@@ -261,4 +269,31 @@ describe("owned gallery snapshot admission", () => {
       }),
     ).toBeNull();
   });
+});
+
+it("owns and charges ready reference/path provenance and validates it even for borrowed overflow", () => {
+  const value = fixture();
+  const before = value.admit()!.estimatedBytes;
+  const readyRef = { ...value.ref, itemId: "ready-item", path: [...value.ref.path] };
+  const result = {
+    ...value.result,
+    readyRemoteRefs: [readyRef],
+    readyRemotePaths: ["/project/ready.png"],
+  };
+  const admit = () => admitGalleryCacheSnapshot("thread", "roots", value.revision, result);
+  const admitted = admit();
+  expect(admitted?.kind).toBe("owned");
+  if (admitted?.kind !== "owned") throw Error("Expected owned snapshot");
+  expect(admitted.estimatedBytes).toBeGreaterThan(before);
+  expect(admitted.result.readyRemoteRefs[0]).not.toBe(value.ref);
+  expect(admitted.result.readyRemoteRefs[0]!.path).not.toBe(value.ref.path);
+  expect(Object.isFrozen(admitted.result.readyRemoteRefs)).toBe(true);
+  expect(Object.isFrozen(admitted.result.readyRemoteRefs[0]!.path)).toBe(true);
+  expect(Object.isFrozen(admitted.result.readyRemotePaths)).toBe(true);
+  result.images[0]!.src = "x".repeat(GALLERY_CACHE_ENTRY_MAX_BYTES);
+  expect(admit()?.kind).toBe("borrowed");
+  const getter = vi.fn<() => Array<string | number>>(() => ["images", 0]);
+  Object.defineProperty(readyRef, "path", { get: getter });
+  expect(admit()).toBeNull();
+  expect(getter).not.toHaveBeenCalled();
 });

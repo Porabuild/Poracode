@@ -32,6 +32,8 @@ const EMPTY_COLLECTION: ThreadGalleryCollection = {
   images: EMPTY_GALLERY,
   pendingRemoteRefs: [],
   pendingRemotePaths: [],
+  readyRemoteRefs: [],
+  readyRemotePaths: [],
 };
 
 /**
@@ -49,7 +51,8 @@ const EMPTY_COLLECTION: ThreadGalleryCollection = {
  * collection yet; the hook subscribes to their existing bounded keyed
  * readiness surface and invalidates the cache on transition, so an open
  * gallery — and a lightbox opened from this thread's gallery — picks the image
- * up when its authenticated blob lands.
+ * up when its authenticated blob lands. Ready coordinates remain subscribed
+ * so ordinary cache eviction also removes revoked URLs without a store tick.
  */
 export function useThreadGalleryImages(
   threadId: string | undefined,
@@ -88,8 +91,8 @@ export function useThreadGalleryImages(
     browserImageReadiness,
   );
   const isManagedThread = thread !== undefined && managedRootOwner(thread) !== undefined;
-  // Bumped when a pending host-held image resolves: the memo re-runs and the
-  // invalidated cache recomputes with the now-ready URL.
+  // Keyed readiness or eviction transitions invalidate the cached collection
+  // without requiring unrelated transcript or connection changes.
   const [readinessRevision, setReadinessRevision] = useState(0);
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- intentional escape hatch: the module cache below already dedupes across subscribers; this memo only re-reads the live remote clients per store update
@@ -120,21 +123,38 @@ export function useThreadGalleryImages(
     imageAuthority,
   ]);
   const images = collection.images;
+  const readyRefs = collection.readyRemoteRefs;
+  const readyPaths = collection.readyRemotePaths;
   const pendingRefs = collection.pendingRemoteRefs;
   const pendingPaths = collection.pendingRemotePaths;
   const pendingKey = [
     ...pendingRefs.map(environmentImageRefKey),
     ...pendingPaths.map(environmentLocalImageKey),
   ].join("\n");
+  const readinessKey = [
+    ...readyRefs.map(environmentImageRefKey),
+    ...readyPaths.map(environmentLocalImageKey),
+    pendingKey,
+  ].join("\n");
+  const readyRefsRef = useRef(readyRefs);
+  const readyPathsRef = useRef(readyPaths);
   const pendingRefsRef = useRef(pendingRefs);
   const pendingPathsRef = useRef(pendingPaths);
   useEffect(() => {
+    readyRefsRef.current = readyRefs;
+    readyPathsRef.current = readyPaths;
     pendingRefsRef.current = pendingRefs;
     pendingPathsRef.current = pendingPaths;
   });
 
   useEffect(() => {
-    if (!threadId || pendingKey.length === 0) return;
+    if (
+      !threadId ||
+      (pendingKey.length === 0 &&
+        readyRefsRef.current.length === 0 &&
+        readyPathsRef.current.length === 0)
+    )
+      return;
     // Re-resolve the readiness surface at effect time: it is bound to the live
     // session, and a real environment-client rebuild is picked up by the
     // subscription itself (which rebinds mounted listeners).
@@ -159,6 +179,8 @@ export function useThreadGalleryImages(
       setReadinessRevision((revision) => revision + 1);
     };
     const unsubscribes = [
+      ...readyRefsRef.current.map((ref) => readiness.subscribeRef(ref, onTransition)),
+      ...readyPathsRef.current.map((path) => readiness.subscribePath(path, onTransition)),
       ...refs.map((ref) => readiness.subscribeRef(ref, onTransition)),
       ...paths.map((path) => readiness.subscribePath(path, onTransition)),
     ];
@@ -171,6 +193,7 @@ export function useThreadGalleryImages(
     threadId,
     remoteServerId,
     pendingKey,
+    readinessKey,
     browserImageReadiness,
     imageReadinessFor,
     remoteServerRecord,

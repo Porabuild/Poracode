@@ -1,4 +1,8 @@
 import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
+import {
+  ClientEnvironmentImageBlobPool,
+  type EnvironmentImageBlobResource,
+} from "./clientEnvironmentImageBlobPool";
 
 /**
  * Bounded, authenticated image-blob cache for environment records (R3).
@@ -22,13 +26,18 @@ import { remoteImageRefPath, type RemoteImageRefValue } from "./imageRef";
  *   from an effect, keeping `getSnapshot` pure.
  *
  * Bounds and lifecycle, all pinned by tests:
- * - Real LRU by entry count and total bytes: a read/request/subscription moves
+ * - Real LRU by coordinate count and unique resource bytes: a request/subscription moves
  *   the entry to the most-recently-used position, and eviction takes the
  *   least-recently-used evictable entry.
  * - Fetch concurrency is bounded (`maxConcurrentFetches`): excess keys wait in
  *   a FIFO queue, so the transient retained model is
- *   `maxBytes` (ready object URLs) + `maxConcurrentFetches x per-fetch cap`
- *   (in-flight byte arrays) + queue metadata. A queued entry retains no bytes.
+ *   `maxBytes` (unique encoded resources, including comparison pins) +
+ *   `maxConcurrentFetches x per-fetch cap` (in-flight byte arrays) + one
+ *   bounded comparison slice + queue metadata. A queued entry retains no bytes.
+ *   Eviction/abort reserves its slot until fetch and admission actually settle.
+ * - Independently authenticated successful coordinates may share a Blob/URL
+ *   only after bounded exact-byte comparison of equal response MIME/size.
+ *   Resources are cache-private and revoked when their last coordinate leaves.
  * - An eviction or a failure latches the key for the retry window and
  *   notifies once, so a visible-but-over-budget or failing image cannot drive
  *   a blind refetch loop; the latch expiry notifies and allows exactly one
@@ -97,8 +106,7 @@ interface ImageCacheEntry {
   requestPath: string;
   status: ImageEntryStatus;
   controller: AbortController | undefined;
-  objectUrl: string | undefined;
-  bytes: number;
+  resource: EnvironmentImageBlobResource | undefined;
   retryAtMs: number | undefined;
   retryTimer: ReturnType<typeof setTimeout> | undefined;
   /** Immutable snapshot; replaced only on an observable state transition. */
@@ -113,8 +121,7 @@ interface EvictionLatch {
 
 export class RemoteEnvironmentImageCache {
   private readonly fetchBytes: RemoteEnvironmentImageCacheOptions["fetchBytes"];
-  private readonly createObjectUrl: RemoteEnvironmentImageCacheOptions["createObjectUrl"];
-  private readonly revokeObjectUrl: RemoteEnvironmentImageCacheOptions["revokeObjectUrl"];
+  private readonly blobs: ClientEnvironmentImageBlobPool;
   private readonly maxEntries: number;
   private readonly maxBytes: number;
   private readonly retryWindowMs: number;
@@ -124,13 +131,16 @@ export class RemoteEnvironmentImageCache {
   private readonly latches = new Map<string, EvictionLatch>();
   private readonly listeners = new Map<string, Set<() => void>>();
   private readonly missingSnapshots = new Map<string, RemoteEnvironmentImageResolution>();
-  private totalBytes = 0;
+  /** Includes evicted/aborted jobs until their fetch and admission finally settle. */
+  private readonly jobs = new Set<AbortController>();
   private disposed = false;
 
   constructor(options: RemoteEnvironmentImageCacheOptions) {
     this.fetchBytes = options.fetchBytes;
-    this.createObjectUrl = options.createObjectUrl;
-    this.revokeObjectUrl = options.revokeObjectUrl;
+    this.blobs = new ClientEnvironmentImageBlobPool(
+      options.createObjectUrl,
+      options.revokeObjectUrl,
+    );
     this.maxEntries = options.maxEntries ?? ENVIRONMENT_IMAGE_CACHE_MAX_ENTRIES;
     this.maxBytes = options.maxBytes ?? ENVIRONMENT_IMAGE_CACHE_MAX_BYTES;
     this.retryWindowMs = options.retryWindowMs ?? ENVIRONMENT_IMAGE_RETRY_WINDOW_MS;
@@ -196,13 +206,14 @@ export class RemoteEnvironmentImageCache {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.blobs.dispose();
+    for (const controller of this.jobs) controller.abort();
     for (const entry of this.entries.values()) this.release(entry);
     this.entries.clear();
     for (const latch of this.latches.values()) clearTimeout(latch.retryTimer);
     this.latches.clear();
     this.listeners.clear();
     this.missingSnapshots.clear();
-    this.totalBytes = 0;
   }
 
   private requestResolution(key: string, requestPath: string): RemoteEnvironmentImageResolution {
@@ -222,7 +233,12 @@ export class RemoteEnvironmentImageCache {
   private requestEntry(key: string, entry: ImageCacheEntry): RemoteEnvironmentImageResolution {
     if (entry.status === "failed") {
       if (entry.retryAtMs !== undefined && Date.now() < entry.retryAtMs) return entry.snapshot;
-      this.startFetch(key, entry, entry.requestPath);
+      if (entry.retryTimer !== undefined) clearTimeout(entry.retryTimer);
+      entry.retryTimer = undefined;
+      entry.retryAtMs = undefined;
+      entry.status = "queued";
+      entry.snapshot = snapshotFor(key, "", true);
+      this.pump();
     }
     return entry.snapshot;
   }
@@ -232,8 +248,7 @@ export class RemoteEnvironmentImageCache {
       requestPath,
       status: "queued",
       controller: undefined,
-      objectUrl: undefined,
-      bytes: 0,
+      resource: undefined,
       retryAtMs: undefined,
       retryTimer: undefined,
       snapshot: snapshotFor(key, "", true),
@@ -248,7 +263,7 @@ export class RemoteEnvironmentImageCache {
   /** Starts queued work while a fetch slot is free, oldest queue entry first. */
   private pump(): void {
     if (this.disposed) return;
-    while (this.activeFetchCount() < this.maxConcurrentFetches) {
+    while (!this.disposed && this.jobs.size < this.maxConcurrentFetches) {
       let started = false;
       for (const [key, entry] of this.entries) {
         if (entry.status !== "queued") continue;
@@ -258,14 +273,6 @@ export class RemoteEnvironmentImageCache {
       }
       if (!started) return;
     }
-  }
-
-  private activeFetchCount(): number {
-    let active = 0;
-    for (const entry of this.entries.values()) {
-      if (entry.status === "pending") active += 1;
-    }
-    return active;
   }
 
   /** Promotes one entry to an in-flight fetch; the entry is already in the map. */
@@ -280,6 +287,7 @@ export class RemoteEnvironmentImageCache {
       entry.retryTimer = undefined;
     }
     entry.snapshot = snapshotFor(key, "", true);
+    this.jobs.add(entry.controller);
     void this.load(key, entry, entry.controller);
   }
 
@@ -292,9 +300,8 @@ export class RemoteEnvironmentImageCache {
       const { bytes, contentType } = await this.fetchBytes(entry.requestPath, controller.signal);
       // Generation guard: a replaced, evicted, or disposed entry owns identity,
       // so only the exact object still in the map may publish a result.
-      if (!this.isCurrent(key, entry)) return;
-      const blob = new Blob([bytes.slice().buffer], { type: contentType });
-      if (blob.size > this.maxBytes) {
+      if (!this.isCurrentFetch(key, entry, controller)) return;
+      if (bytes.byteLength > this.maxBytes) {
         // A single image can never fit the aggregate budget: latch it
         // permanently instead of evicting and refetching it forever. No object
         // URL is created (there is nothing to revoke).
@@ -304,31 +311,44 @@ export class RemoteEnvironmentImageCache {
         this.notify(key);
         return;
       }
-      const objectUrl = this.createObjectUrl(blob);
-      if (!this.isCurrent(key, entry)) {
-        this.revokeObjectUrl(objectUrl);
-        return;
-      }
-      entry.status = "ready";
-      entry.objectUrl = objectUrl;
-      entry.bytes = blob.size;
-      entry.controller = undefined;
-      this.totalBytes += blob.size;
-      entry.snapshot = snapshotFor(key, objectUrl, false);
-      this.touch(key);
-      this.trim();
-      if (this.isCurrent(key, entry)) this.notify(key);
+      await this.blobs.admit(
+        bytes,
+        contentType,
+        controller.signal,
+        () => this.isCurrentFetch(key, entry, controller),
+        (resource) => this.publishReady(key, entry, controller, resource),
+      );
     } catch {
       this.latchFailure(key, entry, controller);
     } finally {
+      this.jobs.delete(controller);
       this.pump();
     }
+  }
+
+  private publishReady(
+    key: string,
+    entry: ImageCacheEntry,
+    controller: AbortController,
+    resource: EnvironmentImageBlobResource,
+  ): void {
+    if (!this.isCurrentFetch(key, entry, controller)) {
+      this.blobs.release(resource);
+      return;
+    }
+    entry.status = "ready";
+    entry.resource = resource;
+    entry.controller = undefined;
+    entry.snapshot = snapshotFor(key, resource.url, false);
+    this.touch(key);
+    this.trim();
+    if (this.isCurrent(key, entry)) this.notify(key);
   }
 
   private latchFailure(key: string, entry: ImageCacheEntry, controller: AbortController): void {
     // An abort is owner-initiated (dispose, eviction, replacement): the entry is
     // already gone or intentionally superseded, so no failure is latched.
-    if (this.disposed || controller.signal.aborted || !this.isCurrent(key, entry)) return;
+    if (!this.isCurrentFetch(key, entry, controller)) return;
     entry.status = "failed";
     entry.controller = undefined;
     entry.retryAtMs = Date.now() + this.retryWindowMs;
@@ -346,6 +366,16 @@ export class RemoteEnvironmentImageCache {
     return !this.disposed && this.entries.get(key) === entry;
   }
 
+  private isCurrentFetch(
+    key: string,
+    entry: ImageCacheEntry,
+    controller: AbortController,
+  ): boolean {
+    return (
+      this.isCurrent(key, entry) && entry.controller === controller && !controller.signal.aborted
+    );
+  }
+
   /** Moves an entry to the most-recently-used position (real LRU). */
   private touch(key: string): void {
     const entry = this.entries.get(key);
@@ -361,22 +391,22 @@ export class RemoteEnvironmentImageCache {
       clearTimeout(entry.retryTimer);
       entry.retryTimer = undefined;
     }
-    if (entry.objectUrl !== undefined) {
-      this.revokeObjectUrl(entry.objectUrl);
-      this.totalBytes -= entry.bytes;
-      entry.objectUrl = undefined;
-      entry.bytes = 0;
+    if (entry.resource !== undefined) {
+      const resource = entry.resource;
+      entry.resource = undefined;
+      this.blobs.release(resource);
     }
   }
 
   private trim(): void {
-    while (this.entries.size > this.maxEntries || this.totalBytes > this.maxBytes) {
+    while (this.entries.size > this.maxEntries || this.blobs.totalBytes > this.maxBytes) {
       const candidate = this.evictionCandidate();
       if (!candidate) return;
       const [key, entry] = candidate;
       const latched = entry.status === "ready" || entry.status === "failed";
       this.entries.delete(key);
       this.release(entry);
+      if (this.disposed) return;
       if (latched) this.setLatch(key, entry.requestPath);
       this.notify(key);
     }

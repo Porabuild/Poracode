@@ -24,6 +24,7 @@ import {
   remoteBridgeImageRefUrl,
   setRemoteBridgeClient,
 } from "@/renderer/browser/remoteBridge";
+import { readManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -210,11 +211,11 @@ it.each([
     expect(paneActionsFixture.current?.remoteLocalImageUrl?.(localUrl)).toBe("");
     await waitFor(() =>
       expect(getRemoteBridgeImageReadiness()?.resolvePath("/tmp/browser-path.png")).toBe(
-        "blob:managed-image-2",
+        "blob:managed-image-1",
       ),
     );
     expect(paneActionsFixture.current?.remoteLocalImageUrl?.(localUrl)).toBe(
-      "blob:managed-image-2",
+      "blob:managed-image-1",
     );
     expect(browser.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
     expect(clientFactory).not.toHaveBeenCalled();
@@ -320,3 +321,31 @@ it.each(["", "missing-owner", null, 123])(
     expect(screen.getByTestId("gallery-url")).toBeEmptyDOMElement();
   },
 );
+
+it("removes revoked URLs from transcript cards that mount after an image is already cached", async () => {
+  const activation = createImageActivation();
+  publishImageActivation(activation);
+  installManagedImageRuntime();
+  const readiness = readManagedLoopbackImageSession()!.readiness;
+  readiness.requestRef(hostRef);
+  await waitFor(() => expect(readiness.resolveRef(hostRef)).toBe("blob:managed-image-1"));
+  const thread = seedThread();
+  const slices = useAppStore.getState().runtimeItemsByIdByThread;
+  const view = mountPane(thread);
+  await waitFor(() => expect(screen.getAllByRole("img")).toHaveLength(2));
+  act(() => {
+    for (let index = 0; index < 64; index++)
+      readiness.requestRef({ ...hostRef, itemId: `pressure-${index}` });
+  });
+  await waitFor(() =>
+    expect(view.container.querySelectorAll('img[src="blob:managed-image-1"]')).toHaveLength(0),
+  );
+  expect(screen.getByTestId("gallery-url")).toHaveTextContent("");
+  expect(revokeObjectUrl).toHaveBeenCalledWith("blob:managed-image-1");
+  expect(useAppStore.getState().runtimeItemsByIdByThread).toBe(slices);
+  expect(
+    vi
+      .mocked(activation.client.fetchTicketedImageBytes)
+      .mock.calls.filter(([path]) => path.includes("/items/generated/")),
+  ).toHaveLength(1);
+});

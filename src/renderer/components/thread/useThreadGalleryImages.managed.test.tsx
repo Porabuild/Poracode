@@ -331,16 +331,16 @@ it.each([
     expect(resolvers.imageUrlForPath?.("/tmp/browser-path.png")).toBe("");
     await waitFor(() =>
       expect(getRemoteBridgeImageReadiness()?.resolvePath("/tmp/browser-path.png")).toBe(
-        "blob:managed-image-2",
+        "blob:managed-image-1",
       ),
     );
     expect(resolvers.remoteLocalImageUrl?.(toLocalFileUrl("/tmp/browser-path.png"))).toBe(
-      "blob:managed-image-2",
+      "blob:managed-image-1",
     );
     expect(browser.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
     const replacement = createImageActivation();
     act(() => setRemoteBridgeClient(replacement.client));
-    await waitFor(() => expect(result.current[1]?.src).toBe("blob:managed-image-3"));
+    await waitFor(() => expect(result.current[1]?.src).toBe("blob:managed-image-2"));
     expect(getThreadGalleryImages(projected.id)).toBe(result.current);
     expect(replacement.client.fetchTicketedImageBytes).toHaveBeenCalledOnce();
     expect(clientFactory).not.toHaveBeenCalled();
@@ -487,4 +487,34 @@ it("preserves inline history without authority and native attachment/markdown pa
   ]);
   expect(getThreadGalleryImages(threadId)).toBe(result.current);
   expect(createObjectUrl).not.toHaveBeenCalled();
+});
+
+it("refreshes a fully-ready gallery and open lightbox on ordinary cache eviction", async () => {
+  const activation = createImageActivation();
+  publishImageActivation(activation);
+  installManagedImageRuntime();
+  seedThread();
+  const slices = useAppStore.getState().runtimeItemsByIdByThread;
+  const { result } = renderHook(() => useThreadGalleryImages(threadId));
+  await waitFor(() => expect(result.current[1]?.src).toBe("blob:managed-image-1"));
+  mountLightbox();
+  act(() => openThreadGallery(result.current, result.current[1]!.src, 0, threadId));
+  expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
+  const readiness = readManagedLoopbackImageSession()!.readiness;
+  act(() => {
+    for (let index = 0; index < 64; index++)
+      readiness.requestRef({ ...hostRef, itemId: `pressure-${index}` });
+  });
+  await waitFor(() => expect(result.current.map((image) => image.src)).toEqual([inline]));
+  expect(getThreadGalleryImages(threadId)).toBe(result.current);
+  expect(screen.getByRole("img")).toHaveAttribute("src", inline);
+  expect(revokeObjectUrl).toHaveBeenCalledWith("blob:managed-image-1");
+  expect(useAppStore.getState().runtimeItemsByIdByThread).toBe(slices);
+  // The evicted coordinate remains latched; gallery invalidation cannot drive
+  // a refetch loop merely because the producer's data has not changed.
+  expect(
+    vi
+      .mocked(activation.client.fetchTicketedImageBytes)
+      .mock.calls.filter(([path]) => path.includes("/items/ref-only/")),
+  ).toHaveLength(1);
 });

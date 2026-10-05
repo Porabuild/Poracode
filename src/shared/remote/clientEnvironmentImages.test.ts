@@ -5,6 +5,7 @@ import {
   TEST_ENVIRONMENT_ID,
   bytesResponse,
   deferred,
+  errorResponse,
   imageRef,
   scriptedFetch,
   testAuthority,
@@ -55,6 +56,86 @@ function buildImages(
 }
 
 describe("RemoteEnvironmentClient authenticated image blobs (R3)", () => {
+  it("authenticates every equal reference and path before sharing one resource", async () => {
+    const pending = deferred<Response>();
+    const payload = new Uint8Array([1, 2, 3]);
+    const harness = buildImages([
+      () => bytesResponse(payload, "IMAGE/PNG"),
+      () => pending.promise,
+      () => bytesResponse(payload),
+    ]);
+    const refA = imageRef({ itemId: "item-a", mime: "image/jpeg", bytes: 999_999 });
+    const refB = imageRef({ itemId: "item-b", path: ["other", 1], bytes: 0 });
+    const path = "/tmp/equal.png";
+    try {
+      harness.client.imageRefResolution(refA);
+      await vi.waitFor(() => expect(harness.client.imageRefUrl(refA)).toBe("blob:fake-1"));
+      expect(harness.client.imageRefResolution(refB)).toMatchObject({ url: "", pending: true });
+      harness.client.localImageResolution(path);
+      await vi.waitFor(() => expect(harness.client.localImageUrl(path)).toBe("blob:fake-1"));
+      expect(harness.client.imageResolutionFor(harness.client.imageKeyForRef(refB))).toMatchObject({
+        url: "",
+        pending: true,
+      });
+      pending.resolve(bytesResponse(payload));
+      await vi.waitFor(() => expect(harness.client.imageRefUrl(refB)).toBe("blob:fake-1"));
+
+      expect(harness.requests).toHaveLength(3);
+      expect(harness.requests.map((request) => request.url.pathname)).toEqual([
+        `${proxyPrefix}/api/threads/thread-1/items/item-a/image`,
+        `${proxyPrefix}/api/threads/thread-1/items/item-b/image`,
+        `${proxyPrefix}/api/files/image`,
+      ]);
+      for (const request of harness.requests) {
+        expect(request.headers.authorization).toBe("Bearer child-access");
+        expect(request.headers[ENVIRONMENT_AUTHORIZATION_HEADER]).toBe("Bearer parent-access");
+        expect(request.url.searchParams.get("ticket")).toBeNull();
+      }
+      expect(harness.created).toEqual(["blob:fake-1"]);
+    } finally {
+      harness.client.dispose();
+    }
+    expect(harness.revoked).toEqual(["blob:fake-1"]);
+  });
+
+  it.each([401, 403])(
+    "never lends an available URL to a coordinate rejected with %s",
+    async (status) => {
+      const pending = deferred<Response>();
+      const harness = buildImages([
+        () => bytesResponse(new Uint8Array([1, 2, 3])),
+        () => pending.promise,
+      ]);
+      const refA = imageRef({ itemId: "item-a" });
+      // All presentation metadata agrees with A; it conveys no authority.
+      const refB = imageRef({ itemId: "item-b" });
+      try {
+        harness.client.imageRefResolution(refA);
+        await vi.waitFor(() => expect(harness.client.imageRefUrl(refA)).toBe("blob:fake-1"));
+        expect(harness.client.imageRefResolution(refB)).toMatchObject({ url: "", pending: true });
+        pending.resolve(errorResponse(status, "forbidden"));
+        await vi.waitFor(() =>
+          expect(
+            harness.client.imageResolutionFor(harness.client.imageKeyForRef(refB)),
+          ).toMatchObject({
+            url: "",
+            pending: false,
+          }),
+        );
+        expect(harness.client.imageRefUrl(refB)).toBe("");
+        expect(harness.client.imageRefUrl(refA)).toBe("blob:fake-1");
+        expect(harness.requests).toHaveLength(2);
+        expect(harness.requests[1]?.headers.authorization).toBe("Bearer child-access");
+        expect(harness.requests[1]?.headers[ENVIRONMENT_AUTHORIZATION_HEADER]).toBe(
+          "Bearer parent-access",
+        );
+        expect(harness.created).toEqual(["blob:fake-1"]);
+      } finally {
+        harness.client.dispose();
+      }
+    },
+  );
+
   it("resolves pending to one keyed notification, then a cached blob URL", async () => {
     const pending = deferred<Response>();
     const harness = buildImages([() => pending.promise]);
@@ -182,11 +263,11 @@ describe("RemoteEnvironmentClient authenticated image blobs (R3)", () => {
     const refB = imageRef({ itemId: "item-b" });
 
     expect(harness.client.imageRefUrl(refA)).toBe("");
-    first.resolve(bytesResponse(new Uint8Array(6)));
+    first.resolve(bytesResponse(new Uint8Array(6).fill(1)));
     await vi.waitFor(() => expect(harness.client.imageRefUrl(refA)).toBe("blob:fake-1"));
 
     expect(harness.client.imageRefUrl(refB)).toBe("");
-    second.resolve(bytesResponse(new Uint8Array(6)));
+    second.resolve(bytesResponse(new Uint8Array(6).fill(2)));
     await vi.waitFor(() => expect(harness.client.imageRefUrl(refB)).toBe("blob:fake-2"));
 
     expect(harness.revoked).toEqual(["blob:fake-1"]);
@@ -241,6 +322,45 @@ describe("RemoteEnvironmentClient authenticated image blobs (R3)", () => {
     expect(harness.created).toHaveLength(0);
     expect(harness.client.imageRefUrl(ref)).toBe("");
     expect(harness.requests).toHaveLength(1);
+  });
+
+  it("caps a duplicate-looking response independently despite a misleading Content-Length", async () => {
+    const payload = new Uint8Array([1, 2, 3]);
+    const harness = buildImages(
+      [
+        () => bytesResponse(payload),
+        () =>
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(payload);
+                controller.enqueue(new Uint8Array([4]));
+                controller.close();
+              },
+            }),
+            { headers: { "content-type": "image/png", "content-length": "3" } },
+          ),
+      ],
+      { maxImageFetchBytes: 3 },
+    );
+    const refA = imageRef({ itemId: "item-a" });
+    const refB = imageRef({ itemId: "item-b" });
+    try {
+      harness.client.imageRefResolution(refA);
+      await vi.waitFor(() => expect(harness.client.imageRefUrl(refA)).toBe("blob:fake-1"));
+      harness.client.imageRefResolution(refB);
+      await vi.waitFor(() =>
+        expect(
+          harness.client.imageResolutionFor(harness.client.imageKeyForRef(refB)),
+        ).toMatchObject({ url: "", pending: false }),
+      );
+      expect(harness.client.imageRefUrl(refA)).toBe("blob:fake-1");
+      expect(harness.client.imageRefUrl(refB)).toBe("");
+      expect(harness.requests).toHaveLength(2);
+      expect(harness.created).toEqual(["blob:fake-1"]);
+    } finally {
+      harness.client.dispose();
+    }
   });
 
   it("stops notifying after unsubscribe and starts nothing for unknown keys", () => {
