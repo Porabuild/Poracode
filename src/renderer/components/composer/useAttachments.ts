@@ -52,6 +52,21 @@ export function storableAttachment(attachment: Attachment): Attachment {
   return rest;
 }
 
+/** Attachment records for already-saved files (picker results, drops, drafts). */
+export function attachmentsFromPaths(paths: readonly string[]): Attachment[] {
+  return paths.map((path): Attachment => {
+    const name = fileNameFromPath(path);
+    const mimeType = mimeForPath(name);
+    return {
+      id: crypto.randomUUID(),
+      path,
+      name,
+      ...(mimeType ? { mimeType } : {}),
+      isImage: isImagePath(name, mimeType),
+    };
+  });
+}
+
 export type SaveClipboardImage = (input: {
   threadId: string;
   data: Uint8Array;
@@ -104,17 +119,7 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
   }, []);
 
   function addFiles(paths: string[]) {
-    const newAttachments = paths.map((path): Attachment => {
-      const name = fileNameFromPath(path);
-      const mimeType = mimeForPath(name);
-      return {
-        id: crypto.randomUUID(),
-        path,
-        name,
-        ...(mimeType ? { mimeType } : {}),
-        isImage: isImagePath(name, mimeType),
-      };
-    });
+    const newAttachments = attachmentsFromPaths(paths);
     updateAttachments((prev) => [...prev, ...newAttachments]);
   }
 

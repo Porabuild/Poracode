@@ -377,6 +377,7 @@ describe("ThreadComposerSection", () => {
     onSubmitInput?: (prompt: string, segments?: unknown) => Promise<void>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
+    pickFiles?: () => Promise<string[] | null>;
   }) {
     const thread = opts?.thread ?? guiThread;
     const agentStatus = opts?.agentStatus ?? codexGuiStatus;
@@ -403,6 +404,7 @@ describe("ThreadComposerSection", () => {
           ? { onOpenProjectRelativePath: opts.onOpenProjectRelativePath }
           : {})}
         {...(opts?.saveClipboardImage ? { saveClipboardImage: opts.saveClipboardImage } : {})}
+        {...(opts?.pickFiles ? { pickFiles: opts.pickFiles } : {})}
         onTodoDockCollapsedChange={() => undefined}
       />
     );
@@ -416,6 +418,7 @@ describe("ThreadComposerSection", () => {
     onSubmitInput?: ReturnType<typeof vi.fn<(prompt: string, segments?: unknown) => Promise<void>>>;
     onOpenProjectRelativePath?: (path: string, lineNumber?: number) => void;
     saveClipboardImage?: SaveClipboardImage;
+    pickFiles?: () => Promise<string[] | null>;
   }) {
     const onSubmitInput =
       opts?.onSubmitInput ??
@@ -1109,6 +1112,85 @@ describe("ThreadComposerSection", () => {
       Reflect.deleteProperty(URL, "createObjectURL");
       Reflect.deleteProperty(URL, "revokeObjectURL");
     }
+  });
+
+  describe("asynchronous file picks", () => {
+    function deferredPicker() {
+      const resolvers: Array<(paths: string[] | null) => void> = [];
+      const pickFiles = vi.fn<() => Promise<string[] | null>>(
+        () =>
+          new Promise((resolve) => {
+            resolvers.push(resolve);
+          }),
+      );
+      return { pickFiles, resolvers };
+    }
+
+    function startPick() {
+      const props = composerAddMenuSpy.mock.lastCall?.[0] as { onPickFiles?: () => void };
+      act(() => props.onPickFiles?.());
+    }
+
+    async function finishPick(resolve: ((paths: string[] | null) => void) | undefined) {
+      await act(async () => {
+        resolve?.(["C:\\attachments\\thread-gui-idle\\private-A.txt"]);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    }
+
+    it("attaches a file picked in the same thread", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      renderComposer({ pickFiles });
+      startPick();
+      await finishPick(resolvers[0]);
+      expect(screen.getByText("private-A.txt")).toBeInTheDocument();
+    });
+
+    it("keeps an upload that finishes after switching threads out of the new thread", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      const { rerender } = renderComposer({ pickFiles });
+      startPick();
+      rerender(composerElement({ thread: secondGuiThread, pickFiles }));
+      await finishPick(resolvers[0]);
+
+      expect(screen.queryByText("private-A.txt")).toBeNull();
+      expect(useAppStore.getState().threadDraftContents[secondGuiThread.id]).toBeUndefined();
+      expect(
+        useAppStore.getState().threadDraftContents[guiThread.id]?.attachments.map((a) => a.name),
+      ).toEqual(["private-A.txt"]);
+
+      // The file reappears with the thread it was picked for.
+      rerender(composerElement({ pickFiles }));
+      expect(await screen.findByText("private-A.txt")).toBeInTheDocument();
+    });
+
+    it("attaches to the originating thread when the user returns before the upload finishes", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      const { rerender } = renderComposer({ pickFiles });
+      startPick();
+      rerender(composerElement({ thread: secondGuiThread, pickFiles }));
+      rerender(composerElement({ pickFiles }));
+      await finishPick(resolvers[0]);
+
+      expect(screen.getByText("private-A.txt")).toBeInTheDocument();
+      expect(useAppStore.getState().threadDraftContents[guiThread.id]).toBeUndefined();
+
+      rerender(composerElement({ thread: secondGuiThread, pickFiles }));
+      expect(screen.queryByText("private-A.txt")).toBeNull();
+    });
+
+    it("saves an upload that finishes after the composer unmounts to its thread draft", async () => {
+      const { pickFiles, resolvers } = deferredPicker();
+      const { unmount } = renderComposer({ pickFiles });
+      startPick();
+      unmount();
+      await finishPick(resolvers[0]);
+
+      expect(
+        useAppStore.getState().threadDraftContents[guiThread.id]?.attachments.map((a) => a.name),
+      ).toEqual(["private-A.txt"]);
+    });
   });
 
   it("focuses the reused composer when the desktop switches threads", async () => {

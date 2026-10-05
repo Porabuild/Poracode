@@ -504,12 +504,13 @@ export function useComposerKeyboard(
     const root = ref.current;
     if (!root) return;
 
-    let lastTouchStartAt = 0;
+    let lastGuardedTouchStartAt = 0;
 
     const handleTouchStart = (event: TouchEvent) => {
       if (!isKeyboardTarget(event.target)) return;
-      lastTouchStartAt = Date.now();
-      runGuardedFocus(root, "touchstart", event);
+      // Only suppress a mirrored pointer event when this touch actually
+      // intercepted focus. Native caret taps and selection drags must survive.
+      lastGuardedTouchStartAt = runGuardedFocus(root, "touchstart", event) ? Date.now() : 0;
     };
     const handlePointerDown = (event: PointerEvent) => {
       // Pure mouse devices carry no tap shield (see pointerModality), so the
@@ -519,7 +520,10 @@ export function useComposerKeyboard(
         if (touchCapable) runDirectFocus(root, "pointerdown-mouse", event);
         return;
       }
-      if (lastTouchStartAt > 0 && Date.now() - lastTouchStartAt < MIRRORED_POINTER_WINDOW_MS) {
+      if (
+        lastGuardedTouchStartAt > 0 &&
+        Date.now() - lastGuardedTouchStartAt < MIRRORED_POINTER_WINDOW_MS
+      ) {
         if (isKeyboardTarget(event.target)) {
           keyboardDebug("pointerdown-skip-after-touchstart", {
             target: describeElement(event.target instanceof Element ? event.target : null),
