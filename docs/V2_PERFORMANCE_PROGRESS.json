@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T22:02:21.796923+00:00",
+  "updatedAt": "2026-10-05T22:34:05.640479+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,9 +35,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R127 Sol6.1Max finalization audit completed/joined; all14 inspected file hashes verified by root",
+    "lastAgent": "R130 custody review and R131 saved semantic correction/review bySol6.1Max complete/joined; root verified6design and10saved seals",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No required child pending; independent finite audit supports F2 original control sign-off, with all broad mobile/long-session/resource requirements retained. Actual Safari saved-control run completed/cleaned; protected simulator untouched.",
+    "agentState": "All required children joined; nativeR129/R131/R132 runs terminal and cleaned, no live root or exec handles. Saved-native semantic gate scopedPASS; remainingPTYcontrols and broaderfunctional/resource/finalaudit gates open.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Current source1cd256a4a immutable production build: all eight stages,7558source/3712dist/1753web files and199package/23489file/374edge runtime closure PASS. Saved desktop/compact, exact cached-tail offline rows, inline image and reconnect scoped PASS; no new resource savings or physical-device qualification."
     },
     "buildSession": null,
-    "nextAction": "Finish remaining offline relevant-input reconciliation; qualify only missing saved-native/current PTY/request-permission-steer/mobile functional rows; finish representative matched p95/resource evidence; then final F6 acceptance. Preserve exhausted scopes and prior failures; avoid marginal tuning and repeated broad matrices.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round127/root-safari-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round126/declaration.json",
+    "nextAction": "Preflight functionalPTYreadback using public owning terminal buffer, then only missing resize/reopen/interrupt/quit controls; repeat no acceptedrich/saved matrix and preserve failedscopes/counters. Remainingrequest/permission/steer/mobilePWA rows, viable representative matchedresource/p95 design and finalacceptance remain open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round132/root-round132-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round132/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -450,14 +450,14 @@
       "compiledUiEvidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
     },
     "docsHeadCI": {
-      "head": "5af1fea9d1fbf9d7369fd4905b3629ffe9d0b02d",
-      "coreRun": 37378458631,
-      "nativeRun": 37378458728,
+      "head": "83ded8d9a10caf9739eacf34331ead7d982f2f42",
+      "coreRun": 37379939390,
+      "nativeRun": 37379939780,
       "coreResult": "success",
-      "nativeResult": "in_progress",
-      "coreEvidence": "tmp/v2-streaming-perf-20260930/round127/core-ci.json",
-      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round127/native-ci.json",
-      "scope": "Current source unchanged; subsequent documentation checkpoint gets its own CI receipt."
+      "nativeResult": "success",
+      "coreEvidence": "tmp/v2-streaming-perf-20260930/round130/core-ci.json",
+      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round130/native-ci.json",
+      "scope": "Exact pushed documentation head passes core and required native build/AppTests/foundation. Source unchanged from1cd256a4a. Conditional runtime jobs skipped by workflow remain separate."
     },
     "previousVerifiedSourceCI": {
       "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
@@ -474,14 +474,14 @@
       "state": "Investigating degraded availability, job failures and hosted-runner assignment delays; supports infrastructure attribution, not a source-code CI pass."
     },
     "priorDocsHeadCI": {
-      "head": "d3ecd7a8925c30078f7ca52ae7ba66230a1ecd1e",
-      "coreRun": 37374852741,
-      "nativeRun": 37374853136,
+      "head": "5af1fea9d1fbf9d7369fd4905b3629ffe9d0b02d",
+      "coreRun": 37378458631,
+      "nativeRun": 37378458728,
       "coreResult": "success",
-      "nativeResult": "success",
-      "coreEvidence": "tmp/v2-streaming-perf-20260930/round125/core-ci-final.json",
-      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round125/native-ci-final.json",
-      "scope": "Exact pushed checkpoint; any subsequent documentation commit needs a separate receipt."
+      "nativeResult": "in_progress",
+      "coreEvidence": "tmp/v2-streaming-perf-20260930/round127/core-ci.json",
+      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round127/native-ci.json",
+      "scope": "Current source unchanged; subsequent documentation checkpoint gets its own CI receipt."
     },
     "nativeResidualQualification": {
       "state": "scoped-live-pass-overall-fail",
@@ -571,6 +571,40 @@
       ],
       "cleanup": "PASS;15 recorded PIDs freshly absent; own simulator Shutdown/protected Booted; prior selection/defaults restored",
       "performanceGainClaim": false
+    },
+    "currentInputReconciliation": {
+      "retention": "R128 current64tests/4filesPASS with exact8source/test seals; logical admission limits only, no heap/private RAM inference",
+      "editorCreate": "Independent bounded comparison verified10editor/LSP and17producer/storage sources plus18fixture/helper seals; all199package/23489file/374edge runtime closure rows equal. Electron44.0.0→44.4.4 and changed main/renderer bundles prevent whole-runtime/native-replay equivalence",
+      "pty": "109terminal/PTYsource paths unchanged fromR57-after toR122/current; current Electron44.4.4 runtime needs affected qualification",
+      "evidence": "tmp/v2-streaming-perf-20260930/round128/root-round128-result.json"
+    },
+    "functionalCustodyReview": {
+      "state": "joined-and-six-input-seals-root-verified",
+      "reviewer": "Codex6.1SolMax",
+      "evidence": "tmp/v2-streaming-perf-20260930/round130/root-review-verification.json",
+      "decision": "Do not adopt partial functional census. Preserve full discovery/source/quit/cleanup guards; first isolate unrelated provider probes through ordinary stopped-profile settings. Exact exited R129 argv/cause remains unproved."
+    },
+    "savedNativeAttemptHistory": {
+      "R129": "FAIL before any seeds: complete discovery refused ESRCH children;19recordedPIDs freshly absent,cleanupPASS;attempt1/no correction consumed",
+      "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs→11exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
+      "cumulativeAffectedNativeLaunches": 5,
+      "counterReset": false,
+      "productionChanges": false,
+      "resourceGainClaim": false,
+      "R132": "FocusedPTYFAIL atlate-installed receiveobserver; realkernelTTY exact source admission, trustedz input/sourceecho and screenshot display observed. Two injected timing tests reproduce already-open socketgap. Resize/reopen/interrupt/normalquitnotreached;cleanupPASS/all8knownnativePIDsfreshESRCH;attempt1/no correction consumed."
+    },
+    "savedNativeSemanticQualification": {
+      "state": "scoped-pass",
+      "rawCanonicalRows": 32,
+      "visibleDomRows": 11,
+      "testsPassed": 3,
+      "reviewer": "Codex6.1SolMax",
+      "rootSealsVerified": 10,
+      "result": "tmp/v2-streaming-perf-20260930/round131/root-saved-semantic-verification.json",
+      "fullCombinedRunPass": false,
+      "ptyQualified": false,
+      "normalQuitQualified": false,
+      "scope": "Actual same-document complete deliveredHTTPcursorchain, fullstoppedcanonicalIDs and exactcurrentoverlappingDOMinventory. Oracleinitialcompaction correction only; no production/resourcegain or new app replay."
     }
   },
   "milestones": [
@@ -1164,6 +1198,24 @@
       "round": "R122-R124",
       "result": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
       "summary": "Source cache fix1cd256a4a committed/pushed; fresh production build and closure PASS. Original desktop-control-on-compact and downward-search-at-bottom failures preserved; corrected real input passes19requiredphases, exact sevenofflineDOMIDs, inline decode and bothimages afterreconnect. Canonical unchanged and204/204/232recordedPIDnumbers freshly absent. Cumulative server7/browser5 retained. CI pending during confirmed Actions runner incident.13/18tasks,0finalsignoffs; no new resource-gain claim."
+    },
+    {
+      "at": "2026-10-05T22:29:50.636395+00:00",
+      "round": "R128-R131",
+      "result": "tmp/v2-streaming-perf-20260930/round131/root-round131-result.json",
+      "summary": "Current retention and bounded relevant-input equivalence checked; exact83head core/nativeCIbothSUCCESS. SolMaxcustodyreviewverified. R129fullcensusFAIL preserved. R131isolated-provider savedGUIobservationsPASS, combinedPTYfixturemismatchFAIL preserved; fullsavedsemanticreviewpending. No newproductionoptimization/resourcegain or completedmilestone."
+    },
+    {
+      "at": "2026-10-05T22:31:24.092928+00:00",
+      "round": "R132",
+      "result": "tmp/v2-streaming-perf-20260930/round132/root-round132-result.json",
+      "summary": "ExactPTYshim andwell-knowninstalllink correction verified by6preflightchecks. OnefocusedrealPTYlaunch:positiveTTY/sourcecustody, exacttrustedz producer/screenshotechoPASSobserved; oldreceiveprobeinstalledafteralready-openWebSocket causedtimeout. Twoinjectedtimingchecks reproducegap;fullgateFAIL,cleanupPASS/8freshESRCH,resize/reopen/interrupt/quitUNTESTED. No retry/newresourceclaims or productionchanges."
+    },
+    {
+      "at": "2026-10-05T22:34:05.640479+00:00",
+      "round": "R131-semantic-final",
+      "result": "tmp/v2-streaming-perf-20260930/round131/root-saved-semantic-verification.json",
+      "summary": "RequiredSolMaxreviewjoined and10input/aftersealsverified. Faithfulinitial/olderhydration projects all32rawcanonicalIDs toexact11actualDOMIDs;3offlinechecksPASSincludingwrongrawIDs/missingrow negatives. Old12-tailcanonical anduncompactedinitialoracle failurespreserved;combinedR131fullFAIL/PTYfalse/normalquitfalseunchanged. No newproductionchanges/resourcegain/milestonecompletion."
     }
   ],
   "tasks": [
@@ -1307,7 +1359,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reuse R115 genuine execution, R124 browser cache and R126 live native rich/groups/gallery; qualify only saved-native/current realPTY/request-permission-steer and remaining mobile/PWA rows.",
+      "nextAction": "Reuse acceptedR115genuineexecution, R124browsercache, R126livenativerich/groups/gallery and R131savednativeexactsemantics. ResolveonlymissingPTYbuffercontrols/request-permission-steer andmobile/PWArequirements; fullqualificationstillincomplete.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
