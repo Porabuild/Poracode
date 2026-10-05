@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T13:08:31.296992+00:00",
+  "updatedAt": "2026-10-05T14:01:59.919944+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -41,14 +41,14 @@
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
-      "identity": "tmp/v2-streaming-perf-20260930/round114/build-identity.json",
-      "verification": "tmp/v2-streaming-perf-20260930/round114/candidate-verification.json",
-      "state": "R114 current HEAD efae3dd33; eight build stages PASS. All7554source/3712outputs and199package/23489file/374edge runtime closure verified. Current native rich96/canonical/replay/negative/quit PASS; original media phases FAIL, correction fails native discovery before controls. No new performance gain."
+      "identity": "tmp/v2-streaming-perf-20260930/round115/build-identity.json",
+      "verification": "tmp/v2-streaming-perf-20260930/round115/candidate-verification.json",
+      "state": "R115 immutable 5fb2c6ada including mobile modal styles; all eight build stages, 7555 source/3712 output files, 199-package/23489-file/374-edge closure and finalized 1753 web files PASS. Rich96 canonical/live groups/media and genuine execution scoped PASS; full PWA qualification FAIL. No new resource savings."
     },
     "buildSession": null,
-    "nextAction": "Independent current-candidate rich browser/PWA qualification with corrected visible/hit-tested gallery wait. Preserve R114 original and correction failures; no unchanged third Electron launch or diagnostic-budget reset.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round114/root-round114-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round102/r107-affected-residual-gui/declaration.json",
+    "nextAction": "Correct reload readiness to admit the new loaded shell before selecting the exact target pane; retain failed R115 original and sole correction, no unchanged third cohort. Saved web media, compact/PWA, matched resources and F6 remain open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round115/r115-saved-compact-residual/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -67,12 +67,15 @@
       "retirement": "R10716ownednativeincarnations freshESRCH,2declaredCDP/inspectorportsclosed; cleanzeroexit. OldR102failures preserved."
     },
     "serverWebGenuinePreparation": {
-      "headlessBootstrap": "PASS: fresh production headless owner, public pairing exchange, headed Chrome paired shell using complete finalized1753filegraph",
-      "nativeRichTools": "UNTESTED: starts rejected missing config.model",
-      "genuineMcpIngress": "Actual spawn_agent request and persisted error card; unavailable selection correctly refused. No genuine child or DAG success. Capability probes excluded from execution claims.",
-      "rootFixtureChecks": "10dry/import+3bounded-observation checks PASS; frozen production contracts PASS",
-      "retirement": "148recordedPIDs positively ESRCH; original cleanup observation error remains failure",
-      "stagedCorrections": "Start model, named generic selectable model declaration, exact canonical shapes, existing pending-read settlement. No new native validation."
+      "state": "current-compiled-scoped-pass; full-functional-fail",
+      "headlessBootstrap": "R115 production private server/public pairing/headed Chrome finalized 1753-file graph PASS",
+      "actualModelRoster": "Actual installed/authenticated/selectable fixture-model roster PASS",
+      "richPresentation": "96 scripted GUI calls; 24 case types per light/heavy/bursty profile; source/canonical negative oracle PASS",
+      "genuineExecution": "Supervisor-owned standalone child and ordered two-stage workflow: three actual fixture reads with native source custody and exact dependency receipts PASS",
+      "liveGroupsAndMedia": "8\u219216\u21928 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
+      "savedCompactPwa": "UNQUALIFIED: original screenshot deadline; sole correction waited for a target pane absent after reload, screenshot shows dashboard",
+      "retirement": "Both strict owner cleanup verdicts PASS; 380 original PID numbers freshly ESRCH before correction; 175 historical rows in correction cleanup",
+      "evidence": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
     },
     "rangedFileRead": {
       "state": "source_and_actual_process_pass_review_complete",
@@ -97,11 +100,12 @@
       "originalFailure": "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json"
     },
     "currentCompiledGenuineEvidence": {
-      "actualChildRead": "tmp/v2-streaming-perf-20260930/round106/scoped-actual-child-read.json",
-      "actualDagContentAndDependency": "tmp/v2-streaming-perf-20260930/round106/direct-dag-scoped-verification.json",
-      "exactFastChildNativeIdentity": "UNQUALIFIED",
-      "guiRichCasesAdmitted": 0,
-      "originalRunsRemainFailed": true
+      "actualChildRead": "tmp/v2-streaming-perf-20260930/round115/r115-rich-pwa/genuine-execution.json",
+      "actualDagContentAndDependency": "tmp/v2-streaming-perf-20260930/round115/r115-rich-pwa/mcp-run_workflow-3.json",
+      "exactChildNativeIdentity": "PASS R115 required owned source witness",
+      "guiRichCasesAdmitted": 96,
+      "originalRunsRemainFailed": true,
+      "scope": "Private actual execution; rich matrix cards remain scripted presentation, not every external tool executing."
     },
     "goalControllerObserved": {
       "status": "active",
@@ -153,12 +157,12 @@
       "remainingQualificationOpen": true
     },
     "pushedChecks": {
-      "headSha": "403a6777dca15228d98f222900cc741695b7c254",
+      "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
       "coreCI": "PASS",
-      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37297610011",
-      "nativeCI": "FAIL foundation: virtual projection/Lingui transforms absent from dedicated config; AndroidPASS, iOS in progress",
-      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37297610182",
-      "correction": "Dedicated native config loads existing projection discovery and Lingui/Babel transforms; all3collection failures reproduced before correction; 1046targeted testsPASS; full current-build foundationPASS1935tests/5skip in82suites/3skip"
+      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37315951902",
+      "nativeCI": "PASS",
+      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37315952282",
+      "scope": "Both completed success on the immutable R115 source head; new documentation checkpoint must have its own CI receipt."
     },
     "olderHistoryImages": {
       "state": "committed_scoped_pass",
@@ -208,10 +212,12 @@
       "qualificationScope": "CI foundation/functionality, not final GUI or whole-app resource measurements"
     },
     "remoteCi": {
-      "commit": "efae3dd33f83815a0140cbbfcbebd609c1b3a92d",
-      "state": "all-required-checks-passed",
-      "core": "https://github.com/Porabuild/Poracode/actions/runs/37308089221",
-      "native": "https://github.com/Porabuild/Poracode/actions/runs/37308089341"
+      "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
+      "coreCI": "PASS",
+      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37315951902",
+      "nativeCI": "PASS",
+      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37315952282",
+      "scope": "Both completed success on the immutable R115 source head; new documentation checkpoint must have its own CI receipt."
     },
     "imageReuse": {
       "state": "source/regression verified; current native live/saved inventory two images; decode/navigation qualification remains open",
@@ -260,10 +266,29 @@
       "wholeAppSavingsClaim": false
     },
     "sharedWorktreeChange": {
-      "paths": ["src/renderer/tailwind.css", "src/renderer/components/common/mobileModals.css"],
-      "ownership": "concurrent work; preserved, not edited or staged by this lane",
-      "candidateIncludesChanges": false,
-      "clarification": "Optional ownership/readiness question pending; independent preparation continues"
+      "state": "concurrent mobile-modal chunk committed and pushed as 5fb2c6ada; worktree clean before R115; included in R115 freeze",
+      "priorCandidate": "R114 efae3dd33 excludes those styles"
+    },
+    "richWebCurrent": {
+      "result": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+      "originalPass": false,
+      "correctionPass": false,
+      "scopedPasses": [
+        "actual child/workflow execution",
+        "rich96/24 case profiles",
+        "source/canonical and negative oracle",
+        "live group overflow",
+        "live media decoding and navigation"
+      ],
+      "unqualified": [
+        "saved media controls",
+        "compact replay",
+        "activated PWA worker in this cohort",
+        "rich offline/reconnect",
+        "physical mobile",
+        "final resources"
+      ],
+      "performanceGainClaim": false
     }
   },
   "milestones": [
@@ -368,9 +393,10 @@
         "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
         "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
         "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
-        "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json"
+        "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
+        "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
       ],
-      "nextAction": "R95 focused PWA control and R101 current native visible-window prerequisite pass. Required rich PWA matrix remains open; historical visibility cause not established. No additional catalog/inspector control diagnostics.",
+      "nextAction": "R115 live rich GUI/media and genuine execution pass; saved web media, compact/activated PWA and rich offline/reconnect remain unqualified. Preserve both failed runs and consumed budgets.",
       "qualifiedSubgates": {
         "workerCancellationControl": "R80 D2 PASS3native destroyed-before-resume targets and live/capture-retirement controls;48helper tests;20PIDs ESRCH; no actual PWA/offline pass",
         "actualPwaCancelledAssets": "R81D3actual316HTTP/MIME response receipts+4native cancelled-before-resume requests with no fabricated HTTP status;5worker families200/MIME. Full run stillFAIL at old retirement guard.",
@@ -462,9 +488,10 @@
         "tmp/v2-streaming-perf-20260930/round103/root-round103-result.json",
         "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
         "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json",
-        "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json"
+        "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
+        "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
       ],
-      "nextAction": "Full branch quality PASS; freeze R105 then affected residual native GUI/PWA/tools/media/groups/genuine-workflow/lifecycle qualification. Preserve consumed diagnostic budgets.",
+      "nextAction": "Current 5fb immutable build and CI pass; R115 actual child/DAG/rich96/canonical/live group/media pass. Finish still-unqualified saved/compact/PWA controls only after correcting evidenced navigation ordering; then final resource pairs/audit.",
       "workMayStartBeforeDependenciesComplete": true,
       "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now.",
       "qualifiedSubgates": {
@@ -527,6 +554,12 @@
     "affectedResidualQualification": "R104 verified originalR93 stopping rule: concrete changed failed input or material source fix can justify a declared bounded affected qualification after discriminating preflight. This does not reset any old budget, reopen unchanged broad runner, imply rare100percent branch coverage, or waive missing evidence."
   },
   "updates": [
+    {
+      "at": "2026-10-05T14:01:59.919944+00:00",
+      "round": "R115",
+      "result": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+      "summary": "Current candidate includes committed mobile modal styles and both green CI workflows. Production web rich96/canonical/live group/media and actual child/ordered workflow scoped PASS. Original screenshot failure and sole corrected navigation failure remain FAIL; saved/compact/PWA UNQUALIFIED. Both cleanup verdicts PASS. No new performance gain, 13/18 tasks and zero milestone sign-offs."
+    },
     {
       "at": "2026-10-04T08:02:03.675399+00:00",
       "milestone": "F1",
@@ -663,7 +696,7 @@
       "at": "2026-10-04T18:26:37.413028+00:00",
       "round": "round87",
       "result": "tmp/v2-streaming-perf-20260930/round87/catalog-d0-review.json",
-      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38→40); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
+      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38\u219240); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
     },
     {
       "at": "2026-10-04T18:38:22.821265+00:00",
@@ -673,7 +706,7 @@
     },
     {
       "at": "2026-10-04T20:20:43.342415+00:00",
-      "round": "round88–round91",
+      "round": "round88\u2013round91",
       "result": "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
       "summary": "Reviewed offline prewarm/cancellation ownership fix compiledR89, original root+nested offline native gatesPASS R90. R91 desktop driver correction208tests/reviewPASS; nativeearlier A-warm observer unmatched2API requests/4responses preventsqualification. All127PIDs/4ports/78seals/fulldeps/canonical/exactAretiredverified. FlashX7source/report seals+nativeidgapverified; candidatecorrection notyetimplemented/qualified. All requiredchildrenjoined."
     },
@@ -878,7 +911,7 @@
       "title": "PWA worker policy and offline recovery",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Focused control prerequisite PASS at R95. Continue required full rich PWA matrix after affected prerequisites, keeping R93 failures and unexercised native branch limits explicit. No further catalog/inspector control launches.",
+      "nextAction": "R115 live web rich/media and genuine execution scoped PASS; saved gallery, compact replay/activated worker and current rich offline/reconnect remain open. No unchanged third R115 cohort.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -899,7 +932,8 @@
         "tmp/v2-streaming-perf-20260930/round93/root-round93-result.json",
         "tmp/v2-streaming-perf-20260930/round93/bounded-finalization-review.json",
         "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
-        "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json"
+        "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
+        "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
       ]
     },
     {
@@ -908,7 +942,7 @@
       "title": "Fresh production profiling snapshot",
       "status": "complete",
       "owner": "Coordinator",
-      "nextAction": "R105 immutable artifact and full runtime dependency closure verified; reuse source/runtime inputs for residual GUI/PWA and final pairs.",
+      "nextAction": "R115 immutable 5fb source/output/runtime closure verified; current functional gaps and matched resources remain separate.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round78/build-identity.json",
         "tmp/v2-streaming-perf-20260930/round78/candidate-verification.json",
@@ -918,7 +952,8 @@
         "tmp/v2-streaming-perf-20260930/round104/candidate-verification.json",
         "tmp/v2-streaming-perf-20260930/round104/runtime-dependency-verification.json",
         "tmp/v2-streaming-perf-20260930/round105/candidate-verification.json",
-        "tmp/v2-streaming-perf-20260930/round105/runtime-dependency-verification.json"
+        "tmp/v2-streaming-perf-20260930/round105/runtime-dependency-verification.json",
+        "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
       ]
     },
     {
@@ -940,13 +975,14 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reuse currentR105artifact andR10796call/conservation/replay/cleanquit passes; still qualifygroup/media/PWA/Stop and resolve sandboxconsoleerrors. No wholebuild/unitrerun forignoredfixture edits.",
+      "nextAction": "Correct reload readiness to admit the new loaded shell before selecting the exact target pane; retain failed R115 original and sole correction, no unchanged third cohort. Saved web media, compact/PWA, matched resources and F6 remain open.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
         "tmp/v2-streaming-perf-20260930/round103/root-round103-result.json",
         "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
-        "tmp/v2-streaming-perf-20260930/round107/root-round107-result.json"
+        "tmp/v2-streaming-perf-20260930/round107/root-round107-result.json",
+        "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
       ]
     },
     {
@@ -1034,12 +1070,13 @@
       "title": "Genuine child filesystem and dependency execution at source",
       "status": "complete",
       "owner": "Coordinator",
-      "nextAction": "R104source/processPASS plusR106actual compiled childFS andDAGcontent/dependency packets verified. Exactfastchildnativeidentity andGUIcontrols remain separate/unqualified; no appresource claim.",
+      "nextAction": "R115 current compiled supervisor-owned child/DAG PASS with native source witness and actual reads/dependency delivery. External accounts and scripted tool-card executions remain separate.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
         "tmp/v2-streaming-perf-20260930/round104/process-retirement-final-flow.json",
         "tmp/v2-streaming-perf-20260930/round106/scoped-actual-child-read.json",
-        "tmp/v2-streaming-perf-20260930/round106/direct-dag-scoped-verification.json"
+        "tmp/v2-streaming-perf-20260930/round106/direct-dag-scoped-verification.json",
+        "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
       ]
     },
     {
@@ -1127,5 +1164,15 @@
     "furtherMatrixLaunchesThisLane": false,
     "evidence": "tmp/v2-streaming-perf-20260930/round103/root-round103-result.json",
     "note": "OldR103 failed workloads and cleanup error remain; paired web bootstrap passes. Later concrete model/roster/canonical corrections and R104 real FS source proof may justify only declared affected residual qualification after actual settled-artifact preflight. No unchanged third full runner or diagnostic reset."
+  },
+  "richWebCurrentBudget": {
+    "round": "R115",
+    "originalCohortsUsed": 1,
+    "focusedCorrectionsUsed": 1,
+    "status": "finished-partially-qualified",
+    "resetOnNewRoundLabel": false,
+    "unchangedFurtherLaunchesAllowed": false,
+    "evidence": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
+    "nextCorrection": "New-loader and loaded shell admission, then exact target selection. Do not require a previously selected pane before allowing post-reload activation."
   }
 }
