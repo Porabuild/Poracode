@@ -179,13 +179,16 @@ export function remoteBridgeImageRefUrl(ref: RemoteImageRefValue): string {
  */
 function remoteLocalImageUrl(client: RemoteDesktopClient, url: string): string {
   try {
-    const path = hostPlatform
-      ? resolveLocalFileUrlPath(url, hostPlatform)
-      : decodeLocalFileUrlPath(url);
+    const path = resolveRemoteBridgeLocalImagePath(url);
     return (browserImages ? browserImages.localImageUrl(path) : client.localImageUrl(path)) || url;
   } catch {
     return url;
   }
+}
+
+/** Pure path decode using the current paired host's existing filesystem rules. */
+export function resolveRemoteBridgeLocalImagePath(url: string): string {
+  return hostPlatform ? resolveLocalFileUrlPath(url, hostPlatform) : decodeLocalFileUrlPath(url);
 }
 
 function decodeLocalFileUrlPath(url: string): string {

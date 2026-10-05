@@ -1,4 +1,14 @@
 import type { RuntimeEvent } from "@/shared/contracts";
+import {
+  admittedRuntimePayloadBatch,
+  stripRuntimeEventPayloadOrigin,
+  type TrustedRuntimePayloadAdmission,
+} from "@/shared/runtimePayloadOriginProtocol";
+import type { RuntimeAdmissionCost } from "./runtimeAdmissionReservations";
+import type {
+  RuntimeAdmissionReservationResult,
+  RuntimeReservedAdmission,
+} from "./runtimePersistenceAdmission";
 import type { RuntimePersistenceSample } from "@/shared/diagnostics/runtimePersistenceSample";
 import type {
   RuntimeHistoryGapAcknowledgeResult,
@@ -12,7 +22,15 @@ import {
   type SynchronousMutationCallback,
 } from "./runtimePersistenceController";
 import type { RuntimeControlOperation } from "./runtimeControlOperationQueue";
-import { applyThreadRuntimeEventsNow, resetRuntimeItemsWriterCache } from "./runtimeItemsWriter";
+import type {
+  RuntimeQueueCapacityChange,
+  RuntimeQueueCapacitySnapshot,
+} from "./runtimeQueueCapacity";
+import {
+  applyThreadRuntimeEventsNow,
+  applyRuntimeEventBatchesNow,
+  resetRuntimeItemsWriterCache,
+} from "./runtimeItemsWriter";
 import {
   RuntimePersistenceDrainIncompleteError,
   type RuntimeAdmission,
@@ -41,6 +59,7 @@ import {
 export interface RuntimePersistenceHealthListener {
   onSignal?(signal: RuntimeProducerSignal): void;
   onStateChange?(info: RuntimePersistenceStateInfo): void;
+  onCapacityChange?(change: RuntimeQueueCapacityChange): void;
 }
 
 const healthListeners = new Set<RuntimePersistenceHealthListener>();
@@ -64,8 +83,11 @@ function notifyHealthListeners(notify: (listener: RuntimePersistenceHealthListen
 
 export const runtimePersistenceController = new RuntimePersistenceController({
   write: (threadId, events) => applyThreadRuntimeEventsNow(threadId, events),
+  atomicBatchWriter: applyRuntimeEventBatchesNow,
   onSignal: (signal) => notifyHealthListeners((listener) => listener.onSignal?.(signal)),
   onStateChange: (info) => notifyHealthListeners((listener) => listener.onStateChange?.(info)),
+  onCapacityChange: (change) =>
+    notifyHealthListeners((listener) => listener.onCapacityChange?.(change)),
   onFailure: (error, errorClass, threadId) => {
     console.error(
       `[db] runtime persistence write failed (${errorClass}${threadId ? `, thread ${threadId}` : ""}):`,
@@ -230,7 +252,56 @@ export function applyRuntimeEvents(
   events: readonly RuntimeEvent[],
 ): RuntimeAdmission {
   bindCurrentConnection();
-  return runtimePersistenceController.admit(threadId, events);
+  return runtimePersistenceController.admit(threadId, events.map(stripRuntimeEventPayloadOrigin));
+}
+
+/** INTERNAL branded intake; public DatabaseRpc signatures cannot supply an origin. */
+export function applyAdmittedRuntimePayloadBatch(
+  admission: TrustedRuntimePayloadAdmission,
+  batchIndex: number,
+): RuntimeAdmission {
+  const batch = admittedRuntimePayloadBatch(admission, batchIndex);
+  bindCurrentConnection();
+  return runtimePersistenceController.admit(batch.threadId, batch.events);
+}
+
+/** Current queue capacity only: no grant/reservation and no synchronous flush. */
+export function getRuntimePersistenceCapacity(
+  threadIds: readonly string[] = [],
+): RuntimeQueueCapacitySnapshot {
+  bindCurrentConnection();
+  return runtimePersistenceController.capacitySnapshot(threadIds);
+}
+
+/** Private producer-admission owner API; quotes have no canonical payload. */
+export function reserveRuntimeAdmission(
+  threadId: string,
+  cost: RuntimeAdmissionCost,
+): RuntimeAdmissionReservationResult {
+  bindCurrentConnection();
+  return runtimePersistenceController.reserveAdmission(threadId, cost);
+}
+
+/** Transfer only through the controller's durable/health gate and scheduler. */
+export function applyReservedRuntimeEvents(
+  threadId: string,
+  id: string,
+  events: readonly RuntimeEvent[],
+): RuntimeReservedAdmission {
+  bindCurrentConnection();
+  // Admission2 is still disabled at the producer. Its events-only quote/cost
+  // contract deliberately remains UNKNOWN until custody and costs are mirrored.
+  return runtimePersistenceController.admitReserved(
+    threadId,
+    id,
+    events.map(stripRuntimeEventPayloadOrigin),
+  );
+}
+
+/** Release only unsent work or a positively retired transport owner's grants. */
+export function releaseRuntimeAdmission(id: string): boolean {
+  bindCurrentConnection();
+  return runtimePersistenceController.releaseAdmissionReservation(id);
 }
 
 export function barrierRuntimeWrites(threadId: string): RuntimeBarrierResult {

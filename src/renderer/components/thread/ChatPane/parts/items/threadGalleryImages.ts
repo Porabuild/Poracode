@@ -23,9 +23,23 @@ import {
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import {
+  forgetThreadGalleryCache,
+  readThreadGalleryCache,
+  writeThreadGalleryCache,
+  type GalleryCacheRevision,
+} from "@/renderer/state/threadGalleryCache";
+import {
+  getRemoteBridgeImageReadiness,
+  getRemoteBridgeClient,
   remoteBridgeImageRefUrl,
   remoteBridgeLocalImageUrl,
 } from "@/renderer/browser/remoteBridge";
+import {
+  readManagedLoopbackImageSession,
+  type ManagedLoopbackImageSession,
+} from "@/renderer/state/managedLoopbackImages";
+import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
+import type { RemoteImageReadiness } from "@/renderer/state/remoteServers/environmentSessions";
 import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
 import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
@@ -48,9 +62,9 @@ export interface ThreadGalleryCollection {
    * the existing bounded keyed readiness surface so an already-open gallery or
    * lightbox picks the image up when its blob lands.
    */
-  readonly pendingRemoteRefs: RemoteImageRefValue[];
+  readonly pendingRemoteRefs: readonly RemoteImageRefValue[];
   /** Remote user-attachment paths awaiting a renderable blob URL. */
-  readonly pendingRemotePaths: string[];
+  readonly pendingRemotePaths: readonly string[];
 }
 
 export interface ThreadGalleryResolvers {
@@ -395,8 +409,7 @@ function isAbsoluteFsPath(value: string): boolean {
 function mapLocalUrlToDisplay(poracodeLocalUrl: string, resolvers: ThreadGalleryResolvers): string {
   // Remote PWA: swap the local scheme for the desktop's authenticated endpoint.
   if (poracodeLocalUrl.startsWith("poracode-local://") && resolvers.remoteLocalImageUrl) {
-    const mapped = resolvers.remoteLocalImageUrl(poracodeLocalUrl);
-    if (mapped) return mapped;
+    return resolvers.remoteLocalImageUrl(poracodeLocalUrl);
   }
   // Desktop (no remote resolver installed) keeps `poracode-local://` untouched
   // for the privileged protocol handler; remote clients map via the global
@@ -422,6 +435,43 @@ interface GalleryStoreShape {
     | undefined;
 }
 
+const unavailableImageUrl = () => "";
+
+function galleryRemoteServer(remoteServerId: string | undefined) {
+  if (typeof remoteServerId !== "string" || remoteServerId.length === 0) return undefined;
+  return useRemoteServersStore
+    .getState()
+    .servers.find((server) => remoteConnectionKey(server) === remoteServerId);
+}
+
+/**
+ * The volatile image owner, identical for hook-time and click-time cache reads.
+ * Environment adapters are freshly constructed; the remote record/revision
+ * already carries their connection identity. Own-host sessions instead need
+ * their stable custody object so a same-endpoint replacement invalidates URLs.
+ */
+export function threadGalleryImageAuthority(
+  thread: { id: string; remoteServerId?: string | undefined } | undefined,
+  managedSession: ManagedLoopbackImageSession | null = readManagedLoopbackImageSession(),
+  browserReadiness: RemoteImageReadiness | undefined = getRemoteBridgeImageReadiness(),
+): object | null | undefined {
+  if (!thread) return undefined;
+  if (isRemoteSession()) {
+    if (
+      thread.remoteServerId !== undefined &&
+      (typeof thread.remoteServerId !== "string" || thread.remoteServerId.length === 0)
+    )
+      return undefined;
+    // Browser/attached projections already route through the selected bridge,
+    // including when its persisted row is temporarily absent. Environment
+    // clients expose keyed readiness through their connection, not this cache.
+    return browserReadiness ?? getRemoteBridgeClient();
+  }
+  if (thread.remoteServerId !== undefined) return galleryRemoteServer(thread.remoteServerId);
+  if (managedRootOwner(thread)) return managedSession;
+  return undefined;
+}
+
 /**
  * Build the ChatPane-mirroring resolvers for a thread from store state alone
  * (plus the live remote clients): attachment paths, host-held refs, and
@@ -432,33 +482,46 @@ export function buildGalleryResolversFromState(
   threadId: string,
 ): ThreadGalleryResolvers {
   const thread = state.threads?.find((t) => t.id === threadId);
-  const resolvers: ThreadGalleryResolvers = {};
+  const resolvers: ThreadGalleryResolvers = { remoteImageRefUrl: unavailableImageUrl };
   const remoteServerId = thread?.remoteServerId;
-  if (remoteServerId) {
-    const desktopId = remoteServerId;
-    resolvers.imageUrlForPath = (path: string) =>
-      isRemoteSession()
-        ? remoteBridgeLocalImageUrl(path)
-        : useRemoteServersStore.getState().localImageUrl(desktopId, path);
-    resolvers.remoteImageRefUrl = (ref) =>
-      isRemoteSession()
-        ? remoteBridgeImageRefUrl(ref)
-        : useRemoteServersStore.getState().imageRefUrl(desktopId, ref);
+  const browserSession = isRemoteSession();
+  const validRemoteServerId =
+    remoteServerId === undefined ||
+    (typeof remoteServerId === "string" && remoteServerId.length > 0);
+  if (thread && browserSession && validRemoteServerId) {
+    // Keep the selected browser/attached client and its existing image cache.
+    resolvers.imageUrlForPath = remoteBridgeLocalImageUrl;
+    resolvers.remoteImageRefUrl = remoteBridgeImageRefUrl;
+  } else if (remoteServerId !== undefined) {
+    // A present but malformed/missing connection never becomes an own-host image.
+    const server = browserSession ? undefined : galleryRemoteServer(remoteServerId);
+    resolvers.imageUrlForPath = server
+      ? (path) => useRemoteServersStore.getState().localImageUrl(remoteServerId, path)
+      : unavailableImageUrl;
+    resolvers.remoteImageRefUrl = server
+      ? (ref) => useRemoteServersStore.getState().imageRefUrl(remoteServerId, ref)
+      : unavailableImageUrl;
+  } else if (thread && managedRootOwner(thread)) {
+    resolvers.remoteImageRefUrl =
+      readManagedLoopbackImageSession()?.readiness.resolveRef ?? unavailableImageUrl;
+    resolvers.imageUrlForPath = toLocalFileUrl;
+    resolvers.remoteLocalImageUrl = (url) => url;
   }
   const project = thread ? state.projects?.find((p) => p.id === thread.projectId) : undefined;
   if (project && thread) {
     const projectLocation = resolveProjectLocation(project.location, thread.worktreePath);
     resolvers.projectRoot = getProjectFsPath(projectLocation);
-    if (remoteServerId) {
+    if (remoteServerId !== undefined) {
       resolvers.remoteLocalImageUrl = (url: string) => {
         const platform =
           projectLocation.kind === "windows"
             ? ("win32" as NodeJS.Platform)
             : ("linux" as NodeJS.Platform);
         const imagePath = resolveLocalFileUrlPath(url, platform);
-        return isRemoteSession()
-          ? remoteBridgeLocalImageUrl(imagePath)
-          : useRemoteServersStore.getState().localImageUrl(remoteServerId, imagePath);
+        if (browserSession) return validRemoteServerId ? remoteBridgeLocalImageUrl(imagePath) : "";
+        return galleryRemoteServer(remoteServerId)
+          ? useRemoteServersStore.getState().localImageUrl(remoteServerId, imagePath)
+          : "";
       };
     }
     const homeDir = readBridge()?.homeDir ?? undefined;
@@ -480,11 +543,7 @@ function resolverCacheKey(resolvers: ThreadGalleryResolvers): string {
   return [resolvers.projectRoot ?? "", resolvers.extraRoots?.join("\0") ?? ""].join("\n");
 }
 
-export interface GalleryCacheRevision {
-  structuralVersion: number;
-  remoteRevision: string;
-  locale: string;
-}
+export type { GalleryCacheRevision };
 
 type RemoteGalleryState = Pick<
   ReturnType<typeof useRemoteServersStore.getState>,
@@ -503,63 +562,12 @@ export function selectRemoteGalleryRevision(
   return `${server?.endpoint ?? ""}\0${server?.accessToken ?? ""}\0${status}`;
 }
 
-interface GalleryCacheEntry {
-  itemIds: readonly string[];
-  itemsById: Record<string, RuntimeChatItem>;
-  resolverKey: string;
-  revision: GalleryCacheRevision;
-  result: ThreadGalleryCollection;
-}
-
-const galleryCache = new Map<string, GalleryCacheEntry>();
-
 /**
  * Drops one thread's cached collection. Readiness transitions call this so the
  * next collection pass (from any subscriber) sees the newly resolved URL.
  */
 export function invalidateCachedThreadGallery(threadId: string): void {
-  galleryCache.delete(threadId);
-}
-
-function readCachedGallery(
-  threadId: string,
-  itemIds: readonly string[],
-  itemsById: Record<string, RuntimeChatItem>,
-  resolvers: ThreadGalleryResolvers,
-  revision: GalleryCacheRevision,
-): ThreadGalleryCollection | null {
-  const cached = galleryCache.get(threadId);
-  if (
-    cached &&
-    cached.itemIds === itemIds &&
-    cached.itemsById === itemsById &&
-    cached.resolverKey === resolverCacheKey(resolvers) &&
-    cached.revision.structuralVersion === revision.structuralVersion &&
-    cached.revision.remoteRevision === revision.remoteRevision &&
-    cached.revision.locale === revision.locale
-  ) {
-    return cached.result;
-  }
-  return null;
-}
-
-function writeCachedGallery(
-  threadId: string,
-  itemIds: readonly string[],
-  itemsById: Record<string, RuntimeChatItem>,
-  resolvers: ThreadGalleryResolvers,
-  revision: GalleryCacheRevision,
-  result: ThreadGalleryCollection,
-): ThreadGalleryCollection {
-  if (galleryCache.size > 200) galleryCache.clear();
-  galleryCache.set(threadId, {
-    itemIds,
-    itemsById,
-    resolverKey: resolverCacheKey(resolvers),
-    revision,
-    result,
-  });
-  return result;
+  forgetThreadGalleryCache(threadId);
 }
 
 /**
@@ -574,9 +582,22 @@ export function getCachedThreadGallery(
   resolvers: ThreadGalleryResolvers,
   revision: GalleryCacheRevision,
 ): ThreadGalleryCollection {
-  const cached = readCachedGallery(threadId, itemIds, itemsById, resolvers, revision);
+  const cached = readThreadGalleryCache(
+    threadId,
+    itemIds,
+    itemsById,
+    resolverCacheKey(resolvers),
+    revision,
+  );
   if (cached) return cached;
   const items = itemIds.map((id) => itemsById[id]).filter((item) => item !== undefined);
   const result = collectThreadGallery(items, resolvers);
-  return writeCachedGallery(threadId, itemIds, itemsById, resolvers, revision, result);
+  return writeThreadGalleryCache(
+    threadId,
+    itemIds,
+    itemsById,
+    resolverCacheKey(resolvers),
+    revision,
+    result,
+  );
 }

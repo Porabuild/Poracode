@@ -2142,6 +2142,53 @@ describe("ThreadComposerSection", () => {
     expect(screen.getByLabelText("Thread goal dock")).toHaveTextContent("No mobile dead ends");
   });
 
+  it.each(["different thread", "return to the same thread", "next turn"] as const)(
+    "keeps the newer GUI Stop pending after an old failure: %s",
+    async (scenario) => {
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      let rejectOld!: (error: Error) => void;
+      bridgeMock.interruptThread
+        .mockImplementationOnce(
+          () =>
+            new Promise<void>((_, reject) => {
+              rejectOld = reject;
+            }),
+        )
+        .mockImplementationOnce(() => new Promise<void>(() => {}));
+      const first = {
+        ...guiThread,
+        id: "stop-owner-a",
+        status: "working",
+        attention: "working",
+      } as Thread;
+      const second = { ...first, id: "stop-owner-b" };
+      try {
+        const { rerender } = renderComposer({ thread: first });
+        fireEvent.click(screen.getByRole("button", { name: "Stop response" }));
+        expect(bridgeMock.interruptThread).toHaveBeenCalledTimes(1);
+        if (scenario === "next turn") {
+          rerender(composerElement({ thread: { ...first, status: "idle", attention: "none" } }));
+          rerender(composerElement({ thread: first }));
+        } else {
+          rerender(composerElement({ thread: second }));
+          if (scenario === "return to the same thread")
+            rerender(composerElement({ thread: first }));
+        }
+        fireEvent.click(screen.getByRole("button", { name: "Stop response" }));
+        expect(bridgeMock.interruptThread).toHaveBeenCalledTimes(2);
+        await act(async () => {
+          rejectOld(new Error("old interrupt failed"));
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Stop response" }));
+        expect(bridgeMock.interruptThread).toHaveBeenCalledTimes(2);
+        // The old error is still reported; it simply cannot release the new Stop.
+        expect(toastDangerSpy).toHaveBeenCalledWith("old interrupt failed");
+      } finally {
+        consoleError.mockRestore();
+      }
+    },
+  );
+
   it("captures a successful remote terminal interrupt", async () => {
     bridgeMock.isRemoteSession.mockReturnValue(true);
     renderComposer({

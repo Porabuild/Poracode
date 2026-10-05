@@ -199,7 +199,7 @@ export function ExperimentJudgeRunDialog(props: {
         <Modal.Dialog className="overflow-hidden sm:max-w-[600px]">
           {running ? (
             <>
-              <Modal.Header>
+              <Modal.Header data-direct-modal-icon="">
                 <Modal.Icon className="bg-default text-foreground">
                   <Crown className="size-5" />
                 </Modal.Icon>

@@ -15,6 +15,11 @@ export function setActiveFindEditor(editor: FindableEditor | null): void {
   activeEditor = editor;
 }
 
+/** Retiring one editor must not clear another editor's more recent focus registration. */
+export function clearActiveFindEditor(editor: FindableEditor): void {
+  if (activeEditor === editor) activeEditor = null;
+}
+
 /** Open Monaco's built-in find widget on the active editor. Returns false when
  * there is no editor or the action is unavailable. */
 export function openEditorFind(): boolean {

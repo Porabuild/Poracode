@@ -1,5 +1,6 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { RuntimeEventSlice } from "./runtimeEventSlice";
+import { forgetThreadGalleryCache } from "../threadGalleryCache";
 
 type TranscriptState = Pick<
   RuntimeEventSlice,
@@ -31,6 +32,7 @@ export function applyRuntimeTruncation(
   const keptIds = ids.slice(0, checkpointIndex + 1);
   const items = { ...state.runtimeItemsByIdByThread[threadId] };
   for (const id of ids.slice(checkpointIndex + 1)) delete items[id];
+  forgetThreadGalleryCache(threadId);
   patch.runtimeItemIdsByThread = { ...state.runtimeItemIdsByThread, [threadId]: keptIds };
   patch.runtimeItemsByIdByThread = { ...state.runtimeItemsByIdByThread, [threadId]: items };
   return patch;

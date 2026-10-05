@@ -7,6 +7,8 @@ import { isRemoteSession } from "@/renderer/bridge";
 import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
+import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { i18n as i18nSingleton } from "@/renderer/i18n/i18n";
 import {
@@ -18,6 +20,7 @@ import {
   getCachedThreadGallery,
   invalidateCachedThreadGallery,
   selectRemoteGalleryRevision,
+  threadGalleryImageAuthority,
   type ThreadGalleryCollection,
   type ThreadGalleryImage,
 } from "./ChatPane/parts/items/threadGalleryImages";
@@ -69,6 +72,7 @@ export function useThreadGalleryImages(
   );
   const remoteServerId = thread?.remoteServerId;
   const browserImageReadiness = useRemoteBridgeImageReadiness();
+  const managedImageSession = useManagedLoopbackImageSession();
   const imageReadinessFor = useRemoteServersStore((s) => s.imageReadinessFor);
   const remoteServerRecord = useRemoteServersStore((s) =>
     remoteServerId
@@ -78,6 +82,12 @@ export function useThreadGalleryImages(
   const remoteRevision = useRemoteServersStore((s) =>
     selectRemoteGalleryRevision(s, remoteServerId),
   );
+  const imageAuthority = threadGalleryImageAuthority(
+    thread,
+    managedImageSession,
+    browserImageReadiness,
+  );
+  const isManagedThread = thread !== undefined && managedRootOwner(thread) !== undefined;
   // Bumped when a pending host-held image resolves: the memo re-runs and the
   // invalidated cache recomputes with the now-ready URL.
   const [readinessRevision, setReadinessRevision] = useState(0);
@@ -94,7 +104,7 @@ export function useThreadGalleryImages(
         import("@/renderer/state/slices/runtimeEventSlice").RuntimeChatItem
       >,
       resolvers,
-      { structuralVersion, remoteRevision, locale },
+      { structuralVersion, remoteRevision, locale, imageAuthority },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: resolvers derive from live store state per update
   }, [
@@ -107,6 +117,7 @@ export function useThreadGalleryImages(
     remoteRevision,
     locale,
     readinessRevision,
+    imageAuthority,
   ]);
   const images = collection.images;
   const pendingRefs = collection.pendingRemoteRefs;
@@ -123,14 +134,23 @@ export function useThreadGalleryImages(
   });
 
   useEffect(() => {
-    if (!threadId || remoteServerId === undefined || pendingKey.length === 0) return;
-    if (!isRemoteSession() && !remoteServerRecord) return;
+    if (!threadId || pendingKey.length === 0) return;
     // Re-resolve the readiness surface at effect time: it is bound to the live
     // session, and a real environment-client rebuild is picked up by the
     // subscription itself (which rebinds mounted listeners).
     const readiness = isRemoteSession()
-      ? (environmentImageReadinessFor(remoteServerId) ?? browserImageReadiness)
-      : imageReadinessFor(remoteServerId);
+      ? remoteServerId !== undefined
+        ? typeof remoteServerId === "string" && remoteServerId.length > 0
+          ? (environmentImageReadinessFor(remoteServerId) ?? browserImageReadiness)
+          : undefined
+        : browserImageReadiness
+      : remoteServerId !== undefined
+        ? remoteServerRecord
+          ? imageReadinessFor(remoteServerId)
+          : undefined
+        : isManagedThread
+          ? managedImageSession?.readiness
+          : undefined;
     if (!readiness) return;
     const refs = pendingRefsRef.current;
     const paths = pendingPathsRef.current;
@@ -154,6 +174,8 @@ export function useThreadGalleryImages(
     browserImageReadiness,
     imageReadinessFor,
     remoteServerRecord,
+    isManagedThread,
+    managedImageSession,
   ]);
 
   const previousImagesRef = useRef<readonly ThreadGalleryImage[] | undefined>(undefined);
@@ -185,6 +207,7 @@ export function getThreadGalleryImages(threadId: string): readonly ThreadGallery
       thread?.remoteServerId,
     ),
     locale: i18nSingleton.locale,
+    imageAuthority: threadGalleryImageAuthority(thread),
   }).images;
 }
 

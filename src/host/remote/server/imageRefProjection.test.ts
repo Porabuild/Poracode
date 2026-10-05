@@ -2,18 +2,29 @@ import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import { readRemoteImageRef, remoteImageRef } from "@/shared/remote";
-import { closeDatabase, initDatabase } from "@/host/db/connection";
+import { closeDatabase, getSqlite, initDatabase } from "@/host/db/connection";
 import { dbUpsertProject, dbUpsertThread } from "@/host/db/projectsThreads";
-import { dbReplaceThreadRuntimeItems } from "@/host/db/runtimeItems";
-import { resetImagePreviews, setImagePreviewGenerator } from "./imagePreview";
+import {
+  dbApplyThreadRuntimeEvents,
+  dbGetThreadRuntimeItem,
+  dbReplaceThreadRuntimeItems,
+} from "@/host/db/runtimeItems";
+import {
+  getImagePreviewRetentionSnapshot,
+  imagePreviewKey,
+  resetImagePreviews,
+  setImagePreviewGenerator,
+  type ImagePreviewGenerator,
+} from "./imagePreview";
 import {
   parseImageRefPath,
   projectPayloadImageRefs,
   projectRuntimeItemsImageRefs,
   resolveImageRef,
+  resolveImageRefAfterFence,
 } from "./imageRefProjection";
 
 const serverNativeBinding = join(process.cwd(), "dist", "server-native", "better_sqlite3.node");
@@ -34,6 +45,17 @@ const PNG_1X1 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8AABAwMDAwMDAAAAP//AwABAAEAAQABAAEA";
 const bigPngBase64 = `${PNG_1X1}${"A".repeat(9000)}`;
 const bigPngDataUrl = `data:image/png;base64,${bigPngBase64}`;
+const flushPreviews = () =>
+  new Promise<void>((resolve) => setImmediate(() => setImmediate(resolve)));
+
+function pngDataUrlOfSize(bytes: number): string {
+  const prefix = `data:image/png;base64,${PNG_1X1}`;
+  return `${prefix}${"A".repeat(bytes - Buffer.byteLength(prefix, "utf8"))}`;
+}
+
+async function drainPreviews(): Promise<void> {
+  for (let i = 0; i < 40; i += 1) await flushPreviews();
+}
 
 function testThread(): Thread {
   return {
@@ -161,6 +183,7 @@ describe.skipIf(!sqliteAvailable)("resolveImageRef", () => {
   });
 
   afterEach(() => {
+    resetImagePreviews();
     closeDatabase();
     rmSync(dir, { recursive: true, force: true });
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
@@ -172,11 +195,101 @@ describe.skipIf(!sqliteAvailable)("resolveImageRef", () => {
     ]);
   }
 
+  it("resolves images without reading unrelated retained streams and leaves full reads intact", async () => {
+    const stream = "unrelated output\n".repeat(200_000);
+    await dbReplaceThreadRuntimeItems("thread-1", [
+      {
+        id: "item-1",
+        type: "image_view",
+        state: "completed",
+        payload: { images: [bigPngDataUrl] },
+        streams: { command_output: stream },
+      },
+    ]);
+    const prepare = vi.spyOn(getSqlite(), "prepare");
+    expect(resolveImageRef("thread-1", "item-1", ["images", 0])?.data).toEqual(
+      Buffer.from(bigPngBase64, "base64"),
+    );
+    expect(prepare.mock.calls).toHaveLength(1);
+    expect(prepare.mock.calls[0]![0]).toContain("NULL AS streams");
+    prepare.mockClear();
+    expect((await resolveImageRefAfterFence("thread-1", "item-1", ["images", 0]))?.data).toEqual(
+      Buffer.from(bigPngBase64, "base64"),
+    );
+    expect(prepare.mock.calls.some(([sql]) => sql.includes("NULL AS streams"))).toBe(true);
+    expect(
+      prepare.mock.calls.some(([sql]) => /thread_runtime_item_stream_(?:state|chunks)/.test(sql)),
+    ).toBe(false);
+    prepare.mockRestore();
+    expect((await dbGetThreadRuntimeItem("thread-1", "item-1"))?.streams.command_output).toBe(
+      stream,
+    );
+  });
+
+  it("resolves a live image reference whose canonical row is still queued", async () => {
+    const admission = dbApplyThreadRuntimeEvents("thread-1", [
+      {
+        type: "item.started",
+        threadId: "thread-1",
+        itemId: "live-image",
+        itemType: "tool_call",
+        payload: { name: "Read", status: "success", images: [bigPngDataUrl] },
+      },
+      { type: "item.completed", threadId: "thread-1", itemId: "live-image" },
+    ]);
+    expect(admission.kind).toBe("accepted");
+    // The former endpoint reads only the committed prefix and reports 404 here.
+    expect(resolveImageRef("thread-1", "live-image", ["images", 0])).toBeNull();
+    const resolved = await resolveImageRefAfterFence("thread-1", "live-image", ["images", 0]);
+    expect(resolved?.data).toEqual(Buffer.from(bigPngBase64, "base64"));
+    expect(await resolveImageRefAfterFence("thread-1", "missing", ["images", 0])).toBeNull();
+  });
+
   it("resolves a projected reference back to the exact bytes", async () => {
     await persist({ images: [bigPngDataUrl] });
     const resolved = resolveImageRef("thread-1", "item-1", ["images", 0]);
     expect(resolved?.mime).toBe("image/png");
     expect(resolved?.data.equals(Buffer.from(bigPngBase64, "base64"))).toBe(true);
+  });
+
+  it("preserves canonical bytes and dimensions above the optional preview input budget", async () => {
+    const generator = vi.fn<ImagePreviewGenerator>(() => "data:image/jpeg;base64,QQ==");
+    setImagePreviewGenerator(generator);
+    const image = pngDataUrlOfSize(8 * 1024 * 1024 + 1);
+    const payload = { images: [image] };
+    await persist(payload);
+    const { payload: projected, omittedBytes } = projectPayloadImageRefs(
+      "thread-1",
+      "item-1",
+      payload,
+    );
+    const ref = readRemoteImageRef((projected as { images: unknown[] }).images[0]);
+    expect(ref).toEqual({
+      threadId: "thread-1",
+      itemId: "item-1",
+      path: ["images", 0],
+      mime: "image/png",
+      bytes: Buffer.byteLength(image, "utf8"),
+      width: 1,
+      height: 1,
+    });
+    expect(omittedBytes).toBe(Buffer.byteLength(image, "utf8"));
+    expect(payload.images[0]).toBe(image);
+    await flushPreviews();
+    expect(generator).not.toHaveBeenCalled();
+    expect(getImagePreviewRetentionSnapshot()).toMatchObject({
+      retainedCount: 0,
+      retainedBytes: 0,
+    });
+    const expected = Buffer.from(image.slice(image.indexOf(",") + 1), "base64");
+    expect(resolveImageRef(ref!.threadId, ref!.itemId, ref!.path)?.data.equals(expected)).toBe(
+      true,
+    );
+    expect(
+      (await resolveImageRefAfterFence(ref!.threadId, ref!.itemId, ref!.path))?.data.equals(
+        expected,
+      ),
+    ).toBe(true);
   });
 
   it("resolves bare base64 as well as data URLs", async () => {
@@ -269,5 +382,120 @@ describe("preview attachment", () => {
     const ref = readRemoteImageRef((projected as { images: unknown[] }).images[0]);
     expect(ref).not.toBeNull();
     expect(ref?.preview).toBeUndefined();
+    expect(getImagePreviewRetentionSnapshot()).toMatchObject({
+      retainedCount: 0,
+      retainedBytes: 0,
+    });
+  });
+
+  it("retains at most 32 preview sources while projecting every image with dimensions", async () => {
+    const held = Promise.withResolvers<string | null>();
+    const generator = vi.fn<ImagePreviewGenerator>(() => held.promise);
+    setImagePreviewGenerator(generator);
+    const payload = { images: Array.from({ length: 40 }, () => bigPngDataUrl) };
+    const { payload: projected, omittedBytes } = projectPayloadImageRefs("t1", "i1", payload);
+    const refs = (projected as { images: unknown[] }).images.map(readRemoteImageRef);
+    expect(refs).toHaveLength(40);
+    for (const [index, ref] of refs.entries()) {
+      expect(ref).toMatchObject({
+        path: ["images", index],
+        width: 1,
+        height: 1,
+        bytes: Buffer.byteLength(bigPngDataUrl),
+      });
+      expect(ref?.preview).toBeUndefined();
+    }
+    expect(omittedBytes).toBe(40 * Buffer.byteLength(bigPngDataUrl));
+    expect(payload.images.every((image) => image === bigPngDataUrl)).toBe(true);
+    await flushPreviews();
+    expect(getImagePreviewRetentionSnapshot()).toMatchObject({
+      activeCount: 1,
+      pendingCount: 31,
+      retainedCount: 32,
+    });
+    expect(generator).toHaveBeenCalledTimes(1);
+    held.resolve("data:image/jpeg;base64,QQ==");
+    await drainPreviews();
+    expect(generator).toHaveBeenCalledTimes(32);
+    expect(getImagePreviewRetentionSnapshot()).toMatchObject({
+      retainedCount: 0,
+      retainedBytes: 0,
+    });
+  });
+
+  it("passes truthful retained source costs, refuses optional work at capacity, and retries after drain", async () => {
+    const held = Promise.withResolvers<string | null>();
+    const generator = vi.fn<ImagePreviewGenerator>(() => held.promise);
+    setImagePreviewGenerator(generator);
+    const image = pngDataUrlOfSize(1024 * 1024);
+    const payload = { images: Array.from({ length: 12 }, () => image) };
+    const { payload: projected } = projectPayloadImageRefs("t1", "i1", payload);
+    const refs = (projected as { images: unknown[] }).images.map(readRemoteImageRef);
+    expect(
+      refs.every(
+        (ref) => ref?.bytes === Buffer.byteLength(image) && ref.width === 1 && ref.height === 1,
+      ),
+    ).toBe(true);
+    const retainedBytes = Array.from(
+      { length: 7 },
+      (_, i) =>
+        Buffer.byteLength(image, "utf8") +
+        Buffer.byteLength(imagePreviewKey("t1", "i1", ["images", i]), "utf8"),
+    ).reduce((sum, cost) => sum + cost, 0);
+    await flushPreviews();
+    expect(getImagePreviewRetentionSnapshot()).toMatchObject({
+      retainedBytes,
+      activeCount: 1,
+      pendingCount: 6,
+      retainedCount: 7,
+    });
+    const blocked = getImagePreviewRetentionSnapshot();
+    projectPayloadImageRefs("t1", "i1", payload);
+    expect(getImagePreviewRetentionSnapshot()).toEqual(blocked);
+    expect(generator).toHaveBeenCalledTimes(1);
+    held.resolve("data:image/jpeg;base64,QQ==");
+    await drainPreviews();
+    expect(generator).toHaveBeenCalledTimes(7);
+    const retry = projectPayloadImageRefs("t1", "i1", payload).payload as { images: unknown[] };
+    expect(
+      retry.images.slice(0, 7).every((value) => readRemoteImageRef(value)?.preview !== undefined),
+    ).toBe(true);
+    expect(
+      retry.images.slice(7).every((value) => readRemoteImageRef(value)?.preview === undefined),
+    ).toBe(true);
+    expect(getImagePreviewRetentionSnapshot().pendingCount).toBe(5);
+    await drainPreviews();
+    const ready = projectPayloadImageRefs("t1", "i1", payload).payload as { images: unknown[] };
+    expect(
+      ready.images.every(
+        (value) => readRemoteImageRef(value)?.preview === "data:image/jpeg;base64,QQ==",
+      ),
+    ).toBe(true);
+    expect(generator).toHaveBeenCalledTimes(12);
+    expect(payload.images.every((value) => value === image)).toBe(true);
+    expect(getImagePreviewRetentionSnapshot()).toMatchObject({
+      retainedCount: 0,
+      retainedBytes: 0,
+    });
+  });
+
+  it("uses UTF-8 bytes rather than string length when admitting a multibyte image source", async () => {
+    const generator = vi.fn<ImagePreviewGenerator>(() => "data:image/jpeg;base64,QQ==");
+    setImagePreviewGenerator(generator);
+    const image = `<svg width="18" height="24"><text>${"é".repeat(6000)}</text></svg>`;
+    const { payload: projected } = projectPayloadImageRefs("t1", "i1", { images: [image] });
+    const ref = readRemoteImageRef((projected as { images: unknown[] }).images[0]);
+    expect(ref).toMatchObject({ bytes: Buffer.byteLength(image, "utf8"), width: 18, height: 24 });
+    expect(getImagePreviewRetentionSnapshot().retainedBytes).toBe(
+      Buffer.byteLength(image, "utf8") +
+        Buffer.byteLength(imagePreviewKey("t1", "i1", ["images", 0]), "utf8"),
+    );
+    expect(Buffer.byteLength(image, "utf8")).toBeGreaterThan(image.length);
+    await flushPreviews();
+    expect(generator).not.toHaveBeenCalled(); // vector sources need no native downscale
+    expect(getImagePreviewRetentionSnapshot()).toMatchObject({
+      retainedCount: 0,
+      retainedBytes: 0,
+    });
   });
 });

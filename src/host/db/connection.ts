@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import Database from "better-sqlite3";
 import {
   assertRequiredDatabaseSchema,
+  assertSupportedDatabaseSchemaVersion,
   repairSafeSchemaDrift,
   runDatabaseMigrations,
 } from "./migrations";
@@ -51,6 +52,13 @@ function openDatabase(dbPath: string): InstanceType<typeof Database> {
   return new Database(dbPath, options);
 }
 
+function readStoredSchemaVersion(sqlite: InstanceType<typeof Database>): number {
+  const row = sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get() as
+    | { value: string }
+    | undefined;
+  return Number(row?.value ?? "0");
+}
+
 export function initDatabase(
   dbPath: string,
   options: { schemaMode?: "migrate" | "validate" } = {},
@@ -69,6 +77,7 @@ export function initDatabase(
 
   if (options.schemaMode === "validate") {
     assertRequiredDatabaseSchema(sqlite);
+    assertSupportedDatabaseSchemaVersion(readStoredSchemaVersion(sqlite));
     console.log("[db] validated");
     return sqlite;
   }
@@ -267,13 +276,7 @@ export function initDatabase(
       ON remote_command_receipts (updated_at);
   `);
 
-  const storedVersion = Number(
-    (
-      sqlite.prepare("SELECT value FROM app_state WHERE key = 'schema_version'").get() as
-        | { value: string }
-        | undefined
-    )?.value ?? "0",
-  );
+  const storedVersion = readStoredSchemaVersion(sqlite);
 
   runDatabaseMigrations(sqlite, storedVersion);
   repairSafeSchemaDrift(sqlite);

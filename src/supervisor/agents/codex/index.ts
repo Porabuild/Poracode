@@ -15,6 +15,7 @@ import {
 } from "../base";
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { CodexStructuredSession } from "./acp";
+import { PERSISTED_RUNTIME_PAYLOAD_FORMAT_OWNER_KEY } from "./persistedRuntimePayload";
 import { buildCodexArgvFor, codexExtraArgsPosition, primeCodexGoalsSupport } from "./argv";
 import { codexDefaultCapabilities, codexDetectionSpec } from "./detection";
 import { detectRateLimitPrompt } from "./rateLimitPrompt";
@@ -110,6 +111,7 @@ export function createCodexAdapter(): AgentAdapter {
 
   return {
     kind: codexDetectionSpec.kind,
+    runtimePayloadFormatOwnerKey: PERSISTED_RUNTIME_PAYLOAD_FORMAT_OWNER_KEY,
     label: codexDetectionSpec.label,
     binary: codexDetectionSpec.binary,
     skillSupport: {

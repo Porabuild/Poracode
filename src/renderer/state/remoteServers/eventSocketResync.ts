@@ -100,7 +100,7 @@ export function resyncOpenThread(
               followUpQueueSnapshotGuard: captureThreadFollowUpQueueSnapshot(
                 remoteThreadId(connectionKey, threadId),
               ),
-              snapshot: await client.threadHistory(
+              history: await client.boundedThreadHistory(
                 threadId,
                 ...(omitScrollback ? [{ omitScrollback: true }] : []),
               ),
@@ -115,7 +115,8 @@ export function resyncOpenThread(
           restored = false;
           continue;
         }
-        const { threadId, snapshot: nextSnapshot, followUpQueueSnapshotGuard } = result;
+        const { threadId, history, followUpQueueSnapshotGuard } = result;
+        const nextSnapshot = history.page;
         if (!isCurrent() || entry.socket !== socket) {
           restored = false;
           break;
@@ -126,6 +127,16 @@ export function resyncOpenThread(
             fromServer: true,
             followUpQueueSnapshotGuard,
             lastSeenEventSeq: remoteThreadAppliedSeq(connectionKey, threadId),
+            ...(history.negotiation === "bounded"
+              ? {
+                  committedPrefix: {
+                    threadId: remoteThreadId(connectionKey, threadId),
+                    snapshotSeq: nextSnapshot.snapshotSeq,
+                    isCurrent: () => isCurrent() && entry.socket === socket,
+                    lastSeenEventSeq: () => remoteThreadAppliedSeq(connectionKey, threadId),
+                  },
+                }
+              : {}),
           },
         );
         if (applied.installedAuthoritativeHistory) {

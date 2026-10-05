@@ -1,11 +1,13 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import Database from "better-sqlite3";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HEAD_CHARS, TAIL_CHARS } from "./runtimeStreamCap";
 import {
   appendStreamDelta,
+  appendFrozenStreamDelta,
   assembleItemStreams,
+  clearItemStream,
   readStreamTails,
   streamHasContent,
 } from "./runtimeStreamStore";
@@ -52,6 +54,11 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunk store", () => {
     `);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+    sqlite.close();
+  });
+
   /** Drive a whole stream through the store the way the writer does. */
   function stream(deltas: readonly string[], itemId = ITEM, streamName = STREAM): string {
     let head = "";
@@ -82,6 +89,31 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunk store", () => {
       .get(THREAD, itemId, streamName) as { elided_chars: number } | undefined;
     return row ? Number(row.elided_chars) : 0;
   }
+
+  it("reuses bounded tail statements while refreshing counters after rollback and stream reset", () => {
+    const prepare = vi.spyOn(sqlite, "prepare");
+    const append = (delta: string) =>
+      appendFrozenStreamDelta(sqlite, { threadId: THREAD, itemId: ITEM, stream: STREAM, delta });
+    append("first");
+    const coldPrepares = prepare.mock.calls.length;
+    expect(coldPrepares).toBe(5);
+    for (let index = 0; index < 100; index += 1) append("x");
+    sqlite.exec("BEGIN");
+    append("discarded");
+    sqlite.exec("ROLLBACK");
+    append("kept");
+    expect(prepare.mock.calls.length).toBe(coldPrepares);
+    expect(assemble("")).toBe("first" + "x".repeat(100) + "kept");
+    clearItemStream(sqlite, THREAD, ITEM, STREAM);
+    const afterReset = prepare.mock.calls.length;
+    append("replacement");
+    append("fresh");
+    expect(prepare.mock.calls.length).toBe(afterReset);
+    expect(assemble("")).toBe("replacementfresh");
+    expect(
+      sqlite.prepare("SELECT next_seq, tail_chars FROM thread_runtime_item_stream_state").get(),
+    ).toEqual({ next_seq: 2, tail_chars: "replacementfresh".length });
+  });
 
   it("keeps short output entirely in the head, with no chunk rows", () => {
     const head = stream(["hello ", "world"]);
@@ -225,6 +257,42 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunk store", () => {
 
     expect(assemble(head)).toBe(source);
     expect(assemble(head)).not.toContain("�");
+  });
+
+  it("keeps explicit frozen appends identical to the original tail path through empty deltas and trimming", () => {
+    const source = `${"a".repeat(HEAD_CHARS - 1)}😀`;
+    const normal = "normal";
+    const frozen = "frozen";
+    const normalHead = stream([source], normal);
+    const frozenHead = stream([source], frozen);
+    const deltas = [
+      "",
+      `${"b".repeat(256_000 - 1)}😀`,
+      "tail",
+      "c".repeat(TAIL_CHARS + 512_000),
+      "🧪end",
+    ];
+    for (const delta of deltas) {
+      expect(
+        appendStreamDelta(sqlite, {
+          threadId: THREAD,
+          itemId: normal,
+          stream: STREAM,
+          delta,
+          head: normalHead,
+        }),
+      ).toEqual({});
+      appendFrozenStreamDelta(sqlite, { threadId: THREAD, itemId: frozen, stream: STREAM, delta });
+    }
+    const states = sqlite.prepare(
+      "SELECT next_seq, tail_chars, elided_chars FROM thread_runtime_item_stream_state WHERE item_id = ?",
+    );
+    const chunks = sqlite.prepare(
+      "SELECT seq, chars, text FROM thread_runtime_item_stream_chunks WHERE item_id = ? ORDER BY seq",
+    );
+    expect(states.get(frozen)).toEqual(states.get(normal));
+    expect(chunks.all(frozen)).toEqual(chunks.all(normal));
+    expect(assemble(frozenHead, frozen)).toBe(assemble(normalHead, normal));
   });
 
   it("keeps separate streams on the same item independent", () => {

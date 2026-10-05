@@ -1979,7 +1979,7 @@ msgstr "İkili dosya — önizleme kullanılamıyor."
 msgid "Binary file or no diff available"
 msgstr "İkili dosya veya fark yok"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Binary files can't be edited here."
 msgstr "İkili dosyalar burada düzenlenemez."
 
@@ -7236,7 +7236,7 @@ msgstr "Hesaplar yükleniyor…"
 msgid "Loading diff..."
 msgstr "Fark yükleniyor..."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Loading editor…"
 msgstr "Düzenleyici yükleniyor…"
 
@@ -9302,7 +9302,7 @@ msgstr "{0}/{1} görselini aç"
 msgid "Open image preview"
 msgstr "Görsel önizlemesini aç"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "Tarayıcıda aç"
@@ -9839,7 +9839,7 @@ msgstr "Duraklatıldı"
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "PDF önizlemesi tarayıcı panelinde açılır."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "PDF önizlemesi tarayıcıda açılır."
 
@@ -14081,11 +14081,11 @@ msgstr "Bu ortamın ana makine kimliği değişti. Ana makineden açıkça yenid
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "Bu bölüm onaylandı; eksik içerik geri yüklenmedi."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "Bu dosya yerleşik düzenleyici için çok büyük."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Bu dosya desteklenmeyen bir kodlama kullanıyor."
 

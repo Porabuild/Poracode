@@ -177,7 +177,12 @@ describe.skipIf(!sqliteAvailable)("history page bound semantics", () => {
     expect(
       sql
         .filter((statement) => statement.includes("item_id IN ("))
-        .every((statement) => statement.includes("SUM(length(CAST(text AS BLOB)))")),
+        .every(
+          (statement) =>
+            statement.includes("SUM(length(CAST(text AS BLOB)))") ||
+            (statement.includes("AS metadataKeyBytes") &&
+              statement.includes("SUM(length(b.data))")),
+        ),
     ).toBe(true);
   }, 60_000);
 

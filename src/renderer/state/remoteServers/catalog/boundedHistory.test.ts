@@ -14,7 +14,11 @@ import {
   mergeBoundedTailTurns,
   recordBoundedHistoryTail,
 } from "./boundedHistory";
-import { readBoundedHistoryTail } from "./boundedHistoryRegistry";
+import {
+  configureBoundedHistoryManagedRootClient,
+  readBoundedHistoryTail,
+  recordManagedRootBoundedHistoryTail,
+} from "./boundedHistoryRegistry";
 
 const VIEW_THREAD_ID = remoteThreadId("d1", "rt-1");
 const BASE_TIME = Date.parse("2026-01-01T00:00:00.000Z");
@@ -93,6 +97,31 @@ describe("boundedHistory", () => {
     __resetBoundedHistoryForTest();
     useAppStore.setState({ runtimeCompletedTurnsByThread: {} });
   });
+
+  it.each(["remote", "managed-root"] as const)(
+    "retains only continuation metadata for a %s history snapshot",
+    (connectionKind) => {
+      const page = historyPage("ct1.450");
+      let viewId = VIEW_THREAD_ID;
+      if (connectionKind === "managed-root") {
+        configureBoundedHistoryManagedRootClient(() => ({
+          client: {} as RemoteDesktopClient,
+          seq: 7,
+          authority: "proof-test",
+        }));
+        recordManagedRootBoundedHistoryTail({ threadId: "rt-1", page });
+        viewId = "rt-1";
+      } else {
+        recordBoundedHistoryTail({ desktopId: "d1", threadId: "rt-1", page });
+      }
+
+      const tail = readBoundedHistoryTail(viewId);
+      expect(tail?.proof).toEqual({ reads: "bounded-v1" });
+      expect(tail?.proof).not.toBe(page);
+      expect(tail?.cursor).toBe("ct1.450");
+      expect(tail?.snapshotSeq).toBe(3);
+    },
+  );
 
   it("continues older completed turns losslessly across ct1 pages", async () => {
     const calls: TurnsCall[] = [];

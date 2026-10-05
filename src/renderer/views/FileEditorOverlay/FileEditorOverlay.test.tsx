@@ -27,8 +27,8 @@ vi.mock("@/renderer/bridge", () => ({
   isWindows: () => false,
 }));
 
-vi.mock("@monaco-editor/react", () => ({
-  Editor: () => <div data-testid="monaco-editor" />,
+vi.mock("./parts/FileEditorPane/parts/localMonacoEditor", () => ({
+  default: () => <div data-testid="monaco-editor" />,
 }));
 
 vi.mock("@tanstack/react-virtual", () => ({

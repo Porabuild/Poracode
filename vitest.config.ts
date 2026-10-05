@@ -2,8 +2,10 @@ import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
+import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
 export default defineConfig({
+  plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
     globals: true,
     // Vitest 5 defaults clearMocks to true; the repo accepts the new default

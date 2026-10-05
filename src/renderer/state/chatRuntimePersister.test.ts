@@ -879,8 +879,8 @@ describe("bounded visible window (live threads)", () => {
     const ids = useAppStore.getState().runtimeItemIdsByThread[threadId] ?? [];
     expect(ids.length).toBeLessThan(31);
     expect(ids.length).toBeGreaterThanOrEqual(20);
-    // The newest row always survives; the oldest live rows were trimmed into
-    // the middle gap (the DB still holds them behind the older-page cursor).
+    // The newest row survives. The evicted prefix is recoverable by the
+    // explicit older-page rebase; no middle range is removed.
     expect(ids.at(-1)).toBe("live-29");
     expect(ids).not.toContain("seed");
     expect(ids).not.toContain("live-0");
@@ -942,7 +942,7 @@ describe("bounded visible window (live threads)", () => {
     expect(ids.at(-1)).toBe("done-3x-25");
   });
 
-  it("keeps explicitly paged history protected while trimming the unprotected middle", async () => {
+  it("keeps explicitly paged history and its intervening suffix contiguous", async () => {
     const threadId = "bounded-paged-thread";
     bridge.dbGetThreadRuntimeItemsPage.mockResolvedValueOnce({
       items: [makeItem({ id: "seed", type: "assistant_message" })],
@@ -971,8 +971,11 @@ describe("bounded visible window (live threads)", () => {
     expect(ids.slice(0, pagedIds.length)).toEqual(pagedIds);
     // The newest live rows survive right behind the protected prefix window.
     expect(ids.at(-1)).toBe("live-29");
-    // Something in the unprotected middle was trimmed.
-    expect(ids.length).toBeLessThan(pagedIds.length + 30);
+    expect(ids).toEqual([
+      ...pagedIds,
+      "seed",
+      ...Array.from({ length: 30 }, (_, index) => `live-${index}`),
+    ]);
   });
 
   it("drops completed-turn records anchored in trimmed ranges and caps retained records", async () => {

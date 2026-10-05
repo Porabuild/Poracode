@@ -72,6 +72,7 @@ export async function settlesWithin(
 export class StructuredDisposalCustody {
   private attempt: Promise<void> | undefined;
   private settled = false;
+  private failed = false;
   private lastError: unknown;
 
   constructor(
@@ -81,7 +82,7 @@ export class StructuredDisposalCustody {
 
   /** True once the current operation settled without an error. */
   get confirmed(): boolean {
-    return this.settled && this.lastError === undefined;
+    return this.settled && !this.failed;
   }
 
   /** The first failure of the current operation, if it settled rejected. */
@@ -95,7 +96,7 @@ export class StructuredDisposalCustody {
    * handle, no parallel dispose).
    */
   begin(): void {
-    if (this.attempt !== undefined && !(this.settled && this.lastError !== undefined)) return;
+    if (this.attempt !== undefined && !(this.settled && this.failed)) return;
     this.launch();
   }
 
@@ -120,7 +121,7 @@ export class StructuredDisposalCustody {
       this.options.timeoutMs ?? STRUCTURED_DISPOSAL_TIMEOUT_MS,
     );
     if (!settled) return "unconfirmed";
-    return this.lastError === undefined ? "confirmed" : "failed";
+    return this.failed ? "failed" : "confirmed";
   }
 
   private launch(): void {
@@ -135,16 +136,21 @@ export class StructuredDisposalCustody {
 
   private bind(attempt: Promise<void>): void {
     this.settled = false;
+    this.failed = false;
     this.lastError = undefined;
     this.attempt = attempt;
     void attempt.then(
       () => {
         this.settled = true;
+        this.failed = false;
         this.lastError = undefined;
         this.options.onConfirmed?.();
       },
       (error: unknown) => {
         this.settled = true;
+        // Promise rejection may carry undefined. Confirmation is a distinct
+        // outcome, never inferred from the absence of an error payload.
+        this.failed = true;
         this.lastError = error;
         this.options.onFailure?.(error);
       },

@@ -3,6 +3,10 @@ import { fork, type ChildProcess } from "node:child_process";
 import { constants as osConstants, setPriority } from "node:os";
 import type { Readable } from "node:stream";
 import {
+  BACKEND_HOST_FORCE_KILL_GRACE_MS as DISPOSE_FORCE_KILL_GRACE_MS,
+  BACKEND_HOST_DISPOSAL_FORCE_KILL_RESERVE_MS,
+} from "./backendShutdownBudget";
+import {
   BACKEND_HOST_PROTOCOL_VERSION,
   createBackendDatabaseRequest,
   createBackendRevertCheckpointRequest,
@@ -42,16 +46,6 @@ const RESTART_MAX_DELAY_MS = 8_000;
 // Five failed attempts allow 15s of backoff; five hung attempts take at most 315s.
 const MAX_INITIALIZATION_FAILURES = 5;
 const DISPOSE_TIMEOUT_MS = 1_000;
-/**
- * Bound between SIGTERM and SIGKILL for a backend child that cannot run its
- * own SIGTERM handler (a synchronously blocked event loop). It also gives a
- * healthy child room to finish its own bounded shutdown (including its 1s IPC
- * flush) before the forced kill. `disposeAsync` reserves twice this value
- * inside an explicit caller budget — the grace plus the bounded join after the
- * forced kill — so a blocked child cannot outlive the caller's shutdown
- * deadline still holding the profile lease.
- */
-const DISPOSE_FORCE_KILL_GRACE_MS = 3_000;
 // Covers one 60s hung attempt, its 1s backoff, and 29s of replacement startup.
 export const BACKEND_HOST_INIT_WAIT_TIMEOUT_MS = 90_000;
 
@@ -747,7 +741,7 @@ export class BackendHostClient {
     const drainMs =
       explicitBudgetMs === undefined
         ? DISPOSE_TIMEOUT_MS
-        : Math.max(0, explicitBudgetMs - DISPOSE_FORCE_KILL_GRACE_MS * 2);
+        : Math.max(0, explicitBudgetMs - BACKEND_HOST_DISPOSAL_FORCE_KILL_RESERVE_MS);
     try {
       await Promise.race([
         this.initializePromise

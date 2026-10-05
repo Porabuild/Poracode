@@ -424,6 +424,9 @@ export default defineConfig(({ mode }) => ({
             {
               name: "monaco",
               test: /[\\/]node_modules[\\/](@monaco-editor|monaco-editor)[\\/]/,
+              // Keep shared dependencies in their own chunks so the lazy
+              // local editor runtime cannot become a chat startup dependency.
+              includeDependenciesRecursively: false,
               priority: 40,
             },
             {

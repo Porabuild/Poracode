@@ -96,6 +96,8 @@ interface PendingBatch {
  */
 export class RuntimeEventBuffer {
   private readonly pending = new Map<string, PendingBatch>();
+  /** Threads held by exhausted credit or a partial/refused flush, awaiting retry. */
+  private readonly waitingForCapacity = new Set<string>();
   /** Stop markers waiting for their thread's retained batch to drain. */
   private readonly stopMarkers = new Map<string, SupervisorEvent>();
   private readonly maxPendingEventsGlobal: number;
@@ -157,8 +159,10 @@ export class RuntimeEventBuffer {
     this.totalEvents += 1;
     this.totalBytes += bytes;
 
-    if (this.paused || this.canonicalCapacity() <= 0) {
-      this.enforceCaps(threadId, this.canonicalCapacity() <= 0);
+    const creditBound = this.canonicalCapacity() <= 0;
+    if (this.paused || creditBound) {
+      if (creditBound) this.waitingForCapacity.add(threadId);
+      this.enforceCaps(threadId, creditBound);
       return;
     }
     if (this.exceedsThreadCap(batch) || this.exceedsAnyGlobalCap()) {
@@ -192,12 +196,13 @@ export class RuntimeEventBuffer {
   }
 
   /**
-   * Host credit window changed. When capacity returns, outstanding batches
-   * flush; when it exhausts, flushing holds exactly like a pause but is
-   * reported with `creditBound` so the stop path can tell the two apart.
+   * Retry held content when capacity returns. Healthy acknowledgements leave
+   * the scheduled batch intact; only an exhausted append or an unsuccessful
+   * flush needs immediate release. The live capacity callback is authoritative;
+   * the notification's remaining-byte snapshot is informational only.
    */
   setCanonicalCapacity(_remainingBytes: number): void {
-    if (this.paused) return;
+    if (this.paused || this.waitingForCapacity.size === 0) return;
     if (this.canonicalCapacity() > 0) this.flush();
   }
 
@@ -226,6 +231,7 @@ export class RuntimeEventBuffer {
       this.emitStopMarkerFor(threadId);
       return;
     }
+    if (this.paused) return;
     this.emitOneThread(threadId, batch);
   }
 
@@ -247,7 +253,12 @@ export class RuntimeEventBuffer {
   }
 
   flush(): void {
-    this.clearTimerIfIdle();
+    // A flush consumes this batch deadline even if credit or pause retains a
+    // tail. A fired timer must never prevent the next append from scheduling.
+    if (this.timer !== undefined) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
+    }
     if (this.paused || this.pending.size === 0) return;
 
     const entries = [...this.pending.entries()].filter(([, batch]) => batch.events.length > 0);
@@ -268,9 +279,11 @@ export class RuntimeEventBuffer {
   /** Drop every buffered batch (session teardown; bounded, rebuildable path only). */
   clear(): void {
     this.pending.clear();
+    this.waitingForCapacity.clear();
     this.stopMarkers.clear();
     this.totalEvents = 0;
     this.totalBytes = 0;
+    this.clearTimerIfIdle();
   }
 
   /**
@@ -348,8 +361,15 @@ export class RuntimeEventBuffer {
     }
     if (!held) flushCurrent();
 
-    for (const [threadId, merged] of mergedByThread) {
-      this.retainTail(threadId, merged, emittedByThread.get(threadId) ?? 0);
+    for (const [threadId] of entries) {
+      const merged = mergedByThread.get(threadId);
+      if (merged) {
+        this.retainTail(threadId, merged, emittedByThread.get(threadId) ?? 0);
+      } else {
+        // An earlier envelope blocked before this thread was visited. It
+        // still needs a retry if that earlier thread is released or cleared.
+        this.waitingForCapacity.add(threadId);
+      }
     }
   }
 
@@ -381,9 +401,11 @@ export class RuntimeEventBuffer {
     this.totalBytes += bytes - batch.bytes;
     batch.events = tail;
     batch.bytes = bytes;
+    this.waitingForCapacity.add(threadId);
   }
 
   private dropThread(threadId: string): void {
+    this.waitingForCapacity.delete(threadId);
     const batch = this.pending.get(threadId);
     if (batch) {
       this.pending.delete(threadId);
@@ -495,6 +517,10 @@ export class RuntimeEventBuffer {
     let projectedEvents = this.totalEvents;
     let projectedBytes = this.totalBytes;
     for (const [threadId, batch] of ordered) {
+      // An overflow hook can synchronously drain children, flush a batch or
+      // notify another producer. Never act on its stale snapshot twice.
+      if (!this.exceedsAnyGlobalCap()) break;
+      if (this.pending.get(threadId) !== batch || batch.overflowNotified) continue;
       if (
         projectedEvents <= this.maxPendingEventsGlobal &&
         projectedBytes <= this.maxPendingBytesGlobal

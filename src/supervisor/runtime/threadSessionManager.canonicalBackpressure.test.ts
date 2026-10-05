@@ -150,19 +150,37 @@ describe("ThreadSessionManager canonical backpressure", () => {
     expect(disposeAffected).toHaveBeenCalledOnce();
     expect(disposeOther).not.toHaveBeenCalled();
 
-    // The explicit stop is also a canonical error event on the control path.
-    const errorEvents = emit.mock.calls
-      .map(([event]) => event)
-      .filter(
-        (event): event is Extract<SupervisorEvent, { type: "thread-runtime-event" }> =>
-          event.type === "thread-runtime-event" && event.event.type === "error",
-      );
-    expect(errorEvents).toHaveLength(1);
-    expect(errorEvents[0]!.threadId).toBe("t1");
+    // The immediate state stops the producer, while its canonical marker must
+    // wait behind the retained content until host persistence resumes.
+    const errorEvents = () =>
+      emit.mock.calls
+        .map(([event]) => event)
+        .filter(
+          (event): event is Extract<SupervisorEvent, { type: "thread-runtime-event" }> =>
+            event.type === "thread-runtime-event" && event.event.type === "error",
+        );
+    expect(errorEvents()).toHaveLength(0);
 
     // The bounded batch is retained and flushed on resume; the stopped session
     // is not stopped again.
     manager.setCanonicalEventBackpressure(false);
+    expect(errorEvents()).toHaveLength(1);
+    expect(errorEvents()[0]!.threadId).toBe("t1");
+    const delivered = emit.mock.calls.flatMap(([event]): RuntimeEvent[] => {
+      if (event.type === "thread-runtime-event")
+        return event.threadId === "t1" ? [event.event] : [];
+      if (event.type === "thread-runtime-events")
+        return event.threadId === "t1" ? event.events : [];
+      if (event.type === "thread-runtime-events-multi")
+        return event.batches
+          .filter((batch) => batch.threadId === "t1")
+          .flatMap((batch) => batch.events);
+      return [];
+    });
+    const contentIndex = delivered.findLastIndex((event) => event.type === "content.delta");
+    const markerIndex = delivered.findIndex((event) => event.type === "error");
+    expect(contentIndex).toBeGreaterThanOrEqual(0);
+    expect(markerIndex).toBeGreaterThan(contentIndex);
     expect(manager.getCanonicalEventBufferStats().events).toBe(0);
     expect(errorStates(emit)).toHaveLength(1);
   });

@@ -1978,7 +1978,7 @@ msgstr "バイナリ ファイル — プレビューは利用できません。
 msgid "Binary file or no diff available"
 msgstr "バイナリ ファイルまたは利用可能な差分がありません"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Binary files can't be edited here."
 msgstr "ここではバイナリ ファイルを編集できません。"
 
@@ -7235,7 +7235,7 @@ msgstr "アカウントを読み込み中…"
 msgid "Loading diff..."
 msgstr "差分を読み込み中..."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Loading editor…"
 msgstr "エディターを読み込み中…"
 
@@ -9300,7 +9300,7 @@ msgstr "画像 {0}/{1} を開く"
 msgid "Open image preview"
 msgstr "画像のプレビューを開く"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "ブラウザで開く"
@@ -9837,7 +9837,7 @@ msgstr "一時停止中"
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "PDFプレビューはブラウザパネルで開きます。"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "PDFプレビューはブラウザで開きます。"
 
@@ -14079,11 +14079,11 @@ msgstr "この環境のホスト ID が変更されました。ホストから�
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "このエピソードは確認済みです。失われた内容は復元されません。"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "このファイルは組み込みエディタには大きすぎます。"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "このファイルはサポートされていないエンコーディングを使用しています。"
 

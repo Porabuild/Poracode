@@ -6,6 +6,8 @@ import { applyProjectStateSnapshot } from "@/renderer/state/projectStateSync";
 import { clearThreadHistoryNotice } from "@/renderer/state/remote/historyNoticeStore";
 import { reuseRemoteRows } from "@/renderer/state/remoteServers/rowReuse";
 import { removePaneFromView } from "@/renderer/state/slices/helpers";
+import { forgetTimelineMeasurements } from "@/renderer/state/timelineMeasurementCache";
+import { forgetThreadGalleryCache } from "@/renderer/state/threadGalleryCache";
 import { dropPendingManagedRootLaunch } from "./rootCatalogStore";
 
 /**
@@ -193,9 +195,15 @@ export function removeRootCatalogThreads(threadIds: readonly string[]): void {
   if (threadIds.length === 0) return;
   const removed = new Set(threadIds);
   useAppStore.setState((state) => {
-    const threads = state.threads.filter(
-      (thread) => !isManagedRootRow(thread) || !removed.has(thread.id),
-    );
+    const retiredGalleryIds = new Set(removed);
+    const threads = state.threads.filter((thread) => {
+      if (!isManagedRootRow(thread)) retiredGalleryIds.delete(thread.id);
+      const keep = !isManagedRootRow(thread) || !removed.has(thread.id);
+      if (!keep) forgetTimelineMeasurements(thread.id);
+      return keep;
+    });
+    // Accepted repeat removal also retires an unread entry after its row is gone.
+    for (const threadId of retiredGalleryIds) forgetThreadGalleryCache(threadId);
     if (threads.length === state.threads.length) return state;
     return { threads };
   });

@@ -4,6 +4,11 @@ import { createRef, useRef } from "react";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { useComposerBubbleSlotStore } from "@/renderer/state/composerBubbleSlotStore";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
+import {
+  ChatReaderFollowContext,
+  createChatReaderFollowSignal,
+  type ChatReaderFollowSignal,
+} from "./chatReaderFollow";
 
 let scrollToBottomToken = 0;
 
@@ -25,6 +30,7 @@ function Harness({
   initialScrollRevealDelayMs = 0,
   tailEntryId,
   onInitialScrollSettled,
+  readerFollow,
 }: {
   scrollEl: HTMLDivElement;
   controlsRef: React.RefObject<ChatScrollControlsHandle | null>;
@@ -33,24 +39,27 @@ function Harness({
   initialScrollRevealDelayMs?: number;
   tailEntryId?: string | null;
   onInitialScrollSettled?: () => void;
+  readerFollow?: ChatReaderFollowSignal;
 }) {
   const scrollRef = useRef(scrollEl);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const virtualScrollToBottomRef = useRef(virtualScrollToBottom);
   return (
-    <ChatScrollControls
-      ref={controlsRef}
-      scrollRef={scrollRef}
-      contentRef={contentRef}
-      layoutChangeToken={null}
-      tailEntryId={tailEntryId ?? "entry-1"}
-      threadId="thread-1"
-      tailLoaderVisible={false}
-      initialScrollSettled={initialScrollSettled}
-      initialScrollRevealDelayMs={initialScrollRevealDelayMs}
-      virtualScrollToBottomRef={virtualScrollToBottomRef}
-      onInitialScrollSettled={onInitialScrollSettled ?? (() => undefined)}
-    />
+    <ChatReaderFollowContext.Provider value={readerFollow ?? null}>
+      <ChatScrollControls
+        ref={controlsRef}
+        scrollRef={scrollRef}
+        contentRef={contentRef}
+        layoutChangeToken={null}
+        tailEntryId={tailEntryId ?? "entry-1"}
+        threadId="thread-1"
+        tailLoaderVisible={false}
+        initialScrollSettled={initialScrollSettled}
+        initialScrollRevealDelayMs={initialScrollRevealDelayMs}
+        virtualScrollToBottomRef={virtualScrollToBottomRef}
+        onInitialScrollSettled={onInitialScrollSettled ?? (() => undefined)}
+      />
+    </ChatReaderFollowContext.Provider>
   );
 }
 
@@ -684,7 +693,7 @@ describe("ChatScrollControls", () => {
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
   });
 
-  it("re-pins after the submitted message is appended", () => {
+  it("re-pins after the submitted message is appended", async () => {
     let scrollHeight = 1000;
     let scrollTop = 800;
     const scrollEl = document.createElement("div");
@@ -695,7 +704,7 @@ describe("ChatScrollControls", () => {
         configurable: true,
         get: () => scrollTop,
         set: (value: number) => {
-          scrollTop = value;
+          scrollTop = Math.max(0, Math.min(value, scrollHeight - 200));
         },
       },
     });
@@ -722,14 +731,21 @@ describe("ChatScrollControls", () => {
     rerender(renderHarness());
 
     expect(virtualScrollToBottom).toHaveBeenCalled();
-    expect(scrollTop).toBe(1000);
+    expect(scrollTop).toBe(800);
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
 
+    virtualScrollToBottom.mockClear();
     scrollHeight = 1200;
     tailEntryId = "submitted-entry";
     rerender(renderHarness());
 
-    expect(scrollTop).toBe(1200);
+    // With no content observer attached, the structural fallback still follows
+    // the optimistic row that mounted after the explicit submission signal.
+    await act(async () => {
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    });
+    expect(virtualScrollToBottom).not.toHaveBeenCalled();
+    expect(scrollTop).toBe(1000);
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
   });
 
@@ -819,6 +835,86 @@ describe("ChatScrollControls", () => {
     expect(scrollTop).toBe(1000);
     expect(controlsRef.current?.isStickToBottom()).toBe(true);
   });
+
+  it.each(["button", "user end", "submission"])(
+    "publishes confirmed reader intent and releases it on %s before reconciling the tail",
+    (returnAction) => {
+      let now = 1_000;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      let scrollHeight = 1_000;
+      let scrollTop = 800;
+      const scrollEl = document.createElement("div");
+      Object.defineProperties(scrollEl, {
+        scrollHeight: { configurable: true, get: () => scrollHeight },
+        clientHeight: { configurable: true, get: () => 200 },
+        scrollTop: {
+          configurable: true,
+          get: () => scrollTop,
+          set: (value: number) => {
+            scrollTop = value;
+          },
+        },
+      });
+      const readerFollow = createChatReaderFollowSignal();
+      const controlsRef = createRef<ChatScrollControlsHandle>();
+      const virtualScrollToBottom = vi.fn<() => void>(() => {
+        expect(readerFollow.isFollowing()).toBe(true);
+      });
+      const renderHarness = () => (
+        <Harness
+          scrollEl={scrollEl}
+          controlsRef={controlsRef}
+          virtualScrollToBottom={virtualScrollToBottom}
+          readerFollow={readerFollow}
+        />
+      );
+      const { rerender, getByRole } = renderWithI18n(renderHarness());
+      act(() => {
+        // A library-only compensation must not establish reader intent.
+        controlsRef.current?.beginVirtualizerLayoutChange();
+        scrollTop = 700;
+        fireEvent.scroll(scrollEl);
+      });
+      expect(readerFollow.isFollowing()).toBe(true);
+      now = 2_000;
+      act(() => {
+        // Pointer/wheel arming alone also must not freeze a body.
+        controlsRef.current?.markUserScrollIntent();
+        controlsRef.current?.disableStickToBottom();
+      });
+      expect(readerFollow.isFollowing()).toBe(true);
+      act(() => {
+        scrollTop = 400;
+        fireEvent.scroll(scrollEl);
+      });
+      expect(readerFollow.isFollowing()).toBe(false);
+      act(() => {
+        // Resize can make the old reader page physically reach the bottom;
+        // only an explicit return should release its detached text.
+        scrollHeight = 600;
+        controlsRef.current?.onContentHeightChange();
+      });
+      expect(readerFollow.isFollowing()).toBe(false);
+      expect(controlsRef.current?.isStickToBottom()).toBe(false);
+      const returnButton = getByRole("button", { name: "Scroll to bottom" });
+      expect(returnButton).toBeEnabled();
+      virtualScrollToBottom.mockClear();
+      if (returnAction === "button") {
+        fireEvent.click(returnButton);
+      } else if (returnAction === "user end") {
+        act(() => {
+          scrollTop = 500;
+          fireEvent.scroll(scrollEl);
+        });
+      } else {
+        scrollToBottomToken += 1;
+        rerender(renderHarness());
+      }
+      expect(readerFollow.isFollowing()).toBe(true);
+      expect(controlsRef.current?.isStickToBottom()).toBe(true);
+      expect(virtualScrollToBottom).toHaveBeenCalledOnce();
+    },
+  );
 
   it("reasserts an explicit bottom pin after the virtualizer settles short", async () => {
     let scrollTop = 800;

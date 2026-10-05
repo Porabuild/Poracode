@@ -464,7 +464,7 @@ export class ThreadSessionManager {
   }
 
   private enqueueRuntimeEvent(threadId: string, event: RuntimeEvent): void {
-    this.runtimeEventRouter.append(threadId, event);
+    this.runtimeEventRouter.append(threadId, stripRuntimeEventPayloadOrigin(event));
   }
 
   /**
@@ -2176,3 +2176,4 @@ function isTerminalPtySession(session: SessionRuntime): boolean {
     session.presentationMode ?? session.adapter.capabilities.presentationMode;
   return presentationMode === "terminal";
 }
+import { stripRuntimeEventPayloadOrigin } from "@/shared/runtimePayloadOriginProtocol";

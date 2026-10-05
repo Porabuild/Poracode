@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { arch, cpus, freemem, homedir, loadavg, platform, release, totalmem } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -13,6 +13,7 @@ import {
 } from "./helpers/armFreeze.ts";
 import { ProfileClient } from "./helpers/concurrencyProfileClient.ts";
 import { classifyServerFrame, FrameClassAccounting } from "./helpers/frameClassification.ts";
+import { summarizeNodePerfDirectory } from "./helpers/nodePerfSummary.ts";
 import { HostLoadSampler } from "./helpers/hostLoadSampler.ts";
 import { ProcessCpuSampler } from "./helpers/processCpuSampler.ts";
 import { ProcessMemorySampler } from "./helpers/processMemorySampler.ts";
@@ -134,100 +135,6 @@ const SNAPSHOT_REFRESH_INTERVAL_MS = 5_000;
 const SETTLE_MS = 10_000;
 /** Bounded deadline for the post-reload diagnostics handle. */
 const DIAGNOSTICS_ACTIVATION_TIMEOUT_MS = 90_000;
-
-interface NodePerfQueueSummary {
-  readonly waitingEstimatedBytesMax: number;
-  readonly oldestQueuedMessageAgeMsMax: number;
-  readonly shedMessagesMax: number;
-}
-
-interface NodePerfRoleSummary {
-  readonly role: string;
-  readonly file: string;
-  readonly samples: number;
-  readonly eventLoopDelayP99MaxMs: number;
-  readonly eventLoopDelayMaxMs: number;
-  readonly cpuOneCorePercentMax: number;
-  readonly rssBytesMax: number;
-  readonly rssBytesLast: number;
-  readonly queueMaxima: Readonly<Record<string, NodePerfQueueSummary>>;
-}
-
-function summarizeNodePerfDirectory(directory: string): NodePerfRoleSummary[] {
-  if (!existsSync(directory)) return [];
-  const summaries: NodePerfRoleSummary[] = [];
-  for (const file of readdirSync(directory).filter((name) => name.endsWith(".ndjson"))) {
-    const path = join(directory, file);
-    let role = "unknown";
-    let samples = 0;
-    let p99Max = 0;
-    let delayMax = 0;
-    let cpuMax = 0;
-    let rssMax = 0;
-    let rssLast = 0;
-    const queues: Record<string, NodePerfQueueSummary> = {};
-    for (const line of readFileSync(path, "utf8").split("\n")) {
-      if (!line.trim()) continue;
-      let parsed: Record<string, unknown>;
-      try {
-        parsed = JSON.parse(line) as Record<string, unknown>;
-      } catch {
-        continue;
-      }
-      if (parsed.kind === "start" && typeof parsed.role === "string") role = parsed.role;
-      if (parsed.kind !== "sample") continue;
-      samples += 1;
-      const delay = parsed.eventLoopDelay as
-        | { p99Ms?: number | null; maxMs?: number | null }
-        | undefined;
-      if (typeof delay?.p99Ms === "number") p99Max = Math.max(p99Max, delay.p99Ms);
-      if (typeof delay?.maxMs === "number") delayMax = Math.max(delayMax, delay.maxMs);
-      const cpu = parsed.cpu as { oneCorePercent?: number } | undefined;
-      if (typeof cpu?.oneCorePercent === "number") cpuMax = Math.max(cpuMax, cpu.oneCorePercent);
-      const memory = parsed.memory as { rssBytes?: number } | undefined;
-      if (typeof memory?.rssBytes === "number") {
-        rssMax = Math.max(rssMax, memory.rssBytes);
-        rssLast = memory.rssBytes;
-      }
-      const ipcQueues = parsed.ipcQueues as Record<string, Record<string, unknown>> | undefined;
-      for (const [queueName, sample] of Object.entries(ipcQueues ?? {})) {
-        const current = queues[queueName] ?? {
-          waitingEstimatedBytesMax: 0,
-          oldestQueuedMessageAgeMsMax: 0,
-          shedMessagesMax: 0,
-        };
-        queues[queueName] = {
-          waitingEstimatedBytesMax: Math.max(
-            current.waitingEstimatedBytesMax,
-            typeof sample.waitingEstimatedBytes === "number" ? sample.waitingEstimatedBytes : 0,
-          ),
-          oldestQueuedMessageAgeMsMax: Math.max(
-            current.oldestQueuedMessageAgeMsMax,
-            typeof sample.oldestQueuedMessageAgeMs === "number"
-              ? sample.oldestQueuedMessageAgeMs
-              : 0,
-          ),
-          shedMessagesMax: Math.max(
-            current.shedMessagesMax,
-            typeof sample.shedMessages === "number" ? sample.shedMessages : 0,
-          ),
-        };
-      }
-    }
-    summaries.push({
-      role,
-      file,
-      samples,
-      eventLoopDelayP99MaxMs: p99Max,
-      eventLoopDelayMaxMs: delayMax,
-      cpuOneCorePercentMax: cpuMax,
-      rssBytesMax: rssMax,
-      rssBytesLast: rssLast,
-      queueMaxima: queues,
-    });
-  }
-  return summaries;
-}
 
 function writeJson(path: string, payload: unknown): void {
   mkdirSync(dirname(path), { recursive: true });

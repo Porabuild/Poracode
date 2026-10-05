@@ -1,10 +1,11 @@
 import { once } from "node:events";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "../RemoteAccessServer";
+import { LOCAL_CLIENT_HTML_HEAD_BYTES } from "../localClientHtml";
 
 /**
  * Route-precedence and deep-link-refresh coverage for the bundled web client
@@ -44,10 +45,41 @@ const servers: RemoteAccessServer[] = [];
 let fixtureRoot = "";
 let templateRoot = "";
 let missingRoot = "";
+let relativeBuildRoot = "";
+
+// URL graph captured from the R35 relative Vite build. The bootstrap body is
+// immaterial to resolution; the emitted entry/lazy-module/CSS names are kept.
+// An archived complete build can exercise the same assertions without copying
+// it: PORACODE_STATIC_TEST_BUILD_ROOT=/absolute/path/to/dist/renderer.
+const RELATIVE_BUILD_GRAPH: Readonly<Record<string, string>> = {
+  "index.html": `<!doctype html><html><head>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./app-icon.svg" />
+    <link rel="icon" href="./icons/icon-192.png" />
+    <script type="module" crossorigin src="./assets/index-BelynKyW.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/preload-helper-HclGiUj8.js">
+    <link rel="stylesheet" crossorigin href="./assets/git-diff-B1Ts6-1_.css">
+    </head><body><div id="root"></div></body></html>`,
+  "manifest.webmanifest": '{"name":"Poracode","start_url":"/"}',
+  "app-icon.svg": "<svg></svg>",
+  "icons/icon-192.png": "fixture-icon",
+  "assets/index-BelynKyW.js": `const deps=["./main-DxfI7DQN.js","./main-Kexy3Ari.css"];
+    import "./preload-helper-HclGiUj8.js";
+    export const load=()=>import("./main-DxfI7DQN.js");`,
+  "assets/preload-helper-HclGiUj8.js": "export const href=(path,base)=>new URL(path,base).href;",
+  "assets/git-diff-B1Ts6-1_.css": ".diff{display:block}",
+  "assets/main-DxfI7DQN.js": "export const boot=true;",
+  "assets/main-Kexy3Ari.css": "#root{height:100%}",
+};
 
 beforeAll(() => {
   fixtureRoot = mkdtempSync(join(tmpdir(), "poracode-router-web-"));
   templateRoot = mkdtempSync(join(tmpdir(), "poracode-router-template-"));
+  relativeBuildRoot = mkdtempSync(join(tmpdir(), "poracode-router-relative-build-"));
+  for (const [path, body] of Object.entries(RELATIVE_BUILD_GRAPH)) {
+    mkdirSync(dirname(join(relativeBuildRoot, path)), { recursive: true });
+    writeFileSync(join(relativeBuildRoot, path), body);
+  }
   missingRoot = join(tmpdir(), "poracode-router-web-missing");
   mkdirSync(join(fixtureRoot, "assets"));
   mkdirSync(join(fixtureRoot, "poracode-ssh-runtime"));
@@ -75,6 +107,7 @@ beforeAll(() => {
 afterAll(() => {
   rmSync(fixtureRoot, { recursive: true, force: true });
   rmSync(templateRoot, { recursive: true, force: true });
+  rmSync(relativeBuildRoot, { recursive: true, force: true });
 });
 
 afterEach(async () => {
@@ -165,6 +198,77 @@ describe("bundled web client route precedence", () => {
     expect(await response.text()).toContain(INDEX_MARKER);
   });
 
+  it("loads a relative built HTML and lazy CSS graph at root and nested route URLs", async () => {
+    bundledRoot = process.env.PORACODE_STATIC_TEST_BUILD_ROOT
+      ? resolve(process.env.PORACODE_STATIC_TEST_BUILD_ROOT)
+      : relativeBuildRoot;
+    // Every generated artifact supplied for qualification must keep its whole
+    // original head in the supported recognition window.
+    const sourceHtml = readFileSync(join(bundledRoot, "index.html"), "utf8");
+    const sourceHeadEnd = sourceHtml.indexOf("</head>") + "</head>".length;
+    expect(sourceHeadEnd).toBeGreaterThan("</head>".length);
+    expect(Buffer.byteLength(sourceHtml.slice(0, sourceHeadEnd))).toBeLessThanOrEqual(
+      LOCAL_CLIENT_HTML_HEAD_BYTES,
+    );
+    const info = await createServer().start();
+    for (const path of ["/", "/thread/thread-1?host=https%3A%2F%2Fexample#resume"]) {
+      const documentUrl = new URL(path, info.httpBaseUrl);
+      const response = await fetch(documentUrl, { headers: { accept: "text/html" } });
+      expect(response.status).toBe(200);
+      expect(response.url).toBe(documentUrl.href.replace(/#.*$/u, ""));
+      const html = await response.text();
+      expect(html).toContain('<meta name="poracode-build-asset-base" content="/">');
+      expect(html).not.toMatch(/<base\b/iu);
+      const baseHref = /<base\s+href=["']([^"']+)["']/iu.exec(html)?.[1];
+      const documentBase = baseHref ? new URL(baseHref, documentUrl) : documentUrl;
+      expect(new URL("notes.md", documentBase).href).toBe(new URL("notes.md", documentUrl).href);
+      expect(new URL("#section", documentBase).href).toBe(new URL("#section", documentUrl).href);
+      const urls = [
+        ...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/giu),
+        ...html.matchAll(/<link\b[^>]*\bhref=["']([^"']+)["']/giu),
+      ].map((match) => new URL(match[1]!, documentBase));
+      expect(urls.length).toBeGreaterThan(0);
+      expect(urls.some((url) => /\/assets\/index-[^/]+\.js$/u.test(url.pathname))).toBe(true);
+      for (const url of urls) {
+        const asset = await fetch(url);
+        expect({ path: url.pathname, status: asset.status }).toEqual({
+          path: url.pathname,
+          status: 200,
+        });
+        if (!/\/assets\/index-[^/]+\.js$/u.test(url.pathname)) {
+          await asset.arrayBuffer();
+          continue;
+        }
+        const entry = await asset.text();
+        // Vite's relative preload dependencies and dynamic imports resolve
+        // from the module URL. Both the lazy main JS and its CSS must survive.
+        const lazyPaths = new Set(
+          [...entry.matchAll(/["'`]([^"'`]*\/main-[^"'`]+\.(?:js|css))["'`]/gu)].map(
+            (match) => match[1]!,
+          ),
+        );
+        expect([...lazyPaths].some((dependency) => dependency.endsWith(".js"))).toBe(true);
+        expect([...lazyPaths].some((dependency) => dependency.endsWith(".css"))).toBe(true);
+        for (const dependency of lazyPaths) {
+          const lazyUrl = new URL(dependency, url);
+          const lazyAsset = await fetch(lazyUrl);
+          expect({ path: lazyUrl.pathname, status: lazyAsset.status }).toEqual({
+            path: lazyUrl.pathname,
+            status: 200,
+          });
+          expect(lazyAsset.headers.get("content-type")).toContain(
+            dependency.endsWith(".css") ? "text/css" : "application/javascript",
+          );
+          await lazyAsset.arrayBuffer();
+        }
+      }
+      // The fix must not turn a nested asset pathname into another asset alias.
+      expect(
+        (await fetch(new URL("/thread/assets/index-BelynKyW.js", info.httpBaseUrl))).status,
+      ).toBe(404);
+    }
+  });
+
   it("never lets the SPA fallback swallow API errors, auth or files", async () => {
     const info = await createServer().start();
 
@@ -194,6 +298,19 @@ describe("bundled web client route precedence", () => {
 
     const programmatic = await fetch(new URL("/thread/thread-1", info.httpBaseUrl));
     expect(programmatic.status).toBe(404);
+    for (const path of [
+      "/oauth/missing",
+      "/.well-known/missing",
+      "/forward/8080",
+      "/thread/assets/index-BelynKyW.js",
+      "/thread/icons/icon-192.png",
+    ]) {
+      const refused = await fetch(new URL(path, info.httpBaseUrl), {
+        headers: { accept: "text/html" },
+      });
+      expect({ path, status: refused.status }).toEqual({ path, status: 404 });
+      expect(refused.headers.get("content-type")).not.toContain("text/html");
+    }
   });
 
   it("falls back to the pairing worker for an unfinalized bundled build", async () => {
@@ -205,6 +322,7 @@ describe("bundled web client route precedence", () => {
 
     const worker = await fetch(new URL("/service-worker.js", info.httpBaseUrl));
     expect(worker.status).toBe(200);
+    expect(worker.headers.get("cache-control")).toBe("no-cache, no-store, must-revalidate");
     expect(await worker.text()).toContain("poracode-remote-local-1.0.0");
   });
 
@@ -225,6 +343,7 @@ describe("bundled web client route precedence", () => {
 
     const worker = await fetch(new URL("/service-worker.js", info.httpBaseUrl));
     expect(worker.status).toBe(200);
+    expect(worker.headers.get("cache-control")).toBe("no-cache, no-store, must-revalidate");
     expect(await worker.text()).toContain("poracode-remote-local-1.0.0");
 
     const icon = await fetch(new URL("/app-icon.svg", info.httpBaseUrl));

@@ -12,12 +12,14 @@ import type {
 import type { PersistedRuntimeItem } from "@/shared/ipc";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import {
   applyRuntimeEventsToState,
   applyRuntimeEventBatchesToState,
   mergeCompletedTurns,
 } from "./runtimeEventReducer";
 import { markLiveCrossagentItems, terminateStaleSubAgentItems } from "./staleSubAgents";
+import { hydrateRuntimeStream, type RuntimeStreamRetention } from "./runtimeStreamRetention";
 
 /**
  * Frozen "Worked for X" record for a turn that has finished. Persisted so the
@@ -49,6 +51,12 @@ export interface RuntimeChatItem {
   /** Streamed content buckets (markdown text, command output, etc.). */
   streams: Partial<Record<RuntimeContentStreamKind, string>>;
   /**
+   * Session-local offsets/counts for bounded stream projections. Stored on the
+   * item so eviction/reset also releases them; never serialized or persisted.
+   * The strings above remain the display/copy representation, including gaps.
+   */
+  streamRetention?: Partial<Record<RuntimeContentStreamKind, RuntimeStreamRetention>>;
+  /**
    * Identifier of a parent tool_call row when this item was emitted by a
    * sub-agent (e.g. items inside a Claude `Task` tool use). Set on
    * `item.started` and immutable thereafter. The chat timeline groups children
@@ -68,14 +76,35 @@ export interface RuntimeChatItem {
 }
 
 export function toRuntimeChatItem(item: PersistedRuntimeItem): RuntimeChatItem {
-  return {
+  return retainHydratedItemStreams({
     id: item.id,
     type: item.type as RuntimeChatItem["type"],
     state: item.state,
     payload: item.payload,
     streams: item.streams as RuntimeChatItem["streams"],
     ...(item.parentItemId ? { parentItemId: item.parentItemId } : {}),
-  };
+  });
+}
+
+/** Also covers direct slice hydration; remote snapshots enter via toRuntimeChatItem. */
+function retainHydratedItemStreams(item: RuntimeChatItem): RuntimeChatItem {
+  let next = item;
+  for (const [stream, text] of Object.entries(item.streams) as Array<
+    [RuntimeContentStreamKind, string]
+  >) {
+    const retained = hydrateRuntimeStream(text, item.streamRetention?.[stream]);
+    if (retained.text === text && retained.retention === item.streamRetention?.[stream]) continue;
+    if (next === item) {
+      next = {
+        ...item,
+        streams: { ...item.streams },
+        streamRetention: { ...item.streamRetention },
+      };
+    }
+    next.streams[stream] = retained.text;
+    if (retained.retention) next.streamRetention![stream] = retained.retention;
+  }
+  return next;
 }
 
 export interface OpenRuntimeRequest {
@@ -189,14 +218,26 @@ export interface RuntimeEventSlice {
   /** Replace the persisted item list for a thread (used during DB hydration). */
   hydrateThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
   /** Prepend an older persisted page while preserving newer live items. */
-  prependThreadRuntimeItems(threadId: string, items: RuntimeChatItem[]): void;
+  prependThreadRuntimeItems(
+    threadId: string,
+    items: RuntimeChatItem[],
+    /** Older hidden controls relocate only when their canonical page arrives. */
+    sparseControlIds?: ReadonlySet<string>,
+  ): void;
+  /** Relocate one retained control after its canonical source order is proven. */
+  moveThreadRuntimeItemBefore(threadId: string, itemId: string, beforeItemId: string): void;
   /**
    * Remove `count` items of a thread starting at `startIndex` (indices into the
    * current id list). Used by the bounded visible window (chatRuntimePersister)
    * to trim history that the DB still holds; the pane reloads trimmed ranges
    * lazily through the existing older-page cursor.
    */
-  trimThreadRuntimeItems(threadId: string, startIndex: number, count: number): void;
+  trimThreadRuntimeItems(
+    threadId: string,
+    startIndex: number,
+    count: number,
+    preserveIds?: ReadonlySet<string>,
+  ): void;
   /** Drop an inactive transcript projection without deleting its SQLite rows. */
   evictThreadRuntimeItems(threadId: string): void;
   /** Replace the completed-turn list wholesale (bounded-window cap/drop). */
@@ -313,6 +354,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
   clearThreadRuntimeEvents: (threadId) =>
     set((state) => {
       clearRuntimeStructuralChangeHint(threadId);
+      forgetThreadGalleryCache(threadId);
       if (
         !(threadId in state.runtimeItemIdsByThread) &&
         !(threadId in state.runtimeItemsByIdByThread) &&
@@ -397,7 +439,10 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       // the live stream is the source of truth, the DB is only the seed.
       if ((state.runtimeItemIdsByThread[threadId]?.length ?? 0) > 0) return {};
       const itemIds = items.map((item) => item.id);
-      const itemsById = Object.fromEntries(items.map((item) => [item.id, item]));
+      const itemsById = Object.fromEntries(
+        items.map((item) => [item.id, retainHydratedItemStreams(item)]),
+      );
+      forgetThreadGalleryCache(threadId);
       return {
         runtimeItemIdsByThread: {
           ...state.runtimeItemIdsByThread,
@@ -414,22 +459,35 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       };
     }),
 
-  prependThreadRuntimeItems: (threadId, items) =>
+  prependThreadRuntimeItems: (threadId, items, sparseControlIds) =>
     set((state) => {
       if (items.length === 0) return {};
       const existingIds = state.runtimeItemIdsByThread[threadId] ?? [];
       const existingItems = state.runtimeItemsByIdByThread[threadId] ?? {};
-      const incoming = items.filter((item) => !existingItems[item.id]);
+      const seen = new Set<string>();
+      const incoming = items.filter((item) => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return !existingItems[item.id] || sparseControlIds?.has(item.id);
+      });
       if (incoming.length === 0) return {};
+      const incomingIds = new Set(incoming.map((item) => item.id));
+      const controls = existingIds.filter(
+        (id) => sparseControlIds?.has(id) && !incomingIds.has(id),
+      );
+      const tail = existingIds.filter((id) => !sparseControlIds?.has(id));
+      clearRuntimeStructuralChangeHint(threadId);
       return {
         runtimeItemIdsByThread: {
           ...state.runtimeItemIdsByThread,
-          [threadId]: [...incoming.map((item) => item.id), ...existingIds],
+          [threadId]: [...controls, ...incoming.map((item) => item.id), ...tail],
         },
         runtimeItemsByIdByThread: {
           ...state.runtimeItemsByIdByThread,
           [threadId]: {
-            ...Object.fromEntries(incoming.map((item) => [item.id, item])),
+            ...Object.fromEntries(
+              incoming.map((item) => [item.id, retainHydratedItemStreams(item)]),
+            ),
             ...existingItems,
           },
         },
@@ -443,6 +501,7 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
   evictThreadRuntimeItems: (threadId) =>
     set((state) => {
       clearRuntimeStructuralChangeHint(threadId);
+      forgetThreadGalleryCache(threadId);
       if (!(threadId in state.runtimeItemIdsByThread)) return {};
       const { [threadId]: _itemIds, ...runtimeItemIdsByThread } = state.runtimeItemIdsByThread;
       const { [threadId]: _items, ...runtimeItemsByIdByThread } = state.runtimeItemsByIdByThread;
@@ -465,21 +524,43 @@ export const createRuntimeEventSlice: SliceCreator<RuntimeEventSlice> = (set) =>
       };
     }),
 
-  trimThreadRuntimeItems: (threadId, startIndex, count) =>
+  moveThreadRuntimeItemBefore: (threadId, itemId, beforeItemId) =>
+    set((state) => {
+      const ids = state.runtimeItemIdsByThread[threadId];
+      if (!ids?.includes(itemId) || !ids.includes(beforeItemId) || itemId === beforeItemId)
+        return {};
+      const next = ids.filter((id) => id !== itemId);
+      next.splice(next.indexOf(beforeItemId), 0, itemId);
+      clearRuntimeStructuralChangeHint(threadId);
+      return {
+        runtimeItemIdsByThread: { ...state.runtimeItemIdsByThread, [threadId]: next },
+        runtimeStructuralVersionByThread: {
+          ...state.runtimeStructuralVersionByThread,
+          [threadId]: (state.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
+        },
+      };
+    }),
+
+  trimThreadRuntimeItems: (threadId, startIndex, count, preserveIds) =>
     set((state) => {
       const itemIds = state.runtimeItemIdsByThread[threadId];
       if (!itemIds || count <= 0 || startIndex < 0 || startIndex >= itemIds.length) return {};
       const endIndex = Math.min(startIndex + count, itemIds.length);
-      const removedIds = itemIds.slice(startIndex, endIndex);
+      const removedIds = itemIds.slice(startIndex, endIndex).filter((id) => !preserveIds?.has(id));
       if (removedIds.length === 0) return {};
       const itemsById = state.runtimeItemsByIdByThread[threadId] ?? {};
       const nextItemsById = { ...itemsById };
       for (const id of removedIds) delete nextItemsById[id];
       clearRuntimeStructuralChangeHint(threadId);
+      forgetThreadGalleryCache(threadId);
       return {
         runtimeItemIdsByThread: {
           ...state.runtimeItemIdsByThread,
-          [threadId]: [...itemIds.slice(0, startIndex), ...itemIds.slice(endIndex)],
+          [threadId]: [
+            ...itemIds.slice(0, startIndex),
+            ...itemIds.slice(startIndex, endIndex).filter((id) => preserveIds?.has(id)),
+            ...itemIds.slice(endIndex),
+          ],
         },
         runtimeItemsByIdByThread: {
           ...state.runtimeItemsByIdByThread,

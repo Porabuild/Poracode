@@ -513,29 +513,34 @@ describe("ThreadSessionManager host resource admission", () => {
     expect(manager.hostResourceAdmission.usage().total).toBe(0);
   });
 
-  it("requires both owned effects before a mixed session frees capacity", async () => {
-    const adapter = createAdapter({ presentationMode: "terminal" });
-    const manager = createManager(adapter, policy({ maxActiveAgentSessions: 1 }));
-    ptyState.autoExitOnKill = true;
-    await manager.startThread(terminalPayload("thread-dispose-rejects-exit"));
-    const session = manager.sessions.get("thread-dispose-rejects-exit")!;
-    let disposeFails = true;
-    session.structuredSession = createHandle({
-      dispose: () =>
-        disposeFails ? Promise.reject(new Error("late-dispose-failure")) : Promise.resolve(),
-    });
+  it.each([
+    { rejection: new Error("late-dispose-failure"), message: "late-dispose-failure" },
+    { rejection: undefined, message: "undefined" },
+  ])(
+    "requires both owned effects before a mixed session frees capacity ($message)",
+    async ({ rejection, message }) => {
+      const adapter = createAdapter({ presentationMode: "terminal" });
+      const manager = createManager(adapter, policy({ maxActiveAgentSessions: 1 }));
+      ptyState.autoExitOnKill = true;
+      await manager.startThread(terminalPayload("thread-dispose-rejects-exit"));
+      const session = manager.sessions.get("thread-dispose-rejects-exit")!;
+      let disposeFails = true;
+      session.structuredSession = createHandle({
+        dispose: () => (disposeFails ? Promise.reject(rejection) : Promise.resolve()),
+      });
 
-    await expect(manager.closeThread({ threadId: "thread-dispose-rejects-exit" })).rejects.toThrow(
-      "late-dispose-failure",
-    );
-    // The PTY exited during retirement, but the structured side did not
-    // confirm, so the slot stays counted.
-    expect(manager.hostResourceAdmission.usage().total).toBe(1);
+      await expect(
+        manager.closeThread({ threadId: "thread-dispose-rejects-exit" }),
+      ).rejects.toThrow(message);
+      // The PTY exited during retirement, but the structured side did not
+      // confirm, so the slot stays counted.
+      expect(manager.hostResourceAdmission.usage().total).toBe(1);
 
-    disposeFails = false;
-    await manager.closeThread({ threadId: "thread-dispose-rejects-exit" });
-    expect(manager.hostResourceAdmission.usage().total).toBe(0);
-  });
+      disposeFails = false;
+      await manager.closeThread({ threadId: "thread-dispose-rejects-exit" });
+      expect(manager.hostResourceAdmission.usage().total).toBe(0);
+    },
+  );
 
   it("refuses new work at capacity before touching the live session; controls stay available", async () => {
     const handle = createHandle({

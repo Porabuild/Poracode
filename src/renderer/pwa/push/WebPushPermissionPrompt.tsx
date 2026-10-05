@@ -39,7 +39,7 @@ export function WebPushPermissionPrompt() {
       <Modal.Container placement="center" size="sm">
         <Modal.Dialog className="sm:max-w-[400px] !p-4">
           <Modal.CloseTrigger />
-          <Modal.Header>
+          <Modal.Header data-direct-modal-icon="">
             <Modal.Icon className="bg-accent-soft text-accent-soft-foreground">
               <Bell className="size-5" />
             </Modal.Icon>

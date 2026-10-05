@@ -75,13 +75,22 @@ async function linkPackage(source, destination) {
 export async function copyRuntimeDependencies(repoRoot, appRoot, names) {
   const copied = new Map();
   const sourceRequire = createRequire(join(repoRoot, "package.json"));
+  const rootManifest = await readFile(join(repoRoot, "package.json"), "utf8")
+    .then(JSON.parse)
+    .catch((error) => {
+      if (error.code === "ENOENT") return {};
+      throw error;
+    });
   const graphRoot = join(appRoot, ".runtime-dependencies");
-  async function copyPackage(name, resolver) {
-    const source = await resolvePackageRoot(name, resolver);
+  async function copyPackage(name, resolver, ownerManifest) {
+    const source = await resolvePackageRoot(name, resolver, ownerManifest);
     const existing = copied.get(source);
     if (existing) return existing;
+    const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
     const id = createHash("sha256").update(source).digest("hex").slice(0, 20);
-    const target = join(graphRoot, id, "node_modules", name);
+    // The public link keeps the alias. The physical package retains its real
+    // name, including self-resolution and deduplication with non-aliased edges.
+    const target = join(graphRoot, id, "node_modules", manifest.name);
     copied.set(source, target);
     await cp(source, target, {
       recursive: true,
@@ -89,7 +98,6 @@ export async function copyRuntimeDependencies(repoRoot, appRoot, names) {
       preserveTimestamps: true,
       filter: (path) => path === source || basename(path) !== "node_modules",
     });
-    const manifest = JSON.parse(await readFile(join(source, "package.json"), "utf8"));
     const resolverForPackage = createRequire(join(source, "package.json"));
     const optional = new Set(Object.keys(manifest.optionalDependencies ?? {}));
     for (const [peer, metadata] of Object.entries(manifest.peerDependenciesMeta ?? {})) {
@@ -103,30 +111,59 @@ export async function copyRuntimeDependencies(repoRoot, appRoot, names) {
     for (const child of children) {
       let childSource;
       try {
-        childSource = await resolvePackageRoot(child, resolverForPackage);
+        childSource = await resolvePackageRoot(child, resolverForPackage, manifest);
       } catch (error) {
         if (optional.has(child) && error.code === "MODULE_NOT_FOUND") continue;
         throw error;
       }
       // Resolve before recursing so an optional package's broken installed graph is not ignored.
-      const childTarget = copied.get(childSource) ?? (await copyPackage(child, resolverForPackage));
+      const childTarget =
+        copied.get(childSource) ?? (await copyPackage(child, resolverForPackage, manifest));
       await linkPackage(childTarget, join(target, "node_modules", child));
     }
     return target;
   }
   for (const name of [...new Set(names)].sort()) {
-    await linkPackage(await copyPackage(name, sourceRequire), join(appRoot, "node_modules", name));
+    await linkPackage(
+      await copyPackage(name, sourceRequire, rootManifest),
+      join(appRoot, "node_modules", name),
+    );
   }
   return { packages: copied.size, nodeModulesDir: join(appRoot, "node_modules") };
 }
 
-async function resolvePackageRoot(name, resolver) {
+function declaredPackageName(name, manifest) {
+  // Optional dependencies override ordinary ones. Root build imports may also
+  // come from dev/peer dependencies; a nested edge uses its own manifest only.
+  const field = [
+    "optionalDependencies",
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+  ].find((key) => Object.hasOwn(manifest[key] ?? {}, name));
+  const spec = field ? manifest[field][name] : undefined;
+  if (typeof spec !== "string" || !spec.startsWith("npm:")) return name;
+  const alias = /^npm:((?:@[^/@:\s\\]+\/)?[^/@:\s\\]+)@(.+)$/u.exec(spec);
+  if (!alias || alias[1] === "." || alias[1] === ".." || !alias[2].trim())
+    throw new Error(`Invalid npm alias declaration for runtime dependency: ${name}`);
+  return alias[1];
+}
+
+async function resolvePackageRoot(name, resolver, ownerManifest) {
+  const expectedName = declaredPackageName(name, ownerManifest);
   // Walking Node's search locations also supports packages that do not export package.json or their root.
   for (const location of resolver.resolve.paths(name) ?? []) {
     const candidate = join(location, name);
     try {
       const manifest = JSON.parse(await readFile(join(candidate, "package.json"), "utf8"));
-      if (manifest.name === name) return await realpath(candidate);
+      if (manifest.name !== expectedName) {
+        const error = new Error(
+          `Installed runtime dependency has wrong package name: ${name} expected ${expectedName}, found ${manifest.name}`,
+        );
+        error.code = "ERR_RUNTIME_PACKAGE_NAME";
+        throw error;
+      }
+      return await realpath(candidate);
     } catch (error) {
       if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
     }

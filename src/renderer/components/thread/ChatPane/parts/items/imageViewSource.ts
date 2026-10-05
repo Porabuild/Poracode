@@ -32,7 +32,8 @@ import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 import {
   classifyInlineImageCandidate,
-  findRenderableInlineImageCandidate,
+  enumerateDisplayImageCandidatePaths,
+  readAtInlineImagePath,
   inlineImagePayloadRenders,
   normalizeInlineImageDataUrl,
   type InlineImageClassification,
@@ -105,9 +106,21 @@ export function resolveImageViewSource(
   remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
   options?: ImageViewSourceOptions,
 ): ImageViewSource | null {
-  const ref = readStatus(payload) === "error" ? null : findDisplayableImageRef(payload);
-  if (ref) return imageViewSourceFromRef(ref, payload, remoteImageRefUrl, options);
-  const found = findRenderableInlineImageCandidate(payload);
+  if (readStatus(payload) === "error") return null;
+  let found: { value: string; classification: InlineImageClassification } | null = null;
+  // Projection can leave a small leading image inline and reference a later
+  // one. Both forms must keep the provider's original candidate order.
+  for (const path of enumerateDisplayImageCandidatePaths(payload)) {
+    const value = readAtInlineImagePath(payload, path);
+    const ref = readRemoteImageRef(value);
+    if (ref) return imageViewSourceFromRef(ref, payload, remoteImageRefUrl, options);
+    if (typeof value !== "string") continue;
+    const classification = classifyInlineImageCandidate(value);
+    if (classification) {
+      found = { value, classification };
+      break;
+    }
+  }
   if (!found) return null;
   const { value } = found;
   const built = buildSrc(value, found.classification);

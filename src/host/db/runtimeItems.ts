@@ -4,7 +4,11 @@ import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import type { PersistedRuntimePage } from "@/shared/ipc/schemas";
 import { getSqlite } from "./connection";
 import { safeParse } from "./rowMappers";
-import { clearThreadStreamChunks, streamHasContent, writeItemStreams } from "./runtimeStreamStore";
+import { dbGetThreadRuntimeItemCommitted, type RuntimeItemReadOptions } from "./runtimeItemRead";
+import { clearThreadStreamChunks, writeItemStreams } from "./runtimeStreamStore";
+import { readRuntimeSnapshot } from "./runtimeReadSnapshot";
+import { readRuntimeStreamHeads } from "./runtimeStreamHeadRead";
+import { runtimeStreamHasContent } from "./runtimeStreamHeadProbes";
 import {
   chunkValues,
   classifyRuntimeTimelineEntry,
@@ -229,30 +233,27 @@ export function dbGetThreadRuntimeItems(threadId: string): Promise<PersistedRunt
 /** Synchronous committed-prefix read. Only call behind a held fence. */
 export function dbReadThreadRuntimeItems(threadId: string): PersistedRuntimeItem[] {
   const sqlite = getSqlite();
-  const rows = sqlite
-    .prepare(
-      "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? ORDER BY position ASC",
-    )
-    .all(threadId) as PersistedRuntimeItemRow[];
-  return mapRuntimeItemRows(sqlite, threadId, rows);
+  return readRuntimeSnapshot(sqlite, () => {
+    const rows = sqlite
+      .prepare(
+        "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? ORDER BY position ASC",
+      )
+      .all(threadId) as PersistedRuntimeItemRow[];
+    return mapRuntimeItemRows(sqlite, threadId, rows);
+  });
 }
 
-/**
- * Reads one runtime item by id from the committed prefix, without flushing and
- * without claiming currency (no cursor). Exists so the remote image endpoint
- * can resolve a single inline image without loading a whole thread's payloads.
- */
-export function dbGetThreadRuntimeItemCommitted(
+export { dbGetThreadRuntimeItemCommitted, type RuntimeItemReadOptions } from "./runtimeItemRead";
+
+/** Fenced single-item read for consumers of newly published runtime references. */
+export function dbGetThreadRuntimeItem(
   threadId: string,
   itemId: string,
-): PersistedRuntimeItem | null {
-  const sqlite = getSqlite();
-  const row = sqlite
-    .prepare(
-      "SELECT item_id, type, state, payload, streams, parent_item_id FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
-    )
-    .get(threadId, itemId) as PersistedRuntimeItemRow | undefined;
-  return row ? mapRuntimeItemRows(sqlite, threadId, [row])[0]! : null;
+  options: RuntimeItemReadOptions = {},
+): Promise<PersistedRuntimeItem | null> {
+  return readThreadWithFence(threadId, () =>
+    dbGetThreadRuntimeItemCommitted(threadId, itemId, options),
+  );
 }
 
 /** Fenced ordered-transcript read for the latest goal even when it precedes the page window. */
@@ -263,16 +264,20 @@ export function dbGetLatestThreadGoalItem(threadId: string): Promise<PersistedRu
 /** Synchronous committed-prefix read. Only call behind a held fence. */
 export function dbReadLatestThreadGoalItem(threadId: string): PersistedRuntimeItem | null {
   const sqlite = getSqlite();
-  const row = sqlite
-    .prepare(
-      `SELECT item_id, type, state, payload, streams, parent_item_id
-       FROM thread_runtime_items
-       WHERE thread_id = ? AND type = 'goal'
-       ORDER BY position DESC
-       LIMIT 1`,
-    )
-    .get(threadId) as PersistedRuntimeItemRow | undefined;
-  return row ? mapRuntimeItemRow(row) : null;
+  return readRuntimeSnapshot(sqlite, () => {
+    const row = sqlite
+      .prepare(
+        `SELECT item_id, type, state, payload, streams, parent_item_id
+         FROM thread_runtime_items
+         WHERE thread_id = ? AND type = 'goal'
+         ORDER BY position DESC
+         LIMIT 1`,
+      )
+      .get(threadId) as PersistedRuntimeItemRow | undefined;
+    if (!row) return null;
+    const heads = readRuntimeStreamHeads(sqlite, threadId, [row]);
+    return mapRuntimeItemRow(row, undefined, { value: heads.get(row.item_id) });
+  });
 }
 
 /** Fenced ordered-transcript page. Content is the committed prefix or typed refusal. */
@@ -328,6 +333,24 @@ export function dbReadThreadRuntimeItemsPage(
   targetTimelineEntryCount?: number,
 ): PersistedRuntimePage {
   const sqlite = getSqlite();
+  return readRuntimeSnapshot(sqlite, () =>
+    readRuntimeItemsPageInSnapshot(
+      sqlite,
+      threadId,
+      beforePosition,
+      limit,
+      targetTimelineEntryCount,
+    ),
+  );
+}
+
+function readRuntimeItemsPageInSnapshot(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
+  beforePosition: number | undefined,
+  limit: number,
+  targetTimelineEntryCount: number | undefined,
+): PersistedRuntimePage {
   const childParentIds = new Set(
     (
       sqlite
@@ -405,35 +428,37 @@ export function dbReadThreadConversationItemsPage(
   limit: number,
 ): PersistedRuntimePage {
   const sqlite = getSqlite();
-  const rows = (
-    beforePosition === undefined
-      ? sqlite
-          .prepare(
-            `SELECT item_id, position, type, state, payload, streams, parent_item_id
+  return readRuntimeSnapshot(sqlite, () => {
+    const rows = (
+      beforePosition === undefined
+        ? sqlite
+            .prepare(
+              `SELECT item_id, position, type, state, payload, streams, parent_item_id
            FROM thread_runtime_items
            WHERE thread_id = ? AND parent_item_id IS NULL
              AND type IN ('user_message', 'assistant_message')
            ORDER BY position DESC
            LIMIT ?`,
-          )
-          .all(threadId, limit + 1)
-      : sqlite
-          .prepare(
-            `SELECT item_id, position, type, state, payload, streams, parent_item_id
+            )
+            .all(threadId, limit + 1)
+        : sqlite
+            .prepare(
+              `SELECT item_id, position, type, state, payload, streams, parent_item_id
            FROM thread_runtime_items
            WHERE thread_id = ? AND position < ? AND parent_item_id IS NULL
              AND type IN ('user_message', 'assistant_message')
            ORDER BY position DESC
            LIMIT ?`,
-          )
-          .all(threadId, beforePosition, limit + 1)
-  ) as PositionedPersistedRuntimeItemRow[];
-  const hasMore = rows.length > limit;
-  const pageRows = rows.slice(0, limit).reverse();
-  return {
-    items: mapRuntimeItemRows(sqlite, threadId, pageRows),
-    nextCursor: hasMore ? (pageRows[0]?.position ?? null) : null,
-  };
+            )
+            .all(threadId, beforePosition, limit + 1)
+    ) as PositionedPersistedRuntimeItemRow[];
+    const hasMore = rows.length > limit;
+    const pageRows = rows.slice(0, limit).reverse();
+    return {
+      items: mapRuntimeItemRows(sqlite, threadId, pageRows),
+      nextCursor: hasMore ? (pageRows[0]?.position ?? null) : null,
+    };
+  });
 }
 
 /**
@@ -461,18 +486,7 @@ function classifyRuntimeTimelineRow(
         : undefined;
     },
     reasoningHasContent: () => {
-      const streams = row.streams ? safeParse(row.streams) : undefined;
-      const reasoningText =
-        streams && typeof streams === "object"
-          ? (streams as Record<string, unknown>).reasoning_text
-          : undefined;
-      return streamHasContent(
-        sqlite,
-        threadId,
-        row.item_id,
-        "reasoning_text",
-        typeof reasoningText === "string" ? reasoningText : undefined,
-      );
+      return runtimeStreamHasContent(sqlite, threadId, row.item_id, "reasoning_text", row.streams);
     },
   });
 }

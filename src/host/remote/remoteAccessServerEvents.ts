@@ -7,6 +7,7 @@ import { persistSupervisorEvent } from "./server/runtimePersistence";
 import { projectGitStatePatchForInterests } from "./server/gitStateProjection";
 import { filterEventForItemInterests } from "./server/itemInterestFilter";
 import { filterEventForNoticeGate } from "./server/noticeGate";
+import { createRuntimeEventFrameCache } from "./server/runtimeEventFrameCache";
 import {
   capBroadcastEvent,
   DEFAULT_MAX_WEBSOCKET_OUTBOUND_BUFFER_BYTES,
@@ -345,9 +346,15 @@ function publishAppliedSupervisorEventNow(
   // that thread. Every client still receives an event for every seq — only the
   // content differs — which keeps the replay contiguity check valid.
   if (needsPerClientScoping(capped.event)) {
+    const runtimeFrames = createRuntimeEventFrameCache(capped, seq);
     for (const client of host.clients.keys()) {
       if (host.replayingClients.has(client)) continue;
       const scoped = scopeEventForClient(host, capped.event, client);
+      if (runtimeFrames) {
+        const frame = runtimeFrames.frameFor(scoped);
+        sendRaw(host, client, frame.data, undefined, frame.byteLength);
+        continue;
+      }
       sendRaw(
         host,
         client,

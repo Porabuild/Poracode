@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { describeMigrationRollbackPolicy, LATEST_SCHEMA_VERSION } from "@/host/db/migrations";
 import {
   candidateMigrationPolicyFromEntries,
   parseCandidateMigrationPolicy,
@@ -40,6 +41,44 @@ describe("migration rollback policy (D4)", () => {
     ]);
     expect(plan.rollbackCompatible).toBe(false);
     expect(plan.backupRequired).toBe(true);
+  });
+
+  it("requires a backup for the real schema-52 growing-head upgrade", () => {
+    const candidate = candidateMigrationPolicyFromEntries(
+      53,
+      describeMigrationRollbackPolicy().filter(({ version }) => version <= 53),
+    );
+    const migration = {
+      version: 53,
+      name: "runtime growing head blocks",
+      rollback: "forward-only",
+    };
+    expect(planServerUpgradeMigrations({ currentSchemaVersion: 52, candidate })).toMatchObject({
+      pending: [migration],
+      forwardOnlyPending: [migration],
+      rollbackCompatible: false,
+      backupRequired: true,
+      schemaAlreadyAdvanced: false,
+    });
+  });
+
+  it("requires a backup for the real schema-53 payload-origin custody upgrade", () => {
+    const candidate = candidateMigrationPolicyFromEntries(
+      LATEST_SCHEMA_VERSION,
+      describeMigrationRollbackPolicy(),
+    );
+    const migration = {
+      version: 54,
+      name: "runtime payload origin custody",
+      rollback: "forward-only",
+    };
+    expect(planServerUpgradeMigrations({ currentSchemaVersion: 53, candidate })).toMatchObject({
+      pending: [migration],
+      forwardOnlyPending: [migration],
+      rollbackCompatible: false,
+      backupRequired: true,
+      schemaAlreadyAdvanced: false,
+    });
   });
 
   it("treats a fresh root as no pending migration", () => {

@@ -14,6 +14,7 @@ import type { AgentAdapter, StructuredSessionHandle } from "@/supervisor/agents/
 import type { HostResourceAdmission } from "@/supervisor/runtime/hostResourceAdmission";
 import { ForwardedRuntimeItemTracker } from "./ForwardedRuntimeItemTracker";
 import { SubagentAttemptRunner, type AttemptExecutionState } from "./SubagentAttemptRunner";
+import { SubagentTranscript } from "./SubagentTranscript";
 import { SubagentSpawnError } from "./errors";
 import { prepareSubagentRun, type PreparedSubagentRun } from "./spawnPlan";
 import type { parseCompactResult } from "./compactResult";
@@ -55,24 +56,10 @@ export interface SubagentRunManagerDeps {
    */
   getStatusCapabilities?: (kind: AgentKind) => AgentCapability | null | undefined;
   /**
-   * Optional bounded disposal-join deadline for child teardown. Production
-   * uses the shared lifecycle constant; focused harnesses tighten it.
+   * Optional join deadline for the whole child teardown, including creation,
+   * startup and interrupt. Production uses the shared lifecycle constant.
    */
   structuredDisposalTimeoutMs?: number;
-}
-
-interface OutputSegment {
-  itemId: string;
-  text: string;
-  override?: string;
-  cursorRanges: Array<{ start: number; end: number }>;
-}
-
-interface CursorOutputEdit {
-  key: string;
-  start: number;
-  end: number;
-  replacement: string;
 }
 
 interface RunRecord extends AttemptExecutionState, ContinuableRun {
@@ -91,20 +78,12 @@ interface RunRecord extends AttemptExecutionState, ContinuableRun {
   attemptResults: SubagentAttemptResult[];
   status: SubagentRunStatus;
   /** Assistant text accumulated for the current attempt. */
-  output: string;
+  readonly output: string;
   /** Assistant text accumulated across every fallback attempt. */
-  cursorOutput: string;
-  /**
-   * Per-item spans of `output`, in arrival order, so an authoritative
-   * item.updated payload rewriting or suppressing already-streamed text can
-   * replace exactly its item's contribution.
-   * `cursorOutput` is deliberately not rebuilt: callers hold character
-   * offsets into it, so it stays an append-only live tail — the same rule
-   * the chat applies (stream while live, authoritative payload once final).
-   */
-  outputSegments: OutputSegment[];
+  readonly cursorOutput: string;
+  readonly transcript: SubagentTranscript;
   /** Authoritative replacements indexed against append-only `cursorOutput`. */
-  cursorOutputEdits: CursorOutputEdit[];
+  readonly cursorOutputEdits: SubagentTranscript["cursorOutputEdits"];
   /** Direct child items started under the synthetic Agent row. */
   stepCount: number;
   /**
@@ -212,6 +191,12 @@ export class SubagentRunManager {
       deps.host,
       deps.admission,
       deps.structuredDisposalTimeoutMs,
+      (parentThreadId) => {
+        // Actual retirement is separate from logical turn settlement. Late
+        // confirmation makes records prunable and wakes queued capacity users.
+        this.pruneSettledRuns(parentThreadId);
+        this.lifecycle.emit(parentThreadId, "changed");
+      },
     );
   }
 
@@ -294,6 +279,7 @@ export class SubagentRunManager {
     const settledPromise = new Promise<void>((resolve) => {
       resolveSettled = resolve;
     });
+    const transcript = new SubagentTranscript();
     const record: RunRecord = {
       report: undefined,
       runId,
@@ -308,10 +294,16 @@ export class SubagentRunManager {
       steering: undefined,
       attemptResults: [],
       status: "running",
-      output: "",
-      cursorOutput: "",
-      outputSegments: [],
-      cursorOutputEdits: [],
+      transcript,
+      get output() {
+        return transcript.output;
+      },
+      get cursorOutput() {
+        return transcript.cursorOutput;
+      },
+      get cursorOutputEdits() {
+        return transcript.cursorOutputEdits;
+      },
       stepCount: 0,
       handle: undefined,
       oneShot: undefined,
@@ -624,9 +616,9 @@ export class SubagentRunManager {
    * Called on parent thread close.
    *
    * A record whose teardown has not confirmed still keeps reachable
-   * {lease, handle/cleanup} custody: the attempt runner retains the attempt
-   * state (including its one pending disposal) by child key, so a later
-   * `retryRetirements`/shutdown joins it and releases exactly once.
+   * {lease, handle/cleanup} custody: the attempt runner retains each generation
+   * from cleanup start. Late exit/disposal releases automatically; shutdown
+   * joins pending cleanup or retries a rejection through `retryRetirements`.
    */
   cancelAllForThread(parentThreadId: string): void {
     this.lifecycle.emit(parentThreadId, "closed");
@@ -705,8 +697,7 @@ export class SubagentRunManager {
     record.steering = undefined;
     record.childThreadId = this.childThreadId(record.parentThreadId, record.runId, attemptIndex);
     record.label = attempt.label;
-    record.output = "";
-    record.outputSegments = [];
+    record.transcript.resetAttempt();
     record.error = undefined;
     record.turnStarted = false;
     record.turnDispatched = false;
@@ -753,27 +744,7 @@ export class SubagentRunManager {
   ): void {
     const authoritative = authoritativeAssistantText(event.payload);
     if (authoritative === null) return;
-    const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
-    if (segment) {
-      segment.override = authoritative;
-      const key = `${attemptIndex}:${event.itemId}`;
-      record.cursorOutputEdits = record.cursorOutputEdits.filter((edit) => edit.key !== key);
-      record.cursorOutputEdits.push(
-        ...segment.cursorRanges.map((range) => ({
-          key,
-          ...range,
-          replacement: authoritative,
-        })),
-      );
-    } else {
-      record.outputSegments.push({
-        itemId: event.itemId,
-        text: "",
-        override: authoritative,
-        cursorRanges: [],
-      });
-    }
-    record.output = record.outputSegments.map((s) => s.override ?? s.text).join("");
+    record.transcript.replace(event.itemId, authoritative, attemptIndex);
   }
 
   /**
@@ -810,28 +781,7 @@ export class SubagentRunManager {
               },
             });
           } else {
-            const cursorStart = record.cursorOutput.length;
-            record.output += event.delta;
-            record.cursorOutput += event.delta;
-            const segment = record.outputSegments.find((s) => s.itemId === event.itemId);
-            if (segment) {
-              segment.text += event.delta;
-              if (segment.override !== undefined) segment.override += event.delta;
-              const lastRange = segment.cursorRanges.at(-1);
-              if (lastRange?.end === cursorStart) lastRange.end += event.delta.length;
-              else {
-                segment.cursorRanges.push({
-                  start: cursorStart,
-                  end: cursorStart + event.delta.length,
-                });
-              }
-            } else {
-              record.outputSegments.push({
-                itemId: event.itemId,
-                text: event.delta,
-                cursorRanges: [{ start: cursorStart, end: cursorStart + event.delta.length }],
-              });
-            }
+            record.transcript.append(event.itemId, event.delta);
           }
         }
         this.deps.host.appendRuntimeEvent(
@@ -1059,21 +1009,19 @@ export class SubagentRunManager {
     }
 
     if (record.plan.resultMode === "compact") {
-      record.report = parseCompactRunReport(
-        record.outputSegments.map((segment) => segment.override ?? segment.text),
-      );
+      record.report = parseCompactRunReport(record.transcript.displayMessages());
     }
 
     const text = errorMessage ? `${record.output}\n${errorMessage}`.trim() : record.output;
     if (errorMessage) {
       // Preserve the legacy failed-run output shape while also exposing the
       // structured error metadata added for retry safety.
-      record.output = text;
       record.error = {
         message: errorMessage,
         may_have_side_effects: record.turnDispatched,
       };
     }
+    record.transcript.releaseSegments(text);
     const payload: ToolCallPayload = {
       name: record.label,
       status: record.status === "completed" ? "success" : "error",

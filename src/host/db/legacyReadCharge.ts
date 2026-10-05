@@ -1,6 +1,8 @@
 import type Database from "better-sqlite3";
 import { getSqlite } from "./connection";
+import { readRuntimeSnapshot } from "./runtimeReadSnapshot";
 import { THREAD_PAGE_ORDER_SQL } from "./projectsThreads";
+import { measureRuntimePayloadProjectionMetadataStorage } from "./runtimePayloadProjection";
 import {
   LEGACY_RUNTIME_PAGE_LIMIT,
   LEGACY_RUNTIME_PAGE_TARGET_ENTRIES,
@@ -10,7 +12,7 @@ import {
  * B4 legacy bulk-read pre-check charges (H1).
  *
  * Each function measures the **parsed request selection**, not the whole table
- * by default: the stored UTF-8 byte length of the values the legacy reader
+ * by default: the stored byte length of the values the legacy reader
  * materializes for that request. The number is a **resource reservation** — a
  * sound lower bound on the data the read must load — and never a claim about
  * the serialized response size or the JS heap size. It is used only to refuse
@@ -36,16 +38,18 @@ import {
  *
  * History selection (`buildThreadSnapshot`):
  *
- * - Without `runtimePage=1` every item and every appended stream tail of the
- *   thread is charged (`dbReadThreadRuntimeItems`).
+ * - Without `runtimePage=1` every item, selected head metadata key/head BLOB,
+ *   and appended stream tail of the thread is charged
+ *   (`dbReadThreadRuntimeItems`). A masked legacy seed is still selected and
+ *   stays charged.
  * - With `runtimePage=1` the reader pages the newest items: the first SQL
  *   window materializes the newest `LEGACY_RUNTIME_PAGE_LIMIT + 1` item rows
  *   (page + lookahead), and the selection always pushes at least
  *   `min(total, target)` newest rows into the returned page (a timeline entry
  *   is at most one row, and a target reached inside a group run only extends
  *   the page forward). The item projection is charged for the window rows and
- *   the appended stream tails only for that guaranteed `target` prefix;
- *   `parent_item_id` is part of the item projection.
+ *   head metadata keys/BLOBs and appended stream tails only for that
+ *   guaranteed `target` prefix; `parent_item_id` is part of the item projection.
  * - Completed turns are always read in full (`dbGetThreadCompletedTurns`) in
  *   both variants, so they stay fully charged.
  * - The stored terminal scrollback is charged unless `omitScrollback=1`: the
@@ -62,8 +66,9 @@ import {
  * window), and the snapshot's bounded per-thread summaries scan.
  *
  * Numeric storage classes contribute zero: they carry no variable-length
- * stored text, so the driver materializes them as JS numbers rather than
- * retained strings. Only variable-length values are charged.
+ * stored text or BLOB data, so the driver materializes them as JS numbers
+ * rather than retained variable-length values. Only strings and BLOBs are
+ * charged.
  *
  * All measurements are plain committed reads (no fence, no transaction held
  * across requests), done in SQLite so no column text crosses into JS.
@@ -185,6 +190,27 @@ function completedTurnBytesTerm(): string {
 const NEWEST_ITEM_IDS_SQL = `SELECT item_id FROM thread_runtime_items
    WHERE thread_id = ? ORDER BY position DESC LIMIT ?`;
 
+/** Match the head reader's variable-key and BLOB projections without loading them. */
+function runtimeHeadStoredBytes(
+  sqlite: SqliteDatabase,
+  threadId: string,
+  selectedRows?: number,
+): number {
+  if (selectedRows === 0) return 0;
+  return scalarBytes(
+    sqlite,
+    `SELECT COALESCE(SUM(
+       length(CAST(h.thread_id AS BLOB)) + length(CAST(h.item_id AS BLOB)) +
+       length(CAST(h.stream_key AS BLOB)) +
+       (SELECT COALESCE(SUM(length(b.data)), 0)
+          FROM thread_runtime_item_stream_head_blocks b WHERE b.head_id = h.head_id)
+     ), 0) AS bytes FROM thread_runtime_item_stream_heads h
+     WHERE h.thread_id = ?${selectedRows === undefined ? "" : ` AND h.item_id IN (${NEWEST_ITEM_IDS_SQL})`}`,
+    threadId,
+    ...(selectedRows === undefined ? [] : [threadId, selectedRows]),
+  );
+}
+
 /**
  * Stored bytes of the legacy shell snapshot selection. `projects` are always
  * the full `SELECT *` table (`buildShellSnapshot` always calls
@@ -227,12 +253,13 @@ export function dbMeasureLegacyHistoryCharge(
   options: LegacyHistoryChargeOptions = {},
 ): LegacyHistoryCharge {
   const sqlite = getSqlite();
-  let items: number;
-  let tails: number;
-  if (options.runtimePage) {
-    items = scalarBytes(
-      sqlite,
-      `SELECT COALESCE(SUM(${itemBytesTerm()}), 0) AS bytes
+  return readRuntimeSnapshot(sqlite, () => {
+    let items: number;
+    let tails: number;
+    if (options.runtimePage) {
+      items = scalarBytes(
+        sqlite,
+        `SELECT COALESCE(SUM(${itemBytesTerm()}), 0) AS bytes
          FROM (
            SELECT ${ITEM_PROJECTION.map(quotedIdentifier).join(", ")}
            FROM thread_runtime_items
@@ -240,79 +267,97 @@ export function dbMeasureLegacyHistoryCharge(
            ORDER BY position DESC
            LIMIT ?
          )`,
+        threadId,
+        LEGACY_RUNTIME_PAGE_LIMIT + 1,
+      );
+      const tailRows = runtimePageTailRows(options.targetTimelineEntryCount);
+      items += runtimeHeadStoredBytes(sqlite, threadId, tailRows);
+      tails =
+        tailRows === 0
+          ? 0
+          : scalarBytes(
+              sqlite,
+              `SELECT COALESCE(SUM(${streamChunkBytesTerm()}), 0) AS bytes
+               FROM thread_runtime_item_stream_chunks
+               WHERE thread_id = ? AND item_id IN (${NEWEST_ITEM_IDS_SQL})`,
+              threadId,
+              threadId,
+              tailRows,
+            ) +
+            scalarBytes(
+              sqlite,
+              `SELECT COALESCE(SUM(${streamStateKeyBytesTerm()}), 0) AS bytes
+               FROM thread_runtime_item_stream_state
+               WHERE thread_id = ? AND elided_chars > 0 AND item_id IN (${NEWEST_ITEM_IDS_SQL})`,
+              threadId,
+              threadId,
+              tailRows,
+            );
+    } else {
+      items = scalarBytes(
+        sqlite,
+        `SELECT COALESCE(SUM(${itemBytesTerm()}), 0) AS bytes
+         FROM thread_runtime_items WHERE thread_id = ?`,
+        threadId,
+      );
+      items += runtimeHeadStoredBytes(sqlite, threadId);
+      tails =
+        scalarBytes(
+          sqlite,
+          `SELECT COALESCE(SUM(${streamChunkBytesTerm()}), 0) AS bytes
+           FROM thread_runtime_item_stream_chunks WHERE thread_id = ?`,
+          threadId,
+        ) +
+        scalarBytes(
+          sqlite,
+          `SELECT COALESCE(SUM(${streamStateKeyBytesTerm()}), 0) AS bytes
+           FROM thread_runtime_item_stream_state
+           WHERE thread_id = ? AND elided_chars > 0`,
+          threadId,
+        );
+    }
+    // The page materializer guarantees at least the target newest raw rows;
+    // charging any older provenance would overstate this lower reservation.
+    items += measureRuntimePayloadProjectionMetadataStorage(
+      sqlite,
       threadId,
-      LEGACY_RUNTIME_PAGE_LIMIT + 1,
+      options.runtimePage ? runtimePageTailRows(options.targetTimelineEntryCount) : undefined,
     );
-    const tailRows = runtimePageTailRows(options.targetTimelineEntryCount);
-    tails =
-      tailRows === 0
+    const turns = scalarBytes(
+      sqlite,
+      `SELECT COALESCE(SUM(${completedTurnBytesTerm()}), 0) AS bytes
+       FROM thread_completed_turns WHERE thread_id = ?`,
+      threadId,
+    );
+    const scrollback =
+      options.omitScrollback === true
         ? 0
         : scalarBytes(
             sqlite,
-            `SELECT COALESCE(SUM(${streamChunkBytesTerm()}), 0) AS bytes
-               FROM thread_runtime_item_stream_chunks
-               WHERE thread_id = ? AND item_id IN (${NEWEST_ITEM_IDS_SQL})`,
+            `SELECT COALESCE(SUM(${storedByteTerm(quotedIdentifier("transcript"))}), 0) AS bytes
+             FROM thread_terminal_scrollback WHERE thread_id = ?`,
             threadId,
-            threadId,
-            tailRows,
           ) +
           scalarBytes(
             sqlite,
-            `SELECT COALESCE(SUM(${streamStateKeyBytesTerm()}), 0) AS bytes
-               FROM thread_runtime_item_stream_state
-               WHERE thread_id = ? AND elided_chars > 0 AND item_id IN (${NEWEST_ITEM_IDS_SQL})`,
+            `SELECT COALESCE(SUM(length(data)), 0) AS bytes
+             FROM thread_terminal_scrollback_chunks WHERE thread_id = ?
+             AND EXISTS (SELECT 1 FROM thread_terminal_scrollback WHERE thread_id = ? AND chunked = 1)`,
             threadId,
             threadId,
-            tailRows,
           );
-  } else {
-    items = scalarBytes(
+    const usage = scalarBytes(
       sqlite,
-      `SELECT COALESCE(SUM(${itemBytesTerm()}), 0) AS bytes
-         FROM thread_runtime_items WHERE thread_id = ?`,
+      `SELECT COALESCE(SUM(${storedByteTerm(quotedIdentifier("usage"))}), 0) AS bytes
+       FROM thread_context_usage WHERE thread_id = ?`,
       threadId,
     );
-    tails =
-      scalarBytes(
-        sqlite,
-        `SELECT COALESCE(SUM(${streamChunkBytesTerm()}), 0) AS bytes
-           FROM thread_runtime_item_stream_chunks WHERE thread_id = ?`,
-        threadId,
-      ) +
-      scalarBytes(
-        sqlite,
-        `SELECT COALESCE(SUM(${streamStateKeyBytesTerm()}), 0) AS bytes
-           FROM thread_runtime_item_stream_state
-           WHERE thread_id = ? AND elided_chars > 0`,
-        threadId,
-      );
-  }
-  const turns = scalarBytes(
-    sqlite,
-    `SELECT COALESCE(SUM(${completedTurnBytesTerm()}), 0) AS bytes
-       FROM thread_completed_turns WHERE thread_id = ?`,
-    threadId,
-  );
-  const scrollback =
-    options.omitScrollback === true
-      ? 0
-      : scalarBytes(
-          sqlite,
-          `SELECT COALESCE(SUM(${storedByteTerm(quotedIdentifier("transcript"))}), 0) AS bytes
-             FROM thread_terminal_scrollback WHERE thread_id = ?`,
-          threadId,
-        );
-  const usage = scalarBytes(
-    sqlite,
-    `SELECT COALESCE(SUM(${storedByteTerm(quotedIdentifier("usage"))}), 0) AS bytes
-       FROM thread_context_usage WHERE thread_id = ?`,
-    threadId,
-  );
-  return {
-    itemsStoredBytes: items,
-    streamTailStoredBytes: tails,
-    completedTurnsStoredBytes: turns,
-    scrollbackStoredBytes: scrollback,
-    contextUsageStoredBytes: usage,
-  };
+    return {
+      itemsStoredBytes: items,
+      streamTailStoredBytes: tails,
+      completedTurnsStoredBytes: turns,
+      scrollbackStoredBytes: scrollback,
+      contextUsageStoredBytes: usage,
+    };
+  });
 }

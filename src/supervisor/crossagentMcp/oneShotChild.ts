@@ -7,6 +7,7 @@ import { assertAgentLaunchAllowed } from "@/supervisor/agentLaunchGuard";
 import { buildOneShotSpec } from "@/supervisor/oneShotSpawn";
 import { ensureNodePtySpawnHelperExecutable } from "@/supervisor/nodePty";
 import { processEnvRecord } from "@/supervisor/processEnv";
+import { OneShotStderrTail } from "./oneShotStderrTail";
 
 /**
  * Hard ceiling on a one-shot child's process lifetime. Unlike a structured
@@ -19,9 +20,6 @@ export const ONE_SHOT_CHILD_MAX_LIFETIME_MS = 20 * 60 * 1000;
 
 /** Grace period between SIGTERM and SIGKILL when cancelling. */
 const KILL_GRACE_MS = 3_000;
-
-/** Last N chars of stderr surfaced as the failure message. */
-const STDERR_TAIL_CHARS = 2_000;
 
 /**
  * Micro-batch window for stdout deltas. Chatty CLIs can emit many tiny chunks;
@@ -215,7 +213,7 @@ function driveChild(
   return { closed, cancel };
 }
 
-/** child_process lane: pipe stdio, accumulate stderr, settle from close/error. */
+/** child_process lane: pipe stdio, retain stderr diagnostic tail, settle from close/error. */
 function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
   const child = spawnChild(spec.command, spec.args, {
     stdio: ["pipe", "pipe", "pipe"],
@@ -224,10 +222,10 @@ function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
     ...(spec.env ? { env: { ...processEnvRecord(), ...spec.env } } : {}),
   });
 
-  const stderrChunks: string[] = [];
+  const stderrTail = new OneShotStderrTail();
   let processError: Error | undefined;
   child.stderr?.on("data", (data: Buffer) => {
-    stderrChunks.push(data.toString());
+    stderrTail.append(data);
   });
 
   return {
@@ -247,12 +245,12 @@ function spawnProcessTransport(spec: SpawnSpec): ChildTransport {
         processError = err;
       });
       child.on("close", (code) => {
+        const tail = stderrTail.consume();
         if (processError) {
           cb({ status: "failed", errorMessage: processError.message });
         } else if (code === 0) {
           cb({ status: "completed" });
         } else {
-          const tail = stderrChunks.join("").slice(-STDERR_TAIL_CHARS).trim();
           cb({ status: "failed", errorMessage: tail || `Agent exited with code ${code}` });
         }
       });

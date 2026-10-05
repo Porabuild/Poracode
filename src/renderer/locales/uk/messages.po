@@ -1979,7 +1979,7 @@ msgstr "Двійковий файл — попередній перегляд н
 msgid "Binary file or no diff available"
 msgstr "Бінарний файл або diff недоступний"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Binary files can't be edited here."
 msgstr "Двійкові файли не можна редагувати тут."
 
@@ -7236,7 +7236,7 @@ msgstr "Завантаження облікових записів…"
 msgid "Loading diff..."
 msgstr "Завантаження різниці..."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Loading editor…"
 msgstr "Завантаження редактора…"
 
@@ -9302,7 +9302,7 @@ msgstr "Відкрити зображення {0} з {1}"
 msgid "Open image preview"
 msgstr "Відкрити перегляд зображення"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "Відкрити в браузері"
@@ -9839,7 +9839,7 @@ msgstr "Призупинено"
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "Попередній перегляд PDF відкривається в панелі браузера."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "Попередній перегляд PDF відкривається в браузері."
 
@@ -14081,11 +14081,11 @@ msgstr "Ідентичність хоста цього середовища зм
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "Цей епізод підтверджено; відсутній вміст не відновлено."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "Цей файл занадто великий для вбудованого редактора."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Цей файл використовує непідтримуване кодування."
 

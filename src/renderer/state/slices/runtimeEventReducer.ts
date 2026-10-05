@@ -11,6 +11,7 @@ import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { recordRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
 import type { AppStoreState } from "./shared";
 import { applyRuntimeTruncation } from "./runtimeTruncation";
+import { appendRuntimeStream, replaceRuntimeStream } from "./runtimeStreamRetention";
 import {
   type CompletedTurnRecord,
   type OpenRuntimeRequest,
@@ -334,16 +335,28 @@ function applyRuntimeItemEvent(
     case "content.delta": {
       const prev = draft.items[event.itemId];
       if (!prev) return false;
-      draft.items[event.itemId] = {
+      const retained = event.replace
+        ? replaceRuntimeStream(event.delta, prev.streamRetention?.[event.stream])
+        : appendRuntimeStream(
+            prev.streams[event.stream] ?? "",
+            event.delta,
+            prev.streamRetention?.[event.stream],
+          );
+      const next: RuntimeChatItem = {
         ...prev,
         state: prev.state === "completed" ? "completed" : "updated",
         streams: {
           ...prev.streams,
-          [event.stream]: event.replace
-            ? event.delta
-            : (prev.streams[event.stream] ?? "") + event.delta,
+          [event.stream]: retained.text,
         },
       };
+      if (retained.retention || prev.streamRetention?.[event.stream]) {
+        next.streamRetention = { ...prev.streamRetention };
+        if (retained.retention) next.streamRetention[event.stream] = retained.retention;
+        else delete next.streamRetention[event.stream];
+        if (Object.keys(next.streamRetention).length === 0) delete next.streamRetention;
+      }
+      draft.items[event.itemId] = next;
       return true;
     }
   }

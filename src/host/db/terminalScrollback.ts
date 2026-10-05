@@ -1,11 +1,7 @@
 import { getSqlite } from "./connection";
-
-export const MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS = 200_000;
-
-interface TerminalScrollbackRow {
-  transcript: string;
-  output_length: number;
-}
+import { withRuntimeBusyTimeout } from "./runtimeBusyTimeout";
+import { terminalScrollbackStore } from "./terminalScrollbackStore";
+export { MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS } from "./terminalScrollbackStore";
 
 export function dbGetThreadTerminalScrollback(threadId: string): string {
   return dbGetThreadTerminalScrollbackRecord(threadId)?.transcript ?? "";
@@ -19,11 +15,7 @@ export function dbGetThreadTerminalScrollback(threadId: string): string {
 export function dbGetThreadTerminalScrollbackRecord(
   threadId: string,
 ): { transcript: string; outputLength: number } | null {
-  const row = getSqlite()
-    .prepare("SELECT transcript, output_length FROM thread_terminal_scrollback WHERE thread_id = ?")
-    .get(threadId) as TerminalScrollbackRow | undefined;
-  if (!row) return null;
-  return { transcript: row.transcript, outputLength: row.output_length };
+  return terminalScrollbackStore(getSqlite()).read(threadId);
 }
 
 /**
@@ -38,22 +30,9 @@ export function dbAppendThreadTerminalOutput(
   outputLength: number,
 ): void {
   if (!data) return;
-  const sqlite = getSqlite();
-  const previous = sqlite
-    .prepare("SELECT transcript, output_length FROM thread_terminal_scrollback WHERE thread_id = ?")
-    .get(threadId) as TerminalScrollbackRow | undefined;
-  const transcript = (
-    previous?.output_length === outputLength - data.length ? previous.transcript + data : data
-  ).slice(-MAX_PERSISTED_TERMINAL_SCROLLBACK_CHARS);
-  sqlite
-    .prepare(
-      `INSERT INTO thread_terminal_scrollback (thread_id, transcript, output_length)
-       SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM threads WHERE id = ?)
-       ON CONFLICT(thread_id) DO UPDATE SET
-         transcript = excluded.transcript,
-         output_length = excluded.output_length`,
-    )
-    .run(threadId, transcript, outputLength, threadId);
+  withRuntimeBusyTimeout(() =>
+    terminalScrollbackStore(getSqlite()).append(threadId, data, outputLength),
+  );
 }
 
 export function dbClearThreadTerminalScrollback(threadId: string): void {

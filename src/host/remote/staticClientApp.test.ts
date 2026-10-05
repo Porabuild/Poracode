@@ -23,6 +23,8 @@ describe("built canonical client", () => {
 
   it("serves canonical build assets and install icons from the bundled client", () => {
     expect(isBuiltClientAssetPath("/assets/client.js")).toBe(true);
+    expect(isBuiltClientAssetPath("/thread/assets/client.js")).toBe(false);
+    expect(isBuiltClientAssetPath("/thread/icons/icon-192.png")).toBe(false);
     expect(isBuiltClientAssetPath("/icons/icon-192.png")).toBe(true);
     expect(isBuiltClientAssetPath("/api/icons/icon-192.png")).toBe(false);
   });

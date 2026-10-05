@@ -10,41 +10,14 @@
  * for; the middle of a 45 MB build log is not.
  */
 
-/**
- * Characters kept from the start of a stream. Streamed content stores this head
- * on the item row and freezes it, so it is written at most once.
- */
-export const HEAD_CHARS = 256_000;
+import { elisionNotice } from "../../shared/runtimeStreamRetentionPolicy";
 
-/**
- * Characters kept after the head. Streamed content keeps this window as
- * append-only chunk rows, where trimming is a row delete rather than a blob
- * rewrite — so the bound here is about what is reasonable to hydrate into the
- * renderer, not about what is affordable to write.
- */
-export const TAIL_CHARS = 4_000_000;
-
-const NOTICE_PREFIX = "[... poracode elided ";
-const NOTICE_SUFFIX = " characters of earlier output ...]";
-
-export function utf16SafeSliceEnd(text: string, end: number): number {
-  if (
-    end > 0 &&
-    end < text.length &&
-    text.charCodeAt(end - 1) >= 0xd800 &&
-    text.charCodeAt(end - 1) <= 0xdbff &&
-    text.charCodeAt(end) >= 0xdc00 &&
-    text.charCodeAt(end) <= 0xdfff
-  ) {
-    return end - 1;
-  }
-  return end;
-}
-
-/** The notice shown in place of dropped output, with no surrounding line breaks. */
-export function elisionNotice(elidedChars: number): string {
-  return `${NOTICE_PREFIX}${elidedChars}${NOTICE_SUFFIX}`;
-}
+export {
+  HEAD_CHARS,
+  TAIL_CHARS,
+  elisionNotice,
+  utf16SafeSliceEnd,
+} from "../../shared/runtimeStreamRetentionPolicy";
 
 /** Drop a trailing partial line so the notice can start on its own line. */
 function withoutTrailingPartialLine(text: string): string {

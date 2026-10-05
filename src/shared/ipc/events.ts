@@ -21,6 +21,14 @@ import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
 import type { BrowserLinkPresentationMode, CrossagentRoutingOverride } from "../settings";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "./procedureMap";
 import type { MessageKey } from "../messages";
+import {
+  isRuntimePayloadOriginNegotiation,
+  type RuntimePayloadOriginNegotiation,
+} from "../runtimePayloadOriginProtocol";
+import {
+  isCanonicalAdmissionControl,
+  type CanonicalAdmissionControl,
+} from "../canonicalAdmissionProtocol";
 
 export type SupervisorRequest = {
   [Name in SupervisorProcedureName]: {
@@ -42,6 +50,8 @@ export type SupervisorRequest = {
  *   would misread it as output pressure and shed terminal bytes.
  */
 export type SupervisorFlowControl =
+  | RuntimePayloadOriginNegotiation
+  | CanonicalAdmissionControl
   | { control: "set-output-backpressure"; paused: boolean }
   | {
       control: "set-event-backpressure";
@@ -113,6 +123,10 @@ export interface SupervisorFlowControlCapabilities {
    * current boot is ignored by the supervisor's credit ledger.
    */
   canonicalFlowGeneration?: string;
+  /** Separate admission reservation protocol; absent peers retain flow-control1. */
+  canonicalAdmissionVersions?: number[];
+  /** Private payload custody; metadata is forbidden until the host enables this exact boot. */
+  runtimePayloadOriginVersions?: number[];
 }
 
 export const SUPERVISOR_EVENT_BACKPRESSURE_VERSION = 1 as const;
@@ -130,6 +144,8 @@ export function isSupervisorFlowControlCapabilities(
 }
 
 export function isSupervisorFlowControl(message: unknown): message is SupervisorFlowControl {
+  if (isCanonicalAdmissionControl(message)) return true;
+  if (isRuntimePayloadOriginNegotiation(message)) return true;
   if (typeof message !== "object" || message === null) return false;
   const candidate = message as Record<string, unknown>;
   if (candidate.control === "ack-canonical-flow") {

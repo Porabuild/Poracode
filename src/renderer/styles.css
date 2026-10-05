@@ -48,9 +48,14 @@
   align-self: center;
 }
 
-.modal__header:has(> .modal__icon) > :not(.modal__icon),
-.alert-dialog__header:has(> .alert-dialog__icon) > :not(.alert-dialog__icon) {
-  grid-column: 2;
+/* Owned headers declare their actual direct Icon in the same render commit.
+   Keep family-specific witnesses and the old selector feature floor. This
+   removes the descendant test from non-icon column placement. */
+@supports selector(:is(*)) and selector(:has(> *)) {
+  .modal__header[data-direct-modal-icon] > :not(.modal__icon),
+  .alert-dialog__header[data-direct-alert-icon] > :not(.alert-dialog__icon) {
+    grid-column: 2;
+  }
 }
 
 /* In-content Find highlights (chat, git diff). Painted via the CSS Custom
@@ -68,6 +73,21 @@
 @property --lc-chat-bottom-mask-end-alpha {
   syntax: "<number>";
   initial-value: 0;
+  inherits: false;
+}
+
+/* Fade sizes belong to each scroller's mask. Keeping them local prevents a
+   scroll update from invalidating styles throughout a rich transcript.
+   Engines without @property retain the existing variable fallback. */
+@property --top-fade-size {
+  syntax: "<length>";
+  initial-value: 0px;
+  inherits: false;
+}
+
+@property --bottom-fade-size {
+  syntax: "<length>";
+  initial-value: 0px;
   inherits: false;
 }
 
@@ -6852,22 +6872,26 @@ html[data-compact-layout]
   display: none;
 }
 
-.m-compose-dock:is(:not([data-expanded]), [data-compact-content])
-  .m-draft:not(:has(.poracode-composer-shell))
-  > :not(.m-draft-collapsed-placeholder) {
-  display: none;
-}
+/* Match adaptiveLayout.ts's viewport predicate. These docks are rendered only
+   by compact branches; wide clients need no relational-selector dependency. */
+@media (max-width: 767px) {
+  .m-compose-dock:is(:not([data-expanded]), [data-compact-content])
+    .m-draft:not(:has(.poracode-composer-shell))
+    > :not(.m-draft-collapsed-placeholder) {
+    display: none;
+  }
 
-.m-compose-dock:is(:not([data-expanded]), [data-compact-content])
-  .m-draft:not(:has(.poracode-composer-shell))
-  > .m-draft-collapsed-placeholder {
-  display: flex;
-  height: var(--m-floating-control-line-height);
-  align-items: center;
-  overflow: hidden;
-  padding-inline: 1rem;
-  color: var(--muted);
-  white-space: nowrap;
+  .m-compose-dock:is(:not([data-expanded]), [data-compact-content])
+    .m-draft:not(:has(.poracode-composer-shell))
+    > .m-draft-collapsed-placeholder {
+    display: flex;
+    height: var(--m-floating-control-line-height);
+    align-items: center;
+    overflow: hidden;
+    padding-inline: 1rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
 }
 
 .m-compose-bubble [data-draft-body] {
@@ -7124,30 +7148,32 @@ html[data-compact-layout]
   pointer-events: none;
 }
 
-html[data-compact-layout]
-  .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
-  .poracode-composer-shell
-  .poracode-composer-toolbar
-  > :not(:has(.poracode-composer-send)) {
-  display: none;
-}
+@media (max-width: 767px) {
+  html[data-compact-layout]
+    .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
+    .poracode-composer-shell
+    .poracode-composer-toolbar
+    > :not(:has(.poracode-composer-send)) {
+    display: none;
+  }
 
-html[data-compact-layout]
-  .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
-  .poracode-composer-shell
-  .poracode-composer-toolbar
-  > :has(.poracode-composer-send) {
-  display: flex;
-  margin-left: 0;
-}
+  html[data-compact-layout]
+    .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
+    .poracode-composer-shell
+    .poracode-composer-toolbar
+    > :has(.poracode-composer-send) {
+    display: flex;
+    margin-left: 0;
+  }
 
-html[data-compact-layout]
-  .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
-  .poracode-composer-shell
-  .poracode-composer-toolbar
-  > :has(.poracode-composer-send)
-  > :not(.poracode-composer-send) {
-  display: none;
+  html[data-compact-layout]
+    .m-thread-compose-dock:is(:not([data-expanded]), [data-compact-content])[data-input-has-content]
+    .poracode-composer-shell
+    .poracode-composer-toolbar
+    > :has(.poracode-composer-send)
+    > :not(.poracode-composer-send) {
+    display: none;
+  }
 }
 
 html[data-compact-layout]
@@ -7572,4 +7598,12 @@ html[data-compact-layout] .poracode-thread-composer-section {
 html[data-compact-layout] .poracode-thread-composer-section > .m-thread-compose-dock {
   position: relative;
   inset: auto;
+}
+
+/* Retained compact panes have no visible animation surface. Keep their state
+   mounted while pausing CSS movers, including loader cells and pseudo-elements. */
+[data-poracode-pane-hidden] *,
+[data-poracode-pane-hidden] *::before,
+[data-poracode-pane-hidden] *::after {
+  animation-play-state: paused !important;
 }

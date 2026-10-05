@@ -1,4 +1,5 @@
 import type { RuntimeEvent } from "./contracts";
+import { runtimePayloadOriginEventBytes } from "./runtimePayloadOriginProtocol";
 
 /**
  * One conservative byte estimate for a canonical runtime event, computed once
@@ -8,7 +9,9 @@ import type { RuntimeEvent } from "./contracts";
  */
 export function estimateRuntimeEventBytes(event: RuntimeEvent): number {
   try {
-    return Buffer.byteLength(JSON.stringify(event), "utf8") + 96;
+    return (
+      Buffer.byteLength(JSON.stringify(event), "utf8") + 96 + runtimePayloadOriginEventBytes(event)
+    );
   } catch {
     return Number.MAX_SAFE_INTEGER;
   }

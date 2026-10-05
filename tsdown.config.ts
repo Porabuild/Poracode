@@ -2,6 +2,7 @@ import { defineConfig } from "tsdown";
 import packageJson from "./package.json" with { type: "json" };
 import type { SshRuntimeEntryName } from "./src/shared/sshRuntimeManifest.ts";
 import { runtimeDeclarationPlugin } from "./src/build/runtimeDeclarationPlugin.ts";
+import { runtimePayloadProjectionPlugin } from "./src/build/runtimePayloadProjectionPlugin.ts";
 
 const isProd = process.env.NODE_ENV === "production";
 const sourcemap = isProd ? ("hidden" as const) : true;
@@ -38,6 +39,10 @@ const deps = {
   // supervisor — left external, Node's ESM loader would try to load its raw
   // extensionless .ts imports at runtime and crash.
   alwaysBundle: [
+    // The pinned ACP dispatch-observer patch must ship with its callers.
+    // npm-staged externals do not apply pnpm patches; bundling preserves the
+    // qualified SDK API in desktop, server and SSH supervisor artifacts.
+    /^@agentclientprotocol\/sdk(?:\/|$)/,
     /^cross-spawn(?:\/|$)/,
     "electron-updater",
     "simple-git",
@@ -97,149 +102,160 @@ const standaloneMcpOptions = {
   },
 };
 
-export default defineConfig([
-  {
-    entry: { main: "src/main/main.ts" },
-    plugins: [runtimeDeclaration("src/main/main.ts")],
-    clean: true,
-    ...shared,
-  },
-  {
-    // Desktop-local backend host: owns supervisor event durability and the
-    // agent process tree outside Electron's latency-sensitive main process.
-    entry: { backendHost: "src/backend/index.ts" },
-    plugins: [runtimeDeclaration("src/backend/index.ts")],
-    clean: false,
-    ...shared,
-  },
-  {
-    // Off-main remote HTTP bridge (V4 F8): a lazily forked utilityProcess
-    // entry that owns client outbound HTTP; main never sees body bytes.
-    entry: { remoteHttpBridge: "src/main/remoteHttp/remoteHttpBridgeHost.ts" },
-    clean: false,
-    ...shared,
-  },
-  {
-    // Device-local SSH environment utility (C3/A5): owns SSH discovery,
-    // runtime archive staging, remote bootstrap subprocesses and tunnels
-    // outside Electron main. Main only forks it and forwards versioned frames.
-    entry: { sshEnvironmentWorker: "src/main/ssh/sshEnvironmentWorkerHost.ts" },
-    clean: false,
-    ...shared,
-  },
-  {
-    entry: { legacyMigrationWorker: "src/backend/legacyMigrationWorker.ts" },
-    clean: false,
-    ...shared,
-  },
-  {
-    entry: { preload: "src/main/preload.ts" },
-    clean: false,
-    ...shared,
-  },
-  {
-    // The staging worker shares the supervisor build so it is part of the
-    // same runtime manifest (and therefore the standalone server tarball).
-    entry: {
-      supervisor: "src/supervisor/index.ts",
-      wslStagingWorker: "src/supervisor/wsl/staging/worker.ts",
+export default defineConfig(
+  [
+    {
+      entry: { main: "src/main/main.ts" },
+      plugins: [runtimeDeclaration("src/main/main.ts")],
+      clean: true,
+      ...shared,
     },
-    clean: false,
-    plugins: [runtimeDeclaration("src/supervisor/index.ts", "supervisor")],
-    ...shared,
-  },
-  {
-    // Standalone headless remote server (no Electron). Forks the same
-    // supervisor.cjs and reuses the same RemoteAccessServer as the desktop.
-    // See docs/REMOTE_ARCHITECTURE.md.
-    entry: { server: "src/server/cli.ts" },
-    clean: false,
-    plugins: [runtimeDeclaration("src/server/cli.ts", "server")],
-    ...cliShared,
-  },
-  {
-    // Self-hostable relay for cross-network access (Phase 5). A dumb HTTP+WS
-    // tunnel between NAT'd servers and devices. See docs/REMOTE_ARCHITECTURE.md.
-    entry: { relay: "src/server/relay/cli.ts" },
-    clean: false,
-    ...cliShared,
-  },
-  {
-    // Build-time helper used to embed the exact desktop SSH runtime in native
-    // mobile packages. It is never loaded by either application at runtime.
-    entry: { sshRuntimeBundle: "src/main/ssh/runtimeBundle.ts" },
-    plugins: [runtimeDeclaration("src/main/ssh/runtimeBundle.ts")],
-    clean: false,
-    ...shared,
-  },
-  {
-    entry: { claudeSdkProbeWorker: "src/supervisor/agents/claude/sdkProbeWorker.ts" },
-    clean: false,
+    {
+      // Desktop-local backend host: owns supervisor event durability and the
+      // agent process tree outside Electron's latency-sensitive main process.
+      entry: { backendHost: "src/backend/index.ts" },
+      plugins: [runtimeDeclaration("src/backend/index.ts")],
+      clean: false,
+      ...shared,
+    },
+    {
+      // Off-main remote HTTP bridge (V4 F8): a lazily forked utilityProcess
+      // entry that owns client outbound HTTP; main never sees body bytes.
+      entry: { remoteHttpBridge: "src/main/remoteHttp/remoteHttpBridgeHost.ts" },
+      clean: false,
+      ...shared,
+    },
+    {
+      // Device-local SSH environment utility (C3/A5): owns SSH discovery,
+      // runtime archive staging, remote bootstrap subprocesses and tunnels
+      // outside Electron main. Main only forks it and forwards versioned frames.
+      entry: { sshEnvironmentWorker: "src/main/ssh/sshEnvironmentWorkerHost.ts" },
+      clean: false,
+      ...shared,
+    },
+    {
+      entry: { legacyMigrationWorker: "src/backend/legacyMigrationWorker.ts" },
+      clean: false,
+      ...shared,
+    },
+    {
+      entry: { preload: "src/main/preload.ts" },
+      clean: false,
+      ...shared,
+    },
+    {
+      // The staging worker shares the supervisor build so it is part of the
+      // same runtime manifest (and therefore the standalone server tarball).
+      entry: {
+        supervisor: "src/supervisor/index.ts",
+        wslStagingWorker: "src/supervisor/wsl/staging/worker.ts",
+      },
+      clean: false,
+      plugins: [runtimeDeclaration("src/supervisor/index.ts", "supervisor")],
+      ...shared,
+    },
+    {
+      // Standalone headless remote server (no Electron). Forks the same
+      // supervisor.cjs and reuses the same RemoteAccessServer as the desktop.
+      // See docs/REMOTE_ARCHITECTURE.md.
+      entry: { server: "src/server/cli.ts" },
+      clean: false,
+      plugins: [runtimeDeclaration("src/server/cli.ts", "server")],
+      ...cliShared,
+    },
+    {
+      // Self-hostable relay for cross-network access (Phase 5). A dumb HTTP+WS
+      // tunnel between NAT'd servers and devices. See docs/REMOTE_ARCHITECTURE.md.
+      entry: { relay: "src/server/relay/cli.ts" },
+      clean: false,
+      ...cliShared,
+    },
+    {
+      // Build-time helper used to embed the exact desktop SSH runtime in native
+      // mobile packages. It is never loaded by either application at runtime.
+      entry: { sshRuntimeBundle: "src/main/ssh/runtimeBundle.ts" },
+      plugins: [runtimeDeclaration("src/main/ssh/runtimeBundle.ts")],
+      clean: false,
+      ...shared,
+    },
+    {
+      entry: { claudeSdkProbeWorker: "src/supervisor/agents/claude/sdkProbeWorker.ts" },
+      clean: false,
+      plugins: [
+        runtimeDeclaration(
+          "src/supervisor/agents/claude/sdkProbeWorker.ts",
+          "claudeSdkProbeWorker",
+        ),
+      ],
+      outDir: "dist/main",
+      platform: "node" as const,
+      format: "esm" as const,
+      target: "node24" as const,
+      sourcemap,
+      dts: false,
+      minify: false,
+      define: buildDefines,
+      deps,
+    },
+    {
+      // Self-contained transport shell. The user-installed @cursor/sdk entry is
+      // discovered and dynamically imported at runtime inside this worker.
+      entry: { cursorSdkWorker: "src/supervisor/agents/cursor/sdkWorker.ts" },
+      clean: false,
+      plugins: [runtimeDeclaration("src/supervisor/agents/cursor/sdkWorker.ts", "cursorSdkWorker")],
+      outDir: "dist/main",
+      platform: "node" as const,
+      format: "esm" as const,
+      // The external SDK's documented floor is Node 22.13. Keep this portable
+      // worker compiled for Node 22 even though Poracode itself requires Node 24.
+      target: "node22" as const,
+      sourcemap,
+      dts: false,
+      minify: false,
+      define: buildDefines,
+      deps,
+    },
+    {
+      // Self-contained so it can be staged and executed inside a WSL distro.
+      entry: { mcpProbeWorker: "src/supervisor/mcp/probeMcpWorker.ts" },
+      ...standaloneMcpOptions,
+      target: "node24" as const,
+    },
+    {
+      // Separate build prevents shared chunks; this worker is deployed alone into WSL.
+      entry: { mcpToolFilterWorker: "src/supervisor/mcp/mcpToolFilterWorker.ts" },
+      ...standaloneMcpOptions,
+      target: "node24" as const,
+    },
+    {
+      // Standalone mod loaded by the provider CLI, including inside WSL.
+      entry: { commandCodeMcpMod: "src/supervisor/agents/commandcode/mcpMod.ts" },
+      ...standaloneMcpOptions,
+      target: "node22" as const,
+    },
+    {
+      // Standalone extension loaded by the provider CLI, including inside WSL.
+      entry: { piMcpExtension: "src/supervisor/agents/pi/mcpExtension.ts" },
+      ...standaloneMcpOptions,
+      target: "node22" as const,
+    },
+    {
+      entry: { mcpStdioWorker: "src/supervisor/mcp/mcpStdioWorker.ts" },
+      deps: { alwaysBundle: [/^cross-spawn(?:\/|$)/] },
+      clean: false,
+      outDir: "dist/main",
+      platform: "node" as const,
+      format: "esm" as const,
+      target: "node22" as const,
+      sourcemap,
+      dts: false,
+      minify: false,
+    },
+  ].map((config) => ({
+    ...config,
     plugins: [
-      runtimeDeclaration("src/supervisor/agents/claude/sdkProbeWorker.ts", "claudeSdkProbeWorker"),
+      runtimePayloadProjectionPlugin(import.meta.dirname),
+      ...("plugins" in config ? config.plugins : []),
     ],
-    outDir: "dist/main",
-    platform: "node" as const,
-    format: "esm" as const,
-    target: "node24" as const,
-    sourcemap,
-    dts: false,
-    minify: false,
-    define: buildDefines,
-    deps,
-  },
-  {
-    // Self-contained transport shell. The user-installed @cursor/sdk entry is
-    // discovered and dynamically imported at runtime inside this worker.
-    entry: { cursorSdkWorker: "src/supervisor/agents/cursor/sdkWorker.ts" },
-    clean: false,
-    plugins: [runtimeDeclaration("src/supervisor/agents/cursor/sdkWorker.ts", "cursorSdkWorker")],
-    outDir: "dist/main",
-    platform: "node" as const,
-    format: "esm" as const,
-    // The external SDK's documented floor is Node 22.13. Keep this portable
-    // worker compiled for Node 22 even though Poracode itself requires Node 24.
-    target: "node22" as const,
-    sourcemap,
-    dts: false,
-    minify: false,
-    define: buildDefines,
-    deps,
-  },
-  {
-    // Self-contained so it can be staged and executed inside a WSL distro.
-    entry: { mcpProbeWorker: "src/supervisor/mcp/probeMcpWorker.ts" },
-    ...standaloneMcpOptions,
-    target: "node24" as const,
-  },
-  {
-    // Separate build prevents shared chunks; this worker is deployed alone into WSL.
-    entry: { mcpToolFilterWorker: "src/supervisor/mcp/mcpToolFilterWorker.ts" },
-    ...standaloneMcpOptions,
-    target: "node24" as const,
-  },
-  {
-    // Standalone mod loaded by the provider CLI, including inside WSL.
-    entry: { commandCodeMcpMod: "src/supervisor/agents/commandcode/mcpMod.ts" },
-    ...standaloneMcpOptions,
-    target: "node22" as const,
-  },
-  {
-    // Standalone extension loaded by the provider CLI, including inside WSL.
-    entry: { piMcpExtension: "src/supervisor/agents/pi/mcpExtension.ts" },
-    ...standaloneMcpOptions,
-    target: "node22" as const,
-  },
-  {
-    entry: { mcpStdioWorker: "src/supervisor/mcp/mcpStdioWorker.ts" },
-    deps: { alwaysBundle: [/^cross-spawn(?:\/|$)/] },
-    clean: false,
-    outDir: "dist/main",
-    platform: "node" as const,
-    format: "esm" as const,
-    target: "node22" as const,
-    sourcemap,
-    dts: false,
-    minify: false,
-  },
-]);
+  })),
+);

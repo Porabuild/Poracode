@@ -19,6 +19,7 @@ import { resolveDebugConnection } from "./poracode-debug-session.mjs";
 import { mockLiveVoiceGate } from "./smoke-live-voice.mjs";
 import { runSettingsScenario } from "./smoke-settings.mjs";
 import { mockQuickComposerGate } from "./smoke-quick-composer.mjs";
+import { runWelcomeDismissalScenario } from "./smoke-welcome.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptDir, "../../../../");
@@ -204,7 +205,9 @@ async function runSmoke(plan) {
       (visibility) => visibility === "visible",
       "visible main window",
     );
-    await runScenario(report, "welcome-dismissal", () => welcomeDismissalScenario(client));
+    await runScenario(report, "welcome-dismissal", () =>
+      runWelcomeDismissalScenario({ client, evaluate, waitForValue }),
+    );
     await installWindowErrorCollector(client);
     await runScenario(report, "baseline", () => baselineScenario(client));
     if (plan.automated.includes("settings")) {
@@ -271,7 +274,12 @@ async function runScenario(report, id, fn) {
     console.log(`PASS: ${id}`);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    report.automated.push({ id, status: "fail", detail });
+    report.automated.push({
+      id,
+      status: "fail",
+      detail,
+      ...(error?.scenarioEvidence ? { diagnostics: error.scenarioEvidence } : {}),
+    });
     console.log(`FAIL: ${id} - ${detail}`);
   }
 }
@@ -310,83 +318,6 @@ async function baselineScenario(client) {
   const screenshotPath = join(outDir, "smoke-01-baseline.png");
   await screenshot(client, screenshotPath);
   return { ...state, screenshotPath };
-}
-
-async function welcomeDismissalScenario(client) {
-  const initial = await waitForValue(
-    () =>
-      evaluate(
-        client,
-        `(() => ({
-          devBridge: typeof window.__poracodeDev,
-          rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
-          bodyTextLength: document.body?.innerText.length ?? 0,
-          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")),
-        }))()`,
-      ),
-    (state) => state.devBridge === "object" && state.rootChildren > 0 && state.bodyTextLength > 0,
-    "welcome dismissal bridge",
-  );
-  if (!initial.welcomeVisible) {
-    return { dismissed: false, detail: "welcome screen was already dismissed" };
-  }
-
-  // The shared WelcomeBackdrop also uses .poracode-welcome-page. The fixed
-  // overlay is the actual first-launch gate with a primary CTA.
-  let clicked = false;
-  let dismissed = false;
-  for (let attempt = 0; attempt < 5 && !dismissed; attempt += 1) {
-    clicked = await evaluate(
-      client,
-      `(() => {
-        const button = document.querySelector(".poracode-welcome-page.fixed button");
-        if (!(button instanceof HTMLButtonElement)) return false;
-        button.click();
-        localStorage.setItem("poracode-welcome-seen-v16", "true");
-        return true;
-      })()`,
-    );
-    if (!clicked) break;
-    await new Promise((resolveWait) => setTimeout(resolveWait, 1_500));
-    dismissed = await evaluate(client, `!document.querySelector(".poracode-welcome-page.fixed")`);
-  }
-  assert(clicked, "welcome screen primary action was not clickable");
-  const final = await waitForValue(
-    () =>
-      evaluate(
-        client,
-        `(() => ({
-          ready: document.readyState === "complete",
-          devBridge: typeof window.__poracodeDev,
-          rootChildren: document.querySelector("#root")?.childElementCount ?? 0,
-          bodyTextLength: document.body?.innerText.length ?? 0,
-          welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")),
-        }))()`,
-      ),
-    (state) =>
-      state.ready &&
-      state.devBridge === "object" &&
-      state.rootChildren > 0 &&
-      state.bodyTextLength > 0 &&
-      !state.welcomeVisible,
-    "welcome screen dismissal",
-  );
-  await new Promise((resolveWait) => setTimeout(resolveWait, 1_000));
-  const stable = await evaluate(
-    client,
-    `({ welcomeVisible: Boolean(document.querySelector(".poracode-welcome-page.fixed")) })`,
-  );
-  assert(!final.welcomeVisible, "welcome screen remained visible after dismissal");
-  assert(!stable.welcomeVisible, "welcome screen returned after dismissal verification");
-  await evaluate(
-    client,
-    `(() => {
-      const app = window.__poracodeDev.stores.app.getState();
-      const project = app.projects.find((candidate) => candidate.id === "smoke-project");
-      if (project) app.openDraft(project.id);
-    })()`,
-  );
-  return { dismissed: true, detail: "welcome screen dismissed through its primary action" };
 }
 
 async function settingsScenario(client) {

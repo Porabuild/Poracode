@@ -1,36 +1,47 @@
 import type { RuntimeEvent } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { RuntimeEventBuffer, type RuntimeEventBufferOptions } from "./runtimeEventBuffer";
-import { SubAgentRegistry } from "./subAgentRegistry";
+import { SubAgentRegistry, type BufferedSubAgentEvents } from "./subAgentRegistry";
+
+interface PendingChildAdmission {
+  events: RuntimeEvent[];
+  next: number;
+}
 
 export class RuntimeEventRouter {
   private readonly subAgents = new SubAgentRegistry();
   private readonly runtimeEvents: RuntimeEventBuffer;
+  // Canonical admission can synchronously stop a producer. Keep every released
+  // prefix visible to that reentrant stop boundary until all its events enter.
+  private readonly childAdmissions = new Map<string, Set<PendingChildAdmission>>();
 
-  constructor(emit: (event: SupervisorEvent) => void, options: RuntimeEventBufferOptions = {}) {
+  constructor(
+    emit: ConstructorParameters<typeof RuntimeEventBuffer>[0],
+    options: RuntimeEventBufferOptions = {},
+  ) {
     this.runtimeEvents = new RuntimeEventBuffer(emit, options);
   }
 
   append(threadId: string, event: RuntimeEvent): void {
     const parentItemId = this.subAgents.resolveParent(threadId, event);
     if (parentItemId && !this.subAgents.isSubscribed(threadId, parentItemId)) {
-      this.subAgents.bufferEvent(threadId, parentItemId, event);
+      const released = this.subAgents.bufferEvent(threadId, parentItemId, event);
+      this.publishChildren(released);
       return;
     }
     if (event.type === "item.completed") {
       const itemId = (event as { itemId?: unknown }).itemId;
       if (typeof itemId === "string") {
-        const wasTracked =
-          this.subAgents.isSubscribed(threadId, itemId) ||
-          this.subAgents.hasBuffer(threadId, itemId);
         const buffered = this.subAgents.drainBuffered(threadId, itemId);
-        for (const bufferedEvent of buffered) {
-          this.runtimeEvents.append(threadId, bufferedEvent);
+        if (buffered.length > 0) {
+          // Completion has already arrived too. A stop during its child drain
+          // must include it before publishing the stop marker.
+          this.publishChildren([{ threadId, parentItemId: itemId, events: [...buffered, event] }]);
+        } else {
+          this.runtimeEvents.append(threadId, event);
         }
-        this.runtimeEvents.append(threadId, event);
-        if (wasTracked) {
-          this.subAgents.clear(threadId, itemId);
-        }
+        // A full spill can empty the buffer while child routing still exists.
+        this.subAgents.clear(threadId, itemId);
         return;
       }
     }
@@ -46,9 +57,7 @@ export class RuntimeEventRouter {
    */
   subscribe(threadId: string, parentItemId: string): RuntimeEvent[] {
     const drained = this.subAgents.subscribe(threadId, parentItemId);
-    for (const event of drained) {
-      this.runtimeEvents.append(threadId, event);
-    }
+    this.publishChildren([{ threadId, parentItemId, events: drained }]);
     return [];
   }
 
@@ -76,6 +85,7 @@ export class RuntimeEventRouter {
    * in the buffer.
    */
   releaseThread(threadId: string): void {
+    this.drainChildren(threadId);
     this.runtimeEvents.releaseThread(threadId);
   }
 
@@ -85,7 +95,46 @@ export class RuntimeEventRouter {
    * the retained batch fully drains, so a stop never precedes its content.
    */
   queueStopMarker(threadId: string, marker: SupervisorEvent): void {
+    this.drainChildren(threadId);
     this.runtimeEvents.queueStopMarker(threadId, marker);
+  }
+
+  private publishChildren(batches: BufferedSubAgentEvents[]): void {
+    const admissions = batches
+      .filter((batch) => batch.events.length > 0)
+      .map((batch) => {
+        const admission: PendingChildAdmission = { events: batch.events, next: 0 };
+        let pending = this.childAdmissions.get(batch.threadId);
+        if (!pending) {
+          pending = new Set();
+          this.childAdmissions.set(batch.threadId, pending);
+        }
+        pending.add(admission);
+        return { threadId: batch.threadId, admission, pending };
+      });
+    try {
+      for (const { threadId, admission } of admissions) this.admitChildren(threadId, admission);
+    } finally {
+      for (const { threadId, admission, pending } of admissions) {
+        pending.delete(admission);
+        if (pending.size === 0) this.childAdmissions.delete(threadId);
+      }
+    }
+  }
+
+  private admitChildren(threadId: string, admission: PendingChildAdmission): void {
+    while (admission.next < admission.events.length) {
+      // Advance before append: overflow may synchronously consume this tail.
+      const event = admission.events[admission.next++]!;
+      this.runtimeEvents.append(threadId, event);
+    }
+  }
+
+  private drainChildren(threadId: string): void {
+    for (const admission of this.childAdmissions.get(threadId) ?? []) {
+      this.admitChildren(threadId, admission);
+    }
+    this.publishChildren(this.subAgents.drainThread(threadId));
   }
 
   isPaused(): boolean {

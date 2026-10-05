@@ -3,6 +3,7 @@ import { toast } from "@heroui/react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CanonicalContentBlock, Project, Thread } from "@/shared/contracts";
 import { HOME_PROJECT_ID } from "@/shared/homeScope";
+import { assistantDisplayText } from "@/shared/assistantMessageText";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRevertedPromptStore } from "../revertedPrompt";
@@ -575,6 +576,80 @@ describe("ChatPane", () => {
 
     expect(metrics.getScrollTop()).toBe(300);
   });
+
+  it.each([
+    ["wheel", "stream"],
+    ["touch", "stream"],
+    ["wheel", "authoritative payload"],
+  ])(
+    "freezes bounded text after %s scrollback and handles %s completion while canonical text advances",
+    async (gesture, completionSource) => {
+      const thread = makeThread();
+      const source = `${"earlier ".repeat(4_000)}reader visible marker`;
+      seedAssistantMessage(thread.id, source);
+      const { container } = renderChatPane(thread);
+      await waitFor(() => expect(hydrateThreadRuntimeItems).toHaveBeenCalledWith(thread.id));
+      const body = await screen.findByText(/reader visible marker/);
+      const visibleText = body.textContent;
+      const scrollElement = getScrollElement(container);
+      const contentElement = getContentElement(scrollElement);
+      const metrics = installScrollMetrics(scrollElement, {
+        scrollHeight: 1_000,
+        clientHeight: 200,
+        scrollTop: 800,
+      });
+      act(() => {
+        metrics.setScrollTop(1_000);
+        fireEvent.scroll(scrollElement);
+        if (gesture === "touch") fireEvent.pointerDown(body, { pointerType: "touch" });
+        else fireEvent.wheel(scrollElement, { deltaY: -120 });
+        metrics.setScrollTop(400);
+        fireEvent.scroll(scrollElement);
+      });
+      const delta = `${"new content ".repeat(2_000)}current canonical marker`;
+      act(() => appendAssistantText(thread.id, delta));
+      expect(
+        useAppStore.getState().runtimeItemsByIdByThread[thread.id]![ASSISTANT_ITEM_ID]!.streams
+          .assistant_text,
+      ).toBe(source + delta);
+      expect(body.textContent).toBe(visibleText);
+      expect(screen.queryByText(/current canonical marker/)).not.toBeInTheDocument();
+      const payloadText = `${"authoritative ".repeat(3_000)}authoritative replacement marker`;
+      act(() => {
+        useAppStore.getState().applyRuntimeEvent(thread.id, {
+          type: "item.completed",
+          threadId: thread.id,
+          itemId: ASSISTANT_ITEM_ID,
+          ...(completionSource === "authoritative payload"
+            ? {
+                payload: {
+                  content: [{ kind: "text", text: payloadText }],
+                  displayAuthoritative: true,
+                },
+              }
+            : {}),
+        });
+        MockResizeObserver.notify(contentElement);
+      });
+      const currentBody = container.querySelector(".whitespace-pre-wrap");
+      const expectedPausedText =
+        completionSource === "authoritative payload" ? payloadText.slice(-8_192) : visibleText;
+      const finalText = completionSource === "authoritative payload" ? payloadText : source + delta;
+      expect(currentBody?.textContent).toBe(expectedPausedText);
+      expect(
+        assistantDisplayText(
+          useAppStore.getState().runtimeItemsByIdByThread[thread.id]![ASSISTANT_ITEM_ID]!,
+        ),
+      ).toBe(finalText);
+      expect(metrics.getScrollTop()).toBe(400);
+      fireEvent.click(screen.getByRole("button", { name: "Scroll to bottom" }));
+      expect(container.querySelector(".whitespace-pre-wrap")?.textContent).toBe(
+        finalText.slice(-8_192),
+      );
+      expect(screen.queryByText(/reader visible marker/)).not.toBeInTheDocument();
+      expect(metrics.getScrollTop()).toBe(1_000);
+    },
+  );
 
   it("does not pull the user back to the bottom after they scroll up", async () => {
     const thread = makeThread();

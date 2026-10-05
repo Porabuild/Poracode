@@ -1,16 +1,18 @@
-import { memo, useMemo } from "react";
+import { memo, useContext, useMemo } from "react";
 import { Surface } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { assistantDisplayText } from "@/shared/assistantMessageText";
 import type { MessageItemPayload } from "@/shared/contracts";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { useAppStore } from "@/renderer/state/appStore";
+import type { RuntimeStreamRetention } from "@/renderer/state/slices/runtimeStreamRetention";
 import {
   getRuntimeItemPayload,
   type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import { chatMessageSurfaceClass } from "./chatMessageSurface";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
+import { ChatReaderFollowContext } from "../../chatReaderFollow";
 import { CopyTextButton } from "./CopyTextButton";
 import { RemoteImageCard } from "./RemoteImageCard";
 import { imageViewSourceFromImageBlock } from "./imageViewSource";
@@ -59,7 +61,8 @@ export const AssistantMessage = memo(function AssistantMessage({
   // Stream/payload arbitration lives in the shared helper so find-in-chat and
   // transcript exports always agree with what this component renders.
   const rawText = assistantDisplayText(item);
-  const visibleBody = useWindowedAssistantText(rawText, isStreaming);
+  const isStreamText = rawText === item.streams.assistant_text;
+  const retention = isStreamText ? item.streamRetention?.assistant_text : undefined;
   // Agents (e.g. ACP providers) can embed images directly in a message as image
   // content blocks; render them inline beneath any text.
   const imageSources = useMemo(
@@ -84,17 +87,14 @@ export const AssistantMessage = memo(function AssistantMessage({
     <Surface variant="transparent" className={chatMessageSurfaceClass}>
       <div className="min-w-0 leading-snug">
         {rawText.length > 0 ? (
-          visibleBody.window ? (
-            <WindowedPlainText
-              text={visibleBody.window.text}
-              hasEarlier={visibleBody.window.start > 0}
-              isBrowsingEarlier={visibleBody.isBrowsingEarlier}
-              onEarlier={visibleBody.showEarlier}
-              onLatest={visibleBody.showLatest}
-            />
-          ) : (
-            <SmoothItemMarkdown text={rawText} isStreaming={isStreaming} />
-          )
+          <AssistantTextBody
+            // Authoritative payload takeover is a source replacement even when
+            // the live stream has not needed retention/replacement metadata yet.
+            key={isStreamText ? "stream" : "payload"}
+            text={rawText}
+            isStreaming={isStreaming}
+            {...(retention ? { retention } : {})}
+          />
         ) : null}
         {imageSources.length > 0 ? (
           <div className="mt-1 flex flex-col gap-2">
@@ -124,3 +124,27 @@ export const AssistantMessage = memo(function AssistantMessage({
     </Surface>
   );
 });
+
+function AssistantTextBody({
+  text,
+  isStreaming,
+  retention,
+}: {
+  text: string;
+  isStreaming: boolean;
+  retention?: RuntimeStreamRetention;
+}) {
+  const readerFollow = useContext(ChatReaderFollowContext);
+  const body = useWindowedAssistantText(text, isStreaming, retention, readerFollow);
+  return body.window ? (
+    <WindowedPlainText
+      text={body.window.text}
+      hasEarlier={body.window.start > 0}
+      isBrowsingEarlier={body.isBrowsingEarlier}
+      onEarlier={body.showEarlier}
+      onLatest={body.showLatest}
+    />
+  ) : (
+    <SmoothItemMarkdown text={text} isStreaming={isStreaming} />
+  );
+}

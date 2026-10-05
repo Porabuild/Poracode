@@ -394,12 +394,17 @@ describe.skipIf(!sqliteAvailable)("B4 bounded history server composition", () =>
       });
     });
     expect(sql.some((statement) => /payload, streams/u.test(statement))).toBe(false);
-    // The only IN (...) statement is the metadata tail-length sum; the payload
+    // Selected-ID queries only measure stored head/tail bytes; the payload
     // fetch-by-key never ran.
     expect(
       sql
         .filter((statement) => statement.includes("item_id IN ("))
-        .every((statement) => statement.includes("SUM(length(CAST(text AS BLOB)))")),
+        .every(
+          (statement) =>
+            statement.includes("SUM(length(CAST(text AS BLOB)))") ||
+            (statement.includes("AS metadataKeyBytes") &&
+              statement.includes("SUM(length(b.data))")),
+        ),
     ).toBe(true);
 
     const response = await invoke(

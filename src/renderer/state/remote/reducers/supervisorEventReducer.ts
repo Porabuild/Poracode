@@ -1,5 +1,9 @@
 import { useAppStore } from "@/renderer/state/appStore";
-import { evictOversizedInactiveThreadRuntimeItems } from "@/renderer/state/chatRuntimePersister";
+import {
+  boundVisibleThreadRuntimeWindows,
+  evictOversizedInactiveThreadRuntimeItems,
+  forgetThreadRuntimeWindow,
+} from "@/renderer/state/chatRuntimePersister";
 import { clearRuntimeItemStoreSelectorCacheForThread } from "@/renderer/components/thread/ChatPane/chatPaneSelectors";
 import { useThreadFollowUpQueueStore } from "@/renderer/state/threadFollowUpQueueStore";
 import { RuntimeEventQueue, type RuntimeEventQueueBatch } from "@/renderer/state/runtimeEventQueue";
@@ -154,7 +158,7 @@ export interface SupervisorEventReducerConfig {
     run: () => void,
     stats: { drainedThreads: number; drainedEvents: number },
   ) => void;
-  /** Electron post-apply persistence: bounded windows + durable usage capture. */
+  /** Flavor-specific post-drain persistence, such as durable usage capture. */
   readonly afterApply?: (
     batches: readonly RuntimeEventQueueBatch[],
     context: {
@@ -267,6 +271,7 @@ export function createSupervisorEventReducer(
         if (config.wrapApply) config.wrapApply(applyBatches, stats);
         else applyBatches();
         evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
+        boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
         config.afterApply?.(batches, {
           threadMetadata,
           drainedThreads: stats.drainedThreads,
@@ -393,6 +398,7 @@ export function createSupervisorEventReducer(
           batches.map((batch) => ({ threadId: batch.threadId, events: [...batch.events] })),
         );
       evictOversizedInactiveThreadRuntimeItems(batches.map((batch) => batch.threadId));
+      boundVisibleThreadRuntimeWindows(batches.map((batch) => batch.threadId));
       return;
     }
     const overflowed: string[] = [];
@@ -419,6 +425,7 @@ export function createSupervisorEventReducer(
         overflowed.push(batch.threadId);
         runtimeRecoveryInFlight.add(batch.threadId);
         useAppStore.getState().clearThreadRuntimeEvents(batch.threadId);
+        forgetThreadRuntimeWindow(batch.threadId);
         useAppStore.getState().clearAllPendingSteer(batch.threadId);
         clearRuntimeItemStoreSelectorCacheForThread(batch.threadId);
       }
@@ -511,6 +518,7 @@ export function createSupervisorEventReducer(
       case "thread-reset": {
         queue.discard(event.threadId);
         useAppStore.getState().clearThreadRuntimeEvents(event.threadId);
+        forgetThreadRuntimeWindow(event.threadId);
         useAppStore.getState().clearAllPendingSteer(event.threadId);
         // The reset wiped the in-memory transcript: drop the selector caches
         // for the thread in BOTH flavors so no pane can render stale items.

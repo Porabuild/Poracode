@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import type { ReadStream } from "node:fs";
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
@@ -85,6 +85,11 @@ const INDEX_HTML = "<!doctype html><title>Bundled client</title>";
 const MANIFEST = '{"name":"Bundled client","start_url":"/"}';
 const RUNTIME_BIN = Buffer.from(Array.from({ length: 64 }, (_, index) => index));
 const LIFETIME_BIN_BYTES = 1024 * 1024;
+const RELATIVE_HEAD =
+  '<!doctype html><html><head><script src="./assets/index-abc123.js"></script></head>';
+const HTTP_HEAD =
+  '<!doctype html><html><head><meta name="poracode-build-asset-base" content="/">' +
+  '<script src="/assets/index-abc123.js"></script></head>';
 
 /**
  * A controlled `ServerResponse` stand-in: a real `Writable` whose final
@@ -97,6 +102,7 @@ class ControlledResponse extends Writable {
   headersSent = false;
   receivedBytes = 0;
   holdFinalWrite = false;
+  holdAtBytes = LIFETIME_BIN_BYTES;
   private heldWriteCallback: ((error?: Error | null) => void) | null = null;
 
   constructor() {
@@ -115,7 +121,7 @@ class ControlledResponse extends Writable {
     callback: (error?: Error | null) => void,
   ): void {
     this.receivedBytes += chunk.length;
-    if (this.holdFinalWrite && this.receivedBytes >= LIFETIME_BIN_BYTES) {
+    if (this.holdFinalWrite && this.receivedBytes >= this.holdAtBytes) {
       this.heldWriteCallback = callback;
       return;
     }
@@ -295,6 +301,97 @@ describe("bundled web client real HTTP serving", () => {
     expect(await response.text()).toBe("");
   });
 
+  it("serves transformed HTML GET/HEAD/ranges against the same UTF-8 representation", async () => {
+    const previous = readFileSync(join(root, "index.html"));
+    const body =
+      '<body>😀 <a href="notes.md">Notes</a><a href="#section">Section</a></body></html>';
+    writeFileSync(join(root, "index.html"), RELATIVE_HEAD + body);
+    const expected = Buffer.from(HTTP_HEAD + body);
+    try {
+      const document = await get("/");
+      expect(Buffer.from(await document.arrayBuffer())).toEqual(expected);
+      expect(document.headers.get("content-length")).toBe(String(expected.length));
+      const head = await get("/", { method: "HEAD", headers: { range: "bytes=0-9" } });
+      expect(head.status).toBe(200);
+      expect(head.headers.get("content-length")).toBe(String(expected.length));
+      expect(await head.text()).toBe("");
+      const boundary = Buffer.byteLength(HTTP_HEAD);
+      const ranges = [
+        [0, 15],
+        [boundary - 8, boundary + 10],
+        [boundary + 6, boundary + 9],
+        [expected.length - 8, expected.length - 1],
+      ];
+      for (const [start, end] of ranges) {
+        const partial = await get("/", { headers: { range: "bytes=" + start + "-" + end } });
+        expect(partial.status).toBe(206);
+        expect(partial.headers.get("content-range")).toBe(
+          "bytes " + start + "-" + end + "/" + expected.length,
+        );
+        expect(Buffer.from(await partial.arrayBuffer())).toEqual(
+          expected.subarray(start, end! + 1),
+        );
+      }
+      const suffix = await get("/", { headers: { range: "bytes=-8" } });
+      expect(Buffer.from(await suffix.arrayBuffer())).toEqual(expected.subarray(-8));
+      const unsatisfiable = await get("/", {
+        headers: { range: "bytes=" + expected.length + "-" },
+      });
+      expect(unsatisfiable.status).toBe(416);
+      expect(unsatisfiable.headers.get("content-range")).toBe("bytes */" + expected.length);
+    } finally {
+      writeFileSync(join(root, "index.html"), previous);
+    }
+  });
+
+  it.each(["prefix", "body"])(
+    "holds a transformed HTML %s transfer until the response flushes",
+    async (part) => {
+      const previous = readFileSync(join(root, "index.html"));
+      const body = "<body>" + "x".repeat(LIFETIME_BIN_BYTES) + "</body></html>";
+      writeFileSync(join(root, "index.html"), RELATIVE_HEAD + body);
+      const createdBefore = streamLog.created.length;
+      const response = new ControlledResponse();
+      response.holdFinalWrite = true;
+      const expectedBytes = part === "prefix" ? 16 : Buffer.byteLength(HTTP_HEAD + body);
+      response.holdAtBytes = expectedBytes;
+      let settlement: boolean | null = null;
+      const serve = tryServeBuiltClientApp(
+        "/",
+        {
+          method: "GET",
+          headers: part === "prefix" ? { range: "bytes=0-15" } : {},
+        } as IncomingMessage,
+        response as unknown as ServerResponse,
+        root,
+      ).then((served) => {
+        settlement = served;
+        return served;
+      });
+      try {
+        await vi.waitFor(() => expect(response.receivedBytes).toBe(expectedBytes));
+        const expectedFds = part === "body" ? [null] : [];
+        await vi.waitFor(() =>
+          expect(
+            streamLog.created
+              .slice(createdBefore)
+              .map((stream) => (stream as unknown as { fd: number | null }).fd),
+          ).toEqual(expectedFds),
+        );
+        await drainMicrotasks();
+        expect(settlement).toBeNull();
+        response.releaseHeldWrite();
+        await expect(serve).resolves.toBe(true);
+        expect(response.writableFinished).toBe(true);
+        expect(response.listenerCount("close")).toBe(0);
+      } finally {
+        response.releaseHeldWrite();
+        response.destroy();
+        writeFileSync(join(root, "index.html"), previous);
+      }
+    },
+  );
+
   it("serves single byte ranges and rejects unsatisfiable ones", async () => {
     const partial = await get("/notification.mp3", { headers: { range: "bytes=0-9" } });
     expect(partial.status).toBe(206);
@@ -412,64 +509,94 @@ describe("bundled web client real HTTP serving", () => {
     }
   });
 
-  it("closes the owned stream once and settles once when the client disconnects midstream", async () => {
-    writeFileSync(join(root, "assets/large.bin"), Buffer.alloc(8 * 1024 * 1024, 7));
-    const createdBefore = streamLog.created.length;
-    const responsesBefore = responses.length;
-    const socket = connect(serverPort, "127.0.0.1");
-    socket.on("error", () => {});
-    try {
-      await once(socket, "connect");
-      socket.write("GET /assets/large.bin HTTP/1.1\r\nHost: localhost\r\n\r\n");
-      const [head] = (await once(socket, "data")) as [Buffer];
-      expect(head.length).toBeGreaterThan(0);
-      socket.pause();
-      await vi.waitFor(() => expect(streamLog.created.length).toBeGreaterThan(createdBefore));
-      const stream = streamLog.created.at(-1)!;
-      const response = await waitForResponse(responsesBefore);
-      socket.destroy();
-      await vi.waitFor(() => expect(stream.destroyed).toBe(true));
-      // The destroyed stream has released its descriptor (autoClose).
-      await vi.waitFor(() => expect((stream as unknown as { fd: number | null }).fd).toBeNull());
-      expect(await servedOnceFor(response)).toBe(true);
-      // The settlement path detaches every listener it attached.
-      await vi.waitFor(() => expect(stream.listenerCount("close")).toBe(0));
-      expect(stream.listenerCount("error")).toBe(0);
-      expect(response.listenerCount("close")).toBe(0);
-    } finally {
-      socket.destroy();
-    }
-  });
+  it.each(["asset", "document"])(
+    "closes the owned %s stream once when the client disconnects midstream",
+    async (kind) => {
+      const previous = readFileSync(join(root, "index.html"));
+      if (kind === "document") {
+        writeFileSync(
+          join(root, "index.html"),
+          Buffer.concat([
+            Buffer.from(RELATIVE_HEAD + "<body>"),
+            Buffer.alloc(8 * 1024 * 1024, 7),
+            Buffer.from("</body></html>"),
+          ]),
+        );
+      }
+      writeFileSync(join(root, "assets/large.bin"), Buffer.alloc(8 * 1024 * 1024, 7));
+      const createdBefore = streamLog.created.length;
+      const responsesBefore = responses.length;
+      const socket = connect(serverPort, "127.0.0.1");
+      socket.on("error", () => {});
+      try {
+        await once(socket, "connect");
+        socket.write(
+          "GET " +
+            (kind === "document" ? "/" : "/assets/large.bin") +
+            " HTTP/1.1\r\nHost: localhost\r\n\r\n",
+        );
+        const [head] = (await once(socket, "data")) as [Buffer];
+        expect(head.length).toBeGreaterThan(0);
+        socket.pause();
+        await vi.waitFor(() => expect(streamLog.created.length).toBeGreaterThan(createdBefore));
+        const stream = streamLog.created.at(-1)!;
+        const response = await waitForResponse(responsesBefore);
+        socket.destroy();
+        await vi.waitFor(() => expect(stream.destroyed).toBe(true));
+        // The destroyed stream has released its descriptor (autoClose).
+        await vi.waitFor(() => expect((stream as unknown as { fd: number | null }).fd).toBeNull());
+        expect(await servedOnceFor(response)).toBe(true);
+        // The settlement path detaches every listener it attached.
+        await vi.waitFor(() => expect(stream.listenerCount("close")).toBe(0));
+        expect(stream.listenerCount("error")).toBe(0);
+        expect(response.listenerCount("close")).toBe(0);
+      } finally {
+        socket.destroy();
+        if (kind === "document") writeFileSync(join(root, "index.html"), previous);
+      }
+    },
+  );
 
-  it("tears the response down exactly once when the owned read fails midstream", async () => {
-    streamLog.nextFactory = () => {
-      const failing = new Readable({
-        read() {
-          this.destroy(new Error("synthetic read failure"));
-        },
-      });
-      return failing as unknown as ReadStream;
-    };
-    const socket = connect(serverPort, "127.0.0.1");
-    socket.on("error", () => {});
-    const responsesBefore = responses.length;
-    try {
-      await once(socket, "connect");
-      socket.write("GET /assets/index-abc123.js HTTP/1.1\r\nHost: localhost\r\n\r\n");
-      socket.resume();
-      const response = await waitForResponse(responsesBefore);
-      expect(await servedOnceFor(response)).toBe(true);
-      const stream = streamLog.created.at(-1)!;
-      expect(stream.destroyed).toBe(true);
-      expect(stream.listenerCount("close")).toBe(0);
-      expect(stream.listenerCount("error")).toBe(0);
-      await vi.waitFor(() => expect(response.destroyed).toBe(true));
-      expect(response.listenerCount("close")).toBe(0);
-    } finally {
-      socket.destroy();
-      streamLog.nextFactory = null;
-    }
-  });
+  it.each(["asset", "document"])(
+    "tears the %s response down exactly once when the owned read fails midstream",
+    async (kind) => {
+      const previous = readFileSync(join(root, "index.html"));
+      if (kind === "document")
+        writeFileSync(join(root, "index.html"), RELATIVE_HEAD + "<body>body</body>");
+      streamLog.nextFactory = () => {
+        const failing = new Readable({
+          read() {
+            this.destroy(new Error("synthetic read failure"));
+          },
+        });
+        return failing as unknown as ReadStream;
+      };
+      const socket = connect(serverPort, "127.0.0.1");
+      socket.on("error", () => {});
+      const responsesBefore = responses.length;
+      try {
+        await once(socket, "connect");
+        socket.write(
+          "GET " +
+            (kind === "document" ? "/" : "/assets/index-abc123.js") +
+            " HTTP/1.1\r\nHost: localhost\r\n\r\n",
+        );
+        socket.resume();
+        const response = await waitForResponse(responsesBefore);
+        expect(await servedOnceFor(response)).toBe(true);
+        const stream = streamLog.created.at(-1)!;
+        expect(stream.destroyed).toBe(true);
+        expect(stream.listenerCount("close")).toBe(0);
+        expect(stream.listenerCount("error")).toBe(0);
+        await vi.waitFor(() => expect(response.destroyed).toBe(true));
+        expect(response.listenerCount("close")).toBe(0);
+      } finally {
+        socket.destroy();
+        streamLog.nextFactory = null;
+        if (kind === "document") writeFileSync(join(root, "index.html"), previous);
+      }
+    },
+  );
 
   it("removes its listeners after a completed transfer", async () => {
     const responsesBefore = responses.length;

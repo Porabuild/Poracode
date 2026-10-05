@@ -1,0 +1,1639 @@
+diff --git a/react-native.d.ts b/react-native.d.ts
+index 82040150cafff1fea60573be2fb0aea60958b383..f97c28df5f434c11382f9f1345ea9b8744435965 100644
+--- a/react-native.d.ts
++++ b/react-native.d.ts
+@@ -325,6 +325,16 @@ interface LegendListSpecificProps<ItemT, TItemType extends string | undefined> {
+         itemKey: string;
+         itemData: ItemT;
+     }) => void;
++    /**
++     * React/web only: called in a layout effect after the connected row-stack
++     * DOM sizer commits its rendered size, axis, cross-axis size or readiness,
++     * and when this callback is replaced. The size excludes headers, footers
++     * and padding. Native renderers consume this option without invoking it.
++     */
++    onContentSizeCommit?: (info: {
++        size: number;
++        horizontal: boolean;
++    }) => void;
+     /**
+      * Called after the initial render work completes.
+      */
+diff --git a/react-native.js b/react-native.js
+index 229f09a8230ab24079d471f65d28d36908f0f2ea..5a10cdc8ff232e6251a3038bf1cbb7dcc06564be 100644
+--- a/react-native.js
++++ b/react-native.js
+@@ -3112,6 +3112,19 @@ function handleInitialScrollDataChange(ctx, options) {
+   advanceCurrentInitialScrollSession(ctx);
+ }
+ 
++// Retire only absent IDs, after the structural layout has reconciled its old anchor.
++// The layout pass owns totals/positions; deleting metadata must not adjust totals or averages.
++function retireAbsentItemSizes(state, currentKeys = state.indexByKey) {
++  if (state.retiredSizeDataChangeEpoch === state.dataChangeEpoch) return;
++  for (const key of state.sizes.keys()) {
++    if (!currentKeys.has(key)) state.sizes.delete(key);
++  }
++  for (const key of state.sizesKnown.keys()) {
++    if (!currentKeys.has(key)) state.sizesKnown.delete(key);
++  }
++  state.retiredSizeDataChangeEpoch = state.dataChangeEpoch;
++}
++
+ // src/core/resetLayoutCachesForDataChange.ts
+ function resetLayoutCachesForDataChange(state) {
+   state.indexByKey.clear();
+@@ -4301,6 +4314,9 @@ function calculateItemsInView(ctx, params = {}) {
+     const scrollBeforeMVCP = state.scroll;
+     const scrollAdjustPendingBeforeMVCP = (_f = peek$(ctx, "scrollAdjustPending")) != null ? _f : 0;
+     checkMVCP == null ? void 0 : checkMVCP();
++    if (dataChanged) {
++      retireAbsentItemSizes(state);
++    }
+     const didMVCPAdjustScroll = !!checkMVCP && (state.scroll !== scrollBeforeMVCP || ((_g = peek$(ctx, "scrollAdjustPending")) != null ? _g : 0) !== scrollAdjustPendingBeforeMVCP);
+     if (didMVCPAdjustScroll) {
+       updateScroll2(state.scroll);
+@@ -4313,7 +4329,7 @@ function calculateItemsInView(ctx, params = {}) {
+     let startBufferedId = null;
+     let endBuffered = null;
+     let loopStart = (_h = suppressInitialScrollSideEffects ? bootstrapInitialScrollState == null ? void 0 : bootstrapInitialScrollState.targetIndexSeed : void 0) != null ? _h : !dataChanged && startBufferedIdOrig ? indexByKey.get(startBufferedIdOrig) || 0 : 0;
+-    for (let i = loopStart; i >= 0; i--) {
++    for (let i = loopStart; i >= 0 && i < data.length; i--) {
+       const id = (_i = idCache[i]) != null ? _i : getId(state, i);
+       const top = positions[i];
+       const size = (_j = sizes.get(id)) != null ? _j : getItemSize(ctx, id, i, data[i]);
+@@ -4741,7 +4757,23 @@ function flushItemSizeUpdates(ctx, result) {
+     doMaintainScrollAtEnd(ctx);
+   }
+ }
++// Check current data as well as the index: child layout effects may run before
++// the parent's structural reconciliation rebuilds indexByKey.
++function isCurrentItemMeasurement(ctx, measurement) {
++  const { state } = ctx;
++  const { itemKey, containerId, generation } = measurement;
++  const index = state.indexByKey.get(itemKey);
++  const { data, keyExtractor } = state.props;
++  if (index === void 0 || index >= data.length || keyExtractor(data[index], index) !== itemKey) return false;
++  return containerId === void 0 || (
++    peek$(ctx, `containerItemKey${containerId}`) === itemKey &&
++    (generation === void 0 || (state.containerItemGenerations[containerId] || 0) === generation)
++  );
++}
+ function updateItemSizes(ctx, measurement) {
++  if (measurement.containerId !== void 0 && measurement.generation === void 0) {
++    measurement = { ...measurement, generation: ctx.state.containerItemGenerations[measurement.containerId] || 0 };
++  }
+   if (activeItemSizeBatches) {
+     const measurements = activeItemSizeBatches.get(ctx);
+     if (measurements) {
+@@ -4758,8 +4790,7 @@ function updateItemSizesBatch(ctx, measurements) {
+   const state = ctx.state;
+   const result = {};
+   for (const measurement of measurements) {
+-    const ownsMeasuredItem = measurement.containerId === void 0 || peek$(ctx, `containerItemKey${measurement.containerId}`) === measurement.itemKey;
+-    if (ownsMeasuredItem) {
++    if (isCurrentItemMeasurement(ctx, measurement)) {
+       const index = state.indexByKey.get(measurement.itemKey);
+       const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
+       const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
+@@ -4945,6 +4976,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+           if (isCurrentGeneration) {
+             const measurement = {
+               containerId,
++              generation,
+               itemKey,
+               size: { height, width }
+             };
+@@ -5390,6 +5422,9 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   var _a3, _b;
+   const listState = ctx.state;
+   const currentItemKey = state.itemKey;
++  const generation = listState.containerItemGenerations[containerId] || 0;
++  const ownership = { containerId, generation, itemKey: currentItemKey };
++  if (!isCurrentItemMeasurement(ctx, ownership)) return;
+   state.didLayout = true;
+   let layout = rectangle;
+   const axis = state.horizontal ? "width" : "height";
+@@ -5398,9 +5433,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const coreKnownSize = listState.sizesKnown.get(currentItemKey);
+   const previousSize = Platform.OS === "web" ? coreKnownSize : localPreviousSize;
+   const applyLayout = () => {
++    // Also runs after deferred shrink confirmation / asynchronous native measure.
++    if (!isCurrentItemMeasurement(ctx, ownership)) return;
+     state.lastSize = layout;
+     updateItemSizes(ctx, {
+       containerId,
++      generation,
+       itemKey: currentItemKey,
+       size: layout
+     });
+@@ -5409,7 +5447,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   if (shouldDeferWebShrinkLayoutUpdate) {
+     scheduleWebShrinkMeasurement(state, () => {
+       var _a4;
+-      if (state.itemKey === currentItemKey) {
++      if (state.itemKey === currentItemKey && isCurrentItemMeasurement(ctx, ownership)) {
+         const element = ref.current;
+         const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
+         if (rect) {
+@@ -5444,14 +5482,19 @@ function useContainerMeasurement({
+     horizontal,
+     itemKey
+   });
++  if (stateRef.current.itemKey !== itemKey) {
++    cancelWebShrinkMeasurement(stateRef.current);
++    stateRef.current = { didLayout: false, horizontal, itemKey };
++  }
+   stateRef.current.horizontal = horizontal;
+-  stateRef.current.itemKey = itemKey;
++  const measurementState = stateRef.current;
+   const [layoutRenderCount, forceLayoutRender] = React2.useState(0);
+   const onLayoutChange = React2.useCallback(
+     (rectangle) => {
+-      processContainerLayout({ containerId, ctx, rectangle, ref, state: stateRef.current });
++      if (stateRef.current !== measurementState) return;
++      processContainerLayout({ containerId, ctx, rectangle, ref, state: measurementState });
+     },
+-    [containerId, ctx, ref]
++    [containerId, ctx, ref, measurementState]
+   );
+   const triggerLayout = React2.useCallback(() => {
+     if (IsNewArchitecture) {
+@@ -6063,6 +6106,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+     state.scrollForNextCalculateItemsInView = void 0;
+   }
+   calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
++  // An unmeasured/hidden list can skip layout. Preserve its old positions for
++  // later anchor capture, but retire absent metadata at this committed revision.
++  if (state.retiredSizeDataChangeEpoch !== state.dataChangeEpoch) {
++    const currentKeys = new Set(dataProp.map((item, index) => state.props.keyExtractor(item, index)));
++    retireAbsentItemSizes(state, currentKeys);
++  }
+   const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
+   const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
+   if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
+@@ -6987,6 +7036,8 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     onEndReachedThreshold = 0.5,
+     onItemSizeChanged,
+     onMetricsChange,
++    // Web-only commit signal: consume it instead of forwarding to the native scroll view.
++    onContentSizeCommit,
+     onLayout: onLayoutProp,
+     onLoad,
+     onMomentumScrollEnd,
+@@ -7495,6 +7546,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+   React2.useEffect(() => {
+     return () => {
++      // Release retired list ownership without waiting for another frame.
++      if (state.queuedMVCPRecalculate !== void 0) {
++        cancelAnimationFrame(state.queuedMVCPRecalculate);
++        state.queuedMVCPRecalculate = void 0;
++      }
+       if (state.queuedFullDrawDistancePrewarm !== void 0) {
+         cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
+         state.queuedFullDrawDistancePrewarm = void 0;
+       }
+diff --git a/react-native.mjs b/react-native.mjs
+index c2e0f3823f524e31e2105a5fbda76be78c926226..06a716e6e09414616caca8d7ec5aad3f5f5ca5b1 100644
+--- a/react-native.mjs
++++ b/react-native.mjs
+@@ -3091,6 +3091,19 @@ function handleInitialScrollDataChange(ctx, options) {
+   advanceCurrentInitialScrollSession(ctx);
+ }
+ 
++// Retire only absent IDs, after the structural layout has reconciled its old anchor.
++// The layout pass owns totals/positions; deleting metadata must not adjust totals or averages.
++function retireAbsentItemSizes(state, currentKeys = state.indexByKey) {
++  if (state.retiredSizeDataChangeEpoch === state.dataChangeEpoch) return;
++  for (const key of state.sizes.keys()) {
++    if (!currentKeys.has(key)) state.sizes.delete(key);
++  }
++  for (const key of state.sizesKnown.keys()) {
++    if (!currentKeys.has(key)) state.sizesKnown.delete(key);
++  }
++  state.retiredSizeDataChangeEpoch = state.dataChangeEpoch;
++}
++
+ // src/core/resetLayoutCachesForDataChange.ts
+ function resetLayoutCachesForDataChange(state) {
+   state.indexByKey.clear();
+@@ -4280,6 +4293,9 @@ function calculateItemsInView(ctx, params = {}) {
+     const scrollBeforeMVCP = state.scroll;
+     const scrollAdjustPendingBeforeMVCP = (_f = peek$(ctx, "scrollAdjustPending")) != null ? _f : 0;
+     checkMVCP == null ? void 0 : checkMVCP();
++    if (dataChanged) {
++      retireAbsentItemSizes(state);
++    }
+     const didMVCPAdjustScroll = !!checkMVCP && (state.scroll !== scrollBeforeMVCP || ((_g = peek$(ctx, "scrollAdjustPending")) != null ? _g : 0) !== scrollAdjustPendingBeforeMVCP);
+     if (didMVCPAdjustScroll) {
+       updateScroll2(state.scroll);
+@@ -4292,7 +4308,7 @@ function calculateItemsInView(ctx, params = {}) {
+     let startBufferedId = null;
+     let endBuffered = null;
+     let loopStart = (_h = suppressInitialScrollSideEffects ? bootstrapInitialScrollState == null ? void 0 : bootstrapInitialScrollState.targetIndexSeed : void 0) != null ? _h : !dataChanged && startBufferedIdOrig ? indexByKey.get(startBufferedIdOrig) || 0 : 0;
+-    for (let i = loopStart; i >= 0; i--) {
++    for (let i = loopStart; i >= 0 && i < data.length; i--) {
+       const id = (_i = idCache[i]) != null ? _i : getId(state, i);
+       const top = positions[i];
+       const size = (_j = sizes.get(id)) != null ? _j : getItemSize(ctx, id, i, data[i]);
+@@ -4720,7 +4736,23 @@ function flushItemSizeUpdates(ctx, result) {
+     doMaintainScrollAtEnd(ctx);
+   }
+ }
++// Check current data as well as the index: child layout effects may run before
++// the parent's structural reconciliation rebuilds indexByKey.
++function isCurrentItemMeasurement(ctx, measurement) {
++  const { state } = ctx;
++  const { itemKey, containerId, generation } = measurement;
++  const index = state.indexByKey.get(itemKey);
++  const { data, keyExtractor } = state.props;
++  if (index === void 0 || index >= data.length || keyExtractor(data[index], index) !== itemKey) return false;
++  return containerId === void 0 || (
++    peek$(ctx, `containerItemKey${containerId}`) === itemKey &&
++    (generation === void 0 || (state.containerItemGenerations[containerId] || 0) === generation)
++  );
++}
+ function updateItemSizes(ctx, measurement) {
++  if (measurement.containerId !== void 0 && measurement.generation === void 0) {
++    measurement = { ...measurement, generation: ctx.state.containerItemGenerations[measurement.containerId] || 0 };
++  }
+   if (activeItemSizeBatches) {
+     const measurements = activeItemSizeBatches.get(ctx);
+     if (measurements) {
+@@ -4737,8 +4769,7 @@ function updateItemSizesBatch(ctx, measurements) {
+   const state = ctx.state;
+   const result = {};
+   for (const measurement of measurements) {
+-    const ownsMeasuredItem = measurement.containerId === void 0 || peek$(ctx, `containerItemKey${measurement.containerId}`) === measurement.itemKey;
+-    if (ownsMeasuredItem) {
++    if (isCurrentItemMeasurement(ctx, measurement)) {
+       const index = state.indexByKey.get(measurement.itemKey);
+       const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
+       const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
+@@ -4924,6 +4955,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+           if (isCurrentGeneration) {
+             const measurement = {
+               containerId,
++              generation,
+               itemKey,
+               size: { height, width }
+             };
+@@ -5369,6 +5401,9 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   var _a3, _b;
+   const listState = ctx.state;
+   const currentItemKey = state.itemKey;
++  const generation = listState.containerItemGenerations[containerId] || 0;
++  const ownership = { containerId, generation, itemKey: currentItemKey };
++  if (!isCurrentItemMeasurement(ctx, ownership)) return;
+   state.didLayout = true;
+   let layout = rectangle;
+   const axis = state.horizontal ? "width" : "height";
+@@ -5377,9 +5412,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const coreKnownSize = listState.sizesKnown.get(currentItemKey);
+   const previousSize = Platform.OS === "web" ? coreKnownSize : localPreviousSize;
+   const applyLayout = () => {
++    // Also runs after deferred shrink confirmation / asynchronous native measure.
++    if (!isCurrentItemMeasurement(ctx, ownership)) return;
+     state.lastSize = layout;
+     updateItemSizes(ctx, {
+       containerId,
++      generation,
+       itemKey: currentItemKey,
+       size: layout
+     });
+@@ -5388,7 +5426,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   if (shouldDeferWebShrinkLayoutUpdate) {
+     scheduleWebShrinkMeasurement(state, () => {
+       var _a4;
+-      if (state.itemKey === currentItemKey) {
++      if (state.itemKey === currentItemKey && isCurrentItemMeasurement(ctx, ownership)) {
+         const element = ref.current;
+         const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
+         if (rect) {
+@@ -5423,14 +5461,19 @@ function useContainerMeasurement({
+     horizontal,
+     itemKey
+   });
++  if (stateRef.current.itemKey !== itemKey) {
++    cancelWebShrinkMeasurement(stateRef.current);
++    stateRef.current = { didLayout: false, horizontal, itemKey };
++  }
+   stateRef.current.horizontal = horizontal;
+-  stateRef.current.itemKey = itemKey;
++  const measurementState = stateRef.current;
+   const [layoutRenderCount, forceLayoutRender] = useState(0);
+   const onLayoutChange = useCallback(
+     (rectangle) => {
+-      processContainerLayout({ containerId, ctx, rectangle, ref, state: stateRef.current });
++      if (stateRef.current !== measurementState) return;
++      processContainerLayout({ containerId, ctx, rectangle, ref, state: measurementState });
+     },
+-    [containerId, ctx, ref]
++    [containerId, ctx, ref, measurementState]
+   );
+   const triggerLayout = useCallback(() => {
+     if (IsNewArchitecture) {
+@@ -6042,6 +6085,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+     state.scrollForNextCalculateItemsInView = void 0;
+   }
+   calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
++  // An unmeasured/hidden list can skip layout. Preserve its old positions for
++  // later anchor capture, but retire absent metadata at this committed revision.
++  if (state.retiredSizeDataChangeEpoch !== state.dataChangeEpoch) {
++    const currentKeys = new Set(dataProp.map((item, index) => state.props.keyExtractor(item, index)));
++    retireAbsentItemSizes(state, currentKeys);
++  }
+   const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
+   const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
+   if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
+@@ -6966,6 +7015,8 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     onEndReachedThreshold = 0.5,
+     onItemSizeChanged,
+     onMetricsChange,
++    // Web-only commit signal: consume it instead of forwarding to the native scroll view.
++    onContentSizeCommit,
+     onLayout: onLayoutProp,
+     onLoad,
+     onMomentumScrollEnd,
+@@ -7474,6 +7525,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+   useEffect(() => {
+     return () => {
++      // Release retired list ownership without waiting for another frame.
++      if (state.queuedMVCPRecalculate !== void 0) {
++        cancelAnimationFrame(state.queuedMVCPRecalculate);
++        state.queuedMVCPRecalculate = void 0;
++      }
+       if (state.queuedFullDrawDistancePrewarm !== void 0) {
+         cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
+         state.queuedFullDrawDistancePrewarm = void 0;
+       }
+diff --git a/react-native.web.d.ts b/react-native.web.d.ts
+index db7841d8cf328b46f70f5b4b4754bc58d1a33335..23ba090d415a61f5b7accb370098c34fa4bcb6cb 100644
+--- a/react-native.web.d.ts
++++ b/react-native.web.d.ts
+@@ -348,6 +348,16 @@ interface LegendListSpecificProps<ItemT, TItemType extends string | undefined> {
+         itemKey: string;
+         itemData: ItemT;
+     }) => void;
++    /**
++     * React/web only: called in a layout effect after the connected row-stack
++     * DOM sizer commits its rendered size, axis, cross-axis size or readiness,
++     * and when this callback is replaced. The size excludes headers, footers
++     * and padding. Native renderers consume this option without invoking it.
++     */
++    onContentSizeCommit?: (info: {
++        size: number;
++        horizontal: boolean;
++    }) => void;
+     /**
+      * Called after the initial render work completes.
+      */
+diff --git a/react-native.web.js b/react-native.web.js
+index 544cca82136ab14cbeec0a01499f554bd4eca75f..13f7f30b6fab902b9d7c2fb2aa054a0306022bb4 100644
+--- a/react-native.web.js
++++ b/react-native.web.js
+@@ -3134,6 +3134,19 @@ function handleInitialScrollDataChange(ctx, options) {
+   advanceCurrentInitialScrollSession(ctx);
+ }
+ 
++// Retire only absent IDs, after the structural layout has reconciled its old anchor.
++// The layout pass owns totals/positions; deleting metadata must not adjust totals or averages.
++function retireAbsentItemSizes(state, currentKeys = state.indexByKey) {
++  if (state.retiredSizeDataChangeEpoch === state.dataChangeEpoch) return;
++  for (const key of state.sizes.keys()) {
++    if (!currentKeys.has(key)) state.sizes.delete(key);
++  }
++  for (const key of state.sizesKnown.keys()) {
++    if (!currentKeys.has(key)) state.sizesKnown.delete(key);
++  }
++  state.retiredSizeDataChangeEpoch = state.dataChangeEpoch;
++}
++
+ // src/core/resetLayoutCachesForDataChange.ts
+ function resetLayoutCachesForDataChange(state) {
+   state.indexByKey.clear();
+@@ -4323,6 +4336,9 @@ function calculateItemsInView(ctx, params = {}) {
+     const scrollBeforeMVCP = state.scroll;
+     const scrollAdjustPendingBeforeMVCP = (_f = peek$(ctx, "scrollAdjustPending")) != null ? _f : 0;
+     checkMVCP == null ? void 0 : checkMVCP();
++    if (dataChanged) {
++      retireAbsentItemSizes(state);
++    }
+     const didMVCPAdjustScroll = !!checkMVCP && (state.scroll !== scrollBeforeMVCP || ((_g = peek$(ctx, "scrollAdjustPending")) != null ? _g : 0) !== scrollAdjustPendingBeforeMVCP);
+     if (didMVCPAdjustScroll) {
+       updateScroll2(state.scroll);
+@@ -4335,7 +4351,7 @@ function calculateItemsInView(ctx, params = {}) {
+     let startBufferedId = null;
+     let endBuffered = null;
+     let loopStart = (_h = suppressInitialScrollSideEffects ? bootstrapInitialScrollState == null ? void 0 : bootstrapInitialScrollState.targetIndexSeed : void 0) != null ? _h : !dataChanged && startBufferedIdOrig ? indexByKey.get(startBufferedIdOrig) || 0 : 0;
+-    for (let i = loopStart; i >= 0; i--) {
++    for (let i = loopStart; i >= 0 && i < data.length; i--) {
+       const id = (_i = idCache[i]) != null ? _i : getId(state, i);
+       const top = positions[i];
+       const size = (_j = sizes.get(id)) != null ? _j : getItemSize(ctx, id, i, data[i]);
+@@ -4750,7 +4766,23 @@ function flushItemSizeUpdates(ctx, result) {
+     doMaintainScrollAtEnd(ctx);
+   }
+ }
++// Check current data as well as the index: child layout effects may run before
++// the parent's structural reconciliation rebuilds indexByKey.
++function isCurrentItemMeasurement(ctx, measurement) {
++  const { state } = ctx;
++  const { itemKey, containerId, generation } = measurement;
++  const index = state.indexByKey.get(itemKey);
++  const { data, keyExtractor } = state.props;
++  if (index === void 0 || index >= data.length || keyExtractor(data[index], index) !== itemKey) return false;
++  return containerId === void 0 || (
++    peek$(ctx, `containerItemKey${containerId}`) === itemKey &&
++    (generation === void 0 || (state.containerItemGenerations[containerId] || 0) === generation)
++  );
++}
+ function updateItemSizes(ctx, measurement) {
++  if (measurement.containerId !== void 0 && measurement.generation === void 0) {
++    measurement = { ...measurement, generation: ctx.state.containerItemGenerations[measurement.containerId] || 0 };
++  }
+   if (activeItemSizeBatches) {
+     const measurements = activeItemSizeBatches.get(ctx);
+     if (measurements) {
+@@ -4767,8 +4799,7 @@ function updateItemSizesBatch(ctx, measurements) {
+   const state = ctx.state;
+   const result = {};
+   for (const measurement of measurements) {
+-    const ownsMeasuredItem = measurement.containerId === void 0 || peek$(ctx, `containerItemKey${measurement.containerId}`) === measurement.itemKey;
+-    if (ownsMeasuredItem) {
++    if (isCurrentItemMeasurement(ctx, measurement)) {
+       const index = state.indexByKey.get(measurement.itemKey);
+       const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
+       const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
+@@ -4919,6 +4950,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+       setContainerLayoutBaseline(element, rect);
+       measurements.push({
+         containerId,
++        generation: ctx.state.containerItemGenerations[containerId] || 0,
+         itemKey,
+         size: { height: rect.height, width: rect.width }
+       });
+@@ -5269,11 +5301,15 @@ function createResizeObserver(element, callback) {
+ }
+ 
+ // src/hooks/useOnLayoutSync.tsx
++// Keep assignment history across unobserve/reobserve of a recycled DOM node.
++// Weak keys release the history with the node; this is not an item-ID cache.
++var resizeObserverLayoutGenerations = /* @__PURE__ */ new WeakMap();
+ function useOnLayoutSync({
+   ref,
+   measureInLayoutEffect = true,
+   onLayoutProp,
+   onLayoutChange,
++  getLayoutGeneration,
+   webLayoutResync
+ }, deps) {
+   React3.useLayoutEffect(() => {
+@@ -5284,6 +5320,16 @@ function useOnLayoutSync({
+     if (!element) {
+       return;
+     }
++    const generation = getLayoutGeneration == null ? void 0 : getLayoutGeneration();
++    if (generation !== void 0) {
++      const previousAssignment = resizeObserverLayoutGenerations.get(element);
++      resizeObserverLayoutGenerations.set(element, {
++        generation,
++        needsFreshLayout: !!previousAssignment && (
++          previousAssignment.needsFreshLayout || previousAssignment.generation !== generation
++        )
++      });
++    }
+     const emit = (layout, fromLayoutEffect) => {
+       if (layout.height === 0 && layout.width === 0) {
+         return;
+@@ -5301,12 +5347,23 @@ function useOnLayoutSync({
+       var _a4;
+       const target = entry.target instanceof HTMLElement ? entry.target : void 0;
+       const borderBoxSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
+-      const rectObserved = borderBoxSize ? {
++      // A queued entry can belong to the node's previous item assignment.
++      // After that one ambiguous delivery, preserve the ordinary borderBox path.
++      const generation = getLayoutGeneration == null ? void 0 : getLayoutGeneration();
++      const assignment = generation === void 0 ? void 0 : resizeObserverLayoutGenerations.get(element);
++      const needsFreshLayout = assignment && (
++        assignment.needsFreshLayout || assignment.generation !== generation
++      );
++      const rectObserved = needsFreshLayout ? element.getBoundingClientRect() : borderBoxSize ? {
+         height: borderBoxSize.blockSize,
+         left: entry.contentRect.left,
+         top: entry.contentRect.top,
+         width: borderBoxSize.inlineSize
+       } : (_a4 = target == null ? void 0 : target.getBoundingClientRect()) != null ? _a4 : entry.contentRect;
++      if (assignment) {
++        assignment.generation = generation;
++        assignment.needsFreshLayout = false;
++      }
+       const previousRect = prevRect != null ? prevRect : getContainerLayoutBaseline(element);
+       const didSizeChange = previousRect === void 0 || rectObserved.width !== previousRect.width || rectObserved.height !== previousRect.height;
+       prevRect = rectObserved;
+@@ -5354,6 +5411,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
+ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const listState = ctx.state;
+   const currentItemKey = state.itemKey;
++  const generation = listState.containerItemGenerations[containerId] || 0;
++  const ownership = { containerId, generation, itemKey: currentItemKey };
++  if (!isCurrentItemMeasurement(ctx, ownership)) return;
+   state.didLayout = true;
+   let layout = rectangle;
+   const axis = state.horizontal ? "width" : "height";
+@@ -5362,9 +5422,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const coreKnownSize = listState.sizesKnown.get(currentItemKey);
+   const previousSize = coreKnownSize ;
+   const applyLayout = () => {
++    // Also runs after deferred shrink confirmation / asynchronous native measure.
++    if (!isCurrentItemMeasurement(ctx, ownership)) return;
+     state.lastSize = layout;
+     updateItemSizes(ctx, {
+       containerId,
++      generation,
+       itemKey: currentItemKey,
+       size: layout
+     });
+@@ -5373,7 +5436,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   if (shouldDeferWebShrinkLayoutUpdate) {
+     scheduleWebShrinkMeasurement(state, () => {
+       var _a4;
+-      if (state.itemKey === currentItemKey) {
++      if (state.itemKey === currentItemKey && isCurrentItemMeasurement(ctx, ownership)) {
+         const element = ref.current;
+         const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
+         if (rect) {
+@@ -5403,14 +5466,19 @@ function useContainerMeasurement({
+     horizontal,
+     itemKey
+   });
++  if (stateRef.current.itemKey !== itemKey) {
++    cancelWebShrinkMeasurement(stateRef.current);
++    stateRef.current = { didLayout: false, horizontal, itemKey };
++  }
+   stateRef.current.horizontal = horizontal;
+-  stateRef.current.itemKey = itemKey;
++  const measurementState = stateRef.current;
+   const [layoutRenderCount, forceLayoutRender] = React3.useState(0);
+   const onLayoutChange = React3.useCallback(
+     (rectangle) => {
+-      processContainerLayout({ containerId, ctx, rectangle, ref, state: stateRef.current });
++      if (stateRef.current !== measurementState) return;
++      processContainerLayout({ containerId, ctx, rectangle, ref, state: measurementState });
+     },
+-    [containerId, ctx, ref]
++    [containerId, ctx, ref, measurementState]
+   );
+   const triggerLayout = React3.useCallback(() => {
+     {
+@@ -5434,6 +5502,7 @@ function useContainerMeasurement({
+   const { onLayout } = useOnLayoutSync(
+     {
+       measureInLayoutEffect: !IsNewArchitecture,
++      getLayoutGeneration: () => itemKey === void 0 ? void 0 : ctx.state.containerItemGenerations[containerId] || 0,
+       onLayoutChange,
+       ref,
+       webLayoutResync: () => isInMVCPActiveMode(ctx.state)
+@@ -5727,13 +5796,23 @@ function useDOMOrder(ref) {
+ }
+ 
+ // src/components/Containers.tsx
+-var ContainersInner = typedMemo(function ContainersInner2({ horizontal, numColumns, children }) {
++var ContainersInner = typedMemo(function ContainersInner2({ horizontal, numColumns, children, onContentSizeCommit }) {
+   const ref = React3.useRef(null);
+   const ctx = useStateContext();
+   const columnWrapperStyle = ctx.columnWrapperStyle;
+   const isHorizontalRTLList = isHorizontalRTL(ctx.state);
+   const [otherAxisSize, readyToRender, totalSize] = useArr$(["otherAxisSize", "readyToRender", "totalSize"]);
+   useDOMOrder(ref);
++  // This signal belongs to the DOM sizer commit, not the earlier size-model publication.
++  React3.useLayoutEffect(() => {
++    const element = ref.current;
++    if (element && element.isConnected && typeof totalSize === "number") {
++      onContentSizeCommit == null ? void 0 : onContentSizeCommit({
++        size: totalSize,
++        horizontal: !!horizontal
++      });
++    }
++  }, [onContentSizeCommit, totalSize, horizontal, otherAxisSize, readyToRender]);
+   const style = horizontal ? {
+     direction: isHorizontalRTLList ? "ltr" : void 0,
+     flexShrink: 0,
+@@ -5769,7 +5848,8 @@ var Containers = typedMemo(function Containers2({
+   recycleItems,
+   ItemSeparatorComponent,
+   getRenderedItem: getRenderedItem2,
+-  stickyHeaderConfig
++  stickyHeaderConfig,
++  onContentSizeCommit
+ }) {
+   const [numContainersPooled, numColumns] = useArr$(["numContainersPooled", "numColumns"]);
+   const containers = [];
+@@ -5789,7 +5869,7 @@ var Containers = typedMemo(function Containers2({
+       )
+     );
+   }
+-  return /* @__PURE__ */ React3__namespace.createElement(ContainersInner, { horizontal, numColumns }, containers);
++  return /* @__PURE__ */ React3__namespace.createElement(ContainersInner, { horizontal, numColumns, onContentSizeCommit }, containers);
+ });
+ 
+ // src/platform/StyleSheet.tsx
+@@ -6513,6 +6593,7 @@ var ListComponent = typedMemo(function ListComponent2({
+   alignItemsAtEnd: _alignItemsAtEnd,
+   onScroll: onScroll2,
+   onLayout,
++  onContentSizeCommit,
+   ListHeaderComponent,
+   ListHeaderComponentStyle,
+   ListFooterComponent,
+@@ -6611,6 +6692,7 @@ var ListComponent = typedMemo(function ListComponent2({
+         getRenderedItem: getRenderedItem2,
+         horizontal,
+         ItemSeparatorComponent,
++        onContentSizeCommit,
+         recycleItems,
+         stickyHeaderConfig
+       }
+@@ -6699,6 +6781,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+     state.scrollForNextCalculateItemsInView = void 0;
+   }
+   calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
++  // An unmeasured/hidden list can skip layout. Preserve its old positions for
++  // later anchor capture, but retire absent metadata at this committed revision.
++  if (state.retiredSizeDataChangeEpoch !== state.dataChangeEpoch) {
++    const currentKeys = new Set(dataProp.map((item, index) => state.props.keyExtractor(item, index)));
++    retireAbsentItemSizes(state, currentKeys);
++  }
+   const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
+   const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
+   if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
+@@ -7606,6 +7694,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     onEndReachedThreshold = 0.5,
+     onItemSizeChanged,
+     onMetricsChange,
++    onContentSizeCommit,
+     onLayout: onLayoutProp,
+     onLoad,
+     onMomentumScrollEnd,
+@@ -8106,6 +8195,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+   React3.useEffect(() => {
+     return () => {
++      // Release retired list ownership without waiting for another frame.
++      if (state.queuedMVCPRecalculate !== void 0) {
++        cancelAnimationFrame(state.queuedMVCPRecalculate);
++        state.queuedMVCPRecalculate = void 0;
++      }
+       if (state.queuedFullDrawDistancePrewarm !== void 0) {
+         cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
+         state.queuedFullDrawDistancePrewarm = void 0;
+       }
+@@ -8165,6 +8259,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+       onInternalScrollEnd: fns.onScrollEnd,
+       onLayout,
+       onLayoutFooter,
++      onContentSizeCommit,
+       onMomentumScrollEnd: fns.onMomentumScrollEnd,
+       onScroll: onScrollHandler,
+       recycleItems,
+diff --git a/react-native.web.mjs b/react-native.web.mjs
+index 6b2d9011f6c5e85664eca195de538617fe7d9dee..044e17af09933707ac652fb2f74858d30c0dbc79 100644
+--- a/react-native.web.mjs
++++ b/react-native.web.mjs
+@@ -3113,6 +3113,19 @@ function handleInitialScrollDataChange(ctx, options) {
+   advanceCurrentInitialScrollSession(ctx);
+ }
+ 
++// Retire only absent IDs, after the structural layout has reconciled its old anchor.
++// The layout pass owns totals/positions; deleting metadata must not adjust totals or averages.
++function retireAbsentItemSizes(state, currentKeys = state.indexByKey) {
++  if (state.retiredSizeDataChangeEpoch === state.dataChangeEpoch) return;
++  for (const key of state.sizes.keys()) {
++    if (!currentKeys.has(key)) state.sizes.delete(key);
++  }
++  for (const key of state.sizesKnown.keys()) {
++    if (!currentKeys.has(key)) state.sizesKnown.delete(key);
++  }
++  state.retiredSizeDataChangeEpoch = state.dataChangeEpoch;
++}
++
+ // src/core/resetLayoutCachesForDataChange.ts
+ function resetLayoutCachesForDataChange(state) {
+   state.indexByKey.clear();
+@@ -4302,6 +4315,9 @@ function calculateItemsInView(ctx, params = {}) {
+     const scrollBeforeMVCP = state.scroll;
+     const scrollAdjustPendingBeforeMVCP = (_f = peek$(ctx, "scrollAdjustPending")) != null ? _f : 0;
+     checkMVCP == null ? void 0 : checkMVCP();
++    if (dataChanged) {
++      retireAbsentItemSizes(state);
++    }
+     const didMVCPAdjustScroll = !!checkMVCP && (state.scroll !== scrollBeforeMVCP || ((_g = peek$(ctx, "scrollAdjustPending")) != null ? _g : 0) !== scrollAdjustPendingBeforeMVCP);
+     if (didMVCPAdjustScroll) {
+       updateScroll2(state.scroll);
+@@ -4314,7 +4330,7 @@ function calculateItemsInView(ctx, params = {}) {
+     let startBufferedId = null;
+     let endBuffered = null;
+     let loopStart = (_h = suppressInitialScrollSideEffects ? bootstrapInitialScrollState == null ? void 0 : bootstrapInitialScrollState.targetIndexSeed : void 0) != null ? _h : !dataChanged && startBufferedIdOrig ? indexByKey.get(startBufferedIdOrig) || 0 : 0;
+-    for (let i = loopStart; i >= 0; i--) {
++    for (let i = loopStart; i >= 0 && i < data.length; i--) {
+       const id = (_i = idCache[i]) != null ? _i : getId(state, i);
+       const top = positions[i];
+       const size = (_j = sizes.get(id)) != null ? _j : getItemSize(ctx, id, i, data[i]);
+@@ -4729,7 +4745,23 @@ function flushItemSizeUpdates(ctx, result) {
+     doMaintainScrollAtEnd(ctx);
+   }
+ }
++// Check current data as well as the index: child layout effects may run before
++// the parent's structural reconciliation rebuilds indexByKey.
++function isCurrentItemMeasurement(ctx, measurement) {
++  const { state } = ctx;
++  const { itemKey, containerId, generation } = measurement;
++  const index = state.indexByKey.get(itemKey);
++  const { data, keyExtractor } = state.props;
++  if (index === void 0 || index >= data.length || keyExtractor(data[index], index) !== itemKey) return false;
++  return containerId === void 0 || (
++    peek$(ctx, `containerItemKey${containerId}`) === itemKey &&
++    (generation === void 0 || (state.containerItemGenerations[containerId] || 0) === generation)
++  );
++}
+ function updateItemSizes(ctx, measurement) {
++  if (measurement.containerId !== void 0 && measurement.generation === void 0) {
++    measurement = { ...measurement, generation: ctx.state.containerItemGenerations[measurement.containerId] || 0 };
++  }
+   if (activeItemSizeBatches) {
+     const measurements = activeItemSizeBatches.get(ctx);
+     if (measurements) {
+@@ -4746,8 +4778,7 @@ function updateItemSizesBatch(ctx, measurements) {
+   const state = ctx.state;
+   const result = {};
+   for (const measurement of measurements) {
+-    const ownsMeasuredItem = measurement.containerId === void 0 || peek$(ctx, `containerItemKey${measurement.containerId}`) === measurement.itemKey;
+-    if (ownsMeasuredItem) {
++    if (isCurrentItemMeasurement(ctx, measurement)) {
+       const index = state.indexByKey.get(measurement.itemKey);
+       const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
+       const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
+@@ -4898,6 +4929,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+       setContainerLayoutBaseline(element, rect);
+       measurements.push({
+         containerId,
++        generation: ctx.state.containerItemGenerations[containerId] || 0,
+         itemKey,
+         size: { height: rect.height, width: rect.width }
+       });
+@@ -5248,11 +5280,15 @@ function createResizeObserver(element, callback) {
+ }
+ 
+ // src/hooks/useOnLayoutSync.tsx
++// Keep assignment history across unobserve/reobserve of a recycled DOM node.
++// Weak keys release the history with the node; this is not an item-ID cache.
++var resizeObserverLayoutGenerations = /* @__PURE__ */ new WeakMap();
+ function useOnLayoutSync({
+   ref,
+   measureInLayoutEffect = true,
+   onLayoutProp,
+   onLayoutChange,
++  getLayoutGeneration,
+   webLayoutResync
+ }, deps) {
+   useLayoutEffect(() => {
+@@ -5263,6 +5299,16 @@ function useOnLayoutSync({
+     if (!element) {
+       return;
+     }
++    const generation = getLayoutGeneration == null ? void 0 : getLayoutGeneration();
++    if (generation !== void 0) {
++      const previousAssignment = resizeObserverLayoutGenerations.get(element);
++      resizeObserverLayoutGenerations.set(element, {
++        generation,
++        needsFreshLayout: !!previousAssignment && (
++          previousAssignment.needsFreshLayout || previousAssignment.generation !== generation
++        )
++      });
++    }
+     const emit = (layout, fromLayoutEffect) => {
+       if (layout.height === 0 && layout.width === 0) {
+         return;
+@@ -5280,12 +5326,23 @@ function useOnLayoutSync({
+       var _a4;
+       const target = entry.target instanceof HTMLElement ? entry.target : void 0;
+       const borderBoxSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
+-      const rectObserved = borderBoxSize ? {
++      // A queued entry can belong to the node's previous item assignment.
++      // After that one ambiguous delivery, preserve the ordinary borderBox path.
++      const generation = getLayoutGeneration == null ? void 0 : getLayoutGeneration();
++      const assignment = generation === void 0 ? void 0 : resizeObserverLayoutGenerations.get(element);
++      const needsFreshLayout = assignment && (
++        assignment.needsFreshLayout || assignment.generation !== generation
++      );
++      const rectObserved = needsFreshLayout ? element.getBoundingClientRect() : borderBoxSize ? {
+         height: borderBoxSize.blockSize,
+         left: entry.contentRect.left,
+         top: entry.contentRect.top,
+         width: borderBoxSize.inlineSize
+       } : (_a4 = target == null ? void 0 : target.getBoundingClientRect()) != null ? _a4 : entry.contentRect;
++      if (assignment) {
++        assignment.generation = generation;
++        assignment.needsFreshLayout = false;
++      }
+       const previousRect = prevRect != null ? prevRect : getContainerLayoutBaseline(element);
+       const didSizeChange = previousRect === void 0 || rectObserved.width !== previousRect.width || rectObserved.height !== previousRect.height;
+       prevRect = rectObserved;
+@@ -5333,6 +5390,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
+ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const listState = ctx.state;
+   const currentItemKey = state.itemKey;
++  const generation = listState.containerItemGenerations[containerId] || 0;
++  const ownership = { containerId, generation, itemKey: currentItemKey };
++  if (!isCurrentItemMeasurement(ctx, ownership)) return;
+   state.didLayout = true;
+   let layout = rectangle;
+   const axis = state.horizontal ? "width" : "height";
+@@ -5341,9 +5401,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const coreKnownSize = listState.sizesKnown.get(currentItemKey);
+   const previousSize = coreKnownSize ;
+   const applyLayout = () => {
++    // Also runs after deferred shrink confirmation / asynchronous native measure.
++    if (!isCurrentItemMeasurement(ctx, ownership)) return;
+     state.lastSize = layout;
+     updateItemSizes(ctx, {
+       containerId,
++      generation,
+       itemKey: currentItemKey,
+       size: layout
+     });
+@@ -5352,7 +5415,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   if (shouldDeferWebShrinkLayoutUpdate) {
+     scheduleWebShrinkMeasurement(state, () => {
+       var _a4;
+-      if (state.itemKey === currentItemKey) {
++      if (state.itemKey === currentItemKey && isCurrentItemMeasurement(ctx, ownership)) {
+         const element = ref.current;
+         const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
+         if (rect) {
+@@ -5382,14 +5445,19 @@ function useContainerMeasurement({
+     horizontal,
+     itemKey
+   });
++  if (stateRef.current.itemKey !== itemKey) {
++    cancelWebShrinkMeasurement(stateRef.current);
++    stateRef.current = { didLayout: false, horizontal, itemKey };
++  }
+   stateRef.current.horizontal = horizontal;
+-  stateRef.current.itemKey = itemKey;
++  const measurementState = stateRef.current;
+   const [layoutRenderCount, forceLayoutRender] = useState(0);
+   const onLayoutChange = useCallback(
+     (rectangle) => {
+-      processContainerLayout({ containerId, ctx, rectangle, ref, state: stateRef.current });
++      if (stateRef.current !== measurementState) return;
++      processContainerLayout({ containerId, ctx, rectangle, ref, state: measurementState });
+     },
+-    [containerId, ctx, ref]
++    [containerId, ctx, ref, measurementState]
+   );
+   const triggerLayout = useCallback(() => {
+     {
+@@ -5413,6 +5481,7 @@ function useContainerMeasurement({
+   const { onLayout } = useOnLayoutSync(
+     {
+       measureInLayoutEffect: !IsNewArchitecture,
++      getLayoutGeneration: () => itemKey === void 0 ? void 0 : ctx.state.containerItemGenerations[containerId] || 0,
+       onLayoutChange,
+       ref,
+       webLayoutResync: () => isInMVCPActiveMode(ctx.state)
+@@ -5706,13 +5775,23 @@ function useDOMOrder(ref) {
+ }
+ 
+ // src/components/Containers.tsx
+-var ContainersInner = typedMemo(function ContainersInner2({ horizontal, numColumns, children }) {
++var ContainersInner = typedMemo(function ContainersInner2({ horizontal, numColumns, children, onContentSizeCommit }) {
+   const ref = useRef(null);
+   const ctx = useStateContext();
+   const columnWrapperStyle = ctx.columnWrapperStyle;
+   const isHorizontalRTLList = isHorizontalRTL(ctx.state);
+   const [otherAxisSize, readyToRender, totalSize] = useArr$(["otherAxisSize", "readyToRender", "totalSize"]);
+   useDOMOrder(ref);
++  // This signal belongs to the DOM sizer commit, not the earlier size-model publication.
++  useLayoutEffect(() => {
++    const element = ref.current;
++    if (element && element.isConnected && typeof totalSize === "number") {
++      onContentSizeCommit == null ? void 0 : onContentSizeCommit({
++        size: totalSize,
++        horizontal: !!horizontal
++      });
++    }
++  }, [onContentSizeCommit, totalSize, horizontal, otherAxisSize, readyToRender]);
+   const style = horizontal ? {
+     direction: isHorizontalRTLList ? "ltr" : void 0,
+     flexShrink: 0,
+@@ -5748,7 +5827,8 @@ var Containers = typedMemo(function Containers2({
+   recycleItems,
+   ItemSeparatorComponent,
+   getRenderedItem: getRenderedItem2,
+-  stickyHeaderConfig
++  stickyHeaderConfig,
++  onContentSizeCommit
+ }) {
+   const [numContainersPooled, numColumns] = useArr$(["numContainersPooled", "numColumns"]);
+   const containers = [];
+@@ -5768,7 +5848,7 @@ var Containers = typedMemo(function Containers2({
+       )
+     );
+   }
+-  return /* @__PURE__ */ React3.createElement(ContainersInner, { horizontal, numColumns }, containers);
++  return /* @__PURE__ */ React3.createElement(ContainersInner, { horizontal, numColumns, onContentSizeCommit }, containers);
+ });
+ 
+ // src/platform/StyleSheet.tsx
+@@ -6492,6 +6572,7 @@ var ListComponent = typedMemo(function ListComponent2({
+   alignItemsAtEnd: _alignItemsAtEnd,
+   onScroll: onScroll2,
+   onLayout,
++  onContentSizeCommit,
+   ListHeaderComponent,
+   ListHeaderComponentStyle,
+   ListFooterComponent,
+@@ -6590,6 +6671,7 @@ var ListComponent = typedMemo(function ListComponent2({
+         getRenderedItem: getRenderedItem2,
+         horizontal,
+         ItemSeparatorComponent,
++        onContentSizeCommit,
+         recycleItems,
+         stickyHeaderConfig
+       }
+@@ -6678,6 +6760,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+     state.scrollForNextCalculateItemsInView = void 0;
+   }
+   calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
++  // An unmeasured/hidden list can skip layout. Preserve its old positions for
++  // later anchor capture, but retire absent metadata at this committed revision.
++  if (state.retiredSizeDataChangeEpoch !== state.dataChangeEpoch) {
++    const currentKeys = new Set(dataProp.map((item, index) => state.props.keyExtractor(item, index)));
++    retireAbsentItemSizes(state, currentKeys);
++  }
+   const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
+   const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
+   if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
+@@ -7585,6 +7673,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     onEndReachedThreshold = 0.5,
+     onItemSizeChanged,
+     onMetricsChange,
++    onContentSizeCommit,
+     onLayout: onLayoutProp,
+     onLoad,
+     onMomentumScrollEnd,
+@@ -8085,6 +8174,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+   useEffect(() => {
+     return () => {
++      // Release retired list ownership without waiting for another frame.
++      if (state.queuedMVCPRecalculate !== void 0) {
++        cancelAnimationFrame(state.queuedMVCPRecalculate);
++        state.queuedMVCPRecalculate = void 0;
++      }
+       if (state.queuedFullDrawDistancePrewarm !== void 0) {
+         cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
+         state.queuedFullDrawDistancePrewarm = void 0;
+       }
+@@ -8144,6 +8238,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+       onInternalScrollEnd: fns.onScrollEnd,
+       onLayout,
+       onLayoutFooter,
++      onContentSizeCommit,
+       onMomentumScrollEnd: fns.onMomentumScrollEnd,
+       onScroll: onScrollHandler,
+       recycleItems,
+diff --git a/react.d.ts b/react.d.ts
+index db7841d8cf328b46f70f5b4b4754bc58d1a33335..23ba090d415a61f5b7accb370098c34fa4bcb6cb 100644
+--- a/react.d.ts
++++ b/react.d.ts
+@@ -348,6 +348,16 @@ interface LegendListSpecificProps<ItemT, TItemType extends string | undefined> {
+         itemKey: string;
+         itemData: ItemT;
+     }) => void;
++    /**
++     * React/web only: called in a layout effect after the connected row-stack
++     * DOM sizer commits its rendered size, axis, cross-axis size or readiness,
++     * and when this callback is replaced. The size excludes headers, footers
++     * and padding. Native renderers consume this option without invoking it.
++     */
++    onContentSizeCommit?: (info: {
++        size: number;
++        horizontal: boolean;
++    }) => void;
+     /**
+      * Called after the initial render work completes.
+      */
+diff --git a/react.js b/react.js
+index 544cca82136ab14cbeec0a01499f554bd4eca75f..13f7f30b6fab902b9d7c2fb2aa054a0306022bb4 100644
+--- a/react.js
++++ b/react.js
+@@ -3134,6 +3134,19 @@ function handleInitialScrollDataChange(ctx, options) {
+   advanceCurrentInitialScrollSession(ctx);
+ }
+ 
++// Retire only absent IDs, after the structural layout has reconciled its old anchor.
++// The layout pass owns totals/positions; deleting metadata must not adjust totals or averages.
++function retireAbsentItemSizes(state, currentKeys = state.indexByKey) {
++  if (state.retiredSizeDataChangeEpoch === state.dataChangeEpoch) return;
++  for (const key of state.sizes.keys()) {
++    if (!currentKeys.has(key)) state.sizes.delete(key);
++  }
++  for (const key of state.sizesKnown.keys()) {
++    if (!currentKeys.has(key)) state.sizesKnown.delete(key);
++  }
++  state.retiredSizeDataChangeEpoch = state.dataChangeEpoch;
++}
++
+ // src/core/resetLayoutCachesForDataChange.ts
+ function resetLayoutCachesForDataChange(state) {
+   state.indexByKey.clear();
+@@ -4323,6 +4336,9 @@ function calculateItemsInView(ctx, params = {}) {
+     const scrollBeforeMVCP = state.scroll;
+     const scrollAdjustPendingBeforeMVCP = (_f = peek$(ctx, "scrollAdjustPending")) != null ? _f : 0;
+     checkMVCP == null ? void 0 : checkMVCP();
++    if (dataChanged) {
++      retireAbsentItemSizes(state);
++    }
+     const didMVCPAdjustScroll = !!checkMVCP && (state.scroll !== scrollBeforeMVCP || ((_g = peek$(ctx, "scrollAdjustPending")) != null ? _g : 0) !== scrollAdjustPendingBeforeMVCP);
+     if (didMVCPAdjustScroll) {
+       updateScroll2(state.scroll);
+@@ -4335,7 +4351,7 @@ function calculateItemsInView(ctx, params = {}) {
+     let startBufferedId = null;
+     let endBuffered = null;
+     let loopStart = (_h = suppressInitialScrollSideEffects ? bootstrapInitialScrollState == null ? void 0 : bootstrapInitialScrollState.targetIndexSeed : void 0) != null ? _h : !dataChanged && startBufferedIdOrig ? indexByKey.get(startBufferedIdOrig) || 0 : 0;
+-    for (let i = loopStart; i >= 0; i--) {
++    for (let i = loopStart; i >= 0 && i < data.length; i--) {
+       const id = (_i = idCache[i]) != null ? _i : getId(state, i);
+       const top = positions[i];
+       const size = (_j = sizes.get(id)) != null ? _j : getItemSize(ctx, id, i, data[i]);
+@@ -4750,7 +4766,23 @@ function flushItemSizeUpdates(ctx, result) {
+     doMaintainScrollAtEnd(ctx);
+   }
+ }
++// Check current data as well as the index: child layout effects may run before
++// the parent's structural reconciliation rebuilds indexByKey.
++function isCurrentItemMeasurement(ctx, measurement) {
++  const { state } = ctx;
++  const { itemKey, containerId, generation } = measurement;
++  const index = state.indexByKey.get(itemKey);
++  const { data, keyExtractor } = state.props;
++  if (index === void 0 || index >= data.length || keyExtractor(data[index], index) !== itemKey) return false;
++  return containerId === void 0 || (
++    peek$(ctx, `containerItemKey${containerId}`) === itemKey &&
++    (generation === void 0 || (state.containerItemGenerations[containerId] || 0) === generation)
++  );
++}
+ function updateItemSizes(ctx, measurement) {
++  if (measurement.containerId !== void 0 && measurement.generation === void 0) {
++    measurement = { ...measurement, generation: ctx.state.containerItemGenerations[measurement.containerId] || 0 };
++  }
+   if (activeItemSizeBatches) {
+     const measurements = activeItemSizeBatches.get(ctx);
+     if (measurements) {
+@@ -4767,8 +4799,7 @@ function updateItemSizesBatch(ctx, measurements) {
+   const state = ctx.state;
+   const result = {};
+   for (const measurement of measurements) {
+-    const ownsMeasuredItem = measurement.containerId === void 0 || peek$(ctx, `containerItemKey${measurement.containerId}`) === measurement.itemKey;
+-    if (ownsMeasuredItem) {
++    if (isCurrentItemMeasurement(ctx, measurement)) {
+       const index = state.indexByKey.get(measurement.itemKey);
+       const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
+       const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
+@@ -4919,6 +4950,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+       setContainerLayoutBaseline(element, rect);
+       measurements.push({
+         containerId,
++        generation: ctx.state.containerItemGenerations[containerId] || 0,
+         itemKey,
+         size: { height: rect.height, width: rect.width }
+       });
+@@ -5269,11 +5301,15 @@ function createResizeObserver(element, callback) {
+ }
+ 
+ // src/hooks/useOnLayoutSync.tsx
++// Keep assignment history across unobserve/reobserve of a recycled DOM node.
++// Weak keys release the history with the node; this is not an item-ID cache.
++var resizeObserverLayoutGenerations = /* @__PURE__ */ new WeakMap();
+ function useOnLayoutSync({
+   ref,
+   measureInLayoutEffect = true,
+   onLayoutProp,
+   onLayoutChange,
++  getLayoutGeneration,
+   webLayoutResync
+ }, deps) {
+   React3.useLayoutEffect(() => {
+@@ -5284,6 +5320,16 @@ function useOnLayoutSync({
+     if (!element) {
+       return;
+     }
++    const generation = getLayoutGeneration == null ? void 0 : getLayoutGeneration();
++    if (generation !== void 0) {
++      const previousAssignment = resizeObserverLayoutGenerations.get(element);
++      resizeObserverLayoutGenerations.set(element, {
++        generation,
++        needsFreshLayout: !!previousAssignment && (
++          previousAssignment.needsFreshLayout || previousAssignment.generation !== generation
++        )
++      });
++    }
+     const emit = (layout, fromLayoutEffect) => {
+       if (layout.height === 0 && layout.width === 0) {
+         return;
+@@ -5301,12 +5347,23 @@ function useOnLayoutSync({
+       var _a4;
+       const target = entry.target instanceof HTMLElement ? entry.target : void 0;
+       const borderBoxSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
+-      const rectObserved = borderBoxSize ? {
++      // A queued entry can belong to the node's previous item assignment.
++      // After that one ambiguous delivery, preserve the ordinary borderBox path.
++      const generation = getLayoutGeneration == null ? void 0 : getLayoutGeneration();
++      const assignment = generation === void 0 ? void 0 : resizeObserverLayoutGenerations.get(element);
++      const needsFreshLayout = assignment && (
++        assignment.needsFreshLayout || assignment.generation !== generation
++      );
++      const rectObserved = needsFreshLayout ? element.getBoundingClientRect() : borderBoxSize ? {
+         height: borderBoxSize.blockSize,
+         left: entry.contentRect.left,
+         top: entry.contentRect.top,
+         width: borderBoxSize.inlineSize
+       } : (_a4 = target == null ? void 0 : target.getBoundingClientRect()) != null ? _a4 : entry.contentRect;
++      if (assignment) {
++        assignment.generation = generation;
++        assignment.needsFreshLayout = false;
++      }
+       const previousRect = prevRect != null ? prevRect : getContainerLayoutBaseline(element);
+       const didSizeChange = previousRect === void 0 || rectObserved.width !== previousRect.width || rectObserved.height !== previousRect.height;
+       prevRect = rectObserved;
+@@ -5354,6 +5411,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
+ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const listState = ctx.state;
+   const currentItemKey = state.itemKey;
++  const generation = listState.containerItemGenerations[containerId] || 0;
++  const ownership = { containerId, generation, itemKey: currentItemKey };
++  if (!isCurrentItemMeasurement(ctx, ownership)) return;
+   state.didLayout = true;
+   let layout = rectangle;
+   const axis = state.horizontal ? "width" : "height";
+@@ -5362,9 +5422,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const coreKnownSize = listState.sizesKnown.get(currentItemKey);
+   const previousSize = coreKnownSize ;
+   const applyLayout = () => {
++    // Also runs after deferred shrink confirmation / asynchronous native measure.
++    if (!isCurrentItemMeasurement(ctx, ownership)) return;
+     state.lastSize = layout;
+     updateItemSizes(ctx, {
+       containerId,
++      generation,
+       itemKey: currentItemKey,
+       size: layout
+     });
+@@ -5373,7 +5436,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   if (shouldDeferWebShrinkLayoutUpdate) {
+     scheduleWebShrinkMeasurement(state, () => {
+       var _a4;
+-      if (state.itemKey === currentItemKey) {
++      if (state.itemKey === currentItemKey && isCurrentItemMeasurement(ctx, ownership)) {
+         const element = ref.current;
+         const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
+         if (rect) {
+@@ -5403,14 +5466,19 @@ function useContainerMeasurement({
+     horizontal,
+     itemKey
+   });
++  if (stateRef.current.itemKey !== itemKey) {
++    cancelWebShrinkMeasurement(stateRef.current);
++    stateRef.current = { didLayout: false, horizontal, itemKey };
++  }
+   stateRef.current.horizontal = horizontal;
+-  stateRef.current.itemKey = itemKey;
++  const measurementState = stateRef.current;
+   const [layoutRenderCount, forceLayoutRender] = React3.useState(0);
+   const onLayoutChange = React3.useCallback(
+     (rectangle) => {
+-      processContainerLayout({ containerId, ctx, rectangle, ref, state: stateRef.current });
++      if (stateRef.current !== measurementState) return;
++      processContainerLayout({ containerId, ctx, rectangle, ref, state: measurementState });
+     },
+-    [containerId, ctx, ref]
++    [containerId, ctx, ref, measurementState]
+   );
+   const triggerLayout = React3.useCallback(() => {
+     {
+@@ -5434,6 +5502,7 @@ function useContainerMeasurement({
+   const { onLayout } = useOnLayoutSync(
+     {
+       measureInLayoutEffect: !IsNewArchitecture,
++      getLayoutGeneration: () => itemKey === void 0 ? void 0 : ctx.state.containerItemGenerations[containerId] || 0,
+       onLayoutChange,
+       ref,
+       webLayoutResync: () => isInMVCPActiveMode(ctx.state)
+@@ -5727,13 +5796,23 @@ function useDOMOrder(ref) {
+ }
+ 
+ // src/components/Containers.tsx
+-var ContainersInner = typedMemo(function ContainersInner2({ horizontal, numColumns, children }) {
++var ContainersInner = typedMemo(function ContainersInner2({ horizontal, numColumns, children, onContentSizeCommit }) {
+   const ref = React3.useRef(null);
+   const ctx = useStateContext();
+   const columnWrapperStyle = ctx.columnWrapperStyle;
+   const isHorizontalRTLList = isHorizontalRTL(ctx.state);
+   const [otherAxisSize, readyToRender, totalSize] = useArr$(["otherAxisSize", "readyToRender", "totalSize"]);
+   useDOMOrder(ref);
++  // This signal belongs to the DOM sizer commit, not the earlier size-model publication.
++  React3.useLayoutEffect(() => {
++    const element = ref.current;
++    if (element && element.isConnected && typeof totalSize === "number") {
++      onContentSizeCommit == null ? void 0 : onContentSizeCommit({
++        size: totalSize,
++        horizontal: !!horizontal
++      });
++    }
++  }, [onContentSizeCommit, totalSize, horizontal, otherAxisSize, readyToRender]);
+   const style = horizontal ? {
+     direction: isHorizontalRTLList ? "ltr" : void 0,
+     flexShrink: 0,
+@@ -5769,7 +5848,8 @@ var Containers = typedMemo(function Containers2({
+   recycleItems,
+   ItemSeparatorComponent,
+   getRenderedItem: getRenderedItem2,
+-  stickyHeaderConfig
++  stickyHeaderConfig,
++  onContentSizeCommit
+ }) {
+   const [numContainersPooled, numColumns] = useArr$(["numContainersPooled", "numColumns"]);
+   const containers = [];
+@@ -5789,7 +5869,7 @@ var Containers = typedMemo(function Containers2({
+       )
+     );
+   }
+-  return /* @__PURE__ */ React3__namespace.createElement(ContainersInner, { horizontal, numColumns }, containers);
++  return /* @__PURE__ */ React3__namespace.createElement(ContainersInner, { horizontal, numColumns, onContentSizeCommit }, containers);
+ });
+ 
+ // src/platform/StyleSheet.tsx
+@@ -6513,6 +6593,7 @@ var ListComponent = typedMemo(function ListComponent2({
+   alignItemsAtEnd: _alignItemsAtEnd,
+   onScroll: onScroll2,
+   onLayout,
++  onContentSizeCommit,
+   ListHeaderComponent,
+   ListHeaderComponentStyle,
+   ListFooterComponent,
+@@ -6611,6 +6692,7 @@ var ListComponent = typedMemo(function ListComponent2({
+         getRenderedItem: getRenderedItem2,
+         horizontal,
+         ItemSeparatorComponent,
++        onContentSizeCommit,
+         recycleItems,
+         stickyHeaderConfig
+       }
+@@ -6699,6 +6781,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+     state.scrollForNextCalculateItemsInView = void 0;
+   }
+   calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
++  // An unmeasured/hidden list can skip layout. Preserve its old positions for
++  // later anchor capture, but retire absent metadata at this committed revision.
++  if (state.retiredSizeDataChangeEpoch !== state.dataChangeEpoch) {
++    const currentKeys = new Set(dataProp.map((item, index) => state.props.keyExtractor(item, index)));
++    retireAbsentItemSizes(state, currentKeys);
++  }
+   const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
+   const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
+   if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
+@@ -7606,6 +7694,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     onEndReachedThreshold = 0.5,
+     onItemSizeChanged,
+     onMetricsChange,
++    onContentSizeCommit,
+     onLayout: onLayoutProp,
+     onLoad,
+     onMomentumScrollEnd,
+@@ -8106,6 +8195,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+   React3.useEffect(() => {
+     return () => {
++      // Release retired list ownership without waiting for another frame.
++      if (state.queuedMVCPRecalculate !== void 0) {
++        cancelAnimationFrame(state.queuedMVCPRecalculate);
++        state.queuedMVCPRecalculate = void 0;
++      }
+       if (state.queuedFullDrawDistancePrewarm !== void 0) {
+         cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
+         state.queuedFullDrawDistancePrewarm = void 0;
+       }
+@@ -8165,6 +8259,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+       onInternalScrollEnd: fns.onScrollEnd,
+       onLayout,
+       onLayoutFooter,
++      onContentSizeCommit,
+       onMomentumScrollEnd: fns.onMomentumScrollEnd,
+       onScroll: onScrollHandler,
+       recycleItems,
+diff --git a/react.mjs b/react.mjs
+index 6b2d9011f6c5e85664eca195de538617fe7d9dee..044e17af09933707ac652fb2f74858d30c0dbc79 100644
+--- a/react.mjs
++++ b/react.mjs
+@@ -3113,6 +3113,19 @@ function handleInitialScrollDataChange(ctx, options) {
+   advanceCurrentInitialScrollSession(ctx);
+ }
+ 
++// Retire only absent IDs, after the structural layout has reconciled its old anchor.
++// The layout pass owns totals/positions; deleting metadata must not adjust totals or averages.
++function retireAbsentItemSizes(state, currentKeys = state.indexByKey) {
++  if (state.retiredSizeDataChangeEpoch === state.dataChangeEpoch) return;
++  for (const key of state.sizes.keys()) {
++    if (!currentKeys.has(key)) state.sizes.delete(key);
++  }
++  for (const key of state.sizesKnown.keys()) {
++    if (!currentKeys.has(key)) state.sizesKnown.delete(key);
++  }
++  state.retiredSizeDataChangeEpoch = state.dataChangeEpoch;
++}
++
+ // src/core/resetLayoutCachesForDataChange.ts
+ function resetLayoutCachesForDataChange(state) {
+   state.indexByKey.clear();
+@@ -4302,6 +4315,9 @@ function calculateItemsInView(ctx, params = {}) {
+     const scrollBeforeMVCP = state.scroll;
+     const scrollAdjustPendingBeforeMVCP = (_f = peek$(ctx, "scrollAdjustPending")) != null ? _f : 0;
+     checkMVCP == null ? void 0 : checkMVCP();
++    if (dataChanged) {
++      retireAbsentItemSizes(state);
++    }
+     const didMVCPAdjustScroll = !!checkMVCP && (state.scroll !== scrollBeforeMVCP || ((_g = peek$(ctx, "scrollAdjustPending")) != null ? _g : 0) !== scrollAdjustPendingBeforeMVCP);
+     if (didMVCPAdjustScroll) {
+       updateScroll2(state.scroll);
+@@ -4314,7 +4330,7 @@ function calculateItemsInView(ctx, params = {}) {
+     let startBufferedId = null;
+     let endBuffered = null;
+     let loopStart = (_h = suppressInitialScrollSideEffects ? bootstrapInitialScrollState == null ? void 0 : bootstrapInitialScrollState.targetIndexSeed : void 0) != null ? _h : !dataChanged && startBufferedIdOrig ? indexByKey.get(startBufferedIdOrig) || 0 : 0;
+-    for (let i = loopStart; i >= 0; i--) {
++    for (let i = loopStart; i >= 0 && i < data.length; i--) {
+       const id = (_i = idCache[i]) != null ? _i : getId(state, i);
+       const top = positions[i];
+       const size = (_j = sizes.get(id)) != null ? _j : getItemSize(ctx, id, i, data[i]);
+@@ -4729,7 +4745,23 @@ function flushItemSizeUpdates(ctx, result) {
+     doMaintainScrollAtEnd(ctx);
+   }
+ }
++// Check current data as well as the index: child layout effects may run before
++// the parent's structural reconciliation rebuilds indexByKey.
++function isCurrentItemMeasurement(ctx, measurement) {
++  const { state } = ctx;
++  const { itemKey, containerId, generation } = measurement;
++  const index = state.indexByKey.get(itemKey);
++  const { data, keyExtractor } = state.props;
++  if (index === void 0 || index >= data.length || keyExtractor(data[index], index) !== itemKey) return false;
++  return containerId === void 0 || (
++    peek$(ctx, `containerItemKey${containerId}`) === itemKey &&
++    (generation === void 0 || (state.containerItemGenerations[containerId] || 0) === generation)
++  );
++}
+ function updateItemSizes(ctx, measurement) {
++  if (measurement.containerId !== void 0 && measurement.generation === void 0) {
++    measurement = { ...measurement, generation: ctx.state.containerItemGenerations[measurement.containerId] || 0 };
++  }
+   if (activeItemSizeBatches) {
+     const measurements = activeItemSizeBatches.get(ctx);
+     if (measurements) {
+@@ -4746,8 +4778,7 @@ function updateItemSizesBatch(ctx, measurements) {
+   const state = ctx.state;
+   const result = {};
+   for (const measurement of measurements) {
+-    const ownsMeasuredItem = measurement.containerId === void 0 || peek$(ctx, `containerItemKey${measurement.containerId}`) === measurement.itemKey;
+-    if (ownsMeasuredItem) {
++    if (isCurrentItemMeasurement(ctx, measurement)) {
+       const index = state.indexByKey.get(measurement.itemKey);
+       const itemData = index === void 0 ? void 0 : (_a3 = state.props.data) == null ? void 0 : _a3[index];
+       const metadata = measurement.containerId !== void 0 && index !== void 0 && itemData !== void 0 ? resolveContainerItemMetadata(state, measurement.containerId, index, itemData) : void 0;
+@@ -4898,6 +4929,7 @@ function measureContainersInLayoutEffect(ctx, targetContainerIds = null) {
+       setContainerLayoutBaseline(element, rect);
+       measurements.push({
+         containerId,
++        generation: ctx.state.containerItemGenerations[containerId] || 0,
+         itemKey,
+         size: { height: rect.height, width: rect.width }
+       });
+@@ -5248,11 +5280,15 @@ function createResizeObserver(element, callback) {
+ }
+ 
+ // src/hooks/useOnLayoutSync.tsx
++// Keep assignment history across unobserve/reobserve of a recycled DOM node.
++// Weak keys release the history with the node; this is not an item-ID cache.
++var resizeObserverLayoutGenerations = /* @__PURE__ */ new WeakMap();
+ function useOnLayoutSync({
+   ref,
+   measureInLayoutEffect = true,
+   onLayoutProp,
+   onLayoutChange,
++  getLayoutGeneration,
+   webLayoutResync
+ }, deps) {
+   useLayoutEffect(() => {
+@@ -5263,6 +5299,16 @@ function useOnLayoutSync({
+     if (!element) {
+       return;
+     }
++    const generation = getLayoutGeneration == null ? void 0 : getLayoutGeneration();
++    if (generation !== void 0) {
++      const previousAssignment = resizeObserverLayoutGenerations.get(element);
++      resizeObserverLayoutGenerations.set(element, {
++        generation,
++        needsFreshLayout: !!previousAssignment && (
++          previousAssignment.needsFreshLayout || previousAssignment.generation !== generation
++        )
++      });
++    }
+     const emit = (layout, fromLayoutEffect) => {
+       if (layout.height === 0 && layout.width === 0) {
+         return;
+@@ -5280,12 +5326,23 @@ function useOnLayoutSync({
+       var _a4;
+       const target = entry.target instanceof HTMLElement ? entry.target : void 0;
+       const borderBoxSize = Array.isArray(entry.borderBoxSize) ? entry.borderBoxSize[0] : entry.borderBoxSize;
+-      const rectObserved = borderBoxSize ? {
++      // A queued entry can belong to the node's previous item assignment.
++      // After that one ambiguous delivery, preserve the ordinary borderBox path.
++      const generation = getLayoutGeneration == null ? void 0 : getLayoutGeneration();
++      const assignment = generation === void 0 ? void 0 : resizeObserverLayoutGenerations.get(element);
++      const needsFreshLayout = assignment && (
++        assignment.needsFreshLayout || assignment.generation !== generation
++      );
++      const rectObserved = needsFreshLayout ? element.getBoundingClientRect() : borderBoxSize ? {
+         height: borderBoxSize.blockSize,
+         left: entry.contentRect.left,
+         top: entry.contentRect.top,
+         width: borderBoxSize.inlineSize
+       } : (_a4 = target == null ? void 0 : target.getBoundingClientRect()) != null ? _a4 : entry.contentRect;
++      if (assignment) {
++        assignment.generation = generation;
++        assignment.needsFreshLayout = false;
++      }
+       const previousRect = prevRect != null ? prevRect : getContainerLayoutBaseline(element);
+       const didSizeChange = previousRect === void 0 || rectObserved.width !== previousRect.width || rectObserved.height !== previousRect.height;
+       prevRect = rectObserved;
+@@ -5333,6 +5390,9 @@ function scheduleWebShrinkMeasurement(state, confirmMeasurement) {
+ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const listState = ctx.state;
+   const currentItemKey = state.itemKey;
++  const generation = listState.containerItemGenerations[containerId] || 0;
++  const ownership = { containerId, generation, itemKey: currentItemKey };
++  if (!isCurrentItemMeasurement(ctx, ownership)) return;
+   state.didLayout = true;
+   let layout = rectangle;
+   const axis = state.horizontal ? "width" : "height";
+@@ -5341,9 +5401,12 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   const coreKnownSize = listState.sizesKnown.get(currentItemKey);
+   const previousSize = coreKnownSize ;
+   const applyLayout = () => {
++    // Also runs after deferred shrink confirmation / asynchronous native measure.
++    if (!isCurrentItemMeasurement(ctx, ownership)) return;
+     state.lastSize = layout;
+     updateItemSizes(ctx, {
+       containerId,
++      generation,
+       itemKey: currentItemKey,
+       size: layout
+     });
+@@ -5352,7 +5415,7 @@ function processContainerLayout({ containerId, ctx, rectangle, ref, state }) {
+   if (shouldDeferWebShrinkLayoutUpdate) {
+     scheduleWebShrinkMeasurement(state, () => {
+       var _a4;
+-      if (state.itemKey === currentItemKey) {
++      if (state.itemKey === currentItemKey && isCurrentItemMeasurement(ctx, ownership)) {
+         const element = ref.current;
+         const rect = (_a4 = element == null ? void 0 : element.getBoundingClientRect) == null ? void 0 : _a4.call(element);
+         if (rect) {
+@@ -5382,14 +5445,19 @@ function useContainerMeasurement({
+     horizontal,
+     itemKey
+   });
++  if (stateRef.current.itemKey !== itemKey) {
++    cancelWebShrinkMeasurement(stateRef.current);
++    stateRef.current = { didLayout: false, horizontal, itemKey };
++  }
+   stateRef.current.horizontal = horizontal;
+-  stateRef.current.itemKey = itemKey;
++  const measurementState = stateRef.current;
+   const [layoutRenderCount, forceLayoutRender] = useState(0);
+   const onLayoutChange = useCallback(
+     (rectangle) => {
+-      processContainerLayout({ containerId, ctx, rectangle, ref, state: stateRef.current });
++      if (stateRef.current !== measurementState) return;
++      processContainerLayout({ containerId, ctx, rectangle, ref, state: measurementState });
+     },
+-    [containerId, ctx, ref]
++    [containerId, ctx, ref, measurementState]
+   );
+   const triggerLayout = useCallback(() => {
+     {
+@@ -5413,6 +5481,7 @@ function useContainerMeasurement({
+   const { onLayout } = useOnLayoutSync(
+     {
+       measureInLayoutEffect: !IsNewArchitecture,
++      getLayoutGeneration: () => itemKey === void 0 ? void 0 : ctx.state.containerItemGenerations[containerId] || 0,
+       onLayoutChange,
+       ref,
+       webLayoutResync: () => isInMVCPActiveMode(ctx.state)
+@@ -5706,13 +5775,23 @@ function useDOMOrder(ref) {
+ }
+ 
+ // src/components/Containers.tsx
+-var ContainersInner = typedMemo(function ContainersInner2({ horizontal, numColumns, children }) {
++var ContainersInner = typedMemo(function ContainersInner2({ horizontal, numColumns, children, onContentSizeCommit }) {
+   const ref = useRef(null);
+   const ctx = useStateContext();
+   const columnWrapperStyle = ctx.columnWrapperStyle;
+   const isHorizontalRTLList = isHorizontalRTL(ctx.state);
+   const [otherAxisSize, readyToRender, totalSize] = useArr$(["otherAxisSize", "readyToRender", "totalSize"]);
+   useDOMOrder(ref);
++  // This signal belongs to the DOM sizer commit, not the earlier size-model publication.
++  useLayoutEffect(() => {
++    const element = ref.current;
++    if (element && element.isConnected && typeof totalSize === "number") {
++      onContentSizeCommit == null ? void 0 : onContentSizeCommit({
++        size: totalSize,
++        horizontal: !!horizontal
++      });
++    }
++  }, [onContentSizeCommit, totalSize, horizontal, otherAxisSize, readyToRender]);
+   const style = horizontal ? {
+     direction: isHorizontalRTLList ? "ltr" : void 0,
+     flexShrink: 0,
+@@ -5748,7 +5827,8 @@ var Containers = typedMemo(function Containers2({
+   recycleItems,
+   ItemSeparatorComponent,
+   getRenderedItem: getRenderedItem2,
+-  stickyHeaderConfig
++  stickyHeaderConfig,
++  onContentSizeCommit
+ }) {
+   const [numContainersPooled, numColumns] = useArr$(["numContainersPooled", "numColumns"]);
+   const containers = [];
+@@ -5768,7 +5848,7 @@ var Containers = typedMemo(function Containers2({
+       )
+     );
+   }
+-  return /* @__PURE__ */ React3.createElement(ContainersInner, { horizontal, numColumns }, containers);
++  return /* @__PURE__ */ React3.createElement(ContainersInner, { horizontal, numColumns, onContentSizeCommit }, containers);
+ });
+ 
+ // src/platform/StyleSheet.tsx
+@@ -6492,6 +6572,7 @@ var ListComponent = typedMemo(function ListComponent2({
+   alignItemsAtEnd: _alignItemsAtEnd,
+   onScroll: onScroll2,
+   onLayout,
++  onContentSizeCommit,
+   ListHeaderComponent,
+   ListHeaderComponentStyle,
+   ListFooterComponent,
+@@ -6590,6 +6671,7 @@ var ListComponent = typedMemo(function ListComponent2({
+         getRenderedItem: getRenderedItem2,
+         horizontal,
+         ItemSeparatorComponent,
++        onContentSizeCommit,
+         recycleItems,
+         stickyHeaderConfig
+       }
+@@ -6678,6 +6760,12 @@ function checkResetContainers(ctx, dataProp, { didColumnsChange = false } = {})
+     state.scrollForNextCalculateItemsInView = void 0;
+   }
+   calculateItemsInView(ctx, { dataChanged: true, doMVCP: true });
++  // An unmeasured/hidden list can skip layout. Preserve its old positions for
++  // later anchor capture, but retire absent metadata at this committed revision.
++  if (state.retiredSizeDataChangeEpoch !== state.dataChangeEpoch) {
++    const currentKeys = new Set(dataProp.map((item, index) => state.props.keyExtractor(item, index)));
++    retireAbsentItemSizes(state, currentKeys);
++  }
+   const shouldMaintainScrollAtEnd = !didColumnsChange && (maintainScrollAtEnd == null ? void 0 : maintainScrollAtEnd.onDataChange);
+   const didMaintainScrollAtEnd = shouldMaintainScrollAtEnd && doMaintainScrollAtEnd(ctx);
+   if (!didMaintainScrollAtEnd && previousData && dataProp.length > previousData.length) {
+@@ -7585,6 +7673,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     onEndReachedThreshold = 0.5,
+     onItemSizeChanged,
+     onMetricsChange,
++    onContentSizeCommit,
+     onLayout: onLayoutProp,
+     onLoad,
+     onMomentumScrollEnd,
+@@ -8085,6 +8174,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+   useEffect(() => {
+     return () => {
++      // Release retired list ownership without waiting for another frame.
++      if (state.queuedMVCPRecalculate !== void 0) {
++        cancelAnimationFrame(state.queuedMVCPRecalculate);
++        state.queuedMVCPRecalculate = void 0;
++      }
+       if (state.queuedFullDrawDistancePrewarm !== void 0) {
+         cancelAnimationFrame(state.queuedFullDrawDistancePrewarm);
+         state.queuedFullDrawDistancePrewarm = void 0;
+       }
+@@ -8144,6 +8238,7 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+       onInternalScrollEnd: fns.onScrollEnd,
+       onLayout,
+       onLayoutFooter,
++      onContentSizeCommit,
+       onMomentumScrollEnd: fns.onMomentumScrollEnd,
+       onScroll: onScrollHandler,
+       recycleItems,

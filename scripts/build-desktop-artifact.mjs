@@ -41,7 +41,6 @@ const { supportEmail } = requireFromHere("../branding/contact.json");
 // Runtime externals — packages tsdown does NOT inline into dist/main/*.cjs.
 // Regenerate with `node scripts/scan-runtime-externals.mjs`.
 const RUNTIME_DEPS = [
-  "@agentclientprotocol/sdk",
   "@anthropic-ai/claude-agent-sdk",
   "@modelcontextprotocol/client",
   "@opencode-ai/sdk",
@@ -58,6 +57,7 @@ const RUNTIME_DEPS = [
   "vscode-jsonrpc",
   "ws",
   "yaml",
+  "zod",
 ];
 
 // devDependencies the stage needs to run electron-builder.

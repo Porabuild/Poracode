@@ -10,7 +10,112 @@ interface MdNode {
   children?: MdNode[];
 }
 
+const upstream = createRequire(`${realpathSync("node_modules/streamdown")}/package.json`);
+const { default: remarkParse } = (await import(upstream.resolve("remark-parse"))) as {
+  default: Plugin;
+};
+
 describe("remarkAutolinkProjectPaths", () => {
+  it("visits the real 4096-strong Markdown AST without recursion or losing formatting", () => {
+    const text = "*".repeat(8_192) + "src/deep.ts" + "*".repeat(8_192);
+    const tree = unified().use(remarkParse).parse(text) as MdNode;
+    const parsePathRef = vi.fn<(token: string) => ProjectPathRef | null>((token) =>
+      token === "src/deep.ts" ? { kind: "file", path: token } : null,
+    );
+    remarkAutolinkProjectPaths({ parsePathRef })(tree);
+    const pending = [tree];
+    let strong = 0;
+    let link: MdNode | undefined;
+    while (pending.length > 0) {
+      const node = pending.pop()!;
+      if (node.type === "strong") strong += 1;
+      if (node.type === "link") link = node;
+      if (node.children) pending.push(...node.children);
+    }
+    expect(strong).toBe(4_096);
+    expect(parsePathRef.mock.calls).toEqual([["src/deep.ts"]]);
+    expect(link?.url).toBe(pathRefUrl({ kind: "file", path: "src/deep.ts" }));
+    expect(link?.children).toEqual([{ type: "text", value: "src/deep.ts" }]);
+  });
+
+  it("preserves DFS callback order, original child-array iteration and delayed replacements", () => {
+    const first: MdNode = { type: "paragraph", children: [{ type: "text", value: "a.ts" }] };
+    const nested: MdNode = { type: "strong", children: [{ type: "text", value: "b.ts" }] };
+    const second: MdNode = {
+      type: "paragraph",
+      children: [nested, { type: "text", value: "c.ts" }],
+    };
+    const initial = [first, second, { type: "text", value: "d.ts" }];
+    const tree: MdNode = { type: "root", children: initial };
+    const firstChildren = first.children;
+    const nestedChildren = nested.children;
+    const secondChildren = second.children;
+    const observations: unknown[] = [];
+    remarkAutolinkProjectPaths({
+      parsePathRef: (token) => {
+        observations.push([
+          token,
+          tree.children === initial,
+          first.children === firstChildren,
+          nested.children === nestedChildren,
+          second.children === secondChildren,
+        ]);
+        if (token === "a.ts") tree.children = [{ type: "text", value: "replacement.ts" }];
+        return { kind: "file", path: token };
+      },
+    })(tree);
+    expect(observations).toEqual([
+      ["a.ts", true, true, true, true],
+      ["b.ts", false, false, true, true],
+      ["c.ts", false, false, false, true],
+      ["d.ts", false, false, false, false],
+    ]);
+    expect(tree.children).toEqual([
+      first,
+      second,
+      {
+        type: "link",
+        url: pathRefUrl({ kind: "file", path: "d.ts" }),
+        children: [{ type: "text", value: "d.ts" }],
+      },
+    ]);
+    expect(tree.children).not.toBe(initial);
+  });
+
+  it("retains completed-child/link effects and uncommitted ancestors when a callback throws", () => {
+    const completed: MdNode = { type: "paragraph", children: [{ type: "text", value: "done.ts" }] };
+    const link: MdNode = {
+      type: "link",
+      url: "link.ts",
+      children: [{ type: "text", value: "skipped.ts" }],
+    };
+    const unfinished: MdNode = {
+      type: "paragraph",
+      children: [{ type: "text", value: "fail.ts" }],
+    };
+    const rootChildren = [completed, link, unfinished];
+    const completedChildren = completed.children;
+    const unfinishedChildren = unfinished.children;
+    const tree: MdNode = { type: "root", children: rootChildren };
+    const failure = new Error("fixture callback");
+    const calls: string[] = [];
+    expect(() =>
+      remarkAutolinkProjectPaths({
+        parsePathRef: (token) => {
+          calls.push(token);
+          if (token === "fail.ts") throw failure;
+          return { kind: "file", path: token };
+        },
+      })(tree),
+    ).toThrow(failure);
+    expect(calls).toEqual(["done.ts", "link.ts", "fail.ts"]);
+    expect(completed.children).not.toBe(completedChildren);
+    expect(completed.children?.[0]?.url).toBe(pathRefUrl({ kind: "file", path: "done.ts" }));
+    expect(link.url).toBe(pathRefUrl({ kind: "file", path: "link.ts" }));
+    expect(link.children).toEqual([{ type: "text", value: "skipped.ts" }]);
+    expect(unfinished.children).toBe(unfinishedChildren);
+    expect(tree.children).toBe(rootChildren);
+  });
   it.each([
     "https://example.test/report.pdf",
     "https://poracode.local/path/v2/%2Ftmp%2Freport%3A2026?line=12",
@@ -157,3 +262,6 @@ describe("remarkAutolinkProjectPaths", () => {
   });
 });
 // @vitest-environment node
+import { realpathSync } from "node:fs";
+import { createRequire } from "node:module";
+import { unified, type Plugin } from "unified";

@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 import babel from "@rolldown/plugin-babel";
 import { lingui } from "@lingui/vite-plugin";
+import { runtimePayloadProjectionVitePlugin } from "./src/build/runtimePayloadProjectionVitePlugin.ts";
 
 // Standalone config for the opt-in performance suites (`*.perf.test.ts`).
 // Perf tests assert absolute latency budgets, so they must never run inside
@@ -11,6 +12,7 @@ import { lingui } from "@lingui/vite-plugin";
 // and is invoked explicitly via the `test:perf:*` scripts, which CI runs as
 // a dedicated uncontended job.
 export default defineConfig({
+  plugins: [runtimePayloadProjectionVitePlugin(import.meta.dirname)],
   test: {
     globals: true,
     clearMocks: true,

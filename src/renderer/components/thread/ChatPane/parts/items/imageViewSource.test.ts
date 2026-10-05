@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { remoteImageRef } from "@/shared/remote";
 import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import {
@@ -217,6 +217,23 @@ describe("host-minted image references", () => {
     bytes: 4096,
     width: 800,
     height: 600,
+  });
+
+  it("preserves candidate order when projection leaves a small image inline", () => {
+    const resolve = vi.fn<() => string>(() => "blob:later-image");
+    expect(
+      resolveImageViewSource(
+        { status: "success", images: [`data:image/png;base64,${PNG_BASE64}`, ref] },
+        resolve,
+      )?.src,
+    ).toBe(`data:image/png;base64,${PNG_BASE64}`);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(
+      resolveImageViewSource(
+        { status: "success", images: [ref, `data:image/png;base64,${PNG_BASE64}`] },
+        resolve,
+      )?.src,
+    ).toBe("blob:later-image");
   });
 
   afterEach(() => {

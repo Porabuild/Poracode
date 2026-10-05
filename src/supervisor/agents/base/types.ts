@@ -829,6 +829,9 @@ export interface AgentAdapter
     Partial<AgentAcpAuth>,
     Partial<AgentCliHookPluginSupport>,
     Partial<AgentNativePluginSupport> {
+  /** Stable normalized payload format of this actual producer, independent of thread/profile routing. */
+  readonly runtimePayloadFormatOwnerKey?: string;
+
   /** Manage native provider package plugins in the selected execution environment. */
   managePlugins?(
     input: Omit<ManageAgentPluginsPayload, "agentKind">,

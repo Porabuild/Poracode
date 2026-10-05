@@ -1,16 +1,41 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
+import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "@/renderer/components/ui/provider";
 import { ImageLightboxHost } from "@/renderer/components/composer";
 import { ChatPaneActionsContext, type ChatPaneActions } from "../../chatPaneActionsContext";
 import ItemMarkdownInner from "./ItemMarkdownInner";
 import { LC_SELECTOR_LANG } from "./SelectorBadge";
+import {
+  SmoothItemMarkdown,
+  normalizeGfmTableSeparators,
+  normalizeShortCodeFenceClosers,
+} from "./ItemMarkdown";
+import { rewriteMarkdownLocalImageUrls } from "@/shared/markdownLocalImages";
+import { isOrdinaryPlainProse, MAX_ORDINARY_PLAIN_PROSE_LENGTH } from "./ordinaryPlainProse";
 
-const { codeBlockSpy } = vi.hoisted(() => ({
+const { codeBlockSpy, streamdownSpy, parseBlocksSpy } = vi.hoisted(() => ({
   codeBlockSpy:
     vi.fn<(props: { text: string; lang: string; className: string | undefined }) => void>(),
+  streamdownSpy: vi.fn<(text: unknown) => void>(),
+  parseBlocksSpy: vi.fn<(text: string) => string[]>(),
 }));
+
+vi.mock("./ordinaryPlainProse", { spy: true });
+vi.mock("./ItemMarkdown", { spy: true });
+vi.mock("@/shared/markdownLocalImages", { spy: true });
+vi.mock("streamdown", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("streamdown")>();
+  parseBlocksSpy.mockImplementation(actual.parseMarkdownIntoBlocks);
+  return {
+    ...actual,
+    Streamdown(props: ComponentProps<typeof actual.Streamdown>) {
+      streamdownSpy(props.children);
+      return <actual.Streamdown {...props} parseMarkdownIntoBlocksFn={parseBlocksSpy} />;
+    },
+  };
+});
 
 vi.mock("./CodeBlock", () => ({
   CodeBlock: ({ text, lang, className }: { text: string; lang: string; className?: string }) => {
@@ -24,12 +49,451 @@ vi.mock("./CodeBlock", () => ({
 }));
 
 const toastDangerSpy = vi.spyOn(toast, "danger").mockImplementation(() => undefined as never);
+// Keep new differential cases separate from existing image tests: Streamdown
+// caches processors globally and serializes plugin options without functions.
+const proseTestProject = { kind: "posix", path: "/ordinary-prose-tests" } as const;
 
 describe("ItemMarkdownInner", () => {
   beforeEach(() => {
     codeBlockSpy.mockClear();
     toastDangerSpy.mockClear();
     Reflect.deleteProperty(window, "poracode");
+  });
+
+  it.each([
+    "A",
+    "An ordinary paragraph. Another sentence!",
+    'We can use "quotes" and (parentheses); it\'s fine.',
+    "A well-known result — 25% faster… perhaps",
+    "Two  internal   spaces",
+    "Café and cafe\u0301",
+    "Привет світе! Zażółć gęślą jaźń.",
+    "普通话。日本語、한국어！",
+    "مرحبا بالعالم، שלום עולם",
+    "Astral letters 𐐀 and emoji 🌍 ☕️ 👍🏽",
+    "\ud800",
+    "\udbff",
+    "\udc00",
+    "\udfff",
+    "High \ud83c remains \udbff  ",
+    "Low \udf0d remains \udfff  ",
+    "Broken \ud83cX\udf0d \ud83d\ud83d \udfff\udfff end  ",
+    "\udf0d\ud83cX\ud83c🌍 end  ",
+    "x=1",
+    "a = b",
+    "⟦x=1 y=2⟧ ordinary prose",
+    "⟦a=2 s=30 t=179000⟧ prose",
+    "Trailing spaces ",
+    "Trailing spaces   ",
+    "Two  internal   spaces  ",
+    "Sentence.   ",
+    "Emoji 🌍 👍🏽  ",
+    "x=1  ",
+    "x".repeat(MAX_ORDINARY_PLAIN_PROSE_LENGTH),
+    "x".repeat(MAX_ORDINARY_PLAIN_PROSE_LENGTH - 1) + " ",
+  ])("matches real Streamdown paragraph text, selection and DOM classes: %.60s", (text) => {
+    const { container, rerender } = render(<ItemMarkdownInner text={text} />);
+    const fastMarkup = container.innerHTML;
+    const paragraph = container.querySelector("p")!;
+    expect(paragraph.textContent).toBe(text.trimEnd());
+    expect(paragraph.childElementCount).toBe(0);
+    expect(container.querySelectorAll("p")).toHaveLength(1);
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    expect(range.toString()).toBe(text.trimEnd());
+    expect(streamdownSpy).not.toHaveBeenCalled();
+    expect(parseBlocksSpy).not.toHaveBeenCalled();
+
+    // Force the unchanged rich branch to provide the oracle with the actual
+    // app plugins/components. This also detects Streamdown wrapper changes.
+    vi.mocked(isOrdinaryPlainProse).mockReturnValueOnce(false);
+    rerender(<ItemMarkdownInner text={text} />);
+    expect(parseBlocksSpy).toHaveBeenCalledTimes(1);
+    expect(container.innerHTML).toBe(fastMarkup);
+    range.selectNodeContents(container.querySelector("p")!);
+    expect(range.toString()).toBe(text.trimEnd());
+  });
+
+  it.each([
+    "Hello world. Complete words! Two  internal spaces; punctuation? Yes.  ",
+    "Hello 🌍 ☕️ 👍🏽 🚀 done!  ",
+    "🌍👍🏽🚀",
+    "𐐀𐐨 𝔄 𠀀 𞤀 done.  ",
+    "𐐀🌍𐐨👍🏽𠀀🚀",
+    "High \ud83c remains \udbff  ",
+    "Low \udf0d remains \udfff  ",
+    "Broken \ud83cX\udf0d \ud83d\ud83d \udfff\udfff end  ",
+    "\udf0d\ud83cX\ud83c🌍 end  ",
+  ])("matches Streamdown node lifetimes and mutations through ordinary updates: %s", (text) => {
+    // Include every UTF-16 boundary: smooth snapshots can split surrogate pairs.
+    const snapshots = Array.from({ length: text.length }, (_, index) => text.slice(0, index + 1));
+    const fast = render(<ItemMarkdownInner text={snapshots[0]!} />);
+    vi.mocked(isOrdinaryPlainProse).mockReturnValueOnce(false);
+    const rich = render(<ItemMarkdownInner text={snapshots[0]!} />);
+    const fastParagraph = fast.container.querySelector("p")!;
+    const richParagraph = rich.container.querySelector("p")!;
+    const fastText = fastParagraph.firstChild;
+    const richText = richParagraph.firstChild;
+    const fastWrapper = fastParagraph.parentElement;
+    const richWrapper = richParagraph.parentElement;
+    const fastObserver = new MutationObserver(() => {});
+    const richObserver = new MutationObserver(() => {});
+    fastObserver.observe(fast.container, { childList: true, characterData: true, subtree: true });
+    richObserver.observe(rich.container, { childList: true, characterData: true, subtree: true });
+    streamdownSpy.mockClear();
+    parseBlocksSpy.mockClear();
+    try {
+      const edge = "ordinary words ".repeat(20);
+      for (const snapshot of [
+        ...snapshots.slice(1),
+        `${edge}🌍 middle ${edge}done  `,
+        `${edge}\ud83cX middle ${edge}done  `,
+        `${edge}\udf0dX middle ${edge}done  `,
+        `${edge}\ud83d\ud83d malformed \udfff\udfff ${edge}done  `,
+        `${edge}𐐀 middle ${edge}done  `,
+        "Short \ud800  ",
+        "Repaired 🌍!",
+      ]) {
+        expect(isOrdinaryPlainProse(snapshot)).toBe(true);
+        fast.rerender(<ItemMarkdownInner text={snapshot} />);
+        expect(streamdownSpy).not.toHaveBeenCalled();
+        expect(parseBlocksSpy).not.toHaveBeenCalled();
+        vi.mocked(isOrdinaryPlainProse).mockReturnValueOnce(false);
+        rich.rerender(<ItemMarkdownInner text={snapshot} />);
+        streamdownSpy.mockClear();
+        parseBlocksSpy.mockClear();
+        expect(fast.container.innerHTML).toBe(rich.container.innerHTML);
+        for (const paragraph of [fastParagraph, richParagraph]) {
+          expect(paragraph.textContent).toBe(snapshot.trimEnd());
+          const range = document.createRange();
+          range.selectNodeContents(paragraph);
+          expect(range.toString()).toBe(snapshot.trimEnd());
+        }
+        expect(fast.container.querySelector("p")).toBe(fastParagraph);
+        expect(rich.container.querySelector("p")).toBe(richParagraph);
+        expect(fastParagraph.firstChild).toBe(fastText);
+        expect(richParagraph.firstChild).toBe(richText);
+        expect(fastParagraph.parentElement).toBe(fastWrapper);
+        expect(richParagraph.parentElement).toBe(richWrapper);
+        const fastRecords = fastObserver.takeRecords();
+        const richRecords = richObserver.takeRecords();
+        expect(fastRecords.map((record) => record.type)).toEqual(
+          richRecords.map((record) => record.type),
+        );
+        expect(
+          fastRecords.every(
+            (record) => record.addedNodes.length === 0 && record.removedNodes.length === 0,
+          ),
+        ).toBe(true);
+      }
+    } finally {
+      fastObserver.disconnect();
+      richObserver.disconnect();
+    }
+  });
+
+  it("matches real Streamdown for all 2048 lone surrogate code units without replacing DOM nodes", () => {
+    const initial = String.fromCharCode(0xd800);
+    const fast = render(<ItemMarkdownInner text={initial} />);
+    vi.mocked(isOrdinaryPlainProse).mockReturnValueOnce(false);
+    const rich = render(<ItemMarkdownInner text={initial} />);
+    const fastParagraph = fast.container.querySelector("p")!;
+    const richParagraph = rich.container.querySelector("p")!;
+    const fastText = fastParagraph.firstChild;
+    const richText = richParagraph.firstChild;
+    const fastWrapper = fastParagraph.parentElement;
+    const richWrapper = richParagraph.parentElement;
+    for (let code = 0xd800; code <= 0xdfff; code += 1) {
+      const surrogate = String.fromCharCode(code);
+      for (const snapshot of [surrogate, `Text ${surrogate} middle ${surrogate}  `]) {
+        fast.rerender(<ItemMarkdownInner text={snapshot} />);
+        vi.mocked(isOrdinaryPlainProse).mockReturnValueOnce(false);
+        rich.rerender(<ItemMarkdownInner text={snapshot} />);
+        expect(fast.container.innerHTML).toBe(rich.container.innerHTML);
+        expect(fast.container.querySelector("p")).toBe(fastParagraph);
+        expect(rich.container.querySelector("p")).toBe(richParagraph);
+        expect(fastParagraph.firstChild).toBe(fastText);
+        expect(richParagraph.firstChild).toBe(richText);
+        expect(fastParagraph.parentElement).toBe(fastWrapper);
+        expect(richParagraph.parentElement).toBe(richWrapper);
+        expect(fastParagraph.textContent).toBe(snapshot.trimEnd());
+        expect(richParagraph.textContent).toBe(snapshot.trimEnd());
+      }
+    }
+  });
+
+  it.each([
+    "1) ordered item",
+    "1. ordered item",
+    "Read www.example.test",
+    "Read README.md",
+    "See src/file.ts",
+    "Hello **bold**",
+    "Hello [link](https://example.test)",
+    "Hello &amp; entity",
+    "Hello $x$",
+    "Hello <em>HTML</em>",
+    "Hello\n\nnext paragraph",
+    "Hello 🌍",
+    "Hello 🌍 👍🏽 done.  ",
+    "x=1",
+    "a = b",
+    "⟦x=1 y=2⟧ ordinary prose",
+    "⟦a=2 s=30 t=179000⟧ prose",
+  ])("matches the rich renderer at every streaming prefix and completion: %s", (text) => {
+    const { container, rerender } = render(<ItemMarkdownInner text="" />);
+    for (let end = 1; end <= text.length; end += 1) {
+      const snapshot = text.slice(0, end);
+      const eligible = isOrdinaryPlainProse(snapshot);
+      streamdownSpy.mockClear();
+      parseBlocksSpy.mockClear();
+      rerender(<ItemMarkdownInner text={snapshot} />);
+      const markup = container.innerHTML;
+      expect({ snapshot, renders: streamdownSpy.mock.calls.length }).toEqual({
+        snapshot,
+        renders: eligible ? 0 : 1,
+      });
+      // Incomplete-markdown repair can map two rich prefixes to the same input.
+      expect(parseBlocksSpy.mock.calls.length).toBeLessThanOrEqual(eligible ? 0 : 1);
+      vi.mocked(isOrdinaryPlainProse).mockReturnValueOnce(false);
+      rerender(<ItemMarkdownInner text={snapshot} />);
+      expect({ snapshot, html: container.innerHTML }).toEqual({ snapshot, html: markup });
+    }
+  });
+
+  it("immediately rechecks same-length, longer-middle and shorter replacements", () => {
+    const edge = "ordinary words ".repeat(20);
+    const original = `${edge}middle ${edge}done`;
+    const { container, rerender } = render(<ItemMarkdownInner text={original} />);
+    expect(parseBlocksSpy).not.toHaveBeenCalled();
+    for (const replacement of [
+      `${edge}**ok** ${edge}done`,
+      `${edge}**a longer changed middle** ${edge}done`,
+    ]) {
+      rerender(<ItemMarkdownInner text={replacement} />);
+      expect(container.querySelector('[data-streamdown="strong"]')).not.toBeNull();
+      rerender(<ItemMarkdownInner text={original} />);
+      expect(container.querySelector('[data-streamdown="strong"]')).toBeNull();
+    }
+    parseBlocksSpy.mockClear();
+    rerender(<ItemMarkdownInner text="Short replacement" />);
+    expect(container.querySelector("p")?.textContent).toBe("Short replacement");
+    expect(parseBlocksSpy).not.toHaveBeenCalled();
+  });
+
+  it("formats exactly once before classification and follows formatter/context changes", () => {
+    const source = "Canonical **source**";
+    const plainFormatter = vi.fn<(text: string) => string>(() => "Readable display  ");
+    const richFormatter = vi.fn<(text: string) => string>(() => "Read **formatted**");
+    const view = (actions: ChatPaneActions) => (
+      <ChatPaneActionsContext.Provider value={actions}>
+        <ItemMarkdownInner text={source} />
+      </ChatPaneActionsContext.Provider>
+    );
+    const { container, rerender } = render(
+      view(
+        makeActions({
+          projectLocation: proseTestProject,
+          formatTranscriptMarkdown: plainFormatter,
+        }),
+      ),
+    );
+    expect(plainFormatter).toHaveBeenCalledExactlyOnceWith(source);
+    expect(isOrdinaryPlainProse).toHaveBeenCalledExactlyOnceWith("Readable display  ");
+    expect(parseBlocksSpy).not.toHaveBeenCalled();
+    expect(container.querySelector("p")?.textContent).toBe("Readable display");
+
+    rerender(
+      view(
+        makeActions({ projectLocation: proseTestProject, formatTranscriptMarkdown: richFormatter }),
+      ),
+    );
+    expect(richFormatter).toHaveBeenCalledExactlyOnceWith(source);
+    expect(container.querySelector('[data-streamdown="strong"]')?.textContent).toBe("formatted");
+    expect(parseBlocksSpy).toHaveBeenCalledExactlyOnceWith("Read **formatted**");
+    rerender(view(makeActions({ projectLocation: proseTestProject })));
+    expect(container.querySelector('[data-streamdown="strong"]')?.textContent).toBe("source");
+    parseBlocksSpy.mockClear();
+    rerender(
+      view(
+        makeActions({
+          projectLocation: proseTestProject,
+          formatTranscriptMarkdown: plainFormatter,
+        }),
+      ),
+    );
+    expect(container.querySelector("p")?.textContent).toBe("Readable display");
+    expect(parseBlocksSpy).not.toHaveBeenCalled();
+    expect(plainFormatter).toHaveBeenNthCalledWith(2, source);
+  });
+
+  it("checks the full formatted snapshot cap before trimming its display", () => {
+    const text = "x".repeat(MAX_ORDINARY_PLAIN_PROSE_LENGTH) + " ";
+    const { container } = render(<ItemMarkdownInner text={text} />);
+    expect(isOrdinaryPlainProse).toHaveBeenCalledExactlyOnceWith(text);
+    expect(streamdownSpy).toHaveBeenCalledExactlyOnceWith(text);
+    expect(container.querySelector("p")?.textContent).toBe(text.trimEnd());
+  });
+
+  it("keeps project-path context and click actions on the rich path", () => {
+    const view = (actions: ChatPaneActions, text: string) => (
+      <AppProvider>
+        <ChatPaneActionsContext.Provider value={actions}>
+          <ItemMarkdownInner text={text} />
+        </ChatPaneActionsContext.Provider>
+      </AppProvider>
+    );
+    const emptyProject = makeActions({
+      projectLocation: proseTestProject,
+      projectRootNames: new Set(),
+    });
+    const { rerender } = render(view(emptyProject, "See src/file.ts"));
+    expect(screen.queryByRole("button", { name: /file.ts/ })).toBeNull();
+    rerender(view(emptyProject, "Ordinary display"));
+    const actions = makeActions({ projectLocation: proseTestProject });
+    rerender(view(actions, "See src/file.ts"));
+    fireEvent.click(screen.getByRole("button", { name: /file.ts/ }));
+    expect(actions.openProjectRelativePath).toHaveBeenCalledExactlyOnceWith(
+      "src/file.ts",
+      undefined,
+    );
+  });
+
+  it.each(["", " **done**"])(
+    "preserves smoothing and flushes completed display text %j",
+    async (tail) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let nextFrame = 0;
+      const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((frame) => {
+        frames.set(++nextFrame, frame);
+        return nextFrame;
+      });
+      const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+        frames.delete(id);
+      });
+      const { container, rerender, unmount } = render(
+        <SmoothItemMarkdown text="Hello" isStreaming />,
+      );
+      try {
+        await waitFor(() => expect(container.querySelector("p")?.textContent).toBe("Hello"));
+        const target = `Hello${" new words".repeat(20)}${tail}`;
+        rerender(<SmoothItemMarkdown text={target} isStreaming />);
+        expect(container.querySelector("p")?.textContent).toBe("Hello");
+        expect(parseBlocksSpy).not.toHaveBeenCalled();
+        act(() => {
+          const pending = [...frames.values()];
+          frames.clear();
+          for (const frame of pending) frame(1_000);
+        });
+        const partial = container.querySelector("p")?.textContent ?? "";
+        expect(partial.length).toBeGreaterThan(5);
+        expect(partial.length).toBeLessThan(target.length);
+        expect(target.startsWith(partial)).toBe(true);
+        rerender(<SmoothItemMarkdown text={target} isStreaming={false} />);
+        expect(container.querySelector("p")?.textContent).toBe(target.replaceAll("**", ""));
+        expect(container.querySelectorAll('[data-streamdown="strong"]')).toHaveLength(tail ? 1 : 0);
+        expect(frames.size).toBe(0);
+      } finally {
+        unmount();
+        requestFrame.mockRestore();
+        cancelFrame.mockRestore();
+      }
+    },
+  );
+
+  it.each([" newword  ", " 🌍 𐐀 👍🏽 🚀  "])(
+    "keeps paragraph and text nodes through smoothed word and surrogate boundaries: %j",
+    async (chunk) => {
+      const frames = new Map<number, FrameRequestCallback>();
+      let nextFrame = 0;
+      const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((frame) => {
+        frames.set(++nextFrame, frame);
+        return nextFrame;
+      });
+      const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation((id) => {
+        frames.delete(id);
+      });
+      const { container, rerender, unmount } = render(
+        <SmoothItemMarkdown text="Hello" isStreaming />,
+      );
+      const observer = new MutationObserver(() => {});
+      try {
+        await waitFor(() => expect(container.querySelector("p")?.textContent).toBe("Hello"));
+        const paragraph = container.querySelector("p")!;
+        const textNode = paragraph.firstChild;
+        const wrapper = paragraph.parentElement;
+        observer.observe(container, { childList: true, characterData: true, subtree: true });
+        const target = `Hello${chunk.repeat(15)}done!   `;
+        rerender(<SmoothItemMarkdown text={target} isStreaming />);
+        let sawTrailingSpace = false;
+        let sawSurrogateHalf = false;
+        for (let frame = 1; frames.size > 0 && frame <= 500; frame += 1) {
+          act(() => {
+            const pending = [...frames.values()];
+            frames.clear();
+            for (const callback of pending) callback(frame * 16);
+          });
+          const snapshot = vi.mocked(isOrdinaryPlainProse).mock.calls.at(-1)![0];
+          sawTrailingSpace ||= snapshot.endsWith(" ");
+          sawSurrogateHalf ||= !snapshot.isWellFormed();
+          expect(container.querySelector("p")).toBe(paragraph);
+          expect(paragraph.firstChild).toBe(textNode);
+          expect(paragraph.parentElement).toBe(wrapper);
+          expect(paragraph.textContent).toBe(snapshot.trimEnd());
+        }
+        expect(sawTrailingSpace).toBe(true);
+        expect(sawSurrogateHalf).toBe(chunk.includes("🌍"));
+        expect(paragraph.textContent).toBe(target.trimEnd());
+        rerender(<SmoothItemMarkdown text={target} isStreaming={false} />);
+        expect(container.querySelector("p")).toBe(paragraph);
+        expect(paragraph.firstChild).toBe(textNode);
+        expect(observer.takeRecords().every((record) => record.type === "characterData")).toBe(
+          true,
+        );
+        expect(frames.size).toBe(0);
+        expect(parseBlocksSpy).not.toHaveBeenCalled();
+      } finally {
+        observer.disconnect();
+        unmount();
+        requestFrame.mockRestore();
+        cancelFrame.mockRestore();
+      }
+    },
+  );
+
+  it("avoids 50 rich parses and all pre-parser normalizers for 50 eligible display updates", () => {
+    const chunk = ` ${"ordinary prose ".repeat(11)}`.slice(0, 159) + "x";
+    const snapshots = Array.from({ length: 50 }, (_, index) => `A${chunk.repeat(index + 1)}`);
+    const formatTranscriptMarkdown = vi.fn<(text: string) => string>((text) => text);
+    const actions = makeActions({ projectLocation: proseTestProject, formatTranscriptMarkdown });
+    const view = (text: string) => (
+      <ChatPaneActionsContext.Provider value={actions}>
+        <ItemMarkdownInner text={text} />
+      </ChatPaneActionsContext.Provider>
+    );
+    const fast = render(view(snapshots[0]!));
+    for (const snapshot of snapshots.slice(1)) fast.rerender(view(snapshot));
+    expect(formatTranscriptMarkdown).toHaveBeenCalledTimes(50);
+    expect(isOrdinaryPlainProse).toHaveBeenCalledTimes(50);
+    expect(streamdownSpy).not.toHaveBeenCalled();
+    expect(parseBlocksSpy).not.toHaveBeenCalled();
+    expect(normalizeShortCodeFenceClosers).not.toHaveBeenCalled();
+    expect(normalizeGfmTableSeparators).not.toHaveBeenCalled();
+    expect(rewriteMarkdownLocalImageUrls).not.toHaveBeenCalled();
+    const finalMarkup = fast.container.innerHTML;
+    fast.unmount();
+
+    vi.mocked(isOrdinaryPlainProse).mockReturnValueOnce(false);
+    const rich = render(view(snapshots[0]!));
+    for (const snapshot of snapshots.slice(1)) {
+      vi.mocked(isOrdinaryPlainProse).mockReturnValueOnce(false);
+      rich.rerender(view(snapshot));
+    }
+    expect(parseBlocksSpy).toHaveBeenCalledTimes(50);
+    expect(normalizeShortCodeFenceClosers).toHaveBeenCalledTimes(50);
+    expect(normalizeGfmTableSeparators).toHaveBeenCalledTimes(50);
+    expect(rewriteMarkdownLocalImageUrls).toHaveBeenCalledTimes(50);
+    expect(rich.container.innerHTML).toBe(finalMarkup);
   });
 
   it("routes supported fenced code blocks through CodeBlock", () => {

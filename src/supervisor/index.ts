@@ -21,6 +21,8 @@ import { SupervisorRuntime } from "./supervisorRuntime";
 import { configureSecretStorageKey } from "./secretStorage";
 import { RUNTIME_EVENT_MAX_SINGLE_EVENT_BYTES } from "./runtime/threadSession/runtimeEventBuffer";
 import { SupervisorIpcSender } from "./supervisorIpcSender";
+import { canonicalCreditGrant } from "./canonicalCreditControl";
+import { RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION } from "@/shared/runtimePayloadOriginProtocol";
 
 const performanceDiagnostics = startNodePerformanceDiagnostics("supervisor");
 const isDev = process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL);
@@ -128,6 +130,7 @@ ipcSender.sendMessage({
     RUNTIME_EVENT_MAX_SINGLE_EVENT_BYTES,
   maxEnvelopeBytes: RUNTIME_EVENT_MAX_SINGLE_EVENT_BYTES,
   supportsCanonicalCredit: true,
+  runtimePayloadOriginVersions: [RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION],
   canonicalFlowGeneration: ipcSender.getCanonicalFlowGeneration(),
 });
 
@@ -176,24 +179,22 @@ async function handleRequest(request: SupervisorRequest): Promise<unknown> {
 process.on("message", (message: SupervisorRequest | unknown) => {
   if (isSupervisorFlowControl(message)) {
     switch (message.control) {
+      case "enable-runtime-payload-origins":
+        ipcSender.enableRuntimePayloadOrigins(message);
+        return;
       case "set-output-backpressure":
         // P1-2: downstream pressure sheds rebuildable terminal output at the
         // source; PTYs keep running so agent processes never stall on a full
         // kernel buffer behind a slow consumer.
         ipcSender.setEagerShed(message.paused);
         return;
-      case "set-event-backpressure":
+      case "set-event-backpressure": {
         // B1: host persistence health. Canonical runtime envelopes are held in
         // the bounded per-thread buffer; sessions whose buffer reaches its cap
         // stop explicitly (no silent drop, no whole-supervisor failure).
-        if (message.canonicalCreditBytes !== undefined) {
-          ipcSender.setCanonicalCredit({
-            windowBytes: message.canonicalCreditBytes,
-            ...(message.canonicalAckSeq !== undefined &&
-            message.canonicalFlowGeneration !== undefined
-              ? { ackSeq: message.canonicalAckSeq, generation: message.canonicalFlowGeneration }
-              : {}),
-          });
+        const creditGrant = canonicalCreditGrant(message);
+        if (creditGrant) {
+          ipcSender.setCanonicalCredit(creditGrant);
         } else if (
           message.canonicalAckSeq !== undefined &&
           message.canonicalFlowGeneration !== undefined
@@ -208,6 +209,7 @@ process.on("message", (message: SupervisorRequest | unknown) => {
           message.threadIds,
         );
         return;
+      }
       case "ack-canonical-flow":
         // Only sent to a credit-capable peer; a generation mismatch ignores the
         // ack rather than freeing ledger bytes this boot never emitted.

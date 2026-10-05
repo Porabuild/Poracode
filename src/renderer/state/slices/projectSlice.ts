@@ -18,6 +18,8 @@ import { msg } from "@/shared/messages";
 import { currentProjectIdentityOptions } from "../projectReferences";
 import { reorderIds, type ReorderPlacement } from "../reorder";
 import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
+import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
+import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import { removePaneFromView } from "./helpers";
 import type { SliceCreator } from "./shared";
 
@@ -182,6 +184,8 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
       );
       for (const threadId of projectThreadIds) {
         useThreadFollowUpQueueStore.getState().setQueue(threadId, null);
+        forgetTimelineMeasurements(threadId);
+        forgetThreadGalleryCache(threadId);
       }
 
       composerDraftStorage()?.remove("project", projectId);

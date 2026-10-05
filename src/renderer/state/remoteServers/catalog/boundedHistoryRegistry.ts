@@ -98,7 +98,8 @@ export function recordBoundedHistoryTail(input: {
     viewThreadId,
     generation: currentRemoteServerGeneration(input.desktopId),
     cursor: input.page.completedTurnsNextCursor,
-    proof: input.page,
+    // Continuation custody needs the reads echo, not a retained transcript.
+    proof: { reads: input.page.reads },
     snapshotSeq: input.page.snapshotSeq,
   });
   evictOldestTails();
@@ -123,7 +124,7 @@ export function recordManagedRootBoundedHistoryTail(input: {
     viewThreadId,
     generation: managed.seq,
     cursor: input.page.completedTurnsNextCursor,
-    proof: input.page,
+    proof: { reads: input.page.reads },
     snapshotSeq: input.page.snapshotSeq,
   });
   evictOldestTails();

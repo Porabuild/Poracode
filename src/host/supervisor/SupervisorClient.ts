@@ -24,6 +24,20 @@ import {
 } from "@/shared/hostResourceAdmission";
 import { admissionRetryAfterMsOf } from "@/shared/admissionRefusal";
 import {
+  RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION,
+  admitRuntimePayloadOriginEnvelope,
+  isRuntimePayloadOriginGeneration,
+  stripRuntimePayloadOriginMetadata,
+  type TrustedRuntimePayloadAdmission,
+} from "@/shared/runtimePayloadOriginProtocol";
+import {
+  CANONICAL_ADMISSION_VERSION,
+  CANONICAL_ADMISSION_MAX_ID_CHARS,
+  isCanonicalAdmissionMessage,
+  type CanonicalAdmissionMessage,
+  type CanonicalAdmissionControl,
+} from "@/shared/canonicalAdmissionProtocol";
+import {
   GitProcessAdmissionRefusalError,
   isGitProcessAdmissionRefusalCode,
 } from "@/shared/gitProcessAdmission";
@@ -142,7 +156,9 @@ export interface SupervisorClientOptions {
   prepareStartThread?(payload: StartThreadPayload): StartThreadPayload;
   assignPid?(pid: number): Promise<void>;
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
-  onEvent(event: SupervisorEvent): void;
+  onEvent(event: SupervisorEvent, custody?: TrustedRuntimePayloadAdmission): void;
+  /** Private admission2 messages are intercepted and never published as events. */
+  onCanonicalAdmission?(message: CanonicalAdmissionMessage): void;
   /**
    * The supervisor shed queued terminal-output batches for these threads
    * under IPC backpressure. The backend must ask connected clients to
@@ -272,7 +288,9 @@ export class SupervisorClient {
    * a control it cannot honor.
    */
   private peerSupportsCanonicalCredit = false;
+  private peerSupportsCanonicalAdmission = false;
   private peerCanonicalFlowGeneration: string | null = null;
+  private peerPayloadOriginGeneration: string | null = null;
   private peerMaxInFlightBytes: number | undefined;
   private peerMaxEnvelopeBytes: number | undefined;
   /** Highest canonical flow sequence this generation has sent an ack for. */
@@ -379,7 +397,13 @@ export class SupervisorClient {
 
     child.on(
       "message",
-      (message: SupervisorReply | SupervisorEvent | SupervisorFlowControlCapabilities) => {
+      (
+        message:
+          | SupervisorReply
+          | SupervisorEvent
+          | SupervisorFlowControlCapabilities
+          | CanonicalAdmissionMessage,
+      ) => {
         // Retiring-child events remain valid until channel closure, while its database is
         // still open. No message from an exited/replaced generation is accepted.
         if (this.child !== child) return;
@@ -390,10 +414,28 @@ export class SupervisorClient {
         if (isSupervisorFlowControlCapabilities(message)) {
           this.peerFlowControlVersions = [...message.versions];
           this.peerSupportsCanonicalCredit = message.supportsCanonicalCredit === true;
+          this.peerSupportsCanonicalAdmission =
+            Array.isArray(message.canonicalAdmissionVersions) &&
+            message.canonicalAdmissionVersions.includes(CANONICAL_ADMISSION_VERSION) &&
+            typeof message.canonicalFlowGeneration === "string" &&
+            message.canonicalFlowGeneration.length > 0 &&
+            message.canonicalFlowGeneration.length <= CANONICAL_ADMISSION_MAX_ID_CHARS;
           this.peerCanonicalFlowGeneration =
             typeof message.canonicalFlowGeneration === "string"
               ? message.canonicalFlowGeneration
               : null;
+          this.peerPayloadOriginGeneration =
+            Array.isArray(message.runtimePayloadOriginVersions) &&
+            message.runtimePayloadOriginVersions.includes(RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION) &&
+            isRuntimePayloadOriginGeneration(message.canonicalFlowGeneration)
+              ? message.canonicalFlowGeneration
+              : null;
+          if (this.peerPayloadOriginGeneration !== null)
+            this.sendFlowControl({
+              control: "enable-runtime-payload-origins",
+              version: RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION,
+              generation: this.peerPayloadOriginGeneration,
+            });
           this.peerMaxInFlightBytes =
             typeof message.maxInFlightBytes === "number" ? message.maxInFlightBytes : undefined;
           this.peerMaxEnvelopeBytes =
@@ -420,10 +462,32 @@ export class SupervisorClient {
           return;
         }
 
+        if (isCanonicalAdmissionMessage(message)) {
+          if (
+            !this.peerSupportsCanonicalAdmission ||
+            message.generation !== this.peerCanonicalFlowGeneration
+          )
+            return;
+          try {
+            this.options.onCanonicalAdmission?.(message);
+          } catch (error) {
+            this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
+          }
+          return;
+        }
+        // Malformed private messages must never fall through to public events.
+        if ("kind" in message) return;
+
         // A consumer throw must never become an uncaught exception inside the
         // backend host's IPC handler (it would drop every later event).
         try {
-          this.options.onEvent(message);
+          const custody = admitRuntimePayloadOriginEnvelope(
+            message,
+            this.peerPayloadOriginGeneration,
+          );
+          const publicEvent = stripRuntimePayloadOriginMetadata(message);
+          if (custody) this.options.onEvent(publicEvent, custody);
+          else this.options.onEvent(publicEvent);
         } catch (error) {
           this.options.reportError?.(error, { "poracode.feature_area": "supervisor" });
         }
@@ -549,6 +613,16 @@ export class SupervisorClient {
   }
 
   /** Flow-control vocabulary advertised by the current child (tests/diagnostics). */
+  sendCanonicalAdmissionControl(control: CanonicalAdmissionControl): void {
+    if (
+      !this.peerSupportsCanonicalAdmission ||
+      control.generation !== this.peerCanonicalFlowGeneration
+    )
+      return;
+    this.sendFlowControl(control);
+  }
+
+  /** Flow-control vocabulary advertised by the current child (tests/diagnostics). */
   getPeerFlowControlVersions(): number[] {
     return [...this.peerFlowControlVersions];
   }
@@ -583,10 +657,14 @@ export class SupervisorClient {
     generation: string | null;
     maxInFlightBytes?: number;
     maxEnvelopeBytes?: number;
+    admissionVersion?: typeof CANONICAL_ADMISSION_VERSION;
   } {
     return {
       supportsCanonicalCredit: this.peerSupportsCanonicalCredit,
       generation: this.peerCanonicalFlowGeneration,
+      ...(this.peerSupportsCanonicalAdmission
+        ? { admissionVersion: CANONICAL_ADMISSION_VERSION }
+        : {}),
       ...(this.peerMaxInFlightBytes !== undefined
         ? { maxInFlightBytes: this.peerMaxInFlightBytes }
         : {}),
@@ -597,8 +675,10 @@ export class SupervisorClient {
   }
 
   private resetPeerFlowControl(): void {
+    this.peerPayloadOriginGeneration = null;
     this.peerFlowControlVersions = [];
     this.peerSupportsCanonicalCredit = false;
+    this.peerSupportsCanonicalAdmission = false;
     this.peerCanonicalFlowGeneration = null;
     this.peerMaxInFlightBytes = undefined;
     this.peerMaxEnvelopeBytes = undefined;

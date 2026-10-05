@@ -16,6 +16,7 @@ import { safeStorageHealth } from "./safeStorageHealth";
 import { startDesktopHostControl } from "./backend/desktopHostControl";
 import type { BackendHostClient } from "./backend/BackendHostClient";
 import type { BackendStateStore } from "./backend/BackendStateStore";
+import { closeDesktopBackend } from "./backend/desktopBackendShutdown";
 import type { SshEnvironmentController } from "@/host/ssh/sshEnvironmentController";
 import type { AutoUpdaterController } from "./updates/autoUpdater";
 import type { DesktopTrayFeed } from "./desktopAppBackendHost";
@@ -203,8 +204,7 @@ function registerBeforeQuitJoin(deps: DesktopLifecycleDeps): void {
           deps.ssh.dispose().catch((error) => {
             captureMainException(error, { "poracode.feature_area": "ssh" });
           }),
-        () => deps.shellState.close(),
-        () => deps.backendHost.disposeAsync({ timeoutMs: APP_QUIT_CLEANUP_TIMEOUT_MS }),
+        () => closeDesktopBackend(deps.shellState, deps.backendHost, APP_QUIT_CLEANUP_TIMEOUT_MS),
       ],
       "Main shutdown did not complete cleanly.",
     ).catch((error) => {

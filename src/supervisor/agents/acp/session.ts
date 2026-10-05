@@ -17,7 +17,6 @@ import { homedir } from "node:os";
 import { Readable, Writable } from "node:stream";
 import {
   ClientSideConnection,
-  ndJsonStream,
   PROTOCOL_VERSION,
   RequestError,
   type Client,
@@ -110,11 +109,8 @@ export {
 };
 
 import { segmentsToContentBlocks } from "./sessionContentBlocks";
-import {
-  filterAcpInboundNoise,
-  filterAcpStdoutNonJsonLines,
-  looksLikeAcpSessionNotification,
-} from "./sessionStreamFilter";
+import { looksLikeAcpSessionNotification } from "./sessionStreamFilter";
+import { createAcpInboundStream, ACP_STDOUT_QUEUED_BYTES } from "./sessionInboundStream";
 import { maybeCaptureAcpUpdate } from "./sessionDiagnostics";
 import { AcpTerminalManager } from "./terminalManager";
 import {
@@ -703,10 +699,13 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     // The Node.js → Web Stream adapters produce compatible types but
     // tsgo's strict generics require explicit casts.
     const toAgent = Writable.toWeb(child.stdin!) as WritableStream<Uint8Array>;
-    const fromAgent = Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>;
-    const stream = filterAcpInboundNoise(
-      ndJsonStream(toAgent, filterAcpStdoutNonJsonLines(fromAgent)),
-    );
+    const fromAgent = Readable.toWeb(child.stdout!, {
+      strategy: {
+        highWaterMark: ACP_STDOUT_QUEUED_BYTES,
+        size: (chunk: Uint8Array) => chunk.byteLength,
+      },
+    }) as ReadableStream<Uint8Array>;
+    const stream = createAcpInboundStream(toAgent, fromAgent);
 
     const connection = new ClientSideConnection(
       (_agent): Client => ({

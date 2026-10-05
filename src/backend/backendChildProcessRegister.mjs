@@ -10,6 +10,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, extname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { transformSync } from "esbuild";
+import {
+  loadRuntimePayloadProjectionModule,
+  resolveRuntimePayloadProjectionModule,
+} from "../build/runtimePayloadProjectionSource.mjs";
 
 register("./backendChildProcessRegister.mjs", import.meta.url);
 
@@ -23,6 +27,8 @@ function candidateFiles(specifier) {
 }
 
 export async function resolve(specifier, context, nextResolve) {
+  const projection = resolveRuntimePayloadProjectionModule(specifier);
+  if (projection) return projection;
   if (specifier.startsWith("@/")) {
     const absolute = resolvePath(repositoryRoot, "src", specifier.slice(2));
     for (const candidate of candidateFiles(absolute)) {
@@ -44,6 +50,8 @@ export async function resolve(specifier, context, nextResolve) {
 }
 
 export async function load(url, context, nextLoad) {
+  const projection = loadRuntimePayloadProjectionModule(url, repositoryRoot);
+  if (projection) return projection;
   if (url.endsWith(".json")) {
     return {
       format: "module",

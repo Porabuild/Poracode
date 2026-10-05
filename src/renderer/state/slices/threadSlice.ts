@@ -30,6 +30,8 @@ import { recordThreadStarted } from "../usageRecorder";
 import { keepAlivePatch, removeKeepAliveId } from "./paneCacheSlice";
 import type { SliceCreator } from "./shared";
 import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { forgetTimelineMeasurements } from "../timelineMeasurementCache";
+import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import { noteRendererCreatedThreadIntent } from "../managedRootCatalog/rootCreateIntent";
 import { terminateStaleSubAgentItems } from "./staleSubAgents";
 import { msg } from "@lingui/core/macro";
@@ -460,6 +462,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
     set((state) => {
       composerDraftStorage()?.remove("thread", threadId);
       clearRuntimeStructuralChangeHint(threadId);
+      forgetTimelineMeasurements(threadId);
+      forgetThreadGalleryCache(threadId);
       const nextThreads = state.threads.filter((thread) => thread.id !== threadId);
 
       if (nextThreads.length === state.threads.length) {
@@ -847,9 +851,15 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   purgeStaleArchivedThreads: (maxAgeDays) =>
     set((state) => {
       const cutoff = Date.now() - maxAgeDays * 24 * 60 * 60 * 1000;
-      const nextThreads = state.threads.filter(
-        (t) => !t.archived || new Date(t.archivedAt ?? t.updatedAt).getTime() > cutoff,
-      );
+      const nextThreads = state.threads.filter((thread) => {
+        const keep =
+          !thread.archived || new Date(thread.archivedAt ?? thread.updatedAt).getTime() > cutoff;
+        if (!keep) {
+          forgetTimelineMeasurements(thread.id);
+          forgetThreadGalleryCache(thread.id);
+        }
+        return keep;
+      });
       if (nextThreads.length === state.threads.length) return {};
       return { threads: nextThreads };
     }),

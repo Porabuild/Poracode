@@ -638,7 +638,16 @@ export class DesktopLoopbackIntake {
   private noteDecodeUnavailable(_reason: DesktopLoopbackDrainUnavailableReason): void {
     if (this.disposed) return;
     const socket = this.socket;
-    if (socket) this.teardownSocket(socket);
+    if (socket) {
+      // Fence callbacks before closing: an orphaned connection otherwise keeps
+      // receiving its old interests alongside every reduced-state replacement.
+      this.teardownSocket(socket);
+      try {
+        socket.close();
+      } catch {
+        // already closed
+      }
+    }
     this.scheduleDecodeRetry();
   }
 

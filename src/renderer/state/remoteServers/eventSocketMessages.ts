@@ -86,9 +86,9 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
     // `ct1.` continuation proof is stale whether the fetch succeeds or not.
     forgetBoundedHistoryThread(connectionKey, targetRemoteThreadId);
     void (async () => {
-      let snapshot: Awaited<ReturnType<RemoteDesktopClient["threadHistory"]>>;
+      let history: Awaited<ReturnType<RemoteDesktopClient["boundedThreadHistory"]>>;
       try {
-        snapshot = await client.threadHistory(targetRemoteThreadId);
+        history = await client.boundedThreadHistory(targetRemoteThreadId);
       } catch {
         finishTruncateReload(lease, null);
         return;
@@ -98,11 +98,24 @@ export function bindEventSocketMessages(ctx: EventSocketConnectionContext): () =
         return;
       }
       if (!isTruncateReloadLeaseCurrent(lease)) return;
+      const snapshot = history.page;
       const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(
         projectRemoteThreadSnapshot(connectionKey, snapshot),
         {
           fromServer: true,
           lastSeenEventSeq: remoteThreadAppliedSeq(connectionKey, targetRemoteThreadId),
+          ...(history.negotiation === "bounded"
+            ? {
+                committedPrefix: {
+                  threadId: remoteThreadId(connectionKey, targetRemoteThreadId),
+                  snapshotSeq: snapshot.snapshotSeq,
+                  isCurrent: () =>
+                    isCurrent() && entry.socket === socket && isTruncateReloadLeaseCurrent(lease),
+                  lastSeenEventSeq: () =>
+                    remoteThreadAppliedSeq(connectionKey, targetRemoteThreadId),
+                },
+              }
+            : {}),
         },
       );
       if (applied.installedAuthoritativeHistory) {

@@ -7,16 +7,17 @@ import {
 import { readImageDimensions } from "@/shared/imageDimensions";
 import { remoteImageRef, type RemoteImageRefValue } from "@/shared/remote";
 import type { PersistedRuntimeItem } from "@/shared/ipc";
-import { dbGetThreadRuntimeItemCommitted } from "@/host/db";
+import { dbGetThreadRuntimeItem, dbGetThreadRuntimeItemCommitted } from "@/host/db";
 import { getCachedImagePreview, imagePreviewKey, scheduleImagePreview } from "./imagePreview";
 
 /**
  * Replaces inline image bytes in remote-bound payloads with host-minted
  * references, and resolves those references back to bytes on request.
  *
- * This is the remote projection only: SQLite and the desktop's own IPC keep the
- * full inline payload, so the desktop renderer is untouched and the bytes are
- * always recoverable. Only what crosses the remote boundary is slimmed.
+ * SQLite retains the full inline payload, so the bytes are recoverable through
+ * the authenticated image endpoint. This projection also reaches managed
+ * desktop renderers through their shared HTTP/WS loopback data plane; those
+ * consumers need their owning client's image resolver and readiness surface.
  */
 
 /**
@@ -81,9 +82,7 @@ export function projectPayloadImageRefs(
     const previewKey = imagePreviewKey(threadId, itemId, location.path);
     const preview = getCachedImagePreview(previewKey);
     if (preview === undefined) {
-      scheduleImagePreview(previewKey, () =>
-        decodeInlineImage(location.value, location.classification),
-      );
+      scheduleInlineImagePreview(previewKey, bytes, location.value, location.classification);
     }
     const ref: RemoteImageRefValue = {
       threadId,
@@ -143,12 +142,29 @@ export function resolveImageRef(
   // the endpoint quiet on a host whose database is unavailable or mid-recovery.
   let item;
   try {
-    item = dbGetThreadRuntimeItemCommitted(threadId, itemId);
+    item = dbGetThreadRuntimeItemCommitted(threadId, itemId, { includeStreams: false });
   } catch {
     return null;
   }
-  if (!item || item.payload === undefined) return null;
-  const value = readAtPath(item.payload, path);
+  return resolveImagePayload(item?.payload, path);
+}
+
+/**
+ * Live references can reach the browser before their canonical writes commit.
+ * Fence that prefix before resolving; storage refusals remain typed refusals.
+ */
+export async function resolveImageRefAfterFence(
+  threadId: string,
+  itemId: string,
+  path: InlineImagePath,
+): Promise<ResolvedRefImage | null> {
+  const item = await dbGetThreadRuntimeItem(threadId, itemId, { includeStreams: false });
+  return resolveImagePayload(item?.payload, path);
+}
+
+function resolveImagePayload(payload: unknown, path: InlineImagePath): ResolvedRefImage | null {
+  if (payload === undefined) return null;
+  const value = readAtPath(payload, path);
   if (typeof value !== "string" || value.length === 0) return null;
   const classification = classifyInlineImageCandidate(value);
   if (!classification) return null;
@@ -162,6 +178,16 @@ export function resolveImageRef(
   const data = Buffer.from(base64, "base64");
   if (data.byteLength === 0) return null;
   return { mime: classification.mime, data };
+}
+
+/** Isolates the closure from the projection's payload and other image locations. */
+function scheduleInlineImagePreview(
+  key: string,
+  sourceBytes: number,
+  value: string,
+  classification: InlineImageClassification,
+): void {
+  scheduleImagePreview(key, sourceBytes, () => decodeInlineImage(value, classification));
 }
 
 /** Decodes an inline image string to raw bytes, or null when it is not one. */

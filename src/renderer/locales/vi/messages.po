@@ -1979,7 +1979,7 @@ msgstr "Tệp nhị phân - không có bản xem trước."
 msgid "Binary file or no diff available"
 msgstr "Tệp nhị phân hoặc không có khác biệt"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Binary files can't be edited here."
 msgstr "Không thể chỉnh sửa tệp nhị phân ở đây."
 
@@ -7236,7 +7236,7 @@ msgstr "Đang tải tài khoản…"
 msgid "Loading diff..."
 msgstr "Đang tải khác biệt..."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Loading editor…"
 msgstr "Đang tải trình chỉnh sửa…"
 
@@ -9302,7 +9302,7 @@ msgstr "Mở hình ảnh {0}/{1}"
 msgid "Open image preview"
 msgstr "Mở xem trước hình ảnh"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "Mở trong trình duyệt"
@@ -9839,7 +9839,7 @@ msgstr "Đã tạm dừng"
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "Xem trước PDF mở trong bảng trình duyệt."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "Xem trước PDF mở trong trình duyệt."
 
@@ -14081,11 +14081,11 @@ msgstr "Danh tính máy chủ của môi trường này đã thay đổi. Ghép 
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "Tập này đã được xác nhận; nội dung bị thiếu không được khôi phục."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "Tệp này quá lớn đối với trình chỉnh sửa tích hợp."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Tệp này sử dụng mã hóa không được hỗ trợ."
 

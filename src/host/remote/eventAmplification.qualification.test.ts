@@ -30,11 +30,9 @@ import {
  * `V2_AMPLIFICATION_OUT=1` (or a path) emits the JSON summary to
  * `tmp/v2-event-amplification/summary.json`.
  *
- * Collapsed empty envelopes are re-serialized once per uninterested socket.
- * The characterization test pins that cost (1 + N per hidden publish, each a
- * ~120-byte frame); the plan defers sharing projections until a measured
- * budget miss justifies it, so any change to this fan-out must update the
- * characterization deliberately.
+ * Equivalent scoped envelopes share one publication-local serialization.
+ * The regression pins one canonical serialization plus one empty projection
+ * whenever any socket is uninterested, without changing frames or continuity.
  */
 
 const MATRIX_N = [1, 4, 16];
@@ -81,13 +79,12 @@ describe("V2 §0.6 event amplification qualification", () => {
     if (serializationCell) {
       const record = serializationCell.record;
       findings.push(
-        `MEASURED FINDING (§0.6): JSON serialization scales as clients × events. Cell n=${record.n}, h=${record.h}: ` +
+        `MEASURED (§0.6): equivalent projections share serialization. Cell n=${record.n}, h=${record.h}: ` +
           `${record.serializationCalls} serialization calls for ${record.publishes} publishes ` +
-          `(visible publish = ${record.serializationCallsPerPublish[0]} calls: 1 shared + ${record.n - 1} identical ` +
-          `collapsed-envelope re-serializes; hidden publish = ${record.serializationCallsPerPublish[record.n]} calls: ` +
-          `every client uninterested) vs a shared-projection bound of ` +
-          `${record.serializationCallsIfProjectionsShared}. Source: the per-client scoping branch in ` +
-          `src/host/remote/remoteAccessServerEvents.ts re-stringifies an identical emptied envelope per socket.`,
+          `(visible publish = ${record.serializationCallsPerPublish[0]} calls; ` +
+          `hidden publish = ${record.serializationCallsPerPublish[record.n]} calls) ` +
+          `against the shared-projection bound of ${record.serializationCallsIfProjectionsShared}. ` +
+          `Every socket still receives its own scoped, sequence-contiguous frame.`,
       );
     }
     if (tinyDelta) {
@@ -189,20 +186,22 @@ describe("V2 §0.6 event amplification qualification", () => {
     }
   });
 
-  it("characterizes serialization fan-out: 1 shared serialize + one collapsed-envelope re-serialize per uninterested socket", () => {
+  it("serializes the canonical event once and each equivalent empty projection once per publication", () => {
     for (const cell of cells) {
       const { record } = cell;
       // Deterministic publish path: capBroadcastEvent serializes once, then
-      // every client whose projection differs from the shared form costs one
-      // more JSON.stringify. Interested clients reuse capped.json, so a
-      // visible publish costs 1 + (N-1) = N while a hidden publish — where
-      // every client's projection is the SAME emptied envelope — costs 1 + N.
+      // equivalent empty projection adds just one JSON.stringify regardless
+      // of recipient count. The sole interested client in N=1 needs only the
+      // original capped.json; every other cell costs exactly two per publish.
       expect(record.serializationCallsPerPublish).toHaveLength(record.publishes);
       for (const [index, calls] of record.serializationCallsPerPublish.entries()) {
-        expect(calls).toBe(index < record.n ? record.n : record.n + 1);
+        expect(calls).toBe(record.n === 1 && index < record.n ? 1 : 2);
       }
-      expect(record.serializationCalls).toBe(record.n * record.n + record.h * (record.n + 1));
+      expect(record.serializationCalls).toBe(record.serializationCallsIfProjectionsShared);
     }
+    const largest = cells.find((cell) => cell.record.n === 16 && cell.record.h === 64)!;
+    expect(largest.record.publishes).toBe(80);
+    expect(largest.record.serializationCalls).toBeLessThanOrEqual(160);
   });
 
   it.skipIf(!sqliteDriver.available)(

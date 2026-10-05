@@ -171,6 +171,7 @@ export async function handleHttp(
       if (await tryServeBuiltClientApp(url.pathname, req, res)) {
         return;
       }
+      res.setHeader("cache-control", "no-cache, no-store, must-revalidate");
       writeText(
         res,
         200,

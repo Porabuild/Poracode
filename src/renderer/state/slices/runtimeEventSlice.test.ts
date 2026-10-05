@@ -1195,6 +1195,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
       streams: { assistant_text: "newer" },
     };
     store.getState().hydrateThreadRuntimeItems("t1", [newer]);
+    const hydratedNewer = store.getState().runtimeItemsByIdByThread["t1"]?.["newer"];
     apply("t1", {
       type: "item.started",
       threadId: "t1",
@@ -1216,7 +1217,7 @@ describe("runtimeEventSlice.applyRuntimeEvent", () => {
     ]);
 
     expect(store.getState().runtimeItemIdsByThread["t1"]).toEqual(["older", "newer", "live"]);
-    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["newer"]).toBe(newer);
+    expect(store.getState().runtimeItemsByIdByThread["t1"]?.["newer"]).toBe(hydratedNewer);
     expect(store.getState().runtimeItemsByIdByThread["t1"]?.["live"]?.observedLive).toBe(true);
   });
 

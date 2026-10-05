@@ -4,7 +4,11 @@ import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { closeDatabase, initDatabase } from "./connection";
-import { dbUpsertProject, dbUpsertThread } from "./projectsThreads";
+import { DATABASE_MIGRATIONS } from "./migrations";
+import {
+  createLegacyRuntimeStreamDatabase,
+  seedLegacyRuntimeStreamThread,
+} from "./runtimeStreamHeadMigration.testFixtures";
 import { dbApplyThreadRuntimeEvents, dbGetThreadRuntimeItems } from "./runtimeItems";
 import { HEAD_CHARS, TAIL_CHARS } from "./runtimeStreamCap";
 
@@ -48,60 +52,26 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunks migration", () => {
   });
 
   function seedPreCapDatabase(streams: Record<string, string>): void {
-    // Build the last released schema with the normal writers, then remove the
-    // new tables before seeding the legacy runtime row.
-    initDatabase(dbPath);
-    dbUpsertProject(
-      {
-        id: "project-1",
-        name: "Legacy",
-        location: { kind: "posix", path: "/tmp/p" },
-        createdAt: "2026-01-01T00:00:00.000Z",
-      },
-      0,
-    );
-    dbUpsertThread(
-      {
-        id: "thread-1",
-        projectId: "project-1",
-        title: "Legacy",
-        agentKind: "claude",
-        config: { model: "opus" },
-        status: "idle",
-        attention: "none",
-        canResumeWithConfig: false,
-        archived: false,
-        done: false,
-        starred: false,
-        presentationMode: "gui",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      },
-      0,
-    );
-    closeDatabase();
-
-    const sqlite = new Database(dbPath, {
-      ...(nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {}),
-    });
-    sqlite.exec(`
-      DROP TABLE thread_runtime_item_stream_state;
-      DROP TABLE thread_runtime_item_stream_chunks;
-    `);
-    sqlite
-      .prepare(
-        `INSERT INTO thread_runtime_items
-           (thread_id, item_id, position, type, state, payload, streams, parent_item_id)
-         VALUES ('thread-1', 'cmd-1', 0, 'command_execution', 'completed', NULL, ?, NULL)`,
-      )
-      .run(JSON.stringify(streams));
-    sqlite
-      .prepare(
-        "INSERT INTO app_state (key, value) VALUES ('schema_version', '35') " +
-          "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-      )
-      .run();
-    sqlite.close();
+    const sqlite = createLegacyRuntimeStreamDatabase(dbPath, 35);
+    try {
+      seedLegacyRuntimeStreamThread(sqlite);
+      sqlite
+        .prepare(
+          `INSERT INTO thread_runtime_items
+             (thread_id, item_id, position, type, state, payload, streams, parent_item_id)
+           VALUES ('thread-1', 'cmd-1', 0, 'command_execution', 'completed', NULL, ?, NULL)`,
+        )
+        .run(JSON.stringify(streams));
+      expect(
+        sqlite
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE name LIKE 'thread_runtime_item_stream_head%'",
+          )
+          .all(),
+      ).toEqual([]);
+    } finally {
+      sqlite.close();
+    }
   }
 
   it("compacts an oversized stream on upgrade, keeping head and tail", async () => {
@@ -123,6 +93,41 @@ describe.skipIf(!sqliteAvailable)("runtime stream chunks migration", () => {
     const tables = getTables();
     expect(tables).toContain("thread_runtime_item_stream_chunks");
     expect(tables).toContain("thread_runtime_item_stream_state");
+  });
+
+  it("runs published migration 36 before any schema-53 storage exists", () => {
+    const output = "h".repeat(HEAD_CHARS) + "tail";
+    seedPreCapDatabase({ command_output: output, assistant_text: "kept" });
+    const sqlite = new Database(dbPath, {
+      ...(nativeBindingEnv ? { nativeBinding: nativeBindingEnv } : {}),
+    });
+    try {
+      DATABASE_MIGRATIONS.find(({ version }) => version === 36)!.migrate(sqlite);
+      expect(
+        sqlite
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE name LIKE 'thread_runtime_item_stream_head%'",
+          )
+          .all(),
+      ).toEqual([]);
+      expect(
+        sqlite.prepare("SELECT streams FROM thread_runtime_items WHERE item_id = 'cmd-1'").get(),
+      ).toEqual({
+        streams: JSON.stringify({ command_output: "h".repeat(HEAD_CHARS), assistant_text: "kept" }),
+      });
+      expect(
+        sqlite.prepare("SELECT seq, chars, text FROM thread_runtime_item_stream_chunks").all(),
+      ).toEqual([{ seq: 0, chars: 4, text: "tail" }]);
+      expect(
+        sqlite
+          .prepare(
+            "SELECT next_seq, tail_chars, elided_chars FROM thread_runtime_item_stream_state",
+          )
+          .all(),
+      ).toEqual([{ next_seq: 1, tail_chars: 4, elided_chars: 0 }]);
+    } finally {
+      sqlite.close();
+    }
   });
 
   function getTables(): string[] {

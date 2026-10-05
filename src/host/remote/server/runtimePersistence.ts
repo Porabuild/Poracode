@@ -7,11 +7,16 @@ import {
 } from "@/host/db/runtimeItems";
 import {
   enqueueRuntimeControlOperation,
+  applyAdmittedRuntimePayloadBatch,
   markRuntimeRebaseDropped,
   runThreadRuntimeMutation,
 } from "@/host/db/runtimePersistenceRuntime";
 import type { RuntimeAdmission } from "@/host/db/runtimePersistenceTypes";
 import type { SupervisorEvent } from "@/shared/ipc";
+import {
+  stripRuntimePayloadOriginMetadata,
+  type TrustedRuntimePayloadAdmission,
+} from "@/shared/runtimePayloadOriginProtocol";
 import type { RemoteBroadcastEvent } from "./context";
 import { persistThreadStateEvent } from "./threadStatePersistence";
 
@@ -78,7 +83,7 @@ export function persistSupervisorEvent(
   options: PersistSupervisorEventOptions = {},
 ): PersistOutcome {
   try {
-    return dispatchPersist(event, options);
+    return dispatchPersist(stripRuntimePayloadOriginMetadata(event), options);
   } catch (error) {
     // Final backstop. The controller already classified any SQLite error it
     // saw; reaching here means a mapping or dispatch bug, not storage state.
@@ -90,18 +95,44 @@ export function persistSupervisorEvent(
   }
 }
 
+/** Private supervisor-child intake only; generic remote publishers stay unknown. */
+export function persistAdmittedSupervisorEvent(
+  admission: TrustedRuntimePayloadAdmission,
+  options: PersistSupervisorEventOptions = {},
+): PersistOutcome<SupervisorEvent> {
+  try {
+    return dispatchPersist(
+      stripRuntimePayloadOriginMetadata(admission.publicEvent),
+      options,
+      admission,
+    ) as PersistOutcome<SupervisorEvent>;
+  } catch (error) {
+    console.error("[db] trusted runtime payload admission failed:", error);
+    return { kind: "withhold", reason: "refused", threadIds: threadIdsFor(admission.event) };
+  }
+}
+
 function dispatchPersist(
   event: RemoteBroadcastEvent,
   options: PersistSupervisorEventOptions,
+  custody?: TrustedRuntimePayloadAdmission,
 ): PersistOutcome {
+  const apply = (
+    batchIndex: number,
+    threadId: string,
+    events: readonly import("@/shared/contracts").RuntimeEvent[],
+  ) =>
+    custody
+      ? applyAdmittedRuntimePayloadBatch(custody, batchIndex)
+      : dbApplyThreadRuntimeEvents(threadId, events);
   switch (event.type) {
     case "thread-runtime-event": {
-      const admission = dbApplyThreadRuntimeEvents(event.threadId, [event.event]);
+      const admission = apply(0, event.threadId, [event.event]);
       if (admission.kind === "accepted") return { kind: "publish", event };
       return refusalOutcome(event, admission);
     }
     case "thread-runtime-events": {
-      const admission = dbApplyThreadRuntimeEvents(event.threadId, event.events);
+      const admission = apply(0, event.threadId, event.events);
       if (admission.kind === "refused") return refusalOutcome(event, admission);
       const accepted = event.events.slice(0, admission.acceptedEvents);
       if (accepted.length === 0) return refusalOutcome(event, admission);
@@ -121,8 +152,8 @@ function dispatchPersist(
       const refusedThreadIds: string[] = [];
       let droppedEvents = 0;
       let droppedBytes = 0;
-      for (const batch of event.batches) {
-        const admission = dbApplyThreadRuntimeEvents(batch.threadId, batch.events);
+      for (const [batchIndex, batch] of event.batches.entries()) {
+        const admission = apply(batchIndex, batch.threadId, batch.events);
         if (admission.kind === "refused") {
           refusedThreadIds.push(batch.threadId);
           droppedEvents += batch.events.length;

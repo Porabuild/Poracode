@@ -3,7 +3,13 @@ import Database from "better-sqlite3";
 import { normalizePersistedAntigravityModelSelection } from "@/shared/agents/antigravity";
 import { repairDuplicateProjects } from "./projectDeduplication";
 import { HEAD_CHARS } from "./runtimeStreamCap";
-import { writeItemStreams } from "./runtimeStreamStore";
+import { createRuntimeStreamHeadSchema } from "./runtimeStreamHeadSchema";
+import {
+  assertRuntimePayloadOriginSchema,
+  createRuntimePayloadOriginSchema,
+} from "./runtimePayloadOriginsSchema";
+import { writeLegacyMigrationItemStreams } from "./runtimeStreamLegacyMigration";
+import { migrateTerminalScrollbackChunks } from "./terminalScrollbackSchema";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -104,7 +110,7 @@ function normalizeRuntimeStreams(sqlite: SqliteDatabase): void {
     ) {
       continue;
     }
-    writeItemStreams(sqlite, row.thread_id, row.item_id, streams);
+    writeLegacyMigrationItemStreams(sqlite, row.thread_id, row.item_id, streams);
   }
 }
 
@@ -843,6 +849,30 @@ export const DATABASE_MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 52,
+    name: "bounded terminal scrollback chunks",
+    // Old transcripts remain readable, but post-upgrade chunk writes cannot be
+    // served by the old whole-transcript reader. Code-only rollback is unsafe.
+    rollback: "forward-only",
+    migrate: migrateTerminalScrollbackChunks,
+  },
+  {
+    version: 53,
+    name: "runtime growing head blocks",
+    // Post-upgrade append blocks extend an immutable seed. Older whole-head
+    // readers omit those blocks, so code-only rollback cannot serve new writes.
+    rollback: "forward-only",
+    migrate: createRuntimeStreamHeadSchema,
+  },
+  {
+    version: 54,
+    name: "runtime payload origin custody",
+    // Older artifacts cannot enforce current-payload custody. Downgrading and
+    // accepting writes could leave false proof for a later upgraded reader.
+    rollback: "forward-only",
+    migrate: createRuntimePayloadOriginSchema,
+  },
 ] as const satisfies readonly DatabaseMigration[];
 
 export const LATEST_SCHEMA_VERSION = DATABASE_MIGRATIONS[DATABASE_MIGRATIONS.length - 1]!.version;
@@ -939,8 +969,8 @@ function writeSchemaVersion(sqlite: SqliteDatabase, version: number): void {
     .run(String(version));
 }
 
-export function runDatabaseMigrations(sqlite: SqliteDatabase, storedVersion: number): void {
-  validateMigrationRegistry();
+/** Validation-only opens need the same newer-artifact refusal as migrations. */
+export function assertSupportedDatabaseSchemaVersion(storedVersion: number): void {
   if (!Number.isInteger(storedVersion) || storedVersion < 0) {
     throw new Error(`Invalid database schema version: ${storedVersion}.`);
   }
@@ -949,6 +979,11 @@ export function runDatabaseMigrations(sqlite: SqliteDatabase, storedVersion: num
       `Database schema ${storedVersion} is newer than supported schema ${LATEST_SCHEMA_VERSION}.`,
     );
   }
+}
+
+export function runDatabaseMigrations(sqlite: SqliteDatabase, storedVersion: number): void {
+  validateMigrationRegistry();
+  assertSupportedDatabaseSchemaVersion(storedVersion);
 
   for (const migration of DATABASE_MIGRATIONS) {
     if (migration.version <= storedVersion) continue;
@@ -1065,7 +1100,21 @@ const REQUIRED_COLUMNS = {
     "streams",
     "parent_item_id",
   ],
-  thread_terminal_scrollback: ["thread_id", "transcript", "output_length"],
+  thread_runtime_item_payload_origins: [
+    "thread_id",
+    "item_id",
+    "format_owner_key",
+    "origin_format_version",
+  ],
+  thread_terminal_scrollback: [
+    "thread_id",
+    "transcript",
+    "output_length",
+    "chunked",
+    "stored_chars",
+    "next_seq",
+  ],
+  thread_terminal_scrollback_chunks: ["thread_id", "seq", "chars", "data"],
   main_created_threads: ["thread_id"],
   thread_runtime_item_stream_chunks: ["thread_id", "item_id", "stream", "seq", "chars", "text"],
   thread_runtime_item_stream_state: [
@@ -1076,6 +1125,23 @@ const REQUIRED_COLUMNS = {
     "tail_chars",
     "elided_chars",
   ],
+  thread_runtime_item_stream_heads: [
+    "head_id",
+    "thread_id",
+    "item_id",
+    "stream_key",
+    "stream_order",
+    "seed_chars",
+    "head_chars",
+    "next_seq",
+    "open_seq",
+    "open_chars",
+    "head_wire_bytes",
+    "head_json_units",
+    "head_has_content",
+    "head_last_unit",
+  ],
+  thread_runtime_item_stream_head_blocks: ["head_id", "seq", "chars", "data"],
   scheduled_tasks: [
     "id",
     "name",
@@ -1151,4 +1217,5 @@ export function assertRequiredDatabaseSchema(sqlite: SqliteDatabase): void {
   if (missing.length > 0) {
     throw new Error(`Database schema is incomplete; missing: ${missing.join(", ")}.`);
   }
+  assertRuntimePayloadOriginSchema(sqlite);
 }

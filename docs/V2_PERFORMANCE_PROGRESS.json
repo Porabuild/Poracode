@@ -1,0 +1,1021 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-05T10:06:09.463999+00:00",
+  "branch": "poracode/v2",
+  "goalStatus": "active",
+  "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
+  "progress": {
+    "completedMilestones": 0,
+    "totalMilestones": 6,
+    "inProgress": ["F1", "F2", "F3", "F4"],
+    "blocked": [],
+    "pending": ["F5", "F6"],
+    "completedScopedTasks": [
+      "F1-editor",
+      "F1-retention",
+      "F1-summary",
+      "F2-window",
+      "F3-snapshot",
+      "F2-connectivity-control",
+      "F1-summary-storage",
+      "F1-quit",
+      "F4-web-bootstrap",
+      "F1-ranged-file-read",
+      "F4-actual-fs-source",
+      "F4-quality-tooling",
+      "F1-stop"
+    ],
+    "taskCount": {
+      "complete": 13,
+      "total": 18,
+      "percent": 72.2,
+      "meaning": "Unweighted checklist only, not optimization savings/remaining effort/final signoff."
+    }
+  },
+  "currentWork": {
+    "requiredAgent": "632f1eb1c318",
+    "lastAgent": "R108 SolMax and FlashX complete; R109 FlashX metadata audit returned partial report",
+    "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
+    "agentState": "Read-only bounded group/gallery review running; R110nativestartupFAIL EPERM+ESRCH,13knownownersretired; branchwidechecks preparing userauthorizedcommitall",
+    "nativeSessionsLive": [],
+    "protocolProbe": null,
+    "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
+    "productionCandidate": {
+      "identity": "tmp/v2-streaming-perf-20260930/round109/build-identity.json",
+      "verification": "tmp/v2-streaming-perf-20260930/round109/candidate-verification.json",
+      "state": "R109 Electron44.4.4 mirroredoverride;8stagesPASS7549source3712outputs and199package runtimeclosure byteverified;131tests/hooksPASS; nativeStop/quit/zero errorsPASS. OverallGUIFAIL(group/media), no new performance gain."
+    },
+    "buildSession": null,
+    "nextAction": "Finish branch quality/i18n and comprehensive localcommit per user. Group/media actualcontrols, richPWA, resource/pairedperformance/audit remainopen. No unchanged native startup retry or permission-row suppression.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round110/root-round110-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round102/r107-affected-residual-gui/declaration.json",
+    "liveRootHandles": [],
+    "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
+    "scopedFunctionalResult": {
+      "normalGuiStop": "PASS twice with exact remote request/completion and owning UI settlement; not p95 or external provider coverage",
+      "provedSavedCreateReplay": "PASS: raw producer proof, 36-byte native source/path/kind, saved public item and +3/0 preserved after Page.reload without new provider item notifications",
+      "strictNativeQuit": "PASS R107 main/pageinspectors detached before nativecleanzeroexit; exact finalsavedboundsmatch. OriginalR101heldinspector failure preserved.",
+      "staleOwnerRace": "PASS R109527.94ms A exactredactedHTTP/protocol error + fresh toast, same reusedpane Bpendingdisabled, attemptedduplicate refused, exact Bsuccessack/completion andidle before watchdog",
+      "retirement": "R109 all14current nativeincarnations freshly ESRCH, cleanzeroquit; originalGUIFAIL preserved"
+    },
+    "richMatrixPreparation": {
+      "pureActualSourceContract": "PASS: light24/heavy24/bursty48 across24cases each; exact canonical input/output/edit/image checks plus6corruption rejections",
+      "nativeRichGui": "R107 scopedPASS96structured scripted calls/24cases perprofile, canonical/replay/negativeoracle; group/media interaction stillFAIL, fullGUIqualificationFAIL",
+      "toolGuiControlMap": "80working/frozen byte seals verified; controls authored, not exercised",
+      "genuineWorkflowRecipe": "79seals verified,1root harness seal superseded; ordinary IPC programmable registration recommendation invalid, corrected by root. HTTP MCP parent/worker templates unexecuted; host DAG and native Workflow manifests separate.",
+      "startupControl": "Positive non-root ESRCH guarded startup capability + complete2s stable tree;21tests pass, no third native validation",
+      "retirement": "R10716ownednativeincarnations freshESRCH,2declaredCDP/inspectorportsclosed; cleanzeroexit. OldR102failures preserved."
+    },
+    "serverWebGenuinePreparation": {
+      "headlessBootstrap": "PASS: fresh production headless owner, public pairing exchange, headed Chrome paired shell using complete finalized1753filegraph",
+      "nativeRichTools": "UNTESTED: starts rejected missing config.model",
+      "genuineMcpIngress": "Actual spawn_agent request and persisted error card; unavailable selection correctly refused. No genuine child or DAG success. Capability probes excluded from execution claims.",
+      "rootFixtureChecks": "10dry/import+3bounded-observation checks PASS; frozen production contracts PASS",
+      "retirement": "148recordedPIDs positively ESRCH; original cleanup observation error remains failure",
+      "stagedCorrections": "Start model, named generic selectable model declaration, exact canonical shapes, existing pending-read settlement. No new native validation."
+    },
+    "rangedFileRead": {
+      "state": "source_and_actual_process_pass_review_complete",
+      "result": "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+      "focusedPassed": 164,
+      "processPassed": 13,
+      "closeErrorRegression": "Reproduced pre-fix and now rejectsEIO after close; session error/no completion-hook check passes",
+      "wholeAppClaim": false
+    },
+    "fullQuality": {
+      "state": "PASS",
+      "result": "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
+      "testsPassed": 19300,
+      "testsFailed": 0,
+      "testsSkipped": 100,
+      "suitesPassed": 1716,
+      "suitesSkipped": 5,
+      "maxWorkers": 8,
+      "testTimeoutMilliseconds": 15000,
+      "lint": "PASS",
+      "typecheck": "PASS",
+      "originalFailure": "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json"
+    },
+    "currentCompiledGenuineEvidence": {
+      "actualChildRead": "tmp/v2-streaming-perf-20260930/round106/scoped-actual-child-read.json",
+      "actualDagContentAndDependency": "tmp/v2-streaming-perf-20260930/round106/direct-dag-scoped-verification.json",
+      "exactFastChildNativeIdentity": "UNQUALIFIED",
+      "guiRichCasesAdmitted": 0,
+      "originalRunsRemainFailed": true
+    },
+    "goalControllerObserved": {
+      "status": "active",
+      "at": "2026-10-05T09:07:07.050336+00:00",
+      "repositoryTrackerStatus": "active"
+    },
+    "commitPolicy": {
+      "authorizedBy": "User: commit all current changes; continue per verified big chunk",
+      "localCompletedVerifiedChunks": true,
+      "push": false,
+      "publish": false,
+      "installedAppReplacement": false
+    },
+    "lastLocalCommit": {
+      "sha": "8dad2e103b76876f04845083b5b8aa2f7c489f90",
+      "title": "fix(deps): update Electron for sandbox initialization fix",
+      "verification": "tmp/v2-streaming-perf-20260930/round109/commit-verification.json"
+    },
+    "dependencyUpdate": {
+      "state": "committed-and-scoped-native-verified",
+      "from": "44.0.0",
+      "to": "44.4.4",
+      "mirroredOverride": true,
+      "userAuthorized": true,
+      "declaration": "tmp/v2-streaming-perf-20260930/round109/dependency-update-declaration.json",
+      "localCommitRequiredAfterVerification": false
+    },
+    "dependencyAudit": {
+      "state": "coordinator-plan-complete; implementation-pending",
+      "userAuthorization": "If useful, update modules as part of v2; keep changes in verified chunks",
+      "artifact": "tmp/v2-streaming-perf-20260930/round109/dependency-audit/report.json",
+      "updatesNotPerformed": true
+    },
+    "currentWholeBranchQuality": {
+      "run": "R110 comprehensivecheckpoint",
+      "testsPassed": 19300,
+      "testsFailed": 0,
+      "testsSkipped": 100,
+      "suitesPassed": 1716,
+      "suitesSkipped": 5,
+      "maxWorkers": 8,
+      "testTimeoutMilliseconds": 15000,
+      "lint": "PASS",
+      "typecheck": "PASS",
+      "localization": "all12nonEnglish0missing",
+      "logs": "tmp/v2-streaming-perf-20260930/round110/all-commit-*"
+    },
+    "comprehensiveCheckpoint": {
+      "state": "allcurrenttracked/nonignoredchanges authorized andqualityverified; commit inprogress",
+      "authorization": "User: we have way more uncommited changes, commit all",
+      "goalRemainsActive": true,
+      "remainingQualificationOpen": true
+    }
+  },
+  "milestones": [
+    {
+      "id": "F1",
+      "title": "Close proven lifecycle and data regressions",
+      "status": "in_progress",
+      "dependsOn": [],
+      "owner": "Coordinator plus scoped Codex6.1SolMax lane",
+      "scope": [
+        "Renderer and supervisor pending-start readiness, stale-owner cleanup, ServerInstance cancellation and child custody.",
+        "Retired transport and late custom LSP replies.",
+        "Review remaining historical Stop/background-job and saved summary findings; fix proven unintended behavior or record supported semantics and bounded exceptions.",
+        "Reconcile retired measurement ID and aggregate retention fixes with current source; preserve canonical data.",
+        "Qualify automatic crash-restart readiness and open-model resynchronization; trace shared-pane last-owner authority before changing teardown policy."
+      ],
+      "doneWhen": [
+        "Meaningful regressions fail against previous behavior and pass after the fix.",
+        "Concurrent starts share one ready owner; pending shutdown publishes no replacement and leaves no owned child/subscription.",
+        "Late old success/error cannot erase or stop the newer session; live requests, retries and R72 model/save behavior remain correct.",
+        "Focused checks, independent review and real affected UI/stdio checks pass."
+      ],
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round73/session-owner-review.json",
+        "tmp/v2-streaming-perf-20260930/round73/native-lifecycle-verification.json",
+        "tmp/v2-streaming-perf-20260930/round74/root-baseline-regressions.json",
+        "tmp/v2-streaming-perf-20260930/round74/server-owner-result.json",
+        "tmp/v2-streaming-perf-20260930/round74/root-combined-checks.json",
+        "tmp/v2-streaming-perf-20260930/round75/restart-baseline.json",
+        "tmp/v2-streaming-perf-20260930/round75/shared-pane-review.json",
+        "tmp/v2-streaming-perf-20260930/round75/root-source-checks.json",
+        "tmp/v2-streaming-perf-20260930/round75/retired-callback-baseline.log",
+        "tmp/v2-streaming-perf-20260930/round75/root-final-checks.json",
+        "tmp/v2-streaming-perf-20260930/round75/native-verification.json",
+        "tmp/v2-streaming-perf-20260930/round76/callback-review.json",
+        "tmp/v2-streaming-perf-20260930/round76/native-verification.json",
+        "tmp/v2-streaming-perf-20260930/round76/native-controls-verification.json",
+        "tmp/v2-streaming-perf-20260930/round76/retention-reconciliation.json",
+        "tmp/v2-streaming-perf-20260930/round77/root-round77-result.json",
+        "tmp/v2-streaming-perf-20260930/round77/historical-summary-review.json",
+        "tmp/v2-streaming-perf-20260930/round77/targeted-stop-probe-corrected-result.json",
+        "tmp/v2-streaming-perf-20260930/round77/targeted-stop-prelist-result.json",
+        "tmp/v2-streaming-perf-20260930/round80/legacy-summary-contract.json",
+        "tmp/v2-streaming-perf-20260930/round81/legacy-writer-seams.json",
+        "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+        "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json"
+      ],
+      "nextAction": "R101 proved native create/fresh replay compatibility and normal GUI Stop pass. Stale-owner race and strict clean quit remain open; carry into next required matrix, no standalone retry loops.",
+      "qualifiedSubgates": {
+        "pendingStartStop": "R75 corrected real stdio cancellation PASS",
+        "crashRestartReplay": "R75 saved/unsaved snapshots PASS",
+        "currentSurfaceTransfer": "R76 one binding per current editor PASS",
+        "currentTwoOwnerOverlap": "R76 surviving editor/model/session and continued stdio edits PASS",
+        "currentTypeUndoFindSave": "R76 corrected focused commands and normal CDP Save PASS",
+        "currentRetiredMetadataBounds": "R76 source/test reconciliation64tests PASS; no heap-bound claim",
+        "independentOwnershipReview": "R76 seven current input hashes; no verified blocker",
+        "historicalStopMechanics": "R77 current0.160 standalone protocol PASS: interrupt leaves awaited timer; exact targeted terminate releases it. Pre-interrupt list also contains it, so list alone does not prove detached intent. Current GUI not newly qualified; existing semantics preserved.",
+        "currentNativeProvedCreateReplay": "R101 actual built-in adapter + private scripted native-protocol process to SQL proof and Page.reload: exact 36-byte source, +3/0, raw data unchanged, no new provider notifications PASS",
+        "currentNormalGuiStop": "R101 two exact provider receipt/ack/completion + owning UI disappearance before watchdog PASS",
+        "currentSavedQuitBounds": "R101 after retirement read-only exact final bounds PASS; strict clean-zero-exit remains unqualified",
+        "actualChildFileIo": "R104 source-integration PASS genuine ACP create/read/edit/full view, bounded Unicode read through ordered workflow, wrong-content dependency rejection; no GUI or external-provider qualification."
+      }
+    },
+    {
+      "id": "F2",
+      "title": "Resolve qualification control failures",
+      "status": "in_progress",
+      "dependsOn": [],
+      "owner": "Coordinator",
+      "scope": [
+        "Investigate actual Electron window visibility before another broad smoke run.",
+        "Use a small PWA worker lifecycle diagnostic to distinguish policy-session detach from actual worker termination."
+      ],
+      "doneWhen": [
+        "Visible-window and worker-policy prerequisites have authoritative passing receipts; unavailable external prerequisites remain BLOCKED and prevent milestone completion.",
+        "Original failures remain failures; a new corrected run has separate evidence.",
+        "One targeted repeat proves the correction before any full workload is repeated."
+      ],
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round73/final-smoke.log",
+        "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
+        "tmp/v2-streaming-perf-20260930/round75/native-verification.json",
+        "tmp/v2-streaming-perf-20260930/round75/native-failed-probes.json",
+        "tmp/v2-streaming-perf-20260930/round76/native-verification.json",
+        "tmp/v2-streaming-perf-20260930/round76/native-controls-verification.json",
+        "tmp/v2-streaming-perf-20260930/round79/pwa-policy-preflight.json",
+        "tmp/v2-streaming-perf-20260930/round80/worker-control-d0-review.json",
+        "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
+        "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d2-review.json",
+        "tmp/v2-streaming-perf-20260930/round80/glm-session-tests-corrected-result.json",
+        "tmp/v2-streaming-perf-20260930/round81/pwa-d1-review.json",
+        "tmp/v2-streaming-perf-20260930/round81/pwa-d2-review.json",
+        "tmp/v2-streaming-perf-20260930/round81/pwa-d3-review.json",
+        "tmp/v2-streaming-perf-20260930/round81/pwa-d4-review.json",
+        "tmp/v2-streaming-perf-20260930/round81/root-round81-result.json",
+        "tmp/v2-streaming-perf-20260930/round82/root-round82-result.json",
+        "tmp/v2-streaming-perf-20260930/round83/root-round83-result.json",
+        "tmp/v2-streaming-perf-20260930/round84/sw-offline-d2-review.json",
+        "tmp/v2-streaming-perf-20260930/round84/root-round84-result.json",
+        "tmp/v2-streaming-perf-20260930/round85/root-round85-result.json",
+        "tmp/v2-streaming-perf-20260930/round93/root-round93-result.json",
+        "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
+        "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
+        "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+        "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json"
+      ],
+      "nextAction": "R95 focused PWA control and R101 current native visible-window prerequisite pass. Required rich PWA matrix remains open; historical visibility cause not established. No additional catalog/inspector control diagnostics.",
+      "qualifiedSubgates": {
+        "workerCancellationControl": "R80 D2 PASS3native destroyed-before-resume targets and live/capture-retirement controls;48helper tests;20PIDs ESRCH; no actual PWA/offline pass",
+        "actualPwaCancelledAssets": "R81D3actual316HTTP/MIME response receipts+4native cancelled-before-resume requests with no fabricated HTTP status;5worker families200/MIME. Full run stillFAIL at old retirement guard.",
+        "retirementHelperRules": "120helper tests PASS; both retirement consumers accept only completed or exact native cancelled dispositions. Actual retirement/offline not yet qualified.",
+        "nativeObservationGuard": "R82tests138PASS; original witness retained; exact unresolved read window; late-exit expiry cannot erase failure; no unbound signals. SolMax review.",
+        "requestBookkeeping": "Redirect/native-worker-main termination regressions reproduced and helper-qualified. ActualD2 failed earlier on scalar publication; no actual idle/offline pass.",
+        "currentPwaNaturalActivation": "R83D1 request idle,naturalB activation,warm rich/editor/5worker families and actualBcache-only retirement reached with0captureerrors in retained FAIL. OfflineDocuments0;no fullPWA pass.",
+        "staleServiceWorkerControl": "R83small two-build native controlPASS: originalversion0 first target correlated to stopped+redundant finalevent; inspectorTargetInfo remainsattached.30PIDsESRCH/2portsclosed/40sourcehashes. Not proof actualD1 oldA lifetime; no offline/performance/device claim.",
+        "lifetimeOfflineControl": "R84focused two-build native d2PASS:exactoldA proof skips onlyoldA while inspector owned;B/page/observer ACKboth directions;native page+SWofflinefailed/onlinefinished;sameResponseEOF causalcontrol;30PIDsESRCH/2portsclosed/41sourcehashes. Not fullPWA/device/perfgain.",
+        "actualPwaOfflineEntry": "R84 actualoldA skippedbyexactnativeproof;B/page/observer ACK;rootdocument200fromSWfinished. StillFAIL Reactshell readiness20s;0offline documentsqualified/reconnectunreached.729PIDsESRCH/4ports/74sourcehashes/canonical/restorePASS.",
+        "actualOfflineReadinessCondition": "R85D1original200SWdocument/exactnativeframeLoader;before-restoration complete/crash0/composer1/sidebar0. Rootcachedcatalogrecoverygate remainsFAIL. Outer3rowscreenshotpostrestorationnot offlineevidence.",
+        "currentOfflineCatalog": "R90/R92/R93 root+nested offline, R92/R93 desktop restoration/public reconnect receipts; R93 final connectivity inconclusive, no full richPWA pass.",
+        "connectivityProbeReceipts": "R95 actual R89 page/service-worker/client-engine online/reconnect original Runtime body+native EOF; exact offline native failure; held inspector/normal reload records original worker session, earlier receipts and pre-cleanup detach/destroy. Source243tests,142PIDs/4ports/58seals/full deps/canonical/exactA pass. Scoped control only; R93 cause and full rich PWA remain open.",
+        "currentProductionVisibleWindow": "R101 native BrowserWindow visible/not minimized on four owned R100 launches PASS"
+      }
+    },
+    {
+      "id": "F3",
+      "title": "Attribute supervisor CPU and retained memory",
+      "status": "in_progress",
+      "dependsOn": ["F1"],
+      "owner": "Coordinator",
+      "scope": [
+        "Reproduce or explain mixed fast-server supervisor CPU using the same canonical work and current immutable builds.",
+        "Profile ordinary rich parsing, renderer layout/invalidation and GPU-process activity at representative interaction tails.",
+        "Recheck long-lived GUI/PTY working and released states; inventory live history, native allocations, metadata/cache owners and retired measurement IDs."
+      ],
+      "doneWhen": [
+        "Whole process-tree costs and representative p95 have matched workload/source identities.",
+        "Supervisor costs have stack/counter evidence; a non-reproduced historical increase is reported as such.",
+        "Repeatable retained owners/growth are fixed and rechecked, or costs are classified with evidence and explicit measurement limits.",
+        "No extra cache, batching or cost transfer is adopted without profile evidence and canonical parity."
+      ],
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round38/server-supervisor-cpu-next-plan.json",
+        "tmp/v2-streaming-perf-20260930/round58/root-round58-result.json",
+        "tmp/v2-streaming-perf-20260930/round59/root-round59-result.json",
+        "tmp/v2-streaming-perf-20260930/round60/root-round60-result.json",
+        "tmp/v2-streaming-perf-20260930/round77/profiling-preflight.json",
+        "tmp/v2-streaming-perf-20260930/round78/build-identity.json",
+        "tmp/v2-streaming-perf-20260930/round78/candidate-verification.json",
+        "tmp/v2-streaming-perf-20260930/round79/current-server-d0-review.json",
+        "tmp/v2-streaming-perf-20260930/round79/supervisor-profile-d1-review.json",
+        "tmp/v2-streaming-perf-20260930/round79/supervisor-profile-rich-d2-review.json",
+        "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
+        "tmp/v2-streaming-perf-20260930/round82/root-round82-result.json",
+        "tmp/v2-streaming-perf-20260930/round83/root-round83-result.json",
+        "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json"
+      ],
+      "nextAction": "R96/R97 attribution diagnostic is exhausted and remains FAIL; no new attribution cohort. R104 material bounded file I/O fix has source/real-process and helper measurements. Settle review/build; preserve missing renderer/GPU/native/private attribution. Already-planned final matched production pairs are separate and must not infer absent stacks or owners.",
+      "qualifiedSubgates": {
+        "profilingSnapshot": "R1047545source/3712dist/14links/full dependency graph verified historical snapshot. R105 tooling edits now differ; fresh source snapshot pending settled review/quality. No new profile/whole-app gain.",
+        "currentServerDiagnostic": "PASS200reads/144tools/canonical; p95 6.08ms,app3.25onecore%,supervisor1.24onecore%; singleheadless diagnostic, no gain claim",
+        "supervisorOrdinaryStacks": "PASS complete10s profile/samegeneration/source-map;0toolcalls in captured window explicitly classified",
+        "supervisorRichStacks": "PASS pre-first-burst10s profile covers72rich starts+completions; stop/disable/socket/process cleanup confirmed",
+        "externalDependencyIdentity": "PASS199packages/23489files/374edges before/after both profiles; optional/platform missing entries recorded"
+      },
+      "workMayStartBeforeDependenciesComplete": true,
+      "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now."
+    },
+    {
+      "id": "F4",
+      "title": "Verify representative final workflows and freeze the candidate",
+      "status": "in_progress",
+      "dependsOn": ["F1", "F2", "F3"],
+      "owner": "Coordinator",
+      "scope": [
+        "Electron GUI chats and real PTYs; desktop browser and portrait compact/mobile/PWA.",
+        "Ordinary/rich streaming, low/typical/burst tool counts, all registered tool render categories, create/edit/view, photos, groups, questions/permissions, Stop/steer and reader/scroll/replay.",
+        "Subagent/crossagent and ordered workflow coverage; reuse genuine accepted evidence only when relevant inputs remain unchanged.",
+        "PWA cold/warm loading, natural upgrade/cache retirement, offline reopening and reconnect. Physical device/background flows remain separate external gates.",
+        "Full typecheck/lint/tests, localization/version/provider isolation audits and immutable artifact identity.",
+        "Inventory each enabled tool name: input/output shape, GUI scenario, real/mocked execution evidence, and explicit unsupported/external status; category counts alone are insufficient."
+      ],
+      "doneWhen": [
+        "Coverage matrix has PASS/FAIL/BLOCKED/UNTESTED/NA per gate and links to exact source/build/run evidence.",
+        "No material input, reader, authorization, canonical-data or process-ownership regression remains in required available environments.",
+        "Changed behavior is verified on the final candidate; stable historical evidence is explicitly scoped and hash-checked.",
+        "Required quality checks pass, final artifact/dependency mirrors are attested, and every owned app/process is joined."
+      ],
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round43/root-workflow-live-review-d1.json",
+        "tmp/v2-streaming-perf-20260930/round59/root-round59-result.json",
+        "tmp/v2-streaming-perf-20260930/round69/root-round69-result.json",
+        "tmp/v2-streaming-perf-20260930/round79/crossagent-tool-inventory.json",
+        "tmp/v2-streaming-perf-20260930/round79/caller-tool-inventory.json",
+        "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
+        "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
+        "tmp/v2-streaming-perf-20260930/round103/root-round103-result.json",
+        "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+        "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json",
+        "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json"
+      ],
+      "nextAction": "Full branch quality PASS; freeze R105 then affected residual native GUI/PWA/tools/media/groups/genuine-workflow/lifecycle qualification. Preserve consumed diagnostic budgets.",
+      "workMayStartBeforeDependenciesComplete": true,
+      "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now.",
+      "qualifiedSubgates": {
+        "currentHeadlessPairedWebBootstrap": "R103 fresh headless service + headed paired finalized web shell PASS; rich/compact/PWA-worker/workflow gates not established.",
+        "actualFsAndDagSource": "R104 production ingress/manager/ACP child processes PASS13checks; exact filesystem oracle, compact evidence and canonical tool forwarding; final compiled GUI/PWA still open.",
+        "currentFrozenArtifact": "R104 current source/output/links and full recorded dependency graph reverified; oldR100 closure unchanged. No GUI/PWA/perf gain claim.",
+        "fullQuality": "Full lint/typecheckPASS; full unitFAIL21tests/17suites. Isolated3editor and19rendererwatch-control checks pass, not full quality pass. Generated-module wiring repair first."
+      }
+    },
+    {
+      "id": "F5",
+      "title": "Confirm final p95 and whole application resource behavior",
+      "status": "pending",
+      "dependsOn": ["F4"],
+      "owner": "Coordinator",
+      "scope": [
+        "Matched immutable production reference/candidate pairs in opposite orders for representative GUI, PTY and browser/compact workloads.",
+        "CPU across server/supervisor/renderer/GPU processes, available memory/footprint and I/O, canonical fidelity, resource ownership and interaction p95."
+      ],
+      "doneWhen": [
+        "At least two opposite-order matched pairs support any new gain or material regression claim.",
+        "Common interaction tails show no reproducible material regression; primary CPU/GPU-process gains remain supported on the final artifact.",
+        "Long-session resource behavior is stable or explained by observed working-set/driver retention; measured RAM is distinguished from private-memory/VRAM inference.",
+        "Tool/media/group/child/workflow coverage and oversize/protected exceptions remain visible in the report."
+      ],
+      "evidence": ["tmp/v2-streaming-perf-20260930/round45/root-round45-result.json"],
+      "nextAction": "Declare baseline, workloads, tolerances and instrumentation before measurement; add repeats only for unexplained variance or a changed source."
+    },
+    {
+      "id": "F6",
+      "title": "Audit completion and deliver the final report",
+      "status": "pending",
+      "dependsOn": ["F1", "F2", "F3", "F4", "F5"],
+      "owner": "Coordinator",
+      "scope": [
+        "Requirement-by-requirement audit against the original broad performance goal.",
+        "Consolidated achievements, before/after p95/resources, remaining risks, external blockers and explicit unmeasured dimensions."
+      ],
+      "doneWhen": [
+        "Every required goal item has current evidence or a documented exception allowed by the original goal; missing required qualification remains incomplete.",
+        "No hidden failing gate, orphaned app/child, pending required agent or unreviewed source change remains.",
+        "The final report separates performance-phase completion from the separate v2 production-readiness program.",
+        "Goal is marked complete only after the actual completion audit passes; no commit, push, publication or installed-app replacement."
+      ],
+      "evidence": ["docs/V2_PRODUCTION_READINESS.md"],
+      "nextAction": "Audit the final candidate and report; keep the broad goal active while any required milestone is incomplete."
+    }
+  ],
+  "rules": {
+    "p95": "Practical representative p95 and correctness; do not chase approximately3percent marginal gains.",
+    "regressionTolerance": "Working measurement rule: investigate repeatable input-queue p95 worsening exceeding max(2ms,10percent) under matched load. Every hang/data-loss/authorization/ownership regression is material regardless of this timing rule. This is a test decision rule, not a universal product SLO.",
+    "repeatPolicy": "Focused diagnostic before full replay; repeat only after a concrete correction, new failure or unexplained variance.",
+    "evidenceReuse": "Reuse only when relevant source/dependency/environment/workload inputs match; historical evidence is not final-tree sign-off.",
+    "exceptions": "Disclose inaccessible hardware GPU/VRAM/private-memory and protected/oversize cases. Physical-device or other required missing qualification is BLOCKED/UNTESTED, never PASS.",
+    "folderPolicy": "Private mocked fixture; never native folder picker.",
+    "stateProtection": "No commit/push/publish/installed-app replacement; root owns serial native apps/builds; preserve user sessions and existing dirty worktree.",
+    "inspectorBudget": "One diagnostic and one correction-validation consumed. Focused control passed; this lane is finished. No new round label, rare event hunting or unchanged catalog replay may reset it. Full required functional matrix remains separate.",
+    "observerVersusProduct": "Keep run FAIL when observer/RPC prevents evidence; mark unproved gate UNTESTED/inconclusive. Product regression requires exact supported behavior/custody/canonical violation. Never infer owner from cleanup.",
+    "branchExercise": "Do not launch extra broad rounds solely for rare metadata or100percent observer branch coverage; retain proof limits and reconcile any specifically required proof with original goal.",
+    "affectedResidualQualification": "R104 verified originalR93 stopping rule: concrete changed failed input or material source fix can justify a declared bounded affected qualification after discriminating preflight. This does not reset any old budget, reopen unchanged broad runner, imply rare100percent branch coverage, or waive missing evidence."
+  },
+  "updates": [
+    {
+      "at": "2026-10-04T08:02:03.675399+00:00",
+      "milestone": "F1",
+      "event": "Plan created; source review verified; ServerInstance implementation delegated; coordinator renderer/manager tests next.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round73/session-owner-review.json"
+    },
+    {
+      "at": "2026-10-04T08:19:52.760465+00:00",
+      "milestone": "F1",
+      "event": "Meaningful existing-code regressions reproduced:7 failed/2passed. Renderer/supervisor ownership fix then passed9 focused tests; transport/provider guards added. Combined checks and ServerInstance integration in progress.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round74/root-baseline-regressions.json"
+    },
+    {
+      "at": "2026-10-04T08:28:05.241424+00:00",
+      "milestone": "F1",
+      "event": "Coordinator ownership, transport, provider lifetime and editor binding suites:33tests/7files PASS. Typecheck and coordinator touched ordinary/type-aware lint PASS. ServerInstance lane reports15tests PASS; combined integration and native checks remain pending.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round74/root-touched-checks.json"
+    },
+    {
+      "at": "2026-10-04T08:31:19.607154+00:00",
+      "milestone": "F1",
+      "event": "ServerInstance lane completed16tests including real stdio; original initialize payload unchanged. Coordinator verified all4 source/test hashes and raw check receipt. Required agent joined; no native app is running.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round74/server-owner-result.json"
+    },
+    {
+      "at": "2026-10-04T08:33:36.577941+00:00",
+      "milestone": "F1",
+      "event": "Combined49tests/9files PASS; full project typecheck, ordinary/type-aware LSP lint and formatting PASS. Required ServerInstance agent completed and hashes checked. F1 remains incomplete: final affected native UI, crash-restart model replay and shared-pane authority gates are open.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round74/root-combined-checks.json"
+    },
+    {
+      "at": "2026-10-04T08:53:43.134689+00:00",
+      "milestone": "F1",
+      "event": "Restart regressions reproduced, then 74 focused tests/16files PASS. Current typecheck and ordinary/type-aware lint PASS; shared-pane review completed. Final affected native checks pending; no new resource-gain claim.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round75/root-source-checks.json"
+    },
+    {
+      "at": "2026-10-04T09:09:16.956478+00:00",
+      "milestone": "F1",
+      "event": "76focusedtests/16files PASS; final7hooktests/typecheck/ordinary+type-aware lint/fmt PASS. Native cancellation and crash replay PASS on frozen build. Native transfer exposed missing binding; retired-callback regression reproduced and fixed after that build, so final handoff remains open. App stopped;9PIDs ESRCH,2ports closed, runtime removed.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round75/root-round75-result.json"
+    },
+    {
+      "at": "2026-10-04T09:09:16.956478+00:00",
+      "milestone": "F2",
+      "event": "Owned window initially visible, later hidden. Brief overlap qualification failed; original failures retained. Visibility root cause and PWA worker policy remain unresolved; no broad repeat.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round75/native-verification.json"
+    },
+    {
+      "at": "2026-10-04T09:11:23.309979+00:00",
+      "milestone": "F1",
+      "event": "R76 current-source native handoff build and independent SolMax callback review started; R75 classified as progress.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round75/root-round75-result.json"
+    },
+    {
+      "at": "2026-10-04T09:28:52.946109+00:00",
+      "milestone": "F1",
+      "event": "Current-source real Electron transfer/overlap/save PASS; corrected focused type/Undo/Find PASS with0errors in controlled window. Independent review7hashes verified;64retention tests PASS.2native runs stopped;10knownPIDs ESRCH,4ports closed,2runtimes removed. Historical findings and full-goal gates remain open.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round76/root-round76-result.json"
+    },
+    {
+      "at": "2026-10-04T09:49:01.669190+00:00",
+      "milestone": "F1",
+      "event": "Historical raw timer proves30000ms wait/20000ms timer aborted0.5s, so deliberate background intent was not established. Official/current0.160 schema separates response interrupt from targeted background termination. First standalone probe missed cancellation interval; corrected command-start/OS-correlation probe now running. Summary audit found a provenance hazard in current-kind-only repair.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round77/owned-stop-rollout-selection.json"
+    },
+    {
+      "at": "2026-10-04T10:10:12.642786+00:00",
+      "milestone": "F1",
+      "event": "27provider tests PASS. Exact historical foreground wait recovered.2corrected standalone private timer cases prove targeted termination and independently verified5knownPIDs ESRCH; original timing failure retained. Summary review23current hashes verified; old0/0compatibility/origin remains unresolved. No product source changed or resource gains claimed.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round77/root-round77-result.json"
+    },
+    {
+      "at": "2026-10-04T10:34:56.643734+00:00",
+      "milestone": "F3",
+      "event": "Fresh isolated production build8stages PASS; root reverified7507sources,3712dist files and14internal links. Added concrete execution checklist and completed substep visibility; F3 now in progress. No final resource/workflow claims. Build61618 and verification29691 both terminal0.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round78/candidate-verification.json"
+    },
+    {
+      "at": "2026-10-04T11:18:14.590828+00:00",
+      "milestone": "F3",
+      "event": "Current source server diagnostic and separate ordinary/rich supervisor profiles PASS; captured72rich calls and144in eachfullregime,200reads.12helper tests PASS.573recordedPID entries all retired; no fresh gain or GUI/hardware/RAM qualification claim. F2minimal policy preflight and F4tool-name inventories advanced; full milestones remain open.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json"
+    },
+    {
+      "at": "2026-10-04T12:06:16.629634+00:00",
+      "milestone": "F1/F2",
+      "event": "Legacy contract settled with8verified inputs; cancelled worker error reproduced3times then corrected native control PASS with48helper tests and complete20PID/2port retirement. Actual PWA/offline and legacy implementation remain open. GLM FlashX High bounded lane completed; deep review remains SolMax.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round80/root-round80-result.json"
+    },
+    {
+      "at": "2026-10-04T12:41:09.383128+00:00",
+      "milestone": "F1/F2",
+      "event": "R81currentPWA advanced through native worker and cancelled-asset receipts;316usable response receipts+4cancelled assets retained. Retirement guard updated;120helper tests PASS. D4strict Chrome identity refusal leaves PWAofflineUNTESTED. All native arms retired. Legacy writer review49hashes verified/joined; implementation pending.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round81/root-round81-result.json"
+    },
+    {
+      "at": "2026-10-04T15:55:37.061006+00:00",
+      "milestone": "F2",
+      "event": "R84 lifetime integration174tests PASS. Original dispatch baseline FAIL; initial native d0 caught raw-domain lookup typo before offline. SolMax found collector-conflict detach cleanup gap; both newly reproduced then fixed.22PIDs ESRCH/2ports closed/41 archived source hashes verified. Correction review pending; no fullPWA/resource-gain claim.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round84/sw-offline-d0-review.json"
+    },
+    {
+      "at": "2026-10-04T16:02:03.451353+00:00",
+      "milestone": "F2",
+      "event": "R84d1 native advanced exact stopped/redundant exclusion with oldinspectorstillowned;B/page/observer ACKbothdirections;page/SWofflineoriginalloadingFailed. Online received200headers but originalfinishmissing,runFAIL.28PIDs/2ports/41source+archivehashes verified. Header-only consumer regression reproduced then corrected with boundedEOF consumption;175testsPASS.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round84/sw-offline-d1-review.json"
+    },
+    {
+      "at": "2026-10-04T16:40:37.468463+00:00",
+      "milestone": "F2",
+      "event": "PROGRESS: bounded nativeSW lifetime+distinct exclusion qualified;175tests/reviews/lint/formatPASS. ActualPWA passesoldworkerdispatch andservesoffline root200SWfinished;FAILunchanged Reactshell readiness conjunction. Full offline/reconnect andcurrent performance signoffremainopen.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round84/root-round84-result.json"
+    },
+    {
+      "at": "2026-10-04T17:11:34.798481+00:00",
+      "milestone": "F2",
+      "event": "R85 diagnostic180testsPASS; D0earlyprepresshitlossbeforeinput preserved106PIDs/4ports/74sources/exe/canonicalPASS. Boundedpreinput sameownerwait regression reproduced/fixed. Realrenderer+parentjournal cap4regression exposedmirrorgap; privateprotocol2/snapshot14 corrected;187testsPASS. FreshD1live;sourcecorrectionreviewpending.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round85/pwa-d0-review.json"
+    },
+    {
+      "at": "2026-10-04T17:31:00.746174+00:00",
+      "milestone": "F2",
+      "event": "PROGRESS: exactoffline readinesscondition proved before restoration;source-only diagnosiscan nowtargetcatalog.187tests/lint/formatPASS;boundedpreinputsameowner correction+intentionalprivateprotocol2/cap14qualified viaactualrenderer/journaltests andnativeboundary. FullPWAstillFAIL;no productperfclaim. Outer screenshot timingcorrected;before-restoration actualsidebar0 proved. D0/D1retired106/728PIDs and4portseach.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round85/root-round85-result.json"
+    },
+    {
+      "at": "2026-10-04T18:06:41.605816+00:00",
+      "round": "round86",
+      "result": "tmp/v2-streaming-perf-20260930/round86/pwa-d0-review.json",
+      "summary": "196 combined tests; R86 exploratory native FAILED gallery deadline before offline probe. Failed preflight prevented declaration; no qualification acceptance. All589 recorded PIDs/4ports/76sources/exes/canonical/overlay retired and verified. Required source-only bounded next-control review running."
+    },
+    {
+      "at": "2026-10-04T18:26:37.413028+00:00",
+      "round": "round87",
+      "result": "tmp/v2-streaming-perf-20260930/round87/catalog-d0-review.json",
+      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38\u219240); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
+    },
+    {
+      "at": "2026-10-04T18:38:22.821265+00:00",
+      "round": "round87",
+      "result": "tmp/v2-streaming-perf-20260930/round87/root-round87-result.json",
+      "summary": "Actualcachepresent atoffline failure; desktop/compact filtering policy identified and22frozen sidebar tests pass alongside198harness tests. All455nativePIDs/4ports/76sourcearchives retired. Privatepnpm layout incident restored and full199package/23489file/374edge dependency reattestation passed."
+    },
+    {
+      "at": "2026-10-04T20:20:43.342415+00:00",
+      "round": "round88\u2013round91",
+      "result": "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
+      "summary": "Reviewed offline prewarm/cancellation ownership fix compiledR89, original root+nested offline native gatesPASS R90. R91 desktop driver correction208tests/reviewPASS; nativeearlier A-warm observer unmatched2API requests/4responses preventsqualification. All127PIDs/4ports/78seals/fulldeps/canonical/exactAretiredverified. FlashX7source/report seals+nativeidgapverified; candidatecorrection notyetimplemented/qualified. All requiredchildrenjoined."
+    },
+    {
+      "at": "2026-10-04T21:09:03.838402+00:00",
+      "round": "round92",
+      "result": "tmp/v2-streaming-perf-20260930/round92/root-round92-result.json",
+      "summary": "Boundedcontinuouspage requestcustody reviewed/222helpertestsPASS. Native originaloffline root+nested, desktoprestore, onlinepublicselection andpage/SW/worker EOFchecks complete. Finalobserver refuses1parent ExtraInfo matchingobserved workerFetch; rawfailedarmretained.424PIDs/4ports/80seals/fulldeps/canonical/exactAaudited."
+    },
+    {
+      "at": "2026-10-04T22:02:03.468919+00:00",
+      "round": "round93",
+      "result": "tmp/v2-streaming-perf-20260930/round93/root-round93-result.json",
+      "summary": "233 sealed helper tests/reviewPASS. Native primaryoffline/desktop/reconnect complete; final inspector sessiondetach exacttarget unrecorded. Eight ledgers unmatched0, matcher nativeunexercised.481PIDs/4ports/82seals/dependencies/canonical/exactA audited. No nativehandle live; bounded finish-plan review running."
+    },
+    {
+      "at": "2026-10-04T22:16:42.139674+00:00",
+      "round": "round93-finalization",
+      "result": "tmp/v2-streaming-perf-20260930/round93/root-round93-finalization-result.json",
+      "summary": "Sol6.1Max bounded plan review joined/released,10seals independently verified. Rewrote active plan with finite6step queue; inspector budget1diagnostic+1concrete correctionvalidation acrossroundlabels. F1/F3/F4 independentprogress explicit. Sourcehelper/native/product/performance proof distinct; no required gate waived. Toolinventory71declarationsunchanged;12static tools+3aliases fixturesmapped, finalexecutions UNTESTED. Allnative/build/requiredchildhandles released."
+    },
+    {
+      "at": "2026-10-04T23:13:26.044254+00:00",
+      "round": "round94",
+      "result": "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
+      "summary": "Four receipt regressions fail before correction; 240 helpers/review pass. One native control fails before any probe on positional-tag/path contract;108PIDs/four ports/56seals/deps/reference restored; post-failure idle canonical audit passes. Failed raw/source retained."
+    },
+    {
+      "at": "2026-10-04T23:13:26.044254+00:00",
+      "round": "round95",
+      "result": "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
+      "summary": "Shared tag/directory correction reproduced by2failed dry tests and reviewed.243helpers pass. Only validation passes actual page/SW/client-engine online/offline/reconnect and deliberate reload retirement custody.142PIDs/fourports/58seals/deps/canonical/reference audited. Focused diagnostic lane finished; fullrichPWA/resource/finalmatrix remains open."
+    },
+    {
+      "at": "2026-10-05T00:15:49.187882+00:00",
+      "milestone": "F3",
+      "round": "R96/R97",
+      "summary": "Bounded attempt and one validation finished. First pre-tool lazy-stats guard defect corrected;14tests+independentreview22seals PASS. Current R89 rich48calls/24cases canonical conservation PASS, no durable gaps. CPU profile rejected, cleanup trace64MiB partial; full cohort remains FAILED with ordinary/PTY/working-release not reached. Both native teardown/source/archive/exe/candidate/dependency audits PASS. No further native attribution retry in this lane. Independent F1/F4 next."
+    },
+    {
+      "at": "2026-10-05T01:03:01.099471+00:00",
+      "milestone": "F1",
+      "round": "R98",
+      "summary": "Production GUI Stop request ownership race fixed (3before failures,98current tests, independent review). Schema54 storage custody implemented/126tests;40seals+13historical table hashes independently verified.10actual-process orchestration tests and4host smoke-scope tests PASS; coverage audit2640 tracked files. Typecheck/touched lint/type-aware/format PASS. No native app/build/perf gain, no publication; private origin transport/projection and affected GUI qualification remain open."
+    },
+    {
+      "round": "R99",
+      "summary": "Trusted source/child/private IPC/queue/SQL custody implemented (373focused tests+sealed oldsource/writer differential PASS). Provider-owned same-snapshot read projection, conservative limits, exact hard caps and pure build discovery pass97root focused tests;10real-process orchestration tests re-pass.88custody seals+14projection production seals verified; typecheck/touched lint/format PASS. Both agents joined/released. Fresh R99 frozen candidate8buildstages PASS;7538source/3712dist/14links and199externalpackages/23489files/374resolutionedges verified. Actual affected GUI/PWA and resource qualification remains open. No new performance gain or publication."
+    },
+    {
+      "round": "R100",
+      "summary": "Ordinary managedDEV7areas+12mock gatesPASS/0execution errors; owner+2ports retired/runtime removed. Shutdown composition had2genuine late-save failures; bounded ordered drain now44testsPASS incl owned-process watchdog/retirement; typecheck/type-aware lint/fmtPASS. Initial unbounded review superseded,16budgetreview+125providerseam seals verified;69qualification input hashes unchanged fromR99. Fresh R1008stage frozen build/source/dist/links/199pkg23489file374edge closure verified. All3agents joined; no new perf claim or productionGUI/PWA qualification."
+    },
+    {
+      "round": "R101",
+      "summary": "39 fixture/control/dry tests and 2 quit-observer pure tests PASS; required FlashX fixture/SolMax review joined. Four full native functional runs remain FAIL: premature pane assertion, transient missing target, retired metadata probe source witness, inspector-held quit. Scoped normal GUI Stop passes twice; proved native create fresh-hydration replay PASS with exact source/proof/canonical parity and no provider re-emission. Final saved bounds independently match; 41 incarnations retired/0 live handles. R100 source/dist/dependencies/execution inputs unchanged. No production code edits or new resource/p95 claims. Additional standalone Stop/quit diagnostics stopped; remaining gates carried into required finite matrix."
+    },
+    {
+      "round": "R102",
+      "summary": "No native rich workload qualified:2full attempts failed before sources started, first correctly refused ordinary programmable ACP registration (main error retained), second rejected witnessed retired probe during startup. Both preserved/20ownedincarnations retired. Root trusted stopped-host seed verified10ESRCH without extra init launch; existing guarded complete startup capability staged with21helper tests. Pure actual-source normalization/oracle96calls24cases across3profiles and6corruption checks PASS. FlashX80tool-control and Sol79workflow input seals verified; Sol ordinary registration recipe corrected after actual refusal. All agents joined; no production source change or resource/p95 claim."
+    },
+    {
+      "at": "2026-10-05T06:19:10.116465+00:00",
+      "round": "R104",
+      "result": "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+      "summary": "Material ranged ACP IO fix; old close-error defect reproduced and corrected.164source+13real-process checks pass;28child+8helperPIDs retired. Four final helper pairs stock31.47ms/incremental1.36ms; no whole-app claim. Required targeted review running; R100 stale for new source, fresh freeze next. Finish-gate audit22hashes verified; reconcile stale task/actions without waiving requirements/resetting old budgets."
+    },
+    {
+      "at": "2026-10-05T06:25:25.308448+00:00",
+      "round": "R104-review-final",
+      "result": "tmp/v2-streaming-perf-20260930/round104/root-fix-review-verification.json",
+      "summary": "Required targeted SolMax review complete/released,0Important; all reviewed hashes verified. Final164source+13process tests/typecheck/type-aware lint/format pass. Final helper conventional medians31.32ms/1.35ms; raw upper-middle statistic preserved/amended without extra runs. Source and process scoped tasks complete; fresh immutable build next."
+    },
+    {
+      "at": "2026-10-05T06:31:43.285901+00:00",
+      "round": "R104-build",
+      "result": "tmp/v2-streaming-perf-20260930/round104/candidate-verification.json",
+      "summary": "Fresh8stageR104build and full source/dist/link/dependency reattestation PASS; exact4459current source files and compiled new reader source-map match. Builder2056ESRCH after join; oldR100 deps unchanged. Full unit/lint checks running; no actual GUI/PWA or app-resource claim."
+    },
+    {
+      "at": "2026-10-05T06:47:22.313181+00:00",
+      "round": "R104-full-quality",
+      "result": "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json",
+      "summary": "Full lintPASS;full unitFAIL17suites/21tests with19178PASS/100skip. FlashXtriage joined/root7seals verified; allinputs preexistunchangedR100. Exact virtual-module source-loader/esbuild omissions and Vite directory-watch-import behavior validated; renderer19temporarycontrolPASS,monaco3isolatedPASS. Fullfailure retained,no sourcepatch or newnative run. Quality-tooling repair is next before residualGUI/PWA and finalpairs."
+    },
+    {
+      "at": "2026-10-05T07:12:36.307081+00:00",
+      "round": "R105-source",
+      "result": "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
+      "summary": "Shared projection generator fixes source loaders/CLI/Vite directory-watch contract.126affected casesPASS; typecheck/touched type-aware lint/formatPASS; exact0/2/64/65 old source/error differential and2unsupported-scheme process refusalsPASS. Original initial CLI/type failures retained/corrected. Required proof review plus one bounded replacement of terminalfailed contract review running; full quality/fresh freeze pending."
+    },
+    {
+      "at": "2026-10-05T07:41:46.005082+00:00",
+      "round": "R105-review-final",
+      "result": "tmp/v2-streaming-perf-20260930/round105/root-review-verification.json",
+      "summary": "Both required reviews joined/released0Important;2reuse nitsapplied and included infinalSolreview. Final13sourcehashesverified;27Node/CLI checks/typecheck/lint pass. Full unit8workerdeclaredrun live; alloriginalfailures retained."
+    },
+    {
+      "at": "2026-10-05T07:51:18.317730+00:00",
+      "round": "R105-full-quality",
+      "result": "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
+      "summary": "Full unit1716suites/19300tests PASS,5suites/100tests skip; bounded8workers, original15s test timeout unchanged. Full lint/typecheck/final13format and source sealsPASS; required reviews released0Important/two reuse nitsapplied. Original R104 failure preserved. Fresh immutable build next, no native/app-resource claim."
+    },
+    {
+      "at": "2026-10-05T07:55:08.412858+00:00",
+      "round": "R105-build",
+      "result": "tmp/v2-streaming-perf-20260930/round105/candidate-verification.json",
+      "summary": "Fresh8stage R105 candidate fully attested7549source/3712dist/14links,4463current src/final13seals and exactbounded reader source map. External17seeds199packages23489files374edges verified; R100oldclosure preserved; builder66782ESRCH afterjoin. Full qualityGREEN, no native or resource claim."
+    },
+    {
+      "at": "2026-10-05T08:04:09.352466+00:00",
+      "round": "R106-preflight",
+      "result": "tmp/v2-streaming-perf-20260930/round106/r106-affected-web/report.json",
+      "summary": "R105 frozen production pairedheadedweb bootstrap and actual3provider installed/auth/selectable model rosterPASS. Originalpreflight FAIL harnesslast-row selectedprojected child card; realchild completedactual24byteFS read inSQL.2otherfixtureassumptions exposed/advisory text andwrong23count;8correctionregressionsPASS. Original157ownedPIDs freshESRCH. One declaredchanged-input validation nowlive;no rich/GUI/PWA/workflowPASS yet."
+    },
+    {
+      "at": "2026-10-05T08:20:45.347525+00:00",
+      "round": "R106",
+      "result": "tmp/v2-streaming-perf-20260930/round106/root-round106-result.json",
+      "summary": "Threeprovider actual rosterPASS andcompiled supervisor-owned child24byteFS read independently verified. Direct production two-stageDAG completed withtwoactualFS reads/priorstage report; scopedcontent/spawnledger verified butfastchild nativeUUID unavailable. Original2webpreflight/directDAGfullrunsFAIL preserved (wrongprojected row, missing sendconfig, omitted intermediate result assumption).14realresponse regressions and124frozencontract inputsPASS; prospective corrections notnativepassed.310recordedPIDrowsESRCH/fiveportsclosed; no sourceproductchange/rebuild/performanceclaim. RemainingGUI/PWA/Stop/quit/finalpairs/F6 open."
+    },
+    {
+      "at": "2026-10-05T08:43:09.758530+00:00",
+      "round": "R107",
+      "result": "tmp/v2-streaming-perf-20260930/round107/root-round107-result.json",
+      "summary": "Native scoped96richcalls24cases/profile/canonical/negativeoracle/freshreplay PASS; samepane reusePASS. Strict detached nativequit clean0/exactsavedboundsPASS, closesF1quit. OriginaloverallGUIFAIL:grouptriggernotfound/staleconsoleobservationdeadline,2sandboxconsoleerrors retained. 16nativePIDs ESRCH/2portsclosed; source/dist/dependencies/currentproduction bytes unchanged. SolMax17hashes/2prospectiveharnessfindings verified+corrected;14helperregressionsPASS. Checklist12/18=66.7%,0/6finalsignoffs; controllerstillblocked, noexternalimpasse asserted."
+    },
+    {
+      "at": "2026-10-05T09:07:07.050336+00:00",
+      "round": "R108-commit",
+      "result": "tmp/v2-streaming-perf-20260930/round108/reader-commit-verification.json",
+      "summary": "Latest user authorizeslocal commitspercompletedchunk, supersedingolderno-commit preference; no publication. Bounded ACPread chunk5filescommitted b46bf4447. Staged-source149checks/4skip andhooks type-awarelint/format/fulltypecheck PASS; all7549worktreefilebytes preserved; otherperformance changes remainunstaged. Goalcontrolleractive."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "F1-editor",
+      "milestone": "F1",
+      "title": "Editor lifecycle",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "R75/R76 scoped tests, native restart/cancellation/transfer/control receipts; reuse only with matching inputs.",
+      "evidence": ["tmp/v2-streaming-perf-20260930/round76/root-round76-result.json"]
+    },
+    {
+      "id": "F1-retention",
+      "milestone": "F1",
+      "title": "Retention reconciliation",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "64 current tests PASS; heap/private-memory attribution remains F3.",
+      "evidence": ["tmp/v2-streaming-perf-20260930/round76/retention-reconciliation.json"]
+    },
+    {
+      "id": "F1-summary",
+      "milestone": "F1",
+      "title": "Historical saved summary compatibility",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "Scoped compatibility implementation and current producer-custody/replay qualification complete. Unknown legacy rows remain unknown; native current create already 3/0, no stale-counter/provenance injection or external-provider claim.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round77/historical-summary-review.json",
+        "tmp/v2-streaming-perf-20260930/round80/legacy-summary-contract.json",
+        "tmp/v2-streaming-perf-20260930/round81/legacy-writer-seams.json",
+        "tmp/v2-streaming-perf-20260930/round98/origin-storage-result.json",
+        "tmp/v2-streaming-perf-20260930/round99/custody-result.json",
+        "tmp/v2-streaming-perf-20260930/round99/root-projection-result.json",
+        "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json"
+      ]
+    },
+    {
+      "id": "F1-stop",
+      "milestone": "F1",
+      "title": "Stop semantics and GUI qualification",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "Scopednative Stop acceptance satisfied byR109; retain original failures and supported historical timer semantics",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round77/root-round77-result.json",
+        "tmp/v2-streaming-perf-20260930/round98/root-scoped-progress.json",
+        "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+        "tmp/v2-streaming-perf-20260930/round109/root-round109-result.json"
+      ]
+    },
+    {
+      "id": "F2-window",
+      "milestone": "F2",
+      "title": "Current Electron visible-window prerequisite",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "Current R101 production windows visible/not minimized PASS on four launches. Reuse verified prerequisite; historical hidden-window cause remains an explicitly unestablished historical finding, not a new diagnostic gate.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round75/native-verification.json",
+        "tmp/v2-streaming-perf-20260930/round100/ordinary-smoke-verification.json",
+        "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+        "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json"
+      ]
+    },
+    {
+      "id": "F2-pwa",
+      "milestone": "F2",
+      "title": "PWA worker policy and offline recovery",
+      "status": "in_progress",
+      "owner": "Coordinator",
+      "nextAction": "Focused control prerequisite PASS at R95. Continue required full rich PWA matrix after affected prerequisites, keeping R93 failures and unexercised native branch limits explicit. No further catalog/inspector control launches.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
+        "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
+        "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d2-review.json",
+        "tmp/v2-streaming-perf-20260930/round81/root-round81-result.json",
+        "tmp/v2-streaming-perf-20260930/round84/root-round84-result.json",
+        "tmp/v2-streaming-perf-20260930/round85/root-round85-result.json",
+        "tmp/v2-streaming-perf-20260930/round87/root-round87-result.json",
+        "tmp/v2-streaming-perf-20260930/round88/offline-prewarm-source-review.json",
+        "tmp/v2-streaming-perf-20260930/round89/candidate-verification.json",
+        "tmp/v2-streaming-perf-20260930/round90/catalog-d0-review.json",
+        "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
+        "tmp/v2-streaming-perf-20260930/round91/root-capture-handoff-review.json",
+        "tmp/v2-streaming-perf-20260930/round92/source-checkpoint.json",
+        "tmp/v2-streaming-perf-20260930/round92/git-fixture-source-check.json",
+        "tmp/v2-streaming-perf-20260930/round92/root-round92-result.json",
+        "tmp/v2-streaming-perf-20260930/round92/worker-wire-extra-evidence.json",
+        "tmp/v2-streaming-perf-20260930/round93/root-round93-result.json",
+        "tmp/v2-streaming-perf-20260930/round93/bounded-finalization-review.json",
+        "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
+        "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json"
+      ]
+    },
+    {
+      "id": "F3-snapshot",
+      "milestone": "F3",
+      "title": "Fresh production profiling snapshot",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "R105 immutable artifact and full runtime dependency closure verified; reuse source/runtime inputs for residual GUI/PWA and final pairs.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round78/build-identity.json",
+        "tmp/v2-streaming-perf-20260930/round78/candidate-verification.json",
+        "tmp/v2-streaming-perf-20260930/round99/candidate-verification.json",
+        "tmp/v2-streaming-perf-20260930/round99/runtime-dependency-verification.json",
+        "tmp/v2-streaming-perf-20260930/round100/candidate-verification.json",
+        "tmp/v2-streaming-perf-20260930/round104/candidate-verification.json",
+        "tmp/v2-streaming-perf-20260930/round104/runtime-dependency-verification.json",
+        "tmp/v2-streaming-perf-20260930/round105/candidate-verification.json",
+        "tmp/v2-streaming-perf-20260930/round105/runtime-dependency-verification.json"
+      ]
+    },
+    {
+      "id": "F3-attribution",
+      "milestone": "F3",
+      "title": "Supervisor/chat/native resource attribution",
+      "status": "in_progress",
+      "owner": "Coordinator",
+      "nextAction": "Repair rejected-profile evidence retention and bounded trace scope without launching another diagnostic in this finished lane; F3 current renderer/GPU/native allocation and working-release proof remains open before final qualification.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
+        "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
+        "tmp/v2-streaming-perf-20260930/round97/root-round97-result.json"
+      ]
+    },
+    {
+      "id": "F4-matrix",
+      "milestone": "F4",
+      "title": "Final workflows and candidate freeze",
+      "status": "in_progress",
+      "owner": "Coordinator",
+      "nextAction": "Reuse currentR105artifact andR10796call/conservation/replay/cleanquit passes; still qualifygroup/media/PWA/Stop and resolve sandboxconsoleerrors. No wholebuild/unitrerun forignoredfixture edits.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
+        "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
+        "tmp/v2-streaming-perf-20260930/round103/root-round103-result.json",
+        "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+        "tmp/v2-streaming-perf-20260930/round107/root-round107-result.json"
+      ]
+    },
+    {
+      "id": "F5-matched",
+      "milestone": "F5",
+      "title": "Final matched p95 and resources",
+      "status": "pending",
+      "owner": "Coordinator",
+      "nextAction": "Two opposite-order immutable production pairs; whole process tree, GPU-process, memory/I/O and exact canonical parity.",
+      "evidence": []
+    },
+    {
+      "id": "F6-audit",
+      "milestone": "F6",
+      "title": "Completion audit and report",
+      "status": "pending",
+      "owner": "Coordinator",
+      "nextAction": "Reconcile requirements/exceptions and owned process cleanup; keep goal active until required gates close.",
+      "evidence": []
+    },
+    {
+      "id": "F2-connectivity-control",
+      "milestone": "F2",
+      "title": "Bounded original connectivity and worker-retirement receipt control",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "R95 focused connectivity/worker-retirement control complete; current R101 visibility prerequisite also passed. Full rich PWA remains open and may share F2/F4 receipt. No new catalog/inspector diagnostic.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
+        "tmp/v2-streaming-perf-20260930/round95/connectivity-d1-review.json"
+      ]
+    },
+    {
+      "id": "F1-summary-storage",
+      "milestone": "F1",
+      "title": "Versioned bounded current-payload origin storage custody",
+      "status": "complete",
+      "owner": "Sol6.1Max implementation plus coordinator verification",
+      "nextAction": "R99 trusted writer/private transport/read projection and R101 actual proved create replay qualified the scoped compatibility task. Preserve unknown historical rows; no stale-counter or external-provider inference.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round98/origin-storage-result.json",
+        "tmp/v2-streaming-perf-20260930/round98/root-storage-seal-verification.json",
+        "tmp/v2-streaming-perf-20260930/round98/root-readonly-storage-conservation.json"
+      ]
+    },
+    {
+      "id": "F1-quit",
+      "milestone": "F1",
+      "title": "Shell-save and backend quit dependency",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "R100source fix/review/44tests plusR107actualdetached nativecleanzeroexit/exactsavedbounds qualified. OverallR107GUI remainsfailed fordistinctgates.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round100/shell-quit-result.json",
+        "tmp/v2-streaming-perf-20260930/round100/root-shutdown-budget-review-verification.json",
+        "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json",
+        "tmp/v2-streaming-perf-20260930/round101/post-quit-bounds.json",
+        "tmp/v2-streaming-perf-20260930/round102/r107-affected-residual-gui/native-clean-quit.json"
+      ]
+    },
+    {
+      "id": "F4-web-bootstrap",
+      "milestone": "F4",
+      "title": "Current headless service and paired finalized web shell",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "Scoped bootstrap prerequisite complete. Rich tools, compact replay, actual activated PWA worker and genuine execution remain open.",
+      "evidence": ["tmp/v2-streaming-perf-20260930/round103/root-round103-result.json"]
+    },
+    {
+      "id": "F1-ranged-file-read",
+      "milestone": "F1",
+      "title": "Ranged ACP file-read lifecycle and compatibility",
+      "status": "complete",
+      "owner": "Coordinator plus scoped Sol6.1Max review",
+      "nextAction": "Source regression and correction review complete; preserve exact text/path/error behavior. Compiled app qualification stays inF4.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+        "tmp/v2-streaming-perf-20260930/round104/root-fix-review-verification.json"
+      ]
+    },
+    {
+      "id": "F4-actual-fs-source",
+      "milestone": "F4",
+      "title": "Genuine child filesystem and dependency execution at source",
+      "status": "complete",
+      "owner": "Coordinator",
+      "nextAction": "R104source/processPASS plusR106actual compiled childFS andDAGcontent/dependency packets verified. Exactfastchildnativeidentity andGUIcontrols remain separate/unqualified; no appresource claim.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round104/root-round104-result.json",
+        "tmp/v2-streaming-perf-20260930/round104/process-retirement-final-flow.json",
+        "tmp/v2-streaming-perf-20260930/round106/scoped-actual-child-read.json",
+        "tmp/v2-streaming-perf-20260930/round106/direct-dag-scoped-verification.json"
+      ]
+    },
+    {
+      "id": "F4-quality-tooling",
+      "milestone": "F4",
+      "title": "Generated payload projection across source test pipelines",
+      "status": "complete",
+      "owner": "Coordinator with bounded FlashX triage",
+      "nextAction": "Reviewed shared-generator/source-loader/CLI/Vite repair complete; full branch unit19,300PASS/100skip, lint/typecheckPASS. Native GUI/PWA remains a distinct gate.",
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json",
+        "tmp/v2-streaming-perf-20260930/round104/full-tests.log",
+        "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
+        "tmp/v2-streaming-perf-20260930/round105/full-tests-final.log",
+        "tmp/v2-streaming-perf-20260930/round105/root-review-verification.json"
+      ]
+    }
+  ],
+  "dependenciesApplyTo": "Milestone sign-off; independent preparation/diagnostics may start before dependencies complete.",
+  "diagnosticBudget": {
+    "id": "R93-original-inspector-connectivity",
+    "diagnosticLaunchLimit": 1,
+    "diagnosticLaunchesUsed": 1,
+    "correctionValidationLaunchLimit": 1,
+    "correctionValidationLaunchesUsed": 1,
+    "resetOnNewRoundLabel": false,
+    "onExhaustion": "Keep required gate open and stop this lane; independent product/attribution/matrix work continues.",
+    "evidence": "tmp/v2-streaming-perf-20260930/round93/failure-attribution.json",
+    "declaration": "tmp/v2-streaming-perf-20260930/round94/connectivity-d0-declaration.json",
+    "validationDeclaration": "tmp/v2-streaming-perf-20260930/round95/connectivity-d1-declaration.json",
+    "state": "finished",
+    "controlPass": true,
+    "diagnosticResult": "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
+    "validationResult": "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
+    "furtherDiagnosticLaunchesAllowed": false
+  },
+  "rendererAttributionBudget": {
+    "id": "R96-current-R89-renderer-attribution",
+    "diagnosticUsed": 1,
+    "diagnosticLimit": 1,
+    "validationUsed": 1,
+    "validationLimit": 1,
+    "state": "finished",
+    "diagnosticTag": "r96-renderer-current-p0",
+    "validationTag": "r97-renderer-current-p1",
+    "furtherDiagnosticLaunchesAllowed": false,
+    "resetOnNewRoundLabel": false,
+    "qualificationPass": false,
+    "sourceProofAndFunctionalEvidenceDistinct": true,
+    "remainingGap": "Rejected raw profile not retained; partial oversized trace. F3 sign-off remains open, independent F1/F4 continue."
+  },
+  "guiFunctionalBudget": {
+    "round": "R101",
+    "standaloneStopRace": {
+      "attemptLimit": 2,
+      "attemptsUsed": 2,
+      "status": "exhausted-unqualified"
+    },
+    "standaloneCreateQuit": {
+      "attemptLimit": 2,
+      "attemptsUsed": 2,
+      "status": "exhausted-replay-qualified-clean-quit-unqualified"
+    },
+    "resetOnNewRoundLabel": false,
+    "nextAction": "No additional standalone retries. Carry still-required functional gates into the already-required final matrix; attribution/control budgets remain unchanged.",
+    "evidence": "tmp/v2-streaming-perf-20260930/round101/root-round101-result.json"
+  },
+  "richGuiMatrixBudget": {
+    "round": "R102",
+    "nativeAttemptLimit": 2,
+    "nativeAttemptsUsed": 2,
+    "status": "exhausted-before-workload",
+    "resetOnNewRoundLabel": false,
+    "nativeCorrectionStillUnqualified": true,
+    "originalFailedRunsPreserved": true,
+    "nextAction": "Old R102 lane remains exhausted; no unchanged third matrix or relabelled reset. Corrected registration/startup inputs and new R104 source may support declared affected required residual proof after actual prerequisite receipts, sharing existing GUI owner for stale Stop+detached quit.",
+    "evidence": "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json"
+  },
+  "serverWebGenuineMatrixBudget": {
+    "round": "R103",
+    "matrixAttemptsUsed": 2,
+    "prerequisiteInitializationsUsed": 1,
+    "status": "finished-unqualified-workloads",
+    "resetOnNewRoundLabel": false,
+    "furtherMatrixLaunchesThisLane": false,
+    "evidence": "tmp/v2-streaming-perf-20260930/round103/root-round103-result.json",
+    "note": "OldR103 failed workloads and cleanup error remain; paired web bootstrap passes. Later concrete model/roster/canonical corrections and R104 real FS source proof may justify only declared affected residual qualification after actual settled-artifact preflight. No unchanged third full runner or diagnostic reset."
+  }
+}

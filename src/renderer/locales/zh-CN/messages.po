@@ -1979,7 +1979,7 @@ msgstr "二进制文件 - 预览不可用。"
 msgid "Binary file or no diff available"
 msgstr "二进制文件或没有可用的差异"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Binary files can't be edited here."
 msgstr "此处无法编辑二进制文件。"
 
@@ -7236,7 +7236,7 @@ msgstr "正在加载帐户..."
 msgid "Loading diff..."
 msgstr "加载差异..."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Loading editor…"
 msgstr "正在加载编辑器..."
 
@@ -9301,7 +9301,7 @@ msgstr "打开图片 {0}/{1}"
 msgid "Open image preview"
 msgstr "打开图片预览"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "在浏览器中打开"
@@ -9838,7 +9838,7 @@ msgstr "已暂停"
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "PDF 预览会在浏览器面板中打开。"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "PDF 预览会在浏览器中打开。"
 
@@ -14080,11 +14080,11 @@ msgstr "此环境的主机身份已更改。请从主机显式重新配对。"
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "此事件已确认；缺失的内容不会恢复。"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "该文件过大，内置编辑器无法打开。"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "此文件使用不受支持的编码。"
 

@@ -33,3 +33,20 @@ await test("backend browser proxy changes keep their existing area gates", () =>
   assert.ok(areas.some((area) => area.id === "shared-runtime"));
   assert.ok(areas.some((area) => area.id === "browser" && area.automated.includes("browser")));
 });
+
+await test("host persistence and supervisor transport changes cannot disappear from smoke scope", () => {
+  for (const file of [
+    "src/host/db/runtimePayloadOrigins.ts",
+    "src/host/db/migrations.ts",
+    "src/host/supervisor/SupervisorClient.ts",
+    "src/host/remote/server/runtimePersistence.ts",
+  ]) {
+    assert.ok(isProductionFile(file), `${file} must enter changed-file and full coverage`);
+    const areas = areasForFile(file);
+    assert.ok(areas.some((area) => area.id === "shared-runtime"));
+    assert.ok(areas.some((area) => area.automated.includes("baseline")));
+    assert.ok(areas.some((area) => area.manual.includes("ipc-roundtrip")));
+  }
+  assert.equal(isProductionFile("src/host/db/runtimePayloadOrigins.test.ts"), false);
+  assert.equal(isProductionFile("src/host/fixtures/helper.ts"), false);
+});

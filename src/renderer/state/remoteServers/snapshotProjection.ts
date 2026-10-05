@@ -27,8 +27,6 @@ import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { applyCachedSlashCommandCatalogs, fetchSlashCommandCatalog } from "./slashCommandCatalogs";
 import { captureThreadFollowUpQueueSnapshot } from "@/renderer/state/threadFollowUpQueueStore";
 import {
-  runtimePageOverlapsExistingTranscript,
-  seedOlderThreadRuntimeItemsCursor,
   setOlderThreadHistoryContinuation,
   setOlderThreadHistoryInvalidation,
 } from "@/renderer/state/chatRuntimePersister";
@@ -476,6 +474,16 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
       }
       const serverIdentityAtStart = `${server.endpoint}\0${server.accessToken}`;
       const serverGenerationAtStart = currentRemoteServerGeneration(desktopId);
+      const isHistoryConnectionCurrent = (): boolean => {
+        const currentServer = get().servers.find(
+          (entry) => remoteConnectionKey(entry) === desktopId,
+        );
+        return (
+          currentServer !== undefined &&
+          `${currentServer.endpoint}\0${currentServer.accessToken}` === serverIdentityAtStart &&
+          currentRemoteServerGeneration(desktopId) === serverGenerationAtStart
+        );
+      };
       setHydratingRemoteServerThreadItemInterest(desktopId, threadId, previousOpenThread);
       // Hydrate the thread's history into the shared, threadId-keyed runtime
       // store so the desktop ChatPane renders it (coexists with local threads).
@@ -555,11 +563,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         return false;
       }
       const currentServer = get().servers.find((entry) => remoteConnectionKey(entry) === desktopId);
-      if (
-        !currentServer ||
-        `${currentServer.endpoint}\0${currentServer.accessToken}` !== serverIdentityAtStart ||
-        currentRemoteServerGeneration(desktopId) !== serverGenerationAtStart
-      ) {
+      if (!currentServer || !isHistoryConnectionCurrent()) {
         return false;
       }
       const projectedSnapshot = projectRemoteThreadSnapshot(desktopId, snapshot);
@@ -570,18 +574,22 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
         recordBoundedHistoryTail({ desktopId, threadId, page: boundedHistoryPage });
       }
       const installSnapshot = mergeBoundedTailTurns(projectedSnapshot, viewThreadId);
-      const existingRuntimeItemIds =
-        useAppStore.getState().runtimeItemIdsByThread[viewThreadId] ?? [];
-      seedOlderThreadRuntimeItemsCursor(viewThreadId, installSnapshot.runtimeNextCursor ?? null, {
-        preserveExistingCursor: runtimePageOverlapsExistingTranscript(
-          installSnapshot.runtimeItems,
-          existingRuntimeItemIds,
-        ),
-      });
+      // The shared installer seeds the item cursor from the prefix it actually
+      // preserved, after freshness arbitration; a pinned goal is not overlap.
       const applied: ApplyThreadSnapshotResult = applyThreadSnapshot(installSnapshot, {
         fromServer: true,
         lastSeenEventSeq: remoteThreadAppliedSeq(desktopId, threadId),
         followUpQueueSnapshotGuard,
+        ...(boundedHistoryPage
+          ? {
+              committedPrefix: {
+                threadId: viewThreadId,
+                snapshotSeq: boundedHistoryPage.snapshotSeq,
+                isCurrent: isHistoryConnectionCurrent,
+                lastSeenEventSeq: () => remoteThreadAppliedSeq(desktopId, threadId),
+              },
+            }
+          : {}),
       });
       if (applied.installedAuthoritativeHistory) {
         recordAuthoritativeHistoryInstall(desktopId, threadId, snapshot.snapshotSeq);

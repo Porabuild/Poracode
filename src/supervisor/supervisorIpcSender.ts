@@ -1,4 +1,10 @@
 import type { SupervisorEvent, SupervisorReply } from "@/shared/ipc";
+import {
+  RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION,
+  runtimePayloadOriginEnvelopeBytes,
+  serializeRuntimePayloadOrigins,
+  type RuntimePayloadOriginNegotiation,
+} from "@/shared/runtimePayloadOriginProtocol";
 import type { IpcQueueCapture, IpcQueueSample } from "@/shared/diagnostics/ipcQueueSample";
 import { CanonicalFlowLedger } from "./canonicalFlowLedger";
 import { IpcQueueProbe } from "./ipcQueueProbe";
@@ -170,6 +176,7 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
    * never free ledger bytes it never emitted.
    */
   private readonly flowLedger: CanonicalFlowLedger;
+  private payloadOriginGeneration: string | null = null;
   private inFlightSends = 0;
   private waitingForDrain = false;
   private draining = false;
@@ -213,7 +220,29 @@ export class SupervisorIpcSender<AdditionalMessage = never> {
     // PTY parsing can emit OSC/state events from the same input chunk. Flush
     // the bytes first so batching never reverses their observable order.
     this.flushTerminalOutput();
-    this.enqueue(event, meta);
+    const privateBytes = runtimePayloadOriginEnvelopeBytes(event);
+    const wireEvent = serializeRuntimePayloadOrigins(event, this.payloadOriginGeneration);
+    // Never let a caller's event-only estimate omit the private allocation.
+    const chargedMeta =
+      privateBytes > 0
+        ? {
+            estimatedBytes: Math.max(
+              meta.estimatedBytes ?? 0,
+              estimateMessageBytes(event, Number.MAX_SAFE_INTEGER) + privateBytes,
+              estimateMessageBytes(wireEvent, Number.MAX_SAFE_INTEGER),
+            ),
+          }
+        : meta;
+    this.enqueue(wireEvent, chargedMeta);
+  }
+
+  /** An old receiver sends no enable control, and receives no private fields. */
+  enableRuntimePayloadOrigins(control: RuntimePayloadOriginNegotiation): void {
+    if (
+      control.version === RUNTIME_PAYLOAD_ORIGIN_FORMAT_VERSION &&
+      control.generation === this.flowLedger.generation
+    )
+      this.payloadOriginGeneration = control.generation;
   }
 
   reply(reply: SupervisorReply): void {

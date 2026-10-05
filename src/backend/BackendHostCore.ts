@@ -30,11 +30,16 @@ import type {
 import { SupervisorClient, type SupervisorClientOptions } from "@/host/supervisor/SupervisorClient";
 import { ensureHomeProjectRow } from "@/host/schedules/homeProject";
 import { HostDataFence } from "@/backend/ownership/hostDataFence";
-import { persistSupervisorEvent } from "@/host/remote/server/runtimePersistence";
+import {
+  persistSupervisorEvent,
+  persistAdmittedSupervisorEvent,
+} from "@/host/remote/server/runtimePersistence";
 import { TerminalScrollbackPersistence } from "@/host/remote/server/terminalScrollbackPersistence";
 import { HostPersistenceProducerControl } from "@/backend/hostPersistenceProducerControl";
+import { HostCanonicalAdmissionControl } from "@/backend/HostCanonicalAdmissionControl";
 import { settleOrphanedCrossagentRuns } from "@/backend/crossagentBootSettle";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { stripRuntimePayloadOriginMetadata } from "@/shared/runtimePayloadOriginProtocol";
 import type { ProjectLocation } from "@/shared/contracts/common";
 import type { ThreadConfig } from "@/shared/contracts/config";
 import type { ProviderRevertAnchor } from "@/shared/contracts";
@@ -158,6 +163,7 @@ export class BackendHostCore {
   readonly supervisorClient: SupervisorClient;
   private readonly terminalScrollbackPersistence: TerminalScrollbackPersistence;
   private persistenceProducerControl: HostPersistenceProducerControl | null = null;
+  private canonicalAdmissionControl: HostCanonicalAdmissionControl | null = null;
   private databaseOpen = false;
   private closing = false;
   private supervisorJoined = false;
@@ -235,20 +241,23 @@ export class BackendHostCore {
           }
           return prepared;
         },
-        onEvent: (event) => {
+        onEvent: (event, custody) => {
           // Persistence must never throw into the supervisor IPC handler: the
           // bounded controller classifies storage failures and raises producer
           // backpressure instead. This try/catch is the last line of defense.
           try {
             this.terminalScrollbackPersistence.handle(event);
-            const outcome = persistSupervisorEvent(event, {
+            const persistOptions = {
               publishDeferredEvent: (deferred) => {
                 // Resets are withheld until their durable rebase completes.
                 // The remote persistence API also accepts non-supervisor
                 // events; only its reset completion belongs to this callback.
                 if (deferred.type === "thread-reset") options.onEvent(deferred);
               },
-            });
+            } satisfies import("@/host/remote/server/runtimePersistence").PersistSupervisorEventOptions;
+            const outcome = custody
+              ? persistAdmittedSupervisorEvent(custody, persistOptions)
+              : persistSupervisorEvent(event, persistOptions);
             // The original envelope's credit is resolved even on an explicit
             // refusal. Publication uses only the accepted envelope/prefix.
             this.persistenceProducerControl?.acknowledgeCanonicalFlow(event);
@@ -258,7 +267,10 @@ export class BackendHostCore {
           }
         },
         onOutputShed: (threadIds) => options.onSupervisorOutputShed?.(threadIds),
+        onCanonicalAdmission: (message) => this.canonicalAdmissionControl?.handle(message),
         onReset: () => {
+          // SupervisorClient reset follows positive close/termination join.
+          this.canonicalAdmissionControl?.retireOwner();
           // The supervisor process that owned every Crossagent run just died;
           // its replacement spawns with an empty run tracker. Settle the
           // orphaned running rows now — before the respawn accepts a
@@ -269,12 +281,21 @@ export class BackendHostCore {
         },
         // Reserve the advertised in-flight headroom before granting credit,
         // and re-raise current storage pressure for each supervisor generation.
-        onFlowControlReady: () => this.persistenceProducerControl?.refreshPeerCapabilities(),
+        onFlowControlReady: () => {
+          this.persistenceProducerControl?.refreshPeerCapabilities();
+          this.canonicalAdmissionControl?.negotiate();
+        },
       });
       // Producer backpressure plane: persistence health -> supervisor control.
       // SupervisorClient only sends the negotiated control to a peer that
       // advertised the capability, so a legacy supervisor is never misread.
       this.persistenceProducerControl = new HostPersistenceProducerControl(this.supervisorClient);
+      this.canonicalAdmissionControl = new HostCanonicalAdmissionControl(
+        this.supervisorClient,
+        // Admission2 stays events-only/UNKNOWN. Its alternate publication
+        // path must obey the same private-field erasure as flow1 persistence.
+        (event) => options.onEvent(stripRuntimePayloadOriginMetadata(event)),
+      );
     } catch (error) {
       // A refused close (its drain hook threw; see `closeDatabase`) keeps the
       // SQLite handle open and writable, so this failed construction must keep
@@ -893,6 +914,7 @@ export class BackendHostCore {
     const continuations = [...this.revertLocks.values()];
     this.supervisorDisposal = (async () => {
       await this.supervisorClient.dispose();
+      this.canonicalAdmissionControl?.retireOwner();
       await Promise.all(continuations);
       this.supervisorJoined = true;
     })();
@@ -921,6 +943,8 @@ export class BackendHostCore {
     this.databaseOpen = false;
     this.persistenceProducerControl?.dispose();
     this.persistenceProducerControl = null;
+    this.canonicalAdmissionControl?.dispose();
+    this.canonicalAdmissionControl = null;
     // The fence outlives the database handle on purpose: custody ends only
     // when nothing can write anymore. Process death also releases it.
     this.dataFence?.release();

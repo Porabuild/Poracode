@@ -1,5 +1,5 @@
 import {
-  forwardRef,
+  useContext,
   useEffect,
   useEffectEvent,
   useImperativeHandle,
@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
 import { ArrowDown } from "lucide-react";
@@ -32,6 +32,10 @@ import {
   shouldRepinForContentGrowth,
   THREAD_OPEN_COALESCE_MS,
 } from "./chatScrollGeometry";
+import { useChatScrollResizeObserver } from "./useChatScrollResizeObserver";
+import { ChatReaderFollowContext } from "./chatReaderFollow";
+
+type ScrollGeometry = Pick<HTMLElement, "scrollHeight" | "clientHeight">;
 
 const USER_SCROLL_INTENT_MS = 750;
 const VIRTUALIZER_LAYOUT_SETTLE_MS = 250;
@@ -65,23 +69,25 @@ export type ChatScrollControlsHandle = {
   onContentHeightChange(): void;
 };
 
-export const ChatScrollControls = forwardRef<
-  ChatScrollControlsHandle,
-  {
-    scrollRef: React.RefObject<HTMLDivElement | null>;
-    contentRef: React.RefObject<HTMLDivElement | null>;
-    layoutChangeToken: string | null | undefined;
-    tailEntryId: string | null;
-    threadId: string;
-    tailLoaderVisible: boolean;
-    initialScrollSettled: boolean;
-    initialScrollRevealDelayMs: number;
-    virtualScrollToBottomRef: React.RefObject<(() => void) | null>;
-    onInitialScrollSettled: () => void;
-  }
->(function ChatScrollControls(props, ref) {
+// React 19 accepts ref as a prop. Keeping this a plain function also lets the
+// installed reconciler refresh Effect Events after startup props change.
+export function ChatScrollControls(props: {
+  ref?: React.Ref<ChatScrollControlsHandle>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
+  layoutChangeToken: string | null | undefined;
+  tailEntryId: string | null;
+  threadId: string;
+  tailLoaderVisible: boolean;
+  initialScrollSettled: boolean;
+  initialScrollRevealDelayMs: number;
+  virtualScrollToBottomRef: React.RefObject<(() => void) | null>;
+  onInitialScrollSettled: () => void;
+}) {
   const { t } = useLingui();
+  const readerFollow = useContext(ChatReaderFollowContext);
   const {
+    ref,
     scrollRef,
     contentRef,
     layoutChangeToken,
@@ -125,6 +131,18 @@ export const ChatScrollControls = forwardRef<
   const pinHoldoffUntilRef = useRef(0);
   const touchFirstPointer = window.matchMedia(TOUCH_FIRST_POINTER_QUERY).matches;
   const [showScrollDown, setShowScrollDown] = useState(false);
+  const observeScrollElements = useChatScrollResizeObserver({
+    scrollRef,
+    contentRef,
+    threadId,
+    onResize: syncLayoutNowAndAfterPaint,
+  });
+
+  function invalidateBottomPin() {
+    atBottomCachedUntilRef.current = 0;
+    lastPinnedScrollHeightRef.current = 0;
+    lastPinnedClientHeightRef.current = 0;
+  }
 
   function cancelVirtualizerLayoutChange() {
     virtualizerLayoutChangeUntilRef.current = 0;
@@ -162,8 +180,11 @@ export const ChatScrollControls = forwardRef<
     const el = scrollRef.current;
     if (!el) return;
     const isAtBottom = isElementAtBottom(el);
-    if (isAtBottom) stickToBottomRef.current = true;
-    setShowScrollDown(nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }));
+    const readerPaused = readerFollow?.isFollowing() === false;
+    if (isAtBottom && !readerPaused) stickToBottomRef.current = true;
+    setShowScrollDown(
+      readerPaused || nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }),
+    );
   }
 
   function disableStickToBottom() {
@@ -177,9 +198,7 @@ export const ChatScrollControls = forwardRef<
     // End the open-storm coalesce immediately so a first scroll-away is not
     // still treated as a measurement settle that wants to re-pin / coalesce.
     threadOpenCoalesceUntilRef.current = 0;
-    atBottomCachedUntilRef.current = 0;
-    lastPinnedScrollHeightRef.current = 0;
-    lastPinnedClientHeightRef.current = 0;
+    invalidateBottomPin();
     stickToBottomRef.current = false;
     const el = scrollRef.current;
     setShowScrollDown(!el || !isElementAtBottom(el));
@@ -214,28 +233,38 @@ export const ChatScrollControls = forwardRef<
     return true;
   }
 
-  function writeScrollTop(el: HTMLElement, nextScrollTop: number) {
-    noteProgrammaticScroll(nextScrollTop);
-    el.scrollTop = nextScrollTop;
-  }
-
-  function writeBottomPin(el: HTMLElement) {
-    writeScrollTop(el, el.scrollHeight);
-    lastPinnedScrollHeightRef.current = el.scrollHeight;
-    lastPinnedClientHeightRef.current = el.clientHeight;
-    lastScrollTopRef.current = el.scrollTop;
+  function writeBottomPin(el: HTMLElement, geometry: ScrollGeometry = el) {
+    const { scrollHeight, clientHeight } = geometry;
+    el.scrollTop = scrollHeight;
+    const scrollTop = el.scrollTop;
+    // The browser clamps a bottom write to scrollHeight - clientHeight. Tag
+    // that actual destination so its later scroll event matches our write.
+    noteProgrammaticScroll(scrollTop);
+    lastPinnedScrollHeightRef.current = scrollHeight;
+    lastPinnedClientHeightRef.current = clientHeight;
+    lastSeenScrollHeightRef.current = scrollHeight;
+    lastSeenClientHeightRef.current = clientHeight;
+    lastScrollTopRef.current = scrollTop;
     stickToBottomRef.current = true;
     setShowScrollDown(false);
   }
 
-  function scrollToBottom(options: { reconcileVirtualizer?: boolean } = {}) {
+  function scrollToBottom(
+    options: { reconcileVirtualizer?: boolean } = {},
+    geometry?: ScrollGeometry,
+  ) {
     const el = scrollRef.current;
     if (!el) return;
+    const { scrollHeight, clientHeight } = geometry ?? el;
+    const scrollTop = el.scrollTop;
     // User is actively scrolling away (wheel / scrollbar / pointer drag).
     // Never re-pin — ResizeObserver and streaming anchors must not fight the
     // gesture. Intent alone used to leave sticky on until the first scroll
     // event; this guard covers that race and any missed disable.
-    if (hasRecentUserScrollIntent() && !isElementAtBottom(el)) {
+    if (
+      hasRecentUserScrollIntent() &&
+      !isElementAtBottom({ scrollHeight, clientHeight, scrollTop })
+    ) {
       stickToBottomRef.current = false;
       setShowScrollDown(true);
       return;
@@ -248,11 +277,9 @@ export const ChatScrollControls = forwardRef<
     // one-shot virtualizer adjustment lets it lapse and the next growth pin
     // reattaches the transcript.
     if (options.reconcileVirtualizer !== true && now < pinHoldoffUntilRef.current) {
-      if (!isElementAtBottom(el)) return;
+      if (!isElementAtBottom({ scrollHeight, clientHeight, scrollTop })) return;
       pinHoldoffUntilRef.current = 0;
     }
-    const scrollHeight = el.scrollHeight;
-    const clientHeight = el.clientHeight;
     const reconcileVirtualizer = options.reconcileVirtualizer === true;
     // Stick-to-bottom storms (thread switch / row measure) call this many times
     // per frame. If we are already pinned at the same content height, skip
@@ -261,6 +288,7 @@ export const ChatScrollControls = forwardRef<
     // virtualizer to the last row. Never skip when scrollHeight grew either —
     // otherwise chats open mid-transcript after rows measure taller.
     if (
+      scrollTop === lastScrollTopRef.current &&
       shouldTrustCachedAtBottom({
         now,
         cachedUntil: atBottomCachedUntilRef.current,
@@ -278,6 +306,7 @@ export const ChatScrollControls = forwardRef<
     // During the open storm while sticky, only re-pin when scrollHeight grew.
     if (
       !reconcileVirtualizer &&
+      scrollTop === lastScrollTopRef.current &&
       !shouldRepinForContentGrowth({
         stickToBottom: stickToBottomRef.current,
         now,
@@ -301,7 +330,7 @@ export const ChatScrollControls = forwardRef<
       !reconcileVirtualizer &&
       shouldSkipScrollToBottomWrite({
         scrollHeight,
-        scrollTop: el.scrollTop,
+        scrollTop,
         clientHeight,
         lastPinnedScrollHeight: lastPinnedScrollHeightRef.current,
       })
@@ -315,7 +344,7 @@ export const ChatScrollControls = forwardRef<
       });
       lastPinnedScrollHeightRef.current = scrollHeight;
       lastPinnedClientHeightRef.current = clientHeight;
-      lastScrollTopRef.current = el.scrollTop;
+      lastScrollTopRef.current = scrollTop;
       stickToBottomRef.current = true;
       setShowScrollDown(false);
       return;
@@ -332,12 +361,14 @@ export const ChatScrollControls = forwardRef<
       beginVirtualizerLayoutChange();
       virtualScrollToBottom();
     }
-    writeBottomPin(el);
+    // Reconciliation can synchronously change geometry. Only the normal direct
+    // pin may reuse this pass's snapshot; never retain it across callbacks.
+    writeBottomPin(el, reconcileVirtualizer ? el : { scrollHeight, clientHeight });
   }
 
-  function syncLayoutNow() {
+  function syncLayoutNow(geometry?: ScrollGeometry) {
     if (stickToBottomRef.current) {
-      scrollToBottom();
+      scrollToBottom({}, geometry);
       return;
     }
     syncBottomStateFromLayout();
@@ -359,17 +390,21 @@ export const ChatScrollControls = forwardRef<
   }
 
   function syncLayoutNowAndAfterPaint() {
+    observeScrollElements();
     const el = scrollRef.current;
+    const geometry = el
+      ? { scrollHeight: el.scrollHeight, clientHeight: el.clientHeight }
+      : undefined;
     const layoutHeightChanged =
-      !!el &&
-      (el.scrollHeight !== lastPinnedScrollHeightRef.current ||
-        el.clientHeight !== lastPinnedClientHeightRef.current);
+      !!geometry &&
+      (geometry.scrollHeight !== lastPinnedScrollHeightRef.current ||
+        geometry.clientHeight !== lastPinnedClientHeightRef.current);
 
     // Height-driven sticky pins must run in this frame. Cancel any pending
     // coalesce so an earlier open-storm schedule cannot defer the write.
     if (layoutHeightChanged && stickToBottomRef.current) {
       cancelScheduledLayoutSync();
-      syncLayoutNow();
+      syncLayoutNow(geometry);
       return;
     }
 
@@ -398,7 +433,7 @@ export const ChatScrollControls = forwardRef<
       });
       return;
     }
-    syncLayoutNow();
+    syncLayoutNow(geometry);
     layoutSyncRafRef.current = requestAnimationFrame(() => {
       layoutSyncRafRef.current = null;
       syncLayoutNow();
@@ -552,10 +587,12 @@ export const ChatScrollControls = forwardRef<
   }));
 
   useLayoutEffect(() => {
+    readerFollow?.resume();
+    cancelScheduledPin();
+    cancelScheduledLayoutSync();
+    cancelScheduledExplicitPin();
     threadOpenCoalesceUntilRef.current = performance.now() + THREAD_OPEN_COALESCE_MS;
-    atBottomCachedUntilRef.current = 0;
-    lastPinnedScrollHeightRef.current = 0;
-    lastPinnedClientHeightRef.current = 0;
+    invalidateBottomPin();
     lastSeenScrollHeightRef.current = scrollRef.current?.scrollHeight ?? 0;
     lastSeenClientHeightRef.current = scrollRef.current?.clientHeight ?? 0;
     scrollToBottom({ reconcileVirtualizer: true });
@@ -577,6 +614,7 @@ export const ChatScrollControls = forwardRef<
     if (layoutChangeToken === initialLayoutChangeTokenRef.current) return;
     initialLayoutChangeTokenRef.current = layoutChangeToken;
     cancelScheduledLayoutSync();
+    invalidateBottomPin();
     syncLayoutNow();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- effect is keyed to layout token changes; the helper reads refs/state setters only.
   }, [layoutChangeToken]);
@@ -590,9 +628,16 @@ export const ChatScrollControls = forwardRef<
     // A fresh submission explicitly resumes following the tail, even if it
     // lands inside the short scroll-away intent window.
     userScrollIntentUntilRef.current = 0;
+    readerFollow?.resume();
     scrollToBottom({ reconcileVirtualizer: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- helper reads refs/state setters only.
   }, [scrollToBottomToken]);
+
+  const resumeReaderAtEnd = useEffectEvent(() => {
+    resumeReaderFollowing();
+    scrollToBottom({ reconcileVirtualizer: true });
+    scheduleExplicitPinSettle();
+  });
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- scroll listener is keyed to the scroller/thread; helpers close over refs.
   useEffect(() => {
@@ -602,6 +647,21 @@ export const ChatScrollControls = forwardRef<
       const prevScrollTop = lastScrollTopRef.current;
       const nextScrollTop = el.scrollTop;
       lastScrollTopRef.current = nextScrollTop;
+      const isProgrammaticScroll = consumeProgrammaticScroll(nextScrollTop);
+      // The direct pin already recorded this exact destination and geometry.
+      // Its asynchronous scroll event acknowledges that write; reading layout
+      // again can flush the next streamed commit before the resize observer.
+      // Compensations that move the offset, upward moves, and reader scrolls
+      // still take the full geometry path below.
+      if (
+        isProgrammaticScroll &&
+        stickToBottomRef.current &&
+        nextScrollTop === prevScrollTop &&
+        lastSeenScrollHeightRef.current === lastPinnedScrollHeightRef.current &&
+        lastSeenClientHeightRef.current === lastPinnedClientHeightRef.current
+      ) {
+        return;
+      }
       const nextScrollHeight = el.scrollHeight;
       const scrollHeightShrunk = nextScrollHeight < lastSeenScrollHeightRef.current;
       const scrollHeightGrew = nextScrollHeight > lastSeenScrollHeightRef.current;
@@ -609,7 +669,7 @@ export const ChatScrollControls = forwardRef<
       const nextClientHeight = el.clientHeight;
       const viewportHeightChanged = nextClientHeight !== lastSeenClientHeightRef.current;
       lastSeenClientHeightRef.current = nextClientHeight;
-      const isProgrammaticScroll = consumeProgrammaticScroll(nextScrollTop);
+      if (!isProgrammaticScroll && nextScrollTop !== prevScrollTop) invalidateBottomPin();
       const hasRecentUserIntent = hasRecentUserScrollIntent();
       // Programmatic stick-to-bottom only moves down. Skip layout reads / button
       // updates for those events — CDP profiles spent tens of ms here per switch.
@@ -624,7 +684,11 @@ export const ChatScrollControls = forwardRef<
       }
       const isVirtualizerLayoutChange =
         performance.now() <= virtualizerLayoutChangeUntilRef.current;
-      const isAtBottom = isElementAtBottom(el);
+      const isAtBottom = isElementAtBottom({
+        scrollHeight: nextScrollHeight,
+        clientHeight: nextClientHeight,
+        scrollTop: nextScrollTop,
+      });
       // Release on upward scroll away from the bottom (native scrollbar thumb —
       // often no pointerdown). Layout clamps that shrink scrollHeight and
       // virtualizer anchor adjustments keep sticky, including the frame where
@@ -649,6 +713,7 @@ export const ChatScrollControls = forwardRef<
         // rest of the thumb drag (which may never have set intent itself).
         markUserScrollIntent();
         disableStickToBottomRef.current();
+        readerFollow?.pause();
       } else if (
         shouldReenableStickToBottom({
           prevScrollTop,
@@ -660,7 +725,22 @@ export const ChatScrollControls = forwardRef<
         // Don't re-enable sticky when the user is actively scrolling upward but
         // is still within `BOTTOM_EPSILON_PX` of the bottom — otherwise a tiny
         // wheel-up gets snapped back by the next streaming delta.
-        stickToBottomRef.current = true;
+        if (readerFollow?.isFollowing() === false) {
+          const userReturnedToEnd =
+            !isProgrammaticScroll &&
+            nextScrollTop > prevScrollTop &&
+            (hasRecentUserIntent ||
+              (!scrollHeightShrunk &&
+                !scrollHeightGrew &&
+                !viewportHeightChanged &&
+                !isVirtualizerLayoutChange));
+          if (userReturnedToEnd) {
+            resumeReaderAtEnd();
+            return;
+          }
+        } else {
+          stickToBottomRef.current = true;
+        }
       }
       if (
         stickToBottomRef.current &&
@@ -688,7 +768,8 @@ export const ChatScrollControls = forwardRef<
         }
       }
       setShowScrollDown(
-        nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }),
+        readerFollow?.isFollowing() === false ||
+          nextShowScrollDown({ stickToBottom: stickToBottomRef.current, isAtBottom }),
       );
     };
 
@@ -698,34 +779,23 @@ export const ChatScrollControls = forwardRef<
     handleScroll();
     el.addEventListener("scroll", handleScroll, { passive: true });
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [scrollRef, threadId, touchFirstPointer]);
+  }, [scrollRef, threadId, touchFirstPointer, readerFollow]);
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => {
-      // ResizeObserver already runs after layout and before paint, so syncing
-      // immediately here avoids a visible one-frame catch-up when the viewport
-      // changes because surrounding UI or panel dimensions changed.
-      syncLayoutNowAndAfterPaint();
-    });
-    if (el) {
-      observer.observe(el);
+  const syncPinnedContentChange = useEffectEvent((initialReveal: boolean) => {
+    atBottomCachedUntilRef.current = 0;
+    if (initialScrollSettled && !initialReveal) {
+      // Actual content/scroller resizes pin pre-paint through the observer.
+      // Keep one fallback for same-size changes and late content attachment,
+      // without reconciling the virtualizer on every structural stream update.
+      if (pinRafRef.current !== null) return;
+      pinRafRef.current = requestAnimationFrame(() => {
+        pinRafRef.current = null;
+        observeScrollElements();
+        if (!stickToBottomRef.current || hasRecentUserScrollIntent()) return;
+        scrollToBottom();
+      });
+      return;
     }
-    // Observing only the scroller misses content growth (its own box never
-    // changes). The virtualizer's totalSize listener reports growth too, but
-    // after paint — the streaming tail then pushes the footer down for one
-    // visible frame before the pin catches up. The content element's resize
-    // fires pre-paint, so the sticky pin lands in the same frame.
-    const content = contentRef.current;
-    if (content) {
-      observer.observe(content);
-    }
-    return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run on initial settle: the virtualizer assigns contentRef after mount.
-  }, [scrollRef, contentRef, threadId, initialScrollSettled]);
-
-  const syncPinnedContentChange = useEffectEvent(() => {
     cancelScheduledPin();
     if (stickToBottomRef.current) {
       scrollToBottom({ reconcileVirtualizer: true });
@@ -750,7 +820,7 @@ export const ChatScrollControls = forwardRef<
     // Re-running scrollToEnd because the reveal state changed would let
     // LegendList apply another deferred anchor offset to the visible viewport.
     if (becameSettled && initialScrollRevealDelayMs > 0) return;
-    syncPinnedContentChange();
+    syncPinnedContentChange(becameSettled);
     // The submit signal can arrive before the optimistic user row is mounted.
     // Keying this settle to the tail entry as well re-pins after that row
     // actually changes the virtualized content height. Manual scrollback stays
@@ -778,10 +848,18 @@ export const ChatScrollControls = forwardRef<
   useEffect(() => cancelScheduledExplicitPin, []);
   useEffect(() => cancelScheduledPin, []);
 
-  function handleScrollButtonPress() {
+  function resumeReaderFollowing() {
     // The button is an explicit request to resume following the tail. Do not
     // let the short scroll-away intent window discard the first press.
     userScrollIntentUntilRef.current = 0;
+    if (readerFollow?.isFollowing() === false) {
+      // Commit the live page before reading/pinning its refreshed row geometry.
+      flushSync(() => readerFollow.resume());
+    }
+  }
+
+  function handleScrollButtonPress() {
+    resumeReaderFollowing();
     scrollToBottom({ reconcileVirtualizer: true });
     scheduleExplicitPinSettle();
   }
@@ -809,4 +887,4 @@ export const ChatScrollControls = forwardRef<
   );
 
   return bubbleSlot ? createPortal(button, bubbleSlot) : button;
-});
+}

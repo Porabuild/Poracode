@@ -467,6 +467,10 @@ describe("managed loopback reduced state (A3)", () => {
     expect(dispatch).not.toHaveBeenCalled();
     expect(intake.isActive()).toBe(false);
     expect(activations).toEqual([true, false]);
+    expect(sockets[0]!.closeCount).toBe(1);
+    // A close callback caused by our own shutdown is already fenced. It must
+    // neither spend the transport retry budget nor create another replacement.
+    sockets[0]!.emitClose();
 
     // The retry is bounded and never escalates a bootstrap that cannot repair
     // a worker outage.
@@ -479,10 +483,15 @@ describe("managed loopback reduced state (A3)", () => {
 
     // The engine recovers: the same leg resumes decoding.
     port.behavior = async (raw) => ({ ok: true, frame: parseDesktopLoopbackFrame(raw) });
+    sockets[0]!.emitOpen();
+    sockets[0]!.emitMessage(eventFrame(99));
+    sockets[0]!.emitClose();
     sockets[1]!.emitMessage(eventFrame(2));
     await vi.advanceTimersByTimeAsync(1);
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch.mock.calls[0]![0]).toMatchObject({ type: "noop", seq: 2 });
+    intake.dispose();
+    expect(sockets.map((socket) => socket.closeCount)).toEqual([1, 1]);
   });
 
   it("backs the reduced-state cadence off instead of retrying tightly", async () => {

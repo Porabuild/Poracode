@@ -161,4 +161,87 @@ describe("TerminalScrollbackPersistence B1 bounds and failure contract", () => {
     expect(() => persistence.handle({ type: "thread-reset", threadId: "thread-1" })).not.toThrow();
     expect(clear).toHaveBeenCalledOnce();
   });
+
+  it("enforces the per-thread cap after failure even below the global cap", () => {
+    const onOverflow = vi.fn<(threadIds: string[]) => void>();
+    const persistence = new TerminalScrollbackPersistence({
+      append: () => {
+        throw Object.assign(new Error("full"), { code: "SQLITE_FULL" });
+      },
+      onOverflow,
+      maxPendingBytes: 1000,
+      maxPendingBytesPerThread: 10,
+    });
+    persistence.handle(output("thread-1", "x".repeat(20)));
+    expect(persistence.getPendingBytes()).toBe(0);
+    expect(persistence.getDroppedBytes()).toBe(20);
+    expect(onOverflow).toHaveBeenCalledWith(["thread-1"]);
+  });
+
+  it("bounds small batches across threads and retains that bound through failed retries", () => {
+    vi.useFakeTimers();
+    try {
+      const onOverflow = vi.fn<(threadIds: string[]) => void>();
+      const append = vi.fn<(threadId: string, data: string, outputLength: number) => void>(() => {
+        throw Object.assign(new Error("full"), { code: "SQLITE_FULL" });
+      });
+      const persistence = new TerminalScrollbackPersistence({
+        append,
+        onOverflow,
+        maxPendingBytes: 10,
+        maxPendingBytesPerThread: 1000,
+      });
+      persistence.handle(output("thread-1", "aaaaaa"));
+      persistence.handle(output("thread-2", "bbbbbb"));
+      expect(persistence.getPendingBytes()).toBe(6);
+      expect(persistence.getDroppedBytes()).toBe(6);
+      expect(onOverflow).toHaveBeenCalledWith(["thread-1"]);
+      const attempts = append.mock.calls.length;
+      vi.advanceTimersByTime(1000);
+      expect(persistence.getPendingBytes()).toBe(6);
+      expect(append.mock.calls.slice(attempts).every(([threadId]) => threadId === "thread-2")).toBe(
+        true,
+      );
+      persistence.handle({ type: "thread-reset", threadId: "thread-2" });
+      expect(persistence.getPendingBytes()).toBe(0);
+      const finalAttempts = append.mock.calls.length;
+      vi.advanceTimersByTime(1000);
+      expect(append).toHaveBeenCalledTimes(finalAttempts);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("removes failed old-generation accounting before accepting its replacement", () => {
+    vi.useFakeTimers();
+    try {
+      let fail = true;
+      const append = vi.fn<(threadId: string, data: string, outputLength: number) => void>(() => {
+        if (fail) throw Object.assign(new Error("full"), { code: "SQLITE_FULL" });
+      });
+      const persistence = new TerminalScrollbackPersistence({ append });
+      persistence.handle(output("thread-1", "old"));
+      persistence.handle({ ...output("thread-1", "new"), terminalInstanceId: "new-generation" });
+      expect(persistence.getPendingBytes()).toBe(3);
+      fail = false;
+      persistence.flush();
+      expect(append).toHaveBeenLastCalledWith("thread-1", "new", 3);
+      expect(persistence.getPendingBytes()).toBe(0);
+      vi.runAllTimers();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("accounts for UTF-8 bytes when a surrogate pair crosses output chunks", () => {
+    const append = vi.fn<(threadId: string, data: string, outputLength: number) => void>();
+    const persistence = new TerminalScrollbackPersistence({ append });
+    persistence.handle(output("thread-1", "\ud83d", 1));
+    expect(persistence.getPendingBytes()).toBe(3);
+    persistence.handle(output("thread-1", "\ude00", 2));
+    expect(persistence.getPendingBytes()).toBe(4);
+    persistence.flush();
+    expect(append).toHaveBeenCalledWith("thread-1", "😀", 2);
+    expect(persistence.getPendingBytes()).toBe(0);
+  });
 });

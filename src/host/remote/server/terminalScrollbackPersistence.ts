@@ -10,6 +10,7 @@ const RETRY_BACKOFF_MS = 250;
 
 interface PendingOutput {
   data: string;
+  bytes: number;
   outputLength: number;
   /** Terminal instance/generation id; never coalesce across this. */
   terminalInstanceId: string;
@@ -103,33 +104,48 @@ export class TerminalScrollbackPersistence {
       // old instance bytes onto a new cursor space (matches SupervisorIpcSender).
       if (existing.terminalInstanceId !== terminalInstanceId) {
         this.flushThread(threadId);
-        this.pending.set(threadId, { data, outputLength, terminalInstanceId });
-        this.pendingBytes += Buffer.byteLength(data, "utf8");
+        // A failed flush reinserted the old batch. The new generation
+        // supersedes it just like a reset; remove its accounting before replace.
+        this.dropPending(threadId);
+        const bytes = Buffer.byteLength(data, "utf8");
+        this.pending.set(threadId, { data, bytes, outputLength, terminalInstanceId });
+        this.pendingBytes += bytes;
       } else {
+        const previousBytes = existing.bytes;
         existing.data += data;
         existing.outputLength = outputLength;
-        this.pendingBytes += Buffer.byteLength(data, "utf8");
+        // A surrogate pair can cross output chunks: encoding the halves
+        // separately overcounts the combined batch and leaves phantom bytes.
+        existing.bytes = Buffer.byteLength(existing.data, "utf8");
+        this.pendingBytes += existing.bytes - previousBytes;
       }
     } else {
-      this.pending.set(threadId, { data, outputLength, terminalInstanceId });
-      this.pendingBytes += Buffer.byteLength(data, "utf8");
+      const bytes = Buffer.byteLength(data, "utf8");
+      this.pending.set(threadId, { data, bytes, outputLength, terminalInstanceId });
+      this.pendingBytes += bytes;
     }
     const pending = this.pending.get(threadId);
     if (!pending) return;
-    const pendingChars = Buffer.byteLength(pending.data, "utf8");
+    const pendingChars = pending.bytes;
     if (pendingChars >= FLUSH_BATCH_CHARS || pendingChars >= this.maxPendingBytesPerThread) {
       this.flushThread(threadId);
       if (this.pendingBytes >= this.maxPendingBytes) this.enforceGlobalCap();
       return;
     }
-    this.scheduleFlush();
+    // Many individually small batches can overflow the shared retry budget
+    // before any one thread reaches its immediate-flush threshold.
+    if (this.pendingBytes >= this.maxPendingBytes) {
+      this.flush();
+      this.enforceGlobalCap();
+    }
+    if (this.pending.size > 0) this.scheduleFlush();
   }
 
   private flushThread(threadId: string): void {
     const output = this.pending.get(threadId);
     if (!output) return;
     this.pending.delete(threadId);
-    this.pendingBytes -= Buffer.byteLength(output.data, "utf8");
+    this.pendingBytes -= output.bytes;
     const result = runRuntimeControlWrite(
       () => this.append(threadId, output.data, output.outputLength),
       threadId,
@@ -142,8 +158,14 @@ export class TerminalScrollbackPersistence {
       return;
     }
     // Retain the batch for a backoff retry; the controller owns classification.
+    const bytes = output.bytes;
+    if (bytes > this.maxPendingBytesPerThread) {
+      this.droppedBytes += bytes;
+      this.reportOverflow([threadId]);
+      return;
+    }
     this.pending.set(threadId, output);
-    this.pendingBytes += Buffer.byteLength(output.data, "utf8");
+    this.pendingBytes += bytes;
     this.scheduleFlush(RETRY_BACKOFF_MS);
   }
 
@@ -151,8 +173,8 @@ export class TerminalScrollbackPersistence {
     const overflowed: string[] = [];
     for (const [threadId, output] of this.pending) {
       if (this.pendingBytes < this.maxPendingBytes) break;
-      this.droppedBytes += Buffer.byteLength(output.data, "utf8");
-      this.pendingBytes -= Buffer.byteLength(output.data, "utf8");
+      this.droppedBytes += output.bytes;
+      this.pendingBytes -= output.bytes;
       this.pending.delete(threadId);
       overflowed.push(threadId);
     }
@@ -163,7 +185,7 @@ export class TerminalScrollbackPersistence {
     const output = this.pending.get(threadId);
     if (!output) return;
     this.pending.delete(threadId);
-    this.pendingBytes -= Buffer.byteLength(output.data, "utf8");
+    this.pendingBytes -= output.bytes;
   }
 
   private reportOverflow(threadIds: string[]): void {

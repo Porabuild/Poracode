@@ -4,8 +4,14 @@ import { RUNTIME_REQUEST_ITEM_TYPE } from "@/shared/contracts";
 import { inlineImagePayloadRenders } from "@/shared/inlineImagePayload";
 import { isSubAgentTool } from "@/shared/toolCallClassification";
 import { safeParse } from "./rowMappers";
+import { readRuntimeStreamHeads } from "./runtimeStreamHeadRead";
 import { assembleItemStreams, readStreamTails, type ItemStreamTails } from "./runtimeStreamStore";
 import type { PersistedRuntimeItem } from "./runtimeItems";
+import {
+  projectRuntimePayload,
+  readRuntimePayloadProjectionInputs,
+  type RuntimePayloadProjectionInput,
+} from "./runtimePayloadProjection";
 
 /**
  * Shared runtime-timeline read helpers.
@@ -79,34 +85,60 @@ export function runtimeItemState(state: string): PersistedRuntimeItem["state"] {
 export function mapRuntimeItemRow(
   row: RuntimeTimelineItemRow,
   tails?: ItemStreamTails,
+  effectiveHead?: { readonly value: unknown },
+  projection?: RuntimePayloadProjectionInput,
 ): PersistedRuntimeItem {
-  const head = row.streams ? (safeParse(row.streams) as Record<string, string>) : {};
+  const head = effectiveHead ? effectiveHead.value : row.streams ? safeParse(row.streams) : {};
   return {
     id: row.item_id,
     type: row.type,
     state: runtimeItemState(row.state),
-    payload: row.payload ? safeParse(row.payload) : undefined,
-    streams: assembleItemStreams(head, tails),
+    payload: projectRuntimePayload(
+      row.payload ? safeParse(row.payload) : undefined,
+      row.type,
+      row.payload?.length ?? 0,
+      projection,
+    ),
+    streams: assembleItemStreams(head as Record<string, string>, tails),
     ...(row.parent_item_id ? { parentItemId: row.parent_item_id } : {}),
   };
 }
 
 /**
  * Map rows to items with their appended stream tails. Chunks are fetched for
- * the whole batch at once so a 500-row page costs one extra query, not 500.
+ * the whole batch at once. The caller must select the original rows inside
+ * the same snapshot; starting a transaction here could mix stale seed rows
+ * with newer canonical head blocks.
  */
 export function mapRuntimeItemRows(
   sqlite: InstanceType<typeof Database>,
   threadId: string,
   rows: readonly RuntimeTimelineItemRow[],
+  options: { readonly includeStreams?: boolean } = {},
 ): PersistedRuntimeItem[] {
   if (rows.length === 0) return [];
+  if (!sqlite.inTransaction) {
+    throw new Error("Runtime stream seed rows must be selected inside a read snapshot.");
+  }
+  const projections = readRuntimePayloadProjectionInputs(sqlite, threadId, rows);
+  if (options.includeStreams === false)
+    return rows.map((row) =>
+      mapRuntimeItemRow(row, undefined, { value: {} }, projections.get(row.item_id)),
+    );
+  const heads = readRuntimeStreamHeads(sqlite, threadId, rows);
   const tails = readStreamTails(
     sqlite,
     threadId,
     rows.map((row) => row.item_id),
   );
-  return rows.map((row) => mapRuntimeItemRow(row, tails.get(row.item_id)));
+  return rows.map((row) =>
+    mapRuntimeItemRow(
+      row,
+      tails.get(row.item_id),
+      { value: heads.get(row.item_id) },
+      projections.get(row.item_id),
+    ),
+  );
 }
 
 /**

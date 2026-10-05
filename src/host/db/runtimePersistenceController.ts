@@ -12,12 +12,20 @@ import {
   type RuntimeFlushChunkBounds,
   type RuntimeQueueBounds,
   type RuntimeWriteFlush,
+  type RuntimeAtomicBatchWriter,
 } from "./runtimeWriteQueue";
 import type { RuntimeControlOperation } from "./runtimeControlOperationQueue";
+import type {
+  RuntimeQueueCapacityChange,
+  RuntimeQueueCapacitySnapshot,
+} from "./runtimeQueueCapacity";
 import {
   RuntimePersistenceAdmission,
+  type RuntimeAdmissionReservationResult,
+  type RuntimeReservedAdmission,
   type RuntimeContaminationInfo,
 } from "./runtimePersistenceAdmission";
+import type { RuntimeAdmissionCost } from "./runtimeAdmissionReservations";
 import { RuntimeFenceControl, contaminationError } from "./runtimePersistenceFenceControl";
 import { classifyStorageError } from "./runtimePersistenceClassification";
 import { RuntimeDurableGapCoordinator } from "./runtimeDurableGapCoordinator";
@@ -77,6 +85,8 @@ const FLUSH_MAX_MS = 5;
 
 export interface RuntimePersistenceControllerOptions {
   write: RuntimeWriteFlush;
+  /** Optional outer-commit capability for bounded scheduled groups; fences stay single-thread. */
+  atomicBatchWriter?: RuntimeAtomicBatchWriter;
   bounds?: Partial<RuntimeQueueBounds>;
   flushIntervalMs?: number;
   recoverAfterMs?: number;
@@ -88,6 +98,8 @@ export interface RuntimePersistenceControllerOptions {
   now?: () => number;
   onSignal?(signal: RuntimeProducerSignal): void;
   onStateChange?(info: RuntimePersistenceStateInfo): void;
+  /** Metadata-only queue changes; callbacks must not reenter queue mutations. */
+  onCapacityChange?(change: RuntimeQueueCapacityChange): void;
   onRefusal?(
     reason: RuntimeRefusalReason,
     scope: RuntimeRefusalScope,
@@ -178,7 +190,13 @@ export class RuntimePersistenceController {
       now: () => Date.now(),
       ...options,
     };
-    this.queue = new RuntimeWriteQueue(options.write, options.bounds, this.options.now);
+    this.queue = new RuntimeWriteQueue(
+      options.write,
+      options.bounds,
+      this.options.now,
+      options.atomicBatchWriter,
+      options.onCapacityChange,
+    );
     this.health = new RuntimePersistenceHealth({
       observe: () => this.observation(),
       now: this.options.now,
@@ -393,6 +411,11 @@ export class RuntimePersistenceController {
     return this.health.getInFlightWindowBytes();
   }
 
+  /** Read-only queue geometry; producer grants must separately reserve this capacity. */
+  capacitySnapshot(threadIds: readonly string[] = []): RuntimeQueueCapacitySnapshot {
+    return this.queue.capacitySnapshot(threadIds);
+  }
+
   /**
    * Admit canonical runtime events. Never throws. Refusal is explicit and
    * reported through `onRefusal`; a per-thread refusal contaminates only that
@@ -401,6 +424,35 @@ export class RuntimePersistenceController {
    */
   admit(threadId: string, events: readonly RuntimeEvent[]): RuntimeAdmission {
     const admission = this.admission.admit(threadId, events);
+    this.scheduleAdmission(admission);
+    return admission;
+  }
+
+  /** Quotes reserve capacity only; durable touch still precedes payload custody. */
+  reserveAdmission(
+    threadId: string,
+    cost: RuntimeAdmissionCost,
+  ): RuntimeAdmissionReservationResult {
+    return this.admission.reserveAdmission(threadId, cost);
+  }
+
+  /** Same durability, contamination and scheduler path as ordinary admission. */
+  admitReserved(
+    threadId: string,
+    id: string,
+    events: readonly RuntimeEvent[],
+  ): RuntimeReservedAdmission {
+    const admission = this.admission.admitReserved(threadId, id, events);
+    this.scheduleAdmission(admission);
+    return admission;
+  }
+
+  /** Only cancel unsent work or grants whose transport owner has stopped. */
+  releaseAdmissionReservation(id: string): boolean {
+    return this.queue.releaseAdmissionReservation(id);
+  }
+
+  private scheduleAdmission(admission: RuntimeReservedAdmission): void {
     if (admission.kind === "accepted") {
       // Accepted events (including the prefix of a partial admission) are
       // committed by the bounded scheduler; without this the queue would only
@@ -409,7 +461,6 @@ export class RuntimePersistenceController {
       else this.scheduleFlush(this.options.flushIntervalMs);
       this.health.evaluateWatermarks();
     }
-    return admission;
   }
 
   clearContaminationForRebase(threadId: string, supersededEvents: number): void {
@@ -1026,7 +1077,10 @@ export class RuntimePersistenceController {
       this.immediate = undefined;
       this.runFlushCycle();
     });
-    this.immediate.unref?.();
+    // Active chunks must wake the next loop iteration. An unreferenced
+    // immediate can wait in poll while new input replenishes flushed threads,
+    // preventing the queue from emptying and returning to its batch interval.
+    // Only this bounded continuation keeps the loop alive; idle timers do not.
   }
 
   private runFlushCycle(): void {

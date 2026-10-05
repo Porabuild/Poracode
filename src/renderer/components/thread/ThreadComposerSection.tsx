@@ -76,6 +76,7 @@ import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useThreadDocksSummary } from "./useThreadDocksSummary";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import { useThreadInterrupt } from "./useThreadInterrupt";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
 import { getApprovalDenyOption } from "./ThreadRuntimeRequestPanel/helpers";
@@ -268,7 +269,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     if (thread.status === "inactive") liveVoice.stopThread(thread.id);
   }, [thread.id, thread.status]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isInterrupting, setIsInterrupting] = useState(false);
   const attachments = useAttachments({
     ...(props.saveClipboardImage ? { saveClipboardImage: props.saveClipboardImage } : {}),
   });
@@ -625,20 +625,18 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     }
   }, [contextDockOpen, showContextIndicator]);
 
-  function handleInterrupt() {
-    if (isInterrupting) return;
-    setIsInterrupting(true);
-    void readBridge()
-      .interruptThread({ threadId: thread.id })
-      .then(() => {
-        captureProductEvent("thread.interrupted", threadProductProperties(thread));
-      })
-      .catch((error: unknown) => {
-        setIsInterrupting(false);
-        console.error("[thread] failed to interrupt turn", error);
-        toast.danger(friendlyError(error));
-      });
-  }
+  const { isInterrupting, handleInterrupt } = useThreadInterrupt({
+    threadId: thread.id,
+    status: thread.status,
+    interrupt: () => readBridge().interruptThread({ threadId: thread.id }),
+    onSuccess: () => {
+      captureProductEvent("thread.interrupted", threadProductProperties(thread));
+    },
+    onError: (error) => {
+      console.error("[thread] failed to interrupt turn", error);
+      toast.danger(friendlyError(error));
+    },
+  });
 
   function writeTerminalInput(data: string) {
     return readBridge().writeTerminal({ threadId: thread.id, data });
@@ -744,7 +742,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       setPrompt("");
       setHasContent(false);
       setIsSubmitting(false);
-      setIsInterrupting(false);
       setSlashQuery(null);
       setSlashActiveIndex(0);
       setControlOpenRequest(null);
@@ -827,10 +824,6 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- checkpoint reads live refs for this composer session
   }, [thread.id, attachments.attachments]);
-
-  useEffect(() => {
-    if (thread.status !== "working") setIsInterrupting(false);
-  }, [thread.status]);
 
   useEffect(() => {
     if (isComposerCollapsed) {

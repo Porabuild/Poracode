@@ -13,6 +13,7 @@ import {
   isLegacyClientPath,
   resolveBundledWebClientDir,
 } from "./bundledWebClient";
+import { readLocalClientHtml, type LocalClientHtml } from "./localClientHtml";
 
 export { isLegacyClientPath };
 
@@ -108,7 +109,12 @@ async function streamFile(
     return false;
   }
   if (res.destroyed || res.writableEnded) return true;
-  await writeStaticFile(req, res, real, fileStat.size, relativePath);
+  const localHtml =
+    relativePath === "index.html"
+      ? await readLocalClientHtml(real, fileStat.size, () => res.destroyed || res.writableEnded)
+      : null;
+  if (res.destroyed || res.writableEnded) return true;
+  await writeStaticFile(req, res, real, fileStat.size, relativePath, localHtml);
   return true;
 }
 
@@ -161,7 +167,12 @@ async function writeStaticFile(
   filePath: string,
   size: number,
   relativePath: string,
+  localHtml: LocalClientHtml | null,
 ): Promise<void> {
+  // Ranges and HEAD describe the same HTTP representation, including its
+  // bounded rewritten head. The remainder remains an owned file stream.
+  const sourceSize = size;
+  if (localHtml) size += localHtml.prefix.length - localHtml.sourcePrefixBytes;
   const cacheControl = bundledWebClientCacheControl(relativePath);
   const range = req.method === "GET" ? parseByteRange(req.headers.range, size) : null;
   if (range === "unsatisfiable") {
@@ -187,9 +198,28 @@ async function writeStaticFile(
     res.end();
     return;
   }
+  const prefix = localHtml?.prefix;
+  const prefixBytes = prefix?.length ?? 0;
+  const sourcePrefixBytes = localHtml?.sourcePrefixBytes ?? 0;
+  const prefixPart = prefix?.subarray(start, Math.min(end + 1, prefixBytes));
+  if (end < prefixBytes || sourceSize === sourcePrefixBytes) {
+    res.end(prefixPart);
+    await Promise.allSettled([finished(res, { readable: false, cleanup: true })]);
+    return;
+  }
   // The read stream owns its descriptor and releases it on end, error, or
   // destroy, so neither a dropped client nor a failed read can retain an fd.
-  const stream = createReadStream(filePath, range ? { start, end } : {});
+  const stream = createReadStream(
+    filePath,
+    localHtml
+      ? {
+          start: sourcePrefixBytes + Math.max(0, start - prefixBytes),
+          end: sourcePrefixBytes + end - prefixBytes,
+        }
+      : range
+        ? { start, end }
+        : {},
+  );
   // Client disconnect or shutdown teardown: stop reading immediately rather
   // than draining the file into a socket nobody is reading. This handler is
   // the only abort path; the lifetime join below never cancels a live transfer
@@ -208,6 +238,7 @@ async function writeStaticFile(
   res.on("close", onResponseClose);
   stream.on("error", onStreamError);
   if (res.destroyed && !res.writableEnded) stream.destroy();
+  if (prefixPart?.length) res.write(prefixPart);
   stream.pipe(res);
   // The transfer is settled only when it is over on both sides: the owned
   // reader has emitted its close (descriptor released) and the response has

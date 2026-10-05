@@ -33,6 +33,7 @@ const todoDockStateCache = new Map<
   string,
   {
     itemIds: readonly string[] | undefined;
+    itemsIndex: WeakRef<AppStoreState["runtimeItemsByIdByThread"]>;
     latestPlanItem: RuntimeChatItem | undefined;
     result: ThreadTodoDockState | null;
   }
@@ -44,14 +45,30 @@ export function selectThreadTodoDockState(
 ): ThreadTodoDockState | null {
   const itemIds = state.runtimeItemIdsByThread[threadId];
   const itemsById = state.runtimeItemsByIdByThread[threadId];
-  const latestPlanItem = selectLatestThreadPlanItem(itemIds, itemsById);
   const cached = todoDockStateCache.get(threadId);
+  // The outer index changes on runtime updates even when an inner thread map
+  // is reused. Non-runtime updates can skip the search without retaining that
+  // outer snapshot or weakening plan/era invalidation.
+  if (
+    cached &&
+    cached.itemIds === itemIds &&
+    cached.itemsIndex.deref() === state.runtimeItemsByIdByThread
+  ) {
+    return cached.result;
+  }
+  const latestPlanItem = selectLatestThreadPlanItem(itemIds, itemsById);
   if (cached && cached.itemIds === itemIds && cached.latestPlanItem === latestPlanItem) {
+    cached.itemsIndex = new WeakRef(state.runtimeItemsByIdByThread);
     return cached.result;
   }
   const result = getThreadTodoDockStateFromThreadItems(itemIds, itemsById);
   if (todoDockStateCache.size > 200) todoDockStateCache.clear();
-  todoDockStateCache.set(threadId, { itemIds, latestPlanItem, result });
+  todoDockStateCache.set(threadId, {
+    itemIds,
+    itemsIndex: new WeakRef(state.runtimeItemsByIdByThread),
+    latestPlanItem,
+    result,
+  });
   return result;
 }
 

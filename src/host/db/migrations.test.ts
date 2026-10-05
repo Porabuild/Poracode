@@ -59,8 +59,11 @@ describe("database migration registry", () => {
       [49, "runtime history notice acknowledgement"],
       [50, "deduplicate project locations and repair divergent schema 42"],
       [51, "fence unconfirmed relative checkpoint rollback"],
+      [52, "bounded terminal scrollback chunks"],
+      [53, "runtime growing head blocks"],
+      [54, "runtime payload origin custody"],
     ]);
-    expect(LATEST_SCHEMA_VERSION).toBe(51);
+    expect(LATEST_SCHEMA_VERSION).toBe(54);
     expect(() => validateMigrationRegistry()).not.toThrow();
   });
 
@@ -98,8 +101,8 @@ describe("database migration registry", () => {
     // instead of silently defaulting to rollback-compatible.
     expect(MIGRATION_ROLLBACK_CLASSIFICATION_REQUIRED_FROM).toBe(48);
     expect(describeMigrationRollbackPolicy().at(-1)).toEqual({
-      version: 51,
-      name: "fence unconfirmed relative checkpoint rollback",
+      version: 54,
+      name: "runtime payload origin custody",
       rollback: "forward-only",
     });
     // Migrations below the floor keep their reviewed defaults.

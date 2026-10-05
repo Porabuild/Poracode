@@ -2,7 +2,106 @@
 
 Poracode keeps data and deployed artifacts across app upgrades. A change can work in a clean profile and still fail for existing users when an old cache, renderer store, helper, or plugin remains on disk. Treat every serialized or deployed boundary as an upgrade contract.
 
+The optional LegendList `onContentSizeCommit` capability is a same-bundle
+React/web layout notification, emitted after its DOM sizer commits the rendered
+row-stack size. ESM/CJS React and React Native web mirrors plus all declaration
+mirrors carry the option; native ESM/CJS consume it without forwarding or
+invocation. The package remains pinned to 3.3.3 and the pnpm patch hash/lock
+identity changes intentionally. Old callers without the option retain their
+measurement, retirement and anchoring behavior. Persisted row hints, canonical
+streams, database schema and wire/helper versions remain valid and unchanged.
+Regression tests compare synchronous model publication with actual committed
+DOM sizing, callback replacement and both measurement orders. The application
+uses this commit signal in place of the early `totalSize` model subscription.
+
+LegendList destruction also cancels and clears its queued anchor-recalculation
+frame in all six JavaScript runtime mirrors. This is volatile same-bundle
+ownership cleanup: mounted anchoring, public options, saved row hints and all
+persisted/wire versions remain valid. The pinned 3.3.3 package's pnpm patch hash
+and lock identity change intentionally. Actual-library regressions compare the
+previous patched runtime's prefix/prepend unmount failures with cancellation
+in the new runtime, while preserving mounted reader compensation.
+
+Timeline measurement hints remain renderer-document-local and disposable. The
+state-owned cache and component compatibility exports share one singleton with
+the same key/index/size shape, layout signature and aggregate admission bounds.
+Definitive thread/project/catalog retirement forgets hints; uncertain catalog
+absence and ordinary pane close preserve them. A late detach cannot capture a
+missing owner. No persisted or wire version changes; lifecycle and remount
+regressions cover the existing cache contract.
+
+The HeroUI stylesheet registry mirrors the pinned 3.2.4 import order and layers,
+omitting the unused date/calendar family. Package upgrades require a registry
+audit, and newly used widgets must register their style closure before rendering.
+Compiled asset content hashes invalidate changed CSS; no serialized app state
+changes. Ordered compiled-rule comparisons verify retained declarations and
+layers, rather than assuming equivalent source imports produce equivalent CSS.
+
+Local HTTP delivery of a relative renderer build adds the optional head marker
+`poracode-build-asset-base=/` and roots only existing allowlisted script/link
+asset URLs. `localClientHtml.ts` and `buildAssetBase.ts` mirror the marker; older
+renderers ignore it and newer readers preserve Vite's base when it is absent,
+invalid, hosted explicitly or delivered by file. Navigation links retain the
+document base. Recognition is bounded to a complete valid UTF-8 head within
+64 KiB; other documents keep the legacy bytes. HEAD and ranges describe the
+transformed representation. Generated fallback workers adopt the existing
+revalidation policy without changing their script/cache/message shapes. Old
+whole graphs and stored state remain valid, so protocol/cache versions stay
+unchanged. This does not make an already cached old document or an uncached
+retired lazy asset available after replacement.
+
+The chat block splitter omits Marked's unused queued inline pass while keeping
+Streamdown's block grouping and the rendered remark/rehype pipeline. This is
+volatile per-call computation with no retained cache or serialized shape.
+`streamdown-marked` intentionally aliases exact Marked 17.0.6, separate from the
+unrelated Marked 14 consumer; the pinned Streamdown 2.6.0 implementation is the
+differential oracle. Upgrades of either boundary require block-array and actual
+renderer parity checks. Larger heads keep the stock splitter. Content hashes
+identify the changed bundle; saved canonical Markdown, database and wire
+versions remain valid and unchanged.
+
+Plain-text unary strong runs use private renderer format 1 to avoid recursive
+Markdown and Fiber traversal while restoring every original formatting span.
+The per-VFile relay uses a fresh source-absent marker, is consumed once after
+raw HTML normalization, and erases its transport/count array before sanitize.
+Flat run metadata preserves a marker/index/count binding through stock sanitize.
+A scalar per-file receipt checks the post-sanitize component dispatch; receipt
+and run bindings are erased before rendering. Authored tags and attributes are
+not allowlisted.
+Ordinary strong keeps Streamdown's stock component, and raw HTML/property
+overrides stay on the existing path. The dedicated DOM owner disposes its
+descendants bottom-up before replacement or unmount. The path autolinker uses
+iterative DFS with the previous callback/mutation/error order. These are
+volatile same-bundle computations, with no new retained cache, canonical or
+wire shape. Database, history/cache and public/helper versions stay unchanged;
+new bundle hashes identify the implementation. Upgrades of pinned Streamdown
+2.6.0 must rerun exact span/sanitize/relay and full-render/lifecycle parity.
+
+Deferred feature prewarming keeps its task cursor and active-run owner only in memory. Browser runs pause optional imports while offline and resume through the online event; cancellation releases listeners and an older import completion cannot release a newer owner. Local packaged imports retain their offline behavior. This changes neither persisted state nor cache records, IPC, public protocols or helper payloads. Content-hashed renderer builds identify the changed scheduling code; an older complete build remains valid with its original behavior.
+
+ACP ranged text reads now scan UTF-8 incrementally and close the file after the requested lines. The existing unrestricted read and slicing contract remains unchanged, including CRLF normalization only for ranged reads, Unicode/invalid-byte decoding, trailing empty lines, path authority, missing-skill fallback and filesystem errors. This is per-request I/O with no retained cache or serialized state; ACP request/response shapes, capabilities and wire versions remain valid. New supervisor/server bundle hashes identify the implementation. Differential text/error/close checks and real child filesystem/dependent-workflow tests cover the boundary.
+
+Payload-projection composition uses the same deterministic pure-leaf generator in tsdown, Vite, source-test Node loaders and synthetic CLI bundles. Node loaders emit file URL imports; Vite watches directories outside its imported-file bookkeeping and invalidates the module when projection leaves appear or disappear. The generator is tooling only: packaged readers retain their static projection array, provider ownership and payload-origin contracts. No persisted/cache/wire or independently deployed helper shape changes; previous complete artifacts remain valid. Source-fork, CLI lifecycle, Vite discovery and previous-generator differential checks cover these execution paths.
+
 ## Required check for every change
+
+The source editor loads the installed Monaco runtime and its matching workers
+from the content-hashed renderer asset graph, through a lazy source-editor
+boundary. It replaces the wrapper's independently versioned CDN default.
+Persisted file text, editor buffers, database and wire formats remain valid;
+no schema/protocol bump is needed. Renderer build hashes invalidate old worker
+graphs through the existing service-worker build identity. Qualify nested
+routes and editor worker requests against the complete selected build.
+
+Monaco is pinned to `0.56.0` with the lockfile-hashed
+`patches/monaco-editor@0.56.0.patch`. The shared CSS/HTML/JSON completion
+adapter discards cancelled or disposed-model requests before worker acquisition,
+before dispatch, and before consuming a late result. ESM, development and
+minified runtime copies carry the same guard. Live completion mappings and
+genuine errors retain their existing behavior; models are not retained to hide
+the disposal race. Dependency upgrades must requalify these three copies and
+the actual-adapter lifecycle tests. This is a runtime fix within the existing
+content-hashed graph, not a persisted-state or wire-format change.
 
 Before finishing work that changes data produced or consumed across process restarts, app versions, processes, machines, or independently updated components:
 
@@ -22,6 +121,117 @@ Before finishing work that changes data produced or consumed across process rest
 
 Version bumps are required by compatibility, not by every code edit. Record the reason beside the version or migration so the next agent can make the same decision correctly.
 
+Canonical producer admission is a separate private IPC boundary:
+`src/shared/canonicalAdmissionProtocol.ts` owns `CANONICAL_ADMISSION_VERSION = 2`.
+Host support is capability-gated by `canonicalAdmissionVersions`; released
+flow-control1 peers keep their original window/custody ACK semantics. Private
+quote/delivery/release messages are intercepted before public supervisor-event
+publication. Admission2 is not yet advertised by the supervisor: sender/source
+backpressure and unchanged large-image qualification are required before
+activation. No database, public remote wire or procedure-map version changes
+are needed for this separately negotiated host-only stage. Pre-admission2
+capability shapes and replacement-owner fencing are covered by the protocol
+and `SupervisorClient.admission` regression suites.
+
+ACP inbound framing now has a per-frame raw-byte limit of 8 MiB + 64 KiB
+(`sessionInboundStream.ts`). The JSON-RPC wire shape remains unchanged;
+previous valid notifications, replies, startup noise, and parse-error replies
+are covered against the released filter/SDK path. Fragment assembly uses fixed
+16 KiB blocks. This limit does not bound aggregate decoded objects, outstanding
+SDK handlers, or provider-process memory, and does not activate source
+backpressure or canonical admission2.
+
+The pinned ACP SDK 1.4.0 patch adds the optional public dispatch observer and
+readonly `ClientSideConnection.dispatchObserverVersion = 1`. Two-argument
+callers retain released behavior; regression tests compare the pristine SDK.
+Any future source gate requiring settlement must check this marker before
+activation: an old SDK silently ignores the extra argument. The SDK is bundled
+by the shared tsdown dependency policy into desktop, standalone server, and SSH
+supervisor artifacts, because npm-staged externals do not apply pnpm patches.
+Old deployed helpers remain flow1 peers with no source capability advertised;
+no database, remote wire, or procedure-map bump is required at this stage.
+
+Managed desktop image resolution is a renderer custody change. Host-held image
+references already reach the desktop over its HTTP/WS loopback data plane;
+canonical SQLite payloads and the reference/ticket wire shape stay unchanged.
+Chat and galleries must use the same authenticated routing activation client
+and bounded image cache, with explicit readiness and no global resolver or
+inline restoration. Native inline history remains valid. Client-host hop 16,
+host transport 2, and remote protocol 12 therefore stay unchanged.
+
+The image session and gallery authority identity are volatile same-bundle
+state, never persisted clients, credentials, or blob URLs. Loss, replacement,
+and backend reset retire old cache work and invalidate ready galleries. A
+supervisor-only reset does not guarantee a socket replacement: fence old work
+and renew image custody on the still-live authenticated activation when present.
+Browser, attached, direct/SSH, and environment-child owners keep their separate
+resolution and credential lifecycles; malformed remote ownership must not fall
+back to the managed root. Regression checks must include unchanged inline/ref
+payloads, ready/pending replacement, and reset without a reconnect.
+
+Markdown image parsing now retains sanitized canonical paths; the live image
+consumer resolves them through its current pane authority and existing keyed
+readiness. Processor caches no longer capture a client or materialize its
+display URL. This is volatile renderer state: canonical Markdown, image
+endpoints, tickets, cache limits and persisted formats remain unchanged. New
+bundle content hashes invalidate the old parser implementation; no protocol,
+database or cache version bump is required. Owner loss must stay pending rather
+than select another host. Regression checks cover unchanged text, shared
+processors, late old-owner results, card identity and loaded-resource identity.
+
+Host image previews are optional, volatile derived metadata. Their ready cache
+retains at most 512 entries and 1 MiB of UTF-8 keys/previews; queued and active
+work together retain at most 32 jobs and 8 MiB of encoded sources/keys. Generator
+replacement and reset invalidate queued work and late results by generation;
+active work keeps its charge until settlement. These are logical retention
+limits, not decoded-pixel, native-memory, or process-RSS limits. Rejected preview
+work leaves canonical image bytes and reference endpoints available. No persisted
+cache, wire shape, or helper capability changes, so no version bump is required.
+
+Single-item database reads now optionally accept `includeStreams: false` for
+payload/metadata consumers, including image endpoints. The same-bundle option
+selects no stored stream text and assembles no appended stream tails. Existing
+two-argument callers retain full reads, and committed-only/fenced consistency
+remains unchanged. Previous stored rows and streams remain valid and untouched;
+projection and subsequent full-read regression tests cover them. SQLite schema
+52, client-host hop 16, host transport 2, and remote protocol 12 stay unchanged.
+
+Crossagent result reads assemble combined fallback transcripts only when the
+requested projection needs them. Ordinary current output, nonzero cursors,
+quiet reads and full current-attempt reads keep their existing output/cursor
+semantics without an unused history copy. No transcript, retention lifetime,
+compact report, serialized result or helper capability changes; boundary
+versions stay unchanged. Previous-reader parity covers all five history/read
+modes, and process-backed ingress tests separately exercise child retirement,
+session continuation, workflow ordering, report blocking and forwarded requests.
+
+Delegated attempts now retain a separate resource-custody generation across
+bounded caller joins. Pending acquisition/cleanup continues after a deadline;
+only confirmed disposal or exit releases its captured lease. Late confirmation
+wakes the parent scheduler and prunes eligible records, while failed workflow
+write locks still require the existing explicit successful cancellation. Shared
+disposal custody distinguishes rejection from fulfillment independently of the
+error payload, including `undefined` rejection. These are same-process lifecycle
+changes: execution-slot identity, serialized run results and wire/helper shapes
+stay unchanged. Phase-gated regressions and an owned SIGTERM-resistant one-shot
+process verify unconfirmed capacity retention and eventual exit release.
+
+Pipe one-shot stderr retains a bounded diagnostic suffix plus a batching window:
+2,000 visible UTF-16 units, fewer than 32,768 pending decoded units, and at most
+32,768 retained fragments. This preserves the previous 2,000-unit final trimmed
+diagnostic and leaves stdout/PTY combined output intact. Non-status forwarded
+items retain ancestry without payload references that their completion event
+never uses. No canonical transcript, result or persisted shape changes; logical
+retention bounds are not process/private-memory limits.
+
+Renderer workflow caches remain volatile. After the last detail subscriber,
+reconstructible chats are removed; inactive warm summaries have 32-entry and
+1 MiB estimated-charge limits. Active views keep their evidence, and details
+refetch on remount. Source/poller identity fences late replies. Timestamp-free
+running snapshots now use the existing three-hour registration-age fallback;
+reported fresh activity keeps the previous liveness rules. Optional timestamp
+and full-chat wire shapes stay valid, so no schema or protocol bump is needed.
+
 The v2 review remediation advances the SQLite registry to 51, the in-process
 host transport interface to 2 (request routing no longer implies event custody),
 and the deployed WSL bridge to 2.18.0 (filesystem-resolved project containment).
@@ -32,7 +242,7 @@ payload schemas and persisted settings remain compatible; their versions stay un
 
 | Boundary                                          | Version location                                                                                                                                                                                                                                                                                                                                                                                                                                  | What must trigger a review                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| SQLite application database                       | `src/host/db/migrations.ts` (`DATABASE_MIGRATIONS`, `LATEST_SCHEMA_VERSION`, currently 51)                                                                                                                                                                                                                                                                                                                                                        | Any table, column, index, constraint, stored JSON meaning, or data repair. Append a migration; never rewrite published history. Migrations 49–51 are forward-only: 49 adds history notice/episode semantics; 50 rejoins divergent schema-42 lineages; 51 fences unresolved legacy relative rollback plans as ambiguous before they can be retried. Existing wire phase values remain compatible.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| SQLite application database                       | `src/host/db/migrations.ts` (`DATABASE_MIGRATIONS`, `LATEST_SCHEMA_VERSION`, currently 54)                                                                                                                                                                                                                                                                                                                                                        | Any table, column, index, constraint, stored JSON meaning, or data repair. Append a migration; never rewrite published history. Migrations 49–51 are forward-only: 49 adds history notice/episode semantics; 50 rejoins divergent schema-42 lineages; 51 fences unresolved legacy relative rollback plans as ambiguous before they can be retried. Existing wire phase values remain compatible.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Runtime durable canonical-gap evidence            | `src/host/db/migrations.ts` (migrations 48 and 49, `forward-only`), `src/host/db/runtimeDurableGap.ts`, `src/host/db/runtimeHistoryNotice.ts` (`runtime_persistence_epoch`, `thread_runtime_gaps.episode_id`, `thread_runtime_epoch_touches`, `thread_runtime_gap_notices`)                                                                                                                                                                       | Boot epoch/arm protocol, touch-before-accept ordering, contamination reasons, episode identity, acknowledgement/notice semantics, and close/rebase clearing rules. A pre-49 database fails validate mode until migrated once. Test validate-before refusal, validate-after success, existing-gap UUID backfill, reopen preservation, and delete/reuse invalidation.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | Runtime history-gap acknowledgement token         | `src/shared/runtimeHistoryNotice.ts` (`gap2:` generation)                                                                                                                                                                                                                                                                                                                                                                                         | Tokens are opaque and version-prefixed. Reject unknown or malformed tokens. An identity-format revision mints a new prefix; do not reinterpret existing tokens or use timestamps as unique episode identity.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | Supervisor agent-status cache                     | `src/supervisor/runtime/agentStatusService.ts` (`STATUS_CACHE_VERSION`)                                                                                                                                                                                                                                                                                                                                                                           | Any `AgentStatus`, capability, auth, runtime-routing, detection, or derived provider result that can make a cached status stale.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -1504,8 +1714,293 @@ provider probe -> supervisor agent-status cache -> IPC/event -> renderer Zustand
 
 If provider discovery semantics change, an old value can survive in either cache. Review both `STATUS_CACHE_VERSION` and the renderer store version, then test an upgrade fixture containing the previous version and stale data.
 
-### Ranged ACP filesystem reads
+## Terminal scrollback chunks (schema 52)
 
-ACP ranged text reads now scan UTF-8 incrementally and close the file after the requested lines. The existing unrestricted read and slicing contract remains unchanged, including CRLF normalization only for ranged reads, Unicode/invalid-byte decoding, trailing empty lines, path authority, missing-skill fallback and filesystem errors. This is per-request I/O with no retained cache or serialized state; ACP request/response shapes, capabilities and wire versions remain valid. New supervisor/server bundle hashes identify the implementation. Differential text/error/close checks and real child filesystem/dependent-workflow tests cover the boundary.
+Schema 52 is forward-only: new terminal writes store UTF-16LE BLOB chunks
+instead of rewriting the retained whole transcript. Schema-51 transcript rows
+remain readable and convert atomically on their first append. The chunk table,
+retention counters, and absolute UTF-16 cursor commit together; the public
+200,000-code-unit read tail and remote cursor payload are unchanged. Old code
+cannot serve new chunk writes, so rollback requires the pre-upgrade database
+backup. Validate-only opens refuse the missing chunk schema.
+
+All readers continue through the scrollback facade except legacy admission,
+which charges the actual legacy text or chunk BLOB bytes the reader loads.
+No settings, wire, native binding, helper, or renderer cache version changes.
+Migration, reopen, UTF-16 boundaries, atomic failure/retry, lock contention,
+retention and delete/clear regressions live in terminalScrollback.test.ts.
+
+Native qualification node-perf summaries now declare summaryVersion 2. They
+read format-2 nested queue observations and retain unavailable/error/unknown-age
+coverage separately from measured zero. Writer evidence format 2 and queue
+sample format 1 remain unchanged; format-1 files supply process metrics only.
+Older summaries must be regenerated from raw evidence before qualifying queue
+bounds. Missing process metrics also remain null; per-metric coverage is separate
+from recording completeness. A complete recording requires a recognized start,
+a newline-terminated shutdown marker, matching writer counts/bytes, and no loss,
+budget exhaustion, malformed records, or reported writer errors. The marker
+records pre-close evidence and does not prove the later close succeeded.
+Regression: tests/native-e2e/helpers/nodePerfSummary.test.ts.
+
+Crossagent transcript indexes, deferred projections and terminal scaffolding
+release are volatile same-process bookkeeping. Full output, UTF-16 cursor
+corrections, compact envelope v1, attempts and continuation receipts remain
+unchanged. Forwarded-item ancestry resolution preserves released stable ordering,
+including cycles and missing/closed parents. Diagnostic suffix storage preserves
+per-Buffer decoding and the existing 2,000-unit final slice/trim; its private
+retention policy has no serialized representation. Released-oracle parity,
+retirement and real process regressions cover these changes. No persisted state,
+wire protocol, plugin capability or deployed helper contract changes, so existing
+versions remain valid and no migration or compatibility bump is required.
+
+Runtime stream writes reuse one consecutive item's decoded head only inside a
+single synchronous transaction prefix. Any intervening non-delta event or item
+switch invalidates it; no cached row survives commit, rollback, thread-prefix
+change or connection replacement. Narrow stream statements read/write only
+state and streams, preserving existing payload bytes. Persisted schema 52,
+stream-state/chunk formats, retention policy, canonical admission receipts and
+committed/fenced read semantics remain unchanged. Prior-row, replacement,
+interleaving, rollback/retry and actual SQLite digest-parity regressions cover
+this volatile optimization; no compatibility version bump is required.
+
+Capped nonzero crossagent progress reads project the same forward correction
+sequence into a bounded suffix of UTF-16 spans. The raw numeric cursor, stable
+correction ordering, first qualifying replacement per key, omission marker and
+result metadata retain their prior meanings. Exceptional numeric/range inputs
+keep the legacy reader. Full output, compact envelope v1, quiet reads and
+beginning/history projections remain compatible. The spans are private to one
+synchronous read and are never persisted or sent across processes; no cache,
+schema, wire, helper or plugin version changes are required. Previous-reader
+parity and orchestration process checks cover the unchanged public contract.
+
+Frozen runtime-stream head hints are connection-local TEMP SQLite metadata,
+bounded to 64 entries with at most 1,024 UTF-8 key bytes per entry. They retain
+no stream text or payload. TEMP triggers invalidate same-connection item row
+changes; top-level immediate writers validate external `data_version` changes
+before reading hints. That freshness stamp and all hint mutations are themselves
+transactional, so rollback restores a consistent view. Nested writers use the
+existing full-head path. Canonical head/chunk/state rows, retention boundaries,
+UTF-16 behavior, read fences and commit receipts keep their existing meanings;
+old stored rows and older readers/writers remain compatible. The frozen lookup's
+NULL stream projection is private to the writer and never crosses the public
+item API. No persistent schema, derived durable index, wire, helper or plugin
+version changes are required. Previous-row, same/external-connection mutation,
+rollback/retry, nested rollback, replacement and lifecycle regressions cover
+this volatile optimization.
+
+Frozen-head hint setup is lazy: cold connections keep the original lookup until
+an eligible head has been observed in a confirmed top-level commit. Only a
+boolean observation survives that prefix, and setup runs before a later
+top-level transaction. Rollback, nested writers and failed commits cannot
+schedule activation; setup failure cannot revoke an earlier commit receipt.
+Resetting the statement cache discards pending observation. These private
+lifecycle rules change no persisted or serialized contract; committed-only
+activation and partial-setup retry regressions cover the boundary.
+
+Timeline remount-height snapshots are volatile, renderer-local derived hints.
+They retain at most 16 threads, 1,024 rows per snapshot, 4,096 rows in aggregate,
+and 1 MiB of estimated UTF-16 key/record storage. Empty or oversized replacements
+retire the prior snapshot; oversized snapshots fall back as a whole to existing
+virtualizer estimates. Canonical items, history, layout signatures and measured
+row values remain unchanged. Cache records are owned immutable copies, so caller
+mutation cannot bypass admission accounting. The estimate excludes actual
+JavaScript/native allocator overhead. Desktop and web use the same module; no
+persisted cache, schema, wire, helper or plugin version changes are required.
+Aggregate row/key-byte pressure, read recency, replacement/reset accounting,
+removed-item snapshots and width/font restoration regressions cover this boundary.
+
+Explicit virtual-row layout signals can delegate dimension measurement to an
+established observation of the current connected row's border box. The optional
+same-bundle callback preserves synchronous structural signaling without reusing
+stored geometry. First delivery, missing callback, recycled/disconnected rows,
+unusable border-box data and legacy content-box-only observation retain explicit
+measurement. Observer dimensions and deferred shrink ownership keep their prior
+meanings. No geometry is persisted or transmitted; the callback is a private
+compatible renderer extension, so no schema, wire, helper or plugin version bump
+is required. Lifecycle, fallback, current-row and pre-paint positioning checks
+cover this volatile optimization.
+
+Pane reader-follow intent is volatile and private to one mounted chat pane.
+The signal owns one boolean and only currently mounted body subscriptions;
+unmount removes those listeners. Implicit reader and explicit Earlier selections
+use bounded detached UTF-16 pages (at most 8,193 units each), never source-text
+caches. Only a confirmed user scroll-away freezes the current streaming page;
+canonical intake and display/copy/export source selection continue advancing.
+Explicit pane return releases the implicit page before tail reconciliation,
+while explicit Earlier selection retains its separate Back to latest action.
+Replacement/hydration epochs, source takeover and body remount invalidate old
+selections. Standalone bodies without this same-bundle context retain the
+previous latest-page behavior. No page or follow state is serialized, persisted,
+transmitted or shared with independently updated helpers; existing schema,
+cache, wire, IPC, helper and plugin versions remain valid. Gesture/compensation,
+raw/capped append, first-cap, completion/source-takeover, threshold transition,
+return/submission and subscription-cleanup regressions cover this private
+presentation boundary.
+
+An already-paused pane also detaches the first committed eligible streaming
+window after mount, replacement, hydration or entry into windowing. Each restart
+begins with its own current source; no old source/page survives. A valid selected
+page consumes this capture eligibility, so subsequent appends do not make new
+page copies until a source restart or explicit return.
+
+## Runtime growing-head blocks (schema 53)
+
+Schema 53 is forward-only: new runtime stream writes extend the existing JSON
+head with canonical UTF-16LE BLOB blocks and per-stream scalar metadata. The
+legacy `thread_runtime_items.streams` JSON remains an immutable seed during
+ordinary appends and stream replacements. Migration 53 creates empty tables
+and a seed-reset trigger; it never rewrites legacy seeds, tail chunks/state,
+item metadata, completed turns, or durable gap/notice evidence. Eligible seeds
+initialize lazily inside the same immediate canonical transaction as the first
+write. Published migration 36 uses its own historical whole-value split helper
+and the retained legacy append primitive, without requiring schema-53 tables.
+
+`runtimeStreamHeadSchema.ts` owns mirrored bootstrap/migration definitions.
+Each stream retains at most 256,001 UTF-16 units (the existing complete-surrogate
+cap behavior), in blocks of at most 8,192 units and at most 32 block rows. One
+partial open block may be rewritten; closed blocks remain immutable. Stream
+keys are private JSON-string encodings, preserving isolated surrogate keys.
+An explicit assignment to `streams`, even of identical bytes, resets the item’s
+head overlays transactionally; key-only item moves and deletion use foreign-key
+cascades. Per-stream replacement suppresses its legacy seed through persistent
+metadata while keeping sibling streams and the seed JSON unchanged.
+
+An older whole-head reader cannot assemble the new blocks, so code-only rollback
+is unsafe and server upgrades require a consistent pre-migration backup. Normal
+desktop/server startup and validate-only opens reject newer schema versions.
+Physical SQLite backup/import includes the new tables automatically; receipt
+format 1 remains valid and its numeric database schema field records 53.
+
+The shared 256,000-unit head, 4,000,000-unit tail and elision policy, assembled
+full-read strings, committed/fenced read contracts, remote protocol 12,
+client-host hop 16, canonical admission 2, history `gap2:` tokens, native
+binding/helper formats, settings and renderer/provider cache versions remain
+unchanged. The prior TEMP frozen-head hint is superseded by durable head
+metadata; volatile statement caches follow the connection and retain no stream
+text across transaction prefixes. Runtime artifact content digests change when
+the new migration/readers are rebuilt; their manifest formats do not change.
+
+Regression coverage starts from actual pre-36 and schema-52 storage without
+head tables, preserves legacy rows through migration/reopen, compares fresh
+and upgraded DDL/constraints, checks lazy append and seed-reset rollback,
+validates exact UTF-16 BLOB/sequence bounds, and rejects a newer version even
+when every required column exists. The real schema-52→53 server migration
+policy requires a backup. Old-artifact desktop/server refusal and native/runtime
+performance qualification are separate from these unit regressions.
+
+## Runtime payload origin custody (schema 54)
+
+Migration 54 is forward-only and creates an empty keyed
+`thread_runtime_item_payload_origins` side table, origin format 1. Historical
+payloads, immutable stream seeds, head blocks, tails/state, completed turns,
+and durable gap/notice evidence remain byte-for-byte valid and unchanged;
+unproved legacy summaries remain unknown. A stable format-owner capability
+belongs to the actual complete-payload producer, never the current thread kind
+or adjacent handoff. There is no history scan or app-wide legacy repair.
+
+The composite `(thread_id, item_id)` foreign key cascades deletes and key moves.
+AFTER INSERT resets the new key only for successful insertions, preserving
+ignored duplicate starts. AFTER UPDATE OF payload, type, thread_id, item_id
+clears both old and new keys even for identical-value assignments. State-only
+and stream-only writes preserve payload origins. The trusted INTERNAL helper
+checks transaction/foreign-key context, a successful single-row SQL receipt,
+exact installed type/payload binding, origin format 1 and an ASCII owner key of
+at most 128 bytes. Its caller must establish captured actual-producer custody
+of the complete payload before installing proof after the SQL write. This
+storage slice supplies no public RPC, proof injection, writer transport or
+provider projection; end-to-end summary repair remains incomplete. Existing
+writers that assign payload conservatively clear proof until that later trusted
+writer lane can attest the installation.
+
+`runtimePayloadOriginsSchema.ts` supplies the single migration/fresh-bootstrap
+DDL. Required-schema validation checks its exact table constraints, composite
+FK and both reset triggers, not just columns. Upgrade/reopen regressions start
+from actual schema 53, and test same-byte writes, replacement/cascade and
+transaction/savepoint rollback. Physical SQLite backup/VACUUM copies preserve
+valid new metadata; logical snapshots have no proof and remain unknown.
+Older artifacts reject schema 54; server upgrades require a consistent backup.
+Backup receipt format 1 keeps its numeric schema field. Public remote protocol
+12, client-host hop 16, public IPC/procedure shapes, private canonical admission
+2, gap2 tokens and helper/native/cache versions remain unchanged.
+
+The separate Stop pending-request ownership change is volatile and local to a
+renderer component. Same-thread/new-turn and pane-reuse tokens fence late
+responses; existing bridge, protocol and persisted-state shapes are unchanged.
+Errors/analytics and server Stop/background-job policy are preserved. No schema
+or IPC version bump is needed for that UI state change.
+
+Private runtime payload custody uses separately negotiated format 1 in
+`runtimePayloadOriginProtocol.ts`. The supervisor advertises
+`runtimePayloadOriginVersions`; only an exact owned-boot
+`enable-runtime-payload-origins` control permits serialization. Old receivers
+receive no private fields, and old senders/unsupported versions remain unknown.
+Actual structured adapter callbacks capture the declared format key after their
+generation/retirement guards, including child attempts before parent retagging.
+Event-local private symbols survive hold/release and coalescing; sparse positions
+are generated only from the final chunk. No side map or independent relay exists.
+Both peers charge the bounded key/tuple/header allocation in event, envelope,
+credit, queue and refusal accounting. Keys remain at most 128 permitted ASCII
+bytes, boot identities at most 128 printable ASCII bytes, and sparse entries at
+most 20,000 per envelope. Publication strips private fields and authority from
+all unchanged/partial backend/main/WS paths; admitted payloads have independent
+ownership from public publication. Flow1 ACK still means admission, not commit.
+Admission2 remains unadvertised by the supervisor and explicitly UNKNOWN in its
+events-only intake and alternate publication path; its version 2 is unchanged.
+
+The private branded admission entry preserves custody inside bounded pending
+and flush event objects, including prefix refusal, retries and proven rollback
+fallback. Only successful payload SQL installs are stamped, after invalidation,
+in the canonical+usage transaction. Ignored INSERTs preserve prior proof. A
+shallow merge can retain only already-proved same-format evidence; an independently
+complete replacement follows the original writer's replacement branches.
+No-payload completion retains proved prior evidence through the original valid
+JSON re-encoding; malformed evidence that becomes null remains unknown. Direct,
+synthetic and public snapshot assignments invalidate even identical bytes.
+Storage format 1, the table/checks/triggers and physical schema 54 are unchanged;
+shared types/constants/validation now mirror that sealed storage boundary.
+Legacy/import/public snapshot rows remain unknown. Public runtime events,
+procedure signatures, hop16, remote12, gap2, backup receipt1, and helper/cache
+manifest versions remain unchanged. Updated helpers/bundles advertise the new
+private capability; old complete artifacts remain valid without custody.
+Regression gates run the actual source/router/sender/owned host/queue/SQLite
+path and the sealed pre-custody source/writer, with raw payload conservation,
+exact producer/index ownership, public erasure and atomic rollback receipts.
+
+### Bounded persisted payload read projection (R99)
+
+The provider-owned `persistedRuntimePayload.ts` leaf declares the stable
+`codex.file-change/v1` format key, matching the adapter's captured origin
+capability and origin format 1. Build-time discovery composes pure projection
+leaves into every tsdown entry and all unit/integration/performance test
+configurations; readers never scan directories or import full adapters. Runtime
+source declarations cover build, host, shared and supervisor roots, so the new
+leaf and composition plugin change bundled artifact identity. No deployed cache
+or manifest keeps a separately cached hook registry.
+
+Readers require proved selected-row origin in the same SQLite snapshot, with
+stream-elision exclusion. Unknown legacy/imported rows, ambiguous or mixed
+sources, elided evidence and oversized sources remain unchanged. Projection
+changes only returned counters and preserves stored JSON and stream bytes.
+Declared 16-byte wire/32-byte decode expansion is an upper packing reservation,
+never an oversized lower-bound proof; hard limits use exact post-projection
+serialization. Provenance strings actually selected are separately charged in
+legacy stored-data reservations. Physical schema 54, origin format 1, public
+remote 12 and client-host hop 16 remain unchanged. Future format changes must
+version the provider declaration, registry acceptance, SQL proof predicates and
+private custody mirrors together.
+
+### Native desktop shell-save shutdown dependency (R100)
+
+Native quit now joins shell saves before disposing the backend they depend on.
+A bounded save drain shares the existing ten-second app-quit budget, leaving
+the unchanged two three-second termination joins for backend retirement. The
+helper and client use one `backendShutdownBudget.ts` reserve; remaining time
+is measured with the monotonic clock. Independent ingress/SSH shutdown remains
+concurrent, failures still attempt backend retirement, and the outer app-quit
+timeout is unchanged. This changes ordering, not shell-state keys or values,
+SQLite schema 54, IPC argument/result shapes, public protocol versions, or
+helper/cache manifest formats. Runtime source declarations include `src/main`,
+so new bundles receive a new source identity. Prior complete artifacts remain
+valid with their prior quit behavior; no persisted-state migration is needed.
 
 Electron is pinned to `44.4.4`, including the mirrored workspace override and lockfile resolution used by React DevTools. This same-major update includes the upstream sandbox initialization fix (electron/electron#54155). Native dependencies are checked by the existing Electron-aware installer, and qualification uses isolated profiles and a newly frozen artifact. Application state, runtime payloads, IPC and wire formats do not change; their versions remain valid. The dependency version and build identity distinguish this runtime from the preserved 44.0.0 artifact.

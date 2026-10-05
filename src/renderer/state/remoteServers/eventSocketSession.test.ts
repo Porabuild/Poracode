@@ -341,18 +341,24 @@ function makeHarness(
     environment:
       options.environment ??
       (async () => ({}) as Awaited<ReturnType<RemoteDesktopClient["environment"]>>),
-    threadHistory: vi.fn<
+    boundedThreadHistory: vi.fn<
       () => Promise<{
-        snapshotSeq: number;
-        projects: never[];
-        threads: never[];
-        runtimeSummariesByThread: Record<string, never>;
+        negotiation: "legacy";
+        page: {
+          snapshotSeq: number;
+          projects: never[];
+          threads: never[];
+          runtimeSummariesByThread: Record<string, never>;
+        };
       }>
     >(async () => ({
-      snapshotSeq: 0,
-      projects: [],
-      threads: [],
-      runtimeSummariesByThread: {},
+      negotiation: "legacy",
+      page: {
+        snapshotSeq: 0,
+        projects: [],
+        threads: [],
+        runtimeSummariesByThread: {},
+      },
     })),
     websocketUrl: (
       ticket: string,
@@ -574,12 +580,11 @@ describe("remote event socket session (V5 2.1)", () => {
     const gatedFactory: RemoteClientFactory = (endpoint, token) => {
       const real = client(endpoint, token);
       const gated = Object.create(real) as RemoteDesktopClient;
-      gated.threadHistory = vi.fn<() => Promise<unknown>>(
-        () =>
-          new Promise((resolve) => {
-            releaseHistory = resolve;
-          }),
-      ) as unknown as RemoteDesktopClient["threadHistory"];
+      gated.boundedThreadHistory = vi.fn<() => Promise<unknown>>(() =>
+        new Promise((resolve) => {
+          releaseHistory = resolve;
+        }).then((page) => ({ negotiation: "legacy", page })),
+      ) as unknown as RemoteDesktopClient["boundedThreadHistory"];
       return gated;
     };
     deps.get().clientFactory = gatedFactory;
@@ -621,12 +626,11 @@ describe("remote event socket session (V5 2.1)", () => {
     const gatedFactory: RemoteClientFactory = (endpoint, token) => {
       const real = client(endpoint, token);
       const gated = Object.create(real) as RemoteDesktopClient;
-      gated.threadHistory = vi.fn<() => Promise<unknown>>(
-        () =>
-          new Promise((resolve) => {
-            releaseHistory = resolve;
-          }),
-      ) as unknown as RemoteDesktopClient["threadHistory"];
+      gated.boundedThreadHistory = vi.fn<() => Promise<unknown>>(() =>
+        new Promise((resolve) => {
+          releaseHistory = resolve;
+        }).then((page) => ({ negotiation: "legacy", page })),
+      ) as unknown as RemoteDesktopClient["boundedThreadHistory"];
       return gated;
     };
     deps.get().clientFactory = gatedFactory;
@@ -854,12 +858,11 @@ describe("remote event socket session (V5 2.1)", () => {
     const gatedFactory: RemoteClientFactory = (endpoint, token) => {
       const real = client(endpoint, token);
       const gated = Object.create(real) as RemoteDesktopClient;
-      gated.threadHistory = vi.fn<() => Promise<unknown>>(
-        () =>
-          new Promise((resolve) => {
-            releaseHistory = resolve;
-          }),
-      ) as unknown as RemoteDesktopClient["threadHistory"];
+      gated.boundedThreadHistory = vi.fn<() => Promise<unknown>>(() =>
+        new Promise((resolve) => {
+          releaseHistory = resolve;
+        }).then((page) => ({ negotiation: "legacy", page })),
+      ) as unknown as RemoteDesktopClient["boundedThreadHistory"];
       return gated;
     };
     deps.get().clientFactory = gatedFactory;

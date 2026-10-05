@@ -1,6 +1,7 @@
 export const productionRoots = [
   "src/main/",
   "src/backend/",
+  "src/host/",
   "src/preload/",
   "src/renderer/",
   "src/shared/",
@@ -198,7 +199,13 @@ export const functionalAreas = [
   {
     id: "shared-runtime",
     title: "Shared contracts, persistence, runtime utilities, and server infrastructure",
-    patterns: [/^src\/backend\//, /^src\/shared\//, /^src\/supervisor\//, /^src\/server\//],
+    patterns: [
+      /^src\/backend\//,
+      /^src\/host\//,
+      /^src\/shared\//,
+      /^src\/supervisor\//,
+      /^src\/server\//,
+    ],
     automated: ["baseline"],
     manual: ["ipc-roundtrip"],
   },

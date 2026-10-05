@@ -20,13 +20,25 @@ import {
   toRuntimeChatItem,
   type CompletedTurnRecord,
   type OpenRuntimeRequest,
-  type RuntimeChatItem,
 } from "@/renderer/state/slices/runtimeEventSlice";
 import {
   collectRuntimeEventsFromSupervisoryMessage,
   requestsFromRuntimeItems,
 } from "./runtimeRequests";
 import { shouldReplaceRuntimeItemsFromSnapshot } from "./guards";
+import {
+  seedOlderThreadRuntimeItemsCursor,
+  alignThreadRuntimeHistoryControl,
+  hasHydratedThreadRuntimeItems,
+} from "../chatRuntimePersister";
+import {
+  planRuntimeHistorySnapshot,
+  mergeMissedOlderSnapshotItems,
+  snapshotMonotonicallyCoversExistingTail,
+} from "../runtimeHistorySnapshot";
+import { invalidateRuntimeHistoryRead, runtimeHistoryBoundary } from "../runtimeHistoryBoundary";
+import { clearRuntimeStructuralChangeHint } from "../runtimeStructuralChanges";
+import { forgetThreadGalleryCache } from "../threadGalleryCache";
 import { snapshotOlderThanAppliedSeq } from "./snapshotSeqArbitration";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import { cacheBrowserThreadSnapshot } from "@/renderer/browser/offlineThreadCache";
@@ -95,28 +107,65 @@ export interface ApplyThreadSnapshotResult {
   readonly installedAuthoritativeHistory: boolean;
 }
 
+/**
+ * Explicit authority for differently clipped projections of the same stream.
+ * Only a successfully negotiated boundedThreadHistory read (bounded-v1 echo)
+ * currently proves that the canonical intake prefix was committed and read
+ * behind the captured sequence fence. A protocol version, cached response or
+ * fromServer alone is not this proof. Bind it to the projected thread, exact
+ * snapshot and accepted connection generation; recheck that generation and
+ * its per-thread applied watermark after flushing pending renderer events.
+ * This is an ephemeral installer option, never persisted or sent on the wire.
+ */
+interface CommittedHistoryPrefix {
+  readonly threadId: string;
+  readonly snapshotSeq: number;
+  readonly isCurrent: () => boolean;
+  readonly lastSeenEventSeq: () => number | undefined;
+}
+
 export function applyThreadSnapshot(
   snapshot: RemoteThreadSnapshot,
   options: {
     readonly fromServer: boolean;
     readonly lastSeenEventSeq?: number | undefined;
+    readonly committedPrefix?: CommittedHistoryPrefix;
     /** Guard captured immediately before this thread's history request. */
     readonly followUpQueueSnapshotGuard?: ThreadFollowUpQueueSnapshotGuard;
   } = {
     fromServer: true,
   },
 ): ApplyThreadSnapshotResult {
-  // Arbitrate once, before any write: a snapshot built before live events the
-  // client already applied must not replace the transcript, regress cached
-  // context usage, or poison the offline cache with its older tail. Only the
-  // missing-older-history splice remains additive for stale server snapshots.
-  const snapshotStale = snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
-  if (isBrowserClientRuntime() && !snapshotStale) void cacheBrowserThreadSnapshot(snapshot);
   const threadId = snapshot.thread.id;
+  const proof = options.committedPrefix;
+  if (
+    proof &&
+    (!options.fromServer ||
+      proof.threadId !== threadId ||
+      proof.snapshotSeq !== snapshot.snapshotSeq ||
+      !proof.isCurrent())
+  ) {
+    return { installedAuthoritativeHistory: false };
+  }
   // A delta can already be in the JS event queue when the foreground recovery
   // snapshot resolves. Apply it before comparing/replacing the transcript so
   // the decision observes every event received up to this point.
   supervisorReducer.flushSync(threadId);
+  if (proof) {
+    if (!proof.isCurrent()) return { installedAuthoritativeHistory: false };
+    options = {
+      ...options,
+      lastSeenEventSeq: Math.max(
+        options.lastSeenEventSeq ?? -Infinity,
+        proof.lastSeenEventSeq() ?? -Infinity,
+      ),
+    };
+  }
+  // Arbitrate after the flush, before any snapshot write (including metadata
+  // and offline caching). A flush can synchronously advance the applied seq.
+  // Only the additive missing-older-history splice is safe for stale reads.
+  const snapshotStale = snapshotIsStaleForThread(snapshot, options.lastSeenEventSeq);
+  if (isBrowserClientRuntime() && !snapshotStale) void cacheBrowserThreadSnapshot(snapshot);
   const state = useAppStore.getState();
   syncThreadMetadataFromSnapshot(snapshot, options);
 
@@ -138,7 +187,9 @@ export function applyThreadSnapshot(
     !snapshotStale &&
     ((threadActive &&
       options.fromServer &&
-      snapshotMonotonicallyCoversExistingTail(existingIds, existingItems, snapshotItems)) ||
+      snapshotMonotonicallyCoversExistingTail(existingIds, existingItems, snapshotItems, {
+        streamsFromCommittedPrefix: proof !== undefined,
+      })) ||
       shouldReplaceRuntimeItemsFromSnapshot({
         existingCount: existingIds.length,
         existingHasObservedLiveItems,
@@ -147,21 +198,25 @@ export function applyThreadSnapshot(
         fromServer: options.fromServer,
       }));
   if (shouldReplaceItems) {
-    const firstSnapshotItemId = snapshotItems[0]?.id;
-    const overlapIndex = firstSnapshotItemId ? existingIds.indexOf(firstSnapshotItemId) : -1;
-    const preservedOlderItems =
-      snapshot.runtimeNextCursor !== undefined && overlapIndex > 0
-        ? existingIds
-            .slice(0, overlapIndex)
-            .flatMap((itemId) => (existingItems?.[itemId] ? [existingItems[itemId]] : []))
-        : [];
     // Keep the session-local liveness marker for rows that were originally
     // observed on this client. It is intentionally not persisted by the
     // server, but replacing a catch-up snapshot should not erase it either.
     const reconciledSnapshotItems = snapshotItems.map((item) =>
       existingItems?.[item.id]?.observedLive ? { ...item, observedLive: true } : item,
     );
-    const items = [...preservedOlderItems, ...reconciledSnapshotItems];
+    const installation = planRuntimeHistorySnapshot(
+      threadId,
+      existingIds,
+      existingItems ?? {},
+      reconciledSnapshotItems,
+      snapshot.runtimeNextCursor,
+    );
+    const { items } = installation;
+    // Cursor and items share the actual installation proof. A stale snapshot
+    // never reaches this point, and every replacement fences awaited pages.
+    seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, installation);
+    clearRuntimeStructuralChangeHint(threadId);
+    forgetThreadGalleryCache(threadId);
     useAppStore.setState((current) => ({
       runtimeItemIdsByThread: {
         ...current.runtimeItemIdsByThread,
@@ -176,6 +231,7 @@ export function applyThreadSnapshot(
         [threadId]: (current.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
       },
     }));
+    if (installation.unlocatedControl) void alignThreadRuntimeHistoryControl(threadId);
     // Active remote threads legitimately have running delegated-agent rows;
     // terminating them paints a false "session ended" error while the host is
     // still working. Inactive threads keep the reconcile (orphaned rows).
@@ -191,6 +247,18 @@ export function applyThreadSnapshot(
     }
   } else if (options.fromServer) {
     mergeMissedOlderSnapshotItems(threadId, snapshotItems);
+    if (!snapshotStale && !hasHydratedThreadRuntimeItems(threadId)) {
+      // Live items can beat the first snapshot to the pane. Rejecting its
+      // older payload must not leave pagination uninitialized (or let the
+      // browser's empty initial DB response mark it exhausted). Its cursor
+      // alone does not prove the live projection's oldest boundary: rebase.
+      const boundary = runtimeHistoryBoundary(threadId);
+      seedOlderThreadRuntimeItemsCursor(threadId, snapshot.runtimeNextCursor ?? null, {
+        preserveExistingCursor: true,
+        sparseControlIds: boundary.sparseControlIds,
+      });
+      boundary.needsRebase = true;
+    }
   }
 
   const turns = toCompletedTurnRecords(snapshot.completedTurns);
@@ -276,122 +344,6 @@ function applyBackgroundTasksFromSnapshot(
       },
     };
   });
-}
-
-/**
- * Live-first path: streamed items win over a same-or-shorter active snapshot,
- * but a fresh server history can still know about items emitted BEFORE this
- * client learned the thread existed. The launch race is the canonical case: a
- * remote thread's initial user_message broadcasts while its id is still absent
- * from the client's mirrored thread list, so the live event filter drops it;
- * every later event applies, and once the streamed transcript catches up in
- * length the snapshot is rejected wholesale — the prompt would stay missing
- * for the entire first turn. Splice the snapshot's missed prefix (items
- * ordered before the first locally-known item) in front of the live
- * transcript without touching the fresher streamed tail.
- */
-function mergeMissedOlderSnapshotItems(
-  threadId: string,
-  snapshotItems: readonly RuntimeChatItem[],
-): void {
-  useAppStore.setState((current) => {
-    const existingIds = current.runtimeItemIdsByThread[threadId] ?? [];
-    const firstExistingId = existingIds[0];
-    if (firstExistingId === undefined) return {};
-    // Anchor on the earliest locally-known item; without it in the snapshot
-    // (stale or paged-out window) there is no safe alignment, so do nothing.
-    const overlapIndex = snapshotItems.findIndex((item) => item.id === firstExistingId);
-    if (overlapIndex <= 0) return {};
-    const existingItems = current.runtimeItemsByIdByThread[threadId];
-    const missedPrefix = snapshotItems
-      .slice(0, overlapIndex)
-      .filter((item) => existingItems?.[item.id] === undefined);
-    if (missedPrefix.length === 0) return {};
-    return {
-      runtimeItemIdsByThread: {
-        ...current.runtimeItemIdsByThread,
-        [threadId]: [...missedPrefix.map((item) => item.id), ...existingIds],
-      },
-      runtimeItemsByIdByThread: {
-        ...current.runtimeItemsByIdByThread,
-        [threadId]: {
-          ...Object.fromEntries(missedPrefix.map((item) => [item.id, item])),
-          ...existingItems,
-        },
-      },
-      runtimeStructuralVersionByThread: {
-        ...current.runtimeStructuralVersionByThread,
-        [threadId]: (current.runtimeStructuralVersionByThread[threadId] ?? 0) + 1,
-      },
-    };
-  });
-}
-
-const RUNTIME_ITEM_STATE_RANK: Record<RuntimeChatItem["state"], number> = {
-  started: 0,
-  updated: 1,
-  completed: 2,
-};
-
-/**
- * A fresh active-thread snapshot may safely replace the current tail when it
- * contains every locally-known tail item in the same order and every streamed
- * text bucket is equal to, or an append-only extension of, what is visible.
- *
- * This is the foreground catch-up case Safari needs: a long assistant response
- * usually grows one existing item, so item-count-only freshness checks cannot
- * distinguish a stale snapshot from one containing all output emitted while
- * the page was suspended.
- */
-function snapshotMonotonicallyCoversExistingTail(
-  existingIds: readonly string[],
-  existingItems: Record<string, RuntimeChatItem> | undefined,
-  snapshotItems: readonly RuntimeChatItem[],
-): boolean {
-  const firstSnapshotId = snapshotItems[0]?.id;
-  if (!firstSnapshotId || existingIds.length === 0 || !existingItems) return false;
-  const overlapIndex = existingIds.indexOf(firstSnapshotId);
-  if (overlapIndex < 0) return false;
-  const existingTailIds = existingIds.slice(overlapIndex);
-  if (existingTailIds.length > snapshotItems.length) return false;
-
-  return existingTailIds.every((itemId, index) => {
-    const existing = existingItems[itemId];
-    const incoming = snapshotItems[index];
-    if (!existing || !incoming || incoming.id !== itemId) return false;
-    if (incoming.type !== existing.type || incoming.parentItemId !== existing.parentItemId) {
-      return false;
-    }
-    if (RUNTIME_ITEM_STATE_RANK[incoming.state] < RUNTIME_ITEM_STATE_RANK[existing.state]) {
-      return false;
-    }
-    if (!snapshotValueMonotonicallyCovers(existing.payload, incoming.payload)) return false;
-    return Object.entries(existing.streams).every(([stream, text]) => {
-      const incomingText = incoming.streams[stream as keyof RuntimeChatItem["streams"]] ?? "";
-      return incomingText.startsWith(text ?? "");
-    });
-  });
-}
-
-function snapshotValueMonotonicallyCovers(existing: unknown, incoming: unknown): boolean {
-  if (Object.is(existing, incoming) || existing === undefined) return true;
-  if (Array.isArray(existing)) {
-    return (
-      Array.isArray(incoming) &&
-      existing.length === incoming.length &&
-      existing.every((value, index) => snapshotValueMonotonicallyCovers(value, incoming[index]))
-    );
-  }
-  if (!existing || typeof existing !== "object" || !incoming || typeof incoming !== "object") {
-    return false;
-  }
-  if (Array.isArray(incoming)) return false;
-  const incomingRecord = incoming as Record<string, unknown>;
-  return Object.entries(existing as Record<string, unknown>).every(
-    ([key, value]) =>
-      Object.hasOwn(incomingRecord, key) &&
-      snapshotValueMonotonicallyCovers(value, incomingRecord[key]),
-  );
 }
 
 function syncThreadMetadataFromSnapshot(
@@ -595,6 +547,11 @@ export function dispatchRemoteSupervisorEvent(value: unknown, hooks?: RemoteDisp
   try {
     const runtimeBatches = collectRuntimeEventsFromSupervisoryMessage(value);
     if (runtimeBatches.length > 0) {
+      for (const batch of runtimeBatches) {
+        if (batch.events.some((event) => event.type === "runtime.truncated")) {
+          invalidateRuntimeHistoryRead(batch.threadId);
+        }
+      }
       if (hooks?.deliverRuntimeEventsImmediately) {
         supervisorReducer.enqueueRuntimeBatches(runtimeBatches, {
           deliverRuntimeEventsImmediately: true,

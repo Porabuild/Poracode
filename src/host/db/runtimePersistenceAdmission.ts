@@ -1,5 +1,10 @@
 import type { RuntimeEvent } from "@/shared/contracts";
-import type { RuntimeWriteQueue } from "./runtimeWriteQueue";
+import { runtimePayloadOriginEventBytes } from "@/shared/runtimePayloadOriginProtocol";
+import type { RuntimeEnqueueResult, RuntimeWriteQueue } from "./runtimeWriteQueue";
+import type {
+  RuntimeAdmissionCost,
+  RuntimeReservationResult,
+} from "./runtimeAdmissionReservations";
 import type { RuntimePersistenceHealth } from "./runtimePersistenceHealth";
 import type { RuntimeDurableGapPort } from "./runtimeDurableGap";
 import {
@@ -34,6 +39,12 @@ export interface RuntimeContaminationInfo {
   /** Number of accepted-but-uncommitted events superseded by the last rebase. */
   supersededEvents: number;
 }
+
+/** A quote has no canonical payload and cannot itself create refusal evidence. */
+export type RuntimeAdmissionReservationResult =
+  | RuntimeReservationResult
+  | { kind: "blocked"; reason: RuntimeRefusalReason };
+export type RuntimeReservedAdmission = RuntimeAdmission | { kind: "invalid-reservation" };
 
 export interface RuntimePersistenceAdmissionOptions {
   queue: RuntimeWriteQueue;
@@ -77,6 +88,52 @@ export class RuntimePersistenceAdmission {
    * obligation) so a restart cannot serve a shorter transcript as complete.
    */
   admit(threadId: string, events: readonly RuntimeEvent[]): RuntimeAdmission {
+    return (
+      this.checkAdmission(threadId, events) ??
+      this.finishAdmission(threadId, this.queue.enqueue(threadId, events))
+    );
+  }
+
+  reserveAdmission(
+    threadId: string,
+    cost: RuntimeAdmissionCost,
+  ): RuntimeAdmissionReservationResult {
+    if (this.health.isAdmissionClosed()) return { kind: "blocked", reason: "shutdown" };
+    const contamination = this.contaminatedThreads.get(threadId);
+    if (contamination) return { kind: "blocked", reason: contamination.reason };
+    const age = this.queue.oldestPendingAgeMs(this.now());
+    if (age !== null && age >= this.queue.getBounds().maxPendingAgeMs)
+      return { kind: "blocked", reason: "age" };
+    if (this.health.getState() !== "healthy") return { kind: "blocked", reason: "degraded" };
+    const resolution = this.durableGap?.resolve(threadId);
+    if (resolution?.kind === "error") {
+      this.durableGap?.reportFailure(resolution.error);
+      return { kind: "blocked", reason: "degraded" };
+    }
+    if (resolution?.kind === "suspect") return { kind: "blocked", reason: "unclean-epoch" };
+    if (resolution?.kind === "exact") return { kind: "blocked", reason: resolution.reason };
+    return this.queue.reserveAdmission(threadId, cost);
+  }
+
+  admitReserved(
+    threadId: string,
+    id: string,
+    events: readonly RuntimeEvent[],
+  ): RuntimeReservedAdmission {
+    const transfer = this.queue.prepareReservedAdmission(threadId, id, events);
+    // A stale/mismatched quote is retryable transport metadata, not proof that
+    // canonical events were lost. Keep the valid lease on a mismatch.
+    if (!transfer) return { kind: "invalid-reservation" };
+    const refusal = this.checkAdmission(threadId, events);
+    if (refusal) return refusal;
+    const result = transfer();
+    return result.kind === "invalid-reservation" ? result : this.finishAdmission(threadId, result);
+  }
+
+  private checkAdmission(
+    threadId: string,
+    events: readonly RuntimeEvent[],
+  ): RuntimeAdmission | null {
     // Byte estimation parses every event; it is only needed on a refusal path,
     // so accepted batches never pay it (memoized for the branches below).
     let estimatedRefusedBytes: number | undefined;
@@ -226,7 +283,10 @@ export class RuntimePersistenceAdmission {
       };
     }
 
-    const result = this.queue.enqueue(threadId, events);
+    return null;
+  }
+
+  private finishAdmission(threadId: string, result: RuntimeEnqueueResult): RuntimeAdmission {
     if (result.kind === "accepted") {
       if (result.refusedEvents > 0) {
         this.handleRefusal(
@@ -454,7 +514,8 @@ function estimateBytes(events: readonly RuntimeEvent[]): number {
   let total = 0;
   for (const event of events) {
     try {
-      total += Buffer.byteLength(JSON.stringify(event), "utf8");
+      total +=
+        Buffer.byteLength(JSON.stringify(event), "utf8") + runtimePayloadOriginEventBytes(event);
     } catch {
       total += 1;
     }

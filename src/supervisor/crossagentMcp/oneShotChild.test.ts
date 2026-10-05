@@ -79,6 +79,25 @@ describe("runOneShotChild", () => {
     expect(result.errorMessage).toContain("cannot be spawned");
   });
 
+  it.each([0, 3])(
+    "preserves output and diagnostic semantics with multi-MiB stderr (exit %s)",
+    async (code) => {
+      const diagnostic = "x".repeat(3 * 1024 * 1024) + " END diagnostic\n";
+      const adapter = nodeAdapter(() => ({
+        command: process.execPath,
+        args: [
+          "-e",
+          `process.stdout.write('stdout preserved'); process.stderr.write('x'.repeat(3 * 1024 * 1024) + ' END diagnostic\\n', () => process.exit(${code}));`,
+        ],
+        stdin: "",
+      }));
+      const result = await run(adapter);
+      expect(result.output).toBe("stdout preserved");
+      expect(result.status).toBe(code === 0 ? "completed" : "failed");
+      expect(result.errorMessage).toBe(code === 0 ? undefined : diagnostic.slice(-2000).trim());
+    },
+  );
+
   it("cancel() terminates a long-running child", async () => {
     const adapter = nodeAdapter(() => ({
       command: process.execPath,

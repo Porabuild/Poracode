@@ -13,6 +13,7 @@ import {
   resetRuntimeItemsWriterCache,
 } from "@/host/db/runtimeItemsWriter";
 import { assembleItemStreams, readStreamTails } from "@/host/db/runtimeStreamStore";
+import { readRuntimeStreamHeads } from "@/host/db/runtimeStreamHeadRead";
 import { RuntimeWriteQueue } from "@/host/db/runtimeWriteQueue";
 import { RemoteAccessServer, type RemoteAccessServerInfo } from "./RemoteAccessServer";
 import type { RemoteBroadcastEvent } from "./server/context";
@@ -796,10 +797,14 @@ function measureTinyDeltaAmplification(
   }
 
   const itemRow = sqlite
-    .prepare("SELECT streams FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?")
-    .get(TINY_DELTA_THREAD, TINY_DELTA_ITEM) as { streams: string } | undefined;
+    .prepare(
+      "SELECT item_id, streams FROM thread_runtime_items WHERE thread_id = ? AND item_id = ?",
+    )
+    .get(TINY_DELTA_THREAD, TINY_DELTA_ITEM) as { item_id: string; streams: string } | undefined;
   if (!itemRow) throw new Error("Item row missing after the tiny-delta run.");
-  const head = JSON.parse(itemRow.streams) as Record<string, string>;
+  const head = readRuntimeStreamHeads(sqlite, TINY_DELTA_THREAD, [itemRow]).get(
+    TINY_DELTA_ITEM,
+  ) as Record<string, string>;
   const headChars = (head[TINY_DELTA_STREAM] ?? "").length;
   const tails = readStreamTails(sqlite, TINY_DELTA_THREAD, [TINY_DELTA_ITEM]).get(TINY_DELTA_ITEM);
   const assembled = assembleItemStreams(head, tails)[TINY_DELTA_STREAM] ?? "";

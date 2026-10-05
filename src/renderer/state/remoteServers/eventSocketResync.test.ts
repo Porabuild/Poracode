@@ -74,7 +74,12 @@ function harness(
     server: environmentRecord(),
     entry: { socket },
     socket,
-    client: { threadHistory },
+    client: {
+      boundedThreadHistory: async (threadId: string) => ({
+        negotiation: "legacy",
+        page: await threadHistory(threadId),
+      }),
+    },
     get: () =>
       ({
         openThread:

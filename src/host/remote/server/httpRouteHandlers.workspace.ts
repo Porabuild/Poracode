@@ -38,7 +38,8 @@ import {
   imageTicketRequestBodySchema,
   imageTickets,
 } from "./imageTickets";
-import { parseImageRefPath, resolveImageRef } from "./imageRefProjection";
+import { parseImageRefPath, resolveImageRefAfterFence } from "./imageRefProjection";
+import { mapPersistenceRefusal } from "./persistenceRefusals";
 import { writeLocalImageFile } from "./localImageFile";
 import { readAttachmentBody, readJsonBody } from "./requestBody";
 import { runProjectCommand, runRemoteProcedure } from "./threadCommands";
@@ -146,7 +147,9 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     if (!path) {
       throw new RemoteHttpError("invalid_path", "An image reference path is required.", 400);
     }
-    const resolved = resolveImageRef(threadId, itemId, path);
+    const resolved = await resolveImageRefAfterFence(threadId, itemId, path).catch((error) => {
+      throw mapPersistenceRefusal(error);
+    });
     if (!resolved) {
       throw new RemoteHttpError("image_not_found", "No inline image at that reference.", 404);
     }

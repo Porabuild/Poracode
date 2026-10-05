@@ -1,5 +1,8 @@
 import type Database from "better-sqlite3";
 import { HEAD_CHARS, joinWithElision, TAIL_CHARS, utf16SafeSliceEnd } from "./runtimeStreamCap";
+import { isRuntimeStreamHeadKeyEligible } from "./runtimeStreamHeadCodec";
+import { appendRuntimeStreamHead, prepareRuntimeStreamHead } from "./runtimeStreamHeadStore";
+import { runtimeStreamTailStatements } from "./runtimeStreamTailStatements";
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
@@ -13,9 +16,9 @@ type SqliteDatabase = InstanceType<typeof Database>;
  * it costs the same whether the item has produced a kilobyte or a gigabyte.
  *
  * Layout per (item, stream):
- *   - the head lives in `thread_runtime_items.streams` and freezes once it
- *     reaches {@link HEAD_CHARS} — after that, streaming never rewrites the
- *     item row again;
+ *   - schema 53 keeps an immutable legacy JSON seed plus bounded UTF-16 head
+ *     blocks and scalar metadata; this module retains the legacy head primitive
+ *     for historical migrations and exceptional stored shapes;
  *   - everything past the head is a row in `thread_runtime_item_stream_chunks`;
  *   - `thread_runtime_item_stream_state` carries the next sequence number, the
  *     retained character count and how much has been dropped, so the append
@@ -35,9 +38,6 @@ type SqliteDatabase = InstanceType<typeof Database>;
  */
 const CHUNK_MAX_CHARS = 256_000;
 
-/** Oldest chunks inspected per trim pass. */
-const TRIM_SCAN_LIMIT = 64;
-
 /** Item ids per tail lookup; SQLite caps how many parameters one statement takes. */
 const TAIL_QUERY_BATCH = 400;
 
@@ -47,11 +47,14 @@ interface StreamStateRow {
   elided_chars: number;
 }
 
-export interface AppendStreamDeltaInput {
+export interface AppendFrozenStreamDeltaInput {
   readonly threadId: string;
   readonly itemId: string;
   readonly stream: string;
   readonly delta: string;
+}
+
+export interface AppendStreamDeltaInput extends AppendFrozenStreamDeltaInput {
   /** The item's current head text for this stream, as stored on the item row. */
   readonly head: string;
 }
@@ -67,12 +70,9 @@ function readStreamState(
   itemId: string,
   stream: string,
 ): StreamStateRow {
-  const row = sqlite
-    .prepare(
-      `SELECT next_seq, tail_chars, elided_chars FROM thread_runtime_item_stream_state
-       WHERE thread_id = ? AND item_id = ? AND stream = ?`,
-    )
-    .get(threadId, itemId, stream) as StreamStateRow | undefined;
+  const row = runtimeStreamTailStatements(sqlite).state.get(threadId, itemId, stream) as
+    | StreamStateRow
+    | undefined;
   return row ?? { next_seq: 0, tail_chars: 0, elided_chars: 0 };
 }
 
@@ -83,17 +83,14 @@ function writeStreamState(
   stream: string,
   state: StreamStateRow,
 ): void {
-  sqlite
-    .prepare(
-      `INSERT INTO thread_runtime_item_stream_state
-         (thread_id, item_id, stream, next_seq, tail_chars, elided_chars)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(thread_id, item_id, stream) DO UPDATE SET
-         next_seq = excluded.next_seq,
-         tail_chars = excluded.tail_chars,
-         elided_chars = excluded.elided_chars`,
-    )
-    .run(threadId, itemId, stream, state.next_seq, state.tail_chars, state.elided_chars);
+  runtimeStreamTailStatements(sqlite).updateState.run(
+    threadId,
+    itemId,
+    stream,
+    state.next_seq,
+    state.tail_chars,
+    state.elided_chars,
+  );
 }
 
 /**
@@ -105,7 +102,7 @@ export function appendStreamDelta(
   sqlite: SqliteDatabase,
   input: AppendStreamDeltaInput,
 ): AppendStreamDeltaResult {
-  const { threadId, itemId, stream, delta, head } = input;
+  const { delta, head } = input;
   if (delta.length === 0) return {};
 
   // Fill the head first; it freezes at HEAD_CHARS and is never rewritten after.
@@ -120,16 +117,34 @@ export function appendStreamDelta(
     if (remainder.length === 0) return { head: nextHead };
   }
 
+  appendStreamTail(sqlite, {
+    threadId: input.threadId,
+    itemId: input.itemId,
+    stream: input.stream,
+    delta: remainder,
+  });
+  return nextHead === undefined ? {} : { head: nextHead };
+}
+
+/** Append directly to the tail when the caller has verified a frozen head. */
+export function appendFrozenStreamDelta(
+  sqlite: SqliteDatabase,
+  input: AppendFrozenStreamDeltaInput,
+): void {
+  if (input.delta.length === 0) return;
+  appendStreamTail(sqlite, input);
+}
+
+/** Shared tail path: chunking, trimming and UTF-16 boundaries stay identical. */
+function appendStreamTail(sqlite: SqliteDatabase, input: AppendFrozenStreamDeltaInput): void {
+  const { threadId, itemId, stream, delta } = input;
   const state = readStreamState(sqlite, threadId, itemId, stream);
-  const insert = sqlite.prepare(
-    `INSERT INTO thread_runtime_item_stream_chunks (thread_id, item_id, stream, seq, chars, text)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  );
+  const { insert, oldest, remove } = runtimeStreamTailStatements(sqlite);
   let nextSeq = state.next_seq;
   let tailChars = state.tail_chars;
-  for (let offset = 0; offset < remainder.length;) {
-    const end = utf16SafeSliceEnd(remainder, Math.min(remainder.length, offset + CHUNK_MAX_CHARS));
-    const text = remainder.slice(offset, end);
+  for (let offset = 0; offset < delta.length;) {
+    const end = utf16SafeSliceEnd(delta, Math.min(delta.length, offset + CHUNK_MAX_CHARS));
+    const text = delta.slice(offset, end);
     insert.run(threadId, itemId, stream, nextSeq, text.length, text);
     nextSeq += 1;
     tailChars += text.length;
@@ -141,15 +156,6 @@ export function appendStreamDelta(
   if (tailChars > TAIL_CHARS) {
     // Over budget: drop whole chunks from the oldest end. `chars` is declared
     // before `text` so this reads record headers, not chunk contents.
-    const oldest = sqlite.prepare(
-      `SELECT seq, chars FROM thread_runtime_item_stream_chunks
-       WHERE thread_id = ? AND item_id = ? AND stream = ?
-       ORDER BY seq ASC LIMIT ${TRIM_SCAN_LIMIT}`,
-    );
-    const remove = sqlite.prepare(
-      `DELETE FROM thread_runtime_item_stream_chunks
-       WHERE thread_id = ? AND item_id = ? AND stream = ? AND seq = ?`,
-    );
     while (tailChars > TAIL_CHARS) {
       const candidates = oldest.all(threadId, itemId, stream) as Array<{
         seq: number;
@@ -174,7 +180,6 @@ export function appendStreamDelta(
     tail_chars: tailChars,
     elided_chars: elidedChars,
   });
-  return nextHead === undefined ? {} : { head: nextHead };
 }
 
 /** Both tables that hold appended stream tails, cleared together. */
@@ -197,8 +202,9 @@ export function clearItemStream(
   }
 }
 
-/** Remove every appended tail in a thread. */
+/** Full snapshot/rebase discards every head overlay and appended tail together. */
 export function clearThreadStreamChunks(sqlite: SqliteDatabase, threadId: string): void {
+  sqlite.prepare("DELETE FROM thread_runtime_item_stream_heads WHERE thread_id = ?").run(threadId);
   for (const table of STREAM_TABLES) {
     sqlite.prepare(`DELETE FROM ${table} WHERE thread_id = ?`).run(threadId);
   }
@@ -211,6 +217,30 @@ export function writeItemStreams(
   itemId: string,
   streams: Record<string, string>,
 ): void {
+  // Full-value writes are explicit authority resets. The seed-reset trigger
+  // removes head blocks; tails have independent authority and must also reset.
+  sqlite
+    .prepare("UPDATE thread_runtime_items SET streams = '{}' WHERE thread_id = ? AND item_id = ?")
+    .run(threadId, itemId);
+  for (const table of STREAM_TABLES) {
+    sqlite
+      .prepare(`DELETE FROM ${table} WHERE thread_id = ? AND item_id = ?`)
+      .run(threadId, itemId);
+  }
+  if (Object.keys(streams).every(isRuntimeStreamHeadKeyEligible)) {
+    for (const [stream, text] of Object.entries(streams)) {
+      if (typeof text !== "string") continue;
+      const prepared = prepareRuntimeStreamHead(sqlite, { threadId, itemId, stream });
+      if (prepared.kind === "missing") return;
+      if (prepared.kind !== "ready" || !prepared.head) {
+        throw new Error("Invalid full runtime stream head preparation.");
+      }
+      const { remainder } = appendRuntimeStreamHead(sqlite, prepared.head.head_id, text);
+      appendFrozenStreamDelta(sqlite, { threadId, itemId, stream, delta: remainder });
+    }
+    return;
+  }
+  // Preserve inherited-property behavior for the exceptional legacy key path.
   const heads: Record<string, string> = {};
   for (const [stream, text] of Object.entries(streams)) {
     if (typeof text !== "string") continue;
@@ -322,7 +352,7 @@ export function streamHasContent(
   threadId: string,
   itemId: string,
   stream: string,
-  head: string | undefined,
+  head?: string,
 ): boolean {
   if ((head ?? "").trim().length > 0) return true;
   const rows = sqlite

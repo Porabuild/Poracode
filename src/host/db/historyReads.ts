@@ -6,18 +6,30 @@ import {
 } from "@/shared/remote/catalogReadContract";
 import { getSqlite } from "./connection";
 import { safeParse } from "./rowMappers";
-import { readStreamTails, streamHasContent } from "./runtimeStreamStore";
+import { readRuntimeSnapshot } from "./runtimeReadSnapshot";
+import {
+  measureRuntimeStreamHeadStorage,
+  type RuntimeStreamHeadStorageSize,
+} from "./runtimeStreamHeadRead";
+import {
+  measureRuntimeStreamHeadEscaped,
+  readRuntimeStreamContentProbes,
+} from "./runtimeStreamHeadProbes";
 import {
   RUNTIME_PAGE_NAMED_TOOL_TYPES,
   chunkValues,
   classifyRuntimeTimelineEntry,
-  mapRuntimeItemRow,
+  mapRuntimeItemRows,
   placeholders,
   selectRuntimePageRows,
   type RuntimeTimelineItemRow,
   type RuntimeTimelineKind,
 } from "./runtimeTimelineReads";
 import type { PersistedRuntimeItem } from "./runtimeItems";
+import {
+  readRuntimePayloadProjectionInputs,
+  type RuntimePayloadProjectionInput,
+} from "./runtimePayloadProjection";
 
 /**
  * B4 bounded history reads: metadata-only phase 1 (classification + size
@@ -32,6 +44,7 @@ import type { PersistedRuntimeItem } from "./runtimeItems";
  *
  * - `item_id, position, type, state, parent_item_id` (small metadata),
  * - `length(CAST(payload/streams AS BLOB))` per row,
+ * - variable metadata-key and head-block byte lengths for selected items,
  * - `SUM(length(CAST(text AS BLOB)))` per item for appended stream tails,
  * - narrow probes for only the rows classification genuinely needs:
  *   `NAMED_TOOL_TYPES` (`payload.name` / sub-agent / inline-image checks) and
@@ -44,10 +57,11 @@ import type { PersistedRuntimeItem } from "./runtimeItems";
  *
  * Phase-1 row bound derivation (same accounting as the catalog slice): stored
  * JSON text re-serializes to at most `6 × stored UTF-8 bytes`
- * (`CATALOG_JSON_BOUND_FACTOR`), appended tail text escapes into a JSON string
- * at at most `6 ×` its stored bytes, and the fixed row envelope covers keys,
- * punctuation and small raw columns. The bound is sound, not an estimate;
- * phase 2 re-measures exactly.
+ * (`CATALOG_JSON_BOUND_FACTOR`). UTF-16 head blocks and appended tail text
+ * also escape at at most `6 ×` their stored bytes; selected metadata keys
+ * cover indexed stream names. The fixed row envelope covers punctuation and
+ * small raw columns. The bound is sound, not an estimate; phase 2 re-measures
+ * the assembled effective heads and tails exactly.
  */
 
 /** Timeline row kind, shared with the legacy page reader. */
@@ -152,9 +166,12 @@ const HISTORY_VERBATIM_LOWER_CODE_POINTS =
  */
 class HistoryTimelineClassifier {
   private readonly childParentIds: ReadonlySet<string>;
+  private readonly projectionInputs = new Map<string, RuntimePayloadProjectionInput>();
+  private readonly projectionProbed = new Set<string>();
   private readonly payloadById = new Map<string, unknown>();
   private readonly reasoningContentById = new Map<string, boolean>();
   private readonly tailSizeById = new Map<string, HistoryTailSize>();
+  private readonly headSizeById = new Map<string, RuntimeStreamHeadStorageSize | undefined>();
 
   constructor(
     private readonly sqlite: InstanceType<typeof Database>,
@@ -174,9 +191,22 @@ class HistoryTimelineClassifier {
   /** Loads size bounds and narrow classification probes for a fresh batch. */
   ensure(rows: readonly HistoryMetadataSqlRow[]): void {
     if (rows.length === 0) return;
+    const fresh = rows.filter((row) => !this.projectionProbed.has(row.item_id));
+    for (const [id, input] of readRuntimePayloadProjectionInputs(this.sqlite, this.threadId, fresh))
+      this.projectionInputs.set(id, input);
+    for (const row of fresh) this.projectionProbed.add(row.item_id);
+    this.ensureHeadBytes(rows);
     this.ensureTailBytes(rows);
     this.ensurePayloadProbes(rows);
     this.ensureReasoningProbes(rows);
+  }
+
+  private ensureHeadBytes(rows: readonly HistoryMetadataSqlRow[]): void {
+    const missing = rows
+      .map((row) => row.item_id)
+      .filter((itemId) => !this.headSizeById.has(itemId));
+    const sizes = measureRuntimeStreamHeadStorage(this.sqlite, this.threadId, missing);
+    for (const itemId of missing) this.headSizeById.set(itemId, sizes.get(itemId));
   }
 
   private ensureTailBytes(rows: readonly HistoryMetadataSqlRow[]): void {
@@ -263,52 +293,45 @@ class HistoryTimelineClassifier {
       HISTORY_PROBE_BATCH,
     )) {
       if (chunk.length === 0) continue;
-      const headRows = this.sqlite
-        .prepare(
-          `SELECT item_id, streams FROM thread_runtime_items
-           WHERE thread_id = ? AND item_id IN (${placeholders(chunk.length)})`,
-        )
-        .all(this.threadId, ...chunk) as Array<{ item_id: string; streams: string | null }>;
-      const heads = new Map(headRows.map((row) => [row.item_id, row.streams]));
+      const content = readRuntimeStreamContentProbes(
+        this.sqlite,
+        this.threadId,
+        chunk,
+        "reasoning_text",
+      );
       for (const itemId of chunk) {
-        const rawHead = heads.get(itemId);
-        const head = rawHead ? safeParse(rawHead) : undefined;
-        const reasoningText =
-          head && typeof head === "object"
-            ? (head as Record<string, unknown>).reasoning_text
-            : undefined;
-        this.reasoningContentById.set(
-          itemId,
-          streamHasContent(
-            this.sqlite,
-            this.threadId,
-            itemId,
-            "reasoning_text",
-            typeof reasoningText === "string" ? reasoningText : undefined,
-          ),
-        );
+        this.reasoningContentById.set(itemId, content.get(itemId) === true);
       }
     }
   }
 
   boundWireBytes(row: HistoryMetadataSqlRow): number {
     const tailStoredBytes = this.tailSizeById.get(row.item_id)?.storedBytes ?? 0;
-    // Stored JSON text (`payload`, `streams` head) and raw appended tail text
-    // both re-serialize into JSON at at most `6 × stored UTF-8 bytes`
-    // (CATALOG_JSON_BOUND_FACTOR: control/lone-surrogate escaping and number
-    // lexeme canonicalization). The envelope covers keys, punctuation, small
-    // raw columns and elision markers. The bound is a packing estimate only;
+    const head = this.headSizeById.get(row.item_id);
+    const headStoredBytes = (head?.metadataKeyBytes ?? 0) + (head?.blockBytes ?? 0);
+    // Stored JSON seed/payload, UTF-16 head blocks and appended tail text
+    // re-serialize into JSON at at most `6 × stored bytes` (including control
+    // and lone-surrogate escapes). Metadata keys cover indexed stream names;
+    // the retained seed stays charged even when indexed heads suppress it.
+    // The envelope covers punctuation, small raw columns and elision markers.
+    // This upper bound only controls packing;
     // hard rejection is decided by the exact lower bound / phase-2 measurement.
     return (
       CATALOG_ROW_ENVELOPE_BYTES +
-      CATALOG_JSON_BOUND_FACTOR * (row.payload_bytes + row.streams_bytes + tailStoredBytes)
+      // This is an UPPER packing reserve, never an oversized lower-bound proof.
+      (this.projectionInputs.get(row.item_id)?.spec.maxWireExpansionBytes ?? 0) +
+      CATALOG_JSON_BOUND_FACTOR *
+        (row.payload_bytes + row.streams_bytes + headStoredBytes + tailStoredBytes)
     );
   }
 
   boundStreamWireBytes(row: HistoryMetadataSqlRow): number {
     const tailStoredBytes = this.tailSizeById.get(row.item_id)?.storedBytes ?? 0;
+    const head = this.headSizeById.get(row.item_id);
+    const headStoredBytes = (head?.metadataKeyBytes ?? 0) + (head?.blockBytes ?? 0);
     return (
-      CATALOG_ROW_ENVELOPE_BYTES + CATALOG_JSON_BOUND_FACTOR * (row.streams_bytes + tailStoredBytes)
+      CATALOG_ROW_ENVELOPE_BYTES +
+      CATALOG_JSON_BOUND_FACTOR * (row.streams_bytes + headStoredBytes + tailStoredBytes)
     );
   }
 
@@ -392,6 +415,14 @@ export function dbReadThreadHistoryPagePhase1(
 ): DbHistoryPagePhase1 {
   assertPhase1Query(query);
   const sqlite = getSqlite();
+  return readRuntimeSnapshot(sqlite, () => readHistoryPhase1InSnapshot(sqlite, threadId, query));
+}
+
+function readHistoryPhase1InSnapshot(
+  sqlite: InstanceType<typeof Database>,
+  threadId: string,
+  query: DbHistoryPagePhase1Query,
+): DbHistoryPagePhase1 {
   const classifier = new HistoryTimelineClassifier(sqlite, threadId);
   const readTailRows = sqlite.prepare(
     `SELECT item_id, position, type, state, parent_item_id,
@@ -477,27 +508,24 @@ export function dbReadThreadHistoryPhase2(
 ): PersistedRuntimeItem[] {
   if (itemIds.length === 0) return [];
   const sqlite = getSqlite();
-  const byId = new Map<string, HistoryMaterializedSqlRow>();
-  for (const chunk of chunkValues(itemIds, HISTORY_ITEM_FETCH_BATCH)) {
-    const rows = sqlite
-      .prepare(
-        `SELECT item_id, type, state, payload, streams, parent_item_id
+  return readRuntimeSnapshot(sqlite, () => {
+    const byId = new Map<string, HistoryMaterializedSqlRow>();
+    for (const chunk of chunkValues(itemIds, HISTORY_ITEM_FETCH_BATCH)) {
+      const rows = sqlite
+        .prepare(
+          `SELECT item_id, type, state, payload, streams, parent_item_id
          FROM thread_runtime_items
          WHERE thread_id = ? AND item_id IN (${placeholders(chunk.length)})`,
-      )
-      .all(threadId, ...chunk) as HistoryMaterializedSqlRow[];
-    for (const row of rows) byId.set(row.item_id, row);
-  }
-  const ordered = itemIds.flatMap((itemId) => {
-    const row = byId.get(itemId);
-    return row ? [row] : [];
+        )
+        .all(threadId, ...chunk) as HistoryMaterializedSqlRow[];
+      for (const row of rows) byId.set(row.item_id, row);
+    }
+    const ordered = itemIds.flatMap((itemId) => {
+      const row = byId.get(itemId);
+      return row ? [row] : [];
+    });
+    return mapRuntimeItemRows(sqlite, threadId, ordered);
   });
-  const tails = readStreamTails(
-    sqlite,
-    threadId,
-    ordered.map((row) => row.item_id),
-  );
-  return ordered.map((row) => mapRuntimeItemRow(row, tails.get(row.item_id)));
 }
 
 /** Exact escaped size of one runtime item's streams-head values. */
@@ -509,34 +537,19 @@ export interface HistoryStreamHeadEscapedSizes {
 }
 
 /**
- * Measures one item's streams-head values exactly, entirely inside SQLite:
- * `json_each` walks the stored head object, the `json_valid`/`NULL` guard
- * mirrors `safeParse`'s fallback to `{}`, and only numeric sums return to JS.
- * No head or payload text crosses into JS for this probe, so a hostile head
- * cannot be materialized just to decide a pre-fetch refusal.
+ * Indexed heads use authoritative escaped byte and UTF-16-unit counters.
+ * Metadata-absent seeds retain the legacy JSON1 probe: `json_each` walks valid
+ * seed JSON, `json_quote` measures escaped bytes, and code-point counts give
+ * a sound decoded-size lower bound. Only numeric sums return to JS; no head,
+ * block or payload text is loaded to decide a pre-fetch refusal.
  *
- * The head is stored as JSON text; `json_quote` re-escapes the parsed value
- * canonically, which is exactly what `JSON.stringify` emits for the same
- * string, so this is the exact charge of the head component. The caller adds
- * it to the tail lower bound (the elision notice, when present, only grows the
- * assembled value).
+ * The caller adds these values to the tail lower bound only for non-elided
+ * rows. Elision assembly can trim both components, so an elided row requires
+ * exact phase-2 measurement instead.
  */
 export function dbMeasureHistoryStreamHeadEscaped(
   threadId: string,
   itemId: string,
 ): HistoryStreamHeadEscapedSizes {
-  const row = getSqlite()
-    .prepare(
-      `SELECT COALESCE(SUM(length(CAST(json_quote(j.value) AS BLOB)) - 2), 0) AS head_wire,
-              COALESCE(SUM(length(json_quote(j.value)) - 2), 0) AS head_code_points
-       FROM thread_runtime_items i
-       JOIN json_each(
-         CASE WHEN i.streams IS NOT NULL AND json_valid(i.streams) THEN i.streams ELSE '{}' END
-       ) AS j
-       WHERE i.thread_id = ? AND i.item_id = ? AND j.type = 'text'`,
-    )
-    .get(threadId, itemId) as { head_wire: number; head_code_points: number } | undefined;
-  const wireBytes = Number(row?.head_wire ?? 0);
-  const codePoints = Number(row?.head_code_points ?? 0);
-  return { wireBytes, decodeBytes: escapedUnitsLowerBound(codePoints, wireBytes) * 2 };
+  return measureRuntimeStreamHeadEscaped(getSqlite(), threadId, itemId);
 }

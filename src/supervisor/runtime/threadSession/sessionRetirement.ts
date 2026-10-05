@@ -260,7 +260,9 @@ export class SessionRetirement {
         const outcome = await pending.custody.settle();
         structuredRetired = outcome === "confirmed";
         confirmedDuringCall = structuredRetired && !retainedBeforeCall;
-        if (!structuredRetired) error = pending.custody.error;
+        if (!structuredRetired) {
+          error = outcome === "failed" ? toError(pending.custody.error) : pending.custody.error;
+        }
       } else {
         structuredRetired = true;
       }

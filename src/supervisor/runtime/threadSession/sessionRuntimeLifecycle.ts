@@ -14,6 +14,7 @@ import type { RuntimeEventRouter } from "./runtimeEventRouter";
 import { type SteerCoordinator, isSteerDrainableStatus } from "./steerCoordinator";
 import type { StructuredInterruptWatchdog } from "./structuredInterruptWatchdog";
 import type { FollowUpQueueCoordinator } from "./followUpQueueCoordinator";
+import { captureRuntimePayloadOrigin } from "@/shared/runtimePayloadOriginProtocol";
 
 export interface SessionRuntimeLifecycleContext {
   sessions: Map<string, SessionRuntime>;
@@ -93,6 +94,7 @@ export class SessionRuntimeLifecycle {
   }
 
   private bindStructuredSession(session: SessionRuntime): void {
+    const actualAdapter = session.adapter;
     session.structuredSession?.setListener({
       onClose: () => {
         // Transport close is the structured side's confirmed retirement.
@@ -118,7 +120,10 @@ export class SessionRuntimeLifecycle {
       },
       onRuntimeEvent: (event) => {
         if (!this.canHandleStructuredEvent(session)) return;
-        this.handleStructuredRuntimeEvent(session, event);
+        this.handleStructuredRuntimeEvent(
+          session,
+          captureRuntimePayloadOrigin(event, actualAdapter.runtimePayloadFormatOwnerKey),
+        );
       },
       onVoiceEvent: (event) => {
         if (!this.canHandleStructuredEvent(session)) return;

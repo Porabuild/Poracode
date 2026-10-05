@@ -18,6 +18,7 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { usePlugins } from "./state/pluginsStore";
 import { useSidebarUiStore } from "@/renderer/state/sidebarUiStore";
 import { useUpdateStore } from "@/renderer/state/updateStore";
+import { clearFolderSelectionFixture, mockNextFolderSelection } from "./devFolderPickerFixture";
 
 type UpdateStoreState = ReturnType<typeof useUpdateStore.getState>;
 
@@ -28,10 +29,25 @@ export function installDevBridge(): void {
   if (target.__poracodeDev) return;
 
   target.__poracodeDev = {
+    // This whole module is loaded only in DEV. Mock just the next folder result;
+    // project registration and every provider procedure keep their real path.
+    mockNextFolderSelection,
+    clearFolderSelectionFixture,
     // Literal bundled imports work in both the frozen development renderer and
     // Vite HMR. CDP scripts must not depend on Vite's /src module URL namespace.
     loadLiveVoice: () => import("./speech/liveVoice"),
     loadBrowserAttachInbox: () => import("./state/browserAttachInbox"),
+    // Inspect the real editor and document owner in frozen smoke builds. The
+    // local editor configures its bundled workers before exposing Monaco.
+    loadEditorDiagnostics: async () => {
+      await import("./views/FileEditorOverlay/parts/FileEditorPane/parts/localMonacoEditor");
+      const [monaco, lsp, files] = await Promise.all([
+        import("monaco-editor"),
+        import("./lsp"),
+        import("./state/fileEditorStore"),
+      ]);
+      return { monaco, lsp, files };
+    },
     // The frozen renderer has no Vite module URLs. Read the actual dispatcher
     // modules for diagnostics without installing a second listener or command.
     loadCommandDiagnostics: async () => {
@@ -76,6 +92,7 @@ export function installDevBridge(): void {
     setUpdate: (patch: Partial<UpdateStoreState>) => useUpdateStore.setState(patch),
     /** Reset transient driven state to a clean baseline — call before teardown. */
     reset: () => {
+      clearFolderSelectionFixture();
       const app = useAppStore.getState();
       useAppStore.setState({
         draftContents: {},

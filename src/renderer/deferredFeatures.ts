@@ -1,4 +1,6 @@
 import { preloadable } from "@/renderer/utils/preloadable";
+import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { createDeferredPrewarmRunner } from "@/renderer/utils/deferredPrewarm";
 
 export const DeferredCommandPalette = preloadable(() =>
   import("@/renderer/commands/CommandPalette").then((module) => module.CommandPalette),
@@ -153,55 +155,14 @@ const compactPrewarmTasks = [
 
 export type DeferredFeaturePrewarmTarget = "desktop" | "compact";
 
-const prewarmState: Record<DeferredFeaturePrewarmTarget, { nextTask: number; running: boolean }> = {
-  desktop: { nextTask: 0, running: false },
-  compact: { nextTask: 0, running: false },
+const prewarmRunners = {
+  desktop: createDeferredPrewarmRunner(desktopPrewarmTasks),
+  compact: createDeferredPrewarmRunner(compactPrewarmTasks),
 };
 
 export function startDeferredFeaturePrewarm(
   target: DeferredFeaturePrewarmTarget = "desktop",
 ): () => void {
-  const tasks = target === "compact" ? compactPrewarmTasks : desktopPrewarmTasks;
-  const state = prewarmState[target];
-  if (state.running || state.nextTask >= tasks.length) return () => {};
-
-  state.running = true;
-  let cancelled = false;
-  let idleId: number | null = null;
-  let timeoutId: number | null = null;
-
-  const scheduleNext = () => {
-    if (cancelled || state.nextTask >= tasks.length) {
-      state.running = false;
-      return;
-    }
-    if (typeof window.requestIdleCallback === "function") {
-      idleId = window.requestIdleCallback(runNext, { timeout: 250 });
-    } else {
-      timeoutId = window.setTimeout(runNext, 250);
-    }
-  };
-
-  const runNext = () => {
-    idleId = null;
-    timeoutId = null;
-    if (cancelled) return;
-    const task = tasks[state.nextTask++];
-    if (!task) {
-      state.running = false;
-      return;
-    }
-    void task()
-      .catch(() => undefined)
-      .finally(scheduleNext);
-  };
-
-  scheduleNext();
-
-  return () => {
-    cancelled = true;
-    state.running = false;
-    if (idleId !== null) window.cancelIdleCallback?.(idleId);
-    if (timeoutId !== null) window.clearTimeout(timeoutId);
-  };
+  // Browser chunks need a network/cache fetch; local packaged imports do not.
+  return prewarmRunners[target]({ requiresOnline: isBrowserClientRuntime() });
 }

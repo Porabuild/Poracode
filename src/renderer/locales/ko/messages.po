@@ -1979,7 +1979,7 @@ msgstr "바이너리 파일 — 미리보기를 사용할 수 없습니다."
 msgid "Binary file or no diff available"
 msgstr "바이너리 파일이거나 diff를 사용할 수 없음"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Binary files can't be edited here."
 msgstr "여기서는 바이너리 파일을 편집할 수 없습니다."
 
@@ -7236,7 +7236,7 @@ msgstr "계정 로드 중…"
 msgid "Loading diff..."
 msgstr "차이점 로드 중..."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Loading editor…"
 msgstr "편집기 로드 중…"
 
@@ -9302,7 +9302,7 @@ msgstr "이미지 {0}/{1} 열기"
 msgid "Open image preview"
 msgstr "이미지 미리보기 열기"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "브라우저에서 열기"
@@ -9839,7 +9839,7 @@ msgstr "일시중지됨"
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "PDF 미리보기는 브라우저 패널에서 열립니다."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "PDF 미리보기는 브라우저에서 열립니다."
 
@@ -14081,11 +14081,11 @@ msgstr "이 환경의 호스트 ID가 변경되었습니다. 호스트에서 명
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "이 에피소드는 확인되었습니다. 누락된 내용은 복원되지 않습니다."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "이 파일은 내장 편집기에 비해 너무 큽니다."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "이 파일은 지원되지 않는 인코딩을 사용합니다."
 

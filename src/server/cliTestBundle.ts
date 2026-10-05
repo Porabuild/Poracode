@@ -1,5 +1,9 @@
 import { build } from "esbuild";
 import { fileURLToPath } from "node:url";
+import {
+  createRuntimePayloadProjectionSource,
+  RUNTIME_PAYLOAD_PROJECTION_MODULE,
+} from "../build/runtimePayloadProjectionSource.mjs";
 
 /**
  * Bundle the real CLI entry for the spawned-child suites with only the
@@ -11,6 +15,7 @@ import { fileURLToPath } from "node:url";
  * declare NODE_PATH for its CommonJS requires and the required asset dirs.
  */
 export async function buildSyntheticCliEntry(outfile: string): Promise<void> {
+  const root = fileURLToPath(new URL("../../", import.meta.url));
   await build({
     entryPoints: [fileURLToPath(new URL("./cli.ts", import.meta.url))],
     outfile,
@@ -20,6 +25,23 @@ export async function buildSyntheticCliEntry(outfile: string): Promise<void> {
     packages: "external",
     logLevel: "silent",
     plugins: [
+      {
+        name: RUNTIME_PAYLOAD_PROJECTION_MODULE,
+        setup(builder) {
+          const exactModule = new RegExp(
+            "^" + RUNTIME_PAYLOAD_PROJECTION_MODULE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$",
+          );
+          builder.onResolve({ filter: exactModule }, () => ({
+            path: RUNTIME_PAYLOAD_PROJECTION_MODULE,
+            namespace: RUNTIME_PAYLOAD_PROJECTION_MODULE,
+          }));
+          builder.onLoad({ filter: /.*/, namespace: RUNTIME_PAYLOAD_PROJECTION_MODULE }, () => ({
+            contents: createRuntimePayloadProjectionSource(root).source,
+            loader: "js",
+            resolveDir: root,
+          }));
+        },
+      },
       {
         name: "synthetic-headless-services",
         setup(builder) {

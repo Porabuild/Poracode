@@ -4,11 +4,11 @@ import { Button } from "@heroui/react";
 import { useShallow } from "zustand/react/shallow";
 import { isThreadTurnActive, type ProjectLocation, type Thread } from "@/shared/contracts";
 import { isHomeProjectId } from "@/shared/homeScope";
-import { resolveLocalFileUrlPath } from "@/shared/promptContent";
 import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import {
   remoteBridgeImageRefUrl,
   remoteBridgeLocalImageUrl,
+  resolveRemoteBridgeLocalImagePath,
 } from "@/renderer/browser/remoteBridge";
 import { useRemoteBridgeImageReadiness } from "@/renderer/browser/useRemoteBridgeImages";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
@@ -27,11 +27,14 @@ import {
 } from "@/renderer/state/fileCheckpointActions";
 import { useProjectRootNames } from "@/renderer/state/projectRootNamesStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
+import { useManagedLoopbackImageSession } from "@/renderer/state/managedLoopbackImages";
+import { managedRootOwner } from "@/renderer/state/managedRootCatalog/rootCatalogCommands";
 import { environmentImageReadinessFor } from "@/renderer/state/remoteServers/environmentSessions";
 import { buildFileEditorContext, resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { showSubAgentPanel } from "@/renderer/actions/panelActions";
 import { ChatFindBar, type ScrollToIndex } from "@/renderer/components/find/ChatFindBar";
 import { ChatPaneActionsContext, type ChatPaneActions } from "./chatPaneActionsContext";
+import { ChatReaderFollowContext, createChatReaderFollowSignal } from "./chatReaderFollow";
 import { ChatScrollControls, type ChatScrollControlsHandle } from "./ChatScrollControls";
 import { ThreadHistoryNoticeBanner } from "./parts/HistoryNoticeBanner";
 import {
@@ -48,6 +51,7 @@ import {
 } from "./chatPaneSelectors";
 import { shouldMarkUserScrollIntentFromPointerTarget } from "./chatScrollGeometry";
 import { createChatPaneFileActions } from "./chatPaneFileActions";
+import { createMarkdownLocalImageAuthority } from "./markdownLocalImageAuthority";
 import { MessageList, type CheckpointRevertActions } from "./parts/MessageList";
 import { SubAgentOpenController } from "./parts/items/SubAgentOverlay";
 import { resolveThreadMarkdownImageRoots } from "../threadMarkdownImageRoots";
@@ -71,6 +75,8 @@ interface ChatPaneProps {
   initialScrollRevealDelayMs?: number | undefined;
   onInitialScrollSettled?: (() => void) | undefined;
 }
+
+const unavailableImageRefUrl = () => "";
 
 const EMPTY_COMPLETED_TURNS: NonNullable<
   ReturnType<typeof useAppStore.getState>["runtimeCompletedTurnsByThread"][string]
@@ -108,6 +114,8 @@ export function ChatPane(props: ChatPaneProps) {
   } = props;
   const { id: threadId, projectId, status, worktreePath, worktreeBranch } = thread;
   const browserImageReadiness = useRemoteBridgeImageReadiness();
+  const managedImageSession = useManagedLoopbackImageSession();
+  const isManagedThread = managedRootOwner(thread) !== undefined;
   const remoteImageServer = useRemoteServersStore((state) =>
     thread.remoteServerId
       ? state.servers.find(
@@ -121,6 +129,8 @@ export function ChatPane(props: ChatPaneProps) {
       ? imageReadinessFor(thread.remoteServerId)
       : undefined;
   const isRemoteThread = thread.remoteServerId !== undefined;
+  const hasValidRemoteServerId =
+    typeof thread.remoteServerId === "string" && thread.remoteServerId.length > 0;
   const contentRef = useRef<HTMLDivElement>(null);
   const scrollToIndexRef = useRef<ScrollToIndex | null>(null);
   const registerScrollToIndex = (handler: ScrollToIndex | null) => {
@@ -136,6 +146,7 @@ export function ChatPane(props: ChatPaneProps) {
   const isInitialScrollSettled = initialScrollSettledThreadId === threadId;
 
   const scrollControlsRef = useRef<ChatScrollControlsHandle>(null);
+  const [readerFollow] = useState(createChatReaderFollowSignal);
   const virtualScrollToBottomRef = useRef<(() => void) | null>(null);
   const timelineEntries = useAppStore(
     useShallow((s) => selectVisibleThreadTimelineEntries(s, threadId, hiddenRuntimeItemId)),
@@ -178,8 +189,54 @@ export function ChatPane(props: ChatPaneProps) {
   }, [onOpenThread]);
   const paneActions: ChatPaneActions | null = useMemo(() => {
     const openThread = (mentionedThreadId: string) => onOpenThreadRef.current?.(mentionedThreadId);
+    const contentImageReadiness = isRemoteSession()
+      ? isRemoteThread
+        ? hasValidRemoteServerId
+          ? (environmentImageReadinessFor(thread.remoteServerId!) ?? browserImageReadiness)
+          : undefined
+        : browserImageReadiness
+      : isRemoteThread
+        ? desktopImageReadiness
+        : isManagedThread
+          ? managedImageSession?.readiness
+          : undefined;
     const contentActions: ChatPaneActions = {
       threadId,
+      // Image custody is independent of project/file actions, including Home.
+      // An explicit empty owner resolver must never fall through globally.
+      remoteImageRefUrl: isRemoteSession()
+        ? !isRemoteThread || hasValidRemoteServerId
+          ? remoteBridgeImageRefUrl
+          : unavailableImageRefUrl
+        : isRemoteThread
+          ? remoteImageServer
+            ? (ref) => useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref)
+            : unavailableImageRefUrl
+          : isManagedThread
+            ? (managedImageSession?.readiness.resolveRef ?? unavailableImageRefUrl)
+            : unavailableImageRefUrl,
+      ...(contentImageReadiness ? { remoteImageReadiness: contentImageReadiness } : {}),
+      ...createMarkdownLocalImageAuthority({
+        projectLocation: targetContext?.projectLocation,
+        isManagedThread,
+        ...(isRemoteSession() || isRemoteThread
+          ? {
+              remote: {
+                available: isRemoteSession()
+                  ? !isRemoteThread || hasValidRemoteServerId
+                  : remoteImageServer !== undefined,
+                readiness: contentImageReadiness,
+                ...(!isRemoteThread && isRemoteSession()
+                  ? { pathForUrl: resolveRemoteBridgeLocalImagePath }
+                  : {}),
+                resolvePath: isRemoteSession()
+                  ? remoteBridgeLocalImageUrl
+                  : (path) =>
+                      useRemoteServersStore.getState().localImageUrl(thread.remoteServerId!, path),
+              },
+            }
+          : {}),
+      }),
       ...(hasOpenThread ? { openThread } : {}),
       ...(formatTranscriptMarkdown ? { formatTranscriptMarkdown } : {}),
     };
@@ -210,26 +267,6 @@ export function ChatPane(props: ChatPaneProps) {
         virtualScrollToBottomRef.current = handler;
       },
       ...(markdownImageRoots ? { markdownImageRoots } : {}),
-      ...(thread.remoteServerId
-        ? {
-            remoteLocalImageUrl: (url: string) => {
-              const platform = targetContext.projectLocation.kind === "windows" ? "win32" : "linux";
-              const path = resolveLocalFileUrlPath(url, platform);
-              return isRemoteSession()
-                ? remoteBridgeLocalImageUrl(path)
-                : useRemoteServersStore.getState().localImageUrl(thread.remoteServerId!, path);
-            },
-            remoteImageRefUrl: (ref) =>
-              isRemoteSession()
-                ? remoteBridgeImageRefUrl(ref)
-                : useRemoteServersStore.getState().imageRefUrl(thread.remoteServerId!, ref),
-            remoteImageReadiness: isRemoteSession()
-              ? (environmentImageReadinessFor(thread.remoteServerId!) ?? browserImageReadiness)
-              : desktopImageReadiness,
-          }
-        : isRemoteSession()
-          ? { remoteImageReadiness: browserImageReadiness }
-          : {}),
     };
   }, [
     project,
@@ -248,6 +285,11 @@ export function ChatPane(props: ChatPaneProps) {
     thread.remoteServerId,
     browserImageReadiness,
     desktopImageReadiness,
+    isManagedThread,
+    isRemoteThread,
+    managedImageSession,
+    remoteImageServer,
+    hasValidRemoteServerId,
   ]);
 
   useEffect(() => {
@@ -415,177 +457,179 @@ export function ChatPane(props: ChatPaneProps) {
   );
 
   return (
-    <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
-      <div className="flex h-full min-h-0 flex-col">
-        <div className="relative min-h-0 flex-1">
-          {truncateReloadBlocked ? (
-            <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
-              <span>
-                <Trans>
-                  A message deletion could not be confirmed. Refresh to resync this conversation.
-                </Trans>
-              </span>
-              <Button
-                size="sm"
-                variant="ghost"
-                onPress={() => {
-                  if (thread.remoteServerId) {
-                    void useRemoteServersStore
-                      .getState()
-                      .refreshServer(thread.remoteServerId, { includeAgentStatuses: false });
-                  }
-                }}
+    <ChatReaderFollowContext.Provider value={readerFollow}>
+      <ChatPaneActionsContext.Provider value={paneActionsOverride ?? paneActions}>
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="relative min-h-0 flex-1">
+            {truncateReloadBlocked ? (
+              <div className="flex items-center justify-between gap-2 border-b border-warning-soft-foreground/20 bg-warning-soft/60 px-3 py-1.5 text-xs text-warning-soft-foreground">
+                <span>
+                  <Trans>
+                    A message deletion could not be confirmed. Refresh to resync this conversation.
+                  </Trans>
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onPress={() => {
+                    if (thread.remoteServerId) {
+                      void useRemoteServersStore
+                        .getState()
+                        .refreshServer(thread.remoteServerId, { includeAgentStatuses: false });
+                    }
+                  }}
+                >
+                  <Trans>Refresh</Trans>
+                </Button>
+              </div>
+            ) : remoteServerOffline ? (
+              <div
+                className="border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs text-muted"
+                role="status"
               >
-                <Trans>Refresh</Trans>
-              </Button>
-            </div>
-          ) : remoteServerOffline ? (
-            <div
-              className="border-b border-border bg-surface-container/60 px-3 py-1.5 text-xs text-muted"
-              role="status"
-            >
-              <Trans>Server offline — this conversation may be out of date.</Trans>
-            </div>
-          ) : null}
-          <ThreadHistoryNoticeBanner threadId={threadId} />
-          <MessageList
-            key={threadId}
-            threadId={threadId}
-            entries={timelineEntries}
-            isTurnActive={isLive}
-            setScrollContainer={setScrollContainer}
-            scrollContentRef={contentRef}
-            onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
-            onVirtualizerLayoutChange={() =>
-              scrollControlsRef.current?.beginVirtualizerLayoutChange()
-            }
-            onLiveVirtualizerLayoutChange={() =>
-              scrollControlsRef.current?.beginLiveVirtualizerLayoutChange()
-            }
-            registerVirtualScrollToBottom={(handler) => {
-              virtualScrollToBottomRef.current = handler;
-            }}
-            scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
-            scrollStyle={scrollFadeStyle}
-            contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
-            emptyContent={
-              hydrationFailed && !showTailLoader ? (
-                <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted">
-                  <span>
-                    <Trans>Messages could not be loaded.</Trans>
-                  </span>
-                  <Button
-                    variant="tertiary"
-                    onPress={() => {
-                      void hydrateThreadRuntimeItems(threadId);
-                    }}
-                  >
-                    <Trans>Retry</Trans>
-                  </Button>
-                </div>
-              ) : isEmpty && !showTailLoader && showEmptyHint ? (
-                <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
-                  <span>
-                    <Trans>No messages yet</Trans>
-                  </span>
-                </div>
-              ) : null
-            }
-            footer={
-              isWorktreeProvisioning ? (
-                <ChatWorktreeProvisioningFooter />
-              ) : isConnecting ? (
-                <ChatConnectingFooter />
-              ) : isHydrating ? (
-                <ChatConnectingFooter />
-              ) : showTailLoader && tailTurn ? (
-                <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
-              ) : null
-            }
-            onWheelCapture={(event) => {
-              if (event.deltaY < 0) {
+                <Trans>Server offline — this conversation may be out of date.</Trans>
+              </div>
+            ) : null}
+            <ThreadHistoryNoticeBanner threadId={threadId} />
+            <MessageList
+              key={threadId}
+              threadId={threadId}
+              entries={timelineEntries}
+              isTurnActive={isLive}
+              setScrollContainer={setScrollContainer}
+              scrollContentRef={contentRef}
+              onContentHeightChange={() => scrollControlsRef.current?.onContentHeightChange()}
+              onVirtualizerLayoutChange={() =>
+                scrollControlsRef.current?.beginVirtualizerLayoutChange()
+              }
+              onLiveVirtualizerLayoutChange={() =>
+                scrollControlsRef.current?.beginLiveVirtualizerLayoutChange()
+              }
+              registerVirtualScrollToBottom={(handler) => {
+                virtualScrollToBottomRef.current = handler;
+              }}
+              scrollClassName="min-h-0 h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable]"
+              scrollStyle={scrollFadeStyle}
+              contentClassName={`min-h-full ${isInitialScrollSettled ? "" : "pointer-events-none opacity-0"}`}
+              emptyContent={
+                hydrationFailed && !showTailLoader ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-3 text-foreground-muted">
+                    <span>
+                      <Trans>Messages could not be loaded.</Trans>
+                    </span>
+                    <Button
+                      variant="tertiary"
+                      onPress={() => {
+                        void hydrateThreadRuntimeItems(threadId);
+                      }}
+                    >
+                      <Trans>Retry</Trans>
+                    </Button>
+                  </div>
+                ) : isEmpty && !showTailLoader && showEmptyHint ? (
+                  <div className="flex h-full flex-col items-center justify-center gap-2 text-foreground-muted">
+                    <span>
+                      <Trans>No messages yet</Trans>
+                    </span>
+                  </div>
+                ) : null
+              }
+              footer={
+                isWorktreeProvisioning ? (
+                  <ChatWorktreeProvisioningFooter />
+                ) : isConnecting ? (
+                  <ChatConnectingFooter />
+                ) : isHydrating ? (
+                  <ChatConnectingFooter />
+                ) : showTailLoader && tailTurn ? (
+                  <ChatTurnElapsedFooter turn={tailTurn} isPaused={isTurnPaused} />
+                ) : null
+              }
+              onWheelCapture={(event) => {
+                if (event.deltaY < 0) {
+                  scrollControlsRef.current?.markUserScrollIntent();
+                  scrollControlsRef.current?.disableStickToBottom();
+                }
+              }}
+              onPointerDownCapture={(event) => {
+                // Only arm scroll-intent for real scroll gestures (scrollbar /
+                // empty-canvas drags). Tool expand/collapse clicks must not —
+                // sticky row-height compensation then looks like a user
+                // scroll-away and strands the transcript above the bottom.
+                if (!shouldMarkUserScrollIntentFromPointerTarget(event.target)) {
+                  // The control can commit a taller virtual row before its
+                  // post-layout measurement callback runs. Guard that earlier
+                  // LegendList anchor adjustment directly from pointerdown.
+                  scrollControlsRef.current?.beginVirtualizerLayoutChange();
+                  return;
+                }
                 scrollControlsRef.current?.markUserScrollIntent();
+                // Unpin immediately — same as wheel-up. Native scrollbar thumbs
+                // are not DOM nodes and often overlay the content box (Windows
+                // overlay scrollbars), so gutter hit-testing is unreliable.
+                // Waiting for the first scroll event leaves sticky on long enough
+                // for row-measure ResizeObservers to re-pin and yank the thumb
+                // back to the bottom while the user is still dragging.
                 scrollControlsRef.current?.disableStickToBottom();
+              }}
+              onKeyDownCapture={(event) => {
+                if (isScrollNavigationKey(event.key)) {
+                  scrollControlsRef.current?.markUserScrollIntent();
+                }
+              }}
+              onStartReached={() => {
+                void loadOlderThreadRuntimeItems(threadId);
+              }}
+              registerScrollToIndex={registerScrollToIndex}
+              suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
+              canRevertCheckpoints={!isLive && !isHomeScope}
+              checkpointGuard={checkpointGuard}
+              checkpointActions={checkpointActions}
+              projectLocation={
+                checkpointProjectLocation ??
+                (isHomeScope ? undefined : targetContext?.projectLocation)
               }
-            }}
-            onPointerDownCapture={(event) => {
-              // Only arm scroll-intent for real scroll gestures (scrollbar /
-              // empty-canvas drags). Tool expand/collapse clicks must not —
-              // sticky row-height compensation then looks like a user
-              // scroll-away and strands the transcript above the bottom.
-              if (!shouldMarkUserScrollIntentFromPointerTarget(event.target)) {
-                // The control can commit a taller virtual row before its
-                // post-layout measurement callback runs. Guard that earlier
-                // LegendList anchor adjustment directly from pointerdown.
-                scrollControlsRef.current?.beginVirtualizerLayoutChange();
-                return;
+            />
+            <ChatScrollControls
+              key={`scroll:${threadId}`}
+              ref={scrollControlsRef}
+              scrollRef={scrollRef}
+              contentRef={contentRef}
+              layoutChangeToken={layoutChangeToken}
+              tailEntryId={timelineEntries.at(-1)?.id ?? null}
+              threadId={threadId}
+              tailLoaderVisible={
+                isWorktreeProvisioning || isConnecting || isHydrating || showTailLoader
               }
-              scrollControlsRef.current?.markUserScrollIntent();
-              // Unpin immediately — same as wheel-up. Native scrollbar thumbs
-              // are not DOM nodes and often overlay the content box (Windows
-              // overlay scrollbars), so gutter hit-testing is unreliable.
-              // Waiting for the first scroll event leaves sticky on long enough
-              // for row-measure ResizeObservers to re-pin and yank the thumb
-              // back to the bottom while the user is still dragging.
-              scrollControlsRef.current?.disableStickToBottom();
-            }}
-            onKeyDownCapture={(event) => {
-              if (isScrollNavigationKey(event.key)) {
-                scrollControlsRef.current?.markUserScrollIntent();
-              }
-            }}
-            onStartReached={() => {
-              void loadOlderThreadRuntimeItems(threadId);
-            }}
-            registerScrollToIndex={registerScrollToIndex}
-            suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
-            canRevertCheckpoints={!isLive && !isHomeScope}
-            checkpointGuard={checkpointGuard}
-            checkpointActions={checkpointActions}
-            projectLocation={
-              checkpointProjectLocation ??
-              (isHomeScope ? undefined : targetContext?.projectLocation)
-            }
-          />
-          <ChatScrollControls
-            key={`scroll:${threadId}`}
-            ref={scrollControlsRef}
-            scrollRef={scrollRef}
-            contentRef={contentRef}
-            layoutChangeToken={layoutChangeToken}
-            tailEntryId={timelineEntries.at(-1)?.id ?? null}
-            threadId={threadId}
-            tailLoaderVisible={
-              isWorktreeProvisioning || isConnecting || isHydrating || showTailLoader
-            }
-            initialScrollSettled={isInitialScrollSettled}
-            initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
-            virtualScrollToBottomRef={virtualScrollToBottomRef}
-            onInitialScrollSettled={() => {
-              setInitialScrollSettledThreadId(threadId);
-              props.onInitialScrollSettled?.();
-            }}
-          />
-          <SubAgentOpenController
-            key={`subagent:${threadId}`}
-            threadId={threadId}
-            {...(targetContext ? { projectLocation: targetContext.projectLocation } : {})}
-            onOpen={(parentItemId, projectLocation) => {
-              if (onOpenSubAgent) {
-                onOpenSubAgent(parentItemId, projectLocation);
-                return;
-              }
-              showSubAgentPanel(threadId, parentItemId, projectLocation);
-            }}
-          />
-          <ChatFindBar
-            threadId={threadId}
-            scrollToIndexRef={scrollToIndexRef}
-            scrollElement={scrollEl}
-          />
+              initialScrollSettled={isInitialScrollSettled}
+              initialScrollRevealDelayMs={props.initialScrollRevealDelayMs ?? 0}
+              virtualScrollToBottomRef={virtualScrollToBottomRef}
+              onInitialScrollSettled={() => {
+                setInitialScrollSettledThreadId(threadId);
+                props.onInitialScrollSettled?.();
+              }}
+            />
+            <SubAgentOpenController
+              key={`subagent:${threadId}`}
+              threadId={threadId}
+              {...(targetContext ? { projectLocation: targetContext.projectLocation } : {})}
+              onOpen={(parentItemId, projectLocation) => {
+                if (onOpenSubAgent) {
+                  onOpenSubAgent(parentItemId, projectLocation);
+                  return;
+                }
+                showSubAgentPanel(threadId, parentItemId, projectLocation);
+              }}
+            />
+            <ChatFindBar
+              threadId={threadId}
+              scrollToIndexRef={scrollToIndexRef}
+              scrollElement={scrollEl}
+            />
+          </div>
         </div>
-      </div>
-    </ChatPaneActionsContext.Provider>
+      </ChatPaneActionsContext.Provider>
+    </ChatReaderFollowContext.Provider>
   );
 }
 

@@ -67,6 +67,7 @@ export {
   dbReadThreadRuntimeSummaries,
   dbGetThreadRuntimeSummariesCommitted,
   dbGetThreadRuntimeItemCommitted,
+  dbGetThreadRuntimeItem,
   dbGetLatestThreadGoalItem,
   dbGetThreadRuntimeItems,
   dbGetThreadRuntimeItemsPage,
@@ -94,6 +95,7 @@ export type { PersistedRuntimeItem, PersistedCompletedTurn } from "./db/runtimeI
 // B1: bounded runtime persistence health surface.
 export {
   addRuntimePersistenceHealthListener,
+  getRuntimePersistenceCapacity,
   acknowledgeRuntimeThreadGap,
   applyRuntimeEvents,
   armRuntimeThreadForLaunch,
@@ -124,6 +126,10 @@ export {
   tryRunThreadRuntimeMutation,
 } from "./db/runtimePersistenceRuntime";
 export type { RuntimePersistenceHealthListener } from "./db/runtimePersistenceRuntime";
+export type {
+  RuntimeQueueCapacityChange,
+  RuntimeQueueCapacitySnapshot,
+} from "./db/runtimeQueueCapacity";
 export type { RuntimeControlOperation } from "./db/runtimeControlOperationQueue";
 export type { RuntimeHistoryNoticeLookup } from "./db/runtimeHistoryNotice";
 export {

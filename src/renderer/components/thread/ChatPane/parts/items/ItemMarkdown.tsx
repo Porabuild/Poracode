@@ -26,7 +26,9 @@ export function SmoothItemMarkdown({ text, isStreaming }: SmoothItemMarkdownProp
   const chunkedPlainText = shouldUseChunkedPlainText(text);
   // Long plain output is still readable as it arrives; limiting DOM updates
   // avoids repeatedly re-laying out an ever-growing paragraph every frame.
-  const smoothedText = useSmoothStreamedText(text, isStreaming, chunkedPlainText ? 1_000 : 0);
+  // Rich reveal updates at about 30 Hz instead of reparsing the whole prefix
+  // at display refresh rate. Completion and replacement still flush immediately.
+  const smoothedText = useSmoothStreamedText(text, isStreaming, chunkedPlainText ? 1_000 : 32);
   const displayedText = isStreaming ? smoothedText : text;
   return <ItemMarkdown text={displayedText} plainText={chunkedPlainText} />;
 }

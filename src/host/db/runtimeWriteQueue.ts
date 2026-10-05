@@ -1,7 +1,42 @@
 import type { RuntimeEvent } from "@/shared/contracts";
-import { coalesceRuntimeEvents } from "@/shared/coalesce";
 import { estimateRuntimeEventBytes } from "@/shared/runtimeEventSize";
 import type { RuntimeAdmissionRefusalReason, RuntimeRefusalScope } from "./runtimePersistenceTypes";
+import {
+  RuntimeAdmissionReservations,
+  type RuntimeAdmissionCost,
+  type RuntimeReservationResult,
+} from "./runtimeAdmissionReservations";
+import {
+  runtimeQueueCapacitySnapshot,
+  type RuntimeQueueCapacityChange,
+  type RuntimeQueueCapacitySnapshot,
+} from "./runtimeQueueCapacity";
+import {
+  DEFAULT_RUNTIME_FLUSH_CHUNK,
+  acknowledgeRuntimeFlush,
+  flushRuntimeQueueBudgeted,
+  planRuntimeFlush,
+  type PendingRuntimeThread,
+  type RuntimeAtomicBatchWriter,
+  type RuntimeBudgetedFlushOptions,
+  type RuntimeBudgetedFlushResult,
+  type RuntimeFlushChunkBounds,
+  type RuntimeFlushOutcome,
+  type RuntimeFlushPlan,
+  type RuntimeFlushRecovery,
+  type RuntimeWriteFlush,
+} from "./runtimeWriteQueueFlush";
+
+export { DEFAULT_RUNTIME_FLUSH_CHUNK } from "./runtimeWriteQueueFlush";
+export type {
+  RuntimeAtomicBatchWriter,
+  RuntimeBudgetedFlushOptions,
+  RuntimeBudgetedFlushResult,
+  RuntimeFlushChunkBounds,
+  RuntimeFlushOutcome,
+  RuntimeWriteBatch,
+  RuntimeWriteFlush,
+} from "./runtimeWriteQueueFlush";
 
 /**
  * Bounded, per-thread ordered buffering for canonical runtime events before
@@ -89,37 +124,6 @@ export interface RuntimeEnqueueResult {
   scope?: RuntimeRefusalScope;
 }
 
-export interface RuntimeFlushOutcome {
-  kind: "committed" | "failed" | "empty";
-  persistSeq: number;
-  committedEvents: number;
-  committedBytes: number;
-  /** True when more events at or below the requested watermark remain. */
-  remainingWithinThrough: boolean;
-  /** Present on a failed write: the error the controller must classify. */
-  error?: unknown;
-}
-
-export interface RuntimeBudgetedFlushResult {
-  flushedThreads: number;
-  committedEvents: number;
-  committedBytes: number;
-  /** First failure this cycle, if any. The queue retained the thread's events. */
-  failure: { threadId: string; error: unknown } | null;
-  /** Threads still pending after the cycle. */
-  remainingThreads: number;
-  elapsedMs: number;
-}
-
-export interface RuntimeBudgetedFlushOptions {
-  maxThreads: number;
-  maxBytes: number;
-  maxMs: number;
-  /** Per-transaction chunk bound; defaults to {@link DEFAULT_RUNTIME_FLUSH_CHUNK}. */
-  chunk?: RuntimeFlushChunkBounds;
-  now?: () => number;
-}
-
 export interface RuntimeQueueStats {
   pendingThreads: number;
   pendingEvents: number;
@@ -144,40 +148,8 @@ export interface RuntimeQueueStats {
   committedThroughPersistSeq: number;
 }
 
-interface PendingEvent {
-  event: RuntimeEvent;
-  persistSeq: number;
-  bytes: number;
-  enqueuedAt: number;
-}
-
-interface PendingThread {
-  events: PendingEvent[];
-  estimatedBytes: number;
-  firstEnqueuedAt: number;
-  lastEnqueuedAt: number;
-  firstPersistSeq: number;
-  lastPersistSeq: number;
-  /** Set when a lone oversize event landed in an otherwise empty thread. */
-  forceFlush: boolean;
-}
-
-export type RuntimeWriteFlush = (threadId: string, events: readonly RuntimeEvent[]) => void;
-
-export interface RuntimeFlushChunkBounds {
-  /** Commit at most this many events in one transaction. */
-  maxEvents: number;
-  /** Commit at most this many estimated input bytes in one transaction. */
-  maxBytes: number;
-}
-
-export const DEFAULT_RUNTIME_FLUSH_CHUNK: RuntimeFlushChunkBounds = {
-  maxEvents: 500,
-  maxBytes: 1024 * 1024,
-};
-
 export class RuntimeWriteQueue {
-  private readonly pending = new Map<string, PendingThread>();
+  private readonly pending = new Map<string, PendingRuntimeThread>();
   private readonly committedByThread = new Map<string, number>();
   private readonly pins = new Map<string, number>();
   private readonly bounds: RuntimeQueueBounds;
@@ -192,11 +164,18 @@ export class RuntimeWriteQueue {
   private coalescedInputBytes = 0;
   private coalescedOutputBytes = 0;
   private queueGeneration = 1;
+  private capacityRevision = 0;
+  private pendingEventsValue = 0;
+  private pendingBytesValue = 0;
+  private reservations: RuntimeAdmissionReservations | null = null;
+  private readonly flushRecovery: RuntimeFlushRecovery = { retryIndividually: false };
 
   constructor(
     private readonly write: RuntimeWriteFlush,
     bounds: Partial<RuntimeQueueBounds> = {},
     private readonly now: () => number = () => Date.now(),
+    private readonly atomicBatchWriter?: RuntimeAtomicBatchWriter,
+    private readonly onCapacityChange?: (change: RuntimeQueueCapacityChange) => void,
   ) {
     this.bounds = { ...DEFAULT_RUNTIME_QUEUE_BOUNDS, ...bounds };
   }
@@ -210,6 +189,92 @@ export class RuntimeWriteQueue {
     return this.queueGeneration;
   }
 
+  /** Current byte/count capacity for the caller's selected threads. No reservation is made. */
+  capacitySnapshot(threadIds: readonly string[] = []): RuntimeQueueCapacitySnapshot {
+    return runtimeQueueCapacitySnapshot({
+      generation: this.queueGeneration,
+      revision: this.capacityRevision,
+      throughPersistSeq: this.nextPersistSeq - 1,
+      pendingEvents: this.pendingEventsValue,
+      pendingBytes: this.pendingBytesValue,
+      reservedEvents: this.reservations?.events ?? 0,
+      reservedBytes: this.reservations?.bytes ?? 0,
+      bounds: this.bounds,
+      threadIds,
+      readThread: (threadId) => {
+        const reserved = this.reservations?.forThread(threadId);
+        return {
+          pendingEvents: this.pendingEvents(threadId),
+          pendingBytes: this.pendingBytes(threadId),
+          reservedEvents: reserved?.eventCount ?? 0,
+          reservedBytes: reserved?.eventBytes ?? 0,
+          pinnedThrough: this.pinnedThrough(threadId),
+        };
+      },
+    });
+  }
+
+  /** Protect an exact future batch against every other queue admission. */
+  reserveAdmission(threadId: string, cost: RuntimeAdmissionCost): RuntimeReservationResult {
+    const result = (this.reservations ??= new RuntimeAdmissionReservations(this.bounds)).reserve({
+      threadId,
+      cost,
+      generation: this.queueGeneration,
+      pendingEvents: this.pendingEventsValue,
+      pendingBytes: this.pendingBytesValue,
+      threadPendingEvents: this.pendingEvents(threadId),
+      threadPendingBytes: this.pendingBytes(threadId),
+    });
+    if (result.kind === "granted") this.capacityChanged("reserved", threadId);
+    return result;
+  }
+
+  /** Cancel unsent work, or release grants after their owner's transport stops. */
+  releaseAdmissionReservation(id: string): boolean {
+    const threadId = this.reservations?.release(id);
+    if (threadId == null) return false;
+    this.capacityChanged("reservation-released", threadId);
+    return true;
+  }
+
+  /** Single-use exact-cost transfer from a grant into ordinary queued custody. */
+  enqueueReserved(
+    threadId: string,
+    id: string,
+    events: readonly RuntimeEvent[],
+  ): RuntimeEnqueueResult | { kind: "invalid-reservation" } {
+    return (
+      this.prepareReservedAdmission(threadId, id, events)?.() ?? { kind: "invalid-reservation" }
+    );
+  }
+
+  /**
+   * Validate before controller durability/health gates, without consuming the
+   * lease or serializing the payload twice. Invoke the returned transfer in
+   * the same synchronous turn; events must remain immutable, as for enqueue.
+   * The closure is temporary caller custody, never retained by the queue.
+   */
+  prepareReservedAdmission(
+    threadId: string,
+    id: string,
+    events: readonly RuntimeEvent[],
+  ): (() => RuntimeEnqueueResult | { kind: "invalid-reservation" }) | null {
+    if (!this.reservations) return null;
+    const bytes = events.map(estimateRuntimeEventBytes);
+    const cost = {
+      eventCount: events.length,
+      eventBytes: bytes.reduce((total, size) => total + size, 0),
+      maxEventBytes: bytes.reduce((max, size) => Math.max(max, size), 0),
+    };
+    if (!this.reservations.matches(id, this.queueGeneration, threadId, cost)) return null;
+    return () => {
+      if (!this.reservations?.consume(id, this.queueGeneration, threadId, cost))
+        return { kind: "invalid-reservation" };
+      // No observer runs between releasing the lease and taking batch custody.
+      return this.enqueueWithEstimates(threadId, events, bytes);
+    };
+  }
+
   /**
    * Admit as much of `events` as the bounds allow, in order. The caller's array
    * is taken by reference and never mutated; the queue owns the admitted
@@ -218,6 +283,14 @@ export class RuntimeWriteQueue {
    * signal and diagnostic.
    */
   enqueue(threadId: string, events: readonly RuntimeEvent[]): RuntimeEnqueueResult {
+    return this.enqueueWithEstimates(threadId, events);
+  }
+
+  private enqueueWithEstimates(
+    threadId: string,
+    events: readonly RuntimeEvent[],
+    estimates?: readonly number[],
+  ): RuntimeEnqueueResult {
     if (events.length === 0) {
       return {
         kind: "accepted",
@@ -228,8 +301,11 @@ export class RuntimeWriteQueue {
         persistSeq: 0,
       };
     }
-    const globalRemainingBytes = this.bounds.maxPendingBytesGlobal - this.pendingBytes();
-    const globalRemainingEvents = this.bounds.maxPendingEventsGlobal - this.pendingEvents();
+    const globalRemainingBytes =
+      this.bounds.maxPendingBytesGlobal - this.pendingBytes() - (this.reservations?.bytes ?? 0);
+    const globalRemainingEvents =
+      this.bounds.maxPendingEventsGlobal - this.pendingEvents() - (this.reservations?.events ?? 0);
+    const reservedThread = this.reservations?.forThread(threadId);
 
     let acceptedEvents = 0;
     let acceptedBytes = 0;
@@ -242,7 +318,7 @@ export class RuntimeWriteQueue {
 
     for (let index = 0; index < events.length; index += 1) {
       const event = events[index]!;
-      const bytes = estimateRuntimeEventBytes(event);
+      const bytes = estimates?.[index] ?? estimateRuntimeEventBytes(event);
       const threadEvents = entry?.events.length ?? 0;
       const threadBytes = entry?.estimatedBytes ?? 0;
       const globalBytesLeft = globalRemainingBytes - acceptedBytes;
@@ -255,10 +331,17 @@ export class RuntimeWriteQueue {
       // admitted only into an empty thread, is never combined with other
       // events, and is accounted apart from normal per-thread capacity.
       const usesOversizeSlot =
-        !oversizeEvent && threadEvents === 0 && bytes > this.bounds.maxPendingBytesPerThread;
+        !oversizeEvent &&
+        threadEvents === 0 &&
+        (reservedThread?.eventCount ?? 0) === 0 &&
+        bytes > this.bounds.maxPendingBytesPerThread;
       const fitsThreadBytes =
-        usesOversizeSlot || threadBytes + bytes <= this.bounds.maxPendingBytesPerThread;
-      const fitsThreadCount = threadEvents + 1 <= this.bounds.maxPendingEventsPerThread;
+        usesOversizeSlot ||
+        threadBytes + (reservedThread?.eventBytes ?? 0) + bytes <=
+          this.bounds.maxPendingBytesPerThread;
+      const fitsThreadCount =
+        threadEvents + (reservedThread?.eventCount ?? 0) + 1 <=
+        this.bounds.maxPendingEventsPerThread;
       const fitsGlobal = bytes <= globalBytesLeft && 1 <= globalEventsLeft;
 
       if (oversizeEvent || !fitsThreadCount || !fitsThreadBytes || !fitsGlobal) {
@@ -280,7 +363,7 @@ export class RuntimeWriteQueue {
         }
         for (let rest = index; rest < events.length; rest += 1) {
           refusedEvents += 1;
-          refusedBytes += estimateRuntimeEventBytes(events[rest]!);
+          refusedBytes += estimates?.[rest] ?? estimateRuntimeEventBytes(events[rest]!);
         }
         break;
       }
@@ -301,6 +384,8 @@ export class RuntimeWriteQueue {
       }
       entry.events.push({ event, persistSeq, bytes, enqueuedAt: now });
       entry.estimatedBytes += bytes;
+      this.pendingEventsValue += 1;
+      this.pendingBytesValue += bytes;
       entry.lastEnqueuedAt = now;
       entry.lastPersistSeq = persistSeq;
       if (usesOversizeSlot) {
@@ -317,6 +402,7 @@ export class RuntimeWriteQueue {
     this.admittedBytes += acceptedBytes;
     this.refusedEvents += refusedEvents;
     this.refusedBytes += refusedBytes;
+    if (acceptedEvents > 0) this.capacityChanged("admitted", threadId);
 
     if (acceptedEvents === 0) {
       return {
@@ -354,18 +440,20 @@ export class RuntimeWriteQueue {
    */
   pinThread(threadId: string): number {
     const through = this.lastPersistSeqForThread(threadId);
-    this.pins.set(threadId, through);
+    this.setPin(threadId, through);
     return through;
   }
 
   /** Set/replace the pin explicitly (fence queue head changes, lock cleanup). */
   setPin(threadId: string, through: number | null): void {
+    if (this.pinnedThrough(threadId) === through) return;
     if (through === null) this.pins.delete(threadId);
     else this.pins.set(threadId, through);
+    this.capacityChanged("pin", threadId);
   }
 
   releasePin(threadId: string): void {
-    this.pins.delete(threadId);
+    this.setPin(threadId, null);
   }
 
   isPinned(threadId: string): boolean {
@@ -403,151 +491,73 @@ export class RuntimeWriteQueue {
     throughSeq: number,
     chunk: RuntimeFlushChunkBounds = DEFAULT_RUNTIME_FLUSH_CHUNK,
   ): RuntimeFlushOutcome {
-    const entry = this.pending.get(threadId);
-    if (!entry || entry.events.length === 0) {
-      return {
-        kind: "empty",
-        persistSeq: this.committedByThread.get(threadId) ?? 0,
-        committedEvents: 0,
-        committedBytes: 0,
-        remainingWithinThrough: false,
-      };
-    }
-    let take = 0;
-    let takeBytes = 0;
-    for (const pendingEvent of entry.events) {
-      if (pendingEvent.persistSeq > throughSeq) break;
-      if (
-        take > 0 &&
-        (take >= chunk.maxEvents || takeBytes + pendingEvent.bytes > chunk.maxBytes)
-      ) {
-        break;
-      }
-      take += 1;
-      takeBytes += pendingEvent.bytes;
-    }
-    if (take === 0) {
-      return {
-        kind: "empty",
-        persistSeq: this.committedByThread.get(threadId) ?? 0,
-        committedEvents: 0,
-        committedBytes: 0,
-        remainingWithinThrough: false,
-      };
-    }
-
-    const committed = entry.events.slice(0, take);
-    const inputBytes = committed.reduce((total, item) => total + item.bytes, 0);
-    let coalesced: RuntimeEvent[];
+    const through = Math.min(throughSeq, this.pins.get(threadId) ?? Number.MAX_SAFE_INTEGER);
+    let plan: RuntimeFlushPlan | null;
     try {
-      coalesced = coalesceRuntimeEvents(committed.map((item) => item.event));
+      plan = planRuntimeFlush(threadId, this.pending.get(threadId), through, chunk);
+      if (plan) this.write(threadId, plan.events);
     } catch (error) {
       return {
         kind: "failed",
-        persistSeq: this.committedByThread.get(threadId) ?? 0,
+        persistSeq: this.committedThrough(threadId),
         committedEvents: 0,
         committedBytes: 0,
         remainingWithinThrough: true,
         error,
       };
     }
-    try {
-      this.write(threadId, coalesced);
-    } catch (error) {
-      // Retain the original entry (with its estimates) for a retry.
+    if (!plan) {
       return {
-        kind: "failed",
-        persistSeq: this.committedByThread.get(threadId) ?? 0,
+        kind: "empty",
+        persistSeq: this.committedThrough(threadId),
         committedEvents: 0,
         committedBytes: 0,
-        remainingWithinThrough: true,
-        error,
+        remainingWithinThrough: false,
       };
     }
-
-    const lastSeq = committed[committed.length - 1]!.persistSeq;
-    const wasOversize = entry.forceFlush && entry.events.length === take && take === 1;
-    if (wasOversize) {
-      this.oversizeEvents = Math.max(0, this.oversizeEvents - 1);
-      this.oversizeBytes = Math.max(0, this.oversizeBytes - committed[0]!.bytes);
-    }
-    entry.events.splice(0, take);
-    entry.estimatedBytes -= inputBytes;
-    if (entry.events.length === 0) {
-      this.pending.delete(threadId);
-    } else {
-      entry.firstPersistSeq = entry.events[0]!.persistSeq;
-      // Truthful age: the oldest still-pending event, not the newest arrival.
-      entry.firstEnqueuedAt = entry.events[0]!.enqueuedAt;
-      entry.forceFlush = false;
-    }
-    this.coalescedInputBytes += inputBytes;
-    this.coalescedOutputBytes += estimateCoalescedBytes(coalesced);
-    this.committedThroughPersistSeq = Math.max(this.committedThroughPersistSeq, lastSeq);
-    this.committedByThread.set(
-      threadId,
-      Math.max(this.committedByThread.get(threadId) ?? 0, lastSeq),
-    );
-    const remainingWithinThrough =
-      entry.events.length > 0 && entry.events[0]!.persistSeq <= throughSeq;
+    this.acknowledgeFlush(plan);
     return {
       kind: "committed",
-      persistSeq: lastSeq,
-      committedEvents: take,
-      committedBytes: inputBytes,
-      remainingWithinThrough,
+      persistSeq: plan.lastSeq,
+      committedEvents: plan.eventCount,
+      committedBytes: plan.inputBytes,
+      remainingWithinThrough:
+        plan.entry.events.length > 0 && plan.entry.events[0]!.persistSeq <= through,
     };
   }
 
-  /**
-   * Flush oldest-pending-first, at most `maxThreads` threads / `maxBytes`
-   * committed bytes / `maxMs` elapsed, respecting prefix pins. Each visit
-   * commits at most one chunk (`chunk`: 500 events / 1 MiB by default), so no
-   * single transaction can grow with a thread's backlog; a thread with more
-   * work is revisited on the next cycle, which the caller schedules. Stops at
-   * the first failure and leaves that thread's entry pending.
-   */
+  /** Oldest-first bounded prefixes; the optional atomic writer commits a group. */
   flushBudgeted(options: RuntimeBudgetedFlushOptions): RuntimeBudgetedFlushResult {
-    const now = options.now ?? Date.now;
-    const startedAt = now();
-    const chunk = options.chunk ?? DEFAULT_RUNTIME_FLUSH_CHUNK;
-    const order = [...this.pending.entries()]
-      .sort((a, b) => a[1].firstEnqueuedAt - b[1].firstEnqueuedAt)
-      .map(([threadId]) => threadId);
+    return flushRuntimeQueueBudgeted(
+      {
+        pending: this.pending,
+        pins: this.pins,
+        write: this.write,
+        atomicBatchWriter: this.atomicBatchWriter,
+        recovery: this.flushRecovery,
+        acknowledge: (plan) => this.acknowledgeFlush(plan),
+      },
+      options,
+    );
+  }
 
-    let flushedThreads = 0;
-    let committedEvents = 0;
-    let committedBytes = 0;
-    let failure: RuntimeBudgetedFlushResult["failure"] = null;
-
-    for (const threadId of order) {
-      if (flushedThreads >= options.maxThreads) break;
-      if (committedBytes >= options.maxBytes) break;
-      if (now() - startedAt >= options.maxMs) break;
-      const outcome = this.flushThreadThrough(
-        threadId,
-        this.pins.get(threadId) ?? Number.MAX_SAFE_INTEGER,
-        chunk,
-      );
-      if (outcome.kind === "failed") {
-        failure = { threadId, error: outcome.error };
-        break;
-      }
-      if (outcome.kind === "committed") {
-        flushedThreads += 1;
-        committedEvents += outcome.committedEvents;
-        committedBytes += outcome.committedBytes;
-      }
+  /** The sole flush acknowledgement path, invoked only after actual COMMIT. */
+  private acknowledgeFlush(plan: RuntimeFlushPlan): void {
+    acknowledgeRuntimeFlush(this.pending, plan);
+    this.pendingEventsValue -= plan.eventCount;
+    this.pendingBytesValue -= plan.inputBytes;
+    if (plan.oversizeBytes > 0) {
+      this.oversizeEvents -= 1;
+      this.oversizeBytes -= plan.oversizeBytes;
     }
-
-    return {
-      flushedThreads,
-      committedEvents,
-      committedBytes,
-      failure,
-      remainingThreads: this.pending.size,
-      elapsedMs: now() - startedAt,
-    };
+    this.coalescedInputBytes += plan.inputBytes;
+    this.coalescedOutputBytes += plan.outputBytes;
+    this.committedThroughPersistSeq = Math.max(this.committedThroughPersistSeq, plan.lastSeq);
+    this.committedByThread.set(
+      plan.threadId,
+      Math.max(this.committedByThread.get(plan.threadId) ?? 0, plan.lastSeq),
+    );
+    this.capacityChanged("committed", plan.threadId);
   }
 
   /** Threads with buffered writes, oldest pending first. */
@@ -575,6 +585,14 @@ export class RuntimeWriteQueue {
   discard(threadId: string): number {
     const entry = this.pending.get(threadId);
     const discarded = entry?.events.length ?? 0;
+    const hadReservations = this.reservations?.discardThread(threadId) ?? false;
+    const changed =
+      entry !== undefined ||
+      this.committedByThread.has(threadId) ||
+      this.pins.has(threadId) ||
+      hadReservations;
+    this.pendingEventsValue -= discarded;
+    this.pendingBytesValue -= entry?.estimatedBytes ?? 0;
     if (entry?.forceFlush) {
       this.oversizeEvents = Math.max(0, this.oversizeEvents - 1);
       this.oversizeBytes -= entry.estimatedBytes;
@@ -583,6 +601,7 @@ export class RuntimeWriteQueue {
     this.pending.delete(threadId);
     this.committedByThread.delete(threadId);
     this.pins.delete(threadId);
+    if (changed) this.capacityChanged("discarded", threadId);
     return discarded;
   }
 
@@ -652,24 +671,29 @@ export class RuntimeWriteQueue {
     this.pins.clear();
     this.oversizeEvents = 0;
     this.oversizeBytes = 0;
+    this.pendingEventsValue = 0;
+    this.pendingBytesValue = 0;
+    this.reservations = null;
     this.queueGeneration += 1;
+    this.flushRecovery.retryIndividually = false;
+    this.capacityChanged("reset");
   }
 
-  private get pendingEventsValue(): number {
-    let total = 0;
-    for (const entry of this.pending.values()) total += entry.events.length;
-    return total;
+  private capacityChanged(kind: RuntimeQueueCapacityChange["kind"], threadId?: string): void {
+    this.capacityRevision += 1;
+    if (!this.onCapacityChange) return;
+    // Observers run after custody/accounting changes. A diagnostic or transport
+    // listener must never turn a successful COMMIT into a retry of its prefix.
+    try {
+      this.onCapacityChange({
+        generation: this.queueGeneration,
+        revision: this.capacityRevision,
+        throughPersistSeq: this.nextPersistSeq - 1,
+        kind,
+        ...(threadId !== undefined ? { threadId } : {}),
+      });
+    } catch (error) {
+      console.error("[db] runtime queue capacity listener failed:", error);
+    }
   }
-
-  private get pendingBytesValue(): number {
-    let total = 0;
-    for (const entry of this.pending.values()) total += entry.estimatedBytes;
-    return total;
-  }
-}
-
-function estimateCoalescedBytes(events: readonly RuntimeEvent[]): number {
-  let total = 0;
-  for (const event of events) total += estimateRuntimeEventBytes(event);
-  return total;
 }

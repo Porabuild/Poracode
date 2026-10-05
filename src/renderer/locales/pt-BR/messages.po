@@ -1979,7 +1979,7 @@ msgstr "Arquivo binário — visualização indisponível."
 msgid "Binary file or no diff available"
 msgstr "Arquivo binário ou nenhuma comparação disponível"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Binary files can't be edited here."
 msgstr "Arquivos binários não podem ser editados aqui."
 
@@ -7236,7 +7236,7 @@ msgstr "Carregando contas…"
 msgid "Loading diff..."
 msgstr "Carregando diferenças..."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "Loading editor…"
 msgstr "Carregando editor…"
 
@@ -9302,7 +9302,7 @@ msgstr "Abrir imagem {0} de {1}"
 msgid "Open image preview"
 msgstr "Abrir prévia da imagem"
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Open in browser"
 msgstr "Abrir no navegador"
@@ -9839,7 +9839,7 @@ msgstr "Pausado"
 #~ msgid "PDF preview opens in the browser panel."
 #~ msgstr "A pré-visualização do PDF abre no painel do navegador."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "PDF preview opens in the browser."
 msgstr "A pré-visualização do PDF abre no navegador."
 
@@ -14081,11 +14081,11 @@ msgstr "A identidade do host deste ambiente mudou. Emparelhe-o novamente explici
 msgid "This episode has been acknowledged; the missing content is not restored."
 msgstr "Este episódio foi reconhecido; o conteúdo ausente não é restaurado."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file is too large for the built-in editor."
 msgstr "Este arquivo é muito grande para o editor integrado."
 
-#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/FileEditorPane.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
 msgid "This file uses an unsupported encoding."
 msgstr "Este arquivo usa uma codificação não suportada."
 

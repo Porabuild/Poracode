@@ -24,23 +24,31 @@ import {
   resolveMarkdownImageUrl,
   rewriteMarkdownLocalImageUrls,
 } from "@/shared/markdownLocalImages";
-import { resolveLocalImageDisplayUrl } from "@/shared/localImageDisplay";
 import { getProjectFsPath } from "@/shared/wsl";
 import { useChatPaneActions } from "../../chatPaneActionsContext";
 import { normalizeChatProjectPath } from "../../chatPathUtils";
 import { CodeBlock } from "./CodeBlock";
 import { CopyTextButton } from "./CopyTextButton";
-import { ImageCard } from "./ImageCard";
+import { MarkdownImage } from "./MarkdownImage";
 import { InlineFilePathChip } from "./InlineFilePathChip";
 import { InlineFolderPathChip } from "./InlineFolderPathChip";
 import { LC_SELECTOR_LANG, tryParseSelectorPayload } from "./SelectorBadge";
 import { normalizeGfmTableSeparators, normalizeShortCodeFenceClosers } from "./ItemMarkdown";
-import { imageViewSourceFromMarkdownImage } from "./imageViewSource";
 import { normalizeHighlightLanguage } from "./languageDetect";
 import { parseProjectPathRef, type ProjectPathRef } from "./parseProjectPathRef";
 import { chatRemarkMath, withChatMathRehype } from "@/renderer/markdown/mathPlugins";
+import { splitStreamdownMarkdownBlocks } from "@/renderer/markdown/streamdownBlockSplitter";
+import {
+  STRONG_TEXT_RUN_COMPONENT,
+  STRONG_TEXT_RUN_OPTIONS,
+  remarkStrongTextRuns,
+  rehypeRestoreStrongTextRuns,
+  rehypeStrongTextRunComponents,
+} from "@/renderer/markdown/strongTextRuns";
+import { MarkdownStrong } from "./MarkdownStrong";
 import { remarkAutolinkProjectPaths } from "./remarkAutolinkProjectPaths";
 import { parsePathRefUrl } from "./markdownPathRefs";
+import { isOrdinaryPlainProse } from "./ordinaryPlainProse";
 
 type RemarkPlugins = NonNullable<ComponentProps<typeof Streamdown>["remarkPlugins"]>;
 type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugins"]>;
@@ -50,20 +58,34 @@ type RehypePlugins = NonNullable<ComponentProps<typeof Streamdown>["rehypePlugin
 // (e.g. `https://sent`) routinely trip it, producing a "[blocked]" flash on
 // otherwise valid URLs. We control external opens through `MdAnchor` and gate
 // file/folder hrefs there too, so harden is redundant here.
-function buildRehypePlugins(remoteLocalImageUrl?: (url: string) => string): RehypePlugins {
+function buildRehypePlugins(): RehypePlugins {
   const plugins = Object.entries(defaultRehypePlugins)
     .filter(([key]) => key !== "harden")
     .flatMap(([key, plugin]): RehypePlugins[number][] => {
       // Streamdown checks the raw plugin by identity to preserve raw HTML
       // nodes. Guard pathological fragments while keeping its plugin intact.
-      if (key === "raw") return [guardRawHtmlNesting, plugin];
+      if (key === "raw") {
+        return [
+          guardRawHtmlNesting,
+          plugin,
+          [rehypeRestoreStrongTextRuns, STRONG_TEXT_RUN_OPTIONS],
+        ];
+      }
       if (key === "sanitize") {
-        return [[rehypeLocalImageUrls, { remoteLocalImageUrl }], allowLocalImageProtocol(plugin)];
+        return [
+          rehypeLocalImageUrls,
+          allowLocalImageProtocol(plugin),
+          [rehypeStrongTextRunComponents, STRONG_TEXT_RUN_OPTIONS],
+        ];
       }
       return [plugin];
     }) as RehypePlugins;
   return withChatMathRehype(plugins) as RehypePlugins;
 }
+
+// Parsing retains canonical paths only. Display custody lives in MarkdownImage,
+// so every pane and streaming chunk can reuse this owner-independent pipeline.
+const REHYPE_PLUGINS = buildRehypePlugins();
 
 const MAX_RAW_HTML_NESTING = 1_000;
 const RAW_HTML_TAG_RE = /<!--[^]*?-->|<![^>]*>|<\/?([A-Za-z][A-Za-z0-9:-]*)(?:\s[^<>]*?)?\/?>/g;
@@ -139,10 +161,6 @@ interface ItemMarkdownInnerProps {
 export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
   const actions = useChatPaneActions();
   const rootNames = actions?.projectRootNames;
-  const rehypePlugins = useMemo(
-    () => buildRehypePlugins(actions?.remoteLocalImageUrl),
-    [actions?.remoteLocalImageUrl],
-  );
   // Escape the React Compiler: the plugin tuple captures `rootNames`, which
   // the compiler conservatively re-creates each render. Streaming chats
   // re-render on every chunk, so anchor the array to `rootNames` identity.
@@ -167,6 +185,7 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
           },
         },
       ],
+      [remarkStrongTextRuns, STRONG_TEXT_RUN_OPTIONS],
     ],
     [actions, rootNames],
   );
@@ -175,31 +194,46 @@ export default function ItemMarkdownInner({ text }: ItemMarkdownInnerProps) {
     : undefined;
   const extraRoots = actions?.markdownImageRoots;
   const formatTranscript = actions?.formatTranscriptMarkdown ?? identityMarkdown;
-  const markdownText = rewriteMarkdownLocalImageUrls(
-    normalizeIncompleteProjectLinkTail(
-      normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(formatTranscript(text))),
-    ),
-    {
-      ...(projectRoot ? { projectRoot } : {}),
-      ...(extraRoots?.length ? { extraRoots } : {}),
-    },
-  );
+  const formattedText = formatTranscript(text);
+  const ordinaryProse = isOrdinaryPlainProse(formattedText);
+  // Eligible snapshots contain no whitespace except ASCII spaces. Trim only
+  // their display, after classification, to match Streamdown at word boundaries.
+  const markdownText = ordinaryProse
+    ? formattedText.trimEnd()
+    : rewriteMarkdownLocalImageUrls(
+        normalizeIncompleteProjectLinkTail(
+          normalizeGfmTableSeparators(normalizeShortCodeFenceClosers(formattedText)),
+        ),
+        {
+          ...(projectRoot ? { projectRoot } : {}),
+          ...(extraRoots?.length ? { extraRoots } : {}),
+        },
+      );
   return (
     <div className="lc-chat-markdown prose max-w-none text-[length:var(--lc-chat-font-size)] leading-snug text-foreground prose-headings:text-[length:var(--lc-chat-font-size)] prose-p:text-[length:var(--lc-chat-font-size)] prose-p:whitespace-pre-wrap prose-li:text-[length:var(--lc-chat-font-size)] prose-pre:my-2 prose-pre:rounded prose-pre:border-0 prose-pre:bg-foreground/10 prose-pre:px-[0.5em] prose-pre:py-[0.25em] prose-pre:font-mono prose-pre:text-[0.875em] prose-pre:leading-snug prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:overflow-x-hidden prose-code:before:content-none prose-code:after:content-none prose-a:text-foreground prose-a:no-underline prose-a:text-[length:inherit] hover:prose-a:underline hover:prose-a:decoration-1 prose-a:underline-offset-2">
-      <Streamdown
-        remarkPlugins={remarkPlugins}
-        rehypePlugins={rehypePlugins}
-        components={MD_COMPONENTS}
-        urlTransform={transformMarkdownUrl}
-        parseIncompleteMarkdown
-      >
-        {markdownText}
-      </Streamdown>
+      {ordinaryProse ? (
+        // Match Streamdown's single-paragraph wrapper, including its margin rules.
+        <div className="space-y-4 whitespace-normal [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+          <p>{markdownText}</p>
+        </div>
+      ) : (
+        <Streamdown
+          remarkPlugins={remarkPlugins}
+          rehypePlugins={REHYPE_PLUGINS}
+          components={MD_COMPONENTS}
+          urlTransform={transformMarkdownUrl}
+          parseIncompleteMarkdown
+          parseMarkdownIntoBlocksFn={splitStreamdownMarkdownBlocks}
+        >
+          {markdownText}
+        </Streamdown>
+      )}
     </div>
   );
 }
 
 const MD_COMPONENTS: StreamdownComponents = {
+  [STRONG_TEXT_RUN_COMPONENT]: MarkdownStrong,
   pre({ children }) {
     const codeChild = findCodeChild(children);
     const codeProps = codeChild?.props as { className?: string; children?: ReactNode } | undefined;
@@ -238,22 +272,7 @@ const MD_COMPONENTS: StreamdownComponents = {
   a({ href, children }) {
     return <MdAnchor href={href ?? ""}>{children}</MdAnchor>;
   },
-  img({ alt, className, src, width, height }) {
-    if (typeof src !== "string" || src.length === 0) return null;
-    return (
-      <ImageCard
-        source={imageViewSourceFromMarkdownImage({
-          src,
-          alt: alt ?? "",
-          width,
-          height,
-        })}
-        className="not-prose my-2"
-        isBlock
-        {...(className ? { imageClassName: className } : {})}
-      />
-    );
-  },
+  img: MarkdownImage,
   // Render a clean native table with HeroUI-themed styling. Override
   // Streamdown's default wrapper (which includes copy/download/fullscreen
   // controls) and replace its memoized sub-components with native HTML
@@ -313,32 +332,21 @@ function replaceRawHtmlWithText(node: MarkdownHastNode): void {
   delete node.children;
 }
 
-function rehypeLocalImageUrls(options?: { remoteLocalImageUrl?: (url: string) => string }) {
+function rehypeLocalImageUrls() {
   return (tree: MarkdownHastNode) => {
-    rewriteLocalImageUrls(tree, options?.remoteLocalImageUrl);
+    rewriteLocalImageUrls(tree);
   };
 }
 
-function rewriteLocalImageUrls(
-  node: MarkdownHastNode,
-  remoteLocalImageUrl?: (url: string) => string,
-): void {
+function rewriteLocalImageUrls(node: MarkdownHastNode): void {
   const src = node.properties?.src;
   // Fallback for absolute paths that skip the pre-parse rewrite (e.g. HTML
   // <img>). Relative project paths need projectRoot and are handled only there.
   if (node.tagName === "img" && typeof src === "string") {
     const rewritten = resolveMarkdownImageUrl(src);
     if (rewritten) node.properties!.src = rewritten;
-    // Remote PWA: swap poracode-local sources for the desktop's authenticated
-    // HTTP image endpoint. A no-op inside the desktop Electron app, which
-    // never installs a resolver (see shared/localImageDisplay.ts).
-    const localUrl = node.properties!.src as string;
-    node.properties!.src =
-      localUrl.startsWith("poracode-local://") && remoteLocalImageUrl
-        ? remoteLocalImageUrl(localUrl) || localUrl
-        : resolveLocalImageDisplayUrl(localUrl);
   }
-  node.children?.forEach((child) => rewriteLocalImageUrls(child, remoteLocalImageUrl));
+  node.children?.forEach(rewriteLocalImageUrls);
 }
 
 function allowLocalImageProtocol(plugin: RehypePlugins[number]): RehypePlugins[number] {

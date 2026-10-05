@@ -54,6 +54,7 @@ import {
   dbReadLatestThreadGoalItem,
   dbGetLatestThreadRuntimeAnchorItemId,
   dbReadThreadRuntimeItems,
+  dbGetThreadRuntimeItem,
   dbGetThreadRuntimeItemCommitted,
   dbReadThreadRuntimeItemsPage,
   dbGetThreadRuntimeItemsPage,
@@ -99,6 +100,7 @@ vi.mock("@/host/db", () => {
   // real SQLite) or an identity write would never invalidate the cached read.
   let profileDataGeneration = 0;
   const getProjects = vi.fn<() => Project[]>(() => []);
+  const getRuntimeItemCommitted = vi.fn<(...args: unknown[]) => unknown>(() => undefined);
   return {
     dbAppendThreadCompletedTurn: vi.fn<(...args: unknown[]) => void>(),
     dbApplyThreadRuntimeEvents: vi.fn<(...args: unknown[]) => void>(),
@@ -156,7 +158,10 @@ vi.mock("@/host/db", () => {
     dbReadLatestThreadGoalItem: vi.fn<() => unknown>(() => null),
     dbGetLatestThreadRuntimeAnchorItemId: vi.fn<() => null>(() => null),
     dbReadThreadRuntimeItems: vi.fn<() => unknown[]>(() => []),
-    dbGetThreadRuntimeItemCommitted: vi.fn<(...args: unknown[]) => unknown>(() => undefined),
+    dbGetThreadRuntimeItemCommitted: getRuntimeItemCommitted,
+    dbGetThreadRuntimeItem: vi.fn<(...args: unknown[]) => Promise<unknown>>(async (...args) =>
+      getRuntimeItemCommitted(...args),
+    ),
     dbReadThreadRuntimeItemsPage: vi.fn<() => { items: unknown[]; nextCursor: number | null }>(
       () => ({ items: [], nextCursor: null }),
     ),
@@ -261,6 +266,14 @@ afterEach(async () => {
   vi.mocked(dbReadLatestThreadGoalItem).mockReset().mockReturnValue(null);
   vi.mocked(dbGetLatestThreadRuntimeAnchorItemId).mockReset().mockReturnValue(null);
   vi.mocked(dbReadThreadRuntimeItems).mockReset().mockReturnValue([]);
+  vi.mocked(dbGetThreadRuntimeItemCommitted).mockReset();
+  const syncItemReader = vi.mocked(dbGetThreadRuntimeItemCommitted) as unknown as (
+    ...args: unknown[]
+  ) => unknown;
+  vi.mocked(dbGetThreadRuntimeItem)
+    .mockReset()
+    .mockImplementation((async (...args: unknown[]) =>
+      syncItemReader(...args)) as unknown as typeof dbGetThreadRuntimeItem);
   vi.mocked(dbReadThreadRuntimeItemsPage)
     .mockReset()
     .mockReturnValue({ items: [], nextCursor: null });

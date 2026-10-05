@@ -5,9 +5,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "./RemoteAccessServer";
 
 const dbGetThreadRuntimeItemCommitted = vi.fn<(...args: unknown[]) => unknown>();
+const dbGetThreadRuntimeItem = vi.fn<(...args: unknown[]) => Promise<unknown>>(async (...args) =>
+  dbGetThreadRuntimeItemCommitted(...args),
+);
 
 vi.mock("@/host/db", () => ({
   dbGetThreadRuntimeItemCommitted: (...args: unknown[]) => dbGetThreadRuntimeItemCommitted(...args),
+  dbGetThreadRuntimeItem: (...args: unknown[]) => dbGetThreadRuntimeItem(...args),
   dbGetThreads: vi.fn<(...args: unknown[]) => unknown>(() => []),
   dbGetThread: vi.fn<(...args: unknown[]) => unknown>(() => null),
   dbGetProject: vi.fn<(...args: unknown[]) => unknown>(() => null),
@@ -24,6 +28,9 @@ afterEach(async () => {
     rmSync(dir, { recursive: true, force: true });
   }
   dbGetThreadRuntimeItemCommitted.mockReset();
+  dbGetThreadRuntimeItem
+    .mockReset()
+    .mockImplementation(async (...args) => dbGetThreadRuntimeItemCommitted(...args));
 });
 
 function createServer(): RemoteAccessServer {
@@ -119,6 +126,9 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
       headers: { authorization: `Bearer ${token}` },
     });
     expect(svgResponse.status).toBe(200);
+    expect(dbGetThreadRuntimeItem).toHaveBeenCalledWith("thread-1", "item-1", {
+      includeStreams: false,
+    });
     expect(svgResponse.headers.get("content-type")).toBe("image/svg+xml");
     expect(svgResponse.headers.get("content-security-policy")).toBe("sandbox");
     expect(svgResponse.headers.get("x-content-type-options")).toBe("nosniff");
@@ -138,5 +148,41 @@ describe("RemoteAccessServer image response hardening (Gate 6 item 4.4)", () => 
     expect(pngResponse.headers.get("content-disposition")).toBe('inline; filename="image.png"');
     expect(pngResponse.headers.get("cache-control")).toBe("private, max-age=31536000, immutable");
     expect(pngResponse.headers.get("content-security-policy")).toBe("sandbox");
+  });
+
+  it("waits for the canonical image fence before publishing hardened bytes", async () => {
+    const server = createServer();
+    const info = await server.start();
+    const token = await issueToken(info);
+    let release!: (value: unknown) => void;
+    const fenced = new Promise<unknown>((resolve) => {
+      release = resolve;
+    });
+    dbGetThreadRuntimeItem.mockReturnValueOnce(fenced);
+    const url = new URL("/api/threads/thread-1/items/live-image/image", info.httpBaseUrl);
+    url.searchParams.set("path", JSON.stringify(["images", 0]));
+    let responded = false;
+    const response = fetch(url, { headers: { authorization: `Bearer ${token}` } }).then((value) => {
+      responded = true;
+      return value;
+    });
+    try {
+      await vi.waitFor(() =>
+        expect(dbGetThreadRuntimeItem).toHaveBeenCalledWith("thread-1", "live-image", {
+          includeStreams: false,
+        }),
+      );
+      expect(responded).toBe(false);
+      expect(dbGetThreadRuntimeItemCommitted).not.toHaveBeenCalled();
+    } finally {
+      release({ payload: { images: [SVG_TEXT] } });
+      await response;
+    }
+    const result = await response;
+    expect(result.status).toBe(200);
+    expect(result.headers.get("content-security-policy")).toBe("sandbox");
+    expect(result.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(result.headers.get("content-disposition")).toBe('attachment; filename="image.svg"');
+    expect(await result.text()).toBe(SVG_TEXT);
   });
 });

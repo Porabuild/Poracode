@@ -23,6 +23,10 @@ import { isCompactLayoutViewport } from "./adaptiveLayout";
 import { isRemoteRoutableProcedure } from "./remoteProcedureRoutes";
 import { routeRemoteProcedure } from "./remoteProcedureRouter";
 import {
+  disposeManagedLoopbackImages,
+  installManagedLoopbackImages,
+} from "./state/managedLoopbackImages";
+import {
   activateHostTransport,
   attachManagedLoopbackPreload,
   bindManagedLoopbackRuntime,
@@ -88,6 +92,7 @@ export function deriveClientCapabilities(input: {
 export function installClientRuntime(runtime: ClientRuntime): void {
   assertClientRuntimeVersion(runtime.version);
   installedRuntime = runtime;
+  if (runtime.transport !== "electron-backend-host") disposeManagedLoopbackImages();
 }
 
 function assertClientRuntimeVersion(version: unknown): void {
@@ -125,6 +130,7 @@ export function installElectronClientRuntime(host: ElectronHostBridge): void {
     procedures,
     native,
   });
+  installManagedLoopbackImages(host);
 }
 
 export function installBrowserClientRuntime(bridge: PoracodeBridge): void {
@@ -374,6 +380,7 @@ export function isCompactClientRuntimeSurface(): boolean {
 }
 
 export function resetClientRuntimeForTest(): void {
+  disposeManagedLoopbackImages();
   installedRuntime = null;
   resetActiveHostTransportForTest();
 }

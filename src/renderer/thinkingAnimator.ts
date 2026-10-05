@@ -22,7 +22,7 @@
 // hidden or unfocused (using the state from uiAnimationActivity.ts), and honours
 // `prefers-reduced-motion` by painting one static frame.
 
-import { useEffect, useRef } from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
 import type { RefObject } from "react";
 
 const FPS = 20;
@@ -37,6 +37,8 @@ const shimmerEls = new Set<HTMLElement>();
 // Brains map to their path list, cached once at registration so the tick loop
 // doesn't re-run querySelectorAll on every frame.
 const brainPaths = new Map<SVGSVGElement, SVGPathElement[]>();
+/** Keep-alive panes keep ingesting data but need no invisible animation work. */
+export const ThinkingAnimationVisibility = createContext(true);
 let timer: ReturnType<typeof setInterval> | null = null;
 let lastPaintAt = Number.NEGATIVE_INFINITY;
 
@@ -132,16 +134,17 @@ function useAnimatedElement<T extends Element>(
   add: (el: T) => void,
   remove: (el: T) => void,
 ): void {
+  const visible = useContext(ThinkingAnimationVisibility);
   useEffect(() => {
     const el = ref.current;
-    if (!active || !el) return;
+    if (!active || !visible || !el) return;
     add(el);
     ensureRunning();
     return () => {
       remove(el);
       maybeStop();
     };
-  }, [ref, active, add, remove]);
+  }, [ref, active, visible, add, remove]);
 }
 
 /**

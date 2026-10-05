@@ -1,8 +1,9 @@
 import { hasElectronHostBridge } from "@/renderer/clientRuntime";
+import { getBuildAssetBase } from "../buildAssetBase";
 
 function loadedBuildAssetUrls(buildBasePath: string): string[] {
   if (typeof performance === "undefined") return [];
-  const assetPrefix = new URL(`${buildBasePath}assets/`, window.location.href).href;
+  const assetPrefix = new URL(`${buildBasePath}assets/`, document.baseURI).href;
   return performance
     .getEntriesByType("resource")
     .map((entry) => entry.name)
@@ -31,7 +32,7 @@ export function registerCanonicalServiceWorker(): void {
   if (!("serviceWorker" in navigator) || window.isSecureContext === false) return;
 
   const register = () => {
-    const buildBasePath = import.meta.env.BASE_URL;
+    const buildBasePath = getBuildAssetBase();
     const scriptUrl = buildBasePath.startsWith("/")
       ? `${buildBasePath}service-worker.js`
       : "/service-worker.js";

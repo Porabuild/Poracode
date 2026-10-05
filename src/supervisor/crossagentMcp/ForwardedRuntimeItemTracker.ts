@@ -48,13 +48,17 @@ export class ForwardedRuntimeItemTracker {
       itemId: event.itemId,
       itemType: event.itemType,
       parentItemId: event.parentItemId,
-      payload: event.payload,
+      // Non-status items need only identity/ancestry for synthetic completion.
+      // Their payload was already forwarded; terminalPayload never reads it.
+      payload: STATUS_BEARING_ITEM_TYPES.has(event.itemType) ? event.payload : undefined,
     });
   }
 
   update(event: ItemUpdatedEvent): void {
     const item = this.open.get(event.itemId);
-    if (item) item.payload = mergePayload(item.payload, event.payload);
+    if (item && STATUS_BEARING_ITEM_TYPES.has(item.itemType)) {
+      item.payload = mergePayload(item.payload, event.payload);
+    }
   }
 
   complete(itemId: string): void {
@@ -68,18 +72,10 @@ export class ForwardedRuntimeItemTracker {
   drainTerminalEvents(threadId: string): ItemCompletedEvent[] {
     if (this.open.size === 0) return [];
 
-    const depth = (item: OpenForwardedItem): number => {
-      let value = 0;
-      let parentId = item.parentItemId;
-      const seen = new Set<string>();
-      while (parentId && this.open.has(parentId) && !seen.has(parentId)) {
-        seen.add(parentId);
-        value += 1;
-        parentId = this.open.get(parentId)?.parentItemId;
-      }
-      return value;
-    };
-    const items = [...this.open.values()].sort((left, right) => depth(right) - depth(left));
+    const depths = itemDepths(this.open);
+    const items = [...this.open.values()].sort(
+      (left, right) => depths.get(right.itemId)! - depths.get(left.itemId)!,
+    );
     this.open.clear();
 
     return items.map((item) => {
@@ -92,4 +88,46 @@ export class ForwardedRuntimeItemTracker {
       };
     });
   }
+}
+
+/** Resolve the parent graph once, retaining the released cycle-depth semantics. */
+function itemDepths(open: ReadonlyMap<string, OpenForwardedItem>): Map<string, number> {
+  const depths = new Map<string, number>();
+  const cycleNodes = new Set<string>();
+  for (const item of open.values()) {
+    if (depths.has(item.itemId)) continue;
+    const path: string[] = [];
+    const positions = new Map<string, number>();
+    let id: string | undefined = item.itemId;
+    while (
+      id !== undefined &&
+      (path.length === 0 || id !== "") &&
+      open.has(id) &&
+      !depths.has(id) &&
+      !positions.has(id)
+    ) {
+      positions.set(id, path.length);
+      path.push(id);
+      id = open.get(id)!.parentItemId;
+    }
+    const cycleStart = id ? positions.get(id) : undefined;
+    let base: number;
+    if (cycleStart !== undefined) {
+      // The old parent walk counts each cycle node once, including self loops.
+      base = path.length - cycleStart;
+      for (let index = cycleStart; index < path.length; index += 1) {
+        depths.set(path[index]!, base);
+        cycleNodes.add(path[index]!);
+      }
+      path.length = cycleStart;
+      base -= 1;
+    } else {
+      // A missing/closed parent leaves its immediate child at depth zero.
+      base = id && depths.has(id) ? depths.get(id)! - (cycleNodes.has(id) ? 1 : 0) : -1;
+    }
+    for (let index = path.length - 1; index >= 0; index -= 1) {
+      depths.set(path[index]!, ++base);
+    }
+  }
+  return depths;
 }

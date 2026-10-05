@@ -15,6 +15,7 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RemoteThreadCommand, Thread, Workspace } from "@/shared/contracts";
 import type {
+  PoracodeBridge,
   QuickComposerSubmission,
   SupervisorEvent,
   ThreadOpenRequestedEvent,
@@ -93,6 +94,20 @@ const {
         .fn<(threadId: string) => Promise<unknown[]>>()
         .mockResolvedValue([]),
       dbGetThreadContextUsage: vi.fn<(threadId: string) => Promise<null>>().mockResolvedValue(null),
+      dbGetLatestThreadGoalItem: vi
+        .fn<PoracodeBridge["dbGetLatestThreadGoalItem"]>()
+        .mockResolvedValue(null),
+      createFileCheckpoint: vi
+        .fn<PoracodeBridge["createFileCheckpoint"]>()
+        .mockImplementation(async ({ threadId, checkpointItemId }) => ({
+          checkpoint: {
+            threadId,
+            checkpointItemId,
+            ref: `refs/poracode/test-checkpoints/${checkpointItemId}`,
+            commit: "test-checkpoint-commit",
+            capturedAt: "2026-01-01T00:00:00.000Z",
+          },
+        })),
       getGitStatus: vi
         .fn<
           () => Promise<{
@@ -251,11 +266,15 @@ const {
   };
 });
 
-vi.mock("./bridge", () => ({
-  readBridge: () => bridge,
-  isWindows: () => false,
-  isMac: () => false,
-}));
+vi.mock("./bridge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./bridge")>();
+  return {
+    ...actual,
+    readBridge: () => bridge,
+    isWindows: () => false,
+    isMac: () => false,
+  };
+});
 
 vi.mock("@/renderer/actions/worktreeLaunchActions", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/renderer/actions/worktreeLaunchActions")>();

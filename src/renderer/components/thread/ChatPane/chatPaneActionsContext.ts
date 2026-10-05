@@ -51,6 +51,18 @@ export type ChatPaneActions = {
   formatTranscriptMarkdown?: ((text: string) => string) | undefined;
   /** Resolve an image held on a remote project's host. */
   remoteLocalImageUrl?: ((url: string) => string) | undefined;
+  /**
+   * Live, path-keyed custody for canonical Markdown local-image URLs. The
+   * decoder uses the same owning filesystem as remoteLocalImageUrl, including
+   * Home panes which omit project file actions. Empty readiness stays pending;
+   * it must not fall back to a different host or the native file protocol.
+   */
+  markdownLocalImageReadiness?:
+    | {
+        readonly readiness: RemoteImageReadiness;
+        readonly pathForUrl: (url: string) => string | undefined;
+      }
+    | undefined;
   /** Resolve an inline-image reference held in a remote host's transcript. */
   remoteImageRefUrl?: ((ref: RemoteImageRefValue) => string) | undefined;
   /**
