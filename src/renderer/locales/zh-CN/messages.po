@@ -131,6 +131,11 @@ msgstr "{0, plural, other {使用 # 次}}"
 msgid "{0, plural, one {edit} other {edits}}"
 msgstr "{0, plural, one {处编辑} other {处编辑}}"
 
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{0, plural, one {Import # session} other {Import # sessions}}"
+msgstr "{0, plural, one {导入 # 个会话} other {导入 # 个会话}}"
+
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "{0, plural, one {MCP} other {MCPs}}"
@@ -433,10 +438,6 @@ msgstr "{agentLabel}：{statusLabel}。将鼠标悬停以查看状态详细信�
 msgid "{agentLead} needs your input to continue."
 msgstr "{agentLead} 需要你的输入才能继续。"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "{alreadyImported} session(s) were already imported."
-msgstr "已有 {alreadyImported} 个会话导入过。"
-
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# 个提交} other {# 个提交}}"
@@ -496,6 +497,10 @@ msgstr "{hook}挂钩失败"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{hours}h ago"
 msgstr "{hours}小时前"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}}"
+msgstr "{imported, plural, one {已导入 # 个会话。} other {已导入 # 个会话。}}"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
@@ -818,7 +823,6 @@ msgstr "接受当前更改"
 msgid "Accept Incoming Change"
 msgstr "接受传入的更改"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "帐户"
@@ -1126,6 +1130,7 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "公布自定义基础 URL，例如反向代理或隧道。留空则自动设置。"
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1280,7 +1285,6 @@ msgstr "线程需要你时提醒"
 msgid "All"
 msgstr "全部"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
 msgstr "全部账户"
@@ -1289,6 +1293,10 @@ msgstr "全部账户"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All agent apps"
 msgstr "所有智能体应用"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All agents"
+msgstr "所有代理"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
@@ -1309,8 +1317,8 @@ msgid "All files"
 msgstr "所有文件"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "All folders"
-#~ msgstr "所有文件夹"
+msgid "All folders"
+msgstr "所有文件夹"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
@@ -1321,14 +1329,9 @@ msgid "All plugins are up to date."
 msgstr "所有插件均为最新版本。"
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "所有项目"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "All providers"
-msgstr "所有提供方"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
@@ -2014,11 +2017,7 @@ msgstr "移回面板"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
 msgid "Bring conversations you started in an agent CLI into Poracode. Transcript files are read, never modified."
-msgstr "将你在代理 CLI 中开始的对话导入 Poracode。对话记录文件只会被读取，不会被修改。"
-
-#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
-#~ msgid "Bring conversations you started in Codex CLI or Claude Code into Poracode. Transcript files are read, never modified."
-#~ msgstr "将你在 Codex CLI 或 Claude Code 中开始的对话导入 Poracode。转录文件只会被读取，绝不会被修改。"
+msgstr "将你在代理 CLI 中开始的对话导入 Poracode。只读取对话记录文件，绝不修改。"
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -2496,6 +2495,10 @@ msgstr "请选择实验使用的本地基准分支。"
 msgid "Choose a parent folder"
 msgstr "选择父文件夹"
 
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Choose a project for sessions whose folder no longer exists."
+msgstr "为文件夹已不存在的会话选择一个项目。"
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "选择项目图标图片"
@@ -2962,10 +2965,6 @@ msgstr "代码已复制。"
 #: src/renderer/components/providers/codex/manifest.ts
 msgid "Codex"
 msgstr "Codex"
-
-#: src/renderer/components/providers/codex/manifest.ts
-msgid "Codex CLI"
-msgstr "Codex CLI"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
@@ -3626,11 +3625,6 @@ msgstr "无法提取上下文。"
 msgid "Could not generate commit message: {detail}"
 msgstr "无法生成提交消息：{detail}"
 
-#. placeholder {0}: session.preview
-#: src/renderer/components/sessionImport/importSessionsActions.ts
-msgid "Could not import {0}."
-msgstr "无法导入 {0}。"
-
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3639,10 +3633,6 @@ msgstr "无法加载 {0} 的拉取请求。"
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "无法打开此 PDF。"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Could not read existing CLI sessions."
-msgstr "无法读取现有的 CLI 会话。"
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -5401,6 +5391,10 @@ msgstr "记录已标记所有者的分支元数据失败：{detail}。回滚后�
 #~ msgid "Failed to update goal"
 #~ msgstr "无法更新目标"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Fallback project"
+msgstr "备用项目"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
@@ -5672,6 +5666,7 @@ msgstr "聚焦应用内浏览器地址栏"
 msgid "Focus window"
 msgstr "切换到窗口"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
 msgstr "文件夹"
@@ -5682,7 +5677,7 @@ msgstr "文件夹名称"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Folder no longer exists — imports into the project chosen above."
-msgstr "文件夹已不存在 — 将导入到上面选择的项目。"
+msgstr "文件夹已不存在 — 将导入到上方选择的项目中。"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Folder on the server"
@@ -6285,8 +6280,8 @@ msgid "Idle"
 msgstr "空闲"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "If the folder is missing, import into"
-msgstr "若文件夹缺失，导入到"
+msgid "If the folder no longer exists, import into"
+msgstr "如果文件夹已不存在，导入到"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Ignored an unrecognized field in plugin.json."
@@ -6313,27 +6308,9 @@ msgstr "图片"
 msgid "Import"
 msgstr "导入"
 
-#. placeholder {0}: selected.size
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Import {0} session(s)"
-msgstr "导入 {0} 个会话"
-
-#. placeholder {0}: selected.size
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Import {0} sessions"
-msgstr "导入 {0} 个会话"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "Import a conversation from Codex CLI or Claude Code. The thread keeps its provider session, so your next message continues where you left off."
-#~ msgstr "从 Codex CLI 或 Claude Code 导入一段对话。线程保留其提供方会话，因此你的下一条消息会从中断处继续。"
-
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
 msgstr "再次导入"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Import an existing conversation. The thread keeps its provider session, so your next message continues where you left off."
-msgstr "导入现有对话。线程会保留提供商会话，因此你的下一条消息可以从上次中断处继续。"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import and restart"
@@ -6360,10 +6337,6 @@ msgstr "导入外部智能体技能"
 msgid "Import external skills"
 msgstr "导入外部技能"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Import into account"
-msgstr "导入到账户"
-
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import Lightcode data"
 msgstr "导入 Lightcode 数据"
@@ -6383,12 +6356,6 @@ msgstr "导入方式"
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Import selected"
 msgstr "导入所选项"
-
-#: src/renderer/components/sessionImport/ImportSessionsDialog.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Import session"
-msgstr "导入会话"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
 msgid "Import sessions"
@@ -6421,29 +6388,17 @@ msgstr "已导入"
 msgid "Imported {0} skills."
 msgstr "已导入 {0} 个技能。"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Imported {imported} session(s)."
-msgstr "已导入 {imported} 个会话。"
-
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "已导入 1 个技能。"
 
 #: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
-msgid "Imported from {providerLabel} — text only, tool calls are not shown."
-msgstr "从 {providerLabel} 导入 — 仅显示文本，不显示工具调用。"
-
-#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
-#~ msgid "Imported from Claude Code — text only, tool calls are not shown."
-#~ msgstr "从 Claude Code 导入 — 仅文本，不显示工具调用。"
-
-#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
-#~ msgid "Imported from Codex CLI — text only, tool calls are not shown."
-#~ msgstr "从 Codex CLI 导入 — 仅文本，不显示工具调用。"
+msgid "Imported from an existing CLI session — text only, tool calls are not shown."
+msgstr "从现有 CLI 会话导入 — 仅文本，不显示工具调用。"
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Imported session"
-msgstr "导入的会话"
+msgstr "已导入的会话"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -8317,10 +8272,6 @@ msgstr "实验候选项 {threadId} 没有可用的聊天回复。"
 msgid "No checks reported for this PR."
 msgstr "没有为此 PR 报告检查。"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "No Codex or Claude Code sessions found on this computer."
-#~ msgstr "在这台电脑上未找到 Codex 或 Claude Code 会话。"
-
 #: src/renderer/commands/CommandPalette.tsx
 msgid "No commands found"
 msgstr "没有找到命令"
@@ -8422,7 +8373,7 @@ msgstr "未找到图标"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "No importable sessions found on this computer."
-msgstr "这台电脑上没有可导入的会话。"
+msgstr "在此电脑上未找到可导入的会话。"
 
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
@@ -8447,10 +8398,6 @@ msgstr "未找到 Lightcode 数据。"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "No marketplace skills match these filters."
 msgstr "没有符合这些筛选条件的市场技能。"
-
-#: src/renderer/components/sessionImport/SearchableSelect.tsx
-msgid "No matches"
-msgstr "无匹配项"
 
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
@@ -8509,6 +8456,10 @@ msgstr "还没有消息"
 msgid "No microphone found."
 msgstr "找不到麦克风。"
 
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "No model is available for {agent}. Check the agent in Settings."
+msgstr "{agent} 没有可用的模型。请在设置中检查该代理。"
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
@@ -8542,11 +8493,6 @@ msgstr "本次运行未启用任何插件"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
 msgstr "没有与搜索匹配的插件。"
-
-#. placeholder {0}: session.preview
-#: src/renderer/components/sessionImport/importSessionsActions.ts
-msgid "No project to import into — pick one for {0}."
-msgstr "没有可导入的项目 — 请为 {0} 选择一个。"
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "No projects"
@@ -8619,11 +8565,11 @@ msgstr "该线程还没有运行时项目。"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "No sessions could be imported."
-msgstr "没有会话被导入。"
+msgstr "无法导入任何会话。"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "No sessions match the current filters."
-msgstr "没有会话符合当前筛选条件。"
+msgstr "没有符合当前筛选条件的会话。"
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -9983,7 +9929,6 @@ msgstr "配置文件"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -10096,7 +10041,6 @@ msgstr "由 Poracode 为受支持的代理提供和管理。"
 msgid "provider"
 msgstr "提供商"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Provider"
 msgstr "提供商"
@@ -11372,10 +11316,6 @@ msgstr "运行时调试"
 msgid "Runtime options"
 msgstr "运行时选项"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Same account as the session"
-msgstr "与会话相同的账户"
-
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
@@ -11585,15 +11525,6 @@ msgstr "SDK 未安装"
 msgid "Search"
 msgstr "搜索"
 
-#. placeholder {0}: props.label
-#: src/renderer/components/sessionImport/SearchableSelect.tsx
-msgid "Search {0}"
-msgstr "搜索{0}"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Search accounts…"
-msgstr "搜索账户…"
-
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Search agents"
 msgstr "搜索代理"
@@ -11606,18 +11537,10 @@ msgstr "搜索代理..."
 msgid "Search branches..."
 msgstr "搜索分支..."
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "Search by text or folder"
-#~ msgstr "按文本或文件夹搜索"
-
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "搜索文件"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "Search folders…"
-#~ msgstr "搜索文件夹…"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Search icons"
@@ -11662,10 +11585,6 @@ msgstr "搜索插件"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Search plugins, skills, and servers..."
 msgstr "搜索插件、技能和服务器..."
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Search projects…"
-msgstr "搜索项目…"
 
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
@@ -11726,10 +11645,9 @@ msgid "Search Threads"
 msgstr "搜索线程"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Search title or folder everywhere, message text in what's shown"
-msgstr "在所有会话中搜索标题或文件夹，仅在当前显示的会话中搜索消息内容"
+msgid "Search titles, messages and folders"
+msgstr "搜索标题、消息和文件夹"
 
-#: src/renderer/components/sessionImport/SearchableSelect.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
 msgstr "搜索..."
@@ -11805,6 +11723,10 @@ msgstr "选择所有 MCP 服务器"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "选择 {providerLabel} 的所有 MCP 服务器"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Select all sessions"
+msgstr "选择所有会话"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all skills"
@@ -12156,14 +12078,14 @@ msgstr "显示语音输入按钮"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "正在显示 {0, plural, other {# 个技能}}"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Showing the 200 most recent — narrow the filters to see more"
-msgstr "显示最近的 200 个会话 — 缩小筛选范围可查看更多"
-
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "仅显示前 4,000 个条目。"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Showing the most recent sessions — narrow the filters to see more."
+msgstr "正在显示最近的会话 — 缩小筛选范围以查看更多。"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
@@ -13035,18 +12957,10 @@ msgstr "点击 + 在桌面端添加文件夹或克隆存储库。"
 #~ msgid "Tap + to pair with Poracode on your desktop."
 #~ msgstr "点击 + 与桌面端的 Poracode 配对。"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Target account"
-msgstr "目标账户"
-
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "目标分支"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Target project"
-msgstr "目标项目"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #~ msgid "Target provider"
@@ -13356,6 +13270,10 @@ msgstr "SSH 隧道连接到了不兼容的 Poracode 服务器。"
 msgid "the target provider"
 msgstr "目标提供商"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "The thread keeps its provider session, so your next message continues where you left off."
+msgstr "线程会保留其提供方会话，因此你的下一条消息会从上次中断处继续。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "聊天线程会话不可用于排队的后续消息。"
@@ -13367,10 +13285,6 @@ msgstr "聊天线程会话不可用于排队的后续消息。"
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "与此工作树关联的线程已更改。请刷新后重试。"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "The transcript is copied into that account's home so it can resume the session. Sessions from the other provider keep their own account."
-msgstr "会话记录会复制到该账户的主目录，以便它继续该会话。另一提供商的会话保留其原有账户。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -13428,6 +13342,10 @@ msgstr "这些服务器来自插件。请在「插件」中启用或禁用，此
 msgid "Thinking"
 msgstr "思考"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support importing sessions."
+msgstr "此代理不支持导入会话。"
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
 msgstr "未安装此代理。"
@@ -13459,6 +13377,10 @@ msgstr "此代码将在 {countdown} 后过期"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This code has expired."
 msgstr "此代码已过期。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again."
+msgstr "此 Codex 会话已在另一个 Codex 应用（Codex Desktop 或 CLI）中打开。请在那里关闭后重试。"
 
 #: src/renderer/utils/machineLabels.ts
 msgid "This computer"
@@ -13613,6 +13535,14 @@ msgstr "此服务器需要先进行身份验证，Poracode 才能检查它。"
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "此服务器在本机运行，WSL 项目无法使用。"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session changed on disk. Refresh the list and try again."
+msgstr "此会话在磁盘上已更改。请刷新列表后重试。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session is already being imported."
+msgstr "此会话正在导入中。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "此全局快捷键不可用。请选择其他按键组合。"
@@ -13637,6 +13567,10 @@ msgstr "此线程在未传递上下文的情况下切换了提供商：{agent} �
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "此线程在未传递上下文的情况下被派生：{agent} 启动时没有 Poracode 的 read_thread 工具，因此无法读取原始对话。请重新启用 app-controls MCP 工具，或概述它需要的内容。"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This transcript is not in the agent's session store."
+msgstr "此对话记录不在该代理的会话存储中。"
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -14349,7 +14283,7 @@ msgid "Unknown"
 msgstr "未知"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "unknown folder"
+msgid "Unknown folder"
 msgstr "未知文件夹"
 
 #: src/renderer/notifications.ts

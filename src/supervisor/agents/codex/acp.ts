@@ -46,7 +46,6 @@ import {
   extractTurnField,
   isRecoverableResumeError,
   isSessionInUseResumeError,
-  CODEX_SESSION_IN_USE_MESSAGE,
   type CodexThreadStatus,
 } from "./acpProtocol";
 import {
@@ -539,7 +538,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
         const message = error instanceof Error ? error.message : String(error);
         if (isSessionInUseResumeError(message)) {
           this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);
-          throw new Error(CODEX_SESSION_IN_USE_MESSAGE, { cause: error });
+          throw new Error(msg("codex.sessionInUse"), { cause: error });
         }
         if (!isRecoverableResumeError(message)) {
           this.resumeActiveStatusSuppressionUntil.delete(sessionRef.providerSessionId);

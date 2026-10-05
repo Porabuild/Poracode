@@ -131,6 +131,11 @@ msgstr "{0, plural, other {# lần dùng}}"
 msgid "{0, plural, one {edit} other {edits}}"
 msgstr "{0, plural, one {lần sửa} other {lần sửa}}"
 
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{0, plural, one {Import # session} other {Import # sessions}}"
+msgstr "{0, plural, one {Nhập # phiên} other {Nhập # phiên}}"
+
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "{0, plural, one {MCP} other {MCPs}}"
@@ -433,10 +438,6 @@ msgstr "{agentLabel}: {statusLabel}. Di chuột để biết chi tiết trạng 
 msgid "{agentLead} needs your input to continue."
 msgstr "{agentLead} cần bạn nhập thông tin để tiếp tục."
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "{alreadyImported} session(s) were already imported."
-msgstr "Đã nhập {alreadyImported} phiên trước đó."
-
 #: src/mobile/views/pr/PrOverviewPage.tsx
 msgid "{commitsCount, plural, one {# commit} other {# commits}}"
 msgstr "{commitsCount, plural, one {# commit} other {# commit}}"
@@ -496,6 +497,10 @@ msgstr "Hook {hook} không thành công"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{hours}h ago"
 msgstr "{hours} giờ trước"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}}"
+msgstr "{imported, plural, one {Đã nhập # phiên.} other {Đã nhập # phiên.}}"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
@@ -818,7 +823,6 @@ msgstr "Chấp nhận thay đổi hiện tại"
 msgid "Accept Incoming Change"
 msgstr "Chấp nhận thay đổi đến"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Account"
 msgstr "Tài khoản"
@@ -1126,6 +1130,7 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "Công bố một URL cơ sở tùy chỉnh, ví dụ một reverse proxy hoặc tunnel. Để trống để dùng tự động."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1280,7 +1285,6 @@ msgstr "Cảnh báo khi luồng cần bạn"
 msgid "All"
 msgstr "Tất cả"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/ProfileOverlay/parts/AccountFilter.tsx
 msgid "All accounts"
 msgstr "Tất cả tài khoản"
@@ -1289,6 +1293,10 @@ msgstr "Tất cả tài khoản"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All agent apps"
 msgstr "Tất cả ứng dụng agent"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All agents"
+msgstr "Tất cả tác tử"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
@@ -1309,8 +1317,8 @@ msgid "All files"
 msgstr "Tất cả các tập tin"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "All folders"
-#~ msgstr "Tất cả thư mục"
+msgid "All folders"
+msgstr "Tất cả thư mục"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
@@ -1321,14 +1329,9 @@ msgid "All plugins are up to date."
 msgstr "Tất cả plugin đều là bản mới nhất."
 
 #: src/mobile/views/ThreadsView.tsx
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectFilter.tsx
 msgid "All projects"
 msgstr "Tất cả dự án"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "All providers"
-msgstr "Tất cả nhà cung cấp"
 
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "All sources"
@@ -2014,11 +2017,7 @@ msgstr "Đưa về bảng điều khiển"
 
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
 msgid "Bring conversations you started in an agent CLI into Poracode. Transcript files are read, never modified."
-msgstr "Đưa các cuộc trò chuyện đã bắt đầu trong CLI của tác nhân vào Poracode. Tệp bản ghi chỉ được đọc, không bao giờ bị sửa đổi."
-
-#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
-#~ msgid "Bring conversations you started in Codex CLI or Claude Code into Poracode. Transcript files are read, never modified."
-#~ msgstr "Đưa các cuộc trò chuyện bạn đã bắt đầu trong Codex CLI hoặc Claude Code vào Poracode. Tệp bản ghi chỉ được đọc, không bao giờ bị sửa đổi."
+msgstr "Đưa các cuộc trò chuyện bạn đã bắt đầu trong CLI của tác tử vào Poracode. Tệp bản ghi chỉ được đọc, không bao giờ bị sửa đổi."
 
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -2496,6 +2495,10 @@ msgstr "Chọn một nhánh cơ sở cục bộ cho thử nghiệm."
 msgid "Choose a parent folder"
 msgstr "Chọn một thư mục cha"
 
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Choose a project for sessions whose folder no longer exists."
+msgstr "Chọn một dự án cho các phiên có thư mục không còn tồn tại."
+
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
 msgstr "Chọn ảnh biểu tượng dự án"
@@ -2962,10 +2965,6 @@ msgstr "Đã sao chép mã."
 #: src/renderer/components/providers/codex/manifest.ts
 msgid "Codex"
 msgstr "Codex"
-
-#: src/renderer/components/providers/codex/manifest.ts
-msgid "Codex CLI"
-msgstr "Codex CLI"
 
 #: src/renderer/components/thread/ThreadBackgroundTasksDock.tsx
 #: src/renderer/components/thread/ThreadErrorDock.tsx
@@ -3626,11 +3625,6 @@ msgstr "Không thể trích xuất ngữ cảnh."
 msgid "Could not generate commit message: {detail}"
 msgstr "Không thể tạo thông báo commit: {detail}"
 
-#. placeholder {0}: session.preview
-#: src/renderer/components/sessionImport/importSessionsActions.ts
-msgid "Could not import {0}."
-msgstr "Không thể nhập {0}."
-
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3639,10 +3633,6 @@ msgstr "Không thể tải pull request cho {0}."
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
 #~ msgstr "Không thể mở tệp PDF này."
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Could not read existing CLI sessions."
-msgstr "Không thể đọc các phiên CLI hiện có."
 
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Could not read file."
@@ -5401,6 +5391,10 @@ msgstr "Không thể ghi siêu dữ liệu của nhánh có chủ sở hữu: {d
 #~ msgid "Failed to update goal"
 #~ msgstr "Không thể cập nhật mục tiêu"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Fallback project"
+msgstr "Dự án dự phòng"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
@@ -5672,6 +5666,7 @@ msgstr "Tập trung vào thanh địa chỉ của trình duyệt tích hợp"
 msgid "Focus window"
 msgstr "Chuyển đến cửa sổ"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
 msgstr "Thư mục"
@@ -5682,7 +5677,7 @@ msgstr "Tên thư mục"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Folder no longer exists — imports into the project chosen above."
-msgstr "Thư mục không còn tồn tại — nhập vào dự án đã chọn ở trên."
+msgstr "Thư mục không còn tồn tại — sẽ nhập vào dự án đã chọn ở trên."
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Folder on the server"
@@ -6285,8 +6280,8 @@ msgid "Idle"
 msgstr "Nhàn rỗi"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "If the folder is missing, import into"
-msgstr "Nếu thiếu thư mục, nhập vào"
+msgid "If the folder no longer exists, import into"
+msgstr "Nếu thư mục không còn tồn tại, nhập vào"
 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Ignored an unrecognized field in plugin.json."
@@ -6313,27 +6308,9 @@ msgstr "Ảnh"
 msgid "Import"
 msgstr "Nhập"
 
-#. placeholder {0}: selected.size
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Import {0} session(s)"
-msgstr "Nhập {0} phiên"
-
-#. placeholder {0}: selected.size
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Import {0} sessions"
-msgstr "Nhập {0} phiên"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "Import a conversation from Codex CLI or Claude Code. The thread keeps its provider session, so your next message continues where you left off."
-#~ msgstr "Nhập một cuộc trò chuyện từ Codex CLI hoặc Claude Code. Luồng giữ nguyên phiên của nhà cung cấp, nên tin nhắn tiếp theo của bạn tiếp tục từ chỗ đang dở."
-
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
 msgstr "Nhập lại"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Import an existing conversation. The thread keeps its provider session, so your next message continues where you left off."
-msgstr "Nhập một cuộc trò chuyện hiện có. Luồng vẫn giữ phiên của nhà cung cấp để tin nhắn tiếp theo tiếp tục từ chỗ bạn dừng lại."
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import and restart"
@@ -6360,10 +6337,6 @@ msgstr "Nhập skill của tác tử bên ngoài"
 msgid "Import external skills"
 msgstr "Nhập skill bên ngoài"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Import into account"
-msgstr "Nhập vào tài khoản"
-
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import Lightcode data"
 msgstr "Nhập dữ liệu Lightcode"
@@ -6384,15 +6357,9 @@ msgstr "Phương thức nhập"
 msgid "Import selected"
 msgstr "Nhập mục đã chọn"
 
-#: src/renderer/components/sessionImport/ImportSessionsDialog.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/SidebarProjectThreadList.tsx
-#: src/renderer/views/MainView/parts/Sidebar/Sidebar.tsx
-msgid "Import session"
-msgstr "Nhập phiên"
-
 #: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
 msgid "Import sessions"
-msgstr "Nhập các phiên"
+msgstr "Nhập phiên"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
@@ -6421,25 +6388,13 @@ msgstr "Đã nhập"
 msgid "Imported {0} skills."
 msgstr "Đã nhập {0} skill."
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Imported {imported} session(s)."
-msgstr "Đã nhập {imported} phiên."
-
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "Đã nhập 1 skill."
 
 #: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
-msgid "Imported from {providerLabel} — text only, tool calls are not shown."
-msgstr "Đã nhập từ {providerLabel} — chỉ hiển thị văn bản, không hiển thị lệnh gọi công cụ."
-
-#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
-#~ msgid "Imported from Claude Code — text only, tool calls are not shown."
-#~ msgstr "Đã nhập từ Claude Code — chỉ văn bản, không hiển thị lệnh gọi công cụ."
-
-#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
-#~ msgid "Imported from Codex CLI — text only, tool calls are not shown."
-#~ msgstr "Đã nhập từ Codex CLI — chỉ văn bản, không hiển thị lệnh gọi công cụ."
+msgid "Imported from an existing CLI session — text only, tool calls are not shown."
+msgstr "Đã nhập từ một phiên CLI có sẵn — chỉ có văn bản, các lệnh gọi công cụ không được hiển thị."
 
 #: src/renderer/components/sessionImport/importSessionsActions.ts
 msgid "Imported session"
@@ -8318,10 +8273,6 @@ msgstr "Không có câu trả lời trò chuyện cho ứng viên thử nghiệm
 msgid "No checks reported for this PR."
 msgstr "Không có kiểm tra nào được báo cáo cho PR này."
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "No Codex or Claude Code sessions found on this computer."
-#~ msgstr "Không tìm thấy phiên Codex hoặc Claude Code nào trên máy này."
-
 #: src/renderer/commands/CommandPalette.tsx
 msgid "No commands found"
 msgstr "Không tìm thấy lệnh nào"
@@ -8449,10 +8400,6 @@ msgstr "Không tìm thấy dữ liệu Lightcode."
 msgid "No marketplace skills match these filters."
 msgstr "Không có skill nào trên marketplace khớp với các bộ lọc này."
 
-#: src/renderer/components/sessionImport/SearchableSelect.tsx
-msgid "No matches"
-msgstr "Không có kết quả"
-
 #: src/renderer/components/thread/ChatPane/ChatRuntimeDebugPanel.tsx
 msgid "No matches for “{query}”."
 msgstr "Không có kết quả phù hợp cho “{query}”."
@@ -8510,6 +8457,10 @@ msgstr "Chưa có tin nhắn nào"
 msgid "No microphone found."
 msgstr "Không tìm thấy micrô."
 
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "No model is available for {agent}. Check the agent in Settings."
+msgstr "Không có mô hình nào khả dụng cho {agent}. Hãy kiểm tra tác tử trong Cài đặt."
+
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilitySection.tsx
@@ -8543,11 +8494,6 @@ msgstr "Không có plugin nào được bật cho lần chạy này"
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "No plugins match your search."
 msgstr "Không có plugin nào khớp với tìm kiếm."
-
-#. placeholder {0}: session.preview
-#: src/renderer/components/sessionImport/importSessionsActions.ts
-msgid "No project to import into — pick one for {0}."
-msgstr "Không có dự án để nhập — hãy chọn một dự án cho {0}."
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "No projects"
@@ -9984,7 +9930,6 @@ msgstr "Hồ sơ"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
 #: src/renderer/views/ProjectSettingsOverlay/ProjectSettingsOverlay.tsx
@@ -10097,7 +10042,6 @@ msgstr "Do Poracode cung cấp và quản lý cho các tác nhân được hỗ 
 msgid "provider"
 msgstr "nhà cung cấp"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Provider"
 msgstr "nhà cung cấp"
@@ -11373,10 +11317,6 @@ msgstr "Gỡ lỗi thời gian chạy"
 msgid "Runtime options"
 msgstr "Tùy chọn thời gian chạy"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Same account as the session"
-msgstr "Cùng tài khoản với phiên"
-
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
@@ -11586,15 +11526,6 @@ msgstr "Chưa cài SDK"
 msgid "Search"
 msgstr "Tìm kiếm"
 
-#. placeholder {0}: props.label
-#: src/renderer/components/sessionImport/SearchableSelect.tsx
-msgid "Search {0}"
-msgstr "Tìm {0}"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Search accounts…"
-msgstr "Tìm tài khoản…"
-
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Search agents"
 msgstr "Tìm kiếm tác nhân"
@@ -11607,18 +11538,10 @@ msgstr "Tìm kiếm tác nhân..."
 msgid "Search branches..."
 msgstr "Tìm kiếm nhánh..."
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "Search by text or folder"
-#~ msgstr "Tìm theo văn bản hoặc thư mục"
-
 #: src/mobile/views/FilesView.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Search files"
 msgstr "Tìm kiếm tập tin"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-#~ msgid "Search folders…"
-#~ msgstr "Tìm thư mục…"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Search icons"
@@ -11664,10 +11587,6 @@ msgstr "Tìm plugin"
 msgid "Search plugins, skills, and servers..."
 msgstr "Tìm plugin, skill và máy chủ..."
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Search projects…"
-msgstr "Tìm dự án…"
-
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Search pull requests"
 msgstr "Tìm kiếm pull request"
@@ -11690,7 +11609,7 @@ msgstr "Tìm kiếm tác vụ đã lên lịch"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 msgid "Search sessions"
-msgstr "Tìm phiên"
+msgstr "Tìm kiếm phiên"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
@@ -11727,10 +11646,9 @@ msgid "Search Threads"
 msgstr "Tìm kiếm luồng"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Search title or folder everywhere, message text in what's shown"
-msgstr "Tìm tiêu đề hoặc thư mục trong tất cả phiên, nội dung tin nhắn trong các phiên đang hiển thị"
+msgid "Search titles, messages and folders"
+msgstr "Tìm trong tiêu đề, tin nhắn và thư mục"
 
-#: src/renderer/components/sessionImport/SearchableSelect.tsx
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
 msgstr "Tìm kiếm…"
@@ -11806,6 +11724,10 @@ msgstr "Chọn tất cả máy chủ MCP"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "Chọn tất cả máy chủ MCP từ {providerLabel}"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Select all sessions"
+msgstr "Chọn tất cả phiên"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all skills"
@@ -12157,14 +12079,14 @@ msgstr "Hiển thị nút nhập bằng giọng nói"
 msgid "Showing {0, plural, one {# skill} other {# skills}}"
 msgstr "Đang hiển thị {0, plural, other {# skill}}"
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Showing the 200 most recent — narrow the filters to see more"
-msgstr "Đang hiển thị 200 phiên gần đây nhất — thu hẹp bộ lọc để xem thêm"
-
 #: src/mobile/views/HostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "Đang hiển thị 4.000 mục đầu tiên."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Showing the most recent sessions — narrow the filters to see more."
+msgstr "Đang hiển thị các phiên gần đây nhất — thu hẹp bộ lọc để xem thêm."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
@@ -13036,18 +12958,10 @@ msgstr "Nhấn + để thêm một thư mục hoặc sao chép một kho lưu tr
 #~ msgid "Tap + to pair with Poracode on your desktop."
 #~ msgstr "Nhấn + để ghép đôi với Poracode trên máy tính của bạn."
 
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Target account"
-msgstr "Tài khoản đích"
-
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Target branch"
 msgstr "Nhánh mục tiêu"
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "Target project"
-msgstr "Dự án đích"
 
 #: src/renderer/views/MainView/parts/AppContent/parts/Thread/parts/ContinueInProviderDialog.tsx
 #~ msgid "Target provider"
@@ -13357,6 +13271,10 @@ msgstr "Đường hầm SSH đã kết nối đến một máy chủ Poracode kh
 msgid "the target provider"
 msgstr "nhà cung cấp mục tiêu"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "The thread keeps its provider session, so your next message continues where you left off."
+msgstr "Luồng giữ nguyên phiên của nhà cung cấp, nên tin nhắn tiếp theo của bạn sẽ tiếp tục từ chỗ bạn dừng lại."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn tiếp theo trong hàng đợi."
@@ -13368,10 +13286,6 @@ msgstr "Không có phiên của cuộc trò chuyện để xử lý tin nhắn t
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The threads linked to this worktree changed. Refresh and try again."
 msgstr "Các luồng liên kết với worktree này đã thay đổi. Hãy làm mới và thử lại."
-
-#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "The transcript is copied into that account's home so it can resume the session. Sessions from the other provider keep their own account."
-msgstr "Bản ghi được sao chép vào thư mục của tài khoản đó để nó có thể tiếp tục phiên. Các phiên của nhà cung cấp còn lại giữ nguyên tài khoản của mình."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The update operation failed."
@@ -13429,6 +13343,10 @@ msgstr "Các máy chủ này đến từ plugin. Bật hoặc tắt chúng từ 
 msgid "Thinking"
 msgstr "Đang suy nghĩ"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support importing sessions."
+msgstr "Tác tử này không hỗ trợ nhập phiên."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
 msgstr "Tác nhân này chưa được cài đặt."
@@ -13460,6 +13378,10 @@ msgstr "Mã này hết hạn sau {countdown}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This code has expired."
 msgstr "Mã này đã hết hạn."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again."
+msgstr "Phiên Codex này đang mở trong một ứng dụng Codex khác (Codex Desktop hoặc CLI). Hãy đóng nó ở đó rồi thử lại."
 
 #: src/renderer/utils/machineLabels.ts
 msgid "This computer"
@@ -13614,6 +13536,14 @@ msgstr "Máy chủ này yêu cầu xác thực trước khi Poracode có thể k
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "Máy chủ này chạy trên máy này và không khả dụng cho dự án WSL."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session changed on disk. Refresh the list and try again."
+msgstr "Phiên này đã thay đổi trên đĩa. Hãy làm mới danh sách rồi thử lại."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session is already being imported."
+msgstr "Phiên này đang được nhập."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Phím tắt toàn hệ thống này không khả dụng. Hãy chọn tổ hợp phím khác."
@@ -13638,6 +13568,10 @@ msgstr "Luồng này đã đổi nhà cung cấp mà không chuyển ngữ cản
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "Luồng này đã được fork mà không chuyển ngữ cảnh: {agent} khởi động mà không có công cụ read_thread của Poracode nên không thể đọc cuộc trò chuyện gốc. Hãy bật lại công cụ MCP app-controls hoặc tóm tắt những gì nó cần."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This transcript is not in the agent's session store."
+msgstr "Bản ghi này không nằm trong kho phiên của tác tử."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -14350,8 +14284,8 @@ msgid "Unknown"
 msgstr "Không xác định"
 
 #: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
-msgid "unknown folder"
-msgstr "thư mục không xác định"
+msgid "Unknown folder"
+msgstr "Thư mục không xác định"
 
 #: src/renderer/notifications.ts
 msgid "Unknown project"
