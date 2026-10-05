@@ -46,7 +46,9 @@ export function CustomThemePalette(props: {
         isSelected={props.palette.sidebarFill ?? false}
         onChange={(sidebarFill) => props.onChange({ ...props.palette, sidebarFill })}
       >
-        {t`Use sidebar background for the docked sidebar`}
+        <span className="min-w-0 self-center text-center">
+          {t`Use sidebar background for the docked sidebar`}
+        </span>
       </ToggleSwitch>
     </div>
   );
