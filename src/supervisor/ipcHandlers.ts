@@ -58,6 +58,8 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     setAcpRegistryAgentAuth: (payload) => registry.setAcpRegistryAgentAuth(payload),
     authenticateAcpAgent: (payload) => registry.authenticateAcpAgent(payload),
     logoutAcpAgent: (payload) => registry.logoutAcpAgent(payload),
+    listImportableSessions: (payload) => runtime.sessionImportService.list(payload),
+    importSessionTranscript: (payload) => runtime.sessionImportService.importTranscript(payload),
     getThreadSnapshots: () => threads.getThreadSnapshots(),
     getTerminalShellSnapshots: () => threads.getTerminalShellSnapshots(),
     getAvailableWindowsShells: () => runtime.getAvailableWindowsShells(),

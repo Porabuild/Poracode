@@ -126,8 +126,6 @@ export const MAIN_LOCAL_PROCEDURE_NAMES = [
   "updateCrossagentMemoryEntryTags",
   "setProfileEnvironment",
   "createProfile",
-  "listImportableSessions",
-  "importSessionTranscript",
   "setWindowChrome",
   "dbGetProjects",
   "dbGetThreads",

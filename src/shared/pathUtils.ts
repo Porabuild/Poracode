@@ -4,14 +4,8 @@ export function getBasename(path: string): string {
 }
 
 /**
- * Whether two paths name the same folder. A trailing separator and the choice
- * of `\` or `/` are cosmetic everywhere; case is not. Windows folder paths are
- * case-insensitive, POSIX ones are not — a case-sensitive volume genuinely has
- * `/home/u/Repo` and `/home/u/repo` as two different folders — so the caller
- * passes the rule in. It has to, because this same comparison runs in the main
- * process, where the rule comes from `process.platform`, and in the renderer,
- * where it comes from the bridge's `isWindows()`. Two copies of it drifted
- * apart once already.
+ * Whether two paths name the same folder, ignoring a trailing separator and
+ * `\` vs `/`. Case folding is the caller's platform rule (Windows only).
  */
 export function isSameFolderPath(
   left: string | undefined,

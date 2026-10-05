@@ -17,8 +17,6 @@ import {
   dbDeleteThread,
   dbGetProjectNotes,
   dbGetProjects,
-  dbApplyThreadRuntimeEvents,
-  dbFlushThreadRuntimeWrites,
   dbGetState,
   dbGetThreadCompletedTurns,
   dbGetThreadContextUsage,
@@ -88,11 +86,6 @@ import {
 } from "@/shared/ipc";
 import { supportsNativeWindowMaterial, syncNativeThemeForMaterial } from "../window/windowMaterial";
 import type { SharedSettings } from "@/shared/settings";
-import {
-  importSessionTranscript as runImportSessionTranscript,
-  listImportableSessions as runListImportableSessions,
-  type SessionImportDeps,
-} from "../sessionImport";
 import {
   removeCrossagentRoutingOverride,
   removeCrossagentSelectionUsageEntry,
@@ -231,14 +224,6 @@ export function createLocalIpcHandlers(
     options.onSharedSettingsChanged?.(applied.settings);
     return applied.result;
   };
-  // Session import reads provider transcripts and writes the replay into the
-  // same runtime-event pipeline a live session uses.
-  const sessionImportDeps = (): SessionImportDeps => ({
-    readSharedSettings: () => readSharedSettingsFile(options.requirePoracodePaths().settingsPath),
-    getThreads: () => dbGetThreads(),
-    applyRuntimeEvents: dbApplyThreadRuntimeEvents,
-    flushRuntimeWrites: dbFlushThreadRuntimeWrites,
-  });
   return defineMainLocalIpcHandlers({
     pickFolder: async (defaultPath) => {
       const result = await dialog.showOpenDialog(options.getMainWindow()!, {
@@ -467,10 +452,6 @@ export function createLocalIpcHandlers(
       options.onSharedSettingsChanged?.(settings);
       return usage;
     },
-    listImportableSessions: async (payload) =>
-      runListImportableSessions(payload, sessionImportDeps()),
-    importSessionTranscript: async (payload) =>
-      runImportSessionTranscript(payload, sessionImportDeps()),
     setProfileEnvironment: (payload) =>
       applyToSharedSettingsFile((settings, baseDir) => {
         const { settings: next, instance } = applyProfileEnvironment(settings, payload, baseDir);

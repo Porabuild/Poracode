@@ -18,11 +18,7 @@ const threadConfigShape = {
   chromeMcp: z.boolean().optional(),
   /** Runtime environment selected for a provider that cannot execute natively. */
   executionEnvironment: z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }).optional(),
-  /**
-   * Set when the thread was created by importing an existing CLI transcript.
-   * Drives the "Imported from …" line in the chat header and makes a repeat
-   * import of the same session detectable.
-   */
+  /** Transcript this thread was imported from; drives the notice and re-import dedupe. */
   importedFrom: threadImportedFromSchema.optional(),
 } as const;
 

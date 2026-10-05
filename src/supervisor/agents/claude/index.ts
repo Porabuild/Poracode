@@ -28,6 +28,8 @@ import { buildClaudeArgs, claudeExtraArgsPosition, rewriteClaudeLaunchArgsForCon
 import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./detection";
 import { probeClaudeCapabilities } from "./probe";
 import { ClaudeSdkSession } from "./sdkSession";
+import { createClaudeSessionImport } from "./sessionImport";
+import { resolveNativeTildePath } from "../base/sessionFs";
 import { claudeMcpLaunch } from "./mcp";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
@@ -254,6 +256,11 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     label,
     binary: claudeDetectionSpec.binary,
     mcpRequiresStdioCwdProxy: true,
+    sessionImport: createClaudeSessionImport(
+      options.configDir
+        ? resolveNativeTildePath(options.configDir)
+        : path.join(homedir(), ".claude"),
+    ),
     skillSupport: {
       roots: [
         {

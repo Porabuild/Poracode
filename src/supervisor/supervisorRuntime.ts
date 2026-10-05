@@ -91,6 +91,7 @@ import { McpProbeService } from "./mcp/McpProbeService";
 import { prepareMcpToolFilters } from "./mcp/McpToolFilterService";
 import { ExternalMcpDiscoveryService } from "./mcp/ExternalMcpDiscoveryService";
 import { SkillsService } from "./skills/SkillsService";
+import { SessionImportService } from "./sessionImport/service";
 import { dropSkillSegmentsOnPolicyFailure } from "./skills/pluginSkillPolicy";
 import { PluginRegistry, resolvePluginMcpServers } from "./plugins";
 import { captureExperimentResponseSnapshot } from "./experimentResponseSnapshot";
@@ -138,6 +139,7 @@ export class SupervisorRuntime {
   readonly mcpOAuthService: McpOAuthService;
   readonly mcpProbeService: McpProbeService;
   readonly skillsService: SkillsService;
+  readonly sessionImportService: SessionImportService;
   readonly pluginRegistry: PluginRegistry;
   private readonly pluginDataDir: string;
   private readonly crossagentMcpIngress: CrossagentMcpIngress;
@@ -235,6 +237,7 @@ export class SupervisorRuntime {
       userPluginsDir: () => paths.pluginsDir,
     });
     this.pluginDataDir = paths.pluginDataDir;
+    this.sessionImportService = new SessionImportService(this.adapters, emit);
     this.skillsService = new SkillsService({
       adapters: this.adapters,
       resolveAgentVersion: (kind, wslDistro) =>

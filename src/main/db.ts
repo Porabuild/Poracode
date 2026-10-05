@@ -43,7 +43,6 @@ export {
   dbGetThreadConversationItemsPage,
   dbTruncateThreadRuntimeAfter,
   dbApplyThreadRuntimeEvents,
-  dbFlushThreadRuntimeWrites,
   dbReplaceThreadRuntimeItems,
   dbGetThreadCompletedTurns,
   dbAppendThreadCompletedTurn,
