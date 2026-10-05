@@ -171,6 +171,9 @@ export const XTermSurface = forwardRef<
   const { t } = useLingui();
   const appearance = useResolvedAppearance();
   const themePreset = useSharedSettings((state) => state.themePreset);
+  const activeCustomTheme = useSharedSettings((state) =>
+    state.customThemes.find((theme) => theme.id === state.themePreset),
+  );
   const mountRef = useRef<HTMLDivElement | null>(null);
   const scrollbarTrackRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -1006,7 +1009,7 @@ export const XTermSurface = forwardRef<
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [appearance, themePreset, themeBackgroundVar]);
+  }, [appearance, themePreset, activeCustomTheme, themeBackgroundVar]);
 
   const contextMenuItems: ContextMenuItem[] = [
     { id: "copy", label: t`Copy`, isDisabled: !hasSelection },

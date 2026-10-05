@@ -14,28 +14,12 @@
  * (success/warning/danger) stay on the base values.
  */
 
+import type { ThemePalette } from "@/shared/customThemes";
 import { deriveMutedColor, mixHex } from "./colorMath";
 
 export type ThemeVariantVars = Record<string, string>;
 
-export interface ThemeSpec {
-  /** Editor/content background (the largest surface). */
-  bg: string;
-  /** Panel/card surface (sidebars, popovers, composer). Slightly off `bg`. */
-  surface: string;
-  /** Primary text color. */
-  fg: string;
-  /** Accent / primary action color. */
-  accent: string;
-  /** Text rendered on top of `accent`. */
-  accentFg: string;
-  /** Hairline border / separator base color. */
-  border: string;
-  /** Optional explicit sidebar background. Defaults to `surface`. */
-  sidebar?: string;
-  /** Optional explicit content-area background. Defaults to `bg`. */
-  content?: string;
-}
+export type ThemeSpec = ThemePalette;
 
 /**
  * Secondary ("muted") text is derived by blending `fg` toward `bg` rather than
@@ -83,6 +67,9 @@ export const MANAGED_THEME_VARS = [
   "--border",
   "--separator",
   "--sidebar-background",
+  "--sidebar-panel-background",
+  "--sidebar-row-active",
+  "--sidebar-row-active-override",
   "--content-background",
   "--composer-surface",
 ] as const;
@@ -105,6 +92,7 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     fg,
     [
       { color: bg, floor: MUTED_BG_FLOOR },
+      { color: content, floor: MUTED_BG_FLOOR },
       { color: surface, floor: MUTED_PANEL_FLOOR },
       { color: sidebar, floor: MUTED_PANEL_FLOOR },
     ],
@@ -147,7 +135,13 @@ export function buildVariant(spec: ThemeSpec, mode: "light" | "dark"): ThemeVari
     "--border": border,
     "--separator": fade(border, 75),
     "--sidebar-background": sidebar,
+    "--sidebar-panel-background": spec.sidebarFill ? sidebar : content,
+    // Resolve the base wash here; referring back to --row-active would cycle
+    // when a sidebar scopes --row-active to this token.
+    "--sidebar-row-active": spec.sidebarRowActive ?? fade(fg, mode === "light" ? 11 : 20),
+    // Explicit authored fills also take precedence over the glass-sidebar wash.
+    "--sidebar-row-active-override": spec.sidebarRowActive ?? "",
     "--content-background": content,
-    "--composer-surface": mix(surface, 90, fg),
+    "--composer-surface": spec.composer ?? mix(surface, 90, fg),
   };
 }

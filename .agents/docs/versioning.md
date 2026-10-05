@@ -34,6 +34,7 @@ Version bumps are required by compatibility, not by every code edit. Record the 
 | ACP registry icon index                           | `src/supervisor/agents/acpRegistryIcons.ts` (`ICON_INDEX_VERSION`)                                                         | Index shape, filename derivation, normalization, or cache-validity rules.                                                                                                                          |
 | ACP registry extracted-artifact layout            | `src/supervisor/agents/acpRegistryInstallDir.ts` (`ACP_REGISTRY_INSTALL_LAYOUT_VERSION`)                                   | Anything that makes an already-extracted `acp-registry/<id>/<version>/bin` install invalid (mode bits, file placement). Teach `repairAcpRegistryInstallLayouts` the previous generation.           |
 | Managed skill manifest                            | `src/supervisor/skills/SkillsService.ts` (`SkillManifest.version` and `.poracode-skill.json` parsing/writes)               | Manifest fields, projection/copy semantics, hashing, or ownership rules.                                                                                                                           |
+| Custom theme documents and settings records       | `src/shared/customThemes.ts` (`CUSTOM_THEME_VERSION`, `themeDocumentSchema`)                                               | Palette fields, custom id namespace, or document shape. Keep settings records, renderer cache/bootstrap and JSON import/export aligned; validate each record independently.                        |
 | Keybindings file                                  | `src/shared/keybindings.ts` (`keybindingsFileSchema.version`) and `src/main/keybindingsFile.ts`                            | File shape, command identity, or default-binding migrations. Keep renderer writers in `src/renderer/commands/keybindingStore.ts` aligned.                                                          |
 | Legacy Lightcode import marker                    | `src/main/legacyDataMigration.ts` (`MIGRATION_VERSION`, marker/request filenames)                                          | Import scope or behavior that must run again for already-migrated users.                                                                                                                           |
 | Experiment persisted store                        | `src/shared/contracts/experiment.ts` (`EXPERIMENT_STORE_VERSION`)                                                          | Experiment schema/meaning. Keep `src/renderer/state/experimentStore.ts`, `src/main/db/sync.ts`, and remote experiment ownership aligned.                                                           |
@@ -41,6 +42,17 @@ Version bumps are required by compatibility, not by every code edit. Record the 
 | Other renderer stores                             | `src/renderer/state/threadTodoDockStore.ts`, `sidebarUiStore.ts`, and `workspaceStore.ts` (Zustand `version`)              | Any field included by `partialize`, its meaning, defaults, or storage location. Add a `migrate` function when retaining data.                                                                      |
 | Remote-server renderer store                      | `src/renderer/state/remoteServersStore.ts` (Zustand persist; currently implicit version `0`)                               | Durable server identity, token, projected projects, or `partialize` shape. Add an explicit version and migration before an incompatible change.                                                    |
 | Shared settings and other unversioned JSON stores | `src/shared/settings.ts`, `src/main/sharedSettingsFile.ts`, remote auth/identity/push stores, MCP OAuth, and usage secrets | These normalize or validate instead of carrying a version. Any incompatible change still requires an explicit migration, tolerant parser, or introduction of a version field plus legacy handling. |
+
+Custom themes use authoring format `version: 1` in `src/shared/customThemes.ts`.
+Settings files and the renderer's `poracode-shared-settings` cache store the same
+validated palette records; exported JSON omits the local installation id. Legacy
+settings/cache shapes remain valid and normalize to an empty theme list. Invalid,
+duplicate or unsupported records are discarded individually, and missing selected
+themes clear overrides to the base palette. The pre-paint reader and React provider
+use the same derivation; `poracode-boot` retains its existing appearance/background
+shape. Theme preferences remain device-local and are excluded from remote settings,
+so no IPC/remote protocol or database version changes are needed. Regression tests
+start from released settings and cache shapes and cover export/import round trips.
 
 ## Wire protocols and deployed artifacts
 

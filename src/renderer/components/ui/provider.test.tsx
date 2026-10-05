@@ -6,10 +6,12 @@ import type { ThemeMode } from "@/shared/contracts";
 const settingsState: {
   themeMode: ThemeMode;
   themePreset: string;
+  customThemes: import("@/shared/customThemes").CustomTheme[];
   sidebarGlassTint: { light: number | null; dark: number | null };
 } = {
   themeMode: "system",
   themePreset: "default",
+  customThemes: [],
   sidebarGlassTint: { light: null, dark: null },
 };
 
@@ -46,6 +48,7 @@ function setMatchMedia(prefersDark: boolean) {
 beforeEach(() => {
   settingsState.themeMode = "system";
   settingsState.themePreset = "default";
+  settingsState.customThemes = [];
   document.documentElement.classList.remove("light", "dark");
   delete document.documentElement.dataset.theme;
   delete document.documentElement.dataset.themePreset;

@@ -278,7 +278,7 @@ function ShellSidebarAside(props: {
           ? `poracode-sidebar-aside--overlay fixed inset-y-0 left-0 z-[60] border-r border-[color:var(--border)] bg-background shadow-2xl transition-transform duration-200 ${
               effectiveClosingOverlay || !overlayReady ? "-translate-x-full" : "translate-x-0"
             }`
-          : `relative ${
+          : `relative bg-[var(--sidebar-panel-background)] ${
               sidebarDividerBelowHeader ? "" : `border-r ${sidebarDividerColorClass}`
             } ${!hasHeaders ? "-mt-5 h-[calc(100%+0.75rem)]" : ""}`
       }`}
@@ -293,7 +293,7 @@ function ShellSidebarAside(props: {
           } ${
             effectiveIsOverlay
               ? "poracode-overlay-header--no-drag bg-background"
-              : "bg-[var(--content-background)]"
+              : "bg-[var(--sidebar-panel-background)]"
           }`}
           style={{
             height: "env(titlebar-area-height, 32px)",

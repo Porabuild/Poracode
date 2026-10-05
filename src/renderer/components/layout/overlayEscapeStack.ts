@@ -30,9 +30,11 @@ function uninstallListener(): void {
 /**
  * Elements that must receive Escape presses directly even while an overlay is
  * visible — e.g. a terminal inside a login overlay, a Monaco editor inside the
- * file-editor overlay, or an open mention popover inside a sub-agent drawer.
+ * file-editor overlay, an open mention popover, or nested accessible dialogs
+ * and popup menus. Their own handlers must run before the enclosing overlay.
  */
-const FOCUS_RETAINS_ESCAPE = ".xterm, .monaco-editor, .poracode-mention-input";
+const FOCUS_RETAINS_ESCAPE =
+  '.xterm, .monaco-editor, .poracode-mention-input, [role="dialog"], [role="alertdialog"], [data-rac][data-trigger]';
 
 function onKeyDown(event: KeyboardEvent): void {
   if (event.key !== "Escape") return;

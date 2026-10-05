@@ -70,8 +70,11 @@ describe("theme presets", () => {
   it("defines every managed variable in both variants", () => {
     for (const preset of APP_THEME_PRESETS) {
       for (const variant of [preset.light, preset.dark]) {
-        const missing = MANAGED_THEME_VARS.filter((key) => !variant[key]);
+        const missing = MANAGED_THEME_VARS.filter(
+          (key) => !variant[key] && key !== "--sidebar-row-active-override",
+        );
         expect(missing).toEqual([]);
+        expect(variant["--sidebar-row-active-override"]).toBe("");
       }
     }
   });
