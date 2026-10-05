@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T23:10:12.525830+00:00",
+  "updatedAt": "2026-10-05T23:41:35.276536+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,9 +35,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R135 bounded Sol6.1Max fixture implementation joined; coordinator verified all8 input/output seals,18protocol tests and26/27combined preflights.",
+    "lastAgent": "R141 pinnedSDKStopnotification review andR143 inboundretention review joined; rootverified6+5source seals andactualpinnedofficialsource. R137 eight-file GUIguard review joined andcorrected.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "All required children joined. R135/R136 GUIattempt+solecorrection both FAIL; cleanup PASS and16witnessedincarnations freshly absent. No live test app or execution session. New current-provider wrong-channel no-op regression passes20RPC tests.",
+    "agentState": "All required Sol6.1Max children joined. R144 five actualGUIcontrols/negative/zeroexit/bounds/cleanup PASS;8fresh witnessedabsences. No live app/process/exec. R143 inboundretention source review verified5hashes; paired provider-boundary implementationpending.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Current source1cd256a4a immutable production build: all eight stages,7558source/3712dist/1753web files and199package/23489file/374edge runtime closure PASS. Saved desktop/compact, exact cached-tail offline rows, inline image and reconnect scoped PASS; no new resource savings or physical-device qualification."
     },
     "buildSession": null,
-    "nextAction": "Offline correct wrong-owner no-effect acceptance and retain HTTP/source artifacts before validation. R135/R136native GUI scope exhausted2/1; no unchanged replay. Investigate existing PTY process lifecycle before another native terminal sequence; Safari/PWA, matched p95/resources and final acceptance remain open.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round136/root-round136-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round136/declaration.json",
+    "nextAction": "Implement paired Codex-boundary retirement ofexactmatchedserver-resolved requests andunknown/late answer no-op, preserving genuine unknownresolved notification forwarding. Reproduce/fixwithfocusedprovider tests, preserve numericcanonicalalias/owner/sibling semantics, then verifycurrentcandidate inputs before newlive checks. PTY/Safari/PWA/longsessions andmatchedp95/resources/finalaudit stayopen.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round144/root-round144-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round144/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -450,12 +450,12 @@
       "compiledUiEvidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
     },
     "docsHeadCI": {
-      "head": "e3a0c08f5f22ff4f0e36e1cc06603de987d88acd",
-      "coreRun": 37385700676,
-      "nativeRun": 37385700935,
+      "head": "94d0b39646999c6ebb2bfe792ba6ff0f410eb751",
+      "coreRun": 37386980943,
+      "nativeRun": 37386981297,
       "coreResult": "success",
-      "nativeResult": "in_progress",
-      "scope": "Exact current pushed head; later test/docs commit requires own runs."
+      "nativeResult": "success",
+      "scope": "Both exact pushed-head workflows complete. A later documentationcheckpoint requires its own runs."
     },
     "previousVerifiedSourceCI": {
       "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
@@ -613,7 +613,7 @@
       "result": "tmp/v2-streaming-perf-20260930/round133/request-steer-source-tests.json"
     },
     "guiRequestControlsPreparation": {
-      "state": "planned-and-prototype-preflight-pass-not-launch-ready",
+      "state": "superseded_by_R144_actual_GUI_qualification",
       "requiredCases": [
         "actualGUIquestionoptions/freeText",
         "permissionAllow",
@@ -634,20 +634,46 @@
       ]
     },
     "guiRequestControlsExecution": {
-      "state": "failed_both_runs_pre_control_submission",
-      "nativeAttempts": 2,
-      "corrections": 1,
-      "remainingAttempts": 0,
-      "firstFailure": "Successful undefined-return phase falsely rejected by coordinator harness, after actual heldA/B source custody and GUI activation.",
-      "correctionFailure": "Question displayed, wrong-owner route acknowledged. Coordinator wrongly required HTTPerror; source shows no reply and requestpending. Current source proves no-op contract; immediate negative artifacts not retained before validation, so not retroactively qualified.",
-      "preflightsPassed": [26, 27],
-      "protocolTestsPassed": 18,
-      "sourceRegressionTestsPassed": 20,
-      "functionalPass": false,
+      "state": "current_production_scripted_structured_real_GUI_PASS",
+      "nativeAttempts": 5,
+      "cumulativeCorrections": 4,
+      "earlierFailedRunsPreserved": true,
+      "counterReset": false,
+      "controls": [
+        "options-and-free-text-question",
+        "Allow-numeric0",
+        "Deny",
+        "same-turn-working-composer-steer",
+        "pending-command-approval-Stop"
+      ],
+      "negativeOwner": "actualwrongthreadHTTP200ack/noowningproviderreply orrequest/actorstatechange, followedbyowningactualGUIanswer",
+      "sameTurnSteer": "currentSDKoptionalclientUserMessageId omission supported; actualrawrequest/heldturn andoneowningpersistedcanonicaluseritem verified",
+      "Stop": "realowninginterruptack +SDKserverRequest/resolved withoriginaltypedID +interruptedcompletion; pendingUIclears/persistedAidle, Bunchanged; noapprovalreply/decisioninvented",
+      "qualificationPolicyVersion": 2,
+      "preflightPassed": 37,
+      "normalQuit": true,
+      "savedBoundsExact": true,
       "cleanupPass": true,
-      "freshlyAbsentWitnesses": 16,
+      "freshlyAbsentWitnesses": 8,
+      "sourceSealsVerified": 59,
+      "originalEvidenceSealsVerified": 32,
+      "sourceAndDependenciesStable": true,
+      "unexpectedConsoleErrors": 0,
+      "runtimeErrors": 0,
       "resourceGainClaim": false,
-      "evidence": "tmp/v2-streaming-perf-20260930/round136/root-round136-result.json"
+      "evidence": "tmp/v2-streaming-perf-20260930/round144/root-round144-result.json",
+      "scope": "Scripted built-in structured provider realElectron controls; no externalaccount/tool execution, fullmobile orresourcequalification."
+    },
+    "providerInboundRetention": {
+      "state": "source_review_reproduced_implementation_pending",
+      "evidence": "tmp/v2-streaming-perf-20260930/round143/inbound-retention-review.json",
+      "sourceSealsVerified": 5,
+      "observed": "serverRequest/resolved leavesinboundpayload;laterchannelclose sendsalreadyresolvedcancellation. Duplicate/unknownclientresolution fallsrawreplyfallback.",
+      "recommendedFix": "RetireexactoriginaltypedID/providerthread beforecallbacks;requirependingentryandcapturedchannel forclientresolution;keepforwardinglegitimate notifications afterordinaryanswers.",
+      "unknownFallbackRequiredUseFound": false,
+      "scope": "Fivefileaudit/purecurrentsourceevaluation, not exhaustiveprivateconsumer/memorygain/native qualification.",
+      "productionChanges": false,
+      "ramGainClaim": false
     }
   },
   "milestones": [
@@ -1270,6 +1296,11 @@
       "at": "2026-10-05T23:10:12.525830+00:00",
       "scope": "R135/R136 GUI protocol integration and failed native qualification",
       "result": "18protocol/26original/27correction preflights PASS. Native attempts FAIL on harness contracts; question UI reached but no controls submitted. Current owning-channel regression20tests PASS; both cleanups PASS/16fresh absences. Original seals/failures/counters retained,2/1exhausted. Counts remain13/18 and1/6; no new performance gain."
+    },
+    {
+      "at": "2026-10-05T23:37:02.094286+00:00",
+      "scope": "R137\u2013R144 GUI contract correction and actualqualification",
+      "result": "R138 three realGUIanswers/negative scopedPASS, fullFAIL optional-wire mismatch; exactrequestSHAreconstructed. R140 fourthcontrolsteerPASS, fullFAIL omittedgenuineSDKresolutionnotification. Root/Solverify pinned0.155.1source, correctonlyprivatefixture/guard; R144allfiveGUIcontrols+negative+strictnativequit/bounds/cleanupPASS.8freshknownabsences,59source/32originalseals stable,37preflights. BothCIworkflowsgreenon94d. Goalactive13/18tasks/1of6milestones; no newresourcegain."
     }
   ],
   "tasks": [
@@ -1413,7 +1444,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reuse acceptedR115genuineexecution, R124browsercache, R126livenativerich/groups/gallery and R131savednativeexactsemantics. ResolveonlymissingPTYbuffercontrols/request-permission-steer andmobile/PWArequirements; fullqualificationstillincomplete.",
+      "nextAction": "Reuse accepted R115genuineexecution,R124browsercache,R126native rich/groups/gallery,R131savedsemantics andR144five realGUIrequest/approval/steer/Stopcontrols. RemainingPTYbuffer/lifecycle andSafari/mobile/PWA/longsession gates stayopen; fullqualificationincomplete.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1426,7 +1457,8 @@
         "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
         "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
         "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
-        "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
+        "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
+        "tmp/v2-streaming-perf-20260930/round144/root-round144-result.json"
       ]
     },
     {
