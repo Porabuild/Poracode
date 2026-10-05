@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T22:34:05.640479+00:00",
+  "updatedAt": "2026-10-05T22:57:10.830956+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,9 +35,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R130 custody review and R131 saved semantic correction/review bySol6.1Max complete/joined; root verified6design and10saved seals",
+    "lastAgent": "R133four-fileSolMaxprelaunchreviewjoined; rootverified4seals andcorrectedstaleresizeACKacceptance. R134six-fileGUIfixtureplanjoined; rootverified6seals andcurrent3mapper/form+5bareRPCreplypreflightsPASS.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "All required children joined; nativeR129/R131/R132 runs terminal and cleaned, no live root or exec handles. Saved-native semantic gate scopedPASS; remainingPTYcontrols and broaderfunctional/resource/finalaudit gates open.",
+    "agentState": "All requiredchildrenjoined. R133nativeattemptterminalFAIL/cleanupPASS;15recordedPIDnumbersfreshlyabsent, locatorPIDpastcustodyunproved. No liveapp/root/processsession. R134GUIrequestplan/prototypesprepared; fullprivateprotocolintegration andrealUIexecutionnotyetdone.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Current source1cd256a4a immutable production build: all eight stages,7558source/3712dist/1753web files and199package/23489file/374edge runtime closure PASS. Saved desktop/compact, exact cached-tail offline rows, inline image and reconnect scoped PASS; no new resource savings or physical-device qualification."
     },
     "buildSession": null,
-    "nextAction": "Preflight functionalPTYreadback using public owning terminal buffer, then only missing resize/reopen/interrupt/quit controls; repeat no acceptedrich/saved matrix and preserve failedscopes/counters. Remainingrequest/permission/steer/mobilePWA rows, viable representative matchedresource/p95 design and finalacceptance remain open.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round132/root-round132-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round132/declaration.json",
+    "nextAction": "Integrate/preflight boundedprivateGUIquestion/approval/steerfixture, thenexecuteonlyfive missingGUIcontrolcases. InvestigatePTYlocator/actual supervisor source lifecycle with positive evidencebeforeanotherterminalrun; R133consumedscope cannotrestartunchanged. Remainingmobile/PWA/representativematchedp95/resources/finalacceptance remainopen; no3percenttuning cycle.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round134/root-round134-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round133/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -450,14 +450,14 @@
       "compiledUiEvidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
     },
     "docsHeadCI": {
-      "head": "83ded8d9a10caf9739eacf34331ead7d982f2f42",
-      "coreRun": 37379939390,
-      "nativeRun": 37379939780,
+      "head": "1f6da3f2f3a614988c0d4a8b2ab54a2ade8221c0",
+      "coreRun": 37383328850,
+      "nativeRun": 37383329101,
       "coreResult": "success",
       "nativeResult": "success",
-      "coreEvidence": "tmp/v2-streaming-perf-20260930/round130/core-ci.json",
-      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round130/native-ci.json",
-      "scope": "Exact pushed documentation head passes core and required native build/AppTests/foundation. Source unchanged from1cd256a4a. Conditional runtime jobs skipped by workflow remain separate."
+      "coreEvidence": "tmp/v2-streaming-perf-20260930/round133/core-ci.json",
+      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round133/native-ci.json",
+      "scope": "Both exact-head required workflowsPASS includingiOSAppTests/Androidbuild/nativefoundation; conditionalruntimejobsremain separatelyskipped. NextdocumentationcheckpointneedsownCIreceipt."
     },
     "previousVerifiedSourceCI": {
       "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
@@ -474,14 +474,14 @@
       "state": "Investigating degraded availability, job failures and hosted-runner assignment delays; supports infrastructure attribution, not a source-code CI pass."
     },
     "priorDocsHeadCI": {
-      "head": "5af1fea9d1fbf9d7369fd4905b3629ffe9d0b02d",
-      "coreRun": 37378458631,
-      "nativeRun": 37378458728,
+      "head": "83ded8d9a10caf9739eacf34331ead7d982f2f42",
+      "coreRun": 37379939390,
+      "nativeRun": 37379939780,
       "coreResult": "success",
-      "nativeResult": "in_progress",
-      "coreEvidence": "tmp/v2-streaming-perf-20260930/round127/core-ci.json",
-      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round127/native-ci.json",
-      "scope": "Current source unchanged; subsequent documentation checkpoint gets its own CI receipt."
+      "nativeResult": "success",
+      "coreEvidence": "tmp/v2-streaming-perf-20260930/round130/core-ci.json",
+      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round130/native-ci.json",
+      "scope": "Exact pushed documentation head passes core and required native build/AppTests/foundation. Source unchanged from1cd256a4a. Conditional runtime jobs skipped by workflow remain separate."
     },
     "nativeResidualQualification": {
       "state": "scoped-live-pass-overall-fail",
@@ -587,11 +587,12 @@
     "savedNativeAttemptHistory": {
       "R129": "FAIL before any seeds: complete discovery refused ESRCH children;19recordedPIDs freshly absent,cleanupPASS;attempt1/no correction consumed",
       "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs→11exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
-      "cumulativeAffectedNativeLaunches": 5,
+      "cumulativeAffectedNativeLaunches": 6,
       "counterReset": false,
       "productionChanges": false,
       "resourceGainClaim": false,
-      "R132": "FocusedPTYFAIL atlate-installed receiveobserver; realkernelTTY exact source admission, trustedz input/sourceecho and screenshot display observed. Two injected timing tests reproduce already-open socketgap. Resize/reopen/interrupt/normalquitnotreached;cleanupPASS/all8knownnativePIDsfreshESRCH;attempt1/no correction consumed."
+      "R132": "FocusedPTYFAIL atlate-installed receiveobserver; realkernelTTY exact source admission, trustedz input/sourceecho and screenshot display observed. Two injected timing tests reproduce already-open socketgap. Resize/reopen/interrupt/normalquitnotreached;cleanupPASS/all8knownnativePIDsfreshESRCH;attempt1/no correction consumed.",
+      "R133": "FAILbeforeinput: expectedsource locatorPID missingfromcompleteownedtree despiteexactCLIshim/body andTTYself-record. Custody/causeunproved;source guardsunchanged;cleanupPASS/all15recordedPIDnumbersfreshESRCH with unknownsnotadopted.28preflightchecksPASSafterrootfixedreviewedstale-fitACKacceptance;attempt1/0consumed."
     },
     "savedNativeSemanticQualification": {
       "state": "scoped-pass",
@@ -605,6 +606,34 @@
       "ptyQualified": false,
       "normalQuitQualified": false,
       "scope": "Actual same-document complete deliveredHTTPcursorchain, fullstoppedcanonicalIDs and exactcurrentoverlappingDOMinventory. Oracleinitialcompaction correction only; no production/resourcegain or new app replay."
+    },
+    "currentRequestSteerSourceChecks": {
+      "pass": true,
+      "files": 4,
+      "tests": 30,
+      "liveGuiQualified": false,
+      "result": "tmp/v2-streaming-perf-20260930/round133/request-steer-source-tests.json"
+    },
+    "guiRequestControlsPreparation": {
+      "state": "planned-and-prototype-preflight-pass-not-launch-ready",
+      "requiredCases": [
+        "actualGUIquestionoptions/freeText",
+        "permissionAllow",
+        "permissionDeny",
+        "workingcomposersteer",
+        "pendingpermissionStop/cancel"
+      ],
+      "plan": "tmp/v2-streaming-perf-20260930/round134/gui-request-controls-plan.json",
+      "rootEvidence": "tmp/v2-streaming-perf-20260930/round134/root-round134-result.json",
+      "sourceSealsVerified": 6,
+      "replyClassifierTests": 5,
+      "currentMapperFormPrototypeTests": 3,
+      "realGuiControlsExecuted": false,
+      "remaining": [
+        "integrate newprivate scriptedrequest/same-held-turnsteer with existingapp-server startupcontract",
+        "preflight exactcancel/actor/turn/nonce/protocol binding andinputseals",
+        "oneboundedactualGUIcontrolrunwithsources/canonicalnegativeowner/runtime/cleanupreceipts"
+      ]
     }
   },
   "milestones": [
@@ -1216,6 +1245,12 @@
       "round": "R131-semantic-final",
       "result": "tmp/v2-streaming-perf-20260930/round131/root-saved-semantic-verification.json",
       "summary": "RequiredSolMaxreviewjoined and10input/aftersealsverified. Faithfulinitial/olderhydration projects all32rawcanonicalIDs toexact11actualDOMIDs;3offlinechecksPASSincludingwrongrawIDs/missingrow negatives. Old12-tailcanonical anduncompactedinitialoracle failurespreserved;combinedR131fullFAIL/PTYfalse/normalquitfalseunchanged. No newproductionchanges/resourcegain/milestonecompletion."
+    },
+    {
+      "at": "2026-10-05T22:57:10.830956+00:00",
+      "round": "R133-R134",
+      "result": "tmp/v2-streaming-perf-20260930/round134/root-round134-result.json",
+      "summary": "Exact1fheadcore/nativeCIbothPASS. SolMaxprelaunchfindsstale earlier-fitACKfalseacceptance; rootsettlednativebounds/publicgeometry/newsourcegrid proof andsixnegative/positivechecks inside28preflights. One materiallyrevisedPTYattemptfailsbeforeinputatmissingpositiveownedsource;all15recordedPIDnumbersabsent/cleanupPASS andoriginalfailures/countersretained. Current30request-steersourcetestsPASS. Independent six-fileGUIplanverified;5bareRPCreply and3currentmapper/formprototypesPASS. GUIruntimecontrolsnotexecuted;fullprivateprotocolintegration/cancelpreflightremaining. No productionchanges/resourcegains orcompletedmilestone."
     }
   ],
   "tasks": [
