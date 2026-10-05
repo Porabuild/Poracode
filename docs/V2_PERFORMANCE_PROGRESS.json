@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T16:30:28.423313+00:00",
+  "updatedAt": "2026-10-05T17:21:51.103660+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -36,7 +36,7 @@
     "requiredAgent": null,
     "lastAgent": "R118 Codex6.1SolMax measurement-gate review completed and joined",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "Four static findings corrected before launch. Original witness refusal and corrected fixed-census refusal remain failed; exact original stale PID not retained.",
+    "agentState": "All required reviews completed and joined. Current1/current2 failures preserved; final unused reference GUI/source windows pass, while ordinary auxiliary exit rejects whole-run resource qualification and summary scan remains failed.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -46,9 +46,9 @@
       "state": "R115 immutable 5fb2c6ada including mobile modal styles; all eight build stages, 7555 source/3712 output files, 199-package/23489-file/374-edge closure and finalized 1753 web files PASS. Rich96 canonical/live groups/media and genuine execution scoped PASS; full PWA qualification FAIL. No new resource savings."
     },
     "buildSession": null,
-    "nextAction": "Review and integrate surviving-addition accounting and evidence retention into the three originally unused required arms. Preserve both failed reference attempts; no third reference1 restart/reset. Independent current/ref2 pairing can advance remaining required qualification, while full opposite-order p95 remains unproved. Full richPWA/offline and finalaudit still open.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round118/gui-correction-declaration.json",
+    "nextAction": "Trace saved-summary hydration and virtualizer settlement against the stopped canonical transcript and recorded scroll coverage. Finish materially corrected current rich GUI/PWA functional coverage; preserve all exhausted R118 arms. Matched GUI/PTY resource comparison and F6 remain open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round118/gui-last-reference-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -320,16 +320,33 @@
       }
     },
     "matchedGuiCurrent": {
-      "state": "two-reference-attempts-failed-cleanly",
-      "result": "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
-      "newOfflineChecksPassed": 43,
+      "state": "all-required-arms-consumed-no-full-matched-qualification",
+      "result": "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
+      "newOfflineChecksPassed": 48,
       "ordinaryNativeSamples": 41,
       "inputDispatches": 200,
       "inputP95Qualified": false,
       "matchedGainClaim": false,
-      "unusedRequiredArms": ["r118-gui-current1", "r118-gui-current2", "r118-gui-ref2"],
-      "dynamicNativeEnvelope": "Surviving owned additions bounded without dropping their CPU; original fixed-census refusal preserved. Dynamic accounting/integration remains unvalidated live.",
-      "rawEvidenceRetention": "Input/page/boundary observations now saved before validation refusal; source-only correction, lost original observations unrecoverable."
+      "unusedRequiredArms": [],
+      "dynamicNativeEnvelope": "Final reference rich window has qualified observed-envelope accounting; ordinary confirmed auxiliary exit prevents whole-run resource qualification. Unseen ephemeral children and hardware/private dimensions remain unproved.",
+      "rawEvidenceRetention": "Current1/current2 and final reference input/page/boundary data retained. Original corrected reference lost observations remain unrecoverable; failed verdicts preserved.",
+      "scopedInputP95Qualified": true
+    },
+    "guiQualificationFinal": {
+      "reference": "r118-gui-ref2",
+      "guiWindowsQualified": true,
+      "overallPass": false,
+      "measurementsQualified": false,
+      "ordinaryInputP95Ms": 3.3,
+      "richInputP95Ms": 4.9,
+      "scriptedRichCalls": 144,
+      "canonicalAndNegativeOracle": "PASS",
+      "savedReplayAndGallery": "PASS",
+      "savedSummary": "FAIL event-budget, three/four; stopped canonical hydration contains all four expected summaries",
+      "naturalRelease": "PASS scoped five-second checkpoint; no leak/private-RAM claim",
+      "cleanup": "PASS 379 historical PID numbers freshly absent",
+      "currentInput": "Current1/current2 exact 200-input scoped queue p95 3.2/4.4 ms; differing native coverage, no matched gain",
+      "gainClaim": false
     }
   },
   "milestones": [
@@ -1037,7 +1054,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Run remaining required current/ref2 GUI arms after observer review, with ordinary/rich source gates, full tool-payload oracle, saved summaries/gallery and natural release. Rich offline/reconnect and final candidate workflow coverage remain separate open gates.",
+      "nextAction": "Trace saved-summary hydration and virtualizer settlement against the stopped canonical transcript and recorded scroll coverage. Finish materially corrected current rich GUI/PWA functional coverage; preserve all exhausted R118 arms. Matched GUI/PTY resource comparison and F6 remain open.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1046,7 +1063,8 @@
         "tmp/v2-streaming-perf-20260930/round107/root-round107-result.json",
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json"
+        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+        "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json"
       ]
     },
     {
@@ -1055,10 +1073,11 @@
       "title": "Final matched p95 and resources",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Use the three unused required arms with reviewed dynamic accounting; preserve failed references. Full opposite-order GUI input, renderer/GPU-process and GUI/PTY working-release memory comparisons remain unproved.",
+      "nextAction": "R118 required arms and correction budget exhausted. Preserve scoped input/source evidence and resource refusals; complete opposite-order GUI comparison remains unproved. Resolve materially corrected functional coverage before a new measurement design.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json"
+        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+        "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json"
       ]
     },
     {
@@ -1249,12 +1268,13 @@
   "matchedGuiBudget": {
     "round": "R118",
     "requiredArms": 4,
-    "originalRequiredArmsStarted": 1,
+    "originalRequiredArmsStarted": 4,
     "correctionLaunchesUsed": 1,
     "correctionLaunchLimit": 1,
-    "unusedRequiredArms": ["r118-gui-current1", "r118-gui-current2", "r118-gui-ref2"],
+    "unusedRequiredArms": [],
     "furtherReference1Restart": false,
     "resetOnNewRoundLabel": false,
-    "evidence": "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json"
+    "evidence": "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
+    "furtherUnchangedLaunchesAllowed": false
   }
 }
