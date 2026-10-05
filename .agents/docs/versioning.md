@@ -85,6 +85,8 @@ Payload-projection composition uses the same deterministic pure-leaf generator i
 
 ## Required check for every change
 
+Bounded older-history pages apply the same existing image-reference projection as the history tail and snapshots. Canonical image bytes, item order, continuation positions, refusal budgets and authenticated resolution remain unchanged. This repairs response composition without adding fields or changing the established image-reference contract; persisted schemas and protocol versions remain valid. Serialized response hashes and build identities identify the corrected output. The regression checks tail/page parity, bounded response size, preserved canonical bytes and image resolution.
+
 The source editor loads the installed Monaco runtime and its matching workers
 from the content-hashed renderer asset graph, through a lazy source-editor
 boundary. It replaces the wrapper's independently versioned CDN default.

@@ -372,7 +372,7 @@ export async function buildBoundedThreadHistoryItems(
       );
       const materializedIds = new Set(materializedDesc.map((item) => item.id));
       const keptMeta = packed.packed.filter((row) => materializedIds.has(row.itemId));
-      const pageItemsAsc = [...materializedDesc].reverse();
+      const pageItemsAsc = projectRuntimeItemsImageRefs(input.threadId, materializedDesc).reverse();
       const omitted = keptMeta.length < phase1.rows.length || phase1.moreBeyondWindow;
       const nextCursor = (count: number): number | null => {
         if (!omitted && count >= pageItemsAsc.length) return null;
