@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T18:47:21.575324+00:00",
+  "updatedAt": "2026-10-05T20:07:24.037843+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,9 +34,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R119 Sol6.1Max prelaunch review completed/joined; six harness findings corrected and11focusedchecksPASS",
+    "lastAgent": "R120 Sol6.1Max review completed/joined; root verified reviewed source hashes and corrections; 72 prelaunch checks passed",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "Review complete, no required agent pending. Two copied-root startup failures preserved; no browser launched in R119.",
+    "agentState": "No required agent pending. Declared residual attempt failed; separate guarded recovery passed; no owned run remains live.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -46,9 +46,9 @@
       "state": "R115 immutable 5fb2c6ada including mobile modal styles; all eight build stages, 7555 source/3712 output files, 199-package/23489-file/374-edge closure and finalized 1753 web files PASS. Rich96 canonical/live groups/media and genuine execution scoped PASS; full PWA qualification FAIL. No new resource savings."
     },
     "buildSession": null,
-    "nextAction": "Finalize the qualification plan around a root-and-credential-initialized fixture and the actual delivered-page semantic oracle. R119 two attempted server launches/correction are exhausted and stay failed; no unchanged retry or counter reset. Current saved GUI/gallery/compact rich offline/reconnect still unqualified; F3/F5/F6 remain open.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round119/corrected-declaration.json",
+    "nextAction": "Integrate projected cache lookup and production snapshot projection, bounded separate wire files, durable phase reporting, and mandatory finalization before considering any explicitly declared materially revised qualification. Preserve original failures and all cumulative counters. Do not repeat this consumed run.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round120/root-round120-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round120/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -349,15 +349,27 @@
       "gainClaim": false
     },
     "savedHistoryQualification": {
-      "result": "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
+      "result": "tmp/v2-streaming-perf-20260930/round120/root-round120-result.json",
       "sourceOracle": "R118 production metadata packing12/28/21 -> exact three observed summary IDs with61canonicalIDcoverage; original live causes remain unproved",
       "wireAndLifecyclePureTests": 11,
       "copiedFixtureStartupFailures": 2,
-      "browserLaunches": 0,
-      "cleanup": "PASS both;20historicalPIDnumbers freshly absent",
+      "browserLaunches": 1,
+      "cleanup": "R119 original/correction cleanup PASS; R120 ordinary cleanup FAIL/bypassed, separate guarded recovery PASS with18PIDnumbers absent",
       "readyFixtureSourceProof": "PASS production root+credential initialization before DBseed, laterowner generation reopen,61canonicalrows/originalDBhashpreserved; no app launch",
       "currentGuiPwaQualified": false,
-      "performanceGainClaim": false
+      "performanceGainClaim": false,
+      "cumulativeOwnedServerAttempts": 3,
+      "residualAttemptFailed": true,
+      "normalCleanupPass": false,
+      "externalGuardedRecoveryPass": true,
+      "historicalPidNumbersAbsent": 18,
+      "desktopAndCompactObservedRows": 19,
+      "desktopGalleryControls": "PASS scoped",
+      "compactDocumentAndWorker": "PASS scoped",
+      "offlineReplay": "UNTESTED after cache receipt failure",
+      "reconnectRowCoverage": "FAIL owning-history settlement deadline",
+      "semanticQualification": false,
+      "futureHelperChecksPassed": 5
     },
     "ciRepair": {
       "originalHead": "bf8cd8ea3d328b834f53808a257c9db91c16e457",
@@ -373,9 +385,18 @@
       "evidence": "tmp/v2-streaming-perf-20260930/round119/ios-ci-evidence/AppTests.xcresult",
       "confirmedIsolationGap": "Actual test stdout records a live a.test push/unregister request; removal prelude uses shared production push vault/outbox despite fake session dependencies. Sole timeout cause remains unproved.",
       "repair": "Forward existing removal registrations injection through public unpair, reuse isolated push fixture with the session test catalog, and defer watchdog cancellation on all exits. Existing assertions and deadlines unchanged.",
-      "verification": "Local Xcode27 generic Simulator test build succeeds; no simulator launched. Repair-head CI pending. No protocol/persistence version or user-facing string changed.",
+      "verification": "Repair head f6d4002d6 passes both exact-head workflows; all 1500 iOS tests pass. Assertions/deadlines unchanged; no protocol/persistence version or user-facing string changed.",
       "review": "Sol6.1Max run7aa211a59301 completed/joined: no blocking findings; root checked actual diff and diagnosis, local test build confirmed.",
-      "progressChange": false
+      "progressChange": false,
+      "repairHead": "f6d4002d6b92fb49776d208319e2e1a3307a4fa8",
+      "repairCoreRun": 37358714614,
+      "repairNativeRun": 37358715149,
+      "repairCoreResult": "success",
+      "repairNativeResult": "success",
+      "repairIOSTests": {
+        "passed": 1500,
+        "failed": 0
+      }
     }
   },
   "milestones": [
@@ -944,6 +965,12 @@
       "round": "R117/R118",
       "result": "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
       "summary": "I/O checkpoint/reset correlation established; provenance row churn ruled out for generic fixture, costneutrality notproved. MatchedGUI firstreference/correction failcleanly; owned utility birth exposes fixed-census design flaw.43offlinechecksPASS, surviving-addition CPUinterval andpre-validation evidence retention prepared; threeunusedrequiredarms remain. Counts13/18,0signoffs."
+    },
+    {
+      "at": "2026-10-05T20:07:24.037843+00:00",
+      "round": "R120",
+      "result": "tmp/v2-streaming-perf-20260930/round120/root-round120-result.json",
+      "summary": "R120 declared residual attempt3 failed at wire artifact bound; original ordinary cleanup bypassed. Separate guarded recovery passes18PIDabsences, stopped canonical and frozen source audits pass. Desktop/compact19rows and saved gallery controls observed, semantic ledger lost; offline untested and reconnect settlement failed. Five future helper checks pass; no unchanged retry, resource gain or milestone closure. Repair-head f6d4002d6 core/native CI pass and1500iOS tests pass."
     }
   ],
   "tasks": [
@@ -1016,7 +1043,7 @@
       "title": "PWA worker policy and offline recovery",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Finalize the qualification plan around a root-and-credential-initialized fixture and the actual delivered-page semantic oracle. R119 two attempted server launches/correction are exhausted and stay failed; no unchanged retry or counter reset. Current saved GUI/gallery/compact rich offline/reconnect still unqualified; F3/F5/F6 remain open.",
+      "nextAction": "Integrate projected cache lookup and production snapshot projection, bounded separate wire files, durable phase reporting, and mandatory finalization before considering any explicitly declared materially revised qualification. Preserve original failures and all cumulative counters. Do not repeat this consumed run.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -1084,7 +1111,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Finalize the qualification plan around a root-and-credential-initialized fixture and the actual delivered-page semantic oracle. R119 two attempted server launches/correction are exhausted and stay failed; no unchanged retry or counter reset. Current saved GUI/gallery/compact rich offline/reconnect still unqualified; F3/F5/F6 remain open.",
+      "nextAction": "Integrate projected cache lookup and production snapshot projection, bounded separate wire files, durable phase reporting, and mandatory finalization before considering any explicitly declared materially revised qualification. Preserve original failures and all cumulative counters. Do not repeat this consumed run.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1313,10 +1340,14 @@
     "originalOwnedServerAttempts": 1,
     "correctionOwnedServerAttempts": 1,
     "correctionLimit": 1,
-    "actualBrowserAttempts": 0,
+    "actualBrowserAttempts": 1,
     "furtherUnchangedLaunchesAllowed": false,
     "resetOnNewRoundLabel": false,
     "failuresPreserved": true,
-    "evidence": "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json"
+    "evidence": "tmp/v2-streaming-perf-20260930/round120/root-round120-result.json",
+    "latestRound": "R120",
+    "additionalMateriallyRevisedResidualAttempts": 1,
+    "cumulativeOwnedServerAttempts": 3,
+    "additionalCorrectionsUsed": 0
   }
 }
