@@ -1,11 +1,7 @@
 import { Trans } from "@lingui/react/macro";
 import { ImportSessionsPanel } from "@/renderer/components/sessionImport/ImportSessionsPanel";
 
-/**
- * Settings → Import. Unscoped: lists every discovered session across projects
- * and profiles, for a one-time move of an existing backlog into Poracode. The
- * project sidebar hosts the same panel scoped to one project's folder.
- */
+/** Settings → Import: every discovered session across agents and profiles. */
 export function ImportSettings() {
   return (
     <div className="flex flex-col gap-4 border-t border-border/10 pt-4">
