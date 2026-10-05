@@ -1,10 +1,9 @@
-import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { collectCodex, type HostPort, type UsageSnapshot } from "@poracode/agents-usage";
 import { codexProfileKind, parseCodexProfileInstanceConfig } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
-import { parseCodexAuth } from "../../runtime/codexCredentials";
+import { resolveCodexToken } from "../../runtime/codexCredentials";
 
 /**
  * Codex-specific usage collection for profiles: each profile owns a
@@ -55,15 +54,8 @@ export async function collectCodexProfile(
     http: host.http,
     now: () => host.now(),
     credentials: {
-      getOAuthToken: () => {
-        const path = join(profile.homeDir, "auth.json");
-        if (!existsSync(path)) return Promise.resolve(undefined);
-        try {
-          return Promise.resolve(parseCodexAuth(readFileSync(path, "utf8")));
-        } catch {
-          return Promise.resolve(undefined);
-        }
-      },
+      // The profile home is authoritative: no fallback to the host or WSL account.
+      getOAuthToken: () => resolveCodexToken({ CODEX_HOME: profile.homeDir }),
       getSecret: (providerId, key) => host.credentials.getSecret(providerId, key),
     },
     ...(host.clientVersions ? { clientVersions: host.clientVersions } : {}),

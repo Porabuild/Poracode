@@ -129,8 +129,15 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
   const kind = options.kind ?? codexDetectionSpec.kind;
   const label = options.label ?? codexDetectionSpec.label;
 
-  const { isProfile, profileEnv, withProfileEnv, overlayFor, sessionHomes, detectionSpec } =
-    createCodexProfileContext(options);
+  const {
+    isProfile,
+    profileEnv,
+    withProfileEnv,
+    overlayFor,
+    sessionHomes,
+    pluginDiscoveryHome,
+    detectionSpec,
+  } = createCodexProfileContext(options);
 
   return {
     kind,
@@ -143,6 +150,8 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
           label,
           globalPath: ".codex/skills",
           builtInPath: ".system",
+          // A profile lists and installs skills in its own CODEX_HOME.
+          ...(options.homeDir ? { globalBasePath: options.homeDir } : {}),
           globalOverride: { env: "CODEX_HOME", path: "skills" },
         },
         {
@@ -160,7 +169,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
         project: ["agents"],
       },
     },
-    listNativePlugins: listNativeCodexPlugins,
+    listNativePlugins: (ctx) => listNativeCodexPlugins(ctx, pluginDiscoveryHome(ctx)),
     ...(codexDetectionSpec.update ? { update: codexDetectionSpec.update } : {}),
     get capabilities() {
       return capabilities;
@@ -219,9 +228,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
       // The install step links state files once; a profile that signs in
       // afterwards needs its new auth.json linked before this launch.
       if (overlay)
-        seedNativeCodexHome(paths.codexHomeDir, overlay.sourceHomeDir, {
-          authoritativeSource: true,
-        });
+        seedNativeCodexHome(paths.codexHomeDir, overlay.sourceHomeDir, { profileOverlay: true });
       const hooksFeatureFlag = await resolveCodexHooksFeatureFlag(ctx);
       return {
         args: ["--enable", hooksFeatureFlag],

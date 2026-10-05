@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -60,6 +60,40 @@ describe("profile isolation", () => {
     expect(existsSync(base.codexHooksPath)).toBe(true);
   });
 
+  it("removes the whole staged plugin dir when the base account uninstalls without profiles", () => {
+    const baseDir = mkdtempSync(join(tmpdir(), "codex-base-uninstall-"));
+    const ctx = { envKind: "posix" as const, baseDir };
+    const base = getCodexPluginPaths(ctx);
+    mkdirSync(base.codexHomeDir, { recursive: true });
+    writeFileSync(join(base.pluginDir, "plugin.json"), "{}");
+    writeFileSync(base.codexHooksPath, "{}");
+    uninstallCodexPlugin(ctx);
+    expect(existsSync(base.pluginDir)).toBe(false);
+  });
+
+  it("removes the base account's home but keeps assets profiles still run from", () => {
+    const baseDir = mkdtempSync(join(tmpdir(), "codex-base-uninstall-profiles-"));
+    const ctx = { envKind: "posix" as const, baseDir };
+    const account = join(baseDir, "account");
+    mkdirSync(account);
+    writeFileSync(join(account, "auth.json"), "{}");
+    const base = getCodexPluginPaths(ctx);
+    const profile = getCodexPluginPaths(ctx, { profileId: "work", sourceHomeDir: account });
+    mkdirSync(base.codexHomeDir, { recursive: true });
+    mkdirSync(profile.codexHomeDir, { recursive: true });
+    writeFileSync(join(base.pluginDir, "plugin.json"), "{}");
+    writeFileSync(base.codexHooksPath, "{}");
+    writeFileSync(profile.codexHooksPath, "{}");
+    symlinkSync(join(account, "auth.json"), join(base.codexHomeDir, "auth.json"));
+
+    uninstallCodexPlugin(ctx);
+    expect(existsSync(base.codexHomeDir)).toBe(false);
+    expect(existsSync(profile.codexHooksPath)).toBe(true);
+    expect(existsSync(join(base.pluginDir, "plugin.json"))).toBe(true);
+    // Links are removed without following them into the account.
+    expect(existsSync(join(account, "auth.json"))).toBe(true);
+  });
+
   it("does not restore signed-out credentials from a profile overlay copy", () => {
     const root = mkdtempSync(join(tmpdir(), "codex-logout-isolation-"));
     const home = join(root, "account");
@@ -67,7 +101,7 @@ describe("profile isolation", () => {
     mkdirSync(home);
     mkdirSync(overlay);
     writeFileSync(join(overlay, "auth.json"), "stale credential");
-    seedNativeCodexHome(overlay, home, { authoritativeSource: true });
+    seedNativeCodexHome(overlay, home, { profileOverlay: true });
     expect(existsSync(join(home, "auth.json"))).toBe(false);
     expect(existsSync(join(overlay, "auth.json"))).toBe(false);
   });

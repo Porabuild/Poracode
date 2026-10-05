@@ -10,6 +10,7 @@ import {
   type DetectionSpec,
 } from "../base";
 import { codexDetectionSpec } from "./detection";
+import type { CodexPluginDiscoveryHome } from "./nativePlugins";
 import { getCodexPluginPaths, type CodexHomeOverlay } from "./plugin/install";
 
 export interface CodexAdapterOptions {
@@ -25,6 +26,18 @@ export interface CodexAdapterOptions {
    */
   homeDir?: string;
 }
+
+/**
+ * Host-level credentials a profile launch must not inherit. Codex can
+ * authenticate from these variables instead of the `auth.json` in
+ * `CODEX_HOME`, so a key exported in the user's shell could silently run a
+ * profile as the host account. Empty values shadow the inherited ones.
+ */
+const BLANKED_HOST_CREDENTIALS: Readonly<Record<string, string>> = {
+  OPENAI_API_KEY: "",
+  CODEX_API_KEY: "",
+  CODEX_ACCESS_TOKEN: "",
+};
 
 /** Profile-owned paths and environments, shared by every adapter launch lane. */
 export function createCodexProfileContext(options: CodexAdapterOptions) {
@@ -48,7 +61,7 @@ export function createCodexProfileContext(options: CodexAdapterOptions) {
   };
   const profileEnv = (location: ProjectLocation): Record<string, string> | undefined => {
     const home = profileHome(location);
-    return home ? { CODEX_HOME: home } : undefined;
+    return home ? { CODEX_HOME: home, ...BLANKED_HOST_CREDENTIALS } : undefined;
   };
   const withProfileEnv = <T extends { env?: Record<string, string> }>(
     spec: T,
@@ -75,6 +88,19 @@ export function createCodexProfileContext(options: CodexAdapterOptions) {
     const overlay = getCodexPluginPaths(ctx, { profileId, sourceHomeDir: home }).codexHomeDir;
     return [home, overlay];
   };
+  /**
+   * The home native-plugin discovery must inspect: the same `CODEX_HOME` a
+   * launch uses, so plugins enabled only in the base account never suppress
+   * the MCP/skill fallbacks this profile needs (and vice versa).
+   */
+  const pluginDiscoveryHome = (ctx: AgentEnvContext): CodexPluginDiscoveryHome | undefined => {
+    if (!isProfile || !profileId) return undefined;
+    const home = profileHome(detectProbeLocation(ctx));
+    if (!home) return undefined;
+    return ctx.envKind === "wsl"
+      ? { homeDir: home }
+      : { homeDir: home, overlay: { profileId, sourceHomeDir: home } };
+  };
   const detectionSpec: DetectionSpec = isProfile
     ? {
         ...codexDetectionSpec,
@@ -89,5 +115,13 @@ export function createCodexProfileContext(options: CodexAdapterOptions) {
       }
     : codexDetectionSpec;
 
-  return { isProfile, profileEnv, withProfileEnv, overlayFor, sessionHomes, detectionSpec };
+  return {
+    isProfile,
+    profileEnv,
+    withProfileEnv,
+    overlayFor,
+    sessionHomes,
+    pluginDiscoveryHome,
+    detectionSpec,
+  };
 }

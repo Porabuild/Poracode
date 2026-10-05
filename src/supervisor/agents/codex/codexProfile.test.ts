@@ -224,3 +224,61 @@ describe("Codex session discovery with a profile home", () => {
     expect(readCodexSessionIndexForLocation(projectLocation, homes)).toEqual([]);
   });
 });
+
+describe("Codex profile account isolation", () => {
+  const blanked = { OPENAI_API_KEY: "", CODEX_API_KEY: "", CODEX_ACCESS_TOKEN: "" };
+  const sessionRef = { providerSessionId: "thread-1", discoveredAt: "test" };
+
+  it("blanks inherited host credentials on every profile launch lane", async () => {
+    const adapter = workProfile();
+    expect(adapter.buildLaunchArgv(projectLocation, { model: "gpt-5.5" }, "hi").env).toMatchObject(
+      blanked,
+    );
+    expect(
+      adapter.buildResumeArgv?.(projectLocation, { model: "gpt-5.5" }, "hi", sessionRef)?.env,
+    ).toMatchObject(blanked);
+    expect(
+      adapter.buildOneShotCommand?.("gpt-5.5", undefined, "Summarize", projectLocation)?.env,
+    ).toMatchObject(blanked);
+    expect((await adapter.buildAcpLogoutCommand?.({ envKind: "posix" }))?.env).toMatchObject(
+      blanked,
+    );
+  });
+
+  it("leaves host credentials alone for the base account", () => {
+    const env = createCodexAdapter().buildResumeArgv?.(
+      projectLocation,
+      { model: "gpt-5.5" },
+      "hi",
+      sessionRef,
+    )?.env;
+    expect(env ?? {}).not.toHaveProperty("OPENAI_API_KEY");
+  });
+
+  it("lists and installs a profile's global skills in its own CODEX_HOME", () => {
+    const profileRoot = workProfile().skillSupport?.roots.find((root) => root.id === "codex");
+    expect(profileRoot?.globalBasePath).toBe("~/.codex-work");
+    const baseRoot = createCodexAdapter().skillSupport?.roots.find((root) => root.id === "codex");
+    expect(baseRoot).not.toHaveProperty("globalBasePath");
+  });
+
+  it("resolves distinct login homes for profiles whose names slugify alike", async () => {
+    // "Review Work 1" and "Review Work-1" allocate ids review-work-1 and
+    // review-work-1-2; the default home is keyed by that id.
+    const loginHome = async (id: string) => {
+      const adapter = createCodexProfileAdapter({
+        id,
+        driver: "codex",
+        displayName: id,
+        config: { homeDir: `~/.poracode/codex-profiles/${id}` },
+      });
+      return (await adapter.buildAcpLogoutCommand?.({ envKind: "posix" }))?.env?.CODEX_HOME;
+    };
+    expect(await loginHome("review-work-1")).toBe(
+      path.join(homedir(), ".poracode", "codex-profiles", "review-work-1"),
+    );
+    expect(await loginHome("review-work-1-2")).toBe(
+      path.join(homedir(), ".poracode", "codex-profiles", "review-work-1-2"),
+    );
+  });
+});
