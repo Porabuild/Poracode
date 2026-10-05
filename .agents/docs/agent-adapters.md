@@ -149,6 +149,25 @@ Every supported agent implements the `AgentAdapter` interface (`src/supervisor/a
 
 - `buildDirectInput?(prompt)` — Split a prompt into terminal-safe chunks with delays for TUI pasting.
 
+### Optional — Session Import
+
+- `sessionImport?: SessionImportSource` (`base/sessionImport.ts`) — existing CLI
+  transcripts the user can import from Settings → Import. The provider declares
+  its transcript `roots`, an `acceptFile` filter, `summarize` (id, cwd, model,
+  first prompt from the bounded `headLines()` / `tailLines()` readers it is
+  handed), optional `readTitles`, and `readTranscript` for replay. Identity must
+  be the id the provider's own resume uses. Profiles declare their own store.
+- The shared `src/supervisor/sessionImport/` scanner owns enumeration, file and
+  byte bounds, the mtime/size summary cache, and supersession of older requests;
+  the service only reads paths inside a declared root and replays text through
+  `thread-runtime-events`, which main persists. Nothing is written to provider
+  homes. Imported threads are created `inactive` with a `sessionRef`, so opening
+  one resumes through the normal reopen path.
+- Version audit: `listImportableSessions` / `importSessionTranscript` are
+  desktop-local supervisor procedures (not remote-routable), the scan cache is
+  in-memory, and `ThreadConfig.importedFrom` is optional — older data and older
+  readers stay valid, so no version bump.
+
 ### Optional — Commit Generation
 
 - `defaultOneShotModel?` — Default model for one-shot CLI calls (commit messages).
@@ -251,8 +270,10 @@ is the minimum supported protocol because it introduced `permission.rules`.
 
 Poracode's persisted threads are the sole conversation list and source of truth.
 Do not call or expose provider-native ACP `session/list`, and do not import a
-provider's independent conversation history, even when the agent advertises the
-capability. This is an intentional product boundary, not missing provider support.
+provider's independent conversation history automatically, even when the agent
+advertises the capability. This is an intentional product boundary, not missing
+provider support. The one sanctioned path is the explicit, user-initiated import
+below, which turns a chosen transcript into an ordinary Poracode thread.
 
 ACP `session/resume` and legacy `session/load` are used only with a provider
 session ID already associated with a Poracode thread. Provider detection may

@@ -1,4 +1,5 @@
 import type { NativeMcpConfigFile } from "../../mcp/nativeSetup/configFile";
+import type { SessionImportSource } from "./sessionImport";
 import type {
   ManageAgentCredentialsPayload,
   ManageAgentCredentialsResult,
@@ -809,6 +810,12 @@ export interface AgentAdapter
 
   /** Read-only native configuration location. Writes require an explicit settings action. */
   nativeMcpConfig?(ctx: AgentEnvContext): NativeMcpConfigFile | undefined;
+
+  /**
+   * Existing CLI transcripts the user can import as threads. Discovery is
+   * user-initiated and read-only; it never becomes a second thread index.
+   */
+  readonly sessionImport?: SessionImportSource;
 }
 
 export interface TerminalStatusHint {

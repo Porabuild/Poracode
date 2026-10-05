@@ -131,6 +131,11 @@ msgstr "{0, plural, one {# użycie} few {# użycia} many {# użyć} other {# uż
 msgid "{0, plural, one {edit} other {edits}}"
 msgstr "{0, plural, one {edycja} few {edycje} many {edycji} other {edycji}}"
 
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{0, plural, one {Import # session} other {Import # sessions}}"
+msgstr "{0, plural, one {Importuj # sesję} few {Importuj # sesje} many {Importuj # sesji} other {Importuj # sesji}}"
+
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "{0, plural, one {MCP} other {MCPs}}"
@@ -492,6 +497,10 @@ msgstr "Hak {hook} nie powiódł się"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{hours}h ago"
 msgstr "{hours} godz. temu"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}}"
+msgstr "{imported, plural, one {Zaimportowano # sesję.} few {Zaimportowano # sesje.} many {Zaimportowano # sesji.} other {Zaimportowano # sesji.}}"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
@@ -1121,6 +1130,7 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "Ustaw niestandardowy bazowy URL, np. reverse proxy lub tunel. Pozostaw puste, aby ustawić automatycznie."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1284,6 +1294,10 @@ msgstr "Wszystkie konta"
 msgid "All agent apps"
 msgstr "Wszystkie aplikacje agentów"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All agents"
+msgstr "Wszyscy agenci"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "All candidate sessions, worktrees, and branches will be removed."
@@ -1301,6 +1315,10 @@ msgstr "Wszystkie poziomy"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
 msgstr "Wszystkie pliki"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All folders"
+msgstr "Wszystkie foldery"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
@@ -1997,6 +2015,10 @@ msgstr "Gałęzie"
 msgid "Bring back to panel"
 msgstr "Przywróć do panelu"
 
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Bring conversations you started in an agent CLI into Poracode. Transcript files are read, never modified."
+msgstr "Przenieś do Poracode rozmowy rozpoczęte w CLI agenta. Pliki transkrypcji są tylko odczytywane, nigdy modyfikowane."
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Bring every {0} runtime up to date"
@@ -2480,6 +2502,10 @@ msgstr "Wybierz lokalną gałąź bazową dla eksperymentu."
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "Wybierz folder nadrzędny"
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Choose a project for sessions whose folder no longer exists."
+msgstr "Wybierz projekt dla sesji, których folder już nie istnieje."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
@@ -5390,6 +5416,10 @@ msgstr "Nie udało się zapisać metadanych własności gałęzi: {detail}. Wyco
 #~ msgid "Failed to update goal"
 #~ msgstr "Nie udało się zaktualizować celu"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Fallback project"
+msgstr "Projekt zapasowy"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
@@ -5661,6 +5691,7 @@ msgstr "Przejdź do paska adresu przeglądarki w aplikacji"
 msgid "Focus window"
 msgstr "Przejdź do okna"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
 msgstr "Folder"
@@ -5668,6 +5699,10 @@ msgstr "Folder"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Nazwa folderu"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Folder no longer exists — imports into the project chosen above."
+msgstr "Folder już nie istnieje — import do projektu wybranego powyżej."
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Folder on the server"
@@ -6273,6 +6308,10 @@ msgstr "Ścieżka pliku tożsamości"
 msgid "Idle"
 msgstr "Bezczynny"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "If the folder no longer exists, import into"
+msgstr "Jeśli folder już nie istnieje, importuj do"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Ignored an unrecognized field in plugin.json."
 msgstr "Zignorowano nieznane pole w plugin.json."
@@ -6292,6 +6331,11 @@ msgstr "Podgląd obrazu"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Obrazy"
+
+#. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Import"
+msgstr "Import"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
@@ -6342,6 +6386,10 @@ msgstr "Metoda importu"
 msgid "Import selected"
 msgstr "Importuj wybrane"
 
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Import sessions"
+msgstr "Importuj sesje"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "Importuj do {destinationProjectName}"
@@ -6353,6 +6401,10 @@ msgstr "Importuj globalnie"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Import to Project"
 #~ msgstr "Importuj do projektu"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Imported"
+msgstr "Zaimportowano"
 
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
@@ -6368,6 +6420,14 @@ msgstr "Zaimportowano umiejętności: {0}."
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "Zaimportowano 1 umiejętność."
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+msgid "Imported from an existing CLI session — text only, tool calls are not shown."
+msgstr "Zaimportowano z istniejącej sesji CLI — tylko tekst, wywołania narzędzi nie są pokazywane."
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Imported session"
+msgstr "Zaimportowana sesja"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -8346,6 +8406,10 @@ msgstr "Brak historii"
 msgid "No icons found"
 msgstr "Nie znaleziono ikon"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No importable sessions found on this computer."
+msgstr "Na tym komputerze nie znaleziono sesji do zaimportowania."
+
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Dla tego projektu nie ma zainstalowanych agentów z modelami, które można wybrać."
@@ -8426,6 +8490,10 @@ msgstr "Nie ma jeszcze żadnych wiadomości"
 #: src/renderer/components/composer/voiceError.ts
 msgid "No microphone found."
 msgstr "Nie znaleziono mikrofonu."
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "No model is available for {agent}. Check the agent in Settings."
+msgstr "Brak dostępnego modelu dla {agent}. Sprawdź agenta w Ustawieniach."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
@@ -8529,6 +8597,14 @@ msgstr "Brak jeszcze elementów wykonawczych dla tego wątku."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "Brak połączonych serwerów."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions could be imported."
+msgstr "Nie udało się zaimportować żadnej sesji."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions match the current filters."
+msgstr "Żadna sesja nie pasuje do bieżących filtrów."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -11582,6 +11658,10 @@ msgstr "Wyszukaj elementy środowiska wykonawczego…"
 msgid "Search scheduled tasks"
 msgstr "Szukaj zaplanowanych zadań"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search sessions"
+msgstr "Szukaj sesji"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
 msgstr "Szukaj ustawień"
@@ -11615,6 +11695,10 @@ msgstr "Przeszukaj wątki"
 #: src/renderer/commands/registry.ts
 msgid "Search Threads"
 msgstr "Przeszukaj wątki"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search titles, messages and folders"
+msgstr "Szukaj w tytułach, wiadomościach i folderach"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
@@ -11679,6 +11763,7 @@ msgid "Select account"
 msgstr "Wybierz konto"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "Wybierz wszystko"
@@ -11690,6 +11775,10 @@ msgstr "Wybierz wszystkie serwery MCP"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "Wybierz wszystkie serwery MCP z {providerLabel}"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Select all sessions"
+msgstr "Zaznacz wszystkie sesje"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all skills"
@@ -12045,6 +12134,10 @@ msgstr "Wyświetlanie {0, plural, one {# umiejętności} few {# umiejętności} 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "Wyświetlanie pierwszych 4000 wpisów."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Showing the most recent sessions — narrow the filters to see more."
+msgstr "Wyświetlane są najnowsze sesje — zawęź filtry, aby zobaczyć więcej."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
@@ -13229,6 +13322,10 @@ msgstr "Tunel SSH połączył się z niezgodnym serwerem Poracode."
 msgid "the target provider"
 msgstr "docelowego dostawcy"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "The thread keeps its provider session, so your next message continues where you left off."
+msgstr "Wątek zachowuje sesję dostawcy, więc Twoja następna wiadomość będzie kontynuacją od miejsca, w którym skończyłeś."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Sesja wątku jest niedostępna dla wiadomości uzupełniających w kolejce."
@@ -13297,6 +13394,10 @@ msgstr "Te serwery pochodzą z wtyczek. Włączaj je lub wyłączaj w Wtyczkach;
 msgid "Thinking"
 msgstr "Myślenie"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support importing sessions."
+msgstr "Ten agent nie obsługuje importu sesji."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
 msgstr "Ten agent nie jest zainstalowany."
@@ -13328,6 +13429,10 @@ msgstr "Ten kod wygasa za {countdown}"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This code has expired."
 msgstr "Ten kod wygasł."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again."
+msgstr "Ta sesja Codex jest otwarta w innej aplikacji Codex (Codex Desktop lub CLI). Zamknij ją tam i spróbuj ponownie."
 
 #: src/renderer/utils/machineLabels.ts
 msgid "This computer"
@@ -13486,6 +13591,14 @@ msgstr "Ten serwer wymaga uwierzytelnienia, zanim aplikacja Poracode będzie mog
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "Ten serwer działa na tym komputerze i jest niedostępny dla projektów WSL."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session changed on disk. Refresh the list and try again."
+msgstr "Ta sesja zmieniła się na dysku. Odśwież listę i spróbuj ponownie."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session is already being imported."
+msgstr "Ta sesja jest już importowana."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Ten skrót globalny jest niedostępny. Wybierz inną kombinację klawiszy."
@@ -13510,6 +13623,10 @@ msgstr "Ten wątek zmienił dostawcę bez przeniesienia kontekstu: {agent} uruch
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "Ten wątek został sforkowany bez przeniesienia kontekstu: {agent} uruchomił się bez narzędzia read_thread Poracode, więc nie może odczytać oryginalnej rozmowy. Włącz ponownie narzędzie MCP app-controls lub podsumuj to, czego potrzebuje."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This transcript is not in the agent's session store."
+msgstr "Ta transkrypcja nie znajduje się w magazynie sesji agenta."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -14224,6 +14341,10 @@ msgstr "Odinstaluj {name}"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Nieznany"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Unknown folder"
+msgstr "Nieznany folder"
 
 #: src/renderer/notifications.ts
 msgid "Unknown project"

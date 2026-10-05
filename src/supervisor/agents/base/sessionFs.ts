@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync, watch as fsWatch } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import type { ProjectLocation } from "@/shared/contracts";
 import { toWslUncPath } from "@/shared/wsl";
@@ -387,4 +388,12 @@ export function watchSessionPaths(
     disposed = true;
     if (unsubscribe) void unsubscribe();
   };
+}
+
+/** `~` / `~/…` against the supervisor host's home directory. */
+export function resolveNativeTildePath(rawPath: string): string {
+  const trimmed = rawPath.trim();
+  if (trimmed === "~") return homedir();
+  if (trimmed.startsWith("~/")) return join(homedir(), trimmed.slice(2));
+  return trimmed;
 }

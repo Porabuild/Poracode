@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
+import path from "node:path";
 
 import type {
   AgentCapability,
@@ -27,6 +29,8 @@ import { claudeCapabilities, claudeDetectionSpec, probeClaudeStatus } from "./de
 import { probeClaudeCapabilities } from "./probe";
 import { claudeSkillInvocationFor, claudeSkillText, leadingSkill } from "./skillPrompt";
 import { ClaudeSdkSession } from "./sdkSession";
+import { createClaudeSessionImport } from "./sessionImport";
+import { resolveNativeTildePath } from "../base/sessionFs";
 import { claudeMcpLaunch } from "./mcp";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import {
@@ -240,6 +244,11 @@ export function createClaudeAdapter(options: ClaudeAdapterOptions = {}): AgentAd
     label,
     binary: claudeDetectionSpec.binary,
     mcpRequiresStdioCwdProxy: true,
+    sessionImport: createClaudeSessionImport(
+      options.configDir
+        ? resolveNativeTildePath(options.configDir)
+        : path.join(homedir(), ".claude"),
+    ),
     skillSupport: {
       roots: [
         {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { agentKindSchema, threadModeSchema } from "./common";
+import { threadImportedFromSchema } from "./sessionImport";
 
 const threadConfigShape = {
   model: z.string().min(1),
@@ -17,6 +18,8 @@ const threadConfigShape = {
   chromeMcp: z.boolean().optional(),
   /** Runtime environment selected for a provider that cannot execute natively. */
   executionEnvironment: z.object({ kind: z.literal("wsl"), distro: z.string().min(1) }).optional(),
+  /** Transcript this thread was imported from; drives the notice and re-import dedupe. */
+  importedFrom: threadImportedFromSchema.optional(),
 } as const;
 
 export const threadConfigBaseSchema = z.object(threadConfigShape);

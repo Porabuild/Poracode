@@ -47,6 +47,7 @@ import {
   resolveCodexSessionWatchPaths,
 } from "./session";
 import type { CodexRolloutMeta } from "./sessionFiles";
+import { createCodexSessionImport } from "./sessionImport";
 import { detectCodexReadyForInitialPrompt } from "./terminal";
 
 export { buildCodexAppServerCommand } from "./argv";
@@ -143,6 +144,7 @@ export function createCodexAdapter(options: CodexAdapterOptions = {}): AgentAdap
     kind,
     label,
     binary: codexDetectionSpec.binary,
+    sessionImport: createCodexSessionImport(),
     skillSupport: {
       roots: [
         {

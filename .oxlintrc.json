@@ -79,6 +79,38 @@
           }
         ]
       }
+    },
+    {
+      "files": ["src/main/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/supervisor/**"],
+                "message": "Main reaches supervisor-owned features through supervisor IPC, never by import."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/supervisor/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/main/**"],
+                "message": "The supervisor runs in its own process and must not import Electron main modules."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": ["dist", "node_modules"]

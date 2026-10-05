@@ -131,6 +131,11 @@ msgstr "{0, plural, other {# kullanım}}"
 msgid "{0, plural, one {edit} other {edits}}"
 msgstr "{0, plural, one {düzenleme} other {düzenleme}}"
 
+#. placeholder {0}: selected.size
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{0, plural, one {Import # session} other {Import # sessions}}"
+msgstr "{0, plural, one {# oturumu içe aktar} other {# oturumu içe aktar}}"
+
 #. placeholder {0}: section.count
 #: src/renderer/components/thread/ChatPane/parts/items/ToolCallGroup.tsx
 msgid "{0, plural, one {MCP} other {MCPs}}"
@@ -492,6 +497,10 @@ msgstr "{hook} kancası başarısız oldu"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/UsagePanel.tsx
 msgid "{hours}h ago"
 msgstr "{hours} saat önce"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "{imported, plural, one {Imported # session.} other {Imported # sessions.}}"
+msgstr "{imported, plural, one {# oturum içe aktarıldı.} other {# oturum içe aktarıldı.}}"
 
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "{installedCount, plural, one {# agent ready} other {# agents ready}}"
@@ -1121,6 +1130,7 @@ msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty 
 msgstr "Özel bir temel URL duyurun, örn. bir ters proxy veya tünel. Otomatik için boş bırakın."
 
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -1284,6 +1294,10 @@ msgstr "Tüm hesaplar"
 msgid "All agent apps"
 msgstr "Tüm ajan uygulamaları"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All agents"
+msgstr "Tüm ajanlar"
+
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "All candidate sessions, worktrees, and branches will be removed."
@@ -1301,6 +1315,10 @@ msgstr "Tüm efor düzeyleri"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 msgid "All files"
 msgstr "Tüm dosyalar"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "All folders"
+msgstr "Tüm klasörler"
 
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "All machines"
@@ -1997,6 +2015,10 @@ msgstr "Şubeler"
 msgid "Bring back to panel"
 msgstr "Panele geri getir"
 
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Bring conversations you started in an agent CLI into Poracode. Transcript files are read, never modified."
+msgstr "Bir ajan CLI'sinde başlattığınız konuşmaları Poracode'a taşıyın. Döküm dosyaları yalnızca okunur, asla değiştirilmez."
+
 #. placeholder {0}: props.agentLabel
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Bring every {0} runtime up to date"
@@ -2480,6 +2502,10 @@ msgstr "Deney için yerel bir ana şube seçin."
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Choose a parent folder"
 msgstr "Bir ana klasör seçin"
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Choose a project for sessions whose folder no longer exists."
+msgstr "Klasörü artık bulunmayan oturumlar için bir proje seçin."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Choose a project icon image"
@@ -5390,6 +5416,10 @@ msgstr "Sahipli şube meta verileri kaydedilemedi: {detail}. Geri alma işlemi {
 #~ msgid "Failed to update goal"
 #~ msgstr "Hedef güncellenemedi"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Fallback project"
+msgstr "Yedek proje"
+
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
@@ -5661,6 +5691,7 @@ msgstr "Uygulama içi tarayıcı adres çubuğuna odakla"
 msgid "Focus window"
 msgstr "Pencereyi öne getir"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/InlineFolderPathChip.tsx
 msgid "Folder"
 msgstr "Klasör"
@@ -5668,6 +5699,10 @@ msgstr "Klasör"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Folder name"
 msgstr "Klasör adı"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Folder no longer exists — imports into the project chosen above."
+msgstr "Klasör artık yok — yukarıda seçilen projeye içe aktarılır."
 
 #: src/mobile/views/ManageProjectsView.tsx
 msgid "Folder on the server"
@@ -6273,6 +6308,10 @@ msgstr "Kimlik dosyası yolu"
 msgid "Idle"
 msgstr "Boşta"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "If the folder no longer exists, import into"
+msgstr "Klasör artık yoksa şuraya içe aktar"
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Ignored an unrecognized field in plugin.json."
 msgstr "plugin.json içindeki bilinmeyen bir alan yok sayıldı."
@@ -6292,6 +6331,11 @@ msgstr "Resim önizlemesi"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 msgid "Images"
 msgstr "Görseller"
+
+#. Settings section: import existing CLI sessions as threads
+#: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+msgid "Import"
+msgstr "İçe aktar"
 
 #: src/renderer/views/SettingsOverlay/parts/AboutSettings.tsx
 msgid "Import again"
@@ -6342,6 +6386,10 @@ msgstr "İçe aktarma yöntemi"
 msgid "Import selected"
 msgstr "Seçilenleri içe aktar"
 
+#: src/renderer/views/SettingsOverlay/parts/ImportSettings.tsx
+msgid "Import sessions"
+msgstr "Oturumları içe aktar"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "{destinationProjectName} projesine içe aktar"
@@ -6353,6 +6401,10 @@ msgstr "Genel kapsama içe aktar"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #~ msgid "Import to Project"
 #~ msgstr "Projeye içe aktar"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Imported"
+msgstr "İçe aktarıldı"
 
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
@@ -6368,6 +6420,14 @@ msgstr "{0} beceri içe aktarıldı."
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Imported 1 skill."
 msgstr "1 beceri içe aktarıldı."
+
+#: src/renderer/components/thread/ChatPane/parts/ImportedThreadNotice.tsx
+msgid "Imported from an existing CLI session — text only, tool calls are not shown."
+msgstr "Mevcut bir CLI oturumundan içe aktarıldı — yalnızca metin, araç çağrıları gösterilmez."
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "Imported session"
+msgstr "İçe aktarılan oturum"
 
 #: src/renderer/components/changelog/ChangelogView.tsx
 msgid "Improved"
@@ -8346,6 +8406,10 @@ msgstr "Henüz geçmiş yok"
 msgid "No icons found"
 msgstr "Simge bulunamadı"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No importable sessions found on this computer."
+msgstr "Bu bilgisayarda içe aktarılabilir oturum bulunamadı."
+
 #: src/renderer/components/experiment/NewExperimentModal.tsx
 #~ msgid "No installed agents with selectable models are available for this project."
 #~ msgstr "Bu proje için seçilebilir modellere sahip yüklü bir ajan yok."
@@ -8426,6 +8490,10 @@ msgstr "Henüz mesaj yok"
 #: src/renderer/components/composer/voiceError.ts
 msgid "No microphone found."
 msgstr "Mikrofon bulunamadı."
+
+#: src/renderer/components/sessionImport/importSessionsActions.ts
+msgid "No model is available for {agent}. Check the agent in Settings."
+msgstr "{agent} için kullanılabilir model yok. Ayarlar'da ajanı kontrol edin."
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
@@ -8529,6 +8597,14 @@ msgstr "Bu konu için henüz çalışma zamanı öğesi yok."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #~ msgid "No servers connected yet."
 #~ msgstr "Henüz bağlı sunucu yok."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions could be imported."
+msgstr "Hiçbir oturum içe aktarılamadı."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "No sessions match the current filters."
+msgstr "Geçerli filtrelerle eşleşen oturum yok."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "No shortcuts found"
@@ -11582,6 +11658,10 @@ msgstr "Çalışma zamanı öğelerini ara…"
 msgid "Search scheduled tasks"
 msgstr "Zamanlanmış görevlerde ara"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search sessions"
+msgstr "Oturumlarda ara"
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Search settings"
 msgstr "Ayarları ara"
@@ -11615,6 +11695,10 @@ msgstr "Konuları ara"
 #: src/renderer/commands/registry.ts
 msgid "Search Threads"
 msgstr "Konuları Ara"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Search titles, messages and folders"
+msgstr "Başlıklarda, mesajlarda ve klasörlerde ara"
 
 #: src/renderer/views/ThreadSearchOverlay/ThreadSearchOverlay.tsx
 msgid "Search…"
@@ -11679,6 +11763,7 @@ msgid "Select account"
 msgstr "Hesap seçin"
 
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all"
 msgstr "Tümünü seç"
@@ -11690,6 +11775,10 @@ msgstr "Tüm MCP sunucularını seç"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Select all MCP servers from {providerLabel}"
 msgstr "{providerLabel} kaynağındaki tüm MCP sunucularını seç"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Select all sessions"
+msgstr "Tüm oturumları seç"
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 msgid "Select all skills"
@@ -12045,6 +12134,10 @@ msgstr "{0, plural, one {# beceri} other {# beceri}} gösteriliyor"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "Showing the first 4,000 entries."
 msgstr "İlk 4.000 giriş gösteriliyor."
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Showing the most recent sessions — narrow the filters to see more."
+msgstr "En son oturumlar gösteriliyor — daha fazlasını görmek için filtreleri daraltın."
 
 #: src/renderer/views/SettingsOverlay/parts/CursorProfileIdentity.tsx
 msgid "Shown in the sidebar and the model picker."
@@ -13229,6 +13322,10 @@ msgstr "SSH tüneli uyumsuz bir Poracode sunucusuna ulaştı."
 msgid "the target provider"
 msgstr "hedef sağlayıcı"
 
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "The thread keeps its provider session, so your next message continues where you left off."
+msgstr "Konu sağlayıcı oturumunu korur; böylece bir sonraki mesajınız kaldığınız yerden devam eder."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The thread session is not available for queued follow-ups."
 msgstr "Kuyruğa alınan takip mesajları için konu oturumu kullanılamıyor."
@@ -13297,6 +13394,10 @@ msgstr "Bu sunucular eklentilerden gelir. Bunları Eklentiler’den açın veya 
 msgid "Thinking"
 msgstr "Düşünme"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support importing sessions."
+msgstr "Bu ajan oturumları içe aktarmayı desteklemiyor."
+
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
 msgstr "Bu aracı yüklü değil."
@@ -13328,6 +13429,10 @@ msgstr "Bu kodun süresi {countdown} içinde doluyor"
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "This code has expired."
 msgstr "Bu kodun süresi doldu."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again."
+msgstr "Bu Codex oturumu başka bir Codex uygulamasında (Codex Desktop veya CLI) açık. Orada kapatıp tekrar deneyin."
 
 #: src/renderer/utils/machineLabels.ts
 msgid "This computer"
@@ -13486,6 +13591,14 @@ msgstr "Poracode'un bu sunucuyu kontrol edebilmesi için önce kimlik doğrulama
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "Bu sunucu bu bilgisayarda çalışır ve WSL projeleri için kullanılamaz."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session changed on disk. Refresh the list and try again."
+msgstr "Bu oturum diskte değişti. Listeyi yenileyip tekrar deneyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This session is already being imported."
+msgstr "Bu oturum zaten içe aktarılıyor."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Bu sistem genelindeki kısayol kullanılamıyor. Başka bir tuş birleşimi seçin."
@@ -13510,6 +13623,10 @@ msgstr "Bu konu bağlam aktarılmadan sağlayıcı değiştirdi: {agent}, Poraco
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread was forked without transferring context: {agent} started without Poracode's read_thread tool, so it cannot read the original conversation. Re-enable the app-controls MCP tool, or summarize what it needs."
 msgstr "Bu konu bağlam aktarılmadan fork olarak oluşturuldu: {agent}, Poracode'un read_thread aracı olmadan başlatıldığı için özgün konuşmayı okuyamıyor. app-controls MCP aracını yeniden etkinleştirin veya ihtiyaç duyduğu bilgileri özetleyin."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This transcript is not in the agent's session store."
+msgstr "Bu döküm ajanın oturum deposunda değil."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/DeleteWorktreePopover.tsx
 #~ msgid "This will permanently delete the thread and its worktree."
@@ -14224,6 +14341,10 @@ msgstr "{name} kaldır"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Unknown"
 msgstr "Bilinmiyor"
+
+#: src/renderer/components/sessionImport/ImportSessionsPanel.tsx
+msgid "Unknown folder"
+msgstr "Bilinmeyen klasör"
 
 #: src/renderer/notifications.ts
 msgid "Unknown project"

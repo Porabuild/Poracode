@@ -227,6 +227,22 @@ const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
       "{agent} reported authentication success, but Poracode could not verify it. Configure {agent} directly, then try again.",
   }),
   "acp.taskNotification.task": msg({ message: "Task {id}" }),
+  "codex.sessionInUse": msg({
+    message:
+      "This Codex session is open in another Codex app (Codex Desktop or the CLI). Close it there and try again.",
+  }),
+  "sessionImport.unsupported": msg({
+    message: "This agent does not support importing sessions.",
+  }),
+  "sessionImport.unknownTranscript": msg({
+    message: "This transcript is not in the agent's session store.",
+  }),
+  "sessionImport.inProgress": msg({
+    message: "This session is already being imported.",
+  }),
+  "sessionImport.changedOnDisk": msg({
+    message: "This session changed on disk. Refresh the list and try again.",
+  }),
   "kimi.credentialsLocked": msg({
     message:
       "Kimi Code could not update its credentials because another process is using the credential file. Close other Poracode or Kimi Code processes, then retry.",

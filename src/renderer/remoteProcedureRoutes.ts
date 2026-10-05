@@ -99,6 +99,8 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   showNotification: "device-owned-notification",
   detectProjectIcon: "remote-mirrors-skip-file-icons",
   listProjectIconFiles: "remote-mirrors-skip-file-icons",
+  // Transcripts are read from the desktop host's own disk.
+  importSessionTranscript: "host-only-transcript-import",
   // Plugin packages are read from the host filesystem the supervisor runs on.
   // A remote project's own `.poracode/plugins` therefore stays with its server;
   // the local scan just falls back to the app-global roots.

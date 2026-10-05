@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AlertTriangle, ChevronDown, X } from "lucide-react";
 import { useLingui } from "@lingui/react/macro";
+import { localizeCatalogMessage } from "@/shared/messages";
 import type { ThreadErrorDockState } from "./threadErrorState";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 
@@ -13,9 +14,10 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
   const { state, onDismiss } = props;
   const { t } = useLingui();
   const [collapsed, setCollapsed] = useState(true);
-  const isMultiline = state.message.includes("\n") || state.message.length > 120;
+  const message = localizeCatalogMessage(state.message);
+  const isMultiline = message.includes("\n") || message.length > 120;
   const canExpand = isMultiline;
-  const { title, body } = splitErrorTitle(state.message, t`Error`);
+  const { title, body } = splitErrorTitle(message, t`Error`);
 
   return (
     <ThreadDockSection placement="composer" collapsed={collapsed}>
@@ -50,7 +52,7 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
       >
         <span
           className="min-w-0 flex-1 truncate leading-5 text-[color:var(--muted)]"
-          title={state.message}
+          title={message}
         >
           {body}
         </span>
@@ -58,7 +60,7 @@ export function ThreadErrorDock(props: ThreadErrorDockProps) {
 
       {canExpand && !collapsed ? (
         <div className="max-h-[min(12rem,32vh)] overflow-y-auto whitespace-pre-wrap break-words px-2 pb-1.5 text-[color:var(--muted)] [scrollbar-gutter:stable]">
-          {state.message}
+          {message}
         </div>
       ) : null}
     </ThreadDockSection>

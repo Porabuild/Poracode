@@ -21,6 +21,7 @@ export * from "./contracts/mcpServer";
 export * from "./contracts/skill";
 export * from "./contracts/experiment";
 export * from "./contracts/plugin";
+export * from "./contracts/sessionImport";
 export * from "./contracts/workspace";
 export * from "./contracts/computerUse";
 export * from "./contracts/nativeMcpSetup";
