@@ -10,6 +10,7 @@ vi.mock("electron", () => ({
 }));
 
 import {
+  installNavigationGuards,
   installSessionPermissions,
   isNavigationUrlAllowed,
   openMicrophoneSettings,
@@ -83,6 +84,46 @@ describe("isNavigationUrlAllowed", () => {
   it("blocks dangerous schemes", () => {
     expect(isNavigationUrlAllowed("javascript:alert(1)")).toBe(false);
     expect(isNavigationUrlAllowed("chrome://settings")).toBe(false);
+  });
+});
+
+describe("installNavigationGuards frame navigation", () => {
+  const PDF_STREAM_FRAME_URL =
+    "chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/cc29bb5c-3a2d-4909-b09f-68cadda95a62";
+
+  function frameNavigate(url: string, isMainFrame: boolean): boolean {
+    let onWillFrameNavigate: ((event: unknown) => void) | undefined;
+    const webContents = {
+      setWindowOpenHandler: vi.fn<() => void>(),
+      on: vi.fn<(name: string, handler: (event: unknown) => void) => void>((name, handler) => {
+        if (name === "will-frame-navigate") onWillFrameNavigate = handler;
+      }),
+      removeListener: vi.fn<() => void>(),
+    };
+    installNavigationGuards(
+      webContents as unknown as Parameters<typeof installNavigationGuards>[0],
+      () => {},
+    );
+    const preventDefault = vi.fn<() => void>();
+    onWillFrameNavigate?.({ url, isMainFrame, preventDefault });
+    return preventDefault.mock.calls.length === 0;
+  }
+
+  it("lets the built-in PDF viewer load its document frame", () => {
+    expect(frameNavigate(PDF_STREAM_FRAME_URL, false)).toBe(true);
+    expect(
+      frameNavigate("chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/index.html", false),
+    ).toBe(true);
+  });
+
+  it("keeps blocking the PDF viewer extension as a top-level page", () => {
+    expect(frameNavigate(PDF_STREAM_FRAME_URL, true)).toBe(false);
+  });
+
+  it("keeps blocking other extension frames", () => {
+    expect(frameNavigate("chrome-extension://abcdefghijklmnopabcdefghijklmnop/x.html", false)).toBe(
+      false,
+    );
   });
 });
 
