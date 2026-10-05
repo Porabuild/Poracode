@@ -1,5 +1,6 @@
 import type { Project } from "@/shared/contracts";
 import {
+  useCurrentThreadIds,
   useCurrentThreadIdsCount,
   useHasDraft,
   useIsCurrentProjectDraft,
@@ -28,6 +29,7 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
   const revealMoreThreads = useSidebarUiStore((s) => s.revealMoreThreads);
   const visibleLimit = useThreadListLimit(project.id);
   const hasDraft = useHasDraft(project.id);
+  const currentThreadIds = useCurrentThreadIds();
   const currentThreadCount = useCurrentThreadIdsCount();
   const isDraftActive = useIsCurrentProjectDraft(project.id);
   const source = useDragSource();
@@ -39,6 +41,7 @@ export function SidebarProjectThreadList(props: { project: Project; sortMode: Th
     collapsedWorktrees,
     visibleLimit,
     liveBackgroundThreadIds,
+    openThreadIds: new Set(currentThreadIds),
     ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
 

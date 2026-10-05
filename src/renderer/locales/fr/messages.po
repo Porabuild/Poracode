@@ -4749,7 +4749,6 @@ msgstr "fait"
 #. Notification status: thread is done
 #: src/mobile/views/ThreadsView.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginsSettings.tsx
-#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Done"
@@ -4758,6 +4757,10 @@ msgstr "Terminé"
 #: src/renderer/notifications.ts
 msgid "Done · Waiting for your input"
 msgstr "Terminé · En attente de votre saisie"
+
+#: src/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows.ts
+msgid "Done ({doneCount})"
+msgstr "Terminé ({doneCount})"
 
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 msgid "Download image"

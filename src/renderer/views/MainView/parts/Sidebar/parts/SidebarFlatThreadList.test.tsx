@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { Project, Thread } from "@/shared/contracts";
@@ -34,7 +34,11 @@ vi.mock("./NewThreadButton", () => ({
 }));
 
 vi.mock("./SidebarThreadRow", () => ({
-  SeeMoreThreadsButton: () => <button type="button">see-more</button>,
+  SeeMoreThreadsButton: (props: { onPress: () => void }) => (
+    <button type="button" onClick={props.onPress}>
+      see-more
+    </button>
+  ),
   SidebarThreadRow: (props: {
     row: { key: string };
     project: { name: string };
@@ -128,7 +132,11 @@ describe("SidebarFlatThreadList", () => {
       workspaces: [{ id: "w1", name: "Side Hustle" }],
     } as never);
     useWorkspaceStore.setState({ activeWorkspaceId: "w1" });
-    useSidebarUiStore.setState({ flatListProjectFilter: null });
+    useSidebarUiStore.setState({
+      flatListProjectFilter: null,
+      collapsedWorktrees: {},
+      threadListLimits: {},
+    });
     newThreadCalls.length = 0;
   });
 
@@ -455,6 +463,53 @@ describe("SidebarFlatThreadList", () => {
     // while the thread rows scroll underneath it.
     expect(scroller.contains(head)).toBe(false);
     expect(scroller).toHaveTextContent("thread:p1");
+  });
+
+  it("pins the Done section below the scrolling rows", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": false } });
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("d1", "local-1", "2026-08-01T09:00:00.000Z", { done: true }),
+      ],
+    });
+
+    const { container } = render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const scroller = container.querySelector(".overflow-y-auto");
+    if (!scroller) throw new Error("expected the scroll container");
+    const doneHeader = screen.getByText(/^done-label in/);
+    const doneRow = screen.getByText(/^thread:d1 in/);
+    // The Done header and its rows live after (below) the main scroll
+    // container, so the header stays put while the active rows scroll.
+    expect(scroller).toHaveTextContent("thread:p1");
+    expect(scroller.contains(doneHeader)).toBe(false);
+    expect(scroller.contains(doneRow)).toBe(false);
+    expect(
+      scroller.compareDocumentPosition(doneHeader) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Only the done rows scroll inside the pinned section; its header stays put.
+    expect(doneHeader.closest(".overflow-y-auto")).toBeNull();
+    expect(doneRow.closest(".overflow-y-auto")).not.toBeNull();
+  });
+
+  it("pages the pinned Done section without paging the main list", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": false } });
+    useAppStore.setState({
+      projects: [homeProject, localProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        ...Array.from({ length: 21 }, (_, i) =>
+          makeThread(`d${i}`, "local-1", "2026-08-01T09:00:00.000Z", { done: true }),
+        ),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+    fireEvent.click(screen.getByRole("button", { name: "see-more" }));
+
+    expect(useSidebarUiStore.getState().threadListLimits).toEqual({ "__flat__:done": 40 });
   });
 
   it("keeps the new-thread control as a full row when only one project is visible", () => {
