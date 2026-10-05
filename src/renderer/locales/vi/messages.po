@@ -811,6 +811,10 @@ msgstr "Giới thiệu"
 msgid "Above the composer"
 msgstr "Phía trên trình soạn"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Accent"
+msgstr "Màu nhấn"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "Chấp nhận cả hai thay đổi"
@@ -1763,6 +1767,7 @@ msgid "Auto-show terminal panel"
 msgstr "Tự động hiển thị bảng điều khiển thiết bị đầu cuối"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Automatic"
 msgstr "Tự động"
 
@@ -1859,6 +1864,10 @@ msgstr "Quay lại tổng quan"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "Quay lại plugin"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Background"
+msgstr "Nền"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1968,6 +1977,10 @@ msgstr "Đánh dấu trang này"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmarks"
 msgstr "Dấu trang"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Border"
+msgstr "Viền"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
@@ -2235,6 +2248,7 @@ msgstr "Không thể kết nối tới máy chủ từ xa. Hãy kiểm tra máy 
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -3228,6 +3242,10 @@ msgstr "Đã hoàn tất"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Composer background"
+msgstr "Nền ô nhập"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "Điều khiển trình soạn thảo"
@@ -3433,6 +3451,10 @@ msgstr "Console"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
 msgstr "Có chứa giá trị nhạy cảm; hãy thêm thủ công"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Content background"
+msgstr "Nền nội dung"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
@@ -3650,6 +3672,10 @@ msgstr "Không thể trích xuất ngữ cảnh."
 msgid "Could not generate commit message: {detail}"
 msgstr "Không thể tạo thông báo commit: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Could not import this theme. Use a version 1 theme JSON file under 32 KB with a name and valid light and dark palettes."
+msgstr "Không thể nhập giao diện này. Hãy dùng tệp JSON giao diện phiên bản 1 dưới 32 KB có tên và bảng màu sáng, tối hợp lệ."
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3792,6 +3818,10 @@ msgstr "Tạo tài khoản Cursor thứ hai với khóa API người dùng riên
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Tạo một quy trình hữu ích chỉ với một lần nhấp, sau đó điều chỉnh bất cứ lúc nào."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Create custom theme"
+msgstr "Tạo giao diện tùy chỉnh"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -4140,6 +4170,7 @@ msgstr "Hằng ngày"
 msgid "Daily brief"
 msgstr "Bản tóm tắt hằng ngày"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "Tối"
@@ -4226,6 +4257,7 @@ msgstr "Giao việc cho các tác nhân AI khác."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4314,6 +4346,14 @@ msgstr "Xóa skill"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
 #~ msgstr "Xóa tác vụ"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete theme"
+msgstr "Xóa giao diện"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete this custom theme? If it is active, Poracode will use the default theme."
+msgstr "Xóa giao diện tùy chỉnh này? Nếu đang được dùng, Poracode sẽ chuyển về giao diện mặc định."
 
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -4853,6 +4893,10 @@ msgstr "Sửa thẻ cho {label}"
 #~ msgid "Edit task"
 #~ msgstr "Chỉnh sửa tác vụ"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Edit theme"
+msgstr "Sửa giao diện"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "Chỉnh sửa:"
@@ -5020,6 +5064,10 @@ msgstr "Nhập URL kho lưu trữ an toàn sử dụng HTTPS, HTTP, SSH, Git, FT
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "Nhập kích thước như 512k hoặc 1m."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Enter a theme name and valid hex colors in both palettes."
+msgstr "Nhập tên giao diện và màu thập lục phân hợp lệ trong cả hai bảng màu."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -5319,6 +5367,10 @@ msgstr "Các lựa chọn rõ ràng được ghi lại từ những lần ủy q
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "Xuất máy chủ MCP"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Export theme"
+msgstr "Xuất giao diện"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6390,6 +6442,10 @@ msgstr "Nhập mục đã chọn"
 msgid "Import sessions"
 msgstr "Nhập phiên"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Import theme"
+msgstr "Nhập giao diện"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "Nhập vào {destinationProjectName}"
@@ -6944,6 +7000,7 @@ msgstr "tokens trọn đời"
 msgid "Lifetime tokens"
 msgstr "Tokens trọn đời"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "Sáng"
@@ -7915,6 +7972,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Tắt micrô"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "My theme"
+msgstr "Giao diện của tôi"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
@@ -9365,6 +9426,10 @@ msgstr "Token ghép đôi"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing…"
 msgstr "Đang ghép đôi…"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Palette mode"
+msgstr "Chế độ bảng màu"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -11392,6 +11457,10 @@ msgstr "Lưu"
 msgid "Save {0} credentials."
 msgstr "Lưu thông tin xác thực {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Save and apply"
+msgstr "Lưu và áp dụng"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
 msgstr "Lưu thay đổi"
@@ -11829,6 +11898,10 @@ msgstr "Chọn…"
 #~ msgid "Selected project"
 #~ msgstr "Dự án đã chọn"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Selected sidebar row"
+msgstr "Hàng được chọn ở thanh bên"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Send"
 #~ msgstr "Gửi"
@@ -12151,6 +12224,10 @@ msgstr "Hiển thị cạnh tên dự án."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Sidebar"
 #~ msgstr "Thanh bên"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Sidebar background"
+msgstr "Nền thanh bên"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
@@ -12844,6 +12921,10 @@ msgstr "Hỗ trợ:"
 msgid "Supports Fast mode"
 msgstr "Hỗ trợ chế độ nhanh"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Surface"
+msgstr "Bề mặt"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Hoán đổi ghi chú và việc cần làm"
@@ -13127,6 +13208,14 @@ msgstr "Tab đầu cuối"
 msgid "Test microphone"
 msgstr "Kiểm tra micrô"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text color"
+msgstr "Màu chữ"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text on accent"
+msgstr "Chữ trên màu nhấn"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "Cuộc trò chuyện đó không còn khả dụng."
@@ -13179,6 +13268,10 @@ msgstr "Các ứng viên chưa thực hiện thay đổi nào."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "thư mục đã chọn"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "The custom theme limit has been reached. Delete a theme before adding another."
+msgstr "Đã đạt giới hạn giao diện tùy chỉnh. Hãy xóa một giao diện trước khi thêm giao diện khác."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -13374,6 +13467,10 @@ msgstr "Chủ đề"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "Giao diện và cỡ chữ chat"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Theme name"
+msgstr "Tên giao diện"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -14663,6 +14760,10 @@ msgstr "Cài đặt sử dụng"
 msgid "Usage unknown"
 msgstr "Không rõ mức sử dụng"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
+msgstr "Dùng màu #rgb hoặc #rrggbb. Để trống màu tùy chọn để tự động tính màu."
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "Dùng + để ghép nối trực tiếp hoặc kết nối với máy từ xa qua SSH."
@@ -14708,6 +14809,10 @@ msgstr "Dùng CLI OpenCode để cập nhật các gói chỉ dành cho terminal
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "Sử dụng phiên"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Use sidebar background for the docked sidebar"
+msgstr "Dùng nền thanh bên cho thanh bên cố định"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."

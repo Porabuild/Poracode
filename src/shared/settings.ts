@@ -1,3 +1,4 @@
+import { customThemesSchema } from "./customThemes";
 import { z } from "zod";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import {
@@ -299,6 +300,7 @@ export const sharedSettingsSchema = z.object({
    * base "default" theme at apply time.
    */
   themePreset: z.string(),
+  customThemes: customThemesSchema,
   /**
    * UI language. `"system"` follows the OS/browser preferred language at
    * runtime (resolved by `resolveLocale`), mirroring `themeMode: "system"`.
@@ -716,6 +718,7 @@ export type SharedSettingsInput = Omit<
 export const defaultSharedSettings: SharedSettings = {
   themeMode: "dark",
   themePreset: "default",
+  customThemes: [],
   locale: "system",
   gitTextLanguage: "en",
   terminalPosition: "bottom",

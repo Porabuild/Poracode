@@ -811,6 +811,10 @@ msgstr "关于"
 msgid "Above the composer"
 msgstr "输入框上方"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Accent"
+msgstr "强调色"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "接受两项更改"
@@ -1763,6 +1767,7 @@ msgid "Auto-show terminal panel"
 msgstr "自动显示终端面板"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Automatic"
 msgstr "自动"
 
@@ -1859,6 +1864,10 @@ msgstr "返回概览"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "返回插件"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Background"
+msgstr "背景"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1968,6 +1977,10 @@ msgstr "将此页加入书签"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmarks"
 msgstr "书签"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Border"
+msgstr "边框"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
@@ -2235,6 +2248,7 @@ msgstr "无法连接远程服务器。请确认其处于在线状态，然后重
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -3228,6 +3242,10 @@ msgstr "已完成"
 msgid "Composer"
 msgstr "Composer"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Composer background"
+msgstr "输入框背景"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "Composer 控件"
@@ -3433,6 +3451,10 @@ msgstr "控制台"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
 msgstr "包含敏感值；请手动添加"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Content background"
+msgstr "内容背景"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
@@ -3650,6 +3672,10 @@ msgstr "无法提取上下文。"
 msgid "Could not generate commit message: {detail}"
 msgstr "无法生成提交消息：{detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Could not import this theme. Use a version 1 theme JSON file under 32 KB with a name and valid light and dark palettes."
+msgstr "无法导入此主题。请使用小于 32 KB 的版本 1 主题 JSON 文件，其中需包含名称及有效的浅色和深色配色。"
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3792,6 +3818,10 @@ msgstr "使用独立的用户 API 密钥创建第二个 Cursor 账号。Cursor C
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "一键创建实用例程，之后可随时调整。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Create custom theme"
+msgstr "创建自定义主题"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -4140,6 +4170,7 @@ msgstr "每天"
 msgid "Daily brief"
 msgstr "每日简报"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "深色"
@@ -4226,6 +4257,7 @@ msgstr "将工作委派给其他 AI 智能体。"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4314,6 +4346,14 @@ msgstr "删除技能"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
 #~ msgstr "删除任务"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete theme"
+msgstr "删除主题"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete this custom theme? If it is active, Poracode will use the default theme."
+msgstr "删除此自定义主题？如果正在使用，Poracode 将恢复默认主题。"
 
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -4853,6 +4893,10 @@ msgstr "编辑 {label} 的标签"
 #~ msgid "Edit task"
 #~ msgstr "编辑任务"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Edit theme"
+msgstr "编辑主题"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "编辑："
@@ -5020,6 +5064,10 @@ msgstr "请输入使用 HTTPS、HTTP、SSH、Git、FTP、FTPS 或 scp 语法的�
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "请输入类似 512k 或 1m 的大小。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Enter a theme name and valid hex colors in both palettes."
+msgstr "请输入主题名称，并在两套配色中填写有效的十六进制颜色。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -5319,6 +5367,10 @@ msgstr "从过去的委派中记录的明确选择 — 它们构成上方的路�
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "导出 MCP 服务器"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Export theme"
+msgstr "导出主题"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6390,6 +6442,10 @@ msgstr "导入所选项"
 msgid "Import sessions"
 msgstr "导入会话"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Import theme"
+msgstr "导入主题"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "导入到 {destinationProjectName}"
@@ -6944,6 +7000,7 @@ msgstr "累计token数"
 msgid "Lifetime tokens"
 msgstr "累计token数"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "浅色"
@@ -7914,6 +7971,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "将麦克风静音"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "My theme"
+msgstr "我的主题"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
@@ -9364,6 +9425,10 @@ msgstr "配对令牌"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing…"
 msgstr "正在配对…"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Palette mode"
+msgstr "配色模式"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -11391,6 +11456,10 @@ msgstr "保存"
 msgid "Save {0} credentials."
 msgstr "保存{0}凭据。"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Save and apply"
+msgstr "保存并应用"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
 msgstr "保存更改"
@@ -11828,6 +11897,10 @@ msgstr "选择…"
 #~ msgid "Selected project"
 #~ msgstr "所选项目"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Selected sidebar row"
+msgstr "侧栏选中行"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Send"
 #~ msgstr "发送"
@@ -12150,6 +12223,10 @@ msgstr "显示在项目名称旁。"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Sidebar"
 #~ msgstr "侧边栏"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Sidebar background"
+msgstr "侧栏背景"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
@@ -12843,6 +12920,10 @@ msgstr "支持："
 msgid "Supports Fast mode"
 msgstr "支持快速模式"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Surface"
+msgstr "表面"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "切换笔记和待办事项"
@@ -13126,6 +13207,14 @@ msgstr "终端选项卡"
 msgid "Test microphone"
 msgstr "测试麦克风"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text color"
+msgstr "文字颜色"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text on accent"
+msgstr "强调色上的文字"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "该对话已不可用。"
@@ -13178,6 +13267,10 @@ msgstr "候选项尚未进行任何更改。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "所选文件夹"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "The custom theme limit has been reached. Delete a theme before adding another."
+msgstr "已达到自定义主题数量上限。请先删除一个主题再添加新主题。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -13373,6 +13466,10 @@ msgstr "主题"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "主题和聊天字号"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Theme name"
+msgstr "主题名称"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -14662,6 +14759,10 @@ msgstr "使用设置"
 msgid "Usage unknown"
 msgstr "用量未知"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
+msgstr "使用 #rgb 或 #rrggbb 格式的颜色。可选颜色留空时将自动计算。"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "使用 + 直接配对，或通过 SSH 连接到远程计算机。"
@@ -14707,6 +14808,10 @@ msgstr "请使用 OpenCode CLI 更新仅供终端使用的软件包。"
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "使用会话"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Use sidebar background for the docked sidebar"
+msgstr "为固定侧栏使用侧栏背景"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."

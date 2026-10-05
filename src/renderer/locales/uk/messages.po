@@ -811,6 +811,10 @@ msgstr "Про програму"
 msgid "Above the composer"
 msgstr "Над полем введення"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Accent"
+msgstr "Акцент"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "Прийняти обидві зміни"
@@ -1763,6 +1767,7 @@ msgid "Auto-show terminal panel"
 msgstr "Автоматично показувати панель термінала"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Automatic"
 msgstr "Автоматично"
 
@@ -1859,6 +1864,10 @@ msgstr "Назад до огляду"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "Назад до плагінів"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Background"
+msgstr "Тло"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1968,6 +1977,10 @@ msgstr "Додати сторінку в закладки"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmarks"
 msgstr "Закладки"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Border"
+msgstr "Межа"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
@@ -2235,6 +2248,7 @@ msgstr "Не вдалося зв’язатися з віддаленим сер
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -3228,6 +3242,10 @@ msgstr "Завершено"
 msgid "Composer"
 msgstr "Поле вводу"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Composer background"
+msgstr "Тло поля введення"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "Керування полем вводу"
@@ -3433,6 +3451,10 @@ msgstr "Консоль"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
 msgstr "Містить конфіденційні значення; додайте вручну"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Content background"
+msgstr "Тло вмісту"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
@@ -3650,6 +3672,10 @@ msgstr "Не вдалося витягнути контекст."
 msgid "Could not generate commit message: {detail}"
 msgstr "Не вдалося згенерувати повідомлення коміту: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Could not import this theme. Use a version 1 theme JSON file under 32 KB with a name and valid light and dark palettes."
+msgstr "Не вдалося імпортувати тему. Використовуйте JSON-файл теми версії 1 розміром менше 32 КБ з назвою та коректними світлою й темною палітрами."
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3792,6 +3818,10 @@ msgstr "Створіть другий обліковий запис Cursor із 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "Створіть корисний розпорядок одним клацанням і змінюйте його будь-коли."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Create custom theme"
+msgstr "Створити власну тему"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -4140,6 +4170,7 @@ msgstr "Щодня"
 msgid "Daily brief"
 msgstr "Щоденний огляд"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "Темна"
@@ -4226,6 +4257,7 @@ msgstr "Делегуйте роботу іншим ШІ-агентам."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4314,6 +4346,14 @@ msgstr "Видалити навичку"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
 #~ msgstr "Видалити завдання"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete theme"
+msgstr "Видалити тему"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete this custom theme? If it is active, Poracode will use the default theme."
+msgstr "Видалити цю власну тему? Якщо вона активна, Poracode застосує типову тему."
 
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -4853,6 +4893,10 @@ msgstr "Редагувати теги для {label}"
 #~ msgid "Edit task"
 #~ msgstr "Редагувати завдання"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Edit theme"
+msgstr "Редагувати тему"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "Змінити:"
@@ -5020,6 +5064,10 @@ msgstr "Введіть безпечну URL-адресу репозиторію 
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "Введіть розмір, наприклад 512k або 1m."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Enter a theme name and valid hex colors in both palettes."
+msgstr "Введіть назву теми та коректні HEX-кольори в обох палітрах."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -5319,6 +5367,10 @@ msgstr "Явні вибори, записані з попередніх деле
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "Експортувати сервери MCP"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Export theme"
+msgstr "Експортувати тему"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6390,6 +6442,10 @@ msgstr "Імпортувати вибрані"
 msgid "Import sessions"
 msgstr "Імпорт сесій"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Import theme"
+msgstr "Імпортувати тему"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "Імпортувати до {destinationProjectName}"
@@ -6944,6 +7000,7 @@ msgstr "токенів за весь час"
 msgid "Lifetime tokens"
 msgstr "Токенів за весь час"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "Світла"
@@ -7915,6 +7972,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "Вимкнути мікрофон"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "My theme"
+msgstr "Моя тема"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
@@ -9365,6 +9426,10 @@ msgstr "Токен підключення"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing…"
 msgstr "Підключення…"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Palette mode"
+msgstr "Режим палітри"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -11392,6 +11457,10 @@ msgstr "Зберегти"
 msgid "Save {0} credentials."
 msgstr "Зберегти облікові дані {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Save and apply"
+msgstr "Зберегти й застосувати"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
 msgstr "Зберегти зміни"
@@ -11829,6 +11898,10 @@ msgstr "Вибрати…"
 #~ msgid "Selected project"
 #~ msgstr "Вибраний проєкт"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Selected sidebar row"
+msgstr "Вибраний рядок бічної панелі"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Send"
 #~ msgstr "Надіслати"
@@ -12151,6 +12224,10 @@ msgstr "Показується поруч із назвою проєкту."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Sidebar"
 #~ msgstr "Бічна панель"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Sidebar background"
+msgstr "Тло бічної панелі"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
@@ -12844,6 +12921,10 @@ msgstr "Підтримка:"
 msgid "Supports Fast mode"
 msgstr "Підтримує швидкий режим"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Surface"
+msgstr "Поверхня"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "Поміняти місцями нотатки та завдання"
@@ -13127,6 +13208,14 @@ msgstr "Вкладки термінала"
 msgid "Test microphone"
 msgstr "Перевірити мікрофон"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text color"
+msgstr "Колір тексту"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text on accent"
+msgstr "Текст на акцентному кольорі"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "Ця розмова більше недоступна."
@@ -13179,6 +13268,10 @@ msgstr "Кандидати ще не внесли жодних змін."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "обрана папка"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "The custom theme limit has been reached. Delete a theme before adding another."
+msgstr "Досягнуто ліміту власних тем. Видаліть тему, перш ніж додати нову."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -13374,6 +13467,10 @@ msgstr "Тема"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "Тема и размер шрифта чата"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Theme name"
+msgstr "Назва теми"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -14663,6 +14760,10 @@ msgstr "Налаштування використання"
 msgid "Usage unknown"
 msgstr "Використання невідоме"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
+msgstr "Використовуйте кольори #rgb або #rrggbb. Залиште необов’язкові кольори порожніми для автоматичного розрахунку."
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "Скористайтеся +, щоб створити пару безпосередньо або підключитися до віддаленого комп’ютера через SSH."
@@ -14708,6 +14809,10 @@ msgstr "Для оновлення пакетів лише для терміна�
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "Використати сесію"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Use sidebar background for the docked sidebar"
+msgstr "Використовувати тло бічної панелі для закріпленої панелі"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."

@@ -1,3 +1,4 @@
+import { customThemeSchema, MAX_CUSTOM_THEMES, type CustomTheme } from "@/shared/customThemes";
 import { create } from "zustand";
 import { readBridge } from "../bridge";
 import {
@@ -60,6 +61,8 @@ interface SharedSettingsState extends SharedSettings {
   sharedSettingsHydrated: boolean;
   setThemeMode: (mode: ThemeMode) => void;
   setThemePreset: (id: string) => void;
+  saveCustomTheme: (theme: CustomTheme) => boolean;
+  removeCustomTheme: (id: string) => void;
   setLocale: (locale: LocaleSetting) => void;
   setGitTextLanguage: (value: AiContentLanguage) => void;
   setTerminalPosition: (position: TerminalPosition) => void;
@@ -334,6 +337,33 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   setThemePreset: (themePreset) => {
     if (get().themePreset === themePreset) return;
     set({ themePreset });
+    persistSettings(selectSharedSettings(get()));
+  },
+  saveCustomTheme: (theme) => {
+    const parsed = customThemeSchema.safeParse(theme);
+    if (!parsed.success) return false;
+    const current = get().customThemes;
+    const previous = current.find((entry) => entry.id === parsed.data.id);
+    const exists = previous !== undefined;
+    if (previous && JSON.stringify(previous) === JSON.stringify(parsed.data)) {
+      get().setThemePreset(parsed.data.id);
+      return true;
+    }
+    if (!exists && current.length >= MAX_CUSTOM_THEMES) return false;
+    const customThemes = exists
+      ? current.map((entry) => (entry.id === parsed.data.id ? parsed.data : entry))
+      : [...current, parsed.data];
+    set({ customThemes, themePreset: parsed.data.id });
+    persistSettings(selectSharedSettings(get()));
+    return true;
+  },
+  removeCustomTheme: (id) => {
+    const current = get();
+    if (!current.customThemes.some((entry) => entry.id === id)) return;
+    set({
+      customThemes: current.customThemes.filter((entry) => entry.id !== id),
+      themePreset: current.themePreset === id ? "default" : current.themePreset,
+    });
     persistSettings(selectSharedSettings(get()));
   },
   setLocale: (locale) => {
@@ -1061,6 +1091,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
   return {
     themeMode: state.themeMode,
     themePreset: state.themePreset,
+    customThemes: state.customThemes,
     locale: state.locale,
     gitTextLanguage: state.gitTextLanguage,
     terminalPosition: state.terminalPosition,

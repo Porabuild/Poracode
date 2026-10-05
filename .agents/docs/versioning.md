@@ -22,6 +22,17 @@ Before finishing work that changes data produced or consumed across process rest
 
 Version bumps are required by compatibility, not by every code edit. Record the reason beside the version or migration so the next agent can make the same decision correctly.
 
+Custom themes use authoring format `version: 1` in `src/shared/customThemes.ts`.
+Settings files and the renderer's `poracode-shared-settings` cache store the same
+validated palette records; exported JSON omits the local installation id. Legacy
+settings/cache shapes remain valid and normalize to an empty theme list. Invalid,
+duplicate or unsupported records are discarded individually, and missing selected
+themes clear overrides to the base palette. The pre-paint reader and React provider
+use the same derivation; `poracode-boot` retains its existing appearance/background
+shape. Theme preferences remain device-local and are excluded from remote settings,
+so no IPC/remote protocol or database version changes are needed. Regression tests
+start from released settings and cache shapes and cover export/import round trips.
+
 ## Persisted data and caches
 
 | Boundary                                          | Version location                                                                                                           | What must trigger a review                                                                                                                                                                         |

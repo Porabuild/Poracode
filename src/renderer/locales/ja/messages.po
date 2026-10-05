@@ -810,6 +810,10 @@ msgstr "バージョン情報"
 msgid "Above the composer"
 msgstr "コンポーザーの上"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Accent"
+msgstr "アクセント"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "両方の変更を受け入れる"
@@ -1762,6 +1766,7 @@ msgid "Auto-show terminal panel"
 msgstr "端末パネルの自動表示"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Automatic"
 msgstr "自動"
 
@@ -1858,6 +1863,10 @@ msgstr "概要に戻る"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "プラグインに戻る"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Background"
+msgstr "背景"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1967,6 +1976,10 @@ msgstr "このページをブックマーク"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmarks"
 msgstr "ブックマーク"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Border"
+msgstr "境界線"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
@@ -2234,6 +2247,7 @@ msgstr "リモートサーバーに接続できません。オンラインであ
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -3227,6 +3241,10 @@ msgstr "完了"
 msgid "Composer"
 msgstr "コンポーザー"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Composer background"
+msgstr "入力欄の背景"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "コンポーザーの操作"
@@ -3432,6 +3450,10 @@ msgstr "コンソール"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
 msgstr "機密値が含まれています。手動で追加してください"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Content background"
+msgstr "コンテンツの背景"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
@@ -3649,6 +3671,10 @@ msgstr "コンテキストを抽出できませんでした。"
 msgid "Could not generate commit message: {detail}"
 msgstr "コミットメッセージを生成できませんでした:{detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Could not import this theme. Use a version 1 theme JSON file under 32 KB with a name and valid light and dark palettes."
+msgstr "このテーマをインポートできませんでした。名前と有効なライト・ダークパレットを含む、32 KB未満のバージョン1のテーマJSONファイルを使用してください。"
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3791,6 +3817,10 @@ msgstr "独自のユーザー API キーで 2 つ目の Cursor アカウント�
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "ワンクリックで便利なルーティンを作成し、いつでも調整できます。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Create custom theme"
+msgstr "カスタムテーマを作成"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -4139,6 +4169,7 @@ msgstr "毎日"
 msgid "Daily brief"
 msgstr "デイリーブリーフ"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "ダーク"
@@ -4225,6 +4256,7 @@ msgstr "他の AI エージェントに作業を委任します。"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4313,6 +4345,14 @@ msgstr "スキルを削除"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
 #~ msgstr "タスクを削除"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete theme"
+msgstr "テーマを削除"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete this custom theme? If it is active, Poracode will use the default theme."
+msgstr "このカスタムテーマを削除しますか？使用中の場合、Poracodeは標準テーマに戻ります。"
 
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -4852,6 +4892,10 @@ msgstr "{label}のタグを編集"
 #~ msgid "Edit task"
 #~ msgstr "タスクを編集"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Edit theme"
+msgstr "テーマを編集"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "編集:"
@@ -5019,6 +5063,10 @@ msgstr "HTTPS、HTTP、SSH、Git、FTP、FTPS、または scp 構文を使用し
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "512k や 1m のようなサイズを入力してください。"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Enter a theme name and valid hex colors in both palettes."
+msgstr "テーマ名と、両方のパレットに有効な16進数の色を入力してください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -5318,6 +5366,10 @@ msgstr "過去の委任から記録された明示的な選択です。上のル
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCPサーバーをエクスポート"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Export theme"
+msgstr "テーマをエクスポート"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6389,6 +6441,10 @@ msgstr "選択項目をインポート"
 msgid "Import sessions"
 msgstr "セッションをインポート"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Import theme"
+msgstr "テーマをインポート"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "{destinationProjectName} にインポート"
@@ -6943,6 +6999,7 @@ msgstr "累計トークン"
 msgid "Lifetime tokens"
 msgstr "累計トークン"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "ライト"
@@ -7913,6 +7970,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "マイクをミュート"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "My theme"
+msgstr "マイテーマ"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
@@ -9363,6 +9424,10 @@ msgstr "ペアリングトークン"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing…"
 msgstr "ペアリング中…"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Palette mode"
+msgstr "パレットのモード"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -11390,6 +11455,10 @@ msgstr "保存"
 msgid "Save {0} credentials."
 msgstr "{0}資格情報を保存します。"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Save and apply"
+msgstr "保存して適用"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
 msgstr "変更を保存"
@@ -11827,6 +11896,10 @@ msgstr "選択…"
 #~ msgid "Selected project"
 #~ msgstr "選択したプロジェクト"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Selected sidebar row"
+msgstr "サイドバーの選択行"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Send"
 #~ msgstr "送信"
@@ -12149,6 +12222,10 @@ msgstr "プロジェクト名の横に表示されます。"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Sidebar"
 #~ msgstr "サイドバー"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Sidebar background"
+msgstr "サイドバーの背景"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
@@ -12842,6 +12919,10 @@ msgstr "サポート:"
 msgid "Supports Fast mode"
 msgstr "高速モードに対応"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Surface"
+msgstr "サーフェス"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "メモやToDoを交換する"
@@ -13125,6 +13206,14 @@ msgstr "ターミナルタブ"
 msgid "Test microphone"
 msgstr "マイクをテスト"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text color"
+msgstr "文字色"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text on accent"
+msgstr "アクセント上の文字"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "その会話は利用できなくなりました。"
@@ -13177,6 +13266,10 @@ msgstr "候補はまだ変更を加えていません。"
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "選択したフォルダー"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "The custom theme limit has been reached. Delete a theme before adding another."
+msgstr "カスタムテーマの上限に達しました。新しいテーマを追加する前にテーマを削除してください。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -13372,6 +13465,10 @@ msgstr "テーマ"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "テーマとチャットのフォントサイズ"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Theme name"
+msgstr "テーマ名"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -14661,6 +14758,10 @@ msgstr "利用設定"
 msgid "Usage unknown"
 msgstr "使用量不明"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
+msgstr "#rgbまたは#rrggbb形式の色を使用してください。任意の色を空欄にすると自動的に算出されます。"
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "「+」を使用して直接ペアリングするか、SSH 経由でリモートマシンに接続します。"
@@ -14706,6 +14807,10 @@ msgstr "ターミナル専用パッケージの更新には OpenCode CLI を使�
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "セッションを使用する"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Use sidebar background for the docked sidebar"
+msgstr "固定サイドバーにサイドバーの背景を使用"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."

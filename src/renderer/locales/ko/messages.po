@@ -811,6 +811,10 @@ msgstr "정보"
 msgid "Above the composer"
 msgstr "작성기 위"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Accent"
+msgstr "강조색"
+
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/mergeConflict/codeLensProvider.ts
 msgid "Accept Both Changes"
 msgstr "양쪽 변경 사항 모두 수락"
@@ -1763,6 +1767,7 @@ msgid "Auto-show terminal panel"
 msgstr "터미널 패널 자동 표시"
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
 msgid "Automatic"
 msgstr "자동"
 
@@ -1859,6 +1864,10 @@ msgstr "개요로 돌아가기"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Back to plugins"
 msgstr "플러그인으로 돌아가기"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Background"
+msgstr "배경"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Background process exited unexpectedly"
@@ -1968,6 +1977,10 @@ msgstr "이 페이지 북마크"
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Bookmarks"
 msgstr "북마크"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Border"
+msgstr "테두리"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Bottom"
@@ -2235,6 +2248,7 @@ msgstr "원격 서버에 연결할 수 없습니다. 온라인 상태인지 확�
 #: src/renderer/views/ProfileOverlay/parts/EditProfileDialog.tsx
 #: src/renderer/views/PrReviewOverlay/parts/SubmitReviewPopover.tsx
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
@@ -3228,6 +3242,10 @@ msgstr "완료됨"
 msgid "Composer"
 msgstr "작성기"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Composer background"
+msgstr "입력창 배경"
+
 #: src/renderer/commands/composerCommands.ts
 msgid "Composer controls"
 msgstr "작성기 컨트롤"
@@ -3433,6 +3451,10 @@ msgstr "콘솔"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Contains sensitive values; add manually"
 msgstr "민감한 값이 포함되어 있습니다. 직접 추가하세요"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Content background"
+msgstr "콘텐츠 배경"
 
 #: src/mobile/ComposerInfoChips.tsx
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
@@ -3650,6 +3672,10 @@ msgstr "컨텍스트를 추출할 수 없습니다."
 msgid "Could not generate commit message: {detail}"
 msgstr "커밋 메시지를 생성할 수 없습니다: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Could not import this theme. Use a version 1 theme JSON file under 32 KB with a name and valid light and dark palettes."
+msgstr "이 테마를 가져올 수 없습니다. 이름과 유효한 밝은 팔레트 및 어두운 팔레트가 포함된 32 KB 미만의 버전 1 테마 JSON 파일을 사용하세요."
+
 #. placeholder {0}: failure.project.name
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
@@ -3792,6 +3818,10 @@ msgstr "고유한 사용자 API 키로 두 번째 Cursor 계정을 만듭니다.
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Create a useful routine with one click, then adjust it anytime."
 msgstr "한 번의 클릭으로 유용한 루틴을 만들고 언제든지 조정하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Create custom theme"
+msgstr "사용자 지정 테마 만들기"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/CreatePrModal.tsx
 msgid "Create Draft PR"
@@ -4140,6 +4170,7 @@ msgstr "매일"
 msgid "Daily brief"
 msgstr "일일 브리핑"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Dark"
 msgstr "다크"
@@ -4226,6 +4257,7 @@ msgstr "다른 AI 에이전트에게 작업을 위임합니다."
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 #: src/renderer/views/SettingsOverlay/parts/WorkspacesSettings.tsx
 msgid "Delete"
@@ -4314,6 +4346,14 @@ msgstr "스킬 삭제"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "Delete task"
 #~ msgstr "작업 삭제"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete theme"
+msgstr "테마 삭제"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Delete this custom theme? If it is active, Poracode will use the default theme."
+msgstr "이 사용자 지정 테마를 삭제할까요? 사용 중이면 Poracode가 기본 테마로 돌아갑니다."
 
 #: src/mobile/views/SettingsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
@@ -4853,6 +4893,10 @@ msgstr "{label}의 태그 편집"
 #~ msgid "Edit task"
 #~ msgstr "작업 편집"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Edit theme"
+msgstr "테마 편집"
+
 #: src/renderer/components/thread/ChatPane/parts/items/FileChange.tsx
 #~ msgid "Edit:"
 #~ msgstr "편집:"
@@ -5020,6 +5064,10 @@ msgstr "HTTPS, HTTP, SSH, Git, FTP, FTPS 또는 scp 구문을 사용하는 안�
 #: src/renderer/views/SettingsOverlay/parts/CodexProviderSettings.tsx
 msgid "Enter a size like 512k or 1m."
 msgstr "512k 또는 1m과 같은 크기를 입력하세요."
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Enter a theme name and valid hex colors in both palettes."
+msgstr "테마 이름과 두 팔레트의 유효한 16진수 색상을 입력하세요."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Enter a valid absolute project path."
@@ -5319,6 +5367,10 @@ msgstr "과거 위임에서 기록된 명시적 선택으로, 위의 라우팅 �
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Export MCP servers"
 msgstr "MCP 서버 내보내기"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Export theme"
+msgstr "테마 내보내기"
 
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 #: src/renderer/views/SettingsOverlay/parts/ClaudeProfileSettings.tsx
@@ -6390,6 +6442,10 @@ msgstr "선택 항목 가져오기"
 msgid "Import sessions"
 msgstr "세션 가져오기"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "Import theme"
+msgstr "테마 가져오기"
+
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 msgid "Import to {destinationProjectName}"
 msgstr "{destinationProjectName}(으)로 가져오기"
@@ -6944,6 +7000,7 @@ msgstr "누적 토큰"
 msgid "Lifetime tokens"
 msgstr "누적 토큰"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Light"
 msgstr "라이트"
@@ -7915,6 +7972,10 @@ msgstr "Muse Code"
 #: src/renderer/components/composer/LiveVoiceControls.tsx
 msgid "Mute microphone"
 msgstr "마이크 음소거"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemes.tsx
+msgid "My theme"
+msgstr "내 테마"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "my-mcp-server"
@@ -9365,6 +9426,10 @@ msgstr "페어링 토큰"
 #: src/mobile/views/DesktopsView.tsx
 msgid "Pairing…"
 msgstr "페어링 중…"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Palette mode"
+msgstr "팔레트 모드"
 
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
@@ -11392,6 +11457,10 @@ msgstr "저장"
 msgid "Save {0} credentials."
 msgstr "{0} 자격 증명을 저장합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Save and apply"
+msgstr "저장 및 적용"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Save changes"
 msgstr "변경 사항 저장"
@@ -11829,6 +11898,10 @@ msgstr "선택…"
 #~ msgid "Selected project"
 #~ msgstr "선택한 프로젝트"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Selected sidebar row"
+msgstr "선택된 사이드바 행"
+
 #: src/renderer/views/RemoteThreadView/RemoteThreadView.tsx
 #~ msgid "Send"
 #~ msgstr "보내기"
@@ -12151,6 +12224,10 @@ msgstr "프로젝트 이름 옆에 표시됩니다."
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 #~ msgid "Sidebar"
 #~ msgstr "사이드바"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Sidebar background"
+msgstr "사이드바 배경"
 
 #: src/renderer/views/SettingsOverlay/parts/UsageProviderRow.tsx
 msgid "Sidebar circles are turned off globally above"
@@ -12844,6 +12921,10 @@ msgstr "지원:"
 msgid "Supports Fast mode"
 msgstr "고속 모드 지원"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Surface"
+msgstr "표면"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Swap notes and to-dos"
 msgstr "메모와 할 일 바꾸기"
@@ -13127,6 +13208,14 @@ msgstr "터미널 탭"
 msgid "Test microphone"
 msgstr "마이크 테스트"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text color"
+msgstr "텍스트 색상"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Text on accent"
+msgstr "강조색 위의 텍스트"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "해당 대화는 더 이상 사용할 수 없습니다."
@@ -13179,6 +13268,10 @@ msgstr "후보가 아직 변경 사항을 만들지 않았습니다."
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "the chosen folder"
 msgstr "선택한 폴더"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "The custom theme limit has been reached. Delete a theme before adding another."
+msgstr "사용자 지정 테마 한도에 도달했습니다. 새 테마를 추가하기 전에 테마를 삭제하세요."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -13374,6 +13467,10 @@ msgstr "테마"
 #: src/mobile/settingsSections.ts
 msgid "Theme and chat font size"
 msgstr "테마 및 채팅 글꼴 크기"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Theme name"
+msgstr "테마 이름"
 
 #: src/renderer/views/SettingsOverlay/parts/OpenCode2ProviderSettings.tsx
 msgid "These built-in MCP servers are shared by OpenCode 2 threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
@@ -14663,6 +14760,10 @@ msgstr "사용 설정"
 msgid "Usage unknown"
 msgstr "사용량을 알 수 없음"
 
+#: src/renderer/views/SettingsOverlay/parts/CustomThemeEditor.tsx
+msgid "Use #rgb or #rrggbb colors. Leave optional colors blank to derive them automatically."
+msgstr "#rgb 또는 #rrggbb 색상을 사용하세요. 선택적 색상을 비워 두면 자동으로 계산됩니다."
+
 #: src/mobile/views/DesktopsView.tsx
 msgid "Use + to pair directly or connect to a remote machine over SSH."
 msgstr "+를 사용해 직접 페어링하거나 SSH를 통해 원격 컴퓨터에 연결하세요."
@@ -14708,6 +14809,10 @@ msgstr "터미널 전용 패키지를 업데이트하려면 OpenCode CLI를 사�
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use Session"
 msgstr "세션 사용"
+
+#: src/renderer/views/SettingsOverlay/parts/CustomThemePalette.tsx
+msgid "Use sidebar background for the docked sidebar"
+msgstr "고정 사이드바에 사이드바 배경 사용"
 
 #: src/renderer/components/thread/ThreadDraftComposerArea.tsx
 msgid "Use the {name} skill."

@@ -25,9 +25,10 @@ export function AppearanceSettings() {
   const themeMode = useSharedSettings((state) => state.themeMode);
   const setThemeMode = useSharedSettings((state) => state.setThemeMode);
   const themePreset = useSharedSettings((state) => state.themePreset);
+  const customThemes = useSharedSettings((state) => state.customThemes);
   const appearance = useResolvedAppearance();
   const [themeOpen, setThemeOpen] = useState(false);
-  const activePreset = getThemePreset(themePreset);
+  const activePreset = getThemePreset(themePreset, customThemes);
   const activeVars = (
     appearance === "dark" ? activePreset.dark : activePreset.light
   ) as CSSProperties;

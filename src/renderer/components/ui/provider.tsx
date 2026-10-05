@@ -78,6 +78,7 @@ export function AppProvider(props: {
   const { children, contentReady = false, syncWindowChrome = true } = props;
   const themeMode = useSharedSettings((state) => state.themeMode);
   const themePreset = useSharedSettings((state) => state.themePreset);
+  const customThemes = useSharedSettings((state) => state.customThemes);
   const locale = useSharedSettings((state) => state.locale);
   const [prefersDark, setPrefersDark] = useState(systemPrefersDark);
   const sidebarTranslucency = useSharedSettings((state) => state.sidebarTranslucency);
@@ -136,9 +137,9 @@ export function AppProvider(props: {
     root.classList.add(appearance);
     root.dataset.theme = appearance;
     root.dataset.themePreset = themePreset;
-    applyAppTheme(root, appearance, themePreset);
-    persistThemeBoot(appearance, themePreset);
-  }, [appearance, themePreset]);
+    applyAppTheme(root, appearance, themePreset, customThemes);
+    persistThemeBoot(appearance, themePreset, customThemes);
+  }, [appearance, themePreset, customThemes]);
 
   // Gates the in-app CSS sidebar tint/fallback. Held off until content is ready
   // so the loading screen stays opaque.

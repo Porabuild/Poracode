@@ -971,6 +971,7 @@
        wallpaper blur (more glassy, but tinted by whatever's on the desktop). */
     --sidebar-glass-tint: color-mix(in oklab, var(--content-background) 35%, transparent);
     --content-background: var(--background);
+    --sidebar-panel-background: var(--content-background);
     /* Floating chrome that hovers over the conversation — thread tool rail,
        changes bubble, scroll-to-bottom. One shared surface so the three read as
        a set, tinted like the sidebar (side chrome) rather than the pane beneath
@@ -1000,6 +1001,7 @@
        border-white/x hairlines so every surface follows the active theme. */
     --row-hover: color-mix(in oklab, var(--foreground) 6%, transparent);
     --row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
+    --sidebar-row-active: color-mix(in oklab, var(--foreground) 11%, transparent);
     --hairline: color-mix(in oklab, var(--foreground) 9%, transparent);
     --hairline-strong: color-mix(in oklab, var(--foreground) 15%, transparent);
   }
@@ -1105,6 +1107,7 @@
        as a clearer, whiter highlight, well separated from the dimmed idle
        rows (base is 11%). */
     --row-active: color-mix(in oklab, var(--foreground) 20%, transparent);
+    --sidebar-row-active: color-mix(in oklab, var(--foreground) 20%, transparent);
 
     /* App-specific */
     --sidebar-background: #0e0e14;
@@ -1406,6 +1409,10 @@ html[data-window-kind="quickComposer"] #root {
   -webkit-app-region: no-drag;
   app-region: no-drag;
   z-index: 20;
+}
+
+.poracode-sidebar-aside {
+  --row-active: var(--sidebar-row-active);
 }
 
 /* === Translucent ("liquid glass") sidebar ===================================

@@ -1,3 +1,4 @@
+import { normalizeCustomThemes, type CustomTheme } from "@/shared/customThemes";
 /**
  * Applies a theme preset's variant to the document root as inline CSS custom
  * properties. Inline properties win over the `.light` / `.dark` rules in
@@ -13,15 +14,20 @@ import { MANAGED_THEME_VARS } from "./themeTokens";
 
 type Appearance = "light" | "dark";
 
-export function applyAppTheme(root: HTMLElement, appearance: Appearance, themeId: string): void {
-  if (themeId === DEFAULT_THEME_ID) {
+export function applyAppTheme(
+  root: HTMLElement,
+  appearance: Appearance,
+  themeId: string,
+  customThemes: readonly CustomTheme[] = [],
+): void {
+  const preset = getThemePreset(themeId, customThemes);
+  if (preset.id === DEFAULT_THEME_ID) {
     for (const key of MANAGED_THEME_VARS) {
       root.style.removeProperty(key);
     }
     return;
   }
 
-  const preset = getThemePreset(themeId);
   const vars = appearance === "dark" ? preset.dark : preset.light;
   for (const key of MANAGED_THEME_VARS) {
     // An empty value clears the declaration, letting the .light/.dark base win.
@@ -41,9 +47,13 @@ const BOOT_CACHE_KEY = "poracode-boot";
  * Persists the resolved appearance + background so the next launch's pre-paint
  * bootstrap (index.html) can match the active theme before the renderer mounts.
  */
-export function persistThemeBoot(appearance: Appearance, themeId: string): void {
+export function persistThemeBoot(
+  appearance: Appearance,
+  themeId: string,
+  customThemes: readonly CustomTheme[] = [],
+): void {
   try {
-    const preset = getThemePreset(themeId);
+    const preset = getThemePreset(themeId, customThemes);
     const background = (appearance === "dark" ? preset.dark : preset.light)["--background"];
     localStorage.setItem(BOOT_CACHE_KEY, JSON.stringify({ appearance, bg: background }));
   } catch {
@@ -69,7 +79,11 @@ export function bootstrapAppThemeFromCache(): void {
   try {
     const raw = localStorage.getItem(SHARED_SETTINGS_CACHE_KEY);
     if (!raw) return;
-    const cached = JSON.parse(raw) as { themeMode?: unknown; themePreset?: unknown };
+    const cached = JSON.parse(raw) as {
+      themeMode?: unknown;
+      themePreset?: unknown;
+      customThemes?: unknown;
+    };
     const mode: ThemeMode =
       cached.themeMode === "light" || cached.themeMode === "system" ? cached.themeMode : "dark";
     const themeId = typeof cached.themePreset === "string" ? cached.themePreset : DEFAULT_THEME_ID;
@@ -80,7 +94,7 @@ export function bootstrapAppThemeFromCache(): void {
     root.classList.add(appearance);
     root.dataset.theme = appearance;
     root.dataset.themePreset = themeId;
-    applyAppTheme(root, appearance, themeId);
+    applyAppTheme(root, appearance, themeId, normalizeCustomThemes(cached.customThemes));
   } catch {
     // Ignore malformed cache; the provider effect applies real settings shortly.
   }
