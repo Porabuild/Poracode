@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T17:21:51.103660+00:00",
+  "updatedAt": "2026-10-05T18:20:12.731602+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,9 +34,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R118 Codex6.1SolMax measurement-gate review completed and joined",
+    "lastAgent": "R119 Sol6.1Max prelaunch review completed/joined; six harness findings corrected and11focusedchecksPASS",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "All required reviews completed and joined. Current1/current2 failures preserved; final unused reference GUI/source windows pass, while ordinary auxiliary exit rejects whole-run resource qualification and summary scan remains failed.",
+    "agentState": "Review complete, no required agent pending. Two copied-root startup failures preserved; no browser launched in R119.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -46,9 +46,9 @@
       "state": "R115 immutable 5fb2c6ada including mobile modal styles; all eight build stages, 7555 source/3712 output files, 199-package/23489-file/374-edge closure and finalized 1753 web files PASS. Rich96 canonical/live groups/media and genuine execution scoped PASS; full PWA qualification FAIL. No new resource savings."
     },
     "buildSession": null,
-    "nextAction": "Trace saved-summary hydration and virtualizer settlement against the stopped canonical transcript and recorded scroll coverage. Finish materially corrected current rich GUI/PWA functional coverage; preserve all exhausted R118 arms. Matched GUI/PTY resource comparison and F6 remain open.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round118/gui-last-reference-declaration.json",
+    "nextAction": "Finalize the qualification plan around a root-and-credential-initialized fixture and the actual delivered-page semantic oracle. R119 two attempted server launches/correction are exhausted and stay failed; no unchanged retry or counter reset. Current saved GUI/gallery/compact rich offline/reconnect still unqualified; F3/F5/F6 remain open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round119/corrected-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -347,6 +347,17 @@
       "cleanup": "PASS 379 historical PID numbers freshly absent",
       "currentInput": "Current1/current2 exact 200-input scoped queue p95 3.2/4.4 ms; differing native coverage, no matched gain",
       "gainClaim": false
+    },
+    "savedHistoryQualification": {
+      "result": "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
+      "sourceOracle": "R118 production metadata packing12/28/21 -> exact three observed summary IDs with61canonicalIDcoverage; original live causes remain unproved",
+      "wireAndLifecyclePureTests": 11,
+      "copiedFixtureStartupFailures": 2,
+      "browserLaunches": 0,
+      "cleanup": "PASS both;20historicalPIDnumbers freshly absent",
+      "readyFixtureSourceProof": "PASS production root+credential initialization before DBseed, laterowner generation reopen,61canonicalrows/originalDBhashpreserved; no app launch",
+      "currentGuiPwaQualified": false,
+      "performanceGainClaim": false
     }
   },
   "milestones": [
@@ -987,7 +998,7 @@
       "title": "PWA worker policy and offline recovery",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "R116 saved gallery, compact390x844 canonical replay and activated worker PASS. Full summary3/4 and current rich offline/reconnect still unqualified; no reset of prior failed cohort budgets.",
+      "nextAction": "Finalize the qualification plan around a root-and-credential-initialized fixture and the actual delivered-page semantic oracle. R119 two attempted server launches/correction are exhausted and stay failed; no unchanged retry or counter reset. Current saved GUI/gallery/compact rich offline/reconnect still unqualified; F3/F5/F6 remain open.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -1010,7 +1021,8 @@
         "tmp/v2-streaming-perf-20260930/round94/root-round94-result.json",
         "tmp/v2-streaming-perf-20260930/round95/root-round95-result.json",
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
-        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
+        "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
+        "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json"
       ]
     },
     {
@@ -1054,7 +1066,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Trace saved-summary hydration and virtualizer settlement against the stopped canonical transcript and recorded scroll coverage. Finish materially corrected current rich GUI/PWA functional coverage; preserve all exhausted R118 arms. Matched GUI/PTY resource comparison and F6 remain open.",
+      "nextAction": "Finalize the qualification plan around a root-and-credential-initialized fixture and the actual delivered-page semantic oracle. R119 two attempted server launches/correction are exhausted and stay failed; no unchanged retry or counter reset. Current saved GUI/gallery/compact rich offline/reconnect still unqualified; F3/F5/F6 remain open.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1064,7 +1076,8 @@
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
-        "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json"
+        "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
+        "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json"
       ]
     },
     {
@@ -1276,5 +1289,16 @@
     "resetOnNewRoundLabel": false,
     "evidence": "tmp/v2-streaming-perf-20260930/round118/root-last-reference-result.json",
     "furtherUnchangedLaunchesAllowed": false
+  },
+  "savedHistoryBudget": {
+    "round": "R119",
+    "originalOwnedServerAttempts": 1,
+    "correctionOwnedServerAttempts": 1,
+    "correctionLimit": 1,
+    "actualBrowserAttempts": 0,
+    "furtherUnchangedLaunchesAllowed": false,
+    "resetOnNewRoundLabel": false,
+    "failuresPreserved": true,
+    "evidence": "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json"
   }
 }
