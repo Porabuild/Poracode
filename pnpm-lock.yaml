@@ -138,7 +138,7 @@ overrides:
   ip-address@>=10.0.0 <10.3.1: 10.3.1
   sharp@<0.35.3: 0.35.3
   got@<11.8.5: 11.8.6
-  electron@>=23.0.0 <39.8.5: 44.0.0
+  electron@>=23.0.0 <39.8.5: 44.4.4
   adm-zip@<0.6.0: ^0.6.0
   brace-expansion@<1.1.18: 1.1.18
   brace-expansion@>=2.0.0 <2.1.4: 2.1.4
@@ -462,8 +462,8 @@ importers:
         specifier: ^10.1.0
         version: 10.1.0
       electron:
-        specifier: 44.0.0
-        version: 44.0.0(supports-color@10.2.2)
+        specifier: 44.4.4
+        version: 44.4.4(supports-color@10.2.2)
       electron-builder:
         specifier: ^26.15.3
         version: 26.15.3(electron-builder-squirrel-windows@26.15.3)(supports-color@10.2.2)
@@ -4103,8 +4103,8 @@ packages:
     resolution: {integrity: sha512-bO3y10YikuUwUuDUQRM4KfwNkKhnpVO7IPdbsrejwN9/AABJzzTQ4GeHwyzNSrVO+tEH3/Np255a3sVZpZDjvg==}
     engines: {node: '>=8.0.0'}
 
-  electron@44.0.0:
-    resolution: {integrity: sha512-FkTqPrFPZYljdPI5b7KORGsJTd6FgUQDefl5MrU3Xz9R87pAj9JLreIjDqcRN8hJIkFHIou0o8kKzvcpT9qiRQ==}
+  electron@44.4.4:
+    resolution: {integrity: sha512-UNi4cRJf9VEDHp8nRIQ+xsPz4AKnluMmxB5D3r7z/2XoG08IrtwGFEhqCub19RCFjM+dKTkMeI93ZqXdvw+JSQ==}
     engines: {node: '>= 22.12.0'}
     hasBin: true
 
@@ -10050,7 +10050,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron@44.0.0(supports-color@10.2.2):
+  electron@44.4.4(supports-color@10.2.2):
     dependencies:
       '@electron-internal/extract-zip': 1.0.5
       '@electron/get': 5.1.0(supports-color@10.2.2)
@@ -12118,7 +12118,7 @@ snapshots:
   react-devtools@7.0.1(supports-color@10.2.2):
     dependencies:
       cross-spawn: 6.0.6
-      electron: 44.0.0(supports-color@10.2.2)
+      electron: 44.4.4(supports-color@10.2.2)
       internal-ip: 6.2.0
       minimist: 1.2.8
       react-devtools-core: 7.0.1

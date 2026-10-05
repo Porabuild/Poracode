@@ -345,7 +345,7 @@ overrides:
   # electron use-after-free / injection batch (#106-#123). The vulnerable 23.x
   # comes only from react-devtools (dev-only standalone inspector); 23.x has no
   # in-line patch (#104), so dedupe it onto the app's own electron major.
-  "electron@>=23.0.0 <39.8.5": "44.0.0"
+  "electron@>=23.0.0 <39.8.5": "44.4.4"
   # 2026-07-21 advisory batch (#132-#136).
   # adm-zip crafted-ZIP 4GB allocation; only used by onnxruntime-node's install
   # script to extract trusted NuGet archives.
