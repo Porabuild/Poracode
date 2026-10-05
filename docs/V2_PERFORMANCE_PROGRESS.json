@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-05T22:57:10.830956+00:00",
+  "updatedAt": "2026-10-05T23:10:12.525830+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,9 +35,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R133four-fileSolMaxprelaunchreviewjoined; rootverified4seals andcorrectedstaleresizeACKacceptance. R134six-fileGUIfixtureplanjoined; rootverified6seals andcurrent3mapper/form+5bareRPCreplypreflightsPASS.",
+    "lastAgent": "R135 bounded Sol6.1Max fixture implementation joined; coordinator verified all8 input/output seals,18protocol tests and26/27combined preflights.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "All requiredchildrenjoined. R133nativeattemptterminalFAIL/cleanupPASS;15recordedPIDnumbersfreshlyabsent, locatorPIDpastcustodyunproved. No liveapp/root/processsession. R134GUIrequestplan/prototypesprepared; fullprivateprotocolintegration andrealUIexecutionnotyetdone.",
+    "agentState": "All required children joined. R135/R136 GUIattempt+solecorrection both FAIL; cleanup PASS and16witnessedincarnations freshly absent. No live test app or execution session. New current-provider wrong-channel no-op regression passes20RPC tests.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Current source1cd256a4a immutable production build: all eight stages,7558source/3712dist/1753web files and199package/23489file/374edge runtime closure PASS. Saved desktop/compact, exact cached-tail offline rows, inline image and reconnect scoped PASS; no new resource savings or physical-device qualification."
     },
     "buildSession": null,
-    "nextAction": "Integrate/preflight boundedprivateGUIquestion/approval/steerfixture, thenexecuteonlyfive missingGUIcontrolcases. InvestigatePTYlocator/actual supervisor source lifecycle with positive evidencebeforeanotherterminalrun; R133consumedscope cannotrestartunchanged. Remainingmobile/PWA/representativematchedp95/resources/finalacceptance remainopen; no3percenttuning cycle.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round134/root-round134-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round133/declaration.json",
+    "nextAction": "Offline correct wrong-owner no-effect acceptance and retain HTTP/source artifacts before validation. R135/R136native GUI scope exhausted2/1; no unchanged replay. Investigate existing PTY process lifecycle before another native terminal sequence; Safari/PWA, matched p95/resources and final acceptance remain open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round136/root-round136-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round136/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -73,7 +73,7 @@
       "actualModelRoster": "Actual installed/authenticated/selectable fixture-model roster PASS",
       "richPresentation": "96 scripted GUI calls; 24 case types per light/heavy/bursty profile; source/canonical negative oracle PASS",
       "genuineExecution": "Supervisor-owned standalone child and ordered two-stage workflow: three actual fixture reads with native source custody and exact dependency receipts PASS",
-      "liveGroupsAndMedia": "8→16→8 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
+      "liveGroupsAndMedia": "8\u219216\u21928 segments and two PNG assets decoded 320x240/1024x768 with Next/Previous/Close PASS",
       "savedCompactPwa": "R116 scopedPASS saved gallery exact dimensions/navigation and compact390x844 canonical replay with actually activated PWA worker. Full saved-summary scanFAIL3/4; rich offline/reconnect remains unqualified.",
       "retirement": "Both strict owner cleanup verdicts PASS; 380 original PID numbers freshly ESRCH before correction; 175 historical rows in correction cleanup",
       "evidence": "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json"
@@ -450,14 +450,12 @@
       "compiledUiEvidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
     },
     "docsHeadCI": {
-      "head": "1f6da3f2f3a614988c0d4a8b2ab54a2ade8221c0",
-      "coreRun": 37383328850,
-      "nativeRun": 37383329101,
+      "head": "e3a0c08f5f22ff4f0e36e1cc06603de987d88acd",
+      "coreRun": 37385700676,
+      "nativeRun": 37385700935,
       "coreResult": "success",
-      "nativeResult": "success",
-      "coreEvidence": "tmp/v2-streaming-perf-20260930/round133/core-ci.json",
-      "nativeEvidence": "tmp/v2-streaming-perf-20260930/round133/native-ci.json",
-      "scope": "Both exact-head required workflowsPASS includingiOSAppTests/Androidbuild/nativefoundation; conditionalruntimejobsremain separatelyskipped. NextdocumentationcheckpointneedsownCIreceipt."
+      "nativeResult": "in_progress",
+      "scope": "Exact current pushed head; later test/docs commit requires own runs."
     },
     "previousVerifiedSourceCI": {
       "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
@@ -494,7 +492,7 @@
         "native startup/ownership/model admission",
         "48 scripted rich calls across 24 tool-card shapes",
         "canonical conservation and seq+1 negative oracle",
-        "live groups 8→16→8",
+        "live groups 8\u219216\u21928",
         "two PNG decode/navigation/close 320x240/1024x768"
       ],
       "notReached": [
@@ -548,7 +546,7 @@
     "lifecycleInputReconciliation": {
       "path": "tmp/v2-streaming-perf-20260930/round127/lifecycle-input-reconciliation.json",
       "retention": "tmp/v2-streaming-perf-20260930/round127/retention-source-equivalence.json",
-      "scope": "R109→R122199packages/23489files/374edges exact equality;1417 selected lifecycle sources equal;4/6R76 retention inputs equal. Changed gallery/cache/CSS paths remain scoped current checks, not whole-renderer equivalence."
+      "scope": "R109\u2192R122199packages/23489files/374edges exact equality;1417 selected lifecycle sources equal;4/6R76 retention inputs equal. Changed gallery/cache/CSS paths remain scoped current checks, not whole-renderer equivalence."
     },
     "safariQualification": {
       "result": "tmp/v2-streaming-perf-20260930/round127/root-safari-result.json",
@@ -574,7 +572,7 @@
     },
     "currentInputReconciliation": {
       "retention": "R128 current64tests/4filesPASS with exact8source/test seals; logical admission limits only, no heap/private RAM inference",
-      "editorCreate": "Independent bounded comparison verified10editor/LSP and17producer/storage sources plus18fixture/helper seals; all199package/23489file/374edge runtime closure rows equal. Electron44.0.0→44.4.4 and changed main/renderer bundles prevent whole-runtime/native-replay equivalence",
+      "editorCreate": "Independent bounded comparison verified10editor/LSP and17producer/storage sources plus18fixture/helper seals; all199package/23489file/374edge runtime closure rows equal. Electron44.0.0\u219244.4.4 and changed main/renderer bundles prevent whole-runtime/native-replay equivalence",
       "pty": "109terminal/PTYsource paths unchanged fromR57-after toR122/current; current Electron44.4.4 runtime needs affected qualification",
       "evidence": "tmp/v2-streaming-perf-20260930/round128/root-round128-result.json"
     },
@@ -586,7 +584,7 @@
     },
     "savedNativeAttemptHistory": {
       "R129": "FAIL before any seeds: complete discovery refused ESRCH children;19recordedPIDs freshly absent,cleanupPASS;attempt1/no correction consumed",
-      "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs→11exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
+      "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs\u219211exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
       "cumulativeAffectedNativeLaunches": 6,
       "counterReset": false,
       "productionChanges": false,
@@ -634,6 +632,22 @@
         "preflight exactcancel/actor/turn/nonce/protocol binding andinputseals",
         "oneboundedactualGUIcontrolrunwithsources/canonicalnegativeowner/runtime/cleanupreceipts"
       ]
+    },
+    "guiRequestControlsExecution": {
+      "state": "failed_both_runs_pre_control_submission",
+      "nativeAttempts": 2,
+      "corrections": 1,
+      "remainingAttempts": 0,
+      "firstFailure": "Successful undefined-return phase falsely rejected by coordinator harness, after actual heldA/B source custody and GUI activation.",
+      "correctionFailure": "Question displayed, wrong-owner route acknowledged. Coordinator wrongly required HTTPerror; source shows no reply and requestpending. Current source proves no-op contract; immediate negative artifacts not retained before validation, so not retroactively qualified.",
+      "preflightsPassed": [26, 27],
+      "protocolTestsPassed": 18,
+      "sourceRegressionTestsPassed": 20,
+      "functionalPass": false,
+      "cleanupPass": true,
+      "freshlyAbsentWitnesses": 16,
+      "resourceGainClaim": false,
+      "evidence": "tmp/v2-streaming-perf-20260930/round136/root-round136-result.json"
     }
   },
   "milestones": [
@@ -895,7 +909,7 @@
         "docs/V2_PRODUCTION_READINESS.md",
         "tmp/v2-streaming-perf-20260930/round127/audit.json"
       ],
-      "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1–G4 remaining gates close."
+      "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1\u2013G4 remaining gates close."
     }
   ],
   "rules": {
@@ -916,7 +930,7 @@
       "at": "2026-10-05T15:02:59.657296+00:00",
       "round": "R116-final",
       "result": "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-      "summary": "Real two-stage navigation, saved authenticated gallery and compact390x844 replay/activated worker PASS. Summary scan retainsFAIL3/4. Four backend measured arms/576richcalls/800reads requalified: appCPU8–12%lower, supervisor5–14%lower versusR78 v2; p95mixed+0.61/-2.79ms, no repeatable material worsening. Original schema54 observerFAIL preserved; corrected stopped-DB audit and negative checks qualify data without repeating that arm. F5 inprogress; 13/18 tasks, zero final signoffs."
+      "summary": "Real two-stage navigation, saved authenticated gallery and compact390x844 replay/activated worker PASS. Summary scan retainsFAIL3/4. Four backend measured arms/576richcalls/800reads requalified: appCPU8\u201312%lower, supervisor5\u201314%lower versusR78 v2; p95mixed+0.61/-2.79ms, no repeatable material worsening. Original schema54 observerFAIL preserved; corrected stopped-DB audit and negative checks qualify data without repeating that arm. F5 inprogress; 13/18 tasks, zero final signoffs."
     },
     {
       "at": "2026-10-05T14:01:59.919944+00:00",
@@ -1060,7 +1074,7 @@
       "at": "2026-10-04T18:26:37.413028+00:00",
       "round": "round87",
       "result": "tmp/v2-streaming-perf-20260930/round87/catalog-d0-review.json",
-      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38→40); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
+      "summary": "198tests. Catalog-onlycontrol reproducesofflinesidebar0withIDB1project/3threads before+failure (rev38\u219240); recordcompatible/untruncated.455PIDs/4ports/76sources/exes/canonical/overlay verified. Fullqualification withheld."
     },
     {
       "at": "2026-10-04T18:38:22.821265+00:00",
@@ -1070,7 +1084,7 @@
     },
     {
       "at": "2026-10-04T20:20:43.342415+00:00",
-      "round": "round88–round91",
+      "round": "round88\u2013round91",
       "result": "tmp/v2-streaming-perf-20260930/round91/root-round91-result.json",
       "summary": "Reviewed offline prewarm/cancellation ownership fix compiledR89, original root+nested offline native gatesPASS R90. R91 desktop driver correction208tests/reviewPASS; nativeearlier A-warm observer unmatched2API requests/4responses preventsqualification. All127PIDs/4ports/78seals/fulldeps/canonical/exactAretiredverified. FlashX7source/report seals+nativeidgapverified; candidatecorrection notyetimplemented/qualified. All requiredchildrenjoined."
     },
@@ -1251,6 +1265,11 @@
       "round": "R133-R134",
       "result": "tmp/v2-streaming-perf-20260930/round134/root-round134-result.json",
       "summary": "Exact1fheadcore/nativeCIbothPASS. SolMaxprelaunchfindsstale earlier-fitACKfalseacceptance; rootsettlednativebounds/publicgeometry/newsourcegrid proof andsixnegative/positivechecks inside28preflights. One materiallyrevisedPTYattemptfailsbeforeinputatmissingpositiveownedsource;all15recordedPIDnumbersabsent/cleanupPASS andoriginalfailures/countersretained. Current30request-steersourcetestsPASS. Independent six-fileGUIplanverified;5bareRPCreply and3currentmapper/formprototypesPASS. GUIruntimecontrolsnotexecuted;fullprivateprotocolintegration/cancelpreflightremaining. No productionchanges/resourcegains orcompletedmilestone."
+    },
+    {
+      "at": "2026-10-05T23:10:12.525830+00:00",
+      "scope": "R135/R136 GUI protocol integration and failed native qualification",
+      "result": "18protocol/26original/27correction preflights PASS. Native attempts FAIL on harness contracts; question UI reached but no controls submitted. Current owning-channel regression20tests PASS; both cleanups PASS/16fresh absences. Original seals/failures/counters retained,2/1exhausted. Counts remain13/18 and1/6; no new performance gain."
     }
   ],
   "tasks": [
@@ -1429,7 +1448,7 @@
       "title": "Completion audit and report",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1–G4 remaining gates close.",
+      "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1\u2013G4 remaining gates close.",
       "evidence": ["tmp/v2-streaming-perf-20260930/round127/audit.json"]
     },
     {
