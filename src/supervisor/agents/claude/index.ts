@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { homedir } from "node:os";
+import path from "node:path";
 
 import type {
   AgentCapability,
