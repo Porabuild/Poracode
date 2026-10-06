@@ -11,6 +11,8 @@ export interface DevTerminalTab {
   /** When set, a second shell is shown side-by-side within this tab. */
   splitId?: string;
   splitTitle?: string;
+  /** The tab's own shell exited while its split shell still runs. The split then fills the tab. */
+  mainExited?: boolean;
 }
 
 interface DevTerminalState {
@@ -45,6 +47,12 @@ interface DevTerminalActions {
   openPanel: (projectId: string) => void;
   openWorktreePanel: (projectId: string, worktreePath: string) => void;
   closePanel: () => void;
+  /**
+   * Hides the panel but keeps its scope. A right panel that stays open can
+   * take its project from the terminal (Notes on Home does), so it keeps
+   * showing the same project.
+   */
+  hidePanel: () => void;
   setActiveProject: (projectId: string) => void;
   /** Re-scope an open panel without opening it or spawning a shell. */
   setPanelScope: (projectId: string, worktreePath?: string) => void;
@@ -69,6 +77,7 @@ interface DevTerminalActions {
   splitTab: (tabId: string) => string;
   /** Remove the split shell from the given tab. Returns the removed split ID if any. */
   closeSplit: (tabId: string) => string | undefined;
+  markMainShellExited: (tabId: string) => void;
   markTabActive: (tabId: string) => void;
   clearTabActivity: (tabId: string) => void;
   /** Note PTY output for a shell, flagging it as streaming until output idles. */
@@ -128,6 +137,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       activeProjectId: null,
       activeWorktreePath: null,
     }),
+  hidePanel: () => set({ isOpen: false, explicitlyOpened: false }),
 
   setActiveProject: (projectId) => {
     const tabs = get().tabs.filter((t) => t.projectId === projectId);
@@ -315,6 +325,11 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
     });
     return splitId;
   },
+
+  markMainShellExited: (tabId) =>
+    set((state) => ({
+      tabs: state.tabs.map((t) => (t.id === tabId ? { ...t, mainExited: true } : t)),
+    })),
 
   markTabActive: (tabId) => {
     const { activeTabId, tabActivity } = get();

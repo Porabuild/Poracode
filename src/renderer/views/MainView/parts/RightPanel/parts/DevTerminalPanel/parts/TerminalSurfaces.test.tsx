@@ -111,6 +111,32 @@ describe("TerminalSurfaces", () => {
     vi.unstubAllGlobals();
   });
 
+  it("lets the split fill the tab without remounting when the main shell exits", async () => {
+    const split: DevTerminalTab = { ...tabA, splitId: "shell:a-split" };
+    const surfaces = (tab: DevTerminalTab, focusRequestId: number) => (
+      <TerminalSurfaces
+        tabs={[tab]}
+        selectedTabId={tab.id}
+        activeTab={tab}
+        focusRequestId={focusRequestId}
+        markTabActive={vi.fn<() => void>()}
+        updateTabTitle={vi.fn<() => void>()}
+      />
+    );
+    const { getByTestId, getByRole, rerender } = render(surfaces(split, 1));
+    await flushFocusFrames();
+    const splitSurface = getByTestId("terminal-shell:a-split");
+    state.focusCalls = [];
+
+    rerender(surfaces({ ...split, mainExited: true }, 1));
+    await flushFocusFrames();
+
+    expect(getByTestId("terminal-shell:a-split")).toBe(splitSurface);
+    expect(getByTestId(`terminal-${tabA.id}`).closest(".hidden")).not.toBeNull();
+    expect(getByRole("separator", { hidden: true }).classList.contains("hidden")).toBe(true);
+    expect(state.focusCalls).toEqual(["shell:a-split"]);
+  });
+
   it("focuses the selected terminal when the selected tab changes", async () => {
     const { rerender } = render(
       renderSurfaces({ selectedTabId: tabA.id, activeTab: tabA, focusRequestId: 1 }),

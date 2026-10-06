@@ -417,6 +417,7 @@ vi.mock("./state/sharedSettingsStore", () => ({
 }));
 
 import { App, installUpdateStatusSync, STARTUP_RECOVERY_TIMEOUT_MS } from "./app";
+import { emitRemoteTerminalExited } from "./state/remoteTerminalFeed";
 
 describe("App", () => {
   const originalHasHydrated = useAppStore.persist.hasHydrated;
@@ -773,6 +774,26 @@ describe("App", () => {
     });
 
     expect(useDevTerminalStore.getState().runningTabs[tab.id]).toBeUndefined();
+  });
+
+  it("closes a shell tab when its shell exits", () => {
+    const tab = useDevTerminalStore.getState().addTab("project-1", "Shell");
+
+    supervisorEventListeners.at(-1)?.({
+      type: "thread-exited",
+      threadId: tab.id,
+      exitCode: 0,
+    });
+
+    expect(useDevTerminalStore.getState().tabs).toEqual([]);
+  });
+
+  it("closes a remote project's shell tab when its shell exits", () => {
+    const tab = useDevTerminalStore.getState().addTab("remote:d1:project:p1", "Shell");
+
+    emitRemoteTerminalExited("d1", tab.id, 0);
+
+    expect(useDevTerminalStore.getState().tabs).toEqual([]);
   });
 
   it("retains action output until its terminal tab is removed", () => {

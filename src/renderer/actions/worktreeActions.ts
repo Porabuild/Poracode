@@ -130,7 +130,7 @@ export async function prepareWorktreeRemoval(
   const removedTabIds = termStore.removeTabsForWorktree(worktreePath);
   await closeThreads(removedTabIds);
 
-  if (termStore.isOpen && termStore.activeWorktreePath === worktreePath) {
+  if (termStore.activeWorktreePath === worktreePath) {
     termStore.closePanel();
   }
 

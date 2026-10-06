@@ -94,9 +94,10 @@ export function TerminalSurfaces(props: {
     frame = requestAnimationFrame(() => {
       settledFrame = requestAnimationFrame(() => {
         if (requestId !== latestFocusRequestRef.current) return;
-        terminalRefs.current.get(selectedTabId)?.refit();
+        if (!activeTab?.mainExited) terminalRefs.current.get(selectedTabId)?.refit();
         if (activeTab?.splitId) terminalRefs.current.get(activeTab.splitId)?.refit();
-        terminalRefs.current.get(selectedTabId)?.focus();
+        const focusId = activeTab?.mainExited ? activeTab.splitId : selectedTabId;
+        if (focusId) terminalRefs.current.get(focusId)?.focus();
       });
     });
 
@@ -104,7 +105,7 @@ export function TerminalSurfaces(props: {
       if (frame !== 0) cancelAnimationFrame(frame);
       if (settledFrame !== 0) cancelAnimationFrame(settledFrame);
     };
-  }, [activeTab?.splitId, activeTabId, focusRequestId, selectedTabId]);
+  }, [activeTab?.mainExited, activeTab?.splitId, activeTabId, focusRequestId, selectedTabId]);
 
   function handleResizeStart(e: React.MouseEvent) {
     e.preventDefault();
@@ -194,11 +195,14 @@ export function TerminalSurfaces(props: {
   }
 
   if (activeTab?.splitId) {
+    // An exited main shell keeps its surface mounted but hidden, so the split
+    // can take the full width without remounting and losing its screen.
+    const mainHidden = activeTab.mainExited ? "hidden" : "";
     return (
       <div ref={containerRef} className="flex h-full min-h-0 w-full">
         <div
           ref={firstPaneRef}
-          className="relative h-full min-h-0 min-w-0 overflow-hidden"
+          className={`relative h-full min-h-0 min-w-0 overflow-hidden ${mainHidden}`}
           style={{ flexBasis: `${splitPercent}%`, flexGrow: 0, flexShrink: 0 }}
         >
           {tabs.map((tab) => (
@@ -225,7 +229,7 @@ export function TerminalSurfaces(props: {
           ))}
         </div>
         <div
-          className="poracode-pane-divider"
+          className={`poracode-pane-divider ${mainHidden}`}
           onMouseDown={handleResizeStart}
           onKeyDown={handleResizeKeyDown}
           role="separator"

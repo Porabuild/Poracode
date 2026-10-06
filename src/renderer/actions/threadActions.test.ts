@@ -881,6 +881,30 @@ describe("threadActions", () => {
     expect(bridge.closeThread).toHaveBeenCalledWith({ threadId: "shell:worktree-split" });
   });
 
+  it("forgets a hidden terminal's worktree scope when marking its last worktree thread done", () => {
+    const worktreePath = "/repo/.worktrees/feature";
+    const project = useAppStore.getState().addProject({
+      kind: "posix",
+      path: "/repo",
+    });
+    const thread = useAppStore.getState().createThread({
+      projectId: project.id,
+      agentKind: "codex",
+      config: { model: "gpt-5.4" },
+      prompt: "hello",
+      worktreePath,
+    });
+    useDevTerminalStore.getState().openWorktreePanel(project.id, worktreePath);
+    useDevTerminalStore.getState().hidePanel();
+
+    toggleMarkThreadDone(thread.id);
+
+    expect(useDevTerminalStore.getState()).toMatchObject({
+      activeProjectId: null,
+      activeWorktreePath: null,
+    });
+  });
+
   it("keeps worktree dev terminals open when marking one of multiple worktree threads done", () => {
     const worktreePath = "/repo/.worktrees/feature";
     const project = useAppStore.getState().addProject({
