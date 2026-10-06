@@ -35,6 +35,13 @@ function caretAtEnd(editor: HTMLElement) {
   placeCaret(editor, editor.childNodes.length);
 }
 
+/** Fire the native events around a DOM change, as Chromium does for an edit it makes. */
+function nativeEdit(editor: HTMLElement, inputType: string, change: () => void) {
+  fireEvent(editor, new InputEvent("beforeinput", { inputType }));
+  change();
+  fireEvent.input(editor, { inputType });
+}
+
 /** jsdom has no native typing, so mimic what Chromium does for one keystroke. */
 function typeText(editor: HTMLElement, text: string) {
   fireEvent(editor, new InputEvent("beforeinput", { inputType: "insertText", data: text }));
@@ -313,21 +320,29 @@ describe("MentionInput undo history", () => {
     const { editor } = renderInput();
     caretAtEnd(editor);
     paste(editor, "ab");
-    const nativeEdit = (inputType: string, change: () => void) => {
-      fireEvent(editor, new InputEvent("beforeinput", { inputType }));
-      change();
-      fireEvent.input(editor, { inputType });
-    };
-    nativeEdit("deleteByDrag", () => {
+    nativeEdit(editor, "deleteByDrag", () => {
       editor.textContent = "b";
     });
-    nativeEdit("insertFromDrop", () => {
+    nativeEdit(editor, "insertFromDrop", () => {
       editor.textContent = "ba";
       caretAtEnd(editor);
     });
 
     undo(editor);
     expect(editor.textContent).toBe("ab");
+  });
+
+  it("undoes text dropped from outside as the first edit", () => {
+    const { editor } = renderInput();
+    nativeEdit(editor, "insertFromDrop", () => {
+      editor.textContent = "dropped";
+      caretAtEnd(editor);
+    });
+
+    undo(editor);
+    expect(editor.textContent).toBe("");
+    redo(editor);
+    expect(editor.textContent).toBe("dropped");
   });
 
   it("drops carriage returns from pasted Windows line endings", () => {

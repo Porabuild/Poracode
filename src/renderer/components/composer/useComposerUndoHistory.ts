@@ -34,6 +34,9 @@ export function useComposerUndoHistory(
   onRestored: () => void,
 ) {
   const historyRef = useRef<UndoHistory<EditorSnapshot> | null>(null);
+  // Set by deleteByDrag, which only fires when the dragged text came from
+  // this editor. The insertFromDrop after it is the other half of that move.
+  const dragMoveRef = useRef(false);
 
   function history(editor: HTMLDivElement): UndoHistory<EditorSnapshot> {
     historyRef.current ??= createUndoHistory({ initial: captureEditorSnapshot(editor) });
@@ -89,10 +92,13 @@ export function useComposerUndoHistory(
     },
     /** Call from the native beforeinput event, before Chromium changes the DOM. */
     beforeInput(inputType: string) {
-      // The drop half of a drag merges into the step its deleteByDrag started,
-      // so the caret jump to the drop point must not end that step.
-      if (inputType === "insertFromDrop") return;
-      sync(inputType === "deleteByDrag");
+      const dragMove = dragMoveRef.current;
+      dragMoveRef.current = inputType === "deleteByDrag";
+      // The drop half of a move inside the editor merges into the step its
+      // deleteByDrag started, so the caret jump to the drop point must not
+      // end that step. A drop from outside the editor is a step of its own.
+      if (inputType === "insertFromDrop" && dragMove) return;
+      sync(inputType === "deleteByDrag" || inputType === "insertFromDrop");
     },
     /** Record a native edit, merging runs of typing or deleting into one step. */
     commitInput(inputType: string) {
@@ -120,6 +126,7 @@ export function useComposerUndoHistory(
     reset() {
       const editor = editorRef.current;
       if (!editor) return;
+      dragMoveRef.current = false;
       history(editor).reset(captureEditorSnapshot(editor));
     },
     /** Step back or forward one edit and restore the editor to match. */
