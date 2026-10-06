@@ -356,7 +356,7 @@ describe("document-local thread gallery cache", () => {
   });
 });
 
-it.each([undefined, 1])(
+it.each([undefined, 1, 2])(
   "retires a warm pre-upgrade collection format %s without serving its old shape",
   (format) => {
     const value = input();

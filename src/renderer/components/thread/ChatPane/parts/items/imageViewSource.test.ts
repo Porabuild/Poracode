@@ -1,12 +1,13 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { remoteImageRef } from "@/shared/remote";
+import { remoteImageRef, type RemoteImageRefValue } from "@/shared/remote";
 import { setRemoteImageRefResolver } from "@/shared/imageRefDisplay";
 import {
   imageViewRendersInline,
   imageViewSourceFromImageBlock,
   resolveImageViewSource,
+  resolveImageViewSources,
 } from "./imageViewSource";
 
 // A minimal valid 1x1 PNG, base64-encoded (starts with the PNG magic prefix).
@@ -16,6 +17,44 @@ const PNG_BASE64 =
 const WEBP_BASE64 = "UklGRi4AAABXRUJQVlA4ICIAAABwAQCdASoCAAEAAUAmJZQCdAFAAAD+/DeBV/fU6D4r4AAA";
 
 describe("resolveImageViewSource", () => {
+  it("resolves every tool image while the transcript card keeps its first image", () => {
+    const first = `data:image/png;base64,${PNG_BASE64}`;
+    const second = `data:image/webp;base64,${WEBP_BASE64}`;
+    const payload = { images: [first, second] };
+    expect(resolveImageViewSource(payload)?.src).toBe(first);
+    expect(resolveImageViewSources(payload).map((source) => source.src)).toEqual([first, second]);
+  });
+
+  it("keeps the card's unresolved first reference without resolving later candidates", () => {
+    const first = {
+      threadId: "thread",
+      itemId: "tool",
+      path: ["images", 0],
+      mime: "image/png",
+      bytes: 10,
+    };
+    const second = { ...first, path: ["images", 1] };
+    const resolve = vi.fn<(ref: RemoteImageRefValue) => string>((ref) =>
+      ref.path[1] === 0 ? "" : "blob:second",
+    );
+    const payload = { images: [remoteImageRef(first), remoteImageRef(second)] };
+    expect(resolveImageViewSource(payload, resolve)).toBeNull();
+    expect(resolve).toHaveBeenCalledExactlyOnceWith(first);
+    resolve.mockClear();
+    expect(resolveImageViewSources(payload, resolve).map((source) => source.src)).toEqual([
+      "blob:second",
+    ]);
+    expect(resolve).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not promote external URLs or errored tool images in plural resolution", () => {
+    expect(
+      resolveImageViewSources({ images: ["https://example.test/image.png", "file:///secret.png"] }),
+    ).toEqual([]);
+    expect(
+      resolveImageViewSources({ status: "error", images: [`data:image/png;base64,${PNG_BASE64}`] }),
+    ).toEqual([]);
+  });
   it("resolves raw base64 PNG from a string result into a data URL", () => {
     const source = resolveImageViewSource({
       name: "imageGeneration",

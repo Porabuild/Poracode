@@ -43,6 +43,47 @@ function attachmentImage(path: string, name: string): unknown {
 }
 
 describe("threadGalleryImages", () => {
+  it.each(["image_view", "tool_call", "mcp_tool_call", "dynamic_tool_call"] as const)(
+    "collects all distinct images within a %s row newest-first",
+    (type) => {
+      const first = "data:image/png;base64,AAAA";
+      const second = "data:image/png;base64,BBBB";
+      const item: RuntimeChatItem = {
+        id: "multiple",
+        type,
+        state: "completed",
+        streams: {},
+        payload: { status: "success", images: [first, second, first] },
+      };
+      expect(collectThreadGalleryImages([item]).map((image) => image.src)).toEqual([first, second]);
+      item.payload = { status: "success", images: [first, second] };
+      expect(collectThreadGalleryImages([item]).map((image) => image.src)).toEqual([second, first]);
+    },
+  );
+
+  it("tracks all pending and ready tool coordinates before URL deduplication", () => {
+    const refs: RemoteImageRefValue[] = [0, 1, 2].map((index) => ({
+      threadId: "thread",
+      itemId: "multiple",
+      path: ["images", index],
+      mime: "image/png",
+      bytes: 100,
+    }));
+    const item: RuntimeChatItem = {
+      id: "multiple",
+      type: "tool_call",
+      state: "completed",
+      streams: {},
+      payload: { images: refs.map(remoteImageRef) },
+    };
+    const collection = collectThreadGallery([item], {
+      remoteImageRefUrl: (ref) => (ref.path[1] === 0 ? "" : "blob:shared"),
+    });
+    expect(collection.images.map((image) => image.src)).toEqual(["blob:shared"]);
+    expect(collection.pendingRemoteRefs).toEqual([refs[0]]);
+    expect(collection.readyRemoteRefs).toEqual([refs[2], refs[1]]);
+  });
+
   it("collects user attachment images newest-first", () => {
     const items = [
       userItem("u1", [

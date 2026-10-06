@@ -41,7 +41,7 @@ import { remoteConnectionKey } from "@/renderer/state/remoteServers/types";
 import { attachmentImageUrl } from "@/renderer/components/composer/useAttachments";
 import type { LightboxImage } from "@/renderer/components/composer/ImageLightbox";
 import { resolveThreadMarkdownImageRoots } from "@/renderer/components/thread/threadMarkdownImageRoots";
-import { imageViewSourceFromImageBlock, resolveImageViewSource } from "./imageViewSource";
+import { imageViewSourceFromImageBlock, resolveImageViewSources } from "./imageViewSource";
 
 /** Renderable thread image for galleries, mosaics, and the fullscreen lightbox. */
 export type ThreadGalleryImage = LightboxImage;
@@ -154,14 +154,17 @@ export function collectThreadGallery(
       // An errored tool call renders the generic accordion, never an image
       // card (mirrors `ImageView`'s render decision).
       if (readToolStatus(item.payload) === "error") continue;
-      const source = resolveImageViewSource(
+      const sources = resolveImageViewSources(
         item.payload as ToolCallPayload | undefined,
         resolvers.remoteImageRefUrl,
         { pendingAsPlaceholder: true },
       );
-      if (!source) continue;
-      readiness.recordRef(source);
-      push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+      for (let index = sources.length - 1; index >= 0; index--) {
+        const source = sources[index];
+        if (!source) continue;
+        readiness.recordRef(source);
+        push({ src: source.src, alt: source.alt, mime: source.mime, fileName: source.fileName });
+      }
     }
   }
   return {

@@ -85,7 +85,7 @@ function seedThread(projectId = "project", remoteServerId?: string): void {
           payload: {
             name: "Read",
             status: "success",
-            images: [inline, remoteImageRef({ ...hostRef, itemId: "trailing-ref" })],
+            images: [inline],
           },
         },
       },
@@ -136,6 +136,42 @@ beforeEach(() => {
   setRemoteImageRefResolver(() => "https://poisoned.test/image");
 });
 afterEach(teardownManagedImageFixture);
+
+it("updates a mounted gallery and lightbox with every image from one tool row", async () => {
+  const held = Promise.withResolvers<RemoteEnvironmentImageBytes>();
+  const activation = createImageActivation(() => held.promise);
+  publishImageActivation(activation);
+  installManagedImageRuntime();
+  seedThread();
+  const trailingRef = { ...hostRef, itemId: "inline-first", path: ["images", 1] };
+  useAppStore.setState((state) => ({
+    runtimeItemsByIdByThread: {
+      [threadId]: {
+        ...state.runtimeItemsByIdByThread[threadId],
+        "inline-first": {
+          ...state.runtimeItemsByIdByThread[threadId]!["inline-first"]!,
+          payload: { status: "success", images: [inline, remoteImageRef(trailingRef)] },
+        },
+      },
+    },
+  }));
+  const { result } = renderHook(() => useThreadGalleryImages(threadId));
+  expect(result.current.map((image) => image.src)).toEqual([inline]);
+  expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
+  mountLightbox();
+  act(() => openThreadGallery(result.current, inline, 0, threadId));
+  await act(async () => held.resolve(imageBytes));
+  await waitFor(() =>
+    expect(result.current.map((image) => image.src)).toEqual(["blob:managed-image-1", inline]),
+  );
+  // Each coordinate authenticates independently; equal bytes share one URL.
+  expect(createObjectUrl).toHaveBeenCalledOnce();
+  expect(activation.client.fetchTicketedImageBytes).toHaveBeenCalledTimes(2);
+  expect(getThreadGalleryImages(threadId)).toBe(result.current);
+  expect(screen.getByRole("img")).toHaveAttribute("src", inline);
+  fireEvent.click(screen.getByRole("button", { name: "Previous image" }));
+  expect(screen.getByRole("img")).toHaveAttribute("src", "blob:managed-image-1");
+});
 
 it.each(["project", HOME_PROJECT_ID])(
   "preserves candidate order and updates an open lightbox from pending managed scope %s",

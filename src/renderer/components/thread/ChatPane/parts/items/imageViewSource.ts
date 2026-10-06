@@ -99,44 +99,66 @@ export function imageViewRendersInline(payload: unknown): boolean {
   return inlineImagePayloadRenders(payload);
 }
 
-/** Full resolution: returns the `<img>`-ready source, or `null` when there's no image. */
+/** Full resolution for the transcript card: preserve the first candidate. */
 export function resolveImageViewSource(
   payload: unknown,
   remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
   options?: ImageViewSourceOptions,
 ): ImageViewSource | null {
-  if (readStatus(payload) === "error") return null;
-  let found: { value: string; classification: InlineImageClassification } | null = null;
-  // Projection can leave a small leading image inline and reference a later
-  // one. Both forms must keep the provider's original candidate order.
+  return imageViewSources(payload, remoteImageRefUrl, options).next().value ?? null;
+}
+
+/** All display candidates for the gallery, in provider-independent payload order. */
+export function resolveImageViewSources(
+  payload: unknown,
+  remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
+  options?: ImageViewSourceOptions,
+): ImageViewSource[] {
+  const sources: ImageViewSource[] = [];
+  for (const source of imageViewSources(payload, remoteImageRefUrl, options)) {
+    if (source) sources.push(source);
+  }
+  return sources;
+}
+
+function* imageViewSources(
+  payload: unknown,
+  remoteImageRefUrl?: (ref: RemoteImageRefValue) => string,
+  options?: ImageViewSourceOptions,
+): Generator<ImageViewSource | null, void> {
+  if (readStatus(payload) === "error") return;
+  // Both consumers use the same narrow candidate paths and URL validation.
+  // The card stops after its first candidate; the gallery retains all images
+  // and all pending/ready coordinates, including unresolved earlier refs.
   for (const path of enumerateDisplayImageCandidatePaths(payload)) {
     const value = readAtInlineImagePath(payload, path);
     const ref = readRemoteImageRef(value);
-    if (ref) return imageViewSourceFromRef(ref, payload, remoteImageRefUrl, options);
+    if (ref) {
+      yield imageViewSourceFromRef(ref, payload, remoteImageRefUrl, options);
+      continue;
+    }
     if (typeof value !== "string") continue;
     const classification = classifyInlineImageCandidate(value);
-    if (classification) {
-      found = { value, classification };
-      break;
+    if (!classification) continue;
+    const built = buildSrc(value, classification);
+    if (!built) {
+      yield null;
+      continue;
     }
+    const mime = built.classification.mime;
+    const extension = EXTENSION_BY_MIME[mime] ?? "png";
+    const promptText = readPromptText(payload);
+    const alt = promptText ?? i18n._(msg`Generated image`);
+    const dimensions = readImageDimensions(built.src, built.classification);
+    yield {
+      src: built.src,
+      mime,
+      extension,
+      fileName: buildFileName(promptText ?? "", extension),
+      alt,
+      ...dimensions,
+    };
   }
-  if (!found) return null;
-  const { value } = found;
-  const built = buildSrc(value, found.classification);
-  if (!built) return null;
-  const mime = built.classification.mime;
-  const extension = EXTENSION_BY_MIME[mime] ?? "png";
-  const promptText = readPromptText(payload);
-  const alt = promptText ?? i18n._(msg`Generated image`);
-  const dimensions = readImageDimensions(built.src, built.classification);
-  return {
-    src: built.src,
-    mime,
-    extension,
-    fileName: buildFileName(promptText ?? "", extension),
-    alt,
-    ...dimensions,
-  };
 }
 
 /**

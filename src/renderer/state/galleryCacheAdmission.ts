@@ -5,8 +5,8 @@ import type {
 } from "@/renderer/components/thread/ChatPane/parts/items/threadGalleryImages";
 import type { GalleryCacheRevision } from "./threadGalleryCache";
 
-/** Volatile document cache: v2 carries ready-coordinate provenance. */
-export const GALLERY_CACHE_FORMAT_VERSION = 2;
+/** Volatile document cache: v3 includes every tool image, with coordinate provenance. */
+export const GALLERY_CACHE_FORMAT_VERSION = 3;
 
 export const GALLERY_CACHE_ENTRY_MAX_BYTES = 16 * 1024 * 1024;
 export const GALLERY_CACHE_MAX_RECORDS = 2048;
