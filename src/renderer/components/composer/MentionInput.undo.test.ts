@@ -294,6 +294,46 @@ describe("MentionInput undo history", () => {
     expect(editor.textContent).toBe("typed");
   });
 
+  it("reverts and reapplies the external change of an undoable restore", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "typed");
+    const external = { undo: vi.fn<() => void>(), redo: vi.fn<() => void>() };
+    act(() =>
+      ref.current?.restoreFromSegments([{ kind: "text", content: "reverted" }], {
+        undoable: external,
+      }),
+    );
+    caretAtEnd(editor);
+    typeText(editor, "!");
+
+    undo(editor);
+    expect(editor.textContent).toBe("reverted");
+    expect(external.undo).not.toHaveBeenCalled();
+    undo(editor);
+    expect(editor.textContent).toBe("typed");
+    expect(external.undo).toHaveBeenCalledTimes(1);
+    redo(editor);
+    expect(editor.textContent).toBe("reverted");
+    expect(external.redo).toHaveBeenCalledTimes(1);
+  });
+
+  it("records an undoable restore with an external change even if the text is the same", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "same");
+    const external = { undo: vi.fn<() => void>(), redo: vi.fn<() => void>() };
+    act(() =>
+      ref.current?.restoreFromSegments([{ kind: "text", content: "same" }], {
+        undoable: external,
+      }),
+    );
+
+    undo(editor);
+    expect(external.undo).toHaveBeenCalledTimes(1);
+    expect(editor.textContent).toBe("same");
+  });
+
   it("starts a fresh history after clear", () => {
     const { editor, ref } = renderInput();
     caretAtEnd(editor);

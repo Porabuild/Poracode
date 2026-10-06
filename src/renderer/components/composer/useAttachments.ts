@@ -213,6 +213,24 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     updateAttachments(saved.map(storableAttachment));
   }
 
+  /**
+   * Take out the `remove` attachments and put back `add`, as undo and redo of
+   * a restored draft do. Attachments added since then stay. `add` is a stored
+   * copy, so it renders from the durable `path`.
+   */
+  function swap(remove: readonly Attachment[], add: readonly Attachment[]) {
+    const removeIds = new Set(remove.map((attachment) => attachment.id));
+    for (const attachment of attachmentsRef.current) {
+      if (removeIds.has(attachment.id) && attachment.previewUrl) {
+        releasePreviewUrl(attachment.previewUrl);
+      }
+    }
+    updateAttachments((prev) => [
+      ...prev.filter((attachment) => !removeIds.has(attachment.id)),
+      ...add.map(storableAttachment),
+    ]);
+  }
+
   return {
     attachments,
     getAttachments: () => attachmentsRef.current,
@@ -223,5 +241,6 @@ export function useAttachments(options: { saveClipboardImage?: SaveClipboardImag
     clearAll,
     toSegments,
     restore,
+    swap,
   };
 }

@@ -659,8 +659,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     const composer = mentionRef.current;
     if (!composer || !revertedContent) return;
     const draft = revertedPromptToDraft(revertedContent, availableCommands);
-    // Undoable, so Ctrl+Z brings back whatever the user had typed before the revert.
-    composer.restoreFromSegments(draft.segments, { undoable: true });
+    const previousAttachments = attachments.getAttachments().map(storableAttachment);
+    // Undoable, so Ctrl+Z brings back whatever the user had typed and attached
+    // before the revert.
+    composer.restoreFromSegments(draft.segments, {
+      undoable: {
+        undo: () => attachments.swap(draft.attachments, previousAttachments),
+        redo: () => attachments.swap(previousAttachments, draft.attachments),
+      },
+    });
     latestSegmentsRef.current = draft.segments;
     attachments.restore(draft.attachments);
     useRevertedPromptStore.getState().consume(thread.id);

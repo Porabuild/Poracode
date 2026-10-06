@@ -21,6 +21,21 @@ function groupForInputType(inputType: string): string | undefined {
 }
 
 /**
+ * A change to state outside the editor that belongs to one undo step, such as
+ * the attachments a restored draft brings. Undo calls `undo` when it steps
+ * back over the step, and redo calls `redo` when it steps onto it again.
+ */
+export interface ExternalUndoChange {
+  undo(): void;
+  redo(): void;
+}
+
+/** One step of the composer's history. */
+interface UndoStep extends EditorSnapshot {
+  external?: ExternalUndoChange;
+}
+
+/**
  * Undo history for the composer's contentEditable. The composer edits the DOM
  * directly for chips, pastes and voice input, and Chromium's native undo stack
  * only records edits Chromium made itself, so the composer keeps its own
@@ -33,14 +48,20 @@ export function useComposerUndoHistory(
   editorRef: RefObject<HTMLDivElement | null>,
   onRestored: () => void,
 ) {
-  const historyRef = useRef<UndoHistory<EditorSnapshot> | null>(null);
+  const historyRef = useRef<UndoHistory<UndoStep> | null>(null);
   // Set by deleteByDrag, which only fires when the dragged text came from
   // this editor. The insertFromDrop after it is the other half of that move.
   const dragMoveRef = useRef(false);
 
-  function history(editor: HTMLDivElement): UndoHistory<EditorSnapshot> {
+  function history(editor: HTMLDivElement): UndoHistory<UndoStep> {
     historyRef.current ??= createUndoHistory({ initial: captureEditorSnapshot(editor) });
     return historyRef.current;
+  }
+
+  /** Swap the current step's snapshot and keep its external change. */
+  function replaceCurrent(undoHistory: UndoHistory<UndoStep>, snapshot: EditorSnapshot) {
+    const external = undoHistory.current().external;
+    undoHistory.replaceCurrent(external ? { ...snapshot, external } : snapshot);
   }
 
   /**
@@ -53,17 +74,21 @@ export function useComposerUndoHistory(
     const snapshot = captureEditorSnapshot(editor);
     const undoHistory = history(editor);
     if (startStep || !snapshotsEqual(snapshot, undoHistory.current())) {
-      undoHistory.replaceCurrent(snapshot);
+      replaceCurrent(undoHistory, snapshot);
     }
   }
 
-  function commit(group?: string) {
+  function commit(group?: string, external?: ExternalUndoChange) {
     const editor = editorRef.current;
     if (!editor) return;
     const snapshot = captureEditorSnapshot(editor);
     const undoHistory = history(editor);
-    if (snapshot.html === undoHistory.current().html) {
-      undoHistory.replaceCurrent(snapshot);
+    if (external) {
+      // The external state changed even if the text did not, so this is
+      // always a step of its own.
+      undoHistory.record({ ...snapshot, external });
+    } else if (snapshot.html === undoHistory.current().html) {
+      replaceCurrent(undoHistory, snapshot);
     } else {
       undoHistory.record(snapshot, group);
     }
@@ -76,20 +101,29 @@ export function useComposerUndoHistory(
     // Fold in content the history missed, but keep the caret each step saved:
     // redo puts the caret where the edit left it, not where the user moved it.
     const snapshot = captureEditorSnapshot(editor);
-    if (snapshot.html !== undoHistory.current().html) undoHistory.replaceCurrent(snapshot);
+    if (snapshot.html !== undoHistory.current().html) replaceCurrent(undoHistory, snapshot);
+    const left = undoHistory.current();
     const target = action === "undo" ? undoHistory.undo() : undoHistory.redo();
     if (!target) return;
     restoreEditorSnapshot(editor, target);
+    if (action === "undo") left.external?.undo();
+    else target.external?.redo();
     onRestored();
   }
 
+  /**
+   * Record a programmatic edit as its own undo step. Pass `external` when the
+   * edit also changed state outside the editor, so undo and redo revert and
+   * reapply that state along with the text.
+   */
+  function edit(run: () => void, external?: ExternalUndoChange) {
+    sync();
+    run();
+    commit(undefined, external);
+  }
+
   return {
-    /** Record a programmatic edit as its own undo step. */
-    edit(run: () => void) {
-      sync();
-      run();
-      commit();
-    },
+    edit,
     /** Call from the native beforeinput event, before Chromium changes the DOM. */
     beforeInput(inputType: string) {
       const dragMove = dragMoveRef.current;

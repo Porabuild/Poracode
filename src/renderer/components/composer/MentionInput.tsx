@@ -28,7 +28,11 @@ import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
 import { CHIP_SELECTOR } from "./editorSnapshot";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
 import { caretLineEdges, type CaretLineEdges } from "./caretLine";
-import { historyActionForKey, useComposerUndoHistory } from "./useComposerUndoHistory";
+import {
+  historyActionForKey,
+  useComposerUndoHistory,
+  type ExternalUndoChange,
+} from "./useComposerUndoHistory";
 
 /**
  * A composer MCP server offered as an `@`-mention (Browser, Crossagents, Computer
@@ -148,9 +152,14 @@ export interface MentionInputHandle {
   /**
    * Rebuild the editor content from previously serialized segments. This
    * starts a fresh undo history unless `undoable` is set, in which case the
-   * restore is one undo step on top of what the user had typed.
+   * restore is one undo step on top of what the user had typed. When the
+   * restore also replaced state outside the editor, such as attachments, pass
+   * that change as `undoable` so undo and redo carry it along with the text.
    */
-  restoreFromSegments(segments: PromptSegment[], options?: { undoable?: boolean }): void;
+  restoreFromSegments(
+    segments: PromptSegment[],
+    options?: { undoable?: boolean | ExternalUndoChange },
+  ): void;
   /** Whether the caret is on the editor's first or last visual line. */
   caretLineEdges(): CaretLineEdges;
   /** Focus the editor with the caret at the start or end of its content. */
@@ -602,7 +611,10 @@ export const MentionInput = forwardRef<
       if (!editorRef.current) return "";
       return flattenSegments(serializeToSegments(editorRef.current));
     },
-    restoreFromSegments(segments: PromptSegment[], options?: { undoable?: boolean }) {
+    restoreFromSegments(
+      segments: PromptSegment[],
+      options?: { undoable?: boolean | ExternalUndoChange },
+    ) {
       const editor = editorRef.current;
       if (!editor) return;
       const restore = () => {
@@ -611,8 +623,9 @@ export const MentionInput = forwardRef<
         appendPromptSegments(editor, segments);
         onTextChange(hasEditorContent(editor));
       };
-      if (options?.undoable) {
-        undoHistory.edit(restore);
+      const undoable = options?.undoable;
+      if (undoable) {
+        undoHistory.edit(restore, undoable === true ? undefined : undoable);
       } else {
         restore();
         undoHistory.reset();
