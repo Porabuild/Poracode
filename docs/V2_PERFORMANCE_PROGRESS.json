@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T03:58:13.943759+00:00",
+  "updatedAt": "2026-10-06T04:50:33.153475+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,10 +34,10 @@
     "completedMilestoneIds": ["F2"]
   },
   "currentWork": {
-    "requiredAgent": "/root/current_resource_lane",
-    "lastAgent": "R170/R173 preparation and R171 method audit joined; parent reviewed seals and actual native results.",
+    "requiredAgent": null,
+    "lastAgent": "R171/R175/R176/R177/R178 lanes completed and joined; parent independently verified latest377 preparation seals and446 execution seals.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "R170/R173 preparation and R171 method audit joined and verified. New R174 focused saved-history/gallery, release and quit residual preparation is running; no app/profile/declaration launch authorized for the child. Prior R173 full failure and scoped passes remain preserved.",
+    "agentState": "All required lanes joined; native runs and owned process cleanup terminal. R178 full saved-history delivery passes; gallery safe-click refusal remains recorded. No app live.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Current readiness publication production source: eight build stagesPASS,7562 source/3712 dist files,199 packages/23489 runtime files/374edges. R169 startup/owning GUI/REST and R173 scoped ordinary/rich resources pass; full remaining functional/resource gates remain open."
     },
     "buildSession": null,
-    "nextAction": "Focused saved-gallery qualification after actual older-history pagination, then natural pane release and detached normal quit; preserve R173 timed windows without replay. Continue long GUI/PTY/mobile and matched resource gates.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round173/root-round173-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round173/declaration.json",
+    "nextAction": "Diagnose saved gallery pointer settlement and clipping before another affected residual. Require stable visible owning-thumbnail hit test, actual decode/navigation, public pane release and detached quit. Preserve R17861/4/6 delivery and R173 timed windows; finish long GUI/PTY, mobile/PWA and matched resources afterward.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round178/root-round178-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round178/declaration-prelaunch-v2.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -933,6 +933,49 @@
       "nativeRunId": 37405669847,
       "conclusion": "success",
       "optionalSkippedJourneysQualified": false
+    },
+    "savedHistoryResidual": {
+      "state": "full-fail; complete-history-and-preservation-pass",
+      "nativeAttempt": 33,
+      "preflightTestsPassed": 88,
+      "syntaxChecksPassed": 21,
+      "olderPages": 3,
+      "deliveredRawItems": 61,
+      "expectedRawItems": 61,
+      "deliveredImageItems": 4,
+      "expectedImageItems": 4,
+      "deliveredImageBlocks": 6,
+      "expectedImageBlocks": 6,
+      "remainingCursor": null,
+      "trustedWheels": 36,
+      "sourcesAndCanonicalStable": true,
+      "protectedManifestKeysAndConfigStable": true,
+      "settings": "Exactly one owning fixture-model reconnect selection; all other fields semantically exact",
+      "cleanupFreshOwnedAbsences": 9,
+      "savedGalleryQualified": false,
+      "naturalReleaseQualified": false,
+      "normalQuitQualified": false,
+      "performanceGainClaim": false,
+      "evidence": "tmp/v2-streaming-perf-20260930/round178/root-round178-result.json",
+      "paginationElapsedMs": 6088.200333999999,
+      "savedHistoryQualified": true,
+      "galleryControlsPresent": 2,
+      "galleryFailure": "First thumbnail safe-click hit test refused occluded; actual blocker/settlement unrecorded",
+      "firstPrelaunchRefusalPreserved": true,
+      "firstPreflightLogBytesAvailable": false
+    },
+    "genuineFilesystem": {
+      "state": "scoped-pass",
+      "testsPassed": 3,
+      "actualRpcPairs": 6,
+      "actualSequence": "create-read-edit-read exact UTF8 bytes; direct outside-path rejection",
+      "symlinkWrite": "accepted idempotent probe; canonical containment unproved",
+      "actualSourceInputsVerified": 129,
+      "dependencyFilesVerified": 1284,
+      "totalSealsVerified": 1426,
+      "retiredOwnedProcessIds": 4,
+      "uiWorkflowPerformanceClaim": false,
+      "evidence": "tmp/v2-streaming-perf-20260930/round175/root-review-verification.json"
     }
   },
   "milestones": [
@@ -1565,6 +1608,16 @@
       "at": "2026-10-06T02:43:33.412019+00:00",
       "scope": "R163 accepted status publication and bounded scoped WSL",
       "result": "Actual-service regressions reproduce early-readiness and stale-refresh gaps. Generation-owned detached publication, registry invalidation and bounded scoped WSL fix pass83 parent focused tests and19387 full tests/100 skipped; typecheck/lint/format and independent repair review pass. Eight fresh build stages pass. Runtime check pending; no new resource gain. Goal active13/18 tasks."
+    },
+    {
+      "at": "2026-10-06T04:38:28.847580+00:00",
+      "scope": "R175 genuine filesystem and R174/R176/R177 saved-history residual",
+      "result": "Actual ACP filesystem create/read/edit/read and direct outside-path rejection pass3 tests; accepted symlink write is not canonical containment proof. Native32 delivers2older pages40/61 raw items,3/4 image items5/6blocks.32viewport wheels exhausted after prepend anchor growth whiletop2765.5 remains outside start threshold. Source/canonical/config/key/settings policy and cleanup9fresh owned absences pass; gallery/release/normal quit unqualified. No resource windows repeated, gains or task completion added."
+    },
+    {
+      "at": "2026-10-06T04:50:33.153475+00:00",
+      "scope": "R178 exact saved-history delivery",
+      "result": "Native33 delivers all61raw IDs/four image items/sixblocks in6.088s with36trusted viewport wheels and older cursors60→49→21→end. Gallerybubble opens and two thumbnail controls exist, but first safe-click refuses occluded. FullFAIL preserved; decode/navigation/release/quit unqualified. Source/canonical/config/key/settings transition and cleanup9fresh owned absences PASS;0capturederrors. Superseding prelaunch88tests/21syntax/377seals and execution446seals verify; first prelaunch refusal and unavailable old test-log bytes remain disclosed. No production edits/resource windows/gain or task completion."
     }
   ],
   "tasks": [
