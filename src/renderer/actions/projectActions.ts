@@ -219,7 +219,7 @@ export function setProjectDisabled(projectId: string, disabled: boolean): void {
       useGitStore.getState().clearStatus(projectId);
 
       const termStore = useDevTerminalStore.getState();
-      if (termStore.isOpen && termStore.activeProjectId === projectId) {
+      if (termStore.activeProjectId === projectId) {
         termStore.closePanel();
       }
 
@@ -353,7 +353,7 @@ async function deleteProjectAsync(projectId: string): Promise<void> {
       .catch(() => undefined);
   }
 
-  if (termStore.isOpen && termStore.activeProjectId === projectId) {
+  if (termStore.activeProjectId === projectId) {
     termStore.closePanel();
   }
 

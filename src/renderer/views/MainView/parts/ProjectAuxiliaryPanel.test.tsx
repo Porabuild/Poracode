@@ -3,6 +3,7 @@ import type { ReactElement, ReactNode } from "react";
 import { I18nProvider } from "@lingui/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project, Thread } from "@/shared/contracts";
+import { deleteProject } from "@/renderer/actions/projectActions";
 import { closeExitedShell } from "@/renderer/actions/terminalTabActions";
 import { i18n } from "@/renderer/i18n/i18n";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -293,6 +294,7 @@ describe("ProjectAuxiliaryPanel", () => {
       resetDevTerminalStore();
       useAppStore.setState({
         view: { kind: "home" },
+        threads: [],
         projects: [makeProject("project-a"), makeProject("project-b")],
       });
       usePanelStore.setState({ gitReviewContext: null, notesPanelOpen: true });
@@ -349,6 +351,24 @@ describe("ProjectAuxiliaryPanel", () => {
 
       expect(usePanelStore.getState().rightPanelSplit).toBeNull();
       expect(shownNotes()).toEqual(projectBNotes);
+    });
+
+    it("moves Notes off the terminal's project when that project is removed", async () => {
+      const tab = openProjectBTerminalOnHome();
+      usePanelStore.setState({ rightPanelTab: "notes" });
+      renderPanel();
+      act(() => closeExitedShell(tab.id));
+      expect(shownNotes()).toEqual(projectBNotes);
+
+      await act(async () => deleteProject("project-b"));
+
+      // Notes edits are saved under the project the panel renders.
+      expect(useDevTerminalStore.getState().activeProjectId).toBeNull();
+      expect(shownNotes()).toEqual({
+        activeTab: "notes",
+        projectName: "Project project-a",
+        projectId: "project-a",
+      });
     });
   });
 });
