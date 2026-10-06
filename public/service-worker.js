@@ -1,6 +1,6 @@
 // Service worker for the standalone (hosted) Poracode PWA. The desktop-served
-// build ships an equivalent worker generated at runtime (see
-// src/main/remote/pairingPage.ts); keep the two in sync.
+// build serves this finalized worker when bundled. The pairing-only fallback
+// in src/host/remote/pairingPage.ts has a separate, smaller shell cache.
 //
 // Strategy: cache-first for immutable hashed build assets, network-first for
 // other same-origin GETs, and an app-shell fallback for offline navigations.
@@ -15,6 +15,52 @@ const SHELL_URLS = ["./", "manifest.webmanifest", "app-icon.svg"].map(shellUrl);
 // Substituted per channel by scripts/finalize-web-build.mjs so a nightly
 // install's notifications carry the nightly art, not the stable icon.
 const NOTIFICATION_ICON_URL = shellUrl("__PORACODE_NOTIFICATION_ICON__");
+
+// Optional cache warming must not flood foreground requests when several
+// clients report the same build. These owners exist only for unsettled work;
+// cache eviction and failed fills remain retryable. Cache/message formats are
+// unchanged; finalize-web-build derives a new identity from the worker bytes.
+const MAX_ACTIVE_BUILD_ASSET_FILLS = 4;
+const pendingBuildAssets = new Map();
+const buildAssetQueue = [];
+let activeBuildAssetFills = 0;
+
+async function fillBuildAsset(job) {
+  try {
+    const cached = await job.cache.match(job.url, { ignoreVary: true });
+    // Preserve the opportunity to repair a legacy HTML fallback entry instead
+    // of treating that stale asset as an immutable cache hit.
+    if (!cached || (cached.headers.get("content-type") ?? "").startsWith("text/html")) {
+      await job.cache.add(job.url);
+    }
+    job.resolve();
+  } catch (error) {
+    job.reject(error);
+  } finally {
+    pendingBuildAssets.delete(job.url);
+    activeBuildAssetFills--;
+    drainBuildAssets();
+  }
+}
+
+function drainBuildAssets() {
+  while (activeBuildAssetFills < MAX_ACTIVE_BUILD_ASSET_FILLS && buildAssetQueue.length > 0) {
+    const job = buildAssetQueue.shift();
+    activeBuildAssetFills++;
+    void fillBuildAsset(job);
+  }
+}
+
+function queueBuildAsset(cache, url) {
+  const existing = pendingBuildAssets.get(url);
+  if (existing) return existing;
+  const completion = new Promise((resolve, reject) => {
+    buildAssetQueue.push({ cache, url, resolve, reject });
+  });
+  pendingBuildAssets.set(url, completion);
+  drainBuildAssets();
+  return completion;
+}
 
 function shellAssetUrls(html) {
   const urls = new Set();
@@ -128,7 +174,9 @@ self.addEventListener("message", (event) => {
   if (event.data?.type !== "cache-build-assets") return;
   const urls = validBuildAssetUrls(event.data.urls);
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => Promise.allSettled(urls.map((url) => cache.add(url)))),
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => Promise.allSettled(urls.map((url) => queueBuildAsset(cache, url)))),
   );
 });
 

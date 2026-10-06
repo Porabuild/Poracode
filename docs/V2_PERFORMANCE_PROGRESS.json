@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T10:39:54.288151+00:00",
+  "updatedAt": "2026-10-06T11:18:00.692890+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,9 +35,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R204 diagnosis, R205 descriptor accounting and CI fixture review by Codex6.1SolMax; joined and parent verified.",
+    "lastAgent": "R207 PWA source audit and independent correction review by Codex6.1SolMax; joined, no blocker.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No live owned runtime. B2 R200 and R203 full failures preserved; R203 pairing/history/warm-A pass, refusal before graph switch. Cause unresolved; cumulative B2 executions 2/2 consumed. Native40 and B1 failures remain open.",
+    "agentState": "No live owned runtime or required agent. R207 worker prewarming correction has23focused tests and real headless Chrome CacheStorage proof. Broader GUI/mobile/upgrade/resource gates remain open; historical failures and budgets unchanged.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Frozen R190 from pushed007d2cf gallery correction; all eight build stages/source/dist/dependencies verified. Actual two-image GUI thumbnails pass; remaining native cap/replay and performance qualifications open. R164 accepted resource baseline remains historical scoped evidence."
     },
     "buildSession": null,
-    "nextAction": "Follow the prioritized remaining qualification plan. Reuse accepted evidence; do not retry exhausted B2/native/profile runs unchanged. Resolve missing observable controls/correlation before any materially justified runtime; finish remaining GUI/real-PTY, compact/mobile and resource gates without claiming unmeasured gains.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round203/root-execution-verification.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round203/execution-declaration.json",
+    "nextAction": "Commit the verified worker prewarming correction, push and check exact-head CI. Preserve original B2/native/profile budgets. Freeze affected web bytes before further app-level qualification; remaining GUI/real-PTY cap/replay, compact/mobile and matched/resource gates remain open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round207/root-verification.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round207/browser-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -452,12 +452,12 @@
       "compiledUiEvidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
     },
     "docsHeadCI": {
-      "headSha": "85edf799172cfa9781b4f6aa4cf7f79e73f47182",
-      "coreRunId": 37441076199,
-      "nativeRunId": 37441076351,
+      "headSha": "9c16bf023c7c30a38c963456f1e111feee3940eb",
+      "coreRunId": 37451302383,
+      "nativeRunId": 37451302931,
       "conclusion": "success",
       "optionalSkippedJourneysQualified": false,
-      "scope": "Prior pushed checkpoint; this documentation update will have separate exact-head CI."
+      "scope": "Prior pushed checkpoint; new worker correction needs its own exact-head CI."
     },
     "previousVerifiedSourceCI": {
       "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
@@ -1249,12 +1249,33 @@
       "originalHead": "a8d464803e16b1467e457abf1f53f8b1794153bb",
       "originalCoreRun": 37450790875,
       "failedJob": 112226744907,
-      "state": "focused-checks-and-review-pass; exact-new-head CI pending",
+      "state": "pushed9c16bf023; core andnative exactheadSUCCESS",
       "fix": "Wait for script-issued PID/script/inspector/absent-IPC readiness instead of inspector banner",
       "interactiveHelperTestsPassed": 83,
       "lint": "PASS",
       "independentReview": "PASS",
       "evidence": "tmp/v2-streaming-perf-20260930/round206/probe-fixture-ci-repair.json"
+    },
+    "workerPrewarmCorrection": {
+      "state": "focused-and-real-browser-pass; commit/new-headCI pending",
+      "scope": "canonical worker message prewarming only",
+      "preFixTests": {
+        "failed": 3,
+        "passed": 3
+      },
+      "focusedTestsPassed": 23,
+      "typecheck": "PASS",
+      "touchedLint": "PASS",
+      "review": "PASS",
+      "browser": "Actual fresh headless Chrome and CacheStorage; no GUI/mobile/p95 proof",
+      "browserCold": "16 distinct assets filled once; peak active4",
+      "browserWarm": "two repeated snapshots add zero requests",
+      "browserEviction": "one removed asset refilled once",
+      "cleanup": "workerunregistered/cachedeleted; Chromezeroexit/ownedgroupabsent; server/socketsjoined/PIDabsent",
+      "queueMemoryHardBound": false,
+      "p95OrWholeAppGainClaim": false,
+      "oldBudgetsReset": false,
+      "evidence": "tmp/v2-streaming-perf-20260930/round207/root-verification.json"
     }
   },
   "milestones": [
@@ -1940,6 +1961,11 @@
       "at": "2026-10-06T10:39:54.288151+00:00",
       "scope": "Per-name session tool coverage and CI fixture readiness repair",
       "result": "All65 actual descriptor/schema identities and19inputs verified:1production handler/4filevectors,2mockhandlers,62descriptor-only. Scripted10rows and genuine historical child/DAG remain separate. a8d464803 CI lint job fails no-IPC fixture startup; script-issued readiness preserves production guards.83helpertests/fullLint/review PASS; commit-hooktypecheck and new-headCI required. No optimization gain or task-count change."
+    },
+    {
+      "at": "2026-10-06T11:18:00.692890+00:00",
+      "scope": "R207 canonical PWA asset prewarming",
+      "result": "Reproduced3source-contract failures: redundant cachedfill, duplicate overlap, unbounded active messagefills. Worker-owned URLjobs/current-cache lookup/global4active fills preserve allassets/retry/eviction/HTMLrepair.23tests/typecheck/touchedlint/reviewPASS. ActualheadlessChrome16uniqueonce/peak4/warm0extra/eviction1refill/cleanupPASS. No p95/GPU/RAM/wholeappgain orR203cause inferred. Milestones2/6/tasks13/18 unchanged."
     }
   ],
   "tasks": [
