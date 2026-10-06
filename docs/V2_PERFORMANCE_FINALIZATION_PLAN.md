@@ -23,6 +23,12 @@ Offline comparison confirms all 199-package/23,489-file/374-edge runtime depende
 
 ## Current residual verification
 
+Pushed checkpoint `a337b320d` passes both exact-head workflows: [core](https://github.com/Porabuild/Poracode/actions/runs/37399167763), [native](https://github.com/Porabuild/Poracode/actions/runs/37399168071). Optional emulator, wire-lab and server-install journeys skipped by workflow policy remain unqualified.
+
+Startup-only diagnostics now separate exact root/selected-source proof from whole-tree census. The pure paired-chain checker passes49 tests, with all8 parent-verified seals; it refuses census, aggregate and signal authority. R160 passes native boot but fails at an immediate catalog read during reload. The changed-document helper passes8 tests and independent review, requiring a new stable loader on the same frame/URL, complete catalog/bridge and hard monotonic10s admission.
+
+R161 passes both actual catalog reload gates, then fails selectable-model roster readiness before the source command. All41 source/11 original seals remain stable; cleanup passes with six witnessed incarnations freshly absent, plus a separate native ESRCH observation for the unwitnessed probe PID. The stopped cache satisfies the expected fixture-model predicate by cleanup time, but failed API replies were not retained; their timing/shape and the original R158 source closure remain unproved. No resource or source qualification is added. Preserve cumulative24 launches and all failed scopes. Next is a bounded scalar API status ledger and cache/admission trace; no unchanged relaunch or timeout increase based on the stopped cache alone. [Current diagnostic](../tmp/v2-streaming-perf-20260930/round161/root-round161-result.json).
+
 Both exact-head CI workflows pass on pushed documentation checkpoint `0f80b1469`: [core](https://github.com/Porabuild/Poracode/actions/runs/37395678611), [native](https://github.com/Porabuild/Poracode/actions/runs/37395679022). Production inputs still match R146.
 
 R153 independently calibrates installed Darwin25.6.0 own and child CPU fields against process CPU and normal `wait4`: raw Mach ticks,125/3 timebase, confirming the existing conversion. The new bounded observer preserves held fixture identities and permits matched terminal-only zombie counters without live-memory or signal authority. R157 adds a scoped native sampler;33 tests and all12 source/artifact seals verify. Whole-app sums stay refused.

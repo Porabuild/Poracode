@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T01:23:41.112348+00:00",
+  "updatedAt": "2026-10-06T02:00:55.584287+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,10 +34,10 @@
     "completedMilestoneIds": ["F2"]
   },
   "currentWork": {
-    "requiredAgent": "/root/native_resource_window: bounded pre-tool ACP lifecycle fixture preparation",
-    "lastAgent": "R157 sampler/GUI review and R158 clock review joined; all source/artifact seals independently verified.",
+    "requiredAgent": null,
+    "lastAgent": "R160 source checker and driver reviews, R161 navigation review joined; root verified all source/input seals and focused tests.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "R157 ordinary-only scoped observations conserved; fullFAIL strict early dispatch. R158 scheduling correction56checks/reviewPASS, source custodyFAIL before any measurements; strict cleanupPASS. R159 pre-tool lifecycle diagnostic fixture in progress. No native app remains.",
+    "agentState": "All required agents joined. R160 bootPASS/catalog reloadFAIL; R161 both changed-document catalog gatesPASS/selectable-model rosterFAIL before source command. CleanupPASS, no native app remains; source closure and resource qualification still open.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Fresh request-retirement production candidate: eight build stages PASS,7559 source/3712 dist files and199 packages/23489 runtime files/374 edges. Five actual GUI controls and clean shutdown pass. Prior R122/PWA/native evidence remains scoped to its own unchanged inputs."
     },
     "buildSession": null,
-    "nextAction": "Join and verify pre-tool ACP diagnostic fixture, capture the owning source exit/closure cause in a bounded startup-only run before another materially justified resource workload. Preserve R157/R158 failures, custody and counters. Rich/release/normal quit, matched whole-app resources and mobile/long-session/final audit remain open.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round158/root-round158-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round158/declaration.json",
+    "nextAction": "Capture bounded scalar actual API roster replies and trace cache/API model admission before any new material startup diagnostic; preserve full GUI/resource roster guards and old failures. Continue long GUI/PTY and mobile/PWA qualification; no unchanged relaunch or timeout increase from stopped cache alone.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round161/root-round161-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round161/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -121,8 +121,8 @@
       "installedAppReplacement": false
     },
     "lastLocalCommit": {
-      "sha": "0f80b1469434cf0ed522608d4cbda14ec3bff7f9",
-      "title": "docs: record current PTY qualification and source CI results",
+      "sha": "a337b320d431a3ebf01cfa8a24ab07c3b4fe1142",
+      "title": "docs: record current GUI resource baseline and source custody gap",
       "scope": "Documentation checkpoint; production source matches3c7/R146"
     },
     "dependencyUpdate": {
@@ -158,12 +158,12 @@
       "remainingQualificationOpen": true
     },
     "pushedChecks": {
-      "headSha": "0f80b1469434cf0ed522608d4cbda14ec3bff7f9",
+      "headSha": "a337b320d431a3ebf01cfa8a24ab07c3b4fe1142",
       "coreCI": "PASS",
-      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37395678611",
+      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37399167763",
       "nativeCI": "PASS",
-      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37395679022",
-      "scope": "Both exact-head workflows completed successfully before this later documentation update."
+      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37399168071",
+      "scope": "Both exact-head workflows completed successfully before this later documentation update; optional native journeys skipped by policy remain unqualified."
     },
     "olderHistoryImages": {
       "state": "committed_scoped_pass",
@@ -587,7 +587,7 @@
     "savedNativeAttemptHistory": {
       "R129": "FAIL before any seeds: complete discovery refused ESRCH children;19recordedPIDs freshly absent,cleanupPASS;attempt1/no correction consumed",
       "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs→11exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
-      "cumulativeAffectedNativeLaunches": 21,
+      "cumulativeAffectedNativeLaunches": 24,
       "counterReset": false,
       "productionChanges": false,
       "resourceGainClaim": false,
@@ -803,9 +803,55 @@
         "measurementsReached": false,
         "evidence": "tmp/v2-streaming-perf-20260930/round158/root-round158-result.json"
       },
-      "cumulativeAffectedNativeLaunches": 21,
+      "cumulativeAffectedNativeLaunches": 24,
       "counterReset": false,
       "richReleaseAndNormalQuitCurrentResourceRunQualified": false
+    },
+    "startupDiagnosticQualification": {
+      "scope": "Startup-only root/source and document diagnostics; no whole-app census/resource or GUI source qualification",
+      "sourceChainPureTests": 49,
+      "rootSourceSealsVerified": 8,
+      "driverReviewSealsVerified": 6,
+      "driverReviewCorrections": "Stage bounded positive witnesses before admission; exact unique requested retirement PID set required; eight review proofs pass.",
+      "navigationPureTests": 8,
+      "navigationReviewSealsVerified": 4,
+      "correction": "Changed stable loader/frame/URL, complete catalog/bridge, bounded context replacement only during declared reload, hard monotonic10s admission before/after async reads.",
+      "R159": {
+        "pass": false,
+        "gate": "Complete discovery3attempt cap before source command",
+        "cleanupPass": true,
+        "freshWitnessedAbsences": 8
+      },
+      "R160": {
+        "pass": false,
+        "bootPass": true,
+        "providerRegistrationPersisted": true,
+        "gate": "Immediate eval during catalog reload: inspected target navigated or closed",
+        "sourceCommandReached": false,
+        "cleanupPass": true,
+        "freshWitnessedAbsences": 8,
+        "evidence": "tmp/v2-streaming-perf-20260930/round160/root-round160-result.json"
+      },
+      "R161": {
+        "pass": false,
+        "catalogAdmissionsPassed": 2,
+        "focusedPreflightChecks": 18,
+        "gate": "Exact selectable fixture roster deadline",
+        "sourceCommandReached": false,
+        "cleanupPass": true,
+        "freshWitnessedAbsences": 6,
+        "probePidFreshNativeEsrchOnly": true,
+        "stoppedCacheSatisfiesModelPredicate": true,
+        "failedApiRepliesRetained": false,
+        "deadlineCause": "UNPROVED",
+        "all41SourceAnd11OriginalSealsStable": true,
+        "evidence": "tmp/v2-streaming-perf-20260930/round161/root-round161-result.json"
+      },
+      "oldR158ClosureCause": "UNPROVED",
+      "cumulativeAffectedNativeLaunches": 24,
+      "counterReset": false,
+      "unchangedReplayAllowed": false,
+      "performanceGainClaim": false
     }
   },
   "milestones": [
@@ -1561,13 +1607,16 @@
       "title": "Supervisor/chat/native resource attribution",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Keep exhausted profile/trace and R118 GUI diagnostic lanes closed. Complete materially corrected functional coverage before a new bounded comparison; physical GPU/VRAM/private-memory attribution remains open.",
+      "nextAction": "Preserve exhausted profiling/trace and oldGUI resource arms. Native Mach unit/zombie calibration and current scoped ordinary baseline are verified; matched whole-app resources remain open. Trace API roster/startup admission before new materially justified measurements.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
         "tmp/v2-streaming-perf-20260930/round97/root-round97-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
-        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json"
+        "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
+        "tmp/v2-streaming-perf-20260930/round153/root-review-verification.json",
+        "tmp/v2-streaming-perf-20260930/round157/retained-ordinary-analysis.json",
+        "tmp/v2-streaming-perf-20260930/round161/root-round161-result.json"
       ]
     },
     {
@@ -1576,7 +1625,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reuse accepted R115genuineexecution,R124browsercache,R126native rich/groups/gallery,R131savedsemantics andR144five realGUIrequest/approval/steer/Stopcontrols. RemainingPTYbuffer/lifecycle andSafari/mobile/PWA/longsession gates stayopen; fullqualificationincomplete.",
+      "nextAction": "Reuse accepted genuine child/workflow, browser/PWA, saved/live rich groups/gallery evidence and currentR147GUI controls/R156realPTY basic input/resize/find/reopen/interrupt/quit. Remaining long-session/cap-eviction andSafari/physicalmobile/PWA gates stay open; full qualification incomplete.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1590,7 +1639,9 @@
         "tmp/v2-streaming-perf-20260930/round119/root-round119-result.json",
         "tmp/v2-streaming-perf-20260930/round121/root-round121-result.json",
         "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json",
-        "tmp/v2-streaming-perf-20260930/round144/root-round144-result.json"
+        "tmp/v2-streaming-perf-20260930/round144/root-round144-result.json",
+        "tmp/v2-streaming-perf-20260930/round147/root-round147-result.json",
+        "tmp/v2-streaming-perf-20260930/round156/root-round156-result.json"
       ]
     },
     {
