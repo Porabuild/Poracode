@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T00:44:18.511184+00:00",
+  "updatedAt": "2026-10-06T01:23:41.112348+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,10 +34,10 @@
     "completedMilestoneIds": ["F2"]
   },
   "currentWork": {
-    "requiredAgent": "/root/review_saved_runner: bounded resource-unit and fixture-attribution correction",
-    "lastAgent": "R145 completed-change and correction reviews joined; root verified all source hashes and the reproduced startup regression.",
+    "requiredAgent": "/root/native_resource_window: bounded pre-tool ACP lifecycle fixture preparation",
+    "lastAgent": "R157 sampler/GUI review and R158 clock review joined; all source/artifact seals independently verified.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "Current R146 PTY controls/interrupt/publicexit0/detached quit PASS; strict cleanup and seven fresh witnessed absences PASS. Required resource correction still running; no native app remains.",
+    "agentState": "R157 ordinary-only scoped observations conserved; fullFAIL strict early dispatch. R158 scheduling correction56checks/reviewPASS, source custodyFAIL before any measurements; strict cleanupPASS. R159 pre-tool lifecycle diagnostic fixture in progress. No native app remains.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Fresh request-retirement production candidate: eight build stages PASS,7559 source/3712 dist files and199 packages/23489 runtime files/374 edges. Five actual GUI controls and clean shutdown pass. Prior R122/PWA/native evidence remains scoped to its own unchanged inputs."
     },
     "buildSession": null,
-    "nextAction": "Join resource method correction, verify calibration/guard and commit/push checkpoint; then measure current scoped ordinary/rich p95 and resources with guarded fixture custody, finish mobile/PWA/long-session and final acceptance.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round156/root-round156-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round156/declaration.json",
+    "nextAction": "Join and verify pre-tool ACP diagnostic fixture, capture the owning source exit/closure cause in a bounded startup-only run before another materially justified resource workload. Preserve R157/R158 failures, custody and counters. Rich/release/normal quit, matched whole-app resources and mobile/long-session/final audit remain open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round158/root-round158-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round158/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
     "scopedFunctionalResult": {
@@ -121,9 +121,9 @@
       "installedAppReplacement": false
     },
     "lastLocalCommit": {
-      "sha": "3c7fd997c9694bf92a8370281a332044ba158a37",
-      "title": "fix(codex): retire resolved app-server requests before callbacks",
-      "verification": "tmp/v2-streaming-perf-20260930/round145/source-fix-quality.json"
+      "sha": "0f80b1469434cf0ed522608d4cbda14ec3bff7f9",
+      "title": "docs: record current PTY qualification and source CI results",
+      "scope": "Documentation checkpoint; production source matches3c7/R146"
     },
     "dependencyUpdate": {
       "state": "committed-and-scoped-native-verified",
@@ -158,12 +158,12 @@
       "remainingQualificationOpen": true
     },
     "pushedChecks": {
-      "headSha": "3c7fd997c9694bf92a8370281a332044ba158a37",
+      "headSha": "0f80b1469434cf0ed522608d4cbda14ec3bff7f9",
       "coreCI": "PASS",
-      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37391171861",
+      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37395678611",
       "nativeCI": "PASS",
-      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37391173109",
-      "scope": "Both workflows PASS on the preceding production source commit; any later documentation checkpoint has separate CI."
+      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37395679022",
+      "scope": "Both exact-head workflows completed successfully before this later documentation update."
     },
     "olderHistoryImages": {
       "state": "committed_scoped_pass",
@@ -587,7 +587,7 @@
     "savedNativeAttemptHistory": {
       "R129": "FAIL before any seeds: complete discovery refused ESRCH children;19recordedPIDs freshly absent,cleanupPASS;attempt1/no correction consumed",
       "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs→11exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
-      "cumulativeAffectedNativeLaunches": 19,
+      "cumulativeAffectedNativeLaunches": 21,
       "counterReset": false,
       "productionChanges": false,
       "resourceGainClaim": false,
@@ -705,15 +705,19 @@
       "commit": "3c7fd997c9694bf92a8370281a332044ba158a37"
     },
     "resourceMethodReview": {
-      "state": "R150 complete/root-eight-seals-verified; actionable correction in progress",
+      "state": "R153 corrected observer verified; R157 sampler33tests/source review verified",
       "review": "tmp/v2-streaming-perf-20260930/round150/root-plan-verification.json",
       "findings": [
-        "Already witnessed zombie may permit rusage read after proc_pidinfo ESRCH; no unknown/reaped/permission retirement inferred.",
-        "Live-only fixture exclusion can leak fixture CPU into app root totals after child reaping.",
-        "Verify native raw CPU units before applying timebase; old exhausted cohorts stay unchanged."
+        "Own/childCPU raw Mach counters confirmed on installed Darwin25.6.0; existing conversion correct.",
+        "Held exact fixtures prevent the identified retirement-exclusion leakage; unknown birth/exit/permission/reuse stays explicit.",
+        "Matched positive zombie receipts retain terminal counters only; no live memory or signal authority.",
+        "Current sampler reports stable per-process CPU/disk/observed footprint/RSS; whole-app sums remain refused."
       ],
-      "measurementPerformed": false,
-      "resourceGainClaim": false
+      "measurementPerformed": true,
+      "resourceGainClaim": false,
+      "implementation": "tmp/v2-streaming-perf-20260930/round157/native-resource-window.mjs",
+      "rootVerification": "tmp/v2-streaming-perf-20260930/round157/root-sampler-review.json",
+      "calibration": "tmp/v2-streaming-perf-20260930/round153/root-review-verification.json"
     },
     "currentPtyFunctionalQualification": {
       "round": "R156",
@@ -770,6 +774,38 @@
           "rootVisualPass": true
         }
       ]
+    },
+    "currentNativeResourceBaseline": {
+      "R157": {
+        "overallPass": false,
+        "retainedOrdinaryCanonicalPass": true,
+        "trustedInputs": 200,
+        "nativeSamples": 41,
+        "handlerP95Ms": 2.4,
+        "firstRafP95Ms": 5.6,
+        "rendererOwnCpuCorePercent": 29.01,
+        "gpuProcessOwnCpuCorePercent": 9.47,
+        "supervisorOwnCpuCorePercent": 1.48,
+        "rendererTaskBusyPercent": 22.44,
+        "refusedSamples": 2,
+        "unknownBirthPids": 2,
+        "cause": "Input dispatches early by up to1.309ms despite valid200inputs; pinnedNode timers truncate fractional delays. Failed original cadence/run is not requalified.",
+        "evidence": "tmp/v2-streaming-perf-20260930/round157/retained-ordinary-analysis.json",
+        "scope": "Single ordinary-only current native baseline, stable own process costs; not physical paint/GPU/privateRAM/whole-app/pair/gain."
+      },
+      "R158": {
+        "overallPass": false,
+        "preflightPassed": 56,
+        "clockReviewPass": true,
+        "sourceMatchedPersistedProviderSession": true,
+        "sourceCustodyPass": false,
+        "cause": "Owning source PID absent from exact live tree; no pre-retirement native witness or pre-tool lifecycle reason, cause remains unproved.",
+        "measurementsReached": false,
+        "evidence": "tmp/v2-streaming-perf-20260930/round158/root-round158-result.json"
+      },
+      "cumulativeAffectedNativeLaunches": 21,
+      "counterReset": false,
+      "richReleaseAndNormalQuitCurrentResourceRunQualified": false
     }
   },
   "milestones": [
