@@ -43,12 +43,17 @@ interface UndoStep extends EditorSnapshot {
  *
  * Call `beforeInput` before a native edit so the history sees the latest
  * caret, and `commitInput` after it. `edit` wraps a programmatic change.
+ * `beginEdit` and `finishEdit` wrap a change made over several calls, like a
+ * live voice transcript.
  */
 export function useComposerUndoHistory(
   editorRef: RefObject<HTMLDivElement | null>,
   onRestored: () => void,
 ) {
   const historyRef = useRef<UndoHistory<UndoStep> | null>(null);
+  // The editor as it was before a `beginEdit` edit that `finishEdit` has not
+  // recorded yet. The DOM has changed since then, but the history has not.
+  const pendingBeforeRef = useRef<EditorSnapshot | null>(null);
   // Set by deleteByDrag, which only fires when the dragged text came from
   // this editor. The insertFromDrop after it is the other half of that move.
   const dragMoveRef = useRef(false);
@@ -65,6 +70,21 @@ export function useComposerUndoHistory(
   }
 
   /**
+   * Record what an unfinished `beginEdit` edit has changed so far as its own
+   * step. Another edit is about to land first, and it must not overwrite the
+   * state the pending edit started from. Returns false if nothing was pending.
+   */
+  function flushPendingEdit(undoHistory: UndoHistory<UndoStep>, snapshot: EditorSnapshot) {
+    const before = pendingBeforeRef.current;
+    if (!before) return false;
+    pendingBeforeRef.current = null;
+    replaceCurrent(undoHistory, before);
+    if (snapshot.html === before.html) replaceCurrent(undoHistory, snapshot);
+    else undoHistory.record(snapshot);
+    return true;
+  }
+
+  /**
    * Bring the current step up to date with the editor before an edit. A moved
    * caret ends the current typing run. `startStep` ends it even if nothing moved.
    */
@@ -73,6 +93,7 @@ export function useComposerUndoHistory(
     if (!editor) return;
     const snapshot = captureEditorSnapshot(editor);
     const undoHistory = history(editor);
+    if (flushPendingEdit(undoHistory, snapshot)) return;
     if (startStep || !snapshotsEqual(snapshot, undoHistory.current())) {
       replaceCurrent(undoHistory, snapshot);
     }
@@ -101,7 +122,9 @@ export function useComposerUndoHistory(
     // Fold in content the history missed, but keep the caret each step saved:
     // redo puts the caret where the edit left it, not where the user moved it.
     const snapshot = captureEditorSnapshot(editor);
-    if (snapshot.html !== undoHistory.current().html) replaceCurrent(undoHistory, snapshot);
+    if (!flushPendingEdit(undoHistory, snapshot) && snapshot.html !== undoHistory.current().html) {
+      replaceCurrent(undoHistory, snapshot);
+    }
     const left = undoHistory.current();
     const target = action === "undo" ? undoHistory.undo() : undoHistory.redo();
     if (!target) return;
@@ -124,6 +147,30 @@ export function useComposerUndoHistory(
 
   return {
     edit,
+    /**
+     * Start an edit made over several calls. Call it before the edit's first
+     * DOM change. The editor as it is now becomes the before-state of the
+     * step `finishEdit` records.
+     */
+    beginEdit() {
+      const editor = editorRef.current;
+      if (!editor) return;
+      history(editor);
+      pendingBeforeRef.current ??= captureEditorSnapshot(editor);
+    },
+    /** Make the last change of a `beginEdit` edit and record the whole edit as one step. */
+    finishEdit(run: () => void) {
+      const editor = editorRef.current;
+      const before = pendingBeforeRef.current;
+      if (!editor || !before) {
+        edit(run);
+        return;
+      }
+      pendingBeforeRef.current = null;
+      replaceCurrent(history(editor), before);
+      run();
+      commit();
+    },
     /** Call from the native beforeinput event, before Chromium changes the DOM. */
     beforeInput(inputType: string) {
       const dragMove = dragMoveRef.current;
@@ -142,6 +189,7 @@ export function useComposerUndoHistory(
         // knows and take ours instead.
         const editor = editorRef.current;
         if (!editor) return;
+        pendingBeforeRef.current = null;
         restoreEditorSnapshot(editor, history(editor).current());
         apply(inputType === "historyUndo" ? "undo" : "redo");
         return;
@@ -160,6 +208,7 @@ export function useComposerUndoHistory(
     reset() {
       const editor = editorRef.current;
       if (!editor) return;
+      pendingBeforeRef.current = null;
       dragMoveRef.current = false;
       history(editor).reset(captureEditorSnapshot(editor));
     },

@@ -35,6 +35,15 @@ function caretAtEnd(editor: HTMLElement) {
   placeCaret(editor, editor.childNodes.length);
 }
 
+function selectText(node: Node, start: number, end: number) {
+  const range = document.createRange();
+  range.setStart(node, start);
+  range.setEnd(node, end);
+  const selection = window.getSelection()!;
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 /** Fire the native events around a DOM change, as Chromium does for an edit it makes. */
 function nativeEdit(editor: HTMLElement, inputType: string, change: () => void) {
   fireEvent(editor, new InputEvent("beforeinput", { inputType }));
@@ -268,6 +277,38 @@ describe("MentionInput undo history", () => {
     expect(editor.textContent).toBe("note");
     redo(editor);
     expect(editor.textContent).toBe("note hello there");
+  });
+
+  it("undoes a voice transcript that replaced a selection back to the selected text", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "hello world");
+    editor.focus();
+    selectText(editor.firstChild!, 6, 11);
+    act(() => ref.current?.previewVoiceTranscript("there"));
+    act(() => ref.current?.previewVoiceTranscript("there friend"));
+    act(() => ref.current?.commitVoiceTranscript("there friend"));
+    expect(editor.textContent).toBe("hello there friend");
+
+    undo(editor);
+    expect(editor.textContent).toBe("hello world");
+    expect(window.getSelection()!.toString()).toBe("world");
+    redo(editor);
+    expect(editor.textContent).toBe("hello there friend");
+  });
+
+  it("brings back selected text that a cancelled dictation replaced", () => {
+    const { editor, ref } = renderInput();
+    caretAtEnd(editor);
+    paste(editor, "hello world");
+    editor.focus();
+    selectText(editor.firstChild!, 6, 11);
+    act(() => ref.current?.previewVoiceTranscript("there"));
+    act(() => ref.current?.clearVoiceTranscriptPreview());
+    expect(editor.textContent).toBe("hello ");
+
+    undo(editor);
+    expect(editor.textContent).toBe("hello world");
   });
 
   it("starts a fresh history when a saved draft is restored", () => {

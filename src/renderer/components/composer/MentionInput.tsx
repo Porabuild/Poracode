@@ -694,6 +694,9 @@ export const MentionInput = forwardRef<
       node.dataset.voiceTranscriptPreview = "true";
       node.dataset.voicePrefix = prefix;
       node.textContent = prefix + trimmed;
+      // The preview replaces any selected text, so keep the editor as it was
+      // for the undo step the committed transcript records.
+      undoHistory.beginEdit();
       range.deleteContents();
       range.insertNode(node);
       range.setStartAfter(node);
@@ -708,7 +711,7 @@ export const MentionInput = forwardRef<
       const trimmed = text.trim();
       const preview = voicePreviewRef.current;
       if (!preview?.isConnected) {
-        insertPlainText(trimmed);
+        undoHistory.finishEdit(() => insertPlainTextAtCaret(trimmed));
         return;
       }
 
@@ -717,9 +720,9 @@ export const MentionInput = forwardRef<
         return;
       }
 
-      // Snapshots leave the preview out, so this step goes from the text
-      // before dictation straight to the committed transcript.
-      undoHistory.edit(() => {
+      // This step goes from the editor before the first preview straight to
+      // the committed transcript, with the selection the preview replaced.
+      undoHistory.finishEdit(() => {
         const node = document.createTextNode(`${preview.dataset.voicePrefix ?? ""}${trimmed}`);
         preview.replaceWith(node);
         voicePreviewRef.current = null;
