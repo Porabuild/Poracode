@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T07:20:01.715017+00:00",
+  "updatedAt": "2026-10-06T08:10:08.006166+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,21 +35,21 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R189/R190 independent correction reviews joined; latest amendedR190PASS and parent25evidenceseals/eight-fileexactpatchverified.",
+    "lastAgent": "R193 preparation, R194 coverage plan and R195 pane-close diagnosis by Codex6.1SolMax; joined and parent evidence verified.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No live nativeapp/ownedprocess/requiredagent. R189 fullFAIL retained; R190 reviewed shared-gallerycorrection/fullquality/buildPASS, readycommit/pushCI.",
+    "agentState": "No live owned native session. R193 native40 fullFAIL preserved; actual two-image GUI thumbnails PASS. R195 source diagnosis complete but native click/effect unresolved. R194 three finite browser/mobile batches planned, unexecuted.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
-      "identity": "tmp/v2-streaming-perf-20260930/round164/build-identity.json",
-      "verification": "tmp/v2-streaming-perf-20260930/round164/runtime-dependency-identity.json",
-      "state": "FrozenR164 remains the exact pre-fix native38 artifact. Working source now adds the R190 multi-image gallery correction; after-fix native qualification remains open. Existing R164 resource numbers are scoped baseline evidence."
+      "identity": "tmp/v2-streaming-perf-20260930/round190/build-identity.json",
+      "verification": "tmp/v2-streaming-perf-20260930/round190/runtime-dependency-identity.json",
+      "state": "Frozen R190 from pushed007d2cf gallery correction; all eight build stages/source/dist/dependencies verified. Actual two-image GUI thumbnails pass; remaining native cap/replay and performance qualifications open. R164 accepted resource baseline remains historical scoped evidence."
     },
     "buildSession": null,
-    "nextAction": "Commit all completed R190/F1-tracker changes and push; monitor exact-head core/nativeCI and fix failures. Remaining after-fix native GUI/PTY retention, mobile/PWA and final resource/completion gates stay open; no unchanged R189 replay.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round189/root-round189-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round189/declaration.json",
+    "nextAction": "Focused offline public Close-pane callback/view integration discriminator; prepare and review B1 actual MCP media/error desktop/compact browser wrapper independently. Then finite B2 PWA upgrade and availability-dependent B3 mobile journey; preserve exhausted measurement/retry budgets and final F3-F6 gates.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round193/root-round193-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round193/declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -121,9 +121,9 @@
       "installedAppReplacement": false
     },
     "lastLocalCommit": {
-      "sha": "4f9202cecc777cee8677a90014799ec98d78d89c",
-      "title": "fix(runtime): publish ready provider statuses with refresh ownership",
-      "scope": "Verified source fix, pushed; both exact-head workflows passed."
+      "sha": "007d2cf878a03ac66882159101c170c54fe5d327",
+      "title": "fix: collect every tool image in thread galleries",
+      "scope": "Verified production source correction pushed; both exact-head workflows pass. Later documentation checkpoint requires separate CI."
     },
     "dependencyUpdate": {
       "state": "committed-and-scoped-native-verified",
@@ -162,12 +162,12 @@
       "remainingQualificationOpen": true
     },
     "pushedChecks": {
-      "headSha": "a337b320d431a3ebf01cfa8a24ab07c3b4fe1142",
+      "headSha": "007d2cf878a03ac66882159101c170c54fe5d327",
       "coreCI": "PASS",
-      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37399167763",
+      "coreRun": "https://github.com/Porabuild/Poracode/actions/runs/37429054811",
       "nativeCI": "PASS",
-      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37399168071",
-      "scope": "Both exact-head workflows completed successfully before this later documentation update; optional native journeys skipped by policy remain unqualified."
+      "nativeRun": "https://github.com/Porabuild/Poracode/actions/runs/37429055284",
+      "scope": "Exact production-source head completed successfully; policy-skipped journeys remain unqualified."
     },
     "olderHistoryImages": {
       "state": "committed_scoped_pass",
@@ -587,9 +587,9 @@
     "savedNativeAttemptHistory": {
       "R129": "FAIL before any seeds: complete discovery refused ESRCH children;19recordedPIDs freshly absent,cleanupPASS;attempt1/no correction consumed",
       "R131": "CombinedFAIL atPTYfixturemismatch preserved; saved-native24tool-shapes/32rawcanonicalIDs→11exactDOMIDs and two-image navigation scopedPASS. Corrected validator follows actual initial/older hydration; all3offlinechecksPASS with wrongrawID/missingDOMrow negatives and oldoraclefailurepreservation. Root10sealsverified;cleanupPASS/all8knownPIDsfreshESRCH;normalquitnotreached;attempt1/no correction consumed.",
-      "cumulativeAffectedNativeLaunches": 24,
+      "cumulativeAffectedNativeLaunches": 40,
       "counterReset": false,
-      "productionChanges": false,
+      "productionChanges": true,
       "resourceGainClaim": false,
       "R132": "FocusedPTYFAIL atlate-installed receiveobserver; realkernelTTY exact source admission, trustedz input/sourceecho and screenshot display observed. Two injected timing tests reproduce already-open socketgap. Resize/reopen/interrupt/normalquitnotreached;cleanupPASS/all8knownnativePIDsfreshESRCH;attempt1/no correction consumed.",
       "R133": "FAILbeforeinput: expectedsource locatorPID missingfromcompleteownedtree despiteexactCLIshim/body andTTYself-record. Custody/causeunproved;source guardsunchanged;cleanupPASS/all15recordedPIDnumbersfreshESRCH with unknownsnotadopted.28preflightchecksPASSafterrootfixedreviewedstale-fitACKacceptance;attempt1/0consumed.",
@@ -599,7 +599,10 @@
       "R152": "89preflightsPASS; three independently reviewed acceptance defects corrected. Source/trusted input/ready Find/own focus PASS; pre-resize settlement failed before request. No geometry samples saved; cause unproved. CleanupPASS/10 freshly absent,65source/15prior-evidence seals verified; no captured errors.",
       "R154": "49 samples prove inner .xterm-screen height0 caused pre-resize refusal. No native resize was requested; outer .xterm observer is positive. CleanupPASS/9 freshly absent;65source/17prior-evidence seals stable.",
       "R155": "Native fitted resize131x54 to100x45,128lines/public Find/tail and same-pane reopen/native captures, same-source CtrlC byte3 exit0/ESRCH PASS. FullFAIL recorder accepted desktop-event instead of production shared event/loopback. CleanupPASS/6 freshly absent; old run not requalified.",
-      "R156": "PASS all actual scripted real PTY controls, own shared publicexit0 and detached native quit/exact bounds.94preflights,65source/23original seals verified; three screenshots root inspected and hashed; cleanupPASS/seven fresh witnessed absences, no captured errors. No long-session/cap eviction/resource qualification."
+      "R156": "PASS all actual scripted real PTY controls, own shared publicexit0 and detached native quit/exact bounds.94preflights,65source/23original seals verified; three screenshots root inspected and hashed; cleanupPASS/seven fresh witnessed absences, no captured errors. No long-session/cap eviction/resource qualification.",
+      "R191": "Native39 fullFAIL at stale canvas thumbnail oracle; actual2controls/visiblethumbnails, canonical cap/twoPNGs PASS. CleanupPASS; original failure/zero corrections preserved.",
+      "R193": "Native40 fullFAIL at public GUI pane detach; corrected IMG readiness/two natural dimensions/canonical cap PASS. Cleanup7historical/6freshESRCH/zeroerrors;599seals stable. Retire/reopen/delete/PTY/normalquit unreached; no unchanged retry.",
+      "productionChangeScope": "Historical R129-R156 retained no-production-change claims remain scoped to their original runs. R190 later adds the reviewed multi-image gallery fix; cumulative history now includes native40."
     },
     "savedNativeSemanticQualification": {
       "state": "scoped-pass",
@@ -926,9 +929,9 @@
       "scope": "Complete19-row fixture roster, owning GUI activation, bounded REST read,8 selected source observations, normal quit/cleanup; no resource or gain claim."
     },
     "currentSourceCI": {
-      "headSha": "4f9202cecc777cee8677a90014799ec98d78d89c",
-      "coreRunId": 37405669686,
-      "nativeRunId": 37405669847,
+      "headSha": "007d2cf878a03ac66882159101c170c54fe5d327",
+      "coreRunId": 37429054811,
+      "nativeRunId": 37429055284,
       "conclusion": "success",
       "optionalSkippedJourneysQualified": false
     },
@@ -1062,14 +1065,18 @@
       "evidence": "tmp/v2-streaming-perf-20260930/round188/lifecycle-audit/root-verification.json"
     },
     "remainingCapsExecution": {
-      "round": "R189",
-      "nativeAttempt": 38,
+      "round": "R193",
+      "nativeAttempt": 40,
       "fullPass": false,
-      "executionSealsVerified": 571,
+      "executionSealsVerified": 599,
       "sameSourceChars": 4480000,
       "persistedGuiTextAndTwoImagesPass": true,
-      "visibleImages": 1,
+      "visibleImages": 2,
       "expectedImages": 2,
+      "decodedNaturalSizes": [
+        [1024, 768],
+        [320, 240]
+      ],
       "guiRetireReopenDeleteReached": false,
       "realPtyCapReached": false,
       "normalQuit": false,
@@ -1081,11 +1088,12 @@
       "correctionsAllowed": 0,
       "unchangedRetryAllowed": false,
       "performanceGainClaim": false,
-      "evidence": "tmp/v2-streaming-perf-20260930/round189/root-round189-result.json"
+      "failure": "Public GUI pane detach10s deadline; native event delivery versus callback/state/render effect unresolved.",
+      "evidence": "tmp/v2-streaming-perf-20260930/round193/root-round193-result.json"
     },
     "completeToolImageGalleryFix": {
       "round": "R190",
-      "state": "reviewed-quality-complete",
+      "state": "committed-pushed-CI-pass; actual live GUI two-image thumbnails pass; remaining retirement/replay controls open",
       "problem": "A tool payload containing two canonical images contributes only its first image to the gallery. Native38 screenshot shows Images1 despite both persisted PNGs matching.",
       "change": "Shared lazy candidate resolver keeps transcript first-candidate behavior; gallery visits every displayable image newest-first, recording every pending/ready coordinate before URL dedup.",
       "versionBoundary": "Volatile gallerycache3 retires warmformat2 incomplete collections; persisted canonical/database/wire/auth formats unchanged.",
@@ -1107,7 +1115,56 @@
       "format": "PASS",
       "rootVerification": "tmp/v2-streaming-perf-20260930/round190/root-quality-and-review.json",
       "reviewSealsVerified": 25,
-      "reviewedFiles": 8
+      "reviewedFiles": 8,
+      "commit": "007d2cf878a03ac66882159101c170c54fe5d327",
+      "actualLiveTwoImageThumbnailsQualified": true
+    },
+    "previousRemainingCapsExecution": {
+      "round": "R189",
+      "nativeAttempt": 38,
+      "fullPass": false,
+      "executionSealsVerified": 571,
+      "sameSourceChars": 4480000,
+      "persistedGuiTextAndTwoImagesPass": true,
+      "visibleImages": 1,
+      "expectedImages": 2,
+      "guiRetireReopenDeleteReached": false,
+      "realPtyCapReached": false,
+      "normalQuit": false,
+      "cleanupPass": true,
+      "cleanupHistoryRows": 7,
+      "freshSelectedAbsences": 6,
+      "runtimeErrors": 0,
+      "consoleErrors": 0,
+      "correctionsAllowed": 0,
+      "unchangedRetryAllowed": false,
+      "performanceGainClaim": false,
+      "evidence": "tmp/v2-streaming-perf-20260930/round189/root-round189-result.json"
+    },
+    "remainingCoveragePlan": {
+      "state": "reviewed-planning-only",
+      "batches": [
+        "B1 actual MCP inventory/media/error desktop/compact GUI",
+        "B2 natural finalized PWA upgrade and affected offline/reconnect",
+        "B3 availability-dependent real mobile/PWA journey"
+      ],
+      "sourcePairsVerified": 108,
+      "evidenceWorkerSealsVerified": 44,
+      "childWorkflowInputsUnchanged": 64,
+      "browserInputsUnchanged": 38,
+      "browserInputsSelected": 44,
+      "executed": false,
+      "plan": "docs/V2_PERFORMANCE_REMAINING_COVERAGE.md",
+      "evidence": "tmp/v2-streaming-perf-20260930/round194/root-plan-verification.json"
+    },
+    "paneCloseDiagnosis": {
+      "state": "unresolved-native-event-routing-or-callback-effect",
+      "diagnosisComplete": true,
+      "sourcePairsVerified": 13,
+      "evidenceSealsVerified": 36,
+      "productRegressionDemonstrated": false,
+      "nativeRetryAuthorizedByDiagnosis": false,
+      "evidence": "tmp/v2-streaming-perf-20260930/round195/root-diagnosis-verification.json"
     }
   },
   "milestones": [
@@ -1778,6 +1835,11 @@
       "at": "2026-10-06T07:20:01.715017+00:00",
       "scope": "R190 reviewed multiimage fix and all localqualitygreen",
       "result": "IndependentamendedreviewPASS/25seals/eight-fileexactpatchverified. Finalfull19397PASS/100skip/1723filesPASS/5skip,typecheck/lint/format/buildPASS. Earlier17managedfixturecontract failurespreserved andcoveredby dedicatedactualmanagedhook/lightboxtest with2independentauthenticatedrefs/oneequalbyteURL,newestfirst/selection/navigation. Native38fullFAILunchanged; after-fixnative qualificationopen. Commit/pushthenexactheadCI."
+    },
+    {
+      "at": "2026-10-06T08:10:08.006166+00:00",
+      "scope": "R190 pushed source CI, R193 native40 partial proof and bounded remaining coverage plan",
+      "result": "Both exact-source-head CI workflows PASS; frozen190 verified. R193 cap/canonical twoimages and actual IMG decoding PASS, fullFAIL at GUI pane detach; cleanupPASS/all599seals stable/6freshESRCH/zeroerrors. R195 source13pairs/36seals verifies valid close path but event/effect gap remains unresolved. R194 three finite browser/mobile batches planning-only,108sourcepairs/44seals verified. Goal active;2/6 milestones and13/18 scoped tasks unchanged."
     }
   ],
   "tasks": [
