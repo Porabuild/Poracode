@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T10:31:44.546349+00:00",
+  "updatedAt": "2026-10-06T10:39:54.288151+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,7 +35,7 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R204 independent offline diagnosis by Codex6.1SolMax; joined and 106 evidence seals parent verified.",
+    "lastAgent": "R204 diagnosis, R205 descriptor accounting and CI fixture review by Codex6.1SolMax; joined and parent verified.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
     "agentState": "No live owned runtime. B2 R200 and R203 full failures preserved; R203 pairing/history/warm-A pass, refusal before graph switch. Cause unresolved; cumulative B2 executions 2/2 consumed. Native40 and B1 failures remain open.",
     "nativeSessionsLive": [],
@@ -1227,6 +1227,34 @@
       "diagnosis": "tmp/v2-streaming-perf-20260930/round204/diagnosis.json",
       "diagnosisEvidenceSealsVerified": 106,
       "newPerformanceGainClaim": false
+    },
+    "deliveredToolCoverage": {
+      "deliveredDescriptors": 65,
+      "productionHandlersExecuted": 1,
+      "productionHandler": "read_project_file",
+      "genuineFileVectors": 4,
+      "mockHandlersExecuted": 2,
+      "descriptorOnlyUntested": 62,
+      "scriptedRowsSeparate": 10,
+      "historicalChildWorkflowHandlersSeparate": 3,
+      "artifact": "tmp/v2-streaming-perf-20260930/round205/tool-coverage.json",
+      "parentVerification": "tmp/v2-streaming-perf-20260930/round206/root-tool-coverage-verification.json",
+      "inputEvidenceSealsVerified": 19,
+      "descriptorSchemaIdentitiesVerified": 65,
+      "allStatic179HandlersExecuted": false,
+      "progressCountersChanged": false
+    },
+    "probeFixtureCiRepair": {
+      "scope": "Test fixture only; production probe unchanged",
+      "originalHead": "a8d464803e16b1467e457abf1f53f8b1794153bb",
+      "originalCoreRun": 37450790875,
+      "failedJob": 112226744907,
+      "state": "focused-checks-and-review-pass; exact-new-head CI pending",
+      "fix": "Wait for script-issued PID/script/inspector/absent-IPC readiness instead of inspector banner",
+      "interactiveHelperTestsPassed": 83,
+      "lint": "PASS",
+      "independentReview": "PASS",
+      "evidence": "tmp/v2-streaming-perf-20260930/round206/probe-fixture-ci-repair.json"
     }
   },
   "milestones": [
@@ -1907,6 +1935,11 @@
       "at": "2026-10-06T10:31:44.546349+00:00",
       "scope": "Consumed natural-upgrade B2 and joined narrow source/evidence diagnosis",
       "result": "R203 current-host pairing/35rows3pages/warmA+holdA PASS; fullFAIL beforegraphswitch on one pending APIrequest. Upgrade/compact/offline/reconnect unreached; product/observer cause unresolved. CleanupPASS/12freshabsences/3719inputs/135reviewseals stable; R204106evidenceseals verified. B2 cumulative2/2 exhausted; no unchangedretry. Goal active2/6 milestones13/18 tasks unchanged."
+    },
+    {
+      "at": "2026-10-06T10:39:54.288151+00:00",
+      "scope": "Per-name session tool coverage and CI fixture readiness repair",
+      "result": "All65 actual descriptor/schema identities and19inputs verified:1production handler/4filevectors,2mockhandlers,62descriptor-only. Scripted10rows and genuine historical child/DAG remain separate. a8d464803 CI lint job fails no-IPC fixture startup; script-issued readiness preserves production guards.83helpertests/fullLint/review PASS; commit-hooktypecheck and new-headCI required. No optimization gain or task-count change."
     }
   ],
   "tasks": [

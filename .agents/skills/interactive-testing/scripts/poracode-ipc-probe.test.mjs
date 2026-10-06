@@ -259,10 +259,22 @@ void test("install requires an IPC channel", async (t) => {
   await mkdir(scratchRoot, { recursive: true });
   const dir = await mkdtemp(join(scratchRoot, "noipc-"));
   const scriptPath = join(dir, "no-ipc.cjs");
-  await writeFile(scriptPath, "setInterval(() => {}, 1000);\n");
+  await writeFile(
+    scriptPath,
+    `const inspector = require("node:inspector");
+process.stderr.write(JSON.stringify({
+  evt: "no-ipc-ready",
+  pid: process.pid,
+  script: __filename,
+  inspectorUrl: inspector.url(),
+  hasIpc: typeof process.send === "function",
+}) + "\\n");
+setInterval(() => {}, 1000);
+`,
+  );
   const { spawn } = await import("node:child_process");
-  // No ipc stdio: this child has no process.send at all. Its inspector URL is
-  // taken from the --inspect banner on stderr.
+  // No ipc stdio: this child has no process.send at all. The inspector banner
+  // precedes script initialization; wait for the script's own readiness receipt.
   const child = spawn(process.execPath, ["--inspect=127.0.0.1:0", scriptPath], {
     stdio: ["ignore", "ignore", "pipe"],
   });
@@ -270,19 +282,31 @@ void test("install requires an IPC channel", async (t) => {
     if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
     await rm(dir, { recursive: true, force: true });
   });
-  const inspectorUrl = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("no inspector banner")), 8000);
+  const ready = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("no fixture readiness receipt")), 8000);
+    let pending = "";
     child.stderr.setEncoding("utf8");
     child.stderr.on("data", (chunk) => {
-      const match = String(chunk).match(/Debugger listening on (ws:\/\/127\.0\.0\.1:\d+\/\S+)/);
-      if (match) {
-        clearTimeout(timer);
-        resolve(match[1]);
+      pending += chunk;
+      let newline;
+      while ((newline = pending.indexOf("\n")) !== -1) {
+        const line = pending.slice(0, newline);
+        pending = pending.slice(newline + 1);
+        if (!line.startsWith("{")) continue;
+        const receipt = JSON.parse(line);
+        if (receipt.evt === "no-ipc-ready") {
+          clearTimeout(timer);
+          resolve(receipt);
+        }
       }
     });
   });
+  assert.equal(ready.pid, child.pid);
+  assert.equal(ready.script, scriptPath);
+  assert.equal(ready.hasIpc, false);
+  assert.match(ready.inspectorUrl, /^ws:\/\/127\.0\.0\.1:\d+\//);
   await expectProbeError(
-    installProbe(inspectorUrl, { expectedPid: child.pid, expectedScriptPath: scriptPath }),
+    installProbe(ready.inspectorUrl, { expectedPid: child.pid, expectedScriptPath: scriptPath }),
     "no-ipc-channel",
   );
 });
