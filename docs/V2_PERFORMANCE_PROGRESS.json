@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T08:10:08.006166+00:00",
+  "updatedAt": "2026-10-06T09:08:52.563238+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,9 +35,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R193 preparation, R194 coverage plan and R195 pane-close diagnosis by Codex6.1SolMax; joined and parent evidence verified.",
+    "lastAgent": "R196 preparation review and R199 diagnosis/correction review by Codex6.1SolMax; joined and parent evidence verified.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No live owned native session. R193 native40 fullFAIL preserved; actual two-image GUI thumbnails PASS. R195 source diagnosis complete but native click/effect unresolved. R194 three finite browser/mobile batches planned, unexecuted.",
+    "agentState": "No live owned runtime. R196 B1 fullFAIL preserved: actual inventory, file reads, desktop groups and exact two-image controls PASS; compact/reload not reached. R199 confirms single-page and socket-event harness errors. Native40 failure remains open.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Frozen R190 from pushed007d2cf gallery correction; all eight build stages/source/dist/dependencies verified. Actual two-image GUI thumbnails pass; remaining native cap/replay and performance qualifications open. R164 accepted resource baseline remains historical scoped evidence."
     },
     "buildSession": null,
-    "nextAction": "Focused offline public Close-pane callback/view integration discriminator; prepare and review B1 actual MCP media/error desktop/compact browser wrapper independently. Then finite B2 PWA upgrade and availability-dependent B3 mobile journey; preserve exhausted measurement/retry budgets and final F3-F6 gates.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round193/root-round193-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round193/declaration.json",
+    "nextAction": "Integrate the reviewed bounded cursor and joined-socket helpers into a separately reviewed affected qualification for partial-error/compact/reload; preserve the B1 failure and reuse inventory/file/desktop passes. Prepare finite B2 natural PWA upgrade; B3 requires actual device availability. Preserve exhausted measurement/native/retry budgets and F3-F6 acceptance.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round196/root-execution-verification.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round196/execution-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -1165,6 +1165,42 @@
       "productRegressionDemonstrated": false,
       "nativeRetryAuthorizedByDiagnosis": false,
       "evidence": "tmp/v2-streaming-perf-20260930/round195/root-diagnosis-verification.json"
+    },
+    "browserMcpB1": {
+      "round": "R196",
+      "status": "failed",
+      "actualDescriptors": 65,
+      "actualServers": {
+        "poracode": 63,
+        "v2_fixture": 2
+      },
+      "resolvedSchemaParity": "PASS",
+      "realFileReadVectorsPassed": 4,
+      "desktopGroupControls": "PASS 8→10→8",
+      "desktopGallery": "PASS exact320x240/1024x768 PNG bytes, Next/Previous/Close",
+      "maskedBrowserAction": "UNTESTED: no actual browser descriptor",
+      "partialError": "Actual source/DB result intact; public detail not qualified",
+      "compactSavedReload": "UNREACHED",
+      "ownerCleanup": "PASS:93 historical rows;14 witnessed PIDs freshly absent",
+      "mockCleanup": "FAIL:listener closed; socket-close events not joined before receipt",
+      "pageErrors": 0,
+      "preparedInputSealsVerified": 2057,
+      "independentReviewSealsVerified": 97,
+      "unchangedRetryPerformed": false,
+      "diagnosis": "tmp/v2-streaming-perf-20260930/round199/diagnosis.json",
+      "newPerformanceGainClaim": false,
+      "offlineCorrections": {
+        "checksPassed": 12,
+        "independentReview": "PASS:inert helper/test scope only",
+        "result": "tmp/v2-streaming-perf-20260930/round199/root-correction-review-verification.json",
+        "runtimeReplayed": false
+      }
+    },
+    "closePaneSourceIntegration": {
+      "round": "R197",
+      "checksPassed": 2,
+      "scope": "Actual public GUI close callback/view-state integration under jsdom, idle/working; no native delivery qualification",
+      "result": "tmp/v2-streaming-perf-20260930/round197/close-gui-unit-result.json"
     }
   },
   "milestones": [
