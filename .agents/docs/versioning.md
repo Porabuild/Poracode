@@ -2,6 +2,20 @@
 
 Poracode keeps data and deployed artifacts across app upgrades. A change can work in a clean profile and still fail for existing users when an old cache, renderer store, helper, or plugin remains on disk. Treat every serialized or deployed boundary as an upgrade contract.
 
+Agent-status readiness uses process-local publication ownership and detached
+validated snapshots. Completed probes become readable before the complete sweep
+finishes; superseded requests cannot publish events, overwrite accepted rows,
+persist results or return their stale models. Initial registry setup preserves
+the warm cache, while subsequent adapter input changes invalidate it. Complete
+valid cache baselines keep their existing meaning; cold partial views report
+`fromCache: false`, and partial sweeps are never written. Existing status rows,
+capability derivation and serialized response shapes remain valid. Supervisor
+status-cache format 40 and renderer status-store version 36 stay unchanged;
+no IPC, remote protocol, helper or database migration is needed. New bundle
+content hashes identify the changed lifecycle. Regressions start from the
+existing cache shape and cover overlapping full/scoped/WSL requests,
+invalidation, early native reads and caller/adapter mutation isolation.
+
 Codex app-server request retirement changes only the connection-private pending
 request index. Exact provider-resolved IDs and recorded thread ownership release
 payloads before callbacks; an absent ownership mapping during startup is valid,

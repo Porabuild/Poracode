@@ -23,6 +23,18 @@ Offline comparison confirms all 199-package/23,489-file/374-edge runtime depende
 
 ## Current residual verification
 
+R163 fixes two actual-service regressions: a completed provider was unavailable
+to status/capability readers while slower probes continued, and an older sweep
+could restore stale models during a newer refresh. Accepted results now have
+per-target publication ownership and detached snapshots. Registry input changes
+invalidate old results while initial setup preserves the warm cache. Independent
+review found and verified a correction for a newly serialized scoped WSL probe:
+it now uses the existing 60-second abortable detector. Parent verification passes
+83 focused tests and 19,387 full tests, with 100 skipped; typecheck, lint and format
+pass. Supervisor cache40/renderer store36 remain compatible. All eight new R164
+build stages pass; runtime readiness, owning GUI source and REST qualification
+are pending. No performance savings or broad completion are added. [Source checks](../tmp/v2-streaming-perf-20260930/round163/root-integration-verification.json).
+
 Pushed checkpoint `a337b320d` passes both exact-head workflows: [core](https://github.com/Porabuild/Poracode/actions/runs/37399167763), [native](https://github.com/Porabuild/Poracode/actions/runs/37399168071). Optional emulator, wire-lab and server-install journeys skipped by workflow policy remain unqualified.
 
 Startup-only diagnostics now separate exact root/selected-source proof from whole-tree census. The pure paired-chain checker passes49 tests, with all8 parent-verified seals; it refuses census, aggregate and signal authority. R160 passes native boot but fails at an immediate catalog read during reload. The changed-document helper passes8 tests and independent review, requiring a new stable loader on the same frame/URL, complete catalog/bridge and hard monotonic10s admission.

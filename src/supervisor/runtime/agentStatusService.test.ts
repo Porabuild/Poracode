@@ -456,6 +456,7 @@ HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss\\{333}
       envKind: "wsl",
       wslDistro: "Ubuntu",
       agentSettings: updatedSettings,
+      signal: expect.any(AbortSignal),
     });
   });
 });

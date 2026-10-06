@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T02:00:55.584287+00:00",
+  "updatedAt": "2026-10-06T02:43:33.412019+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -47,7 +47,7 @@
       "state": "Fresh request-retirement production candidate: eight build stages PASS,7559 source/3712 dist files and199 packages/23489 runtime files/374 edges. Five actual GUI controls and clean shutdown pass. Prior R122/PWA/native evidence remains scoped to its own unchanged inputs."
     },
     "buildSession": null,
-    "nextAction": "Capture bounded scalar actual API roster replies and trace cache/API model admission before any new material startup diagnostic; preserve full GUI/resource roster guards and old failures. Continue long GUI/PTY and mobile/PWA qualification; no unchanged relaunch or timeout increase from stopped cache alone.",
+    "nextAction": "Run the single declared R164 readiness qualification on the newly frozen source: retain actual public status poll timing/shape, owning GUI source and REST read; preserve prior24 launches and all failure receipts. Then commit/push the verified chunk and check exact-head CI.",
     "lastResult": "tmp/v2-streaming-perf-20260930/round161/root-round161-result.json",
     "lastDeclaration": "tmp/v2-streaming-perf-20260930/round161/declaration.json",
     "liveRootHandles": [],
@@ -852,6 +852,27 @@
       "counterReset": false,
       "unchangedReplayAllowed": false,
       "performanceGainClaim": false
+    },
+    "statusReadinessFix": {
+      "round": "R163",
+      "state": "Source verified; new frozen runtime qualification pending",
+      "earlyAcceptedNativeReadiness": true,
+      "supersededPublicationFenced": true,
+      "registryInvalidationPreservesInitialWarmCache": true,
+      "scopedWslDeadlineMs": 60000,
+      "parentFocusedTestsPassed": 83,
+      "fullTestsPassed": 19387,
+      "fullTestsSkipped": 100,
+      "typecheckPass": true,
+      "lintPass": true,
+      "formatPass": true,
+      "independentReviewFindingResolved": true,
+      "versionAudit": "Supervisor cache40 and renderer store36 unchanged; existing complete cache rows remain valid.",
+      "newCandidate": "tmp/v2-round164-candidate",
+      "buildStagesPassed": 8,
+      "evidence": "tmp/v2-streaming-perf-20260930/round163/root-integration-verification.json",
+      "performanceGainClaim": false,
+      "runtimeQualificationPassed": false
     }
   },
   "milestones": [
@@ -1479,6 +1500,11 @@
       "at": "2026-10-05T23:37:02.094286+00:00",
       "scope": "R137–R144 GUI contract correction and actualqualification",
       "result": "R138 three realGUIanswers/negative scopedPASS, fullFAIL optional-wire mismatch; exactrequestSHAreconstructed. R140 fourthcontrolsteerPASS, fullFAIL omittedgenuineSDKresolutionnotification. Root/Solverify pinned0.155.1source, correctonlyprivatefixture/guard; R144allfiveGUIcontrols+negative+strictnativequit/bounds/cleanupPASS.8freshknownabsences,59source/32originalseals stable,37preflights. BothCIworkflowsgreenon94d. Goalactive13/18tasks/1of6milestones; no newresourcegain."
+    },
+    {
+      "at": "2026-10-06T02:43:33.412019+00:00",
+      "scope": "R163 accepted status publication and bounded scoped WSL",
+      "result": "Actual-service regressions reproduce early-readiness and stale-refresh gaps. Generation-owned detached publication, registry invalidation and bounded scoped WSL fix pass83 parent focused tests and19387 full tests/100 skipped; typecheck/lint/format and independent repair review pass. Eight fresh build stages pass. Runtime check pending; no new resource gain. Goal active13/18 tasks."
     }
   ],
   "tasks": [

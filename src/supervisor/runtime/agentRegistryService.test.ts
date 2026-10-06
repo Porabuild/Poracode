@@ -120,6 +120,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
     const getAgentStatuses = vi.fn<AgentStatusService["getAgentStatuses"]>();
     const listWslDistros = vi.fn<AgentStatusService["listWslDistros"]>();
     const agentStatusService = {
+      invalidateAgentStatuses: vi.fn<() => void>(),
       refreshAgentStatuses,
       getAgentStatuses,
       listWslDistros,
@@ -217,6 +218,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
       .fn<AgentStatusService["listWslDistros"]>()
       .mockResolvedValue(["Ubuntu"]);
     const agentStatusService = {
+      invalidateAgentStatuses: vi.fn<() => void>(),
       refreshAgentStatuses,
       getAgentStatuses: vi.fn<AgentStatusService["getAgentStatuses"]>(),
       listWslDistros,
@@ -288,6 +290,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
       .fn<AgentStatusService["listWslDistros"]>()
       .mockResolvedValue(["Ubuntu"]);
     const agentStatusService = {
+      invalidateAgentStatuses: vi.fn<() => void>(),
       refreshAgentStatuses,
       getAgentStatuses: vi.fn<AgentStatusService["getAgentStatuses"]>(),
       listWslDistros,
@@ -359,7 +362,8 @@ describe("AgentRegistryService.getLatestAgentVersion", () => {
       sharedSettingsCache: {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
-      getAgentStatusService: () => ({}) as unknown as AgentStatusService,
+      getAgentStatusService: () =>
+        ({ invalidateAgentStatuses: vi.fn<() => void>() }) as unknown as AgentStatusService,
       getActiveWslProjectDistros: () => [],
       closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
     });
@@ -427,6 +431,7 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
       .fn<AgentStatusService["listWslDistros"]>()
       .mockResolvedValue(["Ubuntu"]);
     const agentStatusService = {
+      invalidateAgentStatuses: vi.fn<() => void>(),
       refreshAgentStatuses,
       listWslDistros,
     } as unknown as AgentStatusService;
@@ -597,6 +602,7 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
       .fn<AgentStatusService["refreshAgentStatuses"]>()
       .mockResolvedValue({ windows: [], wsl: [], fromCache: false });
     const agentStatusService = {
+      invalidateAgentStatuses: vi.fn<() => void>(),
       getAgentStatuses,
       refreshAgentStatuses,
       listWslDistros: vi.fn<AgentStatusService["listWslDistros"]>().mockResolvedValue([]),
@@ -918,7 +924,8 @@ describe("AgentRegistryService.refreshAgentRegistryAdapters", () => {
       sharedSettingsCache: {
         invalidate: vi.fn<SupervisorSharedSettingsCache["invalidate"]>(),
       } as unknown as SupervisorSharedSettingsCache,
-      getAgentStatusService: () => ({}) as AgentStatusService,
+      getAgentStatusService: () =>
+        ({ invalidateAgentStatuses: vi.fn<() => void>() }) as unknown as AgentStatusService,
       getActiveWslProjectDistros: () => [],
       closeThreadsForAgentKind: vi.fn<(agentKind: AgentKind) => Promise<void>>(async () => {}),
     });

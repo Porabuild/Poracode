@@ -140,6 +140,8 @@ export class AgentRegistryService {
    * which decides the Crossagents lane) — survives the per-poll rebuild.
    */
   private readonly adapterInputKeys = new Map<AgentKind, string>();
+  /** First setup establishes input identity without discarding a valid warm cache. */
+  private registryInitialized = false;
 
   constructor(private readonly deps: AgentRegistryServiceDeps) {}
 
@@ -352,10 +354,12 @@ export class AgentRegistryService {
     const settings = readAcpRegistrySettings(this.deps.settingsPath);
     const entries = buildAgentRegistryEntries(Object.values(settings.agentInstances));
     const nextKinds = new Set(entries.map((entry) => entry.adapter.kind));
+    let changed = false;
     for (const kind of [...this.deps.adapters.keys()]) {
       if (!nextKinds.has(kind)) {
         this.deps.adapters.delete(kind);
         this.adapterInputKeys.delete(kind);
+        changed = true;
       }
     }
     for (const { adapter, inputKey } of entries) {
@@ -363,7 +367,12 @@ export class AgentRegistryService {
       if (existing && this.adapterInputKeys.get(adapter.kind) === inputKey) continue;
       this.deps.adapters.set(adapter.kind, adapter);
       this.adapterInputKeys.set(adapter.kind, inputKey);
+      changed = true;
     }
+    if (this.registryInitialized && changed) {
+      this.agentStatusService.invalidateAgentStatuses();
+    }
+    this.registryInitialized = true;
   }
 
   private async refreshAffectedAgentStatus(agentKind: string): Promise<void> {
