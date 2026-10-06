@@ -34,31 +34,37 @@ export function removeTerminalTab(
     );
   if (scopeHasTabs) return false;
   const position = options.position ?? useSharedSettings.getState().terminalPosition;
-  if (position !== "bottom") closeRightPanelTerminal();
-  useDevTerminalStore.getState().closePanel();
+  // The scope goes only with the right panel. Tabs that stay open may still
+  // take their project from it.
+  if (position !== "bottom" && closeRightPanelTerminal()) {
+    useDevTerminalStore.getState().closePanel();
+  } else {
+    useDevTerminalStore.getState().hidePanel();
+  }
   return true;
 }
 
 /**
- * Hides the right panel only when the terminal is all it shows. A terminal in
- * the split section gives the whole panel back to the active tab, a split
- * sibling takes over from an active terminal, and a terminal hidden behind
- * another tab leaves the panel alone.
+ * Hides the right panel only when the terminal is all it shows, and returns
+ * true when it did. A terminal in the split section gives the whole panel
+ * back to the active tab, a split sibling takes over from an active terminal,
+ * and a terminal hidden behind another tab leaves the panel alone.
  */
-function closeRightPanelTerminal(): void {
+function closeRightPanelTerminal(): boolean {
   const panel = usePanelStore.getState();
   const split = panel.rightPanelSplit;
   if (split?.tab === "terminal") {
     panel.setRightPanelSplit(null);
-    return;
+    return false;
   }
-  if (panel.rightPanelTab !== "terminal") return;
+  if (panel.rightPanelTab !== "terminal") return false;
   if (split) {
     panel.setRightPanelTab(split.tab);
     panel.setRightPanelSplit(null);
-    return;
+    return false;
   }
   closeAllPanels();
+  return true;
 }
 
 /**

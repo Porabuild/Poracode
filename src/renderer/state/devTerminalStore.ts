@@ -47,6 +47,12 @@ interface DevTerminalActions {
   openPanel: (projectId: string) => void;
   openWorktreePanel: (projectId: string, worktreePath: string) => void;
   closePanel: () => void;
+  /**
+   * Hides the panel but keeps its scope. A right panel that stays open can
+   * take its project from the terminal (Notes on Home does), so it keeps
+   * showing the same project.
+   */
+  hidePanel: () => void;
   setActiveProject: (projectId: string) => void;
   /** Re-scope an open panel without opening it or spawning a shell. */
   setPanelScope: (projectId: string, worktreePath?: string) => void;
@@ -131,6 +137,7 @@ export const useDevTerminalStore = create<DevTerminalState & DevTerminalActions>
       activeProjectId: null,
       activeWorktreePath: null,
     }),
+  hidePanel: () => set({ isOpen: false, explicitlyOpened: false }),
 
   setActiveProject: (projectId) => {
     const tabs = get().tabs.filter((t) => t.projectId === projectId);

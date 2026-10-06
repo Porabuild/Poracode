@@ -68,7 +68,7 @@ describe("closeExitedShell", () => {
     closeExitedShell(tab.id);
 
     expect(closeAllPanels).toHaveBeenCalledTimes(1);
-    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(useDevTerminalStore.getState()).toMatchObject({ isOpen: false, activeProjectId: null });
   });
 
   it("keeps the active Files tab when the terminal behind it exits", () => {
@@ -83,7 +83,7 @@ describe("closeExitedShell", () => {
       rightPanelTab: "files",
       filesPanelContext: FILES_CONTEXT,
     });
-    expect(useDevTerminalStore.getState().isOpen).toBe(false);
+    expect(useDevTerminalStore.getState()).toMatchObject({ isOpen: false, activeProjectId: "p1" });
   });
 
   it("keeps the active Browser tab when the terminal behind it exits", () => {
