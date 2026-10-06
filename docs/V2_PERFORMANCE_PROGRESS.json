@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T14:05:24.173029+00:00",
+  "updatedAt": "2026-10-06T17:40:42.434239+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -47,7 +47,7 @@
       "state": "Frozen R209 from pushed c72e0393a worker correction; eight build stages and source/dist/dependency closure verified. R218 populated GUI Close passes. Broader GUI replay/PTY/mobile/resource qualifications remain open."
     },
     "buildSession": null,
-    "nextAction": "Reuse R218 populated GUI Close; qualify finite GUI retirement/reopen/delete and real-PTY cap controls, then missing compact partial-error replay and PWA prerequisites. Prioritize unresolved backend physical-write attribution; preserve exhausted measurement budgets.",
+    "nextAction": "Diagnose native50 startup discovery before any materially corrected GUI-only attempt. Reuse native49 real-PTY T1–T7 and GUI G1/G2; GUI reopen/delete remain open. Finish backend write attribution and resource accounting, then the missing browser/PWA rows and final acceptance; do not repeat accepted timed windows.",
     "lastResult": "tmp/v2-streaming-perf-20260930/round218/root-execution-verification.json",
     "lastDeclaration": "tmp/v2-streaming-perf-20260930/round218/runtime-declaration.json",
     "liveRootHandles": [],
@@ -1317,6 +1317,49 @@
       ],
       "exhaustedBudgetsPreserved": true,
       "evidence": "tmp/v2-streaming-perf-20260930/round217/resource-audit/summary.json"
+    },
+    "nativeLifecycleLatest": {
+      "round": 224,
+      "nativeAttempt": 50,
+      "runtimeResult": "FULL_FAIL",
+      "failureStage": "native-startup-and-isolated-admission",
+      "gui": "UNTESTED",
+      "priorNative49PtyT1T7": "PASS_SCOPED_REUSE",
+      "priorNative49GuiG1G2": "PASS_SCOPED",
+      "priorNative49GuiG3": "FAIL_SETTINGS_HARNESS_GUARD",
+      "priorNative49GuiG4": "UNTESTED",
+      "materialSettingsCorrectionReviewed": true,
+      "normalQuit": true,
+      "cleanup": true,
+      "freshObservedProcessAbsences": 16,
+      "sourceAndFixtureSealsVerified": 65,
+      "independentStoppedCanonicalPass": true,
+      "protectedSettingsQualification": false,
+      "capturedRuntimeErrors": 0,
+      "productionSourceChanged": false,
+      "resourceGainClaim": false,
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round223/root-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round223/root-settings-diagnosis-verification.json",
+        "tmp/v2-streaming-perf-20260930/round224/runtime/execution-review/final-review.json",
+        "tmp/v2-streaming-perf-20260930/round224/root-execution-verification.json"
+      ]
+    },
+    "backendIoAttributionLatest": {
+      "round": 223,
+      "nativeWriteActor": "serverMain",
+      "supervisorObservedWriteDelta": 0,
+      "originalFullWindowIncreasesPercent": [61.8, 27.81],
+      "lastCurrentIntervalNativeWriteBytes": [5046272, 4997120],
+      "cause": "UNPROVED",
+      "retrospectiveCutoffIsReplacementResult": false,
+      "observerLeafReviewed": true,
+      "observerIntegrated": false,
+      "privateRamVramWholeAppGainQualified": false,
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round223/root-io-verification.json",
+        "tmp/v2-streaming-perf-20260930/round224/root-io-observer-verification.json"
+      ]
     }
   },
   "milestones": [
@@ -2012,6 +2055,11 @@
       "at": "2026-10-06T14:05:24.173029+00:00",
       "scope": "R209 frozen source through R218 populated GUI Close and resource exit audit",
       "result": "R218 scopedClosePASS after raw negative gallery retention and production-supported thumbnail-readiness correction: one trusted owning sequence/pane removed,4.48M source cap and2originalPNGs conserved,quit0/eightfreshESRCH/errors0.19production/12focused checks pass. Historical failures preserved; noresourcegain/replayPTYmobile qualification. R21723hash audit prioritizes unexplained backend physical writes and finite accounting/long-session/finalcomparison. Tasks13/18,milestones2/6 unchanged."
+    },
+    {
+      "at": "2026-10-06T17:40:42.434239+00:00",
+      "scope": "R220–R224 accounting, backend writes and current GUI/PTY lifecycle",
+      "result": "Native49 passes actual PTY T1–T7 and GUI generation/retirement G1/G2; overall FAIL is preserved because the settings guard rejects the supported reconnect preference update. Native50 reviews the exact preference correction but FAILS startup discovery before GUI actions. Quit/cleanup,16 fresh observed absences,65 seals and independent stopped canonical pass; protected baseline was not initialized. Backend native writes are attributed to serverMain with late-window bursts; cause remains unproved. Metadata observer leaf reviewed only. No production change or new gain; tasks13/18,milestones2/6 unchanged."
     }
   ],
   "tasks": [
@@ -2140,7 +2188,7 @@
       "title": "Supervisor/chat/native resource attribution",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reuse scoped R173/R179/R116 evidence and verified R217 resource audit. Prioritize material physical-write attribution and complete accounting admission; preserve exhausted budgets and explicit private-memory/hardware limits.",
+      "nextAction": "Reuse R223 serverMain write attribution and R220 scoped CPU-accounting calibration. The R224 metadata observer leaf is reviewed but not integrated. Complete application ownership/accounting admission before a finite matched window; preserve original full-window I/O regressions and explicit private-memory/hardware limits.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
@@ -2150,7 +2198,10 @@
         "tmp/v2-streaming-perf-20260930/round153/root-review-verification.json",
         "tmp/v2-streaming-perf-20260930/round157/retained-ordinary-analysis.json",
         "tmp/v2-streaming-perf-20260930/round161/root-round161-result.json",
-        "tmp/v2-streaming-perf-20260930/round217/resource-audit/summary.json"
+        "tmp/v2-streaming-perf-20260930/round217/resource-audit/summary.json",
+        "tmp/v2-streaming-perf-20260930/round220/accounting/root-calibration-verification.json",
+        "tmp/v2-streaming-perf-20260930/round223/root-io-verification.json",
+        "tmp/v2-streaming-perf-20260930/round224/root-io-observer-verification.json"
       ]
     },
     {
@@ -2159,7 +2210,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reuse R218 populated GUI Close; qualify finite GUI retirement/reopen/delete and real-PTY cap controls, then missing compact partial-error replay and PWA prerequisites. Prioritize unresolved backend physical-write attribution; preserve exhausted measurement budgets.",
+      "nextAction": "Diagnose native50 startup discovery before any materially corrected GUI-only attempt. Reuse native49 real-PTY T1–T7 and GUI G1/G2; GUI reopen/delete remain open. Finish backend write attribution and resource accounting, then the missing browser/PWA rows and final acceptance; do not repeat accepted timed windows.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -2176,7 +2227,11 @@
         "tmp/v2-streaming-perf-20260930/round144/root-round144-result.json",
         "tmp/v2-streaming-perf-20260930/round147/root-round147-result.json",
         "tmp/v2-streaming-perf-20260930/round156/root-round156-result.json",
-        "tmp/v2-streaming-perf-20260930/round218/root-execution-verification.json"
+        "tmp/v2-streaming-perf-20260930/round218/root-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round223/root-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round223/root-settings-diagnosis-verification.json",
+        "tmp/v2-streaming-perf-20260930/round224/runtime/execution-review/final-review.json",
+        "tmp/v2-streaming-perf-20260930/round224/root-execution-verification.json"
       ]
     },
     {
