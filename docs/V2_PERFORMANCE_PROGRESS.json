@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T09:08:52.563238+00:00",
+  "updatedAt": "2026-10-06T10:31:44.546349+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,9 +35,9 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R196 preparation review and R199 diagnosis/correction review by Codex6.1SolMax; joined and parent evidence verified.",
+    "lastAgent": "R204 independent offline diagnosis by Codex6.1SolMax; joined and 106 evidence seals parent verified.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No live owned runtime. R196 B1 fullFAIL preserved: actual inventory, file reads, desktop groups and exact two-image controls PASS; compact/reload not reached. R199 confirms single-page and socket-event harness errors. Native40 failure remains open.",
+    "agentState": "No live owned runtime. B2 R200 and R203 full failures preserved; R203 pairing/history/warm-A pass, refusal before graph switch. Cause unresolved; cumulative B2 executions 2/2 consumed. Native40 and B1 failures remain open.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,9 +47,9 @@
       "state": "Frozen R190 from pushed007d2cf gallery correction; all eight build stages/source/dist/dependencies verified. Actual two-image GUI thumbnails pass; remaining native cap/replay and performance qualifications open. R164 accepted resource baseline remains historical scoped evidence."
     },
     "buildSession": null,
-    "nextAction": "Integrate the reviewed bounded cursor and joined-socket helpers into a separately reviewed affected qualification for partial-error/compact/reload; preserve the B1 failure and reuse inventory/file/desktop passes. Prepare finite B2 natural PWA upgrade; B3 requires actual device availability. Preserve exhausted measurement/native/retry budgets and F3-F6 acceptance.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round196/root-execution-verification.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round196/execution-declaration.json",
+    "nextAction": "Follow the prioritized remaining qualification plan. Reuse accepted evidence; do not retry exhausted B2/native/profile runs unchanged. Resolve missing observable controls/correlation before any materially justified runtime; finish remaining GUI/real-PTY, compact/mobile and resource gates without claiming unmeasured gains.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round203/root-execution-verification.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round203/execution-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -452,12 +452,12 @@
       "compiledUiEvidence": "tmp/v2-streaming-perf-20260930/round124/root-round124-result.json"
     },
     "docsHeadCI": {
-      "headSha": "4f55f967f73db52c0e02066d10de03361eec3910",
-      "coreRunId": 37421712129,
-      "nativeRunId": 37421712229,
+      "headSha": "85edf799172cfa9781b4f6aa4cf7f79e73f47182",
+      "coreRunId": 37441076199,
+      "nativeRunId": 37441076351,
       "conclusion": "success",
       "optionalSkippedJourneysQualified": false,
-      "scope": "Previous pushed checkpoint; this pending document change needs its own exact-head receipt."
+      "scope": "Prior pushed checkpoint; this documentation update will have separate exact-head CI."
     },
     "previousVerifiedSourceCI": {
       "headSha": "5fb2c6adadfc6fab69739f3c8b1c7f32a83a08d9",
@@ -1142,7 +1142,7 @@
       "evidence": "tmp/v2-streaming-perf-20260930/round189/root-round189-result.json"
     },
     "remainingCoveragePlan": {
-      "state": "reviewed-planning-only",
+      "state": "B1 and B2 executed-failed; B3 availability-dependent",
       "batches": [
         "B1 actual MCP inventory/media/error desktop/compact GUI",
         "B2 natural finalized PWA upgrade and affected offline/reconnect",
@@ -1153,7 +1153,7 @@
       "childWorkflowInputsUnchanged": 64,
       "browserInputsUnchanged": 38,
       "browserInputsSelected": 44,
-      "executed": false,
+      "executed": true,
       "plan": "docs/V2_PERFORMANCE_REMAINING_COVERAGE.md",
       "evidence": "tmp/v2-streaming-perf-20260930/round194/root-plan-verification.json"
     },
@@ -1201,6 +1201,32 @@
       "checksPassed": 2,
       "scope": "Actual public GUI close callback/view-state integration under jsdom, idle/working; no native delivery qualification",
       "result": "tmp/v2-streaming-perf-20260930/round197/close-gui-unit-result.json"
+    },
+    "browserPwaB2": {
+      "status": "failed",
+      "originalAttempt": "R200 pre-browser fixture failure",
+      "correctedAttempt": "R203 material source-decoder/browser-evidence correction",
+      "publicPairing": "PASS",
+      "canonicalHistory": "PASS:35 rows across3 pages",
+      "warmAAndHoldA": "PASS",
+      "graphSwitched": false,
+      "failure": "Passive quiescence timeout with one main-page /api/git/call pending",
+      "cause": "UNRESOLVED: no named procedure/settlement correlation; no observer false positive proven",
+      "unreached": [
+        "new-worker activation/cache retirement",
+        "compact saved-error/gallery",
+        "offline/reconnect"
+      ],
+      "cleanup": "PASS: two document retirements;12 fresh witnessed process absences;zero page errors",
+      "inputsVerified": 3719,
+      "reviewSealsVerified": 135,
+      "cumulativeExecutionsUsed": 2,
+      "cumulativeExecutionLimit": 2,
+      "automaticOrUnchangedRetryAllowed": false,
+      "evidence": "tmp/v2-streaming-perf-20260930/round203/root-execution-verification.json",
+      "diagnosis": "tmp/v2-streaming-perf-20260930/round204/diagnosis.json",
+      "diagnosisEvidenceSealsVerified": 106,
+      "newPerformanceGainClaim": false
     }
   },
   "milestones": [
@@ -1876,6 +1902,11 @@
       "at": "2026-10-06T08:10:08.006166+00:00",
       "scope": "R190 pushed source CI, R193 native40 partial proof and bounded remaining coverage plan",
       "result": "Both exact-source-head CI workflows PASS; frozen190 verified. R193 cap/canonical twoimages and actual IMG decoding PASS, fullFAIL at GUI pane detach; cleanupPASS/all599seals stable/6freshESRCH/zeroerrors. R195 source13pairs/36seals verifies valid close path but event/effect gap remains unresolved. R194 three finite browser/mobile batches planning-only,108sourcepairs/44seals verified. Goal active;2/6 milestones and13/18 scoped tasks unchanged."
+    },
+    {
+      "at": "2026-10-06T10:31:44.546349+00:00",
+      "scope": "Consumed natural-upgrade B2 and joined narrow source/evidence diagnosis",
+      "result": "R203 current-host pairing/35rows3pages/warmA+holdA PASS; fullFAIL beforegraphswitch on one pending APIrequest. Upgrade/compact/offline/reconnect unreached; product/observer cause unresolved. CleanupPASS/12freshabsences/3719inputs/135reviewseals stable; R204106evidenceseals verified. B2 cumulative2/2 exhausted; no unchangedretry. Goal active2/6 milestones13/18 tasks unchanged."
     }
   ],
   "tasks": [
@@ -1948,7 +1979,7 @@
       "title": "PWA worker policy and offline recovery",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Current compiled cached-tail/offline/reconnect gate passes with host-held image explicitly unavailable offline. Real Safari/physical-device and long-session qualification remain distinct.",
+      "nextAction": "B2 failed before graph switch; two executions consumed. Preserve scoped R124 cache/offline/reconnect passes. Missing natural upgrade/compact saved-error proof requires concrete new observation or correction, not an unchanged retry. B3 requires real device/control availability.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round71/root-round71-result.json",
         "tmp/v2-streaming-perf-20260930/round80/worker-cancel-d1-review.json",
@@ -2004,7 +2035,7 @@
       "title": "Supervisor/chat/native resource attribution",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Preserve exhausted tracing and matched arms. Current R173 two-window own-process/input baselines and R17112-test method audit pass; whole interval CPU/I/O, private/hardware dimensions and release remain unqualified. Use the finite measured method before any gain claim.",
+      "nextAction": "Reuse R173 own-process p95/CPU/GPU-process/footprint baseline and R171 method audit. Resolve whole-app accounting and long-session retention limits from retained evidence first; preserve exhausted profiling/matched budgets and explicit private-memory/hardware limits.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
@@ -2022,7 +2053,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "R173 canonical48calls/24cases,400inputs,live8→16→8 groups and two decoded PNG gallery assets pass. Reload tail is one image-free item with older cursor; load earlier history before saved gallery assertions, then release/quit. Do not repeat accepted timed windows. Long GUI/PTY, cap-eviction, broader file/media/tool and Safari/physical-mobile gates remain open.",
+      "nextAction": "Reuse genuine child/DAG/PTY/request controls and accepted desktop gallery/groups. Remaining affected GUI retire/reopen/delete, real-PTY cap behavior, compact partial-error replay and mobile/PWA checks remain open. Fix only proven defects; require concrete prerequisites before a new affected runtime.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -2047,7 +2078,7 @@
       "title": "Final matched p95 and resources",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "R173 supplies current ordinary/rich scoped baselines, not an opposite-order comparison. Preserve exhausted R118 arms and tracing limits; use materially justified matched design only after missing functional and resource-accounting gates.",
+      "nextAction": "No current matched gain is qualified. Complete missing functional and whole-app accounting gates before a materially justified finite comparison. Do not replay exhausted R118 arms or accepted R173 timed windows.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",
@@ -2060,7 +2091,7 @@
       "title": "Completion audit and report",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "R127 interim requirement map complete; final acceptance remains incomplete until G1–G4 remaining gates close.",
+      "nextAction": "Consolidate PASS/FAIL/UNREACHED/external limits against each requirement. Current task count13/18 and milestones2/6 stay unchanged; final signoff requires functional/resource gaps to close.",
       "evidence": ["tmp/v2-streaming-perf-20260930/round127/audit.json"]
     },
     {
