@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T02:43:33.412019+00:00",
+  "updatedAt": "2026-10-06T03:58:13.943759+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -34,24 +34,24 @@
     "completedMilestoneIds": ["F2"]
   },
   "currentWork": {
-    "requiredAgent": null,
-    "lastAgent": "R160 source checker and driver reviews, R161 navigation review joined; root verified all source/input seals and focused tests.",
+    "requiredAgent": "/root/current_resource_lane",
+    "lastAgent": "R170/R173 preparation and R171 method audit joined; parent reviewed seals and actual native results.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "All required agents joined. R160 bootPASS/catalog reloadFAIL; R161 both changed-document catalog gatesPASS/selectable-model rosterFAIL before source command. CleanupPASS, no native app remains; source closure and resource qualification still open.",
+    "agentState": "R170/R173 preparation and R171 method audit joined and verified. New R174 focused saved-history/gallery, release and quit residual preparation is running; no app/profile/declaration launch authorized for the child. Prior R173 full failure and scoped passes remain preserved.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
-      "identity": "tmp/v2-streaming-perf-20260930/round146/build-identity.json",
-      "verification": "tmp/v2-streaming-perf-20260930/round146/runtime-dependency-identity.json",
-      "state": "Fresh request-retirement production candidate: eight build stages PASS,7559 source/3712 dist files and199 packages/23489 runtime files/374 edges. Five actual GUI controls and clean shutdown pass. Prior R122/PWA/native evidence remains scoped to its own unchanged inputs."
+      "identity": "tmp/v2-streaming-perf-20260930/round164/build-identity.json",
+      "verification": "tmp/v2-streaming-perf-20260930/round164/runtime-dependency-identity.json",
+      "state": "Current readiness publication production source: eight build stagesPASS,7562 source/3712 dist files,199 packages/23489 runtime files/374edges. R169 startup/owning GUI/REST and R173 scoped ordinary/rich resources pass; full remaining functional/resource gates remain open."
     },
     "buildSession": null,
-    "nextAction": "Run the single declared R164 readiness qualification on the newly frozen source: retain actual public status poll timing/shape, owning GUI source and REST read; preserve prior24 launches and all failure receipts. Then commit/push the verified chunk and check exact-head CI.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round161/root-round161-result.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round161/declaration.json",
+    "nextAction": "Focused saved-gallery qualification after actual older-history pagination, then natural pane release and detached normal quit; preserve R173 timed windows without replay. Continue long GUI/PTY/mobile and matched resource gates.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round173/root-round173-result.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round173/declaration.json",
     "liveRootHandles": [],
-    "attributionResult": "R96 pre-tool failure corrected; R97 rich48calls/24cases post-cleanup canonical PASS, profile rejected andtrace64MiB overflow. Ordinary/PTY/release phases UNTESTED in this cohort; no current perf gain.",
+    "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
       "normalGuiStop": "PASS twice with exact remote request/completion and owning UI settlement; not p95 or external provider coverage",
       "provedSavedCreateReplay": "PASS: raw producer proof, 36-byte native source/path/kind, saved public item and +3/0 preserved after Page.reload without new provider item notifications",
@@ -121,9 +121,9 @@
       "installedAppReplacement": false
     },
     "lastLocalCommit": {
-      "sha": "a337b320d431a3ebf01cfa8a24ab07c3b4fe1142",
-      "title": "docs: record current GUI resource baseline and source custody gap",
-      "scope": "Documentation checkpoint; production source matches3c7/R146"
+      "sha": "4f9202cecc777cee8677a90014799ec98d78d89c",
+      "title": "fix(runtime): publish ready provider statuses with refresh ownership",
+      "scope": "Verified source fix, pushed; both exact-head workflows passed."
     },
     "dependencyUpdate": {
       "state": "committed-and-scoped-native-verified",
@@ -142,14 +142,16 @@
     },
     "currentWholeBranchQuality": {
       "state": "PASS",
-      "result": "tmp/v2-streaming-perf-20260930/round145/source-fix-quality.json",
-      "testsPassed": 19368,
+      "testsPassed": 19387,
       "testsSkipped": 100,
-      "suitesPassed": 1721,
+      "suitesPassed": 1723,
       "suitesSkipped": 5,
       "typecheck": "PASS",
       "lint": "PASS",
-      "format": "PASS"
+      "format": "PASS",
+      "sourceReceipt": "tmp/v2-streaming-perf-20260930/round163/root-integration-verification.json",
+      "laterScopedGalleryTestsPassed": 39,
+      "scope": "Production bytes unchanged after4f; this documentation checkpoint needs its own CI receipt."
     },
     "comprehensiveCheckpoint": {
       "state": "committed: 0ffb496f4 all458files; 403a6777d older-page image projection; pushed to origin/poracode/v2",
@@ -873,6 +875,64 @@
       "evidence": "tmp/v2-streaming-perf-20260930/round163/root-integration-verification.json",
       "performanceGainClaim": false,
       "runtimeQualificationPassed": false
+    },
+    "currentResourceQualification": {
+      "evidence": "tmp/v2-streaming-perf-20260930/round173/root-round173-result.json",
+      "nativeLaunchesCumulative": 30,
+      "counterReset": false,
+      "automaticUnchangedRetry": false,
+      "trustedInputs": 400,
+      "nativeSamples": 82,
+      "richToolCalls": 48,
+      "richToolCaseTypes": 24,
+      "fullFunctionalPass": false,
+      "scopedResourcePass": true,
+      "liveGroupSegmentCounts": [8, 16, 8],
+      "liveGallerySizes": [
+        [320, 240],
+        [1024, 768]
+      ],
+      "boundedReaderTailItems": 1,
+      "olderHistoryCursorPresent": true,
+      "savedGalleryQualified": false,
+      "naturalReleaseQualified": false,
+      "normalQuitQualified": false,
+      "freshOwnedAbsences": 8,
+      "consoleRuntimeErrors": 0,
+      "performanceGainClaim": false,
+      "measurements": [
+        {
+          "regime": "ordinary",
+          "queueP95Ms": 6.2,
+          "firstRafCallbackP95Ms": 9.2,
+          "rendererOwnCpuOneCorePercent": 32.1,
+          "gpuProcessOwnCpuOneCorePercent": 10.53,
+          "supervisorOwnCpuOneCorePercent": 1.84,
+          "rendererMaxObservedFootprintMiB": 551.14
+        },
+        {
+          "regime": "rich",
+          "queueP95Ms": 1.9,
+          "firstRafCallbackP95Ms": 9.3,
+          "rendererOwnCpuOneCorePercent": 34.48,
+          "gpuProcessOwnCpuOneCorePercent": 12.51,
+          "supervisorOwnCpuOneCorePercent": 1.42,
+          "rendererMaxObservedFootprintMiB": 606.88
+        }
+      ],
+      "metricLimits": "Current baseline; first rAF is not physical paint, footprint/RSS is not unique/private RAM, GPU-process CPU is not hardware GPU/VRAM. Unknown processes and whole interval costs stay unqualified."
+    },
+    "currentReadinessQualification": {
+      "state": "PASS-scoped",
+      "evidence": "tmp/v2-streaming-perf-20260930/round169/root-round169-result.json",
+      "scope": "Complete19-row fixture roster, owning GUI activation, bounded REST read,8 selected source observations, normal quit/cleanup; no resource or gain claim."
+    },
+    "currentSourceCI": {
+      "headSha": "4f9202cecc777cee8677a90014799ec98d78d89c",
+      "coreRunId": 37405669686,
+      "nativeRunId": 37405669847,
+      "conclusion": "success",
+      "optionalSkippedJourneysQualified": false
     }
   },
   "milestones": [
@@ -1633,7 +1693,7 @@
       "title": "Supervisor/chat/native resource attribution",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Preserve exhausted profiling/trace and oldGUI resource arms. Native Mach unit/zombie calibration and current scoped ordinary baseline are verified; matched whole-app resources remain open. Trace API roster/startup admission before new materially justified measurements.",
+      "nextAction": "Preserve exhausted tracing and matched arms. Current R173 two-window own-process/input baselines and R17112-test method audit pass; whole interval CPU/I/O, private/hardware dimensions and release remain unqualified. Use the finite measured method before any gain claim.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
@@ -1651,7 +1711,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reuse accepted genuine child/workflow, browser/PWA, saved/live rich groups/gallery evidence and currentR147GUI controls/R156realPTY basic input/resize/find/reopen/interrupt/quit. Remaining long-session/cap-eviction andSafari/physicalmobile/PWA gates stay open; full qualification incomplete.",
+      "nextAction": "R173 canonical48calls/24cases,400inputs,live8→16→8 groups and two decoded PNG gallery assets pass. Reload tail is one image-free item with older cursor; load earlier history before saved gallery assertions, then release/quit. Do not repeat accepted timed windows. Long GUI/PTY, cap-eviction, broader file/media/tool and Safari/physical-mobile gates remain open.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -1676,7 +1736,7 @@
       "title": "Final matched p95 and resources",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "R118 required arms and correction budget exhausted. Preserve scoped input/source evidence and resource refusals; complete opposite-order GUI comparison remains unproved. Resolve materially corrected functional coverage before a new measurement design.",
+      "nextAction": "R173 supplies current ordinary/rich scoped baselines, not an opposite-order comparison. Preserve exhausted R118 arms and tracing limits; use materially justified matched design only after missing functional and resource-accounting gates.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json",
         "tmp/v2-streaming-perf-20260930/round118/root-round118-result.json",

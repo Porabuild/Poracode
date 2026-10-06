@@ -15,6 +15,19 @@ Status: active. F2’s original visibility/worker-control prerequisite is comple
 
 ## Current result
 
+Latest qualification uses the frozen R164 production bytes from pushed `4f9202cec`; both source-commit [core CI](https://github.com/Porabuild/Poracode/actions/runs/37405669686) and [native CI](https://github.com/Porabuild/Poracode/actions/runs/37405669847) passed. R169 closes startup, owning GUI activation, bounded REST and selected-source qualification. R173 passes two current 40-second ordinary/rich GUI windows: 400 trusted inputs, 82 native samples, independent canonical conservation for 48 scripted tool calls across 24 cases, live group expansion **8→16→8**, and PNG decode/navigation at **320×240 / 1024×768**. This is a scoped baseline, with no measured gain or full functional sign-off.
+
+| Current workload          | Handler queue p95 | First rAF callback p95 | Renderer own CPU | GPU-process own CPU | Supervisor own CPU |
+| ------------------------- | ----------------: | ---------------------: | ---------------: | ------------------: | -----------------: |
+| Ordinary                  |            6.2 ms |                 9.2 ms |           32.10% |              10.53% |              1.84% |
+| Rich, 48 tools / 24 cases |            1.9 ms |                 9.3 ms |           34.48% |              12.51% |              1.42% |
+
+CPU percentages use one core. The first rAF callback is not physical paint. Renderer maximum observed footprint is 551.14 MiB ordinary / 606.88 MiB rich; these are working-window kernel gauges, not private RAM, leak, release or savings evidence. Unknown process births remain refused; whole-app sums and hardware GPU/VRAM remain unqualified. The independent R171 method audit passes 12 checks and explains why summing retained own/child CPU can miss or double-count work. [Current resource result](../tmp/v2-streaming-perf-20260930/round173/root-round173-result.json), [method audit](../tmp/v2-streaming-perf-20260930/round171/resource-method-audit.json).
+
+The combined R173 run remains **failed** at saved gallery admission after reload. Exact public reader parity passes, but the bounded response contains one image-free tail item and an older-history cursor; the gallery intentionally collects loaded history. Native captures and 39 source tests support a missing pagination step in the test, not an established production regression. Saved gallery, natural pane release and normal quit remain unqualified in this cohort. Cleanup passes with eight known owned incarnations freshly absent and zero captured console/runtime errors. R170's GPU executable mismatch and R173's pre-launch copied-path seed failure remain recorded. Cumulative affected native launches are **30**, with no reset of historical tracing or matched budgets. [Tail audit](../tmp/v2-streaming-perf-20260930/round173/saved-gallery-tail-audit.json).
+
+Next, in order: qualify saved gallery through actual earlier-history loading, release and detached quit without repeating the accepted streaming windows; finish long GUI/real-PTY and broader Safari/mobile coverage; qualify the remaining matched p95/resource comparison using the audited method; then finish G1–G4 acceptance. The goal stays active at **13/18 tasks (72.2%), one of six milestones**. Earlier receipts below retain their original scope and failures.
+
 R127 reconciles the finalization requirements and closes the original F2 control prerequisite using retained native visibility and worker/connectivity receipts. Four finite gate groups remain: offline input-equivalence reconciliation; missing functional rows; representative matched p95/resource qualification; and final acceptance. Old Stop/quit and browser offline checks must not be repeated solely because stale tracker fields still called them open. This is an interim audit, not broad completion. [Audit](../tmp/v2-streaming-perf-20260930/round127/finalization-audit.md).
 
 A fresh iPhone 17 Pro/iOS 26.5 simulator opens the current frozen production client in real Safari. Public pairing, saved formatted/code/table/tool-result display, native swipes through older content and return to tail, composer focus/keyboard clearance, search selection, thread actions, project navigation and public refresh reach usable UI. This is screenshot/input proof only: the inspector did not expose web content, so exact DOM IDs and zero runtime errors are unproved. New streaming, image/group controls, offline/background, installation, physical-device and resource/p95 gates remain untested. Host cleanup, canonical conservation and frozen identities pass; fifteen recorded PIDs are freshly absent. The new simulator is shut down, the protected simulator remains booted, and prior Device Hub selection/Xcode defaults are restored. [Safari receipt](../tmp/v2-streaming-perf-20260930/round127/root-safari-result.json).
@@ -32,8 +45,8 @@ review found and verified a correction for a newly serialized scoped WSL probe:
 it now uses the existing 60-second abortable detector. Parent verification passes
 83 focused tests and 19,387 full tests, with 100 skipped; typecheck, lint and format
 pass. Supervisor cache40/renderer store36 remain compatible. All eight new R164
-build stages pass; runtime readiness, owning GUI source and REST qualification
-are pending. No performance savings or broad completion are added. [Source checks](../tmp/v2-streaming-perf-20260930/round163/root-integration-verification.json).
+build stages pass; subsequent R169 startup, owning GUI source and bounded REST
+qualification pass, as recorded above. No performance savings or broad completion are added. [Source checks](../tmp/v2-streaming-perf-20260930/round163/root-integration-verification.json).
 
 Pushed checkpoint `a337b320d` passes both exact-head workflows: [core](https://github.com/Porabuild/Poracode/actions/runs/37399167763), [native](https://github.com/Porabuild/Poracode/actions/runs/37399168071). Optional emulator, wire-lab and server-install journeys skipped by workflow policy remain unqualified.
 
