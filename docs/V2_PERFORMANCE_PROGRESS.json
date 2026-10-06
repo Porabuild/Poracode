@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T23:15:50.907602+00:00",
+  "updatedAt": "2026-10-06T23:39:17.472539+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -37,7 +37,7 @@
     "requiredAgent": null,
     "lastAgent": "R218 independent correction review and R217 resource gap audit by Codex6.1SolMax; joined.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "No live owned runtime or required agent. R218 populated GUI Close passes after a source-supported thumbnail-oracle correction. Remaining GUI replay/real-PTY cap, compact/PWA/mobile and resource gates stay open.",
+    "agentState": "R227 named-server I/O pair and offline attribution complete; required agents joined, no live owned runtime. GUI51 and real-PTY49 remain qualified scoped reuse. Remaining compact/saved-error/PWA and resource/final-audit gates stay open.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
@@ -47,8 +47,8 @@
       "state": "Frozen R209 from pushed c72e0393a worker correction; eight build stages and source/dist/dependency closure verified. R218 populated GUI Close passes. Broader GUI replay/PTY/mobile/resource qualifications remain open."
     },
     "buildSession": null,
-    "nextAction": "Reuse current GUI51 G1–G4 and real-PTY49 T1–T7. Finish the scoped serverMain write discriminator, remaining compact/saved partial-error and affected PWA rows, then final acceptance. Preserve unavailable hardware/private metrics and exhausted budgets; avoid marginal tuning.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round218/root-execution-verification.json",
+    "nextAction": "Reuse current GUI51 G1–G4 and real-PTY49 T1–T7 plus R227 named-server correlation. Finish remaining compact/saved partial-error and affected PWA rows, then final acceptance. Preserve unavailable hardware/private metrics, incomplete whole-family accounting and exhausted budgets; avoid marginal tuning.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round227/root-io-execution-verification.json",
     "lastDeclaration": "tmp/v2-streaming-perf-20260930/round218/runtime-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
@@ -1357,7 +1357,7 @@
       "cause": "UNPROVED",
       "retrospectiveCutoffIsReplacementResult": false,
       "observerLeafReviewed": true,
-      "observerIntegrated": false,
+      "observerIntegrated": true,
       "privateRamVramWholeAppGainQualified": false,
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round223/root-io-verification.json",
@@ -1386,7 +1386,42 @@
           "evidence": "tmp/v2-streaming-perf-20260930/round226/root-io-execution-verification.json"
         }
       ],
-      "nextAction": "Review the explicit named-core binding: all five core actors must qualify; only current-sample positively absent appOther errno3 may continue with full-family/aggregate failure retained. No window or write cause is qualified yet."
+      "nextAction": "Named-server discriminator is qualified in one order. Preserve historical increases and current aggregate refusal; no speculative storage fix or repeat run. Finish compact/saved partial-error and affected PWA regression coverage, then acceptance audit with explicit whole-family/private/hardware limits.",
+      "namedRowDiagnosticPair": {
+        "round": 227,
+        "current": "R209/schema54",
+        "reference": "R78/schema53; v2 reference, not master",
+        "namedRowPairQualified": true,
+        "fullRunPass": false,
+        "currentOriginalAggregateQualified": false,
+        "referenceOriginalAggregateQualified": true,
+        "activeNativeSamplesPerArm": 41,
+        "metadataPerArm": 43,
+        "currentAppOtherRefusal": "selected/enrolled PID18047 unavailable errno3 at active ordinal2; no counters fabricated",
+        "currentDiskBytes": 12599296,
+        "referenceDiskBytes": 13672448,
+        "diskDifferencePercent": -7.84901138406231,
+        "currentLogicalRaw": 14194416,
+        "referenceLogicalRaw": 13975912,
+        "logicalUnits": "unknown",
+        "currentHistoryP95Ms": 8.83025,
+        "referenceHistoryP95Ms": 8.455833,
+        "burstsCurrentOrdinals": [13, 25, 39],
+        "burstsReferenceOrdinals": [13, 27, 40],
+        "allLargeBurstsAlignDbGrowth": true,
+        "drainedDiskBytesPerArm": 0,
+        "retiredWalShmAbsent": true,
+        "checkpointResult": "UNPROVED; temporal header/file correlation only",
+        "oppositeOrderRepeatability": "UNTESTED",
+        "gainClaim": false,
+        "freshObservedAbsences": 382,
+        "canonicalSourceCleanupAndRelease": true,
+        "evidence": [
+          "tmp/v2-streaming-perf-20260930/round227/root-io-execution-verification.json",
+          "tmp/v2-streaming-perf-20260930/round227/io-attribution/analysis.json",
+          "tmp/v2-streaming-perf-20260930/round227/root-io-attribution-verification.json"
+        ]
+      }
     },
     "previousNativeLifecycleCheckpoint": {
       "round": 224,
@@ -1416,16 +1451,16 @@
       ]
     },
     "latestVerifiedCheckpoint": {
-      "head": "53a306575650da6447fb50465c2e317d9b141511",
-      "coreRun": 37505571201,
+      "head": "286320e2aa99f5b9609ecc39b96e0efc5ad89d9a",
+      "coreRun": 37545654763,
       "coreConclusion": "success",
       "coreJobs": 19,
-      "nativeRun": 37505571550,
+      "nativeRun": 37545655138,
       "nativeConclusion": "success",
       "nativeSuccessfulJobs": 6,
       "nativePolicySkips": 4,
       "skippedJourneysQualified": false,
-      "evidence": "tmp/v2-streaming-perf-20260930/round225/root-checkpoint-verification.json"
+      "evidence": "tmp/v2-streaming-perf-20260930/round227/root-checkpoint-verification.json"
     }
   },
   "milestones": [
@@ -2259,7 +2294,7 @@
       "title": "Supervisor/chat/native resource attribution",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Review the explicit named-core binding: all five core actors must qualify; only current-sample positively absent appOther errno3 may continue with full-family/aggregate failure retained. No window or write cause is qualified yet. Complete short-lived CPU-family accounting is not a prerequisite for this named-row I/O diagnosis; it remains required for any such whole-app claim.",
+      "nextAction": "Named-server discriminator is qualified in one order. Preserve historical increases and current aggregate refusal; no speculative storage fix or repeat run. Finish compact/saved partial-error and affected PWA regression coverage, then acceptance audit with explicit whole-family/private/hardware limits. Whole-family CPU, private RAM and hardware GPU/VRAM are not qualified by this pair.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round79/root-round79-result.json",
         "tmp/v2-streaming-perf-20260930/round93/resource-finalization-preparation.json",
@@ -2275,7 +2310,10 @@
         "tmp/v2-streaming-perf-20260930/round224/root-io-observer-verification.json",
         "tmp/v2-streaming-perf-20260930/round225/root-io-execution-verification.json",
         "tmp/v2-streaming-perf-20260930/round226/root-io-execution-verification.json",
-        "tmp/v2-streaming-perf-20260930/round227/root-member-diagnosis-verification.json"
+        "tmp/v2-streaming-perf-20260930/round227/root-member-diagnosis-verification.json",
+        "tmp/v2-streaming-perf-20260930/round227/root-io-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round227/io-attribution/analysis.json",
+        "tmp/v2-streaming-perf-20260930/round227/root-io-attribution-verification.json"
       ]
     },
     {
