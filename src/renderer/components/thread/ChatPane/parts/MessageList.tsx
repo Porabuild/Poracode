@@ -45,6 +45,7 @@ import { chatMessageSurfaceClass } from "./items/chatMessageSurface";
 import { imageViewRendersInline, resolveImageViewSource } from "./items/imageViewSource";
 import { isToolLikeItem } from "./items/toolCallCategorization";
 import { useTimelineMeasurements } from "./useTimelineMeasurements";
+import { createUnderfilledHistoryTrigger, type HistoryStartReached } from "./underfilledHistory";
 import {
   useVirtualRowMeasurement,
   type RemeasureVirtualRow,
@@ -85,7 +86,7 @@ interface MessageListProps {
   onWheelCapture?: WheelEventHandler<HTMLDivElement>;
   onPointerDownCapture?: PointerEventHandler<HTMLDivElement>;
   onKeyDownCapture?: KeyboardEventHandler<HTMLDivElement>;
-  onStartReached?: () => void;
+  onStartReached?: HistoryStartReached;
   drawDistance?: number;
   /**
    * Reverting is transcript-local today. Disable it while a turn is live so
@@ -153,9 +154,43 @@ export function MessageList({
   const { t } = useLingui();
   const hasItems = entries.length > 0;
   const parentActions = useChatPaneActions();
-  const onContentSizeCommit = onContentHeightChange ?? parentActions?.onContentHeightChange;
+  const onContentHeightNotification = onContentHeightChange ?? parentActions?.onContentHeightChange;
   const listRef = useRef<LegendListRef | null>(null);
   const scrollElementRef = useRef<HTMLDivElement | null>(null);
+  const underfilledHistoryRef = useRef<ReturnType<typeof createUnderfilledHistoryTrigger> | null>(
+    null,
+  );
+  if (underfilledHistoryRef.current === null) {
+    underfilledHistoryRef.current = createUnderfilledHistoryTrigger();
+  }
+  function notifyContentHeight() {
+    onContentHeightNotification?.();
+    underfilledHistoryRef.current?.measure({
+      threadId,
+      oldestEntryId: entries[0]?.id,
+      scroller: scrollElementRef.current,
+      onStartReached,
+    });
+  }
+  function retryUnderfilledHistory(event: {
+    defaultPrevented: boolean;
+    target: EventTarget | null;
+  }) {
+    if (
+      event.defaultPrevented ||
+      (event.target instanceof Element &&
+        event.target.closest(
+          "button, input, textarea, select, [role='button'], [contenteditable]:not([contenteditable='false'])",
+        ))
+    )
+      return;
+    underfilledHistoryRef.current?.retry({
+      threadId,
+      oldestEntryId: entries[0]?.id,
+      scroller: scrollElementRef.current,
+      onStartReached,
+    });
+  }
   const entriesRef = useRef(entries);
   useLayoutEffect(() => {
     entriesRef.current = entries;
@@ -191,6 +226,7 @@ export function MessageList({
         snapshotMeasurements(previousInstance, previousScrollElement);
       }
       listRef.current = instance;
+      if (!instance) underfilledHistoryRef.current?.reset();
       const scrollElement = instance?.getScrollableNode() as HTMLDivElement | undefined;
       const contentElement = scrollElement?.querySelector<HTMLDivElement>(
         ".legend-list-content-container",
@@ -445,9 +481,18 @@ export function MessageList({
         }}
         maintainScrollAtEndThreshold={0}
         maintainVisibleContentPosition={{ data: true, size: true }}
-        {...(onContentSizeCommit ? { onContentSizeCommit } : {})}
+        {...(onContentHeightNotification || onStartReached
+          ? { onContentSizeCommit: notifyContentHeight }
+          : {})}
         {...(drawDistance !== undefined ? { drawDistance } : {})}
-        {...(onStartReached ? { onStartReached, onStartReachedThreshold: 0.75 } : {})}
+        {...(onStartReached
+          ? {
+              onStartReached: () => {
+                void onStartReached();
+              },
+              onStartReachedThreshold: 0.75,
+            }
+          : {})}
         recycleItems={false}
         renderItem={({ item: entry, index }) => (
           <VirtualChatListRow
@@ -482,10 +527,26 @@ export function MessageList({
           transition: "--lc-chat-bottom-mask-end-alpha 150ms ease-out",
         }}
         data-poracode-chat-scroller="true"
-        {...(onKeyDownCapture ? { onKeyDownCapture } : {})}
-        onLoad={() => (onContentHeightChange ?? parentActions?.onContentHeightChange)?.()}
+        {...(onKeyDownCapture || onStartReached
+          ? {
+              onKeyDownCapture: (event) => {
+                onKeyDownCapture?.(event);
+                if (event.key === "ArrowUp" || event.key === "PageUp" || event.key === "Home") {
+                  retryUnderfilledHistory(event);
+                }
+              },
+            }
+          : {})}
+        onLoad={notifyContentHeight}
         {...(onPointerDownCapture ? { onPointerDownCapture } : {})}
-        {...(onWheelCapture ? { onWheelCapture } : {})}
+        {...(onWheelCapture || onStartReached
+          ? {
+              onWheelCapture: (event) => {
+                onWheelCapture?.(event);
+                if (event.deltaY < 0) retryUnderfilledHistory(event);
+              },
+            }
+          : {})}
         {...(scrollStyle ? { style: scrollStyle } : {})}
       />
       <RevertCheckpointDialog

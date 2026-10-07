@@ -238,7 +238,7 @@ describe("MessageList", () => {
     props.onStartReached?.();
     expect(onStartReached).toHaveBeenCalledOnce();
     expect(props.recycleItems).toBe(false);
-    expect(props).not.toHaveProperty("onContentSizeCommit");
+    expect(props.onContentSizeCommit).toEqual(expect.any(Function));
     expect(totalSizeListener.current).toBeNull();
   });
 
@@ -536,6 +536,106 @@ describe("MessageList", () => {
       setItemSizeMock.mock.invocationCallOrder[0]!,
     );
     expect(onContentHeightChange).toHaveBeenCalledOnce();
+  });
+
+  it("requests underfilled history when committed data arrives and preserves height notifications", () => {
+    const onStartReached = vi.fn<() => void>();
+    const onContentHeightChange = vi.fn<() => void>();
+    const view = render(
+      <MessageList
+        threadId="thread-1"
+        entries={[]}
+        onStartReached={onStartReached}
+        onContentHeightChange={onContentHeightChange}
+      />,
+    );
+    const scroller = view.container.querySelector("[data-poracode-chat-scroller]");
+    expect(scroller).not.toBeNull();
+    Object.defineProperties(scroller!, {
+      clientHeight: { configurable: true, value: 776 },
+      scrollHeight: { configurable: true, value: 776 },
+    });
+    onContentHeightChange.mockClear();
+    const commit = () => {
+      const props = latestLegendProps.current as MockLegendProps;
+      expect(props.onStartReached).toEqual(expect.any(Function));
+      act(() => props.onContentSizeCommit?.({ size: 100, horizontal: false }));
+    };
+    commit();
+    expect(onStartReached).not.toHaveBeenCalled();
+    view.rerender(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["tail"])}
+        onStartReached={onStartReached}
+        onContentHeightChange={onContentHeightChange}
+      />,
+    );
+    commit();
+    commit();
+    expect(onStartReached).toHaveBeenCalledOnce();
+    expect(onContentHeightChange).toHaveBeenCalledTimes(3);
+    view.rerender(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["older", "tail"])}
+        onStartReached={onStartReached}
+        onContentHeightChange={onContentHeightChange}
+      />,
+    );
+    commit();
+    expect(onStartReached).toHaveBeenCalledTimes(2);
+    expect(onContentHeightChange).toHaveBeenCalledTimes(4);
+  });
+
+  it("retries a failed underfilled boundary only on unhandled public upward intent", async () => {
+    const onStartReached = vi.fn<() => Promise<boolean>>().mockResolvedValue(false);
+    const onWheelCapture = vi.fn<React.WheelEventHandler<HTMLDivElement>>((event) => {
+      if (event.deltaY === -2) event.preventDefault();
+    });
+    const onKeyDownCapture = vi.fn<React.KeyboardEventHandler<HTMLDivElement>>((event) => {
+      if (event.key === "Home") event.preventDefault();
+    });
+    const view = render(
+      <MessageList
+        threadId="thread-1"
+        entries={makeEntries(["tail"])}
+        onStartReached={onStartReached}
+        onWheelCapture={onWheelCapture}
+        onKeyDownCapture={onKeyDownCapture}
+      />,
+    );
+    const scroller = view.container.querySelector("[data-poracode-chat-scroller]")!;
+    Object.defineProperties(scroller, {
+      clientHeight: { configurable: true, value: 776 },
+      scrollHeight: { configurable: true, value: 776 },
+    });
+    fireEvent.wheel(scroller, { deltaY: -1 });
+    expect(onStartReached).not.toHaveBeenCalled();
+    const props = latestLegendProps.current as MockLegendProps;
+    await act(async () => props.onContentSizeCommit?.({ size: 100, horizontal: false }));
+    for (let count = 0; count < 20; count++) {
+      act(() => props.onContentSizeCommit?.({ size: 100, horizontal: false }));
+    }
+    expect(onStartReached).toHaveBeenCalledOnce();
+    await act(async () => fireEvent.wheel(scroller, { deltaY: -1 }));
+    expect(onStartReached).toHaveBeenCalledTimes(2);
+    fireEvent.keyDown(scroller, { key: "PageDown" });
+    fireEvent.keyDown(scroller, { key: "Home" });
+    fireEvent.wheel(scroller, { deltaY: -2 });
+    for (const tag of ["input", "textarea", "button", "div"] as const) {
+      const target = document.createElement(tag);
+      if (tag === "div") target.setAttribute("contenteditable", "true");
+      scroller.appendChild(target);
+      fireEvent.keyDown(target, { key: "PageUp" });
+      fireEvent.wheel(target, { deltaY: -1 });
+      target.remove();
+    }
+    expect(onStartReached).toHaveBeenCalledTimes(2);
+    await act(async () => fireEvent.keyDown(scroller, { key: "PageUp" }));
+    expect(onStartReached).toHaveBeenCalledTimes(3);
+    expect(onWheelCapture).toHaveBeenCalledTimes(7);
+    expect(onKeyDownCapture).toHaveBeenCalledTimes(7);
   });
 
   it.each([false, true])(

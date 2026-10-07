@@ -577,9 +577,7 @@ export function ChatPane(props: ChatPaneProps) {
                   scrollControlsRef.current?.markUserScrollIntent();
                 }
               }}
-              onStartReached={() => {
-                void loadOlderThreadRuntimeItems(threadId);
-              }}
+              onStartReached={() => loadOlderThreadRuntimeItems(threadId)}
               registerScrollToIndex={registerScrollToIndex}
               suppressInlineTurnAnchorId={suppressInlineTurnAnchorId}
               canRevertCheckpoints={!isLive && !isHomeScope}

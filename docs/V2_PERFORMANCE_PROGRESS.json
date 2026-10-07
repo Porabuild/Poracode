@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-07T01:36:15.430299+00:00",
+  "updatedAt": "2026-10-07T03:04:05.028062+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,21 +35,21 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R218 independent correction review and R217 resource gap audit by Codex6.1SolMax; joined.",
+    "lastAgent": "R240 underfilled-history implementation and independent review complete; both agents joined.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "R227 named-server I/O pair and offline attribution complete; required agents joined, no live owned runtime. GUI51 and real-PTY49 remain qualified scoped reuse. Remaining compact/saved-error/PWA and resource/final-audit gates stay open.",
+    "agentState": "R240 correction and independent review complete; both real-list fixtures, full local tests19422/1725files, typecheck, lint, format and production build pass. No owned runtime live. Commit/push and exact-head CI next; saved-runtime and broader final gates remain open.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
       "identity": "tmp/v2-streaming-perf-20260930/round209/build-identity.json",
       "verification": "tmp/v2-streaming-perf-20260930/round209/root-frozen-verification.json",
-      "state": "Frozen R209 from pushed c72e0393a worker correction; source/dist/dependency closure verified. Current GUI51 G1–G4 and real-PTY49 T1–T7 pass scoped qualification. Remaining compact/PWA and final resource/acceptance gates stay open."
+      "state": "R209 remains the prior frozen candidate with scoped evidence. Working renderer now includes the R240 underfilled-history correction; real pinned-list/helper fixtures pass, but a corrected frozen candidate and full saved-runtime controls remain unqualified."
     },
     "buildSession": null,
-    "nextAction": "Diagnose saved compact raw-card locator/hydration and qualify only remaining saved error/group/gallery controls. Reuse newly passed live compact MCP/group/gallery, GUI51, PTY49 and named-server evidence. Preserve exhausted B2 and incomplete PWA/whole-family/private/hardware/matched gates; final acceptance remains open.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round233/root-compact-execution-verification.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round233/compact-corrected/parent-declaration.json",
+    "nextAction": "Finish checks, commit/push the underfilled-history correction and confirm CI. Freeze the corrected renderer and qualify only saved compact error/group/gallery. Reuse scoped live/native/resource evidence; keep PWA, hardware and current matched gates explicit.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round240/root-underflow-execution-verification.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round237/saved-corrected/parent-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -88,17 +88,19 @@
     },
     "fullQuality": {
       "state": "PASS",
-      "result": "tmp/v2-streaming-perf-20260930/round105/root-round105-result.json",
-      "testsPassed": 19300,
+      "result": "tmp/v2-streaming-perf-20260930/round240/root-local-quality-verification.json",
+      "testsPassed": 19422,
       "testsFailed": 0,
       "testsSkipped": 100,
-      "suitesPassed": 1716,
+      "suitesPassed": 1725,
       "suitesSkipped": 5,
       "maxWorkers": 8,
       "testTimeoutMilliseconds": 15000,
       "lint": "PASS",
       "typecheck": "PASS",
-      "originalFailure": "tmp/v2-streaming-perf-20260930/round104/root-full-quality-triage.json"
+      "format": "PASS",
+      "build": "PASS",
+      "scope": "Local current correction; exact pushed CI and saved-runtime qualification still required."
     },
     "currentCompiledGenuineEvidence": {
       "actualChildRead": "tmp/v2-streaming-perf-20260930/round115/r115-rich-pwa/genuine-execution.json",
@@ -1734,7 +1736,7 @@
         "tmp/v2-streaming-perf-20260930/round115/root-round115-result.json",
         "tmp/v2-streaming-perf-20260930/round116/root-round116-final-result.json"
       ],
-      "nextAction": "Reuse R115 genuine execution, R124 browser cache and R126 live native rich/groups/gallery; qualify only saved-native/current realPTY/request-permission-steer and remaining mobile/PWA rows.",
+      "nextAction": "Finish checks, commit/push the underfilled-history correction and confirm CI. Freeze the corrected renderer and qualify only saved compact error/group/gallery. Reuse scoped live/native/resource evidence; keep PWA, hardware and current matched gates explicit.",
       "workMayStartBeforeDependenciesComplete": true,
       "dependencyLimit": "Dependencies govern final sign-off; independent attribution/inventory may proceed now.",
       "qualifiedSubgates": {
@@ -2242,6 +2244,16 @@
       "at": "2026-10-07T01:36:15.430299+00:00",
       "scope": "Current live compact media/error/groups/gallery qualified; saved locator remaining",
       "result": "Corrected R233 iconpredicate independentreviewPASS and3changedchecksPASS. Actual3prompts/3replies,12tools (10scripted,2ownedmock), publicerror detail/icon, group8→10→8, bothoriginalPNG hashes/dimensions Next/Previous/Close PASS. Ownreloadnewloader and exactcanonical/noReplay/sameepoch assertions reached; fullrunFAILsavederrorcard24scrollcap. Root109inputs/130reviewseals/136freshESRCH/stopped21rows12toolIDs/zero pendingoperations/errors/protected+cleanupPASS. Nextsaved-onlydiagnosis, no acceptedactivecohort replay. Counts13/18,2/6 unchanged."
+    },
+    {
+      "at": "2026-10-07T02:39:25.267094+00:00",
+      "scope": "Saved-only initial history diagnostic",
+      "result": "R235 seed precondition failure and R236 cleanup refusal preserved. R237 corrected viewport/loader observation passes with canonical21rows12tools unchanged, 75 freshly absent owned PIDs and no provider prompts. Actual initial wire serves one assistant/nextCursor21/hasMore; mounted list has zero scroll range. Older-history callback reachability remains unproved; offline real-list preflight precedes any new saved-only controls. Scoped counts13/18 and milestones2/6 unchanged."
+    },
+    {
+      "at": "2026-10-07T03:04:05.028062+00:00",
+      "scope": "Short-list older-history regression fixed",
+      "result": "R239 exact390x844/list776/zeroRange fixture demonstrates no Legend start-edge callback, including trusted upward input; delayed mode setup failure preserved. R240 production fallback uses load/content-size measurements, outcome-aware pending boundary dedupe and public-intent-only failure retries; unmount resets references. Independent reviewPASS; actual pinned-list/helper initial-ready and independent delayed-tail each automatically request cursor21 exactly once and mount older row, zero errors/clean normalexit/all22 observed PIDs freshlyabsent. This is component/fixture proof, not complete saved-runtime or performance-gain qualification. Counts13/18 and milestones2/6 unchanged."
     }
   ],
   "tasks": [
@@ -2400,7 +2412,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Diagnose saved compact raw-card locator/hydration and qualify only remaining saved error/group/gallery controls. Reuse newly passed live compact MCP/group/gallery, GUI51, PTY49 and named-server evidence. Preserve exhausted B2 and incomplete PWA/whole-family/private/hardware/matched gates; final acceptance remains open.",
+      "nextAction": "Finish checks, commit/push the underfilled-history correction and confirm CI. Freeze the corrected renderer and qualify only saved compact error/group/gallery. Reuse scoped live/native/resource evidence; keep PWA, hardware and current matched gates explicit.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -2433,7 +2445,14 @@
         "tmp/v2-streaming-perf-20260930/round232/root-compact-execution-verification.json",
         "tmp/v2-streaming-perf-20260930/round232/root-syntax-diagnosis-verification.json",
         "tmp/v2-streaming-perf-20260930/round233/root-original-review-verification.json",
-        "tmp/v2-streaming-perf-20260930/round233/root-compact-execution-verification.json"
+        "tmp/v2-streaming-perf-20260930/round233/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round235/root-saved-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round236/root-saved-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round237/root-saved-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round237/root-older-history-diagnosis-verification.json",
+        "tmp/v2-streaming-perf-20260930/round238/root-f4-reconciliation-verification.json",
+        "tmp/v2-streaming-perf-20260930/round239/root-underflow-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round240/root-underflow-execution-verification.json"
       ]
     },
     {

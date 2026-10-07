@@ -4,6 +4,8 @@ Finish the existing goal across the server, Electron GUI chats and real PTYs, de
 
 Status: active. F1 lifecycle/data correctness and F2's original visibility/worker-control prerequisite are complete; F3–F6 remain in progress. Two of six finalization milestones are complete. Broad mobile/PWA obligations remain open under the coverage and resource gates; scoped task completion stays 13/18 (72.2%). These counts describe final sign-off, not optimization savings or remaining effort. The [tracker](V2_PERFORMANCE_PROGRESS.json) contains task states and acceptance checks.
 
+The current short-list older-history callback gap is reproduced and corrected. Both real-list/helper fixtures pass for history ready at mount and history arriving later, with exactly one older-page request each and clean teardown. The full saved-runtime error/group/gallery journey still needs the corrected frozen renderer. Reuse scoped live compact and native GUI/PTY evidence; no new resource gain is claimed. [Correction verification](../tmp/v2-streaming-perf-20260930/round240/root-underflow-execution-verification.json).
+
 ## What is already supported
 
 - Historical matched rich-chat runs measured 34–36% lower app CPU, 44–45% lower renderer busy time and 23–30% lower GPU-process CPU, with input-queue p95 of 5.4–6.1 ms. One gallery comparison regressed by 8.6 ms. These are workload-specific historical results, not current-final-build measurements. [R45](../tmp/v2-streaming-perf-20260930/round45/root-round45-result.json).
