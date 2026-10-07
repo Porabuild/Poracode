@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-06T23:39:17.472539+00:00",
+  "updatedAt": "2026-10-07T01:36:15.430299+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -44,12 +44,12 @@
     "productionCandidate": {
       "identity": "tmp/v2-streaming-perf-20260930/round209/build-identity.json",
       "verification": "tmp/v2-streaming-perf-20260930/round209/root-frozen-verification.json",
-      "state": "Frozen R209 from pushed c72e0393a worker correction; eight build stages and source/dist/dependency closure verified. R218 populated GUI Close passes. Broader GUI replay/PTY/mobile/resource qualifications remain open."
+      "state": "Frozen R209 from pushed c72e0393a worker correction; source/dist/dependency closure verified. Current GUI51 G1–G4 and real-PTY49 T1–T7 pass scoped qualification. Remaining compact/PWA and final resource/acceptance gates stay open."
     },
     "buildSession": null,
-    "nextAction": "Reuse current GUI51 G1–G4 and real-PTY49 T1–T7 plus R227 named-server correlation. Finish remaining compact/saved partial-error and affected PWA rows, then final acceptance. Preserve unavailable hardware/private metrics, incomplete whole-family accounting and exhausted budgets; avoid marginal tuning.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round227/root-io-execution-verification.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round218/runtime-declaration.json",
+    "nextAction": "Diagnose saved compact raw-card locator/hydration and qualify only remaining saved error/group/gallery controls. Reuse newly passed live compact MCP/group/gallery, GUI51, PTY49 and named-server evidence. Preserve exhausted B2 and incomplete PWA/whole-family/private/hardware/matched gates; final acceptance remains open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round233/root-compact-execution-verification.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round233/compact-corrected/parent-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -1451,16 +1451,77 @@
       ]
     },
     "latestVerifiedCheckpoint": {
-      "head": "286320e2aa99f5b9609ecc39b96e0efc5ad89d9a",
-      "coreRun": 37545654763,
+      "head": "936a253bed8a61f2e4ce593f21a2dfef2ee20b56",
+      "coreRun": 37547789531,
       "coreConclusion": "success",
       "coreJobs": 19,
-      "nativeRun": 37545655138,
+      "nativeRun": 37547789833,
       "nativeConclusion": "success",
       "nativeSuccessfulJobs": 6,
       "nativePolicySkips": 4,
       "skippedJourneysQualified": false,
-      "evidence": "tmp/v2-streaming-perf-20260930/round227/root-checkpoint-verification.json"
+      "evidence": "tmp/v2-streaming-perf-20260930/round227/root-pushed-io-checkpoint-verification.json"
+    },
+    "compactResidualQualification": {
+      "currentRound": 233,
+      "functionalPass": false,
+      "runtimeAttempts": {
+        "R228": 1,
+        "R229": 1,
+        "R230Diagnostic": 1,
+        "R231": 1,
+        "R232": 1,
+        "R233Corrected": 1
+      },
+      "retriesEach": 0,
+      "passingCurrentSubgates": [
+        "R229 actual compact navigation",
+        "R231 owning collapsed public tap to expanded real editor, exact text and Enter acknowledgements",
+        "R232 both owning public Send controls; source3prompts/10scriptedcards/actualmedia completed and actualpartial failed result; no full settlement or replay qualification",
+        "R233 actual mock media/error delivery and visible exact partial-error/icon",
+        "R233 scripted10segmentgroup8→10→8, two exactsuccessPNGs Next/Previous/Close and errorimage exclusion",
+        "R233 public reload newloader, canonical/source no-replay assertions reached; stopped21rows/12toolIDs conserved"
+      ],
+      "remaining": "Only saved error/group/gallery controls in this compact path remain unqualified. Live actual media/error delivery, visible error/icon, group8→10→8 and bothsuccessPNG Next/Previous/Close PASS. Reload exact canonical/noReplay/sameepoch assertions reached; saved error raw-card locator exhausts finite24scroll cap. Diagnose saved hydration/locator; reuse live passes without re-emission or replay.",
+      "inputSealsVerified": 109,
+      "reviewSealsVerified": 130,
+      "freshObservedProcessAbsences": 136,
+      "pendingOperations": 0,
+      "cleanupProtectedInputsPass": true,
+      "pageErrors": 0,
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round228/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round229/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round230/root-composer-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round231/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round231/root-compact-submission-diagnosis-verification.json",
+        "tmp/v2-streaming-perf-20260930/round232/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round232/root-syntax-diagnosis-verification.json",
+        "tmp/v2-streaming-perf-20260930/round233/root-original-review-verification.json",
+        "tmp/v2-streaming-perf-20260930/round233/root-compact-execution-verification.json"
+      ],
+      "sourceRepliedTurns": 3,
+      "canonicalRowsAfterCleanup": 21,
+      "activeMediaErrorGroupsGalleryPass": true,
+      "savedControlsQualified": false,
+      "ownedReloadNewLoader": true,
+      "unreleasedOriginalR233Attempts": 0
+    },
+    "retainedNamedCoreResources": {
+      "scope": "One retained R227 order, frozen R209 then R78 v2 reference; own-process counters only. No new execution.",
+      "serverMainOwnCpuPercentOneCore": [3.4831267932368197, 2.7337822186207577],
+      "supervisorOwnCpuPercentOneCore": [1.9914005786119993, 1.4337369471557173],
+      "sampleMaxPhysicalFootprintBytes": {
+        "serverMain": [135873840, 145153544],
+        "supervisor": [179483488, 142996584]
+      },
+      "units": "Darwin Mach-absolute ticks125/3ns; sampled physical footprint bytes, not heap/private RAM/VRAM.",
+      "wholeFamilyQualified": false,
+      "gainClaim": false,
+      "evidence": [
+        "tmp/v2-streaming-perf-20260930/round230/core-resources/derivation.json",
+        "tmp/v2-streaming-perf-20260930/round230/root-core-resource-verification.json"
+      ]
     }
   },
   "milestones": [
@@ -2166,6 +2227,21 @@
       "at": "2026-10-06T23:15:50.907602+00:00",
       "scope": "Current GUI51 lifecycle and bounded serverMain I/O diagnosis",
       "result": "GUI G1–G4 PASS; real-PTY49 seven steps reused. Root verifies72seals,9freshESRCH,declared capped projection/two PNGs/reopen without re-emission/full cascade/key+manifest+all other settings/quit/cleanup/errors0. I/O R225fails an unsupported direct-root rootPid guard; corrected R226admits serverMain but fails full-member admission before metadata/window; failing active member is unretained, prior startup bsdtar is not causal proof. Both references remainUNTESTED, original write increasesunresolved. Named-core binding review next; counts13/18 and2/6 unchanged."
+    },
+    {
+      "at": "2026-10-07T01:09:06.420031+00:00",
+      "scope": "Retained named CPU/footprint and current compact navigation/composer diagnosis",
+      "result": "R230 retained R227 named CPU derivation reproduced without execution: current server/supervisor3.483%/1.991% onecore vsR78v2 2.734%/1.434%; current sampled supervisor footprint higher; no whole-family/gain claim. R228 stale navigation refused; R229 actual navigationPASS; R230 captured intentional collapsed tap; R231 tap/expanded editor/text/EnterACK PASS but media deadline, sourceADMITonly/tools0. Each consumed once/0retry; root verifies107inputs/130reviewseals/85freshabsences/join0pending/protected/cleanup/errors0. Remaining compact workflow and F3–F6 open; counts13/18 and2/6 unchanged."
+    },
+    {
+      "at": "2026-10-07T01:31:09.496094+00:00",
+      "scope": "Actual compact public submission and generated error-card harness correction",
+      "result": "R231 source-backed compact Enter contract repaired by publicSend inR232. Both prompts actually reach provider;10scriptedcards plusmedia completed/partialerror failed result recorded,2source replies,partialnotsettled. R232fullFAIL generatedselectorSyntaxError; root108inputs/150reviewseals/104freshESRCH/zero pendingoperations/errors/protected+cleanupPASS. R233one-expression fix0runtime receives nonreleasedreview for missingrow undefined!==null falsepass; originalpreserved, correctedunexecuted sibling next. No product/runtime/performancegain or milestoneclosure; counts13/18 and2/6."
+    },
+    {
+      "at": "2026-10-07T01:36:15.430299+00:00",
+      "scope": "Current live compact media/error/groups/gallery qualified; saved locator remaining",
+      "result": "Corrected R233 iconpredicate independentreviewPASS and3changedchecksPASS. Actual3prompts/3replies,12tools (10scripted,2ownedmock), publicerror detail/icon, group8→10→8, bothoriginalPNG hashes/dimensions Next/Previous/Close PASS. Ownreloadnewloader and exactcanonical/noReplay/sameepoch assertions reached; fullrunFAILsavederrorcard24scrollcap. Root109inputs/130reviewseals/136freshESRCH/stopped21rows12toolIDs/zero pendingoperations/errors/protected+cleanupPASS. Nextsaved-onlydiagnosis, no acceptedactivecohort replay. Counts13/18,2/6 unchanged."
     }
   ],
   "tasks": [
@@ -2313,7 +2389,9 @@
         "tmp/v2-streaming-perf-20260930/round227/root-member-diagnosis-verification.json",
         "tmp/v2-streaming-perf-20260930/round227/root-io-execution-verification.json",
         "tmp/v2-streaming-perf-20260930/round227/io-attribution/analysis.json",
-        "tmp/v2-streaming-perf-20260930/round227/root-io-attribution-verification.json"
+        "tmp/v2-streaming-perf-20260930/round227/root-io-attribution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round230/core-resources/derivation.json",
+        "tmp/v2-streaming-perf-20260930/round230/root-core-resource-verification.json"
       ]
     },
     {
@@ -2322,7 +2400,7 @@
       "title": "Final workflows and candidate freeze",
       "status": "in_progress",
       "owner": "Coordinator",
-      "nextAction": "Reuse current GUI51 G1–G4 and real-PTY49 T1–T7. Finish the scoped serverMain write discriminator, remaining compact/saved partial-error and affected PWA rows, then final acceptance. Preserve unavailable hardware/private metrics and exhausted budgets; avoid marginal tuning.",
+      "nextAction": "Diagnose saved compact raw-card locator/hydration and qualify only remaining saved error/group/gallery controls. Reuse newly passed live compact MCP/group/gallery, GUI51, PTY49 and named-server evidence. Preserve exhausted B2 and incomplete PWA/whole-family/private/hardware/matched gates; final acceptance remains open.",
       "evidence": [
         "tmp/v2-streaming-perf-20260930/round93/tool-coverage-reconciliation.json",
         "tmp/v2-streaming-perf-20260930/round102/root-round102-result.json",
@@ -2346,7 +2424,16 @@
         "tmp/v2-streaming-perf-20260930/round224/root-execution-verification.json",
         "tmp/v2-streaming-perf-20260930/round225/root-execution-verification.json",
         "tmp/v2-streaming-perf-20260930/round225/root-protected-cascade-verification.json",
-        "tmp/v2-streaming-perf-20260930/round225/runtime/execution-review/final-review.json"
+        "tmp/v2-streaming-perf-20260930/round225/runtime/execution-review/final-review.json",
+        "tmp/v2-streaming-perf-20260930/round228/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round229/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round230/root-composer-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round231/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round231/root-compact-submission-diagnosis-verification.json",
+        "tmp/v2-streaming-perf-20260930/round232/root-compact-execution-verification.json",
+        "tmp/v2-streaming-perf-20260930/round232/root-syntax-diagnosis-verification.json",
+        "tmp/v2-streaming-perf-20260930/round233/root-original-review-verification.json",
+        "tmp/v2-streaming-perf-20260930/round233/root-compact-execution-verification.json"
       ]
     },
     {
