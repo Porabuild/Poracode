@@ -13,6 +13,7 @@ import type { Selection } from "@heroui/react";
 import { Dropdown, Label, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
+import { isChatSidebarSurface } from "@/renderer/clientSurface";
 import { Button } from "@/renderer/components/common/Button";
 import {
   ResponsiveMenuSurface,
@@ -94,7 +95,10 @@ export function ComposerAddMenu(props: {
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse, experiment } = props;
   const customMcpServers = props.customMcpServers ?? [];
-  const onManageMcpServers = props.onManageMcpServers;
+  // Both draft and existing-thread composers share this menu. The focused
+  // sidebar has no settings destination, but still shows its server bindings.
+  const canManageMcpServers = !isChatSidebarSurface();
+  const onManageMcpServers = canManageMcpServers ? props.onManageMcpServers : undefined;
   const readOnly = props.readOnly === true;
   const pluginLabels = props.pluginLabels ?? EMPTY_PLUGIN_LABELS;
   const { t } = useLingui();

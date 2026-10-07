@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { execFileSync } from "node:child_process";
+import { runInNewContext } from "node:vm";
+import { parse } from "yaml";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -101,5 +104,90 @@ void test("the release copy strips the public key while leaving the unpacked ide
     assert.equal(await readFile(join(source, "manifest.json"), "utf8"), original);
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+void test("release identity uses the upload environment and blocks tag pushes on failure", async () => {
+  const workflow = parse(
+    await readFile(
+      new URL("../.github/workflows/release-chrome-extension.yml", import.meta.url),
+      "utf8",
+    ),
+  );
+  const jobs = Object.entries(workflow.jobs);
+  const [identityName, identityJob] = jobs.find(([, job]) =>
+    job.steps?.some((step) => step.run?.includes("--verify-store-identity")),
+  );
+  const identityStep = identityJob.steps.find((step) =>
+    step.run?.includes("--verify-store-identity"),
+  );
+  const [, uploadJob] = jobs.find(([, job]) => job.steps?.some((step) => step.env?.EXTENSION_ID));
+  assert.equal(identityJob.environment, "chrome-extension");
+  assert.equal(identityJob.environment, uploadJob.environment);
+  assert.equal(identityStep.env.CHROME_EXTENSION_ID, "${{ secrets.CHROME_EXTENSION_ID }}");
+  assert.equal(
+    uploadJob.steps.find((step) => step.env?.EXTENSION_ID).env.EXTENSION_ID,
+    identityStep.env.CHROME_EXTENSION_ID,
+  );
+  const evaluate = (expression, context) =>
+    runInNewContext(expression.replace(/^\$\{\{|\}\}$/gu, ""), context);
+  assert.equal(evaluate(identityJob.if, { inputs: { dry_run: true } }), false);
+  assert.equal(evaluate(identityJob.if, { inputs: { dry_run: false } }), true);
+  const pushJobs = jobs.filter(([, job]) =>
+    job.steps?.some((step) => /git push/u.test(step.run ?? "")),
+  );
+  assert.ok(pushJobs.length > 0);
+  for (const [, job] of pushJobs) {
+    assert.ok(
+      [job.needs].flat().includes(identityName),
+      "tag push must depend on identity preflight",
+    );
+    for (const [dryRun, result, cancelled, allowed] of [
+      [false, "success", false, true],
+      [false, "failure", false, false],
+      [false, "skipped", false, false],
+      [true, "skipped", false, true],
+      [true, "failure", false, false],
+      [false, "success", true, false],
+    ]) {
+      assert.equal(
+        evaluate(job.if, {
+          inputs: { dry_run: dryRun },
+          needs: { [identityName]: { result } },
+          cancelled: () => cancelled,
+        }),
+        allowed,
+      );
+    }
+  }
+
+  for (const result of ["success", "failure", "skipped", "cancelled"]) {
+    assert.equal(
+      evaluate(workflow.jobs.package.if, {
+        needs: { prepare: { result } },
+        cancelled: () => false,
+      }),
+      result === "success",
+    );
+  }
+
+  // Exercise the actual preflight CLI with only the environment-provided identity.
+  const root = new URL("../", import.meta.url);
+  const manifest = JSON.parse(
+    await readFile(new URL("chrome-extension/manifest.json", root), "utf8"),
+  );
+  for (const identity of [manifestExtensionId(manifest), "", "a".repeat(32)]) {
+    const run = () =>
+      execFileSync(
+        process.execPath,
+        ["scripts/package-chrome-extension.mjs", "--verify-store-identity"],
+        {
+          cwd: root,
+          env: { CHROME_EXTENSION_ID: identity },
+          stdio: "pipe",
+        },
+      );
+    if (identity === manifestExtensionId(manifest)) assert.doesNotThrow(run);
+    else assert.throws(run);
   }
 });

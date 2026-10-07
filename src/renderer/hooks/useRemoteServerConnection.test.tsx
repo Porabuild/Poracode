@@ -140,3 +140,12 @@ describe("useRemoteServerConnection", () => {
     expect(lifecycle.dispose).toHaveBeenCalledTimes(1);
   });
 });
+
+it("hydrates without generic connection or resume when a surface owns proof-gated connection", async () => {
+  const { hydration } = mockHydration(false);
+  const { result } = renderHook(() => useRemoteServerConnection({ autoConnect: false }));
+  expect(lifecycle.reconnect).toBeUndefined();
+  await act(async () => hydration.resolve());
+  expect(result.current).toEqual({ checked: true, initialConnectSettled: true });
+  expect(connectAll).not.toHaveBeenCalled();
+});

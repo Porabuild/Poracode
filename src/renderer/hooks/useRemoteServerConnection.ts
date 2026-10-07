@@ -15,7 +15,9 @@ export type RemoteServerConnectionState = {
  * them when the page resumes. Desktop starts `checked` because it never shows
  * the browser connection gate.
  */
-export function useRemoteServerConnection(): RemoteServerConnectionState {
+export function useRemoteServerConnection({
+  autoConnect = true,
+}: { autoConnect?: boolean } = {}): RemoteServerConnectionState {
   const connectAll = useRemoteServersStore((state) => state.connectAll);
   const [checked, setChecked] = useState(() => !isBrowserClientRuntime());
   const [initialConnectSettled, setInitialConnectSettled] = useState(false);
@@ -29,7 +31,8 @@ export function useRemoteServerConnection(): RemoteServerConnectionState {
       const finishConnection = () => {
         if (active) setInitialConnectSettled(true);
       };
-      void connectAll().then(finishConnection, finishConnection);
+      if (autoConnect) void connectAll().then(finishConnection, finishConnection);
+      else finishConnection();
     };
     if (useRemoteServersStore.persist.hasHydrated()) {
       finishHydration();
@@ -42,11 +45,14 @@ export function useRemoteServerConnection(): RemoteServerConnectionState {
     return () => {
       active = false;
     };
-  }, [connectAll]);
+  }, [connectAll, autoConnect]);
 
   useEffect(
-    () => installRemoteServerLifecycle(() => connectAll({ forceTransportReconnect: true })),
-    [connectAll],
+    () =>
+      autoConnect
+        ? installRemoteServerLifecycle(() => connectAll({ forceTransportReconnect: true }))
+        : undefined,
+    [connectAll, autoConnect],
   );
 
   return { checked, initialConnectSettled };

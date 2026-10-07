@@ -1,3 +1,4 @@
+import "./sidebar/installTransportPolicy";
 import { isChatSidebarSurface } from "./clientSurface";
 import {
   installAttachedElectronClientRuntime,

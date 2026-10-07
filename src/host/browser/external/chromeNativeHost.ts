@@ -1,16 +1,8 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { writeFileAtomic } from "@/shared/atomicFile";
 import {
   CHROME_NATIVE_HOST_NAME,
   CHROME_NATIVE_HOST_PROTOCOL_VERSION,
@@ -70,15 +62,7 @@ function ensurePrivateDir(dir: string): void {
 
 /** Atomic write; the temp file is created with `mode`, so the content is never wider. */
 export function writePrivateFile(path: string, body: string, mode = 0o600): void {
-  const temp = `${path}.${process.pid}.tmp`;
-  try {
-    writeFileSync(temp, body, { encoding: "utf8", mode, flag: "w" });
-    if (process.platform !== "win32") chmodSync(temp, mode);
-    renameSync(temp, path);
-  } catch (error) {
-    rmSync(temp, { force: true });
-    throw error;
-  }
+  writeFileAtomic(path, body, { encoding: "utf8", mode, exactMode: true });
 }
 
 function writeIfChanged(path: string, body: string, mode: number): void {

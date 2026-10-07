@@ -22,8 +22,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Environment secrets are available only to jobs referencing that environment.
+  # Skip the protected environment entirely for dry-run packaging.
+  preflight:
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: chrome-extension
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Verify published extension identity
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+        run: node scripts/package-chrome-extension.mjs --verify-store-identity
+
   # ── Step 1: Resolve version, commit if needed, tag, push ─────────
   prepare:
+    needs: preflight
+    # An intentionally skipped dry-run preflight may proceed; failures may not.
+    if: ${{ !cancelled() && (needs.preflight.result == 'success' || (inputs.dry_run && needs.preflight.result == 'skipped')) }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
@@ -40,12 +63,6 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: "24"
-
-      - name: Verify published extension identity
-        if: ${{ !inputs.dry_run }}
-        env:
-          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-        run: node scripts/package-chrome-extension.mjs --verify-store-identity
 
       - name: Resolve version
         id: resolve
@@ -126,6 +143,8 @@ jobs:
   # ── Step 2: Package the exact tagged extension ───────────────────
   package:
     needs: prepare
+    # Continue after successful dry-run preparation despite its skipped preflight.
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       zip_name: ${{ steps.package.outputs.zip_name }}

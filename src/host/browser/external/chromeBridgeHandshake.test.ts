@@ -78,7 +78,7 @@ function runWorker(port: number, launcher: string) {
       },
     },
     runtime: {
-      getManifest: () => ({ version: "0.2.0" }),
+      getManifest: () => ({ version: "0.2.2" }),
       sendNativeMessage: (_name: string, message: unknown) =>
         callNativeHost(launcher, [`${ORIGIN}/`], message),
       onMessage: { addListener: (fn: typeof onMessage) => (onMessage = fn) },
@@ -109,6 +109,7 @@ function runWorker(port: number, launcher: string) {
     },
     clearTimeout: (timer: ReturnType<typeof setTimeout>) => clearTimeout(timer),
     Date,
+    URL,
     crypto: globalThis.crypto,
     TextEncoder,
   });

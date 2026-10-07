@@ -1,3 +1,4 @@
+import { normalizeTurnClientContextUrl } from "@/shared/turnClientContextUrl";
 import type { AgentSlashCommand, TurnClientContext } from "@/shared/contracts";
 import type { StartTurnOptions, StructuredSessionHandle } from "../agents/base";
 
@@ -23,24 +24,6 @@ function quoteUntrusted(value: string): string {
 }
 
 /**
- * Origin and path only. Clients already strip credentials, query and
- * fragment (tokens, signed links, reset codes), but any trusted client can
- * forge a context, so the supervisor repeats it and drops non-web schemes
- * (local `file:` paths included). The exact URL stays reachable on demand
- * through the browser tools by tab id.
- */
-function minimalPageUrl(value: string): string | undefined {
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return undefined;
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-  return `${url.origin}${url.pathname}`;
-}
-
-/**
  * Renders a turn's client context as provider-only text. Page metadata is
  * JSON-quoted and labelled untrusted so a hostile title or URL reads as data
  * (quotes, line breaks, control and bidi characters stay escaped), never as
@@ -57,7 +40,8 @@ export function formatTurnClientContext(
   ];
   const tab = focus.activeTab;
   if (tab) {
-    const url = tab.url ? minimalPageUrl(tab.url) : undefined;
+    // Revalidate independently: a client can forge context without browser capture.
+    const url = tab.url ? normalizeTurnClientContextUrl(tab.url)?.pageUrl : undefined;
     lines.push(
       "Active tab in the user's browser window when they sent it:",
       `- tab_id: ${tab.tabId}`,

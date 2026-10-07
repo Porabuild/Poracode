@@ -1,3 +1,4 @@
+import { isRemoteConnectionAuthorized } from "./transportFactories";
 import { setRemoteBridgeClient } from "@/renderer/browser/remoteBridge";
 import { setBrowserSocketSender } from "@/renderer/browser/browserMirror";
 import { applyDesktopSettings, resetDesktopSettings } from "@/renderer/browser/remoteSettingsSync";
@@ -30,7 +31,9 @@ export function selectBrowserBridgeServer(
   state: RemoteServersState,
 ): RemoteServerRecord | undefined {
   const onlineServers = state.servers.filter(
-    (server) => state.runtime[remoteConnectionKey(server)]?.status === "online",
+    (server) =>
+      state.runtime[remoteConnectionKey(server)]?.status === "online" &&
+      isRemoteConnectionAuthorized(server.endpoint, server.accessToken),
   );
   const sameOriginServer = onlineServers.find((server) => {
     try {
@@ -57,7 +60,11 @@ function selectBrowserBridgeClientServer(
 ): RemoteServerRecord | undefined {
   return (
     selectBrowserBridgeServer(state) ??
-    state.servers.find((server) => remoteConnectionKey(server) === desktopBrowserBridgeServerId)
+    state.servers.find(
+      (server) =>
+        remoteConnectionKey(server) === desktopBrowserBridgeServerId &&
+        isRemoteConnectionAuthorized(server.endpoint, server.accessToken),
+    )
   );
 }
 

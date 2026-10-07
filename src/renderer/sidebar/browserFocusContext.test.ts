@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { turnClientContextSchema } from "@/shared/contracts";
+import { TURN_CLIENT_CONTEXT_URL_MAX_LENGTH, turnClientContextSchema } from "@/shared/contracts";
 import { createBrowserFocusCapture, type BrowserTabsApi } from "./browserFocusContext";
 
 interface FakeTab {
@@ -96,6 +96,20 @@ describe("createBrowserFocusCapture", () => {
     const tab = (await createBrowserFocusCapture(api)())!.browserFocus!.activeTab!;
     expect(tab.url).toMatch(/^https:\/\/[a-z.]+\.test\/[a-z./]*$/);
     expect(tab.url).not.toMatch(/secret|sig|reset-code|pw|token/);
+  });
+
+  it("keeps a path at the limit and falls back to its origin when it overflows", async () => {
+    const origin = "https://site.test";
+    const atLimit = `${origin}/${"x".repeat(TURN_CLIENT_CONTEXT_URL_MAX_LENGTH - origin.length - 1)}`;
+    for (const [url, expected] of [
+      [atLimit, atLimit],
+      [`${atLimit}x`, origin],
+    ]) {
+      const { api } = fakeBrowser([{ id: 7, windowId: 1, active: true, url: url! }], 1);
+      const context = await createBrowserFocusCapture(api)();
+      expect(context!.browserFocus!.activeTab!.url).toBe(expected);
+      expect(turnClientContextSchema.safeParse(context).success).toBe(true);
+    }
   });
 
   it("strips C1, line/paragraph separator and bidi characters from titles", async () => {

@@ -129,6 +129,7 @@ function loadWorker(t, native, initialStorage = {}) {
     Date: { now: () => Date.now() },
     crypto: globalThis.crypto,
     TextEncoder,
+    URL,
   });
   // Runtime messages are serialized, as Chrome does across contexts.
   const ask = (cmd = "getChatBootstrap") =>
@@ -478,3 +479,81 @@ void test("the worker mirrors the shared hello ack and runtime issue literals", 
   assert.match(protocol, /\[CHROME_BRIDGE_CLIENT_PROOF_DOMAIN, port, nonce\]\.join\("\\n"\)/u);
   assert.match(workerSource, /\[CLIENT_PROOF_DOMAIN, port, nonce\]/u);
 });
+
+void test("connection descriptor is read-only, bootstrap-bound and dies with its proven socket", async (t) => {
+  const worker = loadWorker(t, () => bridges);
+  assert.equal(await worker.ask("getChatConnection"), null);
+  const first = await open(worker.sockets);
+  first.socket.receive(provenAck(first.hello));
+  await settle();
+  assert.equal(await worker.ask("getChatConnection"), null, "hello alone cannot authorize HTTP");
+  const response = worker.ask();
+  await settle();
+  const request = first.socket.sent.at(-1);
+  first.socket.receive({
+    type: "sidebarBootstrapResult",
+    version: SIDEBAR,
+    requestId: request.requestId,
+    bootstrap,
+  });
+  assert.deepEqual(await response, bootstrap);
+  const frameCount = first.socket.sent.length;
+  for (let i = 0; i < 20; i++) {
+    assert.deepEqual(await worker.ask("getChatConnection"), {
+      version: 1,
+      session: first.hello.nonce,
+      endpoint: bootstrap.endpoint,
+    });
+  }
+  assert.equal(
+    first.socket.sent.length,
+    frameCount,
+    "checks never issue credentials or bridge requests",
+  );
+  first.socket.close();
+  assert.equal(
+    await worker.ask("getChatConnection"),
+    null,
+    "closed readyState denies before close callback",
+  );
+  await settle();
+  t.mock.timers.tick(250);
+  await settle();
+  worker.sockets.at(-1).accept();
+  await settle();
+  t.mock.timers.tick(250);
+  const second = await open(worker.sockets);
+  assert.equal(await worker.ask("getChatConnection"), null, "old endpoint never survives redial");
+  assert.notEqual(second.hello.nonce, first.hello.nonce);
+  assertSecretNeverSent(worker);
+});
+
+void test("an unproven socket cannot expose a connection descriptor", async (t) => {
+  const worker = loadWorker(t, () => bridges);
+  const first = await open(worker.sockets);
+  first.socket.receive(ack(SIDEBAR, true));
+  await settle();
+  assert.equal(await worker.ask("getChatConnection"), null);
+});
+
+for (const invalid of [
+  { endpoint: "http://evil.test", pairingUrl: "http://evil.test/#token=x" },
+  { endpoint: "http://127.0.0.1:9000", pairingUrl: "http://127.0.0.1:9001/#token=x" },
+]) {
+  void test(`descriptor rejects malformed bootstrap ${invalid.endpoint} ${invalid.pairingUrl}`, async (t) => {
+    const worker = loadWorker(t, () => bridges);
+    const first = await open(worker.sockets);
+    first.socket.receive(provenAck(first.hello));
+    const response = worker.ask();
+    await settle();
+    const request = first.socket.sent.at(-1);
+    first.socket.receive({
+      type: "sidebarBootstrapResult",
+      version: SIDEBAR,
+      requestId: request.requestId,
+      bootstrap: invalid,
+    });
+    assert.equal(await response, null);
+    assert.equal(await worker.ask("getChatConnection"), null);
+  });
+}

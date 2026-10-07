@@ -28,7 +28,7 @@ const captureBrowserFocus = createBrowserFocusCapture();
 
 /** A client of the same server and chat surface, with one visible conversation. */
 export function ChatSidebarView() {
-  const { checked, initialConnectSettled } = useRemoteServerConnection();
+  const { checked, initialConnectSettled } = useRemoteServerConnection({ autoConnect: false });
   const [autoError, setAutoError] = useState<"upgradeRequired" | "connection" | null>(null);
   const [draftEpoch, setDraftEpoch] = useState(0);
   useRestoredRemoteThreadLifecycle(checked);

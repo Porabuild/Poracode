@@ -54,6 +54,14 @@ export function ResponsiveMenuSurface(props: {
     typeof props.children === "function" ? props.children({ expanded: false }) : props.children;
 
   if (!mobile) {
+    // Sidebar menus keep desktop interactions even when a caller's preferred
+    // width is wider than the viewport (for example the model picker's w-96).
+    const contentClassName = [
+      props.contentClassName,
+      isChatSidebarSurface() ? "max-w-[calc(100vw-2rem)]" : undefined,
+    ]
+      .filter(Boolean)
+      .join(" ");
     return (
       <Popover isOpen={props.isOpen} onOpenChange={props.onOpenChange}>
         <Popover.Trigger {...(props.triggerClassName ? { className: props.triggerClassName } : {})}>
@@ -62,7 +70,7 @@ export function ResponsiveMenuSurface(props: {
         {props.isOpen ? (
           <Popover.Content
             placement={props.placement ?? "top start"}
-            {...(props.contentClassName ? { className: props.contentClassName } : {})}
+            {...(contentClassName ? { className: contentClassName } : {})}
           >
             <Popover.Dialog
               {...(props.dialogClassName ? { className: props.dialogClassName } : {})}

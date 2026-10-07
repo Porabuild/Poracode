@@ -44,6 +44,13 @@ The extension worker discovers the local bridge and obtains a single-use local
 bootstrap credential; the sidebar exchanges it through the existing pairing
 endpoint and uses authenticated transport thereafter.
 
+Version 0.2.2 checks the worker's current proven connection before every HTTP
+request and event socket opening. Saved credentials from 0.2.1 and earlier do
+not authorize a new sidebar session: reloads and proof loss require fresh pairing.
+The worker's read-only connection descriptor mints no credentials. Update and
+reload the extension to receive this protection; already loaded old sidebars
+continue to run their old code until replaced.
+
 Browser control remains a separate CDP relay:
 
 ```text

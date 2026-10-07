@@ -271,7 +271,7 @@ export async function startRemoteServerEventStream(
       const threadItemInterests =
         getRemoteServerThreadItemInterests(connectionKey) ??
         (openThread?.desktopId === connectionKey ? [openThread.threadId] : []);
-      const socket = get().socketFactory(
+      const socket = await get().socketFactory(
         // B1: declare notice capability at upgrade only because the renderer
         // renders and can acknowledge the durable notice. boundedCatalogChanges
         // rides the same upgrade only when this descriptor advertised it AND

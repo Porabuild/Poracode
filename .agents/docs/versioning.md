@@ -2200,3 +2200,42 @@ without desktop mirroring, browser focus without the extension API, URL and
 Unicode hardening on both sides, advertised-command passthrough (runtime,
 OpenCode 2 native compact and command arguments, ACP command mapping) and Pi
 fresh and live steers.
+
+### Sidebar saved-credential reconnect protection (extension 0.2.2)
+
+Extension 0.2.1 protected bootstrap but allowed its sidebar to reconnect durable
+vault bearers before native proof. Extension 0.2.2 installs a document-local
+transport factory policy as the first renderer bootstrap dependency, before
+store hydration and parent effects. Version-2 saved-server metadata and access /
+refresh vault entries remain readable but confer no transport authority. Only a
+fresh worker bootstrap and its currently proved hello nonce / loopback endpoint
+create a grant. Its initial and most recently rotated access tokens, latest
+refresh token, pending requests and at most 32 unspent event tickets are volatile;
+retirement aborts requests, closes sockets and removes online selection. Reload
+and proof loss require a new pairing. Old clients cannot borrow a later grant.
+The original access token remains admitted within that grant because the shared
+store rotates its refresh vault without rewriting the server record's bearer.
+
+The package manifest advances 0.2.1 → 0.2.2. Worker-local `getChatConnection`
+returns `{version: 1, session: <hello nonce>, endpoint}` only after a validated
+bootstrap on the current authenticated socket; otherwise null. This read-only
+command mints nothing and writes no storage. Every HTTP request (including OAuth
+refresh and image reads) and event socket opening checks it again. Redirects are
+refused. Missing/old worker implementations fail closed. Worker and renderer
+ship atomically in the MV3 package, so the host bootstrap/HMAC protocol stays 2,
+native messaging protocol and artifact stay 1, remote wire stays 12, and saved
+server storage stays 2. No generated IPC, native contract, operation map or vault
+migration is required. Shared PWA/Electron factories retain their defaults.
+
+Already loaded 0.2.1 renderer/worker packages must be updated and reloaded; an
+app-only update cannot retrofit this renderer gate or revoke bearer copies that
+were already disclosed. HTTP and native/bridge sockets are separate transports:
+this is a fresh dispatch-time worker liveness check, not a cryptographic binding
+of the HTTP connection. In-flight bytes cannot be recalled, and a bridge failure
+that the worker has not yet observed retains the inherent loopback TOCTOU window.
+Idle sidebar retirement polls every four seconds; each HTTP/socket dispatch has
+its own uncached check. Worker-message waits are bounded to five seconds.
+Regression fixtures seed actual encrypted pre-upgrade vault slots, exercise
+mount/resume/online/visibility, background refresh, retry and event backoff,
+reject lost-session refresh after 401 and stale tickets, select only the current
+host, and retain record-based clients across refresh rotation.

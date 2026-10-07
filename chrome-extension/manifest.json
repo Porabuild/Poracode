@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Poracode",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Chat with Poracode in your browser sidebar and let agents work with your tabs.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsbnvGivDsbmRmU84BJ9G7+B/DjXrB4flkOmC80AgN8TDYquyCFXgtbVQEFzSMJZSECUfei4G+r4QbCMomY6BwiQU4xACM2BVicELXTxfJJZ8PLfdbsjM65uvbUpfwbt65v8p4kDyB22qUc7IvjKGZZNh5GSTNqggFt9nzO8Wfb+WWQlapGjbBa9k5pWQ4wPMxJZAzQHvBWWQil0w1g0zQje7pngz71DFdc5WNv9NMwUj/Y4FAAoiktuJuDocLm2JXm8qEarZMux37Dnff1wLuEfFGUZVpERKolPYc1w1DhD9IfMeJfgE3CInM8YkhNNaMv2fPcOJF4FOHUetfPTJcQIDAQAB",
   "permissions": [

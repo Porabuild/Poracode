@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -96,6 +97,43 @@ describe("chrome native host registration", () => {
     expect(posix ? statSync(hostDir).mode & 0o777 : 0o700).toBe(0o700);
     expect(posix ? statSync(join(hostDir, "native-host.sh")).mode & 0o777 : 0o700).toBe(0o700);
   });
+
+  it.skipIf(process.platform === "win32")(
+    "tightens unchanged native files and directories without rewriting their content",
+    async () => {
+      const home = tempHome();
+      const hostDir = chromeNativeHostDir(home);
+      const options = {
+        hostDir,
+        homeDir: home,
+        platform: "linux" as const,
+        env: {},
+        runtime: nodeRuntime,
+        extensionIds: [ID],
+      };
+      const browserDir = join(home, ".config", "chromium");
+      mkdirSync(browserDir, { recursive: true });
+      const result = await registerChromeNativeHost(options);
+      const files = [
+        [join(hostDir, "native-host.cjs"), 0o600],
+        [join(hostDir, "native-host.sh"), 0o700],
+        [result.manifests[0]!, 0o644],
+      ] as const;
+      const before = files.map(([path]) => {
+        chmodSync(path, 0o777);
+        utimesSync(path, 1, 1);
+        return readFileSync(path, "utf8");
+      });
+      chmodSync(hostDir, 0o777);
+      await registerChromeNativeHost(options);
+      expect(statSync(hostDir).mode & 0o777).toBe(0o700);
+      files.forEach(([path, mode], index) => {
+        expect(statSync(path).mode & 0o777).toBe(mode);
+        expect(statSync(path).mtimeMs).toBe(1000);
+        expect(readFileSync(path, "utf8")).toBe(before[index]);
+      });
+    },
+  );
 
   it("honours XDG_CONFIG_HOME on Linux", async () => {
     const home = tempHome();

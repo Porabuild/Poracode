@@ -122,6 +122,9 @@ export async function composeHeadlessRemoteHost(
   // user writes.
   let admissionOpen = options.staging !== true;
   const admissionBarrier = Promise.withResolvers<void>();
+  // The deadline or disposal can reject before startup reaches this barrier.
+  // Observe it immediately, while preserving the original rejection for start.
+  void admissionBarrier.promise.catch(() => undefined);
   const buildIdentity = options.buildIdentity ?? resolveRunningBuildIdentity();
   let stagingDeadline: ReturnType<typeof setTimeout> | undefined;
   if (!admissionOpen) {

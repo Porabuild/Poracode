@@ -3,12 +3,31 @@ import { installSidebarAutoConnect } from "./autoConnect";
 
 const fixture = vi.hoisted(() => ({
   online: false,
+  proven: false,
   pairServer: vi.fn<(input: { endpoint: string; token: string }) => Promise<void>>(),
   connectAll: vi.fn<() => Promise<void>>(),
 }));
 vi.mock("@/renderer/state/remoteServersStore", () => ({
   useRemoteServersStore: { getState: () => fixture },
   selectBrowserBridgeServer: () => (fixture.online ? { desktopId: "fixture" } : undefined),
+}));
+vi.mock("./installTransportPolicy", () => ({
+  sidebarTransportPolicy: {
+    onRetire: () => () => {},
+    isCurrent: async () => fixture.proven,
+    authorize: async () => {
+      fixture.proven = true;
+    },
+    retire: () => {
+      fixture.proven = false;
+    },
+  },
+}));
+vi.mock("@/renderer/state/remoteServers/sessionReconnect", () => ({
+  closeAllRemoteServerEventSockets: () => {},
+}));
+vi.mock("@/renderer/state/remoteServers/browserBridge", () => ({
+  syncDesktopBrowserBridgeClient: () => {},
 }));
 const bootstrap = {
   endpoint: "http://127.0.0.1:43210/",
@@ -18,7 +37,10 @@ let stop = () => {};
 beforeEach(() => {
   vi.useFakeTimers();
   fixture.online = false;
-  fixture.pairServer.mockResolvedValue(undefined);
+  fixture.proven = false;
+  fixture.pairServer.mockImplementation(async () => {
+    fixture.online = true;
+  });
   fixture.connectAll.mockImplementation(async () => {
     fixture.online = true;
   });
@@ -76,6 +98,7 @@ describe("sidebar automatic connection", () => {
     expect(onError.mock.calls.filter(([error]) => error !== null)).toHaveLength(1);
     expect(onError).toHaveBeenLastCalledWith(null);
     expect(fixture.online).toBe(true);
+    fixture.proven = false;
     fixture.online = false;
     await vi.advanceTimersByTimeAsync(4000);
     expect(fixture.pairServer).toHaveBeenCalledTimes(3);
@@ -98,12 +121,24 @@ describe("sidebar automatic connection", () => {
     expect(onStatus).toHaveBeenLastCalledWith(null);
   });
 
+  it("does not trust an online flag after worker proof is lost", async () => {
+    fixture.online = true;
+    fixture.proven = false;
+    const sendMessage = vi.fn<() => Promise<unknown>>().mockResolvedValue(null);
+    vi.stubGlobal("chrome", { runtime: { sendMessage } });
+    stop = installSidebarAutoConnect(vi.fn<() => void>());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sendMessage).toHaveBeenCalledWith({ cmd: "getChatBootstrap" });
+    expect(fixture.pairServer).not.toHaveBeenCalled();
+    expect(fixture.connectAll).not.toHaveBeenCalled();
+  });
+
   it("does not pair from a late worker response after the sidebar closes", async () => {
     const pending = Promise.withResolvers<unknown>();
     const sendMessage = vi.fn<() => Promise<unknown>>().mockReturnValue(pending.promise);
     vi.stubGlobal("chrome", { runtime: { sendMessage } });
     stop = installSidebarAutoConnect(vi.fn<(error: unknown) => void>());
-    await vi.advanceTimersByTimeAsync(16000);
+    await vi.advanceTimersByTimeAsync(4000);
     expect(sendMessage).toHaveBeenCalledOnce();
     stop();
     pending.resolve(bootstrap);

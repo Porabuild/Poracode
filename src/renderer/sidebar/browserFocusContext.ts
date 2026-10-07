@@ -1,3 +1,4 @@
+import { normalizeTurnClientContextUrl } from "@/shared/turnClientContextUrl";
 import {
   TURN_CLIENT_CONTEXT_TITLE_MAX_LENGTH,
   TURN_CLIENT_CONTEXT_URL_MAX_LENGTH,
@@ -68,15 +69,9 @@ function boundedTitle(value: unknown): string | undefined {
  */
 function boundedUrl(value: unknown): string | undefined {
   if (typeof value !== "string" || !value) return undefined;
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return undefined;
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
-  const minimal = `${url.origin}${url.pathname}`;
-  return minimal.length > TURN_CLIENT_CONTEXT_URL_MAX_LENGTH ? url.origin : minimal;
+  const url = normalizeTurnClientContextUrl(value);
+  if (!url) return undefined;
+  return url.pageUrl.length > TURN_CLIENT_CONTEXT_URL_MAX_LENGTH ? url.origin : url.pageUrl;
 }
 
 async function readActiveTab(api: BrowserTabsApi): Promise<TurnClientBrowserTab | undefined> {

@@ -62,6 +62,8 @@ let ws = null;
  * server proof.
  */
 let hello = null;
+// Read-only sidebar authority. Never persisted; tied to one proven hello.
+let chatConnection = null;
 let connecting = false;
 let reconnectTimer = null;
 let portIndex = 0;
@@ -215,6 +217,7 @@ async function connect() {
     if (hello && hello.socket === socket) {
       hello.settle(null);
       hello = null;
+      chatConnection = null;
     }
     connecting = false;
     // Reopening to authenticate dials `pendingBridge`; anything else advances the scan.
@@ -392,7 +395,8 @@ async function handleRequest(data, socket) {
     return;
   }
   if (type === "sidebarBootstrapResult" && msg.version === SIDEBAR_PROTOCOL_VERSION) {
-    sidebarRequests.get(msg.requestId)?.(msg.bootstrap ?? null);
+    if (hello?.socket === socket && isReady() && hello.ack?.authenticated === true)
+      sidebarRequests.get(msg.requestId)?.(msg.bootstrap ?? null);
     return;
   }
   if (RELAY_REQUESTS.has(type) && !(await provenBridge(socket))) {
@@ -685,7 +689,46 @@ async function chatBootstrap() {
     return { issue: UPGRADE_REQUIRED_ISSUE };
   }
   if (!proven) return null;
-  return requestSidebarBootstrap();
+  const bootstrap = await requestSidebarBootstrap();
+  if (hello !== current || !isReady() || !validChatBootstrap(bootstrap)) return null;
+  chatConnection = { hello: current, endpoint: new URL(bootstrap.endpoint).origin };
+  return bootstrap;
+}
+
+/** Only a validated bootstrap from the current authenticated socket establishes HTTP authority. */
+function validChatBootstrap(value) {
+  try {
+    const endpoint = new URL(value.endpoint);
+    const pairing = new URL(value.pairingUrl);
+    return (
+      endpoint.protocol === "http:" &&
+      ["127.0.0.1", "localhost", "[::1]"].includes(endpoint.hostname) &&
+      !endpoint.username &&
+      !endpoint.password &&
+      endpoint.pathname === "/" &&
+      !endpoint.search &&
+      !endpoint.hash &&
+      pairing.origin === endpoint.origin &&
+      !pairing.username &&
+      !pairing.password
+    );
+  } catch {
+    return false;
+  }
+}
+
+function currentChatConnection() {
+  const current = hello;
+  if (
+    !chatConnection ||
+    chatConnection.hello !== current ||
+    !isReady() ||
+    current.ack === LEGACY_HOST ||
+    !current.ack?.authenticated ||
+    current.ack.sidebarBootstrapVersion !== SIDEBAR_PROTOCOL_VERSION
+  )
+    return null;
+  return { version: 1, session: current.nonce, endpoint: chatConnection.endpoint };
 }
 
 /**
@@ -726,6 +769,10 @@ function requestSidebarBootstrap() {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message && message.cmd === "getChatConnection") {
+    sendResponse(currentChatConnection());
+    return true;
+  }
   if (message && message.cmd === "getChatBootstrap") {
     chatBootstrap().then(sendResponse, () => sendResponse(null));
     return true;
