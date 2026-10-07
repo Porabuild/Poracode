@@ -125,9 +125,13 @@ export interface DesktopRemoteAccessController {
    * The managed renderer's attach payload (V5 plan 2.5 completion): resolves
    * only behind readiness — the loopback server is running and a fresh
    * single-use credential is minted BEFORE the renderer asks. `null` when
-   * disposed or no server can run.
+   * disposed or no server can run. `browserExtension` mints for the Chrome
+   * sidebar: `null` without issuing when the endpoint is not plain-http
+   * loopback, and a short credential lifetime.
    */
-  getManagedLoopbackBootstrap(): Promise<ManagedLoopbackBootstrap | null>;
+  getManagedLoopbackBootstrap(options?: {
+    readonly browserExtension?: boolean;
+  }): Promise<ManagedLoopbackBootstrap | null>;
   getTailscaleStatus(): Promise<RemoteAccessTailscaleStatus>;
   setTailscaleHttps(enabled: boolean): Promise<RemoteAccessPairingInfo>;
   startTailscale(): Promise<StartTailscaleResult>;

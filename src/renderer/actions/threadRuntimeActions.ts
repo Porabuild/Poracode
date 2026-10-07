@@ -6,6 +6,7 @@ import type {
   Thread,
   ThreadConfig,
   ThreadServerRequestId,
+  TurnClientContext,
 } from "@/shared/contracts";
 import { toast } from "@heroui/react";
 import { DEFAULT_TERMINAL_SIZE } from "@/shared/contracts";
@@ -66,6 +67,8 @@ export async function performThreadInputSubmit(input: {
   thread: Thread;
   prompt: string;
   segments?: PromptSegment[];
+  /** Per-turn context the submitting surface captured (never painted). */
+  clientContext?: TurnClientContext;
   transport: ThreadInputTransport;
   /** Desktop-only: capture a file checkpoint keyed to the optimistic user message. */
   captureCheckpoint?: (checkpointItemId: string) => Promise<void>;
@@ -78,9 +81,10 @@ export async function performThreadInputSubmit(input: {
     prompt: string;
     segments?: PromptSegment[];
     userMessageItemId?: string;
+    clientContext?: TurnClientContext;
   }) => Promise<void>;
 }): Promise<void> {
-  const { thread, prompt, segments, transport } = input;
+  const { thread, prompt, segments, clientContext, transport } = input;
 
   // Optimistic user_message for GUI threads: paint the typed prompt
   // into the chat pane synchronously so it shows before the IPC
@@ -133,6 +137,7 @@ export async function performThreadInputSubmit(input: {
       ...(segments ? { segments } : {}),
       config: thread.config,
       ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+      ...(clientContext ? { clientContext } : {}),
     });
   } catch (error) {
     // The host could not establish whether the command committed. Keep the
@@ -160,6 +165,7 @@ export async function performThreadInputSubmit(input: {
           ...(optimisticUserMessageItemId
             ? { userMessageItemId: optimisticUserMessageItemId }
             : {}),
+          ...(clientContext ? { clientContext } : {}),
         });
       } catch (resumeError) {
         // The relaunch already reconciled an uncertain start (and never
@@ -190,6 +196,7 @@ export async function submitThreadInput(
   threadId: string,
   prompt: string,
   segments?: PromptSegment[],
+  options: { clientContext?: TurnClientContext | undefined } = {},
 ): Promise<void> {
   const resolved = resolveThreadProjectLocation(threadId);
   if (!resolved) return;
@@ -199,6 +206,7 @@ export async function submitThreadInput(
     thread,
     prompt,
     ...(segments ? { segments } : {}),
+    ...(options.clientContext ? { clientContext: options.clientContext } : {}),
     transport: readBridge(),
     resumeLaunch: async (resume) => {
       // Re-resolve the thread: the pre-send snapshot can miss a sessionRef
@@ -213,6 +221,7 @@ export async function submitThreadInput(
         prompt: resume.prompt,
         ...(resume.segments ? { segments: resume.segments } : {}),
         ...(resume.userMessageItemId ? { userMessageItemId: resume.userMessageItemId } : {}),
+        ...(resume.clientContext ? { clientContext: resume.clientContext } : {}),
         initialSize: DEFAULT_TERMINAL_SIZE,
       });
     },
@@ -302,11 +311,13 @@ export async function setThreadPendingSteer(
   thread: Thread,
   prompt: string,
   segments: PromptSegment[] | undefined,
+  clientContext?: TurnClientContext,
 ): Promise<void> {
   await readBridge().setPendingSteer({
     threadId: thread.id,
     prompt,
     ...(segments ? { segments } : {}),
     config: thread.config,
+    ...(clientContext ? { clientContext } : {}),
   });
 }

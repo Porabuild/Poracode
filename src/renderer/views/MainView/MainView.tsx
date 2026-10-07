@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { startTransition, useEffect, type ReactNode } from "react";
 import type { AgentStatus } from "@/shared/contracts";
 import { buildPaneLayoutFromLegacy } from "@/shared/paneLayout";
 import { buildWorktreeLocation } from "@/shared/worktree";
@@ -9,7 +9,6 @@ import { ensureHomeScopeProject } from "@/renderer/actions/projectActions";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useExperimentStore } from "@/renderer/state/experimentStore";
-import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useWelcomeGateStore } from "@/renderer/state/welcomeGateStore";
 import { buildWslProjectDistrosKey, parseWslProjectDistrosKey } from "@/renderer/state/projectKeys";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -17,6 +16,7 @@ import { AppDndProvider, CompactDndProvider } from "@/renderer/dnd";
 
 import { useKeyboardShortcuts } from "@/renderer/hooks/useKeyboardShortcuts";
 import { useGitRefresh } from "@/renderer/hooks/useGitRefresh";
+import { useRemoteServerConnection } from "@/renderer/hooks/useRemoteServerConnection";
 import { useRestoredRemoteThreadLifecycle } from "@/renderer/hooks/useRestoredRemoteThreadLifecycle";
 import { useRightPanelThreadLock } from "@/renderer/hooks/useRightPanelThreadLock";
 import { useThreadLifecycle } from "@/renderer/hooks/useThreadLifecycle";
@@ -24,7 +24,6 @@ import { useDndHandlers } from "@/renderer/hooks/useDndHandlers";
 import { useBrowserSync } from "@/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/hooks/useBrowserSync";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { usePanelStore } from "@/renderer/state/panelStore";
-import { installRemoteServerLifecycle } from "@/renderer/state/remoteServers/lifecycle";
 
 import { AppOverlays } from "@/renderer/views/MainView/parts/AppOverlays";
 import { WorktreeDeleteDialogs } from "@/renderer/views/MainView/parts/WorktreeDeleteDialogs";
@@ -53,10 +52,6 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
   const homeScopeEnabled = useSharedSettings((state) => state.homeScopeEnabled);
   const sharedSettingsHydrated = useSharedSettings((state) => state.sharedSettingsHydrated);
   const backgroundWorkReleased = useWelcomeGateStore((state) => state.backgroundWorkReleased);
-  const connectAllRemoteServers = useRemoteServersStore((state) => state.connectAll);
-  const [browserConnectionChecked, setBrowserConnectionChecked] = useState(
-    () => !isBrowserClientRuntime(),
-  );
   const compactLayout = useCompactLayout();
   const mobilePage = usePanelStore((state) => state.mobileUtilityPage);
   const mobileTopLevelPage =
@@ -75,33 +70,7 @@ export function MainView(props: { storeHydrated: boolean; runtimeSnapshotsReady:
   useRightPanelThreadLock();
   useBrowserSync();
 
-  useLayoutEffect(() => {
-    let active = true;
-    const finishRemoteServerHydration = () => {
-      if (!active) return;
-      setBrowserConnectionChecked(true);
-      void connectAllRemoteServers();
-    };
-    if (useRemoteServersStore.persist.hasHydrated()) {
-      finishRemoteServerHydration();
-    } else {
-      void Promise.resolve(useRemoteServersStore.persist.rehydrate()).then(
-        finishRemoteServerHydration,
-        finishRemoteServerHydration,
-      );
-    }
-    return () => {
-      active = false;
-    };
-  }, [connectAllRemoteServers]);
-
-  useEffect(
-    () =>
-      installRemoteServerLifecycle(() =>
-        connectAllRemoteServers({ forceTransportReconnect: true }),
-      ),
-    [connectAllRemoteServers],
-  );
+  const { checked: browserConnectionChecked } = useRemoteServerConnection();
 
   useEffect(() => {
     if (!storeHydrated || !sharedSettingsHydrated || !homeScopeEnabled) {

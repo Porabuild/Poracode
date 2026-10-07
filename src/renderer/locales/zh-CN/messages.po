@@ -2459,6 +2459,10 @@ msgstr "已为聊天加星标"
 msgid "Chat unstarred"
 msgstr "已取消聊天星标"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Chats"
+msgstr "聊天"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "检查"
@@ -2747,6 +2751,7 @@ msgstr "清除当天"
 msgid "Clear goal"
 msgstr "清除目标"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "清除搜索"
@@ -3467,6 +3472,10 @@ msgstr "连接中..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "正在连接…"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+#~ msgid "Connection"
+#~ msgstr "连接"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -8297,6 +8306,10 @@ msgstr "新动作名称"
 msgid "New branch name..."
 msgstr "新分支名称..."
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "New chat"
+msgstr "新聊天"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "新的 Claude 配置文件目录"
@@ -8863,6 +8876,7 @@ msgid "No repositories found."
 msgstr "未找到存储库。"
 
 #: src/renderer/components/find/FindBar.tsx
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "没有结果"
@@ -12108,6 +12122,10 @@ msgstr "搜索插件、技能和服务器..."
 msgid "Search pull requests"
 msgstr "搜索拉取请求"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Search recent chats"
+msgstr "搜索最近的聊天"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
 msgstr "搜索存储库"
@@ -13022,6 +13040,10 @@ msgstr "开始实时语音"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
 msgstr "最小化启动"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Start Poracode to chat in your browser."
+msgstr "启动 Poracode，即可在浏览器中聊天。"
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Start remote thread"
@@ -14622,6 +14644,10 @@ msgstr "无法比较候选项：{0}"
 #~ msgid "Unable to connect over SSH."
 #~ msgstr "无法通过 SSH 连接。"
 
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Unable to connect. Retrying…"
+msgstr "无法连接。正在重试…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy desktop endpoint."
 msgstr "无法复制桌面端点。"
@@ -15081,6 +15107,10 @@ msgstr "未暂存"
 msgid "Unsupported"
 msgstr "不支持"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Untitled"
+msgstr "无标题"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Unverified"
 msgstr "未验证"
@@ -15178,6 +15208,10 @@ msgstr "更新方法"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
 msgstr "请在桌面端更新 Poracode 以使用端口转发。"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Update Poracode to use browser chats."
+msgstr "更新 Poracode 以使用浏览器聊天。"
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update SDK"

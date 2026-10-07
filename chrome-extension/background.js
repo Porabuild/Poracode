@@ -3,12 +3,30 @@
  *
  * Pairs with the Poracode desktop **app**, not any single thread. It stays in a
  * connect loop against the app's localhost bridge: while the app is closed it
- * quietly retries; the moment the app launches it connects and the popup shows
- * "Connected". No buttons, no port, no pairing code — fully automatic.
+ * quietly retries; the moment the app launches it connects automatically. No
+ * buttons, no port, no pairing code, and no connection UI.
  *
- * The channel is a WebSocket carrying this extension's `chrome-extension://`
- * origin (web pages can't forge that) on loopback. Actual control surfaces
- * Chrome's own "Poracode started debugging this browser" banner = consent.
+ * The channel is a WebSocket on loopback, which every local process and OS
+ * user shares: anything can listen on a scanned port and anything can assert
+ * our Origin header. Both ends therefore prove the bridge's per-launch secret
+ * without ever sending it. The worker reads the secret from Poracode's
+ * per-user native messaging host, which Chrome launches only for this
+ * extension's pinned ID; the hello carries a fresh nonce and an HMAC of it
+ * bound to the dialed port, and the host's `helloAck` must carry its own HMAC
+ * (another domain, same nonce and port) before the worker trusts the socket.
+ * Until then it neither requests chat credentials nor serves any browser
+ * control request. Actual control surfaces Chrome's own "Poracode started
+ * debugging this browser" banner = consent.
+ *
+ * An app that sends no `helloAck` predates the sidebar, and the sidebar is
+ * told to ask for an update. An unproven ack is only advisory: the host
+ * authenticates only the first hello, so a connection opened before the native
+ * host could answer is reopened once it can.
+ *
+ * Several apps may listen at once (an installed release and a dev build). The
+ * native host's list of live bridges, not anything a socket says, picks the
+ * port: the dialed port's own entry if it has one, else the newest entry. A
+ * port the host does not know is left for that entry, at most once per secret.
  *
  * MV3 workers are evicted when idle, so we reconnect from a periodic alarm and
  * on startup, and scan/reconnect on socket close.
@@ -36,10 +54,51 @@ const DEFAULT_GROUP_TITLE = "Poracode";
 const DEFAULT_GROUP_COLOR = "purple";
 
 let ws = null;
+/**
+ * The socket whose hello frame has been sent (nothing else may precede it),
+ * its port, the secret and nonce it proved, and the host's `helloAck`:
+ * `undefined` while pending, `LEGACY_HOST` when none arrived in time, `null`
+ * once the socket closed. `ack.authenticated` is true only for a verified
+ * server proof.
+ */
+let hello = null;
 let connecting = false;
 let reconnectTimer = null;
 let portIndex = 0;
-let lastError = null;
+/** The socket closed on purpose to reopen authenticated (same or another port). */
+let reopeningSocket = null;
+/** The native-host entry `{ port, token }` to dial next. Memory only: tokens change per app launch. */
+let pendingBridge = null;
+/**
+ * Secrets already dialed by a reopen or redirect, so a stale or squatted entry
+ * cannot make the worker loop. Memory only, and bounded.
+ */
+const dialedSecrets = new Set();
+const MAX_DIALED_SECRETS = 16;
+let lastNativeAttemptAt = -Infinity;
+const sidebarRequests = new Map();
+// Mirrors CHROME_SIDEBAR_PROTOCOL_VERSION and CHROME_SIDEBAR_RUNTIME_ISSUES in
+// src/shared/chromeSidebarProtocol.ts.
+const SIDEBAR_PROTOCOL_VERSION = 2;
+const UPGRADE_REQUIRED_ISSUE = "upgradeRequired";
+// Mirrors CHROME_NATIVE_HOST_NAME / CHROME_NATIVE_HOST_PROTOCOL_VERSION in
+// src/shared/chromeSidebarProtocol.ts.
+const NATIVE_HOST_NAME = "com.poracode.chrome_bridge";
+const NATIVE_HOST_PROTOCOL_VERSION = 1;
+// Mirrors CHROME_BRIDGE_CLIENT_PROOF_DOMAIN / CHROME_BRIDGE_SERVER_PROOF_DOMAIN
+// and the field order of chromeBridge{Client,Server}ProofMessage in
+// src/shared/chromeSidebarProtocol.ts.
+const CLIENT_PROOF_DOMAIN = "poracode-chrome-bridge/client-proof/v1";
+const SERVER_PROOF_DOMAIN = "poracode-chrome-bridge/server-proof/v1";
+const HEX_256 = /^[0-9a-f]{64}$/;
+/** Host requests that read or control the browser; served only to a proven bridge. */
+const RELAY_REQUESTS = new Set(["listTabs", "attach", "openTab", "detach", "cdp"]);
+const NATIVE_HOST_TIMEOUT_MS = 3000;
+/** Native-host retries for an unauthenticated connection, while the sidebar asks. */
+const NATIVE_RETRY_MS = 10000;
+const HELLO_ACK_TIMEOUT_MS = 5000;
+const SIDEBAR_REQUEST_TIMEOUT_MS = 5000;
+const LEGACY_HOST = "legacy";
 /** tabIds we currently hold a debugger attachment on. */
 const attachedTabs = new Set();
 
@@ -47,14 +106,30 @@ function isOpen() {
   return ws && ws.readyState === WebSocket.OPEN;
 }
 
+function isReady() {
+  return isOpen() && hello !== null && hello.socket === ws;
+}
+
 function send(msg) {
-  if (isOpen()) {
+  if (isReady()) {
     try {
       ws.send(JSON.stringify(msg));
-    } catch (err) {
-      lastError = String(err);
-    }
+    } catch {}
   }
+}
+
+function startHello(socket, port, proof) {
+  const state = { socket, port, ...proof, ack: undefined };
+  state.acked = new Promise((resolve) => {
+    const timer = setTimeout(() => state.settle(LEGACY_HOST), HELLO_ACK_TIMEOUT_MS);
+    state.settle = (ack) => {
+      if (state.ack !== undefined) return;
+      clearTimeout(timer);
+      state.ack = ack;
+      resolve(ack);
+    };
+  });
+  return state;
 }
 
 async function candidatePorts() {
@@ -72,48 +147,207 @@ async function connect() {
   connecting = true;
 
   const ports = await candidatePorts();
-  const port = ports[portIndex % ports.length];
-  const { token } = await chrome.storage.local.get("token");
-  const url = `ws://127.0.0.1:${port}/` + (token ? `?token=${encodeURIComponent(token)}` : "");
+  const port = pendingBridge ? pendingBridge.port : ports[portIndex % ports.length];
 
   let socket;
   try {
-    socket = new WebSocket(url);
-  } catch (err) {
+    // Never a secret in the URL: the hello proves it instead.
+    socket = new WebSocket(`ws://127.0.0.1:${port}/`);
+  } catch {
     connecting = false;
-    lastError = String(err);
+    pendingBridge = null;
     scheduleReconnect();
     return;
   }
   ws = socket;
 
-  socket.addEventListener("open", () => {
+  const onOpen = async () => {
     connecting = false;
     portIndex = 0;
-    lastError = null;
-    void chrome.storage.local.set({ port });
-    send({ type: "hello", extensionVersion: chrome.runtime.getManifest().version });
-    broadcastStatus();
+    const dialed = pendingBridge && pendingBridge.port === port ? pendingBridge : null;
+    pendingBridge = null;
+    let secret = dialed ? dialed.token : null;
+    if (!dialed) {
+      // Ask only once a bridge answers, so a closed app never spawns the host.
+      const bridge = pickBridge(
+        await nativeBridges(),
+        port,
+        (entry) => entry.port === port || !dialedSecrets.has(entry.token),
+      );
+      if (bridge && bridge.port !== port) {
+        // Another app holds this port; the one the native host knows is elsewhere.
+        if (ws === socket && socket.readyState === WebSocket.OPEN) redial(socket, bridge);
+        return;
+      }
+      secret = bridge ? bridge.token : null;
+    }
+    const nonce = randomHex();
+    let key = null;
+    let clientProof = null;
+    try {
+      if (secret) {
+        key = await hmacKey(secret);
+        clientProof = await hmacHex(key, [CLIENT_PROOF_DOMAIN, port, nonce]);
+      }
+    } catch {
+      key = null;
+      clientProof = null;
+    }
+    if (ws !== socket || socket.readyState !== WebSocket.OPEN) return;
+    hello = startHello(socket, port, { secret, key, nonce });
+    send({
+      type: "hello",
+      extensionVersion: chrome.runtime.getManifest().version,
+      sidebarBootstrapVersion: SIDEBAR_PROTOCOL_VERSION,
+      ...(clientProof ? { nonce, clientProof } : {}),
+    });
+  };
+  socket.addEventListener("open", () => {
+    void onOpen();
   });
 
   socket.addEventListener("message", (event) => {
-    void handleRequest(event.data);
+    void handleRequest(event.data, socket);
   });
 
   socket.addEventListener("close", () => {
     if (ws === socket) ws = null;
+    if (hello && hello.socket === socket) {
+      hello.settle(null);
+      hello = null;
+    }
     connecting = false;
-    portIndex += 1; // advance the scan to the next candidate port
+    // Reopening to authenticate dials `pendingBridge`; anything else advances the scan.
+    if (reopeningSocket === socket) reopeningSocket = null;
+    else {
+      portIndex += 1;
+      // A redial target that never opened: back to scanning.
+      if (pendingBridge && pendingBridge.port === port) pendingBridge = null;
+    }
     // The app went away (or this was a failed probe) — clear any debugger
     // banners so the browser returns to normal until the app is back.
     detachAll();
-    broadcastStatus();
+    for (const resolve of sidebarRequests.values()) resolve(null);
+    sidebarRequests.clear();
     scheduleReconnect();
   });
+}
 
-  socket.addEventListener("error", () => {
-    lastError = "Looking for Poracode…";
-  });
+/**
+ * The running bridges `{ port, token }`, newest first, from the per-user native
+ * messaging host (Chrome launches it only for this extension), or `[]` when it
+ * is not installed or unreachable. Never persisted: tokens change per launch.
+ */
+async function nativeBridges() {
+  lastNativeAttemptAt = Date.now();
+  try {
+    const response = await Promise.race([
+      chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, {
+        type: "getBridges",
+        version: NATIVE_HOST_PROTOCOL_VERSION,
+      }),
+      new Promise((resolve) => setTimeout(() => resolve(null), NATIVE_HOST_TIMEOUT_MS)),
+    ]);
+    if (
+      !response ||
+      response.type !== "bridges" ||
+      response.version !== NATIVE_HOST_PROTOCOL_VERSION ||
+      !Array.isArray(response.bridges)
+    )
+      return [];
+    return response.bridges.filter(
+      (entry) =>
+        entry &&
+        Number.isInteger(entry.port) &&
+        entry.port > 0 &&
+        entry.port < 65536 &&
+        typeof entry.token === "string" &&
+        entry.token.length > 0,
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** The usable entry for `port` if any, else the newest usable entry, else `null`. */
+function pickBridge(bridges, port, usable) {
+  const candidates = bridges.filter(usable);
+  return candidates.find((entry) => entry.port === port) ?? candidates[0] ?? null;
+}
+
+/** Closes `socket` so the next connect dials `bridge` and proves its token. */
+function redial(socket, bridge) {
+  if (dialedSecrets.size >= MAX_DIALED_SECRETS) {
+    dialedSecrets.delete(dialedSecrets.values().next().value);
+  }
+  dialedSecrets.add(bridge.token);
+  pendingBridge = { port: bridge.port, token: bridge.token };
+  reopeningSocket = socket;
+  socket.close();
+}
+
+function randomHex() {
+  return hex(crypto.getRandomValues(new Uint8Array(32)));
+}
+
+function hex(bytes) {
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function hmacKey(secret) {
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign", "verify"],
+  );
+}
+
+async function hmacHex(key, fields) {
+  const message = new TextEncoder().encode(fields.join("\n"));
+  return hex(await crypto.subtle.sign("HMAC", key, message));
+}
+
+/**
+ * Whether `proof` is the bridge's HMAC over this hello's nonce and dialed port
+ * and the ack it vouches for: only the holder of the secret the native host
+ * handed us can produce it. `verify` compares in constant time.
+ */
+async function serverProven(state, sidebarBootstrapVersion, proof) {
+  if (!state.key || typeof proof !== "string" || !HEX_256.test(proof)) return false;
+  const signature = new Uint8Array(proof.match(/../g).map((pair) => parseInt(pair, 16)));
+  const message = [
+    SERVER_PROOF_DOMAIN,
+    state.port,
+    state.nonce,
+    sidebarBootstrapVersion ?? "null",
+    true,
+  ].join("\n");
+  try {
+    return await crypto.subtle.verify(
+      "HMAC",
+      state.key,
+      signature,
+      new TextEncoder().encode(message),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether `socket` is the current connection and its bridge proved the secret.
+ * An unproven but current host may only prompt a bounded native-host retry.
+ */
+async function provenBridge(socket) {
+  const current = hello;
+  if (!current || current.socket !== socket) return false;
+  const ack = await current.acked;
+  if (ack === null || hello !== current) return false;
+  if (ack !== LEGACY_HOST && ack.authenticated) return true;
+  void reauthenticate(current);
+  return false;
 }
 
 function scheduleReconnect() {
@@ -130,7 +364,7 @@ function scheduleReconnect() {
 // CDP relay
 // ---------------------------------------------------------------------------
 
-async function handleRequest(data) {
+async function handleRequest(data, socket) {
   let msg;
   try {
     msg = JSON.parse(typeof data === "string" ? data : String(data));
@@ -138,6 +372,33 @@ async function handleRequest(data) {
     return;
   }
   const { id, type } = msg;
+  if (type === "helloAck") {
+    const current = hello;
+    if (current && current.socket === socket && current.ack === undefined) {
+      const sidebarBootstrapVersion = Number.isInteger(msg.sidebarBootstrapVersion)
+        ? msg.sidebarBootstrapVersion
+        : null;
+      // A bare `authenticated: true` is what an impostor would say.
+      const authenticated =
+        msg.authenticated === true &&
+        (await serverProven(current, sidebarBootstrapVersion, msg.serverProof));
+      current.settle({ sidebarBootstrapVersion, authenticated });
+      if (authenticated && hello === current) {
+        // A proven secret may be redialed after a drop; prefer its port next scan.
+        dialedSecrets.delete(current.secret);
+        void chrome.storage.local.set({ port: current.port });
+      }
+    }
+    return;
+  }
+  if (type === "sidebarBootstrapResult" && msg.version === SIDEBAR_PROTOCOL_VERSION) {
+    sidebarRequests.get(msg.requestId)?.(msg.bootstrap ?? null);
+    return;
+  }
+  if (RELAY_REQUESTS.has(type) && !(await provenBridge(socket))) {
+    if (ws === socket) replyError(id, "Poracode could not be verified; browser control is paused.");
+    return;
+  }
   try {
     if (type === "listTabs") {
       const tabs = await chrome.tabs.query({});
@@ -401,30 +662,75 @@ chrome.debugger.onDetach.addListener((source, reason) => {
 });
 
 // ---------------------------------------------------------------------------
-// Popup status (read-only — the connection is fully automatic)
+// Sidebar chat bootstrap
 // ---------------------------------------------------------------------------
 
-function currentStatus() {
-  return {
-    connected: isOpen(),
-    connecting: connecting || (!!ws && ws.readyState === WebSocket.CONNECTING),
-    attachedTabs: Array.from(attachedTabs),
-    lastError,
-    version: chrome.runtime.getManifest().version,
-  };
+/**
+ * A single-use local chat credential for the sidebar; `{ issue }` when this
+ * app cannot provide one until it is updated; or `null` to retry later (app
+ * closed, native host not reachable yet, or the request was refused).
+ */
+async function chatBootstrap() {
+  if (!isReady()) {
+    void connect();
+    return null;
+  }
+  const current = hello;
+  const ack = await current.acked;
+  if (ack === null || hello !== current || !isReady()) return null;
+  const proven = ack !== LEGACY_HOST && ack.authenticated;
+  // An older app may hold this port while the native host knows a current one.
+  if (!proven && (await reauthenticate(current))) return null;
+  if (ack === LEGACY_HOST || ack.sidebarBootstrapVersion !== SIDEBAR_PROTOCOL_VERSION) {
+    return { issue: UPGRADE_REQUIRED_ISSUE };
+  }
+  if (!proven) return null;
+  return requestSidebarBootstrap();
 }
 
-function broadcastStatus() {
-  chrome.runtime.sendMessage({ event: "status", status: currentStatus() }).catch(() => {});
+/**
+ * The native host may be unreachable when the connection opens (registration
+ * still in progress, app starting, or a repair), or know a bridge on another
+ * port than an older app holding this one. Ask it again at most every
+ * NATIVE_RETRY_MS, and only while the sidebar or the host asks; once it knows
+ * a secret not yet tried, redial that entry (this port first) so the first
+ * hello proves it. Whether it redialed.
+ */
+async function reauthenticate(current) {
+  if (Date.now() - lastNativeAttemptAt < NATIVE_RETRY_MS) return false;
+  const bridge = pickBridge(
+    await nativeBridges(),
+    current.port,
+    // The same secret already failed to get a server proof: not our bridge.
+    (entry) => entry.token !== current.secret && !dialedSecrets.has(entry.token),
+  );
+  if (!bridge || hello !== current || !isReady()) return false;
+  redial(current.socket, bridge);
+  return true;
+}
+
+function requestSidebarBootstrap() {
+  return new Promise((resolve) => {
+    const requestId = crypto.randomUUID();
+    const timer = setTimeout(() => {
+      sidebarRequests.delete(requestId);
+      resolve(null);
+    }, SIDEBAR_REQUEST_TIMEOUT_MS);
+    sidebarRequests.set(requestId, (bootstrap) => {
+      clearTimeout(timer);
+      sidebarRequests.delete(requestId);
+      resolve(bootstrap);
+    });
+    send({ type: "sidebarBootstrap", version: SIDEBAR_PROTOCOL_VERSION, requestId });
+  });
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message && message.cmd === "getStatus") {
-    // Opening the popup is a good moment to make sure we're trying.
-    void connect();
-    sendResponse(currentStatus());
+  if (message && message.cmd === "getChatBootstrap") {
+    chatBootstrap().then(sendResponse, () => sendResponse(null));
+    return true;
   }
-  return true;
+  return false;
 });
 
 // ---------------------------------------------------------------------------
@@ -445,4 +751,11 @@ chrome.runtime.onStartup.addListener(() => {
   void connect();
 });
 
+// 0.1 kept a manually pasted bridge token here; the hello proof replaces it.
+void chrome.storage.local.remove("token");
+
 void connect();
+
+// Keep one sidebar across tabs. Chat owns its authenticated remote client;
+// the worker continues to own the existing browser-control relay.
+void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });

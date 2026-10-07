@@ -231,6 +231,33 @@ describe("submitThreadInput resume wiring", () => {
     expect(rollbackCalls()).toEqual([]);
   });
 
+  it("sends client context with the input but paints only the user's text", async () => {
+    const clientContext = {
+      browserFocus: { activeTab: { tabId: 4, title: "Page", url: "https://p.test/" } },
+    };
+    await submitThreadInput("thread-1", "hello", segments, { clientContext });
+
+    expect(mocks.bridge.sendThreadInput).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "hello", segments, clientContext }),
+    );
+    const painted = mocks.appState.applyRuntimeEvent.mock.calls.find(
+      ([, event]) => (event as { itemType?: string }).itemType === "user_message",
+    )?.[1];
+    expect(painted).toMatchObject({ payload: { content: [{ kind: "text", text: "hello" }] } });
+    expect(JSON.stringify(painted)).not.toContain("p.test");
+  });
+
+  it("relaunches a gone session with the context the user sent", async () => {
+    mocks.bridge.sendThreadInput.mockRejectedValueOnce(
+      new Error("Unknown thread session: thread-1"),
+    );
+    const clientContext = { browserFocus: {} };
+    await submitThreadInput("thread-1", "hello", segments, { clientContext });
+    expect(mocks.performInitialThreadLaunch).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "hello", clientContext }),
+    );
+  });
+
   it("does not relaunch a thread that disappeared between send and resume", async () => {
     mocks.bridge.sendThreadInput.mockRejectedValueOnce(
       new Error("Unknown thread session: thread-1"),

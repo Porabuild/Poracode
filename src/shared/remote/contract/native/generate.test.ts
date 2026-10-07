@@ -56,9 +56,10 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        // Additive project-registration fields and portable sendable-input
-        // shapes change the generated source fingerprint without a wire bump.
-        sourceHash: "sha256:cf211eec6e40725ba33d5d1bf30e50f201a4d9bf200071f9e2c195279934a2fb",
+        // Additive project-registration fields, portable sendable-input
+        // shapes and the optional per-turn `clientContext` input field change
+        // the generated source fingerprint without a wire bump.
+        sourceHash: "sha256:54730c38da485c1c32104d1b92dd8b11e13d8c5d0d276728509c76fe0093e28c",
         manifestHash: "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
         counts: {
           routes: 88,
@@ -69,10 +70,10 @@ describe("remote v3 native binding generator", () => {
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
           schemaRoots: 405,
-          structuralTypes: 924,
+          structuralTypes: 927,
           semanticValidators: 18,
-          swiftFiles: 57,
-          kotlinFiles: 50,
+          swiftFiles: 58,
+          kotlinFiles: 51,
           stateMachines: 5,
         },
       });

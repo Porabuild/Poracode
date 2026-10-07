@@ -10,9 +10,10 @@ import type {
   ThreadConfig,
   ThreadPresentationMode,
 } from "@/shared/contracts";
-import { HOME_PROJECT_NAME, isHomeProjectId } from "@/shared/homeScope";
+import { HOME_PROJECT_NAME, isHomeProject } from "@/shared/homeScope";
 import { readBridge } from "@/renderer/bridge";
 import { getComputerUseScope } from "@/renderer/components/composer/computerUseScope";
+import { useImplicitMcpServers } from "@/renderer/components/composer/implicitMcpServers";
 import {
   chromeMcpServer,
   COMPUTER_USE_MCP_ID,
@@ -165,6 +166,8 @@ export function ThreadDraftView(props: {
   isDetectingAgents?: boolean;
   lastDraftConfig?: ProjectDraftConfig;
   compact?: boolean;
+  /** Bottom-anchored embedded chat draft: structured providers, no workspace controls. */
+  chatOnly?: boolean;
   quickComposer?: boolean;
   composerPlaceholder?: string;
   restoreWorktreeSelectionToken?: number;
@@ -205,13 +208,14 @@ export function ThreadDraftView(props: {
     onStart,
     headerNeedsTrafficLightPad = false,
   } = props;
+  const implicitMcpServers = useImplicitMcpServers();
   const gitBranch = useGitStore((s) => s.statuses[project.id]?.branch);
   const disabledAgents = useSharedSettings((s) => s.disabledAgents);
   const sharedSettingsHydrated = useSharedSettings((s) => s.sharedSettingsHydrated);
   const showAgentDiscovery = useAgentStatusesStore((s) =>
     isDiscoveryActiveForLocation(s, project.location),
   );
-  const isHomeScope = isHomeProjectId(project.id);
+  const isHomeScope = isHomeProject(project);
   const scopeLabel = isHomeScope ? HOME_PROJECT_NAME : undefined;
   const remoteConnection = useRemoteServersStore((state) => {
     const { remoteServerId } = project;
@@ -235,8 +239,16 @@ export function ThreadDraftView(props: {
   // actually change.
   const installedAgents = useMemo(
     () =>
-      agentStatuses.filter((status) => status.installed && !disabledAgents.includes(status.kind)),
-    [agentStatuses, disabledAgents],
+      agentStatuses.filter(
+        (status) =>
+          status.installed &&
+          !disabledAgents.includes(status.kind) &&
+          (!props.chatOnly ||
+            (
+              status.capabilities.presentationModes ?? [status.capabilities.presentationMode]
+            ).includes("gui")),
+      ),
+    [agentStatuses, disabledAgents, props.chatOnly],
   );
   const preferredAgentKind = resolvePreferredAgentKind(installedAgents, lastDraftConfig);
   const [agentKind, setAgentKind] = useState<AgentStatus["kind"] | undefined>(preferredAgentKind);
@@ -275,7 +287,7 @@ export function ThreadDraftView(props: {
   const [worktreeMode, setWorktreeMode] = useState(
     isHomeScope ? false : (lastDraftConfig?.worktreeMode ?? false),
   );
-  const effectiveWorktreeMode = isHomeScope ? false : worktreeMode;
+  const effectiveWorktreeMode = isHomeScope || props.chatOnly ? false : worktreeMode;
   const lastAppliedAgentKindRef = useRef<AgentStatus["kind"] | undefined>(undefined);
 
   // Presentation-mode picker — only meaningful for adapters that advertise
@@ -305,7 +317,9 @@ export function ThreadDraftView(props: {
   const supportsGuiMode = anyAgentSupports("gui");
   const supportsModePicker = supportsTerminalMode && supportsGuiMode;
   const [presentationMode, setPresentationMode] = useState<ThreadPresentationMode>(() =>
-    resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent),
+    props.chatOnly
+      ? "gui"
+      : resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent),
   );
   const selectedAgentForConfig = useMemo(
     () => (selectedAgent ? agentWithCapabilities(selectedAgent, presentationMode) : undefined),
@@ -331,6 +345,10 @@ export function ThreadDraftView(props: {
     const previousAgentKind = previousPresentationAgentKindRef.current;
     previousPresentationAgentKindRef.current = selectedAgent?.kind;
     if (!selectedAgent) return;
+    if (props.chatOnly) {
+      setPresentationMode("gui");
+      return;
+    }
     if (!previousAgentKind) {
       setPresentationMode(
         resolveInitialPresentationMode(selectedAgent, lastPresentationModeByAgent),
@@ -906,7 +924,9 @@ export function ThreadDraftView(props: {
   }) => {
     if (!selectedAgent || !selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
-    const targetPresentationMode = nextPresentationMode ?? presentationMode;
+    const targetPresentationMode = props.chatOnly
+      ? "gui"
+      : (nextPresentationMode ?? presentationMode);
     if (targetPresentationMode !== presentationMode) {
       setPresentationMode(targetPresentationMode);
     }
@@ -1204,7 +1224,8 @@ export function ThreadDraftView(props: {
   // scope-reset effect there would fight it.
   const effectiveMcp = (id: BuiltInMcpServerId, mention: boolean, scope: string) =>
     disabledBuiltInMcpServers[id] !== true &&
-    (mention || (enabledMcpServers[id] === true && scope !== "none"));
+    (mention ||
+      ((implicitMcpServers.includes(id) || enabledMcpServers[id] === true) && scope !== "none"));
   const selectedMcpScope = resolveMcpScope(selectedAgent.capabilities.mcpScope, presentationMode);
   const effectiveBrowserMcp = effectiveMcp("browser", browserMcpMention, selectedMcpScope);
   const effectiveCrossagentMcp = effectiveMcp(
@@ -1229,7 +1250,7 @@ export function ThreadDraftView(props: {
       className={`relative flex ${rootSizeClass} flex-col ${props.isDragging ? "opacity-50" : ""}`}
     >
       <ThreadDraftDropIndicators dropIndicator={props.dropIndicator} />
-      {props.compact && !props.quickComposer && (
+      {props.compact && !props.quickComposer && !props.chatOnly && (
         <ThreadDraftCompactHeader
           alignClass={alignClass}
           dragHandleRef={props.dragHandleRef}
@@ -1246,7 +1267,11 @@ export function ThreadDraftView(props: {
         data-draft-body=""
         className={`${compactComposer ? alignClass : "mx-auto"} relative flex ${bodySizeClass} flex-col ${bodyPaddingClass}`}
       >
-        {props.quickComposer ? null : props.compact ? (
+        {props.chatOnly ? (
+          <div className="flex min-h-0 flex-1 text-muted opacity-40">
+            <ThreadDraftHero compact />
+          </div>
+        ) : props.quickComposer ? null : props.compact ? (
           <ThreadDraftHero compact={props.compact} />
         ) : (
           // Spacer whose height is driven by useStableComposerAnchor to keep the
@@ -1264,20 +1289,22 @@ export function ThreadDraftView(props: {
           ref={compactComposer ? undefined : anchorBlockRef}
           className={`${compactComposer ? alignClass : "mx-auto shrink-0"} w-full ${blockMaxWidthClass} ${props.quickComposer ? "quick-composer-control-surface" : ""}`}
         >
-          <div data-draft-controls="" className="mb-1 flex items-center justify-between gap-2">
-            <ProjectSwitchMenu
-              currentProjectId={project.id}
-              variant="compact"
-              {...(props.paneId ? { paneId: props.paneId } : {})}
-              {...(props.onProjectChange ? { onSelectProject: props.onProjectChange } : {})}
-            />
-            <PresentationModeTabs
-              presentationMode={presentationMode}
-              supportsTerminal={supportsTerminalMode}
-              supportsGui={supportsGuiMode}
-              onChange={handlePresentationChange}
-            />
-          </div>
+          {props.chatOnly ? null : (
+            <div data-draft-controls="" className="mb-1 flex items-center justify-between gap-2">
+              <ProjectSwitchMenu
+                currentProjectId={project.id}
+                variant="compact"
+                {...(props.paneId ? { paneId: props.paneId } : {})}
+                {...(props.onProjectChange ? { onSelectProject: props.onProjectChange } : {})}
+              />
+              <PresentationModeTabs
+                presentationMode={presentationMode}
+                supportsTerminal={supportsTerminalMode}
+                supportsGui={supportsGuiMode}
+                onChange={handlePresentationChange}
+              />
+            </div>
+          )}
           <ThreadDraftComposerArea
             project={project}
             isRemote={project.remoteServerId !== undefined}
@@ -1306,6 +1333,7 @@ export function ThreadDraftView(props: {
               ...(effectiveComputerUse ? { computerUse: true } : {}),
             }}
             compact={compactComposer}
+            {...(props.chatOnly ? { hideWorkspaceControls: true } : {})}
             paneCount={props.paneCount}
             gitBranch={gitBranch}
             worktreeMode={effectiveWorktreeMode}
@@ -1322,7 +1350,7 @@ export function ThreadDraftView(props: {
             onWorktreeModeChange={setWorktreeMode}
             onSwitchBranch={handleSwitchBranch}
             onRememberPresentationMode={() => {
-              setLastPresentationMode(selectedAgent.kind, presentationMode);
+              if (!props.chatOnly) setLastPresentationMode(selectedAgent.kind, presentationMode);
             }}
             onStart={onStart}
           />

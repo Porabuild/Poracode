@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
+import { homedir } from "node:os";
 import { saveUploadedAttachmentFile } from "@/host/attachments/attachmentStorage";
 import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "@/host/db";
 import {
@@ -61,6 +62,7 @@ import {
 } from "./headlessSettingsAuthority";
 import { createHeadlessPrMergeEffect } from "./headlessPrWatchMerge";
 import { composeHostServices } from "@/host/hostServices/composeHostServices";
+import { ensureHomeProjectRow } from "@/host/schedules/homeProject";
 import type { SshConnectionManager } from "@/host/ssh/SshConnectionManager";
 import {
   composeHostEnvironments,
@@ -340,6 +342,9 @@ export async function composeHeadlessRemoteHost(
       },
     });
     backendHostRef = backendHost;
+    // The built-in projectless chat scope is available before any client attaches,
+    // including clients restoring an existing credential after a server restart.
+    ensureHomeProjectRow();
     const supervisorClient = backendHost.supervisorClient;
 
     // V5 plan 1.1 (H3): the SAME composeHostServices the desktop startup
@@ -360,6 +365,13 @@ export async function composeHeadlessRemoteHost(
       : null;
     const hostServices = composeHostServices({
       baseDir: paths.baseDir,
+      getChatBootstrap: async () => {
+        const credential = serverRef?.mintLoopbackRendererCredential({ browserExtension: true });
+        return credential
+          ? { endpoint: credential.endpoint, pairingUrl: credential.pairingUrl }
+          : null;
+      },
+      ...(options.registerChromeNativeHost ? { chromeNativeHost: { homeDir: homedir() } } : {}),
       getSharedSettings,
       ssh: sshInputs,
       computerUse: options.computerUseHelperRoot

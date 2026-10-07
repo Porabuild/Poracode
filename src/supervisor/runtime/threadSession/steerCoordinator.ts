@@ -15,6 +15,7 @@ import {
 import { captureSupervisorException } from "../../diagnostics/sentry";
 import { rewriteSegmentsForWsl } from "../threadAttachments";
 import type { PendingSteerSlot, QueuedStructuredTurn, SessionRuntime } from "../sessionTypes";
+import { formatTurnClientContext, structuredTurnTextOptions } from "../turnClientContext";
 
 const STEER_PREPARATION_TIMEOUT_MS = 750;
 
@@ -317,6 +318,7 @@ export class SteerCoordinator {
       ...(slot.displaySegments ? { displaySegments: slot.displaySegments } : {}),
       ...(slot.userMessageItemId ? { userMessageItemId: slot.userMessageItemId } : {}),
       ...(slot.inlineInstructions ? { inlineInstructions: slot.inlineInstructions } : {}),
+      ...(slot.turnContext ? { turnContext: slot.turnContext } : {}),
     };
     try {
       // Install the canonical-start waiter before invoking the provider. A
@@ -393,6 +395,7 @@ export class SteerCoordinator {
           defaultFormatPromptSegments(effectiveSegments))
         : payload.prompt;
     const inlineInstructions = await this.ctx.resolveSkillTurnInjection(session, effectiveSegments);
+    const turnContext = formatTurnClientContext(payload.clientContext);
     const turn: QueuedStructuredTurn = {
       prompt,
       config: payload.config,
@@ -400,6 +403,7 @@ export class SteerCoordinator {
       ...(payload.displaySegments ? { displaySegments: payload.displaySegments } : {}),
       ...(options?.userMessageItemId ? { userMessageItemId: options.userMessageItemId } : {}),
       ...(inlineInstructions ? { inlineInstructions } : {}),
+      ...(turnContext ? { turnContext } : {}),
     };
     // Adopt the replacement snapshot before interrupt so a thread-state echo
     // cannot resurrect the previous model / effort / Fast.
@@ -484,7 +488,7 @@ export class SteerCoordinator {
         : undefined;
     const steerOptions = {
       ...(optimisticItemId ? { userMessageItemId: optimisticItemId } : {}),
-      ...(turn.inlineInstructions ? { inlineInstructions: turn.inlineInstructions } : {}),
+      ...structuredTurnTextOptions(session, turn),
     };
     this.ctx.noteDirectSteerSubmitted?.(session);
     const steer = steerTurn.call(

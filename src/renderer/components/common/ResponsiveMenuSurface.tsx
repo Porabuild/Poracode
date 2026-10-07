@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { Popover, useMediaQuery } from "@heroui/react";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { isRemoteSession } from "@/renderer/bridge";
+import { isChatSidebarSurface } from "@/renderer/clientSurface";
 import { BottomSheet } from "./BottomSheet";
 
 /** The placement union HeroUI's popover accepts, derived from the component. */
@@ -12,7 +13,7 @@ const DESKTOP_POINTER_QUERY = "(min-width: 768px) and (hover: hover) and (pointe
 function useCompactMenuSurface(): boolean {
   const compact = useCompactLayout();
   const desktopPointer = useMediaQuery(DESKTOP_POINTER_QUERY);
-  return compact || (isRemoteSession() && !desktopPointer);
+  return !isChatSidebarSurface() && (compact || (isRemoteSession() && !desktopPointer));
 }
 
 /**
@@ -102,7 +103,15 @@ export function ResponsiveMenuSurface(props: {
   );
 }
 
-/** Whether composer menus should render as a compact drawer instead of a popover. */
-export function useResponsiveMenu(): { readonly mobile: boolean } {
-  return { mobile: useCompactMenuSurface() };
+/**
+ * Whether composer menus should render as a compact drawer instead of a popover,
+ * and whether desktop submenus must open above/below their row (`stackSubmenus`)
+ * because the surface is too narrow to fit a side-by-side flyout.
+ */
+export function useResponsiveMenu(): {
+  readonly mobile: boolean;
+  readonly stackSubmenus: boolean;
+} {
+  const mobile = useCompactMenuSurface();
+  return { mobile, stackSubmenus: !mobile && isChatSidebarSurface() };
 }

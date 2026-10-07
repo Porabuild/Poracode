@@ -17,6 +17,7 @@ import {
   mcpServerListSchema,
 } from "./mcpServer";
 import { goalControlActionSchema } from "./runtimeEvent";
+import { turnClientContextSchema } from "./turnClientContext";
 
 /** How thread status/attention is derived for terminal agents (supervisor → renderer). */
 export const threadStatusSourceSchema = z.enum(["cli_hook", "terminal_parse", "server"]);
@@ -264,6 +265,8 @@ export const startThreadPayloadSchema = z
      * the user typed themselves — still fail loudly.
      */
     mentionHandoff: z.literal(true).optional(),
+    /** Per-turn client context for the initial prompt. See {@link turnClientContextSchema}. */
+    clientContext: turnClientContextSchema.optional(),
   })
   .superRefine((payload, ctx) => {
     if (!payload.providerSwitch) return;
@@ -315,6 +318,8 @@ export const sendThreadInputPortableSchema = z.object({
   config: threadConfigSchema,
   /** See {@link startThreadPayloadSchema.userMessageItemId}. */
   userMessageItemId: z.string().min(1).optional(),
+  /** Per-turn client context. See {@link turnClientContextSchema}. */
+  clientContext: turnClientContextSchema.optional(),
 });
 export const sendThreadInputPayloadSchema = sendThreadInputPortableSchema.refine(
   hasSendableInput,
@@ -448,6 +453,11 @@ export const setPendingSteerPortableSchema = z.object({
   prompt: z.string(),
   segments: z.array(promptSegmentSchema).optional(),
   config: threadConfigSchema,
+  /**
+   * Per-turn client context, retained with the staged steer or queued
+   * follow-up it was submitted with. See {@link turnClientContextSchema}.
+   */
+  clientContext: turnClientContextSchema.optional(),
 });
 export const setPendingSteerPayloadSchema = setPendingSteerPortableSchema.refine(
   hasSendableInput,
@@ -587,6 +597,12 @@ export const remoteThreadCommandSchema = z.discriminatedUnion("kind", [
      * older host ignores it and launches at the host default.
      */
     initialSize: terminalSizeSchema.optional(),
+    /**
+     * Per-turn client context for the initial prompt (see
+     * {@link turnClientContextSchema}). Forwarded to the supervisor launch
+     * only; never persisted on the row or used for the derived title.
+     */
+    clientContext: turnClientContextSchema.optional(),
     /**
      * Desktop-renderer hint. Remote clients send `start` to the HTTP server;
      * the server creates metadata and launches the supervisor directly, then

@@ -1,3 +1,4 @@
+import type { ManagedLoopbackBootstrap } from "@/shared/managedLoopback";
 // One host-service composition for both authorities (V5 plan 1.1 / finding
 // H3): the desktop app and the standalone server construct the SAME
 // Electron-free host services through this module — SSH environments, the
@@ -28,6 +29,11 @@ import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 // Electron-only pieces (BrowserPanelManager, the desktop overlay, the wake
 // lock), which would drag `electron` into the server bundle.
 import { ChromeBridgeServer } from "../browser/external/ChromeBridgeServer";
+import {
+  chromeNativeHostDir,
+  registerChromeNativeHost,
+} from "../browser/external/chromeNativeHost";
+import { resolveChromeSidebarExtensionIds } from "@/shared/chromeSidebarProtocol";
 import { ChromeMcpIngress } from "../browser/external/ChromeMcpIngress";
 import type { BrowserMcpIngress, BrowserPanelManager } from "../browser/types";
 import {
@@ -40,6 +46,13 @@ import { SshConnectionManager } from "../ssh/SshConnectionManager";
 export interface HostServicesCore {
   /** Owned profile root: SSH runtime cache + the Chrome bridge pairing file. */
   readonly baseDir: string;
+  readonly getChatBootstrap?: () => Promise<ManagedLoopbackBootstrap | null>;
+  /**
+   * Publish the Chrome bridge token through the per-user native messaging
+   * host and (re)register that host with installed Chromium browsers. Only
+   * production hosts set this: it writes into the user's browser profiles.
+   */
+  readonly chromeNativeHost?: { readonly homeDir: string };
   /** Current shared settings (browser allow gates are re-read on demand). */
   readonly getSharedSettings: () => SharedSettings;
   /**
@@ -147,8 +160,13 @@ export function composeHostServices(
       })
     : null;
 
+  const nativeHostDir = core.chromeNativeHost
+    ? chromeNativeHostDir(core.chromeNativeHost.homeDir)
+    : undefined;
   const chromeBridgeServer = new ChromeBridgeServer({
     pairingFilePath: join(core.baseDir, "chrome-bridge.json"),
+    ...(core.getChatBootstrap ? { getChatBootstrap: core.getChatBootstrap } : {}),
+    ...(nativeHostDir ? { nativeHostDir } : {}),
   });
   const chromeMcpIngress = new ChromeMcpIngress();
   chromeMcpIngress.setConnectionAccessor(() => chromeBridgeServer.getConnection());
@@ -241,6 +259,25 @@ export function composeHostServices(
   void chromeBridgeServer.start().catch((err) => {
     console.error("[poracode] chrome bridge server failed to start:", err);
   });
+  if (core.chromeNativeHost && nativeHostDir) {
+    // Re-rendered on every start so a moved or updated app repairs the
+    // launcher; Electron runs it as plain Node, never as a second app window.
+    const homeDir = core.chromeNativeHost.homeDir;
+    void Promise.resolve()
+      .then(() =>
+        registerChromeNativeHost({
+          hostDir: nativeHostDir,
+          homeDir,
+          platform: process.platform,
+          env: process.env,
+          runtime: { path: process.execPath, electron: Boolean(process.versions.electron) },
+          extensionIds: resolveChromeSidebarExtensionIds(process.env),
+        }),
+      )
+      .catch((err) => {
+        console.error("[poracode] chrome native host registration failed:", err);
+      });
+  }
 
   let disposal: Promise<void> | null = null;
 

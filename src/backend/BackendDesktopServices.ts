@@ -508,8 +508,11 @@ export class BackendDesktopServices {
           getRemoteAccessPairingInfo(null)) as BackendServiceResult<Name>;
       case "getManagedLoopbackBootstrap":
         return (
-          this.remote?.getManagedLoopbackBootstrap() ??
-          (Promise.resolve(null) as Promise<BackendServiceResult<Name>>)
+          this.remote?.getManagedLoopbackBootstrap(
+            (payload as { browserExtension?: boolean } | undefined)?.browserExtension === true
+              ? { browserExtension: true }
+              : undefined,
+          ) ?? (Promise.resolve(null) as Promise<BackendServiceResult<Name>>)
         );
       case "refreshRemoteAccessPairing": {
         // Refresh mints/rotates the DISPLAYED QR credential — only meaningful

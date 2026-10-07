@@ -84,6 +84,7 @@ function areThreadViewPropsEqual(prev: ThreadViewProps, next: ThreadViewProps): 
     prev.pendingLaunchMentionHandoff === next.pendingLaunchMentionHandoff &&
     prev.isWsl === next.isWsl &&
     prev.showCloseButton === next.showCloseButton &&
+    prev.chatOnly === next.chatOnly &&
     prev.paneAlign === next.paneAlign &&
     prev.hidden === next.hidden &&
     prev.isDragging === next.isDragging &&
@@ -115,6 +116,8 @@ export type ThreadViewProps = {
   pendingLaunchMentionHandoff?: true;
   isWsl?: boolean;
   showCloseButton?: boolean;
+  /** Embedded chat clients supply their own selector header and omit workspace tools. */
+  chatOnly?: boolean;
   paneAlign?: "left" | "center" | "right";
   isDragging?: boolean;
   /** Mounted but hidden for keep-alive. */
@@ -382,155 +385,157 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
         )}
 
         {/* Header bar — provider icon outside pane drag handle; status tooltip uses HeroUI tooltip (anchored bottom start). */}
-        <div
-          data-poracode-thread-header=""
-          data-compact={compactLayout || undefined}
-          className={`poracode-thread-pane-header px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
-        >
+        {props.chatOnly ? null : (
           <div
-            className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+            data-poracode-thread-header=""
+            data-compact={compactLayout || undefined}
+            className={`poracode-thread-pane-header px-2 ${headerNeedsTrafficLightPad ? macosTrafficLightPadClass : ""}`}
           >
-            <ThreadHeaderStatusButton
-              threadId={thread.id}
-              fallbackThread={thread}
-              fallbackAgentKind={thread.agentKind}
-              agentLabel={agentStatus?.label}
-              agentIcon={agentStatus?.icon}
-            />
-            {/* The drag handle is a dedicated element (see PaneDragHandle):
+            <div
+              className={`${dragHandleRef ? "poracode-content-over-drag-region" : "poracode-content-over-drag-region--drag"} @container ${alignClass} flex w-full max-w-[920px] items-center gap-2 py-1`}
+            >
+              <ThreadHeaderStatusButton
+                threadId={thread.id}
+                fallbackThread={thread}
+                fallbackAgentKind={thread.agentKind}
+                agentLabel={agentStatus?.label}
+                agentIcon={agentStatus?.icon}
+              />
+              {/* The drag handle is a dedicated element (see PaneDragHandle):
                 dnd-kit brands its activator element and never un-brands it, so
                 the persistent title strip must never be the activator. */}
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              {dragHandleRef ? <PaneDragHandle handleRef={dragHandleRef} /> : null}
-              <Tooltip
-                delay={500}
-                isOpen={isTitleTooltipOpen}
-                onOpenChange={(open) => {
-                  if (open) {
-                    const el = titleRef.current;
-                    if (el && el.scrollWidth > el.clientWidth) {
-                      setIsTitleTooltipOpen(true);
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                {dragHandleRef ? <PaneDragHandle handleRef={dragHandleRef} /> : null}
+                <Tooltip
+                  delay={500}
+                  isOpen={isTitleTooltipOpen}
+                  onOpenChange={(open) => {
+                    if (open) {
+                      const el = titleRef.current;
+                      if (el && el.scrollWidth > el.clientWidth) {
+                        setIsTitleTooltipOpen(true);
+                      }
+                    } else {
+                      setIsTitleTooltipOpen(false);
                     }
-                  } else {
-                    setIsTitleTooltipOpen(false);
-                  }
-                }}
-              >
-                <Tooltip.Trigger
-                  className="poracode-thread-pane-title min-w-0 flex-1"
-                  tabIndex={-1}
-                  role="none"
+                  }}
                 >
-                  <span
-                    ref={titleRef}
-                    className="block truncate text-sm font-medium leading-tight text-foreground @max-[560px]:text-xs @max-[360px]:text-[11px]"
+                  <Tooltip.Trigger
+                    className="poracode-thread-pane-title min-w-0 flex-1"
+                    tabIndex={-1}
+                    role="none"
                   >
+                    <span
+                      ref={titleRef}
+                      className="block truncate text-sm font-medium leading-tight text-foreground @max-[560px]:text-xs @max-[360px]:text-[11px]"
+                    >
+                      {thread.title}
+                    </span>
+                  </Tooltip.Trigger>
+                  <Tooltip.Content placement="bottom" className="max-w-[28rem] break-words text-xs">
                     {thread.title}
-                  </span>
-                </Tooltip.Trigger>
-                <Tooltip.Content placement="bottom" className="max-w-[28rem] break-words text-xs">
-                  {thread.title}
-                </Tooltip.Content>
-              </Tooltip>
-              <div className="flex shrink-0 items-center">
-                {projectName ? (
-                  <span className="poracode-thread-pane-project px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
-                    {projectName}
-                  </span>
-                ) : null}
-                {isWsl ? <TuxIcon className="h-3 w-auto shrink-0 px-1 text-muted/60" /> : null}
-                {/* No `sessionRef` gate — see "continue-in" in ThreadContextMenu:
+                  </Tooltip.Content>
+                </Tooltip>
+                <div className="flex shrink-0 items-center">
+                  {projectName ? (
+                    <span className="poracode-thread-pane-project px-1 text-sm leading-tight text-muted/60 @max-[560px]:text-xs @max-[360px]:text-[11px]">
+                      {projectName}
+                    </span>
+                  ) : null}
+                  {isWsl ? <TuxIcon className="h-3 w-auto shrink-0 px-1 text-muted/60" /> : null}
+                  {/* No `sessionRef` gate — see "continue-in" in ThreadContextMenu:
                     no session is exactly when the transcript fallback matters. */}
-                {onContinueInProvider &&
-                installedAgents &&
-                installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0 ? (
-                  <Tooltip delay={0}>
-                    <Tooltip.Trigger>
-                      <button
-                        type="button"
-                        aria-label={t`Continue in another provider`}
-                        className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setContinueDialogOpen(true);
-                        }}
-                      >
-                        <ArrowRightLeft className="size-3.5" />
-                      </button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>
-                      <Trans>Continue in another provider</Trans>
-                    </Tooltip.Content>
-                  </Tooltip>
-                ) : null}
-                {import.meta.env.DEV && !usesTerminalPresentation ? (
-                  <Tooltip delay={0}>
-                    <Tooltip.Trigger>
-                      <button
-                        type="button"
-                        data-poracode-thread-debug=""
-                        aria-label={
-                          runtimeDebugOpen
-                            ? t`Hide runtime debug panel`
-                            : t`Show runtime debug panel`
-                        }
-                        aria-pressed={runtimeDebugOpen}
-                        className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${runtimeDebugOpen ? "text-foreground" : "text-muted/60 hover:text-foreground"}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRuntimeDebugOpen((o) => !o);
-                        }}
-                      >
-                        <Bug className="size-3.5" />
-                      </button>
-                    </Tooltip.Trigger>
-                    <Tooltip.Content>
-                      {runtimeDebugOpen ? (
-                        <Trans>Hide canonical runtime item inspector</Trans>
-                      ) : (
-                        <Trans>Inspect canonical runtime items</Trans>
-                      )}
-                    </Tooltip.Content>
-                  </Tooltip>
-                ) : null}
-                {onMarkDone ? (
-                  <button
-                    type="button"
-                    aria-label={thread.done ? t`Unmark done` : t`Mark done`}
-                    className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${thread.done ? "text-[oklch(0.78_0.1_180)]" : "text-muted/60 hover:text-foreground"}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onMarkDone();
-                    }}
-                  >
-                    <CircleCheck className="size-3.5" />
-                  </button>
-                ) : null}
-                {awaitingWorktree ? null : (
-                  <ThreadToolRail
-                    projectId={thread.projectId}
-                    paneCount={paneCount}
-                    {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
-                  />
-                )}
-                {showCloseButton ? (
-                  <button
-                    type="button"
-                    data-poracode-thread-close=""
-                    aria-label={t`Close pane`}
-                    className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onClose?.();
-                    }}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                ) : null}
+                  {onContinueInProvider &&
+                  installedAgents &&
+                  installedAgents.filter((a) => a.kind !== thread.agentKind).length > 0 ? (
+                    <Tooltip delay={0}>
+                      <Tooltip.Trigger>
+                        <button
+                          type="button"
+                          aria-label={t`Continue in another provider`}
+                          className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setContinueDialogOpen(true);
+                          }}
+                        >
+                          <ArrowRightLeft className="size-3.5" />
+                        </button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        <Trans>Continue in another provider</Trans>
+                      </Tooltip.Content>
+                    </Tooltip>
+                  ) : null}
+                  {import.meta.env.DEV && !usesTerminalPresentation ? (
+                    <Tooltip delay={0}>
+                      <Tooltip.Trigger>
+                        <button
+                          type="button"
+                          data-poracode-thread-debug=""
+                          aria-label={
+                            runtimeDebugOpen
+                              ? t`Hide runtime debug panel`
+                              : t`Show runtime debug panel`
+                          }
+                          aria-pressed={runtimeDebugOpen}
+                          className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${runtimeDebugOpen ? "text-foreground" : "text-muted/60 hover:text-foreground"}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRuntimeDebugOpen((o) => !o);
+                          }}
+                        >
+                          <Bug className="size-3.5" />
+                        </button>
+                      </Tooltip.Trigger>
+                      <Tooltip.Content>
+                        {runtimeDebugOpen ? (
+                          <Trans>Hide canonical runtime item inspector</Trans>
+                        ) : (
+                          <Trans>Inspect canonical runtime items</Trans>
+                        )}
+                      </Tooltip.Content>
+                    </Tooltip>
+                  ) : null}
+                  {onMarkDone ? (
+                    <button
+                      type="button"
+                      aria-label={thread.done ? t`Unmark done` : t`Mark done`}
+                      className={`poracode-overlay-header__controls shrink-0 rounded p-1 transition-colors hover:bg-[var(--row-hover)] ${thread.done ? "text-[oklch(0.78_0.1_180)]" : "text-muted/60 hover:text-foreground"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkDone();
+                      }}
+                    >
+                      <CircleCheck className="size-3.5" />
+                    </button>
+                  ) : null}
+                  {awaitingWorktree ? null : (
+                    <ThreadToolRail
+                      projectId={thread.projectId}
+                      paneCount={paneCount}
+                      {...(thread.worktreePath ? { worktreePath: thread.worktreePath } : {})}
+                    />
+                  )}
+                  {showCloseButton ? (
+                    <button
+                      type="button"
+                      data-poracode-thread-close=""
+                      aria-label={t`Close pane`}
+                      className="poracode-overlay-header__controls shrink-0 rounded p-1 text-muted/60 transition-colors hover:bg-[var(--row-hover)] hover:text-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClose?.();
+                      }}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className={contentShellClass}>
           <div className={contentBodyClass}>
@@ -558,6 +563,7 @@ export const ThreadView = memo(function ThreadView(props: ThreadViewProps) {
                 paneCount={paneCount}
                 terminalPaneRef={terminalPaneRef}
                 runtimeDebugOpen={import.meta.env.DEV && runtimeDebugOpen}
+                {...(props.chatOnly ? { submitOnEnter: true } : {})}
                 {...(onSubmitInput ? { onSubmitInput } : {})}
                 {...(onOpenProjectRelativePath ? { onOpenProjectRelativePath } : {})}
                 {...(checkpointActions ? { checkpointActions } : {})}

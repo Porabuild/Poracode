@@ -408,6 +408,7 @@ export function createSnapshotProjectionActions(deps: SnapshotProjectionActionDe
           ...(input.title ? { title: input.title } : {}),
           ...(input.groupId ? { groupId: input.groupId } : {}),
           ...(input.groupName ? { groupName: input.groupName } : {}),
+          ...(input.clientContext ? { clientContext: input.clientContext } : {}),
         }),
       );
       const compensateIfAbandoned = async (): Promise<

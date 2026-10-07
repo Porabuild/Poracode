@@ -119,6 +119,30 @@ describe("buildSdkUserMessage", () => {
 
       expect(textOf(message)).toBe("please Use the simplify skill.");
     });
+
+    it("leads with turn context and keeps the native slash command in the last block", async () => {
+      const message = await buildSdkUserMessage(
+        "",
+        [skill, { kind: "text", content: " this page" }],
+        undefined,
+        "[client context] tab",
+      );
+
+      const blocks = blocksOf(message);
+      expect(blocks).toEqual([
+        { type: "text", text: "[client context] tab" },
+        { type: "text", text: "/simplify this page" },
+      ]);
+    });
+  });
+
+  it("puts turn context ahead of a plain prompt and after-prompt inline instructions", async () => {
+    const message = await buildSdkUserMessage("hello", undefined, "Skill body", "[client context]");
+
+    expect(message.message.content).toEqual([
+      { type: "text", text: "[client context]" },
+      { type: "text", text: "hello\n\nSkill body" },
+    ]);
   });
 
   it("still emits file mentions as @path", async () => {

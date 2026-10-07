@@ -3,6 +3,7 @@ export * from "./contracts/config";
 export * from "./contracts/agent";
 export * from "./contracts/project";
 export * from "./contracts/thread";
+export * from "./contracts/turnClientContext";
 export * from "./contracts/git";
 export * from "./contracts/gitResults";
 export * from "./contracts/projectTree";

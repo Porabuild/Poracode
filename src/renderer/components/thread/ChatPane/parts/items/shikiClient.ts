@@ -66,7 +66,10 @@ export function getShikiHighlighter(): Promise<HighlighterCore> {
         ],
         engine: createOnigurumaEngine(import("shiki/wasm")),
       });
-    })();
+    })().catch((error: unknown) => {
+      highlighterPromise = null;
+      throw error;
+    });
   }
   return highlighterPromise;
 }

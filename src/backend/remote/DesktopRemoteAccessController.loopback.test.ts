@@ -107,6 +107,7 @@ vi.mock("@/host/db", () => ({
   dbGetProject: () => null,
   dbGetThread: () => null,
   dbUpdateProject: vi.fn<(project: unknown) => void>(),
+  dbUpsertProject: vi.fn<(project: unknown, index: number) => void>(),
 }));
 vi.mock("@/host/sharedSettingsFile", () => ({
   readSharedSettingsFile: () => h.settings,
@@ -240,6 +241,11 @@ describe("managed always-on loopback server", () => {
     expect(parsed.endpoint.startsWith("http://127.0.0.1:")).toBe(true);
     expect(parsed.pairingUrl.startsWith(parsed.endpoint)).toBe(true);
     expect(parsed.pairingUrl).toContain("#token=renderer-1-1");
+    const { dbUpsertProject } = await import("@/host/db");
+    expect(dbUpsertProject).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "__lightcode_home__", disabled: true }),
+      0,
+    );
     // The renderer credential is minted per ask, without rotating the QR.
     const second = await controller.getManagedLoopbackBootstrap();
     expect((second as ManagedLoopbackBootstrap).pairingUrl).toContain("#token=renderer-1-2");

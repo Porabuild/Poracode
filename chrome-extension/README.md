@@ -1,55 +1,108 @@
-# Poracode Chrome Control
+# Poracode Chrome Extension
 
-Companion browser extension that lets Poracode agents drive your **real**
-Chrome / Brave / Edge — your actual tabs, cookies, and logged-in sessions. It is
-the external-browser counterpart to Poracode's built-in **Browser** panel; the
-two run side by side.
+A focused chat sidebar for Chrome, Brave, and Edge, with access to your real tabs,
+cookies, and logged-in browser sessions through Poracode's Chrome tools.
 
-## How it works
+## Build and load
 
+1. From the repository root, run `pnpm run build:extension`.
+2. Open `chrome://extensions` (or `brave://extensions`, `edge://extensions`).
+3. Enable **Developer mode**.
+4. Choose **Load unpacked** and select `dist/chrome-extension/`.
+5. Start Poracode and click the extension toolbar icon to open the sidebar.
+
+The extension finds the running local app automatically. There is no connection
+screen or token to enter. If the app closes, the extension keeps retrying.
+Rebuild and reload the extension after changing the sidebar code.
+
+## Chat
+
+Choose an existing chat or start a new one. The sidebar reuses Poracode's chat
+history, composer, provider controls, attachments, and permission prompts. New
+sidebar conversations enable supported Chrome tools as an inherent capability;
+there is no Chrome plugin chip, toggle, or mention entry in the sidebar. Provider
+tool support and host restrictions still apply; existing chats keep the tools
+bound when their session started. New chat opens straight to
+the composer and uses the server's built-in Home scope; no project setup is
+required. Click the centered chat title to search the flat list of GUI chats,
+ordered by recent activity with relative timestamps, or
+the plus button to start a fresh chat. Provider installation is managed in the
+desktop app. The extension always uses desktop chat controls and anchored menus,
+even in a narrow sidebar; it does not switch to mobile drawers. Chat selection
+and navigation are local to the sidebar and do
+not change the Electron app's page. Sidebar preferences do not write through to
+desktop settings; conversation messages and runtime actions remain shared.
+Reloading restores the visible chat through the shared remote-history and live
+subscription lifecycle, without changing desktop navigation.
+
+## Architecture
+
+The sidebar is a client of Poracode's v2 server architecture. It uses the canonical
+renderer bootstrap, authenticated HTTP/WebSocket transport, runtime reducer, and
+shared chat components. The server owns conversations and provider processes.
+The extension worker discovers the local bridge and obtains a single-use local
+bootstrap credential; the sidebar exchanges it through the existing pairing
+endpoint and uses authenticated transport thereafter.
+
+Browser control remains a separate CDP relay:
+
+```text
+Agent → Chrome MCP server → loopback WebSocket → extension worker → chrome.debugger → tabs
 ```
-Agent → chrome MCP server (Poracode) → localhost WebSocket → this extension → chrome.debugger (CDP) → your tabs
-```
 
-The extension holds no logic of its own: it relays Chrome DevTools Protocol
-(CDP) commands from Poracode to `chrome.debugger` and forwards CDP events back.
-Attaching shows Chrome's own **"Poracode started debugging this browser"** banner
-on the driven tab — that banner is your consent + kill switch.
+Sidebar bootstrap protocol version 2 is negotiated separately from CDP, so older
+relay clients continue to work. Version 1 was extension 0.2.0's hello, which sent
+the raw token; current apps never negotiate it, so a 0.2.0 install gets no chat
+credentials until it is updated to 0.2.1. The app answers the hello with a
+`helloAck`; when none arrives (an app that predates the sidebar) or it names
+another protocol, the sidebar is told Poracode needs an update. If the native
+host was not reachable when the connection opened, the worker retries it at most
+every 10 seconds while the sidebar or the app is asking, then reconnects and
+proves the token.
 
-## Load it (unpacked)
+Several Poracode apps can listen at once, for example an installed release and a
+development build. The worker lets only the native host's list of running bridges
+pick the port. It uses the dialed port's own entry when there is one, and
+otherwise the newest entry: it closes the unknown port without sending anything,
+dials that entry, and proves its token there. Each secret is dialed this way at
+most once, so a stale or squatted entry cannot cause a reconnect loop. The release
+workflow builds the renderer, then copies `dist/chrome-extension/` to
+`dist/chrome-extension-store/` for the release zip. Only the upload copy omits
+the manifest's public `key`; the unpacked build retains its stable identity.
 
-1. Open `chrome://extensions` (or `brave://extensions`, `edge://extensions`).
-2. Enable **Developer mode**.
-3. **Load unpacked** → select this `chrome-extension/` folder.
+## Browser control
 
-That's it — no pairing, no buttons. The extension pairs with the Poracode
-**app**: whenever the app is running it connects automatically and the popup
-shows a green **Connected**; when the app is closed it quietly retries and
-reconnects the moment the app launches again. It scans Poracode's default local
-port range, so there is nothing to enter.
+Ask the agent to use Chrome tools to list tabs, attach to a tab, take a snapshot,
+or capture a screenshot. Chrome displays its own debugging banner on controlled
+tabs; you can stop control there.
 
-## Use it
+The bridge binds to loopback, but loopback is shared by every local process and
+a WebSocket `Origin` header is client-asserted, so the origin alone grants
+nothing beyond the CDP relay, and only for the pinned extension ID. Poracode
+registers a per-user native messaging host (`com.poracode.chrome_bridge`) on
+every start of the installed app or production server; Chrome launches it only
+for the pinned ID in `allowed_origins`, and it hands the worker the running
+bridge's per-launch token from a private (0700 directory, 0600 file) store. The
+token never crosses the socket: the hello carries a fresh nonce and an HMAC of it
+bound to the port, and the app must answer with its own HMAC before the worker
+requests sidebar credentials or serves any tab or CDP request. Another process
+listening on a scanned port therefore gets neither credentials nor browser
+control, and an app without this handshake gets no browser control from this
+extension version. Only a proven connection from the pinned extension receives
+single-use, short-lived sidebar credentials, and only when the local server is
+plain-http loopback. HTTP access still requires
+authentication. Another OS user or another extension cannot obtain a
+credential. A process running as the same OS user can read the same files, so
+it is outside this boundary. Eval and cookie access follow the same switches as
+the embedded browser under **Settings → Browser**.
 
-In a Claude thread, the agent has a `chrome` MCP server alongside `browser`. Try:
-_"Use the chrome tools: check status, list my tabs, then screenshot the active
-one."_ Good first calls: `chrome_status` → `chrome_list_tabs` → `chrome_attach`
-→ `chrome_snapshot` / `chrome_screenshot`.
+Development and smoke runs (`pnpm dev`, unpacked builds, worktrees) do not
+register the native host, so they never repoint the installed app's launcher at
+a checkout. Set `PORACODE_CHROME_NATIVE_HOST=1` to opt such a run in (for
+example a branch server under test); the installed app re-registers its own
+runtime on its next start.
 
-## Security notes
-
-- The WebSocket is bound to `127.0.0.1` and only accepts browser-extension
-  origins (a web page's `http(s)` origin is rejected), so random sites can't
-  reach it. A per-launch bearer token is also available for hardened setups.
-- Actual control always surfaces Chrome's "started debugging this browser"
-  banner — stop a session any time from there.
-- `chrome_eval` and `chrome_cookies` are gated behind the same
-  eval / data-access switches as the embedded browser (Poracode → Settings →
-  Browser). They stay off unless you enable them.
-- This drives your authenticated browser. Treat agent actions as your own.
-
-## Current limitations
-
-- Trusts any browser-extension-origin connection on loopback. The extension ID
-  should be pinned before wider distribution.
-- Wired for the Claude provider and always-on. A per-thread toggle and support
-  for the other providers plus WSL are still pending.
+The manifest `key` is a public key that pins the extension ID for unpacked
+builds; no private key is stored in the repository or the package. Adding the
+`nativeMessaging` permission means Chrome asks existing installs to re-approve
+permissions once on update.

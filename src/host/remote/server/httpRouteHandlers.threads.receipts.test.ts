@@ -3,7 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "@/shared/contracts";
-import { closeDatabase, dbGetThread, dbUpsertProject, initDatabase } from "@/host/db";
+import {
+  closeDatabase,
+  dbGetThread,
+  dbGetState,
+  dbSetState,
+  dbUpsertProject,
+  initDatabase,
+} from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import {
@@ -58,12 +65,15 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
   let dir: string;
   let info: RemoteAccessServerInfo;
   let token: string;
+  const dispatchThreadCommand =
+    vi.fn<NonNullable<RemoteAccessServerOptions["dispatchThreadCommand"]>>();
   let callSupervisor: ReturnType<typeof vi.fn<RemoteAccessServerOptions["callSupervisor"]>>;
 
   beforeEach(async () => {
     if (nativeBindingEnv) process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING = nativeBindingEnv;
     dir = mkdtempSync(join(tmpdir(), "poracode-route-receipts-"));
     initDatabase(join(dir, "state.sqlite"));
+    dispatchThreadCommand.mockReset();
     callSupervisor = vi.fn<RemoteAccessServerOptions["callSupervisor"]>(async () => "" as never);
     const server = new RemoteAccessServer({
       truncateThreadRuntime: () => {},
@@ -72,6 +82,7 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
       host: "127.0.0.1",
       port: 0,
       callSupervisor,
+      dispatchThreadCommand,
     });
     servers.push(server);
     info = await server.start();
@@ -138,6 +149,102 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
       error: { code: "command_id_conflict" },
     });
     expect(callSupervisor).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts an independent GUI client conversation without changing or navigating the desktop view", async () => {
+    const desktopView = JSON.stringify({ kind: "thread", panes: ["desktop-chat"] });
+    dbSetState("view", desktopView);
+    dbUpsertProject(
+      {
+        id: "sidebar-project",
+        name: "Sidebar fixture",
+        location: { kind: "posix", path: "/tmp/sidebar-fixture" },
+        createdAt: "2026-10-07T00:00:00.000Z",
+      },
+      0,
+    );
+    const response = await fetch(new URL("/api/threads/sidebar-chat/command", info.httpBaseUrl), {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({
+        kind: "start",
+        projectId: "sidebar-project",
+        agentKind: "acp-generic:fixture",
+        config: { model: "fixture" },
+        title: "Browser conversation",
+        prompt: "hello",
+        presentationMode: "gui",
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(dbGetThread("sidebar-chat")).toMatchObject({ presentationMode: "gui" });
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "startThread",
+      expect.objectContaining({ threadId: "sidebar-chat", presentationMode: "gui" }),
+    );
+    expect(dispatchThreadCommand).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        kind: "start",
+        threadId: "sidebar-chat",
+        launchRuntime: false,
+        focus: false,
+      }),
+    );
+    expect(dbGetState("view")).toBe(desktopView);
+  });
+
+  it("routes per-turn client context to the supervisor without mirroring it to the desktop", async () => {
+    dbUpsertProject(
+      {
+        id: "sidebar-project",
+        name: "Sidebar fixture",
+        location: { kind: "posix", path: "/tmp/sidebar-fixture" },
+        createdAt: "2026-10-07T00:00:00.000Z",
+      },
+      0,
+    );
+    const clientContext = {
+      browserFocus: { activeTab: { tabId: 17, title: "Inbox", url: "https://mail.test/" } },
+    };
+    const post = (path: string, body: Record<string, unknown>) =>
+      fetch(new URL(path, info.httpBaseUrl), {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    const config = { model: "fixture" };
+    expect(
+      (
+        await post("/api/threads/ctx-chat/command", {
+          kind: "start",
+          projectId: "sidebar-project",
+          agentKind: "acp-generic:fixture",
+          config,
+          prompt: "hello",
+          presentationMode: "gui",
+          clientContext,
+        })
+      ).status,
+    ).toBe(200);
+    expect((await send("ctx-send", { clientContext })).status).toBe(200);
+    expect(
+      (await post("/api/threads/t1/steer/set", { prompt: "steer", config, clientContext })).status,
+    ).toBe(200);
+
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "startThread",
+      expect.objectContaining({ threadId: "ctx-chat", clientContext }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "sendThreadInput",
+      expect.objectContaining({ threadId: "t1", clientContext }),
+    );
+    expect(callSupervisor).toHaveBeenCalledWith(
+      "setPendingSteer",
+      expect.objectContaining({ threadId: "t1", clientContext }),
+    );
+    expect(dispatchThreadCommand.mock.calls[0]?.[0]).not.toHaveProperty("clientContext");
+    expect(JSON.stringify(dbGetThread("ctx-chat"))).not.toContain("mail.test");
   });
 
   it("persists complete creation metadata and launches at the client initial size", async () => {

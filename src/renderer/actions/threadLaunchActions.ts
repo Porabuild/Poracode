@@ -10,6 +10,7 @@ import type {
   Thread,
   ThreadConfig,
   ThreadPresentationMode,
+  TurnClientContext,
 } from "@/shared/contracts";
 import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import { isHomeProject, isHomeProjectId } from "@/shared/homeScope";
@@ -80,9 +81,12 @@ export async function performInitialThreadLaunch(input: {
   userMessageItemId?: string;
   providerSwitch?: PendingLaunchProviderSwitch;
   mentionHandoff?: true;
+  /** Per-turn context for the initial prompt (never painted or persisted). */
+  clientContext?: TurnClientContext;
   initialSize: TerminalSize;
 }): Promise<void> {
   const { thread, projectLocation, prompt, segments, userMessageItemId, initialSize } = input;
+  const clientContext = input.clientContext;
   const providerSwitch = input.providerSwitch;
   // A switched thread starts a brand-new session under the new provider; the
   // previous provider's ref must not reach either the optimistic state or launch.
@@ -152,6 +156,7 @@ export async function performInitialThreadLaunch(input: {
     ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
     ...(providerSwitch ? { providerSwitch } : {}),
     ...(input.mentionHandoff ? { mentionHandoff: true as const } : {}),
+    ...(clientContext ? { clientContext } : {}),
   };
 
   // Mirrored remote threads must launch on their host. Spawning locally would
@@ -195,6 +200,7 @@ export async function performInitialThreadLaunch(input: {
           // An explicit title (fork/handoff inherit the source's) is
           // authoritative host-side; without it the host derives a new one.
           ...(thread.title ? { title: thread.title } : {}),
+          ...(clientContext ? { clientContext } : {}),
           ...(supportsLaunchMetadata
             ? {
                 ...(thread.workspaceId ? { workspaceId: thread.workspaceId } : {}),
@@ -316,6 +322,7 @@ interface ThreadLaunchRequest {
   readonly worktreeBranch?: string;
   readonly worktreeProvisioning?: boolean;
   readonly userMessageItemId?: string;
+  readonly clientContext?: TurnClientContext;
   readonly isNewWorktree: boolean;
   readonly options: { replacePaneId?: string; preserveActiveGroup?: boolean };
 }
@@ -341,6 +348,7 @@ export async function startThreadFromDraft(
     worktreeIsNewBranch,
     worktreeTransferUncommitted,
     presentationMode,
+    clientContext,
   } = input;
   // Everything below runs on the project's host, so a mirrored remote project
   // can't launch while its server is unreachable. Bail before creating a
@@ -469,6 +477,7 @@ export async function startThreadFromDraft(
           worktreePath,
           ...(worktreeBranch ? { worktreeBranch } : {}),
           ...(pendingUserMessageItemId ? { userMessageItemId: pendingUserMessageItemId } : {}),
+          ...(clientContext ? { clientContext } : {}),
           isNewWorktree: true,
           options,
         });
@@ -508,6 +517,7 @@ export async function startThreadFromDraft(
           prompt,
           ...(segments ? { segments } : {}),
           ...(pendingUserMessageItemId ? { userMessageItemId: pendingUserMessageItemId } : {}),
+          ...(clientContext ? { clientContext } : {}),
           initialSize: DEFAULT_TERMINAL_SIZE,
         });
       } catch (error) {
@@ -533,6 +543,7 @@ export async function startThreadFromDraft(
       ...(presentationMode ? { presentationMode } : {}),
       ...(worktreePath ? { worktreePath } : {}),
       ...(worktreeBranch ? { worktreeBranch } : {}),
+      ...(clientContext ? { clientContext } : {}),
       isNewWorktree,
       options,
     });
@@ -585,6 +596,7 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
               ...(launch.worktreeBranch ? { worktreeBranch: launch.worktreeBranch } : {}),
               ...(launch.isNewWorktree ? { isNewWorktree: true } : {}),
               ...(launch.userMessageItemId ? { userMessageItemId: launch.userMessageItemId } : {}),
+              ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
             },
             launchOptions,
           );
@@ -615,6 +627,7 @@ function threadLaunchHost(project: Project): ThreadLaunchHostTransport {
           prompt: launch.prompt,
           ...(launch.segments ? { segments: launch.segments } : {}),
           ...(launch.userMessageItemId ? { userMessageItemId: launch.userMessageItemId } : {}),
+          ...(launch.clientContext ? { clientContext: launch.clientContext } : {}),
           initialSize: DEFAULT_TERMINAL_SIZE,
         });
       } catch (error) {
