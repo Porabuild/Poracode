@@ -70,6 +70,7 @@ import {
 import { CodexSubAgentRouter } from "./subAgentRouting";
 import { isCodexCompactCommand, runCodexCompactCommand } from "./compactCommand";
 import { CodexContextWindowReload } from "./contextWindowReload";
+import { resumeCodexThread } from "./threadResume";
 import { isStaleCodexTurnCompletion, nextCodexInterruptTurnId } from "./turnInterrupt";
 
 export { deriveCodexStructuredState, parseCodexSocketMessage } from "./acpProtocol";
@@ -333,7 +334,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
   private async applyContextWindowChange(threadId: string, config: ThreadConfig): Promise<void> {
     await this.ensureContextWindowReload().reload(
       {
-        request: (method, params) => this.rpc.request(method, params),
+        request: (method, params, timeoutMs) => this.rpc.request(method, params, timeoutMs),
         buildResumeOverrides: (next) =>
           buildCodexThreadOverrides(next, {
             projectLocation: this.projectLocation,
@@ -602,7 +603,7 @@ export class CodexStructuredSession implements StructuredSessionHandle {
     if (sessionRef) {
       this.beginResumeActiveStatusSuppression(sessionRef.providerSessionId);
       try {
-        await this.rpc.request("thread/resume", {
+        await resumeCodexThread(this.rpc, {
           ...threadOverrides,
           threadId: sessionRef.providerSessionId,
         });
