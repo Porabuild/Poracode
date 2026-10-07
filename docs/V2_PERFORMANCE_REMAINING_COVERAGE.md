@@ -1,5 +1,7 @@
 # Remaining v2 performance qualification
 
+Current saved checkpoint: failure-fidelity correction passes independent source review and all local quality/build checks. The R246 saved-only attempt fails at seed macro dependency resolution before server/browser launch, with joined cleanup and zero prompts/controls. Saved error/group/gallery remains open. R233 LIVE exact-success-image navigation is reusable; global failed-image exclusion is unsupported without total cardinality. R246's stronger total2 gate is reviewed but unexecuted in the UI. [Receipt](../tmp/v2-streaming-perf-20260930/round246/root-saved-execution-verification.json).
+
 The goal remains active: **2/6 milestones complete**, with **13/18 scoped tasks (72.2%)**. This is an unweighted checklist, not measured savings or a remaining-time estimate. Prioritize representative p95 and regression confidence over marginal tuning.
 
 The bounded F4 review reconciles reusable question/approval/steer/Stop controls, genuine child/workflow evidence and current native GUI/PTY lifecycle rows. These retain their original scopes. Tool schemas and delivered descriptors remain separate from execution: 62 delivered production descriptors are still untested. [Coverage reconciliation](../tmp/v2-streaming-perf-20260930/round238/f4-reconciliation/reconciliation.md).

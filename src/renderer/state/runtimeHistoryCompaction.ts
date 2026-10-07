@@ -1,4 +1,4 @@
-import type { ToolCallPayload } from "@/shared/contracts";
+import type { CommandExecutionPayload, ToolCallPayload } from "@/shared/contracts";
 import { isDelegatedAgentTool } from "@/shared/toolCallClassification";
 import { imageViewRendersInline } from "../components/thread/ChatPane/parts/items/imageViewSource";
 import type { RuntimeChatItem } from "./slices/runtimeEventSlice";
@@ -104,6 +104,14 @@ function summarizeToolCallNames(items: readonly RuntimeChatItem[]): string {
 }
 
 function isToolGroupItem(item: RuntimeChatItem): boolean {
+  const payload = item.payload as Partial<ToolCallPayload & CommandExecutionPayload> | undefined;
+  // Failed rows need their original identity and details instead of a success summary.
+  if (
+    payload?.status === "error" ||
+    (item.type === "command_execution" && payload?.exitCode != null && payload.exitCode !== 0)
+  ) {
+    return false;
+  }
   // Sub-agent children must stay as discrete rows so the overlay can replay
   // them on reopen. Sub-agent parents carry the final result on their payload;
   // bundling either into a tool-call summary would erase that history.

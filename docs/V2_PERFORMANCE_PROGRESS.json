@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-07T03:04:05.028062+00:00",
+  "updatedAt": "2026-10-07T04:04:00.409096+00:00",
   "branch": "poracode/v2",
   "goalStatus": "active",
   "scope": "Finalize the existing broad performance goal without narrowing server, Electron GUI/PTY, desktop/compact browser/PWA, CPU/GPU/RAM/I/O, fidelity or regression requirements.",
@@ -35,21 +35,21 @@
   },
   "currentWork": {
     "requiredAgent": null,
-    "lastAgent": "R240 underfilled-history implementation and independent review complete; both agents joined.",
+    "lastAgent": "R246 saved controls independent review PASS; offline fixture dependency diagnosis running.",
     "selection": "Codex6.1SolMax for deep review; user-authorized GLM5.3FlashX High for bounded speed-sensitive lanes",
-    "agentState": "R240 correction and independent review complete; both real-list fixtures, full local tests19422/1725files, typecheck, lint, format and production build pass. No owned runtime live. Commit/push and exact-head CI next; saved-runtime and broader final gates remain open.",
+    "agentState": "R244 failure-fidelity patch: independent product review, 19434 tests, typecheck/lint/format and desktop/web builds PASS. R245 frozen working candidate independently verified. R246 saved execution failed before server/browser on seed macro dependency; cleanup joined with six fresh ESRCH observations. Goal remains active; no new savings/signoff.",
     "nativeSessionsLive": [],
     "protocolProbe": null,
     "stopPolicyPreference": "Optional user choice pending; existing Stop behavior preserved",
     "productionCandidate": {
-      "identity": "tmp/v2-streaming-perf-20260930/round209/build-identity.json",
-      "verification": "tmp/v2-streaming-perf-20260930/round209/root-frozen-verification.json",
-      "state": "R209 remains the prior frozen candidate with scoped evidence. Working renderer now includes the R240 underfilled-history correction; real pinned-list/helper fixtures pass, but a corrected frozen candidate and full saved-runtime controls remain unqualified."
+      "identity": "tmp/v2-streaming-perf-20260930/round245/build-identity.json",
+      "verification": "tmp/v2-streaming-perf-20260930/round245/root-artifact-verification.json",
+      "state": "Validated base bda26d1e5 plus exactly two error-fidelity source changes, frozen 7567 source/3712 dist files; 1182 shallow dependency rows and four workspace owners verified. Local quality passed; old pushed CI does not cover new patch. Saved UI qualification remains open."
     },
     "buildSession": null,
-    "nextAction": "Finish checks, commit/push the underfilled-history correction and confirm CI. Freeze the corrected renderer and qualify only saved compact error/group/gallery. Reuse scoped live/native/resource evidence; keep PWA, hardware and current matched gates explicit.",
-    "lastResult": "tmp/v2-streaming-perf-20260930/round240/root-underflow-execution-verification.json",
-    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round237/saved-corrected/parent-declaration.json",
+    "nextAction": "Commit/push validated error-retention correction and this checkpoint; verify exact-head CI. Resolve seed macro dependency offline before any materially justified saved-only continuation; keep resource accounting, PWA/mobile and final matched gates open.",
+    "lastResult": "tmp/v2-streaming-perf-20260930/round246/root-saved-execution-verification.json",
+    "lastDeclaration": "tmp/v2-streaming-perf-20260930/round246/saved-current-corrected/parent-declaration.json",
     "liveRootHandles": [],
     "attributionResult": "R171 method audit12PASS; R173 ordinary/rich current scoped own-process CPU/GPU-process CPU/footprint/RSS/disk and trusted input PASS. Unknown births stay refused; no complete census, hardware/private metrics or matched gain.",
     "scopedFunctionalResult": {
@@ -88,11 +88,11 @@
     },
     "fullQuality": {
       "state": "PASS",
-      "result": "tmp/v2-streaming-perf-20260930/round240/root-local-quality-verification.json",
-      "testsPassed": 19422,
+      "result": "tmp/v2-streaming-perf-20260930/round244/root-local-quality-verification.json",
+      "testsPassed": 19434,
       "testsFailed": 0,
       "testsSkipped": 100,
-      "suitesPassed": 1725,
+      "suitesPassed": 1726,
       "suitesSkipped": 5,
       "maxWorkers": 8,
       "testTimeoutMilliseconds": 15000,
@@ -100,7 +100,7 @@
       "typecheck": "PASS",
       "format": "PASS",
       "build": "PASS",
-      "scope": "Local current correction; exact pushed CI and saved-runtime qualification still required."
+      "scope": "Current error-retention correction, full local tests/checks and desktop+official web builds; saved runtime stopped at fixture import before browser. Exact pushed CI for new patch pending."
     },
     "currentCompiledGenuineEvidence": {
       "actualChildRead": "tmp/v2-streaming-perf-20260930/round115/r115-rich-pwa/genuine-execution.json",
@@ -1524,6 +1524,19 @@
         "tmp/v2-streaming-perf-20260930/round230/core-resources/derivation.json",
         "tmp/v2-streaming-perf-20260930/round230/root-core-resource-verification.json"
       ]
+    },
+    "savedFailureFidelity": {
+      "state": "source-and-local-quality-pass; saved-ui-unqualified",
+      "fix": "Preserve completed failed tools and nonzero command exits instead of merging into success summaries. Canonical payload/streams retained; successful neighbors still compact.",
+      "productReview": "tmp/v2-streaming-perf-20260930/round244/root-source-regression-verification.json",
+      "savedRuntime": "tmp/v2-streaming-perf-20260930/round246/root-saved-execution-verification.json",
+      "galleryScopeCorrection": "R233 compact LIVE visited-success navigation/Close is supported; its global failedImageExcluded flag is unsupported because total cardinality was not captured. R246 strengthens total2 acceptance but did not reach UI.",
+      "compatibility": "Ephemeral renderer projection only; original snapshots persisted unchanged, no version bump."
+    },
+    "resourceNextStep": {
+      "admission": "tmp/v2-streaming-perf-20260930/round243/root-accounting-admission-verification.json",
+      "state": "Whole-family instrumentation gap, not demonstrated device/privilege blocker",
+      "next": "Bounded native terminal lifetime/reaper accounting bridge at owned parent/child seam, first the retained server supervisor helper discriminator. Preserve accepted scoped p95/resource receipts; do not replay exhausted cohorts."
     }
   },
   "milestones": [
