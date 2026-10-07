@@ -5,7 +5,7 @@ import { CodexLiveVoice } from "./liveVoice";
 
 export interface CodexStructuredSessionHarness {
   session: CodexStructuredSession;
-  requests: Array<{ method: string; params: unknown }>;
+  requests: Array<{ method: string; params: unknown; timeoutMs?: number }>;
   events: RuntimeEvent[];
   updates: Array<{ status: string }>;
   notify(method: string, params: Record<string, unknown>): void;
@@ -26,8 +26,8 @@ export function setupCodexStructuredSession(
   const rpc = {
     claimThread: () => {},
     ownsThread: (threadId: string) => threadId === "provider-thread",
-    request: async (method: string, params: unknown) => {
-      requests.push({ method, params });
+    request: async (method: string, params: unknown, timeoutMs?: number) => {
+      requests.push({ method, params, ...(timeoutMs !== undefined ? { timeoutMs } : {}) });
       const result = respond?.(method, params);
       if (result instanceof Error) throw result;
       if (method === "turn/start") return { turn: { id: "turn-user", status: "inProgress" } };
