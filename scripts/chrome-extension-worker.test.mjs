@@ -68,12 +68,17 @@ class FakeSocket {
   }
 }
 
+const pendingCrypto = new Set();
 const settle = async () => {
-  for (let index = 0; index < 20; index += 1) await new Promise((r) => setImmediate(r));
+  for (let index = 0; index < 20; index += 1) {
+    await new Promise((r) => setImmediate(r));
+    // WebCrypto runs off-thread; scheduler turns cannot establish completion.
+    await Promise.allSettled([...pendingCrypto]);
+  }
 };
 
 /** Loads the service worker against a fake Chrome whose native host answers with `native()`. */
-function loadWorker(t, native, initialStorage = {}) {
+function loadWorker(t, native, initialStorage = {}, cryptoReady = Promise.resolve()) {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"] });
   FakeSocket.created = [];
   const storage = { ...initialStorage };
@@ -97,7 +102,7 @@ function loadWorker(t, native, initialStorage = {}) {
       get: async (tabId) => ({ id: tabId, url: "", title: "", active: true }),
     },
     runtime: {
-      getManifest: () => ({ version: "0.2.0" }),
+      getManifest: () => ({ version: "0.2.2" }),
       sendNativeMessage: async (name, message) => {
         nativeCalls.push({ name, message });
         return native(nativeCalls.length);
@@ -121,13 +126,32 @@ function loadWorker(t, native, initialStorage = {}) {
     },
     sidePanel: { setPanelBehavior: async () => {} },
   };
+  const trackCrypto =
+    (operation) =>
+    (...args) => {
+      const task = cryptoReady.then(() => operation(...args));
+      pendingCrypto.add(task);
+      void task.then(
+        () => pendingCrypto.delete(task),
+        () => pendingCrypto.delete(task),
+      );
+      return task;
+    };
   vm.runInNewContext(workerSource, {
     chrome,
     WebSocket: FakeSocket,
     setTimeout: (...args) => setTimeout(...args),
     clearTimeout: (...args) => clearTimeout(...args),
     Date: { now: () => Date.now() },
-    crypto: globalThis.crypto,
+    crypto: {
+      randomUUID: () => globalThis.crypto.randomUUID(),
+      getRandomValues: (value) => globalThis.crypto.getRandomValues(value),
+      subtle: {
+        importKey: trackCrypto(globalThis.crypto.subtle.importKey.bind(globalThis.crypto.subtle)),
+        sign: trackCrypto(globalThis.crypto.subtle.sign.bind(globalThis.crypto.subtle)),
+        verify: trackCrypto(globalThis.crypto.subtle.verify.bind(globalThis.crypto.subtle)),
+      },
+    },
     TextEncoder,
     URL,
   });
@@ -182,6 +206,27 @@ function assertSecretNeverSent(worker) {
   }
   assert.ok(!JSON.stringify(worker.storage).includes(TOKEN), "the secret is never persisted");
 }
+
+void test("awaits cryptographic completion before inspecting the hello", async (t) => {
+  const ready = Promise.withResolvers();
+  const worker = loadWorker(t, () => bridges, {}, ready.promise);
+  let completed = false;
+  const opening = open(worker.sockets).finally(() => {
+    completed = true;
+  });
+  // Observe a regression's early rejection until we can assert the outcome.
+  void opening.catch(() => undefined);
+  try {
+    // Exhaust both old 20-turn settling phases while crypto remains blocked.
+    for (let index = 0; index < 100; index += 1) await new Promise((r) => setImmediate(r));
+    assert.equal(completed, false, "opening waits for cryptographic completion");
+    assert.deepEqual(worker.sockets.at(-1).sent, []);
+  } finally {
+    ready.resolve();
+  }
+  const { hello } = await opening;
+  assert.equal(hello.clientProof, clientProof(hello.nonce));
+});
 
 void test("reopens the same port authenticated once the native host answers, then pairs", async (t) => {
   const worker = loadWorker(t, (call) =>
