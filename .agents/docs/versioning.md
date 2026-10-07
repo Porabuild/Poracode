@@ -1,5 +1,14 @@
 # Versioned State & Protocols
 
+Codex resume requests use the existing optional `excludeTurns` protocol field
+and a resume-only two-minute timeout. Saved transcripts and provider session IDs
+remain valid; UI history is already persisted independently of this response.
+Servers that explicitly reject `excludeTurns` retry the same thread with the
+previous request shape. Ordinary RPC deadlines, IPC, caches, database schemas
+and deployed helper formats stay unchanged, so no version bump is needed.
+Regressions cover the old-server response, slow success, bounded timeout and
+metadata-only resume for both reopening and context-window reloads.
+
 Poracode keeps data and deployed artifacts across app upgrades. A change can work in a clean profile and still fail for existing users when an old cache, renderer store, helper, or plugin remains on disk. Treat every serialized or deployed boundary as an upgrade contract.
 
 Agent-status readiness uses process-local publication ownership and detached
