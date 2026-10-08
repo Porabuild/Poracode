@@ -167,6 +167,30 @@ describe("flat list thread reorder", () => {
     ).toEqual({ targetId: "b", placement: "after" });
   });
 
+  it("ignores a locked source, such as a remote mirror", () => {
+    expect(
+      resolveThreadReorder({
+        threads: [makeThread("a"), makeThread("b", false, "project-2")],
+        source: { ...flatSource("a", "project-1", 0), sortDisabled: true },
+        target: flatSource("b", "project-2", 1),
+        initialIndex: 0,
+        finalIndex: 1,
+      }),
+    ).toBeNull();
+  });
+
+  it("ignores a locked hovered thread", () => {
+    expect(
+      resolveThreadReorder({
+        threads: [makeThread("a"), makeThread("b", false, "project-2")],
+        source: flatSource("a", "project-1", 0),
+        target: { ...flatSource("b", "project-2", 1), sortDisabled: true },
+        initialIndex: 0,
+        finalIndex: 1,
+      }),
+    ).toBeNull();
+  });
+
   it("drops the move when no thread was hovered", () => {
     expect(
       resolveThreadReorder({

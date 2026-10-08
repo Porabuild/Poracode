@@ -58,11 +58,13 @@ export function resolveThreadReorder(input: {
   finalIndex: number;
 }): { targetId: string; placement: ReorderPlacement } | null {
   const { threads, source, target, initialIndex, finalIndex } = input;
+  if (source.sortDisabled) return null;
   const acrossProjects = source.sortGroup === FLAT_THREAD_LIST_SORT_GROUP;
   const targetThread =
     target?.type === "thread" &&
     (acrossProjects || target.projectId === source.projectId) &&
     target.threadId !== source.threadId &&
+    !target.sortDisabled &&
     (source.sortGroup === undefined || target.sortGroup === source.sortGroup)
       ? target
       : null;

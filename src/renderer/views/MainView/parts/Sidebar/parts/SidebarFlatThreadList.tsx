@@ -31,6 +31,7 @@ import { NewThreadButton } from "./NewThreadButton";
 import { SidebarProjectFilter } from "./SidebarProjectFilter";
 import {
   buildSidebarProjectRows,
+  canReorderInFlatList,
   FLAT_THREAD_LIST_ID,
   SIDEBAR_FLAT_THREAD_LIST_PAGE_SIZE,
   type SidebarRow,
@@ -55,7 +56,7 @@ function rowProjectId(row: Exclude<SidebarRow, { kind: "see-more" }>): string | 
  * grouping; their headers carry the project tag for their children. The single
  * "New thread" row targets the most recently active project. Sorting follows
  * the shared sort mode. Manual order is the global thread order, which spans
- * projects, so rows can be dragged past other projects' threads.
+ * projects, so local rows can be dragged past other projects' threads.
  */
 export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
   const workspaceProjectIds = useWorkspaceProjectIds();
@@ -163,6 +164,7 @@ export function SidebarFlatThreadList(props: { sortMode: ThreadSortMode }) {
     liveBackgroundThreadIds,
     openThreadIds: new Set(currentThreadIds),
     doneVisibleLimit,
+    canReorderThread: canReorderInFlatList,
     ...(experimentCandidateOrder.size > 0 ? { experimentCandidateOrder } : {}),
   });
   // The Done section is pinned below the scrolling rows: its header stays put

@@ -191,6 +191,33 @@ describe("SidebarFlatThreadList", () => {
     expect(scroller?.contains(screen.getByText(/^done-label in/))).toBe(false);
   });
 
+  it("locks remote mirror rows in manual order and keeps them in the stored order", () => {
+    useRemoteServersStore.setState({
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [homeProject, localProject, unreachableRemoteProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("r1", "remote-1", "2026-08-03T10:00:00.000Z", {
+          remoteServerId: "desktop-1",
+        }),
+        makeThread("p2", "local-1", "2026-08-02T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="manual" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(
+      rows.map((row) => [row.textContent?.split(" in ")[0], row.dataset.sortDisabled]),
+    ).toEqual([
+      ["thread:p1", "false"],
+      ["thread:r1", "true"],
+      ["thread:p2", "false"],
+    ]);
+  });
+
   it("keeps date order and locks reordering outside manual order", () => {
     useAppStore.setState({
       projects: [homeProject, localProject, secondLocalProject],

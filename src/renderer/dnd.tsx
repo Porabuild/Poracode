@@ -30,6 +30,8 @@ export type DragSourceData =
       worktreePath?: string;
       sortGroup?: string;
       sortIndex?: number;
+      /** The row can't move within its list. It can still be dropped on a pane. */
+      sortDisabled?: boolean;
     }
   | { type: "worktree-group"; worktreePath: string; projectId: string; threadIds: string[] }
   | { type: "pane"; paneId: string }

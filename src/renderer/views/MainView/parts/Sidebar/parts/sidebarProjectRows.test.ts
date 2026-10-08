@@ -590,6 +590,29 @@ describe("buildSidebarProjectRows — separately paged Done section", () => {
   });
 });
 
+describe("buildSidebarProjectRows — threads locked in place (manual)", () => {
+  it("keeps a thread that can't be reordered in its place but locks its row", () => {
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        makeThread({ id: "a" }),
+        makeThread({ id: "locked" }),
+        makeThread({ id: "b" }),
+      ],
+      sortMode: "manual",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      canReorderThread: (thread) => thread.id !== "locked",
+    });
+
+    expect(threadRows(rows).map((row) => [row.thread.id, row.sortDisabled === true])).toEqual([
+      ["a", false],
+      ["locked", true],
+      ["b", false],
+    ]);
+  });
+});
+
 describe("buildSidebarProjectRows — Done section in manual mode", () => {
   const rowIds = (rows: SidebarRow[]) =>
     rows.map((row) => (row.kind === "thread" ? row.thread.id : row.kind));

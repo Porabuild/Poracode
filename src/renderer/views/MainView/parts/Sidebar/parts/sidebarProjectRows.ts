@@ -85,6 +85,16 @@ function sidebarSortGroup(listId: string): string {
  */
 export const FLAT_THREAD_LIST_SORT_GROUP = sidebarSortGroup(FLAT_THREAD_LIST_ID);
 
+/**
+ * Whether a thread can move in the flat Manual order. A remote mirror's place
+ * comes from its host: each snapshot puts that host's threads back in host
+ * order after the local ones, and mirrors aren't persisted locally, so a move
+ * would be lost.
+ */
+export function canReorderInFlatList(thread: Thread): boolean {
+  return thread.remoteServerId === undefined;
+}
+
 const EMPTY_THREAD_ID_SET: ReadonlySet<string> = new Set();
 
 /**
@@ -384,6 +394,12 @@ export function buildSidebarProjectRows(input: {
    * slots. Without it, Done shares the list's page.
    */
   doneVisibleLimit?: number;
+  /**
+   * Manual order only. A live thread that fails this keeps its place in the
+   * list but can't be dragged to a new one or take a drop. Defaults to every
+   * thread passing.
+   */
+  canReorderThread?: (thread: Thread) => boolean;
 }): SidebarRow[] {
   const rows: SidebarRow[] = [];
   const dndGroup = sidebarSortGroup(input.projectId);
@@ -434,7 +450,9 @@ export function buildSidebarProjectRows(input: {
             group: dndGroup,
             showWorktreeBadge: true,
             showWorktreeFilesButton: !!thread.worktreePath,
-            ...(section === "done" ? { sortDisabled: true } : {}),
+            ...(section === "done" || input.canReorderThread?.(thread) === false
+              ? { sortDisabled: true }
+              : {}),
           });
         });
       },
