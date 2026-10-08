@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { probeAcpCapabilities } from "../acp";
 
 const mocks = vi.hoisted(() => ({
   readCursorAgentCommandOutput:
@@ -10,15 +11,7 @@ const mocks = vi.hoisted(() => ({
         options?: { env?: Record<string, string> },
       ) => Promise<{ ok: boolean; stdout: string; stderr: string }>
     >(),
-  probeAcpCapabilities:
-    vi.fn<
-      (
-        command: string,
-        args: string[],
-        cwd: string,
-        options?: { env?: Record<string, string> },
-      ) => Promise<undefined>
-    >(),
+  probeAcpCapabilities: vi.fn<typeof probeAcpCapabilities>(),
   readCommandOutputAsync:
     vi.fn<
       (
@@ -68,7 +61,7 @@ function probeCtx(probeEnv: Record<string, string> | undefined): ProbeCtx {
   } as ProbeCtx;
 }
 
-describe("cursor detection probes honor ctx.probeEnv", () => {
+describe("Cursor detection probe integration", () => {
   beforeEach(() => {
     mocks.readCursorAgentCommandOutput
       .mockReset()
@@ -138,5 +131,70 @@ describe("cursor detection probes honor ctx.probeEnv", () => {
     expect(mocks.probeAcpCapabilities.mock.calls[0]?.[1].at(-1)).toContain(
       "export CURSOR_API_KEY='profile-key';",
     );
+  });
+
+  it("publishes parameterized ACP controls without replacing confirmed effort ladders from CLI", async () => {
+    mocks.readCommandOutputAsync.mockResolvedValue({
+      ok: true,
+      stdout: [
+        "composer-2.5-medium - Composer 2.5 Medium",
+        "grok-4.6-low - Grok 4.6 Low",
+        "gpt-5.5-high - GPT-5.5 High",
+        "gpt-5.5-extra-high - GPT-5.5 Extra High",
+      ].join("\n"),
+      stderr: "",
+    });
+    mocks.probeAcpCapabilities.mockImplementation(async (_command, _args, _cwd, options) => {
+      if (options?.clientCapabilitiesMeta?.parameterizedModelPicker !== true) {
+        return { models: [{ id: "grok-4.6[reasoning=high]", label: "Grok 4.6 High" }] };
+      }
+      return {
+        models: [
+          { id: "composer-2.5", label: "Composer 2.5" },
+          { id: "grok-4.6", label: "Grok 4.6" },
+          { id: "gpt-5.5", label: "GPT-5.5" },
+        ],
+        efforts: ["high", "xhigh"],
+        defaultEffort: "high",
+        modelEfforts: { "composer-2.5": [], "grok-4.6": ["high", "xhigh"] },
+        modelDefaultEfforts: { "grok-4.6": "xhigh" },
+        fastModels: ["grok-4.6"],
+        thinkingModels: ["grok-4.6"],
+        contextSizes: [
+          { id: "272k", label: "272K" },
+          { id: "1m", label: "1M" },
+        ],
+        modelContextSizes: { "grok-4.6": ["272k", "1m"] },
+      };
+    });
+
+    const result = await cursorDetectionSpec.capabilitiesProbe?.(probeCtx(undefined));
+
+    expect(result?.presentationCapabilities?.gui).toMatchObject({
+      efforts: ["high", "xhigh"],
+      defaultEffort: "high",
+      modelEfforts: {
+        "composer-2.5": [],
+        "grok-4.6": ["high", "xhigh"],
+        "gpt-5.5": ["high", "xhigh"],
+      },
+      modelDefaultEfforts: { "grok-4.6": "xhigh" },
+      fastModels: ["grok-4.6"],
+      thinkingModels: ["grok-4.6"],
+      contextSizes: [
+        { id: "272k", label: "272K" },
+        { id: "1m", label: "1M" },
+      ],
+      modelContextSizes: { "grok-4.6": ["272k", "1m"] },
+    });
+    expect(result?.presentationCapabilities?.gui?.models?.map((model) => model.id)).toEqual([
+      "composer-2.5",
+      "gpt-5.5",
+      "grok-4.6",
+    ]);
+    expect(result?.modelEfforts).toMatchObject({
+      "composer-2.5": ["medium"],
+      "grok-4.6": ["low"],
+    });
   });
 });
