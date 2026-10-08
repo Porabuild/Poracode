@@ -429,6 +429,9 @@ export function buildSidebarProjectRows(input: {
     );
     // A live row's sort index is its place among all live threads, hidden ones
     // included, which is the order the drag handler's index fallback rebuilds.
+    // Done rows share the sortable group, so their indices start after the last
+    // live thread's. dnd-kit restores a canceled drag by index order, and an
+    // overlap would put a live row back among the done rows.
     const liveIndex = new Map(liveThreads.map((thread, idx) => [thread.id, idx]));
     const doneThreads = input.projectThreads
       .filter((thread) => thread.done)
@@ -438,7 +441,7 @@ export function buildSidebarProjectRows(input: {
       ...sections,
       liveEntries: liveThreads.map(toEntry),
       doneEntries: doneThreads.map(toEntry),
-      pushEntries: (entries, offset, section) => {
+      pushEntries: (entries, _offset, section) => {
         entries.forEach((entry, i) => {
           if (entry.kind !== "thread") return;
           const { thread } = entry;
@@ -446,7 +449,8 @@ export function buildSidebarProjectRows(input: {
             kind: "thread",
             key: `thread:${thread.id}`,
             thread,
-            threadIndex: liveIndex.get(thread.id) ?? offset + i,
+            threadIndex:
+              section === "done" ? liveThreads.length + i : (liveIndex.get(thread.id) ?? i),
             group: dndGroup,
             showWorktreeBadge: true,
             showWorktreeFilesButton: !!thread.worktreePath,
