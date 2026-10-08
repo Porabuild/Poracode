@@ -442,25 +442,49 @@ describe("MCP mention selection", () => {
     },
   );
 
-  it("does not select a mention or submit while confirming IME text", () => {
-    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
-    const onInterceptKey = vi.fn<() => boolean>(() => true);
-    render(
-      createElement(MentionInput, {
-        ...baseProps,
-        onSubmit,
-        onInterceptKey,
-        mcpMentions: [
-          { id: "browser", name: "Browser", icon: Globe, detail: "MCP server", enabled: true },
-        ],
-      }),
-    );
-    const editor = typeMention("bro");
-    fireEvent.keyDown(editor, { key: "Enter", isComposing: true });
-    expect(editor.textContent).toBe("@bro");
-    expect(onSubmit).not.toHaveBeenCalled();
-    expect(onInterceptKey).not.toHaveBeenCalled();
-  });
+  it.each([
+    { isComposing: true, keyCode: 13 },
+    { isComposing: false, keyCode: 229 },
+  ])(
+    "leaves IME Enter to the input method before mention selection (isComposing=$isComposing, keyCode=$keyCode)",
+    (compositionFlags) => {
+      const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+      const onInterceptKey = vi.fn<() => boolean>(() => false);
+      render(
+        createElement(MentionInput, {
+          ...baseProps,
+          onSubmit,
+          onInterceptKey,
+          mcpMentions: [
+            { id: "browser", name: "Browser", icon: Globe, detail: "MCP server", enabled: true },
+          ],
+        }),
+      );
+      const editor = typeMention("bro");
+      for (const modifiers of [{}, { ctrlKey: true }, { metaKey: true }]) {
+        const confirmation = createEvent.keyDown(editor, {
+          key: "Enter",
+          ...compositionFlags,
+          ...modifiers,
+        });
+        fireEvent(editor, confirmation);
+        expect(confirmation.defaultPrevented).toBe(false);
+        expect(editor.textContent).toBe("@bro");
+        expect(editor.querySelector("[data-mcp-id]")).toBeNull();
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(onInterceptKey).not.toHaveBeenCalled();
+      }
+
+      fireEvent.keyDown(editor, { key: "Enter" });
+      expect(editor.querySelector("[data-mcp-id]")).toHaveAttribute("data-mcp-id", "browser");
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(onInterceptKey).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(editor, { key: "Enter" });
+      expect(onSubmit).toHaveBeenCalledOnce();
+      expect(onInterceptKey).toHaveBeenCalledOnce();
+    },
+  );
 
   const baseProps = {
     placeholder: "Send a message...",
@@ -641,6 +665,40 @@ describe("Enter handling", () => {
 
     expect(onSubmit).toHaveBeenCalledWith([{ kind: "text", content: "hello" }]);
   });
+
+  it.each([
+    { isComposing: true, keyCode: 13 },
+    { isComposing: false, keyCode: 229 },
+  ])(
+    "preserves an IME candidate until the next ordinary Enter (isComposing=$isComposing, keyCode=$keyCode)",
+    (compositionFlags) => {
+      const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+      const onInterceptKey = vi.fn<() => boolean>(() => false);
+      render(createElement(MentionInput, { ...baseProps, onSubmit, onInterceptKey }));
+      const editor = screen.getByRole("textbox");
+      fireEvent.compositionStart(editor);
+      editor.appendChild(document.createTextNode("日本語"));
+      fireEvent.input(editor);
+      // Some input methods end composition before the confirming keydown.
+      if (!compositionFlags.isComposing) {
+        fireEvent.compositionEnd(editor, { data: "日本語" });
+      }
+      const confirmation = createEvent.keyDown(editor, { key: "Enter", ...compositionFlags });
+      fireEvent(editor, confirmation);
+
+      expect(confirmation.defaultPrevented).toBe(false);
+      expect(editor).toHaveTextContent("日本語");
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(onInterceptKey).not.toHaveBeenCalled();
+
+      if (compositionFlags.isComposing) {
+        fireEvent.compositionEnd(editor, { data: "日本語" });
+      }
+      fireEvent.keyDown(editor, { key: "Enter", keyCode: 13 });
+      expect(onSubmit).toHaveBeenCalledExactlyOnceWith([{ kind: "text", content: "日本語" }]);
+      expect(onInterceptKey).toHaveBeenCalledOnce();
+    },
+  );
 
   it("leaves Enter available for newline insertion when submitOnEnter is false", () => {
     const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
