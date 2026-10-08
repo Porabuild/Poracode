@@ -40,11 +40,11 @@ vi.mock("./SidebarThreadRow", () => ({
     </button>
   ),
   SidebarThreadRow: (props: {
-    row: { key: string };
+    row: { key: string; sortDisabled?: boolean };
     project: { name: string };
     projectTag?: React.ReactNode;
   }) => (
-    <div data-testid="row">
+    <div data-testid="row" data-sort-disabled={String(props.row.sortDisabled ?? false)}>
       {props.row.key} in {props.project.name}
       {props.projectTag}
     </div>
@@ -154,6 +154,87 @@ describe("SidebarFlatThreadList", () => {
     expect(screen.getByText(`new-thread:${HOME_PROJECT_ID}`)).toBeInTheDocument();
     expect(screen.getByText(/thread:h1 in Home/)).toBeInTheDocument();
     expect(screen.getByText(/thread:p1 in Poracode/)).toBeInTheDocument();
+  });
+
+  it("shows manual order across projects with starred threads first and lets live rows reorder", () => {
+    useSidebarUiStore.setState({ collapsedWorktrees: { "done:__flat__": false } });
+    useAppStore.setState({
+      projects: [homeProject, localProject, secondLocalProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-04T10:00:00.000Z", { done: true }),
+        makeThread("p2", "local-1", "2026-08-03T10:00:00.000Z"),
+        makeThread("s2", "local-2", "2026-08-02T10:00:00.000Z", { starred: true }),
+      ],
+    });
+
+    const { container } = render(<SidebarFlatThreadList sortMode="manual" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(rows.map((row) => row.textContent?.split(" in ")[0])).toEqual([
+      "thread:s2",
+      "thread:p1",
+      "thread:p2",
+      "done-label",
+      "thread:s1",
+    ]);
+    expect(rows.map((row) => row.dataset.sortDisabled)).toEqual([
+      "false",
+      "false",
+      "false",
+      "false",
+      "true",
+    ]);
+    // Done is pinned below the scrolling rows, as in the date modes.
+    const scroller = container.querySelector(".overflow-y-auto");
+    expect(scroller?.contains(screen.getByText(/^thread:p2 in/))).toBe(true);
+    expect(scroller?.contains(screen.getByText(/^done-label in/))).toBe(false);
+  });
+
+  it("locks remote mirror rows in manual order and keeps them in the stored order", () => {
+    useRemoteServersStore.setState({
+      runtime: { "desktop-1": { status: "online", projects: [], threads: [] } },
+    } as never);
+    useAppStore.setState({
+      projects: [homeProject, localProject, unreachableRemoteProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("r1", "remote-1", "2026-08-03T10:00:00.000Z", {
+          remoteServerId: "desktop-1",
+        }),
+        makeThread("p2", "local-1", "2026-08-02T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="manual" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(
+      rows.map((row) => [row.textContent?.split(" in ")[0], row.dataset.sortDisabled]),
+    ).toEqual([
+      ["thread:p1", "false"],
+      ["thread:r1", "true"],
+      ["thread:p2", "false"],
+    ]);
+  });
+
+  it("keeps date order and locks reordering outside manual order", () => {
+    useAppStore.setState({
+      projects: [homeProject, localProject, secondLocalProject],
+      threads: [
+        makeThread("p1", "local-1", "2026-08-01T10:00:00.000Z"),
+        makeThread("s1", "local-2", "2026-08-03T10:00:00.000Z"),
+      ],
+    });
+
+    render(<SidebarFlatThreadList sortMode="updated" />);
+
+    const rows = screen.getAllByTestId("row");
+    expect(rows.map((row) => row.textContent?.split(" in ")[0])).toEqual([
+      "thread:s1",
+      "thread:p1",
+    ]);
+    expect(rows.map((row) => row.dataset.sortDisabled)).toEqual(["true", "true"]);
   });
 
   it("keeps Home threads and the new-thread row when the only workspace project is unreachable", () => {

@@ -155,6 +155,62 @@ describe("buildSidebarProjectRows — See more cap (date sort)", () => {
     expect(label).toMatchObject({ key: "done-label" });
   });
 
+  it("sinks done threads into a locked Done section in manual mode", () => {
+    const rows = build(
+      [
+        makeThread({ id: "done-old", done: true, updatedAt: "2026-07-01T00:00:00.000Z" }),
+        makeThread({ id: "live-1", updatedAt: "2026-07-02T00:00:00.000Z" }),
+        makeThread({ id: "done-starred", done: true, starred: true, updatedAt: OLD }),
+        makeThread({ id: "done-new", done: true, updatedAt: "2026-07-20T00:00:00.000Z" }),
+        makeThread({ id: "live-2", starred: true, updatedAt: OLD }),
+        makeThread({ id: "live-3", updatedAt: "2026-07-30T00:00:00.000Z" }),
+      ],
+      10,
+      "manual",
+      DONE_EXPANDED,
+    );
+
+    expect(rows.map((row) => (row.kind === "thread" ? row.thread.id : row.kind))).toEqual([
+      "live-2",
+      "live-1",
+      "live-3",
+      "section-label",
+      "done-new",
+      "done-old",
+      "done-starred",
+    ]);
+    expect(
+      threadRows(rows).map((row) => row.kind === "thread" && row.sortDisabled === true),
+    ).toEqual([false, false, false, true, true, true]);
+    const label = rows.find((row) => row.kind === "section-label");
+    expect(label?.doneThreads.map((thread) => thread.id)).toEqual([
+      "done-new",
+      "done-old",
+      "done-starred",
+    ]);
+  });
+
+  it("hides done threads behind See more before live ones in manual mode", () => {
+    const rows = build(
+      [
+        ...Array.from({ length: 3 }, (_, i) => makeThread({ id: `done-${i}`, done: true })),
+        ...Array.from({ length: 3 }, (_, i) => makeThread({ id: `live-${i}` })),
+      ],
+      4,
+      "manual",
+      DONE_EXPANDED,
+    );
+
+    expect(rows.map((row) => (row.kind === "thread" ? row.thread.id : row.kind))).toEqual([
+      "live-0",
+      "live-1",
+      "live-2",
+      "section-label",
+      "done-0",
+      "see-more",
+    ]);
+  });
+
   it("keeps a worktree group in the live list until every member is done", () => {
     const worktree = { worktreePath: "/repo/wt", worktreeBranch: "feature" };
     const mixed = build(
@@ -531,5 +587,97 @@ describe("buildSidebarProjectRows — separately paged Done section", () => {
       section: "done",
     });
     expect(rows.filter((row) => row.kind === "see-more")).toHaveLength(1);
+  });
+});
+
+describe("buildSidebarProjectRows — threads locked in place (manual)", () => {
+  it("keeps a thread that can't be reordered in its place but locks its row", () => {
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        makeThread({ id: "a" }),
+        makeThread({ id: "locked" }),
+        makeThread({ id: "b" }),
+      ],
+      sortMode: "manual",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      canReorderThread: (thread) => thread.id !== "locked",
+    });
+
+    expect(threadRows(rows).map((row) => [row.thread.id, row.sortDisabled === true])).toEqual([
+      ["a", false],
+      ["locked", true],
+      ["b", false],
+    ]);
+  });
+});
+
+describe("buildSidebarProjectRows — Done section in manual mode", () => {
+  const rowIds = (rows: SidebarRow[]) =>
+    rows.map((row) => (row.kind === "thread" ? row.thread.id : row.kind));
+
+  it("collapses Done by default, counts it and leaves it out of the page", () => {
+    const rows = build(
+      [
+        ...Array.from({ length: 10 }, (_, i) => makeThread({ id: `live-${i}` })),
+        ...Array.from({ length: 3 }, (_, i) => makeThread({ id: `done-${i}`, done: true })),
+      ],
+      10,
+      "manual",
+    );
+
+    expect(threadRows(rows)).toHaveLength(10);
+    expect(seeMore(rows)).toBeUndefined();
+    expect(rows.at(-1)).toMatchObject({
+      kind: "section-label",
+      collapsed: true,
+      doneCount: 3,
+      collapseKey: "done:project-1",
+    });
+  });
+
+  it("keeps the open done thread visible and locked under the collapsed header", () => {
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        makeThread({ id: "live" }),
+        makeThread({ id: "done-1", done: true }),
+        makeThread({ id: "done-2", done: true }),
+      ],
+      sortMode: "manual",
+      collapsedWorktrees: {},
+      visibleLimit: 10,
+      openThreadIds: new Set(["done-2"]),
+    });
+
+    expect(rowIds(rows)).toEqual(["live", "section-label", "done-2"]);
+    expect(threadRows(rows).at(-1)).toMatchObject({ sortDisabled: true });
+  });
+
+  it("pages done threads on their own when the list pins Done", () => {
+    const rows = buildSidebarProjectRows({
+      projectId: "project-1",
+      projectThreads: [
+        ...Array.from({ length: 3 }, (_, i) => makeThread({ id: `live-${i}` })),
+        ...Array.from({ length: 4 }, (_, i) => makeThread({ id: `done-${i}`, done: true })),
+      ],
+      sortMode: "manual",
+      collapsedWorktrees: DONE_EXPANDED,
+      visibleLimit: 2,
+      doneVisibleLimit: 3,
+    });
+
+    expect(rowIds(rows)).toEqual([
+      "live-0",
+      "live-1",
+      "see-more",
+      "section-label",
+      "done-0",
+      "done-1",
+      "done-2",
+      "see-more",
+    ]);
+    expect(rows.at(-1)).toMatchObject({ key: "done-see-more", hiddenCount: 1, section: "done" });
   });
 });
