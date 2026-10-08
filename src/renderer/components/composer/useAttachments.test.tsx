@@ -90,6 +90,32 @@ describe("useAttachments", () => {
     expect(result.current.attachments).toEqual([]);
   });
 
+  it("swaps one set of attachments for another and keeps the rest", async () => {
+    const saveImage = vi.fn<SaveClipboardImage>(async () => Promise.resolve("/tmp/image.png"));
+    const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });
+    const { result } = renderHook(() => useAttachments({ saveClipboardImage: saveImage }));
+
+    await act(async () => {
+      await result.current.addClipboardImage(file, "thread-1");
+    });
+    act(() => {
+      result.current.addFiles(["/tmp/notes.txt"]);
+    });
+    const [pasted, kept] = result.current.attachments;
+    const incoming = { id: "draft-b", path: "/tmp/b.png", name: "b.png", isImage: true };
+    act(() => {
+      result.current.swap([pasted!], [incoming]);
+    });
+
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:app/pasted-1");
+    expect(result.current.attachments).toEqual([kept, incoming]);
+
+    act(() => {
+      result.current.swap([incoming], [pasted!]);
+    });
+    expect(result.current.attachments).toEqual([kept, storableAttachment(pasted!)]);
+  });
+
   it("revokes pasted-image object URLs on clearAll", async () => {
     const saveImage = vi.fn<SaveClipboardImage>(async () => Promise.resolve("/tmp/image.png"));
     const file = new File([new Uint8Array([1])], "clipboard.png", { type: "image/png" });

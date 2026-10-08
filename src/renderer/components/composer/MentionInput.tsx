@@ -1,4 +1,11 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useEffectEvent,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import type { LucideIcon } from "lucide-react";
 import type {
   AgentSlashCommand,
@@ -18,8 +25,14 @@ import { createThreadMentionChipElement } from "./ThreadMentionChip";
 import { createSlashCommandChipElement } from "./SlashCommandChip";
 import { MentionPopover, type MentionEntry } from "./MentionPopover";
 import { useDebouncedFileSearch } from "./useDebouncedFileSearch";
+import { CHIP_SELECTOR } from "./editorSnapshot";
 import { serializeToSegments, flattenSegments } from "./serializeMentions";
 import { caretLineEdges, type CaretLineEdges } from "./caretLine";
+import {
+  historyActionForKey,
+  useComposerUndoHistory,
+  type ExternalUndoChange,
+} from "./useComposerUndoHistory";
 
 /**
  * A composer MCP server offered as an `@`-mention (Browser, Crossagents, Computer
@@ -136,8 +149,17 @@ export interface MentionInputHandle {
   serializeSegments(): PromptSegment[];
   /** Flatten to a display string (convenience). */
   serialize(): string;
-  /** Rebuild the editor content from previously serialized segments. */
-  restoreFromSegments(segments: PromptSegment[]): void;
+  /**
+   * Rebuild the editor content from previously serialized segments. This
+   * starts a fresh undo history unless `undoable` is set, in which case the
+   * restore is one undo step on top of what the user had typed. When the
+   * restore also replaced state outside the editor, such as attachments, pass
+   * that change as `undoable` so undo and redo carry it along with the text.
+   */
+  restoreFromSegments(
+    segments: PromptSegment[],
+    options?: { undoable?: boolean | ExternalUndoChange },
+  ): void;
   /** Whether the caret is on the editor's first or last visual line. */
   caretLineEdges(): CaretLineEdges;
   /** Focus the editor with the caret at the start or end of its content. */
@@ -236,13 +258,7 @@ function detectTriggerRange(triggerChar: string): Range | null {
 }
 
 function hasEditorContent(editor: HTMLDivElement): boolean {
-  if (
-    editor.querySelector(
-      "[data-mention-path], [data-slash-command], [data-diff-comment-path], [data-mcp-id], [data-thread-mention-id]",
-    )
-  ) {
-    return true;
-  }
+  if (editor.querySelector(CHIP_SELECTOR)) return true;
   return (editor.textContent ?? "").trim().length > 0;
 }
 
@@ -382,6 +398,11 @@ export const MentionInput = forwardRef<
   const voicePreviewRef = useRef<HTMLSpanElement | null>(null);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const undoHistory = useComposerUndoHistory(editorRef, () => {
+    voicePreviewRef.current = null;
+    checkMentionState();
+    notifyTextChange();
+  });
 
   const fileResults = useDebouncedFileSearch(
     projectLocation,
@@ -425,6 +446,10 @@ export const MentionInput = forwardRef<
   }
 
   function insertPlainText(text: string) {
+    undoHistory.edit(() => insertPlainTextAtCaret(text));
+  }
+
+  function insertPlainTextAtCaret(text: string) {
     const editor = editorRef.current;
     const trimmed = text.trim();
     if (!editor || !trimmed) return;
@@ -461,6 +486,122 @@ export const MentionInput = forwardRef<
     notifyTextChange();
   }
 
+  function insertSegmentsAtCaret(
+    segments: PromptSegment[],
+    options?: { atEnd?: boolean; focus?: boolean },
+  ) {
+    const editor = editorRef.current;
+    if (!editor || segments.length === 0) return;
+
+    if (options?.focus !== false) editor.focus();
+    const selection = window.getSelection();
+    const selectionInsideEditor =
+      !options?.atEnd && selection?.rangeCount && selection.anchorNode
+        ? editor.contains(selection.anchorNode)
+        : false;
+    const range = selectionInsideEditor ? selection!.getRangeAt(0) : placeCaretAtEdge(editor);
+    if (!range) return;
+
+    const precedingRange = document.createRange();
+    precedingRange.selectNodeContents(editor);
+    precedingRange.setEnd(range.startContainer, range.startOffset);
+    const fragment = document.createDocumentFragment();
+    const firstSegment = segments[0];
+    const hasExplicitLeadingWhitespace =
+      firstSegment?.kind === "text" && /^\s/.test(firstSegment.content);
+    if (
+      precedingRange.toString().length > 0 &&
+      !/\s$/.test(precedingRange.toString()) &&
+      !hasExplicitLeadingWhitespace
+    ) {
+      fragment.appendChild(document.createTextNode(" "));
+    }
+    appendPromptSegments(fragment, segments);
+    const lastNode = fragment.lastChild;
+    if (!lastNode) return;
+
+    range.deleteContents();
+    range.insertNode(fragment);
+    range.setStartAfter(lastNode);
+    range.collapse(true);
+    if (options?.focus !== false) {
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
+    checkMentionState();
+    notifyTextChange();
+  }
+
+  function replaceSlashQuery(command: string | AgentSlashCommand) {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const range = detectTriggerRange("/");
+    if (!range) return;
+
+    const sel = window.getSelection();
+    if (!sel) return;
+
+    sel.removeAllRanges();
+    sel.addRange(range);
+    range.deleteContents();
+
+    const skill = typeof command === "string" ? undefined : skillSegmentFromSlashCommand(command);
+    const chip = createSlashCommandChipElement(
+      typeof command === "string"
+        ? command
+        : {
+            id: command.id,
+            ...(command.skillName ? { skillName: command.skillName } : {}),
+            ...(skill ? skillChipDataset(skill) : {}),
+          },
+    );
+    range.insertNode(chip);
+
+    // Trailing space keeps the cursor visually separate from the chip and
+    // matches the legacy "/id " plain-text behavior.
+    const space = document.createTextNode(" ");
+    chip.after(space);
+
+    // Strip any browser-inserted empty siblings before the chip
+    // (empty text nodes, lone <br>, empty wrappers) that would render as
+    // a blank line above the badge.
+    let prev: Node | null = chip.previousSibling;
+    while (prev) {
+      const next: Node | null = prev.previousSibling;
+      if (prev.nodeType === Node.TEXT_NODE && (prev.textContent ?? "") === "") {
+        prev.parentNode?.removeChild(prev);
+      } else if (prev.nodeType === Node.ELEMENT_NODE) {
+        const el = prev as HTMLElement;
+        const isBr = el.tagName === "BR";
+        const isEmptyWrapper =
+          (el.tagName === "DIV" || el.tagName === "P") &&
+          el.childNodes.length === 0 &&
+          (el.textContent ?? "") === "";
+        if (isBr || isEmptyWrapper) {
+          el.remove();
+        } else {
+          break;
+        }
+      } else {
+        break;
+      }
+      prev = next;
+    }
+
+    const newRange = document.createRange();
+    newRange.setStartAfter(space);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+
+    if (lastSlashQueryRef.current !== null) {
+      lastSlashQueryRef.current = null;
+      onSlashCommandChange?.(null);
+    }
+    notifyTextChange();
+  }
+
   useImperativeHandle(ref, () => ({
     serializeSegments() {
       if (!editorRef.current) return [];
@@ -470,13 +611,25 @@ export const MentionInput = forwardRef<
       if (!editorRef.current) return "";
       return flattenSegments(serializeToSegments(editorRef.current));
     },
-    restoreFromSegments(segments: PromptSegment[]) {
+    restoreFromSegments(
+      segments: PromptSegment[],
+      options?: { undoable?: boolean | ExternalUndoChange },
+    ) {
       const editor = editorRef.current;
       if (!editor) return;
-      voicePreviewRef.current = null;
-      editor.innerHTML = "";
-      appendPromptSegments(editor, segments);
-      onTextChange(hasEditorContent(editor));
+      const restore = () => {
+        voicePreviewRef.current = null;
+        editor.innerHTML = "";
+        appendPromptSegments(editor, segments);
+        onTextChange(hasEditorContent(editor));
+      };
+      const undoable = options?.undoable;
+      if (undoable) {
+        undoHistory.edit(restore, undoable === true ? undefined : undoable);
+      } else {
+        restore();
+        undoHistory.reset();
+      }
     },
     caretLineEdges() {
       if (!editorRef.current) return { first: false, last: false };
@@ -500,52 +653,14 @@ export const MentionInput = forwardRef<
           lastSlashQueryRef.current = null;
           onSlashCommandChange?.(null);
         }
+        undoHistory.reset();
       }
     },
     insertText(text: string) {
       insertPlainText(text);
     },
     insertSegments(segments: PromptSegment[], options?: { atEnd?: boolean; focus?: boolean }) {
-      const editor = editorRef.current;
-      if (!editor || segments.length === 0) return;
-
-      if (options?.focus !== false) editor.focus();
-      const selection = window.getSelection();
-      const selectionInsideEditor =
-        !options?.atEnd && selection?.rangeCount && selection.anchorNode
-          ? editor.contains(selection.anchorNode)
-          : false;
-      const range = selectionInsideEditor ? selection!.getRangeAt(0) : placeCaretAtEdge(editor);
-      if (!range) return;
-
-      const precedingRange = document.createRange();
-      precedingRange.selectNodeContents(editor);
-      precedingRange.setEnd(range.startContainer, range.startOffset);
-      const fragment = document.createDocumentFragment();
-      const firstSegment = segments[0];
-      const hasExplicitLeadingWhitespace =
-        firstSegment?.kind === "text" && /^\s/.test(firstSegment.content);
-      if (
-        precedingRange.toString().length > 0 &&
-        !/\s$/.test(precedingRange.toString()) &&
-        !hasExplicitLeadingWhitespace
-      ) {
-        fragment.appendChild(document.createTextNode(" "));
-      }
-      appendPromptSegments(fragment, segments);
-      const lastNode = fragment.lastChild;
-      if (!lastNode) return;
-
-      range.deleteContents();
-      range.insertNode(fragment);
-      range.setStartAfter(lastNode);
-      range.collapse(true);
-      if (options?.focus !== false) {
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-      }
-      checkMentionState();
-      notifyTextChange();
+      undoHistory.edit(() => insertSegmentsAtCaret(segments, options));
     },
     previewVoiceTranscript(text: string) {
       const editor = editorRef.current;
@@ -579,6 +694,9 @@ export const MentionInput = forwardRef<
       node.dataset.voiceTranscriptPreview = "true";
       node.dataset.voicePrefix = prefix;
       node.textContent = prefix + trimmed;
+      // The preview replaces any selected text, so keep the editor as it was
+      // for the undo step the committed transcript records.
+      undoHistory.beginEdit();
       range.deleteContents();
       range.insertNode(node);
       range.setStartAfter(node);
@@ -593,7 +711,7 @@ export const MentionInput = forwardRef<
       const trimmed = text.trim();
       const preview = voicePreviewRef.current;
       if (!preview?.isConnected) {
-        insertPlainText(trimmed);
+        undoHistory.finishEdit(() => insertPlainTextAtCaret(trimmed));
         return;
       }
 
@@ -602,89 +720,27 @@ export const MentionInput = forwardRef<
         return;
       }
 
-      const node = document.createTextNode(`${preview.dataset.voicePrefix ?? ""}${trimmed}`);
-      preview.replaceWith(node);
-      voicePreviewRef.current = null;
-      const sel = window.getSelection();
-      const range = document.createRange();
-      range.setStartAfter(node);
-      range.collapse(true);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-      checkMentionState();
-      notifyTextChange();
+      // This step goes from the editor before the first preview straight to
+      // the committed transcript, with the selection the preview replaced.
+      undoHistory.finishEdit(() => {
+        const node = document.createTextNode(`${preview.dataset.voicePrefix ?? ""}${trimmed}`);
+        preview.replaceWith(node);
+        voicePreviewRef.current = null;
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.setStartAfter(node);
+        range.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        checkMentionState();
+        notifyTextChange();
+      });
     },
     clearVoiceTranscriptPreview() {
       clearVoicePreviewNode();
     },
     insertSlashCommand(command: string | AgentSlashCommand) {
-      const editor = editorRef.current;
-      if (!editor) return;
-
-      const range = detectTriggerRange("/");
-      if (!range) return;
-
-      const sel = window.getSelection();
-      if (!sel) return;
-
-      sel.removeAllRanges();
-      sel.addRange(range);
-      range.deleteContents();
-
-      const skill = typeof command === "string" ? undefined : skillSegmentFromSlashCommand(command);
-      const chip = createSlashCommandChipElement(
-        typeof command === "string"
-          ? command
-          : {
-              id: command.id,
-              ...(command.skillName ? { skillName: command.skillName } : {}),
-              ...(skill ? skillChipDataset(skill) : {}),
-            },
-      );
-      range.insertNode(chip);
-
-      // Trailing space keeps the cursor visually separate from the chip and
-      // matches the legacy "/id " plain-text behavior.
-      const space = document.createTextNode(" ");
-      chip.after(space);
-
-      // Strip any browser-inserted empty siblings before the chip
-      // (empty text nodes, lone <br>, empty wrappers) that would render as
-      // a blank line above the badge.
-      let prev: Node | null = chip.previousSibling;
-      while (prev) {
-        const next: Node | null = prev.previousSibling;
-        if (prev.nodeType === Node.TEXT_NODE && (prev.textContent ?? "") === "") {
-          prev.parentNode?.removeChild(prev);
-        } else if (prev.nodeType === Node.ELEMENT_NODE) {
-          const el = prev as HTMLElement;
-          const isBr = el.tagName === "BR";
-          const isEmptyWrapper =
-            (el.tagName === "DIV" || el.tagName === "P") &&
-            el.childNodes.length === 0 &&
-            (el.textContent ?? "") === "";
-          if (isBr || isEmptyWrapper) {
-            el.remove();
-          } else {
-            break;
-          }
-        } else {
-          break;
-        }
-        prev = next;
-      }
-
-      const newRange = document.createRange();
-      newRange.setStartAfter(space);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-
-      if (lastSlashQueryRef.current !== null) {
-        lastSlashQueryRef.current = null;
-        onSlashCommandChange?.(null);
-      }
-      notifyTextChange();
+      undoHistory.edit(() => replaceSlashQuery(command));
     },
   }));
 
@@ -712,6 +768,10 @@ export const MentionInput = forwardRef<
   }
 
   function insertMention(entry: MentionEntry) {
+    undoHistory.edit(() => replaceMentionQuery(entry));
+  }
+
+  function replaceMentionQuery(entry: MentionEntry) {
     if (!editorRef.current) return;
 
     const range = detectTriggerRange("@");
@@ -817,13 +877,39 @@ export const MentionInput = forwardRef<
     notifyTextChange();
   }
 
-  function handleInput() {
+  function handleInput(e: React.FormEvent<HTMLDivElement>) {
     checkMentionState();
     notifyTextChange();
+    const native = e.nativeEvent as InputEvent;
+    if (!native.isComposing) undoHistory.commitInput(native.inputType ?? "");
   }
+
+  // React's onBeforeInput is built from keypress events and has no inputType,
+  // so listen for the native event.
+  const handleNativeBeforeInput = useEffectEvent((e: InputEvent) => {
+    if (e.inputType === "historyUndo" || e.inputType === "historyRedo") {
+      e.preventDefault();
+      undoHistory.apply(e.inputType === "historyUndo" ? "undo" : "redo");
+      return;
+    }
+    if (!e.isComposing) undoHistory.beforeInput(e.inputType);
+  });
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const listener = (e: InputEvent) => handleNativeBeforeInput(e);
+    editor.addEventListener("beforeinput", listener);
+    return () => editor.removeEventListener("beforeinput", listener);
+  }, []);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+    const historyAction = historyActionForKey(e);
+    if (historyAction) {
+      e.preventDefault();
+      undoHistory.apply(historyAction);
+      return;
+    }
     // Caller-owned submit shortcuts take precedence over autocomplete. Plain
     // Enter still accepts the highlighted suggestion below.
     const modifiedEnter = e.key === "Enter" && (e.ctrlKey || e.metaKey);
@@ -883,8 +969,7 @@ export const MentionInput = forwardRef<
             prev?.dataset?.threadMentionId
           ) {
             e.preventDefault();
-            prev.remove();
-            notifyTextChange();
+            removeChip(prev);
             return;
           }
         }
@@ -899,13 +984,28 @@ export const MentionInput = forwardRef<
             child?.dataset?.threadMentionId
           ) {
             e.preventDefault();
-            child.remove();
-            notifyTextChange();
+            removeChip(child);
             return;
           }
         }
       }
     }
+  }
+
+  function removeChip(chip: Element) {
+    undoHistory.edit(() => {
+      chip.remove();
+      notifyTextChange();
+    });
+  }
+
+  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    const button = (e.target as Element).closest?.("[data-chip-remove]");
+    const chip = button?.closest(CHIP_SELECTOR);
+    if (!chip || !e.currentTarget.contains(chip)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    removeChip(chip);
   }
 
   function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
@@ -927,16 +1027,26 @@ export const MentionInput = forwardRef<
     }
 
     e.preventDefault();
-    const text = e.clipboardData.getData("text/plain");
+    // Windows puts \r\n line endings on the clipboard.
+    const text = e.clipboardData.getData("text/plain").replace(/\r\n?/g, "\n");
     const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-    range.insertNode(document.createTextNode(text));
-    range.collapse(false);
-    sel.removeAllRanges();
-    sel.addRange(range);
-    notifyTextChange();
+    if (!text || !sel || sel.rangeCount === 0) return;
+    undoHistory.edit(() => {
+      const range = sel.getRangeAt(0);
+      // Same <br> line breaks as restored drafts, so the serializer reads both alike.
+      const fragment = document.createDocumentFragment();
+      appendPromptSegments(fragment, [{ kind: "text", content: text }]);
+      const lastNode = fragment.lastChild;
+      range.deleteContents();
+      if (lastNode) {
+        range.insertNode(fragment);
+        range.setStartAfter(lastNode);
+      }
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      notifyTextChange();
+    });
   }
 
   const editorClassName = compact
@@ -961,7 +1071,10 @@ export const MentionInput = forwardRef<
         data-placeholder={placeholder}
         className={editorClassName}
         onInput={handleInput}
+        onCompositionStart={undoHistory.compositionStart}
+        onCompositionEnd={undoHistory.compositionEnd}
         onKeyDown={handleKeyDown}
+        onMouseDown={handleMouseDown}
         onPaste={handlePaste}
         onClick={checkMentionState}
         {...({ placeholder } as React.HTMLAttributes<HTMLDivElement>)}

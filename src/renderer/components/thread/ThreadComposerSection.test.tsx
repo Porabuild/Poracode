@@ -911,6 +911,62 @@ describe("ThreadComposerSection", () => {
     );
   });
 
+  it.each([
+    { action: "undo", keys: ["z"], prompt: "draft a", image: "a.png", otherImage: "b.png" },
+    { action: "redo", keys: ["z", "y"], prompt: "prompt b", image: "b.png", otherImage: "a.png" },
+  ])(
+    "sends the text and image of the same draft after a revert and $action",
+    async ({ keys, prompt, image, otherImage }) => {
+      useAppStore.setState({
+        threadDraftContents: {
+          [guiThread.id]: {
+            segments: [{ kind: "text", content: "draft a" }],
+            attachments: [
+              {
+                id: "draft-a-image",
+                path: "C:\\attachments\\a.png",
+                name: "a.png",
+                mimeType: "image/png",
+                isImage: true,
+              },
+            ],
+          },
+        },
+      });
+      const { onSubmitInput } = renderComposer();
+      const input = screen.getByRole("textbox");
+      await waitFor(() => expect(input).toHaveTextContent("draft a"));
+
+      act(() => {
+        useRevertedPromptStore.getState().restore(guiThread.id, [
+          { kind: "text", text: "prompt b" },
+          {
+            kind: "image",
+            path: "C:\\attachments\\b.png",
+            mimeType: "image/png",
+            dataUrl: "",
+            source: "attachment",
+          },
+        ]);
+      });
+      await waitFor(() => expect(input).toHaveTextContent("prompt b"));
+      expect(screen.getByAltText("b.png")).toBeInTheDocument();
+
+      for (const key of keys) fireEvent.keyDown(input, { key, ctrlKey: true });
+      expect(input).toHaveTextContent(prompt);
+      expect(screen.getByAltText(image)).toBeInTheDocument();
+      expect(screen.queryByAltText(otherImage)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByText("send"));
+      await waitFor(() =>
+        expect(onSubmitInput).toHaveBeenCalledWith(prompt, [
+          { kind: "attachment", path: `C:\\attachments\\${image}`, mimeType: "image/png" },
+          { kind: "text", content: prompt },
+        ]),
+      );
+    },
+  );
+
   it("keeps a reverted prompt until its target thread is shown", async () => {
     const { rerender } = renderComposer();
     act(() => {
