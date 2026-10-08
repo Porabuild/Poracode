@@ -56,21 +56,20 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        // Additive project-registration fields, portable sendable-input
-        // shapes and the optional per-turn `clientContext` input field change
-        // the generated source fingerprint without a wire bump.
-        sourceHash: "sha256:54730c38da485c1c32104d1b92dd8b11e13d8c5d0d276728509c76fe0093e28c",
-        manifestHash: "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
+        // Adding the two JSON usage procedures introduces four native roots
+        // and changes the source fingerprint without a wire-format bump.
+        sourceHash: "sha256:183185f1c61de181472722b58c5e4426809d8efca6d2cdcee0693c9759ce514f",
+        manifestHash: "sha256:e8714a7e4167f7f6e70ae7db68a0b64177ccf596e8a5d9f08e6847472bf9906c",
         counts: {
           routes: 88,
-          procedures: 126,
+          procedures: 128,
           voidProcedureResults: 50,
-          jsonProcedureResults: 76,
+          jsonProcedureResults: 78,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 405,
-          structuralTypes: 927,
+          schemaRoots: 409,
+          structuralTypes: 928,
           semanticValidators: 18,
           swiftFiles: 58,
           kotlinFiles: 51,
@@ -312,7 +311,17 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(405);
+        expect(adapters).toHaveLength(409);
+        expect(
+          adapters
+            .map((adapter) => adapter.id)
+            .filter((id) => /^procedure\.(getProviderUsage|refreshProviderUsage)\./.test(id)),
+        ).toEqual([
+          "procedure.getProviderUsage.request",
+          "procedure.getProviderUsage.result",
+          "procedure.refreshProviderUsage.request",
+          "procedure.refreshProviderUsage.result",
+        ]);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)
