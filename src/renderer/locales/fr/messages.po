@@ -3739,6 +3739,10 @@ msgstr "Copiez les modifications non validées ici (les conserve sur cette branc
 msgid "Could not abort the merge: {detail}"
 msgstr "Impossible d'abandonner la fusion : {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "Impossible d’accéder aux polices installées. Vous pouvez conserver la police enregistrée ou choisir « Par défaut »."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "Impossible de terminer la fusion"
@@ -4292,6 +4296,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Par défaut"
 
@@ -5905,6 +5910,11 @@ msgstr "Dossier qui contient les arbres de travail de ce projet. Réinitialisez 
 msgid "Follow-up behavior"
 msgstr "Comportement des suivis"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "Police des terminaux des agents et du panneau de terminal. Si une police manque, la police par défaut est utilisée."
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
 msgstr "Polices et défilement"
@@ -6943,6 +6953,10 @@ msgstr "Installé"
 msgid "Installed {0}."
 msgstr "{0} a été installé."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "La sélection des polices installées n’est pas disponible dans ce client."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7228,6 +7242,10 @@ msgstr "La voix en direct n’est pas disponible pour ce fil."
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "La voix en direct nécessite une connexion avec un abonnement à ce fournisseur."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "Charger les polices installées"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7256,6 +7274,10 @@ msgstr "Chargement des environnements…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "Chargement du fichier…"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "Chargement des polices…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
@@ -11908,6 +11930,10 @@ msgstr "Enregistrer le raccourci"
 msgid "Saved credentials are shared across all machines."
 msgstr "Les identifiants enregistrés sont partagés entre toutes les machines."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "Police enregistrée"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "Shell enregistré"
@@ -13579,6 +13605,11 @@ msgstr "Terminal"
 msgid "Terminal access denied."
 msgstr "Accès au terminal refusé."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "Police du terminal"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14954,6 +14985,10 @@ msgstr "Non attribué"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Unavailable"
 msgstr "Indisponible"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "Indisponible — utilisation de la police par défaut"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx

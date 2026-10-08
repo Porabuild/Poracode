@@ -3739,6 +3739,10 @@ msgstr "Sao chép các thay đổi chưa được cam kết tại đây (giữ c
 msgid "Could not abort the merge: {detail}"
 msgstr "Không thể hủy việc hợp nhất: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "Không thể truy cập các phông chữ đã cài đặt. Bạn có thể giữ phông chữ đã lưu hoặc chọn Mặc định."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "Không thể hoàn tất việc hợp nhất"
@@ -4292,6 +4296,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Mặc định"
 
@@ -5905,6 +5910,11 @@ msgstr "Thư mục chứa các cây làm việc của dự án này. Đặt lạ
 msgid "Follow-up behavior"
 msgstr "Cách xử lý tin nhắn tiếp theo"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "Phông chữ cho terminal của tác nhân và bảng terminal. Nếu thiếu phông chữ, phông chữ mặc định sẽ được dùng."
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
 msgstr "Phông chữ và cuộn"
@@ -6943,6 +6953,10 @@ msgstr "Đã cài đặt"
 msgid "Installed {0}."
 msgstr "Đã cài đặt {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "Ứng dụng khách này không hỗ trợ chọn phông chữ đã cài đặt."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7228,6 +7242,10 @@ msgstr "Trò chuyện thoại trực tiếp không khả dụng cho luồng này
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "Trò chuyện thoại trực tiếp yêu cầu đăng nhập bằng tài khoản có gói đăng ký của nhà cung cấp này."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "Tải phông chữ đã cài đặt"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7256,6 +7274,10 @@ msgstr "Đang tải môi trường…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "Đang tải tập tin…"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "Đang tải phông chữ…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
@@ -11909,6 +11931,10 @@ msgstr "Lưu phím tắt"
 msgid "Saved credentials are shared across all machines."
 msgstr "Thông tin đăng nhập đã lưu được dùng chung cho tất cả các máy."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "Phông chữ đã lưu"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "Shell đã lưu"
@@ -13580,6 +13606,11 @@ msgstr "Terminal"
 msgid "Terminal access denied."
 msgstr "Quyền truy cập terminal bị từ chối."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "Phông chữ terminal"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14955,6 +14986,10 @@ msgstr "Chưa gán"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Unavailable"
 msgstr "Không khả dụng"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "Không khả dụng — dùng phông chữ mặc định"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx

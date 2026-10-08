@@ -3739,6 +3739,10 @@ msgstr "Kopieren Sie nicht festgeschriebene Änderungen hierher (behalten Sie si
 msgid "Could not abort the merge: {detail}"
 msgstr "Die Zusammenführung konnte nicht abgebrochen werden: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "Auf die installierten Schriftarten konnte nicht zugegriffen werden. Du kannst die gespeicherte Schriftart behalten oder „Standard“ wählen."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "Die Zusammenführung konnte nicht abgeschlossen werden"
@@ -4292,6 +4296,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Standard"
 
@@ -5905,6 +5910,11 @@ msgstr "Ordner, der die Worktrees dieses Projekts enthält. Zurücksetzen, um di
 msgid "Follow-up behavior"
 msgstr "Verhalten bei Nachfragen"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "Schriftart für Agenten-Terminals und das Terminal-Panel. Fehlende Schriftarten werden durch die Standardschrift ersetzt."
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
 msgstr "Schriften und Scrollen"
@@ -6943,6 +6953,10 @@ msgstr "Installiert"
 msgid "Installed {0}."
 msgstr "{0} wurde installiert."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "Die Auswahl installierter Schriftarten ist in diesem Client nicht verfügbar."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7228,6 +7242,10 @@ msgstr "Live-Sprachchat ist für diesen Thread nicht verfügbar."
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "Live-Sprachchat erfordert eine Anmeldung mit einem Abonnement dieses Anbieters."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "Installierte Schriftarten laden"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7256,6 +7274,10 @@ msgstr "Umgebungen werden geladen…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "Datei wird geladen…"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "Schriftarten werden geladen…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
@@ -11909,6 +11931,10 @@ msgstr "Tastenkürzel speichern"
 msgid "Saved credentials are shared across all machines."
 msgstr "Gespeicherte Zugangsdaten gelten für alle Computer."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "Gespeicherte Schriftart"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "Gespeicherte Shell"
@@ -13580,6 +13606,11 @@ msgstr "Terminal"
 msgid "Terminal access denied."
 msgstr "Zugriff auf das Terminal verweigert."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "Terminal-Schriftart"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14955,6 +14986,10 @@ msgstr "Nicht zugewiesen"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Unavailable"
 msgstr "Nicht verfügbar"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "Nicht verfügbar — Standard wird verwendet"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx

@@ -9,6 +9,9 @@ vi.mock("electron", () => ({
   shell: { openExternal },
 }));
 
+import { registerLocalFontRenderer } from "./localFontPermissions";
+import type { WebContents } from "electron";
+
 import {
   installSessionPermissions,
   isNavigationUrlAllowed,
@@ -20,6 +23,7 @@ type RequestHandler = (
   webContents: FakeWebContents | null,
   permission: string,
   callback: (granted: boolean) => void,
+  details?: { isMainFrame: boolean; requestingUrl?: string },
 ) => void;
 
 function createFakeSession() {
@@ -28,7 +32,17 @@ function createFakeSession() {
     setPermissionRequestHandler: vi.fn<(handler: RequestHandler) => void>((handler) => {
       requestHandler = handler;
     }),
-    setPermissionCheckHandler: vi.fn<() => boolean>(),
+    setPermissionCheckHandler:
+      vi.fn<
+        (
+          handler: (
+            contents: WebContents | null,
+            permission: string,
+            origin: string,
+            details: { isMainFrame: boolean; requestingUrl: string },
+          ) => boolean,
+        ) => void
+      >(),
     setCertificateVerifyProc: vi.fn<() => void>(),
   };
   installSessionPermissions(session as unknown as Parameters<typeof installSessionPermissions>[0]);
@@ -228,5 +242,34 @@ describe("installSessionPermissions non-media permissions", () => {
   it("denies permissions outside the allow-list", async () => {
     const handler = installAndCaptureRequestHandler();
     await expect(requestPermission(handler, windowContents, "geolocation")).resolves.toBe(false);
+  });
+});
+
+describe("installed-font session permission handlers", () => {
+  it("enforces main-app identity and main-frame URL on both checks and requests", () => {
+    const { session, getRequestHandler } = createFakeSession();
+    const contents = {
+      getURL: () => "http://localhost:3100/",
+      isDestroyed: () => false,
+    } as WebContents;
+    registerLocalFontRenderer(contents, "http://localhost:3100/");
+    const check = session.setPermissionCheckHandler.mock.calls[0]![0] as unknown as (
+      contents: WebContents | null,
+      permission: string,
+      origin: string,
+      details: { isMainFrame: boolean; requestingUrl: string },
+    ) => boolean;
+    const request = getRequestHandler()!;
+    for (const [owner, details, expected] of [
+      [contents, { isMainFrame: true, requestingUrl: "http://localhost:3100/" }, true],
+      [contents, { isMainFrame: false, requestingUrl: "http://localhost:3100/" }, false],
+      [contents, { isMainFrame: true, requestingUrl: "https://example.com/" }, false],
+      [null, { isMainFrame: true, requestingUrl: "http://localhost:3100/" }, false],
+    ] as const) {
+      expect(check(owner, "local-fonts", "http://localhost:3100", details)).toBe(expected);
+      const callback = vi.fn<(granted: boolean) => void>();
+      request(owner as unknown as FakeWebContents, "local-fonts", callback, details);
+      expect(callback).toHaveBeenCalledExactlyOnceWith(expected);
+    }
   });
 });

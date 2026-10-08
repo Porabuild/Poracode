@@ -2239,3 +2239,26 @@ Regression fixtures seed actual encrypted pre-upgrade vault slots, exercise
 mount/resume/online/visibility, background refresh, retry and event backoff,
 reject lost-session refresh after 401 and stale tickets, select only the current
 host, and retain record-based clients across refresh rotation.
+
+## Installed terminal font preference
+
+`terminalFontFamily` is an additive device-local shared-settings field. Its empty
+string default retains the existing bundled terminal stack for legacy flat JSON,
+settings-document version 1 and renderer localStorage. Existing font-size values
+keep their meaning. Settings document version 1 stays valid; no migration or
+cache invalidation is needed. Legacy normalization supplies the default, while
+the host document reader rejects malformed present values. Saved unavailable
+families remain intact and CSS falls back to the existing readable stack.
+
+The preference is absent from both remote settings projections (runtime and
+contract generator) and from `REMOTE_SETTINGS_KEYS`: browser clients persist it
+in their own localStorage without changing the paired host. Native iOS/Android
+settings bindings retain their existing independent typography and wire shape.
+Installed-font enumeration uses the client platform API, not a new IPC or host
+route. Only the registered main app renderer's main frame has Electron font
+permission; browser origins and subframes retain denial. Client/host hop 16,
+remote versions, settings transaction version 1 and native generated hashes stay
+unchanged. Terminal caches and prewarm state are disposable, process-local
+objects; remounted cached terminals apply the current preference. Tests cover
+legacy documents/defaults, local-only projection, permission scope, CSS escaping,
+prewarm and live terminal changes without replacing the PTY surface.

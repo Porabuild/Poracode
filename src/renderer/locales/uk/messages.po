@@ -3739,6 +3739,10 @@ msgstr "Копіювати незакомічені зміни сюди (зал�
 msgid "Could not abort the merge: {detail}"
 msgstr "Не вдалося перервати злиття: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "Не вдалося отримати доступ до встановлених шрифтів. Можна залишити збережений шрифт або вибрати «За замовчуванням»."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "Не вдалося завершити злиття"
@@ -4292,6 +4296,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "За замовчуванням"
 
@@ -5905,6 +5910,11 @@ msgstr "Папка, у якій зберігаються worktree цього п�
 msgid "Follow-up behavior"
 msgstr "Поведінка наступних повідомлень"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "Шрифт терміналів агентів і панелі термінала. Якщо шрифту немає, використовується шрифт за замовчуванням."
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
 msgstr "Шрифти та прокручування"
@@ -6943,6 +6953,10 @@ msgstr "Встановлено"
 msgid "Installed {0}."
 msgstr "Установлено: {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "Вибір установлених шрифтів недоступний у цьому клієнті."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7228,6 +7242,10 @@ msgstr "Голосовий чат недоступний для цієї гіл�
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "Для голосового чату потрібно увійти в обліковий запис із підпискою цього провайдера."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "Завантажити встановлені шрифти"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7256,6 +7274,10 @@ msgstr "Завантаження середовищ…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "Завантаження файлу…"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "Завантаження шрифтів…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
@@ -11909,6 +11931,10 @@ msgstr "Зберегти комбінацію клавіш"
 msgid "Saved credentials are shared across all machines."
 msgstr "Збережені облікові дані спільні для всіх комп’ютерів."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "Збережений шрифт"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "Збережена оболонка"
@@ -13580,6 +13606,11 @@ msgstr "Термінал"
 msgid "Terminal access denied."
 msgstr "Доступ до термінала заборонено."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "Шрифт термінала"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14955,6 +14986,10 @@ msgstr "Не призначено"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Unavailable"
 msgstr "Недоступно"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "Недоступний — використовується шрифт за замовчуванням"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx

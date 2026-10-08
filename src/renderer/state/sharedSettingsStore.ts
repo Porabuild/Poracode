@@ -117,6 +117,7 @@ interface SharedSettingsState extends SharedSettings {
   setStaleThreadUnloadMinutes: (value: number) => void;
   setAutoArchiveDoneAfterDays: (value: number) => void;
   setScrollSpeed: (value: number) => void;
+  setTerminalFontFamily: (value: string) => void;
   setAgentTerminalFontSize: (value: number) => void;
   setGuiChatFontSize: (value: number) => void;
   setTerminalPanelFontSize: (value: number) => void;
@@ -613,6 +614,11 @@ export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   },
   setScrollSpeed: (scrollSpeed) => {
     set({ scrollSpeed });
+    persistSettings(selectSharedSettings(get()));
+  },
+  setTerminalFontFamily: (terminalFontFamily) => {
+    if (get().terminalFontFamily === terminalFontFamily) return;
+    set({ terminalFontFamily });
     persistSettings(selectSharedSettings(get()));
   },
   setAgentTerminalFontSize: (agentTerminalFontSize) => {
@@ -1154,6 +1160,7 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     staleThreadUnloadMinutes: state.staleThreadUnloadMinutes,
     autoArchiveDoneAfterDays: state.autoArchiveDoneAfterDays,
     scrollSpeed: state.scrollSpeed,
+    terminalFontFamily: state.terminalFontFamily,
     agentTerminalFontSize: state.agentTerminalFontSize,
     guiChatFontSize: state.guiChatFontSize,
     terminalPanelFontSize: state.terminalPanelFontSize,

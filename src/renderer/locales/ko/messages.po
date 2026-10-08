@@ -3739,6 +3739,10 @@ msgstr "커밋되지 않은 변경 사항을 여기에 복사합니다(이 브�
 msgid "Could not abort the merge: {detail}"
 msgstr "병합을 중단할 수 없습니다: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "설치된 글꼴에 접근할 수 없습니다. 저장된 글꼴을 유지하거나 기본값을 선택할 수 있습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "병합을 완료할 수 없습니다."
@@ -4292,6 +4296,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "기본값"
 
@@ -5905,6 +5910,11 @@ msgstr "이 프로젝트의 작업 트리를 보관하는 폴더입니다. 전�
 msgid "Follow-up behavior"
 msgstr "후속 동작 방식"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "에이전트 터미널과 터미널 패널에 사용할 글꼴입니다. 글꼴이 없으면 기본 글꼴을 사용합니다."
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
 msgstr "글꼴 및 스크롤"
@@ -6943,6 +6953,10 @@ msgstr "설치됨"
 msgid "Installed {0}."
 msgstr "{0}을(를) 설치했습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "이 클라이언트에서는 설치된 글꼴을 선택할 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7228,6 +7242,10 @@ msgstr "이 스레드에서는 실시간 음성을 사용할 수 없습니다."
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "실시간 음성을 사용하려면 이 제공업체의 구독 계정으로 로그인해야 합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "설치된 글꼴 불러오기"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7256,6 +7274,10 @@ msgstr "환경 불러오는 중…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "파일 로드 중…"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "글꼴 불러오는 중…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
@@ -11909,6 +11931,10 @@ msgstr "단축키 저장"
 msgid "Saved credentials are shared across all machines."
 msgstr "저장된 자격 증명은 모든 기기에서 공유됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "저장된 글꼴"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "저장된 셸"
@@ -13580,6 +13606,11 @@ msgstr "터미널"
 msgid "Terminal access denied."
 msgstr "터미널 접근이 거부되었습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "터미널 글꼴"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14955,6 +14986,10 @@ msgstr "미지정"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Unavailable"
 msgstr "사용할 수 없음"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "사용 불가 — 기본 글꼴 사용"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx

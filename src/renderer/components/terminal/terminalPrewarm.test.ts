@@ -15,12 +15,17 @@ interface MockWebglAddon {
 
 const { state } = vi.hoisted(() => ({
   state: {
+    family: "",
     terminals: [] as MockTerminal[],
     webglAddons: [] as MockWebglAddon[],
     webglShouldThrow: false,
     lastOpenHostConnected: null as boolean | null,
     terminalsWhenFontsLoaded: -1,
   },
+}));
+
+vi.mock("@/renderer/state/sharedSettingsStore", () => ({
+  useSharedSettings: { getState: () => ({ terminalFontFamily: state.family }) },
 }));
 
 vi.mock("@xterm/xterm", () => ({
@@ -60,6 +65,7 @@ async function loadPrewarm() {
 
 describe("terminalPrewarm", () => {
   beforeEach(() => {
+    state.family = "";
     state.terminals = [];
     state.webglAddons = [];
     state.webglShouldThrow = false;
@@ -92,6 +98,19 @@ describe("terminalPrewarm", () => {
     expect(terminal.loadAddon).toHaveBeenCalledWith(state.webglAddons[0]);
     expect(state.webglAddons[0]!.dispose).toHaveBeenCalled();
     expect(terminal.dispose).toHaveBeenCalled();
+  });
+
+  it("warms the persisted selected font before creating xterm", async () => {
+    state.family = "Menlo";
+    const load = vi.fn<(font: string) => Promise<FontFace[]>>().mockResolvedValue([]);
+    Object.defineProperty(document, "fonts", { value: { load }, configurable: true });
+    const { prewarmTerminalSurface } = await loadPrewarm();
+    await prewarmTerminalSurface();
+    expect(load).toHaveBeenCalledWith('12px "Menlo"');
+    expect(load).toHaveBeenCalledWith('700 12px "Menlo"');
+    expect(state.terminals[0]?.options.fontFamily).toBe(
+      `"Menlo", 'Geist Mono', 'JetBrains Mono', 'Cascadia Code', monospace`,
+    );
   });
 
   it("runs only once across repeated calls", async () => {

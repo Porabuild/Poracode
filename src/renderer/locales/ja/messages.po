@@ -3738,6 +3738,10 @@ msgstr "コミットされていない変更をここにコピーします (こ�
 msgid "Could not abort the merge: {detail}"
 msgstr "マージを中止できませんでした:{detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "インストール済みフォントにアクセスできませんでした。保存済みフォントを保持するか、「デフォルト」を選択できます。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "マージを完了できませんでした"
@@ -4291,6 +4295,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "デフォルト"
 
@@ -5904,6 +5909,11 @@ msgstr "このプロジェクトのワークツリーを格納するフォルダ
 msgid "Follow-up behavior"
 msgstr "フォローアップの動作"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "エージェントのターミナルとターミナルパネルのフォント。フォントがない場合はデフォルトを使用します。"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
 msgstr "フォントとスクロール"
@@ -6942,6 +6952,10 @@ msgstr "インストール済み"
 msgid "Installed {0}."
 msgstr "{0} をインストールしました。"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "このクライアントではインストール済みフォントを選択できません。"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7227,6 +7241,10 @@ msgstr "このスレッドではリアルタイム音声を利用できません
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "リアルタイム音声を利用するには、このプロバイダーのサブスクリプションアカウントでログインしてください。"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "インストール済みフォントを読み込む"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7255,6 +7273,10 @@ msgstr "環境を読み込み中…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "ファイルをロード中…"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "フォントを読み込み中…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
@@ -11907,6 +11929,10 @@ msgstr "ショートカットを保存"
 msgid "Saved credentials are shared across all machines."
 msgstr "保存された認証情報はすべてのマシンで共有されます。"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "保存済みフォント"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "保存済みのシェル"
@@ -13578,6 +13604,11 @@ msgstr "ターミナル"
 msgid "Terminal access denied."
 msgstr "ターミナルへのアクセスが拒否されました。"
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "ターミナルのフォント"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14953,6 +14984,10 @@ msgstr "未割り当て"
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Unavailable"
 msgstr "利用不可"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "利用不可 — デフォルトを使用"
 
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx

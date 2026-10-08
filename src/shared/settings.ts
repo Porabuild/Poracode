@@ -426,6 +426,13 @@ export const sharedSettingsSchema = z.object({
   autoArchiveDoneAfterDays: z.number().int().min(0),
   /** Terminal scrollback scroll speed multiplier. */
   scrollSpeed: z.number().int().min(1).max(10),
+  /** Device-local installed family for every xterm surface. Empty uses the bundled fallback stack. */
+  terminalFontFamily: z
+    .string()
+    .max(256)
+    // eslint-disable-next-line no-control-regex -- persisted family names must exclude control characters
+    .regex(/^[^\u0000-\u001f\u007f]*$/)
+    .default(""),
   /** Base font size for agent terminals. Auto-shrinks in narrow/short panes. */
   agentTerminalFontSize: z.number().int().min(8).max(20),
   /** Base font size for agent thread chat (GUI / ACP markdown surface), in px. */
@@ -784,6 +791,7 @@ export const defaultSharedSettings: SharedSettings = {
   staleThreadUnloadMinutes: 60,
   autoArchiveDoneAfterDays: 3,
   scrollSpeed: 2,
+  terminalFontFamily: "",
   agentTerminalFontSize: 12,
   guiChatFontSize: 13,
   terminalPanelFontSize: 12,
