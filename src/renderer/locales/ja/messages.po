@@ -4765,6 +4765,10 @@ msgstr "切断"
 msgid "Disconnected"
 msgstr "切断済み"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "切断されています — メッセージを送信して再接続してください"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "見つける"

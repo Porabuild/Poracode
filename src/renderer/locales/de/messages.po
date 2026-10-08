@@ -4766,6 +4766,10 @@ msgstr "Trennen"
 msgid "Disconnected"
 msgstr "Getrennt"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "Getrennt — sende eine Nachricht, um die Verbindung wiederherzustellen"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Entdecken"

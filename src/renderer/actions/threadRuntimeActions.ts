@@ -120,11 +120,11 @@ export async function performThreadInputSubmit(input: {
       await input.captureCheckpoint(optimisticUserMessageItemId);
     }
   }
-  const rollbackOptimisticWorking = (): void => {
+  const rollbackOptimisticWorking = (resumeFailed = false): void => {
     if (!markedWorking) return;
     store.updateThreadRuntime(thread.id, {
-      status: thread.status,
-      attention: thread.attention,
+      status: resumeFailed ? "error" : thread.status,
+      attention: resumeFailed ? "error" : thread.attention,
       canResumeWithConfig: thread.canResumeWithConfig,
       forceCloseActiveTurn: true,
       ...(thread.sessionRef ? { sessionRef: thread.sessionRef } : {}),
@@ -158,6 +158,8 @@ export async function performThreadInputSubmit(input: {
       isUnknownThreadSessionError(error) &&
       (thread.sessionRef || thread.canResumeWithConfig)
     ) {
+      const connectionToken =
+        presentation === "gui" ? store.beginThreadConnecting(thread.id) : undefined;
       try {
         await input.resumeLaunch({
           prompt,
@@ -171,8 +173,10 @@ export async function performThreadInputSubmit(input: {
         // The relaunch already reconciled an uncertain start (and never
         // resends); rolling back here would force-close a turn that may exist.
         if (isRemoteCommandOutcomeUncertainError(resumeError)) throw resumeError;
-        rollbackOptimisticWorking();
+        rollbackOptimisticWorking(true);
         throw resumeError;
+      } finally {
+        if (connectionToken) store.finishThreadConnecting(thread.id, connectionToken);
       }
       // The relaunch captures its own prompt-submitted event.
       store.touchThread(thread.id);

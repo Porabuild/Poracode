@@ -65,6 +65,7 @@ const mocks = vi.hoisted(() => {
   };
   const bridge = {
     startThread: vi.fn<(input: unknown) => Promise<{ threadId: string }>>(),
+    ensureThreadRunning: vi.fn<(input: unknown) => Promise<{ threadId: string }>>(),
   };
   return {
     appState,
@@ -899,6 +900,7 @@ describe("performInitialThreadLaunch host transport", () => {
     );
     mocks.remoteClient.startThread.mockResolvedValue({ threadId: "rt-1" });
     mocks.bridge.startThread.mockResolvedValue({ threadId: "local-thread" });
+    mocks.bridge.ensureThreadRunning.mockResolvedValue({ threadId: "local-thread" });
   });
 
   const localThread = {
@@ -1024,6 +1026,34 @@ describe("performInitialThreadLaunch host transport", () => {
       }),
     );
     expect(mocks.remoteState.withClient).not.toHaveBeenCalled();
+  });
+
+  it("ensures a saved GUI session is running instead of replacing an existing host runtime", async () => {
+    const thread = {
+      ...localThread,
+      presentationMode: "gui",
+      status: "idle",
+      canResumeWithConfig: true,
+      sessionRef: { providerSessionId: "saved-session", discoveredAt: "2026-10-09T00:00:00Z" },
+    } as Thread;
+    await performInitialThreadLaunch({
+      thread,
+      projectLocation: localProject.location,
+      prompt: "",
+      initialSize,
+    });
+    expect(mocks.bridge.ensureThreadRunning).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        threadId: thread.id,
+        sessionRef: thread.sessionRef,
+        presentationMode: "gui",
+        prompt: "",
+        mcpServers: [],
+      }),
+    );
+    expect(mocks.bridge.startThread).not.toHaveBeenCalled();
+    expect(mocks.appState.applyRuntimeEvent).not.toHaveBeenCalled();
+    expect(mocks.appState.updateThreadRuntime).not.toHaveBeenCalled();
   });
 
   it("reuses an optimistic user message created before provider launch", async () => {

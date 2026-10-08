@@ -4766,6 +4766,10 @@ msgstr "Bağlantıyı kes"
 msgid "Disconnected"
 msgstr "Bağlantı kesildi"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "Bağlantı kesildi — yeniden bağlanmak için bir mesaj gönderin"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Keşfet"

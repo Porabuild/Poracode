@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
     applyRuntimeEvent: vi.fn<(threadId: string, event: unknown) => void>(),
     updateThreadRuntime: vi.fn<(threadId: string, input: unknown) => void>(),
     touchThread: vi.fn<(threadId: string) => void>(),
+    beginThreadConnecting: vi.fn<(threadId: string) => string>(() => "resume-token"),
+    finishThreadConnecting: vi.fn<(threadId: string, token: string) => void>(),
   },
   bridge: {
     sendThreadInput: vi.fn<() => Promise<void>>(),

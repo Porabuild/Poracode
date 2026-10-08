@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { AgentStatus, GitStatusResult, Thread } from "@/shared/contracts";
+import { RemoteClientError } from "@/shared/remote/client";
 import "@/renderer/components/providers/bootstrap";
 import * as skills from "@/renderer/components/skills/useSkills";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -1871,6 +1872,101 @@ describe("ThreadComposerSection", () => {
     expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
     expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
     expect(editor).toHaveTextContent("unfinished input");
+  });
+
+  it.each([
+    { sessionRef: guiThread.sessionRef, canResumeWithConfig: true },
+    { sessionRef: guiThread.sessionRef, canResumeWithConfig: false },
+    { sessionRef: undefined, canResumeWithConfig: true },
+  ])("accepts a follow-up for a resumable inactive GUI thread: %j", async (resume) => {
+    const { onSubmitInput } = renderComposer({
+      thread: { ...guiThread, status: "inactive", ...resume },
+    });
+    const editor = screen.getByRole("textbox");
+    expect(editor).toHaveAttribute("contenteditable", "true");
+    typeComposerText(editor, "follow up after restart");
+    fireEvent.keyDown(editor, { key: "Enter" });
+    await waitFor(() =>
+      expect(onSubmitInput).toHaveBeenCalledExactlyOnceWith("follow up after restart", [
+        { kind: "text", content: "follow up after restart" },
+      ]),
+    );
+  });
+
+  it("keeps a non-resumable inactive GUI composer disabled", () => {
+    renderComposer({
+      thread: {
+        ...guiThread,
+        status: "inactive",
+        sessionRef: undefined,
+        canResumeWithConfig: false,
+      },
+    });
+    expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
+  });
+
+  it("keeps inactive terminal input disabled even with resume information", () => {
+    renderComposer({
+      thread: {
+        ...terminalThread,
+        status: "inactive",
+        sessionRef: guiThread.sessionRef,
+        canResumeWithConfig: true,
+      },
+      agentStatus: claudeTerminalStatus,
+    });
+    expect(screen.getByRole("textbox")).toHaveAttribute("contenteditable", "false");
+  });
+
+  it("does not send a resumable inactive GUI prompt while authentication is missing", async () => {
+    const { onSubmitInput } = renderComposer({
+      thread: { ...guiThread, status: "inactive" },
+      agentStatus: { ...codexGuiStatus, authState: "missing" },
+    });
+    typeComposerText(screen.getByRole("textbox"), "keep until authenticated");
+    fireEvent.click(screen.getByText("send"));
+    await act(async () => Promise.resolve());
+    expect(onSubmitInput).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox")).toHaveTextContent("keep until authenticated");
+  });
+
+  it("restores a recovery draft after a definite failure and permits explicit retry", async () => {
+    const onSubmitInput = vi
+      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
+      .mockRejectedValueOnce(new Error("reconnect failed"))
+      .mockResolvedValueOnce(undefined);
+    renderComposer({ thread: { ...guiThread, status: "inactive" }, onSubmitInput });
+    typeComposerText(screen.getByRole("textbox"), "preserve this follow up");
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(toastDangerSpy).toHaveBeenCalledWith("reconnect failed"));
+    expect(screen.getByRole("textbox")).toHaveTextContent("preserve this follow up");
+    expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+      { kind: "text", content: "preserve this follow up" },
+    ]);
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => expect(onSubmitInput).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByRole("textbox")).not.toHaveTextContent("preserve this follow up"),
+    );
+  });
+
+  it("saves an uncertain recovery draft without restoring or automatically resending it", async () => {
+    const onSubmitInput = vi
+      .fn<(prompt: string, segments?: unknown) => Promise<void>>()
+      .mockRejectedValueOnce(new RemoteClientError("Uncertain", 409, "command_outcome_uncertain"));
+    renderComposer({ thread: { ...guiThread, status: "inactive" }, onSubmitInput });
+    typeComposerText(screen.getByRole("textbox"), "do not duplicate this follow up");
+    fireEvent.click(screen.getByText("send"));
+    await waitFor(() => {
+      expect(useAppStore.getState().threadDraftContents[guiThread.id]?.segments).toEqual([
+        { kind: "text", content: "do not duplicate this follow up" },
+      ]);
+    });
+    expect(screen.getByRole("textbox")).not.toHaveTextContent("do not duplicate this follow up");
+    fireEvent.click(screen.getByText("send"));
+    await act(async () => Promise.resolve());
+    expect(onSubmitInput).toHaveBeenCalledTimes(1);
+    expect(toastDangerSpy).not.toHaveBeenCalled();
   });
 
   it("does not submit or steer while a stored GUI session is reconnecting", async () => {

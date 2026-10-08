@@ -498,21 +498,27 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     !usesTerminalPresentation &&
     thread.sessionRef !== undefined &&
     thread.status === "working";
+  const canRecoverGuiInput =
+    !usesTerminalPresentation &&
+    (thread.sessionRef !== undefined || thread.canResumeWithConfig) &&
+    (thread.status === "inactive" || thread.status === "error");
   const canSubmitServerInput =
     isServerControlled &&
     !isConnecting &&
-    thread.sessionRef !== undefined &&
-    (thread.status === "idle" ||
-      thread.status === "needs_reply" ||
-      (!usesTerminalPresentation && thread.status === "needs_approval") ||
-      thread.status === "error" ||
-      canQueueServerInput);
+    (canRecoverGuiInput ||
+      (thread.sessionRef !== undefined &&
+        (thread.status === "idle" ||
+          thread.status === "needs_reply" ||
+          (!usesTerminalPresentation && thread.status === "needs_approval") ||
+          thread.status === "error" ||
+          canQueueServerInput)));
   const canSubmitTerminalInput =
     usesTerminalPresentation &&
     isTerminalInput &&
     thread.status !== "inactive" &&
     thread.status !== "launching";
-  const showServerComposer = isServerControlled && thread.status !== "inactive";
+  const showServerComposer =
+    isServerControlled && (thread.status !== "inactive" || canRecoverGuiInput);
   const showTerminalComposer =
     usesTerminalPresentation &&
     isTerminalInput &&
@@ -1092,10 +1098,12 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         placeholder={
                           approvalDenyOption
                             ? t`Deny and tell the agent what to do differently…`
-                            : isServerControlled
-                              ? (props.composerPlaceholder ??
-                                t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
-                              : t`Send a message...`
+                            : canRecoverGuiInput && !isConnecting
+                              ? t`Disconnected — send a message to reconnect`
+                              : isServerControlled
+                                ? (props.composerPlaceholder ??
+                                  t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
+                                : t`Send a message...`
                         }
                         projectLocation={projectLocation}
                         submitOnEnter={props.submitOnEnter ?? !compactLayout}

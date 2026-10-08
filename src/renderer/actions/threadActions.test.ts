@@ -85,6 +85,7 @@ describe("threadActions", () => {
       pendingActiveThreadId: null,
       pendingComposerFocusThreadId: null,
       pendingThreadLaunches: {},
+      connectingThreadIds: {},
       provisioningWorktreeThreadIds: {},
       runtimeItemIdsByThread: {},
       runtimeItemsByIdByThread: {},
@@ -399,6 +400,35 @@ describe("threadActions", () => {
     expect(reopened?.attention).toBe("none");
     expect(useAppStore.getState().connectingThreadIds[thread.id]).toEqual(expect.any(String));
     expect(useAppStore.getState().pendingThreadLaunches[thread.id]).toBe("");
+  });
+
+  it("does not enqueue another reconnect after a stale inactive row arrives during launch", () => {
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: true,
+    });
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    const token = useAppStore.getState().connectingThreadIds[thread.id];
+    useAppStore.getState().consumeThreadLaunch(thread.id);
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches).toEqual({});
+    expect(useAppStore.getState().connectingThreadIds[thread.id]).toBe(token);
+  });
+
+  it("does not relaunch a non-resumable inactive GUI thread", () => {
+    const thread = makeThread({
+      presentationMode: "gui",
+      status: "inactive",
+      canResumeWithConfig: false,
+    });
+    useAppStore.setState({ threads: [thread] });
+    reopenStoredThread(thread.id);
+    expect(useAppStore.getState().pendingThreadLaunches).toEqual({});
+    expect(useAppStore.getState().connectingThreadIds).toEqual({});
+    expect(useAppStore.getState().threads[0]?.status).toBe("inactive");
   });
 
   it("queues the same empty-prompt reopen for inactive remote threads as local", () => {

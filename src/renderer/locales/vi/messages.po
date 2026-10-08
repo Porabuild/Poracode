@@ -4766,6 +4766,10 @@ msgstr "Ngắt kết nối"
 msgid "Disconnected"
 msgstr "Đã ngắt kết nối"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "Đã ngắt kết nối — gửi tin nhắn để kết nối lại"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Khám phá"

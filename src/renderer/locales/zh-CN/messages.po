@@ -4766,6 +4766,10 @@ msgstr "断开连接"
 msgid "Disconnected"
 msgstr "已断开"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "连接已断开 — 发送消息以重新连接"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "发现"

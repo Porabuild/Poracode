@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
     applyRuntimeEvent: vi.fn<(threadId: string, event: unknown) => void>(),
     updateThreadRuntime: vi.fn<(threadId: string, input: { status: string }) => void>(),
     touchThread: vi.fn<(threadId: string) => void>(),
+    beginThreadConnecting: vi.fn<(threadId: string) => string>(() => "resume-token"),
+    finishThreadConnecting: vi.fn<(threadId: string, token: string) => void>(),
   },
   bridge: {
     sendThreadInput: vi.fn<(payload: SendThreadInputPayload) => Promise<void>>(),
@@ -128,6 +130,65 @@ describe("performThreadInputSubmit unknown-session resume", () => {
     ).rejects.toThrow("relaunch failed");
 
     expect(rollbackCalls()).toHaveLength(1);
+  });
+
+  it("shows bounded connecting state while resuming an inactive GUI input", async () => {
+    const thread = createThread({ status: "inactive" });
+    let finish: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const resumeLaunch = vi.fn<(args: unknown) => Promise<void>>(() => pending);
+    const result = performThreadInputSubmit({
+      thread,
+      prompt: "hello",
+      segments,
+      transport: rejectingTransport("Unknown thread session: x"),
+      resumeLaunch,
+    });
+    await vi.waitFor(() => expect(resumeLaunch).toHaveBeenCalledOnce());
+    expect(mocks.appState.beginThreadConnecting).toHaveBeenCalledExactlyOnceWith(thread.id);
+    expect(mocks.appState.finishThreadConnecting).not.toHaveBeenCalled();
+    finish();
+    await result;
+    expect(mocks.appState.finishThreadConnecting).toHaveBeenCalledExactlyOnceWith(
+      thread.id,
+      "resume-token",
+    );
+    expect(rollbackCalls()).toEqual([]);
+    expect(
+      mocks.appState.applyRuntimeEvent.mock.calls.filter(
+        ([, event]) => (event as { itemType?: string }).itemType === "user_message",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("leaves a failed inactive recovery in error with its resume identity intact", async () => {
+    const thread = createThread({ status: "inactive" });
+    await expect(
+      performThreadInputSubmit({
+        thread,
+        prompt: "hello",
+        segments,
+        transport: rejectingTransport("Unknown thread session: x"),
+        resumeLaunch: async () => {
+          throw new Error("resume failed");
+        },
+      }),
+    ).rejects.toThrow("resume failed");
+    expect(mocks.appState.updateThreadRuntime).toHaveBeenLastCalledWith(
+      thread.id,
+      expect.objectContaining({
+        status: "error",
+        attention: "error",
+        sessionRef: thread.sessionRef,
+        forceCloseActiveTurn: true,
+      }),
+    );
+    expect(mocks.appState.finishThreadConnecting).toHaveBeenCalledExactlyOnceWith(
+      thread.id,
+      "resume-token",
+    );
   });
 
   it("rolls back and rejects for any other transport error", async () => {

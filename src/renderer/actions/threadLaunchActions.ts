@@ -273,7 +273,17 @@ export async function performInitialThreadLaunch(input: {
         }),
       );
     } else {
-      await readBridge().startThread({
+      // An empty saved-thread reopen is desired state. The owning supervisor
+      // must preserve a session another client already brought back to life.
+      const isEmptyReconnect =
+        !prompt &&
+        !segments?.length &&
+        !providerSwitch &&
+        !optimisticUserMessageItemId &&
+        (resumableSessionRef !== undefined ||
+          (presentation === "gui" && thread.canResumeWithConfig));
+      const bridge = readBridge();
+      const payload = {
         threadId: thread.id,
         projectLocation,
         ...startInput,
@@ -281,7 +291,9 @@ export async function performInitialThreadLaunch(input: {
           ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
           : {}),
         ...mcpLaunchSnapshot,
-      });
+      };
+      if (isEmptyReconnect) await bridge.ensureThreadRunning(payload);
+      else await bridge.startThread(payload);
     }
   } catch (error) {
     // The host may have started the session without being able to confirm it.

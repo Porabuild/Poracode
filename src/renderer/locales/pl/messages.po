@@ -4766,6 +4766,10 @@ msgstr "Rozłącz"
 msgid "Disconnected"
 msgstr "Rozłączono"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "Rozłączono — wyślij wiadomość, aby połączyć się ponownie"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Odkrywaj"
