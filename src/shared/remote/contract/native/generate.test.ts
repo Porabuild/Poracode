@@ -58,7 +58,7 @@ describe("remote v3 native binding generator", () => {
         generatorVersion: 3,
         // Additive file-scoped media grants change the generated authority
         // fingerprint while keeping older routes and procedures valid.
-        sourceHash: "sha256:9745c8fdafb1dfeec49190c80cb4f04aec0aa886e2a4f96afd174afe4692a93b",
+        sourceHash: "sha256:9bbebc8385e860cbc8836f098764307013ce1abb62386857b8b77e2eb31f8546",
         manifestHash: "sha256:ce9f5bed32ed3cf9f03fe88e986cbed0dca9598a94c6ccee401992e1ef524374",
         counts: {
           routes: 93,

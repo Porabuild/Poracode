@@ -51,7 +51,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
     path: "/api/environments/{environmentId}/media-release",
     auth: "bearer",
     scopes: ENVIRONMENT_USE_SCOPES,
-    audit: noAudit("read"),
+    audit: auditEvent("file_read"),
     request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
     response: { wireKind: "json", status: 200, jsonSchema: remoteOkResponseSchema },
   }),

@@ -13,7 +13,7 @@ object RemoteContractMetadata {
     const val protocolVersion = 12
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:9745c8fdafb1dfeec49190c80cb4f04aec0aa886e2a4f96afd174afe4692a93b"
+    const val sourceHash = "sha256:9bbebc8385e860cbc8836f098764307013ce1abb62386857b8b77e2eb31f8546"
     const val manifestHash = "sha256:ce9f5bed32ed3cf9f03fe88e986cbed0dca9598a94c6ccee401992e1ef524374"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
@@ -44,7 +44,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("environment-websocket-ticket", "POST", "/api/environments/{environmentId}/websocket-ticket", "bearer", listOf("session:operate", "ports:forward"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053", listOf()),
         RemoteRouteDescriptor("experiment-command", "POST", "/api/experiments/{experimentId}/command", "bearer", listOf("session:operate"), "json", "json", 200, "RouteexperimentU2DCommandRequest_bbf6a8d3b4", "RouteexperimentU2DCommandResponse_ee8a6a8741", listOf()),
         RemoteRouteDescriptor("experiment-state", "GET", "/api/experiments", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteexperimentU2DStateResponse_acccf296d8", listOf()),
-        RemoteRouteDescriptor("file-media", "GET", "/api/files/media", "bearer-or-query", listOf("session:read"), "empty", "binary", 200, "RemoteUnit", "ByteArray", listOf()),
+        RemoteRouteDescriptor("file-media", "GET", "/api/files/media", "bearer-or-query", listOf("session:read"), "empty", "binary", 200, "RemoteUnit", "ByteArray", listOf(RemoteQueryParameterDescriptor("ticket", "string", false, false))),
         RemoteRouteDescriptor("file-media-release", "POST", "/api/files/media-release", "bearer", listOf("session:read"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
         RemoteRouteDescriptor("file-media-ticket", "POST", "/api/files/media-ticket", "bearer", listOf("session:read"), "json", "json", 200, "RoutefileU2DMediaU2DTicketRequest_687b136989", "RoutefileU2DMediaU2DTicketResponse_b53074e6b6", listOf()),
         RemoteRouteDescriptor("forward-enter", "GET", "/forward/{forwardId}/enter", "forward-enter-token", listOf(), "empty", "redirect-html", 302, "RemoteUnit", "String", listOf(RemoteQueryParameterDescriptor("fwt", "string", false, false))),

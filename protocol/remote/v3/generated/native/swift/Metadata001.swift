@@ -8,7 +8,7 @@ public enum RemoteContractMetadata {
   public static let protocolVersion = 12
   public static let bindingFormatVersion = 2
   public static let generatorVersion = 3
-  public static let sourceHash = "sha256:9745c8fdafb1dfeec49190c80cb4f04aec0aa886e2a4f96afd174afe4692a93b"
+  public static let sourceHash = "sha256:9bbebc8385e860cbc8836f098764307013ce1abb62386857b8b77e2eb31f8546"
   public static let manifestHash = "sha256:ce9f5bed32ed3cf9f03fe88e986cbed0dca9598a94c6ccee401992e1ef524374"
   public static let validationBoundary: RemoteValidationBoundary = .rootCodecOnly
   public static let generatedModelCodableSemantics: RemoteGeneratedSerializerSemantics = .nonValidatingRepresentationOnly
@@ -39,7 +39,7 @@ public enum RemoteContractMetadata {
     .init(id: "environment-websocket-ticket", method: "POST", path: "/api/environments/{environmentId}/websocket-ticket", auth: "bearer", scopes: ["session:operate", "ports:forward"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteenvironmentU2DWebsocketU2DTicketResponse_b9dfb5a053", queryCodecs: []),
     .init(id: "experiment-command", method: "POST", path: "/api/experiments/{experimentId}/command", auth: "bearer", scopes: ["session:operate"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteexperimentU2DCommandRequest_bbf6a8d3b4", responseType: "RouteexperimentU2DCommandResponse_ee8a6a8741", queryCodecs: []),
     .init(id: "experiment-state", method: "GET", path: "/api/experiments", auth: "bearer", scopes: ["session:read"], bodyKind: "empty", responseKind: "json", status: 200, requestType: "RemoteUnit", responseType: "RouteexperimentU2DStateResponse_acccf296d8", queryCodecs: []),
-    .init(id: "file-media", method: "GET", path: "/api/files/media", auth: "bearer-or-query", scopes: ["session:read"], bodyKind: "empty", responseKind: "binary", status: 200, requestType: "RemoteUnit", responseType: "Data", queryCodecs: []),
+    .init(id: "file-media", method: "GET", path: "/api/files/media", auth: "bearer-or-query", scopes: ["session:read"], bodyKind: "empty", responseKind: "binary", status: 200, requestType: "RemoteUnit", responseType: "Data", queryCodecs: [.init(name: "ticket", kind: "string", optional: false, repeated: false)]),
     .init(id: "file-media-release", method: "POST", path: "/api/files/media-release", auth: "bearer", scopes: ["session:read"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", responseType: "RouteenvironmentU2DDeleteResponse_badd682f35", queryCodecs: []),
     .init(id: "file-media-ticket", method: "POST", path: "/api/files/media-ticket", auth: "bearer", scopes: ["session:read"], bodyKind: "json", responseKind: "json", status: 200, requestType: "RoutefileU2DMediaU2DTicketRequest_687b136989", responseType: "RoutefileU2DMediaU2DTicketResponse_b53074e6b6", queryCodecs: []),
     .init(id: "forward-enter", method: "GET", path: "/forward/{forwardId}/enter", auth: "forward-enter-token", scopes: [], bodyKind: "empty", responseKind: "redirect-html", status: 302, requestType: "RemoteUnit", responseType: "String", queryCodecs: [.init(name: "fwt", kind: "string", optional: false, repeated: false)]),

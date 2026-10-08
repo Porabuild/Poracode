@@ -39,9 +39,10 @@ export async function exerciseRemainingRoutes(
   ]);
   for (const route of loadProtocolManifest().httpRoutes) {
     if (excluded.has(route.id)) continue;
+    const contract = generatedRoute(route.id);
     const response = await requestGeneratedRoute(harness, accessToken, route.id);
-    assert.equal(response.status, generatedRoute(route.id).response.status, route.id);
-    if (route.id === "local-image" || route.id === "runtime-image") {
+    assert.equal(response.status, contract.response.status, route.id);
+    if (contract.response.wireKind === "binary") {
       assert.equal(response.headers.get("content-type"), "image/png");
       assert.deepEqual(
         Buffer.from(await response.arrayBuffer()).subarray(0, 8),
