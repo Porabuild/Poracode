@@ -280,6 +280,41 @@ data class RouteenvironmentU2DListResponse_700ee4302b(
 }
 
 @Serializable
+data class RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133(
+    @SerialName("ticket") val ticket: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("ticket", "String", true, false, null, null, null, null, null, null, "^pc_media_[A-Za-z0-9_-]{43}$", null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteenvironmentU2DMediaU2DTicketRequest_aa35b4044d(
+    @SerialName("childTicket") val childTicket: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("childTicket", "String", true, false, null, null, null, null, null, null, "^pc_media_[A-Za-z0-9_-]{43}$", null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteenvironmentU2DMediaU2DTicketResponse_eaa8e54151(
+    @SerialName("expiresAt") val expiresAt: String,
+    @SerialName("ticket") val ticket: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("expiresAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("ticket", "String", true, false, null, null, null, null, null, null, "^pc_media_[A-Za-z0-9_-]{43}$", null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
 data class RouteenvironmentU2DPairingResponseU2DPairing_3f3680e577(
     @SerialName("childDesktopId") val childDesktopId: String,
     @SerialName("endpoint") val endpoint: String,
@@ -403,46 +438,4 @@ enum class RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCandidatesU2
     @SerialName("pending") PENDING,
     @SerialName("owned") OWNED,
     @SerialName("removed") REMOVED,
-}
-
-@Serializable
-data class RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCandidatesU2DItem_fc49e8b0b6(
-    @SerialName("agentKind") val agentKind: String,
-    @SerialName("agentLabel") val agentLabel: RemoteField<String> = RemoteField.Missing,
-    @SerialName("effort") val effort: RemoteField<String> = RemoteField.Missing,
-    @SerialName("fast") val fast: RemoteField<Boolean> = RemoteField.Missing,
-    @SerialName("model") val model: RemoteField<String> = RemoteField.Missing,
-    @SerialName("threadId") val threadId: String,
-    @SerialName("worktreeBranch") val worktreeBranch: String,
-    @SerialName("worktreeOwnerToken") val worktreeOwnerToken: String,
-    @SerialName("worktreePath") val worktreePath: RemoteField<String> = RemoteField.Missing,
-    @SerialName("worktreeState") val worktreeState: RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCandidatesU2DItemU2DWorktreeState_a8b4490d4a,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("agentKind", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("agentLabel", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("effort", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("fast", "Boolean", false, false, null, null, null, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("model", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreeBranch", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreeOwnerToken", "String", true, false, null, null, 1, 128, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreePath", "String", false, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("worktreeState", "RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCandidatesU2DItemU2DWorktreeState_a8b4490d4a", true, false, null, null, null, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RouteexperimentU2DCommandRequestU2DOptionU2D1U2DRecordU2DCrownU2DOptionU2D1U2DAssessmentsU2DItem_27d9340da4(
-    @SerialName("rationale") val rationale: String,
-    @SerialName("threadId") val threadId: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("rationale", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-            RemoteFieldDescriptor("threadId", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
-        ), listOf())
-    }
 }

@@ -35,8 +35,67 @@ import {
   runtimeImageQuerySchema,
 } from "../routeSchemas";
 import type { RemoteHttpRouteContract } from "../types";
+import { ENVIRONMENT_USE_SCOPES } from "../../../environments";
+import {
+  mediaFileRequestSchema,
+  mediaTicketQuerySchema,
+  mediaTicketResultSchema,
+  environmentMediaTicketBodySchema,
+  environmentMediaTicketResultSchema,
+} from "../../media";
 
 export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
+  defineRoute({
+    id: "environment-media-release",
+    method: "POST",
+    path: "/api/environments/{environmentId}/media-release",
+    auth: "bearer",
+    scopes: ENVIRONMENT_USE_SCOPES,
+    audit: noAudit("read"),
+    request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: remoteOkResponseSchema },
+  }),
+  defineRoute({
+    id: "file-media-ticket",
+    method: "POST",
+    path: "/api/files/media-ticket",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: mediaFileRequestSchema },
+    response: { wireKind: "json", status: 200, jsonSchema: mediaTicketResultSchema },
+  }),
+  defineRoute({
+    id: "file-media",
+    method: "GET",
+    path: "/api/files/media",
+    auth: "bearer-or-query",
+    scopes: ["session:read"],
+    audit: auditEvent("file_read"),
+    queryParameters: ["ticket"],
+    request: { bodyKind: "empty", querySchema: mediaTicketQuerySchema },
+    response: { wireKind: "binary", status: 200, contentType: "audio/*,video/*,image/*" },
+  }),
+  defineRoute({
+    id: "file-media-release",
+    method: "POST",
+    path: "/api/files/media-release",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: noAudit("read"),
+    request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: remoteOkResponseSchema },
+  }),
+  defineRoute({
+    id: "environment-media-ticket",
+    method: "POST",
+    path: "/api/environments/{environmentId}/media-ticket",
+    auth: "bearer",
+    scopes: ENVIRONMENT_USE_SCOPES,
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: environmentMediaTicketBodySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: environmentMediaTicketResultSchema },
+  }),
   defineRoute({
     id: "local-image",
     method: "GET",

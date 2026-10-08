@@ -9,6 +9,7 @@ import {
   useIsActiveBufferDirty,
   useTabPaths,
 } from "@/renderer/state/fileEditorSelectors";
+import { isSvgFile } from "@/shared/fileMedia";
 import { getBasename, isMarkdownFile } from "@/shared/pathUtils";
 import { useResolvedTheme } from "./parts/monacoThemes";
 import { SortableTab } from "./parts/SortableTab";
@@ -38,7 +39,7 @@ export function FileEditorPane(props: {
   const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
   const theme = useResolvedTheme();
 
-  const isMarkdown = activePath ? isMarkdownFile(activePath) : false;
+  const isMarkdown = activePath ? isMarkdownFile(activePath) || isSvgFile(activePath) : false;
 
   const { notifyDidSave } = useLspLifecycle(monacoInstance);
 

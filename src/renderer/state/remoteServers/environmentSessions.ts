@@ -1,3 +1,5 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { environmentProxyPrefix } from "@/shared/environments";
 import {
   environmentImageRefKey,
@@ -317,7 +319,7 @@ function managedParentSessionFor(authority: ManagedParentAuthority): ManagedPare
 async function ensureParentLive(ref: EnvironmentParentRef): Promise<void> {
   const session = ensureParentSession(ref);
   if (!session) {
-    throw new Error("The paired server that owns this environment is not connected.");
+    throw new Error(i18n._(msg`The paired server that owns this environment is not connected.`));
   }
   session.ensureLive ??= (
     session.kind === "connection"
@@ -365,10 +367,24 @@ function parentAuthorityFor(
         return directParentFor(ref)?.accessToken;
       },
       ensureLive: () => ensureParentLive(ref),
+      releaseMediaTicket: async (ticket) => {
+        const parent = parentClientForConnection(ref.connectionId);
+        if (parent) await parent.releaseEnvironmentMediaTicket(environmentId, ticket);
+      },
+      mintMediaTicket: async (childTicket) => {
+        const parent = parentClientForConnection(ref.connectionId);
+        if (!parent)
+          throw new Error(
+            i18n._(msg`The paired server that owns this environment is not connected.`),
+          );
+        return parent.environmentMediaTicket(environmentId, childTicket);
+      },
       mintWebSocketTicket: async () => {
         const parent = parentClientForConnection(ref.connectionId);
         if (!parent) {
-          throw new Error("The paired server that owns this environment is not connected.");
+          throw new Error(
+            i18n._(msg`The paired server that owns this environment is not connected.`),
+          );
         }
         return parent.environmentWebSocketTicket(environmentId);
       },
@@ -384,10 +400,19 @@ function parentAuthorityFor(
       return current ? current.accessToken() : undefined;
     },
     ensureLive: () => ensureParentLive(ref),
+    releaseMediaTicket: async (ticket) => {
+      const current = managedParentFor(ref);
+      if (current) await current.client.releaseEnvironmentMediaTicket(environmentId, ticket);
+    },
+    mintMediaTicket: async (childTicket) => {
+      const current = managedParentFor(ref);
+      if (!current) throw new Error(i18n._(msg`The desktop's own server is not connected.`));
+      return current.client.environmentMediaTicket(environmentId, childTicket);
+    },
     mintWebSocketTicket: async () => {
       const current = managedParentFor(ref);
       if (!current) {
-        throw new Error("The desktop's own server is not connected.");
+        throw new Error(i18n._(msg`The desktop's own server is not connected.`));
       }
       return current.client.environmentWebSocketTicket(environmentId);
     },

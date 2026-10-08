@@ -24557,6 +24557,101 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "route.environment-media-release.path": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "environmentId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "environmentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-release.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-release.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ok": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-ticket.path": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "environmentId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "environmentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-ticket.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "childTicket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "childTicket"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-ticket.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "expiresAt": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket",
+        "expiresAt"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "route.environment-pairing.path": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -27173,6 +27268,225 @@
       "required": [
         "revision",
         "experiments"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media-release.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media-release.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ok": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media-ticket.request": {
+      "$defs": {
+        "__schema0": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "windows",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                },
+                "linuxPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uncPath": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro",
+                "linuxPath",
+                "uncPath"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "posix",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "access": {
+              "const": "project",
+              "type": "string"
+            },
+            "path": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "projectLocation": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "access",
+            "projectLocation",
+            "path"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "access": {
+              "const": "external",
+              "type": "string"
+            },
+            "path": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "projectLocation": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "access",
+            "projectLocation",
+            "path"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      ]
+    },
+    "route.file-media-ticket.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "contentType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "expiresAt": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "modifiedAtMs": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "sizeBytes": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket",
+        "expiresAt",
+        "sizeBytes",
+        "modifiedAtMs",
+        "contentType"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media.query": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -42415,13 +42729,13 @@
     "jsonProcedureResults": 76,
     "procedures": 126,
     "replayableEventTypes": 16,
-    "routes": 88,
+    "routes": 93,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 50,
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 11
   },
-  "manifestHash": "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
+  "manifestHash": "sha256:ce9f5bed32ed3cf9f03fe88e986cbed0dca9598a94c6ccee401992e1ef524374",
   "protocolVersion": 12,
-  "sourceHash": "sha256:54730c38da485c1c32104d1b92dd8b11e13d8c5d0d276728509c76fe0093e28c"
+  "sourceHash": "sha256:9745c8fdafb1dfeec49190c80cb4f04aec0aa886e2a4f96afd174afe4692a93b"
 }

@@ -9,6 +9,7 @@ import { readBridge } from "../bridge";
 import { captureProductEvent } from "../analytics/productAnalytics";
 import { captureRendererException } from "../diagnostics/sentry";
 import { hasUnresolvedConflicts } from "@/renderer/utils/mergeConflicts";
+import { fileMediaType, isSvgFile } from "@/shared/fileMedia";
 import { isMarkdownFile } from "@/shared/pathUtils";
 import { useGitStore } from "./gitStore";
 import { resolveAbsolutePath } from "@/renderer/utils/resolveAbsolutePath";
@@ -135,9 +136,9 @@ interface FileEditorStoreState {
   setOverlayMode: (mode: FileEditorOverlayMode | null) => void;
   setActivePath: (path: string | null) => void;
   /**
-   * Toggle the active file's Markdown preview. Shared by the eye button and the
+   * Toggle the active file's Markdown/SVG preview. Shared by the eye button and the
    * `editor.toggle-markdown-preview` keybinding so they can't diverge. No-op
-   * unless the active file is Markdown.
+   * unless the active file is Markdown or SVG.
    */
   toggleMarkdownPreview: () => void;
   /**
@@ -552,7 +553,7 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
   toggleMarkdownPreview: () =>
     set((state) => {
       const path = state.activePath;
-      if (!path || !isMarkdownFile(path)) return {};
+      if (!path || !(isMarkdownFile(path) || isSvgFile(path))) return {};
       return {
         markdownPreviewPath: state.markdownPreviewPath === path ? null : path,
       };
@@ -760,7 +761,8 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
 
     const paths = Object.entries(buffers)
       .filter(([path, buf]) => {
-        if (buf.status !== "ready" || buf.isDirty || buf.isLoading) return false;
+        if ((buf.status !== "ready" && !fileMediaType(path)) || buf.isDirty || buf.isLoading)
+          return false;
         // Filesystem events triggered by our own save round-trip don't need
         // to rebuild the buffer — suppress for a short window so Monaco
         // doesn't lose focus / blink on Ctrl+S.
@@ -787,7 +789,12 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         const { path, result } = entry.value;
         const current = nextBuffers[path];
         // Skip if the buffer was modified by the user while we were reading
-        if (!current || current !== buffers[path] || current.isDirty || current.status !== "ready")
+        if (
+          !current ||
+          current !== buffers[path] ||
+          current.isDirty ||
+          (current.status !== "ready" && !fileMediaType(path))
+        )
           continue;
 
         // Fast path: on-disk content matches what the editor shows. Refresh

@@ -2239,3 +2239,30 @@ Regression fixtures seed actual encrypted pre-upgrade vault slots, exercise
 mount/resume/online/visibility, background refresh, retry and event backoff,
 reject lost-session refresh after 401 and stale tickets, select only the current
 host, and retain record-based clients across refresh rotation.
+
+### File-editor media playback — additive HTTP routes, no version bump
+
+The desktop and adaptive web editor use five new HTTP routes: file media mint,
+stream and release, plus environment parent media mint and release. Existing file-read
+procedure schemas are unchanged; media files now use stat-only binary buffers
+with followed regular-file containment in WSL. Size and mtime come from the
+new grant response. Remote protocol 12, client/host hop 16, binding format 2,
+generator 3 and native-binding manifest format 5 remain valid. Regenerated
+remote-v3 authority hashes, schemas and Swift/Kotlin codecs identify the new
+routes. Older hosts return an unavailable-route response and the editor retains
+its existing fallback. Native media transport/editor adoption is explicitly
+planned in the parity ledger; native applications consume the generated codecs.
+
+Playback grants are process-local and never persisted: random 256-bit tickets
+are hashed in bounded stores, expire within two minutes and their issuing
+session lifetime, and retire active transfers on release, expiry, revocation or
+server disposal. Each child grant binds a registered project/worktree file or an
+explicit projects:manage external read. Reads recheck session authority, project
+ownership, containment and file identity; WSL project reads also use the existing
+in-distro containment gate. Environment parent grants additionally bind the
+child ticket, environment and verified tunnel generation; neither long-lived
+parent nor child credentials enter playback URLs. Shared Range/stream cleanup
+serves the existing static assets and the new media route. No database, cache,
+service-worker format or independently deployed WSL helper changes are required.
+Previous-route compatibility, old-host fallback, grant retirement, authorization,
+Range responses and disconnect descriptor cleanup have targeted regressions.

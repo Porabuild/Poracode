@@ -81,7 +81,17 @@ export const functionalAreas = [
   {
     id: "git-review",
     title: "Git status, staging, review, conflicts, and pull requests",
-    patterns: [/git/i, /PrReview/i, /mergeConflict/i, /MobileWorkspacePage/],
+    patterns: [
+      /git/i,
+      /PrReview/i,
+      /mergeConflict/i,
+      /MobileWorkspacePage/,
+      /components\/media\//,
+      /fileMedia/i,
+      /clientApiMedia/,
+      /playbackGrants/,
+      /fileResponseStream/,
+    ],
     automated: ["baseline"],
     manual: ["git-mutations"],
   },
@@ -95,9 +105,20 @@ export const functionalAreas = [
   {
     id: "file-editor",
     title: "Project tree, file editor, Monaco, and file mutations",
-    patterns: [/FileEditor/i, /fileEditor/i, /projectTree/i, /FileIndex/i, /MobileWorkspacePage/],
+    patterns: [
+      /FileEditor/i,
+      /fileEditor/i,
+      /projectTree/i,
+      /FileIndex/i,
+      /MobileWorkspacePage/,
+      /components\/media\//,
+      /fileMedia/i,
+      /clientApiMedia/,
+      /playbackGrants/,
+      /fileResponseStream/,
+    ],
     automated: ["baseline"],
-    manual: ["file-editor"],
+    manual: ["file-editor", "editor-media"],
   },
   {
     id: "browser",
@@ -223,6 +244,8 @@ export const manualGates = {
     "Start voice from the composer, exchange speech, mute, hang up, and verify microphone cleanup and saved transcripts.",
   "changed-surface": "Exercise the changed renderer surface through its real controls.",
   "file-editor": "Open, edit, save, rename, and close a fixture file.",
+  "editor-media":
+    "Inspect images and inert SVG source/preview; play and seek audio/video, reload changed files, and verify desktop plus paired compact presentation.",
   "git-mutations": "Stage/unstage a fixture file and open Git Review without touching user data.",
   "github-actions-live":
     "Against an isolated GitHub fixture, list workflows and runs, dispatch a safe workflow, then verify rerun and delete controls.",

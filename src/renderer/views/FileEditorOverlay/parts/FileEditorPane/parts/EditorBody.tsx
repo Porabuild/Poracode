@@ -21,6 +21,9 @@ import {
 import { useEditorModelBinding } from "./useEditorModelBinding";
 import { useLspSync } from "./useLspSync";
 import { openPdfPreview } from "@/renderer/components/pdf";
+import { EditorMediaViews } from "./EditorMediaViews";
+import { SvgFileView } from "@/renderer/components/media/SvgFileView";
+import { fileMediaType, isSvgFile } from "@/shared/fileMedia";
 import { isPdfPath } from "@/shared/promptContent";
 
 const LocalMonacoEditor = lazy(() => import("./localMonacoEditor"));
@@ -61,7 +64,11 @@ export function EditorBody(props: {
   const content = useActiveBufferContent();
   const modelPath = projectLocation ? createLspFileUri(projectLocation, activePath) : activePath;
   const isPdf = isPdfPath(activePath);
-  const editingSource = bufferStatus === "ready" && !isPdf && !(showPreview && isMarkdown);
+  const editingSource =
+    bufferStatus === "ready" &&
+    !isPdf &&
+    !fileMediaType(activePath) &&
+    !(showPreview && isMarkdown);
   const { binding, bindEditor } = useEditorModelBinding(editingSource ? modelPath : null, {
     disposeModelOnRelease: true,
   });
@@ -133,6 +140,18 @@ export function EditorBody(props: {
     </div>
   );
 
+  const fallback = (
+    <div className="flex h-full items-center justify-center px-8 text-center text-sm text-muted">
+      {bufferStatus === "binary" ? (
+        <Trans>Binary files can't be edited here.</Trans>
+      ) : bufferStatus === "too_large" ? (
+        <Trans>This file is too large for the built-in editor.</Trans>
+      ) : (
+        <Trans>This file uses an unsupported encoding.</Trans>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
       {bufferStatus === "loading" ? (
@@ -141,8 +160,19 @@ export function EditorBody(props: {
         </div>
       ) : isPdf ? (
         <PdfBrowserPlaceholder path={activePath} projectLocation={projectLocation} />
+      ) : fileMediaType(activePath) ? (
+        <EditorMediaViews
+          key={modelPath}
+          path={activePath}
+          projectLocation={projectLocation}
+          fallback={fallback}
+        />
       ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
-        <MarkdownPreview content={content ?? ""} />
+        isSvgFile(activePath) ? (
+          <SvgFileView path={activePath} content={content ?? ""} />
+        ) : (
+          <MarkdownPreview content={content ?? ""} />
+        )
       ) : bufferStatus === "ready" ? (
         <Suspense fallback={loading}>
           <LocalMonacoEditor
@@ -162,15 +192,7 @@ export function EditorBody(props: {
           />
         </Suspense>
       ) : (
-        <div className="flex h-full items-center justify-center px-8 text-center text-sm text-muted">
-          {bufferStatus === "binary" ? (
-            <Trans>Binary files can't be edited here.</Trans>
-          ) : bufferStatus === "too_large" ? (
-            <Trans>This file is too large for the built-in editor.</Trans>
-          ) : (
-            <Trans>This file uses an unsupported encoding.</Trans>
-          )}
-        </div>
+        fallback
       )}
     </div>
   );

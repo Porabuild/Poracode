@@ -21,6 +21,8 @@ export interface LightboxImage {
   /** Original download name and MIME type, retained when the display URL is opaque. */
   fileName?: string;
   mime?: string;
+  /** Optional owner-supplied byte read (e.g. the pinned client that issued a media grant). */
+  readBytes?: () => Promise<Uint8Array<ArrayBuffer>>;
 }
 
 type LightboxState = {
@@ -88,6 +90,38 @@ export function updateImageLightboxFromThread(
   if (lightboxState.images === images) return;
   lightboxState = { ...lightboxState, images };
   emitLightboxChange();
+}
+
+/** Renew only the exact editor-owned resource; preserve the open lightbox's zoom/pan. */
+export function updateImageLightboxSource(
+  previousSrc: string,
+  nextSrc: string,
+  readBytes?: LightboxImage["readBytes"],
+): void {
+  if (
+    !lightboxState ||
+    lightboxState.liveThreadId !== null ||
+    !lightboxState.images.some((image) => image.src === previousSrc)
+  )
+    return;
+  lightboxState = {
+    ...lightboxState,
+    images: lightboxState.images.map((image) =>
+      image.src === previousSrc
+        ? { ...image, src: nextSrc, ...(readBytes ? { readBytes } : {}) }
+        : image,
+    ),
+  };
+  emitLightboxChange();
+}
+
+/** A retired editor grant must not leave actions pointing at an expired resource. */
+export function closeImageLightboxForSource(src: string): void {
+  if (
+    lightboxState?.liveThreadId === null &&
+    lightboxState.images.some((image) => image.src === src)
+  )
+    closeImageLightbox();
 }
 
 export function openAttachmentLightbox(

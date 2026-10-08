@@ -56,21 +56,20 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 12,
         bindingFormatVersion: 2,
         generatorVersion: 3,
-        // Additive project-registration fields, portable sendable-input
-        // shapes and the optional per-turn `clientContext` input field change
-        // the generated source fingerprint without a wire bump.
-        sourceHash: "sha256:54730c38da485c1c32104d1b92dd8b11e13d8c5d0d276728509c76fe0093e28c",
-        manifestHash: "sha256:9279db8cc091752cc7a97dd3c1ee832d7cad3eb8151059701d241cd7b95fe58d",
+        // Additive file-scoped media grants change the generated authority
+        // fingerprint while keeping older routes and procedures valid.
+        sourceHash: "sha256:9745c8fdafb1dfeec49190c80cb4f04aec0aa886e2a4f96afd174afe4692a93b",
+        manifestHash: "sha256:ce9f5bed32ed3cf9f03fe88e986cbed0dca9598a94c6ccee401992e1ef524374",
         counts: {
-          routes: 88,
+          routes: 93,
           procedures: 126,
           voidProcedureResults: 50,
           jsonProcedureResults: 76,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 405,
-          structuralTypes: 927,
+          schemaRoots: 416,
+          structuralTypes: 935,
           semanticValidators: 18,
           swiftFiles: 58,
           kotlinFiles: 51,
@@ -312,7 +311,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(405);
+        expect(adapters).toHaveLength(416);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)

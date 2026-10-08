@@ -1685,6 +1685,10 @@ msgstr "시도"
 msgid "Audio"
 msgstr "오디오"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "오디오 미리보기"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "인증"
@@ -7246,6 +7250,7 @@ msgid "Loading diff..."
 msgstr "차이점 로드 중..."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading editor…"
 msgstr "편집기 로드 중…"
 
@@ -9311,6 +9316,7 @@ msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 msgid "Open image {0} of {1}"
 msgstr "이미지 {0}/{1} 열기"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -10949,6 +10955,10 @@ msgstr "새로고침"
 msgid "Reload browser page"
 msgstr "브라우저 페이지 새로고침"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "미리보기 새로고침"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11020,6 +11030,7 @@ msgstr "원격 프로젝트를 찾을 수 없습니다."
 #~ msgid "Remote server"
 #~ msgstr "원격 서버"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -13726,6 +13737,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "데스크톱 자체 서버가 아직 연결되지 않았습니다."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "데스크톱 자체 서버가 연결되어 있지 않습니다."
@@ -13842,6 +13854,7 @@ msgid "The normal app shell could not render. The diagnostics below are shown be
 msgstr "일반 앱 셸을 렌더링할 수 없습니다. 아래 진단은 다시 로드하기 전에 표시되므로 오류를 조사할 수 있습니다."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14257,6 +14270,10 @@ msgstr "Poracode에서 이 서버를 확인하려면 먼저 인증해야 합니�
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "이 서버는 이 컴퓨터에서 실행되며 WSL 프로젝트에서는 사용할 수 없습니다."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "이 SVG를 표시할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -15502,6 +15519,10 @@ msgstr "버전"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "{0}을(를) 통해"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "동영상 미리보기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

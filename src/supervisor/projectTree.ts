@@ -29,6 +29,7 @@ import type {
   WriteProjectFileResult,
 } from "@/shared/contracts";
 import { HOST_DRIVE_LIST_PATH } from "@/shared/contracts";
+import { fileMediaType } from "@/shared/fileMedia";
 import { isPdfPath } from "@/shared/promptContent";
 import { getProjectFsPath, joinProjectPosixPath } from "@/shared/wsl";
 import { ProjectSearchIndex } from "./ProjectSearchIndex";
@@ -40,6 +41,7 @@ import {
   buildWriteBuffer,
 } from "./projectFileContent";
 import { writeNativeEditorFile } from "./projectFileWrites";
+import { statWslPreviewMtimeMs } from "./projectFileMetadata";
 import type { WslBridgeClient } from "./wsl/bridge/client";
 import {
   normalizeProjectRelativePath as normalizeRelativePath,
@@ -295,12 +297,16 @@ export class ProjectTreeService {
 
   async readProjectFile(payload: ReadProjectFilePayload): Promise<ReadProjectFileResult> {
     const path = normalizeRelativePath(payload.path);
-    // PDFs open in the in-app browser — only metadata is needed for the editor tab.
-    if (isPdfPath(path)) {
+    // PDF/browser and media previews load bytes separately; editor buffers need only metadata.
+    if (isPdfPath(path) || fileMediaType(path)) {
       return {
         path,
         status: "binary",
-        modifiedAtMs: await this.statProjectRelativeMtimeMs(payload.projectLocation, path),
+        modifiedAtMs: await this.statProjectRelativeMtimeMs(
+          payload.projectLocation,
+          path,
+          Boolean(fileMediaType(path)),
+        ),
       };
     }
 
@@ -415,7 +421,7 @@ export class ProjectTreeService {
       throw new Error("Path must be absolute.");
     }
 
-    if (isPdfPath(payload.absolutePath)) {
+    if (isPdfPath(payload.absolutePath) || fileMediaType(payload.absolutePath)) {
       try {
         return {
           path: payload.absolutePath,
@@ -423,6 +429,7 @@ export class ProjectTreeService {
           modifiedAtMs: await this.statAbsoluteMtimeMs(
             payload.projectLocation,
             payload.absolutePath,
+            Boolean(fileMediaType(payload.absolutePath)),
           ),
         };
       } catch (err: unknown) {
@@ -566,30 +573,44 @@ export class ProjectTreeService {
     return path.startsWith("/") ? posix.resolve(path) : posix.resolve(root, path);
   }
 
-  /** mtime only — used when PDFs skip body load for browser preview. */
+  /** mtime only — previews load their file bytes separately. */
   private async statProjectRelativeMtimeMs(
     location: ProjectLocation,
     relativePath: string,
+    requireRegularFile = false,
   ): Promise<number> {
     if (location.kind === "wsl") {
-      const { stats } = await this.requireWslClient().stat(location, [
+      return statWslPreviewMtimeMs(
+        this.requireWslClient(),
+        location,
         joinProjectPosixPath(location, relativePath),
-      ]);
-      return stats[0]?.mtimeMs ?? 0;
+        requireRegularFile,
+      );
     }
-    return (await this.statFollowingWslSymlinks(location, relativePath)).fileStat.mtimeMs;
+    const info = (await this.statFollowingWslSymlinks(location, relativePath)).fileStat;
+    if (requireRegularFile && !info.isFile())
+      throw new Error("Only files can be opened in the editor.");
+    return info.mtimeMs;
   }
 
   private async statAbsoluteMtimeMs(
     location: ProjectLocation,
     absolutePath: string,
+    requireRegularFile = false,
   ): Promise<number> {
     if (location.kind === "wsl") {
       const wslLocation = this.externalWslLocation(location, absolutePath);
-      const { stats } = await this.requireWslClient().stat(wslLocation, [absolutePath]);
-      return stats[0]?.mtimeMs ?? 0;
+      return statWslPreviewMtimeMs(
+        this.requireWslClient(),
+        wslLocation,
+        absolutePath,
+        requireRegularFile,
+      );
     }
-    return (await stat(absolutePath)).mtimeMs;
+    const info = await stat(absolutePath);
+    if (requireRegularFile && !info.isFile())
+      throw new Error("Only files can be opened in the editor.");
+    return info.mtimeMs;
   }
 
   private async readAbsoluteFileBufferNative(

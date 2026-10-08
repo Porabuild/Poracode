@@ -1685,6 +1685,10 @@ msgstr "Tentative"
 msgid "Audio"
 msgstr "Audio"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "Aperçu audio"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "S'authentifier"
@@ -7246,6 +7250,7 @@ msgid "Loading diff..."
 msgstr "Chargement du diff..."
 
 #: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
 msgid "Loading editor…"
 msgstr "Chargement de l'éditeur…"
 
@@ -9310,6 +9315,7 @@ msgstr "Ouvrez git review sous forme de panneau de droite ou de page complète."
 msgid "Open image {0} of {1}"
 msgstr "Ouvrir l'image {0} sur {1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -10948,6 +10954,10 @@ msgstr "Recharger"
 msgid "Reload browser page"
 msgstr "Recharger la page du navigateur"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "Recharger l’aperçu"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11019,6 +11029,7 @@ msgstr "Projet distant introuvable."
 #~ msgid "Remote server"
 #~ msgstr "Serveur distant"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -13725,6 +13736,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "Le propre serveur du bureau n'est pas encore connecté."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "Le serveur propre au bureau n'est pas connecté."
@@ -13841,6 +13853,7 @@ msgid "The normal app shell could not render. The diagnostics below are shown be
 msgstr "Le shell d'application normal n'a pas pu être rendu. Les diagnostics ci-dessous sont affichés avant le rechargement afin que la panne puisse être étudiée."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14256,6 +14269,10 @@ msgstr "Ce serveur nécessite une authentification avant que Poracode puisse le 
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "Ce serveur s'exécute sur cet ordinateur et n'est pas disponible pour les projets WSL."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Ce SVG ne peut pas être affiché."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -15501,6 +15518,10 @@ msgstr "Version"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "via {0}"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "Aperçu vidéo"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

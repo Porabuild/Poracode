@@ -21,8 +21,12 @@ export async function fetchImageBytes(src: string): Promise<Uint8Array<ArrayBuff
 }
 
 /** Both desktop and browser clipboards accept PNG; keep saved originals unchanged. */
-export async function toClipboardPngBytes(source: { src: string; mime?: string }) {
-  const data = await fetchImageBytes(source.src);
+export async function toClipboardPngBytes(source: {
+  src: string;
+  mime?: string;
+  readBytes?: () => Promise<Uint8Array<ArrayBuffer>>;
+}) {
+  const data = source.readBytes ? await source.readBytes() : await fetchImageBytes(source.src);
   // Inspect the bytes as galleries and attachment URLs need not carry MIME metadata.
   if (data[0] === 0x89 && data[1] === 0x50 && data[2] === 0x4e && data[3] === 0x47) {
     return data;

@@ -19,6 +19,7 @@ import {
 } from "./portForward/forwardOriginIdentity";
 import { ForwardOriginPolicy } from "./portForward/forwardOrigin";
 import { imageTickets } from "./server/imageTickets";
+import { fileMediaGrants } from "./server/fileMedia";
 import {
   handleRemoteAccessHttpRequest,
   handleRemoteAccessUpgrade,
@@ -503,6 +504,7 @@ export class RemoteAccessServer {
   dispose(): Promise<void> {
     if (this.closing) return this.closing;
     this.stopping = true;
+    fileMediaGrants(this.auth).clear();
     this.listenCancellation.abort();
     this.closing = Promise.resolve().then(async () => {
       // The server owns the gateway created by its factory. Cancel its live
@@ -545,6 +547,7 @@ export class RemoteAccessServer {
     if (!revoked) return false;
     this.recordAudit("revoke", { detail: { sessionId } });
     imageTickets.revokeSession(sessionId);
+    fileMediaGrants(this.auth).revokeSession(sessionId);
     this.options.portForward?.revokeSessionTickets(sessionId);
     // C1: a revoked parent session closes its environment proxy legs (and its
     // outstanding environment upgrade tickets, dropped by the auth store's
