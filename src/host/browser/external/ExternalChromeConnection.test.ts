@@ -248,3 +248,33 @@ describe("ExternalChromeConnection", () => {
     await expect(promise).resolves.toEqual({ ok: true });
   });
 });
+
+describe("unhandled message hook", () => {
+  it("parses each frame once and forwards only frames the CDP relay does not consume", async () => {
+    const ws = new FakeWs();
+    const onUnhandledMessage = vi.fn<(message: Record<string, unknown>) => void>();
+    const conn = new ExternalChromeConnection(
+      ws as unknown as WebSocket,
+      { extensionVersion: "0.2.0" },
+      () => {},
+      { onUnhandledMessage },
+    );
+    const tabs = conn.listTabs();
+    const id = ws.last().id as number;
+    const parse = vi.spyOn(JSON, "parse");
+    ws.inbound({ type: "result", id, ok: true, tabs: [] });
+    ws.inbound({ type: "cdpEvent", method: "Page.loadEventFired", params: {} });
+    ws.inbound({ type: "sidebarBootstrap", version: 1, requestId: "r" });
+    ws.emit("message", "null");
+    await expect(tabs).resolves.toEqual([]);
+    // Four inbound frames, four parses: no second listener re-decodes them.
+    expect(parse).toHaveBeenCalledTimes(4);
+    parse.mockRestore();
+    expect(onUnhandledMessage).toHaveBeenCalledTimes(1);
+    expect(onUnhandledMessage).toHaveBeenCalledWith({
+      type: "sidebarBootstrap",
+      version: 1,
+      requestId: "r",
+    });
+  });
+});

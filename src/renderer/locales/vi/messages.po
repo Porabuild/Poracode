@@ -2459,6 +2459,10 @@ msgstr "Đã gắn sao cuộc trò chuyện"
 msgid "Chat unstarred"
 msgstr "Đã bỏ gắn sao cuộc trò chuyện"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Chats"
+msgstr "Cuộc trò chuyện"
+
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 msgid "Check"
 msgstr "Kiểm tra"
@@ -2747,6 +2751,7 @@ msgstr "Xóa ngày"
 msgid "Clear goal"
 msgstr "Xóa mục tiêu"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/ProjectTreeView.tsx
 msgid "Clear search"
 msgstr "Xóa tìm kiếm"
@@ -3467,6 +3472,10 @@ msgstr "Đang kết nối..."
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
 msgstr "Đang kết nối…"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+#~ msgid "Connection"
+#~ msgstr "Kết nối"
 
 #: src/renderer/components/common/RemoteServerStatusDot.tsx
 #: src/renderer/components/thread/ThreadDraftView.tsx
@@ -8298,6 +8307,10 @@ msgstr "Tên hành động mới"
 msgid "New branch name..."
 msgstr "Tên chi nhánh mới..."
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "New chat"
+msgstr "Cuộc trò chuyện mới"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "New Claude profile config directory"
 msgstr "Thư mục cấu hình hồ sơ Claude mới"
@@ -8864,6 +8877,7 @@ msgid "No repositories found."
 msgstr "Không tìm thấy kho lưu trữ nào."
 
 #: src/renderer/components/find/FindBar.tsx
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "Không có kết quả"
@@ -12109,6 +12123,10 @@ msgstr "Tìm plugin, skill và máy chủ..."
 msgid "Search pull requests"
 msgstr "Tìm kiếm pull request"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Search recent chats"
+msgstr "Tìm các cuộc trò chuyện gần đây"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "Search repositories"
 msgstr "Tìm kiếm kho lưu trữ"
@@ -13023,6 +13041,10 @@ msgstr "Bắt đầu trò chuyện thoại trực tiếp"
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Start minimized"
 msgstr "Khởi động thu nhỏ"
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Start Poracode to chat in your browser."
+msgstr "Khởi động Poracode để trò chuyện trong trình duyệt."
 
 #: src/renderer/views/RemoteProjectModal/RemoteProjectModal.tsx
 #~ msgid "Start remote thread"
@@ -14623,6 +14645,10 @@ msgstr "Không thể so sánh các ứng viên: {0}"
 #~ msgid "Unable to connect over SSH."
 #~ msgstr "Không thể kết nối qua SSH."
 
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Unable to connect. Retrying…"
+msgstr "Không thể kết nối. Đang thử lại…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Unable to copy desktop endpoint."
 msgstr "Không thể sao chép điểm cuối máy tính."
@@ -15082,6 +15108,10 @@ msgstr "chưa đưa vào staging"
 msgid "Unsupported"
 msgstr "Không được hỗ trợ"
 
+#: src/renderer/sidebar/ChatSidebarHeader.tsx
+msgid "Untitled"
+msgstr "Chưa có tiêu đề"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Unverified"
 msgstr "Chưa xác minh"
@@ -15179,6 +15209,10 @@ msgstr "Phương thức cập nhật"
 #: src/renderer/views/MainView/parts/RightPanel/parts/PortsPanel/PortsPanel.tsx
 msgid "Update Poracode on your desktop to use port forwarding."
 msgstr "Cập nhật Poracode trên máy tính của bạn để sử dụng tính năng chuyển tiếp cổng."
+
+#: src/renderer/sidebar/ChatSidebarView.tsx
+msgid "Update Poracode to use browser chats."
+msgstr "Cập nhật Poracode để trò chuyện trong trình duyệt."
 
 #: src/renderer/views/SettingsOverlay/parts/cursorRuntimeInstall.ts
 msgid "Update SDK"

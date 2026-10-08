@@ -6,6 +6,7 @@ import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../re
 import { refreshGitProject } from "../gitRefresh";
 import { useGitStore } from "../gitStore";
 import { filterSyncedRemoteProjects } from "./projectSync";
+import { isChatSidebarSurface } from "@/renderer/clientSurface";
 
 let remoteProjectRowsSyncDepth = 0;
 
@@ -142,13 +143,16 @@ export function syncRemoteAppRows(
   const partial = options.partial === true;
   const remoteState = useRemoteServersStore.getState();
   const excluded = remoteState.excludedProjectIds[desktopId];
-  const projects = allProjects ? filterSyncedRemoteProjects(allProjects, excluded) : undefined;
+  const syncOptions = { includeHomeScope: isChatSidebarSurface() };
+  const projects = allProjects
+    ? filterSyncedRemoteProjects(allProjects, excluded, syncOptions)
+    : undefined;
   // A threads-only update has no project list to scope against, so fall back to
   // the cached snapshot — always written before rows are synced.
   const cachedProjects = remoteState.runtime[desktopId]?.projects ?? [];
   const syncedProjectIds = allThreads
     ? new Set(
-        (projects ?? filterSyncedRemoteProjects(cachedProjects, excluded)).map(
+        (projects ?? filterSyncedRemoteProjects(cachedProjects, excluded, syncOptions)).map(
           (project) => project.id,
         ),
       )

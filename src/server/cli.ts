@@ -20,6 +20,7 @@ import {
   installShutdown,
   reportFatalStartupError,
 } from "./cliRuntime";
+import { chromeNativeHostEnabled } from "@/host/browser/external/chromeNativeHost";
 import { createHeadlessRemoteHost } from "./createHeadlessRemoteHost";
 import { HeadlessCompositionShutdownError } from "./headlessRemoteComposition";
 import { createHostDataBackup } from "./serverBackup";
@@ -218,12 +219,13 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
     { drainDeadlineMs: settings.shutdownDrainDeadlineMs },
   );
   let info;
+  const isDev = process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL);
   try {
     host = await createHeadlessRemoteHost({
       // Immutable artifact metadata first; `unknown` never masquerades as a
       // version, and the `dev` placeholder is never trusted for identity.
       appVersion: version.version,
-      isDev: process.env.PORACODE_IS_DEV === "1" || Boolean(process.env.VITE_DEV_SERVER_URL),
+      isDev,
       baseDir: profileNamespace(),
       supervisorPath: join(__dirname, "supervisor.cjs"),
       wslHelpersDir: resources.wslHelpersDir,
@@ -242,6 +244,8 @@ async function serve(options: ServeCliOptions = {}): Promise<void> {
       ...(resources.computerUseHelperRoot !== undefined
         ? { computerUseHelperRoot: resources.computerUseHelperRoot }
         : {}),
+      // Every production profile registers; dev servers only when opted in.
+      registerChromeNativeHost: chromeNativeHostEnabled(!isDev, process.env),
       signal: cancellation.signal,
       ...(environmentKey !== undefined ? { environmentKey } : {}),
       ...(relayUrl ? { relayUrl } : {}),

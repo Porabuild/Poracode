@@ -25,6 +25,8 @@ import { openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
+import { useImplicitMcpServers } from "../composer/implicitMcpServers";
+import { useTurnClientContextCapture } from "../composer/turnClientContext";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
 import { LiveVoiceButton, LiveVoicePanel } from "../composer/LiveVoiceControls";
 import { liveVoice, useLiveVoice } from "@/renderer/speech/liveVoice";
@@ -223,6 +225,8 @@ function ComposerAfterControls({ renderExtras, renderVoiceInput }: ComposerAfter
 }
 
 function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread: Thread }) {
+  const implicitMcpServers = useImplicitMcpServers();
+  const captureClientContext = useTurnClientContextCapture();
   const {
     thread,
     agentStatus,
@@ -366,7 +370,10 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const effectiveMcpConfig = providerOwnsMcp
     ? (runtimeLaunchConfig ?? thread.config)
     : thread.config;
-  const mcpServers = composerMcpServers.map((descriptor) => ({
+  const visibleComposerMcpServers = composerMcpServers.filter(
+    (descriptor) => !implicitMcpServers.includes(descriptor.id),
+  );
+  const mcpServers = visibleComposerMcpServers.map((descriptor) => ({
     descriptor,
     enabled: effectiveMcpConfig?.[descriptor.configKey] === true,
     visible:
@@ -395,7 +402,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
           },
         ]
       : []),
-    ...composerMcpServers
+    ...visibleComposerMcpServers
       .filter(
         (descriptor) =>
           descriptor.isAvailable(projectLocation) &&
@@ -675,6 +682,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
       requestOpenControl: (target) =>
         setControlOpenRequest((prev) => ({ target, nonce: (prev?.nonce ?? 0) + 1 })),
       onSubmitInput: props.onSubmitInput,
+      captureClientContext,
       onSubmitSuccess: () => {
         props.onSubmitSuccess?.();
         if (!compactLayout) return;

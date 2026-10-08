@@ -476,6 +476,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         ...(input.presentationMode ? { presentationMode: input.presentationMode } : {}),
         ...(input.userMessageItemId ? { userMessageItemId: input.userMessageItemId } : {}),
         ...(input.providerSwitch ? { providerSwitch: input.providerSwitch } : {}),
+        ...(input.clientContext ? { clientContext: input.clientContext } : {}),
         ...(input.ensureRunning ? { ensureRunning: true } : {}),
       },
     });
@@ -530,6 +531,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         ...(input.prNumber !== undefined ? { prNumber: input.prNumber } : {}),
         ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
         ...(input.initialSize ? { initialSize: input.initialSize } : {}),
+        ...(input.clientContext ? { clientContext: input.clientContext } : {}),
       },
       options.commandId !== undefined ? { commandId: options.commandId } : undefined,
     );
@@ -549,6 +551,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         config: parsed.config,
         ...(parsed.segments ? { segments: parsed.segments } : {}),
         ...(parsed.userMessageItemId ? { userMessageItemId: parsed.userMessageItemId } : {}),
+        ...(parsed.clientContext ? { clientContext: parsed.clientContext } : {}),
       },
     });
   }
@@ -615,6 +618,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
         prompt: input.prompt,
         ...(input.segments ? { segments: input.segments } : {}),
         config: input.config,
+        ...(input.clientContext ? { clientContext: input.clientContext } : {}),
       },
     });
   }

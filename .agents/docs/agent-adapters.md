@@ -29,7 +29,13 @@ rule is about control flow and data shape, not about erasing history.
 1. **Declared capability.** The provider states a fact about itself in its
    `DetectionSpec` / `AgentAdapter` (`acpFsTextCapability`, `acpGoalCommands`,
    `acpOptimisticMcpTransports`, `acpClientCapabilitiesMeta`, `baseSpawnEnv`).
-   Shared code reads the flag.
+   Shared code reads the flag. A structured handle that must position per-turn
+   client context itself declares `placesTurnContext` and reads
+   `StartTurnOptions.turnContext`; undeclared handles receive that context at the
+   front of `inlineInstructions`, except on a prompt whose leading `/token`
+   exactly matches a non-skill command the session advertised in
+   `slashCommands` — the provider dispatches that command itself, so the runtime
+   withholds the context rather than corrupting the command's arguments.
 2. **Behavior profile.** Lifecycle differences the transport must honor go in a
    named options object — for ACP, `AcpSessionBehavior`
    (`suppressOutputAfterInterrupt`, `suppressStderrLogging`). Each field is

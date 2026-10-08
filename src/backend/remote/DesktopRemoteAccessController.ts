@@ -1,6 +1,7 @@
 import { joinRuntimeShutdown } from "@/backend/joinRuntimeShutdown";
 import { dbGetProject, dbGetProjects, dbGetThread, dbGetThreads, dbUpdateProject } from "@/host/db";
 import { readSharedSettingsFile } from "@/host/sharedSettingsFile";
+import { ensureHomeProjectRow } from "@/host/schedules/homeProject";
 import type { RemoteAccessTailscaleStatus, StartTailscaleResult } from "@/shared/ipc";
 import { buildRemoteGitTargetInterests } from "@/shared/gitStateInterestPolicy";
 import type { SharedSettings } from "@/shared/settings";
@@ -450,7 +451,9 @@ export function createDesktopRemoteAccessController(
     }
   };
 
-  const getManagedLoopbackBootstrap = async () => {
+  const getManagedLoopbackBootstrap = async (bootstrapOptions?: {
+    readonly browserExtension?: boolean;
+  }) => {
     if (refs.disposed) return null;
     // Serialize behind readiness: the renderer may ask while the always-on
     // start is still in flight. The credential mint below happens only once
@@ -465,8 +468,9 @@ export function createDesktopRemoteAccessController(
     if (refs.disposed) return null;
     const server = refs.remoteAccessServer;
     if (!server) return null;
-    const credential = server.mintLoopbackRendererCredential();
+    const credential = server.mintLoopbackRendererCredential(bootstrapOptions);
     if (!credential) return null;
+    ensureHomeProjectRow();
     return {
       endpoint: credential.endpoint,
       pairingUrl: credential.pairingUrl,

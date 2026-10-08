@@ -589,6 +589,59 @@ describe("ComposerAddMenu", () => {
     });
   });
 
+  it.each([
+    ["the desktop app", "/", false],
+    ["the narrow chat sidebar", "/?surface=chat-sidebar", true],
+  ])("places Plugins and MCP Servers flyouts for %s", (_surface, url, stacked) => {
+    window.history.replaceState(null, "", url);
+    try {
+      render(
+        <ComposerAddMenu
+          mcpServers={[
+            {
+              descriptor: browserMcpServer,
+              enabled: true,
+              visible: true,
+              onToggle: vi.fn<(next: boolean) => void>(),
+            },
+          ]}
+          customMcpServers={[{ id: "user:context7", name: "context7", enabled: false }]}
+          onPickFiles={vi.fn<() => void>()}
+        />,
+      );
+      const submenu = (key: string) =>
+        document.getElementById(
+          document.querySelector(`[data-key="${key}"]`)?.getAttribute("aria-controls") ?? "",
+        );
+      const popoverOf = (element: Element | null) =>
+        element?.closest('[data-slot="dropdown-popover"]');
+      const submenuPlacement = (key: string) =>
+        popoverOf(submenu(key))?.getAttribute("data-placement");
+      // HeroUI's 48svw side-flyout cap is narrower than the rows' min width on
+      // a narrow surface; stacked popovers swap it for a viewport clamp so
+      // trailing switches are not clipped. jsdom cannot measure the result.
+      const viewportClamped = (element: Element | null) =>
+        popoverOf(element)?.classList.contains("max-w-[calc(100vw-2rem)]");
+
+      openMenu();
+      expect(viewportClamped(document.querySelector(`[data-key="plugins"]`))).toBe(stacked);
+      openMcpSubmenu();
+      // Stacked flyouts open above their row; side flyouts keep the default.
+      expect(submenuPlacement("plugins")).toBeTruthy();
+      expect(submenuPlacement("plugins") === "top").toBe(stacked);
+      expect(viewportClamped(submenu("plugins"))).toBe(stacked);
+      act(() => {
+        fireEvent.keyDown(submenu("plugins")!, { key: "Escape" });
+      });
+      openMcpServersSubmenu();
+      expect(submenuPlacement("mcp-servers")).toBeTruthy();
+      expect(submenuPlacement("mcp-servers") === "top").toBe(stacked);
+      expect(viewportClamped(submenu("mcp-servers"))).toBe(stacked);
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("shows a paired-desktop hint for Computer Use in a remote session", () => {
     bridgeMock.isRemoteSession.mockReturnValue(true);
     render(

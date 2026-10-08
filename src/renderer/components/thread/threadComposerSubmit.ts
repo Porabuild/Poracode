@@ -8,6 +8,7 @@ import type {
   ThreadPresentationMode,
   UserInputOption,
 } from "@/shared/contracts";
+import type { TurnClientContextCapture } from "../composer/turnClientContext";
 import { friendlyError } from "@/shared/messages";
 import { hasSendablePromptContent } from "@/shared/promptContent";
 import type { FollowUpBehavior } from "@/shared/settings";
@@ -73,6 +74,8 @@ export interface ComposerSubmitContext {
   onSubmitInput?: ((prompt: string, segments?: PromptSegment[]) => Promise<void>) | undefined;
   /** Called after the transport accepts any ordinary, steered, or queued send. */
   onSubmitSuccess?: (() => void) | undefined;
+  /** Surface-provided per-turn context, captured when the user submits. */
+  captureClientContext?: TurnClientContextCapture | undefined;
 }
 
 /**
@@ -163,6 +166,9 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
       attachments.restore(submittedAttachments);
     }
   };
+  // Capture now, before approval denial or focus waits: the context belongs
+  // to the moment the user sent this message.
+  const clientContextCapture = ctx.captureClientContext?.();
   let clearedBeforeSendSettled = false;
   ctx.submittedRef.current = true;
   useAppStore.getState().clearThreadDraftContent(thread.id);
@@ -208,13 +214,13 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   // turn returns with `cancelled` stopReason. No optimistic chat paint —
   // the strip above the composer is the visual confirmation; the real
   // user_message item lands when the turn drains and starts.
-  const submit =
-    ctx.onSubmitInput ??
-    ((outgoingPrompt: string, outgoingSegments?: PromptSegment[]) =>
-      submitThreadInput(thread.id, outgoingPrompt, outgoingSegments));
   const runSubmission = async () => {
+    const clientContext = await clientContextCapture;
     if (!ctx.usesPendingSteerPath) {
-      await submit(flat, allSegments.length > 0 ? allSegments : undefined);
+      const outgoingSegments = allSegments.length > 0 ? allSegments : undefined;
+      await (ctx.onSubmitInput
+        ? ctx.onSubmitInput(flat, outgoingSegments)
+        : submitThreadInput(thread.id, flat, outgoingSegments, { clientContext }));
       return;
     }
     if (ctx.followUpBehavior === "queue") {
@@ -223,9 +229,15 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
         prompt: flat,
         config: thread.config,
         ...(allSegments.length > 0 ? { segments: allSegments } : {}),
+        ...(clientContext ? { clientContext } : {}),
       });
     } else {
-      await setThreadPendingSteer(thread, flat, allSegments.length > 0 ? allSegments : undefined);
+      await setThreadPendingSteer(
+        thread,
+        flat,
+        allSegments.length > 0 ? allSegments : undefined,
+        clientContext,
+      );
     }
     captureThreadPromptSubmitted(
       thread,

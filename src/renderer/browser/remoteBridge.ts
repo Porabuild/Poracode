@@ -62,6 +62,7 @@ import { pushDesktopSettingsDiff } from "./remoteSettingsSync";
  */
 
 let activeClient: RemoteDesktopClient | null = null;
+let hostSettingsWriteThrough = true;
 let browserImages: RemoteEnvironmentImageCache | null = null;
 let browserImageReadiness: RemoteImageReadiness | undefined;
 const browserImageListeners = new Set<() => void>();
@@ -336,7 +337,7 @@ const remoteBridgeOverrides = {
   // Remote-editable keys (including persistent composer MCP enablement) are
   // additionally diffed and forwarded to the paired desktop — see settingsSync.ts.
   setSharedSettings: (settings: SharedSettingsInput) => {
-    pushDesktopSettingsDiff(activeClient, settings);
+    if (hostSettingsWriteThrough) pushDesktopSettingsDiff(activeClient, settings);
     return Promise.resolve();
   },
   removeCrossagentRoutingOverride: () =>
@@ -536,7 +537,13 @@ const remoteBridge = Object.defineProperties(
   Object.getOwnPropertyDescriptors(remoteBridgeOverrides),
 );
 
-export function installRemoteBridge(): void {
+export function installRemoteBridge(
+  options: {
+    /** Independent clients keep UI preferences local instead of editing their host. */
+    hostSettingsWriteThrough?: boolean;
+  } = {},
+): void {
   if (typeof window === "undefined" || window.poracode !== undefined) return;
+  hostSettingsWriteThrough = options.hostSettingsWriteThrough ?? true;
   window.poracode = remoteBridge as unknown as PoracodeBridge;
 }

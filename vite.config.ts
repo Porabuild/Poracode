@@ -110,7 +110,8 @@ const devServerPort = Number.parseInt(process.env.PORACODE_DEV_SERVER_PORT ?? ""
 
 // The hosted/native-web build emits the same canonical index entry as Electron
 // into dist/web. There is no second application graph.
-const webOnly = process.env.PORACODE_BUILD_TARGET === "web";
+const extensionOnly = process.env.PORACODE_BUILD_TARGET === "extension";
+const webOnly = extensionOnly || process.env.PORACODE_BUILD_TARGET === "web";
 const vercelAnalyticsEnabled =
   webOnly && ["preview", "production"].includes(process.env.VERCEL_ENV ?? "");
 const webBasePath = process.env.PORACODE_WEB_BASE_PATH?.trim() || "./";
@@ -352,7 +353,9 @@ export default defineConfig(({ mode }) => ({
   define: {
     ...buildPostHogEnvDefines(mode),
     __PORACODE_CHANNEL__: JSON.stringify(poracodeChannel),
-    "import.meta.env.VITE_PORACODE_BUILD_TARGET": JSON.stringify(webOnly ? "web" : "desktop"),
+    "import.meta.env.VITE_PORACODE_BUILD_TARGET": JSON.stringify(
+      extensionOnly ? "extension" : webOnly ? "web" : "desktop",
+    ),
     "import.meta.env.VITE_VERCEL_ANALYTICS_ENABLED": JSON.stringify(vercelAnalyticsEnabled),
   },
   resolve: {
@@ -381,7 +384,7 @@ export default defineConfig(({ mode }) => ({
     include: [...CLIENT_OPTIMIZED_DEPS],
   },
   build: {
-    outDir: webOnly ? webOutputPath : "dist/renderer",
+    outDir: extensionOnly ? "dist/extension-client" : webOnly ? webOutputPath : "dist/renderer",
     emptyOutDir: true,
     reportCompressedSize: false,
     sourcemap: webOnly ? false : "hidden",

@@ -22,8 +22,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Environment secrets are available only to jobs referencing that environment.
+  # Skip the protected environment entirely for dry-run packaging.
+  preflight:
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: chrome-extension
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Verify published extension identity
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+        run: node scripts/package-chrome-extension.mjs --verify-store-identity
+
   # ── Step 1: Resolve version, commit if needed, tag, push ─────────
   prepare:
+    needs: preflight
+    # An intentionally skipped dry-run preflight may proceed; failures may not.
+    if: ${{ !cancelled() && (needs.preflight.result == 'success' || (inputs.dry_run && needs.preflight.result == 'skipped')) }}
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
@@ -120,6 +143,8 @@ jobs:
   # ── Step 2: Package the exact tagged extension ───────────────────
   package:
     needs: prepare
+    # Continue after successful dry-run preparation despite its skipped preflight.
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
     runs-on: ubuntu-latest
     outputs:
       zip_name: ${{ steps.package.outputs.zip_name }}
@@ -135,6 +160,15 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Generate protocol types
+        run: pnpm run codex-protocol:gen
+
       - name: Install packaging tools
         run: sudo apt-get update && sudo apt-get install -y zip unzip
 
@@ -149,6 +183,15 @@ jobs:
           fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + "\n");
           NODE
 
+      - name: Test MV3 packaging
+        run: node --test scripts/package-chrome-extension.test.mjs scripts/chrome-extension-worker.test.mjs
+
+      - name: Build sidebar extension
+        run: pnpm run build:extension
+
+      - name: Prepare Web Store package
+        run: node scripts/package-chrome-extension.mjs --store-package
+
       - name: Package extension
         id: package
         run: |
@@ -156,9 +199,9 @@ jobs:
           version="${{ needs.prepare.outputs.version }}"
           zip_name="poracode-chrome-extension-v${version}.zip"
           mkdir -p dist
-          cd chrome-extension
-          zip -r "../dist/${zip_name}" manifest.json background.js popup.html popup.js icons
-          cd ..
+          cd dist/chrome-extension-store
+          zip -r "../${zip_name}" manifest.json background.js client icons
+          cd ../..
           unzip -t "dist/${zip_name}"
           echo "zip_name=${zip_name}" >> "$GITHUB_OUTPUT"
 

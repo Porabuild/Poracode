@@ -19,6 +19,7 @@ export type ThreadContentCommonProps = {
   agentStatus: AgentStatus | undefined;
   projectLocation: ProjectLocation;
   paneCount: number;
+  submitOnEnter?: boolean;
   terminalPaneRef: RefObject<TerminalPaneHandle | null>;
   /**
    * Optional override for the thread-input submit. Desktop omits this so the

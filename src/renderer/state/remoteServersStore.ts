@@ -1,8 +1,8 @@
+import { defaultClientFactory, defaultSocketFactory } from "./remoteServers/transportFactories";
 import { TERMINAL_CURSOR_SYNC_V2_VERSION } from "@/shared/remote/protocol";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { BrowseHostDirectoryResult } from "@/shared/contracts";
-import { RemoteDesktopClient } from "@/shared/remote/client";
 import {
   registerRemoteProcedureHost,
   resetRemoteProcedureRouterForTest,
@@ -19,8 +19,6 @@ import {
   createTerminalFeedConnections,
   type TerminalConnectionCapabilities,
 } from "@/renderer/state/remoteServers/terminalCapabilities";
-import { mainProcessFetch } from "@/renderer/state/remoteServers/mainProcessFetch";
-import { electronCertFingerprintProbe } from "@/renderer/state/remoteServers/certFingerprintProbe";
 import { persistedRemoteServersState } from "@/renderer/state/remoteServers/projectCache";
 import { clearRemoteGitState } from "@/renderer/state/remoteServers/gitState";
 import { withRemoteProjectSync } from "@/renderer/state/remoteServers/projectSync";
@@ -30,13 +28,7 @@ import {
   markRemoteServerCursorSyncV2,
   __resetEventSocketRegistryForTest,
 } from "@/renderer/state/remoteServers/eventSocketRegistry";
-import type {
-  RemoteClientFactory,
-  RemoteServerRecord,
-  RemoteServersState,
-  RemoteSocketFactory,
-  RemoteSocketLike,
-} from "@/renderer/state/remoteServers/types";
+import type { RemoteServerRecord, RemoteServersState } from "@/renderer/state/remoteServers/types";
 import { createSecureRemoteServersStorage } from "@/renderer/state/remoteServers/secureStorage";
 import { __resetBrowserBridgeForTest } from "@/renderer/state/remoteServers/browserBridge";
 import { __resetBoundedCatalogForTest } from "@/renderer/state/remoteServers/catalog/boundedCatalogController";
@@ -143,14 +135,6 @@ export { hydrateRefreshTokens, __peekRefreshTokenForTest };
  * Connection bookkeeping (endpoint + bearer token + label) is persisted to
  * localStorage; live snapshot data is kept in memory and re-fetched on connect.
  */
-
-const defaultClientFactory: RemoteClientFactory = (endpoint, accessToken) =>
-  new RemoteDesktopClient(endpoint, accessToken, mainProcessFetch, {
-    certFingerprintProbe: electronCertFingerprintProbe,
-  });
-
-const defaultSocketFactory: RemoteSocketFactory = (url) =>
-  new WebSocket(url) as unknown as RemoteSocketLike;
 
 export const useRemoteServersStore = create<RemoteServersState>()(
   persist(

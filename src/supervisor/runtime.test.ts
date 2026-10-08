@@ -2812,6 +2812,42 @@ describe("SupervisorRuntime thread input", () => {
     }
   });
 
+  it("delivers a fresh GUI launch's client context with the initial turn only", async () => {
+    const { runtime, startTurn, events } = makeGuiSwitchFixture();
+    const { providerSwitch: _providerSwitch, ...freshLaunch } = guiSwitchPayload;
+    await runtime.threadSessionManager.startThread({
+      ...freshLaunch,
+      threadId: "thread-fresh-context",
+      clientContext: {
+        browserFocus: { activeTab: { tabId: 31, title: "Launch tab", url: "https://a.test/" } },
+      },
+    });
+
+    expect(startTurn).toHaveBeenCalledTimes(1);
+    const [prompt, , , options] = startTurn.mock.calls[0] as unknown as [
+      string,
+      unknown,
+      unknown,
+      { inlineInstructions?: string; userMessageItemId?: string },
+    ];
+    expect(prompt).toBe("continue the task");
+    expect(options.userMessageItemId).toMatch(/^user-/);
+    expect(options.inlineInstructions).toContain("- tab_id: 31");
+    expect(options.inlineInstructions).toContain('- url: "https://a.test/"');
+    const painted = events.flatMap((event) =>
+      event.type === "thread-runtime-event" &&
+      event.event.type === "item.started" &&
+      event.event.itemType === "user_message"
+        ? [JSON.stringify(event.event.payload)]
+        : [],
+    );
+    expect(painted).toHaveLength(1);
+    expect(painted[0]).toContain("continue the task");
+    expect(painted[0]).not.toContain("client context");
+    const session = runtime.threadSessionManager.sessions.get("thread-fresh-context");
+    expect(JSON.stringify(session?.config)).not.toContain("tab_id");
+  });
+
   it("omits the transcript handoff instruction when read_thread is unavailable for the incoming session", async () => {
     vi.stubEnv("PORACODE_APP_CONTROLS_MCP_URL", "");
     vi.stubEnv("PORACODE_APP_CONTROLS_MCP_TOKEN", "");

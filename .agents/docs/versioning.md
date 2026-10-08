@@ -121,6 +121,92 @@ ACP ranged text reads now scan UTF-8 incrementally and close the file after the 
 
 Payload-projection composition uses the same deterministic pure-leaf generator in tsdown, Vite, source-test Node loaders and synthetic CLI bundles. Node loaders emit file URL imports; Vite watches directories outside its imported-file bookkeeping and invalidates the module when projection leaves appear or disappear. The generator is tooling only: packaged readers retain their static projection array, provider ownership and payload-origin contracts. No persisted/cache/wire or independently deployed helper shape changes; previous complete artifacts remain valid. Source-fork, CLI lifecycle, Vite discovery and previous-generator differential checks cover these execution paths.
 
+Chrome sidebar extension 0.2.0 added independently negotiated bootstrap protocol 1;
+extension 0.2.1 bumps it to 2 (see the hello handshake below).
+The worker's `SIDEBAR_PROTOCOL_VERSION` mirrors
+`CHROME_SIDEBAR_PROTOCOL_VERSION` in `src/shared/chromeSidebarProtocol.ts`;
+changes to this boundary must update both. Existing CDP hello and command frames
+retain their meaning. Old or unknown sidebar versions never receive credentials
+and continue to relay CDP. The sidebar uses existing single-use local pairing,
+OAuth, remote transport, renderer stores, and canonical history formats, so their
+versions remain unchanged. Extension assets are installed as one complete MV3
+package with content-hashed renderer chunks. Compatibility tests cover legacy
+hello, unknown versions, strict direct-loopback origins, authenticated reads,
+and rejection of reused credentials. The same-bundle browser bridge adds an
+optional `hostSettingsWriteThrough` preference policy (default true); independent
+sidebar clients declare false. This changes no wire or stored shape and keeps
+ordinary browser clients' sync behavior. Regression tests cover both policies,
+local view persistence, GUI-only selection, and a GUI server launch that neither
+writes the desktop view nor focuses its renderer projection. Host-forwarded
+starts default to the existing `focus: false` field alongside
+`launchRuntime: false`; old clients already understand the non-focusing field,
+so this is an existing wire value, not a new schema. Older command shapes remain
+accepted; an explicit focus intent keeps its prior meaning, while normal client
+selection stays local. Tests exercise the HTTP
+forward and the desktop reducer with the prior focus contract.
+
+Sidebar credentials require proof of extension identity. A per-user Chrome
+native messaging host (`com.poracode.chrome_bridge`, host protocol 1, artifact
+version `CHROME_NATIVE_HOST_ARTIFACT_VERSION` 1 in
+`src/host/browser/external/chromeNativeHost.ts`) is generated and re-registered
+on every production start (packaged desktop, non-dev CLI);
+`chromeNativeHostEnabled` keeps unpacked dev, worktree and smoke runs from
+rewriting the shared launcher unless `PORACODE_CHROME_NATIVE_HOST=1` opts them in
+(`0` opts any run out). Its script, launcher, manifest and bridge entries live in
+`~/.poracode-chrome-bridge`; entries are `{version, port, token, pid}`, removed
+on shutdown, ignored once their pid is dead or owned by another OS user
+(`EPERM`), and deleted at the next registration when dead, whatever their
+version. The launcher clears `NODE_OPTIONS` and escapes `%` on Windows. The
+entry shape is the cross-version contract: the script only reads entries whose
+`version` equals its own artifact version, so a future artifact bump must keep
+reading v1 entries or bump with a migration; a v1 launcher never sees newer
+entries. The worker mirrors the host name and protocol version.
+
+The hello handshake proves the token both ways without sending it. The worker
+sends a fresh 32-byte `nonce` and `clientProof` = HMAC-SHA256(token,
+client-domain, dialed port, nonce); the bridge verifies it in constant time
+against its own listener port and answers a proven hello with `serverProof` =
+HMAC-SHA256(token, server-domain, port, nonce, ack version, authenticated).
+Domains and field order live in `src/shared/chromeSidebarProtocol.ts` and are
+mirrored in `chrome-extension/background.js` (asserted by
+`scripts/chrome-extension-worker.test.mjs`). The worker requests credentials
+and serves any tab or CDP request only after verifying `serverProof`; an
+unproven ack is advisory (it may trigger the bounded native retry) and an app
+without an ack gets no browser control from this worker. Extension 0.2.0
+(sidebar protocol 1, raw `hello.bridgeToken`) is already loaded in real
+browsers, so the handshake change is a version bump, not an in-place edit:
+sidebar protocol 1 → 2 (`CHROME_SIDEBAR_PROTOCOL_VERSION` and the worker
+mirror) and manifest 0.2.0 → 0.2.1 with a dated CHANGELOG security entry. The
+bridge negotiates only protocol 2 and ignores `bridgeToken`, so a 0.2.0 worker
+gets `sidebarBootstrapVersion: null`, `authenticated: false`, no `serverProof`
+and no reply to version-1 `sidebarBootstrap` requests; it keeps the
+origin-pinned CDP relay like 0.1 (pre-upgrade regression in
+`ChromeBridgeServer.sidebar.test.ts`). Native host protocol 1 and artifact 1
+are unchanged because their request, response and entry shapes are unchanged.
+The manual/debug `?token=` query stays host-side only and the worker no longer
+reads a stored token. The 0.1 relay (no proof, no ack handling) keeps working by
+pinned origin. The bridge mints only for proof-authenticated pinned
+origins, replies `null` to unauthenticated, over-queue or over-rate requests,
+and uncapped issuance is gone. Port choice is worker-local: only the native
+host's authenticated list picks a port (the dialed port's own entry, else the
+newest), never an ack; an unknown port is closed before any frame and each
+secret is redialed at most once. `getManagedLoopbackBootstrap` gains an additive
+same-bundle `browserExtension` flag. It refuses before issuing when the
+endpoint is not plain-http loopback, and uses a 60-second pairing TTL. Pinned
+extension IDs (`CHROME_SIDEBAR_EXTENSION_IDS`) gate the WebSocket upgrade, CORS
+and `allowed_origins` together; `PORACODE_CHROME_EXTENSION_IDS` adds development
+IDs. Changing the manifest `key` or adding the Web Store ID must update that
+constant, and the next start rewrites every registered manifest. Older artifact
+versions are rewritten on start and stale entries are ignored. Tests cover forged,
+other-extension, no-proof, wrong-secret, tampered, wrong-port and raw-token
+hellos and displacement; worker impostor acks (bare, tampered, relayed,
+reflected, wrong-nonce, stale-secret); real stdio framing, ordering, pruning and
+`NODE_OPTIONS`; a real worker ↔ native host ↔ bridge handshake
+(`chromeBridgeHandshake.test.ts`); and, in an untracked isolated e2e, Chrome
+enforcing `allowed_origins` against the Electron-as-Node launcher.
+
+Chrome sidebar bootstrap protocol 2 (protocol 1 in 0.2.0) includes an additive `helloAck` reporting the host sidebar version and connection authentication. The new worker waits for this acknowledgement before requesting credentials; an older host without it yields a localized upgrade hint rather than an endless generic connection error. Existing relay workers ignore the unsolicited acknowledgement, and old or unknown sidebar versions receive no credentials. Native host protocol and generated artifact version remain 1. A current host with a temporarily unavailable native helper stays distinguishable from an old host; bounded retries (sidebar or host request, at most every 10 s, never for a secret that already failed) redial the port the native host knows (this one first) with a fresh in-memory token. Worker/host constant mirrors, legacy and mismatched acknowledgements, delayed helper availability, retry bounds and token non-persistence are covered by regressions. Store release preflight verifies that the manifest public key produces the configured store identity before any tag is pushed.
+
 ## Required check for every change
 
 Bounded older-history pages apply the same existing image-reference projection as the history tail and snapshots. Canonical image bytes, item order, continuation positions, refusal budgets and authenticated resolution remain unchanged. This repairs response composition without adding fields or changing the established image-reference contract; persisted schemas and protocol versions remain valid. Serialized response hashes and build identities identify the corrected output. The regression checks tail/page parity, bounded response size, preserved canonical bytes and image resolution.
@@ -2054,3 +2140,102 @@ The volatile thread-gallery snapshot now includes `readyRemoteRefs` and `readyRe
 ### Complete tool-image collection — volatile cache format 3
 
 The gallery now collects every displayable image in each tool payload, while the transcript card keeps its first-candidate behavior. Format 3 invalidates warm format-2 snapshots that may omit later images or their readiness coordinates. The five-field collection shape and logical retention budgets stay unchanged; pre-upgrade tests include format 2. This cache is document-local. Persisted canonical image bytes, database, authenticated image references, IPC, remote wire, deployed helpers and service-worker formats remain valid. Existing content hashes identify the updated renderer assets.
+
+Projectless sidebar chats use the existing persisted Home scope ID and projected remoteId. The host prepares that built-in row before client attachment; the chat surface opts into mirroring Home rows and conversations while desktop remote mirrors retain their prior exclusion. This uses existing Project and Thread shapes, credentials and launch protocol, so schema and wire versions stay unchanged. Pre-upgrade empty profiles and saved Home rows remain valid; regressions cover empty-profile bootstrap, existing Home identity, flat chat selection and refresh without desktop navigation.
+
+Sidebar-inherent composer tools use a same-bundle React context, with the existing
+per-thread MCP launch flags. They do not add persisted settings, wire fields or
+helper formats. Host restrictions and provider scopes keep their meaning, and
+existing sessions retain their bindings. Schema, transport and sidebar bootstrap
+versions remain unchanged; content-hashed renderer assets identify the new UI.
+Regressions cover implicit launch enablement without settings write-through,
+hidden plugin controls, and unchanged desktop controls outside that context.
+
+Sidebar desktop layout is derived from the existing client surface and build
+target, with no saved preference or protocol field. Content-hashed renderer
+assets invalidate the old presentation; persisted profiles and bootstrap
+credentials remain compatible. Narrow extension/preview regression tests keep
+desktop menus active while ordinary narrow web clients retain compact layout.
+Restored sidebar conversations reuse the existing remote reattachment lifecycle;
+cached histories remain provisional and refresh from the host. No offline cache
+shape, subscription message or persisted state format changed.
+
+### Per-turn client context (`clientContext`) — additive optional input field, no version bump
+
+`StartThreadPayload`, `SendThreadInputPayload`, `SetPendingSteerPayload` and the
+`start` remote thread command accept an optional `clientContext`
+(`src/shared/contracts/turnClientContext.ts`). The extension chat sidebar uses it
+to report browser focus and its own window's active tab (id, bounded title and
+an http(s) URL reduced to origin and path — no credentials, query or fragment)
+at submit time. The supervisor re-applies that URL reduction and escapes C1,
+line/paragraph-separator and bidi characters, because any trusted client can
+forge the field within its schema bounds. It renders the context as untrusted,
+provider-only text for exactly that turn: it rides `QueuedStructuredTurn.turnContext`
+through queued follow-ups (record snapshot, preserved across text edits), staged
+or native steers and restarts, and is never stored on the session, the thread
+row, the derived title, the painted user message, the follow-up queue projection
+or the desktop-mirrored start command. Writers: the extension sidebar renderer
+only; readers: host routes, the supervisor IPC schemas and the structured turn
+path. A structured handle may declare `placesTurnContext` to receive it as
+`StartTurnOptions.turnContext`; every other handle receives it at the front of
+its existing `inlineInstructions`, except on a prompt that invokes a non-skill
+command the session advertised in `slashCommands` (the command is dispatched by
+the provider, so appended text would become its arguments). Pi's native steer
+now delivers `inlineInstructions` like its prompt path.
+
+Compatibility decision: no protocol, binding-format, hop or capability bump.
+Older clients never send the field. An older host's object schemas strip it and
+the turn runs without context — the same outcome as an unavailable tab — and no
+client reports delivery or changes behavior on success, so (unlike
+`threadLaunchMetadata`) there is nothing a capability gate would protect. The
+receipt digest covers the field, so a retried send must reuse its retained body
+(existing retry paths already do). Nothing is persisted, so there is no
+migration. Regenerated mirrors: `protocol/remote/v3/generated/**` (additive
+optional `clientContext` on the send/steer/start/command bodies and procedure
+payloads; `manifestHash` unchanged, `sourceHash` and structural-type/file counts
+re-pinned in `native/generate.test.ts`). Native iOS/Android clients ignore the
+optional field. Regressions cover multi-window capture, bounded fallback,
+send/queue/steer/restart delivery, queue-snapshot isolation, route forwarding
+without desktop mirroring, browser focus without the extension API, URL and
+Unicode hardening on both sides, advertised-command passthrough (runtime,
+OpenCode 2 native compact and command arguments, ACP command mapping) and Pi
+fresh and live steers.
+
+### Sidebar saved-credential reconnect protection (extension 0.2.2)
+
+Extension 0.2.1 protected bootstrap but allowed its sidebar to reconnect durable
+vault bearers before native proof. Extension 0.2.2 installs a document-local
+transport factory policy as the first renderer bootstrap dependency, before
+store hydration and parent effects. Version-2 saved-server metadata and access /
+refresh vault entries remain readable but confer no transport authority. Only a
+fresh worker bootstrap and its currently proved hello nonce / loopback endpoint
+create a grant. Its initial and most recently rotated access tokens, latest
+refresh token, pending requests and at most 32 unspent event tickets are volatile;
+retirement aborts requests, closes sockets and removes online selection. Reload
+and proof loss require a new pairing. Old clients cannot borrow a later grant.
+The original access token remains admitted within that grant because the shared
+store rotates its refresh vault without rewriting the server record's bearer.
+
+The package manifest advances 0.2.1 → 0.2.2. Worker-local `getChatConnection`
+returns `{version: 1, session: <hello nonce>, endpoint}` only after a validated
+bootstrap on the current authenticated socket; otherwise null. This read-only
+command mints nothing and writes no storage. Every HTTP request (including OAuth
+refresh and image reads) and event socket opening checks it again. Redirects are
+refused. Missing/old worker implementations fail closed. Worker and renderer
+ship atomically in the MV3 package, so the host bootstrap/HMAC protocol stays 2,
+native messaging protocol and artifact stay 1, remote wire stays 12, and saved
+server storage stays 2. No generated IPC, native contract, operation map or vault
+migration is required. Shared PWA/Electron factories retain their defaults.
+
+Already loaded 0.2.1 renderer/worker packages must be updated and reloaded; an
+app-only update cannot retrofit this renderer gate or revoke bearer copies that
+were already disclosed. HTTP and native/bridge sockets are separate transports:
+this is a fresh dispatch-time worker liveness check, not a cryptographic binding
+of the HTTP connection. In-flight bytes cannot be recalled, and a bridge failure
+that the worker has not yet observed retains the inherent loopback TOCTOU window.
+Idle sidebar retirement polls every four seconds; each HTTP/socket dispatch has
+its own uncached check. Worker-message waits are bounded to five seconds.
+Regression fixtures seed actual encrypted pre-upgrade vault slots, exercise
+mount/resume/online/visibility, background refresh, retry and event backoff,
+reject lost-session refresh after 401 and stale tickets, select only the current
+host, and retain record-based clients across refresh rotation.

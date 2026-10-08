@@ -34,6 +34,7 @@ const getAppState = useAppStore.getState;
 export function ThreadPane(props: {
   threadId: string;
   paneCount: number;
+  chatOnly?: boolean;
   hidden?: boolean;
   paneAlign: "left" | "center" | "right";
   headerNeedsTrafficLightPad?: boolean;
@@ -124,6 +125,7 @@ export function ThreadPane(props: {
       projectName={project.name}
       agentStatus={agentStatus}
       isWsl={project.location.kind === "wsl"}
+      {...(props.chatOnly ? { chatOnly: true } : {})}
       showCloseButton
       paneAlign={props.paneAlign}
       isDragging={isDragging}

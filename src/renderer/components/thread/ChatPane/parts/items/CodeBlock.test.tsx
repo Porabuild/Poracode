@@ -30,6 +30,19 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("highlight request lifecycle", () => {
+  it.each(["language", "highlighter"])(
+    "keeps plain code visible when %s loading fails",
+    async (stage) => {
+      if (stage === "language")
+        mocks.ensureLanguage.mockRejectedValueOnce(new Error("WASM blocked"));
+      else mocks.getShikiHighlighter.mockRejectedValueOnce(new Error("WASM blocked"));
+      render(<CodeBlock text={`failed-${stage}`} lang="json" />);
+      await act(async () => {});
+      expect(screen.getByText(`failed-${stage}`).tagName).toBe("PRE");
+      expect(mocks.codeToHtml).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not load the highlighter for an unmounted language request", async () => {
     const language = deferred<boolean>();
     mocks.ensureLanguage.mockReturnValue(language.promise);

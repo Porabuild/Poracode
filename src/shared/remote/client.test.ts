@@ -649,6 +649,56 @@ describe("RemoteDesktopClient", () => {
     expect(requestUrl).toBe("http://127.0.0.1:38987/api/threads/thread-preallocated/command");
   });
 
+  it("forwards per-turn client context on every input route body", async () => {
+    const bodies: Record<string, unknown> = {};
+    const client = new RemoteDesktopClient(
+      "http://127.0.0.1:38987/",
+      "lc_access_test",
+      async (url, init) => {
+        bodies[new URL(String(url)).pathname] = JSON.parse(
+          typeof init?.body === "string" ? init.body : "{}",
+        ) as unknown;
+        return new Response(JSON.stringify({ ok: true, threadId: "thread-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+    );
+    const clientContext = {
+      browserFocus: { activeTab: { tabId: 3, title: "Tab", url: "https://t.test/" } },
+    };
+    const config = { model: "gpt-5" };
+
+    await client.startNewThread({
+      threadId: "thread-1",
+      projectId: "project-1",
+      agentKind: "codex",
+      config,
+      prompt: "start",
+      clientContext,
+    });
+    await client.startThread({
+      threadId: "thread-1",
+      projectLocation: { kind: "posix", path: "/repo" },
+      agentKind: "codex",
+      config,
+      prompt: "resume",
+      clientContext,
+    });
+    await client.sendThreadInput({ threadId: "thread-1", prompt: "send", config, clientContext });
+    await client.setPendingSteer({ threadId: "thread-1", prompt: "steer", config, clientContext });
+
+    expect(bodies).toEqual({
+      "/api/threads/thread-1/command": expect.objectContaining({ prompt: "start", clientContext }),
+      "/api/threads/start": expect.objectContaining({ prompt: "resume", clientContext }),
+      "/api/threads/thread-1/send": expect.objectContaining({ prompt: "send", clientContext }),
+      "/api/threads/thread-1/steer/set": expect.objectContaining({
+        prompt: "steer",
+        clientContext,
+      }),
+    });
+  });
+
   it("forwards launch metadata and one retained operation id for startNewThread", async () => {
     let requestUrl = "";
     let requestBody: unknown;

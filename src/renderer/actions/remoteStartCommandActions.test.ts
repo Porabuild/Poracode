@@ -124,6 +124,29 @@ describe("applyRemoteThreadStartCommand", () => {
     expect(useAppStore.getState().pendingLaunchUserMessageItemIds["thread-new"]).toBe("user-1");
   });
 
+  it("projects a server-started GUI conversation without changing the desktop page or queuing another launch", () => {
+    const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
+    const view: ReturnType<typeof useAppStore.getState>["view"] = {
+      kind: "thread",
+      panes: ["desktop-chat"],
+    };
+    useAppStore.setState({ view });
+    applyRemoteThreadStartCommand(
+      startCommand({
+        threadId: "browser-chat",
+        projectId: project.id,
+        title: "Browser chat",
+        launchRuntime: false,
+        focus: false,
+      }),
+    );
+    expect(
+      useAppStore.getState().threads.find((thread) => thread.id === "browser-chat"),
+    ).toMatchObject({ presentationMode: "gui" });
+    expect(useAppStore.getState().view).toBe(view);
+    expect(useAppStore.getState().pendingThreadLaunches["browser-chat"]).toBeUndefined();
+  });
+
   it("stamps workspaceId from a start command onto the new thread", () => {
     const project = useAppStore.getState().addProject({ kind: "windows", path: "C:\\repo" });
 

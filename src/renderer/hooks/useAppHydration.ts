@@ -50,7 +50,9 @@ function getAppStoreHydrationSnapshot(): boolean {
   return useAppStore.persist.hasHydrated();
 }
 
-export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
+export function useAppHydration(
+  options: { runtimeOwner?: boolean; prewarmFeatures?: boolean } = {},
+) {
   const runtimeOwner =
     options.runtimeOwner ?? (!hasAnyClientBridge() ? true : hasClientCapability("localBackend"));
   const markThreadsInactiveOnLaunch = useAppStore((state) => state.markThreadsInactiveOnLaunch);
@@ -320,7 +322,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
   ]);
 
   useEffect(() => {
-    if (!storeHydrated || initialLoading) return;
+    if (!storeHydrated || initialLoading || options.prewarmFeatures === false) return;
 
     let stopPrewarm = () => {};
     const frame = window.requestAnimationFrame(() => {
@@ -332,7 +334,7 @@ export function useAppHydration(options: { runtimeOwner?: boolean } = {}) {
       window.cancelAnimationFrame(frame);
       stopPrewarm();
     };
-  }, [initialLoading, storeHydrated]);
+  }, [initialLoading, storeHydrated, options.prewarmFeatures]);
 
   return { initialLoading, runtimeSnapshotsReady, storeHydrated, loadT0 };
 }

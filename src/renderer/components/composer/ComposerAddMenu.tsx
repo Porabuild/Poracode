@@ -13,6 +13,7 @@ import type { Selection } from "@heroui/react";
 import { Dropdown, Label, Separator } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { isRemoteSession } from "@/renderer/bridge";
+import { isChatSidebarSurface } from "@/renderer/clientSurface";
 import { Button } from "@/renderer/components/common/Button";
 import {
   ResponsiveMenuSurface,
@@ -94,11 +95,14 @@ export function ComposerAddMenu(props: {
 }) {
   const { mcpServers, showFileOption = true, onPickFiles, computerUse, experiment } = props;
   const customMcpServers = props.customMcpServers ?? [];
-  const onManageMcpServers = props.onManageMcpServers;
+  // Both draft and existing-thread composers share this menu. The focused
+  // sidebar has no settings destination, but still shows its server bindings.
+  const canManageMcpServers = !isChatSidebarSurface();
+  const onManageMcpServers = canManageMcpServers ? props.onManageMcpServers : undefined;
   const readOnly = props.readOnly === true;
   const pluginLabels = props.pluginLabels ?? EMPTY_PLUGIN_LABELS;
   const { t } = useLingui();
-  const { mobile } = useResponsiveMenu();
+  const { mobile, stackSubmenus } = useResponsiveMenu();
   const [isOpen, setIsOpen] = useState(false);
   const [mobileView, setMobileView] = useState<MobileView>("root");
   const visiblePlugins = mcpServers.filter((server) => server.visible);
@@ -344,10 +348,21 @@ export function ComposerAddMenu(props: {
   }
 
   // ── Desktop: HeroUI dropdown with real flyout submenus ──────────────────────
+  // A narrow desktop surface cannot fit a side-by-side flyout next to the root
+  // menu, so submenus open flush above their row instead of being clipped.
+  // HeroUI caps dropdown popovers at 48svw to leave room for a side flyout; on
+  // a narrow surface that cap falls below the menus' min width and the
+  // popover's scroll clip cuts off trailing switches. Stacked menus never sit
+  // side by side, so clamp them to the viewport instead.
+  const stackedPopoverClassName = "max-w-[calc(100vw-2rem)]";
+  const rootPopoverProps = stackSubmenus ? { className: stackedPopoverClassName } : {};
+  const submenuPopoverProps = stackSubmenus
+    ? ({ placement: "top", offset: 0, className: stackedPopoverClassName } as const)
+    : {};
   return (
     <Dropdown>
       {button}
-      <Dropdown.Popover placement="top start">
+      <Dropdown.Popover placement="top start" {...rootPopoverProps}>
         <Dropdown.Menu
           aria-label={t`Add to composer`}
           selectionMode="none"
@@ -399,7 +414,7 @@ export function ComposerAddMenu(props: {
                 ) : null}
                 <Dropdown.SubmenuIndicator />
               </Dropdown.Item>
-              <Dropdown.Popover>
+              <Dropdown.Popover {...submenuPopoverProps}>
                 <div className="flex flex-col">
                   {readOnly ? (
                     // Session bindings are fixed at launch — render a static list
@@ -488,7 +503,7 @@ export function ComposerAddMenu(props: {
                 ) : null}
                 <Dropdown.SubmenuIndicator />
               </Dropdown.Item>
-              <Dropdown.Popover>
+              <Dropdown.Popover {...submenuPopoverProps}>
                 <ComposerMcpServersSubmenuContent {...mcpServersMenuProps} />
               </Dropdown.Popover>
             </Dropdown.SubmenuTrigger>

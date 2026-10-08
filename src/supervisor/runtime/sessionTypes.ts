@@ -31,6 +31,12 @@ export interface QueuedStructuredTurn {
   userMessageItemId?: string;
   /** Inlined SKILL.md instructions for skills the provider can't load natively. */
   inlineInstructions?: string;
+  /**
+   * Rendered client context captured when this turn was submitted. Owned by
+   * this turn only: it rides a queued, staged or restarted turn unchanged and
+   * is never stored on the session.
+   */
+  turnContext?: string;
 }
 
 /**

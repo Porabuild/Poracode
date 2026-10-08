@@ -53,15 +53,15 @@ export function CodeBlock({ text, lang, className }: CodeBlockProps) {
     if (cache.get(key) !== undefined) return;
     let cancelled = false;
     void (async () => {
-      const ok = await ensureLanguage(lang);
-      if (cancelled) return;
-      if (!ok) {
-        if (!cancelled) setHtml(null);
-        return;
-      }
-      const highlighter = await getShikiHighlighter();
-      if (cancelled) return;
       try {
+        const ok = await ensureLanguage(lang);
+        if (cancelled) return;
+        if (!ok) {
+          setHtml(null);
+          return;
+        }
+        const highlighter = await getShikiHighlighter();
+        if (cancelled) return;
         const out = highlighter.codeToHtml(text, {
           lang,
           theme,

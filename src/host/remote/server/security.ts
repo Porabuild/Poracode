@@ -1,3 +1,7 @@
+import {
+  isChromeExtensionOrigin,
+  resolveChromeSidebarExtensionIds,
+} from "@/shared/chromeSidebarProtocol";
 import { isIP } from "node:net";
 import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from "node:http";
 import { isLoopbackHostname } from "@/shared/http";
@@ -273,6 +277,14 @@ export class RemoteServerSecurity {
       ? req.headers.origin[0]
       : req.headers.origin;
     if (!rawOrigin) return null;
+    // The companion client pairs through the existing local Chrome bridge.
+    // Origin trust grants CORS only, for pinned extension IDs; all data still
+    // requires the normal bearer.
+    if (
+      isChromeExtensionOrigin(rawOrigin, resolveChromeSidebarExtensionIds(process.env)) &&
+      isDirectLoopbackPeer(req, resolvedTrustedProxies(this.ctx.options))
+    )
+      return rawOrigin!;
     const origin = normalizeCorsOrigin(rawOrigin);
     if (!origin || !this.isTrustedCorsOrigin(origin)) return false;
     return origin;

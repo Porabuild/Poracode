@@ -26,6 +26,15 @@ describe("isRemoteProjectSynced", () => {
 });
 
 describe("filterSyncedRemoteProjects", () => {
+  it("lets a projectless chat client use the built-in host scope on an empty profile", () => {
+    expect(
+      filterSyncedRemoteProjects([{ id: HOME_PROJECT_ID }], undefined, { includeHomeScope: true }),
+    ).toEqual([{ id: HOME_PROJECT_ID }]);
+    expect(
+      filterSyncedRemoteProjects(projects, ["p2", HOME_PROJECT_ID], { includeHomeScope: true }),
+    ).toEqual([{ id: HOME_PROJECT_ID }, { id: "p1" }]);
+    expect(filterSyncedRemoteProjects(projects, ["p2"])).toEqual([{ id: "p1" }]);
+  });
   it("drops the Home scope row and excluded projects", () => {
     expect(filterSyncedRemoteProjects(projects, ["p2"])).toEqual([{ id: "p1" }]);
   });

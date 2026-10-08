@@ -110,6 +110,8 @@ const DEFERRED_FLUSH_RESUME_GRACE_MS = 5000;
 
 export class ClaudeSdkSession implements StructuredSessionHandle {
   launchOptions: AgentLaunchOptions = { suppressResumeConfigOverrides: true };
+  /** Inline instructions mean "skill not native" here, and a slash command must stay last. */
+  readonly placesTurnContext = true;
 
   private readonly input: CreateStructuredSessionInput;
   private listener: StructuredSessionListener | undefined;
@@ -336,7 +338,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     await this.syncUltracodeFlag(query);
     await this.syncFastMode(query);
 
-    const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
+    const message = await buildSdkUserMessage(
+      prompt,
+      segments,
+      options?.inlineInstructions,
+      options?.turnContext,
+    );
     if (this.disposed || generation !== this.submissionGeneration) return;
     this.promptQueue.push(message);
   }
@@ -398,7 +405,12 @@ export class ClaudeSdkSession implements StructuredSessionHandle {
     try {
       await this.steerDelivery.serialize(async () => {
         if (this.disposed || generation !== this.submissionGeneration) return;
-        const message = await buildSdkUserMessage(prompt, segments, options?.inlineInstructions);
+        const message = await buildSdkUserMessage(
+          prompt,
+          segments,
+          options?.inlineInstructions,
+          options?.turnContext,
+        );
         if (this.disposed || generation !== this.submissionGeneration) return;
         this.promptQueue.push({ ...message, uuid, priority: "next" });
       });

@@ -1,3 +1,4 @@
+import { isChatSidebarSurface } from "./clientSurface";
 import { toast } from "@heroui/react";
 import { msg as linguiMsg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
@@ -50,14 +51,19 @@ import { DeferredCommandPalette as PrewarmedCommandPalette } from "@/renderer/de
 import { UserMessageActionsSheet } from "@/renderer/components/thread/ChatPane/UserMessageActionsSheet";
 import { isBrowserClientRuntime, readElectronHostBridge } from "@/renderer/clientRuntime";
 
+const chatSidebarSurface = isChatSidebarSurface();
+const ChatSidebarView = lazy(() =>
+  import("./sidebar/ChatSidebarView").then((module) => ({ default: module.ChatSidebarView })),
+);
 const browserClientRuntime = isBrowserClientRuntime();
-const BrowserRuntimeServices = browserClientRuntime
-  ? lazy(() =>
-      import("@/renderer/pwa/BrowserRuntimeServices").then((module) => ({
-        default: module.BrowserRuntimeServices,
-      })),
-    )
-  : null;
+const BrowserRuntimeServices =
+  browserClientRuntime && !chatSidebarSurface
+    ? lazy(() =>
+        import("@/renderer/pwa/BrowserRuntimeServices").then((module) => ({
+          default: module.BrowserRuntimeServices,
+        })),
+      )
+    : null;
 const BrowserExtractWindowApp = lazy(() =>
   import("@/renderer/windowApps/BrowserExtractWindowApp").then((module) => ({
     default: module.BrowserExtractWindowApp,
@@ -345,10 +351,12 @@ export function App() {
 }
 
 function MainApp() {
-  const { initialLoading, runtimeSnapshotsReady, storeHydrated, loadT0 } = useAppHydration();
+  const { initialLoading, runtimeSnapshotsReady, storeHydrated, loadT0 } = useAppHydration({
+    prewarmFeatures: !chatSidebarSurface,
+  });
   // App-scoped, not overlay-scoped: PR watches must follow the current helper
   // agent whether or not the user opens the Git Review sidebar.
-  usePrWatchAgentSync(!initialLoading);
+  usePrWatchAgentSync(!initialLoading && !chatSidebarSurface);
   const [showStartupRecovery, setShowStartupRecovery] = useState(false);
   const [startupRecoveryCycle, setStartupRecoveryCycle] = useState(0);
   // Reset the recovery screen while hydration is still pending: hiding it is
@@ -430,8 +438,14 @@ function MainApp() {
 
   return (
     <AppProvider contentReady>
-      <MainView storeHydrated={storeHydrated} runtimeSnapshotsReady={runtimeSnapshotsReady} />
-      <DeferredCommandPalette />
+      {chatSidebarSurface ? (
+        <Suspense>
+          <ChatSidebarView />
+        </Suspense>
+      ) : (
+        <MainView storeHydrated={storeHydrated} runtimeSnapshotsReady={runtimeSnapshotsReady} />
+      )}
+      {chatSidebarSurface ? null : <DeferredCommandPalette />}
       <ImageLightboxHost />
       {BrowserRuntimeServices ? (
         <Suspense>

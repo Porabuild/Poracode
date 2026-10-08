@@ -9,8 +9,8 @@ export function isHomeProjectId(projectId: string | undefined): boolean {
   return projectId === HOME_PROJECT_ID;
 }
 
-export function isHomeProject(project: Pick<Project, "id"> | undefined): boolean {
-  return isHomeProjectId(project?.id);
+export function isHomeProject(project: Pick<Project, "id" | "remoteId"> | undefined): boolean {
+  return isHomeProjectId(project?.id) || isHomeProjectId(project?.remoteId);
 }
 
 /**

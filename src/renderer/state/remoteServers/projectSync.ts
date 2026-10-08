@@ -22,8 +22,11 @@ export type ExcludedRemoteProjectIds = Record<string, readonly string[]>;
 export function isRemoteProjectSynced(
   remoteProjectId: string,
   excluded: readonly string[] | undefined,
+  options: { readonly includeHomeScope?: boolean } = {},
 ): boolean {
-  if (isHomeProjectId(remoteProjectId)) return false;
+  // Projectless chat clients need the host's built-in scope and its chats.
+  // Desktop mirrors keep using their own local Home scope.
+  if (isHomeProjectId(remoteProjectId)) return options.includeHomeScope === true;
   return !excluded?.includes(remoteProjectId);
 }
 
@@ -31,8 +34,9 @@ export function isRemoteProjectSynced(
 export function filterSyncedRemoteProjects<T extends { readonly id: string }>(
   projects: readonly T[],
   excluded: readonly string[] | undefined,
+  options: { readonly includeHomeScope?: boolean } = {},
 ): T[] {
-  return projects.filter((project) => isRemoteProjectSynced(project.id, excluded));
+  return projects.filter((project) => isRemoteProjectSynced(project.id, excluded, options));
 }
 
 /**

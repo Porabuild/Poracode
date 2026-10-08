@@ -204,7 +204,8 @@ export interface RemoteSocketLike {
   onclose: ((event?: { readonly code?: number; readonly reason?: string }) => void) | null;
 }
 
-export type RemoteSocketFactory = (url: string) => RemoteSocketLike;
+/** Async factories may revalidate transport authority before opening a socket. */
+export type RemoteSocketFactory = (url: string) => RemoteSocketLike | Promise<RemoteSocketLike>;
 
 export type RemoteThreadLaunchResult = "started" | "cancelled" | "cancellation-failed";
 

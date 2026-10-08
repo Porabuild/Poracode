@@ -49,6 +49,9 @@ vi.mock("@/renderer/actions/experimentActions", () => ({
 
 import "@/renderer/components/providers/bootstrap";
 import { ThreadDraftView } from "./ThreadDraftView";
+import type { ComposerControl } from "./ThreadComposer";
+import { ImplicitMcpServersContext } from "../composer/implicitMcpServers";
+import type { ComposerMcpMenuItem } from "../composer/ComposerAddMenu";
 
 const project: Project = {
   id: "project-1",
@@ -531,6 +534,69 @@ describe("ThreadDraftView", () => {
       hostUpdates: {},
       hostUpdateRestarts: {},
     });
+  });
+
+  it("keeps a focused chat draft structured and enables its tool defaults without changing settings", async () => {
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { [dualModeCodexStatus.kind]: "terminal" },
+    });
+    const onStart = vi.fn<(input: unknown) => void>();
+    const { container } = render(
+      <ImplicitMcpServersContext value={["chrome"]}>
+        <ThreadDraftView
+          project={project}
+          agentStatuses={[dualModeCodexStatus, geminiStatus]}
+          compact
+          chatOnly
+          onStart={onStart}
+        />
+      </ImplicitMcpServersContext>,
+    );
+    expect(container.querySelector("[data-draft-controls]")).toBeNull();
+    expect(container.querySelector("[data-draft-worktree-row]")).toBeNull();
+    const composerProps = composerSpy.mock.lastCall?.[0] as
+      | {
+          controls: ComposerControl[];
+          attachmentBar: ReactElement<{ leading?: ReactNode }>;
+          afterControls: ReactElement<{ mcpServers: ComposerMcpMenuItem[] }>;
+          inputContent: ReactElement<{ pluginMentions: Array<{ enablesMcpServerIds?: string[] }> }>;
+        }
+      | undefined;
+    if (!composerProps) throw new Error("Missing composer");
+    expect(composerProps.attachmentBar.props.leading).toBeUndefined();
+    expect(
+      composerProps.afterControls.props.mcpServers.map((item) => item.descriptor.id),
+    ).not.toContain("chrome");
+    expect(
+      composerProps.inputContent.props.pluginMentions.some((item) =>
+        item.enablesMcpServerIds?.includes("chrome"),
+      ),
+    ).toBe(false);
+    const controls = composerProps.controls;
+    const modelControl = controls.find((control) => control.kind === "provider-model");
+    if (!modelControl || modelControl.kind !== "provider-model")
+      throw new Error("Missing model control");
+    expect(modelControl.providers.map((provider) => provider.kind)).not.toContain(
+      geminiStatus.kind,
+    );
+    act(() =>
+      modelControl.onChange({
+        agentKind: dualModeCodexStatus.kind,
+        model: "gpt-5.4-mini",
+        presentationMode: "terminal",
+      }),
+    );
+    fireEvent.click(screen.getByText("set-prompt"));
+    fireEvent.click(screen.getByText("submit"));
+    await waitFor(() => expect(onStart).toHaveBeenCalledOnce());
+    expect(onStart.mock.calls[0]?.[0]).toMatchObject({
+      presentationMode: "gui",
+      config: { chromeMcp: true },
+    });
+    expect(useSharedSettings.getState().enabledMcpServers).toEqual({});
+    expect(useSharedSettings.getState().lastPresentationModeByAgent[dualModeCodexStatus.kind]).toBe(
+      "terminal",
+    );
   });
 
   it("adds experiment candidates without a prompt and keeps the composer submit button", () => {
