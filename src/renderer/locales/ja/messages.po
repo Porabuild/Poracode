@@ -2618,6 +2618,10 @@ msgstr "SSH 秘密鍵ファイルを選択"
 msgid "Choose the display language for Poracode's interface."
 msgstr "Poracode のインターフェースの表示言語を選択します。"
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Choose the host or environment whose accounts you want to view."
+msgstr "アカウントを表示するホストまたは環境を選択してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
 #~ msgstr "新しい Cursor GUI チャットで使用するランタイムを選択します。SDK は、パッケージが検出され API キーが認証されると利用可能になります。"
@@ -3467,6 +3471,7 @@ msgstr "接続中..."
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3758,6 +3763,10 @@ msgstr "コミットメッセージを生成できませんでした:{detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "{0} のプルリクエストを読み込めませんでした。"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Could not load usage. Check the host connection and permissions, then try again."
+msgstr "使用量を読み込めませんでした。ホストの接続と権限を確認して、もう一度お試しください。"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
@@ -6442,6 +6451,10 @@ msgstr "ホストキーが一致しません"
 msgid "Host key trust accepted."
 msgstr "ホストキーの信頼を承認しました。"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Host offline. Showing last known usage."
+msgstr "ホストはオフラインです。最後に取得した使用量を表示しています。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
 msgstr "ホスト設定"
@@ -7095,6 +7108,10 @@ msgstr "前回の評価:"
 msgid "Last tool: <0>{0}</0>"
 msgstr "最後のツール: <0>{0}</0>"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Last updated: {fetchedAt}"
+msgstr "最終更新：{fetchedAt}"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Launch at startup"
@@ -7321,6 +7338,10 @@ msgstr "スキルを読み込んでいます…"
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Loading threads"
 #~ msgstr "スレッドを読み込み中"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Loading usage…"
+msgstr "使用量を読み込み中…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Loading workflow inputs"
@@ -8959,6 +8980,10 @@ msgstr "スレッドがありません"
 msgid "No threads yet."
 msgstr "まだスレッドがありません。"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "No usage data yet."
+msgstr "使用量データはまだありません。"
+
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
 #~ msgstr "判定が届きませんでした — CLIが/goalをブロックしたか（ワークスペースの信頼またはフック設定）、評価器を実行できませんでした"
@@ -10511,6 +10536,7 @@ msgid "Provider presets"
 msgstr "プロバイダープリセット"
 
 #. Settings section: provider usage and quota dashboard
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -10885,6 +10911,7 @@ msgstr "通知内容を伏せる"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -10899,6 +10926,10 @@ msgstr "{0}認証を更新します"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Refresh {label}"
 msgstr "{label} を更新する"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Refresh {label} usage"
+msgstr "{label} の使用量を更新"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -12650,6 +12681,10 @@ msgstr "サイドバーのショートカット"
 msgid "Sign in"
 msgstr "サインイン"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
+msgstr "このホストでサインインし、使用量の追跡を設定してください。認証情報は使用量を収集するホストに保存されます。"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in needed"
 msgstr "サインインが必要です"
@@ -14069,6 +14104,14 @@ msgstr "このコンピューター"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "この接続ではプロジェクトを表示できますが、管理はできません。有効にするには再度ペアリングしてください。"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This connection does not have permission to read usage."
+msgstr "この接続には使用量を読み取る権限がありません。"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This connection does not have permission to refresh usage."
+msgstr "この接続には使用量を更新する権限がありません。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "この接続はこのデバイス上のホスト所有環境レコードを所有しています。削除すると、それらのローカルレコードとデバイス許可も削除されます。ホスト側の環境は保持されます。"
@@ -14117,6 +14160,14 @@ msgstr "このフォルダーはすでにプロジェクトとして登録され
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "このフォルダーは空です。"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "This host"
+msgstr "このホスト"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This host is no longer configured."
+msgstr "このホストは現在設定されていません。"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -15345,6 +15396,18 @@ msgstr "URLは必須です。"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
 msgstr "使用量"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Usage host"
+msgstr "使用量のホスト"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
+msgstr "使用量は選択したホストで収集されます。アカウントと割り当て量はホストごとに表示されます。"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is stale. Refresh to collect the latest values."
+msgstr "使用量が古くなっています。更新して最新の値を取得してください。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

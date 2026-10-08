@@ -2619,6 +2619,10 @@ msgstr "选择 SSH 身份文件"
 msgid "Choose the display language for Poracode's interface."
 msgstr "选择 Poracode 界面的显示语言。"
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Choose the host or environment whose accounts you want to view."
+msgstr "选择要查看其账号的主机或环境。"
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
 #~ msgstr "选择用于新 Cursor GUI 聊天的运行时。检测到 SDK 软件包并验证其 API 密钥后，SDK 才可用。"
@@ -3468,6 +3472,7 @@ msgstr "连接中..."
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3759,6 +3764,10 @@ msgstr "无法生成提交消息：{detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "无法加载 {0} 的拉取请求。"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Could not load usage. Check the host connection and permissions, then try again."
+msgstr "无法加载用量。请检查主机连接和权限，然后重试。"
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
@@ -6443,6 +6452,10 @@ msgstr "主机密钥不匹配"
 msgid "Host key trust accepted."
 msgstr "已接受主机密钥信任。"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Host offline. Showing last known usage."
+msgstr "主机离线。显示上次已知的用量。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
 msgstr "主机设置"
@@ -7096,6 +7109,10 @@ msgstr "上次评估："
 msgid "Last tool: <0>{0}</0>"
 msgstr "最后一个工具：<0>{0}</0>"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Last updated: {fetchedAt}"
+msgstr "最后更新：{fetchedAt}"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Launch at startup"
@@ -7322,6 +7339,10 @@ msgstr "正在加载技能…"
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Loading threads"
 #~ msgstr "正在加载线程"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Loading usage…"
+msgstr "正在加载用量…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Loading workflow inputs"
@@ -8960,6 +8981,10 @@ msgstr "没有线程"
 msgid "No threads yet."
 msgstr "暂无对话。"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "No usage data yet."
+msgstr "暂无用量数据。"
+
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
 #~ msgstr "未收到判定结果 — CLI 可能阻止了 /goal（工作区信任或挂钩设置），或评估器无法运行"
@@ -10512,6 +10537,7 @@ msgid "Provider presets"
 msgstr "服务商预设"
 
 #. Settings section: provider usage and quota dashboard
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -10886,6 +10912,7 @@ msgstr "隐藏通知内容"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -10900,6 +10927,10 @@ msgstr "刷新{0}身份验证"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Refresh {label}"
 msgstr "刷新 {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Refresh {label} usage"
+msgstr "刷新 {label} 的用量"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -12651,6 +12682,10 @@ msgstr "侧边栏快捷方式"
 msgid "Sign in"
 msgstr "登录"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
+msgstr "请在此主机上登录并配置用量跟踪。凭据保留在收集用量的主机上。"
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in needed"
 msgstr "需要登录"
@@ -14070,6 +14105,14 @@ msgstr "这台电脑"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "此连接可以查看项目，但不能管理项目。请重新配对以启用。"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This connection does not have permission to read usage."
+msgstr "此连接没有读取用量的权限。"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This connection does not have permission to refresh usage."
+msgstr "此连接没有刷新用量的权限。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "此连接拥有本设备上的主机环境记录。移除它还会移除这些本地记录及其设备授权。主机保留其环境。"
@@ -14118,6 +14161,14 @@ msgstr "此文件夹已注册为项目。"
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "此文件夹为空。"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "This host"
+msgstr "此主机"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This host is no longer configured."
+msgstr "此主机已不再配置。"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -15346,6 +15397,18 @@ msgstr "URL 为必填项。"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
 msgstr "用量"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Usage host"
+msgstr "用量主机"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
+msgstr "用量在所选主机上收集。每台主机的账号和配额分别显示。"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is stale. Refresh to collect the latest values."
+msgstr "用量已过期。请刷新以获取最新数据。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

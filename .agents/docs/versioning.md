@@ -1,5 +1,21 @@
 # Versioned State & Protocols
 
+Host-scoped provider usage adds `getProviderUsage` (`session:read`) and
+`refreshProviderUsage` (`session:operate`) to the existing authenticated generic
+procedure route. Existing IPC names, provider filters/force, snapshot schemas,
+and the legacy GET usage endpoint retain their meanings. Unknown procedures on
+older hosts are refused; a refused refresh never becomes a cache read or device
+fallback. Remote protocol 12, IPC map 16, binding format 2, generator 3, native
+bindings format, and host usage cache 8 remain valid. Generated manifest hashes,
+inventory counts, codecs, native metadata, parity entries and the native E2E
+operation map are regenerated/audited together. Native UI adoption is explicitly
+planned in the parity ledger. The new renderer cache and host selection are
+volatile, partitioned by connection plus host-owned provider/profile ID; they
+require no persisted-state migration. Connection retirement and request sequence
+fences prevent delayed reads from replacing a newer account snapshot or another
+host's data. Regressions cover prior snapshot shapes, auth/scope refusal,
+filters/force, two hosts, account replacement, reconnect and delayed replies.
+
 Codex resume requests use the existing optional `excludeTurns` protocol field
 and a resume-only two-minute timeout. Saved transcripts and provider session IDs
 remain valid; UI history is already persisted independently of this response.

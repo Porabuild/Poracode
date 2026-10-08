@@ -5,6 +5,12 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.procedureU2EListProjectTreeU2EResult: RemoteRootCodec<ProcedurelistProjectTreeResult_ccd3eb53d3>
+    get() = RemoteRootCodec("procedure.listProjectTree.result", serializer<ProcedurelistProjectTreeResult_ccd3eb53d3>(), schema_ccd3eb53d3a096b7)
+
+val RemoteRootCodecs.procedureU2EListSkillMarketplaceU2ERequest: RemoteRootCodec<ProcedurelistSkillMarketplaceRequest_828172bf17>
+    get() = RemoteRootCodec("procedure.listSkillMarketplace.request", serializer<ProcedurelistSkillMarketplaceRequest_828172bf17>(), schema_828172bf1752b0f1)
+
 val RemoteRootCodecs.procedureU2EListSkillMarketplaceU2EResult: RemoteRootCodec<ProcedurelistSkillMarketplaceResult_89033d459d>
     get() = RemoteRootCodec("procedure.listSkillMarketplace.result", serializer<ProcedurelistSkillMarketplaceResult_89033d459d>(), schema_89033d459dedce3c)
 
@@ -67,6 +73,12 @@ val RemoteRootCodecs.procedureU2EReadThreadBackgroundTasksU2ERequest: RemoteRoot
 
 val RemoteRootCodecs.procedureU2EReadThreadBackgroundTasksU2EResult: RemoteRootCodec<ProcedurereadThreadBackgroundTasksResult_17dfab19af>
     get() = RemoteRootCodec("procedure.readThreadBackgroundTasks.result", serializer<ProcedurereadThreadBackgroundTasksResult_17dfab19af>(), schema_17dfab19afcacd90)
+
+val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60>
+    get() = RemoteRootCodec("procedure.refreshProviderUsage.request", serializer<ProceduregetProviderUsageRequest_f2b9759b60>(), schema_f2b9759b60404656)
+
+val RemoteRootCodecs.procedureU2ERefreshProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_b0304b9d9d>
+    get() = RemoteRootCodec("procedure.refreshProviderUsage.result", serializer<ProceduregetProviderUsageResult_b0304b9d9d>(), schema_b0304b9d9dfc2690)
 
 val RemoteRootCodecs.procedureU2ERelocateProjectU2ERequest: RemoteRootCodec<ProcedurerelocateProjectRequest_51fc061b3e>
     get() = RemoteRootCodec("procedure.relocateProject.request", serializer<ProcedurerelocateProjectRequest_51fc061b3e>(), schema_51fc061b3ecc735c)
@@ -436,15 +448,3 @@ val RemoteRootCodecs.routeU2EProjectU2DCommandU2ERequest: RemoteRootCodec<Routep
 
 val RemoteRootCodecs.routeU2EProjectU2DCommandU2EResponse: RemoteRootCodec<RouteprojectU2DCommandResponse_c544067fff>
     get() = RemoteRootCodec("route.project-command.response", serializer<RouteprojectU2DCommandResponse_c544067fff>(), schema_c544067fff1936a6)
-
-val RemoteRootCodecs.routeU2EProjectU2DListU2EQuery: RemoteRootCodec<RouteprojectU2DListQuery_5e1b33a494>
-    get() = RemoteRootCodec("route.project-list.query", serializer<RouteprojectU2DListQuery_5e1b33a494>(), schema_5e1b33a49482671a)
-
-val RemoteRootCodecs.routeU2EProjectU2DListU2EResponse: RemoteRootCodec<RouteprojectU2DListResponse_f8c266eeb6>
-    get() = RemoteRootCodec("route.project-list.response", serializer<RouteprojectU2DListResponse_f8c266eeb6>(), schema_f8c266eeb60c306a)
-
-val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EPath: RemoteRootCodec<RouteprojectU2DNotesU2DReadPath_05812a27bb>
-    get() = RemoteRootCodec("route.project-notes-read.path", serializer<RouteprojectU2DNotesU2DReadPath_05812a27bb>(), schema_05812a27bb4846c1)
-
-val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a>
-    get() = RemoteRootCodec("route.project-notes-read.response", serializer<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a>(), schema_d1eba06c8a5dc0a7)

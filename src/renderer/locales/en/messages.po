@@ -2628,6 +2628,10 @@ msgstr "Choose SSH identity file"
 msgid "Choose the display language for Poracode's interface."
 msgstr "Choose the display language for Poracode's interface."
 
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Choose the host or environment whose accounts you want to view."
+msgstr "Choose the host or environment whose accounts you want to view."
+
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
 #~ msgstr "Choose the runtime for new Cursor GUI chats. SDK becomes available after its package is detected and its API key is authenticated."
@@ -3477,6 +3481,7 @@ msgstr "Connecting..."
 #: src/renderer/components/thread/ThreadDraftView.tsx
 #: src/renderer/components/thread/ThreadHeaderStatus.tsx
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineSelect.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "Connecting…"
@@ -3768,6 +3773,10 @@ msgstr "Could not generate commit message: {detail}"
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Could not load pull requests for {0}."
 msgstr "Could not load pull requests for {0}."
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Could not load usage. Check the host connection and permissions, then try again."
+msgstr "Could not load usage. Check the host connection and permissions, then try again."
 
 #: src/renderer/components/pdf/PdfViewer.tsx
 #~ msgid "Could not open this PDF."
@@ -6452,6 +6461,10 @@ msgstr "Host key mismatch"
 msgid "Host key trust accepted."
 msgstr "Host key trust accepted."
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Host offline. Showing last known usage."
+msgstr "Host offline. Showing last known usage."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Host settings"
 msgstr "Host settings"
@@ -7105,6 +7118,10 @@ msgstr "Last evaluation:"
 msgid "Last tool: <0>{0}</0>"
 msgstr "Last tool: <0>{0}</0>"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Last updated: {fetchedAt}"
+msgstr "Last updated: {fetchedAt}"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Launch at startup"
@@ -7331,6 +7348,10 @@ msgstr "Loading skills…"
 #: src/mobile/views/ThreadsView.tsx
 #~ msgid "Loading threads"
 #~ msgstr "Loading threads"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Loading usage…"
+msgstr "Loading usage…"
 
 #: src/renderer/views/GitHubActionsView/GitHubActionsDispatchPopover.tsx
 msgid "Loading workflow inputs"
@@ -8970,6 +8991,10 @@ msgstr "No threads"
 msgid "No threads yet."
 msgstr "No threads yet."
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "No usage data yet."
+msgstr "No usage data yet."
+
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
 #~ msgstr "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
@@ -10522,6 +10547,7 @@ msgid "Provider presets"
 msgstr "Provider presets"
 
 #. Settings section: provider usage and quota dashboard
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -10896,6 +10922,7 @@ msgstr "Redact notification content"
 #: src/renderer/views/PrReviewOverlay/PrReviewOverlay.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
@@ -10910,6 +10937,10 @@ msgstr "Refresh {0} authentication"
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Refresh {label}"
 msgstr "Refresh {label}"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Refresh {label} usage"
+msgstr "Refresh {label} usage"
 
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Refresh detected agents"
@@ -12661,6 +12692,10 @@ msgstr "Sidebar shortcuts"
 msgid "Sign in"
 msgstr "Sign in"
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
+msgstr "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
+
 #: src/renderer/components/thread/AgentDiscoveryScreen.tsx
 msgid "Sign in needed"
 msgstr "Sign in needed"
@@ -14080,6 +14115,14 @@ msgstr "This computer"
 msgid "This connection can view projects but not manage them. Re-pair to enable."
 msgstr "This connection can view projects but not manage them. Re-pair to enable."
 
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This connection does not have permission to read usage."
+msgstr "This connection does not have permission to read usage."
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This connection does not have permission to refresh usage."
+msgstr "This connection does not have permission to refresh usage."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteServersSettings.tsx
 msgid "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
 msgstr "This connection owns host-owned environment records on this device. Removing it also removes those local records and their device grants. The host keeps its environments."
@@ -14128,6 +14171,14 @@ msgstr "This folder is already registered as a project."
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostFolderPicker.tsx
 msgid "This folder is empty."
 msgstr "This folder is empty."
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "This host"
+msgstr "This host"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "This host is no longer configured."
+msgstr "This host is no longer configured."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "This HTTPS page couldn't reach the desktop on plain HTTP. Allow local network access for this site and pair again, or continue on the desktop's own address."
@@ -15360,6 +15411,18 @@ msgstr "URL is required."
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileHomeActions.tsx
 msgid "Usage"
 msgstr "Usage"
+
+#: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
+msgid "Usage host"
+msgstr "Usage host"
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
+msgstr "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
+
+#: src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx
+msgid "Usage is stale. Refresh to collect the latest values."
+msgstr "Usage is stale. Refresh to collect the latest values."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

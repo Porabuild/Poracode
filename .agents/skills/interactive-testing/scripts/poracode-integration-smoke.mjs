@@ -1577,6 +1577,34 @@ async function runMockGate(client, gate, fixture) {
       assert(controls.selectControls > 0, "provider model/approval controls did not render");
       return `provider ${state.kind} was hydrated and selector UI rendered without external credentials`;
     }
+    case "remote-usage": {
+      const result = await evaluate(
+        client,
+        `
+        (async () => {
+          const { useHostUsageStore } = await window.__poracodeDev.loadHostUsage();
+          const previous = useHostUsageStore.getState();
+          const store = previous;
+          const snapshot = (account) => ({ providerId: "fixture-provider", authenticatedAs: account, status: "ok", windows: [], fetchedAt: 100 });
+          try {
+            const old = store.begin("usage-smoke-a");
+            store.complete("usage-smoke-a", store.begin("usage-smoke-a"), [snapshot("account-a")]);
+            store.complete("usage-smoke-b", store.begin("usage-smoke-b"), [snapshot("account-b")]);
+            store.complete("usage-smoke-a", old, [snapshot("retired")]);
+            const hosts = useHostUsageStore.getState().hosts;
+            const separate = hosts["usage-smoke-a"].snapshots[0].authenticatedAs === "account-a"
+              && hosts["usage-smoke-b"].snapshots[0].authenticatedAs === "account-b";
+            store.remove("usage-smoke-b");
+            return separate && !useHostUsageStore.getState().hosts["usage-smoke-b"];
+          } finally {
+            useHostUsageStore.setState({ hosts: previous.hosts });
+          }
+        })()
+      `,
+      );
+      assert(result === true, "host usage isolation, retirement, or late-result fence failed");
+      return "separate host accounts, late-result fencing, and retirement passed against the bundled usage store";
+    }
     case "remote-client": {
       const pairing = await bridgeInvoke(client, "getRemoteAccessPairing");
       assert(pairing && typeof pairing === "object", "remote pairing bridge returned no result");

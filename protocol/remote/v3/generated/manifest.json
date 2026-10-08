@@ -969,6 +969,16 @@
   ],
   "procedures": [
     {
+      "name": "getProviderUsage",
+      "owner": "desktop",
+      "scope": "session:read"
+    },
+    {
+      "name": "refreshProviderUsage",
+      "owner": "desktop",
+      "scope": "session:operate"
+    },
+    {
       "name": "rollbackThreadConversation",
       "owner": "thread",
       "scope": "session:operate"

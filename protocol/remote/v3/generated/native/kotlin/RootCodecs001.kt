@@ -140,6 +140,12 @@ val RemoteRootCodecs.procedureU2EGetMcpOauthStatusU2ERequest: RemoteRootCodec<Pr
 val RemoteRootCodecs.procedureU2EGetMcpOauthStatusU2EResult: RemoteRootCodec<ProceduregetMcpOauthStatusResult_51733da614>
     get() = RemoteRootCodec("procedure.getMcpOauthStatus.result", serializer<ProceduregetMcpOauthStatusResult_51733da614>(), schema_51733da614782090)
 
+val RemoteRootCodecs.procedureU2EGetProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60>
+    get() = RemoteRootCodec("procedure.getProviderUsage.request", serializer<ProceduregetProviderUsageRequest_f2b9759b60>(), schema_f2b9759b60404656)
+
+val RemoteRootCodecs.procedureU2EGetProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_b0304b9d9d>
+    get() = RemoteRootCodec("procedure.getProviderUsage.result", serializer<ProceduregetProviderUsageResult_b0304b9d9d>(), schema_b0304b9d9dfc2690)
+
 val RemoteRootCodecs.procedureU2EGetThreadFollowUpQueueU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d>
     get() = RemoteRootCodec("procedure.getThreadFollowUpQueue.request", serializer<ProcedurecancelExtractContextRequest_09b78d9c1d>(), schema_09b78d9c1d4c3a6b)
 
@@ -442,9 +448,3 @@ val RemoteRootCodecs.procedureU2EListFileCheckpointsU2EResult: RemoteRootCodec<P
 
 val RemoteRootCodecs.procedureU2EListProjectTreeU2ERequest: RemoteRootCodec<ProcedurelistProjectTreeRequest_26cfea8cde>
     get() = RemoteRootCodec("procedure.listProjectTree.request", serializer<ProcedurelistProjectTreeRequest_26cfea8cde>(), schema_26cfea8cde59ada2)
-
-val RemoteRootCodecs.procedureU2EListProjectTreeU2EResult: RemoteRootCodec<ProcedurelistProjectTreeResult_ccd3eb53d3>
-    get() = RemoteRootCodec("procedure.listProjectTree.result", serializer<ProcedurelistProjectTreeResult_ccd3eb53d3>(), schema_ccd3eb53d3a096b7)
-
-val RemoteRootCodecs.procedureU2EListSkillMarketplaceU2ERequest: RemoteRootCodec<ProcedurelistSkillMarketplaceRequest_828172bf17>
-    get() = RemoteRootCodec("procedure.listSkillMarketplace.request", serializer<ProcedurelistSkillMarketplaceRequest_828172bf17>(), schema_828172bf1752b0f1)

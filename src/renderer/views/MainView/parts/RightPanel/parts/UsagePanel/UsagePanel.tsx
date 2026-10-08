@@ -7,7 +7,8 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { RefreshCw, Settings2 } from "lucide-react";
 import { openUsageSettings } from "@/renderer/actions/panelActions";
-import { readBridge } from "@/renderer/bridge";
+import { HostUsageSettings } from "@/renderer/views/SettingsOverlay/parts/HostUsageSettings";
+import { isRemoteSession, readBridge } from "@/renderer/bridge";
 import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { RemoteServerPicker } from "@/renderer/components/common/RemoteServerPicker";
 import { MobilePageHeaderActions } from "@/renderer/components/layout/MobilePageHeaderActions";
@@ -18,7 +19,6 @@ import {
 } from "@/renderer/components/providers/usageProviders";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
-import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
 import {
   selectBrowserBridgeServer,
   useRemoteServersStore,
@@ -67,7 +67,6 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   const requestRefresh = useUsageScopeStore((s) => s.requestRefresh);
   const servers = useRemoteServersStore((s) => s.servers);
   const defaultBrowserServer = useRemoteServersStore(selectBrowserBridgeServer);
-  const withClient = useRemoteServersStore((s) => s.withClient);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -86,17 +85,17 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
     preferredProviderId,
   );
 
-  const browserRuntime = isBrowserClientRuntime();
+  const browserRuntime = isRemoteSession();
   const browserServer = defaultBrowserServer ?? servers[0];
   const requestedServer = servers.find(
     (server) => remoteConnectionKey(server) === requestedDesktopId,
   );
-  const scopedServer = requestedServer ?? (browserRuntime ? browserServer : undefined);
-  const effectiveDesktopId = requestedServer
-    ? remoteConnectionKey(requestedServer)
-    : browserRuntime && browserServer
-      ? remoteConnectionKey(browserServer)
-      : null;
+  const scopedServer =
+    requestedServer ?? (requestedDesktopId === null && browserRuntime ? browserServer : undefined);
+  const effectiveDesktopId =
+    requestedDesktopId ??
+    (browserRuntime && browserServer ? remoteConnectionKey(browserServer) : null);
+  const remoteView = Boolean(scopedServer || requestedDesktopId !== null || browserRuntime);
 
   useEffect(
     () => () => {
@@ -111,32 +110,29 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   // Alongside it, load the persistent "signed in" flags so the sign-in/out
   // affordance reflects the stored session, not whatever the last fetch returned.
   useEffect(() => {
+    if (remoteView) return;
     let cancelled = false;
-    const usageRequest = scopedServer
-      ? withClient(remoteConnectionKey(scopedServer), (client) => client.providerUsage())
-      : compact
+    const usageRequest = compact
+      ? readBridge().refreshProviderUsage({ force: true })
+      : refreshVersion > 0
         ? readBridge().refreshProviderUsage({ force: true })
-        : refreshVersion > 0
-          ? readBridge().refreshProviderUsage({ force: true })
-          : readBridge().getProviderUsage({});
+        : readBridge().getProviderUsage({});
     void usageRequest
       .then((res) => {
         if (cancelled) return;
         useProviderUsageStore.getState().setSnapshots(res.snapshots);
       })
       .catch(() => undefined);
-    if (!scopedServer) {
-      void readBridge()
-        .getUsageLoginState({})
-        .then((res) => {
-          if (!cancelled) useUsageLoginStateStore.getState().setAll(res.stored);
-        })
-        .catch(() => undefined);
-    }
+    void readBridge()
+      .getUsageLoginState({})
+      .then((res) => {
+        if (!cancelled) useUsageLoginStateStore.getState().setAll(res.stored);
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [compact, refreshVersion, scopedServer, withClient]);
+  }, [compact, refreshVersion, remoteView]);
 
   // Keep the single "Updated …" label fresh without re-fetching.
   useEffect(() => {
@@ -189,7 +185,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-[var(--content-background)]">
-      {compact && lastUpdated > 0 ? (
+      {!remoteView && compact && lastUpdated > 0 ? (
         <MobilePageHeaderActions>
           <p className="whitespace-nowrap text-[11px] text-muted/70">
             <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
@@ -209,7 +205,15 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
         style={scrollFadeStyle}
       >
         <div ref={contentRef} className="min-h-full">
-          {orderedProviders.length === 0 ? (
+          {remoteView ? (
+            <HostUsageSettings
+              connectionId={effectiveDesktopId ?? ""}
+              embedded
+              refreshVersion={refreshVersion}
+              liveOnOpen={compact}
+              selector={null}
+            />
+          ) : orderedProviders.length === 0 ? (
             <div className="flex min-h-full flex-col items-center justify-center gap-2 px-6 text-center">
               <p className="text-sm text-muted">
                 <Trans>No providers are being tracked.</Trans>
@@ -264,7 +268,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
 
       {!compact ? (
         <div className="m-page-content flex shrink-0 flex-col items-center gap-1.5 px-3 py-2">
-          {servers.length > 0 ? (
+          {servers.length > 0 || (!browserRuntime && requestedDesktopId !== null) ? (
             <RemoteServerPicker
               value={effectiveDesktopId}
               includeLocal={!browserRuntime}
@@ -273,7 +277,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
               opensUpward
             />
           ) : null}
-          {lastUpdated > 0 ? (
+          {!remoteView && lastUpdated > 0 ? (
             <p className="text-[11px] text-muted/70">
               <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
             </p>

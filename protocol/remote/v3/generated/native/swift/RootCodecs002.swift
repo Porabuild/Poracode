@@ -1,6 +1,14 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
 public extension RemoteRootCodecs {
+  static let procedureU2EGitListWorktreesU2EResult: RemoteRootCodec<ProceduregitListWorktreesResult_70e5b904af> = .init(id: "procedure.gitListWorktrees.result", schema: RemoteSchemas.schema_70e5b904af7932c1)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EGitMergeToSourceU2ERequest: RemoteRootCodec<ProceduregitMergeToSourceRequest_e41b25797e> = .init(id: "procedure.gitMergeToSource.request", schema: RemoteSchemas.schema_e41b25797ed24d45)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EGitMergeToSourceU2EResult: RemoteRootCodec<ProceduregitMergeToSourceResult_0bd6eab0e2> = .init(id: "procedure.gitMergeToSource.result", schema: RemoteSchemas.schema_0bd6eab0e269161f)
 }
 
@@ -229,6 +237,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2ERefreshProviderUsageU2ERequest: RemoteRootCodec<ProceduregetProviderUsageRequest_f2b9759b60> = .init(id: "procedure.refreshProviderUsage.request", schema: RemoteSchemas.schema_f2b9759b60404656)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2ERefreshProviderUsageU2EResult: RemoteRootCodec<ProceduregetProviderUsageResult_b0304b9d9d> = .init(id: "procedure.refreshProviderUsage.result", schema: RemoteSchemas.schema_b0304b9d9dfc2690)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2ERelocateProjectU2ERequest: RemoteRootCodec<ProcedurerelocateProjectRequest_51fc061b3e> = .init(id: "procedure.relocateProject.request", schema: RemoteSchemas.schema_51fc061b3ecc735c)
 }
 
@@ -430,20 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EEnvironmentU2DCreateU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-create.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DDeleteU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-delete.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DDeleteU2ERequest: RemoteRootCodec<RouteenvironmentU2DDeleteRequest_939b432562> = .init(id: "route.environment-delete.request", schema: RemoteSchemas.schema_939b432562853e88)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DDeleteU2EResponse: RemoteRootCodec<RouteenvironmentU2DDeleteResponse_badd682f35> = .init(id: "route.environment-delete.response", schema: RemoteSchemas.schema_badd682f3501e022)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DDisconnectU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-disconnect.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
 }

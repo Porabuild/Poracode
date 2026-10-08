@@ -2,6 +2,19 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { areasForFile, isProductionFile } from "./smoke-scenarios.mjs";
 
+await test("host usage changes require remote collection and isolation coverage", () => {
+  for (const file of [
+    "src/renderer/state/hostUsageStore.ts",
+    "src/renderer/components/providers/hostUsage.ts",
+    "src/renderer/views/SettingsOverlay/parts/HostUsageSettings.tsx",
+  ]) {
+    const area = areasForFile(file).find((candidate) => candidate.id === "remote-provider-usage");
+    assert.ok(area);
+    assert.ok(area.manual.includes("remote-usage"));
+    assert.ok(area.automated.includes("settings"));
+  }
+});
+
 await test("backend production files are production roots mapped to areas", () => {
   const backendFiles = [
     "src/backend/BackendHostCore.ts",

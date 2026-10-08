@@ -5,6 +5,18 @@ import kotlinx.serialization.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 import kotlinx.serialization.json.*
+val RemoteRootCodecs.routeU2EProjectU2DListU2EQuery: RemoteRootCodec<RouteprojectU2DListQuery_5e1b33a494>
+    get() = RemoteRootCodec("route.project-list.query", serializer<RouteprojectU2DListQuery_5e1b33a494>(), schema_5e1b33a49482671a)
+
+val RemoteRootCodecs.routeU2EProjectU2DListU2EResponse: RemoteRootCodec<RouteprojectU2DListResponse_f8c266eeb6>
+    get() = RemoteRootCodec("route.project-list.response", serializer<RouteprojectU2DListResponse_f8c266eeb6>(), schema_f8c266eeb60c306a)
+
+val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EPath: RemoteRootCodec<RouteprojectU2DNotesU2DReadPath_05812a27bb>
+    get() = RemoteRootCodec("route.project-notes-read.path", serializer<RouteprojectU2DNotesU2DReadPath_05812a27bb>(), schema_05812a27bb4846c1)
+
+val RemoteRootCodecs.routeU2EProjectU2DNotesU2DReadU2EResponse: RemoteRootCodec<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a>
+    get() = RemoteRootCodec("route.project-notes-read.response", serializer<RouteprojectU2DNotesU2DReadResponse_d1eba06c8a>(), schema_d1eba06c8a5dc0a7)
+
 val RemoteRootCodecs.routeU2EProjectU2DNotesU2DWriteU2EPath: RemoteRootCodec<RouteprojectU2DNotesU2DReadPath_05812a27bb>
     get() = RemoteRootCodec("route.project-notes-write.path", serializer<RouteprojectU2DNotesU2DReadPath_05812a27bb>(), schema_05812a27bb4846c1)
 
@@ -20,8 +32,8 @@ val RemoteRootCodecs.routeU2EProjectU2DSettingsU2EPath: RemoteRootCodec<Routepro
 val RemoteRootCodecs.routeU2EProjectU2DSettingsU2EResponse: RemoteRootCodec<RouteprojectU2DSettingsResponse_c1417bffe5>
     get() = RemoteRootCodec("route.project-settings.response", serializer<RouteprojectU2DSettingsResponse_c1417bffe5>(), schema_c1417bffe520aa1c)
 
-val RemoteRootCodecs.routeU2EProviderU2DUsageU2EResponse: RemoteRootCodec<RouteproviderU2DUsageResponse_b0304b9d9d>
-    get() = RemoteRootCodec("route.provider-usage.response", serializer<RouteproviderU2DUsageResponse_b0304b9d9d>(), schema_b0304b9d9dfc2690)
+val RemoteRootCodecs.routeU2EProviderU2DUsageU2EResponse: RemoteRootCodec<ProceduregetProviderUsageResult_b0304b9d9d>
+    get() = RemoteRootCodec("route.provider-usage.response", serializer<ProceduregetProviderUsageResult_b0304b9d9d>(), schema_b0304b9d9dfc2690)
 
 val RemoteRootCodecs.routeU2EPushU2DConfigU2EResponse: RemoteRootCodec<RoutepushU2DConfigResponse_f0c513c014>
     get() = RemoteRootCodec("route.push-config.response", serializer<RoutepushU2DConfigResponse_f0c513c014>(), schema_f0c513c0146099c2)

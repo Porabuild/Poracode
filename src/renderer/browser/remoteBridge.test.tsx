@@ -28,6 +28,23 @@ describe("remote bridge", () => {
     });
   });
 
+  it("performs a real usage refresh through the generic host procedure and preserves its payload", async () => {
+    const callRemoteProcedure = vi
+      .fn<RemoteDesktopClient["callRemoteProcedure"]>()
+      .mockResolvedValue({ snapshots: [], fromCache: false });
+    const providerUsage = vi.fn<RemoteDesktopClient["providerUsage"]>();
+    setRemoteBridgeClient({ callRemoteProcedure, providerUsage } as unknown as RemoteDesktopClient);
+    installRemoteBridge();
+    const payload = { providerIds: ["provider:profile"], force: true };
+    await window.poracode!.getProviderUsage(payload);
+    await window.poracode!.refreshProviderUsage(payload);
+    expect(callRemoteProcedure.mock.calls).toEqual([
+      ["getProviderUsage", payload],
+      ["refreshProviderUsage", payload],
+    ]);
+    expect(providerUsage).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])(
     "honors independent preference writes while preserving the default host sync (%s)",
     async (writeThrough) => {
