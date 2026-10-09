@@ -2559,10 +2559,12 @@ or replacements that omit it. Every existing persistence checkpoint rereads
 the authoritative file and compares it with the committed document; changed
 outside data is refused instead of overwritten. Arbitrary plugin data is opaque.
 
-Thread configs, project drafts, schedules and PR-watch configs use the same
-conservative persisted-read policy: validate known fields, remove unsupported
-selection metadata only from the projection, and preserve stored bytes. Their
-full-row writers check original raw storage inside the actual write transaction,
+Thread configs and project drafts retain their historical lossless JSON read
+semantics, including empty or model-less legacy configs; they are not revalidated
+as fresh launch payloads. Schedules and PR-watch configs retain their existing
+known-field validation. All four remove unsupported selection metadata only
+from the public projection and preserve stored bytes. Fresh requests remain
+strictly validated. Their full-row writers check original raw storage inside the actual write transaction,
 including replacements that omit metadata. Sync preflights replacement IDs
 before deletes or cascades; duplicate-project repair checks both drafts and a
 colliding watch's losing config before retiring it. Independent scalar updates
@@ -2727,3 +2729,11 @@ Regression fixtures seed actual encrypted pre-upgrade vault slots, exercise
 mount/resume/online/visibility, background refresh, retry and event backoff,
 reject lost-session refresh after 401 and stale tickets, select only the current
 host, and retain record-based clients across refresh rotation.
+
+Migrate startup admits workspace custody read-only before committing any pending
+migration or its forward-only schema marker. Unsupported schema versions are
+refused first. A database rejected for an unexpected custody trigger therefore
+keeps its prior schema version and remains eligible for an older artifact. This
+reuses the existing preflight and changes no storage shape or version. The
+schema-56 startup regression preserves raw schema, rows and custody journal on
+refusal; legacy-read regressions preserve config bytes and writer protections.
