@@ -1,3 +1,4 @@
+import { keyDownAt } from "@/renderer/testUtils/keyboard";
 import { composerDraftStorage } from "@/renderer/state/composerDraftStorage";
 import { act, createEvent, fireEvent, screen, waitFor } from "@testing-library/react";
 import { toast } from "@heroui/react";
@@ -449,19 +450,27 @@ describe("ThreadComposerSection", () => {
       { isComposing: true, keyCode: 13 },
       { isComposing: false, keyCode: 229 },
     ])(
-      "preserves candidate-confirming Enter before exactly one ordinary submit (isComposing=$isComposing, keyCode=$keyCode)",
+      "preserves candidate-confirming Enter and its replay before exactly one ordinary submit (isComposing=$isComposing, keyCode=$keyCode)",
       async (compositionFlags) => {
         const { onSubmitInput } = renderComposer({ thread, agentStatus });
         const editor = screen.getByRole("textbox");
         typeComposerText(editor, "日本語");
 
         for (const modifiers of [{}, { ctrlKey: true }, { metaKey: true }]) {
-          const confirmation = createEvent.keyDown(editor, {
-            key: "Enter",
-            ...compositionFlags,
-            ...modifiers,
-          });
+          const confirmation = keyDownAt(
+            editor,
+            {
+              key: "Enter",
+              ...compositionFlags,
+              ...modifiers,
+            },
+            100,
+          );
           fireEvent(editor, confirmation);
+          fireEvent.compositionEnd(editor, { data: "日本語" });
+          fireEvent.keyUp(editor, { key: "Enter" });
+          const replay = keyDownAt(editor, { key: "Enter", keyCode: 13, ...modifiers }, 100);
+          fireEvent(editor, replay);
           await act(async () => Promise.resolve());
           expect(confirmation.defaultPrevented).toBe(false);
           expect(editor).toHaveTextContent("日本語");
@@ -470,7 +479,8 @@ describe("ThreadComposerSection", () => {
           expect(bridgeMock.setPendingSteer).not.toHaveBeenCalled();
         }
 
-        fireEvent.keyDown(editor, { key: "Enter", keyCode: 13 });
+        const nextPress = keyDownAt(editor, { key: "Enter", keyCode: 13 }, 101);
+        fireEvent(editor, nextPress);
         await waitFor(() => {
           expect(onSubmitInput).toHaveBeenCalledExactlyOnceWith("日本語", [
             { kind: "text", content: "日本語" },
@@ -497,8 +507,10 @@ describe("ThreadComposerSection", () => {
         typeComposerText(editor, "/rev");
         expect(await screen.findByRole("option", { name: /review/i })).toBeInTheDocument();
 
-        const confirmation = createEvent.keyDown(editor, { key: "Enter", ...compositionFlags });
+        const confirmation = keyDownAt(editor, { key: "Enter", ...compositionFlags }, 100);
         fireEvent(editor, confirmation);
+        const replay = keyDownAt(editor, { key: "Enter", keyCode: 13 }, 100);
+        fireEvent(editor, replay);
         await act(async () => Promise.resolve());
         expect(confirmation.defaultPrevented).toBe(false);
         expect(editor).toHaveTextContent("/rev");
@@ -506,7 +518,8 @@ describe("ThreadComposerSection", () => {
         expect(screen.getByRole("option", { name: /review/i })).toBeInTheDocument();
         expect(onSubmitInput).not.toHaveBeenCalled();
 
-        fireEvent.keyDown(editor, { key: "Enter" });
+        const selection = keyDownAt(editor, { key: "Enter" }, 101);
+        fireEvent(editor, selection);
         expect(editor.querySelector("[data-slash-command]")).toHaveAttribute(
           "data-slash-command",
           "review",
@@ -1977,12 +1990,18 @@ describe("ThreadComposerSection", () => {
       const editor = screen.getByRole("textbox");
       typeComposerText(editor, "unfinished input");
       for (const modifier of ["ctrlKey", "metaKey"] as const) {
-        const confirmation = createEvent.keyDown(editor, {
-          key: "Enter",
-          [modifier]: true,
-          ...compositionFlags,
-        });
+        const confirmation = keyDownAt(
+          editor,
+          {
+            key: "Enter",
+            [modifier]: true,
+            ...compositionFlags,
+          },
+          100,
+        );
         fireEvent(editor, confirmation);
+        const replay = keyDownAt(editor, { key: "Enter", [modifier]: true, keyCode: 13 }, 100);
+        fireEvent(editor, replay);
         await act(async () => Promise.resolve());
         expect(confirmation.defaultPrevented).toBe(false);
         expect(bridgeMock.queueThreadFollowUp).not.toHaveBeenCalled();
@@ -1990,7 +2009,8 @@ describe("ThreadComposerSection", () => {
         expect(editor).toHaveTextContent("unfinished input");
       }
 
-      fireEvent.keyDown(editor, { key: "Enter", ctrlKey: true, keyCode: 13 });
+      const nextPress = keyDownAt(editor, { key: "Enter", ctrlKey: true, keyCode: 13 }, 101);
+      fireEvent(editor, nextPress);
       await waitFor(() =>
         expect(bridgeMock.queueThreadFollowUp).toHaveBeenCalledExactlyOnceWith(
           expect.objectContaining({ prompt: "unfinished input" }),

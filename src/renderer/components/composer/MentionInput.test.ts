@@ -1,3 +1,4 @@
+import { keyDownAt } from "@/renderer/testUtils/keyboard";
 import { createElement, createRef } from "react";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -462,12 +463,18 @@ describe("MCP mention selection", () => {
       );
       const editor = typeMention("bro");
       for (const modifiers of [{}, { ctrlKey: true }, { metaKey: true }]) {
-        const confirmation = createEvent.keyDown(editor, {
-          key: "Enter",
-          ...compositionFlags,
-          ...modifiers,
-        });
+        const confirmation = keyDownAt(
+          editor,
+          {
+            key: "Enter",
+            ...compositionFlags,
+            ...modifiers,
+          },
+          100,
+        );
         fireEvent(editor, confirmation);
+        const replay = keyDownAt(editor, { key: "Enter", keyCode: 13, ...modifiers }, 100);
+        fireEvent(editor, replay);
         expect(confirmation.defaultPrevented).toBe(false);
         expect(editor.textContent).toBe("@bro");
         expect(editor.querySelector("[data-mcp-id]")).toBeNull();
@@ -475,12 +482,14 @@ describe("MCP mention selection", () => {
         expect(onInterceptKey).not.toHaveBeenCalled();
       }
 
-      fireEvent.keyDown(editor, { key: "Enter" });
+      const selection = keyDownAt(editor, { key: "Enter" }, 101);
+      fireEvent(editor, selection);
       expect(editor.querySelector("[data-mcp-id]")).toHaveAttribute("data-mcp-id", "browser");
       expect(onSubmit).not.toHaveBeenCalled();
       expect(onInterceptKey).not.toHaveBeenCalled();
 
-      fireEvent.keyDown(editor, { key: "Enter" });
+      const submit = keyDownAt(editor, { key: "Enter" }, 102);
+      fireEvent(editor, submit);
       expect(onSubmit).toHaveBeenCalledOnce();
       expect(onInterceptKey).toHaveBeenCalledOnce();
     },
@@ -650,6 +659,68 @@ describe("Enter handling", () => {
     onTextChange: vi.fn<(hasText: boolean) => void>(),
   };
 
+  it("does not submit a non-composing replay of the same native IME Enter", () => {
+    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+    const onInterceptKey = vi.fn<() => boolean>(() => false);
+    render(createElement(MentionInput, { ...baseProps, onSubmit, onInterceptKey }));
+    const editor = screen.getByRole("textbox");
+    editor.appendChild(document.createTextNode("한"));
+    const confirming = keyDownAt(
+      editor,
+      {
+        key: "Enter",
+        isComposing: true,
+        keyCode: 229,
+      },
+      100,
+    );
+    fireEvent(editor, confirming);
+    fireEvent.compositionEnd(editor, { data: "한" });
+    fireEvent.keyUp(editor, { key: "Enter" });
+    // Recorded macOS Korean sequence: the IME replays the same physical Enter
+    // after composition ends, with the original native event timestamp.
+    const replay = keyDownAt(editor, { key: "Enter", isComposing: false, keyCode: 13 }, 100);
+    fireEvent(editor, replay);
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onInterceptKey).not.toHaveBeenCalled();
+    expect(editor).toHaveTextContent("한");
+
+    const nextPress = keyDownAt(editor, { key: "Enter", keyCode: 13 }, 101);
+    fireEvent(editor, nextPress);
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith([{ kind: "text", content: "한" }]);
+  });
+
+  it("does not deduplicate unrelated zero-timestamp synthetic Enter presses", () => {
+    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+    render(createElement(MentionInput, { ...baseProps, onSubmit }));
+    const editor = screen.getByRole("textbox");
+    editor.appendChild(document.createTextNode("hello"));
+    fireEvent(editor, keyDownAt(editor, { key: "Enter", isComposing: true }, 0));
+    fireEvent(editor, keyDownAt(editor, { key: "Enter" }, 0));
+    expect(onSubmit).toHaveBeenCalledOnce();
+    fireEvent(editor, keyDownAt(editor, { key: "Enter", ctrlKey: true }, 0));
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+  });
+
+  it("retires IME replay identity on another key and does not share it across inputs", () => {
+    const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
+    const { unmount } = render(createElement(MentionInput, { ...baseProps, onSubmit }));
+    let editor = screen.getByRole("textbox");
+    editor.appendChild(document.createTextNode("hello"));
+    fireEvent(editor, keyDownAt(editor, { key: "Enter", isComposing: true }, 100));
+    fireEvent.keyDown(editor, { key: "ArrowLeft" });
+    fireEvent(editor, keyDownAt(editor, { key: "Enter" }, 100));
+    expect(onSubmit).toHaveBeenCalledOnce();
+    fireEvent(editor, keyDownAt(editor, { key: "Enter", isComposing: true }, 200));
+    unmount();
+    render(createElement(MentionInput, { ...baseProps, onSubmit }));
+    editor = screen.getByRole("textbox");
+    editor.appendChild(document.createTextNode("next field"));
+    fireEvent(editor, keyDownAt(editor, { key: "Enter", metaKey: true }, 200));
+    expect(onSubmit).toHaveBeenLastCalledWith([{ kind: "text", content: "next field" }]);
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+  });
+
   it("submits with Enter by default", () => {
     const onSubmit = vi.fn<(segments: PromptSegment[]) => void>();
     render(
@@ -683,7 +754,7 @@ describe("Enter handling", () => {
       if (!compositionFlags.isComposing) {
         fireEvent.compositionEnd(editor, { data: "日本語" });
       }
-      const confirmation = createEvent.keyDown(editor, { key: "Enter", ...compositionFlags });
+      const confirmation = keyDownAt(editor, { key: "Enter", ...compositionFlags }, 100);
       fireEvent(editor, confirmation);
 
       expect(confirmation.defaultPrevented).toBe(false);
@@ -694,7 +765,8 @@ describe("Enter handling", () => {
       if (compositionFlags.isComposing) {
         fireEvent.compositionEnd(editor, { data: "日本語" });
       }
-      fireEvent.keyDown(editor, { key: "Enter", keyCode: 13 });
+      const nextPress = keyDownAt(editor, { key: "Enter", keyCode: 13 }, 101);
+      fireEvent(editor, nextPress);
       expect(onSubmit).toHaveBeenCalledExactlyOnceWith([{ kind: "text", content: "日本語" }]);
       expect(onInterceptKey).toHaveBeenCalledOnce();
     },
