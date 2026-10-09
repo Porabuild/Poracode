@@ -44,6 +44,9 @@ function schema54() {
 describe("workspace grant migration 54 to 55", () => {
   it("upgrades real historical schema54, preserves old bytes and defaults only legacy grants", () => {
     const { sqlite, path } = schema54();
+    // The frozen fixture stores model-less configs; current public reads parse
+    // the persisted thread config strictly, so give this copy a current row.
+    sqlite.exec(`UPDATE threads SET config = '{"model":"fixture"}'`);
     try {
       const before = captureSchema53PayloadOriginEvidence(sqlite);
       expect(sqlite.prepare("PRAGMA table_info(threads)").all()).not.toEqual(

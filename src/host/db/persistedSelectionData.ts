@@ -1,10 +1,5 @@
 import type Database from "better-sqlite3";
-import {
-  projectDraftConfigSchema,
-  threadConfigSchema,
-  type ProjectDraftConfig,
-  type ThreadConfig,
-} from "@/shared/contracts/config";
+import type { ProjectDraftConfig, ThreadConfig } from "@/shared/contracts/config";
 import { msg } from "@/shared/messages";
 import {
   hasUnsupportedSelectionBinding,
@@ -13,17 +8,24 @@ import {
 
 type SqliteDatabase = InstanceType<typeof Database>;
 
+/**
+ * Historical rows keep their pre-binding read semantics: stored configs are
+ * returned losslessly (including empty/model-less legacy values and opaque
+ * properties) and are never revalidated as a fresh launch payload. The only
+ * read-side change is the strict binding projection, which hides unsupported
+ * selection metadata without touching stored bytes. Fresh requests and the
+ * authoritative writers below keep their own strict guards.
+ */
+function readPersistedSelectionConfig(json: string): unknown {
+  return projectPersistedSelectionBinding(JSON.parse(json));
+}
+
 export function readPersistedThreadConfig(json: string): ThreadConfig {
-  const projected = projectPersistedSelectionBinding(JSON.parse(json));
-  threadConfigSchema.parse(projected);
-  // Validate known fields without stripping existing opaque/legacy properties.
-  return projected as ThreadConfig;
+  return readPersistedSelectionConfig(json) as ThreadConfig;
 }
 
 export function readPersistedProjectDraftConfig(json: string): ProjectDraftConfig {
-  const projected = projectPersistedSelectionBinding(JSON.parse(json));
-  projectDraftConfigSchema.parse(projected);
-  return projected as ProjectDraftConfig;
+  return readPersistedSelectionConfig(json) as ProjectDraftConfig;
 }
 
 /** A typed incoming replacement cannot introduce unsupported metadata either. */

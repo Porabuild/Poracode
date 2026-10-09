@@ -7,6 +7,7 @@ import { closeDatabase, getSqlite, initDatabase } from "./connection";
 import {
   assertRequiredDatabaseSchema,
   DATABASE_MIGRATIONS,
+  LATEST_SCHEMA_VERSION,
   repairSafeSchemaDrift,
   runDatabaseMigrations,
 } from "./migrations";
@@ -76,13 +77,13 @@ function legacyOwner(sqlite: InstanceType<typeof Database>) {
 // Frozen schema55 artifact's startup guard. Both migration and validate-only
 // consumers called this guard; a new shape must not be accepted by that artifact.
 function schema55ArtifactVersionGuard(storedVersion: number): void {
-  const LATEST_SCHEMA_VERSION = 55;
+  const SCHEMA55_LATEST = 55;
   if (!Number.isInteger(storedVersion) || storedVersion < 0) {
     throw new Error(`Invalid database schema version: ${storedVersion}.`);
   }
-  if (storedVersion > LATEST_SCHEMA_VERSION) {
+  if (storedVersion > SCHEMA55_LATEST) {
     throw new Error(
-      `Database schema ${storedVersion} is newer than supported schema ${LATEST_SCHEMA_VERSION}.`,
+      `Database schema ${storedVersion} is newer than supported schema ${SCHEMA55_LATEST}.`,
     );
   }
 }
@@ -194,7 +195,7 @@ describe("workspace owner migration55 to 56", () => {
           )
           .all(),
       ).toEqual(grants);
-      expect(version(sqlite)).toEqual({ value: "56" });
+      expect(version(sqlite)).toEqual({ value: String(LATEST_SCHEMA_VERSION) });
       sqlite.close();
       initDatabase(path, { schemaMode: "validate" });
       const current = dbReadThreadWorkspaceGrantOwner("thread-1");
@@ -344,6 +345,6 @@ describe("workspace owner migration55 to 56", () => {
     runDatabaseMigrations(sqlite, 55);
     expect(() =>
       schema55ArtifactVersionGuard(Number((version(sqlite) as { value: string }).value)),
-    ).toThrow("Database schema 56 is newer than supported schema 55.");
+    ).toThrow(`Database schema ${LATEST_SCHEMA_VERSION} is newer than supported schema 55.`);
   });
 });

@@ -62,7 +62,7 @@ describe.skipIf(!sqliteAvailable)("runtime payload origin migration 54", () => {
     }
     runDatabaseMigrations(sqlite, 53);
     expect(sqlite.prepare("SELECT * FROM thread_runtime_item_payload_origins").all()).toEqual([]);
-    expect(LATEST_SCHEMA_VERSION).toBe(56);
+    expect(LATEST_SCHEMA_VERSION).toBe(57);
     expect(readRuntimePayloadOrigin(sqlite, "thread-1", "growing")).toBeUndefined();
     const afterMigration = captureSchema53PayloadOriginEvidence(sqlite);
     expect(afterMigration).toEqual(before);

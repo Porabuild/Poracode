@@ -1,5 +1,5 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { spawn as spawnPty } from "node-pty";
@@ -147,7 +147,10 @@ describe("ACP approved text filesystem scope", () => {
     const { handlers, internal, base } = fixture();
     internal.projectLocation = {
       kind: process.platform === "win32" ? "windows" : "posix",
-      path: homedir(),
+      path:
+        process.platform === "win32"
+          ? "C:\\Users\\poracode-home-scope"
+          : "/Users/poracode-home-scope",
     };
     const path = join(base, "denied", "home-scope-file");
     await handlers.handleWriteTextFile({ sessionId: "session-1", path, content: "home" });

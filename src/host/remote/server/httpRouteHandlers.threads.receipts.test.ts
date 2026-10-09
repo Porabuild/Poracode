@@ -177,7 +177,11 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
     );
     const response = await fetch(new URL("/api/threads/sidebar-chat/command", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
       body: JSON.stringify({
         kind: "start",
         projectId: "sidebar-project",
@@ -221,7 +225,11 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
     const post = (path: string, body: Record<string, unknown>) =>
       fetch(new URL(path, info.httpBaseUrl), {
         method: "POST",
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+        headers: {
+          authorization: `Bearer ${token}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
         body: JSON.stringify(body),
       });
     const config = { model: "fixture" };
