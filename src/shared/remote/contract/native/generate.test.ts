@@ -56,21 +56,21 @@ describe("remote v3 native binding generator", () => {
         protocolVersion: 13,
         bindingFormatVersion: 2,
         generatorVersion: 4,
-        // Protocol 13 selection/workspace-grant schemas and the two JSON usage
-        // procedures share one canonical authority. Usage adds four native roots
-        // without reverting the target's wire/generator/cache versions.
-        sourceHash: "sha256:72260269bc8bb6fe7e7af492358b265a0d7a559b3d3de98f595af9b00ed64b2d",
-        manifestHash: "sha256:57c2fb06fa3fd0a13150755fbc2986b91f346e899f1f26d4c1b8bf3b6681ad69",
+        // Protocol 13 selection/workspace-grant schemas, seven additive media
+        // routes and the two JSON usage procedures share one canonical authority.
+        // Usage adds four roots while preserving target wire/generator versions.
+        sourceHash: "sha256:f8cfb2d15e6ecc9eb7eb243d7c46406e8028c2db907cc98f9143f7cb21cf9d65",
+        manifestHash: "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982",
         counts: {
-          routes: 88,
+          routes: 95,
           procedures: 130,
           voidProcedureResults: 50,
           jsonProcedureResults: 80,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 413,
-          structuralTypes: 962,
+          schemaRoots: 429,
+          structuralTypes: 970,
           semanticValidators: 18,
           swiftFiles: 61,
           kotlinFiles: 53,
@@ -312,7 +312,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(413);
+        expect(adapters).toHaveLength(429);
         expect(
           adapters
             .map((adapter) => adapter.id)

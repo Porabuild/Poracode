@@ -52,6 +52,19 @@ describe("sharedSettingsStore", () => {
     });
   });
 
+  it("persists a new terminal family once and ignores an unchanged selection", () => {
+    useSharedSettings.setState({ terminalFontFamily: "" });
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    useSharedSettings.getState().setTerminalFontFamily("Menlo");
+    expect(JSON.parse(localStorage.getItem("poracode-shared-settings")!)).toMatchObject({
+      terminalFontFamily: "Menlo",
+    });
+    writes.mockClear();
+    useSharedSettings.getState().setTerminalFontFamily("Menlo");
+    expect(writes).not.toHaveBeenCalled();
+    writes.mockRestore();
+  });
+
   it("defaults theme to dark", () => {
     expect(useSharedSettings.getState().themeMode).toBe("dark");
   });

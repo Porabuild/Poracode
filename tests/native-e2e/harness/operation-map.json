@@ -3,10 +3,10 @@
   "contract": "poracode.remote",
   "protocolVersion": 13,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:19c39a66c2290f62b5a43195631ba794d915672124ef819684c882967afd4592",
-  "keyCount": 270,
+  "manifestHash": "sha256:d44589af24b17526c1b209b61f39e6b2cf5f9d7ec9581b65765902266346add9",
+  "keyCount": 277,
   "counts": {
-    "route": 88,
+    "route": 95,
     "procedure": 130,
     "ws-client": 9,
     "ws-server": 11,
@@ -658,6 +658,18 @@
       "kind": "route",
       "id": "environment-list"
     },
+    "route:environment-media-release": {
+      "kind": "route",
+      "id": "environment-media-release"
+    },
+    "route:environment-media-renew": {
+      "kind": "route",
+      "id": "environment-media-renew"
+    },
+    "route:environment-media-ticket": {
+      "kind": "route",
+      "id": "environment-media-ticket"
+    },
     "route:environment-pairing": {
       "kind": "route",
       "id": "environment-pairing"
@@ -689,6 +701,22 @@
     "route:experiment-state": {
       "kind": "route",
       "id": "experiment-state"
+    },
+    "route:file-media": {
+      "kind": "route",
+      "id": "file-media"
+    },
+    "route:file-media-release": {
+      "kind": "route",
+      "id": "file-media-release"
+    },
+    "route:file-media-renew": {
+      "kind": "route",
+      "id": "file-media-renew"
+    },
+    "route:file-media-ticket": {
+      "kind": "route",
+      "id": "file-media-ticket"
     },
     "route:forward-enter": {
       "kind": "route",

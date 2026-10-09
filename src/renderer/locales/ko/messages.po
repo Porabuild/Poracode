@@ -1751,6 +1751,10 @@ msgstr "시도"
 msgid "Audio"
 msgstr "오디오"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "오디오 미리보기"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "인증"
@@ -3881,6 +3885,10 @@ msgstr "커밋되지 않은 변경 사항을 여기에 복사합니다(이 브�
 msgid "Could not abort the merge: {detail}"
 msgstr "병합을 중단할 수 없습니다: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "설치된 글꼴에 접근할 수 없습니다. 저장된 글꼴을 유지하거나 기본값을 선택할 수 있습니다."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "병합을 완료할 수 없습니다."
@@ -4447,6 +4455,8 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "기본값"
 
@@ -5397,6 +5407,10 @@ msgstr "음성 채팅 종료"
 msgid "Enhanced (Hooks)"
 msgstr "고급(후크)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "제어 문자 없이 최대 256자의 글꼴 패밀리를 입력하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "https://code.example.com과(와) 같은 전체 출처(origin) URL을 경로 없이 입력하세요."
@@ -6158,6 +6172,14 @@ msgstr "이 프로젝트의 작업 트리를 보관하는 폴더입니다. 전�
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Follow-up behavior"
 msgstr "후속 동작 방식"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "에이전트 터미널과 터미널 패널에 사용할 글꼴입니다. 글꼴이 없으면 기본 글꼴을 사용합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "에이전트 터미널과 터미널 패널의 글꼴입니다. 글꼴 패밀리를 입력하거나 설치된 글꼴을 선택하세요. 없는 글꼴은 기본 글꼴로 대체됩니다."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -7243,6 +7265,10 @@ msgstr "설치됨"
 msgid "Installed {0}."
 msgstr "{0}을(를) 설치했습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "이 클라이언트에서는 설치된 글꼴을 선택할 수 없습니다."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7557,6 +7583,10 @@ msgstr "이 스레드에서는 실시간 음성을 사용할 수 없습니다."
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "실시간 음성을 사용하려면 이 제공업체의 구독 계정으로 로그인해야 합니다."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "설치된 글꼴 불러오기"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7586,6 +7616,10 @@ msgstr "환경 불러오는 중…"
 msgid "Loading file…"
 msgstr "파일 로드 중…"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "글꼴 불러오는 중…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
 msgstr "호스트 설정을 불러오는 중…"
@@ -7597,6 +7631,11 @@ msgstr "작업 불러오는 중"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "마켓플레이스 로드 중…"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "미디어 미리보기 로드 중…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -9743,6 +9782,7 @@ msgstr "Git 검토를 오른쪽 패널이나 전체 페이지로 엽니다."
 msgid "Open image {0} of {1}"
 msgstr "이미지 {0}/{1} 열기"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -10743,6 +10783,10 @@ msgstr "원격 환경 준비 중…"
 msgid "Presets"
 msgstr "프리셋"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Enter 키를 눌러 적용하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "단축키를 누르세요…"
@@ -11468,6 +11512,10 @@ msgstr "새로고침"
 msgid "Reload browser page"
 msgstr "브라우저 페이지 새로고침"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "미리보기 새로고침"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11539,6 +11587,7 @@ msgstr "원격 프로젝트를 찾을 수 없습니다."
 #~ msgid "Remote server"
 #~ msgstr "원격 서버"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -12496,6 +12545,10 @@ msgstr "단축키 저장"
 msgid "Saved credentials are shared across all machines."
 msgstr "저장된 자격 증명은 모든 기기에서 공유됩니다."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "저장된 글꼴"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "저장된 셸"
@@ -13150,6 +13203,10 @@ msgstr "도크를 오른쪽 패널에 표시"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "예상 비용 표시"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "글꼴 제안 표시"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -14269,6 +14326,12 @@ msgstr "터미널"
 msgid "Terminal access denied."
 msgstr "터미널 접근이 거부되었습니다."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "터미널 글꼴"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14423,6 +14486,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "데스크톱 자체 서버가 아직 연결되지 않았습니다."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "데스크톱 자체 서버가 연결되어 있지 않습니다."
@@ -14547,6 +14611,7 @@ msgstr "일반 앱 셸을 렌더링할 수 없습니다. 아래 진단은 다시
 #~ msgstr "이 세션이 실행되는 동안에는 조직을 변경할 수 없습니다 — Devin 프로필 설정에서 변경한 후 새 세션을 시작하세요."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14925,6 +14990,10 @@ msgstr "이 기기"
 msgid "This machine (local)"
 msgstr "이 머신(로컬)"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "이 미디어 미리보기를 사용할 수 없습니다."
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "이 메시지는 더 이상 대기열에 없습니다. 편집 중인 내용은 계속 복사할 수 있습니다."
@@ -15064,6 +15133,10 @@ msgstr "이 서버는 이 컴퓨터에서 실행되며 WSL 프로젝트에서는
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "이 세션은 어떤 설정도 알리지 않았습니다."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "이 SVG를 표시할 수 없습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -15767,6 +15840,10 @@ msgstr "미지정"
 msgid "Unavailable"
 msgstr "사용할 수 없음"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "사용 불가 — 기본 글꼴 사용"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -16216,6 +16293,10 @@ msgstr "기존 브라우저 세션이 필요한 작업에서는 Chrome을 안전
 msgid "Use config"
 msgstr "구성 사용"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "기본 글꼴 사용"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "감지된 세션을 사용하시겠습니까?"
@@ -16345,6 +16426,10 @@ msgstr "버전"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "{0}을(를) 통해"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "동영상 미리보기"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

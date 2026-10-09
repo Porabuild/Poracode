@@ -40,6 +40,17 @@ const input = (provider: string): SharedSettingsInput =>
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe("pushDesktopSettingsDiff push ordering", () => {
+  it("never sends the device-local terminal family to the paired desktop", () => {
+    applyDesktopSettings(settings("v0"));
+    const client = {
+      updateSettings: vi.fn<(patch: RemoteSettingsPatch) => Promise<RemoteSettings>>(),
+    } as unknown as RemoteDesktopClient;
+    pushDesktopSettingsDiff(client, { ...input("v0"), terminalFontFamily: "Menlo" });
+    expect(client.updateSettings).not.toHaveBeenCalled();
+    expect(h.applyExternalSharedSettings).toHaveBeenCalledWith(settings("v0"));
+    expect(settings("v0")).not.toHaveProperty("terminalFontFamily");
+  });
+
   beforeEach(() => {
     resetDesktopSettings();
     h.applyExternalSharedSettings.mockClear();

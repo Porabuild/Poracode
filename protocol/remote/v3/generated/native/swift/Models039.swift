@@ -1,5 +1,45 @@
 // GENERATED FILE. Do not edit by hand.
 import Foundation
+public struct WebSocketServerMessageU2DOptionU2D9U2DCursorSync_c533fb8759: Codable, Sendable, RemoteModelMetadata {
+  public var result: WebSocketServerMessageU2DOptionU2D9U2DCursorSyncU2DResult_80f7976aee
+  public var version: ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72
+  public var watchId: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "result", typeName: "WebSocketServerMessageU2DOptionU2D9U2DCursorSyncU2DResult_80f7976aee", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "version", typeName: "ProcedureconnectThreadVoiceRequestU2DConfigU2DSelectionBindingU2DVersion_7f9f5a0d72", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "watchId", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case result = "result"
+    case version = "version"
+    case watchId = "watchId"
+  }
+}
+
+public enum WebSocketServerMessageU2DOptionU2D9U2DType_0797160858: String, Codable, Sendable {
+  case terminalU2DWatchU2DResult = "terminal-watch-result"
+}
+
+public struct WebSocketServerMessageU2DOptionU2D9_4655073d71: Codable, Sendable, RemoteModelMetadata {
+  public var cursorSync: WebSocketServerMessageU2DOptionU2D9U2DCursorSync_c533fb8759
+  public var id: String
+  public var typeValue: WebSocketServerMessageU2DOptionU2D9U2DType_0797160858
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "cursorSync", typeName: "WebSocketServerMessageU2DOptionU2D9U2DCursorSync_c533fb8759", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "id", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: 1, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+    .init(wireName: "type", typeName: "WebSocketServerMessageU2DOptionU2D9U2DType_0797160858", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: nil, format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case cursorSync = "cursorSync"
+    case id = "id"
+    case typeValue = "type"
+  }
+}
+
 public enum WebSocketServerMessage_d613617e76: Codable, Sendable {
   case option1(WebSocketServerMessageU2DOptionU2D1_13762c62f0)
   case option2(WebSocketServerMessageU2DOptionU2D2_19e09b36c5)

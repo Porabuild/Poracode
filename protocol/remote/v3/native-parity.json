@@ -2749,7 +2749,7 @@
               "ios/App/App/Features/Terminal/TerminalRawKeyInput.swift",
               "screen:ios.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row — the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`NativeFamilyJourneyUITests.testTerminalKeystrokeFamilyWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u2014 the standard mobile-terminal compromise."
           }
         },
         "android": {
@@ -2768,7 +2768,7 @@
               "android/app/src/main/kotlin/com/poracode/app/ui/terminal/TerminalKeyAccessory.kt",
               "screen:android.terminal-write"
             ],
-            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row — the standard mobile-terminal compromise."
+            "note": "E.2 device keystroke-to-PTY journey landed (`Android37WireLabFamilyInstrumentedTest.familyTerminalKeystrokeWritesToPty`). On-screen (touch) typing remains line-buffered through the command field plus the modifier key row \u2014 the standard mobile-terminal compromise."
           }
         }
       },
@@ -3079,6 +3079,197 @@
           }
         },
         "note": "Desktop-only experiment authority (capabilities.experiments v1): the embedded desktop backend owns the experiment store and the local-shell experiment worktree driver, and every mutating intent is additionally gated on the documented loopback LOCALITY check (not an authentication guarantee). No native client composes the authority or exposes an experiment UI, so both routes are deliberately unsupported on iOS and Android; the desktop renderer consumes them over its managed loopback session."
+      },
+      {
+        "id": "file-media-ticket",
+        "scopes": ["session:read"],
+        "batch": "attachments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "file-media",
+        "scopes": ["session:read"],
+        "batch": "attachments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "file-media-release",
+        "scopes": ["session:read"],
+        "batch": "attachments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "file-media-renew",
+        "scopes": ["session:read"],
+        "batch": "attachments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+          }
+        },
+        "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+      },
+      {
+        "id": "environment-media-ticket",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Generated wire codecs are available; native transport and editor UI adoption are planned. Issue #806 implements the shared desktop and adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "environment-media-release",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Native media transport and editor UI adoption remain planned; #806 implements the adaptive web editor."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Native media transport and editor UI adoption remain planned; #806 implements the adaptive web editor."
+          }
+        }
+      },
+      {
+        "id": "environment-media-renew",
+        "scopes": ["session:operate", "ports:forward"],
+        "batch": "environments",
+        "ios": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+          }
+        },
+        "android": {
+          "wire": {
+            "disposition": "planned",
+            "evidence": []
+          },
+          "ui": {
+            "disposition": "planned",
+            "evidence": [],
+            "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
+          }
+        },
+        "note": "Stable media lease renewal is available to desktop/adaptive web. Generated native codecs are current; native media transport and editor adoption require a later native implementation and real device proof."
       }
     ],
     "procedures": [
@@ -9329,5 +9520,5 @@
       }
     ]
   },
-  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence — a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
+  "migrationNote": "Format 2 splits each platform claim into independent wire and ui columns so the ledger can no longer present wire coverage as UI parity. Migrated from format 1 (2026-09-18, V5 plan item 5.4): every format-1 claim became the wire claim unchanged, and the ui column was seeded by mirroring it, with the UI-surface subset of the evidence as ui evidence (falling back to the full list for protocol-plumbing entries that have no distinct UI file). ui dispositions: implemented = reachable from a user-visible native surface; partial = reachable in part, with a mandatory reason note; planned = wire present, no UI surface yet; desktop-only and unsupported-by-wire mirror the wire claim. The ui column is now maintained separately from wire: flipping one must not flip the other. E.1 re-derivation (2026-09-20, V6): ui implemented additionally requires independent device evidence \u2014 a screen-registry entry or a checked-in device test; a note is commentary and grants nothing. Every ui claim failing that rule was honestly downgraded to partial with the evidence gap in its note."
 }

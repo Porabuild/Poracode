@@ -26,6 +26,7 @@ import {
   devinAcpConfigOptionsNormalizerFor,
   devinAcpLiveConfigActionDescriptors,
 } from "./acp/sessionConfiguration";
+import { projectQualifiedAllowOtherPresentation } from "./acp/allowOtherPresentation";
 import { devinAcpSessionActionDescriptors } from "./acp/sessionActions";
 import { resolveDevinAcpMode } from "./acp/sessionModes";
 import { buildDevinCommand } from "./detection";
@@ -259,10 +260,19 @@ export function createDevinStructuredSessionLauncher(
                 )!,
               }
             : {}),
+          // The one qualified custom-answer flag is projected onto the shared
+          // form. Reply normalization still reads the original request.
+          acpElicitationPresentation: projectQualifiedAllowOtherPresentation,
           // A cloud agent runs outside the host's filesystem: client-hosted
-          // text IO and terminal operations are refused at the method level
-          // (root neutral guards), never advertised and never proxied.
-          ...(isCloud ? { acpFsTextCapability: false, acpTerminalCapability: false } : {}),
+          // text IO, terminal operations, and agent-origin host image reads
+          // are refused. The image gate is independent of the text callback.
+          ...(isCloud
+            ? {
+                acpFsTextCapability: false,
+                acpTerminalCapability: false,
+                acpLocalResourceResolution: false,
+              }
+            : {}),
         },
         {
           // Throwing resolver: an explicit selection the live session does

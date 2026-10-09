@@ -1751,6 +1751,10 @@ msgstr "Lần thử"
 msgid "Audio"
 msgstr "Âm thanh"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "Xem trước âm thanh"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "Xác thực"
@@ -3881,6 +3885,10 @@ msgstr "Sao chép các thay đổi chưa được cam kết tại đây (giữ c
 msgid "Could not abort the merge: {detail}"
 msgstr "Không thể hủy việc hợp nhất: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "Không thể truy cập các phông chữ đã cài đặt. Bạn có thể giữ phông chữ đã lưu hoặc chọn Mặc định."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "Không thể hoàn tất việc hợp nhất"
@@ -4447,6 +4455,8 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Mặc định"
 
@@ -5397,6 +5407,10 @@ msgstr "Kết thúc trò chuyện thoại"
 msgid "Enhanced (Hooks)"
 msgstr "Tăng cường (Móc)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "Nhập họ phông chữ dài tối đa 256 ký tự, không có ký tự điều khiển."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Nhập một URL gốc đầy đủ, ví dụ https://code.example.com, không kèm đường dẫn."
@@ -6158,6 +6172,14 @@ msgstr "Thư mục chứa các cây làm việc của dự án này. Đặt lạ
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Follow-up behavior"
 msgstr "Cách xử lý tin nhắn tiếp theo"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "Phông chữ cho terminal của tác nhân và bảng terminal. Nếu thiếu phông chữ, phông chữ mặc định sẽ được dùng."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "Phông chữ cho terminal của tác nhân và bảng terminal. Nhập họ phông hoặc chọn phông đã cài đặt. Phông không có sẵn sẽ dùng phông mặc định."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -7243,6 +7265,10 @@ msgstr "Đã cài đặt"
 msgid "Installed {0}."
 msgstr "Đã cài đặt {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "Ứng dụng khách này không hỗ trợ chọn phông chữ đã cài đặt."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7557,6 +7583,10 @@ msgstr "Trò chuyện thoại trực tiếp không khả dụng cho luồng này
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "Trò chuyện thoại trực tiếp yêu cầu đăng nhập bằng tài khoản có gói đăng ký của nhà cung cấp này."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "Tải phông chữ đã cài đặt"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7586,6 +7616,10 @@ msgstr "Đang tải môi trường…"
 msgid "Loading file…"
 msgstr "Đang tải tập tin…"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "Đang tải phông chữ…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
 msgstr "Đang tải cài đặt máy chủ…"
@@ -7597,6 +7631,11 @@ msgstr "Đang tải công việc"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "Đang tải marketplace…"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "Đang tải bản xem trước nội dung đa phương tiện…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -9743,6 +9782,7 @@ msgstr "Mở đánh giá git dưới dạng bảng điều khiển bên phải h
 msgid "Open image {0} of {1}"
 msgstr "Mở hình ảnh {0}/{1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -10743,6 +10783,10 @@ msgstr "Đang chuẩn bị môi trường từ xa…"
 msgid "Presets"
 msgstr "Cấu hình sẵn"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Nhấn Enter để áp dụng."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Nhấn phím tắt…"
@@ -11468,6 +11512,10 @@ msgstr "Tải lại"
 msgid "Reload browser page"
 msgstr "Tải lại trang trình duyệt"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "Tải lại bản xem trước"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11539,6 +11587,7 @@ msgstr "Không tìm thấy dự án từ xa."
 #~ msgid "Remote server"
 #~ msgstr "Máy chủ từ xa"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -12496,6 +12545,10 @@ msgstr "Lưu phím tắt"
 msgid "Saved credentials are shared across all machines."
 msgstr "Thông tin đăng nhập đã lưu được dùng chung cho tất cả các máy."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "Phông chữ đã lưu"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "Shell đã lưu"
@@ -13150,6 +13203,10 @@ msgstr "Hiện dock trong bảng bên phải"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Hiển thị chi phí ước tính"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "Hiển thị gợi ý phông chữ"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -14269,6 +14326,12 @@ msgstr "Terminal"
 msgid "Terminal access denied."
 msgstr "Quyền truy cập terminal bị từ chối."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "Phông chữ terminal"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14423,6 +14486,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "Máy chủ riêng của máy tính chưa được kết nối."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "Máy chủ riêng của máy tính để bàn chưa kết nối."
@@ -14547,6 +14611,7 @@ msgstr "Shell ứng dụng bình thường không thể hiển thị. Chẩn đo
 #~ msgstr "Tổ chức được cố định trong khi phiên này chạy — hãy thay đổi trong cài đặt hồ sơ Devin, sau đó bắt đầu phiên mới."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14925,6 +14990,10 @@ msgstr "Máy này"
 msgid "This machine (local)"
 msgstr "Máy này (cục bộ)"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "Bản xem trước nội dung đa phương tiện này không khả dụng."
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "Tin nhắn này không còn trong hàng đợi. Bạn vẫn có thể sao chép nội dung đang chỉnh sửa."
@@ -15064,6 +15133,10 @@ msgstr "Máy chủ này chạy trên máy này và không khả dụng cho dự 
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "Phiên này không cung cấp cài đặt nào."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "Không thể hiển thị SVG này."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -15767,6 +15840,10 @@ msgstr "Chưa gán"
 msgid "Unavailable"
 msgstr "Không khả dụng"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "Không khả dụng — dùng phông chữ mặc định"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -16216,6 +16293,10 @@ msgstr "Dùng Chrome an toàn khi tác vụ cần một phiên trình duyệt s�
 msgid "Use config"
 msgstr "Sử dụng cấu hình"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "Dùng phông chữ mặc định"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "Sử dụng phiên được phát hiện?"
@@ -16345,6 +16426,10 @@ msgstr "Phiên bản"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "qua {0}"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "Xem trước video"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

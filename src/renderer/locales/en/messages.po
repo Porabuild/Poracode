@@ -1756,6 +1756,10 @@ msgstr "Attempt"
 msgid "Audio"
 msgstr "Audio"
 
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Audio preview"
+msgstr "Audio preview"
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "Authenticate"
 msgstr "Authenticate"
@@ -3890,6 +3894,10 @@ msgstr "Copy uncommitted changes here (keeps them on this branch)"
 msgid "Could not abort the merge: {detail}"
 msgstr "Could not abort the merge: {detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "Could not access installed fonts. You can keep the saved font or use Default."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "Could not complete the merge"
@@ -4456,6 +4464,8 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Default"
 
@@ -5406,6 +5416,10 @@ msgstr "End voice chat"
 msgid "Enhanced (Hooks)"
 msgstr "Enhanced (Hooks)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "Enter a font family of up to 256 characters without control characters."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Enter a full origin URL like https://code.example.com, with no path."
@@ -6167,6 +6181,14 @@ msgstr "Folder that holds this project's worktrees. Reset to use the global sett
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Follow-up behavior"
 msgstr "Follow-up behavior"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "Font for agent terminals and the terminal panel. Missing fonts use the default."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -7252,6 +7274,10 @@ msgstr "Installed"
 msgid "Installed {0}."
 msgstr "Installed {0}."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "Installed-font selection is unavailable in this client."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7566,6 +7592,10 @@ msgstr "Live voice is unavailable for this thread."
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "Live voice requires a subscription sign-in for this provider."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "Load installed fonts"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7595,6 +7625,10 @@ msgstr "Loading environments…"
 msgid "Loading file…"
 msgstr "Loading file…"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "Loading fonts…"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
 msgstr "Loading host settings…"
@@ -7606,6 +7640,11 @@ msgstr "Loading jobs"
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
 msgid "Loading marketplace…"
 msgstr "Loading marketplace…"
+
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorBody.tsx
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Loading media preview…"
+msgstr "Loading media preview…"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesPanel.tsx
 msgid "Loading notes…"
@@ -9752,6 +9791,7 @@ msgstr "Open git review as a right-side panel or a full page."
 msgid "Open image {0} of {1}"
 msgstr "Open image {0} of {1}"
 
+#: src/renderer/components/media/ImageFileView.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/ImageCard.tsx
 #: src/renderer/components/thread/ThreadImagesDock.tsx
 msgid "Open image preview"
@@ -10752,6 +10792,10 @@ msgstr "Preparing remote environment…"
 msgid "Presets"
 msgstr "Presets"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Press Enter to apply."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Press shortcut…"
@@ -11477,6 +11521,10 @@ msgstr "Reload"
 msgid "Reload browser page"
 msgstr "Reload browser page"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "Reload preview"
+msgstr "Reload preview"
+
 #: src/renderer/components/common/BranchSelector/parts/useBranchList.ts
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Remote"
@@ -11548,6 +11596,7 @@ msgstr "Remote project not found."
 #~ msgid "Remote server"
 #~ msgstr "Remote server"
 
+#: src/renderer/components/media/fileMediaSource.ts
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "Remote server not found."
@@ -12505,6 +12554,10 @@ msgstr "Save shortcut"
 msgid "Saved credentials are shared across all machines."
 msgstr "Saved credentials are shared across all machines."
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "Saved font"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "Saved shell"
@@ -13159,6 +13212,10 @@ msgstr "Show docks in the right panel"
 #: src/renderer/views/SettingsOverlay/parts/UsageDisplaySettings.tsx
 msgid "Show estimated cost"
 msgstr "Show estimated cost"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "Show font suggestions"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -14278,6 +14335,12 @@ msgstr "Terminal"
 msgid "Terminal access denied."
 msgstr "Terminal access denied."
 
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "Terminal font face"
+
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
 #. placeholder {0}: props.worktreeBranch
@@ -14432,6 +14495,7 @@ msgid "The desktop's own server is not connected yet."
 msgstr "The desktop's own server is not connected yet."
 
 #: src/renderer/state/remote/historyNoticeActions.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/managedParentRuntime.ts
 msgid "The desktop's own server is not connected."
 msgstr "The desktop's own server is not connected."
@@ -14556,6 +14620,7 @@ msgstr "The normal app shell could not render. The diagnostics below are shown b
 #~ msgstr "The organization is fixed while this session runs — change it in the Devin profile settings, then start a new session."
 
 #: src/renderer/state/remoteServers/environmentManagement.ts
+#: src/renderer/state/remoteServers/environmentSessions.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
@@ -14934,6 +14999,10 @@ msgstr "This machine"
 msgid "This machine (local)"
 msgstr "This machine (local)"
 
+#: src/renderer/views/FileEditorOverlay/parts/FileEditorPane/parts/EditorMediaViews.tsx
+msgid "This media preview is unavailable."
+msgstr "This media preview is unavailable."
+
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
 msgstr "This message is no longer queued. Your edit is still available to copy."
@@ -15073,6 +15142,10 @@ msgstr "This server runs on this computer and is unavailable for WSL projects."
 #: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
 #~ msgid "This session did not advertise any settings."
 #~ msgstr "This session did not advertise any settings."
+
+#: src/renderer/components/media/SvgFileView.tsx
+msgid "This SVG can't be displayed."
+msgstr "This SVG can't be displayed."
 
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
@@ -15780,6 +15853,10 @@ msgstr "Unassigned"
 msgid "Unavailable"
 msgstr "Unavailable"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "Unavailable — using default"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -16229,6 +16306,10 @@ msgstr "Use Chrome safely when a task needs an existing browser session."
 msgid "Use config"
 msgstr "Use config"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "Use default font"
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
 msgstr "Use detected session?"
@@ -16358,6 +16439,10 @@ msgstr "Version"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/authHelpers.ts
 msgid "via {0}"
 msgstr "via {0}"
+
+#: src/renderer/components/media/NativeMediaView.tsx
+msgid "Video preview"
+msgstr "Video preview"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts

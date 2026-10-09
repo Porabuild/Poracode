@@ -27143,6 +27143,151 @@
       "type": "object",
       "x-poracode-unknownFields": "strip"
     },
+    "route.environment-media-release.path": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "environmentId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "environmentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-release.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-release.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ok": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-renew.path": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "environmentId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "environmentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-renew.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-renew.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "expiresAt": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket",
+        "expiresAt"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-ticket.path": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "environmentId": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "environmentId"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-ticket.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "childTicket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "childTicket"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.environment-media-ticket.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "expiresAt": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket",
+        "expiresAt"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
     "route.environment-pairing.path": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "additionalProperties": true,
@@ -29915,6 +30060,260 @@
       "required": [
         "revision",
         "experiments"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media-release.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media-release.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ok": {
+          "const": true,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media-renew.request": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media-renew.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "expiresAt": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket",
+        "expiresAt"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media-ticket.request": {
+      "$defs": {
+        "__schema0": {
+          "oneOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "windows",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "distro": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "kind": {
+                  "const": "wsl",
+                  "type": "string"
+                },
+                "linuxPath": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "uncPath": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "distro",
+                "linuxPath",
+                "uncPath"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            },
+            {
+              "additionalProperties": true,
+              "properties": {
+                "kind": {
+                  "const": "posix",
+                  "type": "string"
+                },
+                "path": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "remoteServerId": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "kind",
+                "path"
+              ],
+              "type": "object",
+              "x-poracode-unknownFields": "strip"
+            }
+          ]
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "oneOf": [
+        {
+          "additionalProperties": true,
+          "properties": {
+            "access": {
+              "const": "project",
+              "type": "string"
+            },
+            "path": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "projectLocation": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "access",
+            "projectLocation",
+            "path"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        },
+        {
+          "additionalProperties": true,
+          "properties": {
+            "access": {
+              "const": "external",
+              "type": "string"
+            },
+            "path": {
+              "maxLength": 4096,
+              "minLength": 1,
+              "type": "string"
+            },
+            "projectLocation": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "access",
+            "projectLocation",
+            "path"
+          ],
+          "type": "object",
+          "x-poracode-unknownFields": "strip"
+        }
+      ]
+    },
+    "route.file-media-ticket.response": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "contentType": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "expiresAt": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "modifiedAtMs": {
+          "minimum": 0,
+          "type": "number"
+        },
+        "sizeBytes": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket",
+        "expiresAt",
+        "sizeBytes",
+        "modifiedAtMs",
+        "contentType"
+      ],
+      "type": "object",
+      "x-poracode-unknownFields": "strip"
+    },
+    "route.file-media.query": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": true,
+      "properties": {
+        "ticket": {
+          "pattern": "^pc_media_[A-Za-z0-9_-]{43}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ticket"
       ],
       "type": "object",
       "x-poracode-unknownFields": "strip"
@@ -49298,13 +49697,13 @@
     "jsonProcedureResults": 80,
     "procedures": 130,
     "replayableEventTypes": 16,
-    "routes": 88,
+    "routes": 95,
     "runtimeEventTypes": 16,
     "voidProcedureResults": 50,
     "webSocketClientMessages": 9,
     "webSocketServerMessages": 11
   },
-  "manifestHash": "sha256:57c2fb06fa3fd0a13150755fbc2986b91f346e899f1f26d4c1b8bf3b6681ad69",
+  "manifestHash": "sha256:e28a638db85702064448cc283e2c3c88234b110e017725b22ee5eea224221982",
   "protocolVersion": 13,
-  "sourceHash": "sha256:72260269bc8bb6fe7e7af492358b265a0d7a559b3d3de98f595af9b00ed64b2d"
+  "sourceHash": "sha256:f8cfb2d15e6ecc9eb7eb243d7c46406e8028c2db907cc98f9143f7cb21cf9d65"
 }

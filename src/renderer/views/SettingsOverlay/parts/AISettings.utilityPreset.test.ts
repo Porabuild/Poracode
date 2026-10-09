@@ -4,7 +4,7 @@ import { I18nProvider } from "@lingui/react";
 import { i18n } from "@/renderer/i18n/i18n";
 import type { ComposerControl } from "@/renderer/components/thread/ThreadComposer";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
-import { setUtilityPresentation } from "./utilityPreset";
+import { setUtilityPresentation, utilitySettingsKeys } from "./utilityPreset";
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +13,7 @@ import { modelFamilySelectionSchema } from "@/shared/contracts/agent";
 import type { AgentStatus, ThreadPresentationMode } from "@/shared/contracts";
 import type { ModelSelection } from "@/shared/selectionBinding.schemas";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { ONE_SHOT_UTILITY_PRESENTATION } from "@/renderer/utils/utilitySelection";
 import { AISettings, GenConfigSection, createUtilityPresetSetter } from "./AISettings";
 
 const terminalRelation = modelFamilySelectionSchema.parse(relationTerminal.relation);
@@ -181,8 +182,8 @@ describe("createUtilityPresetSetter", () => {
     });
     expect(record?.inertValues).toEqual({ effort: "", fast: false });
 
-    // The one-shot utilities declare no presentation: the same edit drops the
-    // record instead of inventing an owner.
+    // An unset presentation still refuses the mint. Title and commit declare
+    // ONE_SHOT_UTILITY_PRESENTATION on the shipped settings page.
     useSharedSettings.setState({ titleGenSelection: undefined });
     const titleSetter = createUtilityPresetSetter({
       keys: {
@@ -202,6 +203,28 @@ describe("createUtilityPresetSetter", () => {
     expect(
       Object.hasOwn(useSharedSettings.getState().titleGenSelection ?? {}, "selectionBinding"),
     ).toBe(false);
+  });
+
+  it("mints title and commit bindings when the one-shot presentation is declared", () => {
+    const setScalars =
+      vi.fn<(provider: string, model: string, effort: string, fast: boolean) => void>();
+    for (const domain of ["titleGen", "commitGen"] as const) {
+      useSharedSettings.setState({ [`${domain}Selection`]: undefined });
+      const setter = createUtilityPresetSetter({
+        keys: utilitySettingsKeys(domain, false),
+        presentation: ONE_SHOT_UTILITY_PRESENTATION,
+        setScalars,
+      });
+      setter("devin:profile-1", member, "", false, {
+        kind: "model",
+        relation: terminalRelation,
+      });
+      const saved = useSharedSettings.getState()[utilitySettingsKeys(domain, false).canonical];
+      expect(saved?.selectionBinding?.owner).toEqual({
+        agentKind: "devin:profile-1",
+        presentationMode: "terminal",
+      });
+    }
   });
 
   it("a family-row no-op persists nothing", () => {

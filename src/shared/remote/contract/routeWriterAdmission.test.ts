@@ -66,7 +66,16 @@ const DECLARED_WRITER_ROUTES = [
 /** Bearer non-GET routes that must stay old-client-usable: read-class POSTs. */
 const READ_CLASS_POST_ROUTES = [
   "catalog-membership",
+  // Media POSTs only mint, renew or release bounded, volatile read grants.
+  // They do not modify project files or start processes; environment grants
+  // still require both parent environment authority and child file authority.
+  "environment-media-release",
+  "environment-media-renew",
+  "environment-media-ticket",
   "environment-websocket-ticket",
+  "file-media-release",
+  "file-media-renew",
+  "file-media-ticket",
   "local-image-ticket",
   "profile-core-stats",
   "profile-token-stats",
@@ -97,6 +106,19 @@ describe("route writer-generation admission declarations", () => {
     const procedureCall = REMOTE_HTTP_ROUTES.find((route) => route.id === "procedure-call");
     expect(procedureCall?.scopeResolution).toBe("procedure-defined");
     expect(procedureCall?.requiresCurrentProtocol).toBeUndefined();
+  });
+
+  it("keeps exactly the 12 read-class POST exemptions bearer-authenticated", () => {
+    expect(READ_CLASS_POST_ROUTES).toHaveLength(12);
+    for (const id of READ_CLASS_POST_ROUTES) {
+      const route = REMOTE_HTTP_ROUTES.find((candidate) => candidate.id === id);
+      expect({ id, method: route?.method, auth: route?.auth }).toEqual({
+        id,
+        method: "POST",
+        auth: "bearer",
+      });
+      expect(route?.requiresCurrentProtocol).toBeUndefined();
+    }
   });
 
   it("sweeps every non-GET route into the declared or documented-exempt set", () => {

@@ -446,6 +446,26 @@ export class RemoteAuthStore {
       }));
   }
 
+  /** Temporary playback grants retain a session id, never the long-lived bearer. */
+  authenticateSession(
+    sessionId: string,
+    requiredScopes: readonly RemoteAccessScope[] = [],
+  ): AuthenticatedRemoteSession {
+    this.pruneExpired();
+    const session = [...this.accessSessions.values()].find((entry) => entry.id === sessionId);
+    if (!session || session.expiresAtMs <= Date.now()) {
+      throw new RemoteHttpError("invalid_access_token", "Invalid access session.", 401);
+    }
+    if (!hasScopes(session.scopes, requiredScopes)) {
+      throw new RemoteHttpError(
+        "missing_scope",
+        "Access session does not grant this operation.",
+        403,
+      );
+    }
+    return toAuthenticatedSession(session);
+  }
+
   revokeAccessSession(sessionId: string): boolean {
     this.pruneExpired();
     for (const [hash, session] of this.accessSessions) {

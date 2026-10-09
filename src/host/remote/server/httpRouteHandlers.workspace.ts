@@ -43,8 +43,26 @@ import { mapPersistenceRefusal } from "./persistenceRefusals";
 import { writeLocalImageFile } from "./localImageFile";
 import { readAttachmentBody, readJsonBody } from "./requestBody";
 import { runProjectCommand, runRemoteProcedure } from "./threadCommands";
+import {
+  mediaFileRequestSchema,
+  mediaTicketQuerySchema,
+  environmentMediaTicketBodySchema,
+} from "@/shared/remote/media";
+import {
+  fileMediaGrants,
+  issueFileMediaTicket,
+  renewFileMediaTicket,
+  writeFileMedia,
+} from "./fileMedia";
 
 type WorkspaceRouteId =
+  | "file-media-renew"
+  | "environment-media-renew"
+  | "file-media-ticket"
+  | "file-media"
+  | "file-media-release"
+  | "environment-media-ticket"
+  | "environment-media-release"
   | "local-image"
   | "local-image-ticket"
   | "runtime-image"
@@ -72,6 +90,100 @@ type WorkspaceRouteId =
 
 /** Workspace-group HTTP route handlers (contract `workspaceRoutes`). */
 export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRouteId> = {
+  "file-media-renew": async ({ ctx, req, res, session }) => {
+    if (!session) throw new RemoteHttpError("missing_access_token", "Missing access session.", 401);
+    const { ticket } = mediaTicketQuerySchema.parse(await readJsonBody(req));
+    writeJson(res, 200, await renewFileMediaTicket(ctx, session, ticket));
+  },
+  "environment-media-renew": async ({ ctx, req, res, params, bearerToken }) => {
+    if (!bearerToken)
+      throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
+    const { ticket } = mediaTicketQuerySchema.parse(await readJsonBody(req));
+    const gateway = ctx.requireEnvironmentProxyGateway();
+    if (!gateway.renewMediaTicket)
+      throw new RemoteHttpError(
+        "media_unavailable",
+        "Media renewal is unavailable on this host.",
+        503,
+      );
+    writeJson(
+      res,
+      200,
+      await gateway.renewMediaTicket({
+        parentAccessToken: bearerToken,
+        environmentId: requirePathParam(params, "environmentId"),
+        ticket,
+      }),
+    );
+  },
+  "environment-media-release": async ({ ctx, req, res, params, bearerToken }) => {
+    if (!bearerToken)
+      throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
+    const { ticket } = mediaTicketQuerySchema.parse(await readJsonBody(req));
+    const gateway = ctx.requireEnvironmentProxyGateway();
+    if (!gateway.releaseMediaTicket)
+      throw new RemoteHttpError(
+        "media_unavailable",
+        "Media playback is not available on this host.",
+        503,
+      );
+    gateway.releaseMediaTicket({
+      parentAccessToken: bearerToken,
+      environmentId: requirePathParam(params, "environmentId"),
+      ticket,
+    });
+    writeJson(res, 200, { ok: true });
+  },
+  "file-media-ticket": async ({ ctx, req, res, session }) => {
+    if (!session) throw new RemoteHttpError("missing_access_token", "Missing access session.", 401);
+    const body = mediaFileRequestSchema.parse(await readJsonBody(req));
+    writeJson(res, 200, await issueFileMediaTicket(ctx, session, body));
+  },
+  "file-media": async ({ ctx, req, res, url }) => {
+    if (
+      url.searchParams.getAll("ticket").length !== 1 ||
+      [...url.searchParams.keys()].some((key) => key !== "ticket")
+    ) {
+      throw new RemoteHttpError("invalid_media_ticket", "A media ticket is required.", 401);
+    }
+    const { ticket } = mediaTicketQuerySchema.parse({ ticket: url.searchParams.get("ticket") });
+    const lease = ctx.principalAdmission.tryAdmitWork(
+      fileMediaGrants(ctx.auth).read(ticket).sessionId,
+      "bulk",
+    );
+    try {
+      await writeFileMedia(ctx, req, res, ticket);
+    } finally {
+      lease.release();
+    }
+  },
+  "file-media-release": async ({ ctx, req, res, session }) => {
+    if (!session) throw new RemoteHttpError("missing_access_token", "Missing access session.", 401);
+    const { ticket } = mediaTicketQuerySchema.parse(await readJsonBody(req));
+    fileMediaGrants(ctx.auth).release(ticket, session.sessionId);
+    writeJson(res, 200, { ok: true });
+  },
+  "environment-media-ticket": async ({ ctx, req, res, params, bearerToken }) => {
+    if (!bearerToken)
+      throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
+    const { childTicket } = environmentMediaTicketBodySchema.parse(await readJsonBody(req));
+    const gateway = ctx.requireEnvironmentProxyGateway();
+    if (!gateway.mintMediaTicket)
+      throw new RemoteHttpError(
+        "media_unavailable",
+        "Media playback is not available on this host.",
+        503,
+      );
+    writeJson(
+      res,
+      200,
+      await gateway.mintMediaTicket({
+        parentAccessToken: bearerToken,
+        environmentId: requirePathParam(params, "environmentId"),
+        childTicket,
+      }),
+    );
+  },
   "local-image": async ({ ctx, req, res, url }) => {
     // Serves local images (chat attachments, markdown images) to paired
     // devices, standing in for the desktop-only `poracode-local` protocol.

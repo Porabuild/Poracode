@@ -54,6 +54,15 @@ it.skipIf(process.platform === "win32")(
         expect(response.status).toBe(400);
         expect(response.body).toMatchObject({ code: "ESCAPE" });
       }
+      const mediaStat = await post(`${bridge.baseUrl}/v1/fs/stat`, {
+        projectRoot: root,
+        paths: [join(root, "escape", "synthetic.txt")],
+        follow: true,
+      });
+      expect(mediaStat.status).toBe(200);
+      expect(mediaStat.body).toMatchObject({
+        data: { stats: [{ exists: false, code: "ESCAPE" }] },
+      });
       expect(readFileSync(join(outside, "synthetic.txt"), "utf8")).toBe("private fixture");
       writeFileSync(join(root, "inside.txt"), "inside fixture");
       symlinkSync(join(root, "inside.txt"), join(root, "inside-link.txt"));
