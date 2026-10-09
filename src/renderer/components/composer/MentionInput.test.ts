@@ -681,6 +681,7 @@ describe("Enter handling", () => {
     // after composition ends, with the original native event timestamp.
     const replay = keyDownAt(editor, { key: "Enter", isComposing: false, keyCode: 13 }, 100);
     fireEvent(editor, replay);
+    expect(replay.defaultPrevented).toBe(true);
     expect(onSubmit).not.toHaveBeenCalled();
     expect(onInterceptKey).not.toHaveBeenCalled();
     expect(editor).toHaveTextContent("한");

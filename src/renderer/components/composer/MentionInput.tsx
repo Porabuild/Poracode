@@ -819,8 +819,10 @@ export const MentionInput = forwardRef<
     // An IME can replay its confirming Enter after composition ends (macOS
     // Korean does this), keeping the same native timestamp but clearing the
     // composition flags. The next physical Enter has a distinct timestamp.
-    if (e.key === "Enter" && e.nativeEvent.timeStamp === imeConfirmEventTimeStampRef.current)
+    if (e.key === "Enter" && e.nativeEvent.timeStamp === imeConfirmEventTimeStampRef.current) {
+      e.preventDefault();
       return;
+    }
     imeConfirmEventTimeStampRef.current = null;
     // Caller-owned submit shortcuts take precedence over autocomplete. Plain
     // Enter still accepts the highlighted suggestion below.
