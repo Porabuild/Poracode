@@ -1,4 +1,4 @@
-import { use, useState } from "react";
+import { use, useState, type ReactNode } from "react";
 import { ComboBox, Description, Label, ListBox } from "@heroui/react";
 import { ComboBoxStateContext } from "react-aria-components";
 import { useLingui } from "@lingui/react/macro";
@@ -43,35 +43,43 @@ export function TerminalFontPicker({
         value={value ? `font:${value}` : "default"}
         onChange={(key) => {
           // React Aria also emits null while editing/committing custom text.
-          // Custom values are committed explicitly on Enter or field blur.
+          // Custom values are committed explicitly on Enter, never on blur.
           if (key == null) return;
           const family = key === "default" ? "" : String(key).slice(5);
           setDraft(family);
           if (family !== value) onChange(family);
         }}
-        onBlur={commit}
+        onBlur={() => setDraft(value)}
         isInvalid={invalid}
       >
-        <FontFamilyInput onCommit={commit} onCancel={() => setDraft(value)} />
+        <FontPickerFocusOwner onCommit={commit} onCancel={() => setDraft(value)}>
+          <FontFamilyInput />
+        </FontPickerFocusOwner>
         <ComboBox.Popover
           placement="bottom end"
           maxHeight={240}
-          className="min-w-0 max-w-[calc(100vw-16px)]"
+          className="min-w-0 max-w-[calc(100vw-16px)] p-1"
           style={{ width: "var(--trigger-width)" }}
         >
-          <ListBox className="max-h-60 overflow-y-auto">
-            {(option: SelectOption) => (
-              <ListBox.Item id={option.id} textValue={option.label} className="min-w-0 pe-7">
-                <div className="min-w-0 flex-1">
-                  <Label className="block truncate">{option.label}</Label>
-                  {option.detail ? (
-                    <Description className="block truncate text-xs">{option.detail}</Description>
-                  ) : null}
-                </div>
-                <ListBox.ItemIndicator />
-              </ListBox.Item>
-            )}
-          </ListBox>
+          <FontPickerFocusOwner onCommit={commit} onCancel={() => setDraft(value)}>
+            <ListBox className="poracode-menu max-h-60 overflow-y-auto">
+              {(option: SelectOption) => (
+                <ListBox.Item
+                  id={option.id}
+                  textValue={option.id === "default" ? "" : option.label}
+                  className="min-w-0 pe-7"
+                >
+                  <div className="min-w-0 flex-1">
+                    <Label className="block truncate">{option.label}</Label>
+                    {option.detail ? (
+                      <Description className="block truncate text-xs">{option.detail}</Description>
+                    ) : null}
+                  </div>
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              )}
+            </ListBox>
+          </FontPickerFocusOwner>
         </ComboBox.Popover>
       </ComboBox>
       {invalid ? (
@@ -99,23 +107,33 @@ export function TerminalFontPicker({
 }
 
 /** Capture before React Aria commits so Escape and IME leave the preference intact. */
-function FontFamilyInput({ onCommit, onCancel }: { onCommit: () => void; onCancel: () => void }) {
-  const { t } = useLingui();
+function FontPickerFocusOwner({
+  onCommit,
+  onCancel,
+  children,
+}: {
+  onCommit: () => void;
+  onCancel: () => void;
+  children: ReactNode;
+}) {
   const state = use(ComboBoxStateContext);
   return (
     <div
+      data-overlay-escape-owner=""
       onKeyDownCapture={(event) => {
         if (event.nativeEvent.isComposing || event.keyCode === 229) {
-          if (event.key === "Enter") event.stopPropagation();
+          // Keep native composition's default action, but bypass widget shortcuts.
+          if (event.key === "Enter" || event.key === "Escape") event.stopPropagation();
           return;
         }
         if (event.key === "Escape") {
           event.stopPropagation();
           onCancel();
-          state?.close();
+          state?.revert();
         } else if (
           event.key === "Enter" &&
-          !(event.target as HTMLElement).getAttribute("aria-activedescendant")
+          event.target instanceof HTMLInputElement &&
+          !event.target.getAttribute("aria-activedescendant")
         ) {
           event.preventDefault();
           event.stopPropagation();
@@ -124,10 +142,17 @@ function FontFamilyInput({ onCommit, onCancel }: { onCommit: () => void; onCance
         }
       }}
     >
-      <ComboBox.InputGroup>
-        <Input placeholder={t`Default`} maxLength={256} />
-        <ComboBox.Trigger aria-label={t`Show font suggestions`} />
-      </ComboBox.InputGroup>
+      {children}
     </div>
+  );
+}
+
+function FontFamilyInput() {
+  const { t } = useLingui();
+  return (
+    <ComboBox.InputGroup>
+      <Input placeholder={t`Default`} maxLength={256} />
+      <ComboBox.Trigger aria-label={t`Show font suggestions`} />
+    </ComboBox.InputGroup>
   );
 }

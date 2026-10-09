@@ -49,16 +49,23 @@ export function TerminalFontSetting() {
       setStatus("failed");
     }
   };
-  const savedMissing = family && !families.includes(family);
+  const savedNotListed = family && !families.includes(family);
+  // Compare common case variants without locale tailoring or normalizing the saved spelling.
+  const savedMissing =
+    family && !families.some((name) => name.toLowerCase() === family.toLowerCase());
   const options = [
     { id: "default", label: t`Default` },
     ...families.map((name) => ({ id: `font:${name}`, label: name })),
-    ...(savedMissing
+    ...(savedNotListed
       ? [
           {
             id: `font:${family}`,
             label: family,
-            detail: status === "ready" ? t`Unavailable — using default` : t`Saved font`,
+            ...(status !== "ready"
+              ? { detail: t`Saved font` }
+              : savedMissing
+                ? { detail: t`Unavailable — using default` }
+                : {}),
           },
         ]
       : []),

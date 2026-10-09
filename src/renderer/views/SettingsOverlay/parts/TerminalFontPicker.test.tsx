@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { OverlayShell } from "@/renderer/components/layout/OverlayShell";
 import { TerminalFontPicker } from "./TerminalFontPicker";
 
 const options = [
@@ -35,12 +36,13 @@ describe("TerminalFontPicker", () => {
     expect(onChange).toHaveBeenLastCalledWith('Saved "Mono", Other');
   });
 
-  it("applies a valid custom family on blur", () => {
+  it("cancels a partial query on blur without changing the live family", () => {
     const { input, onChange } = setup();
     act(() => input.focus());
     fireEvent.change(input, { target: { value: "Custom Mono" } });
     fireEvent.blur(input);
-    expect(onChange).toHaveBeenLastCalledWith("Custom Mono");
+    expect(onChange).not.toHaveBeenCalled();
+    expect(input).toHaveValue("Menlo");
   });
 
   it("restores the committed value on Escape and keeps focus", () => {
@@ -89,4 +91,95 @@ describe("TerminalFontPicker", () => {
     fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
     await waitFor(() => expect(onChange).toHaveBeenCalled());
   });
+  it("owns Escape inside the real Settings overlay and restores focus without saving", async () => {
+    const onChange = vi.fn<(value: string) => void>();
+    const onExited = vi.fn<() => void>();
+    const { container } = render(
+      <OverlayShell open instantEnter onExited={onExited}>
+        <TerminalFontPicker value="Menlo" options={options} onChange={onChange} />
+        <button type="button">Outside field</button>
+      </OverlayShell>,
+    );
+    const input = screen.getByRole("combobox", { name: "Terminal font face" });
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "Cour" } });
+    await screen.findByRole("listbox");
+    fireEvent.keyDown(input, { key: "Escape", code: "Escape" });
+    expect(input).toHaveValue("Menlo");
+    expect(input).toHaveFocus();
+    await waitFor(() => expect(screen.queryByRole("listbox")).toBeNull());
+    const overlay = container.querySelector("[data-overlay-surface]")!;
+    expect(overlay).toHaveAttribute("data-overlay-visible");
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onExited).not.toHaveBeenCalled();
+    // Ownership is limited to the picker; Escape elsewhere still closes Settings.
+    const outside = screen.getByRole("button", { name: "Outside field" });
+    act(() => outside.focus());
+    fireEvent.keyDown(outside, { key: "Escape", code: "Escape" });
+    expect(overlay).not.toHaveAttribute("data-overlay-visible");
+    fireEvent.transitionEnd(overlay, { propertyName: "opacity" });
+    expect(onExited).toHaveBeenCalledOnce();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it.each([{ isComposing: true }, { keyCode: 229 }])(
+    "preserves native IME Escape in the overlay: %j",
+    (composition) => {
+      const onChange = vi.fn<(value: string) => void>();
+      const onExited = vi.fn<() => void>();
+      const { container } = render(
+        <OverlayShell open instantEnter onExited={onExited}>
+          <TerminalFontPicker value="Menlo" options={options} onChange={onChange} />
+        </OverlayShell>,
+      );
+      const input = screen.getByRole("combobox", { name: "Terminal font face" });
+      act(() => input.focus());
+      fireEvent.change(input, { target: { value: "日本語" } });
+      const event = new KeyboardEvent("keydown", {
+        key: "Escape",
+        code: "Escape",
+        bubbles: true,
+        cancelable: true,
+        ...composition,
+      });
+      fireEvent(input, event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(input).toHaveValue("日本語");
+      expect(input).toHaveFocus();
+      expect(container.querySelector("[data-overlay-surface]")).toHaveAttribute(
+        "data-overlay-visible",
+      );
+      expect(onExited).not.toHaveBeenCalled();
+      expect(onChange).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["Standard", "По умолчанию"])(
+    "reselects Default without treating its translated label as a family: %s",
+    async (label) => {
+      const onChange = vi.fn<(value: string) => void>();
+      render(
+        <>
+          <TerminalFontPicker
+            value=""
+            options={[{ id: "default", label }, options[1]!]}
+            onChange={onChange}
+          />
+          <button type="button">Outside field</button>
+        </>,
+      );
+      const input = screen.getByRole("combobox", { name: "Terminal font face" });
+      fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
+      fireEvent.click(await screen.findByRole("option", { name: label }));
+      expect(input).toHaveValue("");
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+      act(() => screen.getByRole("button", { name: "Outside field" }).focus());
+      expect(onChange).not.toHaveBeenCalled();
+      // The same spelling entered deliberately remains a real custom family.
+      act(() => input.focus());
+      fireEvent.change(input, { target: { value: label } });
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+      expect(onChange).toHaveBeenLastCalledWith(label);
+    },
+  );
 });

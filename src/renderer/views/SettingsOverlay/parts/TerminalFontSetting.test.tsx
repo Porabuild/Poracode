@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -112,4 +112,43 @@ describe("TerminalFontSetting", () => {
       expect(useSharedSettings.getState().terminalFontFamily).toBe("");
     },
   );
+  it("recognizes typed lower-case installed names without rewriting their spelling", async () => {
+    runtime.native = true;
+    inventory();
+    render(<TerminalFontSetting />);
+    await waitFor(() => expect(screen.queryByText("Loading fonts…")).toBeNull());
+    const input = screen.getByRole("combobox", { name: "Terminal font face" });
+    fireEvent.change(input, { target: { value: "menlo" } });
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+    expect(useSharedSettings.getState().terminalFontFamily).toBe("menlo");
+    fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
+    expect(await screen.findByRole("option", { name: "menlo" })).not.toHaveTextContent(
+      "Unavailable",
+    );
+    expect(screen.queryByText("Unavailable — using default")).toBeNull();
+  });
+
+  it("cancels partial searches before Load installed fonts or Default can take focus", async () => {
+    inventory();
+    useSharedSettings.setState({ terminalFontFamily: "Menlo" });
+    const setter = vi.spyOn(useSharedSettings.getState(), "setTerminalFontFamily");
+    render(<TerminalFontSetting />);
+    const input = screen.getByRole("combobox", { name: "Terminal font face" });
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "Cour" } });
+    const load = screen.getByRole("button", { name: "Load installed fonts" });
+    act(() => load.focus());
+    fireEvent.click(load);
+    await waitFor(() => expect(screen.queryByText("Loading fonts…")).toBeNull());
+    expect(setter).not.toHaveBeenCalled();
+    expect(input).toHaveValue("Menlo");
+    const reset = screen.getByRole("button", { name: "Use default font" });
+    act(() => input.focus());
+    fireEvent.change(input, { target: { value: "Cour" } });
+    act(() => reset.focus());
+    fireEvent.click(reset);
+    expect(setter).toHaveBeenCalledExactlyOnceWith("");
+    expect(useSharedSettings.getState().terminalFontFamily).toBe("");
+    setter.mockRestore();
+  });
 });
