@@ -4,6 +4,9 @@ import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
+  resolveCheckedOneShotResumeSelection,
   applyTerminalHintToConfig,
   createKnownSessionRef,
   detectAgentInstall,
@@ -204,7 +207,15 @@ export function createCopilotAdapter(): AgentAdapter {
     },
     syncConfigFromTerminalState: applyTerminalHintToConfig,
     defaultOneShotModel: "",
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Reasoning effort maps natively (`--effort`); the copilot CLI has no
+      // Fast lane, so false Fast is the declared-inactive legacy carrier and
+      // meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) {
         return undefined;
       }
@@ -219,7 +230,13 @@ export function createCopilotAdapter(): AgentAdapter {
 
       return { command: "copilot", args, stdin: "" };
     },
-    buildContextExtractionCommand(sessionRef, _location, model) {
+    buildContextExtractionCommand(sessionRef, _location, model, options) {
+      const selection = resolveCheckedOneShotResumeSelection(model, options);
+      // The resume print run consumes the same native effort mapping as the
+      // one-shot lane (`--effort`); copilot has no Fast lane, so false Fast is
+      // the declared-inactive legacy carrier and meaningful Fast (and any
+      // thinking/context carrier) refuses before the command is built.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       // Copilot's -p flag takes the prompt inline as an arg.
       // The orchestrator pipes the extraction prompt via stdin,
       // so we pass a brief directive via -p and let stdin carry the full prompt.
@@ -232,6 +249,9 @@ export function createCopilotAdapter(): AgentAdapter {
       ];
       if (model) {
         args.push("--model", model);
+      }
+      if (selection.effort) {
+        args.push("--effort", selection.effort);
       }
       return { command: "copilot", args, stdin: "" };
     },

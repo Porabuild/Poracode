@@ -1,7 +1,6 @@
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import { copyFileSync, chmodSync, existsSync, mkdirSync, readFileSync } from "node:fs";
-import { writeFileAtomic } from "@/shared/atomicFile";
 import { basename, dirname, join } from "node:path";
 import { promisify } from "node:util";
 import {
@@ -27,7 +26,16 @@ import {
   type SharedSettings,
 } from "@/shared/settings";
 import { downloadToFile } from "../runtime/download";
-import { decryptSecret, encryptSecret, transformSensitiveAgentSecrets } from "../secretStorage";
+import {
+  decryptSecret,
+  encryptSecret,
+  transformSensitiveAgentSecrets,
+  type SensitiveAgentSecretLocation,
+} from "../secretStorage";
+import {
+  settingsOwnerEdits,
+  type SupervisorSettingsWriter,
+} from "../runtime/supervisorSettingsWriter";
 import { probeAcpGenericInstance, REGISTRY_INSTALL_PROBE_TIMEOUT_MS } from "./acp-generic";
 import { cacheAcpRegistryIcon, isRemoteIconUrl } from "./acpRegistryIcons";
 import {
@@ -108,11 +116,12 @@ function stampInstallationLayout(installation: AcpRegistryInstallation): AcpRegi
  * extracted layout — both are stamped as-is. A failed WSL repair is left
  * unstamped and retried on the next launch. Returns whether settings changed.
  */
-export async function repairAcpRegistryInstallLayouts(input: {
-  settingsPath: string;
-}): Promise<boolean> {
-  const settings = readAcpRegistrySettings(input.settingsPath);
+export async function repairAcpRegistryInstallLayouts(
+  input: AcpRegistrySettingsTarget,
+): Promise<boolean> {
+  const settings = readStoredAcpRegistrySettings(input.settingsPath);
   let changed = false;
+  let admitted: Promise<void> | undefined;
   const nextRecords: SharedSettings["acpRegistryInstalledAgents"] = {};
   for (const [id, record] of Object.entries(settings.acpRegistryInstalledAgents)) {
     const installations = record.installations;
@@ -134,6 +143,9 @@ export async function repairAcpRegistryInstallLayouts(input: {
       if (!installationNeedsLayoutRepair(installation)) continue;
       const binary = config?.environmentCommands?.wsl?.[distro]?.binary;
       if (binary?.startsWith("/")) {
+        // A refused commit would leave the repair unrecorded; admit before
+        // touching the distro.
+        await (admitted ??= input.settingsWriter.admit());
         const [result] = await batchWslCommandsAsync(distro, [
           wslInstallLayoutRepairScript(binary.slice(0, binary.lastIndexOf("/"))),
         ]).catch(() => []);
@@ -148,8 +160,10 @@ export async function repairAcpRegistryInstallLayouts(input: {
     nextRecords[id] = { ...record, installations: next };
   }
   if (!changed) return false;
-  writeAcpRegistrySettings(input.settingsPath, {
-    ...readAcpRegistrySettings(input.settingsPath),
+  // Diff against the view the repair was derived from: only repaired records
+  // become edits, so entries another writer changed meanwhile are untouched.
+  await commitAcpRegistrySettings(input, settings, {
+    ...settings,
     acpRegistryInstalledAgents: nextRecords,
   });
   return true;
@@ -164,25 +178,29 @@ export async function fetchAcpRegistry(): Promise<AcpRegistryListResult> {
 }
 
 /**
- * Cache every (agentId, iconUrl) pair in parallel and return the resolved
+ * Cache every (agentId, iconUrl) pair in parallel, then record the resolved
  * `poracode-local://` (or unchanged, on download failure) URL per agent.
  * Without the parallelism N installed agents become N serial CDN fetches;
- * with it total wall-clock is one round-trip.
+ * with it total wall-clock is one round-trip. The owner is admitted before any
+ * download so a refusing owner costs no network.
  */
-async function resolveAcpIcons(
+async function localizeAcpIcons(
+  target: AcpRegistrySettingsTarget & { iconsDir: string },
+  settings: SharedSettings,
   iconsToResolve: { agentId: string; iconUrl: string }[],
-  iconsDir: string,
-): Promise<Map<string, string>> {
+): Promise<boolean> {
+  if (iconsToResolve.length === 0) return false;
+  await target.settingsWriter.admit();
   const resolvedIconByAgentId = new Map<string, string>();
   await Promise.all(
     iconsToResolve.map(async ({ agentId, iconUrl }) => {
       resolvedIconByAgentId.set(
         agentId,
-        await cacheAcpRegistryIcon({ iconUrl, agentId, iconsDir }),
+        await cacheAcpRegistryIcon({ iconUrl, agentId, iconsDir: target.iconsDir }),
       );
     }),
   );
-  return resolvedIconByAgentId;
+  return applyResolvedAcpIcons(target, settings, resolvedIconByAgentId);
 }
 
 /**
@@ -190,11 +208,11 @@ async function resolveAcpIcons(
  * acp-generic instances, keyed by agent id. Returns whether anything changed
  * so callers can skip an invalidate/refresh when every icon already matched.
  */
-function applyResolvedAcpIcons(
-  settingsPath: string,
+async function applyResolvedAcpIcons(
+  target: AcpRegistrySettingsTarget,
   settings: SharedSettings,
   resolvedIconByAgentId: Map<string, string>,
-): boolean {
+): Promise<boolean> {
   let changed = false;
 
   const installedAgents = { ...settings.acpRegistryInstalledAgents };
@@ -215,7 +233,7 @@ function applyResolvedAcpIcons(
   }
 
   if (!changed) return false;
-  writeAcpRegistrySettings(settingsPath, {
+  await commitAcpRegistrySettings(target, settings, {
     ...settings,
     acpRegistryInstalledAgents: installedAgents,
     agentInstances: instances,
@@ -252,16 +270,13 @@ function collectAcpIconsToResolve(
   return iconsToResolve;
 }
 
-export async function backfillAcpRegistryAgentIcons(input: {
-  registry: AcpRegistryListResult;
-  settingsPath: string;
-  iconsDir: string;
-}): Promise<boolean> {
-  const settings = readAcpRegistrySettings(input.settingsPath);
+export async function backfillAcpRegistryAgentIcons(
+  input: AcpRegistrySettingsTarget & { registry: AcpRegistryListResult; iconsDir: string },
+): Promise<boolean> {
+  const settings = readStoredAcpRegistrySettings(input.settingsPath);
   const agentsById = new Map(input.registry.agents.map((agent) => [agent.id, agent]));
   const iconsToResolve = collectAcpIconsToResolve(settings, (id) => agentsById.get(id)?.icon);
-  const resolved = await resolveAcpIcons(iconsToResolve, input.iconsDir);
-  return applyResolvedAcpIcons(input.settingsPath, settings, resolved);
+  return localizeAcpIcons(input, settings, iconsToResolve);
 }
 
 /**
@@ -274,32 +289,41 @@ export async function backfillAcpRegistryAgentIcons(input: {
  * network. Offline downloads fail soft (the URL is left unchanged), so it
  * simply retries on the next launch.
  */
-export async function cacheLocalAcpRegistryIcons(input: {
-  settingsPath: string;
-  iconsDir: string;
-}): Promise<boolean> {
-  const settings = readAcpRegistrySettings(input.settingsPath);
+export async function cacheLocalAcpRegistryIcons(
+  input: AcpRegistrySettingsTarget & { iconsDir: string },
+): Promise<boolean> {
+  const settings = readStoredAcpRegistrySettings(input.settingsPath);
   const iconsToResolve = collectAcpIconsToResolve(settings, (_id, storedIcon) =>
     storedIcon && isRemoteIconUrl(storedIcon) ? storedIcon : undefined,
   );
-  if (iconsToResolve.length === 0) return false;
-
-  const resolved = await resolveAcpIcons(iconsToResolve, input.iconsDir);
-  return applyResolvedAcpIcons(input.settingsPath, settings, resolved);
+  return localizeAcpIcons(input, settings, iconsToResolve);
 }
 
+/**
+ * Decrypted registry settings for execution. A secret this process cannot
+ * decrypt is omitted, so this view must never be a persistence baseline — that
+ * omission would commit as a credential deletion.
+ */
 export function readAcpRegistrySettings(settingsPath: string): SharedSettings {
+  return transformSensitiveAgentSecrets(
+    readStoredAcpRegistrySettings(settingsPath),
+    dirname(settingsPath),
+    decryptSecret,
+    ({ instanceId, variableName }) => {
+      console.warn(
+        `[agents] could not decrypt ${variableName} for ${instanceId}; omitting the unusable secret`,
+      );
+    },
+  );
+}
+
+/**
+ * Registry settings with secrets exactly as stored (sealed, legacy plaintext,
+ * or unreadable). Every registry write builds its next state from this view.
+ */
+function readStoredAcpRegistrySettings(settingsPath: string): SharedSettings {
   try {
-    return transformSensitiveAgentSecrets(
-      normalizeSharedSettings(JSON.parse(readFileSync(settingsPath, "utf8"))),
-      dirname(settingsPath),
-      decryptSecret,
-      ({ instanceId, variableName }) => {
-        console.warn(
-          `[agents] could not decrypt ${variableName} for ${instanceId}; omitting the unusable secret`,
-        );
-      },
-    );
+    return normalizeSharedSettings(JSON.parse(readFileSync(settingsPath, "utf8")));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
       console.warn("[agents] failed to read registry settings, using defaults:", error);
@@ -308,9 +332,41 @@ export function readAcpRegistrySettings(settingsPath: string): SharedSettings {
   }
 }
 
-function writeAcpRegistrySettings(settingsPath: string, settings: SharedSettings): void {
-  const encrypted = transformSensitiveAgentSecrets(settings, dirname(settingsPath), encryptSecret);
-  writeFileAtomic(settingsPath, JSON.stringify(encrypted, null, 2), { encoding: "utf8" });
+/** Where registry records live and the owner that commits them. */
+export interface AcpRegistrySettingsTarget {
+  settingsPath: string;
+  settingsWriter: SupervisorSettingsWriter;
+}
+
+function storedSecretAt(
+  settings: SharedSettings,
+  { scope, id, name }: SensitiveAgentSecretLocation,
+): unknown {
+  return scope === "agentSettings"
+    ? settings.agentSettings[id]?.[name]
+    : settings.agentInstances[id]?.environment?.[name]?.value;
+}
+
+/**
+ * Commit what changed between a stored registry read
+ * ({@link readStoredAcpRegistrySettings}) and its next state through the
+ * settings owner. A secret equal to the stored value at the same location is
+ * carried byte-for-byte — including one this process cannot decrypt — so a
+ * metadata edit neither drops nor re-seals it. Only new values (a deliberate
+ * replacement) are sealed; a deliberate removal is an absent key.
+ */
+async function commitAcpRegistrySettings(
+  target: AcpRegistrySettingsTarget,
+  previous: SharedSettings,
+  next: SharedSettings,
+): Promise<void> {
+  const sealed = transformSensitiveAgentSecrets(
+    next,
+    dirname(target.settingsPath),
+    (baseDir, value, location) =>
+      value === storedSecretAt(previous, location) ? value : encryptSecret(baseDir, value),
+  );
+  await target.settingsWriter.commit(settingsOwnerEdits(previous, sealed));
 }
 
 /**
@@ -319,10 +375,12 @@ function writeAcpRegistrySettings(settingsPath: string, settings: SharedSettings
  * can rewrite (see `ANTIGRAVITY_ACP_ALIAS_MIGRATED_KEYS`) keeps the rest of the
  * raw file — secrets in their encrypted form included — byte-for-byte.
  */
-export function persistAcpRegistrySettingsMigrations(settingsPath: string): boolean {
+export async function persistAcpRegistrySettingsMigrations(
+  target: AcpRegistrySettingsTarget,
+): Promise<boolean> {
   let raw: unknown;
   try {
-    raw = JSON.parse(readFileSync(settingsPath, "utf8"));
+    raw = JSON.parse(readFileSync(target.settingsPath, "utf8"));
   } catch {
     return false;
   }
@@ -357,8 +415,10 @@ export function persistAcpRegistrySettingsMigrations(settingsPath: string): bool
       delete overlay[key];
     }
   }
-  const persisted = { ...rawRecord, ...overlay };
-  writeFileAtomic(settingsPath, JSON.stringify(persisted, null, 2), { encoding: "utf8" });
+  // Raw values in, raw values out: secrets cross in their encrypted form.
+  await target.settingsWriter.commit(
+    settingsOwnerEdits(rawRecord, overlay, { fields: Object.keys(overlay) }),
+  );
   return true;
 }
 
@@ -766,22 +826,26 @@ async function warmRegistryInstall(
   }
 }
 
-export async function installAcpRegistryAgent(input: {
-  agentId: string;
-  baseDir: string;
-  settingsPath: string;
-  iconsDir: string;
-  registry?: AcpRegistryListResult;
-  target?: AcpRegistryInstallTarget;
-  adapterKind?: AgentKind;
-  installKind?: InstalledAcpRegistryAgent["installKind"];
-  respectAutoInstallOptOut?: boolean;
-}): Promise<InstalledAcpRegistryAgent[]> {
+export async function installAcpRegistryAgent(
+  input: AcpRegistrySettingsTarget & {
+    agentId: string;
+    baseDir: string;
+    iconsDir: string;
+    registry?: AcpRegistryListResult;
+    target?: AcpRegistryInstallTarget;
+    adapterKind?: AgentKind;
+    installKind?: InstalledAcpRegistryAgent["installKind"];
+    respectAutoInstallOptOut?: boolean;
+  },
+): Promise<InstalledAcpRegistryAgent[]> {
   const registry = input.registry ?? (await fetchAcpRegistry());
   const agent = registry.agents.find((entry) => entry.id === input.agentId);
   if (!agent) {
     throw new Error(`ACP registry agent not found: ${input.agentId}`);
   }
+  // Downloads and extraction below take minutes; a settings owner that would
+  // refuse the final record must refuse before any of it happens.
+  await input.settingsWriter.admit();
 
   // Cache the icon to disk so settings stores a `poracode-local://` URL
   // rather than the upstream CDN URL — the renderer can then paint the icon
@@ -834,7 +898,7 @@ export async function installAcpRegistryAgent(input: {
   // write so a concurrent Settings save is not replaced by the stale snapshot
   // captured above, and so a removal that happened during the probe wins over
   // the background auto-install.
-  const latestSettings = readAcpRegistrySettings(input.settingsPath);
+  const latestSettings = readStoredAcpRegistrySettings(input.settingsPath);
   if (
     input.respectAutoInstallOptOut &&
     latestSettings.acpRegistryAutoInstallOptOuts.includes(agent.id)
@@ -842,43 +906,44 @@ export async function installAcpRegistryAgent(input: {
     if (built.installDir) await removeAcpRegistryInstallDir(built.installDir);
     throw new Error(`${agent.name} ACP auto-install was disabled`);
   }
-  const latestInstance = mergeRegistryInstance(
-    built.instance,
-    latestSettings.agentInstances[agent.id],
-  );
-  latestSettings.agentInstances = {
-    ...latestSettings.agentInstances,
-    [agent.id]: latestInstance,
-  };
-  // An install (explicit or auto) is the user having the agent again, so it
-  // clears any earlier removal opt-out.
-  latestSettings.acpRegistryAutoInstallOptOuts =
-    latestSettings.acpRegistryAutoInstallOptOuts.filter((id) => id !== agent.id);
-  latestSettings.acpRegistryInstalledAgents = {
-    ...latestSettings.acpRegistryInstalledAgents,
-    [agent.id]: registryInstallRecord(
-      cachedAgent,
-      input.adapterKind ?? acpGenericKind(agent.id),
-      input.installKind ?? "generic",
-      target,
-      built.targetName,
-      latestSettings.acpRegistryInstalledAgents[agent.id],
+  const next: SharedSettings = {
+    ...latestSettings,
+    agentInstances: {
+      ...latestSettings.agentInstances,
+      [agent.id]: mergeRegistryInstance(built.instance, latestSettings.agentInstances[agent.id]),
+    },
+    // An install (explicit or auto) is the user having the agent again, so it
+    // clears any earlier removal opt-out.
+    acpRegistryAutoInstallOptOuts: latestSettings.acpRegistryAutoInstallOptOuts.filter(
+      (id) => id !== agent.id,
     ),
+    acpRegistryInstalledAgents: {
+      ...latestSettings.acpRegistryInstalledAgents,
+      [agent.id]: registryInstallRecord(
+        cachedAgent,
+        input.adapterKind ?? acpGenericKind(agent.id),
+        input.installKind ?? "generic",
+        target,
+        built.targetName,
+        latestSettings.acpRegistryInstalledAgents[agent.id],
+      ),
+    },
   };
-  writeAcpRegistrySettings(input.settingsPath, latestSettings);
-  return Object.values(latestSettings.acpRegistryInstalledAgents);
+  await commitAcpRegistrySettings(input, latestSettings, next);
+  return Object.values(next.acpRegistryInstalledAgents);
 }
 
-export async function updateAcpRegistryAgent(input: {
-  agentId: string;
-  baseDir: string;
-  settingsPath: string;
-  iconsDir: string;
-  registry?: AcpRegistryListResult;
-  target?: AcpRegistryInstallTarget;
-  adapterKind?: AgentKind;
-  installKind?: InstalledAcpRegistryAgent["installKind"];
-}): Promise<InstalledAcpRegistryAgent[]> {
+export async function updateAcpRegistryAgent(
+  input: AcpRegistrySettingsTarget & {
+    agentId: string;
+    baseDir: string;
+    iconsDir: string;
+    registry?: AcpRegistryListResult;
+    target?: AcpRegistryInstallTarget;
+    adapterKind?: AgentKind;
+    installKind?: InstalledAcpRegistryAgent["installKind"];
+  },
+): Promise<InstalledAcpRegistryAgent[]> {
   const settings = readAcpRegistrySettings(input.settingsPath);
   if (!settings.agentInstances[input.agentId]) {
     throw new Error(`ACP registry agent is not installed: ${input.agentId}`);
@@ -892,13 +957,14 @@ export async function updateAcpRegistryAgent(input: {
  * provider card. Best-effort: individual update failures (e.g. binary download
  * errors) are swallowed so listing the registry stays resilient.
  */
-export async function autoUpdateAcpRegistryAgents(input: {
-  registry: AcpRegistryListResult;
-  baseDir: string;
-  settingsPath: string;
-  iconsDir: string;
-  firstClassAgents?: Readonly<Record<string, AgentKind>>;
-}): Promise<{
+export async function autoUpdateAcpRegistryAgents(
+  input: AcpRegistrySettingsTarget & {
+    registry: AcpRegistryListResult;
+    baseDir: string;
+    iconsDir: string;
+    firstClassAgents?: Readonly<Record<string, AgentKind>>;
+  },
+): Promise<{
   updated: string[];
   changed: string[];
   failed: { id: string; error: string }[];
@@ -953,6 +1019,7 @@ export async function autoUpdateAcpRegistryAgents(input: {
           agentId: id,
           baseDir: input.baseDir,
           settingsPath: input.settingsPath,
+          settingsWriter: input.settingsWriter,
           iconsDir: input.iconsDir,
           registry: input.registry,
           target,
@@ -969,12 +1036,13 @@ export async function autoUpdateAcpRegistryAgents(input: {
   return { updated, changed, failed };
 }
 
-export async function removeAcpRegistryAgent(input: {
-  agentId: string;
-  baseDir: string;
-  settingsPath: string;
-}): Promise<InstalledAcpRegistryAgent[]> {
-  const settings = readAcpRegistrySettings(input.settingsPath);
+export async function removeAcpRegistryAgent(
+  input: AcpRegistrySettingsTarget & { agentId: string; baseDir: string },
+): Promise<InstalledAcpRegistryAgent[]> {
+  // Install dirs are deleted before the record commits; admit the owner first.
+  await input.settingsWriter.admit();
+  const previous = readStoredAcpRegistrySettings(input.settingsPath);
+  const settings = { ...previous };
   const installRecord = settings.acpRegistryInstalledAgents[input.agentId];
   const agentKind = acpGenericKind(input.agentId);
 
@@ -1047,17 +1115,15 @@ export async function removeAcpRegistryAgent(input: {
       : [];
   await removeAcpRegistryInstallDir(acpRegistryAgentInstallDir(input.baseDir, input.agentId));
   await Promise.all(wslInstallDirs.map((dir) => removeAcpRegistryInstallDir(dir)));
-  writeAcpRegistrySettings(input.settingsPath, settings);
+  await commitAcpRegistrySettings(input, previous, settings);
 
   return Object.values(settings.acpRegistryInstalledAgents);
 }
 
-export function setAcpRegistryAgentAuth(input: {
-  agentId: string;
-  environment: Record<string, string>;
-  settingsPath: string;
-}): InstalledAcpRegistryAgent[] {
-  const settings = readAcpRegistrySettings(input.settingsPath);
+export async function setAcpRegistryAgentAuth(
+  input: AcpRegistrySettingsTarget & { agentId: string; environment: Record<string, string> },
+): Promise<InstalledAcpRegistryAgent[]> {
+  const settings = readStoredAcpRegistrySettings(input.settingsPath);
   const instance = settings.agentInstances[input.agentId];
   if (!instance || instance.driver !== "acp-generic") {
     throw new Error(`ACP registry agent is not installed: ${input.agentId}`);
@@ -1079,11 +1145,10 @@ export function setAcpRegistryAgentAuth(input: {
     delete updatedInstance.environment;
   }
 
-  settings.agentInstances = {
-    ...settings.agentInstances,
-    [input.agentId]: updatedInstance,
-  };
-  writeAcpRegistrySettings(input.settingsPath, settings);
+  await commitAcpRegistrySettings(input, settings, {
+    ...settings,
+    agentInstances: { ...settings.agentInstances, [input.agentId]: updatedInstance },
+  });
   return Object.values(settings.acpRegistryInstalledAgents);
 }
 
@@ -1098,13 +1163,13 @@ export function setAcpRegistryAgentAuth(input: {
  * detection probes read the agent's own auth state directly, so an explicit
  * ack would just go stale.
  */
-export function setAcpGenericAgentAuthAcknowledged(
-  settingsPath: string,
+export async function setAcpGenericAgentAuthAcknowledged(
+  target: AcpRegistrySettingsTarget,
   agentId: string,
   envContext: AgentEnvContext | undefined,
   acknowledged: boolean,
-): void {
-  const settings = readAcpRegistrySettings(settingsPath);
+): Promise<void> {
+  const settings = readStoredAcpRegistrySettings(target.settingsPath);
   const instance = settings.agentInstances[agentId];
   if (!instance) return;
   const current = instance.authAcknowledged ?? {};
@@ -1123,16 +1188,13 @@ export function setAcpGenericAgentAuthAcknowledged(
   const next: { native?: boolean; wsl?: Record<string, boolean> } = {};
   if (nextNative) next.native = true;
   if (hasWsl) next.wsl = nextWsl;
-  const hasAny = nextNative || hasWsl;
-  settings.agentInstances = {
-    ...settings.agentInstances,
-    [agentId]: {
-      ...instance,
-      ...(hasAny ? { authAcknowledged: next } : {}),
+  const { authAcknowledged: _previous, ...withoutAcknowledgement } = instance;
+  await commitAcpRegistrySettings(target, settings, {
+    ...settings,
+    agentInstances: {
+      ...settings.agentInstances,
+      [agentId]:
+        nextNative || hasWsl ? { ...instance, authAcknowledged: next } : withoutAcknowledgement,
     },
-  };
-  if (!hasAny) {
-    delete settings.agentInstances[agentId]!.authAcknowledged;
-  }
-  writeAcpRegistrySettings(settingsPath, settings);
+  });
 }

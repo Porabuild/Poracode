@@ -1,9 +1,6 @@
 import type { ExtractContextResult, ProjectLocation, SessionRef } from "@/shared/contracts";
-import {
-  resolveOneShotEffectiveModel,
-  withCommandBaseSpawnEnv,
-  type AgentAdapter,
-} from "./agents/base";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas.ts";
+import { resolveOneShotSelection, withCommandBaseSpawnEnv, type AgentAdapter } from "./agents/base";
 import { runOneShotPromptWithFallback } from "./oneShotPromptRunner";
 import { buildOneShotSpec, spawnAgent } from "./oneShotSpawn";
 
@@ -56,13 +53,20 @@ export async function extractContext(
   adapter: AgentAdapter,
   sessionRef: SessionRef,
   worktreePath?: string,
-  model?: string,
-  effort?: string,
+  selection?: ModelSelection,
   signal?: AbortSignal,
 ): Promise<ExtractContextResult> {
-  // Primary path: adapter-specific extraction via --resume + print mode
+  // Primary path: adapter-specific extraction via --resume + print mode. The
+  // full selection rides argument 4 so the resume lane maps or visibly refuses
+  // every carrier before its command is built or spawned — the model scalar
+  // here is only the checked projection of that one selection.
   if (adapter.buildContextExtractionCommand) {
-    const cmd = await adapter.buildContextExtractionCommand(sessionRef, location, model);
+    const cmd = await adapter.buildContextExtractionCommand(
+      sessionRef,
+      location,
+      selection?.model,
+      selection ? { selection } : undefined,
+    );
     if (cmd) {
       const extractionCommand = withCommandBaseSpawnEnv(cmd, adapter.baseSpawnEnv);
       const spawnSpec = await buildOneShotSpec(
@@ -109,8 +113,7 @@ export async function extractContextFromScrollback(
   sourceProvider: string,
   sourceSessionId: string,
   worktreePath?: string,
-  model?: string,
-  effort?: string,
+  selection?: ModelSelection,
   signal?: AbortSignal,
 ): Promise<ExtractContextResult> {
   if (!adapter.runOneShot && !adapter.buildOneShotCommand) {
@@ -119,7 +122,7 @@ export async function extractContextFromScrollback(
     );
   }
 
-  const effectiveModel = resolveOneShotEffectiveModel(adapter, model, () => {
+  const effectiveSelection = resolveOneShotSelection(adapter, selection, () => {
     return new Error(`No default one-shot model configured for ${adapter.label}`);
   });
 
@@ -134,8 +137,7 @@ export async function extractContextFromScrollback(
   const raw = await runOneShotPromptWithFallback({
     location,
     adapter,
-    model: effectiveModel,
-    effort,
+    selection: effectiveSelection,
     timeoutMs: EXTRACTION_TIMEOUT_MS,
     ...(signal ? { signal } : {}),
     logTag: "context-extract-scrollback",

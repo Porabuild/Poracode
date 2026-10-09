@@ -4,6 +4,7 @@ import type {
   AgentSlashCommand,
   ProjectLocation,
   PromptSegment,
+  SessionConfigOptions,
   SessionRef,
   TerminalSize,
   ThreadAttention,
@@ -21,6 +22,9 @@ import type {
   StructuredSessionHandle,
   TerminalStatusHint,
 } from "../agents/base";
+
+import type { ApprovedThreadWorkspaceScope } from "./workspaceScope";
+export type { ApprovedThreadWorkspaceScope, StartThreadRuntimeInput } from "./workspaceScope";
 
 export interface QueuedStructuredTurn {
   prompt: string;
@@ -82,6 +86,9 @@ export interface SessionRuntime {
   /** User-visible project location before any provider execution fallback. */
   logicalProjectLocation?: ProjectLocation;
   projectLocation: ProjectLocation;
+  /** Immutable logical approval and resolved execution coordinates for this generation. */
+  readonly workspaceScope?: ApprovedThreadWorkspaceScope;
+  readonly executionWorkspaceScope?: ApprovedThreadWorkspaceScope;
   config: ThreadConfig;
   /** Effective provider launch config with globally disabled MCP cleared. */
   launchConfig?: ThreadConfig;
@@ -93,6 +100,13 @@ export interface SessionRuntime {
   nativePlugins?: readonly AgentNativePlugin[];
   sessionRef?: SessionRef;
   slashCommands?: AgentSlashCommand[];
+  /**
+   * Live negotiated config-option inventory of the current session
+   * incarnation: descriptors once the session has ingested options, `null`
+   * from attach until then and after retirement — a successor must never
+   * inherit the predecessor's controls. Absence only before publication.
+   */
+  sessionConfigOptions?: SessionConfigOptions | null;
   status: ThreadStatus;
   attention: ThreadAttention;
   canResumeWithConfig: boolean;

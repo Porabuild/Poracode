@@ -358,8 +358,8 @@ object RemoteUnionCodec {
     fun matchesString(element: JsonElement, literals: List<JsonElement> = emptyList(), pattern: String? = null, minLength: Int? = null, maxLength: Int? = null): Boolean {
         if (element !is JsonPrimitive || !element.isString || (literals.isNotEmpty() && element !in literals)) return false
         val value = element.content
-        // JSON Schema length follows JavaScript/Zod String.length: UTF-16 code units.
-        val length = value.length
+        // JSON Schema string bounds count Unicode code points, not UTF-16 units or graphemes.
+        val length = value.codePointCount(0, value.length)
         return (pattern == null || Regex(pattern).containsMatchIn(value)) && (minLength == null || length >= minLength) && (maxLength == null || length <= maxLength)
     }
     fun matchesNumber(element: JsonElement, integer: Boolean, literals: List<JsonElement> = emptyList(), minimum: Double? = null, maximum: Double? = null, exclusiveMinimum: Double? = null, exclusiveMaximum: Double? = null): Boolean {

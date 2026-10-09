@@ -23,7 +23,7 @@ describe("Antigravity settings authority migration", () => {
           providerConfigs: { [LEGACY_ANTIGRAVITY_ACP_KIND]: { model: "fixture-model", ...future } },
         }),
       );
-      authority = await SettingsAuthority.open({ lease });
+      authority = await SettingsAuthority.open({ lease, assertPreparedDatabaseForWrite: () => {} });
       const subject: SettingsSubject = { kind: "entry", field: "hiddenModels", key: "antigravity" };
       const before = authority.snapshot();
       expect(before.settings.hiddenModels.antigravity).toEqual(["fixture-model"]);
@@ -65,7 +65,7 @@ describe("Antigravity settings authority migration", () => {
       expect(raw.providerConfigs.antigravity).toMatchObject(future);
       expect(raw.providerConfigs).not.toHaveProperty(LEGACY_ANTIGRAVITY_ACP_KIND);
       await authority.close();
-      authority = await SettingsAuthority.open({ lease });
+      authority = await SettingsAuthority.open({ lease, assertPreparedDatabaseForWrite: () => {} });
       expect(authority.readSettings().hiddenModels.antigravity).toBeUndefined();
     } finally {
       await authority?.close();
@@ -82,6 +82,8 @@ describe("Antigravity settings authority migration", () => {
         JSON.stringify({ commitGenProvider: "fixture", commitGenModel: "gemini-3-flash-agent" }),
       );
       authority = await SettingsAuthority.open({
+        // Explicit unit admission stub; this suite does not qualify SQLite preparation.
+        assertPreparedDatabaseForWrite: () => {},
         lease: { paths: { dataRoot: root }, generation: randomUUID(), assertActive: () => {} },
       });
       const before = authority.snapshot();

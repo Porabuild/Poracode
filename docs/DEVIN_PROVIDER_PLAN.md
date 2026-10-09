@@ -1,7 +1,147 @@
 # Devin CLI Provider — Implementation Plan (Terminal + Structured Chat + Lifecycle)
 
-Status: implemented and manually exercised on macOS with Devin 3000.10.21 (2026-09-10).
-The original plan below is retained as the design record. Implementation findings:
+Status: implementation and qualification in progress against Devin 3000.11.3
+(2026-10-08). The earlier plan below is retained as a historical design record;
+its deferred scope and older version claims do not define the current request.
+The current work includes profiles sharing a login, isolated credential owners,
+organization-bound resume, local and cloud ACP, and desktop/browser/native
+session controls. Complete manual qualification remains outstanding.
+
+Current implementation contracts:
+
+- Terminal threads run the real CLI in a PTY; GUI threads run the ACP process.
+  A Terminal thread never opens a parallel ACP conversation.
+- Local ACP model values come from the live ACP menu. CLI model variants and
+  ACP model values are separate namespaces: selecting `swe-1-7-medium` and
+  setting `thought_level` to `max` succeeds while the ACP model stays
+  `swe-1-7-medium`. A combined CLI variant is not substituted into that menu.
+- Cloud configuration comes from its live options (`devin_version`, repositories,
+  persona, platform, organization), rather than the local CLI catalog. The
+  prelaunch native-default choice is an internal intent and is never sent as a
+  native model ID. Client-hosted filesystem and terminal operations are refused
+  for cloud sessions. Host-local and filtered MCP entries are omitted unless a
+  qualified cloud transport can honor them.
+- Profile resume binds to proven user identity, effective organization,
+  credential source, execution location, and runtime target. Changing a policy
+  or model does not itself change the persisted identity. Volatile catalog
+  invalidation is a separate concern. Earlier unshipped scope formats are
+  rejected instead of being treated as valid bindings.
+- Session controls use declared, bounded action IDs. Only Rules and Revise
+  command contribute to the existing `+ → Session actions` submenu. Model,
+  thinking and permissions use the ordinary composer; rename/archive use
+  ordinary thread controls. Upstream rename/archive RPCs remain available to
+  deliberate callers, with confirmation and exact owned cloud-session guards.
+  Closing or stopping a session never invokes cloud archive automatically.
+- Capability flags remain disabled until the corresponding client behavior is
+  implemented and qualified. Recognizing a flag, parsing a notification, or
+  receiving `-32601` from the opposite RPC direction is not feature proof.
+- Additional workspace roots use the standard ACP `additionalDirectories`
+  contract. Native qualification on owned fixtures proved new-session roots,
+  fresh-process load replacement, empty/omitted clearing, ordered session-list
+  readback and actual client file reads from two distinct extra roots. This
+  works without either vendor workspace flag. The native `workspace-dirs`
+  setter and discovered `/add-dir`, `/undo-add-dir`, and `/remove-dir` commands
+  also produced matching readback. These facts do not authorize widening host
+  grants from native notifications. The generic live config action refuses
+  `workspace-dirs`; scope changes need an owned idle/reopen transaction.
+  Internal ACP input plumbing and canonical authorization are implemented and
+  qualified against the actual production ACP class and native FS callbacks:
+  two distinct extra-root reads, symlink escape rejection and same-session
+  replacement/clearing on fresh processes. Text IO and terminal cwd validation
+  recheck session ownership after filesystem awaits;
+  host-owned saved-grant storage is implemented at database schema 56, with
+  revision-checked commit, immutable row incarnations, owner-change revision
+  fencing and separate unresolved-operation custody. A private initialized
+  flag distinguishes explicit empty grants from never-scoped legacy threads;
+  owner-only revisions do not opt those threads into scoped launches. Ordinary
+  row synchronization cannot write grants. Readonly Swift/Kotlin projections
+  preserve missing versus empty lists and reject malformed present fields.
+  Confirmed close now joins a pending start and its retirement instead of
+  reporting success early. Host start/ensure now reads committed SQL scope and
+  uses private workspace-runtime-v1 support/incarnation gating. The immutable
+  runtime carries logical and resolved roots through initial open, reopen,
+  queued turns and restart; unsupported PTY/recovery/child paths refuse rather
+  than discard scope. A real production manager and provider completed extra-
+  folder reads before and after exact-session close/reopen on owned fixtures.
+  The idle replacement transaction, child/fallback carry, journal cleanup and
+  deletion policy, runtime-generation reservation fencing, folder controls, native UI
+  qualification and Terminal handoff remain outstanding. Real PTY add/list/remove commands handled an
+  owned directory containing spaces and Japanese characters; this is command
+  qualification, not a Poracode Terminal grant carrier. Keep both vendor
+  workspace flags disabled until the complete flows are qualified.
+  Additional pre-turn PTY probes observed exact native workspace-change
+  notifications for add/remove, while the native session database had no
+  persisted row before the first model turn. The hidden native wire logger
+  supplied diagnostic evidence only; a bounded production observer and
+  acknowledged prompt deferral remain unimplemented.
+- Model-picker caches rebuild localized search tokens and exact-member labels
+  when the active language changes. Canonical effort labels use translated
+  descriptors; native custom effort names retain their display fallback.
+- Partial content and message grouping are qualified together on 3000.11.3.
+  Provider-owned native message IDs become owner-scoped canonical boundaries
+  for assistant and reasoning streams, preserving sibling content. Cache misses
+  do not invent boundaries; late completion replays require a live descriptor.
+- Usage uses the existing quota surfaces: configuration profiles share their
+  login owner's meter; unavailable owners never fall back to the native account.
+  Explicit zero and balance-only responses are retained. Account identity is
+  rechecked immediately before asynchronous results are committed.
+- Standard context updates retain the provider's input/output breakdown only
+  when both nonnegative integer counts sum exactly to the reported occupancy.
+  Vendor turn-stat totals never become another accounting sample. The shared
+  context display consumes the existing optional breakdown field.
+- Grouped model options can project into the existing shared picker section
+  fields without changing exact model IDs or the separate effort control.
+  Group advertisement is enabled: a fresh Electron detection and normal chat
+  captured 54 groups and 123 accepted values. Repeated singleton headings and
+  selected-model labels are suppressed. The native rich-chat pickers have
+  provider-neutral projections with executed iOS and Android unit coverage;
+  Home and rich-chat visibility filtering use the shared settings document, including explicit show-all overrides. Headless iOS and Android checks pass; visual native-device qualification remains outstanding.
+- Composite ACP model IDs can also expose an independent native thought-level
+  selector. The ACP launch retains the exact ID and defers effort to strict
+  live validation; repeat submits validate saved values against the current
+  native ladder. Terminal and one-shot commands keep their separate catalog
+  validation. A real native setter has qualified independent low/high effort
+  on the same Fusion pair. A fresh Electron run confirmed two consecutive
+  turns and exact-session unload/reopen with correct conversation recall.
+  The current-session composer uses the negotiated ladder rather than the
+  representative model label. The owned GUI session also acknowledged the
+  shared Fast setting through its native speed selector on a subsequent turn.
+- Native resume keeps scope-3; WSL scope-4 also binds the distro namespace and
+  rejects older WSL bindings. Native and isolated credential paths stay distinct.
+- Derived compatibility boundaries currently use supervisor status cache 46,
+  renderer status cache 42, and usage cache 10. The additive action verbs preserve
+  remote protocol 12 and host-operation protocol 16; generated bindings and
+  older-client rejection paths are checked separately.
+
+The current catalog keeps all exact native UIDs, while Fusion projects to one
+family choice. Adaptive and Fusion appear above the regular models; prices use
+the existing muted right-hand row position. A Fusion-only composer button sits immediately beside the model picker,
+with searchable Main and Sidekick dropdowns and their available effort settings.
+Fast uses the ordinary separate composer toggle when the native model supports
+it; the paired settings panel does not duplicate it. Exact relation members remain
+the selection authority. These picker layout hooks are renderer-only metadata
+and do not alter a persisted or wire boundary.
+
+Native custom child profiles are separate from Poracode account/configuration
+profiles and from the closed root-agent selector. Live CLI 3000.11.3 checks
+qualified skill-based child invocation, model override, tool restriction
+changes after reopening the same session, and explicit failure after profile
+removal. For duplicate names, the global definition wins over project
+`.devin/agents`, which wins over project `.agents/agents`; the candidate scan
+uses that order. A `doctor` listing still does not prove effective loading:
+reserved built-in names use the built-in behavior at runtime. Actual Poracode
+child-row and overlay qualification remains outstanding.
+
+Older regular families default to hidden through `defaultHiddenModels` when
+a newer version of the same native catalog model line is available. Users can
+re-enable them with the existing visibility setting, and saved thread choices
+remain representable. Native family slugs supply numeric version identity:
+GLM-5.2 hides when GLM-5.3 exists, and GPT-6 Sol hides when GPT-6.1 Sol exists.
+Distinct Pro, Flash, Mini, Lightning and specialist lines remain separate;
+unknown catalog formats stay visible. Opaque variant IDs never determine age.
+
+The original September implementation findings follow. They describe that
+checkpoint, not the current catalog, scope, compatibility versions, or QA verdict:
 
 - Terminal defaults to Smart; structured Chat uses Bypass as requested. Signed-in ACP also advertises Smart; Plan explicitly selects plan mode.
 - Compact input/output price ranges appear beside model names, with full provider pricing and units on hover.

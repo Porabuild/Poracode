@@ -358,6 +358,29 @@ final class SettingsUICompositionTests: XCTestCase {
     XCTAssertEqual(status.fastModels, ["model-b"])
   }
 
+  func testAgentModelVisibilitySeedsFirstEditFromDefaultsAndHonorsExplicitShowAll() throws {
+    let status = try SettingsAgentStatus(
+      payload: .object([
+        "kind": .string("provider"),
+        "label": .string("Provider"),
+        "installed": .bool(true),
+        "authState": .string("authenticated"),
+        "capabilities": .object([
+          "defaultHiddenModels": .array([.string("old-a"), .string("old-b")])
+        ]),
+      ])
+    )
+    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: [:]), ["old-a", "old-b"])
+    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: ["provider": []]), [])
+    XCTAssertEqual(status.effectiveHiddenModelIDs(overrides: ["provider": ["custom"]]), ["custom"])
+
+    var firstEdit = status.effectiveHiddenModelIDs(overrides: [:])
+    firstEdit.remove("old-a")
+    XCTAssertEqual(
+      status.effectiveHiddenModelIDs(overrides: ["provider": firstEdit.sorted()]), ["old-b"]
+    )
+  }
+
   func testReplayReducerProjectsInitialWindowsAndWSLDistroLists() throws {
     let host = selection().lease.connectionID
     var replay = HostReplayState()

@@ -804,6 +804,82 @@ describe("RemoteHttpBridgeService", () => {
     await vi.waitFor(() => expect(port.frames("head")).toHaveLength(1));
   });
 
+  it("passes the writer generation header through verbatim, never upgrading an old declaration", async () => {
+    // Fence 1 (remote 13): the off-main bridge is a dumb pipe. A renderer
+    // that declared a stale generation must arrive at the host with that
+    // stale value — the host's fence fires — never silently upgraded to the
+    // current constant by this process.
+    let targetHeaders: IncomingMessage["headers"] = {};
+    const server = await startLoopbackHttpServer((req, res) => {
+      targetHeaders = req.headers;
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    servers.push(server);
+    const service = createService();
+    const port = new ScriptedWorkerPort();
+    const request = descriptor({
+      url: `${server.origin}/api/projects/p/notes`,
+      method: "POST",
+      headers: {
+        authorization: "Bearer fixture-token",
+        "x-poracode-protocol-version": "12",
+      },
+      hasBody: true,
+      bodyBytes: 2,
+    });
+    service.open(request, port);
+    port.send({
+      v: REMOTE_HTTP_BRIDGE_VERSION,
+      kind: "upload-chunk",
+      requestId: request.requestId,
+      data: payloadOf(2),
+    });
+    port.send({
+      v: REMOTE_HTTP_BRIDGE_VERSION,
+      kind: "upload-end",
+      requestId: request.requestId,
+    });
+
+    await vi.waitFor(() => expect(port.frames("head")).toHaveLength(1));
+    expect(targetHeaders["x-poracode-protocol-version"]).toBe("12");
+    expect(targetHeaders.authorization).toBe("Bearer fixture-token");
+  });
+
+  it("never injects a writer generation header the caller did not declare", async () => {
+    let targetHeaders: IncomingMessage["headers"] = {};
+    const server = await startLoopbackHttpServer((req, res) => {
+      targetHeaders = req.headers;
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: true }));
+    });
+    servers.push(server);
+    const service = createService();
+    const port = new ScriptedWorkerPort();
+    const request = descriptor({
+      url: `${server.origin}/api/projects/p/notes`,
+      method: "POST",
+      headers: { authorization: "Bearer fixture-token" },
+      hasBody: true,
+      bodyBytes: 2,
+    });
+    service.open(request, port);
+    port.send({
+      v: REMOTE_HTTP_BRIDGE_VERSION,
+      kind: "upload-chunk",
+      requestId: request.requestId,
+      data: payloadOf(2),
+    });
+    port.send({
+      v: REMOTE_HTTP_BRIDGE_VERSION,
+      kind: "upload-end",
+      requestId: request.requestId,
+    });
+
+    await vi.waitFor(() => expect(port.frames("head")).toHaveLength(1));
+    expect(targetHeaders["x-poracode-protocol-version"]).toBeUndefined();
+  });
+
   it("never settles the accepted request when a duplicate id is rejected", async () => {
     const server = await startLoopbackHttpServer((_req, res) => {
       res.writeHead(200);

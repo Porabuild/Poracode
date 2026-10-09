@@ -238,13 +238,7 @@ describe("generateCommitMessage", () => {
     const child = createMockChildProcess();
     spawnMock.mockReturnValue(child);
 
-    const pending = generateCommitMessage(
-      windowsProject,
-      createAdapter(),
-      undefined,
-      undefined,
-      "German",
-    );
+    const pending = generateCommitMessage(windowsProject, createAdapter(), undefined, "German");
     await flushPromises();
 
     const stdin = child.stdin.end.mock.calls[0]?.[0];
@@ -292,6 +286,50 @@ describe("generateCommitMessage", () => {
     child.emit("close", 0);
 
     await expect(pending).resolves.toBe("fix(wsl): route commit generation through WSL");
+  });
+
+  it("carries the complete utility selection to the WSL builder, including empty and false carriers", async () => {
+    const child = createMockChildProcess();
+    spawnMock.mockReturnValue(child);
+    const builder = vi.fn<NonNullable<AgentAdapter["buildOneShotCommand"]>>(
+      (model: string, effort?: string) => ({
+        command: "codex",
+        args: ["exec", "-m", model, ...(effort !== undefined ? ["--effort", effort] : []), "-"],
+      }),
+    );
+    const adapter = {
+      label: "Codex",
+      defaultOneShotModel: "gpt-5.4-mini",
+      buildOneShotCommand: builder,
+    } as unknown as AgentAdapter;
+
+    const pending = generateCommitMessage(wslProject, adapter, {
+      model: "gpt-5.4-mini",
+      effort: "",
+      fast: false,
+      thinking: false,
+    });
+    await flushPromises();
+
+    // The empty/false carriers reach the checked positionals and argument 6
+    // with presence intact on the WSL path; the default-model resolution does
+    // not disturb an explicit pick.
+    expect(builder).toHaveBeenCalledTimes(1);
+    const [model, effort, , location, fast, options] = builder.mock.calls[0]!;
+    expect(model).toBe("gpt-5.4-mini");
+    expect(effort).toBe("");
+    expect(fast).toBe(false);
+    expect(location).toEqual(wslProject);
+    expect(options?.selection).toEqual({
+      model: "gpt-5.4-mini",
+      effort: "",
+      fast: false,
+      thinking: false,
+    });
+
+    child.stdout.emit("data", Buffer.from("fix(wsl): carry the full selection"));
+    child.emit("close", 0);
+    await expect(pending).resolves.toBe("fix(wsl): carry the full selection");
   });
 
   it("strips code fences and preamble from LLM output", async () => {

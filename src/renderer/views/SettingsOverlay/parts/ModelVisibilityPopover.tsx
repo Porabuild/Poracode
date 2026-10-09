@@ -7,7 +7,9 @@ import {
   type ProviderModelItem,
   type ProviderModelMenuProvider,
 } from "@/renderer/components/common/ProviderModelMenu";
+import { modelFamilyMemberIds } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
 import { providerVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
+import { modelFamilyPickerModels } from "@/shared/modelFamilySelection";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import {
   collectHeaderModelGroups,
@@ -43,12 +45,19 @@ export function ModelVisibilityPopover(props: {
   const deferredSearch = useDeferredValue(search);
 
   const uncheckedKinds = new Set(props.providerToggle?.uncheckedKinds ?? []);
+  // Counts track the projected picker list (one row per family relation), not
+  // the raw compatible inventory the picker collapses.
   const providerEntries = props.providers.map((provider) => {
     const key = providerVisibilityKey(provider);
     const hidden = new Set(props.hiddenIdsByKey[key] ?? []);
-    const models = provider.capabilities.models.filter((model) => model.id !== "auto");
-    const hiddenCount = models.filter((model) => hidden.has(model.id)).length;
-    return { provider, key, hidden, models, hiddenCount };
+    const models = modelFamilyPickerModels(provider.capabilities).filter(
+      (model) => model.id !== "auto",
+    );
+    const memberIds = modelFamilyMemberIds(provider.capabilities);
+    const rowIds = (modelId: string): readonly string[] => memberIds.get(modelId) ?? [modelId];
+    const isRowHidden = (modelId: string): boolean => rowIds(modelId).every((id) => hidden.has(id));
+    const hiddenCount = models.filter((model) => isRowHidden(model.id)).length;
+    return { provider, key, hidden, models, hiddenCount, rowIds, isRowHidden };
   });
   const totalCount = providerEntries.reduce((sum, entry) => sum + entry.models.length, 0);
   const visibleCount = providerEntries.reduce(
@@ -92,11 +101,21 @@ export function ModelVisibilityPopover(props: {
     return entry.hiddenCount === entry.models.length ? "none" : "some";
   }
 
-  function setModelHidden(hiddenModelsKey: string, modelId: string) {
+  // One row stands for all its exact ids (a family row for every member UID):
+  // the toggle persists the whole list so member ids stay canonical.
+  function setRowHidden(hiddenModelsKey: string, modelIds: readonly string[]) {
     const next = new Set(hiddenByKey.get(hiddenModelsKey) ?? []);
-    if (next.has(modelId)) next.delete(modelId);
-    else next.add(modelId);
+    const allHidden = modelIds.every((id) => next.has(id));
+    for (const id of modelIds) {
+      if (allHidden) next.delete(id);
+      else next.add(id);
+    }
     props.onHiddenIdsChange(hiddenModelsKey, [...next]);
+  }
+
+  function rowHidden(item: ProviderModelItem & { type: "model" }): boolean {
+    const ids = item.familyModelIds ?? [item.modelId];
+    return ids.every((id) => isHidden(item.hiddenModelsKey, id));
   }
 
   function toggleGroup(headerId: string) {
@@ -110,8 +129,10 @@ export function ModelVisibilityPopover(props: {
         next = new Set(hiddenByKey.get(entry.hiddenModelsKey) ?? []);
         byKey.set(entry.hiddenModelsKey, next);
       }
-      if (nextHidden) next.add(entry.modelId);
-      else next.delete(entry.modelId);
+      for (const modelId of entry.modelIds) {
+        if (nextHidden) next.add(modelId);
+        else next.delete(modelId);
+      }
     }
     for (const [key, next] of byKey) props.onHiddenIdsChange(key, [...next]);
   }
@@ -121,7 +142,10 @@ export function ModelVisibilityPopover(props: {
   // restores everything.
   function setAllHidden(hideAll: boolean) {
     for (const entry of providerEntries) {
-      props.onHiddenIdsChange(entry.key, hideAll ? entry.models.map((model) => model.id) : []);
+      props.onHiddenIdsChange(
+        entry.key,
+        hideAll ? [...new Set(entry.models.flatMap((model) => entry.rowIds(model.id)))] : [],
+      );
       if (uncheckedKinds.has(entry.provider.kind) === hideAll) continue;
       props.providerToggle?.onCheckedChange(entry.provider.kind, !hideAll);
     }
@@ -129,8 +153,9 @@ export function ModelVisibilityPopover(props: {
 
   function activateItem(id: Key) {
     const item = items.find((candidate) => candidate.id === id);
-    if (item?.type === "model") setModelHidden(item.hiddenModelsKey, item.modelId);
-    else if (item?.type === "header-sub") toggleGroup(item.id);
+    if (item?.type === "model") {
+      setRowHidden(item.hiddenModelsKey, item.familyModelIds ?? [item.modelId]);
+    } else if (item?.type === "header-sub") toggleGroup(item.id);
     else if (item?.type === "header-provider") {
       if (props.providerToggle) {
         props.providerToggle.onCheckedChange(
@@ -230,11 +255,7 @@ export function ModelVisibilityPopover(props: {
                     <ModelVisibilityRow
                       key={item.id}
                       item={item}
-                      isVisible={
-                        item.type === "model"
-                          ? !isHidden(item.hiddenModelsKey, item.modelId)
-                          : false
-                      }
+                      isVisible={item.type === "model" ? !rowHidden(item) : false}
                       isProviderUnchecked={
                         (item.type === "model" || item.type === "header-sub") &&
                         uncheckedKinds.has(item.providerKind)

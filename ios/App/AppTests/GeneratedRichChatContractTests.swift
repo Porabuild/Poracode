@@ -169,6 +169,68 @@ final class GeneratedRichChatContractTests: XCTestCase {
     XCTAssertThrowsError(try GeneratedRemoteV3Contract.richTerminalServerFrame(invalid))
   }
 
+  func testSessionActionProceduresCrossGeneratedRoots() throws {
+    let list = try GeneratedRemoteV3Contract.richListSessionActionsRequest(
+      threadID: "thread /東京")
+    let listEnvelope = try object(list)
+    XCTAssertEqual(listEnvelope["procedure"], .string("listThreadSessionActions"))
+    XCTAssertEqual(try object(list)["payload"]?.objectValue?["threadId"], .string("thread /東京"))
+
+    let listed = try GeneratedRemoteV3Contract.richProcedureResult(
+      .listThreadSessionActions,
+      envelope: try data(.object([
+        "result": .object([
+          "actions": .array([
+            .object(["id": .string("devin.session.rename")]),
+            .object(["id": .string("native-personas.list")]),
+          ]),
+        ]),
+      ]))
+    )
+    XCTAssertEqual(
+      listed?.objectValue?["actions"]?.arrayValue?.first?.objectValue?["id"],
+      .string("devin.session.rename")
+    )
+
+    let invoke = try GeneratedRemoteV3Contract.richInvokeSessionActionRequest(
+      threadID: "thread",
+      actionID: "devin.command.revise",
+      payload: ["command": .string("npm test"), "note": .string("add --fast")]
+    )
+    let invokeEnvelope = try object(invoke)
+    XCTAssertEqual(invokeEnvelope["procedure"], .string("invokeThreadSessionAction"))
+    let invokePayload = try XCTUnwrap(invokeEnvelope["payload"]?.objectValue)
+    XCTAssertEqual(invokePayload["threadId"], .string("thread"))
+    XCTAssertEqual(invokePayload["actionId"], .string("devin.command.revise"))
+    XCTAssertEqual(invokePayload["payload"]?.objectValue?["command"], .string("npm test"))
+
+    let invoked = try GeneratedRemoteV3Contract.richProcedureResult(
+      .invokeThreadSessionAction,
+      envelope: try data(.object(["result": .object(["renamed": .bool(true)])]))
+    )
+    XCTAssertEqual(invoked?.objectValue?["renamed"], .bool(true))
+
+    // Over-bound action ids fail contract validation before any request exists.
+    XCTAssertThrowsError(
+      try GeneratedRemoteV3Contract.richInvokeSessionActionRequest(
+        threadID: "thread",
+        actionID: String(repeating: "a", count: 121),
+        payload: [:]
+      ))
+
+    // A 2xx envelope without a valid result object never decodes as success.
+    XCTAssertThrowsError(
+      try GeneratedRemoteV3Contract.richProcedureResult(
+        .listThreadSessionActions,
+        envelope: try data(.object(["result": .object(["bogus": .bool(true)])]))
+      ))
+    XCTAssertThrowsError(
+      try GeneratedRemoteV3Contract.richProcedureResult(
+        .invokeThreadSessionAction,
+        envelope: try data(.object(["result": .string("bogus")]))
+      ))
+  }
+
   private func object(_ data: Data) throws -> [String: RichJSON] {
     try XCTUnwrap(try RichJSON.decode(data).objectValue)
   }

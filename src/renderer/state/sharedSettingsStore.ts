@@ -1,6 +1,18 @@
 import { create } from "zustand";
-import { readBridge } from "../bridge";
+import { isRemoteSession, readBridge } from "../bridge";
 import { hasAnyClientBridge, isStandaloneAttachRuntime } from "../clientRuntime";
+import { msg } from "@lingui/core/macro";
+import {
+  admitInitialRead,
+  admitLocalSettingsWrites,
+  beginInitialRead,
+  noteExternalPush,
+  noteInitialReadFailure,
+  preservedReadRefusal,
+  settingsWritesAdmitted,
+  takeInitialReadReconciliation,
+  whenWritesAdmitted,
+} from "./sharedSettingsAuthority";
 import {
   defaultSharedSettings,
   normalizeSidebarShortcutOrder,
@@ -39,7 +51,7 @@ import type {
   LoadedPlugin,
   Workspace,
 } from "@/shared/contracts";
-import { nextWorkspaceIconId } from "@/shared/contracts";
+import { areSelectionBindingsEqual, nextWorkspaceIconId } from "@/shared/contracts";
 import {
   installPlugin as addInstalledPlugin,
   setInstalledPluginEnabled as updateInstalledPluginEnabled,
@@ -246,6 +258,25 @@ function hasBridge(): boolean {
   return hasAnyClientBridge();
 }
 
+/**
+ * Whether this surface's settings bridge write is the mirror-bounded diff
+ * push rather than a whole-document replacement. The remote-session runtime
+ * (a browser client, or Electron attached to a standalone owner — both
+ * transport `remote-http-websocket`) intercepts `setSharedSettings` as
+ * `remoteSettingsSync.pushDesktopSettingsDiff`; only the managed Electron
+ * transport replaces the whole host document. An Electron preload alone says
+ * nothing about the write path — it is a client surface fact, not a service
+ * one. Fail closed to the whole-document flavor when no runtime is installed
+ * yet: an unknown write path must not be granted bounded admission.
+ */
+function settingsBridgeWriteIsBounded(): boolean {
+  try {
+    return isRemoteSession();
+  } catch {
+    return false;
+  }
+}
+
 function loadFallbackSettings(): SharedSettings {
   if (typeof window === "undefined") {
     return { ...defaultSharedSettings };
@@ -258,15 +289,13 @@ function loadFallbackSettings(): SharedSettings {
   }
 }
 
-/**
- * Whether the authoritative settings have been loaded from the main process.
- * Until this is true we skip writing to the settings file so that early
- * useEffect-triggered persists (e.g. setProviderConfig on mount) don't
- * clobber the file with default values before the real settings are loaded.
- */
-let initialLoadDone = !hasBridge();
+// Admission state (what admits a persisted write, which push supersedes the
+// initial read, and how a late read reconciles with in-flight pushes) lives
+// in `sharedSettingsAuthority.ts` — this module only orchestrates it.
 let pendingSharedSettingsWrite: Promise<void> | undefined;
 let queuedSharedSettingsWrite: SharedSettingsInput | undefined;
+let latestSharedSettingsWriteResult: { ok: true } | { ok: false; error: unknown } = { ok: true };
+let initialReadSettled: Promise<void> = Promise.resolve();
 
 function drainSharedSettingsWrites(): void {
   if (pendingSharedSettingsWrite || !queuedSharedSettingsWrite) return;
@@ -276,7 +305,12 @@ function drainSharedSettingsWrites(): void {
       queuedSharedSettingsWrite = undefined;
       await readBridge()
         .setSharedSettings(settings)
-        .catch(() => undefined);
+        .then(() => {
+          latestSharedSettingsWriteResult = { ok: true };
+        })
+        .catch((error: unknown) => {
+          latestSharedSettingsWriteResult = { ok: false, error };
+        });
     }
   })().finally(() => {
     pendingSharedSettingsWrite = undefined;
@@ -293,7 +327,7 @@ function persistSettings(settings: SharedSettingsInput): void {
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 
-  if (hasBridge() && initialLoadDone) {
+  if (hasBridge() && settingsWritesAdmitted()) {
     // Whole-document writes must stay ordered. Coalesce changes that arrive
     // while one write is in flight so a slower older IPC call can never land
     // after the newest settings and resurrect stale plugin/provider state.
@@ -316,13 +350,54 @@ export async function waitForPendingSharedSettings(): Promise<void> {
  * state before triggering IPC that re-reads it from disk (e.g. reloading a
  * provider's live MCP servers) should `await` this first — otherwise a fast
  * follow-up call can race the write above and observe stale settings.
+ *
+ * While the store holds no settings authority (a refused or still pending
+ * initial read with no recovering push) the flush stays passive: without
+ * `requireSuccess` it resolves without writing, and with `requireSuccess` it
+ * rejects — with the preserved read refusal when one exists — instead of
+ * silently claiming a write confirmation that never happened. A required
+ * flush with no verdict yet waits for the initial read to settle, but an
+ * owner push that lands meanwhile establishes authority first and the flush
+ * proceeds — it never starves on a read that never settles.
  */
-export async function flushSharedSettings(): Promise<void> {
-  if (!hasBridge() || !initialLoadDone) {
+export async function flushSharedSettings(
+  options: { requireSuccess?: boolean } = {},
+): Promise<void> {
+  if (!hasBridge()) {
+    return;
+  }
+  if (options.requireSuccess && !settingsWritesAdmitted()) {
+    const admission = whenWritesAdmitted();
+    try {
+      await Promise.race([initialReadSettled, admission.promise]);
+    } finally {
+      // Promise.race never cancels its losing promise: whether the read
+      // settled first — granting authority or surfacing the preserved
+      // refusal — this flush must release its admission subscription instead
+      // of keeping a waiter registered until some future grant.
+      admission.unsubscribe();
+    }
+  }
+  if (!settingsWritesAdmitted()) {
+    if (options.requireSuccess) {
+      // Surface the preserved read refusal when one exists; otherwise no
+      // authority was ever established for this surface.
+      const refusal = preservedReadRefusal();
+      if (refusal.refused) throw refusal.error;
+      const { i18n } = await import("../i18n/i18n");
+      throw new Error(
+        i18n._(
+          msg`Settings aren't available yet, so your changes couldn't be saved. Please try again.`,
+        ),
+      );
+    }
     return;
   }
   if (pendingSharedSettingsWrite) {
     await waitForPendingSharedSettings();
+    if (options.requireSuccess && !latestSharedSettingsWriteResult.ok) {
+      throw latestSharedSettingsWriteResult.error;
+    }
     return;
   }
   await readBridge().setSharedSettings(selectSharedSettings(useSharedSettings.getState()));
@@ -342,6 +417,7 @@ function providerDraftConfigEqual(
 ): boolean {
   return (
     a !== undefined &&
+    areSelectionBindingsEqual(a.selectionBinding, b.selectionBinding) &&
     a.model === b.model &&
     a.effort === b.effort &&
     a.contextSize === b.contextSize &&
@@ -358,7 +434,7 @@ const initialSettings = loadFallbackSettings();
 
 export const useSharedSettings = create<SharedSettingsState>()((set, get) => ({
   ...initialSettings,
-  sharedSettingsHydrated: initialLoadDone,
+  sharedSettingsHydrated: !hasBridge(),
   setThemeMode: (themeMode) => {
     set({ themeMode });
     persistSettings(selectSharedSettings(get()));
@@ -1125,6 +1201,32 @@ function selectSharedSettings(state: SharedSettingsState): SharedSettingsInput {
     conflictResolverModel: state.conflictResolverModel,
     conflictResolverEffort: state.conflictResolverEffort,
     conflictResolverFast: state.conflictResolverFast,
+    // Canonical complete utility selections ride the same whole-document
+    // write as their legacy scalar siblings. Deliberate preset edits keep
+    // both in sync (the present tuple is the sole complete preset); there is
+    // deliberately no backfill — an absent object stays absent until a
+    // preset setter writes one.
+    ...(state.commitGenSelection !== undefined
+      ? { commitGenSelection: state.commitGenSelection }
+      : {}),
+    ...(state.titleGenSelection !== undefined
+      ? { titleGenSelection: state.titleGenSelection }
+      : {}),
+    ...(state.conflictResolverSelection !== undefined
+      ? { conflictResolverSelection: state.conflictResolverSelection }
+      : {}),
+    ...(state.experimentJudgeSelection !== undefined
+      ? { experimentJudgeSelection: state.experimentJudgeSelection }
+      : {}),
+    ...(state.wslCommitGenSelection !== undefined
+      ? { wslCommitGenSelection: state.wslCommitGenSelection }
+      : {}),
+    ...(state.wslTitleGenSelection !== undefined
+      ? { wslTitleGenSelection: state.wslTitleGenSelection }
+      : {}),
+    ...(state.wslConflictResolverSelection !== undefined
+      ? { wslConflictResolverSelection: state.wslConflictResolverSelection }
+      : {}),
     experimentJudgeProvider: state.experimentJudgeProvider,
     experimentJudgeModel: state.experimentJudgeModel,
     experimentJudgeEffort: state.experimentJudgeEffort,
@@ -1254,24 +1356,62 @@ export function applyExternalSharedSettings(partial: Partial<SharedSettings>): v
   // Owner-pushed settings are authoritative (paired desktop values arriving
   // over the remote sync, or a remote client's edit): mark the store hydrated
   // so persistence and hydration waiters proceed without a local read-back.
-  initialLoadDone = true;
+  // Admission is deliberate though: only a whole snapshot speaks for every
+  // settings key, so only it can recover write authority while the initial
+  // read is pending or was refused. A partial push must not bless the
+  // untouched fallback defaults as whole truth — unless this surface's write
+  // path is the mirror-bounded diff push (the browser client and Electron
+  // attached to a standalone owner alike), which the delivered values do
+  // authorize. Which write path applies is a runtime transport fact, not an
+  // Electron boolean.
+  noteExternalPush(partial, settingsBridgeWriteIsBounded());
 }
 
-if (hasBridge() && !isStandaloneAttachRuntime()) {
-  void readBridge()
-    .getSharedSettings()
-    .then((settings) => {
+if (!hasBridge()) {
+  // No client bridge: persistence is device-local only — there is no host
+  // settings document to clobber, so writes are admitted from the start.
+  admitLocalSettingsWrites();
+} else if (!isStandaloneAttachRuntime()) {
+  const readEpoch = beginInitialRead();
+  initialReadSettled = (async () => {
+    try {
+      const settings = await readBridge().getSharedSettings();
+      // A whole owner push that landed mid-read granted complete authority:
+      // its values — and any local edit accepted since — are newer than this
+      // snapshot by construction, and the push already hydrated the store.
+      // Publishing the read then would roll the store and the cache back to
+      // obsolete state, so the read is retired unpublished. Otherwise pushes
+      // delivered newer owner fields that are reconciled over the read: it
+      // stays admitted — it is the only complete authoritative base — so
+      // neither the older snapshot nor a partial push can clobber the other.
+      const settlement = takeInitialReadReconciliation(readEpoch);
+      if (settlement.supersededByWholeAuthority) {
+        return;
+      }
       const normalized = normalizeSharedSettings(settings);
+      const admitted = settlement.pushedFields
+        ? { ...normalized, ...settlement.pushedFields }
+        : normalized;
       useSharedSettings.setState((state) => ({
         ...state,
-        ...normalized,
+        ...admitted,
         sharedSettingsHydrated: true,
       }));
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-      initialLoadDone = true;
-    })
-    .catch(() => {
-      initialLoadDone = true;
-      useSharedSettings.setState({ sharedSettingsHydrated: true });
-    });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(admitted));
+      admitInitialRead();
+    } catch (error) {
+      // A refused read is never authority: the refusal is preserved so a
+      // required flush can surface it, persisted writes stay blocked until
+      // a successful read or a whole owner push recovers, and hydration
+      // waiters still proceed with the best-available view. A failure that
+      // settles after a newer push superseded the read records nothing.
+      if (noteInitialReadFailure(error, readEpoch)) {
+        useSharedSettings.setState({ sharedSettingsHydrated: true });
+      }
+    }
+  })();
 }
+// Attached Electron (bridge present, standalone-attach runtime) starts no
+// local read: the local handler loud-rejects `getSharedSettings` and the
+// owner's values arrive over the remote pull/push sync, whose delivered
+// mirror pushes grant the bounded write admission.

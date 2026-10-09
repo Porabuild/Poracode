@@ -7,6 +7,7 @@ import com.poracode.app.chat.RichRequestType
 import com.poracode.app.chat.RichRuntimeItem
 import com.poracode.app.chat.RichWireRequestId
 import com.poracode.app.model.PosixProjectLocation
+import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -128,6 +129,73 @@ class RichChatUiLogicTest {
         val resolution = RichChatUiLogic.composerDenyResolution(request)!!
         assertEquals("reject", (resolution.response as JsonObject)["optionId"]?.let(::text))
         assertEquals("follow up", RichChatUiLogic.composerPrompt(" follow up ", emptyList()))
+    }
+
+    @Test
+    fun sessionActionOwnerKeyCoversEverySessionIdentityAxis() {
+        val ref = com.poracode.app.model.RemoteSessionRef(
+            providerSessionId = "sess-1",
+            discoveredAt = "2026-10-07T00:00:00Z",
+            executionIdentity = "acct-9",
+        )
+        val base = RemoteThread(
+            id = "thread-a",
+            projectId = "p",
+            title = "t",
+            agentKind = "devin",
+            status = "working",
+            attention = "idle",
+            createdAt = "2026-10-07T00:00:00Z",
+            updatedAt = "2026-10-07T00:00:00Z",
+            agentInstanceId = "inst-1",
+            presentationMode = "gui",
+            sessionRef = ref,
+        )
+
+        // working→idle is the same session: the key is deliberately status-free.
+        val idle = base.copy(status = "idle")
+        assertEquals(
+            RichChatUiLogic.sessionActionOwnerKey(base),
+            RichChatUiLogic.sessionActionOwnerKey(idle),
+        )
+
+        // Every identity axis changes the owner.
+        assertEquals(
+            RichChatUiLogic.sessionActionOwnerKey(base),
+            RichChatUiLogic.sessionActionOwnerKey(base.copy(title = "renamed")),
+        )
+        org.junit.Assert.assertNotEquals(
+            RichChatUiLogic.sessionActionOwnerKey(base),
+            RichChatUiLogic.sessionActionOwnerKey(base.copy(agentInstanceId = "inst-2")),
+        )
+        org.junit.Assert.assertNotEquals(
+            RichChatUiLogic.sessionActionOwnerKey(base),
+            RichChatUiLogic.sessionActionOwnerKey(base.copy(presentationMode = "terminal")),
+        )
+        org.junit.Assert.assertNotEquals(
+            RichChatUiLogic.sessionActionOwnerKey(base),
+            RichChatUiLogic.sessionActionOwnerKey(
+                base.copy(
+                    sessionRef = ref.copy(providerSessionId = "sess-2"),
+                ),
+            ),
+        )
+        org.junit.Assert.assertNotEquals(
+            RichChatUiLogic.sessionActionOwnerKey(base),
+            RichChatUiLogic.sessionActionOwnerKey(
+                base.copy(
+                    sessionRef = ref.copy(executionIdentity = "acct-10"),
+                ),
+            ),
+        )
+        org.junit.Assert.assertNotEquals(
+            RichChatUiLogic.sessionActionOwnerKey(base),
+            RichChatUiLogic.sessionActionOwnerKey(base.copy(agentKind = "devin:second")),
+        )
+        org.junit.Assert.assertNotEquals(
+            RichChatUiLogic.sessionActionOwnerKey(base),
+            RichChatUiLogic.sessionActionOwnerKey(null),
+        )
     }
 
     private fun goal(objective: String, status: String, actions: List<String>) = RichRuntimeItem(

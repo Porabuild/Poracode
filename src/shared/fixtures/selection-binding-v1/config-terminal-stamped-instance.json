@@ -1,0 +1,33 @@
+{
+  "$comment": "Neutral fixture: instance-scoped stamped tuple. agentInstanceId present means profile/route-scoped intent: it matches only an actual owner carrying the SAME instance id, and a retarget that drops the instance id (or switches presentation) drops the record.",
+  "config": {
+    "model": "lead-a+sidekick-b",
+    "effort": "",
+    "contextSize": "default",
+    "fast": false,
+    "thinking": false,
+    "mode": "agent",
+    "selectionBinding": {
+      "version": 1,
+      "kind": "family-member",
+      "owner": {
+        "agentKind": "sample-agent",
+        "agentInstanceId": "instance-1",
+        "presentationMode": "terminal"
+      },
+      "model": "lead-a+sidekick-b",
+      "inertValues": { "effort": "", "fast": false, "thinking": false, "contextSize": "default" }
+    }
+  },
+  "owner": {
+    "agentKind": "sample-agent",
+    "agentInstanceId": "instance-1",
+    "presentationMode": "terminal"
+  },
+  "expect": {
+    "bindingRecognized": true,
+    "matches": true,
+    "matchesOnlyWithInstanceOwner": true,
+    "memberOfRelation": "relation-terminal"
+  }
+}

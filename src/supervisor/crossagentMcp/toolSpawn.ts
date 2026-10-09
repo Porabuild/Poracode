@@ -9,8 +9,10 @@ import type {
   SpawnAgentSelection,
 } from "./types";
 import type { SubagentToolContext } from "./toolRegistry";
+import type { DispatchSelectionProvenance } from "./dispatchTrace";
 
 interface ResolvedSelectionArgs {
+  provenance: DispatchSelectionProvenance;
   args: Record<string, unknown>;
   tags: string[];
   explicitFields: ExplicitSpawnAgentSelection["explicitFields"];
@@ -106,6 +108,13 @@ export function resolveSelectionArgs(
   const inheritedRetryMode = primaryFromOverride ? override.retryMode : undefined;
 
   return {
+    provenance: {
+      source: Object.values(explicitFields).some(Boolean) ? "explicit" : preferred.source,
+      rankSource: preferred.source,
+      explicitFields,
+      matchedTags: [...(preferred.matchedTags ?? [])],
+      ...(primaryFromOverride ? { routeTags: [...override.tags] } : {}),
+    },
     explicitFields,
     tags,
     args: {
@@ -187,6 +196,7 @@ export async function spawnAgent(
       resolvedTasks.map((entry) => ({
         fallbacks: entry?.inheritedFallbacks,
         retryMode: entry?.inheritedRetryMode,
+        ...(entry ? { selectionProvenance: entry.provenance } : {}),
       })),
     ).map((request) => {
       const { background: _taskBackground, ...rest } = request;
@@ -225,6 +235,7 @@ export async function spawnAgent(
     resolved.args,
     resolved.inheritedFallbacks,
     resolved.inheritedRetryMode,
+    resolved.provenance,
   );
   const { runId } = ctx.runManager.spawn(ctx.parentThreadId, request);
   if (Object.values(resolved.explicitFields).some(Boolean)) {

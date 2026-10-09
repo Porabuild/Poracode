@@ -25,11 +25,27 @@
  * the removed name, so the gates reject that pairing typed
  * (`PREVIOUS_CLIENT_HOST_HOP_VERSION`).
  *
+ * Version 17: the common procedure invocation envelope becomes a checked
+ * exchange — the hop version rides the renderer-supplied invocation envelope
+ * (never manufactured by preload for a legacy positional call), and both main
+ * ingress paths (managed `clientProcedureInvoke` and standalone attach) are
+ * REQUIRED to assert the declared version before parse/dispatch, with obsolete
+ * unversioned per-procedure channels removed or typed-refused. These are
+ * UNSHIPPED hop-17 requirements pending admission qualification — this
+ * constant and the envelope version are declared here, but the main-side
+ * assertions and ingress retirement are separate IPC-lane work that has not
+ * landed yet, so no legacy-call refusal is qualified today.
+ * A hop-16 peer's envelopes are to be refused typed
+ * (`PREVIOUS_CLIENT_HOST_HOP_VERSION`). Window-scoped native channels
+ * (`remoteHttpBridge*`, quick-composer, `standaloneAttachInfo`, `rendererReload`)
+ * are same-bundle device/window surfaces with their own validation — they are
+ * not procedure-map channels and stay outside this hop's mutation admission.
+ *
  * Keep remote protocol, client-engine protocol, and host-control as separate
  * hops. Inventory of renderer→host constants: this, remote protocol, engine,
  * host-control (≤4).
  */
-export const CLIENT_HOST_HOP_VERSION = 16 as const;
+export const CLIENT_HOST_HOP_VERSION = 17 as const;
 /** The previous artifact hop, kept as an old reader for pre-upgrade regressions. */
-export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 15 as const;
+export const PREVIOUS_CLIENT_HOST_HOP_VERSION = 16 as const;
 export const PREVIOUS_IPC_PROCEDURE_MAP_VERSION = 1 as const;

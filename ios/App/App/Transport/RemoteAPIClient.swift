@@ -476,6 +476,7 @@ actor RemoteAPIClient: PushRemoteAPI {
         if authorized, let accessToken {
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
+        request.declareCurrentRemoteWriterProtocol()
         // Parent authority: attached to every dispatch on an environment client,
         // including the child token exchange/refresh and the child WS ticket.
         // A missing parent token fails closed before any dial.

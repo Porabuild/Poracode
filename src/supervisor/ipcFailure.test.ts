@@ -4,6 +4,10 @@ import {
   HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
 } from "@/shared/hostResourceAdmission";
 import {
+  THREAD_SESSION_ABSENCE_REFUSAL_CODE,
+  ThreadSessionAbsenceRefusalError,
+} from "@/shared/threadSessionRefusal";
+import {
   HostResourceBusyError,
   HostResourcePolicyUnavailableError,
 } from "./runtime/hostResourceAdmission";
@@ -78,6 +82,25 @@ describe("handleSupervisorIpcFailure", () => {
       error: error.message,
       errorCode: GIT_ADMISSION_QUEUE_FULL_CODE,
       retryAfterMs: 500,
+    });
+  });
+
+  it("carries the typed missing-session refusal code without inventing a retry hint", () => {
+    const error = new ThreadSessionAbsenceRefusalError("Unknown thread session: caller-visible-id");
+    expect(handleSupervisorIpcFailure(error, "sendThreadInput", "request-6", () => {})).toEqual({
+      replyTo: "request-6",
+      ok: false,
+      error: "Unknown thread session: caller-visible-id",
+      errorCode: THREAD_SESSION_ABSENCE_REFUSAL_CODE,
+    });
+  });
+
+  it("keeps a plain unknown-session prose error message-only (the code is the only proof)", () => {
+    const error = new Error("backend reported: Unknown thread session: caller-visible-id");
+    expect(handleSupervisorIpcFailure(error, "sendThreadInput", "request-7", () => {})).toEqual({
+      replyTo: "request-7",
+      ok: false,
+      error: "backend reported: Unknown thread session: caller-visible-id",
     });
   });
 });

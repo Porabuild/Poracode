@@ -3,6 +3,9 @@ import type { AgentStatus, PrWatch, Project } from "@/shared/contracts";
 
 import { buildPrWatchExecutionDeps } from "./watchExecution";
 
+/** The default gate used by tests that only exercise git resolution. */
+const noGate = () => {};
+
 const project: Project = {
   id: "project-1",
   name: "Poracode",
@@ -182,7 +185,7 @@ describe("ensureWorkContext", () => {
     });
 
     await expect(
-      deps.ensureWorkContext({ ...watch, worktreePath: "/repo/.worktrees/pr" }, project),
+      deps.ensureWorkContext({ ...watch, worktreePath: "/repo/.worktrees/pr" }, project, noGate),
     ).resolves.toEqual({ kind: "worktree", path: "/repo/.worktrees/pr" });
   });
 
@@ -201,7 +204,7 @@ describe("ensureWorkContext", () => {
     });
 
     await expect(
-      deps.ensureWorkContext({ ...watch, worktreePath: "/repo/.worktrees/pr" }, project),
+      deps.ensureWorkContext({ ...watch, worktreePath: "/repo/.worktrees/pr" }, project, noGate),
     ).resolves.toEqual({ kind: "worktree", path: "/repo/.worktrees/rebuilt" });
     expect(call.mock.calls.map(([name]) => name)).toContain("gitAddWorktree");
   });
@@ -217,7 +220,7 @@ describe("ensureWorkContext", () => {
     });
 
     await expect(
-      deps.ensureWorkContext({ ...watch, worktreePath: "/gone" }, project),
+      deps.ensureWorkContext({ ...watch, worktreePath: "/gone" }, project, noGate),
     ).resolves.toEqual({ kind: "worktree", path: "/repo/.worktrees/moved" });
   });
 
@@ -228,7 +231,7 @@ describe("ensureWorkContext", () => {
       }),
     });
 
-    await expect(deps.ensureWorkContext(watch, project)).resolves.toEqual({
+    await expect(deps.ensureWorkContext(watch, project, noGate)).resolves.toEqual({
       kind: "main-checkout",
     });
   });
@@ -240,7 +243,7 @@ describe("ensureWorkContext", () => {
       gitAddWorktree: () => ({ path: "/repo/.worktrees/rebuilt" }),
     });
 
-    await expect(deps.ensureWorkContext(watch, project)).resolves.toEqual({
+    await expect(deps.ensureWorkContext(watch, project, noGate)).resolves.toEqual({
       kind: "worktree",
       path: "/repo/.worktrees/rebuilt",
     });
@@ -263,10 +266,14 @@ describe("ensureWorkContext", () => {
       gitAddWorktree: () => ({ path: "/repo/.poracode/worktrees/pr-watch" }),
     });
 
-    await deps.ensureWorkContext(watch, {
-      ...project,
-      worktreeLocation: { mode: "project-relative" },
-    });
+    await deps.ensureWorkContext(
+      watch,
+      {
+        ...project,
+        worktreeLocation: { mode: "project-relative" },
+      },
+      noGate,
+    );
 
     expect(call.mock.calls.find(([name]) => name === "gitAddWorktree")?.[1]).toMatchObject({
       worktreeRoot: "/repo/.poracode/worktrees",
@@ -283,7 +290,7 @@ describe("ensureWorkContext", () => {
       gitAddWorktree: () => ({ path: "/repo/.worktrees/rebuilt" }),
     });
 
-    await expect(deps.ensureWorkContext(watch, project)).resolves.toEqual({
+    await expect(deps.ensureWorkContext(watch, project, noGate)).resolves.toEqual({
       kind: "worktree",
       path: "/repo/.worktrees/rebuilt",
     });
@@ -298,6 +305,112 @@ describe("ensureWorkContext", () => {
       },
     });
 
-    await expect(deps.ensureWorkContext(watch, project)).resolves.toBeNull();
+    await expect(deps.ensureWorkContext(watch, project, noGate)).resolves.toBeNull();
+  });
+});
+
+describe("ensureWorkContext admission gate", () => {
+  it("invokes the gate before the lookup, before the fetch, and before the add-worktree RPC", async () => {
+    const events: string[] = [];
+    const { deps } = setup({
+      gitListWorktrees: () => {
+        events.push("gitListWorktrees");
+        return { worktrees: [] };
+      },
+      gitFetch: () => {
+        events.push("gitFetch");
+        return undefined;
+      },
+      gitAddWorktree: () => {
+        events.push("gitAddWorktree");
+        return { path: "/repo/.worktrees/rebuilt" };
+      },
+    });
+
+    await deps.ensureWorkContext(watch, project, () => {
+      events.push("gate");
+    });
+
+    expect(events).toEqual([
+      "gate",
+      "gitListWorktrees",
+      "gate",
+      "gitFetch",
+      "gate",
+      "gitAddWorktree",
+    ]);
+  });
+
+  it("prevents every git RPC when the gate refuses before the lookup", async () => {
+    const { deps, call } = setup({});
+
+    await expect(
+      deps.ensureWorkContext(watch, project, () => {
+        throw new Error("refused");
+      }),
+    ).rejects.toThrow("refused");
+    expect(call).not.toHaveBeenCalled();
+  });
+
+  it("prevents the fetch and add-worktree RPCs when the gate refuses after the lookup", async () => {
+    let calls = 0;
+    const { deps, call } = setup({ gitListWorktrees: () => ({ worktrees: [] }) });
+
+    await expect(
+      deps.ensureWorkContext(watch, project, () => {
+        calls += 1;
+        if (calls > 1) throw new Error("refused-after-lookup");
+      }),
+    ).rejects.toThrow("refused-after-lookup");
+    expect(call.mock.calls.map(([name]) => name)).toEqual(["gitListWorktrees"]);
+  });
+
+  it("prevents the add-worktree RPC when the gate refuses after the fetch", async () => {
+    let calls = 0;
+    const { deps, call } = setup({
+      gitListWorktrees: () => ({ worktrees: [] }),
+      gitFetch: () => undefined,
+    });
+
+    await expect(
+      deps.ensureWorkContext(watch, project, () => {
+        calls += 1;
+        if (calls > 2) throw new Error("refused-after-fetch");
+      }),
+    ).rejects.toThrow("refused-after-fetch");
+    expect(call.mock.calls.map(([name]) => name)).toEqual(["gitListWorktrees", "gitFetch"]);
+  });
+
+  it("never lets the swallowed git-error catches mask a gate refusal", async () => {
+    let calls = 0;
+    const { deps, call } = setup({
+      gitListWorktrees: () => ({ worktrees: [] }),
+      gitFetch: () => {
+        throw new Error("offline");
+      },
+      gitAddWorktree: () => ({ path: "/repo/.worktrees/rebuilt" }),
+    });
+
+    await expect(
+      deps.ensureWorkContext(watch, project, () => {
+        calls += 1;
+        if (calls > 2) throw new Error("refused-after-fetch");
+      }),
+    ).rejects.toThrow("refused-after-fetch");
+    // The offline fetch failure was swallowed by its catch; the gate refusal
+    // after it still propagates instead of returning a null context.
+    expect(call.mock.calls.map(([name]) => name)).toEqual(["gitListWorktrees", "gitFetch"]);
+  });
+
+  it("still reports no work context when git fails after the gate passes", async () => {
+    const { deps } = setup({
+      gitListWorktrees: () => ({ worktrees: [] }),
+      gitFetch: () => undefined,
+      gitAddWorktree: () => {
+        throw new Error("no such ref");
+      },
+    });
+
+    await expect(deps.ensureWorkContext(watch, project, noGate)).resolves.toBeNull();
   });
 });

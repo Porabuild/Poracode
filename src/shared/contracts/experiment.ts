@@ -4,6 +4,7 @@ import { agentKindSchema, projectLocationSchema, threadPresentationModeSchema } 
 import { threadConfigSchema } from "./config";
 import { fullCommitOidSchema } from "./git";
 import { promptSegmentSchema } from "./thread";
+import { modelSelectionSchema } from "../selectionBinding.schemas.ts";
 
 export const EXPERIMENT_STORE_KEY = "poracode-experiments-v1";
 // Stays 1: `segments` accepts thread mention segments additively. Older apps
@@ -176,9 +177,15 @@ export const judgeExperimentPayloadSchema = z
     experimentId: z.string().min(1),
     projectLocation: projectLocationSchema,
     agentKind: agentKindSchema,
-    model: z.string().min(1).optional(),
-    effort: z.string().min(1).optional(),
-    fast: z.boolean().optional(),
+    /**
+     * Canonical complete judge selection. Omitted selection requests the
+     * existing utility default; `selection.model === ""` follows the existing
+     * default/implicit-model resolution. Replaces the scalar model/effort/fast
+     * triple so an empty effort and a false Fast survive transport exactly. A
+     * preset change never inherits a source thread's binding — the payload
+     * carries its own complete selection or none.
+     */
+    selection: modelSelectionSchema.optional(),
     mode: experimentJudgeModeSchema.optional(),
     prompt: nonBlankPromptSchema,
     candidates: z.array(judgeExperimentCandidateSchema).min(2).max(MAX_EXPERIMENT_CANDIDATES),
@@ -280,9 +287,8 @@ export const judgeExperimentSnapshotPayloadSchema = captureExperimentSnapshotPay
   .and(
     z.object({
       agentKind: agentKindSchema,
-      model: z.string().min(1).optional(),
-      effort: z.string().min(1).optional(),
-      fast: z.boolean().optional(),
+      /** Canonical complete judge selection (see `judgeExperimentPayloadSchema`). */
+      selection: modelSelectionSchema.optional(),
       mode: experimentJudgeModeSchema.optional(),
       responses: z.array(experimentResponseCandidateSchema).optional(),
       prompt: nonBlankPromptSchema,

@@ -28,6 +28,15 @@ import {
   type WindowChromeResult,
 } from "../schemas";
 
+export const confirmSupervisorSettingsEditsPayloadSchema = z.object({
+  requestId: z.string().uuid(),
+  ok: z.boolean(),
+  error: z.string().optional(),
+});
+export type ConfirmSupervisorSettingsEditsPayload = z.infer<
+  typeof confirmSupervisorSettingsEditsPayloadSchema
+>;
+
 export const settingsProcedures = {
   getSharedSettings: defineNoArgProcedure<SharedSettings, "main-local">(
     "getSharedSettings",
@@ -123,6 +132,12 @@ export const settingsProcedures = {
     "main-local",
     createProfilePayloadSchema,
   ),
+  /** Settings owner's answer to a supervisor `settings-edits-requested` event. */
+  confirmSupervisorSettingsEdits: definePayloadProcedure<
+    ConfirmSupervisorSettingsEditsPayload,
+    void,
+    "supervisor"
+  >("confirmSupervisorSettingsEdits", "supervisor", confirmSupervisorSettingsEditsPayloadSchema),
   setWindowChrome: definePayloadProcedure<
     WindowChromePayload,
     WindowChromeResult | void,

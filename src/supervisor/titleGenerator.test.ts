@@ -154,6 +154,7 @@ describe("generateTitle CLI spawn", () => {
       expect.any(String),
       windowsProject,
       undefined,
+      { selection: { model: "" } },
     );
   });
 });
@@ -208,5 +209,62 @@ describe("title generation mock isolation", () => {
       "Fixture title",
     );
     expect(runOneShot).toHaveBeenCalledOnce();
+  });
+});
+
+describe("generateTitle selection transport", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resolveAgentProjectLocationMock.mockImplementation(async (location) => location);
+    prepareOneShotMock.mockReturnValue({
+      spec: { command: "droid", args: ["exec"] },
+      spawn: async () => "Fix login timeout",
+    });
+  });
+
+  it("passes the full selection into the SDK path and as argument 6 with checked positionals on the CLI path", async () => {
+    const tuple = {
+      model: "model-a",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "default",
+    };
+    const runOneShot = vi
+      .fn<NonNullable<AgentAdapter["runOneShot"]>>()
+      .mockResolvedValue("Fix login timeout");
+    const adapter = cliAdapter({ runOneShot });
+    await generateTitle(windowsProject, adapter, "the login times out", tuple);
+    expect(runOneShot).toHaveBeenCalledWith(
+      expect.objectContaining({ selection: tuple, prompt: expect.any(String) }),
+    );
+
+    const buildOneShotCommand = vi.fn<NonNullable<AgentAdapter["buildOneShotCommand"]>>(
+      (
+        model: string,
+        effort?: string,
+        _prompt?: string,
+        _loc?: ProjectLocation,
+        fast?: boolean,
+      ) => ({
+        command: "droid",
+        args: ["exec", model, effort ?? "", String(fast)],
+      }),
+    );
+    await generateTitle(
+      windowsProject,
+      cliAdapter({ buildOneShotCommand }),
+      "the login times out",
+      tuple,
+    );
+    // Empty effort / false Fast reach the checked positionals exactly.
+    expect(buildOneShotCommand).toHaveBeenCalledWith(
+      "model-a",
+      "",
+      expect.any(String),
+      windowsProject,
+      false,
+      { selection: tuple },
+    );
   });
 });

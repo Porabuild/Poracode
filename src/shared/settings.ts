@@ -34,6 +34,7 @@ import {
 } from "./hostResourceAdmission";
 import { parseMachineKey } from "./machines";
 import { DEFAULT_SEARCH_EXCLUDE } from "./searchExclude";
+import { modelSelectionSchema } from "./selectionBinding.schemas.ts";
 import { AI_LANGUAGE_VALUES, LOCALE_SETTING_VALUES } from "./locale";
 import { QWEN_DEFAULT_MODEL_ID, QWEN_RETIRED_PREVIEW_MODEL_ID } from "./agents/qwenModels";
 import {
@@ -365,6 +366,26 @@ export const sharedSettingsSchema = z.object({
   wslConflictResolverEffort: z.string(),
   wslConflictResolverFast: z.boolean(),
   wslConflictResolverPresentationMode: threadPresentationModeSchema,
+  /**
+   * Canonical complete AI-utility selections, one per utility domain
+   * (non-WSL and WSL commit/title/conflict-resolver plus the experiment
+   * judge). Optional and defaultless on purpose: a present object is the sole
+   * modern tuple (carrying `thinking`/`contextSize` and a recognized selection
+   * binding that the legacy scalar triple could never hold); an absent field
+   * keeps the legacy scalar siblings above as the conservative compatibility
+   * read. There is no backfill — normalization and defaults never mint a
+   * canonical object from scalar values, and a legacy scalar setter path owns
+   * updating or revoking the matching object (later renderer lanes). These are
+   * part of the settings containing-document guard: raw unsupported metadata
+   * must be preserved, not silently rewritten (selectionBinding contract §5).
+   */
+  commitGenSelection: modelSelectionSchema.optional(),
+  titleGenSelection: modelSelectionSchema.optional(),
+  conflictResolverSelection: modelSelectionSchema.optional(),
+  experimentJudgeSelection: modelSelectionSchema.optional(),
+  wslCommitGenSelection: modelSelectionSchema.optional(),
+  wslTitleGenSelection: modelSelectionSchema.optional(),
+  wslConflictResolverSelection: modelSelectionSchema.optional(),
   /** Per-agent settings keyed by agent kind, then setting key. */
   agentSettings: z.record(z.string(), z.record(z.string(), z.union([z.boolean(), z.string()]))),
   /**
@@ -895,6 +916,20 @@ function normalizeObjectFromSchema<
   for (const key of Object.keys(defaults) as (keyof TOutput)[]) {
     const schema = shape[key as string] as z.ZodType<TOutput[typeof key]>;
     normalized[key] = parseSettingOrDefault(schema, data[key as string], defaults[key]);
+  }
+
+  // Defaultless optional keys (the canonical AI-utility selections) are not
+  // covered by the defaults-driven loop: a present value is preserved exactly
+  // when it parses; an absent value stays absent (no backfill from the legacy
+  // scalar siblings, no minted default); a present value that fails its schema
+  // is dropped from the projection, never replaced.
+  for (const key of Object.keys(shape)) {
+    if (Object.hasOwn(defaults, key)) continue;
+    const schema = shape[key] as z.ZodType;
+    const optional = schema.safeParse(data[key]);
+    if (optional.success && optional.data !== undefined) {
+      normalized[key as keyof TOutput] = optional.data as TOutput[keyof TOutput];
+    }
   }
 
   return normalized;

@@ -3,6 +3,7 @@ import { pluginFixture, seedBuiltInPlugins } from "@/renderer/testUtils/plugins"
 import type { SharedSettings } from "@/shared/settings";
 import {
   applyExternalSharedSettings,
+  flushSharedSettings,
   useSharedSettings,
   waitForPendingSharedSettings,
   whenSharedSettingsHydrated,
@@ -112,6 +113,24 @@ describe("sharedSettingsStore", () => {
     finishWrite();
     await barrier;
     expect(barrierFinished).toBe(true);
+  });
+
+  it("rejects an explicit persistence confirmation when the queued host write failed", async () => {
+    let rejectWrite!: (error: unknown) => void;
+    const refusal = new Error("Profile dependency is unavailable");
+    const setSharedSettings = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectWrite = reject;
+        }),
+    );
+    window.poracode = { setSharedSettings } as unknown as typeof window.poracode;
+    useSharedSettings.getState().setThemeMode("light");
+    const confirmation = flushSharedSettings({ requireSuccess: true });
+    queueMicrotask(() => rejectWrite(refusal));
+    await expect(confirmation).rejects.toBe(refusal);
+    // Passive drain callers retain their previous non-throwing contract.
+    await expect(waitForPendingSharedSettings()).resolves.toBeUndefined();
   });
 
   it("serializes whole-document writes and coalesces queued updates to the newest state", async () => {

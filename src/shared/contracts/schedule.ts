@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { modelSelectionSchema } from "../selectionBinding.schemas.ts";
 import { agentKindSchema } from "./common";
 
 const localTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/u);
@@ -23,10 +24,17 @@ export type ScheduleRecurrence = z.infer<typeof scheduleRecurrenceSchema>;
 export const scheduledTaskRunStatusSchema = z.enum(["never", "running", "succeeded", "failed"]);
 export type ScheduledTaskRunStatus = z.infer<typeof scheduledTaskRunStatusSchema>;
 
-export const scheduledTaskConfigSchema = z.object({
+/**
+ * A schedule's (and a PR watch's helper-agent) model configuration: the
+ * canonical complete utility selection with the schedule's existing nonempty
+ * `model` rule. Replaces the previous separate model/effort/fast object — the
+ * remaining carriers (`thinking`/`contextSize`) and a recognized selection
+ * binding now survive into schedules and PR watches instead of being stripped,
+ * and falsy carriers (`effort: ""`, `fast: false`) stay exact. Inherited by
+ * `prWatchInputSchema`/`prWatchAgentSyncSchema` (see `./prWatch`).
+ */
+export const scheduledTaskConfigSchema = modelSelectionSchema.extend({
   model: z.string().min(1),
-  effort: z.string().optional(),
-  fast: z.boolean().optional(),
 });
 export type ScheduledTaskConfig = z.infer<typeof scheduledTaskConfigSchema>;
 

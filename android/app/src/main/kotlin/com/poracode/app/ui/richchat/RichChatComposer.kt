@@ -16,13 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +54,7 @@ import com.poracode.app.model.RemoteThread
 import com.poracode.app.model.ThreadConfig
 import com.poracode.app.transport.richchat.AttachmentUploadBody
 import com.poracode.app.ui.components.rememberCameraCapture
+import kotlinx.serialization.json.JsonObject
 
 data class PickedAttachmentUpload(
     val name: String,
@@ -67,6 +65,7 @@ data class PickedAttachmentUpload(
 @Composable
 fun RichChatComposer(
     contextKey: String,
+    userHiddenModels: kotlinx.serialization.json.JsonObject? = null,
     contextUsage: RichContextUsage?,
     draft: String,
     attachments: List<UploadedAttachment>,
@@ -84,6 +83,20 @@ fun RichChatComposer(
     mentionThreads: List<RemoteThread> = emptyList(),
     isTurnActive: Boolean = false,
     queuedSegments: List<RichPromptSegment> = emptyList(),
+    /** Live session-action inventory; null (or empty ids) renders no entry. */
+    sessionActionIds: List<String>? = null,
+    /**
+     * Owner identity for the live session-action entry: thread id plus
+     * provider instance, presentation mode, and live SessionRef axes. A change
+     * resets the entry's panel state and fences in-flight results.
+     */
+    sessionActionOwnerKey: String? = null,
+    sessionActionInventoryFailure: com.poracode.app.session.richchat.RichChatOperationFailure? = null,
+    sessionActionInventoryRefreshing: Boolean = false,
+    sessionActionInvokingId: String? = null,
+    onSessionActionInvoke: (suspend (String, JsonObject, Boolean) -> com.poracode.app.session.richchat.RichChatOperationResult<JsonObject>)? = null,
+    onSessionActionRefreshInventory: () -> Unit = {},
+    onInsertIntoComposer: ((String) -> Unit)? = null,
     onDraftChange: (String) -> Unit,
     onConfigurationChange: (ThreadConfig) -> Unit,
     onQueueSegment: (RichPromptSegment) -> Unit = {},
@@ -99,9 +112,17 @@ fun RichChatComposer(
 ) {
     var showControls by rememberSaveable(contextKey) { mutableStateOf(false) }
     val controlsEnabled = canConfigure && !sending
-    val catalog = remember(agentStatus, configuration, threadSlashCommands) {
+    // The open thread's live negotiated controls (null on older hosts and
+    // retired inventories) overlay the static capability catalog; deriving it
+    // here keeps the overlay fenced to exactly this thread's current row.
+    val liveSessionControls = remember(currentThread?.sessionConfigOptions) {
+        RichChatLiveSessionControls.from(currentThread?.sessionConfigOptions)
+    }
+    val catalog = remember(agentStatus, configuration, threadSlashCommands, liveSessionControls, userHiddenModels) {
         agentStatus?.let {
-            RichChatComposerControlCatalog(it, configuration, threadSlashCommands)
+            RichChatComposerControlCatalog(
+                it, configuration, threadSlashCommands, liveSessionControls, userHiddenModels,
+            )
         }
     }
     LaunchedEffect(controlsEnabled) {
@@ -149,28 +170,34 @@ fun RichChatComposer(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             RuntimeContextUsageDock(contextKey, contextUsage) {
-                catalog?.let { controlCatalog ->
-                    val summary = buildList {
-                        add(controlCatalog.modelLabel(configuration.model))
-                        configuration.effort?.let {
-                            add(controlCatalog.effortLabel(configuration.model, it))
-                        }
-                    }.joinToString(" · ")
-                    val controlsDescription = stringResource(
-                        R.string.rich_chat_composer_controls_summary,
-                        summary,
-                    )
-                    AssistChip(
-                        onClick = { showControls = true },
-                        enabled = controlsEnabled,
-                        label = { Text(summary, maxLines = 1) },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Tune, contentDescription = null)
-                        },
-                        modifier = Modifier
-                            .testTag("rich_chat_composer_controls")
-                            .semantics { contentDescription = controlsDescription },
-                    )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    catalog?.let { controlCatalog ->
+                        val summary = buildList {
+                            add(controlCatalog.modelLabel(configuration.model))
+                            controlCatalog.displayEffort(configuration)?.let {
+                                add(controlCatalog.effortLabel(configuration.model, it))
+                            }
+                        }.joinToString(" · ")
+                        val controlsDescription = stringResource(
+                            R.string.rich_chat_composer_controls_summary,
+                            summary,
+                        )
+                        AssistChip(
+                            onClick = { showControls = true },
+                            enabled = controlsEnabled,
+                            label = { Text(summary, maxLines = 1) },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Tune, contentDescription = null)
+                            },
+                            modifier = Modifier
+                                .testTag("rich_chat_composer_controls")
+                                .semantics { contentDescription = controlsDescription },
+                        )
+                    }
+
                 }
             }
             if (slashSuggestions.isNotEmpty()) {
@@ -243,26 +270,28 @@ fun RichChatComposer(
                 )
             }
             Row(verticalAlignment = Alignment.Bottom) {
-                IconButton(
-                    onClick = { launcher.launch(arrayOf("*/*")) },
-                    enabled = enabled && !sending && !uploading,
-                ) {
-                    if (uploading) {
-                        CircularProgressIndicator()
-                    } else {
-                        Icon(
-                            Icons.Filled.AttachFile,
-                            contentDescription = stringResource(R.string.rich_chat_add_attachment),
-                        )
-                    }
-                }
-                IconButton(
-                    onClick = captureFromCamera,
-                    enabled = enabled && !sending && !uploading,
-                ) {
-                    Icon(
-                        Icons.Filled.PhotoCamera,
-                        contentDescription = stringResource(R.string.home_quick_compose_camera_capture),
+                RichChatSessionActionEntry(
+                    contextKey = sessionActionOwnerKey ?: contextKey,
+                    agentKind = currentThread?.agentKind.orEmpty(),
+                    actionIds = sessionActionIds.orEmpty(),
+                    invokingActionId = sessionActionInvokingId,
+                    enabled = enabled && !sending,
+                    onInvoke = onSessionActionInvoke ?: { _, _, _ ->
+                        com.poracode.app.session.richchat.RichChatOperationResult.Stale
+                    },
+                    onInsertIntoComposer = onInsertIntoComposer ?: {},
+                ) { entries, open ->
+                    RichChatComposerAddMenu(
+                        enabled = enabled && !sending,
+                        uploading = uploading,
+                        entries = entries,
+                        actionsEnabled = sessionActionInvokingId == null && onSessionActionInvoke != null,
+                        inventoryFailure = richChatFailureText(sessionActionInventoryFailure),
+                        inventoryRefreshing = sessionActionInventoryRefreshing,
+                        onAttach = { launcher.launch(arrayOf("*/*")) },
+                        onCamera = captureFromCamera,
+                        onOpenAction = open,
+                        onRetry = onSessionActionRefreshInventory,
                     )
                 }
                 OutlinedTextField(

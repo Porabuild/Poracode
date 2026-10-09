@@ -169,6 +169,22 @@ struct RemoteSlashCommand: Codable, Sendable, Hashable {
     var pluginName: String? = nil
 }
 
+/// The supervisor's `SessionRef` for a live structured session: the provider
+/// session id plus the optional opaque execution identity captured when the
+/// session was created. Absent on hosts predating the field and on threads
+/// without a structured session.
+struct RemoteSessionRef: Codable, Sendable, Hashable {
+    var providerSessionID: String
+    var discoveredAt: String
+    var executionIdentity: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case providerSessionID = "providerSessionId"
+        case discoveredAt
+        case executionIdentity
+    }
+}
+
 struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
     var id: String
     var remoteServerId: String?
@@ -195,9 +211,21 @@ struct RemoteThread: Codable, Sendable, Identifiable, Hashable {
     var lastTurnEndedAt: String?
     var errorMessage: String?
     var slashCommands: [RemoteSlashCommand]? = nil
+    /// Live negotiated session-control inventory for the thread's current
+    /// structured session, kept as raw JSON in the shared descriptor shape
+    /// (`src/shared/contracts/sessionConfigOptions.ts`). The domain model uses
+    /// raw JSON alongside the generated wire bindings. Tri-state: absent on older hosts, `null`
+    /// retires a retired session's inventory, `[]` is an active-but-empty
+    /// session. Strict projection happens in the rich-chat composer catalog.
+    var sessionConfigOptions: JSONValue? = nil
     var parentThreadId: String?
     var groupId: String?
     var groupName: String?
+    /// Live structured-session identity; absent on older hosts.
+    var sessionRef: RemoteSessionRef?
+    /// Readonly host projection. Absence is unknown, never permission to launch or mutate.
+    @WorkspaceDirectoryProjection var additionalDirectories: [ProjectLocation]? = nil
+    @WorkspaceGrantRevisionProjection var workspaceGrantRevision: Int64? = nil
 
     var isArchived: Bool { archived ?? false }
     var isDone: Bool { done ?? false }

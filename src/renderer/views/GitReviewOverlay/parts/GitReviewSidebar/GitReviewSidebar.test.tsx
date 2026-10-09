@@ -2,7 +2,13 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitBranchListResult, GitStatusResult, PrData, Project } from "@/shared/contracts";
+import type {
+  AgentStatus,
+  GitBranchListResult,
+  GitStatusResult,
+  PrData,
+  Project,
+} from "@/shared/contracts";
 
 const bridgeMock = vi.hoisted(() => ({
   gitStage: vi.fn<() => Promise<void>>(),
@@ -33,7 +39,33 @@ const toastDanger = vi.hoisted(() =>
     ) => void
   >(),
 );
-const getCommitGenCandidatesMock = vi.hoisted(() => vi.fn<() => Array<{ kind: string }>>());
+const utilityAgent = vi.hoisted(
+  () =>
+    ({
+      kind: "codex",
+      label: "Codex",
+      installed: true,
+      authState: "authenticated",
+      capabilities: {
+        models: [{ id: "gpt-5.4", label: "GPT-5.4" }],
+        efforts: ["medium"],
+        modelEfforts: {},
+        defaultEffort: "medium",
+        modes: [],
+        approvalPolicies: [],
+        sandboxModes: [],
+        supportsResume: true,
+        supportsDirectInput: true,
+        supportsOneShot: true,
+        liveInputMode: "terminal",
+        presentationMode: "gui",
+        presentationModes: ["gui"],
+        bypassPermissions: { approvalPolicy: "bypassPermissions" },
+        settingDefs: [],
+      },
+    }) satisfies AgentStatus,
+);
+const getCommitGenCandidatesMock = vi.hoisted(() => vi.fn<() => AgentStatus[]>());
 const dropdownMenuHandlers = vi.hoisted(() => ({
   targetBranch: null as ((keys: Set<string>) => void) | null,
 }));
@@ -183,16 +215,7 @@ vi.mock("@/renderer/state/sharedSettingsStore", () => {
 });
 
 vi.mock("@/renderer/components/providers/conflictResolver", () => ({
-  getConflictResolverCandidates: () => [
-    {
-      kind: "codex",
-      capabilities: {
-        presentationMode: "gui",
-        presentationModes: ["gui"],
-        bypassPermissions: { approvalPolicy: "bypassPermissions" },
-      },
-    },
-  ],
+  getConflictResolverCandidates: () => [utilityAgent],
   readConflictResolverSettingsForProject: () => ({
     provider: "codex",
     model: "gpt-5.4",
@@ -200,7 +223,7 @@ vi.mock("@/renderer/components/providers/conflictResolver", () => ({
     fast: false,
     presentationMode: "gui",
   }),
-  resolveConflictResolverLaunchConfig: () => ({ model: "gpt-5.4", effort: "medium" }),
+  resolveConflictResolverSettingsLaunchConfig: () => ({ model: "gpt-5.4", effort: "medium" }),
 }));
 
 vi.mock("@/renderer/components/common", async (importOriginal) => {
@@ -1268,7 +1291,7 @@ describe("GitReviewSidebar", () => {
     bridgeMock.gitListBranches
       .mockRejectedValueOnce(new Error("branch discovery failed"))
       .mockResolvedValue(branches);
-    getCommitGenCandidatesMock.mockReturnValue([{ kind: "codex" }]);
+    getCommitGenCandidatesMock.mockReturnValue([utilityAgent]);
     let resolveSummary!: (value: { title: string; description: string }) => void;
     bridgeMock.generatePrSummary.mockImplementationOnce(
       () =>

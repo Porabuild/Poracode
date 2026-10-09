@@ -10,6 +10,7 @@ import type { PtyLifecycle } from "./ptyLifecycle";
 import type { SessionRetirement } from "./sessionRetirement";
 import { workspaceLaunchConfig, resolveThreadExecution, type SpawnPipeline } from "./spawnPipeline";
 import { effectiveProjectLocation, withLogicalProjectLocation } from "../sessionTypes";
+import { resolveWorkspaceScope } from "../workspaceScope";
 import type { ThreadOutputPipeline } from "../threadOutputPipeline";
 
 type RecoverySpawnPipeline = Pick<
@@ -68,6 +69,18 @@ export class InvalidSessionRecoveryCoordinator {
     if (!context.isCurrentSession(session)) {
       return;
     }
+    if (
+      session.workspaceScope?.additionalDirectories.length ||
+      session.executionWorkspaceScope?.additionalDirectories.length
+    ) {
+      throw new Error(
+        "Approved workspace directories cannot use terminal invalid-session recovery.",
+      );
+    }
+    const executionWorkspaceScope = session.workspaceScope
+      ? await resolveWorkspaceScope(session.workspaceScope, session.config)
+      : undefined;
+    if (!context.isCurrentSession(session)) return;
     // Admit before teardown: at capacity the refusal leaves the invalid
     // session untouched instead of tearing it down with no successor slot.
     const lease = context.admission
@@ -103,7 +116,9 @@ export class InvalidSessionRecoveryCoordinator {
 
     // Re-resolve the execution location (persisted WSL pin / distro moves)
     // instead of reusing a potentially stale cached project location.
-    if (session.logicalProjectLocation) {
+    if (executionWorkspaceScope) {
+      session.projectLocation = executionWorkspaceScope.primaryLocation;
+    } else if (session.logicalProjectLocation) {
       const resolved = await resolveThreadExecution(session.logicalProjectLocation, session.config);
       session.projectLocation = resolved.location;
       session.config = resolved.config;
@@ -195,6 +210,8 @@ export class InvalidSessionRecoveryCoordinator {
         agentKind: session.agentKind,
         adapter: session.adapter,
         ...withLogicalProjectLocation(session),
+        ...(session.workspaceScope ? { workspaceScope: session.workspaceScope } : {}),
+        ...(executionWorkspaceScope ? { executionWorkspaceScope } : {}),
         projectLocation: session.projectLocation,
         config: session.config,
         initialSize: session.terminalSize,

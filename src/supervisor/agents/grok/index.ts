@@ -4,6 +4,8 @@ import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
 import { createAcpStructuredSession } from "../acp";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   brailleSpinnerOscTitleHint,
   createKnownSessionRef,
   detectAgentInstall,
@@ -17,7 +19,8 @@ import {
 import { resolveAgentBinaryPath } from "../binaryResolver";
 import { resolveInstallNodePath, warnIfPluginManifestMissing } from "../plugin/installerBase";
 import { buildGrokAcpArgs, buildGrokArgs } from "./argv";
-import { resolveGrokAcpModel, withGrokCliModel } from "./fastMode";
+import { resolveGrokAcpModel, resolveGrokCliModel, withGrokCliModel } from "./fastMode";
+import { isGrokBuildFastModelId } from "./modelId";
 import { createGrokAcpSessionUpdateTransform } from "./acpTransform";
 import { buildGrokCommand, grokDefaultCapabilities, grokDetectionSpec } from "./detection";
 import {
@@ -271,10 +274,20 @@ export function createGrokAdapter(): AgentAdapter {
     // default model (grok-4.5 remains selectable), so utility runs use the same
     // live catalog default.
     defaultOneShotModel: "grok-4.6",
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Fast uses the advertised sibling model, never an invented CLI flag.
+      const resolvedModel = resolveGrokCliModel(selection, capabilities.fastModels);
+      assertOneShotControlsMapped(selection, {
+        effort: true,
+        fast: resolvedModel && isGrokBuildFastModelId(resolvedModel) ? true : { inactive: [false] },
+      });
       if (!prompt) return undefined;
       const args = ["--no-auto-update", "-p", prompt];
-      if (model) args.push("-m", model);
+      if (resolvedModel) args.push("-m", resolvedModel);
       if (effort) args.push("--reasoning-effort", effort);
       args.push("--always-approve");
       return { command: "grok", args, stdin: "" };

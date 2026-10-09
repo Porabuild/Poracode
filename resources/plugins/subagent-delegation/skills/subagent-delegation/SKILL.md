@@ -29,6 +29,8 @@ Waits default to 480 seconds (eight minutes, also the cap) and return as soon as
 
 Default quiet reads preserve unread output and expose control state/errors. Keep compact reports; treat them as claims and verify relevant evidence. Use `get_status` or `full_output=true` only for a specific missing fact. With progress reads, carry returned cursors; after `wait_mode="any"`, join only remaining runs. Save durable evidence within assigned ownership: runs/workflows are memory-only and retained histories are bounded.
 
+When advertised, `include_trace=true` on status/wait adds retained selection/fallback provenance and safe attempt categories. Default reads omit it; trace expires with the run. Older hosts lack this option.
+
 ## Correct and reuse
 
 After the complete result, send one consolidated correction through `steer_agent`. Supported completed workers resume the same provider session/context; use the returned new `run_id` and `continued_from`. Old reports/workflows stay unchanged; coordinate write ownership before this standalone follow-up. `continued_by` identifies a later receipt. Failed pre-dispatch startup permits an explicit retry from the original receipt after cleanup; dispatched failures do not.

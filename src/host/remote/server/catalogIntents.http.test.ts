@@ -16,6 +16,10 @@ import {
   onProjectThreadDataChanged,
 } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import {
   RemoteAccessServer,
@@ -116,6 +120,7 @@ async function postCommand(
     headers: {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
       ...(commandId ? { "x-poracode-command-id": commandId } : {}),
     },
     body: JSON.stringify(body),

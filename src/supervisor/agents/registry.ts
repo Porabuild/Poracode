@@ -1,4 +1,5 @@
 import { createDevinAdapter } from "./devin";
+import { createDevinProfileAdapter } from "./devin/profiles";
 /**
  * Provider manifest (supervisor).
  * To add a built-in provider: import its factory, add to the array.
@@ -57,6 +58,13 @@ export function buildAgentRegistry(userInstances: AgentInstanceConfig[]): AgentA
 export interface AgentRegistryEntry {
   adapter: AgentAdapter;
   inputKey: string;
+}
+
+/** Cross-profile dependencies resolved by a provider's factory. Reads participate
+ * in adapter identity, so editing or disabling an account owner invalidates its
+ * dependents while unrelated profiles retain their detected runtime state. */
+export interface AgentProfileFactoryContext {
+  resolveInstance: (instanceId: string) => AgentInstanceConfig | undefined;
 }
 
 function instanceInputKey(instance: AgentInstanceConfig | undefined): string {
@@ -118,18 +126,30 @@ export function buildAgentRegistryEntries(
   // One entry per multi-profile provider. Everything else here is generic, so
   // giving a new provider profiles means adding its factory below (and its
   // `driver` to `AGENT_PROFILE_DRIVERS`) — not another filter/flatMap block.
-  const profileAdapterFactories: Record<string, (instance: AgentInstanceConfig) => AgentAdapter> = {
+  const profileAdapterFactories: Record<
+    string,
+    (instance: AgentInstanceConfig, context: AgentProfileFactoryContext) => AgentAdapter
+  > = {
     claude: createClaudeProfileAdapter,
     cursor: createCursorProfileAdapter,
+    devin: createDevinProfileAdapter,
   };
   const profileAdapters = userInstances
     .filter((inst) => inst.enabled !== false && profileAdapterFactories[inst.driver] !== undefined)
     .flatMap((inst): AgentRegistryEntry[] => {
       try {
+        const dependencies = new Map<string, AgentInstanceConfig | undefined>();
+        const adapter = profileAdapterFactories[inst.driver]!(inst, {
+          resolveInstance: (id) => {
+            const dependency = userInstances.find((candidate) => candidate.id === id);
+            dependencies.set(id, dependency);
+            return dependency;
+          },
+        });
         return [
           {
-            adapter: profileAdapterFactories[inst.driver]!(inst),
-            inputKey: instanceInputKey(inst),
+            adapter,
+            inputKey: JSON.stringify([inst, [...dependencies]]),
           },
         ];
       } catch (error) {

@@ -1,9 +1,14 @@
 import { z } from "zod";
 import {
+  devinProfileDependencies,
+  devinProfileAcceptsDependents,
+} from "../agents/devin/profileDependencies";
+import {
   agentInstanceEnvVarSchema,
   agentInstanceIdSchema,
   baseAgentKind,
   type AgentDriverKind,
+  type AgentInstanceConfig,
 } from "./agentInstance";
 
 /**
@@ -34,11 +39,19 @@ export interface AgentProfileDriver {
    * environments (Claude) omit it.
    */
   credentialEnvVar?: string;
+  /** Provider-declared direct dependencies; shared code never parses their config. */
+  dependencies?(instance: AgentInstanceConfig): readonly string[];
+  acceptsDependents?(instance: AgentInstanceConfig): boolean;
 }
 
 export const AGENT_PROFILE_DRIVERS: readonly AgentProfileDriver[] = [
   { driver: "claude" },
   { driver: "cursor", credentialEnvVar: "CURSOR_API_KEY" },
+  {
+    driver: "devin",
+    dependencies: devinProfileDependencies,
+    acceptsDependents: devinProfileAcceptsDependents,
+  },
 ];
 
 const BY_DRIVER = new Map(AGENT_PROFILE_DRIVERS.map((entry) => [entry.driver, entry]));

@@ -805,6 +805,11 @@ describe("subagent tool registration", () => {
         background: true,
         retryMode: "any-failure",
         fallbacks: [{ agent: "claude", model: "sonnet", effort: "high" }],
+        dispatchProvenance: expect.objectContaining({
+          fallbackSource: "per-call",
+          retryModeSource: "per-call",
+          selection: expect.objectContaining({ source: "explicit" }),
+        }),
       },
       {
         agent: "claude",
@@ -812,6 +817,11 @@ describe("subagent tool registration", () => {
         effort: "high",
         prompt: "review",
         background: true,
+        dispatchProvenance: expect.objectContaining({
+          fallbackSource: "none",
+          retryModeSource: "default",
+          selection: expect.objectContaining({ source: "explicit" }),
+        }),
       },
     ]);
   });
@@ -877,6 +887,11 @@ describe("subagent tool registration", () => {
         fast: true,
         prompt: "inspect",
         name: "inherited",
+        dispatchProvenance: expect.objectContaining({
+          fallbackSource: "none",
+          retryModeSource: "default",
+          selection: expect.objectContaining({ source: "explicit" }),
+        }),
       },
       {
         agent: "codex",
@@ -884,6 +899,11 @@ describe("subagent tool registration", () => {
         effort: "low",
         prompt: "review",
         name: "overridden",
+        dispatchProvenance: expect.objectContaining({
+          fallbackSource: "none",
+          retryModeSource: "default",
+          selection: expect.objectContaining({ source: "explicit" }),
+        }),
       },
     ]);
   });

@@ -114,14 +114,22 @@ export function EffortContextMenu(props: EffortContextMenuProps) {
 
   const closeOnSelect = !(hasEffort && hasContext);
 
+  // A deliberate activation always reaches the owner, including an equal
+  // reselect: re-picking the stored value is still evidence the user touched
+  // that carrier (it can revoke selection-binding evidence), and the owner's
+  // complete-config equality check suppresses genuinely unchanged persistence.
   function handleEffort(id: string) {
     if (closeOnSelect) handleOpenChange(false);
-    if (id === effortValue) return;
     startTransition(() => onEffortChange?.(id));
   }
   function handleContext(id: string) {
     if (closeOnSelect) handleOpenChange(false);
-    if (id === contextValue) return;
+    // An equal reselect keeps the actual size unchanged, so it never needs the
+    // reload confirmation a real switch asks for.
+    if (id === contextValue) {
+      startTransition(() => onContextChange?.(id));
+      return;
+    }
     if (confirmContextChange && shouldConfirmContextSizeReload()) {
       handleOpenChange(false);
       const rect = triggerRef.current?.getBoundingClientRect();
@@ -342,6 +350,16 @@ function MobileSection(props: {
   );
 }
 
+/** Per-gesture pointer state for the listbox rows: which row the press started
+ * on, where it started, and which id the library's own selection event already
+ * forwarded for the gesture. Reset on every press start. */
+interface PointerActivation {
+  downId: string | null;
+  downX: number;
+  downY: number;
+  forwardedId: string | null;
+}
+
 function Column(props: {
   label: string;
   options: readonly LabeledOption[];
@@ -350,6 +368,18 @@ function Column(props: {
   onSelect: (id: string) => void;
 }) {
   const { label, options, value, hasNeighbor, onSelect } = props;
+  // The library suppresses selection events when the activated option is the
+  // already-selected key, but re-picking the stored value is still a deliberate
+  // carrier touch the owner must see (it can revoke selection-binding
+  // evidence). The row items below forward same-value pointer and Enter/Space
+  // activations themselves; changed values keep flowing through the library's
+  // selection events exactly once, and controlled value updates never fire.
+  const activation = useRef<PointerActivation>({
+    downId: null,
+    downX: 0,
+    downY: 0,
+    forwardedId: null,
+  });
   return (
     <div className={hasNeighbor ? "border-r border-border" : ""}>
       <Header className="block border-b border-border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted/80">
@@ -365,7 +395,10 @@ function Column(props: {
         onSelectionChange={(keys) => {
           if (keys === "all") return;
           const sel = [...keys][0];
-          if (typeof sel === "string") onSelect(sel);
+          if (typeof sel === "string") {
+            activation.current.forwardedId = sel;
+            onSelect(sel);
+          }
         }}
       >
         {(option) => (
@@ -373,6 +406,41 @@ function Column(props: {
             id={option.id}
             textValue={option.label}
             className="focus-visible:outline-none"
+            onPointerDown={(event) => {
+              activation.current = {
+                downId: option.id,
+                downX: event.clientX,
+                downY: event.clientY,
+                forwardedId: null,
+              };
+            }}
+            onPointerMove={(event) => {
+              // A drag larger than the press slop (e.g. scrolling the rows)
+              // cancels the pending activation instead of firing it on release.
+              const session = activation.current;
+              if (session.downId !== option.id) return;
+              if (Math.hypot(event.clientX - session.downX, event.clientY - session.downY) > 8) {
+                session.downId = null;
+              }
+            }}
+            onPointerUp={(event) => {
+              const session = activation.current;
+              activation.current = { downId: null, downX: 0, downY: 0, forwardedId: null };
+              if (session.downId !== option.id || session.forwardedId === option.id) return;
+              if (option.id === value && event.button === 0) onSelect(option.id);
+            }}
+            onPointerCancel={() => {
+              activation.current = { downId: null, downX: 0, downY: 0, forwardedId: null };
+            }}
+            onKeyDown={(event) => {
+              // The option's own press runs first within the same dispatch, so
+              // the closed-over value still predates this gesture: an equal
+              // reselect forwards here while a changed selection is left to the
+              // library's press (whose equal case is suppressed).
+              if (event.repeat) return;
+              if (event.key !== "Enter" && event.key !== " ") return;
+              if (option.id === value) onSelect(option.id);
+            }}
           >
             <ListBox.ItemIndicator>
               {({ isSelected }) => (isSelected ? <Check className="size-3" /> : null)}

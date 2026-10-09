@@ -209,6 +209,8 @@ const manifestSchema = z
 const manifest = manifestSchema.parse(readJson(join("generated", "manifest.json")));
 
 const EXPECTED_PROCEDURE_NAMES = [
+  "listThreadSessionActions",
+  "invokeThreadSessionAction",
   "rollbackThreadConversation",
   "queueThreadFollowUp",
   "removeQueuedThreadFollowUp",
@@ -399,14 +401,20 @@ describe("language-neutral remote protocol v3 contract", () => {
   it("keeps the complete generic procedure inventory and metadata aligned", () => {
     const manifestNames = manifest.procedures.map((procedure) => procedure.name);
     const authoritativeNames = Object.keys(REMOTE_PROCEDURE_SPECS);
-    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(126);
+    expect(EXPECTED_PROCEDURE_NAMES).toHaveLength(128);
     expect(new Set(EXPECTED_PROCEDURE_NAMES).size).toBe(EXPECTED_PROCEDURE_NAMES.length);
     expect(new Set(manifestNames).size).toBe(manifestNames.length);
     expect(manifestNames).toEqual([...EXPECTED_PROCEDURE_NAMES]);
     expect(authoritativeNames).toEqual([...EXPECTED_PROCEDURE_NAMES]);
 
     const authoritativeProcedures = Object.entries(REMOTE_PROCEDURE_SPECS).map(
-      ([name, specification]) => ({ name, ...specification }),
+      // Delivery intent is client-local; only authorization/routing metadata crosses this boundary.
+      ([name, specification]) => ({
+        name,
+        scope: specification.scope,
+        owner: specification.owner,
+        ...("timeout" in specification ? { timeout: specification.timeout } : {}),
+      }),
     );
     expect(manifest.procedures).toEqual(authoritativeProcedures);
     expect(

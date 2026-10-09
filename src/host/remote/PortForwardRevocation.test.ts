@@ -1,5 +1,9 @@
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { WebSocket, WebSocketServer } from "ws";
 import { ForwardOriginPolicy, deriveForwardOwner } from "./portForward/forwardOrigin";
 import { createForwardOriginIdentity } from "./portForward/forwardOriginIdentity";
@@ -65,7 +69,11 @@ async function startHost(forwardablePorts: readonly number[] = []) {
   });
   expect(exchange.status).toBe(200);
   const { accessToken } = (await exchange.json()) as { accessToken: string };
-  const headers = { authorization: `Bearer ${accessToken}`, "content-type": "application/json" };
+  const headers = {
+    authorization: `Bearer ${accessToken}`,
+    "content-type": "application/json",
+    [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  };
 
   /** Runs the two-hop entry (API-origin enter → child exchange) for a fresh
    * forward and returns the child-bound session credentials. */

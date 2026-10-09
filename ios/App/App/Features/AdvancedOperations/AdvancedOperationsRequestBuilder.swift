@@ -122,10 +122,8 @@ enum AdvancedOperationsRequestBuilder {
         AdvancedGenerateCommitMessageRequest(
           projectLocation: try location(owner),
           agentKind: try text(draft, .agentKind),
-          effort: optional(draft, .effort),
-          fast: draft.flag(.fast).value,
-          language: optional(draft, .language),
-          model: optional(draft, .model)
+          selection: selection(draft, fast: draft.flag(.fast).value),
+          language: optional(draft, .language)
         )
       )
     case .generateTitle:
@@ -134,10 +132,8 @@ enum AdvancedOperationsRequestBuilder {
           projectLocation: try location(owner),
           agentKind: try text(draft, .agentKind),
           prompt: try text(draft, .prompt),
-          effort: optional(draft, .effort),
-          fast: draft.flag(.fast).value,
-          language: optional(draft, .language),
-          model: optional(draft, .model)
+          selection: selection(draft, fast: draft.flag(.fast).value),
+          language: optional(draft, .language)
         )
       )
     case .generatePrSummary:
@@ -147,9 +143,8 @@ enum AdvancedOperationsRequestBuilder {
           agentKind: try text(draft, .agentKind),
           branch: try text(draft, .branch),
           baseBranch: try text(draft, .baseBranch),
-          effort: optional(draft, .effort),
-          language: optional(draft, .language),
-          model: optional(draft, .model)
+          selection: selection(draft, fast: nil),
+          language: optional(draft, .language)
         )
       )
     }
@@ -194,6 +189,20 @@ enum AdvancedOperationsRequestBuilder {
     _ key: AdvancedFormFieldKey
   ) throws -> String {
     try AdvancedInputParsing.required(draft.value(key), key)
+  }
+
+  /// Raw form fields become an unstamped selection with exact presence. No
+  /// field set omits the selection (existing utility default); a blank model
+  /// beside a set axis is the canonical `""` implicit-model value. A form edit
+  /// never mints a selection binding.
+  private static func selection(
+    _ draft: AdvancedOperationDraft,
+    fast: Bool?
+  ) -> AdvancedModelSelection? {
+    let model = optional(draft, .model)
+    let effort = optional(draft, .effort)
+    guard model != nil || effort != nil || fast != nil else { return nil }
+    return AdvancedModelSelection(model: model ?? "", effort: effort, fast: fast)
   }
 
   private static func optional(

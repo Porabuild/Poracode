@@ -1,6 +1,7 @@
 import type { Project, Thread } from "@/shared/contracts";
 import type { AppStoreState } from "./slices/shared";
 import { isBrowserClientRuntime } from "@/renderer/clientRuntime";
+import { stripVolatileSessionConfigOptions } from "./volatileSessionConfigOptions";
 
 type Inputs = Pick<
   AppStoreState,
@@ -14,7 +15,9 @@ type Inputs = Pick<
  * `threads: []` would be selected by the persist merge (`state.threads ??
  * current`) and wipe rows the catalog installed while hydration was in flight.
  * Browser/PWA clients keep persisting their catalog (they hydrate from the
- * remote bridge and own no host DB).
+ * remote bridge and own no host DB), minus the volatile `sessionConfigOptions`
+ * inventory: it belongs to a live session incarnation and must not rehydrate
+ * from a persisted row after a host restart.
  */
 type PersistedAppState = Pick<AppStoreState, "view" | "groupLayouts"> & {
   readonly projects?: Project[];
@@ -56,9 +59,9 @@ export function createAppStorePartializer() {
     const value: PersistedAppState = persistRemoteRows
       ? {
           projects: state.projects,
-          threads: state.threads.filter(
-            (thread) => !state.provisioningWorktreeThreadIds[thread.id],
-          ),
+          threads: state.threads
+            .filter((thread) => !state.provisioningWorktreeThreadIds[thread.id])
+            .map(stripVolatileSessionConfigOptions),
           view: hasPendingWorktreeView ? { kind: "home" as const } : view,
           groupLayouts: state.groupLayouts,
         }

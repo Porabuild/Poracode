@@ -15,7 +15,11 @@ import {
 import { networkInterfaces, tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  PORACODE_REMOTE_PROTOCOL_VERSION,
+} from "@/shared/remote";
 import { defaultSharedSettings, type SharedSettings } from "@/shared/settings";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { createHeadlessRemoteHost, resolveLocalProxyBase } from "./createHeadlessRemoteHost";
@@ -39,10 +43,18 @@ const h = vi.hoisted(() => ({
   supervisorCall: vi.fn<() => Promise<unknown>>(async () => ({})),
   initDatabase: vi.fn<(dbPath: string) => void>(),
   closeDatabase: vi.fn<() => void>(),
+  assertPreparedDatabaseForWrite: vi.fn<(dataRoot: string) => void>(),
   projects: [] as unknown[],
   threads: [] as unknown[],
   sharedSettings: {} as SharedSettings,
   sendPush: vi.fn<SendPush>(async () => ({ ok: true, status: 200, unregistered: false })),
+}));
+
+// This fixture mocks the application DB. Admission is an explicit unit dependency;
+// real SQLite/Core qualification lives in BackendHostCore.settingsAdmission.test.ts.
+vi.mock("@/host/db/preparedDatabaseWriteAdmission", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/host/db/preparedDatabaseWriteAdmission")>()),
+  capturePreparedDatabaseWriteAdmission: () => h.assertPreparedDatabaseForWrite,
 }));
 
 vi.mock("@/host/remote/push", async (importOriginal) => {
@@ -187,6 +199,7 @@ describe("createHeadlessRemoteHost", () => {
     h.supervisorDispose.mockResolvedValue();
     h.initDatabase.mockReset();
     h.closeDatabase.mockReset();
+    h.assertPreparedDatabaseForWrite.mockReset();
     h.supervisorCall.mockReset();
     h.supervisorCall.mockResolvedValue({});
     h.sendPush.mockReset();
@@ -574,6 +587,7 @@ describe("createHeadlessRemoteHost", () => {
           { requestId: "fixture-set", ok: true },
         );
       });
+      expect(h.assertPreparedDatabaseForWrite).toHaveBeenCalledWith(host.dataRoot);
       expect(observed).not.toHaveBeenCalled();
     } finally {
       await host.dispose();
@@ -638,6 +652,7 @@ describe("createHeadlessRemoteHost", () => {
             "content-type": "application/json",
             authorization: `Bearer ${accessToken}`,
             origin: relayOrigin,
+            [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
           },
           body: JSON.stringify({ targetPort: (upstream.address() as AddressInfo).port }),
         });

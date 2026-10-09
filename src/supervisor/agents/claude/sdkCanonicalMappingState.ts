@@ -44,6 +44,8 @@ export interface ToolItemState {
   toolName: string;
   input: Record<string, unknown>;
   partialInputJson: string;
+  /** The model is still generating this proposal; it cannot have executed yet. */
+  inputStreaming?: boolean;
   lastInputFingerprint?: string;
   progress?: ToolCallProgress;
   /**
