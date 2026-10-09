@@ -605,6 +605,19 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const approvalDenyOption = activeRuntimeRequest
     ? getApprovalDenyOption(activeRuntimeRequest)
     : undefined;
+  const resumeUnavailableMessage =
+    !usesTerminalPresentation &&
+    thread.status === "inactive" &&
+    !canRecoverGuiInput &&
+    !authRequired &&
+    !approvalDenyOption
+      ? t`This thread cannot be resumed. Start a new thread to continue.`
+      : undefined;
+  const resumeUnavailableNotice = resumeUnavailableMessage ? (
+    <p role="status" className="px-3 py-2 text-xs text-muted">
+      {resumeUnavailableMessage}
+    </p>
+  ) : null;
   // Gate the inline docks only. `activeRuntimeRequest` still drives the
   // composer's deny-with-feedback submit path, and `authRequired` still disables
   // submit/voice, when a host renders these docks itself.
@@ -912,12 +925,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
               )}
             </ComposerBubbleRow>
           ) : null}
+          {!compactLayout ? resumeUnavailableNotice : null}
           <AdaptiveThreadComposerDock
             compact={compactLayout}
             collapsed={isComposerCollapsed}
             keyboardKey={thread.id}
             scrimLabel={t`Collapse composer`}
-            collapsedTapLabel={t`Send a message...`}
+            collapsedTapLabel={resumeUnavailableMessage ?? t`Send a message...`}
             inputHasContent={hasContent}
             expansionLocked={activeRuntimeRequest !== undefined}
             onDockHeightChange={(height) => {
@@ -929,6 +943,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
             aboveBubble={
               compactLayout ? (
                 <>
+                  {resumeUnavailableNotice}
                   <ComposerActionDocks
                     thread={thread}
                     agentStatus={agentStatus}
@@ -1098,12 +1113,13 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         placeholder={
                           approvalDenyOption
                             ? t`Deny and tell the agent what to do differently…`
-                            : thread.status === "inactive" && canRecoverGuiInput && !isConnecting
-                              ? t`Disconnected — send a message to reconnect`
-                              : isServerControlled
-                                ? (props.composerPlaceholder ??
-                                  t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
-                                : t`Send a message...`
+                            : (resumeUnavailableMessage ??
+                              (thread.status === "inactive" && canRecoverGuiInput && !isConnecting
+                                ? t`Disconnected — send a message to reconnect`
+                                : isServerControlled
+                                  ? (props.composerPlaceholder ??
+                                    t`Ask ${effectiveAgentStatus?.label ?? agentFallbackLabel} anything about this workspace`)
+                                  : t`Send a message...`))
                         }
                         projectLocation={projectLocation}
                         submitOnEnter={props.submitOnEnter ?? !compactLayout}

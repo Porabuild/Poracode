@@ -14266,6 +14266,10 @@ msgstr "Máy chủ này chạy trên máy này và không khả dụng cho dự 
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Phím tắt toàn hệ thống này không khả dụng. Hãy chọn tổ hợp phím khác."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Không thể tiếp tục luồng này. Hãy bắt đầu luồng mới để tiếp tục."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Cuộc trò chuyện này không hỗ trợ tin nhắn tiếp theo trong hàng đợi."

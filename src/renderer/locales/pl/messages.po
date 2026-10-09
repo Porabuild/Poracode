@@ -14266,6 +14266,10 @@ msgstr "Ten serwer działa na tym komputerze i jest niedostępny dla projektów 
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Ten skrót globalny jest niedostępny. Wybierz inną kombinację klawiszy."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Nie można wznowić tego wątku. Rozpocznij nowy wątek, aby kontynuować."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Ten wątek nie obsługuje wiadomości uzupełniających w kolejce."

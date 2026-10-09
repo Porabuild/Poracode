@@ -14266,6 +14266,10 @@ msgstr "Цей сервер працює на цьому комп'ютері й 
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Це загальносистемне сполучення клавіш недоступне. Виберіть інше сполучення."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Цей тред неможливо відновити. Створіть новий тред, щоб продовжити."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Цей тред не підтримує повідомлення в черзі."

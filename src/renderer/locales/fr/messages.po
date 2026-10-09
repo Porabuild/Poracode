@@ -14265,6 +14265,10 @@ msgstr "Ce serveur s'exécute sur cet ordinateur et n'est pas disponible pour le
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Ce raccourci système n’est pas disponible. Choisissez une autre combinaison de touches."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Ce fil ne peut pas être repris. Démarrez un nouveau fil pour continuer."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Ce fil de discussion ne prend pas en charge les suivis en file d’attente."

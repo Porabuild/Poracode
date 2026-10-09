@@ -382,6 +382,9 @@ export function reopenStoredThread(threadId: string): void {
   }
 
   const isGuiReconnect = thread.presentationMode === "gui";
+  // Match ThreadSessionManager.sendThreadInput's inactive/no-session refusal.
+  // Opening a saved pane must not silently start a fresh GUI session under
+  // its existing transcript.
   if (isGuiReconnect && !thread.sessionRef && !thread.canResumeWithConfig) return;
   startTransition(() => {
     store.updateThreadRuntime(thread.id, {

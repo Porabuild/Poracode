@@ -14266,6 +14266,10 @@ msgstr "Bu sunucu bu bilgisayarda çalışır ve WSL projeleri için kullanılam
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Bu sistem genelindeki kısayol kullanılamıyor. Başka bir tuş birleşimi seçin."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Bu konu sürdürülemiyor. Devam etmek için yeni bir konu başlatın."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Bu konu, kuyruğa alınan takip mesajlarını desteklemiyor."

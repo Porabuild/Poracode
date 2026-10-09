@@ -14266,6 +14266,10 @@ msgstr "Este servidor se ejecuta en este equipo y no está disponible para proye
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Este atajo global no está disponible. Elige otra combinación de teclas."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Este hilo no se puede reanudar. Inicia un hilo nuevo para continuar."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Este hilo no admite seguimientos en cola."

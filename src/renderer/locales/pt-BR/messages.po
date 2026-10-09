@@ -14266,6 +14266,10 @@ msgstr "Este servidor roda neste computador e não está disponível para projet
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Este atalho global não está disponível. Escolha outra combinação de teclas."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Este tópico não pode ser retomado. Inicie um novo tópico para continuar."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Este tópico não oferece suporte a acompanhamentos enfileirados."

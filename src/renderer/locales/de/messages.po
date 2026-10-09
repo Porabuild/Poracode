@@ -14266,6 +14266,10 @@ msgstr "Dieser Server läuft auf diesem Computer und ist für WSL-Projekte nicht
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Diese systemweite Tastenkombination ist nicht verfügbar. Wähle eine andere Tastenkombination."
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Dieser Thread kann nicht fortgesetzt werden. Starte einen neuen Thread, um fortzufahren."
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
 msgstr "Dieser Thread unterstützt keine eingereihten Nachfragen."
