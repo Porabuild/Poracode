@@ -1,3 +1,4 @@
+import { withThreadConfigSubmission } from "./threadConfigSubmission";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
@@ -221,7 +222,16 @@ export async function performInitialThreadLaunch(input: {
         replay: launchInput,
       });
       try {
-        await startManagedRootThread(launchInput, { commandId: pendingRootLaunch.commandId });
+        const captured = launchInput;
+        await withThreadConfigSubmission(
+          thread.id,
+          captured.config,
+          () => startManagedRootThread(captured, { commandId: pendingRootLaunch.commandId }),
+          (error) =>
+            !isRemoteCommandOutcomeUncertainError(error) &&
+            (pendingRootLaunch.replay === undefined ||
+              isRemoteCommandOutcomeAuthoritativelyResolved(error)),
+        );
       } catch (error) {
         // The operation is retired ONLY when the host authoritatively resolved
         // it as a definite failure for this same command id (a recorded
@@ -253,24 +263,26 @@ export async function performInitialThreadLaunch(input: {
     } else if (owner) {
       // No mcpLaunchSnapshot here: the host ignores client-supplied MCP servers
       // and resolves the launch snapshot from its own settings.
-      await useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
-        client.startThread({
-          threadId: owner.remoteId,
-          projectLocation: unprojectProjectLocation(projectLocation),
-          ...startInput,
-          ...(!prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId
-            ? { ensureRunning: true as const }
-            : {}),
-          ...(startInput.segments
-            ? {
-                segments: unprojectRemoteThreadMentionSegments(
-                  owner.desktopId,
-                  startInput.segments,
-                  useAppStore.getState().threads,
-                ),
-              }
-            : {}),
-        }),
+      await withThreadConfigSubmission(thread.id, startInput.config, () =>
+        useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
+          client.startThread({
+            threadId: owner.remoteId,
+            projectLocation: unprojectProjectLocation(projectLocation),
+            ...startInput,
+            ...(!prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId
+              ? { ensureRunning: true as const }
+              : {}),
+            ...(startInput.segments
+              ? {
+                  segments: unprojectRemoteThreadMentionSegments(
+                    owner.desktopId,
+                    startInput.segments,
+                    useAppStore.getState().threads,
+                  ),
+                }
+              : {}),
+          }),
+        ),
       );
     } else {
       // An empty saved-thread reopen is desired state. The owning supervisor
@@ -292,8 +304,9 @@ export async function performInitialThreadLaunch(input: {
           : {}),
         ...mcpLaunchSnapshot,
       };
-      if (isEmptyReconnect) await bridge.ensureThreadRunning(payload);
-      else await bridge.startThread(payload);
+      await withThreadConfigSubmission(thread.id, startInput.config, () =>
+        isEmptyReconnect ? bridge.ensureThreadRunning(payload) : bridge.startThread(payload),
+      );
     }
   } catch (error) {
     // The host may have started the session without being able to confirm it.

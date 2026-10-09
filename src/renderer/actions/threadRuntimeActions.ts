@@ -1,3 +1,4 @@
+import { withThreadConfigSubmission } from "./threadConfigSubmission";
 import type {
   ProjectLocation,
   PromptSegment,
@@ -131,14 +132,16 @@ export async function performThreadInputSubmit(input: {
     });
   };
   try {
-    await transport.sendThreadInput({
-      threadId: thread.id,
-      prompt,
-      ...(segments ? { segments } : {}),
-      config: thread.config,
-      ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
-      ...(clientContext ? { clientContext } : {}),
-    });
+    await withThreadConfigSubmission(thread.id, thread.config, () =>
+      transport.sendThreadInput({
+        threadId: thread.id,
+        prompt,
+        ...(segments ? { segments } : {}),
+        config: thread.config,
+        ...(optimisticUserMessageItemId ? { userMessageItemId: optimisticUserMessageItemId } : {}),
+        ...(clientContext ? { clientContext } : {}),
+      }),
+    );
   } catch (error) {
     // The host could not establish whether the command committed. Keep the
     // optimistic paint and working state, explain the uncertainty, and run

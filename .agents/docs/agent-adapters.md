@@ -48,6 +48,9 @@ rule is about control flow and data shape, not about erasing history.
    `acpExtensionNotificationHandler` (vendor JSON-RPC notifications).
    Probe customization uses `normalizeProbeResult` for discovered capabilities
    and `modelLabel` for fallback labels when the agent supplies no display name.
+   Probes whose per-model config snapshots are authoritative declare
+   `preserveEmptyModelEfforts`: verified models with no effort choices record
+   `[]`, while an unprobed model remains absent and eligible for catalog fallback.
    Skill frontmatter rules use `skillSupport.invocationForSkill`.
 
 Message payloads can declare `turnIndependent: true` when a conversation stream
