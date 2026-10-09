@@ -84,6 +84,30 @@ describe("project procedure authorization", () => {
     expect(payload.projectLocation).toEqual(location);
   });
 
+  it("binds the stored WSL UNC root while preserving canonical equivalent UNC spelling", () => {
+    // Public-helper policy proof only; this does not exercise Windows or WSL I/O.
+    const location: ProjectLocation = {
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/home/user/repo",
+      uncPath: String.raw`\\wsl.localhost\Ubuntu\home\user\repo`,
+    };
+    const owner = () =>
+      authorizeProjectProcedurePayload("readProjectFile", {
+        projectLocation: { ...location },
+      })?.projectLocation;
+    register(location);
+    const original = owner();
+    expect(original).toBeDefined();
+    register({ ...location, uncPath: `${location.uncPath.toUpperCase()}\\` });
+    expect(owner()).toBe(original);
+    // Distro and Linux path stay the same; only the trusted host route changes.
+    register({ ...location, uncPath: String.raw`\\wsl.localhost\Ubuntu\other\repo` });
+    const changed = owner();
+    expect(changed).toBeDefined();
+    expect(changed).not.toBe(original);
+  });
+
   it("preserves broad management and optional global procedures", () => {
     authorizeProjectProcedurePayload("readAbsoluteFile", {
       projectLocation: { kind: "posix", path: "/private" },
