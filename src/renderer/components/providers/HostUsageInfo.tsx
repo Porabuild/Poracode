@@ -9,7 +9,7 @@ export function HostUsageInfo(props: { className?: string }) {
   const { t } = useLingui();
   const [open, setOpen] = useState(false);
   return (
-    <Tooltip delay={300} isOpen={open} onOpenChange={setOpen}>
+    <Tooltip delay={300} isOpen={open} onOpenChange={setOpen} shouldCloseOnPress={false}>
       <Button
         isIconOnly
         size="sm"

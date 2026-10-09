@@ -5,15 +5,35 @@ import { HostUsageInfo } from "./HostUsageInfo";
 
 afterEach(cleanup);
 
+function pointerPress(element: HTMLElement) {
+  fireEvent.pointerDown(element, { pointerType: "mouse", button: 0 });
+  fireEvent.click(element);
+}
+
+function keyboardPress(element: HTMLElement, key: string) {
+  fireEvent.keyDown(element, { key });
+  fireEvent.keyUp(element, { key });
+}
+
 describe("host usage guidance", () => {
   it("keeps the explanation out of the card flow and opens it by press", async () => {
     render(<HostUsageInfo />);
     const info = screen.getByRole("button", { name: "About usage" });
     expect(screen.queryByText(/Credentials stay on the host/)).toBeNull();
-    fireEvent.click(info);
+    pointerPress(info);
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Credentials stay on the host");
     expect(info).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(info);
+    pointerPress(info);
+    await waitFor(() => expect(info).toHaveAttribute("aria-expanded", "false"));
+  });
+
+  it.each(["Enter", " "])("closes after a second keyboard press (%j)", async (key) => {
+    render(<HostUsageInfo />);
+    const info = screen.getByRole("button", { name: "About usage" });
+    keyboardPress(info, key);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Credentials stay on the host");
+    expect(info).toHaveAttribute("aria-expanded", "true");
+    keyboardPress(info, key);
     await waitFor(() => expect(info).toHaveAttribute("aria-expanded", "false"));
   });
 
