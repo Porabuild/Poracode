@@ -1,6 +1,10 @@
 import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { msg } from "@lingui/core/macro";
-import { TURN_CONVERSATION_SNAPSHOT_MAX_LENGTH, type PromptSegment } from "@/shared/contracts";
+import {
+  TURN_CONVERSATION_SNAPSHOT_MAX_LENGTH,
+  type PromptSegment,
+  type ThreadPresentationMode,
+} from "@/shared/contracts";
 import { i18n } from "@/renderer/i18n/i18n";
 import { readBridge } from "@/renderer/bridge";
 import { handoffTranscriptBudget } from "@/renderer/actions/handoffTranscript";
@@ -9,14 +13,34 @@ import { readSideChatContext } from "./sideChatContext";
 import { remoteOwner } from "@/renderer/state/remoteProjection";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { REMOTE_CONVERSATION_SNAPSHOTS_VERSION } from "@/shared/remote/protocol";
+import { usePanelStore } from "@/renderer/state/panelStore";
+import { useSideChatPanelStore } from "./sideChatPanelStore";
 
-export function canOpenSideChat(threadId: string): boolean {
+function canOpenSideChat(threadId: string): boolean {
   return (
     typeof readBridge().openSideChatPanel === "function" && !auxiliaryThreadIds().has(threadId)
   );
 }
 
+/** Menu and slash-command availability follow the active presentation surface. */
+export function sideChatAvailable(
+  threadId: string,
+  presentationMode: ThreadPresentationMode,
+): boolean {
+  return presentationMode === "gui" && canOpenSideChat(threadId);
+}
+
 const opening = new Map<string, Promise<boolean>>();
+
+/** The + menu reopens a retained conversation; /btw starts a fresh one. */
+export async function showSideChat(sourceThreadId: string): Promise<boolean> {
+  const entry = useSideChatPanelStore.getState().entry;
+  if (entry?.source.id === sourceThreadId && canOpenSideChat(sourceThreadId)) {
+    usePanelStore.getState().setRightPanelTab("sideChat");
+    return true;
+  }
+  return openSideChat(sourceThreadId);
+}
 
 export async function openSideChat(
   sourceThreadId: string,

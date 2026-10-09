@@ -1,5 +1,5 @@
 import type { RefObject } from "react";
-import { canOpenSideChat, openSideChat } from "./SideChat/sideChatActions";
+import { sideChatAvailable, openSideChat } from "./SideChat/sideChatActions";
 import { toast } from "@heroui/react";
 import type {
   AgentSlashCommand,
@@ -108,7 +108,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     agentKind: thread.agentKind,
     presentationMode: ctx.presentationMode,
     runtimeLabel: agentStatus?.capabilities.runtimeLabel,
-    supportsSideChat: ctx.presentationMode === "gui" && canOpenSideChat(thread.id),
+    supportsSideChat: sideChatAvailable(thread.id, ctx.presentationMode),
   };
   const boundSegments = bindLeadingSkillUnlessLocalAction(
     segments,

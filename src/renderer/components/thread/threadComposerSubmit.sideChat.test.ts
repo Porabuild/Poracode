@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   saveDraft: vi.fn<(...args: unknown[]) => void>(),
 }));
 vi.mock("./SideChat/sideChatActions", () => ({
-  canOpenSideChat: () => true,
+  sideChatAvailable: (_threadId: string, presentationMode: string) => presentationMode === "gui",
   openSideChat: mocks.open,
 }));
 vi.mock("@/renderer/actions/threadRuntimeActions", () => ({

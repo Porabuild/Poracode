@@ -15,7 +15,8 @@ export async function mockSideChatGate({
   const main = (expression) => evaluate(client, expression, true);
   let sideClient;
   const side = (expression) => evaluate(sideClient, expression, true);
-  const before = await main("JSON.stringify(window.__poracodeDev.stores.app.getState().view)");
+  const originalView = await main("window.__poracodeDev.stores.app.getState().view");
+  let before;
   const bootstrap = {
     source: {
       id: "side-chat-smoke-parent",
@@ -64,6 +65,19 @@ export async function mockSideChatGate({
     assert.equal(header.titleTop, header.toolbarBottom);
   }
   try {
+    await main(`(() => {
+      const store = window.__poracodeDev.stores.app.getState();
+      store.createThread({
+        threadId: ${JSON.stringify(bootstrap.source.id)},
+        projectId: ${JSON.stringify(fixture.project.id)},
+        agentKind: ${JSON.stringify(bootstrap.source.agentKind)},
+        config: ${JSON.stringify(bootstrap.source.config)},
+        title: ${JSON.stringify(bootstrap.source.title)},
+        prompt: '', presentationMode: 'gui', focus: true,
+      });
+      store.openThread(${JSON.stringify(bootstrap.source.id)});
+    })()`);
+    before = await main("JSON.stringify(window.__poracodeDev.stores.app.getState().view)");
     await main(`window.poracode.openSideChatPanel(${JSON.stringify(bootstrap)})`);
     await waitForValue(
       () => main("Boolean(document.querySelector('[data-side-chat-surface=panel] textarea'))"),
@@ -96,12 +110,36 @@ export async function mockSideChatGate({
       (value) => value === "Unsent side question",
       "hidden side chat draft checkpoint",
     );
-    await main('window.__poracodeDev.stores.panel.getState().setRightPanelTab("sideChat")');
+    const retainedId = (await main("window.poracode.getSideChatWindowInfo()")).id;
+    await waitForValue(
+      () =>
+        main(`(() => {
+        const button = [...document.querySelectorAll('button[aria-label="Add attachment or capability"]')]
+          .find(node => !node.closest('[aria-hidden="true"]'));
+        if (!button) return false;
+        button.click();
+        return true;
+      })()`),
+      Boolean,
+      "parent composer add menu",
+    );
+    await waitForValue(
+      () =>
+        main(`(() => {
+        const item = document.querySelector('[role="menuitem"][data-key="side-chat"]');
+        if (!item) return false;
+        item.click();
+        return true;
+      })()`),
+      Boolean,
+      "side chat menu action",
+    );
     await waitForValue(
       () => main('document.querySelector("[data-side-chat-surface=panel] textarea")?.value'),
       (value) => value === "Unsent side question",
       "hidden side chat draft restored",
     );
+    assert.equal((await main("window.poracode.getSideChatWindowInfo()")).id, retainedId);
     await main("document.querySelector('button[aria-label=\"Detach side chat\"]').click()");
     sideClient = await connectTarget(await waitForTarget("sideChat"));
     await sideClient.send("Runtime.enable");
@@ -158,5 +196,9 @@ export async function mockSideChatGate({
       await side("window.close()").catch(() => undefined);
       sideClient.close();
     }
+    await main(`(() => {
+      window.__poracodeDev.stores.app.setState({view: ${JSON.stringify(originalView)}});
+      window.__poracodeDev.stores.app.getState().deleteThread(${JSON.stringify(bootstrap.source.id)});
+    })()`);
   }
 }

@@ -93,7 +93,7 @@ export function registerSideChatWindowIpc(deps: {
       existing.focus();
       return;
     }
-    const moving = panel?.bootstrap.id === next.id ? panel : undefined;
+    const moving = panel?.bootstrap.id === next.id;
     const window = deps.createWindow(next);
     sideWindows.set(window, {
       bootstrap: next,
