@@ -206,7 +206,7 @@ export function UsageProviderCardView(props: {
       ) : null}
 
       {!collapsed ? (
-        <div className="space-y-2.5 border-t border-[color:var(--separator)] px-3 pb-4 pt-3">
+        <div className="space-y-2 border-t border-[color:var(--separator)] px-3 py-2.5">
           {hasUsage && snapshot ? (
             <>
               {snapshot.windows.length > 0 ? (

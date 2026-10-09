@@ -122,7 +122,8 @@ describe("remote usage settings", () => {
     render(<HostUsageSettings connectionId="connection" selector={<span>Host selector</span>} />);
     expect(screen.getByText("host-account")).toBeTruthy();
     expect(screen.getByText(/Usage is stale/)).toBeTruthy();
-    expect(screen.getByText(/Credentials stay on the host/)).toBeTruthy();
+    expect(screen.queryByText(/Credentials stay on the host/)).toBeNull();
+    expect(screen.getByRole("button", { name: "About usage" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Browser sign-in" })).toBeNull();
     expect(screen.queryByPlaceholderText(/API key/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Refresh provider:profile" }));

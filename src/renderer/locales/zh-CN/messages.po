@@ -839,6 +839,10 @@ msgstr "中止合并"
 msgid "About"
 msgstr "关于"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "关于用量"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "输入框上方"
@@ -13298,7 +13302,7 @@ msgstr "辅助模型"
 msgid "Sign in"
 msgstr "登录"
 
-#: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "请在此主机上登录并配置用量跟踪。凭据保留在收集用量的主机上。"
 
@@ -16167,8 +16171,12 @@ msgid "Usage is collected on the selected host. Accounts and quotas are shown se
 msgstr "用量在所选主机上收集。每台主机的账号和配额分别显示。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to collect the latest values."
-msgstr "用量已过期。请刷新以获取最新数据。"
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "用量已过期。请刷新以获取最新数据。"
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "用量已过期。请刷新更新。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

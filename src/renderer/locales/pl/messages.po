@@ -839,6 +839,10 @@ msgstr "Przerwij scalanie"
 msgid "About"
 msgstr "O programie"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "O użyciu"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "Nad polem tworzenia"
@@ -13299,7 +13303,7 @@ msgstr "Model pomocniczy"
 msgid "Sign in"
 msgstr "Zaloguj się"
 
-#: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "Zaloguj się i skonfiguruj śledzenie użycia na tym hoście. Dane uwierzytelniające pozostają na hoście, który zbiera dane użycia."
 
@@ -16168,8 +16172,12 @@ msgid "Usage is collected on the selected host. Accounts and quotas are shown se
 msgstr "Użycie jest zbierane na wybranym hoście. Konta i limity są wyświetlane osobno dla każdego hosta."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to collect the latest values."
-msgstr "Dane użycia są nieaktualne. Odśwież, aby pobrać najnowsze wartości."
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "Dane użycia są nieaktualne. Odśwież, aby pobrać najnowsze wartości."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "Dane użycia są nieaktualne. Odśwież je."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

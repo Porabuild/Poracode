@@ -7,6 +7,7 @@ import { Trans, useLingui } from "@lingui/react/macro";
 import { RefreshCw, Settings2 } from "lucide-react";
 import { openUsageSettings } from "@/renderer/actions/panelActions";
 import { HostUsageStatus, useHostUsageView } from "@/renderer/components/providers/HostUsageView";
+import { HostUsageInfo } from "@/renderer/components/providers/HostUsageInfo";
 import { UsageProviderCardView } from "@/renderer/components/providers/UsageProviderCardView";
 import { useUsagePanelScope } from "@/renderer/components/providers/useUsagePanelScope";
 import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
@@ -237,11 +238,14 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
 
   return (
     <div className="relative flex h-full min-h-0 flex-col bg-[var(--content-background)]">
-      {compact && lastUpdated > 0 ? (
+      {compact && (lastUpdated > 0 || remoteView) ? (
         <MobilePageHeaderActions>
-          <p className="whitespace-nowrap text-[11px] text-muted/70">
-            <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
-          </p>
+          {lastUpdated > 0 ? (
+            <p className="whitespace-nowrap text-[11px] text-muted/70">
+              <Trans>Updated {formatUpdatedAgo(lastUpdated, nowTick, t)}</Trans>
+            </p>
+          ) : null}
+          {remoteView ? <HostUsageInfo className="size-11 min-h-11 min-w-11 text-muted" /> : null}
         </MobilePageHeaderActions>
       ) : null}
 
@@ -257,7 +261,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
         style={scrollFadeStyle}
       >
         <div ref={contentRef} className="min-h-full">
-          {remoteView ? <HostUsageStatus view={hostView} /> : null}
+          {remoteView ? <HostUsageStatus view={hostView} className="mb-2" /> : null}
           {orderedProviders.length === 0 ? (
             remoteView ? null : (
               <div className="flex min-h-full flex-col items-center justify-center gap-2 px-6 text-center">
@@ -274,7 +278,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
               </div>
             )
           ) : (
-            <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-3">
               {currentProvider ? (
                 <section aria-label={t`Current`} className="flex flex-col gap-1.5">
                   <p className="px-1 text-[10px] font-semibold uppercase tracking-wider text-muted/70">
@@ -285,7 +289,7 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
               ) : null}
               {sortableProviders.length > 0 ? (
                 <DragDropProvider sensors={USAGE_SORT_SENSORS} onDragEnd={handleDragEnd}>
-                  <div className="flex flex-col gap-2.5">
+                  <div className="flex flex-col gap-2">
                     {sortableProviders.map((provider, index) => renderCard(provider, index))}
                   </div>
                 </DragDropProvider>

@@ -839,6 +839,10 @@ msgstr "Перервати злиття"
 msgid "About"
 msgstr "Про програму"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "Про статистику використання"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "Над полем введення"
@@ -13299,7 +13303,7 @@ msgstr "Допоміжна модель"
 msgid "Sign in"
 msgstr "Увійти"
 
-#: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "Увійдіть і налаштуйте відстеження використання на цьому хості. Облікові дані залишаються на хості, який збирає дані використання."
 
@@ -16168,8 +16172,12 @@ msgid "Usage is collected on the selected host. Accounts and quotas are shown se
 msgstr "Дані використання збираються на вибраному хості. Облікові записи та квоти показано окремо для кожного хоста."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to collect the latest values."
-msgstr "Дані використання застаріли. Оновіть їх, щоб отримати актуальні значення."
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "Дані використання застаріли. Оновіть їх, щоб отримати актуальні значення."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "Дані використання застаріли. Оновіть їх."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

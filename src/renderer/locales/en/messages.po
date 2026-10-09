@@ -844,6 +844,10 @@ msgstr "Abort Merge"
 msgid "About"
 msgstr "About"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "About usage"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "Above the composer"
@@ -13308,7 +13312,7 @@ msgstr "Sidekick"
 msgid "Sign in"
 msgstr "Sign in"
 
-#: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 
@@ -16181,8 +16185,12 @@ msgid "Usage is collected on the selected host. Accounts and quotas are shown se
 msgstr "Usage is collected on the selected host. Accounts and quotas are shown separately for each host."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to collect the latest values."
-msgstr "Usage is stale. Refresh to collect the latest values."
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "Usage is stale. Refresh to collect the latest values."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "Usage is stale. Refresh to update."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

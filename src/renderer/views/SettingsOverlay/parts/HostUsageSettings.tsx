@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/renderer/components/common";
 import { UsageProviderCardView } from "@/renderer/components/providers/UsageProviderCardView";
 import { HostUsageStatus, useHostUsageView } from "@/renderer/components/providers/HostUsageView";
+import { HostUsageInfo } from "@/renderer/components/providers/HostUsageInfo";
 import { fetchHostUsage } from "@/renderer/components/providers/hostUsage";
 import { usageProvidersForAgentInstances } from "@/renderer/components/providers/usageProviders";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
@@ -28,16 +29,19 @@ export function HostUsageSettings(props: { connectionId: string; selector: React
       title={t`Provider Usage`}
       description={t`Usage is collected on the selected host. Accounts and quotas are shown separately for each host.`}
       actions={
-        <Button
-          isIconOnly
-          size="sm"
-          variant="ghost"
-          aria-label={t`Refresh`}
-          isDisabled={!view.canRefresh || view.usage.refreshing}
-          onPress={() => void fetchHostUsage(connectionId, true, { force: true })}
-        >
-          <RefreshCw className={`size-4 ${view.usage.refreshing ? "animate-spin" : ""}`} />
-        </Button>
+        <div className="flex items-center gap-1">
+          <HostUsageInfo />
+          <Button
+            isIconOnly
+            size="sm"
+            variant="ghost"
+            aria-label={t`Refresh`}
+            isDisabled={!view.canRefresh || view.usage.refreshing}
+            onPress={() => void fetchHostUsage(connectionId, true, { force: true })}
+          >
+            <RefreshCw className={`size-4 ${view.usage.refreshing ? "animate-spin" : ""}`} />
+          </Button>
+        </div>
       }
     >
       {selector}

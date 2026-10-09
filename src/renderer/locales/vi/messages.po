@@ -839,6 +839,10 @@ msgstr "Hủy bỏ hợp nhất"
 msgid "About"
 msgstr "Giới thiệu"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "Thông tin sử dụng"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "Phía trên trình soạn"
@@ -13299,7 +13303,7 @@ msgstr "Mô hình phụ"
 msgid "Sign in"
 msgstr "Đăng nhập"
 
-#: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "Đăng nhập và cấu hình theo dõi mức sử dụng trên máy chủ này. Thông tin xác thực được giữ trên máy chủ thu thập mức sử dụng."
 
@@ -16168,8 +16172,12 @@ msgid "Usage is collected on the selected host. Accounts and quotas are shown se
 msgstr "Mức sử dụng được thu thập trên máy chủ đã chọn. Tài khoản và hạn mức được hiển thị riêng cho từng máy chủ."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to collect the latest values."
-msgstr "Dữ liệu sử dụng đã cũ. Hãy làm mới để thu thập các giá trị mới nhất."
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "Dữ liệu sử dụng đã cũ. Hãy làm mới để thu thập các giá trị mới nhất."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "Dữ liệu sử dụng đã cũ. Hãy làm mới."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

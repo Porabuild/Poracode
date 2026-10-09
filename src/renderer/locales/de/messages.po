@@ -839,6 +839,10 @@ msgstr "Zusammenführung abbrechen"
 msgid "About"
 msgstr "Über"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "Über die Nutzung"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "Über dem Eingabefeld"
@@ -13299,7 +13303,7 @@ msgstr "Hilfsmodell"
 msgid "Sign in"
 msgstr "Anmelden"
 
-#: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "Melde dich auf diesem Host an und richte die Nutzungserfassung ein. Die Zugangsdaten bleiben auf dem Host, der die Nutzung erfasst."
 
@@ -16168,8 +16172,12 @@ msgid "Usage is collected on the selected host. Accounts and quotas are shown se
 msgstr "Die Nutzung wird auf dem ausgewählten Host erfasst. Konten und Kontingente werden für jeden Host separat angezeigt."
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to collect the latest values."
-msgstr "Die Nutzungsdaten sind veraltet. Aktualisiere sie, um die neuesten Werte abzurufen."
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "Die Nutzungsdaten sind veraltet. Aktualisiere sie, um die neuesten Werte abzurufen."
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "Die Nutzungsdaten sind veraltet. Aktualisiere sie."
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

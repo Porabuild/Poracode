@@ -67,54 +67,53 @@ export function useHostUsageView(connectionId: string, refreshVersion = 0, liveO
   return { server, status, agents, usage, canRead, canRefresh, online, stale, lastFetched };
 }
 
-export function HostUsageStatus({ view }: { view: ReturnType<typeof useHostUsageView> }) {
-  const { server, status, usage, canRead, canRefresh, online, stale } = view;
+export function HostUsageStatus(props: {
+  view: ReturnType<typeof useHostUsageView>;
+  className?: string;
+}) {
+  const { server, status, usage, canRead, canRefresh, online, stale } = props.view;
+  const message = !server ? (
+    <Trans>This host is no longer configured.</Trans>
+  ) : !canRead ? (
+    <Trans>This connection does not have permission to read usage.</Trans>
+  ) : status === "connecting" ? (
+    <Trans>Connecting…</Trans>
+  ) : (usage.failed && !usage.updateRequired) || status === "error" ? (
+    <Trans>Could not load usage. Check the host connection and permissions, then try again.</Trans>
+  ) : !online ? (
+    usage.snapshots.length > 0 ? (
+      <Trans>Host offline. Showing last known usage.</Trans>
+    ) : (
+      <Trans>Host offline. No cached usage is available.</Trans>
+    )
+  ) : usage.updateRequired ? (
+    <Trans>Update this host to refresh usage remotely. Cached usage can still be read.</Trans>
+  ) : (!usage.initialized && usage.snapshots.length === 0) ||
+    (usage.pending && usage.snapshots.length === 0) ? (
+    <Trans>Loading usage…</Trans>
+  ) : stale ? (
+    <Trans>Usage is stale. Refresh to update.</Trans>
+  ) : null;
+  const readOnly = server && canRead && !canRefresh;
+  const empty =
+    server &&
+    canRead &&
+    online &&
+    usage.initialized &&
+    !usage.pending &&
+    !usage.failed &&
+    usage.snapshots.length === 0;
+  const hasMessage = message || readOnly || empty;
+
   return (
-    <div className="space-y-1 text-xs text-muted">
-      <p>
-        <Trans>
-          Sign in and configure usage tracking on this host. Credentials stay on the host that
-          collects usage.
-        </Trans>
-      </p>
-      <p role="status">
-        {!server ? (
-          <Trans>This host is no longer configured.</Trans>
-        ) : !canRead ? (
-          <Trans>This connection does not have permission to read usage.</Trans>
-        ) : status === "connecting" ? (
-          <Trans>Connecting…</Trans>
-        ) : (usage.failed && !usage.updateRequired) || status === "error" ? (
-          <Trans>
-            Could not load usage. Check the host connection and permissions, then try again.
-          </Trans>
-        ) : !online ? (
-          usage.snapshots.length > 0 ? (
-            <Trans>Host offline. Showing last known usage.</Trans>
-          ) : (
-            <Trans>Host offline. No cached usage is available.</Trans>
-          )
-        ) : usage.updateRequired ? (
-          <Trans>Update this host to refresh usage remotely. Cached usage can still be read.</Trans>
-        ) : (!usage.initialized && usage.snapshots.length === 0) ||
-          (usage.pending && usage.snapshots.length === 0) ? (
-          <Trans>Loading usage…</Trans>
-        ) : stale ? (
-          <Trans>Usage is stale. Refresh to collect the latest values.</Trans>
-        ) : null}
-      </p>
-      {server && canRead && !canRefresh ? (
+    <div className={`space-y-1 text-xs text-muted ${hasMessage ? (props.className ?? "") : ""}`}>
+      <p role="status">{message}</p>
+      {readOnly ? (
         <p>
           <Trans>This connection does not have permission to refresh usage.</Trans>
         </p>
       ) : null}
-      {server &&
-      canRead &&
-      online &&
-      usage.initialized &&
-      !usage.pending &&
-      !usage.failed &&
-      usage.snapshots.length === 0 ? (
+      {empty ? (
         <p>
           <Trans>No usage data yet.</Trans>
         </p>

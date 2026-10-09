@@ -838,6 +838,10 @@ msgstr "マージの中止"
 msgid "About"
 msgstr "バージョン情報"
 
+#: src/renderer/components/providers/HostUsageInfo.tsx
+msgid "About usage"
+msgstr "使用量について"
+
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Above the composer"
 msgstr "コンポーザーの上"
@@ -13297,7 +13301,7 @@ msgstr "補助モデル"
 msgid "Sign in"
 msgstr "サインイン"
 
-#: src/renderer/components/providers/HostUsageView.tsx
+#: src/renderer/components/providers/HostUsageInfo.tsx
 msgid "Sign in and configure usage tracking on this host. Credentials stay on the host that collects usage."
 msgstr "このホストでサインインし、使用量の追跡を設定してください。認証情報は使用量を収集するホストに保存されます。"
 
@@ -16166,8 +16170,12 @@ msgid "Usage is collected on the selected host. Accounts and quotas are shown se
 msgstr "使用量は選択したホストで収集されます。アカウントと割り当て量はホストごとに表示されます。"
 
 #: src/renderer/components/providers/HostUsageView.tsx
-msgid "Usage is stale. Refresh to collect the latest values."
-msgstr "使用量が古くなっています。更新して最新の値を取得してください。"
+#~ msgid "Usage is stale. Refresh to collect the latest values."
+#~ msgstr "使用量が古くなっています。更新して最新の値を取得してください。"
+
+#: src/renderer/components/providers/HostUsageView.tsx
+msgid "Usage is stale. Refresh to update."
+msgstr "使用量が古くなっています。更新してください。"
 
 #: src/renderer/components/providers/usageFormat.ts
 msgid "Usage not supported"

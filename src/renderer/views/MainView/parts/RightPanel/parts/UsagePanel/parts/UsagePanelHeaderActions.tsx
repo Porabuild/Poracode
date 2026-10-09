@@ -5,6 +5,7 @@ import { openUsageSettings } from "@/renderer/actions/panelActions";
 import { panelHeaderIconButtonClass } from "@/renderer/components/layout/sidebarChrome";
 import { resolveDisplayedProviders } from "@/renderer/components/providers/usageProviders";
 import { useUsagePanelScope } from "@/renderer/components/providers/useUsagePanelScope";
+import { HostUsageInfo } from "@/renderer/components/providers/HostUsageInfo";
 import { useHostUsage } from "@/renderer/state/hostUsageStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useUsageScopeStore } from "@/renderer/state/usageScopeStore";
@@ -59,6 +60,7 @@ export function UsagePanelHeaderActions(props: { dragControlClass: string }) {
 
   return (
     <>
+      {scope.remote ? <HostUsageInfo className={`${buttonClass} size-5 min-h-5 min-w-5`} /> : null}
       {displayed.length > 0 ? (
         <button
           type="button"
