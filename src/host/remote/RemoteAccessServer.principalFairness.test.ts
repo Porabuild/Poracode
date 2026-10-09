@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { request as httpRequest, type ClientRequest, type IncomingHttpHeaders } from "node:http";
 import { WebSocket } from "ws";
 import { WebSocketHeartbeat } from "./server/wsHeartbeat";
@@ -117,6 +121,7 @@ function rawJsonRequest(
         headers: {
           authorization: `Bearer ${accessToken}`,
           "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         },
       },
       (res) => {

@@ -1,3 +1,4 @@
+import { capabilitiesForSessionConfig } from "@/shared/sessionConfigCapabilities";
 import {
   useEffect,
   useEffectEvent,
@@ -76,6 +77,7 @@ import { ThreadDockBubbles } from "./ThreadDockBubbles";
 import { ThreadImagesBubble } from "./ThreadImagesBubble";
 import { useThreadDocksSummary } from "./useThreadDocksSummary";
 import { ThreadComposer, type ComposerControl } from "./ThreadComposer";
+import { ProviderSessionControls } from "../providers/providerSessionControls";
 import { useThreadInterrupt } from "./useThreadInterrupt";
 import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import { ThreadContextIndicator } from "./ThreadContextIndicator";
@@ -347,9 +349,19 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
   const [contextDockOpen, setContextDockOpen] = useState(false);
   const presentationMode =
     thread.presentationMode ?? agentStatus?.capabilities.presentationMode ?? "terminal";
-  const effectiveAgentStatus = agentStatus
+  const presentationAgentStatus = agentStatus
     ? agentStatusForPresentation(agentStatus, presentationMode, thread.sessionRef)
     : undefined;
+  const effectiveAgentStatus =
+    presentationAgentStatus && presentationMode === "gui"
+      ? {
+          ...presentationAgentStatus,
+          capabilities: capabilitiesForSessionConfig(
+            presentationAgentStatus.capabilities,
+            thread.sessionConfigOptions,
+          ),
+        }
+      : presentationAgentStatus;
   const usesTerminalPresentation = presentationMode === "terminal";
   const appControlsAvailable =
     useSharedSettings((s) => s.disabledBuiltInMcpServers["app-controls"]) !== true;
@@ -1236,32 +1248,41 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                         />
                       ) : null;
                       const addMenu = (
-                        <ComposerAddMenu
-                          mcpServers={mcpServers}
-                          customMcpServers={customMcpServers}
-                          onManageMcpServers={openMcpServersSettings}
-                          pluginLabels={composerPluginLabels}
-                          readOnly
-                          computerUse={{
-                            enabled: effectiveMcpConfig?.computerUse === true,
-                            visible:
-                              effectiveMcpConfig?.computerUse === true &&
-                              projectLocation?.kind !== "wsl",
-                            onToggle: () => {},
-                          }}
-                          showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
-                          onPickFiles={() => {
-                            void (
-                              props.pickFiles
-                                ? props.pickFiles()
-                                : readBridge().pickFiles({ attachmentThreadId: thread.id })
-                            )
-                              .then((paths) => {
-                                if (paths) attachments.addFiles(paths);
-                              })
-                              .catch((error: unknown) => toast.danger(friendlyError(error)));
-                          }}
-                        />
+                        <ProviderSessionControls
+                          thread={thread}
+                          presentationMode={presentationMode}
+                          isDisabled={authRequired || isSubmitting}
+                        >
+                          {(sessionActions) => (
+                            <ComposerAddMenu
+                              sessionActions={sessionActions}
+                              mcpServers={mcpServers}
+                              customMcpServers={customMcpServers}
+                              onManageMcpServers={openMcpServersSettings}
+                              pluginLabels={composerPluginLabels}
+                              readOnly
+                              computerUse={{
+                                enabled: effectiveMcpConfig?.computerUse === true,
+                                visible:
+                                  effectiveMcpConfig?.computerUse === true &&
+                                  projectLocation?.kind !== "wsl",
+                                onToggle: () => {},
+                              }}
+                              showFileOption={!usesRemoteTransport || props.pickFiles !== undefined}
+                              onPickFiles={() => {
+                                void (
+                                  props.pickFiles
+                                    ? props.pickFiles()
+                                    : readBridge().pickFiles({ attachmentThreadId: thread.id })
+                                )
+                                  .then((paths) => {
+                                    if (paths) attachments.addFiles(paths);
+                                  })
+                                  .catch((error: unknown) => toast.danger(friendlyError(error)));
+                              }}
+                            />
+                          )}
+                        </ProviderSessionControls>
                       );
                       const renderExtras = () => (
                         <>

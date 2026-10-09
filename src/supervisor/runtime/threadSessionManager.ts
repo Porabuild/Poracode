@@ -1,6 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { toError } from "@/shared/errorMessage";
 import { msg } from "@/shared/messages";
+import { ThreadSessionAbsenceRefusalError } from "@/shared/threadSessionRefusal";
+import type {
+  ListThreadSessionActionsPayload,
+  InvokeThreadSessionActionPayload,
+} from "@/shared/contracts/sessionActions";
+import { listSessionActions, invokeSessionAction } from "./threadSession/sessionActions";
 import type {
   ConnectThreadVoicePayload,
   ConnectThreadVoiceResult,
@@ -31,7 +37,6 @@ import {
   type SetPendingSteerPayload,
   type StageThreadInputPayload,
   type StartShellPayload,
-  type StartThreadPayload,
   type StartThreadResult,
   type TerminalSize,
   type TerminalShellSnapshot,
@@ -68,6 +73,14 @@ import {
 import { canonicalThreadIdsOf } from "../supervisorIpcMessagePolicy";
 import type { QueuedStructuredTurn, SessionRuntime, ShellSessionRuntime } from "./sessionTypes";
 import { effectiveProjectLocation } from "./sessionTypes";
+import {
+  type StartThreadRuntimeInput,
+  assertWorkspaceLaunchSupported,
+  assertWorkspaceLiveConfig,
+  assertWorkspaceScopeUnchanged,
+  snapshotWorkspaceStart,
+  snapshotWorkspaceScope,
+} from "./workspaceScope";
 import { ThreadOutputPipeline, resolveThreadStatusSource } from "./threadOutputPipeline";
 import { rewriteSegmentsForWorkspace, rewriteSegmentsForWsl } from "./threadAttachments";
 
@@ -81,6 +94,7 @@ import { resolveTerminalColorEnv } from "./threadSession/terminalEnv";
 import { requireSessionPty, shouldPrimeNativeProjectShellEnv } from "./threadSession/helpers";
 import { resolveThreadMentionSegments } from "./threadMentionResolver";
 import { RuntimeEventRouter } from "./threadSession/runtimeEventRouter";
+import { publishUnpublishedStartFailure } from "./threadSession/unpublishedStartFailure";
 import type { RuntimeEventBufferOverflow } from "./threadSession/runtimeEventBuffer";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { SessionRuntimeLifecycle } from "./threadSession/sessionRuntimeLifecycle";
@@ -152,6 +166,7 @@ export class ThreadSessionManager {
    */
   private readonly exitedShellSnapshots = new Map<string, RetainedShellSnapshot>();
   private readonly startLocks = new Map<string, Promise<void>>();
+  private readonly workspaceStarts = new Map<string, StartThreadRuntimeInput>();
   private readonly pendingStartInterrupts = new Set<string>();
   private readonly pendingStartAborts = new Set<string>();
   /**
@@ -321,7 +336,9 @@ export class ThreadSessionManager {
       runtimeEventRouter: this.runtimeEventRouter,
       sessionRuntimeLifecycle,
       cliHookPlugin: this.cliHookPlugin,
-      closeThread: (payload) => this.closeThread(payload),
+      closeThread: async (payload) => {
+        await this.retireThreadRuntime(payload, { replacement: true });
+      },
       failStructuredSession: (session, error) => this.failStructuredSession(session, error),
       isCurrentSession: (session) => this.isCurrentSession(session),
       resolveAgentSettings: (adapter, location) => this.resolveAgentSettings(adapter, location),
@@ -382,6 +399,7 @@ export class ThreadSessionManager {
   getThreadSnapshots(): ThreadRuntimeSnapshot[] {
     return [...this.sessions.values()].map((session) => ({
       threadId: session.threadId,
+      agentKind: session.agentKind,
       status: session.status,
       attention: session.attention,
       config: session.config,
@@ -389,6 +407,11 @@ export class ThreadSessionManager {
       threadMentionToolsAvailable: session.threadMentionToolsAvailable === true,
       ...(session.sessionRef ? { sessionRef: session.sessionRef } : {}),
       ...(session.slashCommands ? { slashCommands: session.slashCommands } : {}),
+      // `null` (retired / not yet negotiated) must survive the pull; only
+      // "never stated" stays absent so older clients keep their cached view.
+      ...(session.sessionConfigOptions !== undefined
+        ? { sessionConfigOptions: session.sessionConfigOptions }
+        : {}),
       canResumeWithConfig: session.canResumeWithConfig,
       threadStatusSource: resolveThreadStatusSource(
         session,
@@ -578,6 +601,10 @@ export class ThreadSessionManager {
     | undefined {
     const session = this.sessions.get(threadId);
     if (!session) return undefined;
+    // The child/one-shot/fallback carrier is not qualified yet. Never project a
+    // granted parent as an empty workspace to the existing child launch API.
+    if (session.workspaceScope?.additionalDirectories.length)
+      throw new Error("Approved workspace directories require a qualified child launch carrier.");
     const projectLocation = effectiveProjectLocation(session);
     // Children inherit the effective launch config with built-in disables applied.
     const disabledIds = session.mcpLaunchSnapshot.disabledBuiltInMcpServerIds;
@@ -765,7 +792,7 @@ export class ThreadSessionManager {
   }
 
   /** Reopen is desired state, not permission to replace another client's runtime. */
-  async ensureThreadRunning(payload: StartThreadPayload): Promise<StartThreadResult> {
+  async ensureThreadRunning(payload: StartThreadRuntimeInput): Promise<StartThreadResult> {
     if (this.disposed) throw new Error("ThreadSessionManager is disposed.");
     const threadId = payload.threadId;
     if (
@@ -776,6 +803,26 @@ export class ThreadSessionManager {
     ) {
       throw new Error("Thread reopen requires an existing id and no new input or provider switch.");
     }
+    const owner = this.workspaceStarts.get(threadId) ?? this.sessions.get(threadId);
+    if (owner?.workspaceScope) {
+      // Reopen adopts the owned grant, but may never move it to another primary.
+      const workspaceScope = snapshotWorkspaceScope(owner.workspaceScope, payload.projectLocation);
+      if (payload.workspaceScope !== undefined) {
+        assertWorkspaceScopeUnchanged(
+          workspaceScope,
+          snapshotWorkspaceScope(payload.workspaceScope, payload.projectLocation),
+        );
+      }
+      payload = { ...payload, workspaceScope };
+    } else if (owner) {
+      assertWorkspaceScopeUnchanged(undefined, payload.workspaceScope);
+    }
+    payload = snapshotWorkspaceStart(payload);
+    assertWorkspaceLaunchSupported(
+      payload.workspaceScope,
+      this.options.adapters.get(payload.agentKind),
+      payload.presentationMode,
+    );
     // Inspect and acquire the same start lock synchronously: two clients must
     // not both observe an absent session and replace each other's new runtime.
     const pending = this.startLocks.get(threadId);
@@ -789,6 +836,7 @@ export class ThreadSessionManager {
     if (!current || current.status === "inactive") {
       throw new Error("Thread reopen did not leave a running session.");
     }
+    assertWorkspaceScopeUnchanged(current.workspaceScope, payload.workspaceScope);
     return { threadId };
   }
 
@@ -845,6 +893,7 @@ export class ThreadSessionManager {
     // Match direct submission: apply the snapshot when dispatching. Some
     // providers resolve startTurn only at completion, after a newer steer or
     // model selection may already have changed the live config.
+    assertWorkspaceLiveConfig(session, turn.config);
     session.config = turn.config;
     const start = this.structuredTurnQueue.start(session, turn);
     if (start) this.outputPipeline.emitState(session);
@@ -859,6 +908,7 @@ export class ThreadSessionManager {
     // Same snapshot rule as queued dispatch: steer/follow-up startTurn reads
     // `turn.config`, and later thread-state echoes must not revive the old
     // model / effort / Fast from `session.config`.
+    assertWorkspaceLiveConfig(session, turn.config);
     session.config = turn.config;
     this.followUpQueue.noteDirectTurnSubmitted(session);
     const start = this.structuredTurnQueue.start(session, turn);
@@ -911,10 +961,21 @@ export class ThreadSessionManager {
     return this.followUpQueue.getThreadFollowUpQueue(threadId);
   }
 
-  async startThread(payload: StartThreadPayload): Promise<StartThreadResult> {
+  async startThread(payload: StartThreadRuntimeInput): Promise<StartThreadResult> {
     if (this.disposed) {
       throw new Error("ThreadSessionManager is disposed.");
     }
+    payload = snapshotWorkspaceStart(payload);
+    assertWorkspaceLaunchSupported(
+      payload.workspaceScope,
+      this.options.adapters.get(payload.agentKind),
+      payload.presentationMode,
+    );
+    const scopeOwner = payload.threadId
+      ? (this.workspaceStarts.get(payload.threadId) ?? this.sessions.get(payload.threadId))
+      : undefined;
+    if (scopeOwner)
+      assertWorkspaceScopeUnchanged(scopeOwner.workspaceScope, payload.workspaceScope);
     // A requested presentation must be one the adapter declares. This runs
     // before coalescing, admission, teardown or any process effect so a
     // nonstandard client can never co-produce an undeclared runtime surface.
@@ -942,6 +1003,8 @@ export class ThreadSessionManager {
       await this.retryRetainedSession(threadId);
     }
     const currentSession = this.sessions.get(threadId);
+    if (currentSession)
+      assertWorkspaceScopeUnchanged(currentSession.workspaceScope, payload.workspaceScope);
     if (
       payload.providerSwitch &&
       currentSession &&
@@ -972,13 +1035,12 @@ export class ThreadSessionManager {
       resourceLease,
       ...(predecessorLease ? { predecessorLease } : {}),
     });
-    this.startLocks.set(
-      threadId,
-      run.then(
-        () => undefined,
-        () => undefined,
-      ),
+    const lock = run.then(
+      () => undefined,
+      () => undefined,
     );
+    this.startLocks.set(threadId, lock);
+    this.workspaceStarts.set(threadId, payload);
     try {
       const result = await run;
       // A settled start that never published a runtime must not leak a slot
@@ -997,13 +1059,28 @@ export class ThreadSessionManager {
       if (isSessionReplacement) {
         this.followUpQueue.sessionReplacementFailed(threadId);
       }
+      if (
+        payload.presentationMode === "gui" &&
+        !this.sessions.has(threadId) &&
+        !this.recentlyRemovedThreadIds.has(threadId)
+      ) {
+        publishUnpublishedStartFailure(threadId, error, this.runtimeEventRouter);
+      }
       throw error;
     } finally {
-      this.startLocks.delete(threadId);
-      if (!this.sessions.has(threadId)) {
-        this.pendingStartInterrupts.delete(threadId);
-        this.pendingStartAborts.delete(threadId);
-      }
+      this.releaseStartLock(threadId, lock);
+    }
+  }
+
+  private releaseStartLock(threadId: string, lock: Promise<void>): void {
+    // Confirmed close can extend this start's exclusion through its final
+    // custody observation. The original start must not remove that barrier.
+    if (this.startLocks.get(threadId) !== lock) return;
+    this.startLocks.delete(threadId);
+    this.workspaceStarts.delete(threadId);
+    if (!this.sessions.has(threadId)) {
+      this.pendingStartInterrupts.delete(threadId);
+      this.pendingStartAborts.delete(threadId);
     }
   }
 
@@ -1064,7 +1141,11 @@ export class ThreadSessionManager {
       if (!session) {
         // Never swallow a full user prompt, even for a just-removed thread —
         // callers (renderer composer, `send_to_thread`) resume on this error.
-        throw new Error(`Unknown thread session: ${payload.threadId}`);
+        // Typed absence refusal: thrown before the prompt is formatted or any
+        // turn effect, so the host can answer a definite failure from the code
+        // alone. The exact legacy message is kept verbatim for plain-Error
+        // paths and existing clients' message matchers.
+        throw new ThreadSessionAbsenceRefusalError(`Unknown thread session: ${payload.threadId}`);
       }
       if (session.status === "inactive" && !session.sessionRef) {
         throw new Error("This thread exited before a resumable session id was discovered.");
@@ -1107,7 +1188,12 @@ export class ThreadSessionManager {
       if (!this.isCurrentSession(session)) {
         return this.sendThreadInput(payload);
       }
-      session.config = effectiveConfig;
+      if (session.status !== "inactive" && session.structuredSession) {
+        assertWorkspaceLiveConfig(session, effectiveConfig);
+      }
+      // Restart receives its own candidate config; leave the predecessor unchanged.
+      if (!session.workspaceScope || (session.status !== "inactive" && session.structuredSession))
+        session.config = effectiveConfig;
       const turn: QueuedStructuredTurn = {
         prompt,
         config: effectiveConfig,
@@ -1263,6 +1349,14 @@ export class ThreadSessionManager {
     await this.sendThreadInput({ threadId, prompt, config: session.config });
   }
 
+  listThreadSessionActions(payload: ListThreadSessionActionsPayload) {
+    return listSessionActions(this.sessions.get(payload.threadId));
+  }
+
+  invokeThreadSessionAction(payload: InvokeThreadSessionActionPayload) {
+    return invokeSessionAction(() => this.sessions.get(payload.threadId), payload);
+  }
+
   async connectThreadVoice(payload: ConnectThreadVoicePayload): Promise<ConnectThreadVoiceResult> {
     const session = this.requireSession(payload.threadId);
     if (
@@ -1277,6 +1371,7 @@ export class ThreadSessionManager {
       payload.config,
       session.adapter.capabilities,
     );
+    assertWorkspaceLiveConfig(session, config);
     session.config = config;
     return session.structuredSession.connectVoice({
       connectionId: payload.connectionId,
@@ -1589,6 +1684,7 @@ export class ThreadSessionManager {
         payload.config,
         session.adapter.capabilities,
       );
+      assertWorkspaceLiveConfig(session, effectiveConfig);
       session.config = effectiveConfig;
       admittedSession = session;
       directInput.markStarted(session);
@@ -1637,11 +1733,49 @@ export class ThreadSessionManager {
    * not delete the row in that case.
    */
   async closeThreadConfirmed(payload: CloseThreadPayload): Promise<CloseThreadConfirmedResult> {
-    return this.retireThreadRuntime(payload);
+    const threadId = payload.threadId;
+    const pending = this.startLocks.get(threadId);
+    if (!pending) return this.retireThreadRuntime(payload);
+
+    this.pendingStartAborts.add(threadId);
+    this.rememberRemovedThread(threadId);
+    const run = pending.then(async (): Promise<CloseThreadConfirmedResult> => {
+      // Join the captured start only. waitForPendingStart follows replacement
+      // entries, which would wait on our own barrier here. Ordinary close is
+      // deliberately non-joining: startThreadInner calls it under this lock.
+      // The start has already attempted cleanup; observe retained custody
+      // without issuing a speculative second disposal after failure/timeout.
+      if (
+        this.sessionRetirement.hasAbandoned("agent-session", threadId) ||
+        this.retiringSessions.has(threadId)
+      ) {
+        return { confirmed: false };
+      }
+      // Publication can win the abort race. Retire that runtime under the
+      // same exclusion, never a later same-id successor. An absent runtime
+      // must not re-enter the ordinary pending-start cancellation branch.
+      if (!this.sessions.has(threadId)) return { confirmed: true };
+      try {
+        return await this.retireThreadRuntime(payload);
+      } catch {
+        return { confirmed: false };
+      }
+    });
+    const lock = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.startLocks.set(threadId, lock);
+    try {
+      return await run;
+    } finally {
+      this.releaseStartLock(threadId, lock);
+    }
   }
 
   private async retireThreadRuntime(
     payload: CloseThreadPayload,
+    options: { replacement?: boolean } = {},
   ): Promise<CloseThreadConfirmedResult> {
     const shell = this.shellSessions.get(payload.threadId);
     if (shell) {
@@ -1666,10 +1800,15 @@ export class ThreadSessionManager {
     const existing = this.sessions.get(payload.threadId);
     if (!existing) {
       let confirmed = true;
-      if (this.startLocks.has(payload.threadId)) {
+      // The pipeline may await workspace resolution under its own start lock.
+      // Its replacement close must not cancel that same launch. External close
+      // still aborts it, and confirmed close joins the unchanged custody barrier.
+      if (!options.replacement && this.startLocks.has(payload.threadId)) {
         this.pendingStartAborts.add(payload.threadId);
         this.rememberRemovedThread(payload.threadId);
-        return { confirmed };
+        // Ordinary close requests cancellation without joining (the pipeline
+        // calls it internally). Cancellation alone is never confirmation.
+        return { confirmed: false };
       }
       // Custody retained by an earlier failed retirement/abandonment: a close
       // retry joins and retries it instead of silently giving up. The sync

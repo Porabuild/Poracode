@@ -852,3 +852,49 @@ describe("detectAntigravityInvalidSessionRef", () => {
     expect(detectAntigravityInvalidSessionRef("Antigravity CLI ready")).toBe(false);
   });
 });
+
+describe("Antigravity utility control policy", () => {
+  it("maps effort and refuses other controls on general and resume lanes", async () => {
+    const adapter = createAntigravityAdapter();
+    const location = { kind: "posix" as const, path: "/fixture/repo" };
+    const session = { providerSessionId: "fixture-session", discoveredAt: "2026-10-09" };
+    for (const lane of ["general", "resume"] as const) {
+      const selection = { model: "gemini-3.5-flash", effort: "high", fast: false };
+      const command = await (lane === "general"
+        ? adapter.buildOneShotCommand?.(
+            selection.model,
+            selection.effort,
+            "prompt",
+            location,
+            selection.fast,
+            { selection },
+          )
+        : adapter.buildContextExtractionCommand?.(session, location, selection.model, {
+            selection,
+          }));
+      expect(command?.args).toContain("gemini-3.5-flash-high");
+      for (const control of [{ fast: true }, { thinking: false }, { contextSize: "" }]) {
+        const unsupported = { model: selection.model, ...control };
+        await expect(
+          Promise.resolve().then(() =>
+            lane === "general"
+              ? adapter.buildOneShotCommand?.(
+                  unsupported.model,
+                  undefined,
+                  "prompt",
+                  location,
+                  unsupported.fast,
+                  { selection: unsupported },
+                )
+              : adapter.buildContextExtractionCommand?.(session, location, unsupported.model, {
+                  selection: unsupported,
+                }),
+          ),
+        ).rejects.toMatchObject({
+          name: "UnsupportedOneShotControlError",
+          axes: Object.keys(control),
+        });
+      }
+    }
+  });
+});

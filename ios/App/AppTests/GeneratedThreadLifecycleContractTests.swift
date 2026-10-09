@@ -24,7 +24,8 @@ final class GeneratedThreadLifecycleContractTests: XCTestCase {
     request.presentationMode = .gui
     request.sessionReference = ThreadSessionReference(
       providerSessionID: "provider-session",
-      discoveredAt: "2026-08-12T12:00:00Z"
+      discoveredAt: "2026-08-12T12:00:00Z",
+      executionIdentity: "opaque-account-scope"
     )
     request.mcpServers = [
       ThreadMCPServer(
@@ -39,6 +40,7 @@ final class GeneratedThreadLifecycleContractTests: XCTestCase {
     let prepared = try GeneratedRemoteV3Contract.threadStartExistingRequest(
       request, commandID: "start-command-1")
     let body = try threadLifecycleJSONObject(prepared.body)
+    XCTAssertEqual((body["sessionRef"] as? [String: Any])?["executionIdentity"] as? String, "opaque-account-scope")
 
     XCTAssertEqual(prepared.method, "POST")
     XCTAssertEqual(prepared.path, "/api/threads/start")

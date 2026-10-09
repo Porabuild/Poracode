@@ -34,7 +34,7 @@ import {
 } from "./index";
 import { buildCursorArgs } from "./argv";
 import { CursorSdkSession } from "./sdkSession";
-import { primeWslLaunchEnvironment } from "../base";
+import { primeWslLaunchEnvironment, UnsupportedOneShotControlError } from "../base";
 
 function decodePowerShellEncodedCommand(encoded: string): string {
   return Buffer.from(encoded, "base64").toString("utf16le");
@@ -124,6 +124,87 @@ describe("createCursorAdapter capabilities", () => {
       )?.args,
     ).toContain("--resume=cli-chat-123");
   });
+
+  it("routes the full model-modifier tuple through the native resolver on both one-shot lanes", async () => {
+    const adapter = createCursorAdapter();
+    const location = { kind: "posix" as const, path: "/repo" };
+    const selection = {
+      model: "composer-2.5",
+      effort: "high",
+      fast: true,
+      thinking: true,
+    } as const;
+
+    // Cursor encodes effort/Fast/thinking as model-id modifiers through its
+    // own resolver — the same mapping the interactive launch lane uses.
+    const general = await adapter.buildOneShotCommand?.(
+      selection.model,
+      selection.effort,
+      undefined,
+      location,
+      selection.fast,
+      { selection },
+    );
+    expect(general?.args).toContain("--model");
+    expect(general?.args).toContain("composer-2.5-high-thinking-fast");
+
+    // The resume print run consumes the same resolver.
+    const resumed = await adapter.buildContextExtractionCommand?.(
+      {
+        providerSessionId: "cli-chat-123",
+        discoveredAt: "2026-07-27T00:00:00.000Z",
+      },
+      location,
+      selection.model,
+      { selection },
+    );
+    expect(resumed?.args).toContain("composer-2.5-high-thinking-fast");
+
+    // contextSize has no native mapping in this lane and refuses before the
+    // command is built. The builder throws synchronously, so capture through
+    // a deferred call.
+    const refusal = await Promise.resolve()
+      .then(() =>
+        adapter.buildOneShotCommand?.(selection.model, undefined, undefined, location, undefined, {
+          selection: { model: selection.model, contextSize: "1m" },
+        }),
+      )
+      .then(
+        () => "built",
+        (error: unknown) => error,
+      );
+    expect(refusal).toBeInstanceOf(UnsupportedOneShotControlError);
+    expect((refusal as UnsupportedOneShotControlError).axes).toEqual(["contextSize"]);
+  });
+
+  it.each(["auto", ""])(
+    "refuses meaningful modifiers for implicit model %j on both lanes",
+    async (model) => {
+      const adapter = createCursorAdapter();
+      const location = { kind: "posix" as const, path: "/repo" };
+      const selection = { model, effort: "high", fast: true, thinking: true };
+      const calls = [
+        () => adapter.buildOneShotCommand?.(model, "high", "prompt", location, true, { selection }),
+        () =>
+          adapter.buildContextExtractionCommand?.(
+            { providerSessionId: "cli-chat", discoveredAt: "2026-10-09" },
+            location,
+            model,
+            { selection },
+          ),
+      ];
+      for (const call of calls) {
+        await expect(Promise.resolve().then(call)).rejects.toMatchObject({
+          name: "UnsupportedOneShotControlError",
+          axes: ["effort", "fast", "thinking"],
+        });
+      }
+      const command = await adapter.buildOneShotCommand?.(model, "", "prompt", location, false, {
+        selection: { model, effort: "", fast: false, thinking: false },
+      });
+      expect(command?.args).not.toContain("--model");
+    },
+  );
 });
 
 describe("rewriteCursorLoadSessionError", () => {

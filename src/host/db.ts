@@ -197,9 +197,37 @@ export {
   type CheckpointRevertTruncatePhase,
 } from "./db/checkpointRevertOperations";
 
-export { dbGetSchedules, dbGetSchedule, dbUpsertSchedule, dbDeleteSchedule } from "./db/schedules";
+export {
+  dbGetSchedules,
+  dbGetSchedule,
+  dbUpsertSchedule,
+  dbPatchScheduleRuntime,
+  dbDeleteSchedule,
+  type ScheduleRuntimePatch,
+} from "./db/schedules";
 
-export { dbGetPrWatches, dbGetPrWatch, dbUpsertPrWatch, dbDeletePrWatch } from "./db/prWatches";
+export {
+  dbAdmitScheduleExecution,
+  ScheduleExecutionAdmissionError,
+  type ScheduleExecutionRefusalReason,
+} from "./db/scheduleExecutionAdmission";
+
+export {
+  dbGetPrWatches,
+  dbGetPrWatch,
+  dbUpsertPrWatch,
+  dbDeletePrWatch,
+  dbPatchPrWatchRuntime,
+  type PrWatchRuntimePatch,
+} from "./db/prWatches";
+
+export {
+  dbReadPrWatchExecutionSnapshot,
+  dbAdmitPrWatchExecution,
+  PrWatchExecutionAdmissionError,
+  type PrWatchExecutionSnapshot,
+  type PrWatchExecutionRefusalReason,
+} from "./db/prWatchExecutionAdmission";
 
 export {
   dbInsertScheduleRun,

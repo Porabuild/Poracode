@@ -124,7 +124,7 @@ describe.skipIf(!sqliteAvailable)("runtime durable-gap migrations (48, 49)", () 
 
   it("appends the evidence tables and the singleton epoch row to a schema-47 profile", () => {
     downgradeToSchema47WithoutEvidenceTables();
-    expect(LATEST_SCHEMA_VERSION).toBe(54);
+    expect(LATEST_SCHEMA_VERSION).toBe(56);
 
     initDatabase(dbPath);
     const sqlite = rawDatabase();

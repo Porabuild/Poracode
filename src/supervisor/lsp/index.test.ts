@@ -13,6 +13,7 @@ vi.mock("./serverInstance", () => ({
     sendMessage = vi
       .fn<(message: unknown) => Promise<unknown>>()
       .mockResolvedValue("current owner");
+    isReady = vi.fn<() => boolean>(() => true);
     constructor(
       _id: string,
       _config: unknown,
@@ -26,6 +27,7 @@ vi.mock("./serverInstance", () => ({
   },
 }));
 interface FakeInstance {
+  isReady: ReturnType<typeof vi.fn<() => boolean>>;
   start: ReturnType<typeof vi.fn<() => Promise<void>>>;
   dispose: ReturnType<typeof vi.fn<() => void>>;
   sendMessage: ReturnType<typeof vi.fn<(message: unknown) => Promise<unknown>>>;
@@ -45,6 +47,87 @@ const payload: LspStartPayload = {
   languageId: "typescript",
   projectLocation: { kind: "posix", path: "/repo" },
 };
+
+const diagnosticMessage = {
+  method: "textDocument/publishDiagnostics",
+  params: {
+    uri: "file:///repo/a.ts",
+    diagnostics: [
+      {
+        message: "Actual issue",
+        severity: 1,
+        range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
+      },
+    ],
+  },
+};
+
+describe("host diagnostics source ownership", () => {
+  it("distinguishes unavailable from a ready empty source and isolates project scopes", async () => {
+    const manager = new LanguageServerManager(() => {});
+    const gate = deferred();
+    const { pending, instance } = begin(manager, gate);
+    expect(manager.readDiagnostics(payload.projectLocation)).toBeUndefined();
+    instance.status("ready");
+    gate.resolve();
+    await pending;
+    expect(manager.readDiagnostics(payload.projectLocation)).toEqual({
+      documents: [],
+      truncated: false,
+    });
+    expect(manager.readDiagnostics({ kind: "posix", path: "/other" })).toBeUndefined();
+    instance.message(diagnosticMessage);
+    expect(
+      manager.readDiagnostics(payload.projectLocation)?.documents[0]?.diagnostics[0]?.message,
+    ).toBe("Actual issue");
+    instance.isReady.mockReturnValue(false);
+    expect(manager.readDiagnostics(payload.projectLocation)).toBeUndefined();
+    manager.dispose();
+  });
+  it("retires diagnostics on restart, stop and owner replacement, ignoring late old publications", async () => {
+    const manager = new LanguageServerManager(() => {});
+    const gate = deferred();
+    const { pending, instance } = begin(manager, gate);
+    instance.status("ready");
+    gate.resolve();
+    await pending;
+    instance.message(diagnosticMessage);
+    instance.status("starting");
+    expect(manager.readDiagnostics(payload.projectLocation)).toBeUndefined();
+    instance.status("ready");
+    expect(manager.readDiagnostics(payload.projectLocation)?.documents).toEqual([]);
+    instance.message(diagnosticMessage);
+    await manager.stop({ sessionId: payload.sessionId });
+    expect(manager.readDiagnostics(payload.projectLocation)).toBeUndefined();
+    const next = deferred();
+    const successor = begin(manager, next);
+    successor.instance.status("ready");
+    next.resolve();
+    await successor.pending;
+    instance.message(diagnosticMessage);
+    expect(manager.readDiagnostics(payload.projectLocation)?.documents).toEqual([]);
+    manager.dispose();
+    expect(manager.readDiagnostics(payload.projectLocation)).toBeUndefined();
+  });
+  it("invalidates published data when the renderer sends a real document update", async () => {
+    const manager = new LanguageServerManager(() => {});
+    const gate = deferred();
+    const { pending, instance } = begin(manager, gate);
+    instance.status("ready");
+    gate.resolve();
+    await pending;
+    instance.message(diagnosticMessage);
+    await manager.sendMessage({
+      sessionId: payload.sessionId,
+      message: {
+        method: "textDocument/didChange",
+        params: { textDocument: { uri: "file:///repo/a.ts", version: 2 } },
+      },
+    });
+    expect(manager.readDiagnostics(payload.projectLocation)?.documents).toEqual([]);
+    manager.dispose();
+  });
+});
 beforeEach(() => {
   mocks.instances.length = 0;
   mocks.starts.length = 0;

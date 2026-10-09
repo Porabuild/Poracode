@@ -214,6 +214,22 @@ describe("standalone attach client runtime", () => {
     expect(attachSettingsSync.push.mock.calls[0]?.[1]).toMatchObject({ themeMode: "dark" });
   });
 
+  it("attach fallback invokes the host with the renderer-produced envelope", async () => {
+    // Hop 17: the device-procedure fallback is a second RENDERER producer of
+    // the invocation envelope (beside the managed preload transport) — the
+    // declared version is minted here from this bundle's compiled constant,
+    // never left to preload or main to manufacture.
+    const invokeProcedure = vi.fn<(...args: unknown[]) => Promise<unknown>>(async () => undefined);
+    const host = { ...electronHost(), invokeProcedure } as unknown as ElectronHostBridge;
+    installAttachedElectronClientRuntime(host, attachInfo());
+    await readClientRuntime().procedures.focusWindow();
+    expect(invokeProcedure).toHaveBeenCalledExactlyOnceWith({
+      ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
+      name: "focusWindow",
+      args: [],
+    });
+  });
+
   it("keeps the Electron shell surface facts true under attach through the runtime accessors (V5 2.4)", () => {
     // Attached Electron still runs the preload shell, so client-SURFACE facts
     // (native window, sidebar desktop-preference semantics, window chrome)

@@ -1,13 +1,11 @@
 import { antigravityWindowId } from "@poracode/agents-usage/antigravity";
+import { msg } from "@lingui/core/macro";
 import { allUsageProviderDescriptors } from "@poracode/agents-usage/providers";
 import type { UsageSnapshot, UsageWindow } from "@poracode/agents-usage/types";
-import {
-  baseAgentKind,
-  claudeProfileKind,
-  cursorProfileKind,
-  parseClaudeProfileInstanceConfig,
-  type AgentInstanceConfigMap,
-} from "@/shared/contracts";
+import { baseAgentKind, agentProfileKind, type AgentInstanceConfigMap } from "@/shared/contracts";
+import { USAGE_PROFILE_SUPPORT } from "./usageProfileRegistry";
+import { i18n } from "@/renderer/i18n/i18n";
+export { isClaudeUsageProvider } from "./claude/usageProfileSupport";
 
 /**
  * Providers the usage tracker shows in the renderer. The canonical id + label +
@@ -145,47 +143,28 @@ function rendererMeta(providerId: string): Omit<UsageProvider, "id" | "label"> |
   return RENDERER_META[providerId] ?? RENDERER_META[baseAgentKind(providerId)];
 }
 
-export function isClaudeUsageProvider(providerId: string): boolean {
-  return baseAgentKind(providerId) === "claude";
-}
-
-function claudeProfileUsageProviders(
+function profileUsageProviders(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
   if (!agentInstances) return [];
   const profiles: UsageProvider[] = [];
+  const supportByDriver = new Map(
+    USAGE_PROFILE_SUPPORT.map((support) => [support.driver, support]),
+  );
   for (const instance of Object.values(agentInstances)) {
-    if (instance.enabled === false || instance.driver !== "claude") continue;
-    try {
-      parseClaudeProfileInstanceConfig(instance.config);
-    } catch {
-      continue;
-    }
-    const label = instance.displayName ?? instance.id;
+    if (instance.enabled === false) continue;
+    const support = supportByDriver.get(instance.driver);
+    if (!support || !support.accepts(instance)) continue;
+    const profile = instance.displayName ?? instance.id;
+    const provider = support.labelPrefix;
+    const id = support.providerId
+      ? support.providerId(instance, agentInstances)
+      : agentProfileKind(instance.driver, instance.id);
+    if (!id) continue;
     profiles.push({
-      id: claudeProfileKind(instance.id),
-      label: `Claude ${label}`,
-      ...rendererMeta("claude"),
-    });
-  }
-  profiles.sort((a, b) => a.label.localeCompare(b.label));
-  return profiles;
-}
-
-function cursorProfileUsageProviders(
-  agentInstances: AgentInstanceConfigMap | undefined,
-): UsageProvider[] {
-  if (!agentInstances) return [];
-  const profiles: UsageProvider[] = [];
-  for (const instance of Object.values(agentInstances)) {
-    if (instance.enabled === false || instance.driver !== "cursor") continue;
-    const apiKey = instance.environment?.CURSOR_API_KEY?.value;
-    if (typeof apiKey !== "string" || apiKey.length === 0) continue;
-    const label = instance.displayName ?? instance.id;
-    profiles.push({
-      id: cursorProfileKind(instance.id),
-      label: `Cursor ${label}`,
-      ...rendererMeta("cursor"),
+      id,
+      label: i18n._(msg`${provider} ${profile}`),
+      ...rendererMeta(instance.driver),
     });
   }
   profiles.sort((a, b) => a.label.localeCompare(b.label));
@@ -195,18 +174,38 @@ function cursorProfileUsageProviders(
 export function usageProvidersForAgentInstances(
   agentInstances: AgentInstanceConfigMap | undefined,
 ): UsageProvider[] {
-  const claudeProfiles = claudeProfileUsageProviders(agentInstances);
-  const cursorProfiles = cursorProfileUsageProviders(agentInstances);
-  if (claudeProfiles.length === 0 && cursorProfiles.length === 0) {
+  const profiles = profileUsageProviders(agentInstances);
+  if (profiles.length === 0) {
     return [...STATIC_USAGE_PROVIDERS];
   }
   const out: UsageProvider[] = [];
+  const seen = new Set<string>();
   for (const provider of STATIC_USAGE_PROVIDERS) {
     out.push(provider);
-    if (provider.id === "claude") out.push(...claudeProfiles);
-    if (provider.id === "cursor") out.push(...cursorProfiles);
+    seen.add(provider.id);
+    for (const profile of profiles) {
+      if (baseAgentKind(profile.id) !== provider.id || seen.has(profile.id)) continue;
+      out.push(profile);
+      seen.add(profile.id);
+    }
   }
   return out;
+}
+
+/** Resolve quota ownership without falling back to a different profile account. */
+export function usageProviderIdForAgent(
+  agentKind: string,
+  instanceId: string | undefined,
+  instances: AgentInstanceConfigMap | undefined,
+): string {
+  const driver = baseAgentKind(agentKind);
+  const id = instanceId ?? (driver !== agentKind ? agentKind.slice(driver.length + 1) : undefined);
+  if (!id) return agentKind;
+  const candidate = agentProfileKind(driver, id);
+  const instance = instances?.[id];
+  const support = USAGE_PROFILE_SUPPORT.find((entry) => entry.driver === driver);
+  if (!instance || instance.driver !== driver || !support?.providerId) return candidate;
+  return support.providerId(instance, instances!) ?? candidate;
 }
 
 /** Providers that expose the browser-overlay login (cookie or device flow). */

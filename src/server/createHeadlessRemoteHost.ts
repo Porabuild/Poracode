@@ -1,4 +1,5 @@
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
+import { acquireHostDataFenceWithWait } from "@/backend/ownership/hostDataFence";
 import { resolvePoracodeBaseDir } from "@/shared/poracodePaths";
 import { configureSecretStorageKey } from "@/shared/secretStorage";
 import type { HostBuildIdentity } from "@/shared/hostControlProtocol";
@@ -153,6 +154,12 @@ export async function createHeadlessRemoteHost(
     if (activeOwner === owner) activeOwner = undefined;
   };
   try {
+    // An orphaned desktop backend can retain data custody after its owner exits.
+    // Probe before root/key preparation; our held kernel lease closes the gap
+    // after releasing the probe and protects the in-process headless database.
+    const dataFence = await acquireHostDataFenceWithWait(owner.lease.paths.dataFencePath);
+    dataFence.release();
+    options.signal?.throwIfAborted();
     const runtime = await owner.initialize({
       mode: "headless",
       ...(options.environmentKey !== undefined ? { environmentKey: options.environmentKey } : {}),

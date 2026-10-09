@@ -8,6 +8,12 @@ function memoryStore(): ScheduleStore {
     list: () => [...tasks.values()],
     get: (id) => tasks.get(id) ?? null,
     upsert: (task) => tasks.set(task.id, task),
+    patchRuntime: (id, patch) => {
+      // Mirrors the SQL patch: runtime columns only, no missing-row insert.
+      const current = tasks.get(id);
+      if (!current) return;
+      tasks.set(id, { ...current, ...patch });
+    },
     delete: (id) => {
       tasks.delete(id);
     },
@@ -24,6 +30,24 @@ const input: ScheduledTaskInput = {
 };
 
 describe("ScheduleService", () => {
+  it("does not retain a running ID or launch after a rejected save", async () => {
+    const store = memoryStore();
+    const runTask = vi.fn<() => Promise<string>>().mockResolvedValue("Done");
+    const service = new ScheduleService({ store, runTask });
+    const task = service.create(input);
+    vi.spyOn(store, "upsert").mockImplementationOnce(() => {
+      throw new Error("Stored selection is unsupported");
+    });
+
+    expect(() => service.runNow(task.id)).toThrow("Stored selection is unsupported");
+    expect(runTask).not.toHaveBeenCalled();
+    expect(store.get(task.id)?.lastStatus).toBe("never");
+    expect(service.runNow(task.id).lastStatus).toBe("running");
+    expect(runTask).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(store.get(task.id)?.lastStatus).toBe("succeeded"));
+    service.dispose();
+  });
+
   it("refuses database access and manual launches after admission closes", () => {
     const store = memoryStore();
     const runTask = vi.fn<() => Promise<string>>(async () => "fixture");
@@ -150,5 +174,132 @@ describe("ScheduleService", () => {
     resolveRun("Late result");
     await Promise.resolve();
     expect(store.get(task.id)).toBeNull();
+  });
+
+  it("a refused sibling save does not starve healthy due tasks", async () => {
+    const store = memoryStore();
+    const onError = vi.fn<(scheduleId: string, error: unknown) => void>();
+    const service = new ScheduleService({ store, runTask: async () => "Done", onError });
+    const blocked = service.create({ ...input, name: "Blocked" });
+    const healthy = service.create({ ...input, name: "Healthy" });
+    const due = new Date(Date.now() - 1_000).toISOString();
+    store.upsert({ ...store.get(blocked.id)!, nextRunAt: due });
+    store.upsert({ ...store.get(healthy.id)!, nextRunAt: due });
+
+    const realUpsert = store.upsert.bind(store);
+    vi.spyOn(store, "upsert").mockImplementation((task) => {
+      if (task.id === blocked.id) throw new Error("Stored selection is unsupported");
+      realUpsert(task);
+    });
+
+    service.tick();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    const [reportedId, reportedError] = onError.mock.calls[0]!;
+    expect(reportedId).toBe(blocked.id);
+    expect((reportedError as Error).message).toBe("Stored selection is unsupported");
+    expect(store.get(blocked.id)?.lastStatus).toBe("never");
+    expect(store.get(healthy.id)?.lastStatus).toBe("running");
+    await vi.waitFor(() => expect(store.get(healthy.id)?.lastStatus).toBe("succeeded"));
+    service.dispose();
+  });
+
+  it("reports a failed settlement write once instead of settling again", async () => {
+    const store = memoryStore();
+    const onError = vi.fn<(scheduleId: string, error: unknown) => void>();
+    const service = new ScheduleService({ store, runTask: async () => "Done", onError });
+    const task = service.create(input);
+    vi.spyOn(store, "patchRuntime").mockImplementation(() => {
+      throw new Error("disk full");
+    });
+
+    service.runNow(task.id);
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+
+    const [, reportedError] = onError.mock.calls[0]!;
+    expect((reportedError as Error).message).toBe("disk full");
+    // The failed write is never converted into another failed settlement.
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(store.get(task.id)?.lastStatus).toBe("running");
+    service.dispose();
+  });
+
+  it("normalizes startup bookkeeping through the narrow patch without full saves", () => {
+    const store = memoryStore();
+    const now = new Date(2026, 6, 6, 9, 0).getTime();
+    const seed = new ScheduleService({
+      store,
+      runTask: vi.fn<() => Promise<string>>(),
+      now: () => now,
+    });
+    seed.create(input);
+    const task = store.list()[0]!;
+    // Simulate a prior process that died mid-run.
+    store.upsert({ ...task, lastStatus: "running" });
+
+    const upsert = vi.spyOn(store, "upsert");
+    const patchRuntime = vi.spyOn(store, "patchRuntime");
+    const onStartupInterrupted = vi.fn<(scheduleId: string) => void>();
+    const service = new ScheduleService({
+      store,
+      runTask: vi.fn<() => Promise<string>>(),
+      onStartupInterrupted,
+      now: () => now,
+    });
+    service.start();
+
+    expect(upsert).not.toHaveBeenCalled();
+    expect(onStartupInterrupted).toHaveBeenCalledWith(task.id);
+    expect(patchRuntime).toHaveBeenCalledTimes(1);
+    expect(patchRuntime).toHaveBeenCalledWith(
+      task.id,
+      expect.objectContaining({ enabled: true, lastStatus: "failed", lastError: null }),
+    );
+    // The captured execution config passes through untouched.
+    expect(store.get(task.id)?.config).toEqual(input.config);
+    service.dispose();
+  });
+
+  it("startup normalization isolates a failing task from its siblings", () => {
+    const store = memoryStore();
+    const onError = vi.fn<(scheduleId: string, error: unknown) => void>();
+    const service = new ScheduleService({ store, runTask: async () => "Done", onError });
+    const blocked = service.create({ ...input, name: "Blocked" });
+    const healthy = service.create({ ...input, name: "Healthy" });
+
+    const realPatch = store.patchRuntime.bind(store);
+    vi.spyOn(store, "patchRuntime").mockImplementation((id, patch) => {
+      if (id === blocked.id) throw new Error("locked");
+      realPatch(id, patch);
+    });
+
+    service.start();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]?.[0]).toBe(blocked.id);
+    expect(store.get(blocked.id)?.enabled).toBe(true);
+    expect(store.get(healthy.id)?.enabled).toBe(true);
+    service.dispose();
+  });
+
+  it("settles a synchronously throwing runTask instead of stranding the running ID", async () => {
+    const store = memoryStore();
+    const service = new ScheduleService({
+      store,
+      runTask: vi.fn<() => Promise<string>>(() => {
+        throw new Error("sync boom");
+      }),
+    });
+    const task = service.create(input);
+
+    const running = service.runNow(task.id);
+    expect(running.lastStatus).toBe("running");
+    await vi.waitFor(() => expect(store.get(task.id)?.lastStatus).toBe("failed"));
+    expect(store.get(task.id)?.lastError).toBe("sync boom");
+
+    // The running ID was released: a retry launches instead of bouncing off
+    // the coalescing guard.
+    expect(service.runNow(task.id).lastStatus).toBe("running");
+    service.dispose();
   });
 });

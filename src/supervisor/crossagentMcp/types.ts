@@ -16,6 +16,7 @@ import type {
 import type { McpThreadIdentity } from "@/shared/browserMcpThread";
 import type { CompactResult } from "./compactResult";
 import type { CrossagentRoutingOverride } from "@/shared/settings";
+import type { HostDiagnosticsSnapshot } from "@/shared/lsp";
 
 /** Terminal states a subagent run can settle into. */
 export type SubagentRunStatus = "running" | "completed" | "failed" | "cancelled";
@@ -267,6 +268,11 @@ export interface SubagentRunSummary {
  * manager. Kept minimal so the TSM only exposes thin hooks (no-god-files).
  */
 export interface SubagentRunHost {
+  /** Live diagnostics for the child's actual execution project, never inferred from its parent. */
+  readHostDiagnostics?(
+    location: ProjectLocation,
+    signal: AbortSignal,
+  ): Promise<HostDiagnosticsSnapshot | undefined>;
   /** Resolve a live parent thread's project and non-recursive MCP context. */
   getParentContext(
     threadId: string,

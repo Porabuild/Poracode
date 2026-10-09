@@ -12,7 +12,7 @@
  */
 
 import type { ProjectLocation } from "@/shared/contracts";
-import type { RunOneShotInput } from "../base";
+import { assertOneShotControlsMapped, type RunOneShotInput } from "../base";
 import { classifyOpenCodeError } from "./opencodeErrors";
 import { acquireOpenCodeServer, type AcquiredOpenCodeServer } from "./sdkClient";
 
@@ -82,10 +82,15 @@ function extractInfoErrorMessage(info: unknown): string | undefined {
  * (typically nothing), and we surface a classified `AbortError`.
  */
 export async function runOpenCodeOneShot(input: RunOneShotInput): Promise<string> {
-  const parsedModel = parseModelSlug(input.model);
+  // The SDK session prompt maps a nonempty effort onto the model's variant;
+  // the SDK has no Fast lane, so false Fast is the declared-inactive legacy
+  // carrier while meaningful Fast — and every other present carrier — refuses
+  // before the server is acquired instead of being silently dropped.
+  assertOneShotControlsMapped(input.selection, { effort: true, fast: { inactive: [false] } });
+  const parsedModel = parseModelSlug(input.selection.model);
   if (!parsedModel) {
     throw new Error(
-      `OpenCode model must be in 'provider/model' format (got '${input.model ?? ""}').`,
+      `OpenCode model must be in 'provider/model' format (got '${input.selection.model}').`,
     );
   }
 
@@ -137,7 +142,9 @@ export async function runOpenCodeOneShot(input: RunOneShotInput): Promise<string
       result = await acquired.client.session.prompt({
         sessionID: sessionData.id,
         model: parsedModel,
-        ...(input.effort && input.effort.length > 0 ? { variant: input.effort } : {}),
+        ...(input.selection.effort && input.selection.effort.length > 0
+          ? { variant: input.selection.effort }
+          : {}),
         parts: [{ type: "text", text: input.prompt }],
       });
     } catch (cause) {

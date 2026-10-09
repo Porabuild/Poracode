@@ -160,4 +160,65 @@
     <string name="rich_chat_history_notice_reason_shutdown">arrêt anormal</string>
     <string name="rich_chat_history_notice_reason_unclean_epoch">session anormale</string>
     <string name="rich_chat_history_notice_reason_unknown">limite de stockage</string>
+    <string name="rich_chat_session_actions">Actions de session</string>
+    <string name="rich_chat_session_action_rename">Renommer la session</string>
+    <string name="rich_chat_session_action_revise">Réviser la commande</string>
+    <string name="rich_chat_session_action_rules">Règles</string>
+    <string name="rich_chat_session_action_hooks">Hooks</string>
+    <string name="rich_chat_session_action_personas">Personas natifs</string>
+    <string name="rich_chat_session_rename_title">Renommer la session</string>
+    <string name="rich_chat_session_rename_field">Nouveau titre de session</string>
+    <string name="rich_chat_session_rename_hint">L’agent applique d’abord le nouveau titre ; la liste des conversations se met à jour après sa confirmation.</string>
+    <string name="rich_chat_session_rename_submit">Renommer</string>
+    <string name="rich_chat_session_revise_command_field">Commande à réviser</string>
+    <string name="rich_chat_session_revise_note_field">Que faut-il changer ? (facultatif)</string>
+    <string name="rich_chat_session_revise_submit">Obtenir une suggestion</string>
+    <string name="rich_chat_session_revise_hint">L’agent propose une commande révisée ; vous la vérifiez avant toute exécution.</string>
+    <string name="rich_chat_session_revise_result_title">Commande suggérée — à vérifier avant utilisation</string>
+    <string name="rich_chat_session_revise_insert">Insérer dans la zone de saisie</string>
+    <string name="rich_chat_session_revise_discard">Abandonner</string>
+    <string name="rich_chat_session_revise_insert_hint">Poracode n’exécute jamais la suggestion — l’insertion remplit simplement la zone de saisie pour que vous la modifiiez et l’envoyiez.</string>
+    <string name="rich_chat_session_revise_empty">L’agent n’a renvoyé aucune commande révisée.</string>
+    <string name="rich_chat_session_rules_title">Règles dans cette session</string>
+    <string name="rich_chat_session_rules_empty">Aucune règle n’a été listée pour cette session.</string>
+    <string name="rich_chat_session_hooks_title">Hooks dans cette session</string>
+    <string name="rich_chat_session_hooks_empty">Aucun hook n’est attaché à cette session.</string>
+    <string name="rich_chat_session_hooks_hint">Les entrées de hooks sont affichées telles que rapportées ; leur schéma n’est pas interprété.</string>
+    <string name="rich_chat_session_listing_failed">Impossible de lire la liste.</string>
+    <string name="rich_chat_session_actions_failed">Impossible de charger les actions de session.</string>
+    <string name="rich_chat_session_rename_unconfirmed">L\'agent n\'a pas confirmé le renommage.</string>
+
+    <string name="rich_chat_session_archive">Archiver la session</string>
+
+    <string name="rich_chat_session_archive_title">Archiver cette session ?</string>
+
+    <string name="rich_chat_session_archive_message">L\'agent archive d\'abord la session ; cette conversation est archivée après sa confirmation.</string>
+
+    <string name="rich_chat_session_archive_unconfirmed">L\'agent n\'a pas confirmé l\'archivage.</string>
+
+
+    <string name="rich_chat_session_personas_truncated">Le scan s\'est arrêté à sa limite d\'entrées ; la liste peut être incomplète.</string>
+    <string name="rich_chat_session_personas_title">Personas natifs</string>
+    <string name="rich_chat_session_personas_empty">Aucune définition de persona native trouvée.</string>
+    <string name="rich_chat_session_personas_hint">Définitions de sous-agents que l’agent découvre dans ses propres fichiers. Cette liste est un balayage de définitions candidates, pas une confirmation qu’elles ont été chargées.</string>
+    <string name="rich_chat_session_persona_read_only">lecture seule</string>
+    <string name="rich_chat_session_persona_model">modèle : %1$s</string>
+    <string name="rich_chat_session_action_settings">Paramètres de la session</string>
+    <string name="rich_chat_session_settings_empty">Cette session n’annonce aucun paramètre.</string>
+    <string name="rich_chat_session_settings_malformed">Devin a renvoyé une liste de paramètres que Poracode n’a pas pu interpréter.</string>
+    <string name="rich_chat_session_settings_read_failed">Les paramètres de la session n’ont pas pu être lus.</string>
+    <string name="rich_chat_session_settings_footer">Les modifications s’appliquent à cette session Devin en cours.</string>
+    <string name="rich_chat_session_settings_unconfirmed">Devin n’a pas confirmé la modification du paramètre.</string>
+    <string name="rich_chat_session_settings_no_values">Aucune valeur n’est annoncée pour cette option.</string>
+    <string name="rich_chat_session_settings_current_value">Valeur actuelle : %1$s</string>
+    <string name="rich_chat_session_settings_org_locked">L’organisation est fixe pendant l’exécution de cette session — modifiez-la dans les paramètres du profil Devin, puis démarrez une nouvelle session.</string>
+    <string name="rich_chat_session_settings_org_name">Organisation</string>
+    <string name="rich_chat_session_settings_unavailable">Indisponible</string>
+    <string name="rich_chat_session_settings_unsupported_typed">Poracode ne peut pas encore modifier ce contrôle %1$s.</string>
+    <string name="rich_chat_session_settings_unsupported">Poracode ne peut pas encore modifier ce contrôle.</string>
+    <string name="rich_chat_session_settings_no_value">Aucune valeur</string>
+    <string name="rich_chat_session_settings_no_matches">Aucune valeur correspondante.</string>
+    <string name="rich_chat_session_settings_search">Rechercher des valeurs</string>
+    <string name="rich_chat_session_settings_back">Retour</string>
+    <string name="rich_chat_session_settings_fallback_heading">Paramètre</string>
 </resources>

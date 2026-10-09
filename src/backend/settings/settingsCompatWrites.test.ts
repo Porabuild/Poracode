@@ -8,7 +8,11 @@ import {
   type SharedSettings,
   type SharedSettingsInput,
 } from "@/shared/settings";
-import { settingsSubjectId, type SettingsSubject } from "@/shared/settingsTransactions";
+import {
+  SETTINGS_MISSING_REVISION,
+  settingsSubjectId,
+  type SettingsSubject,
+} from "@/shared/settingsTransactions";
 import { SettingsAuthority } from "./SettingsAuthority";
 import { SettingsCompatWriter } from "./settingsCompatWrites";
 
@@ -34,6 +38,8 @@ describe("settings compat and trusted writes", () => {
     if (initial)
       await writeFile(settingsPath, JSON.stringify({ ...defaultSharedSettings, ...initial }));
     const authority = await SettingsAuthority.open({
+      // Explicit unit admission stub; this suite does not qualify SQLite preparation.
+      assertPreparedDatabaseForWrite: () => {},
       lease: {
         paths: { dataRoot: root },
         generation,
@@ -47,6 +53,75 @@ describe("settings compat and trusted writes", () => {
   }
 
   const usage: SettingsSubject = { kind: "field", field: "crossagentSelectionUsage" };
+  const optionalSelections = [
+    "commitGenSelection",
+    "titleGenSelection",
+    "conflictResolverSelection",
+    "experimentJudgeSelection",
+    "wslCommitGenSelection",
+    "wslTitleGenSelection",
+    "wslConflictResolverSelection",
+  ] as const;
+  const selection = {
+    model: "fixture-member",
+    effort: "",
+    fast: false,
+    thinking: false,
+    contextSize: "default",
+    selectionBinding: {
+      version: 1 as const,
+      kind: "family-member" as const,
+      owner: { agentKind: "fixture-agent", presentationMode: "terminal" as const },
+      model: "fixture-member",
+      inertValues: { effort: "", fast: false, thinking: false, contextSize: "default" },
+    },
+  };
+
+  it.each(optionalSelections)(
+    "saves an initially absent %s through a compat patch",
+    async (field) => {
+      const { authority, writes } = await open();
+      const subject = { kind: "field", field } as const;
+      expect(Object.hasOwn(authority.readSettings(), field)).toBe(false);
+      expect(authority.snapshot([subject]).revisions[settingsSubjectId(subject)]).toBe(
+        SETTINGS_MISSING_REVISION,
+      );
+      await writes.commitCompatPatch({ [field]: selection });
+      expect(authority.readSettings()[field]).toEqual(selection);
+      expect(JSON.parse(await readFile(settingsPath, "utf8"))[field]).toEqual(selection);
+      const sequence = authority.snapshot().sequence;
+      await writes.commitCompatPatch({ [field]: selection });
+      expect(authority.snapshot().sequence).toBe(sequence);
+    },
+  );
+
+  it("saves a new optional selection from a full snapshot without losing other fields", async () => {
+    const { authority, writes } = await open({ themeMode: "dark" });
+    await writes.commitCompatSnapshot({
+      ...authority.readSettings(),
+      titleGenSelection: selection,
+    });
+    expect(authority.readSettings().titleGenSelection).toEqual(selection);
+    expect(authority.readSettings().themeMode).toBe("dark");
+  });
+
+  it.each(optionalSelections)(
+    "clears %s through an explicit field edit and restores its missing revision",
+    async (field) => {
+      const { authority, writes } = await open({ [field]: selection });
+      const subject = { kind: "field", field } as const;
+      await expect(writes.editSettingsField(field, () => undefined)).resolves.toMatchObject({
+        status: "committed",
+      });
+      expect(Object.hasOwn(authority.readSettings(), field)).toBe(false);
+      expect(Object.hasOwn(JSON.parse(await readFile(settingsPath, "utf8")), field)).toBe(false);
+      expect(authority.snapshot([subject]).revisions[settingsSubjectId(subject)]).toBe(
+        SETTINGS_MISSING_REVISION,
+      );
+      await writes.commitCompatPatch({ [field]: selection });
+      expect(authority.readSettings()[field]).toEqual(selection);
+    },
+  );
 
   async function commitField(
     authority: SettingsAuthority,
@@ -93,7 +168,7 @@ describe("settings compat and trusted writes", () => {
       themeMode: "light",
       crossagentSelectionUsage: [{ count: 2, tags: ["review"] }],
     });
-    expect(JSON.parse(await readFile(settingsPath, "utf8")).$poracodeSettingsVersion).toBe(1);
+    expect(JSON.parse(await readFile(settingsPath, "utf8")).$poracodeSettingsVersion).toBe(2);
   });
 
   it("applies only patch keys and never reverts concurrent edits to other fields", async () => {

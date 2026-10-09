@@ -9,6 +9,7 @@ import { ProviderUsageCircle } from "@/renderer/components/providers/ProviderUsa
 import {
   resolveDisplayedProviders,
   USAGE_PROVIDERS,
+  usageProviderIdForAgent,
 } from "@/renderer/components/providers/usageProviders";
 import { UsageWindowBars } from "@/renderer/components/providers/UsageWindowBars";
 import { usageStatusText } from "@/renderer/components/providers/usageFormat";
@@ -17,27 +18,16 @@ import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDockHeader, ThreadDockIconButton, ThreadDockSection } from "./ThreadDockUI";
 import type { ThreadContextUsageSummary } from "./threadContextUsage";
 
-function resolveThreadUsageProviderId(
-  thread: { readonly agentKind: string; readonly agentInstanceId?: string | undefined },
-  availableIds: readonly string[],
-): string {
-  const ids = new Set(availableIds);
-  const base = baseAgentKind(thread.agentKind);
-  const candidates = thread.agentInstanceId
-    ? [thread.agentKind, `${base}:${thread.agentInstanceId}`]
-    : [thread.agentKind];
-  for (const candidate of candidates) {
-    if (ids.has(candidate)) return candidate;
-  }
-  return availableIds.find((id) => baseAgentKind(id) === base) ?? thread.agentKind;
-}
-
 function useThreadUsagePresentation(thread: Thread) {
   const snapshots = useProviderUsageStore((state) => state.snapshots);
   const agentInstances = useSharedSettings((state) => state.agentInstances);
   const selectedRingGroups = useSharedSettings((state) => state.usage.selectedRingGroups);
 
-  const providerId = resolveThreadUsageProviderId(thread, Object.keys(snapshots));
+  const providerId = usageProviderIdForAgent(
+    thread.agentKind,
+    thread.agentInstanceId,
+    agentInstances,
+  );
   const snapshot = snapshots[providerId];
   const label =
     resolveDisplayedProviders([], [], agentInstances).find((provider) => provider.id === providerId)

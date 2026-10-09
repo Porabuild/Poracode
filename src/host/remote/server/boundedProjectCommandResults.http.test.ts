@@ -3,15 +3,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WebSocket } from "ws";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Project, RemoteThreadCommand } from "@/shared/contracts";
-import { closeDatabase, dbGetProject, dbUpsertProject, initDatabase } from "@/host/db";
-import { getSqlite } from "@/host/db/connection";
-import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
   REMOTE_PROJECT_COMMAND_RESULT_DECLARATION,
   REMOTE_PROJECT_COMMAND_RESULT_HEADER,
   remoteProjectSchema,
 } from "@/shared/remote";
+import type { Project, RemoteThreadCommand } from "@/shared/contracts";
+import { closeDatabase, dbGetProject, dbUpsertProject, initDatabase } from "@/host/db";
+import { getSqlite } from "@/host/db/connection";
+import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -184,6 +186,7 @@ describe.skipIf(!sqliteAvailable)("bounded project-command results over real HTT
       headers: {
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         ...(options.commandId ? { "x-poracode-command-id": options.commandId } : {}),
         ...(options.bounded
           ? { [REMOTE_PROJECT_COMMAND_RESULT_HEADER]: REMOTE_PROJECT_COMMAND_RESULT_DECLARATION }

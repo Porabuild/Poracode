@@ -22,6 +22,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -41,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.poracode.app.R
 import com.poracode.app.model.ThreadConfig
+import com.poracode.app.ui.components.modelFamilySelectorLabel
 
 /** Segmented controls stay readable for the small, mutually exclusive option sets. */
 internal fun usesSegmentedComposerChoice(options: List<RichChatComposerOption>): Boolean =
@@ -85,24 +87,36 @@ internal fun RichChatComposerControlsSheet(
             ) {
                 ComposerMenu(
                     label = stringResource(R.string.rich_chat_model),
-                    options = catalog.models,
-                    selection = draft.model,
+                    entries = catalog.modelEntries,
+                    selection = catalog.displaySelectionId(draft),
                 ) { draft = catalog.applyModel(draft, it) }
+
+                catalog.selectorMenus(draft).forEach { selector ->
+                    ComposerMenu(
+                        label = modelFamilySelectorLabel(selector.labelKey),
+                        entries = flatComposerEntries(
+                            selector.options.map { option ->
+                                RichChatComposerOption(option.id, option.label)
+                            },
+                        ),
+                        selection = selector.selectionId,
+                    ) { draft = catalog.applySelector(draft, selector.selectorId, it) }
+                }
 
                 val efforts = catalog.effortOptions(draft.model)
                 if (efforts.size > 1) {
                     ComposerMenu(
                         label = stringResource(R.string.rich_chat_effort),
-                        options = efforts,
-                        selection = draft.effort ?: efforts.first().id,
-                    ) { draft = draft.copy(effort = it) }
+                        entries = flatComposerEntries(efforts),
+                        selection = catalog.displayEffort(draft) ?: efforts.first().id,
+                    ) { draft = catalog.applyEffort(draft, it) }
                 }
 
                 val contexts = catalog.contextOptions(draft.model)
                 if (contexts.size > 1) {
                     ComposerMenu(
                         label = stringResource(R.string.rich_chat_context),
-                        options = contexts,
+                        entries = flatComposerEntries(contexts),
                         selection = draft.contextSize ?: contexts.first().id,
                     ) { draft = draft.copy(contextSize = it) }
                 }
@@ -116,8 +130,8 @@ internal fun RichChatComposerControlsSheet(
                 if (catalog.supportsFast(draft.model)) {
                     ComposerToggleChip(
                         label = stringResource(R.string.rich_chat_fast_mode),
-                        checked = draft.fast == true,
-                    ) { draft = draft.copy(fast = it) }
+                        checked = catalog.displayFast(draft) == true,
+                    ) { draft = catalog.applyFast(draft, it) }
                 }
                 if (catalog.supportsThinking(draft.model)) {
                     ComposerToggleChip(
@@ -190,14 +204,21 @@ internal fun RichChatComposerControlsSheet(
     }
 }
 
+/** Flat menus (effort, context, mode, permissions) carry no headings. */
+private fun flatComposerEntries(
+    options: List<RichChatComposerOption>,
+): List<RichChatComposerModelEntry> = options.map { RichChatComposerModelEntry.Model(it) }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ComposerMenu(
     label: String,
-    options: List<RichChatComposerOption>,
+    entries: List<RichChatComposerModelEntry>,
     selection: String,
     onSelect: (String) -> Unit,
 ) {
+    val options = entries.filterIsInstance<RichChatComposerModelEntry.Model>()
+        .map { it.option }
     if (options.isEmpty()) return
     var expanded by remember(label, selection) { mutableStateOf(false) }
     val selected = options.firstOrNull { it.id == selection } ?: options.first()
@@ -223,19 +244,50 @@ private fun ComposerMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
-            options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    leadingIcon = if (option.id == selected.id) {
-                        { Icon(Icons.Outlined.Check, contentDescription = null) }
-                    } else {
-                        null
-                    },
-                    onClick = {
-                        onSelect(option.id)
-                        expanded = false
-                    },
-                )
+            entries.forEach { entry ->
+                when (entry) {
+                    is RichChatComposerModelEntry.Heading -> DropdownMenuItem(
+                        text = {
+                            Text(
+                                entry.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        onClick = {},
+                        enabled = false,
+                        colors = MenuDefaults.itemColors(
+                            textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                    is RichChatComposerModelEntry.Model -> DropdownMenuItem(
+                        text = {
+                            // Provider-content pricing rides as a muted second line.
+                            if (entry.option.modelDescription == null) {
+                                Text(entry.option.label)
+                            } else {
+                                Column {
+                                    Text(entry.option.label)
+                                    Text(
+                                        entry.option.modelDescription,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        },
+                        leadingIcon = if (entry.option.id == selected.id) {
+                            { Icon(Icons.Outlined.Check, contentDescription = null) }
+                        } else {
+                            null
+                        },
+                        onClick = {
+                            onSelect(entry.option.id)
+                            expanded = false
+                        },
+                    )
+                }
             }
         }
     }
@@ -274,7 +326,7 @@ private fun ComposerChoice(
                 }
             }
         } else {
-            ComposerMenu(label, options, selection, onSelect)
+            ComposerMenu(label, flatComposerEntries(options), selection, onSelect)
         }
     }
 }

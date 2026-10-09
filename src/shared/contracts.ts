@@ -14,6 +14,8 @@ export * from "./contracts/agentEvent";
 export * from "./contracts/runtimeEvent";
 export * from "./contracts/agentInstance";
 export * from "./contracts/agentProfiles";
+export * from "./contracts/sessionActions";
+export * from "./contracts/sessionConfigOptions";
 export * from "./contracts/workflowTranscript";
 export * from "./contracts/usage";
 export * from "./contracts/notes";

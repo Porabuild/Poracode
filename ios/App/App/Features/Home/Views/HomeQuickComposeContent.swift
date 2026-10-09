@@ -211,9 +211,9 @@ extension HomeQuickComposeView {
     Menu {
       ForEach(effortOptions, id: \.self) { effort in
         Button {
-          selectedEffort = effort
+          applyComposerEffort(effort)
         } label: {
-          if effectiveConfiguration?.effort == effort {
+          if composerDisplayedEffort == effort {
             Label(effort.capitalized, systemImage: "checkmark")
           } else {
             Text(effort.capitalized)
@@ -230,11 +230,11 @@ extension HomeQuickComposeView {
 
   var fastButton: some View {
     Button {
-      fast.toggle()
+      applyComposerFastToggle()
     } label: {
-      Image(systemName: fast ? "bolt.fill" : "bolt")
+      Image(systemName: composerDisplayedFast ? "bolt.fill" : "bolt")
         .font(.caption)
-        .foregroundStyle(fast ? Color.yellow : Color.secondary)
+        .foregroundStyle(composerDisplayedFast ? Color.yellow : Color.secondary)
     }
     .buttonStyle(.plain)
     .accessibilityLabel(HomeStrings.fast)

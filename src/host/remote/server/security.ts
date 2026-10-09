@@ -4,6 +4,7 @@ import { isLoopbackHostname } from "@/shared/http";
 import {
   REMOTE_COMMAND_ID_HEADER,
   REMOTE_PROJECT_COMMAND_RESULT_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER,
   type RemoteAccessScope,
 } from "@/shared/remote";
 import {
@@ -243,9 +244,13 @@ export class RemoteServerSecurity {
       // preflights on the environment data plane must be allowed to send it.
       // The bounded project-command declaration is an ordinary request header
       // too: `window.fetch` cannot send it (directly or through the parent
-      // proxy) unless a preflight names it here.
+      // proxy) unless a preflight names it here. The writer-generation header
+      // (remote 13) is the same class: the PWA attaches it to every
+      // authenticated non-GET request, and every writer route refuses without
+      // it, so a preflight that cannot name it would refuse every mutation.
       `authorization, content-type, ${REMOTE_COMMAND_ID_HEADER}, ` +
-        `${ENVIRONMENT_AUTHORIZATION_HEADER}, ${REMOTE_PROJECT_COMMAND_RESULT_HEADER}`,
+        `${ENVIRONMENT_AUTHORIZATION_HEADER}, ${REMOTE_PROJECT_COMMAND_RESULT_HEADER}, ` +
+        REMOTE_PROTOCOL_VERSION_HEADER,
     );
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     // C1 R1: the parent's auth-authority marker is a response header the

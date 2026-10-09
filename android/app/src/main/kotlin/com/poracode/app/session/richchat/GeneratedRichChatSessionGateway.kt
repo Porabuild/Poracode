@@ -28,34 +28,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-fun interface RichThreadCommandTransport {
-    suspend fun execute(threadId: String, command: JsonObject)
-}
-
-interface RichTerminalWatchTransport {
-    suspend fun watch(request: RichTerminalWatchRequest)
-    suspend fun unwatch(terminalId: String)
-}
-
-/** Supplied only by composition that disables HTTP automatic connection retries for mutations. */
-enum class RichChatMutationDelivery {
-    SingleAttempt,
-    AutomaticRetryPossible,
-}
-
-data class RichChatGatewayBundle(
-    val core: RemoteApiGateway,
-    val rich: RichChatRemoteTransport,
-    val mutationDelivery: RichChatMutationDelivery,
-    val commands: RichThreadCommandTransport? = null,
-    val terminalWatch: RichTerminalWatchTransport? = null,
-    val binary: RichChatBinaryBodyExecutor? = null,
-)
-
-fun interface RichChatGatewayProvider {
-    suspend fun bundleFor(lease: RichChatHostLease): RichChatGatewayBundle?
-}
-
 /** Host-routed adapter that revalidates lease and exact capability around every call. */
 class GeneratedRichChatSessionGateway(
     private val session: StateFlow<RichChatHostLease?>,
@@ -250,7 +222,7 @@ class GeneratedRichChatSessionGateway(
         payload,
         RichChatCapability.Operate,
         true,
-    ) { decodeCheckpointResult(rich.createFileCheckpoint(payload), mutation = true) }
+    ) { RichChatCheckpointResponseDecoder.decodeCheckpointResult(rich.createFileCheckpoint(payload), mutation = true) }
 
     override suspend fun finalizeCheckpoint(
         lease: RichChatHostLease,
@@ -262,7 +234,7 @@ class GeneratedRichChatSessionGateway(
         payload,
         RichChatCapability.Operate,
         true,
-    ) { decodeCheckpointResult(rich.finalizeFileCheckpoint(payload), mutation = true) }
+    ) { RichChatCheckpointResponseDecoder.decodeCheckpointResult(rich.finalizeFileCheckpoint(payload), mutation = true) }
 
     override suspend fun listCheckpoints(
         lease: RichChatHostLease,
@@ -274,7 +246,7 @@ class GeneratedRichChatSessionGateway(
         payload,
         RichChatCapability.Read,
         false,
-    ) { decodeCheckpointCollection(rich.listFileCheckpoints(payload), threadId) }
+    ) { RichChatCheckpointResponseDecoder.decodeCheckpointCollection(rich.listFileCheckpoints(payload), threadId) }
 
     override suspend fun restoreCheckpoint(
         lease: RichChatHostLease,
@@ -290,6 +262,36 @@ class GeneratedRichChatSessionGateway(
         payload: JsonObject,
     ) = invokeThreadProcedure(lease, threadId, payload, RichChatCapability.Operate, true) {
         rich.stageThreadInput(payload)
+    }
+
+    override suspend fun listSessionActions(
+        lease: RichChatHostLease,
+        threadId: String,
+    ): List<String> = invoke(lease, RichChatCapability.Read, false) {
+        val result = rich.listThreadSessionActions(buildJsonObject { put("threadId", threadId) })
+        val actions = result["actions"] as? JsonArray ?: invalidResponse()
+        actions.map { action ->
+            ((action as? JsonObject)?.get("id") as? JsonPrimitive)
+                ?.takeIf { it.isString && it.content.isNotEmpty() }
+                ?.content
+                ?: invalidResponse()
+        }
+    }
+
+    override suspend fun invokeSessionAction(
+        lease: RichChatHostLease,
+        threadId: String,
+        actionId: String,
+        payload: JsonObject,
+    ): JsonObject {
+        val wirePayload = buildJsonObject {
+            put("threadId", threadId)
+            put("actionId", actionId)
+            put("payload", payload)
+        }
+        return invokeThreadProcedure(lease, threadId, wirePayload, RichChatCapability.Operate, true) {
+            rich.invokeThreadSessionAction(wirePayload)
+        }
     }
 
     override suspend fun uploadAttachment(
@@ -459,26 +461,6 @@ class GeneratedRichChatSessionGateway(
         if (capability.scope !in current.scopes) {
             throw RichChatGatewayException(403, "missing_scope", false)
         }
-    }
-
-    private fun decodeCheckpointResult(value: JsonObject, mutation: Boolean = false): RichCheckpoint {
-        val raw = value["checkpoint"] ?: invalidResponse(mutation)
-        return RichSnapshotMapping.decodeCheckpoint(raw) ?: invalidResponse(mutation)
-    }
-
-    private fun decodeCheckpointCollection(
-        value: JsonObject,
-        threadId: String,
-    ): RichCheckpointCollection {
-        fun list(name: String): List<RichCheckpoint> {
-            val array = value[name] as? JsonArray ?: invalidResponse()
-            return array.map {
-                val checkpoint = RichSnapshotMapping.decodeCheckpoint(it) ?: invalidResponse()
-                if (checkpoint.threadId != threadId) invalidResponse()
-                checkpoint
-            }
-        }
-        return RichCheckpointCollection(list("checkpoints"), list("turns"))
     }
 
     private fun invalidResponse(mutation: Boolean = false): Nothing = throw RichChatGatewayException(

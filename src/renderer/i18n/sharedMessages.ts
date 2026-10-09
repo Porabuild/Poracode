@@ -11,6 +11,54 @@ import { i18n } from "./i18n";
  * arguments resolved with the values passed to `msg()`.
  */
 const SHARED_MESSAGE_DESCRIPTORS: Record<MessageKey, MessageDescriptor> = {
+  "modelSelection.lead": msg({ message: "Lead" }),
+  "modelSelection.sidekick": msg({ message: "Sidekick" }),
+  "modelSelection.unsupportedOptions": msg({
+    message:
+      "This agent does not support the selected model options. Choose different options and try again.",
+  }),
+  "modelSelection.unsupportedStoredData": msg({
+    message:
+      "These model settings contain unsupported selection data. Update the app before changing them.",
+  }),
+  "schedule.executionStale": msg({
+    message:
+      "This scheduled task changed or was removed before it could run. Review the schedule and try again.",
+  }),
+  "thread.projectLaunchStale": msg({
+    message:
+      "The project moved or was removed before the thread could launch. Review the project and try again.",
+  }),
+  "prWatch.retirementUnconfirmed": msg({
+    message:
+      'Could not confirm that the Auto Fix thread "{id}" was stopped. Poracode keeps it recorded and will retry stopping it.',
+  }),
+  "settings.dataNotPrepared": msg({
+    message:
+      "The app's data is not ready for these settings. Restart or update the app and try again.",
+  }),
+  "profile.executionUnavailable": msg({
+    message:
+      "This profile cannot launch with its current login and configuration. Review the profile settings and try again.",
+  }),
+  "profile.dependencyUnavailable": msg({
+    message:
+      'Profile "{profile}" needs account owner "{dependency}". Reassign its account before changing or removing the owner.',
+  }),
+  "thread.configSelectionRejected": msg({
+    message:
+      "The session rejected the requested configuration. Review the selected settings and try again.",
+  }),
+  "thread.workspaceLaunchUnavailable": msg({
+    message:
+      "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again.",
+  }),
+  "thread.sessionActionFailed": msg({
+    message: "The session action failed. Try again or reopen the session.",
+  }),
+  "thread.sessionActionUnavailable": msg({
+    message: "Session actions are unavailable for this thread.",
+  }),
   "voice.unavailable": msg({ message: "Live voice is unavailable for this thread." }),
   "voice.alreadyConnected": msg({ message: "A voice conversation is already active." }),
   "voice.subscriptionRequired": msg({

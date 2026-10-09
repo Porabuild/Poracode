@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { WebSocket, type WebSocketServer } from "ws";
 import {
   RemoteAccessServer,
@@ -211,7 +215,11 @@ describe("B3 protocol frames: admission and liveness", () => {
     await expect(bobWs.next()).resolves.toMatchObject({ type: "event" });
     const stop = await fetch(new URL("/api/threads/thread-1/interrupt", info.httpBaseUrl), {
       method: "POST",
-      headers: { authorization: `Bearer ${bob.accessToken}`, "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${bob.accessToken}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
       body: JSON.stringify({ reason: "user" }),
     });
     expect(stop.status).toBe(200);

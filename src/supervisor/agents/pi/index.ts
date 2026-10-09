@@ -1,7 +1,12 @@
 import type { PromptSegment } from "@/shared/contracts";
 import { inlinePromptSegmentText } from "@/shared/promptContent";
-import { detectAgentInstall, type AgentAdapter } from "../base";
-import { buildPiArgs, buildPiOneShotArgs } from "./argv";
+import {
+  assertOneShotControlsMapped,
+  detectAgentInstall,
+  resolveCheckedOneShotBuilderSelection,
+  type AgentAdapter,
+} from "../base";
+import { buildPiArgs, buildPiOneShotArgs, PI_THINKING_LEVELS } from "./argv";
 import { piDefaultCapabilities, piDetectionSpec } from "./detection";
 import { piMcpLaunch } from "./mcp";
 import { PiRpcSession } from "./rpcSession";
@@ -98,7 +103,20 @@ export function createPiAdapter(): AgentAdapter {
     },
     detectTerminalStatus: detectPiTerminalStatus,
 
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Effort maps natively through buildPiOneShotArgs; the pi CLI has no
+      // Fast lane, so false Fast is the declared-inactive legacy carrier and
+      // meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, {
+        effort: PI_THINKING_LEVELS.some((level) => level === selection.effort)
+          ? true
+          : { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       if (!prompt) return undefined;
       return {
         command: "pi",
@@ -109,7 +127,18 @@ export function createPiAdapter(): AgentAdapter {
       };
     },
 
-    buildTextOnlyOneShotCommand(model, effort, prompt) {
+    buildTextOnlyOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Same native carrier mapping as the general lane.
+      assertOneShotControlsMapped(selection, {
+        effort: PI_THINKING_LEVELS.some((level) => level === selection.effort)
+          ? true
+          : { inactive: [""] },
+        fast: { inactive: [false] },
+      });
       if (!prompt) return undefined;
       return {
         command: "pi",

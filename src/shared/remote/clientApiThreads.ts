@@ -740,7 +740,7 @@ export abstract class RemoteClientThreadsApi extends RemoteClientHostApi {
       const commandId = receiptGuardedStart ? remoteStartThreadCommandId(payload) : undefined;
       const envelope = await this.requestJson("/api/git/call", {
         method: "POST",
-        ...(receiptGuardedStart ? { mutation: true } : {}),
+        ...(receiptGuardedStart || ("mutation" in spec && spec.mutation) ? { mutation: true } : {}),
         ...(commandId !== undefined ? { headers: { [REMOTE_COMMAND_ID_HEADER]: commandId } } : {}),
         body: { procedure, payload },
         ...("timeout" in spec && spec.timeout === "long"

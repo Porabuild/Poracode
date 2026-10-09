@@ -33,6 +33,7 @@ class RichChatSessionRuntime(
     val chat = RichChatController(session, gateway, lifecycle)
     val checkpoints = RichCheckpointController(session, chat.selection, gateway, lifecycle)
     val media = RichChatMediaController(session, chat.selection, gateway, lifecycle)
+    val sessionActions = RichChatSessionActionsController(session, chat.selection, gateway, lifecycle)
     val terminal = RichTerminalController(session, gateway, lifecycle, watchIdFactory)
     val terminalObserver: TerminalTransportObserver = object : TerminalTransportObserver {
         override fun onConnectionReset(
@@ -68,6 +69,7 @@ class RichChatSessionRuntime(
     fun selectThread(threadId: String): RichChatOperationResult<RichChatThreadLease> {
         cancelRefresh()
         checkpoints.reset()
+        sessionActions.reset()
         return chat.selectThread(threadId)
     }
 
@@ -75,6 +77,7 @@ class RichChatSessionRuntime(
         cancelRefresh()
         dismissTerminal()
         checkpoints.reset()
+        sessionActions.reset()
         chat.closeThread()
     }
 
@@ -86,6 +89,7 @@ class RichChatSessionRuntime(
         projectTerminalSurfacePresented = true
         cancelRefresh()
         checkpoints.reset()
+        sessionActions.reset()
         if (chat.selection.value != null) chat.closeThread()
     }
 
@@ -100,6 +104,7 @@ class RichChatSessionRuntime(
         if (terminalId.isEmpty()) return
         cancelRefresh()
         checkpoints.reset()
+        sessionActions.reset()
         if (chat.selection.value != null) chat.closeThread()
         val state = terminal.state.value
         if (state.lease?.terminalId == terminalId &&
@@ -265,6 +270,7 @@ class RichChatSessionRuntime(
         terminal.enterBackground()
         chat.enterBackground()
         checkpoints.reset()
+        sessionActions.reset()
     }
 
     fun enterForeground() {

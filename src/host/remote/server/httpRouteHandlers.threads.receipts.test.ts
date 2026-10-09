@@ -2,7 +2,18 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import type { Project } from "@/shared/contracts";
+import {
+  remoteMutationMayHaveCommitted,
+  RemoteClientError,
+  RemoteDesktopClient,
+} from "@/shared/remote/client";
+import { ThreadSessionAbsenceRefusalError } from "@/shared/threadSessionRefusal";
+import { isUnknownThreadSessionError } from "@/shared/threadRelaunch";
 import { closeDatabase, dbGetThread, dbUpsertProject, initDatabase } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
@@ -91,6 +102,7 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
       headers: {
         authorization: `Bearer ${bearer}`,
         "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         "x-poracode-command-id": commandId,
       },
       body: JSON.stringify({
@@ -154,6 +166,7 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
       headers: {
         authorization: `Bearer ${token}`,
         "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         "x-poracode-command-id": "thread-start:start-meta-1",
       },
       body: JSON.stringify({
@@ -214,6 +227,7 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
         headers: {
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
           "x-poracode-command-id": commandId,
         },
         body: JSON.stringify({
@@ -305,6 +319,7 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
         headers: {
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
           "x-poracode-command-id": commandId,
         },
         body: JSON.stringify({
@@ -340,6 +355,7 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
         headers: {
           authorization: `Bearer ${token}`,
           "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
           "x-poracode-command-id": commandId,
         },
         body: JSON.stringify({
@@ -378,5 +394,119 @@ describe.skipIf(!sqliteAvailable)("thread route receipt wiring", () => {
     expect(fresh.status).toBe(200);
     expect(callSupervisor).toHaveBeenCalledTimes(1);
     expect(dbGetThread("pre-effect-thread-1")).toBeDefined();
+  });
+
+  it("answers the typed missing-session refusal with a definite 422, records failed, and never re-runs the id", async () => {
+    callSupervisor.mockImplementation(async () => {
+      throw new ThreadSessionAbsenceRefusalError("Unknown thread session: t1");
+    });
+    const first = await send("send-typed-1", {});
+    expect(first.status).toBe(422);
+    await expect(first.json()).resolves.toMatchObject({
+      error: { code: "unknown_thread_session", message: "Unknown thread session: t1" },
+    });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+    // Truthful receipt: the refusal is proven pre-effect, so the row is a
+    // definite failure, not an ambiguity.
+    expect(receiptRow("send-typed-1")?.state).toBe("failed");
+
+    // Same-id replay is the definite command_failed answer, refused without
+    // another supervisor call — the failed send is never repeated.
+    const replay = await send("send-typed-1", {});
+    expect(replay.status).toBe(409);
+    await expect(replay.json()).resolves.toMatchObject({ error: { code: "command_failed" } });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+    expect(receiptRow("send-typed-1")?.state).toBe("failed");
+
+    // Without a command id there is no receipt: the raw refusal still maps to
+    // the same definite 422 (no uncertain escalation for a proven pre-effect
+    // refusal).
+    const unkeyed = await fetch(new URL("/api/threads/t1/send", info.httpBaseUrl), {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+      },
+      body: JSON.stringify({ threadId: "t1", prompt: "hello", config: { model: "gpt-5" } }),
+    });
+    expect(unkeyed.status).toBe(422);
+    await expect(unkeyed.json()).resolves.toMatchObject({
+      error: { code: "unknown_thread_session", message: "Unknown thread session: t1" },
+    });
+    expect(callSupervisor).toHaveBeenCalledTimes(2);
+  });
+
+  it("classifies the typed 422 through the real client as definite and resume-matching", async () => {
+    callSupervisor.mockImplementation(async () => {
+      throw new ThreadSessionAbsenceRefusalError("Unknown thread session: t1");
+    });
+    const client = new RemoteDesktopClient(info.httpBaseUrl, token);
+    const error = await client
+      .sendThreadInput({
+        threadId: "t1",
+        prompt: "retry after a failed start",
+        config: { model: "gpt-5" },
+        userMessageItemId: "send-typed-client-1",
+      })
+      .catch((value: unknown) => value);
+
+    expect(error).toBeInstanceOf(RemoteClientError);
+    const remoteError = error as RemoteClientError;
+    expect(remoteError.status).toBe(422);
+    expect(remoteError.code).toBe("unknown_thread_session");
+    // The refusal message survives the whole stack.
+    expect(remoteError.message).toBe("Unknown thread session: t1");
+    // Definite: the client may offer the exact-ref resume, never a blind
+    // resend of this send.
+    expect(remoteMutationMayHaveCommitted(error)).toBe(false);
+    expect(isUnknownThreadSessionError(error)).toBe(true);
+    expect(receiptRow("send-typed-client-1")?.state).toBe("failed");
+  });
+
+  it("keeps a message-only unknown-session refusal ambiguous (500, uncertain receipt)", async () => {
+    // A predecessor supervisor reply (no typed code) — including nested
+    // provider prose that merely mentions an unknown session — gets no server
+    // message fallback: the code is the only proof of a pre-effect refusal.
+    callSupervisor.mockImplementation(async () => {
+      throw new Error("provider backend reported: Unknown thread session: t1");
+    });
+    const first = await send("send-prose-1", {});
+    expect(first.status).toBe(500);
+    await expect(first.json()).resolves.toMatchObject({
+      error: { code: "internal_error", message: "Internal server error." },
+    });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+    expect(receiptRow("send-prose-1")?.state).toBe("uncertain");
+
+    const replay = await send("send-prose-1", {});
+    expect(replay.status).toBe(409);
+    await expect(replay.json()).resolves.toMatchObject({
+      error: { code: "command_outcome_uncertain" },
+    });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+  });
+
+  it("never reclassifies a legacy uncertain receipt, even when later attempts carry the typed refusal", async () => {
+    callSupervisor.mockImplementationOnce(async () => {
+      throw new Error("response lost after dispatch");
+    });
+    const first = await send("send-legacy-1", {});
+    expect(first.status).toBe(500);
+    expect(receiptRow("send-legacy-1")?.state).toBe("uncertain");
+
+    // A newer host would now answer the typed refusal with a definite 422 —
+    // but this id's durable row is an uncertainty that stays unresolved: no
+    // replay, no reclassification, no supervisor call.
+    callSupervisor.mockImplementation(async () => {
+      throw new ThreadSessionAbsenceRefusalError("Unknown thread session: t1");
+    });
+    const replay = await send("send-legacy-1", {});
+    expect(replay.status).toBe(409);
+    await expect(replay.json()).resolves.toMatchObject({
+      error: { code: "command_outcome_uncertain" },
+    });
+    expect(callSupervisor).toHaveBeenCalledTimes(1);
+    expect(receiptRow("send-legacy-1")?.state).toBe("uncertain");
   });
 });

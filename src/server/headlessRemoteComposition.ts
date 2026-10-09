@@ -395,6 +395,8 @@ export async function composeHeadlessRemoteHost(
     options.signal?.throwIfAborted();
     runtime.lease.assertActive();
     settingsAuthority = await composeHeadlessSettingsAuthority(runtime, {
+      assertPreparedDatabaseForWrite: () =>
+        backendHost.assertPreparedDatabaseForWrite(paths.baseDir),
       readSettings: getSharedSettings,
       readProject: dbGetProject,
       writeProject: dbUpdateProject,
@@ -441,6 +443,7 @@ export async function composeHeadlessRemoteHost(
       ...(options.reportError ? { reportError: options.reportError } : {}),
       writeSharedSettings: (next) => settings.writeSharedSettings(next),
       editSettingsField: (field, compute) => settings.editSettingsField(field, compute),
+      commitOwnerSettingsEdits: (edits) => settings.commitOwnerEdits(edits),
       // Durable auto-done effect the desktop renderer performs from `pr-watch-merged`.
       onPrMerged: createHeadlessPrMergeEffect({
         getSharedSettings,

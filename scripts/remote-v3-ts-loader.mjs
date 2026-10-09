@@ -9,7 +9,8 @@ import {
 const repositoryRoot = resolvePath(dirname(fileURLToPath(import.meta.url)), "..");
 
 function candidateFiles(specifier) {
-  if (extname(specifier)) return [specifier];
+  if (extname(specifier))
+    return [specifier, `${specifier}.ts`, `${specifier}.tsx`, join(specifier, "index.ts")];
   return [`${specifier}.ts`, `${specifier}.tsx`, join(specifier, "index.ts")];
 }
 

@@ -42,7 +42,7 @@ describe("remote WS/runtime inventory goldens", () => {
   it("derives counts from protocol schemas and the v3 manifest", () => {
     const manifest = readGeneratedManifest();
     expect(manifest.formatVersion).toBe(1);
-    expect(manifest.protocolVersion).toBe(12);
+    expect(manifest.protocolVersion).toBe(13);
 
     const client = discriminatedTypes(remoteWebSocketClientMessageSchema);
     const server = discriminatedTypes(remoteWebSocketServerMessageSchema);

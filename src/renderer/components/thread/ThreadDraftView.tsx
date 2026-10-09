@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@heroui/react";
+import { msg } from "@lingui/core/macro";
 import { Trans } from "@lingui/react/macro";
 import type {
   AgentStatus,
@@ -22,6 +23,7 @@ import { getConfigNormalizer } from "@/renderer/components/providers/providerCom
 import { useGitStore } from "@/renderer/state/gitStore";
 import { PixelLoader } from "@/renderer/components/common/PixelLoader";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
+import type { ProviderModelSelectionIntent } from "@/renderer/components/common/ProviderModelMenu/parts/types";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
@@ -35,7 +37,13 @@ import {
   buildModelPickerControls,
   buildProviderModelMenuProviders,
   patchConfigForModelChange,
+  resolveModelSelectionEdit,
 } from "./buildModelPickerControls";
+import {
+  modelFamilyForModel,
+  resolveFamilyPresentationTransition,
+} from "@/shared/modelFamilySelection";
+import { i18n } from "@/renderer/i18n/i18n";
 import { machineKeyForLocation } from "@/shared/machines";
 import {
   agentWithCapabilities,
@@ -49,9 +57,12 @@ import {
   resolveProviderDraftConfig,
   resolveProviderModelPreference,
   resolveSavedProviderDraftConfig,
-  supportsUsableFastMode,
   resolveThinkingValue,
+  launchSelectionFields,
 } from "./threadDraftViewHelpers";
+import { composerSelectionEvent, type ComposerSelectionOrigin } from "./composerSelectionMutation";
+import { applyThreadConfigMutation, type SelectionMutationEvent } from "@/shared/selectionBinding";
+import { isThreadConfigEqual } from "@/shared/contracts/config";
 import { friendlyError } from "@/shared/messages";
 import { PresentationModeTabs } from "./PresentationModeTabs";
 import { ProjectSwitchMenu } from "./ProjectSwitchMenu";
@@ -245,25 +256,37 @@ export function ThreadDraftView(props: {
     : preferredAgentKind;
   const selectedAgent =
     installedAgents.find((status) => status.kind === effectiveAgentKind) ?? installedAgents[0];
-  const [model, setModel] = useState("");
-  const [effort, setEffort] = useState("");
-  const [contextSize, setContextSize] = useState<string | undefined>(() => {
-    if (
+  // One complete draft config: own empty/false carriers, absence, and the
+  // selection binding survive restore, edits, persistence, and launch. The
+  // scalar reads below are display projections only.
+  const [draftConfig, setDraftConfig] = useState<ProviderDraftConfig>(() => {
+    const initialContext =
       lastDraftConfig &&
       lastDraftConfig.agentKind === preferredAgentKind &&
       lastDraftConfig.contextSize
-    ) {
-      return lastDraftConfig.contextSize;
-    }
-    if (!preferredAgentKind || isHomeScope) return undefined;
-    return useSharedSettings.getState().providerConfigs[preferredAgentKind]?.contextSize;
+        ? lastDraftConfig.contextSize
+        : !preferredAgentKind || isHomeScope
+          ? undefined
+          : useSharedSettings.getState().providerConfigs[preferredAgentKind]?.contextSize;
+    return {
+      model: "",
+      effort: "",
+      ...(initialContext !== undefined ? { contextSize: initialContext } : {}),
+      mode: "agent",
+      approvalPolicy: "",
+      approvalsReviewer: "",
+      sandboxMode: "",
+    };
   });
-  const [fast, setFast] = useState(false);
-  const [thinking, setThinking] = useState(false);
-  const [mode, setMode] = useState<"agent" | "plan" | "autopilot">("agent");
-  const [approvalPolicy, setApprovalPolicy] = useState("");
-  const [approvalsReviewer, setApprovalsReviewer] = useState("");
-  const [sandboxMode, setSandboxMode] = useState("");
+  const model = draftConfig.model;
+  const effort = draftConfig.effort ?? "";
+  const contextSize = draftConfig.contextSize;
+  const fast = draftConfig.fast ?? false;
+  const thinking = draftConfig.thinking ?? false;
+  const mode = (draftConfig.mode ?? "agent") as "agent" | "plan" | "autopilot";
+  const approvalPolicy = draftConfig.approvalPolicy ?? "";
+  const approvalsReviewer = draftConfig.approvalsReviewer ?? "";
+  const sandboxMode = draftConfig.sandboxMode ?? "";
   // Per-draft `@`-mentions of a composer MCP. These are NOT the persistent
   // enablement (that lives in `enabledMcpServers`); they capture a one-off
   // mention in this draft and reset with every new thread. The effective launch
@@ -349,9 +372,9 @@ export function ThreadDraftView(props: {
   // value. The ref keeps the wrapper identity stable for effect deps.
   const updateProjectDraftConfigStore = useAppStore((s) => s.updateProjectDraftConfig);
   const updateProjectDraftConfigRef = useRef(
-    (projectId: string, draftConfig: ProjectDraftConfig) => {
-      updateProjectDraftConfigStore(projectId, draftConfig);
-      dispatchManagedRootProjectDraftConfig(projectId, draftConfig);
+    (projectId: string, nextDraftConfig: ProjectDraftConfig) => {
+      updateProjectDraftConfigStore(projectId, nextDraftConfig);
+      dispatchManagedRootProjectDraftConfig(projectId, nextDraftConfig);
     },
   );
   const updateProjectDraftConfig = updateProjectDraftConfigRef.current;
@@ -397,14 +420,27 @@ export function ThreadDraftView(props: {
     persistProviderModelPreference(providerKind, config);
   }
 
-  function persistProjectDraftConfig(draftConfig: ProjectDraftConfig) {
-    updateProjectDraftConfig(project.id, draftConfig);
+  function persistProjectDraftConfig(nextDraftConfig: ProjectDraftConfig) {
+    updateProjectDraftConfig(project.id, nextDraftConfig);
+  }
+
+  // The one commit for a complete draft selection: component state, the
+  // per-provider config, and the project draft record land together with every
+  // own field intact, so no projection can drop an empty/false carrier or the
+  // selection binding.
+  function commitDraftConfig(kind: AgentStatus["kind"], config: ProviderDraftConfig) {
+    setDraftConfig(config);
+    lastAppliedAgentKindRef.current = kind;
+    persistProviderConfig(kind, config);
+    persistProjectDraftConfig({ ...config, agentKind: kind, worktreeMode: effectiveWorktreeMode });
   }
 
   const persistProviderConfigRef = useRef(persistProviderConfig);
   const persistProjectDraftConfigRef = useRef(persistProjectDraftConfig);
+  const commitDraftConfigRef = useRef(commitDraftConfig);
   persistProviderConfigRef.current = persistProviderConfig;
   persistProjectDraftConfigRef.current = persistProjectDraftConfig;
+  commitDraftConfigRef.current = commitDraftConfig;
 
   function handleSwitchBranch(branch: string, createNew: boolean) {
     readBridge()
@@ -454,44 +490,15 @@ export function ThreadDraftView(props: {
       lastDraftConfig,
       isHomeScope ? {} : providerConfigsRef.current,
       providerModelPreferencesRef.current,
+      // Surface-aware restoration: a saved family member keeps its own
+      // carriers; unscoped per-model preferences are never replayed onto it.
+      selectedAgentForConfig.capabilities,
     );
-    const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved);
-    const nextModel = resolved.model;
-    const nextEffort = resolved.effort ?? "";
-    const nextContext = resolved.contextSize;
-    const nextFast = resolved.fast ?? false;
-    const nextThinking = resolved.thinking ?? false;
-    const nextMode = (resolved.mode ?? "agent") as "agent" | "plan" | "autopilot";
-    const nextApproval = resolved.approvalPolicy ?? "";
-    const nextReviewer = resolved.approvalsReviewer ?? "";
-    const nextSandbox = resolved.sandboxMode ?? "";
-
-    setModel(nextModel);
-    setEffort(nextEffort);
-    setContextSize(nextContext);
-    setFast(nextFast);
-    setThinking(nextThinking);
-    setMode(nextMode);
-    setApprovalPolicy(nextApproval);
-    setApprovalsReviewer(nextReviewer);
-    setSandboxMode(nextSandbox);
-    lastAppliedAgentKindRef.current = effectiveAgentKind;
-
     // Persist per-provider config app-wide, last-used provider per project.
-    persistProviderConfigRef.current(effectiveAgentKind, resolved);
-    updateProjectDraftConfig(project.id, {
-      agentKind: effectiveAgentKind,
-      model: nextModel,
-      effort: nextEffort,
-      ...(nextContext ? { contextSize: nextContext } : {}),
-      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
-      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
-      mode: nextMode,
-      approvalPolicy: nextApproval,
-      approvalsReviewer: nextReviewer,
-      sandboxMode: nextSandbox,
-      worktreeMode: effectiveWorktreeMode,
-    });
+    commitDraftConfigRef.current(
+      effectiveAgentKind,
+      resolveProviderDraftConfig(selectedAgentForConfig, saved),
+    );
   }, [
     effectiveAgentKind,
     selectedAgentForConfig,
@@ -512,6 +519,16 @@ export function ThreadDraftView(props: {
     }
 
     const nextModel = resolveModelValue(selectedAgentForConfig, model);
+    if (
+      nextModel === model &&
+      modelFamilyForModel(selectedAgentForConfig.capabilities, nextModel)
+    ) {
+      // A family member owns its display coordinates: the exact UID already
+      // resolves, and the stored carriers — inert seeds or a meaningful legacy
+      // override kept visible for the strict resolver — must not be rewritten
+      // into ladder defaults on restore.
+      return;
+    }
     const nextEffort = resolveEffortValue(selectedAgentForConfig, nextModel, effort);
     const nextContext = resolveContextSizeValue(selectedAgentForConfig, nextModel, contextSize);
     const nextFast = resolveFastValue(selectedAgentForConfig, nextModel, fast);
@@ -523,11 +540,14 @@ export function ThreadDraftView(props: {
       nextFast !== fast ||
       nextThinking !== thinking
     ) {
-      if (nextModel !== model) setModel(nextModel);
-      if (nextEffort !== effort) setEffort(nextEffort);
-      if (nextContext !== contextSize) setContextSize(nextContext);
-      if (nextFast !== fast) setFast(nextFast);
-      if (nextThinking !== thinking) setThinking(nextThinking);
+      setDraftConfig(({ contextSize: _previousContext, ...current }) => ({
+        ...current,
+        model: nextModel,
+        effort: nextEffort,
+        ...(nextContext !== undefined ? { contextSize: nextContext } : {}),
+        fast: nextFast,
+        thinking: nextThinking,
+      }));
 
       // Persist the corrected values
       const corrected: ProviderDraftConfig = {
@@ -581,6 +601,10 @@ export function ThreadDraftView(props: {
     const settings = useSharedSettings.getState();
     providerConfigsRef.current = { ...settings.providerConfigs };
     providerModelPreferencesRef.current = { ...settings.providerModelPreferences };
+    // A family member's carriers in state are authoritative on this surface;
+    // the unscoped per-model preference replay must not overwrite them (the
+    // same UID accepts the other surface's carrier semantics).
+    if (modelFamilyForModel(selectedAgentForConfig.capabilities, model)) return;
     const preference = resolveProviderModelPreference(
       effectiveAgentKind,
       model,
@@ -604,8 +628,7 @@ export function ThreadDraftView(props: {
     const nextFast = resolved.fast ?? false;
     if (nextEffort === effort && nextFast === fast) return;
 
-    setEffort(nextEffort);
-    setFast(nextFast);
+    setDraftConfig((current) => ({ ...current, effort: nextEffort, fast: nextFast }));
     const corrected: ProviderDraftConfig = {
       model,
       effort: nextEffort,
@@ -650,7 +673,9 @@ export function ThreadDraftView(props: {
     const hasInitialProjectDraft =
       initialLastDraftConfig?.agentKind === effectiveAgentKind &&
       Boolean(initialLastDraftConfig.model.trim());
-    const hasInitialContext = hasInitialProjectDraft && Boolean(initialLastDraftConfig.contextSize);
+    // An own empty context is an exact saved carrier, not a missing one.
+    const hasInitialContext =
+      hasInitialProjectDraft && initialLastDraftConfig.contextSize !== undefined;
     const shouldInheritContext = !hasInitialContext && !hasLocalContextEditRef.current;
     if (hasLocalConfigEditRef.current && !shouldInheritContext) {
       return;
@@ -669,6 +694,15 @@ export function ThreadDraftView(props: {
     providerModelPreferencesRef.current = { ...providerModelPreferences };
 
     if (hasLocalConfigEditRef.current) {
+      // A family member's own context — an empty carrier included — is exact
+      // selection state its binding may record; deferred inheritance only
+      // fills a missing one.
+      if (
+        contextSize !== undefined &&
+        modelFamilyForModel(selectedAgentForConfig.capabilities, model)
+      ) {
+        return;
+      }
       const nextContext = resolveContextSizeValue(
         selectedAgentForConfig,
         model,
@@ -677,20 +711,12 @@ export function ThreadDraftView(props: {
       if (nextContext === contextSize) {
         return;
       }
-      setContextSize(nextContext);
+      const { contextSize: _previousContext, ...current } = draftConfig;
+      const next = { ...current, ...(nextContext ? { contextSize: nextContext } : {}) };
+      setDraftConfig(next);
       updateProjectDraftConfig(project.id, {
+        ...next,
         agentKind: effectiveAgentKind,
-        model,
-        effort,
-        ...(nextContext ? { contextSize: nextContext } : {}),
-        ...(supportsUsableFastMode(selectedAgentForConfig.capabilities, model) ? { fast } : {}),
-        ...(selectedAgentForConfig.capabilities.thinkingModels?.includes(model)
-          ? { thinking }
-          : {}),
-        mode,
-        approvalPolicy,
-        approvalsReviewer,
-        sandboxMode,
         worktreeMode: effectiveWorktreeMode,
       });
       return;
@@ -701,6 +727,8 @@ export function ThreadDraftView(props: {
       hasInitialProjectDraft ? initialLastDraftConfig : undefined,
       providerConfigs,
       providerModelPreferences,
+      // Same surface-aware restoration contract as the provider-switch effect.
+      selectedAgentForConfig.capabilities,
     );
     const resolved = resolveProviderDraftConfig(selectedAgentForConfig, saved);
     const nextModel = resolved.model;
@@ -727,15 +755,7 @@ export function ThreadDraftView(props: {
       return;
     }
 
-    setModel(nextModel);
-    setEffort(nextEffort);
-    setContextSize(nextContext);
-    setFast(nextFast);
-    setThinking(nextThinking);
-    setMode(nextMode);
-    setApprovalPolicy(nextApproval);
-    setApprovalsReviewer(nextReviewer);
-    setSandboxMode(nextSandbox);
+    setDraftConfig(resolved);
     lastAppliedAgentKindRef.current = effectiveAgentKind;
 
     if (
@@ -754,16 +774,8 @@ export function ThreadDraftView(props: {
     }
 
     updateProjectDraftConfig(project.id, {
+      ...resolved,
       agentKind: effectiveAgentKind,
-      model: nextModel,
-      effort: nextEffort,
-      ...(nextContext ? { contextSize: nextContext } : {}),
-      ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
-      ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
-      mode: nextMode,
-      approvalPolicy: nextApproval,
-      approvalsReviewer: nextReviewer,
-      sandboxMode: nextSandbox,
       worktreeMode: effectiveWorktreeMode,
     });
   }, [
@@ -771,6 +783,7 @@ export function ThreadDraftView(props: {
     selectedAgentForConfig,
     effectiveAgentKind,
     lastDraftConfig,
+    draftConfig,
     model,
     effort,
     contextSize,
@@ -821,11 +834,102 @@ export function ThreadDraftView(props: {
       }),
     [installedAgents, presentationMode, lastPresentationModeByAgent, allHiddenModels],
   );
-  const latestConfigPatchRef = useRef<(patch: Partial<ThreadConfig>) => void>(() => undefined);
-  const latestProviderModelChangeRef = useRef<
-    (next: { agentKind: string; model: string; presentationMode?: ThreadPresentationMode }) => void
+  // Deliberate family surface switches (presentation button, or picker rows
+  // that carry a different presentation mode) must prove an exact mapping onto
+  // the target relation before the mode commits: `undefined` means family
+  // semantics are not involved and the ordinary path applies, `null` means the
+  // mapping is unprovable and the surface AND config are retained behind a
+  // visible failure, and a patch commits mode + config together. Event-path
+  // only — hydration and restore never consult this.
+  const familyTransitionFailureToast = () =>
+    toast.danger(i18n._(msg`Can't use this model selection on that surface`));
+  function resolveSurfaceTransition(
+    targetAgent: AgentStatus,
+    targetMode: ThreadPresentationMode,
+  ): Partial<ThreadConfig> | null | undefined {
+    if (!selectedAgentForConfig) return undefined;
+    return resolveFamilyPresentationTransition(
+      selectedAgentForConfig.capabilities,
+      agentWithCapabilities(targetAgent, targetMode).capabilities,
+      {
+        model,
+        effort,
+        fast,
+        ...(thinking ? { thinking: true } : {}),
+        ...(contextSize ? { contextSize } : {}),
+      },
+    );
+  }
+  // Commit a proven transition: the full draft config resolves against the
+  // TARGET surface's capabilities (the patch's exact UID plus carriers), then
+  // mode and state land together so no correction effect reinterprets them.
+  // Reduce one deliberate edit's complete result through the shared selection
+  // mutation for its actual (or target) owner. `resolved` may carry a restored
+  // stamp; only the event decides the returned binding.
+  function mutateDraftSelection(
+    resolved: ProviderDraftConfig,
+    ownerKind: AgentStatus["kind"],
+    ownerMode: ThreadPresentationMode,
+    event: SelectionMutationEvent,
+  ): ProviderDraftConfig {
+    const { selectionBinding: _resolvedRecord, ...next } = resolved;
+    return applyThreadConfigMutation({
+      previous: draftConfig,
+      next,
+      owner: { agentKind: ownerKind, presentationMode: ownerMode },
+      event,
+    });
+  }
+  // A surface or owner change outside a proven transition retargets: the old
+  // intent is dropped and controls are kept.
+  function retargetPresentation(next: ThreadPresentationMode) {
+    setPresentationMode(next);
+    setDraftConfig(({ selectionBinding: _droppedRecord, ...current }) => current);
+  }
+  // Commit a proven transition: the full draft config resolves against the
+  // TARGET surface's capabilities (the patch's exact UID plus carriers), then
+  // mode and state land together so no correction effect reinterprets them. A
+  // resolved target member is a fresh member event on the target relation and
+  // owner; anything else is a retarget.
+  function applyFamilySurfaceTransition(
+    targetAgent: AgentStatus,
+    targetMode: ThreadPresentationMode,
+    transitionPatch: Partial<ThreadConfig>,
+  ) {
+    const targetAgentForConfig = agentWithCapabilities(targetAgent, targetMode);
+    const resolved = resolveProviderDraftConfig(targetAgentForConfig, {
+      ...draftConfig,
+      ...(transitionPatch.model !== undefined ? { model: transitionPatch.model } : {}),
+      ...(transitionPatch.effort !== undefined ? { effort: transitionPatch.effort } : {}),
+      ...(transitionPatch.fast !== undefined ? { fast: transitionPatch.fast } : {}),
+    });
+    const relation = modelFamilyForModel(targetAgentForConfig.capabilities, resolved.model);
+    setPresentationMode(targetMode);
+    if (targetAgent.kind !== selectedAgent?.kind) {
+      setAgentKind(targetAgent.kind);
+    }
+    commitDraftConfig(
+      targetAgent.kind,
+      mutateDraftSelection(
+        resolved,
+        targetAgent.kind,
+        targetMode,
+        relation ? { type: "family-member-edit", relation } : { type: "owner-retarget" },
+      ),
+    );
+  }
+  const latestConfigPatchRef = useRef<
+    (patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) => void
   >(() => undefined);
-  const onConfigPatch = (patch: Partial<ThreadConfig>) => {
+  const latestProviderModelChangeRef = useRef<
+    (next: {
+      agentKind: string;
+      model: string;
+      presentationMode?: ThreadPresentationMode;
+      selectionIntent?: ProviderModelSelectionIntent;
+    }) => void
+  >(() => undefined);
+  const onConfigPatch = (patch: Partial<ThreadConfig>, origin?: ComposerSelectionOrigin) => {
     if ("browserMcp" in patch) {
       // Per-draft mention flag — not part of ProviderDraftConfig, so it bypasses
       // the resolver/persistence below. Set by an `@browser` mention, cleared by
@@ -853,48 +957,30 @@ export function ThreadDraftView(props: {
     if ("contextSize" in patch) {
       hasLocalContextEditRef.current = true;
     }
-    const resolved = resolveProviderDraftConfig(selectedAgentForConfig, {
-      model: patch.model ?? model,
-      effort: patch.effort ?? effort,
-      ...(patch.contextSize !== undefined ? { contextSize: patch.contextSize } : { contextSize }),
-      ...(patch.fast !== undefined ? { fast: patch.fast } : { fast }),
-      ...(patch.thinking !== undefined ? { thinking: patch.thinking } : { thinking }),
-      mode: patch.mode ?? mode,
-      approvalPolicy: patch.approvalPolicy ?? approvalPolicy,
-      approvalsReviewer: patch.approvalsReviewer ?? approvalsReviewer,
-      sandboxMode: patch.sandboxMode ?? sandboxMode,
-    });
-
-    setModel(resolved.model);
-    setEffort(resolved.effort ?? "");
-    setContextSize(resolved.contextSize);
-    setFast(resolved.fast ?? false);
-    setThinking(resolved.thinking ?? false);
-    setMode((resolved.mode ?? "agent") as "agent" | "plan" | "autopilot");
-    setApprovalPolicy(resolved.approvalPolicy ?? "");
-    setApprovalsReviewer(resolved.approvalsReviewer ?? "");
-    setSandboxMode(resolved.sandboxMode ?? "");
+    // A family member's own carrier presence is exact; ordinary models keep
+    // resolving from their displayed effort/Fast/thinking values.
+    const current = modelFamilyForModel(selectedAgentForConfig.capabilities, model)
+      ? draftConfig
+      : { ...draftConfig, effort, fast, thinking };
+    const resolved = resolveProviderDraftConfig(selectedAgentForConfig, { ...current, ...patch });
+    // The same event classification as the thread composer: the producing
+    // leaf's origin decides whether a member edit may mint, carrier touches
+    // revoke their axes, and unrelated edits retain still-matching intent.
+    const next = mutateDraftSelection(
+      resolved,
+      selectedAgentForConfig.kind,
+      presentationMode,
+      composerSelectionEvent(patch, origin, selectedAgentForConfig.capabilities),
+    );
+    // A retained family-row no-op writes nothing.
+    if (Object.keys(patch).length === 0 && isThreadConfigEqual(next, draftConfig)) return;
 
     // Keep local state and persisted config in one transaction so menu
     // selection animations do not receive a second delayed state update.
     if (effectiveAgentKind) {
-      if (providerConfigsRef.current) {
-        providerConfigsRef.current[effectiveAgentKind] = resolved;
-      }
-      persistProviderConfig(effectiveAgentKind, resolved);
-      persistProjectDraftConfig({
-        agentKind: effectiveAgentKind,
-        model: resolved.model,
-        effort: resolved.effort,
-        ...(resolved.contextSize ? { contextSize: resolved.contextSize } : {}),
-        ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
-        ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
-        mode: resolved.mode,
-        approvalPolicy: resolved.approvalPolicy,
-        approvalsReviewer: resolved.approvalsReviewer,
-        sandboxMode: resolved.sandboxMode,
-        worktreeMode: effectiveWorktreeMode,
-      });
+      commitDraftConfig(effectiveAgentKind, next);
+    } else {
+      setDraftConfig(next);
     }
   };
   latestConfigPatchRef.current = onConfigPatch;
@@ -903,73 +989,97 @@ export function ThreadDraftView(props: {
     agentKind: nextKind,
     model: nextModel,
     presentationMode: nextPresentationMode,
+    selectionIntent,
   }) => {
     if (!selectedAgent || !selectedAgentForConfig) return;
     hasLocalConfigEditRef.current = true;
     const targetPresentationMode = nextPresentationMode ?? presentationMode;
-    if (targetPresentationMode !== presentationMode) {
-      setPresentationMode(targetPresentationMode);
-    }
     if (nextKind !== selectedAgent.kind) {
       const targetAgent = installedAgents.find((agent) => agent.kind === nextKind);
       if (!targetAgent) return;
       const targetAgentForConfig = agentWithCapabilities(targetAgent, targetPresentationMode);
 
-      if (effectiveAgentKind) {
-        const snapshot: ProviderDraftConfig = {
-          model,
-          effort,
-          ...(contextSize ? { contextSize } : {}),
-          fast,
-          thinking,
-          mode,
-          approvalPolicy,
-          approvalsReviewer,
-          sandboxMode,
-        };
-        persistProviderConfig(effectiveAgentKind, snapshot);
-      }
+      // An explicit cross-provider row is honored atomically at the TARGET
+      // surface: the clicked model and the row's intent resolve there on their
+      // own — never through the source family mapping. A plain clicked row has
+      // no family semantics (a source-family transition would either fail on a
+      // family-less target or select the mapped source tuple instead of the
+      // clicked row), and a family row must adopt the target's declared
+      // default, not retain the source selection. The source family mapping
+      // only governs same-provider surface switches below.
       const targetSaved = isHomeScope ? undefined : providerConfigsRef.current[nextKind];
-      const targetPreference = resolveProviderModelPreference(
-        nextKind as AgentStatus["kind"],
-        nextModel,
-        providerConfigsRef.current,
-        providerModelPreferencesRef.current,
-      );
       const targetBase = { ...targetSaved };
       delete targetBase.effort;
       delete targetBase.fast;
-      const resolved = resolveProviderDraftConfig(targetAgentForConfig, {
-        ...targetBase,
-        model: nextModel,
-        ...(targetPreference?.effort !== undefined ? { effort: targetPreference.effort } : {}),
-        ...(targetPreference?.fast !== undefined ? { fast: targetPreference.fast } : {}),
-      });
-      persistProviderConfig(nextKind, resolved);
-      setModel(resolved.model);
-      setEffort(resolved.effort ?? "");
-      setContextSize(resolved.contextSize);
-      setFast(resolved.fast ?? false);
-      setThinking(resolved.thinking ?? false);
-      setMode((resolved.mode ?? "agent") as "agent" | "plan" | "autopilot");
-      setApprovalPolicy(resolved.approvalPolicy ?? "");
-      setApprovalsReviewer(resolved.approvalsReviewer ?? "");
-      setSandboxMode(resolved.sandboxMode ?? "");
-      lastAppliedAgentKindRef.current = nextKind as AgentStatus["kind"];
+      let resolved: ProviderDraftConfig;
+      let targetRelation: ReturnType<typeof modelFamilyForModel>;
+      // A pick onto a family member of the target provider resolves through
+      // the atomic selection edit — honoring the event's row intent — instead
+      // of replaying per-model preferences onto the family's axes.
+      if (modelFamilyForModel(targetAgentForConfig.capabilities, nextModel)) {
+        // A new provider's family row adopts its default. Native model IDs may
+        // be shared across profiles, so the source UID must not turn this into
+        // a retain-current event in the target provider's family.
+        const patch = resolveModelSelectionEdit(
+          targetAgentForConfig.capabilities,
+          {
+            ...targetBase,
+            model: "",
+          },
+          selectionIntent === "family"
+            ? { kind: "family", model: nextModel }
+            : { kind: "model", model: nextModel },
+        );
+        if (patch === null) {
+          familyTransitionFailureToast();
+          return;
+        }
+        targetRelation =
+          selectionIntent === "family"
+            ? modelFamilyForModel(targetAgentForConfig.capabilities, patch.model ?? nextModel)
+            : undefined;
+        resolved = resolveProviderDraftConfig(targetAgentForConfig, {
+          ...targetBase,
+          model: patch.model ?? nextModel,
+          ...(patch.effort !== undefined ? { effort: patch.effort } : {}),
+          ...(patch.fast !== undefined ? { fast: patch.fast } : {}),
+        });
+      } else {
+        const targetPreference = resolveProviderModelPreference(
+          nextKind as AgentStatus["kind"],
+          nextModel,
+          providerConfigsRef.current,
+          providerModelPreferencesRef.current,
+        );
+        resolved = resolveProviderDraftConfig(targetAgentForConfig, {
+          ...targetBase,
+          model: nextModel,
+          ...(targetPreference?.effort !== undefined ? { effort: targetPreference.effort } : {}),
+          ...(targetPreference?.fast !== undefined ? { fast: targetPreference.fast } : {}),
+        });
+      }
+      // The target config is valid: commit the surface and preserve the source
+      // provider's draft snapshot together with the target selection.
+      if (targetPresentationMode !== presentationMode) {
+        setPresentationMode(targetPresentationMode);
+      }
+      if (effectiveAgentKind) {
+        persistProviderConfig(effectiveAgentKind, draftConfig);
+      }
+      // Only a deliberate target family row establishes fresh target intent;
+      // any other cross-provider pick drops the source record.
       setAgentKind(nextKind as AgentStatus["kind"]);
-      persistProjectDraftConfig({
-        agentKind: nextKind as AgentStatus["kind"],
-        model: resolved.model,
-        effort: resolved.effort,
-        ...(resolved.contextSize ? { contextSize: resolved.contextSize } : {}),
-        ...(resolved.fast !== undefined ? { fast: resolved.fast } : {}),
-        ...(resolved.thinking !== undefined ? { thinking: resolved.thinking } : {}),
-        mode: resolved.mode,
-        approvalPolicy: resolved.approvalPolicy,
-        approvalsReviewer: resolved.approvalsReviewer,
-        sandboxMode: resolved.sandboxMode,
-        worktreeMode: effectiveWorktreeMode,
-      });
+      commitDraftConfig(
+        nextKind as AgentStatus["kind"],
+        mutateDraftSelection(
+          resolved,
+          nextKind as AgentStatus["kind"],
+          targetPresentationMode,
+          targetRelation
+            ? { type: "family-member-edit", relation: targetRelation }
+            : { type: "owner-retarget" },
+        ),
+      );
     } else {
       const picked = normalizeProviderModelConfig(
         selectedAgentForConfig.kind,
@@ -977,6 +1087,49 @@ export function ThreadDraftView(props: {
         selectedAgentForConfig.capabilities.models,
       );
       const targetModel = picked.model ?? nextModel;
+      // A picker row that carries a different presentation mode is a deliberate
+      // surface switch: resolve the family mapping before the mode commits.
+      if (targetPresentationMode !== presentationMode) {
+        const transition = resolveSurfaceTransition(selectedAgent, targetPresentationMode);
+        if (transition !== undefined) {
+          if (transition === null) {
+            familyTransitionFailureToast();
+            return;
+          }
+          applyFamilySurfaceTransition(selectedAgent, targetPresentationMode, transition);
+          return;
+        }
+        retargetPresentation(targetPresentationMode);
+      }
+      // A pick into or out of a family relation resolves through the shared
+      // edit helper at this event boundary: a projected family row keeps the
+      // `family` intent ({} retains the exact current member), every exact row
+      // — a favorite or recent of the representative included — selects its
+      // exact member, and `null` is a visible rejection. No preference replay:
+      // encoded axes live in the UID and config-bound carriers stay as
+      // requested.
+      if (
+        (selectedAgentForConfig.capabilities.modelFamilies?.length ?? 0) > 0 &&
+        (modelFamilyForModel(selectedAgentForConfig.capabilities, targetModel) ||
+          modelFamilyForModel(selectedAgentForConfig.capabilities, model))
+      ) {
+        const patch = resolveModelSelectionEdit(
+          selectedAgentForConfig.capabilities,
+          draftConfig,
+          selectionIntent === "family"
+            ? { kind: "family", model: targetModel }
+            : { kind: "model", model: targetModel },
+        );
+        // An empty family retain still reaches the reduction so a stale record
+        // can drop; only a family row may mint.
+        if (patch) {
+          latestConfigPatchRef.current(
+            patch,
+            selectionIntent === "family" ? { kind: "family-resolved" } : { kind: "raw-pick" },
+          );
+        }
+        return;
+      }
       const modelPreference = resolveProviderModelPreference(
         effectiveAgentKind as AgentStatus["kind"],
         targetModel,
@@ -1017,7 +1170,7 @@ export function ThreadDraftView(props: {
       presentationMode,
       machineKey: machineKeyForLocation(project.location),
       onProviderModelChange: (next) => latestProviderModelChangeRef.current(next),
-      onConfigPatch: (patch) => latestConfigPatchRef.current(patch),
+      onConfigPatch: (patch, origin) => latestConfigPatchRef.current(patch, origin),
     });
   }, [
     selectedAgent,
@@ -1033,10 +1186,10 @@ export function ThreadDraftView(props: {
     project.location,
   ]);
 
-  const providerDraftControls = useMemo(() => {
+  const draftControls = useMemo(() => {
     if (!selectedAgent || !selectedAgentForConfig) return [];
     const filteredCaps = selectedAgentFilteredCapabilities ?? selectedAgentForConfig.capabilities;
-    return appendProviderComposerControls([], {
+    return appendProviderComposerControls(baseDraftControls, {
       agentKind: selectedAgent.kind,
       capabilities: filteredCaps,
       config: {
@@ -1052,9 +1205,10 @@ export function ThreadDraftView(props: {
       },
       presentationMode,
       isDisabled: false,
-      onConfigChange: (patch) => latestConfigPatchRef.current(patch),
+      onConfigChange: (patch, origin) => latestConfigPatchRef.current(patch, origin),
     });
   }, [
+    baseDraftControls,
     selectedAgent,
     selectedAgentForConfig,
     selectedAgentFilteredCapabilities,
@@ -1069,11 +1223,6 @@ export function ThreadDraftView(props: {
     sandboxMode,
     presentationMode,
   ]);
-
-  const draftControls = useMemo(
-    () => [...baseDraftControls, ...providerDraftControls],
-    [baseDraftControls, providerDraftControls],
-  );
 
   // Stable centering for the full (non-compact) draft view: center once, then
   // pin the input's top edge so the composer no longer jumps when it grows.
@@ -1161,6 +1310,20 @@ export function ThreadDraftView(props: {
   const blockMaxWidthClass = props.quickComposer ? "" : "max-w-[720px]";
 
   const handlePresentationChange = (next: ThreadPresentationMode) => {
+    // A deliberate switch while inside a family relation must prove an exact
+    // mapping onto the target relation BEFORE the mode commits: without one,
+    // the surface and config are retained behind a visible failure — never a
+    // silent carrier reinterpretation or an adaptive fallback.
+    const commitTransition = (targetAgent: AgentStatus) => {
+      const transition = resolveSurfaceTransition(targetAgent, next);
+      if (transition === undefined) return false;
+      if (transition === null) {
+        familyTransitionFailureToast();
+        return true;
+      }
+      applyFamilySurfaceTransition(targetAgent, next, transition);
+      return true;
+    };
     // If the active provider can't serve this surface, swap to another
     // installed provider that can — the provider-switch effect will then
     // reload the per-provider config snapshot.
@@ -1170,11 +1333,13 @@ export function ThreadDraftView(props: {
         return modes.includes(next);
       });
       if (!fallback) return;
-      setPresentationMode(next);
+      if (commitTransition(fallback)) return;
+      retargetPresentation(next);
       setAgentKind(fallback.kind);
       return;
     }
-    setPresentationMode(next);
+    if (commitTransition(selectedAgent)) return;
+    retargetPresentation(next);
     // Drop config values that the new presentation surface doesn't
     // support (e.g. Codex plan mode is ACP-only).
     const normalizer = effectiveAgentKind ? getConfigNormalizer(effectiveAgentKind) : undefined;
@@ -1288,14 +1453,7 @@ export function ThreadDraftView(props: {
             selectedAgent={selectedAgentForConfig ?? selectedAgent}
             controls={draftControls}
             config={{
-              model,
-              ...(effort ? { effort } : {}),
-              ...(contextSize ? { contextSize } : {}),
-              ...(selectedAgentForConfig &&
-              supportsUsableFastMode(selectedAgentForConfig.capabilities, model)
-                ? { fast }
-                : {}),
-              ...(thinking ? { thinking } : {}),
+              ...launchSelectionFields(draftConfig, selectedAgentForConfig?.capabilities),
               ...(mode ? { mode } : {}),
               ...(approvalPolicy ? { approvalPolicy } : {}),
               ...(approvalsReviewer ? { approvalsReviewer } : {}),

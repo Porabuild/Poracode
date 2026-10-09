@@ -106,7 +106,11 @@ const THREAD_PHASE1_RAW_COLUMNS = [
   "t.last_turn_ended_at",
 ] as const;
 
-const THREAD_PHASE1_JSON_COLUMNS = ["t.config", "t.session_ref"] as const;
+const THREAD_PHASE1_JSON_COLUMNS = [
+  "t.config",
+  "t.session_ref",
+  "t.additional_directories",
+] as const;
 
 const PROJECT_PHASE1_RAW_COLUMNS = [
   "p.id",
@@ -135,6 +139,8 @@ const PROJECT_PHASE1_JSON_COLUMNS = [
 const THREAD_PHASE2_COLUMNS = [
   "id",
   "project_id",
+  "additional_directories",
+  "workspace_grant_revision",
   "workspace_id",
   "title",
   "agent_kind",

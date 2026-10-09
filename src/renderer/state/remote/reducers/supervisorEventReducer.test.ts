@@ -482,6 +482,53 @@ describe("localSnapshotRecovery — sequence arbitration", () => {
     vi.clearAllMocks();
   });
 
+  it("holds newly subscribed deltas behind a history-gap read and resumes without clearing steer", async () => {
+    let reducer: SupervisorEventReducer;
+    let finishRead: (() => void) | undefined;
+    const read = new Promise<void>((resolve) => {
+      finishRead = resolve;
+    });
+    vi.mocked(rehydrateThreadRuntimeItemsAfterReset)
+      .mockImplementationOnce(async () => {
+        await read;
+        return true;
+      })
+      .mockResolvedValue(true);
+    const recovery = createLocalSnapshotRecovery({ getArbitration: () => reducer.arbitration });
+    reducer = createSupervisorEventReducer({
+      recovery: recovery.strategy,
+      onSequencedEvent: recovery.noteSequencedSupervisorEvent,
+    });
+    useAppStore.getState().setPendingSteer("thread-1", {
+      id: "pending-steer",
+      prompt: "Keep this queued steer",
+      stagedAt: 1,
+    });
+    const pendingSteer = useAppStore.getState().pendingSteerByThreadId["thread-1"];
+    try {
+      reducer.recoverRuntimeHistory("thread-1");
+      reducer.recoverRuntimeHistory("thread-1");
+      reducer.dispatch(runtimeEvent("thread-1", "covered"), 2, { sequenceSpace: "loopback" });
+      reducer.flushSync("thread-1");
+      expect(itemIds() ?? []).not.toContain("covered");
+      expect(rehydrateThreadRuntimeItemsAfterReset).toHaveBeenCalledTimes(1);
+      finishRead?.();
+      await vi.waitFor(() =>
+        expect(rehydrateThreadRuntimeItemsAfterReset).toHaveBeenCalledTimes(2),
+      );
+      await Promise.resolve();
+      reducer.dispatch(runtimeEvent("thread-1", "after-baseline"), 3, {
+        sequenceSpace: "loopback",
+      });
+      reducer.flushSync("thread-1");
+      expect(itemIds()).toEqual(["after-baseline"]);
+      expect(useAppStore.getState().pendingSteerByThreadId["thread-1"]).toEqual(pendingSteer);
+    } finally {
+      finishRead?.();
+      reducer.clear();
+    }
+  });
+
   it("repeats the local read when sequenced events were observed during it", async () => {
     vi.mocked(rehydrateThreadRuntimeItemsAfterReset)
       .mockResolvedValueOnce(true)

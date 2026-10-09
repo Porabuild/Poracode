@@ -245,6 +245,31 @@ internal class FakeRichChatSessionGateway : RichChatSessionGateway {
         payload: JsonObject,
     ) = call("stage")
 
+    var sessionActionIds: List<String> = emptyList()
+    var sessionActionListError: Throwable? = null
+    var sessionActionInvokeHandler: suspend (String, JsonObject) -> JsonObject = { _, _ ->
+        kotlinx.serialization.json.buildJsonObject { }
+    }
+
+    override suspend fun listSessionActions(
+        lease: RichChatHostLease,
+        threadId: String,
+    ): List<String> {
+        calls += "session-actions-list"
+        sessionActionListError?.let { throw it }
+        return sessionActionIds
+    }
+
+    override suspend fun invokeSessionAction(
+        lease: RichChatHostLease,
+        threadId: String,
+        actionId: String,
+        payload: JsonObject,
+    ): JsonObject {
+        calls += "session-action-invoke:$actionId"
+        return sessionActionInvokeHandler(actionId, payload)
+    }
+
     override suspend fun uploadAttachment(
         lease: RichChatHostLease,
         threadId: String,

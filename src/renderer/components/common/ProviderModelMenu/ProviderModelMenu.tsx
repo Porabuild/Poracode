@@ -11,7 +11,10 @@ import {
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Check, ChevronDown, Search, Star, Zap } from "lucide-react";
 import { Tooltip } from "@heroui/react";
-import { formatProviderModelDescription } from "@/renderer/components/providers/modelDescription";
+import {
+  formatProviderModelDescription,
+  modelPriceExplanation,
+} from "@/renderer/components/providers/modelDescription";
 import { joinModelRowHints } from "@/shared/modelLabels";
 import { ProviderIcon } from "@/renderer/components/providers/ProviderIcon";
 import { ResponsiveMenuSurface, useResponsiveMenu } from "../ResponsiveMenuSurface";
@@ -32,8 +35,10 @@ import {
   type ProviderModelMenuProvider,
 } from "./parts/buildItems";
 import { deriveSubProvider } from "./parts/deriveSubProvider";
+import { modelFamilyMemberDisplay } from "./parts/modelFamilyDisplay";
 import { providerMenuKey } from "./parts/providerIdentity";
-import type { ProviderModelItem } from "./parts/types";
+import type { ProviderModelItem, ProviderModelSelection } from "./parts/types";
+export type { ProviderModelSelection, ProviderModelSelectionIntent } from "./parts/types";
 
 export type { ProviderModelMenuProvider };
 
@@ -83,13 +88,11 @@ export interface ProviderModelMenuProps {
   isDisabled?: boolean;
   hideLabelOnWrap?: boolean;
   forceHideLabel?: boolean;
+  /** Hide tuple details when separate selector controls already display them. */
+  showFamilySelectionSummary?: boolean;
   collapseTier?: number;
   openSignal?: number;
-  onChange: (next: {
-    agentKind: string;
-    model: string;
-    presentationMode?: ThreadPresentationMode;
-  }) => void;
+  onChange: (next: ProviderModelSelection) => void;
   onOpenChange?: (open: boolean) => void;
 }
 
@@ -294,6 +297,7 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     isDisabled,
     hideLabelOnWrap,
     forceHideLabel = false,
+    showFamilySelectionSummary = true,
     collapseTier,
     openSignal,
     onChange,
@@ -332,15 +336,36 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
     ) ?? providers.find((p) => p.kind === currentAgentKind);
   const currentProviderKey = currentProvider ? providerMenuKey(currentProvider) : currentAgentKind;
   const effectiveCurrentModel = normalizeCurrentModelForProvider(currentProvider, currentModel);
+  // A projected family member reads as the family name plus its current
+  // selector options — never the giant native pair label — and suppresses the
+  // group hint, which would only repeat the family name.
+  const currentFamilyDisplay = modelFamilyMemberDisplay(
+    currentProvider?.capabilities,
+    effectiveCurrentModel,
+  );
   const currentLabel =
+    currentFamilyDisplay?.familyLabel ??
     currentProvider?.capabilities.models.find((m) => m.id === effectiveCurrentModel)?.label ??
     effectiveCurrentModel;
   const currentLabelParts = splitModelLabel(currentLabel);
-  const currentSubProvider = currentProvider
+  const selectedSubProvider = currentProvider
     ? deriveSubProvider(effectiveCurrentModel, currentProvider.capabilities)
     : undefined;
-  const currentDisplayLabel = currentSubProvider
-    ? `${currentLabelParts.name} · ${currentSubProvider.label}`
+  const currentSubProvider = currentFamilyDisplay
+    ? undefined
+    : selectedSubProvider?.label.trim().toLocaleLowerCase() ===
+        currentLabelParts.name.trim().toLocaleLowerCase()
+      ? undefined
+      : selectedSubProvider;
+  // Family selector menus already show the tuple. Keep the model trigger on
+  // the family name so it does not repeat those controls or consume their width.
+  const currentSubLabel = currentFamilyDisplay
+    ? showFamilySelectionSummary
+      ? currentFamilyDisplay.selectorSummary
+      : undefined
+    : currentSubProvider?.label;
+  const currentDisplayLabel = currentSubLabel
+    ? `${currentLabelParts.name} · ${currentSubLabel}`
     : currentLabelParts.name;
   // Snapshot the favorites/recents lists when the menu opens so rows stay
   // stable while it is open; the search-field focus stays in the effect below.
@@ -415,10 +440,17 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   const items = isOpen ? buildItemsForSearch(deferredSearch) : [];
 
   // Highlight the current model wherever it appears (provider section, favorites, recents).
+  // Inside a projected family the single family row highlights for any member.
   const selectedKeys = new Set<string>([
     `fav:${currentAgentKind}:${effectiveCurrentModel}`,
     `recent:${currentAgentKind}:${effectiveCurrentModel}`,
     `model:${currentProviderKey}:${effectiveCurrentModel}`,
+    ...(currentFamilyDisplay && currentProvider
+      ? [`model:${currentProviderKey}:${currentFamilyDisplay.representativeModel}`]
+      : []),
+    // An exact favorite/recent row of the current model keeps its highlight
+    // even though its item id differs from the projected family row's.
+    `model-exact:${currentProviderKey}:${effectiveCurrentModel}`,
   ]);
 
   // Rows mirror the Fast preference saved per model. An explicit value wins;
@@ -462,15 +494,12 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
   }
 
   function selectModelItem(selected: ProviderModelItem | undefined) {
-    if (selected?.type !== "model") return;
-    if (
-      selected.providerKind === currentAgentKind &&
-      selected.modelId === effectiveCurrentModel &&
-      selected.providerKey === currentProviderKey
-    ) {
-      handleOpenChange(false);
-      return;
-    }
+    if (selected?.type !== "model" || isDisabled) return;
+    // A deliberate activation always reaches the owner, including a re-pick of
+    // the already-current model: an exact same-UID pick must drop stored
+    // selection-binding evidence, and a family-row re-pick may clean a stale
+    // record. The owner's complete-config equality check suppresses genuinely
+    // unchanged persistence, so this side never second-guesses the event.
     // Close synchronously so the popover starts unmounting immediately, then
     // mark the upstream state cascade as a transition so the parent's effort/
     // context/fast resolution doesn't block the close animation.
@@ -480,6 +509,10 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         agentKind: selected.providerKind,
         model: selected.modelId,
         ...(selected.presentationMode ? { presentationMode: selected.presentationMode } : {}),
+        // Named ephemeral intent: the collapsed family row retains the
+        // family's current member, every exact row (favorites and recents
+        // included, an exact representative row included) selects its UID.
+        selectionIntent: selected.familyModelIds ? "family" : "exact",
       });
     });
   }
@@ -515,9 +548,9 @@ export function ProviderModelMenu(props: ProviderModelMenuProps) {
         <span className="max-w-full truncate leading-tight">
           {currentLabelParts.name || t`Select model`}
         </span>
-        {currentSubProvider ? (
+        {currentSubLabel ? (
           <span className="max-w-full truncate text-[10px] font-medium leading-tight text-muted/70">
-            {currentSubProvider.label}
+            {currentSubLabel}
           </span>
         ) : null}
       </span>
@@ -969,16 +1002,17 @@ const WindowedProviderModelList = forwardRef<
             />
             {(() => {
               // Context size can stay as a muted chip. Effort and Fast are
-              // first-class controls, including leftover variant labels.
+              // first-class controls, including leftover variant labels. The
+              // provider-parsed price shares the existing muted right rail.
               const { name, hint } = splitModelLabel(item.label);
               const description = formatProviderModelDescription(
                 item.providerKind,
                 item.tooltipDescription,
               );
-              const mutedHint = joinModelRowHints(hint, item.contextDescription, description?.hint);
+              const mutedHint = joinModelRowHints(hint, item.contextDescription);
               const rowFastEnabled = modelFastEnabled(item.providerKind, item.modelId);
-              const content = (
-                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+              const nameLine = (
+                <>
                   <span className="min-w-0 truncate">{name}</span>
                   {item.supportsFast ? (
                     // Filled when Fast mode is saved on for this model,
@@ -998,9 +1032,19 @@ const WindowedProviderModelList = forwardRef<
                       · {mutedHint}
                     </span>
                   ) : null}
+                </>
+              );
+              const content = (
+                <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                  {nameLine}
+                  {item.priceLine ? (
+                    <span className="ml-auto min-w-0 max-w-[55%] truncate text-[10px] text-muted/70">
+                      {item.priceLine}
+                    </span>
+                  ) : null}
                 </span>
               );
-              return item.tooltipDescription ? (
+              return item.tooltipDescription || item.priceLine ? (
                 <Tooltip delay={MODEL_DESCRIPTION_TOOLTIP_DELAY_MS}>
                   <Tooltip.Trigger className="min-w-0 flex-1" role="none" tabIndex={-1}>
                     {content}
@@ -1009,8 +1053,12 @@ const WindowedProviderModelList = forwardRef<
                     placement="right"
                     className="max-w-72 whitespace-pre-line break-words text-xs"
                   >
-                    {description ? `${i18n._(description.explanation)}\n\n` : null}
-                    {item.tooltipDescription}
+                    {description || item.priceLine
+                      ? `${i18n._(description?.explanation ?? modelPriceExplanation)}\n\n`
+                      : null}
+                    {item.familyModelIds?.length && item.priceLine
+                      ? item.priceLine
+                      : (item.tooltipDescription ?? item.priceLine)}
                   </Tooltip.Content>
                 </Tooltip>
               ) : (

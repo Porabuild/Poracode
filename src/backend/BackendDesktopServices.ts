@@ -142,6 +142,17 @@ export class BackendDesktopServices {
       reportError: options.reportError,
     };
     this.settings = createBackendSettingsAccess({
+      lease: () => {
+        const custody = host.getDataCustody();
+        if (!custody) throw new Error("Desktop settings require active data custody.");
+        custody.assertActive();
+        return {
+          paths: { dataRoot: initialize.baseDir },
+          generation: custody.generation,
+          assertActive: (generation) => custody.assertActive(generation),
+        };
+      },
+      assertPreparedDatabaseForWrite: () => host.assertPreparedDatabaseForWrite(initialize.baseDir),
       settingsPath: () => {
         if (!desktop) throw new Error("Desktop services are not configured.");
         return desktop.settingsPath;
@@ -197,6 +208,7 @@ export class BackendDesktopServices {
         this.settings.writeSharedSettingsCompat(next);
       },
       editSettingsField: (field, compute) => this.settings.editSettingsField(field, compute),
+      commitOwnerSettingsEdits: (edits) => this.settings.commitOwnerEdits(edits),
       // TODO(Gates 2-3 Batch 1, Lane 1B — S2.1): this is hardcoded `true`, so
       // app-controls reports a renderer window even in tray/hidden mode and
       // callers believe zero-window thread-command mirrors were delivered.

@@ -15,6 +15,7 @@ import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileC
 import {
   resolveDisplayedProviders,
   separateCurrentUsageProvider,
+  usageProviderIdForAgent,
 } from "@/renderer/components/providers/usageProviders";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
@@ -83,7 +84,9 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
   );
   const { current: currentProvider, rest: sortableProviders } = separateCurrentUsageProvider(
     orderedProviders,
-    preferredProviderId,
+    preferredProviderId
+      ? usageProviderIdForAgent(preferredProviderId, undefined, agentInstances)
+      : null,
   );
 
   const browserRuntime = isBrowserClientRuntime();

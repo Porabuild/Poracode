@@ -209,10 +209,12 @@ enum ThreadBuiltInMCPServerID: String, Codable, Hashable, Sendable {
 struct ThreadSessionReference: Codable, Hashable, Sendable {
   var providerSessionID: String
   var discoveredAt: String
+  var executionIdentity: String? = nil
 
   private enum CodingKeys: String, CodingKey {
     case providerSessionID = "providerSessionId"
     case discoveredAt
+    case executionIdentity
   }
 }
 

@@ -110,6 +110,7 @@ vi.mock("./ThreadComposer", () => ({
       label?: string;
       currentModel?: string;
       effortValue?: string;
+      efforts?: Array<{ id: string; label: string }>;
     }>;
     fixedContent?: ReactNode;
     attachmentBar?: ReactNode;
@@ -131,6 +132,12 @@ vi.mock("./ThreadComposer", () => ({
       {typeof props.afterControls === "function" ? props.afterControls() : props.afterControls}
       <output data-testid="control-kinds">
         {props.controls?.map((control) => control.kind ?? control.label ?? "").join(",") ?? ""}
+      </output>
+      <output data-testid="effort-options">
+        {props.controls
+          ?.find((control) => control.kind === "effort-context")
+          ?.efforts?.map((option) => option.id)
+          .join(",") ?? ""}
       </output>
       <output data-testid="attach-files-enabled">{props.onAttachFiles ? "yes" : "no"}</output>
       {props.onStop && props.submitDisabled ? (
@@ -434,6 +441,48 @@ describe("ThreadComposerSection", () => {
     const result = render(composerElement({ ...opts, onSubmitInput }));
     return { ...result, onSubmitInput };
   }
+
+  it("uses the live session ladder in the existing composer control", () => {
+    renderComposer({
+      thread: {
+        ...guiThread,
+        config: { ...guiThread.config, effort: "high" },
+        sessionConfigOptions: [
+          {
+            id: "model-select",
+            type: "select",
+            role: "model",
+            currentValue: guiThread.config.model,
+            values: [{ value: guiThread.config.model, name: "Example model" }],
+            groups: [],
+          },
+          {
+            id: "reasoning-select",
+            type: "select",
+            role: "effort",
+            currentValue: "high",
+            values: ["low", "medium", "high", "xhigh", "max"].map((value) => ({ value })),
+            groups: [],
+          },
+        ],
+      },
+      agentStatus: {
+        ...codexGuiStatus,
+        capabilities: {
+          ...codexGuiStatus.capabilities,
+          modelEfforts: { [guiThread.config.model]: ["medium", "high", "max"] },
+          presentationCapabilities: {
+            gui: {
+              models: codexGuiStatus.capabilities.models,
+              efforts: ["medium", "high", "max"],
+              modelEfforts: { [guiThread.config.model]: ["medium", "high", "max"] },
+            },
+          },
+        },
+      },
+    });
+    expect(screen.getByTestId("effort-options")).toHaveTextContent("low,medium,high,xhigh,max");
+  });
 
   it("hides provider controls for active terminal threads", () => {
     renderComposer({

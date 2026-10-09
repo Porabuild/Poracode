@@ -21,6 +21,7 @@ import {
   retainThreadRuntimeItems,
 } from "@/renderer/state/chatRuntimePersister";
 import { retainRendererEventInterest } from "@/renderer/state/rendererEventInterests";
+import { hydrateThreadRuntimeItemsForInterest } from "@/renderer/state/runtimeInterestHydration";
 import {
   finalizeFileCheckpoint,
   hydrateFileCheckpoints,
@@ -301,8 +302,9 @@ export function ChatPane(props: ChatPaneProps) {
 
     let active = true;
     const interest = retainRendererEventInterest("runtime", threadId);
+    const continuous = interest.continuous;
     void interest.ready.then(() => {
-      if (active) void hydrateThreadRuntimeItems(threadId);
+      if (active) hydrateThreadRuntimeItemsForInterest(threadId, continuous && interest.continuous);
     });
     return () => {
       active = false;

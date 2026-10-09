@@ -149,3 +149,101 @@ struct RemoteProject: Codable, Sendable, Identifiable, Hashable {
         ProjectIdentity(connectionId: connectionId, projectId: id)
     }
 }
+
+/// Strict read-only mirrors of workspaceDirectorySelection.ts. These carry host
+/// metadata only; a cached row never establishes authorization or feature support.
+@propertyWrapper
+struct WorkspaceDirectoryProjection: Codable, Sendable, Hashable {
+    var wrappedValue: [ProjectLocation]?
+
+    init(wrappedValue: [ProjectLocation]?) { self.wrappedValue = wrappedValue }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode([JSONValue].self)
+        guard raw.count <= 16 else {
+            throw DecodingError.dataCorruptedError(
+                in: container, debugDescription: "Too many workspace directories")
+        }
+        for entry in raw {
+            guard let fields = entry.objectValue,
+                let kind = fields["kind"]?.stringValue,
+                ["posix", "windows", "wsl"].contains(kind)
+            else {
+                throw DecodingError.dataCorruptedError(
+                    in: container, debugDescription: "Invalid workspace location")
+            }
+            let required = kind == "wsl" ? ["distro", "linuxPath", "uncPath"] : ["path"]
+            for key in required + (fields["remoteServerId"] == nil ? [] : ["remoteServerId"]) {
+                guard let value = fields[key]?.stringValue, !value.isEmpty else {
+                    throw DecodingError.dataCorruptedError(
+                        in: container, debugDescription: "Invalid workspace location field")
+                }
+            }
+            let path = fields[kind == "wsl" ? "linuxPath" : "path"]!.stringValue!
+            guard path.unicodeScalars.count <= 4_096 else {
+                throw DecodingError.dataCorruptedError(
+                    in: container, debugDescription: "Workspace path exceeds limit")
+            }
+        }
+        let locations = try container.decode([ProjectLocation].self)
+        wrappedValue = locations
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(wrappedValue)
+    }
+}
+
+@propertyWrapper
+struct WorkspaceGrantRevisionProjection: Codable, Sendable, Hashable {
+    var wrappedValue: Int64?
+
+    init(wrappedValue: Int64?) { self.wrappedValue = wrappedValue }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let revision = try container.decode(Int64.self)
+        guard (0...9_007_199_254_740_991).contains(revision) else {
+            throw DecodingError.dataCorruptedError(
+                in: container, debugDescription: "Invalid workspace grant revision")
+        }
+        wrappedValue = revision
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(wrappedValue)
+    }
+}
+
+// Synthesized RemoteThread Codable must distinguish missing keys from explicit
+// null. decodeIfPresent would erase malformed present fields into legacy unknown.
+extension KeyedDecodingContainer {
+    func decode(_ type: WorkspaceDirectoryProjection.Type, forKey key: Key) throws
+        -> WorkspaceDirectoryProjection
+    {
+        contains(key)
+            ? try WorkspaceDirectoryProjection(from: superDecoder(forKey: key))
+            : .init(wrappedValue: nil)
+    }
+
+    func decode(_ type: WorkspaceGrantRevisionProjection.Type, forKey key: Key) throws
+        -> WorkspaceGrantRevisionProjection
+    {
+        contains(key)
+            ? try WorkspaceGrantRevisionProjection(from: superDecoder(forKey: key))
+            : .init(wrappedValue: nil)
+    }
+}
+
+extension KeyedEncodingContainer {
+    mutating func encode(_ value: WorkspaceDirectoryProjection, forKey key: Key) throws {
+        try encodeIfPresent(value.wrappedValue, forKey: key)
+    }
+
+    mutating func encode(_ value: WorkspaceGrantRevisionProjection, forKey key: Key) throws {
+        try encodeIfPresent(value.wrappedValue, forKey: key)
+    }
+}

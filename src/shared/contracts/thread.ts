@@ -1,3 +1,8 @@
+import {
+  workspaceDirectoryProjectionSchema,
+  workspaceGrantRevisionSchema,
+} from "../workspaceDirectorySelection";
+import { sessionConfigOptionsSchema, type SessionConfigOptions } from "./sessionConfigOptions";
 import { z } from "zod";
 import { catalogReorderPlacementSchema } from "../catalogOrder";
 import { agentSlashCommandSchema } from "./agent";
@@ -41,6 +46,9 @@ export const threadSchema = z.object({
   agentKind: agentKindSchema,
   /** Optional reference to a user-registered ACP instance (Phase 7). */
   agentInstanceId: agentInstanceIdSchema.optional(),
+  /** Read-only host-owned committed projection; optional only for reads from older hosts. */
+  additionalDirectories: workspaceDirectoryProjectionSchema.optional(),
+  workspaceGrantRevision: workspaceGrantRevisionSchema.optional(),
   config: threadConfigSchema,
   status: threadStatusSchema,
   attention: threadAttentionSchema,
@@ -71,6 +79,8 @@ export const threadSchema = z.object({
   /** Latest error reason from the runtime, present when `status === "error"`. */
   errorMessage: z.string().optional(),
   slashCommands: z.array(agentSlashCommandSchema).optional(),
+  /** Live session inventory; null clears a retired inventory, absence supports older hosts. */
+  sessionConfigOptions: sessionConfigOptionsSchema.nullable().optional(),
   /**
    * Id of the thread that created this thread as a child (e.g. via the
    * `poracode` MCP `create_thread` tool). Persisted so child threads render
@@ -82,6 +92,8 @@ export type Thread = z.infer<typeof threadSchema>;
 
 export interface ThreadRuntimeSnapshot {
   threadId: string;
+  /** Runtime owner; older hosts omit it. */
+  agentKind?: string;
   status: z.infer<typeof threadStatusSchema>;
   attention: z.infer<typeof threadAttentionSchema>;
   config?: z.infer<typeof threadConfigSchema>;
@@ -94,6 +106,7 @@ export interface ThreadRuntimeSnapshot {
   errorMessage?: string;
   threadStatusSource?: ThreadStatusSource;
   slashCommands?: z.infer<typeof agentSlashCommandSchema>[];
+  sessionConfigOptions?: SessionConfigOptions | null;
 }
 
 export interface TerminalShellSnapshot {

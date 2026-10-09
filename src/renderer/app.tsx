@@ -23,6 +23,7 @@ import { normalizeSharedSettings } from "@/shared/settings";
 import { recordRuntimeUsage } from "./state/usageRecorder";
 import { useDevTerminalStore } from "./state/devTerminalStore";
 import { useThreadOutputStore } from "./state/threadOutputStore";
+import { installRuntimeHistoryRecovery } from "./state/runtimeInterestHydration";
 import { applyAgentStatusSupervisorEvent } from "./state/agentStatusesStore";
 import { useProviderUsageStore } from "./state/providerUsageStore";
 import { useUpdateStore } from "./state/updateStore";
@@ -235,6 +236,7 @@ export function installUpdateStatusSync(
 // so only the main window wires these up (and tears them down on HMR dispose).
 const mainWindowCleanups: Array<() => void> = isMainWindow
   ? [
+      installRuntimeHistoryRecovery(supervisorReducer.recoverRuntimeHistory),
       readBridge().onSupervisorEvent((event, rendererSequence, sequenceSpace) =>
         supervisorReducer.dispatch(event, rendererSequence, {
           ...(sequenceSpace !== undefined ? { sequenceSpace } : {}),

@@ -26,32 +26,43 @@ export function createAcpPromptUsageEvent(
 }
 
 /**
- * Cumulative `usage.spent` from the same `session/prompt` response usage the
- * context event above parses: per the ACP schema, `usage.totalTokens` is the
- * session-cumulative counter, so the ledger counts increases per
- * (provider, scopeId, epoch). `sampleId` folds the counter value in, which
- * makes replays of the same prompt response exact-once. When the agent
+ * `usage.spent` from the `session/prompt` response. The default is the ACP
+ * session-cumulative counter. A provider may declare per-call semantics;
+ * then an accepted prompt's stable sample ID is required, because equal or
+ * decreasing totals from two calls still consume tokens. When the agent
  * returns no prompt-response usage (most bridges today), emit nothing — the
  * profile honesty list covers those providers.
  */
 export function createAcpPromptUsageSpentEvent(
   threadId: string,
   usage: unknown,
-  scope: { scopeId: string; epoch: number; fresh?: boolean },
+  scope: {
+    scopeId: string;
+    epoch: number;
+    fresh?: boolean;
+    counterKind?: "cumulative" | "per-call";
+    sampleId?: string;
+    turnId?: string;
+  },
 ): RuntimeEvent | undefined {
   if (!usage || typeof usage !== "object") return undefined;
   const totalTokens = readNonNegativeInteger((usage as Record<string, unknown>).totalTokens);
   if (totalTokens === undefined) return undefined;
+  const counterKind = scope.counterKind ?? "cumulative";
+  const sampleId =
+    counterKind === "per-call" ? scope.sampleId : `${scope.scopeId}:${scope.epoch}:${totalTokens}`;
+  if (!sampleId) return undefined;
   return {
     type: "usage.spent",
     threadId,
     usage: {
-      counterKind: "cumulative",
+      counterKind,
       counter: totalTokens,
       scopeId: scope.scopeId,
       epoch: scope.epoch,
       ...(scope.fresh ? { fresh: true } : {}),
-      sampleId: `${scope.scopeId}:${scope.epoch}:${totalTokens}`,
+      sampleId,
+      ...(scope.turnId ? { turnId: scope.turnId } : {}),
     },
   };
 }

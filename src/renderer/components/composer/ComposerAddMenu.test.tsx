@@ -1,6 +1,7 @@
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
+import { Pencil } from "lucide-react";
 import { ComposerAddMenu } from "./ComposerAddMenu";
 import {
   browserMcpServer,
@@ -39,6 +40,72 @@ function openMcpServersSubmenu() {
 describe("ComposerAddMenu", () => {
   beforeEach(() => {
     bridgeMock.isRemoteSession.mockReturnValue(false);
+  });
+
+  it("keeps session actions behind the existing plus submenu and closes it before invoking", async () => {
+    const onAction = vi.fn<() => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+        sessionActions={[
+          { id: "rename", label: "Rename session", icon: Pencil, isDisabled: false, onAction },
+        ]}
+      />,
+    );
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    expect(screen.queryByText("Rename session")).not.toBeInTheDocument();
+    openMenu();
+    expect(screen.getByRole("menuitem", { name: "Session actions" })).toBeInTheDocument();
+    expect(screen.queryByText("Rename session")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Session actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename session" }));
+    expect(onAction).toHaveBeenCalledExactlyOnceWith();
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+  });
+
+  it("keeps session actions in a compact submenu with back navigation", async () => {
+    bridgeMock.isRemoteSession.mockReturnValue(true);
+    const onAction = vi.fn<() => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        showFileOption={false}
+        onPickFiles={vi.fn<() => void>()}
+        sessionActions={[
+          { id: "rename", label: "Rename session", icon: Pencil, isDisabled: false, onAction },
+        ]}
+      />,
+    );
+    openMenu();
+    fireEvent.click(screen.getByRole("button", { name: "Session actions" }));
+    expect(screen.getByRole("button", { name: "Rename session" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.queryByRole("button", { name: "Rename session" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Session actions" }));
+    fireEvent.click(screen.getByRole("button", { name: "Rename session" }));
+    expect(onAction).toHaveBeenCalledExactlyOnceWith();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("respects unavailable session actions in the submenu", () => {
+    const onAction = vi.fn<() => void>();
+    render(
+      <ComposerAddMenu
+        mcpServers={[]}
+        onPickFiles={vi.fn<() => void>()}
+        sessionActions={[
+          { id: "rename", label: "Rename session", icon: Pencil, isDisabled: true, onAction },
+        ]}
+      />,
+    );
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Session actions" }));
+    const action = screen.getByRole("menuitem", { name: "Rename session" });
+    expect(action).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(action);
+    expect(onAction).not.toHaveBeenCalled();
   });
 
   it("keeps Chrome unavailable for WSL projects", () => {
