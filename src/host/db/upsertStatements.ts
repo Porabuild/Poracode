@@ -1,6 +1,11 @@
 import Database from "better-sqlite3";
 import type { Project, Thread } from "@/shared/contracts";
 import { projectMutableRow } from "./rowMappers";
+import {
+  assertSelectionDataReplaceable,
+  assertStoredProjectDraftReplaceable,
+  assertStoredThreadSelectionReplaceable,
+} from "./persistedSelectionData";
 
 /**
  * Shared `projects` / `threads` upsert statements. Used by the single-row
@@ -46,12 +51,18 @@ export function prepareProjectUpsertStatement(
 }
 
 export function runProjectUpsert(stmt: SqliteStatement, project: Project, sortOrder: number): void {
-  stmt.run({
-    id: project.id,
-    ...projectMutableRow(project),
-    sortOrder,
-    createdAt: project.createdAt,
-  });
+  stmt.database
+    .transaction(() => {
+      assertStoredProjectDraftReplaceable(stmt.database, project.id);
+      assertSelectionDataReplaceable(project.lastDraftConfig);
+      stmt.run({
+        id: project.id,
+        ...projectMutableRow(project),
+        sortOrder,
+        createdAt: project.createdAt,
+      });
+    })
+    .immediate();
 }
 
 export interface ThreadUpsertOptions {
@@ -63,6 +74,7 @@ export interface ThreadUpsertOptions {
   readonly writeThreadStatusSource: boolean;
 }
 
+/** Grant columns are intentionally absent on INSERT and UPDATE: replicas never authorize scope. */
 export function prepareThreadUpsertStatement(
   sqlite: InstanceType<typeof Database>,
   options: ThreadUpsertOptions,
@@ -125,38 +137,44 @@ export function runThreadUpsert(
   sortOrder: number,
   options: ThreadUpsertOptions,
 ): void {
-  stmt.run({
-    id: thread.id,
-    projectId: thread.projectId,
-    workspaceId: thread.workspaceId ?? null,
-    title: thread.title,
-    agentKind: thread.agentKind,
-    agentInstanceId: thread.agentInstanceId ?? null,
-    config: JSON.stringify(thread.config),
-    status: thread.status,
-    attention: thread.attention,
-    threadStatusSource: options.writeThreadStatusSource
-      ? (thread.threadStatusSource ?? null)
-      : null,
-    canResumeWithConfig: thread.canResumeWithConfig ? 1 : 0,
-    sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
-    worktreePath: thread.worktreePath ?? null,
-    worktreeBranch: thread.worktreeBranch ?? null,
-    prNumber: thread.prNumber ?? null,
-    groupId: thread.groupId ?? null,
-    groupName: thread.groupName ?? null,
-    parentThreadId: thread.parentThreadId ?? null,
-    archived: thread.archived ? 1 : 0,
-    archivedAt: thread.archivedAt ?? null,
-    done: thread.done ? 1 : 0,
-    doneAt: thread.doneAt ?? null,
-    starred: thread.starred ? 1 : 0,
-    presentationMode: thread.presentationMode ?? "terminal",
-    sortOrder,
-    createdAt: thread.createdAt,
-    updatedAt: thread.updatedAt,
-    activeTurnStartedAt: thread.activeTurnStartedAt ?? null,
-    lastTurnStartedAt: thread.lastTurnStartedAt ?? null,
-    lastTurnEndedAt: thread.lastTurnEndedAt ?? null,
-  });
+  stmt.database
+    .transaction(() => {
+      assertStoredThreadSelectionReplaceable(stmt.database, thread.id);
+      assertSelectionDataReplaceable(thread.config);
+      stmt.run({
+        id: thread.id,
+        projectId: thread.projectId,
+        workspaceId: thread.workspaceId ?? null,
+        title: thread.title,
+        agentKind: thread.agentKind,
+        agentInstanceId: thread.agentInstanceId ?? null,
+        config: JSON.stringify(thread.config),
+        status: thread.status,
+        attention: thread.attention,
+        threadStatusSource: options.writeThreadStatusSource
+          ? (thread.threadStatusSource ?? null)
+          : null,
+        canResumeWithConfig: thread.canResumeWithConfig ? 1 : 0,
+        sessionRef: thread.sessionRef ? JSON.stringify(thread.sessionRef) : null,
+        worktreePath: thread.worktreePath ?? null,
+        worktreeBranch: thread.worktreeBranch ?? null,
+        prNumber: thread.prNumber ?? null,
+        groupId: thread.groupId ?? null,
+        groupName: thread.groupName ?? null,
+        parentThreadId: thread.parentThreadId ?? null,
+        archived: thread.archived ? 1 : 0,
+        archivedAt: thread.archivedAt ?? null,
+        done: thread.done ? 1 : 0,
+        doneAt: thread.doneAt ?? null,
+        starred: thread.starred ? 1 : 0,
+        presentationMode: thread.presentationMode ?? "terminal",
+        sortOrder,
+        createdAt: thread.createdAt,
+        updatedAt: thread.updatedAt,
+        activeTurnStartedAt: thread.activeTurnStartedAt ?? null,
+        lastTurnStartedAt: thread.lastTurnStartedAt ?? null,
+        lastTurnEndedAt: thread.lastTurnEndedAt ?? null,
+      });
+    })
+    .immediate();
 }

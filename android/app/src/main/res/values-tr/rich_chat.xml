@@ -165,4 +165,65 @@
     <string name="rich_chat_history_notice_reason_shutdown">temiz olmayan kapanış</string>
     <string name="rich_chat_history_notice_reason_unclean_epoch">temiz olmayan oturum</string>
     <string name="rich_chat_history_notice_reason_unknown">depolama sınırı</string>
+    <string name="rich_chat_session_actions">Oturum eylemleri</string>
+    <string name="rich_chat_session_action_rename">Oturumu yeniden adlandır</string>
+    <string name="rich_chat_session_action_revise">Komutu revize et</string>
+    <string name="rich_chat_session_action_rules">Kurallar</string>
+    <string name="rich_chat_session_action_hooks">Hook’lar</string>
+    <string name="rich_chat_session_action_personas">Yerel personalar</string>
+    <string name="rich_chat_session_rename_title">Oturumu yeniden adlandır</string>
+    <string name="rich_chat_session_rename_field">Yeni oturum başlığı</string>
+    <string name="rich_chat_session_rename_hint">Aracı önce yeni başlığı uygular; onayladıktan sonra konuşma listesi güncellenir.</string>
+    <string name="rich_chat_session_rename_submit">Yeniden adlandır</string>
+    <string name="rich_chat_session_revise_command_field">Revize edilecek komut</string>
+    <string name="rich_chat_session_revise_note_field">Ne değişmeli? (isteğe bağlı)</string>
+    <string name="rich_chat_session_revise_submit">Öneri al</string>
+    <string name="rich_chat_session_revise_hint">Aracı revize edilmiş bir komut önerir; bir şey çalışmadan önce siz gözden geçirirsiniz.</string>
+    <string name="rich_chat_session_revise_result_title">Önerilen komut — kullanmadan önce gözden geçirin</string>
+    <string name="rich_chat_session_revise_insert">Düzenleyiciye ekle</string>
+    <string name="rich_chat_session_revise_discard">Yoksay</string>
+    <string name="rich_chat_session_revise_insert_hint">Poracode öneriyi asla çalıştırmaz — eklemek yalnızca düzenleyiciyi doldurur; düzenleyip göndermek size kalır.</string>
+    <string name="rich_chat_session_revise_empty">Aracı revize edilmiş bir komut döndürmedi.</string>
+    <string name="rich_chat_session_rules_title">Bu oturumdaki kurallar</string>
+    <string name="rich_chat_session_rules_empty">Bu oturum için kural listelenmedi.</string>
+    <string name="rich_chat_session_hooks_title">Bu oturumdaki hook’lar</string>
+    <string name="rich_chat_session_hooks_empty">Bu oturuma bağlı hook yok.</string>
+    <string name="rich_chat_session_hooks_hint">Hook girdileri rapor edildiği gibi gösterilir; şemaları yorumlanmaz.</string>
+    <string name="rich_chat_session_listing_failed">Liste okunamadı.</string>
+    <string name="rich_chat_session_actions_failed">Oturum eylemleri yüklenemedi.</string>
+    <string name="rich_chat_session_rename_unconfirmed">Aracı yeniden adlandırmayı onaylamadı.</string>
+
+    <string name="rich_chat_session_archive">Oturumu arşivle</string>
+
+    <string name="rich_chat_session_archive_title">Bu oturum arşivlensin mi?</string>
+
+    <string name="rich_chat_session_archive_message">Aracı önce oturumu arşivler; bu konuşma onayından sonra arşivlenir.</string>
+
+    <string name="rich_chat_session_archive_unconfirmed">Aracı arşivlemeyi onaylamadı.</string>
+
+
+    <string name="rich_chat_session_personas_truncated">Tarama giriş sınırında durdu — liste eksik olabilir.</string>
+    <string name="rich_chat_session_personas_title">Yerel personalar</string>
+    <string name="rich_chat_session_personas_empty">Yerel persona tanımı bulunamadı.</string>
+    <string name="rich_chat_session_personas_hint">Aracının kendi dosyalarında bulduğu alt aracı tanımları. Bu liste aday tanımların taramasıdır; yüklendiklerinin doğrulaması değildir.</string>
+    <string name="rich_chat_session_persona_read_only">salt okunur</string>
+    <string name="rich_chat_session_persona_model">model: %1$s</string>
+    <string name="rich_chat_session_action_settings">Oturum ayarları</string>
+    <string name="rich_chat_session_settings_empty">Bu oturum hiçbir ayar bildirmedi.</string>
+    <string name="rich_chat_session_settings_malformed">Devin, Poracode\'un yorumlayamadığı bir ayar listesi döndürdü.</string>
+    <string name="rich_chat_session_settings_read_failed">Oturum ayarları okunamadı.</string>
+    <string name="rich_chat_session_settings_footer">Değişiklikler bu çalışan Devin oturumuna uygulanır.</string>
+    <string name="rich_chat_session_settings_unconfirmed">Devin ayar değişikliğini onaylamadı.</string>
+    <string name="rich_chat_session_settings_no_values">Bu seçenek için hiçbir değer bildirilmedi.</string>
+    <string name="rich_chat_session_settings_current_value">Geçerli değer: %1$s</string>
+    <string name="rich_chat_session_settings_org_locked">Bu oturum çalışırken kuruluş sabittir — Devin profil ayarlarından değiştirin ve yeni bir oturum başlatın.</string>
+    <string name="rich_chat_session_settings_org_name">Kuruluş</string>
+    <string name="rich_chat_session_settings_unavailable">Kullanılamıyor</string>
+    <string name="rich_chat_session_settings_unsupported_typed">Poracode bu %1$s denetimini henüz düzenleyemiyor.</string>
+    <string name="rich_chat_session_settings_unsupported">Poracode bu denetimi henüz düzenleyemiyor.</string>
+    <string name="rich_chat_session_settings_no_value">Değer yok</string>
+    <string name="rich_chat_session_settings_no_matches">Eşleşen değer yok.</string>
+    <string name="rich_chat_session_settings_search">Değer ara</string>
+    <string name="rich_chat_session_settings_back">Geri</string>
+    <string name="rich_chat_session_settings_fallback_heading">Ayar</string>
 </resources>

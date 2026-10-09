@@ -1,8 +1,13 @@
+import {
+  generateCommitMessagePayloadSchema,
+  generatePrSummaryPayloadSchema,
+} from "@/shared/contracts/git";
+import type { ModelSelection } from "@/shared/selectionBinding.schemas";
 import { act } from "@testing-library/react";
 import { useEffect } from "react";
 import { renderWithI18n } from "@/renderer/testUtils/i18n";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GitStatusResult, PrData, Project } from "@/shared/contracts";
+import type { AgentStatus, GitStatusResult, PrData, Project } from "@/shared/contracts";
 import {
   useGitReviewActionStore,
   type GitActionPhase,
@@ -10,6 +15,8 @@ import {
 import { useGitReviewActions } from "./useGitReviewActions";
 
 const bridgeMock = vi.hoisted(() => ({
+  generateCommitMessage: vi.fn<(input: unknown) => Promise<{ message: string }>>(),
+  generatePrSummary: vi.fn<(input: unknown) => Promise<{ title: string; description: string }>>(),
   gitCommit: vi.fn<() => Promise<Record<string, never>>>(),
   gitFetch: vi.fn<() => Promise<void>>(),
   ghCreatePr: vi.fn<() => Promise<PrData>>(),
@@ -32,34 +39,35 @@ vi.mock("@/renderer/actions/gitCommandRunner", () => ({
   showGitActionError: vi.fn<() => void>(),
   showGitOperationFailure: vi.fn<() => void>(),
 }));
-vi.mock("@/renderer/components/providers/commitGen", () => ({
-  generateCommitMessageWithFallbackDetails: vi.fn<() => Promise<never>>(),
-  getCommitGenCandidates: () => [],
-  resolveCommitGenConfig: () => ({ model: "", effort: "", availableEfforts: [] }),
-}));
-vi.mock("@/renderer/state/agentStatusesStore", () => ({
-  useAgentStatusesStore: (selector: (state: unknown) => unknown) =>
-    selector({ agentStatuses: [], wslAgentStatuses: [] }),
-}));
-vi.mock("@/renderer/state/sharedSettingsStore", () => {
-  const sharedSettings = {
+const utilityState = vi.hoisted(() => ({
+  agents: [] as AgentStatus[],
+  wslAgents: [] as AgentStatus[],
+  settings: {
     commitGenProvider: "auto",
-    commitGenModel: "",
-    commitGenEffort: "",
-    commitGenFast: false,
+    commitGenModel: "stale",
+    commitGenEffort: "stale",
+    commitGenFast: true,
+    commitGenSelection: undefined as ModelSelection | undefined,
     wslCommitGenProvider: "auto",
-    wslCommitGenModel: "",
-    wslCommitGenEffort: "",
-    wslCommitGenFast: false,
+    wslCommitGenModel: "stale-wsl",
+    wslCommitGenEffort: "stale",
+    wslCommitGenFast: true,
+    wslCommitGenSelection: undefined as ModelSelection | undefined,
     gitTextLanguage: "",
     locale: "en",
     prAutomationDefault: "off" as const,
-  };
-  const useSharedSettings = (selector: (state: typeof sharedSettings) => unknown) =>
-    selector(sharedSettings);
-  useSharedSettings.getState = () => sharedSettings;
-  return { useSharedSettings };
-});
+  },
+}));
+vi.mock("@/renderer/state/agentStatusesStore", () => ({
+  useAgentStatusesStore: (selector: (state: unknown) => unknown) =>
+    selector({ agentStatuses: utilityState.agents, wslAgentStatuses: utilityState.wslAgents }),
+}));
+vi.mock("@/renderer/state/sharedSettingsStore", () => ({
+  useSharedSettings: Object.assign(
+    (selector: (state: typeof utilityState.settings) => unknown) => selector(utilityState.settings),
+    { getState: () => utilityState.settings },
+  ),
+}));
 vi.mock("@/renderer/analytics/productAnalytics", () => ({
   captureProductEvent: vi.fn<() => void>(),
 }));
@@ -111,11 +119,11 @@ const gitStatus: GitStatusResult = {
 
 type Actions = ReturnType<typeof useGitReviewActions>;
 
-function renderActions(): { current: Actions } {
+function renderActions(location = project.location): { current: Actions } {
   const ref = { current: null as unknown as Actions };
   function Harness() {
     const actions = useGitReviewActions({
-      project,
+      project: { ...project, location },
       gitStatus,
       worktreeBranch: undefined,
       worktreePath: undefined,
@@ -153,6 +161,8 @@ function recordPhases(): { seen: (GitActionPhase | null)[]; stop: () => void } {
 describe("useGitReviewActions action phase", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    utilityState.agents = [];
+    utilityState.wslAgents = [];
     useGitReviewActionStore.setState({ panels: {} });
     bridgeMock.gitCommit.mockResolvedValue({});
     bridgeMock.gitFetch.mockResolvedValue(undefined);
@@ -278,4 +288,124 @@ describe("useGitReviewActions action phase", () => {
     });
     expect(useGitReviewActionStore.getState().panels[STORE_KEY]?.actionPhase).toBeNull();
   });
+});
+
+const utilityAgent = (kind: string, model: string): AgentStatus => ({
+  kind,
+  label: kind,
+  installed: true,
+  authState: "authenticated",
+  capabilities: {
+    models: [{ id: model, label: model }],
+    efforts: ["high"],
+    modelEfforts: {},
+    defaultEffort: "high",
+    supportsOneShot: true,
+    modes: [],
+    approvalPolicies: [],
+    sandboxModes: [],
+    supportsResume: true,
+    supportsDirectInput: true,
+    liveInputMode: "terminal",
+    presentationMode: "terminal",
+    settingDefs: [],
+  },
+});
+
+describe("utility caller transport", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useGitReviewActionStore.setState({ panels: {} });
+    utilityState.agents = [
+      utilityAgent("fixture-a", "default-a"),
+      utilityAgent("fixture-b", "default-b"),
+    ];
+    utilityState.wslAgents = [utilityAgent("fixture-wsl", "default-wsl")];
+    utilityState.settings.commitGenSelection = undefined;
+    utilityState.settings.wslCommitGenSelection = undefined;
+    bridgeMock.generateCommitMessage.mockResolvedValue({ message: "generated" });
+    bridgeMock.generatePrSummary.mockResolvedValue({ title: "generated", description: "body" });
+  });
+
+  it.each([
+    { model: "uncatalogued" },
+    { model: "uncatalogued", effort: "", fast: false, thinking: false, contextSize: "" },
+    { model: "uncatalogued", effort: "unlisted", fast: true, thinking: true, contextSize: "large" },
+    { model: "" },
+  ])("transports the native canonical tuple through both generation events: %j", async (actual) => {
+    const selection = {
+      ...actual,
+      selectionBinding: {
+        version: 1 as const,
+        kind: "family-member" as const,
+        owner: { agentKind: "fixture-a", presentationMode: "terminal" as const },
+        model: actual.model,
+        inertValues: { fast: false },
+      },
+    };
+    // Binding models must be nonempty; implicit intent has no binding.
+    utilityState.settings.commitGenSelection = actual.model ? selection : actual;
+    const expected = actual.model ? selection : { model: "default-a" };
+    const actions = renderActions();
+    await act(() => actions.current.handleGenerateMessage());
+    await act(() => actions.current.handleGeneratePrSummary());
+    const commit = generateCommitMessagePayloadSchema.parse(
+      bridgeMock.generateCommitMessage.mock.calls[0]?.[0],
+    );
+    const summary = generatePrSummaryPayloadSchema.parse(
+      bridgeMock.generatePrSummary.mock.calls[0]?.[0],
+    );
+    expect(commit.selection).toStrictEqual(expected);
+    expect(summary.selection).toStrictEqual(expected);
+  });
+
+  it.each([true, false])("uses the WSL branch with canonical presence %s", async (modern) => {
+    const actual = {
+      model: "wsl-exact",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "large",
+    };
+    utilityState.settings.commitGenSelection = { model: "wrong-native" };
+    utilityState.settings.wslCommitGenSelection = modern ? actual : undefined;
+    const expected = modern ? actual : { model: "default-wsl", effort: "high", fast: false };
+    const actions = renderActions({
+      kind: "wsl",
+      distro: "Ubuntu",
+      linuxPath: "/repo",
+      uncPath: String.raw`\\wsl$\Ubuntu\repo`,
+    });
+    await act(() => actions.current.handleGenerateMessage());
+    await act(() => actions.current.handleGeneratePrSummary());
+    for (const call of [
+      bridgeMock.generateCommitMessage.mock.calls[0],
+      bridgeMock.generatePrSummary.mock.calls[0],
+    ]) {
+      expect(call?.[0]).toMatchObject({ agentKind: "fixture-wsl", selection: expected });
+    }
+  });
+
+  it.each([undefined, { model: "" }, { model: "exact", fast: false }])(
+    "resolves each fallback candidate independently: %j",
+    async (selection) => {
+      utilityState.settings.commitGenSelection = selection;
+      bridgeMock.generatePrSummary.mockRejectedValueOnce(new Error("unavailable"));
+      const actions = renderActions();
+      await act(() => actions.current.handleGeneratePrSummary());
+      expect(bridgeMock.generatePrSummary).toHaveBeenCalledTimes(2);
+      for (const [index, model] of ["default-a", "default-b"].entries()) {
+        const parsed = generatePrSummaryPayloadSchema.parse(
+          bridgeMock.generatePrSummary.mock.calls[index]?.[0],
+        );
+        expect(parsed.selection).toStrictEqual(
+          selection === undefined
+            ? { model, effort: "high", fast: false }
+            : selection.model
+              ? selection
+              : { model },
+        );
+      }
+    },
+  );
 });

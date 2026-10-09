@@ -73,6 +73,7 @@ vi.mock("../agents/acpRegistry", async (importOriginal) => {
 });
 
 import { AgentRegistryService } from "./agentRegistryService";
+import { fileSettingsWriter } from "./supervisorSettingsWriter.testFixtures";
 
 const capabilities: AgentStatus["capabilities"] = {
   models: [],
@@ -128,6 +129,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
     const service = new AgentRegistryService({
       adapters: new Map([["opencode", adapter]]),
       settingsPath: "C:\\data\\settings.json",
+      settingsWriter: fileSettingsWriter("C:\\data\\settings.json"),
       baseDir: "C:\\data",
       acpIconsDir: "C:\\data\\icons",
       sharedSettingsCache: {
@@ -226,6 +228,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
     const service = new AgentRegistryService({
       adapters,
       settingsPath: "/data/settings.json",
+      settingsWriter: fileSettingsWriter("/data/settings.json"),
       baseDir: "/data",
       acpIconsDir: "/data/icons",
       sharedSettingsCache: {
@@ -298,6 +301,7 @@ describe("AgentRegistryService.updateAgentBinary", () => {
     const service = new AgentRegistryService({
       adapters: new Map([["qwen", adapter]]),
       settingsPath: "C:\\data\\settings.json",
+      settingsWriter: fileSettingsWriter("C:\\data\\settings.json"),
       baseDir: "C:\\data",
       acpIconsDir: "C:\\data\\icons",
       sharedSettingsCache: {
@@ -357,6 +361,7 @@ describe("AgentRegistryService.getLatestAgentVersion", () => {
     return new AgentRegistryService({
       adapters: new Map([["cursor", adapter]]),
       settingsPath: "/data/settings.json",
+      settingsWriter: fileSettingsWriter("/data/settings.json"),
       baseDir: "/data",
       acpIconsDir: "/data/icons",
       sharedSettingsCache: {
@@ -438,6 +443,7 @@ describe("AgentRegistryService project-scoped ACP refreshes", () => {
     const service = new AgentRegistryService({
       adapters: initialAdapters,
       settingsPath: "/data/settings.json",
+      settingsWriter: fileSettingsWriter("/data/settings.json"),
       baseDir: "/data",
       acpIconsDir: "/data/icons",
       sharedSettingsCache: {
@@ -615,6 +621,7 @@ describe("AgentRegistryService first-class ACP auto-install", () => {
     const service = new AgentRegistryService({
       adapters: new Map([["antigravity", antigravity]]),
       settingsPath: "/data/settings.json",
+      settingsWriter: fileSettingsWriter("/data/settings.json"),
       baseDir: "/data",
       acpIconsDir: "/data/icons",
       sharedSettingsCache: {
@@ -919,6 +926,7 @@ describe("AgentRegistryService.refreshAgentRegistryAdapters", () => {
     const service = new AgentRegistryService({
       adapters,
       settingsPath: "/data/settings.json",
+      settingsWriter: fileSettingsWriter("/data/settings.json"),
       baseDir: "/data",
       acpIconsDir: "/data/icons",
       sharedSettingsCache: {

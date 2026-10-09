@@ -1,6 +1,8 @@
 import type { AgentCapability, ProjectLocation } from "@/shared/contracts";
 import type { OscNotification } from "@/shared/osc";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   batchWslCommandsAsync,
   brailleSpinnerOscTitleHint,
   buildAgentLogoutCommand,
@@ -316,7 +318,14 @@ export function createCodexAdapter(): AgentAdapter {
       }
     },
     defaultOneShotModel: "gpt-5.5",
-    buildOneShotCommand(model, effort) {
+    buildOneShotCommand(model, effort, _prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Both carriers map natively: reasoning effort and — exactly like the
+      // interactive launch lane — Codex's `service_tier="fast"` priority lane.
+      assertOneShotControlsMapped(selection, { effort: true, fast: true });
       // `--skip-git-repo-check` lets `codex exec` run from worktrees or other
       // directories not on codex's trust list. Title generation only reads
       // the user's prompt from stdin and emits a short string — it never
@@ -324,6 +333,10 @@ export function createCodexAdapter(): AgentAdapter {
       const args = ["exec", "--skip-git-repo-check", "-m", model];
       if (effort) {
         args.push("-c", `model_reasoning_effort="${effort}"`);
+      }
+      if (fast) {
+        // Same native mapping the interactive argv lane uses for config.fast.
+        args.push("-c", 'service_tier="fast"');
       }
       args.push("-");
       return { command: "codex", args };

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import type { RemoteServerContext } from "./context";
+import { SessionConfigInventory } from "./sessionConfigInventory";
 import { buildShellSnapshot, buildThreadListPage } from "./snapshots";
 import { encodeDbThreadPageCursor } from "@/host/db/projectsThreads";
 
@@ -115,6 +116,7 @@ function context(): RemoteServerContext {
         ),
     },
     seq: 42,
+    sessionConfigInventory: new SessionConfigInventory(),
   } as unknown as RemoteServerContext;
 }
 

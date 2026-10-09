@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "contract": "poracode.remote",
-  "protocolVersion": 12,
+  "protocolVersion": 13,
   "bindingFormatVersion": 2,
-  "manifestHash": "sha256:007b532d9299d3a923da6f24a791ee73aa90b497b208755c87da447b77ecf2b0",
-  "keyCount": 268,
+  "manifestHash": "sha256:19c39a66c2290f62b5a43195631ba794d915672124ef819684c882967afd4592",
+  "keyCount": 270,
   "counts": {
     "route": 88,
-    "procedure": 128,
+    "procedure": 130,
     "ws-client": 9,
     "ws-server": 11,
     "replay": 16,
@@ -374,6 +374,10 @@
       "kind": "procedure",
       "id": "installMarketplaceSkill"
     },
+    "procedure:invokeThreadSessionAction": {
+      "kind": "procedure",
+      "id": "invokeThreadSessionAction"
+    },
     "procedure:listFileCheckpoints": {
       "kind": "procedure",
       "id": "listFileCheckpoints"
@@ -385,6 +389,10 @@
     "procedure:listSkillMarketplace": {
       "kind": "procedure",
       "id": "listSkillMarketplace"
+    },
+    "procedure:listThreadSessionActions": {
+      "kind": "procedure",
+      "id": "listThreadSessionActions"
     },
     "procedure:lspStart": {
       "kind": "procedure",

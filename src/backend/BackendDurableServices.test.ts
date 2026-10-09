@@ -17,7 +17,13 @@ import {
   dbUpsertThread,
 } from "@/host/db";
 import { SupervisorUnavailableError } from "@/host/supervisor/SupervisorClient";
-import { agentStatusesResponseSchema, type ScheduledTask, type Thread } from "@/shared/contracts";
+import {
+  agentStatusesResponseSchema,
+  type PrWatch,
+  type Project,
+  type ScheduledTask,
+  type Thread,
+} from "@/shared/contracts";
 
 const mocks = vi.hoisted(() => ({
   ingressInstances: [] as Array<{
@@ -27,12 +33,23 @@ const mocks = vi.hoisted(() => ({
   runScheduleTask: null as ((task: ScheduledTask) => Promise<string>) | null,
   threadsDeletedListeners: [] as Array<(threadIds: readonly string[]) => void>,
   liveThreadIds: [] as string[],
+  retireWatchThread: null as ((watch: PrWatch, threadId: string) => Promise<boolean>) | null,
 }));
 
 vi.mock("@/host/db", () => ({
+  dbAdmitScheduleExecution: vi.fn<(task: ScheduledTask) => void>(),
   dbArchiveDoneThreads: vi.fn<() => string[]>(() => []),
   dbDeleteThread: vi.fn<(threadId: string) => void>(),
-  dbGetProject: vi.fn<() => undefined>(),
+  dbGetProject: vi.fn<(id: string) => Project | null>((id) =>
+    id === "fixture-home"
+      ? {
+          id: "fixture-home",
+          name: "Fixture",
+          location: { kind: "posix", path: "/synthetic" },
+          createdAt: "2026-01-01T00:00:00.000Z",
+        }
+      : null,
+  ),
   dbGetProjectNotes: vi.fn<() => undefined>(),
   dbGetProjects: vi.fn<() => never[]>(() => []),
   dbGetState: vi.fn<() => string | null>(() => null),
@@ -92,11 +109,16 @@ vi.mock("@/host/gitState", () => ({
 
 vi.mock("@/host/prWatch", () => ({
   buildPrWatchExecutionDeps: () => ({}),
-  createDevicePrWatchService: () => ({
-    start: () => {},
-    dispose: () => {},
-    observeSupervisorEvent: () => {},
-  }),
+  createDevicePrWatchService: (options: {
+    retireObsoleteLaunchThread(watch: PrWatch, threadId: string): Promise<boolean>;
+  }) => {
+    mocks.retireWatchThread = options.retireObsoleteLaunchThread;
+    return {
+      start: () => {},
+      dispose: () => {},
+      observeSupervisorEvent: () => {},
+    };
+  },
 }));
 
 vi.mock("@/host/schedules", async (importOriginal) => {
@@ -673,6 +695,88 @@ describe("BackendDurableServices startIngress", () => {
       PORACODE_APP_CONTROLS_MCP_URL: "http://127.0.0.1:0/mcp",
       PORACODE_APP_CONTROLS_MCP_TOKEN: "token",
     });
+  });
+});
+
+describe("BackendDurableServices watch retirement", () => {
+  const watch: PrWatch = {
+    projectId: "fixture-project",
+    prNumber: 1,
+    headBranch: "fixture-branch",
+    watchEnabled: false,
+    autoMerge: false,
+    lastCommentCursor: null,
+    lastReviewCommentCursor: null,
+    lastReviewCursor: null,
+    lastCheckKey: null,
+    activeThreadId: null,
+    lastError: null,
+    blockedReason: null,
+  };
+
+  it.each([true, false])(
+    "returns confirmed=%s without deleting the owned row",
+    async (confirmed) => {
+      const call = vi.fn<() => Promise<{ confirmed: boolean }>>(async () => ({ confirmed }));
+      const durable = createDurable({
+        supervisor: { call } as unknown as BackendDurableServicesOptions["supervisor"],
+      });
+      const deletedBefore = vi.mocked(dbDeleteThread).mock.calls.length;
+      try {
+        await expect(mocks.retireWatchThread?.(watch, "watch-thread")).resolves.toBe(confirmed);
+        expect(call).toHaveBeenCalledExactlyOnceWith(
+          "closeThreadConfirmed",
+          { threadId: "watch-thread" },
+          { startIfNeeded: false },
+        );
+        expect(vi.mocked(dbDeleteThread).mock.calls).toHaveLength(deletedBefore);
+      } finally {
+        await durable.dispose();
+      }
+    },
+  );
+
+  it.each([true, false])("accepts unavailable only with proven absence=%s", async (absent) => {
+    const error = new SupervisorUnavailableError();
+    const durable = createDurable({
+      supervisor: {
+        call: vi.fn<() => Promise<never>>(async () => {
+          throw error;
+        }),
+        isSupervisorProvenAbsent: () => absent,
+      } as unknown as BackendDurableServicesOptions["supervisor"],
+    });
+    try {
+      const result = await mocks.retireWatchThread!(watch, "watch-thread").then(
+        (confirmed) => ({ confirmed }),
+        (reason: unknown) => ({ error: reason }),
+      );
+      expect(result).toEqual(absent ? { confirmed: true } : { error });
+    } finally {
+      await durable.dispose();
+    }
+  });
+
+  it("joins a held watch close and retries an explicitly refused disposal", async () => {
+    const durable = createDurable();
+    const held = Promise.withResolvers<void>();
+    const stop = vi
+      .spyOn(durable.prWatchService, "dispose")
+      .mockImplementationOnce(() => held.promise)
+      .mockResolvedValue(undefined);
+    const first = durable.dispose();
+    expect(durable.dispose()).toBe(first);
+    let settled = false;
+    const failure = first.catch((error: unknown) => {
+      settled = true;
+      return error;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    held.reject(new Error("Unconfirmed owned thread"));
+    expect(await failure).toBeInstanceOf(AggregateError);
+    await durable.dispose();
+    expect(stop).toHaveBeenCalledTimes(2);
   });
 });
 

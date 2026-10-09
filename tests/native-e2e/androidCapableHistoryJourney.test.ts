@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "@/shared/remote";
 import {
   assertCapableHistoryArtifact,
   capableHistoryJourneyError,
@@ -141,7 +142,7 @@ describe("capable-history artifact gate", () => {
 describe("capable-history capability gate", () => {
   function descriptorWith(capabilities: unknown): Record<string, unknown> {
     return {
-      protocolVersion: 12,
+      protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
       hostMode: "desktop",
       desktopId: "fixture",
       label: "fixture",

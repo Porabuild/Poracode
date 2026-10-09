@@ -20,11 +20,12 @@ describe("CLIENT_HOST_HOP_VERSION (V6 B.5)", () => {
     expect(PREVIOUS_IPC_PROCEDURE_MAP_VERSION).not.toBe(CLIENT_HOST_HOP_VERSION);
   });
 
-  it("rejects a hop-15 pre-upgrade peer at the exchange gates, typed", () => {
-    // Pre-upgrade regression (hop 16 removed `dbPersistExperimentState`): a
-    // stale hop-15 bundle still dispatches the removed procedure name, so
-    // every version gate must refuse that pairing instead of half-serving it.
-    expect(PREVIOUS_CLIENT_HOST_HOP_VERSION).toBe(15);
+  it("rejects a hop-16 pre-upgrade peer at the exchange gates, typed", () => {
+    // Pre-upgrade regression (hop 17 makes the invocation envelope a checked
+    // exchange): a stale hop-16 bundle declares envelopes without the
+    // renderer-supplied version, so every version gate must refuse that
+    // pairing instead of half-serving it.
+    expect(PREVIOUS_CLIENT_HOST_HOP_VERSION).toBe(16);
     expect(PREVIOUS_CLIENT_HOST_HOP_VERSION).not.toBe(CLIENT_HOST_HOP_VERSION);
     expect(() => assertIpcProcedureMapVersion(PREVIOUS_CLIENT_HOST_HOP_VERSION)).toThrow(
       /IPC procedure map version mismatch/,
@@ -38,7 +39,7 @@ describe("CLIENT_HOST_HOP_VERSION (V6 B.5)", () => {
         changes: [],
       }),
     ).toBe(true);
-    // Backend⇄main leg: a hop-15 activity declaration is stale.
+    // Backend⇄main leg: a hop-16 activity declaration is stale.
     expect(
       isBackendHostOutboundMessage({
         version: PREVIOUS_CLIENT_HOST_HOP_VERSION,

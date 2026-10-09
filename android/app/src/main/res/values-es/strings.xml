@@ -89,6 +89,8 @@
     <string name="home_start">Iniciar</string>
     <string name="home_quick_compose_agent">Agente</string>
     <string name="home_quick_compose_presentation">Presentación</string>
+    <string name="model_selection_lead">Principal</string>
+    <string name="model_selection_sidekick">Auxiliar</string>
     <string name="home_quick_compose_chat">Chat</string>
     <string name="home_quick_compose_terminal">Terminal</string>
     <string name="home_quick_compose_controls">Ajustes de inicio</string>

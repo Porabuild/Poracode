@@ -113,6 +113,7 @@ export function capabilitiesForPresentation(
     thinkingModels: _thinkingModels,
     subProviders: _subProviders,
     modelSubProvider: _modelSubProvider,
+    modelFamilies: _modelFamilies,
     ...rest
   } = capabilities;
 

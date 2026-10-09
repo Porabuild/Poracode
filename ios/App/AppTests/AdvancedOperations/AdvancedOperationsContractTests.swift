@@ -87,6 +87,71 @@ final class AdvancedOperationsContractTests: XCTestCase {
     )
   }
 
+  func testGenerateSelectionCrossesTheGeneratedCodecWithExactPresenceAndBinding() throws {
+    let binding = AdvancedJSONValue.object([
+      "version": .number(1),
+      "kind": .string("family-member"),
+      "owner": .object([
+        "agentKind": .string("codex"),
+        "presentationMode": .string("gui"),
+      ]),
+      "model": .string("model-1"),
+      "inertValues": .object(["effort": .string("high")]),
+    ])
+    let selection = AdvancedModelSelection(
+      model: "model-1",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "default",
+      selectionBinding: binding
+    )
+    let request = AdvancedOperationRequest.generateTitle(
+      AdvancedGenerateTitleRequest(
+        projectLocation: .posix(path: "/srv/advanced"),
+        agentKind: "codex",
+        prompt: "Prompt",
+        selection: selection,
+        language: nil
+      )
+    )
+    let envelope = try decodeObject(AdvancedOperationsRemoteV3Contract.requestEnvelope(request))
+    let payload = try XCTUnwrap(envelope["payload"]?.objectValue)
+    XCTAssertEqual(
+      payload["selection"],
+      .object([
+        "model": .string("model-1"),
+        "effort": .string(""),
+        "fast": .bool(false),
+        "thinking": .bool(false),
+        "contextSize": .string("default"),
+        "selectionBinding": binding,
+      ])
+    )
+    XCTAssertNil(payload["model"])
+    XCTAssertNil(payload["effort"])
+    XCTAssertNil(payload["fast"])
+  }
+
+  func testGenerateSelectionRejectsUnknownBindingShapeInsteadOfStripping() throws {
+    let forged = AdvancedModelSelection(
+      model: "model-1",
+      selectionBinding: .object(["version": .number(1), "kind": .string("forged")])
+    )
+    XCTAssertThrowsError(
+      try AdvancedOperationsRemoteV3Contract.requestEnvelope(
+        .generateCommitMessage(
+          AdvancedGenerateCommitMessageRequest(
+            projectLocation: .posix(path: "/srv/advanced"),
+            agentKind: "codex",
+            selection: forged,
+            language: nil
+          )
+        )
+      )
+    )
+  }
+
   func testGeneratedRootsRejectInvalidRequestAndResultBeforeProjection() throws {
     let invalidRequest = AdvancedSubagentSubscriptionRequest(
       threadId: "",

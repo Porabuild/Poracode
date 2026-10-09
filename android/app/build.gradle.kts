@@ -215,9 +215,9 @@ val verifyRemoteV3NativeBindings = tasks.register("verifyRemoteV3NativeBindings"
         // 3 adds the generated terminal-cursor machine and the stateMachines count;
         // 4 adds the generated terminal hardware-key encoder;
         // 5 adds background-task reduce and follow-up queue.
-        version("protocolVersion", 12)
+        version("protocolVersion", 13)
         version("bindingFormatVersion", 2)
-        version("generatorVersion", 3)
+        version("generatorVersion", 4)
         version("formatVersion", 5)
 
         val languages = manifest["languages"] as? Map<*, *>

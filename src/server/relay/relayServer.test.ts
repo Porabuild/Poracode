@@ -9,6 +9,10 @@ import type { AddressInfo } from "node:net";
 import { WebSocket, WebSocketServer, type RawData } from "ws";
 import { randomBytes, randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { RemoteAccessServer, RemoteAuthStore, RemotePortForwardGateway } from "@/host/remote";
 import { deriveForwardOwner, ForwardOriginPolicy } from "@/host/remote/portForward/forwardOrigin";
 import {
@@ -381,6 +385,51 @@ describe("relay end-to-end", () => {
 
     const authedClient = new RemoteDesktopClient(base, token.accessToken);
     await expect(authedClient.websocketTicket()).resolves.toMatch(/^lc_ws_/);
+  });
+
+  it("passes the writer generation through to the host verbatim, never upgrading an old declaration", async () => {
+    // Fence 1 (remote 13): the relay adapter is an opaque pipe. A stale
+    // declaration must reach the host as the caller sent it — the host's
+    // fence fires on it — and only the caller's own current value admits.
+    const { relayInfo } = await setup();
+    const upstream = await new Promise<HttpServer>((resolve, reject) => {
+      const server = createHttpServer((_req, res) => {
+        res.writeHead(200);
+        res.end();
+      });
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => resolve(server));
+    });
+    try {
+      const upstreamPort = (upstream.address() as AddressInfo).port;
+      const host = await registerHost(relayInfo, "srv-writer-gen", {
+        withPortForward: true,
+        forwardablePorts: [upstreamPort],
+      });
+      const token = await issueAccessToken(host.base, host.pairing.credential, ["ports:forward"]);
+      const post = (generation?: string) =>
+        fetch(`${host.base}/api/ports/forward`, {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token}`,
+            "content-type": "application/json",
+            ...(generation ? { [REMOTE_PROTOCOL_VERSION_HEADER]: generation } : {}),
+          },
+          body: JSON.stringify({ targetPort: upstreamPort }),
+        });
+
+      const stale = await post("12");
+      expect(stale.status).toBe(409);
+      await expect(stale.json()).resolves.toMatchObject({
+        error: { code: "protocol_version_mismatch" },
+      });
+      const absent = await post();
+      expect(absent.status).toBe(409);
+      const current = await post(REMOTE_PROTOCOL_VERSION_HEADER_VALUE);
+      expect(current.status).toBe(200);
+    } finally {
+      await new Promise((resolve) => upstream.close(resolve));
+    }
   });
 
   it("returns 502 for an unknown server id", async () => {
@@ -1369,7 +1418,11 @@ describe("relay end-to-end", () => {
       const bearerToken = await issueAccessToken(host.base, credential, ["ports:forward"]);
       const forwardResponse = await fetch(`${host.base}/api/ports/forward`, {
         method: "POST",
-        headers: { authorization: `Bearer ${bearerToken}`, "content-type": "application/json" },
+        headers: {
+          authorization: `Bearer ${bearerToken}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
         body: JSON.stringify({ targetPort: upstreamPort }),
       });
       expect(forwardResponse.status).toBe(200);
@@ -1877,7 +1930,11 @@ describe("relay end-to-end", () => {
       ]);
       const bareForward = await fetch(`${bare.base}/api/ports/forward`, {
         method: "POST",
-        headers: { authorization: `Bearer ${bareToken}`, "content-type": "application/json" },
+        headers: {
+          authorization: `Bearer ${bareToken}`,
+          "content-type": "application/json",
+          [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+        },
         body: JSON.stringify({ targetPort: upstream.port }),
       });
       expect(bareForward.status).toBe(200);

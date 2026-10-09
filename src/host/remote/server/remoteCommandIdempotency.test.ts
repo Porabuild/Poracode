@@ -15,6 +15,10 @@ import {
   HostResourceAdmissionRefusalError,
   isHostResourceAdmissionRefusal,
 } from "@/shared/hostResourceAdmission";
+import {
+  ThreadSessionAbsenceRefusalError,
+  isThreadSessionAbsenceRefusal,
+} from "@/shared/threadSessionRefusal";
 import { RemoteAuthStore, RemoteHttpError } from "../auth";
 import {
   canonicalRemoteCommandJson,
@@ -310,6 +314,105 @@ describe.skipIf(!sqliteAvailable)("runRemoteCommand crash-aware receipts", () =>
     ).rejects.toMatchObject({ code: REMOTE_COMMAND_UNCERTAIN_CODE, status: 409 });
     expect(receiptRow("cmd-1")?.state).toBe("uncertain");
     expect(resumed).toHaveBeenCalledTimes(1);
+  });
+
+  const absenceRefusal = () => new ThreadSessionAbsenceRefusalError("Unknown thread session: t1");
+
+  it("records a route-vouched typed missing-session refusal as a definite failure and never re-runs it", async () => {
+    const operation = vi.fn<(markDispatched: () => void) => Promise<never>>(
+      async (markDispatched: () => void) => {
+        markDispatched();
+        throw absenceRefusal();
+      },
+    );
+    const failure = await run(operation, {
+      isPreEffectFailure: isThreadSessionAbsenceRefusal,
+    }).catch((error: unknown) => error);
+    // The raw refusal propagates (the route maps it to the definite 422); the
+    // receipt is truthful: nothing was delivered, so this is not uncertainty.
+    expect(failure).toBeInstanceOf(ThreadSessionAbsenceRefusalError);
+    expect((failure as Error).message).toBe("Unknown thread session: t1");
+    expect(receiptRow("cmd-1")?.state).toBe("failed");
+    expect(operation).toHaveBeenCalledTimes(1);
+
+    await expect(
+      run(operation, { isPreEffectFailure: isThreadSessionAbsenceRefusal }),
+    ).rejects.toMatchObject({ code: "command_failed", status: 409 });
+    expect(operation).toHaveBeenCalledTimes(1);
+    expect(receiptRow("cmd-1")?.state).toBe("failed");
+  });
+
+  it("keeps an unvouched typed missing-session refusal conservative (uncertain receipt)", async () => {
+    const operation = vi.fn<(markDispatched: () => void) => Promise<never>>(
+      async (markDispatched: () => void) => {
+        markDispatched();
+        throw absenceRefusal();
+      },
+    );
+    const failure = await run(operation).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(ThreadSessionAbsenceRefusalError);
+    // A route that cannot vouch the pre-effect proof keeps the receipt
+    // uncertain — the refusal is still rethrown raw, never converted here.
+    expect(receiptRow("cmd-1")?.state).toBe("uncertain");
+  });
+
+  it("never lets a route predicate prove a plain message-only refusal", async () => {
+    const operation = vi.fn<(markDispatched: () => void) => Promise<never>>(
+      async (markDispatched: () => void) => {
+        markDispatched();
+        throw new Error("provider backend reported: unknown thread session: t1");
+      },
+    );
+    const failure = await run(operation, { isPreEffectFailure: () => true }).catch(
+      (error: unknown) => error,
+    );
+    // The closed allowlist, not the predicate, decides the class: prose that
+    // merely mentions an unknown session stays an ordinary post-mark failure.
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure).not.toBeInstanceOf(ThreadSessionAbsenceRefusalError);
+    expect(receiptRow("cmd-1")?.state).toBe("uncertain");
+  });
+
+  it("never reclassifies a legacy uncertain receipt when the next attempt would be a proven typed refusal", async () => {
+    const interrupted = vi.fn<(markDispatched: () => void) => Promise<never>>(
+      async (markDispatched: () => void) => {
+        markDispatched();
+        throw new Error("dispatch interrupted");
+      },
+    );
+    await expect(run(interrupted)).rejects.toThrow("dispatch interrupted");
+    expect(receiptRow("cmd-1")?.state).toBe("uncertain");
+
+    const resumed = vi.fn<(markDispatched: () => void) => Promise<never>>(
+      async (markDispatched: () => void) => {
+        markDispatched();
+        throw absenceRefusal();
+      },
+    );
+    await expect(
+      run(resumed, { isPreEffectFailure: isThreadSessionAbsenceRefusal }),
+    ).rejects.toMatchObject({ code: REMOTE_COMMAND_UNCERTAIN_CODE, status: 409 });
+    // The durable row is never replayed nor reclassified as failed.
+    expect(resumed).not.toHaveBeenCalled();
+    expect(receiptRow("cmd-1")?.state).toBe("uncertain");
+  });
+
+  it("answers an unkeyed route-vouched typed refusal with its raw definite error, not the uncertain 409", async () => {
+    const operation = vi.fn<(markDispatched: () => void) => Promise<never>>(
+      async (markDispatched: () => void) => {
+        markDispatched();
+        throw absenceRefusal();
+      },
+    );
+    const failure = await run(operation, {
+      commandId: null,
+      isPreEffectFailure: isThreadSessionAbsenceRefusal,
+    }).catch((error: unknown) => error);
+    // Not an admission refusal, so the unkeyed escalation never fires: the
+    // raw refusal reaches the route's definite 422 mapping untouched.
+    expect(failure).toBeInstanceOf(ThreadSessionAbsenceRefusalError);
+    expect((failure as { code?: unknown }).code).not.toBe(REMOTE_COMMAND_UNCERTAIN_CODE);
+    expect(receiptRow("cmd-1")).toBeUndefined();
   });
 
   it("answers an unkeyed compound admission refusal with the uncertain 409 and writes no receipt", async () => {

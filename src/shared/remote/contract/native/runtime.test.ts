@@ -13,7 +13,8 @@ import { buildNativeSchemaGraph, collectNativeSchemaRoots } from "./schemaGraph"
 import type { JsonSchema, NativeBindingIr, NativeSchemaGraph, NativeSchemaRoot } from "./types";
 import { parseNativeBindingIr } from "./validate";
 import { defaultSharedSettings } from "../../../settings";
-import { pickRemoteSettings } from "../../protocol";
+import { pickRemoteSettings, remoteShellSnapshotSchema } from "../../protocol";
+import { unicodeStringLengthCases } from "../../../../../protocol/remote/v3/unicodeStringLengthFixtures";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = join(here, "../../../../..");
@@ -150,7 +151,7 @@ interface HarnessTypes {
   readonly primitive: string;
   readonly numericLiteral: string;
   readonly constrainedString: string;
-  readonly utf16Length: string;
+  readonly codePointLength: string;
   readonly anyOf: string;
   readonly agentStatuses: string;
   readonly nullable: string;
@@ -244,11 +245,11 @@ function syntheticRoots(): NativeSchemaRoot[] {
       transport: "test",
     },
     {
-      id: "synthetic.utf16Length",
-      preferredName: "SyntheticUtf16LengthUnion",
+      id: "synthetic.codePointLength",
+      preferredName: "SyntheticCodePointLengthUnion",
       schema: {
         oneOf: [
-          { type: "string", pattern: "^😀$", minLength: 2, maxLength: 2 },
+          { type: "string", pattern: "^😀$", minLength: 1, maxLength: 1 },
           { type: "string", pattern: "^x$", minLength: 1, maxLength: 1 },
         ],
       },
@@ -311,7 +312,13 @@ function syntheticRoots(): NativeSchemaRoot[] {
       additionalProperties: false,
     }),
     root("additional-false", { type: "object", additionalProperties: false }),
-    root("utf16", { type: "string", minLength: 2, maxLength: 2 }),
+    ...unicodeStringLengthCases.map((group) =>
+      root(`unicode.${group.id}`, {
+        type: "string",
+        minLength: group.minLength,
+        maxLength: group.maxLength,
+      }),
+    ),
     root("pattern", { type: "string", pattern: "^[a-z]+$" }),
     root("format-date-time", { type: "string", format: "date-time" }),
     root("format-uri", { type: "string", format: "uri" }),
@@ -533,11 +540,13 @@ function mutationCases(wsFixtures: readonly string[]): HarnessCodecCase[] {
       positives: [{ raw: json({}) }],
       negatives: [json({ extra: true })],
     },
-    {
-      id: "synthetic.utf16",
-      positives: [{ raw: json("😀") }],
-      negatives: [json("x"), json("😀x")],
-    },
+    ...unicodeStringLengthCases.map((group) => ({
+      id: `synthetic.unicode.${group.id}`,
+      positives: group.cases
+        .filter((item) => item.valid)
+        .map((item) => ({ raw: json(item.value) })),
+      negatives: group.cases.filter((item) => !item.valid).map((item) => json(item.value)),
+    })),
     {
       id: "synthetic.pattern",
       positives: [{ raw: json("abc") }],
@@ -874,6 +883,35 @@ function mutationCases(wsFixtures: readonly string[]): HarnessCodecCase[] {
       negatives: [json({ type: "unknown", seq: 0 })],
     },
   );
+  // Exercise an existing maxLength field through a real generated read root,
+  // alongside the new directory bounds, without native field-specific rules.
+  const shell = JSON.parse(readFileSync(join(fixtureDirectory, "shell-snapshot.json"), "utf8"));
+  const projection = (count: number) => ({
+    ...shell,
+    threads: [
+      {
+        ...shell.threads[0],
+        sessionRef: {
+          providerSessionId: "session",
+          discoveredAt: "now",
+          executionIdentity: "😀".repeat(count),
+        },
+        additionalDirectories: [{ kind: "posix", path: "😀".repeat(4_096) }],
+        workspaceGrantRevision: 9_007_199_254_740_991,
+      },
+    ],
+  });
+  const validProjection = projection(256);
+  cases.push({
+    id: "route.shell-snapshot.response",
+    positives: [
+      {
+        raw: json(validProjection),
+        encoded: json(remoteShellSnapshotSchema.parse(validProjection)),
+      },
+    ],
+    negatives: [json(projection(257))],
+  });
   return cases;
 }
 
@@ -948,6 +986,8 @@ private fun <T> expectRootFailure(codec: RemoteRootCodec<T>, raw: String) {
 }
 
 fun main() {
+    check(RemoteSemanticValidator.validateUtf16Range(0, 2, "😀"))
+    check(!RemoteSemanticValidator.validateUtf16Range(0, 1, "😀"))
 ${rootChecks.join("\n")}
     val passthroughCodec = RemoteRootCodecs.${member("synthetic.unknown-passthrough")}
     val passthrough = passthroughCodec.decode(${quoted(JSON.stringify({ known: "original", extra: { preserved: true } }))})
@@ -968,7 +1008,7 @@ ${wsFixtures.map((fixture) => `    roundTrip<${types.webSocket}>(${quoted(fixtur
     roundTrip<${types.numericLiteral}>("4")
     roundTrip<${types.constrainedString}>(${quoted(JSON.stringify("monthly"))})
     roundTrip<${types.constrainedString}>(${quoted(JSON.stringify("gemini:fixture"))})
-    roundTrip<${types.utf16Length}>(${quoted(JSON.stringify("😀"))})
+    roundTrip<${types.codePointLength}>(${quoted(JSON.stringify("😀"))})
     roundTrip<${types.anyOf}>(${quoted(JSON.stringify("first-success"))})
     check(json.decodeFromString<${types.anyOf}>(${quoted(JSON.stringify("first-success"))}) is ${types.anyOf}.Option1) { "anyOf did not select the first successful branch" }
 ${authMethodFixtures.map((fixture) => `    roundTrip<${types.agentStatuses}>(${quoted(fixture)})`).join("\n")}
@@ -1032,6 +1072,8 @@ private func expectRootFailure<T>(_ codec: RemoteRootCodec<T>, _ raw: String) wh
 @main
 private struct Harness {
   static func main() throws {
+    precondition(RemoteSemanticValidator.validateUtf16Range(from: 0, to: 2, data: "😀"))
+    precondition(!RemoteSemanticValidator.validateUtf16Range(from: 0, to: 1, data: "😀"))
 ${rootChecks.join("\n")}
     let passthroughCodec = RemoteRootCodecs.${member("synthetic.unknown-passthrough")}
     let passthrough = try passthroughCodec.decode(Data(${quoted(JSON.stringify({ known: "original", extra: { preserved: true } }))}.utf8))
@@ -1056,7 +1098,7 @@ ${wsFixtures.map((fixture) => `    try roundTrip(${types.webSocket}.self, ${quot
     try roundTrip(${types.numericLiteral}.self, "4")
     try roundTrip(${types.constrainedString}.self, ${quoted(JSON.stringify("monthly"))})
     try roundTrip(${types.constrainedString}.self, ${quoted(JSON.stringify("gemini:fixture"))})
-    try roundTrip(${types.utf16Length}.self, ${quoted(JSON.stringify("😀"))})
+    try roundTrip(${types.codePointLength}.self, ${quoted(JSON.stringify("😀"))})
     try roundTrip(${types.anyOf}.self, ${quoted(JSON.stringify("first-success"))})
     if case .option1 = try JSONDecoder().decode(${types.anyOf}.self, from: Data(${quoted(JSON.stringify("first-success"))}.utf8)) {} else { preconditionFailure("anyOf did not select the first successful branch") }
 ${authMethodFixtures.map((fixture) => `    try roundTrip(${types.agentStatuses}.self, ${quoted(fixture)})`).join("\n")}
@@ -1102,7 +1144,7 @@ function prepareHarness(): {
       primitive: primitiveUnionName(graph),
       numericLiteral: numericLiteralUnionName(graph),
       constrainedString: constrainedStringUnionName(graph),
-      utf16Length: requiredRoot(graph, "synthetic.utf16Length"),
+      codePointLength: requiredRoot(graph, "synthetic.codePointLength"),
       anyOf: requiredRoot(graph, "synthetic.anyOf"),
       agentStatuses: requiredRoot(graph, "route.agent-statuses.response"),
       nullable: requiredRoot(graph, "procedure.browseHostDirectory.result"),

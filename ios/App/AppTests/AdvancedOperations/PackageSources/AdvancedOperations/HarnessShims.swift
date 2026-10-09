@@ -15,26 +15,6 @@ extension RemoteClientError {
   }
 }
 
-enum ProtocolConstants {
-  /// Harness mirror of `ios/App/App/Protocol/ProtocolConstants.swift`. The
-  /// compiled feature contracts compare the generated bindings metadata
-  /// against this value, so it must move together with the app constant on
-  /// every protocol bump (a stale value fails the package contract tests).
-  static let remoteProtocolVersion = 12
-  static let bearerTokenType = "Bearer"
-  static let environmentAuthorizationHeader = "X-Poracode-Environment-Authorization"
-}
-
-enum RemoteRequestHeaders {
-  static let authorization = "Authorization"
-  static let contentType = "Content-Type"
-  static let jsonContentType = "application/json"
-
-  static func authorizationValue(for token: String) -> String {
-    "\(ProtocolConstants.bearerTokenType) \(token)"
-  }
-}
-
 enum RemoteURLSessions {
   static func makeAPISession(requestTimeout: TimeInterval) -> URLSession {
     let configuration = URLSessionConfiguration.ephemeral

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { Thread, ThreadFollowUpQueueState } from "@/shared/contracts";
+import type { SessionConfigOptions } from "@/shared/contracts/sessionConfigOptions";
+import type { SessionRef, Thread, ThreadFollowUpQueueState } from "@/shared/contracts";
 import type { RemoteThreadSnapshot } from "@/shared/remote";
 import { useAppStore } from "@/renderer/state/appStore";
 import type {
@@ -459,5 +460,103 @@ describe("remote follow-up queue snapshots", () => {
       { kind: "thread", threadId: "remote:desktop:thread:source", title: "Source" },
     ]);
     expect(projectRemoteThreadSnapshot("desktop", snapshot())).not.toHaveProperty("followUpQueue");
+  });
+});
+
+describe("remote thread snapshot inventory replacement", () => {
+  const sessionRef: SessionRef = {
+    providerSessionId: "session-a",
+    discoveredAt: "2026-01-01T00:00:00.000Z",
+    executionIdentity: "execution-scope-1",
+  };
+  const inventory: SessionConfigOptions = [
+    {
+      id: "mode",
+      type: "select",
+      role: "mode",
+      currentValue: "fast",
+      values: [{ value: "fast" }, { value: "careful" }],
+      groups: [],
+    },
+  ];
+
+  afterEach(() => {
+    useAppStore.setState({ threads: [] });
+  });
+
+  /** Snapshot thread variants, from the host's inventory-aware pull surface. */
+  function snapshotThread(overrides: Partial<Thread>): Thread {
+    return { ...thread, sessionRef, ...overrides };
+  }
+
+  function seedResident(overrides: Partial<Thread> = {}): void {
+    useAppStore.setState({
+      threads: [{ ...thread, sessionRef, sessionConfigOptions: inventory, ...overrides }],
+    });
+  }
+
+  function residentInventory(): Thread["sessionConfigOptions"] {
+    return useAppStore.getState().threads[0]?.sessionConfigOptions;
+  }
+
+  it("keeps the live inventory when the snapshot's host has no inventory entry", () => {
+    seedResident();
+    // Enrichment only overlays an entry when the host's inventory store has
+    // one; absence on the served row is "retain", not an authoritative clear.
+    // The served row still identifies its session, so ownership resolves.
+    applyThreadSnapshot({
+      ...snapshot(undefined, { snapshotSeq: 3 }),
+      thread: snapshotThread({}),
+    });
+    expect(residentInventory()).toEqual(inventory);
+  });
+
+  it("lets an explicit snapshot inventory win, including a retirement", () => {
+    seedResident();
+    const cleared = snapshot(undefined, { snapshotSeq: 3 });
+    applyThreadSnapshot({ ...cleared, thread: snapshotThread({ sessionConfigOptions: null }) });
+    expect(residentInventory()).toBeNull();
+
+    const next: SessionConfigOptions = [
+      {
+        id: "mode",
+        type: "select",
+        role: "mode",
+        currentValue: "careful",
+        values: [{ value: "fast" }, { value: "careful" }],
+        groups: [],
+      },
+    ];
+    seedResident();
+    applyThreadSnapshot({
+      ...cleared,
+      thread: snapshotThread({ sessionConfigOptions: next }),
+    });
+    expect(residentInventory()).toBe(next);
+  });
+
+  it("does not carry across a changed owner, session, or retirement", () => {
+    seedResident();
+    applyThreadSnapshot({
+      ...snapshot(undefined, { snapshotSeq: 3 }),
+      thread: snapshotThread({ agentKind: "other-agent" }),
+    });
+    expect(residentInventory()).toBeUndefined();
+
+    seedResident();
+    applyThreadSnapshot({
+      ...snapshot(undefined, { snapshotSeq: 3 }),
+      thread: snapshotThread({
+        sessionRef: { ...sessionRef, providerSessionId: "session-b" },
+      }),
+    });
+    expect(residentInventory()).toBeUndefined();
+
+    seedResident();
+    applyThreadSnapshot({
+      ...snapshot(undefined, { snapshotSeq: 3 }),
+      thread: snapshotThread({ status: "inactive" }),
+    });
+    expect(residentInventory()).toBeUndefined();
   });
 });

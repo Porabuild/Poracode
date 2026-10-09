@@ -16,9 +16,17 @@ struct RichChatThreadComposerSurface: View {
   let agentKind: String
   let agentStatus: AgentStatusRecord?
   let threadSlashCommands: [RemoteSlashCommand]?
+  /// Live negotiated session controls retained on the thread row; nil keeps
+  /// every composer control on the static capability projection.
+  let sessionConfigOptions: JSONValue?
   let canConfigure: Bool
+  /// User-saved visibility lists for the model picker; empty keeps the
+  /// provider's advertised defaults in charge.
+  var hiddenModels: [String: [String]] = [:]
   let fileMentionController: RichChatFileMentionController
   let skillPickerContext: RichChatSkillPickerContext?
+  var sessionActions: RichChatSessionActionsController?
+  var onInsertIntoComposer: (String) -> Void = { _ in }
 
   var body: some View {
     RichChatComposerView(
@@ -39,11 +47,15 @@ struct RichChatThreadComposerSurface: View {
       configuration: configuration,
       agentStatus: agentStatus,
       threadSlashCommands: threadSlashCommands,
+      sessionConfigOptions: sessionConfigOptions,
       canConfigure: canConfigure,
+      hiddenModels: hiddenModels,
       fileMentionController: fileMentionController,
       onSubmissionStarted: state.beginSubmission,
       onSubmissionFinished: { state.finishSubmission(succeeded: $0) },
-      skillPickerContext: skillPickerContext
+      skillPickerContext: skillPickerContext,
+      sessionActions: sessionActions,
+      onInsertIntoComposer: onInsertIntoComposer
     )
   }
 

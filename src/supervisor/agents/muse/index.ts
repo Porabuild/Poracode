@@ -1,6 +1,8 @@
 import { museNativeMcpConfig } from "./nativeMcp";
 import type { AgentCapability } from "@/shared/contracts";
 import {
+  assertOneShotControlsMapped,
+  resolveCheckedOneShotBuilderSelection,
   buildAgentLogoutCommand,
   detectAgentInstall,
   type CreateStructuredSessionInput,
@@ -141,7 +143,15 @@ export function createMuseAdapter(): AgentAdapter {
     // /dev/stdin prompt files are unsupported), which matches the shared
     // one-shot fallback path used by other terminal CLIs.
     defaultOneShotModel: MUSE_DEFAULT_MODEL_ID,
-    buildOneShotCommand(model, effort, prompt) {
+    buildOneShotCommand(model, effort, prompt, _location, fast, oneShotOptions) {
+      const selection = resolveCheckedOneShotBuilderSelection(
+        { model, effort, fast },
+        oneShotOptions,
+      );
+      // Reasoning effort maps natively (`--reasoning-effort`); the muse CLI has
+      // no Fast lane, so false Fast is the declared-inactive legacy carrier and
+      // meaningful Fast refuses instead of being silently dropped.
+      assertOneShotControlsMapped(selection, { effort: true, fast: { inactive: [false] } });
       if (!prompt) return undefined;
       return {
         command: "muse",

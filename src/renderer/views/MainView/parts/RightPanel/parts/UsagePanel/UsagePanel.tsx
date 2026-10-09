@@ -19,6 +19,7 @@ import {
   usageProvidersForAgentInstances,
   resolveDisplayedProviders,
   separateCurrentUsageProvider,
+  usageProviderIdForAgent,
 } from "@/renderer/components/providers/usageProviders";
 import { useScrollFade } from "@/renderer/hooks/useScrollFade";
 import { useProviderUsageStore } from "@/renderer/state/providerUsageStore";
@@ -108,7 +109,9 @@ export function UsagePanel(props: { onOpenUsageSettings?: (() => void) | undefin
     : localProviders;
   const { current: currentProvider, rest: sortableProviders } = separateCurrentUsageProvider(
     orderedProviders,
-    preferredProviderId,
+    preferredProviderId
+      ? usageProviderIdForAgent(preferredProviderId, undefined, agentInstances)
+      : null,
   );
   const displayedSnapshots = remoteView
     ? Object.fromEntries(

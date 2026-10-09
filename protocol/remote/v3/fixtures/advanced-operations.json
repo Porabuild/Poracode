@@ -226,10 +226,8 @@
       "request": {
         "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
         "agentKind": "codex",
-        "effort": "medium",
-        "fast": true,
-        "language": "en",
-        "model": "model-1"
+        "selection": { "model": "model-1", "effort": "medium", "fast": true },
+        "language": "en"
       },
       "response": { "result": { "message": "Add advanced operations foundation" } }
     },
@@ -239,10 +237,8 @@
         "projectLocation": { "kind": "posix", "path": "/srv/advanced" },
         "agentKind": "codex",
         "prompt": "Implement the foundation",
-        "effort": "medium",
-        "fast": false,
-        "language": "en",
-        "model": "model-1"
+        "selection": { "model": "model-1", "effort": "medium", "fast": false },
+        "language": "en"
       },
       "response": { "result": { "title": "Advanced operations foundation" } }
     },
@@ -253,9 +249,8 @@
         "agentKind": "codex",
         "branch": "feature/advanced",
         "baseBranch": "main",
-        "effort": "medium",
-        "language": "en",
-        "model": "model-1"
+        "selection": { "model": "model-1", "effort": "medium" },
+        "language": "en"
       },
       "response": {
         "result": {

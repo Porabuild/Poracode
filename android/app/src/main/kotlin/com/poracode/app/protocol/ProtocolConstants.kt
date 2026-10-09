@@ -7,11 +7,27 @@ package com.poracode.app.protocol
 object ProtocolConstants {
     /**
      * Exact-match generation shared with the host (`PORACODE_REMOTE_PROTOCOL_VERSION`).
-     * v12 adds authoritative content-stream replacement. Older bindings would
-     * append those snapshots, so wire generations must match.
+     * v13 adds per-route writer-generation admission: a writer request must
+     * carry the exact current version header, and the canonical strict
+     * selection-binding configs ride the wire. That host refusal is an
+     * unshipped requirement pending integrated qualification. Native HTTP producers
+     * declare their compiled version; host admission and old-writer retirement
+     * must be qualified together before shipping. Wire generations must still match.
      */
-    const val REMOTE_PROTOCOL_VERSION = 12
+    const val REMOTE_PROTOCOL_VERSION = 13
     const val COMMAND_ID_HEADER = "x-poracode-command-id"
+
+    /**
+     * Per-request writer-generation admission, mirroring
+     * `REMOTE_PROTOCOL_VERSION_HEADER` / `_VALUE` in
+     * `src/shared/remote/protocol/core.ts`. Only the exact current protocol
+     * version string counts; a declared writer request without it is required
+     * to be refused before any effect once host admission lands (unshipped
+     * requirement pending integrated qualification).
+     * Opaque proxies carry the header verbatim and never
+     * synthesize, strip, or upgrade it.
+     */
+    const val PROTOCOL_VERSION_HEADER = "x-poracode-protocol-version"
     /**
      * Per-request bounded project-command result declaration, mirroring
      * `REMOTE_PROJECT_COMMAND_RESULT_HEADER` / `_DECLARATION` in

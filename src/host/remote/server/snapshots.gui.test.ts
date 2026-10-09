@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Thread } from "@/shared/contracts";
 import type { RuntimeFenceToken } from "@/host/db/runtimePersistenceTypes";
 import type { RemoteServerContext } from "./context";
+import { SessionConfigInventory } from "./sessionConfigInventory";
 import { buildThreadSnapshot } from "./snapshots";
 import { dbGetThread, dbReadThreadRuntimeItems } from "@/host/db";
 
@@ -89,6 +90,7 @@ function context() {
       options: { callSupervisor },
       seq: 7,
       backgroundTasksByThread: new Map(),
+      sessionConfigInventory: new SessionConfigInventory(),
     } as unknown as RemoteServerContext,
   };
 }
@@ -100,6 +102,7 @@ describe("GUI snapshot supervisor reads", () => {
     expect(callSupervisor.mock.calls.map(([method]) => method)).toEqual([
       "readThreadBackgroundTasks",
       "getThreadFollowUpQueue",
+      "getThreadSnapshots",
     ]);
     expect(snapshot.terminalScrollback).toBe("persisted history");
     expect(snapshot.terminalSize).toBeUndefined();
@@ -110,7 +113,7 @@ describe("GUI snapshot supervisor reads", () => {
     vi.mocked(dbGetThread).mockReturnValue({ ...thread, presentationMode: "terminal" });
     const { ctx, callSupervisor } = context();
     const snapshot = await buildThreadSnapshot(ctx, thread.id);
-    expect(callSupervisor).toHaveBeenCalledTimes(3);
+    expect(callSupervisor).toHaveBeenCalledTimes(4);
     expect(snapshot.terminalScrollback).toBe("live terminal history");
     expect(snapshot.terminalSize).toEqual({ cols: 80, rows: 24 });
   });
@@ -133,6 +136,7 @@ describe("GUI snapshot supervisor reads", () => {
         return seq;
       },
       backgroundTasksByThread: new Map(),
+      sessionConfigInventory: new SessionConfigInventory(),
     } as unknown as RemoteServerContext;
 
     fence.pinned = [{ id: "early", type: "assistant_message", state: "updated", streams: {} }];
@@ -190,6 +194,7 @@ describe("GUI snapshot supervisor reads", () => {
     expect(callSupervisor.mock.calls.map(([method]) => method)).toEqual([
       "readTerminalSize",
       "readThreadBackgroundTasks",
+      "getThreadSnapshots",
     ]);
     expect(snapshot.terminalScrollback).toBeUndefined();
     expect(snapshot.terminalSize).toEqual({ cols: 80, rows: 24 });

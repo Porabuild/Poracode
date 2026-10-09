@@ -133,6 +133,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EInvokeThreadSessionActionU2ERequest: RemoteRootCodec<ProcedureinvokeThreadSessionActionRequest_f614b14ae0> = .init(id: "procedure.invokeThreadSessionAction.request", schema: RemoteSchemas.schema_f614b14ae0e3bbca)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EInvokeThreadSessionActionU2EResult: RemoteRootCodec<ProcedureinvokeThreadSessionActionRequestU2DPayload_e6958017da> = .init(id: "procedure.invokeThreadSessionAction.result", schema: RemoteSchemas.schema_e6958017dac6cd3b)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2EListFileCheckpointsU2ERequest: RemoteRootCodec<ProcedurelistFileCheckpointsRequest_0f602da97f> = .init(id: "procedure.listFileCheckpoints.request", schema: RemoteSchemas.schema_0f602da97fc0ccdf)
 }
 
@@ -157,6 +165,14 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
+  static let procedureU2EListThreadSessionActionsU2ERequest: RemoteRootCodec<ProcedurecancelExtractContextRequest_09b78d9c1d> = .init(id: "procedure.listThreadSessionActions.request", schema: RemoteSchemas.schema_09b78d9c1d4c3a6b)
+}
+
+public extension RemoteRootCodecs {
+  static let procedureU2EListThreadSessionActionsU2EResult: RemoteRootCodec<ProcedurelistThreadSessionActionsResult_825afc62b8> = .init(id: "procedure.listThreadSessionActions.result", schema: RemoteSchemas.schema_825afc62b855f7e6)
+}
+
+public extension RemoteRootCodecs {
   static let procedureU2ELspStartU2ERequest: RemoteRootCodec<ProcedurelspStartRequest_0fbb6754fb> = .init(id: "procedure.lspStart.request", schema: RemoteSchemas.schema_0fbb6754fb3c4dd0)
 }
 
@@ -177,7 +193,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_d62bd4c56f> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_d62bd4c56fcba0f0)
+  static let procedureU2EQueueThreadFollowUpU2ERequest: RemoteRootCodec<ProcedurequeueThreadFollowUpRequest_891da1f8b8> = .init(id: "procedure.queueThreadFollowUp.request", schema: RemoteSchemas.schema_891da1f8b84c50ae)
 }
 
 public extension RemoteRootCodecs {
@@ -269,7 +285,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ERestoreToRevertAnchorU2ERequest: RemoteRootCodec<ProcedurerestoreToRevertAnchorRequest_a6f03a5c40> = .init(id: "procedure.restoreToRevertAnchor.request", schema: RemoteSchemas.schema_a6f03a5c40a70ca3)
+  static let procedureU2ERestoreToRevertAnchorU2ERequest: RemoteRootCodec<ProcedurerestoreToRevertAnchorRequest_dea1ab7707> = .init(id: "procedure.restoreToRevertAnchor.request", schema: RemoteSchemas.schema_dea1ab7707452a86)
 }
 
 public extension RemoteRootCodecs {
@@ -277,7 +293,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2ERollbackThreadConversationU2ERequest: RemoteRootCodec<ProcedurerollbackThreadConversationRequest_b50a220194> = .init(id: "procedure.rollbackThreadConversation.request", schema: RemoteSchemas.schema_b50a220194f2fc5b)
+  static let procedureU2ERollbackThreadConversationU2ERequest: RemoteRootCodec<ProcedurerollbackThreadConversationRequest_53e4143ffe> = .init(id: "procedure.rollbackThreadConversation.request", schema: RemoteSchemas.schema_53e4143ffe216d6e)
 }
 
 public extension RemoteRootCodecs {
@@ -313,7 +329,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_c146ac0649> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_c146ac06498e7cb9)
+  static let procedureU2EStartThreadU2ERequest: RemoteRootCodec<ProcedureensureThreadRunningRequest_15b0ba8c12> = .init(id: "procedure.startThread.request", schema: RemoteSchemas.schema_15b0ba8c12388bbc)
 }
 
 public extension RemoteRootCodecs {
@@ -389,7 +405,7 @@ public extension RemoteRootCodecs {
 }
 
 public extension RemoteRootCodecs {
-  static let routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_7e8fc11537> = .init(id: "route.agent-statuses.response", schema: RemoteSchemas.schema_7e8fc11537a79bb6)
+  static let routeU2EAgentU2DStatusesU2EResponse: RemoteRootCodec<RouteagentU2DStatusesResponse_98b8d023dd> = .init(id: "route.agent-statuses.response", schema: RemoteSchemas.schema_98b8d023dd2b5171)
 }
 
 public extension RemoteRootCodecs {
@@ -430,20 +446,4 @@ public extension RemoteRootCodecs {
 
 public extension RemoteRootCodecs {
   static let routeU2EEnvironmentU2DAdoptU2DLegacyU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-adopt-legacy.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DConnectU2EPath: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyPath_149c9d9dd2> = .init(id: "route.environment-connect.path", schema: RemoteSchemas.schema_149c9d9dd2191aa3)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DConnectU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-connect.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DCreateU2ERequest: RemoteRootCodec<RouteenvironmentU2DCreateRequest_ccc27289c7> = .init(id: "route.environment-create.request", schema: RemoteSchemas.schema_ccc27289c741798a)
-}
-
-public extension RemoteRootCodecs {
-  static let routeU2EEnvironmentU2DCreateU2EResponse: RemoteRootCodec<RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec> = .init(id: "route.environment-create.response", schema: RemoteSchemas.schema_8428abfcec0a8b32)
 }

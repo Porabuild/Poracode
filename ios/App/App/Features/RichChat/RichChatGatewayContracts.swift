@@ -141,6 +141,21 @@ protocol RichChatRequestGateway: Sendable {
   ) async throws
 }
 
+/// Neutral live session actions. Actions are addressed by id only — never a
+/// raw provider tunnel — and callers render controls solely from the
+/// `listRichSessionActions` inventory of the current structured session; an
+/// older host or a failure hides everything instead of advertising a
+/// capability the session does not have. Invoke is a single-attempt
+/// `session:operate` mutation whose ambiguous delivery is never retried.
+protocol RichChatSessionActionsGateway: Sendable {
+  func listRichSessionActions(target: RichChatThreadTarget) async throws -> [String]
+  func invokeRichSessionAction(
+    target: RichChatThreadTarget,
+    actionID: String,
+    payload: [String: RichJSON]
+  ) async throws -> [String: RichJSON]
+}
+
 /// B1 durable history notices. Declared-only routes; a host without the
 /// capability throws `unavailable` and the surface shows nothing new.
 protocol RichChatNoticeGateway: Sendable {
@@ -216,5 +231,6 @@ protocol RichChatSessionGateway:
   RichChatConversationGateway,
   RichChatRequestGateway,
   RichChatTerminalGateway,
-  RichChatNoticeGateway
+  RichChatNoticeGateway,
+  RichChatSessionActionsGateway
 {}

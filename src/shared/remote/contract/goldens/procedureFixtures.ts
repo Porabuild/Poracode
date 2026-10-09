@@ -66,6 +66,8 @@ const workflowRun = {
  * the shared omitted codec (`undefined` on the wire).
  */
 export const REMOTE_PROCEDURE_RESULT_FIXTURES = {
+  listThreadSessionActions: { actions: [{ id: "fixture.inspect" }] },
+  invokeThreadSessionAction: { inspected: true },
   queueThreadFollowUp: undefined,
   removeQueuedThreadFollowUp: undefined,
   reorderQueuedThreadFollowUp: undefined,

@@ -166,6 +166,11 @@ export class RuntimeEventQueue {
     this.blockedThreads.delete(threadId);
   }
 
+  /** Retain bounded incoming deltas behind an authoritative history read. */
+  block(threadId: string): void {
+    this.blockedThreads.add(threadId);
+  }
+
   threadIds(): string[] {
     return [...this.pending.keys()].filter((threadId) => !this.blockedThreads.has(threadId));
   }

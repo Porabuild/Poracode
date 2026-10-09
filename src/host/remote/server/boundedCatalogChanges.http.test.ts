@@ -3,11 +3,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WebSocket } from "ws";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  remoteProjectSchema,
+} from "@/shared/remote";
 import type { Project, RemoteThreadCommand } from "@/shared/contracts";
 import { closeDatabase, dbUpsertProject, initDatabase } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
-import { remoteProjectSchema } from "@/shared/remote";
 import {
   RemoteAccessServer,
   type RemoteAccessServerInfo,
@@ -153,6 +157,7 @@ async function postCommand(
     headers: {
       authorization: `Bearer ${token}`,
       "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
       "x-poracode-command-id": commandId,
     },
     body: JSON.stringify(body),

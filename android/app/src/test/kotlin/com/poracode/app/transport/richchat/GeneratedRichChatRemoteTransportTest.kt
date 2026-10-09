@@ -11,6 +11,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -213,6 +214,97 @@ class GeneratedRichChatRemoteTransportTest {
             assertEquals("queue-rich-2", payloads[3].getValue("id").jsonPrimitive.content)
             assertEquals("thread-rich", payloads[6].getValue("threadId").jsonPrimitive.content)
             assertEquals("thread-rich", payloads[7].getValue("threadId").jsonPrimitive.content)
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun sessionActionProceduresRideCanonicalEnvelopesAndFailHonest() = runBlocking {
+        val server = MockWebServer()
+        server.enqueue(
+            MockResponse().setBody(
+                """{"result":{"actions":[{"id":"devin.session.rename"},{"id":"devin.rules.list"}]}}""",
+            ),
+        )
+        server.enqueue(MockResponse().setBody("""{"result":{"renamed":true}}"""))
+        // A 2xx answer with an unusable body: the action ran, the result lies.
+        server.enqueue(MockResponse().setBody("""{"result":"bogus"}"""))
+        // Ambiguous transport loss on the mutation.
+        server.enqueue(
+            MockResponse()
+                .setSocketPolicy(SocketPolicy.DISCONNECT_AFTER_REQUEST)
+                .setBody("""{"result":{}}"""),
+        )
+        server.start()
+        try {
+            val transport = transport(server)
+            val listed = transport.listThreadSessionActions(
+                buildJsonObject { put("threadId", "thread-rich") },
+            )
+            assertEquals(
+                listOf("devin.session.rename", "devin.rules.list"),
+                listed.getValue("actions").jsonArray
+                    .map { it.jsonObject.getValue("id").jsonPrimitive.content },
+            )
+            val invoked = transport.invokeThreadSessionAction(
+                buildJsonObject {
+                    put("threadId", "thread-rich")
+                    put("actionId", "devin.session.rename")
+                    put("payload", buildJsonObject { put("title", "New title") })
+                },
+            )
+            assertTrue((invoked.getValue("renamed") as JsonPrimitive).boolean)
+
+            val requests = List(2) { server.takeRequest() }
+            assertEquals("/base/api/git/call", requests[0].requestUrl!!.encodedPath)
+            // RecordedRequest bodies are single-use okio buffers — parse once.
+            val bodies = requests.map { body(it) }
+            assertEquals(
+                "listThreadSessionActions",
+                bodies[0].getValue("procedure").jsonPrimitive.content,
+            )
+            assertEquals(
+                "thread-rich",
+                bodies[0].getValue("payload").jsonObject
+                    .getValue("threadId").jsonPrimitive.content,
+            )
+            assertEquals(
+                "invokeThreadSessionAction",
+                bodies[1].getValue("procedure").jsonPrimitive.content,
+            )
+            val invokePayload = bodies[1].getValue("payload").jsonObject
+            assertEquals("devin.session.rename", invokePayload.getValue("actionId").jsonPrimitive.content)
+            assertEquals(
+                "New title",
+                invokePayload.getValue("payload").jsonObject.getValue("title").jsonPrimitive.content,
+            )
+
+            try {
+                transport.invokeThreadSessionAction(
+                    buildJsonObject {
+                        put("threadId", "thread-rich")
+                        put("actionId", "devin.session.rename")
+                        put("payload", buildJsonObject { put("title", "x") })
+                    },
+                )
+                fail("Malformed result must fail, never fabricate success.")
+            } catch (expected: RichChatInvalidResponseException) {
+                assertTrue(true)
+            }
+
+            try {
+                transport.invokeThreadSessionAction(
+                    buildJsonObject {
+                        put("threadId", "thread-rich")
+                        put("actionId", "devin.session.rename")
+                        put("payload", buildJsonObject { put("title", "x") })
+                    },
+                )
+                fail("Ambiguous delivery must surface as an unknown outcome.")
+            } catch (expected: RichChatMutationOutcomeUnknownException) {
+                assertEquals("invokeThreadSessionAction", expected.operation)
+            }
         } finally {
             server.shutdown()
         }

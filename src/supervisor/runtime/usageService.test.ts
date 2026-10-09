@@ -66,7 +66,7 @@ afterEach(() => {
 });
 
 describe("UsageService", () => {
-  it.each([4, 6, 7])(
+  it.each([4, 6, 7, 8, 9])(
     "discards snapshots from obsolete collector cache version %i",
     async (version) => {
       const cachePath = tempCachePath();
@@ -464,7 +464,7 @@ describe("UsageService", () => {
     writeFileSync(
       cachePath,
       JSON.stringify({
-        version: 8,
+        version: 10,
         snapshots: [{ providerId: "fixture", status: "ok", windows: [], fetchedAt: NOW - 600_000 }],
       }),
     );

@@ -73,6 +73,14 @@ protocol RichChatRemoteAPI: Sendable {
     threadID: String, prompt: String, segments: [RichPromptSegment]?
   ) async throws
 
+  /// Neutral session-action inventory for one thread. A host without the verb
+  /// fails closed; controls hide instead of advertising a dead capability.
+  func richListSessionActions(threadID: String) async throws -> [String]
+  /// Single-attempt neutral session-action mutation addressed by id only.
+  func richInvokeSessionAction(
+    threadID: String, actionID: String, payload: [String: RichJSON]
+  ) async throws -> [String: RichJSON]
+
   func richStartTerminal(_ input: RichChatTerminalStartInput) async throws
   func richWriteTerminal(threadID: String, data: String) async throws
   func richResizeTerminal(threadID: String, size: RichChatTerminalSize) async throws
@@ -465,6 +473,50 @@ struct GeneratedRichChatRemoteAPI: RichChatRemoteAPI, Sendable {
         threadID: threadID, prompt: prompt, segments: segments)
     }
     try await procedureMutation(.stageThreadInput, body: body)
+  }
+
+  func richListSessionActions(threadID: String) async throws -> [String] {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richListSessionActionsRequest(threadID: threadID)
+    }
+    let result = try await procedureRead(.listThreadSessionActions, body: body)
+    guard let actions = result.objectValue?["actions"]?.arrayValue else {
+      throw RichChatTransportFailure.invalidResponse
+    }
+    return try actions.map { action in
+      guard let id = action.objectValue?["id"]?.stringValue, !id.isEmpty else {
+        throw RichChatTransportFailure.invalidResponse
+      }
+      return id
+    }
+  }
+
+  func richInvokeSessionAction(
+    threadID: String,
+    actionID: String,
+    payload: [String: RichJSON]
+  ) async throws -> [String: RichJSON] {
+    let body = try prepare {
+      try GeneratedRemoteV3Contract.richInvokeSessionActionRequest(
+        threadID: threadID, actionID: actionID, payload: payload)
+    }
+    // One POST, never retried. The 2xx answer means the action ran; an
+    // unusable body is an invalid response — never a fabricated result.
+    let data = try await mutationRequest(path: "/api/git/call", body: body)
+    do {
+      guard
+        let result = try GeneratedRemoteV3Contract.richProcedureResult(
+          .invokeThreadSessionAction, envelope: data),
+        let object = result.objectValue
+      else { throw RichChatTransportFailure.invalidResponse }
+      return object
+    } catch let failure as RichChatTransportFailure {
+      throw failure
+    } catch is CancellationError {
+      throw CancellationError()
+    } catch {
+      throw RichChatTransportFailure.invalidResponse
+    }
   }
 
   func richStartTerminal(_ input: RichChatTerminalStartInput) async throws {

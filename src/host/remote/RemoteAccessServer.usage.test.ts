@@ -1,4 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "./RemoteAccessServer";
 
 vi.mock("@/host/db", () => ({
@@ -55,16 +59,24 @@ async function fixture(preset: "viewer" | "operator") {
   });
   expect(response.status).toBe(200);
   const token = ((await response.json()) as { accessToken: string }).accessToken;
-  const call = (procedure: string, bearer = token) =>
+  const call = (
+    procedure: string,
+    bearer = token,
+    protocolVersion: string | null = REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  ) =>
     fetch(new URL("/api/git/call", info.httpBaseUrl), {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${bearer}` },
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${bearer}`,
+        ...(protocolVersion === null ? {} : { [REMOTE_PROTOCOL_VERSION_HEADER]: protocolVersion }),
+      },
       body: JSON.stringify({
         procedure,
         payload: { providerIds: ["provider:profile"], force: true },
       }),
     });
-  return { call, callSupervisor, usage };
+  return { call, callSupervisor, usage, token };
 }
 
 describe("authenticated host-owned usage", () => {
@@ -78,6 +90,21 @@ describe("authenticated host-owned usage", () => {
     callSupervisor.mockClear();
     expect((await call("refreshProviderUsage")).status).toBe(403);
     expect(callSupervisor).not.toHaveBeenCalled();
+  });
+
+  it("admits legacy cached reads but fences refresh at the current writer generation", async () => {
+    const { call, callSupervisor, token } = await fixture("operator");
+    expect((await call("getProviderUsage", token, null)).status).toBe(200);
+    expect((await call("getProviderUsage", token, "12")).status).toBe(200);
+    callSupervisor.mockClear();
+    for (const generation of [null, "12"]) {
+      const refused = await call("refreshProviderUsage", token, generation);
+      expect(refused.status).toBe(409);
+      expect(await refused.json()).toMatchObject({ error: { code: "protocol_version_mismatch" } });
+    }
+    expect(callSupervisor).not.toHaveBeenCalled();
+    expect((await call("refreshProviderUsage", token)).status).toBe(200);
+    expect(callSupervisor).toHaveBeenCalledOnce();
   });
 
   it("forces collection on the host, returns its accounts, and rejects an invalid bearer", async () => {

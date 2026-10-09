@@ -1773,7 +1773,7 @@ final class AppSessionCompositionTests: XCTestCase {
   }
 
   func testReviewedStoredBindingsUpgradeOnlyAfterVerifiedRead() async throws {
-    for version in [9, 10, 11] {
+    for version in [9, 10, 11, 12] {
       let gate = AsyncGate()
       let (session, repo, _) = try await makeSession { e, t in
         let api = FakeRemoteAPI(endpoint: e, accessToken: t)
@@ -1814,6 +1814,91 @@ final class AppSessionCompositionTests: XCTestCase {
       let persistedToken = try await session.deps.hostCatalog.token(for: seeded.connectionId)
       XCTAssertEqual(persistedToken, "tok-9")
     }
+  }
+
+  func testPreservedV12StaysPreservedUntilVerifiedCurrentHost() async throws {
+    let live12: RemoteEnvironmentDescriptor = {
+      var environment = makeEnvironment(desktopId: "desk-a")
+      environment.protocolVersion = 12
+      return environment
+    }()
+    let refusals: [(String, @MainActor (FakeRemoteAPI) -> Void)] = [
+      ("live-12", { $0.environmentResult = .success(live12) }),
+      ("other-host", { $0.environmentResult = .success(makeEnvironment(desktopId: "desk-other")) }),
+      ("offline", {
+        $0.environmentResult = .failure(
+          RemoteClientError(message: "Network request failed.", status: 0, code: "network"))
+      }),
+      ("expired", {
+        $0.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+        $0.snapshotResult = .failure(
+          RemoteClientError(message: "expired", status: 401, code: "unauthorized"))
+      }),
+    ]
+    for (name, refuse) in refusals {
+      let probe = PreservedUpgradeProbeState()
+      let (session, repo, _) = try await makeSession { e, t in
+        let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+        refuse(api)
+        probe.apis.append(api)
+        return api
+      }
+      defer {
+        Task {
+          await repo.wipeSuiteForTests()
+          await session.deps.hostCatalog.wipeForTests()
+        }
+      }
+      var profile12 = makeProfileV9()
+      profile12.protocolVersion = 12
+      let seeded = try await seedRegistryV9(
+        session.deps.hostCatalog, profile: profile12, token: "tok-12")
+      let bytesBefore = try await session.deps.hostCatalog.registryRawData()
+      await session.bootstrap()
+      XCTAssertNotEqual(session.phase, .ready, name)
+      XCTAssertNil(session.state.api, name)
+      XCTAssertNil(session.state.accessToken, name)
+      if name == "live-12" || name == "other-host" {
+        XCTAssertEqual(probe.apis.reduce(0) { $0 + $1.snapshotCalls }, 0, name)
+      }
+      let durable = try await session.deps.hostCatalog.snapshot()
+      XCTAssertEqual(durable.selected?.connectionId, seeded.connectionId, name)
+      XCTAssertEqual(durable.selected?.protocolVersion, 12, name)
+      let token = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+      XCTAssertEqual(token, "tok-12", name)
+      let bytesAfter = try await session.deps.hostCatalog.registryRawData()
+      XCTAssertEqual(bytesAfter, bytesBefore, name)
+    }
+  }
+
+  func testUnreviewedFutureStoredBindingNeverContactsServer() async throws {
+    let probe = PreservedUpgradeProbeState()
+    let (session, repo, _) = try await makeSession { e, t in
+      let api = FakeRemoteAPI(endpoint: e, accessToken: t)
+      api.environmentResult = .success(makeEnvironment(desktopId: "desk-a"))
+      api.snapshotResult = .success(makeShell(seq: 1))
+      probe.apis.append(api)
+      return api
+    }
+    defer {
+      Task {
+        await repo.wipeSuiteForTests()
+        await session.deps.hostCatalog.wipeForTests()
+      }
+    }
+    var future = makeProfileV9()
+    future.protocolVersion = ProtocolConstants.remoteProtocolVersion + 1
+    let seeded = try await seedRegistryV9(
+      session.deps.hostCatalog, profile: future, token: "tok-future")
+    let bytesBefore = try await session.deps.hostCatalog.registryRawData()
+    await session.bootstrap()
+    XCTAssertEqual(session.phase, .protocolIncompatible)
+    XCTAssertEqual(probe.apis.reduce(0) { $0 + $1.environmentCalls }, 0)
+    XCTAssertNil(session.state.api)
+    let token = try await session.deps.hostCatalog.token(for: seeded.connectionId)
+    XCTAssertEqual(token, "tok-future")
+    let bytesAfter = try await session.deps.hostCatalog.registryRawData()
+    XCTAssertEqual(bytesAfter, bytesBefore)
   }
 
   func testPreservedV9SourceV2ImportThenVerifiedUpgrade() async throws {
@@ -2386,7 +2471,7 @@ final class AppSessionCompositionTests: XCTestCase {
       endpoints: .init(httpBaseUrl: "https://a.test", wsBaseUrl: "wss://a.test")
     )
     XCTAssertTrue(PreservedPairingUpgrade.verify(stored: stored9, environment: live10))
-    for version in [9, 10, 11] {
+    for version in [9, 10, 11, 12] {
       var oldEnvironment = live10
       oldEnvironment.protocolVersion = version
       XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored9, environment: oldEnvironment))
@@ -2403,6 +2488,14 @@ final class AppSessionCompositionTests: XCTestCase {
     var stored10 = stored9
     stored10.protocolVersion = ProtocolConstants.remoteProtocolVersion
     XCTAssertFalse(PreservedPairingUpgrade.verify(stored: stored10, environment: live10))
+    // Reviewed previous v12 verifies only against the live current host.
+    var stored12 = stored9
+    stored12.protocolVersion = 12
+    XCTAssertTrue(PreservedPairingUpgrade.verify(stored: stored12, environment: live10))
+    // Unreviewed future stored bindings never verify.
+    var storedFuture = stored9
+    storedFuture.protocolVersion = ProtocolConstants.remoteProtocolVersion + 1
+    XCTAssertFalse(PreservedPairingUpgrade.verify(stored: storedFuture, environment: live10))
   }
 }
 

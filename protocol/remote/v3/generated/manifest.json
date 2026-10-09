@@ -22,8 +22,8 @@
       "/.well-known/lightcode/environment"
     ],
     "endpointPathPolicy": "append-to-preserved-base-path",
-    "maximumAcceptedProtocolVersion": 12,
-    "minimumAcceptedProtocolVersion": 12,
+    "maximumAcceptedProtocolVersion": 13,
+    "minimumAcceptedProtocolVersion": 13,
     "pairingCredential": {
       "singleUse": true,
       "transport": "url-fragment-or-request-body"
@@ -979,6 +979,16 @@
       "scope": "session:operate"
     },
     {
+      "name": "listThreadSessionActions",
+      "owner": "thread",
+      "scope": "session:read"
+    },
+    {
+      "name": "invokeThreadSessionAction",
+      "owner": "thread",
+      "scope": "session:operate"
+    },
+    {
       "name": "rollbackThreadConversation",
       "owner": "thread",
       "scope": "session:operate"
@@ -1627,7 +1637,7 @@
       "scope": "session:read"
     }
   ],
-  "protocolVersion": 12,
+  "protocolVersion": 13,
   "scopes": [
     "session:read",
     "session:operate",

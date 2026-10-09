@@ -6,9 +6,11 @@ import type {
   ScheduledTask,
   ScheduledTaskRun,
   Thread,
+  ThreadConfig,
   ThreadStatus,
 } from "@/shared/contracts";
 import { agentStatusesResponseSchema } from "@/shared/contracts";
+import { ScheduleExecutionAdmissionError } from "@/host/db/scheduleExecutionAdmission";
 import type { SupervisorEvent } from "@/shared/ipc";
 import { defaultSharedSettings } from "@/shared/settings";
 import { ScheduleRunCoordinator, type ScheduleRunCoordinatorDeps } from "./ScheduleRunCoordinator";
@@ -93,12 +95,18 @@ function makeHarness(overrides: Partial<ScheduleRunCoordinatorDeps> = {}): Harne
   const deps: ScheduleRunCoordinatorDeps = {
     startThread,
     getAgentStatuses: async () => agentStatuses(),
+    admitScheduleExecution: () => {},
     sendThreadCommand: (command) => {
       sent.push(command);
       return true;
     },
     ensureHomeProject: () => HOME_PROJECT,
-    getProject: (projectId) => (projectId === WORK_PROJECT.id ? WORK_PROJECT : null),
+    getProject: (projectId) =>
+      projectId === WORK_PROJECT.id
+        ? WORK_PROJECT
+        : projectId === HOME_PROJECT.id
+          ? HOME_PROJECT
+          : null,
     upsertThread: (thread) => {
       threads.set(thread.id, thread);
     },
@@ -475,5 +483,134 @@ describe("ScheduleRunCoordinator", () => {
     // No thread row or run row is created when the project can't be resolved.
     expect(threads.size).toBe(0);
     expect(runs.size).toBe(0);
+  });
+
+  it("admits before Home creation and again after the permission lookup", async () => {
+    const order: string[] = [];
+    const ensureHomeProject = vi.fn<() => Project>(() => {
+      order.push("ensureHomeProject");
+      return HOME_PROJECT;
+    });
+    const getAgentStatuses = vi.fn<ScheduleRunCoordinatorDeps["getAgentStatuses"]>(async () => {
+      order.push("getAgentStatuses");
+      return agentStatuses();
+    });
+    const upsertThread = vi.fn<ScheduleRunCoordinatorDeps["upsertThread"]>(() => {
+      order.push("upsertThread");
+    });
+    const admit = vi.fn<ScheduleRunCoordinatorDeps["admitScheduleExecution"]>(() => {
+      order.push("admit");
+    });
+    const { coordinator, startThread } = makeHarness({
+      ensureHomeProject,
+      getAgentStatuses,
+      upsertThread,
+      admitScheduleExecution: admit,
+    });
+
+    const settled = coordinator.runScheduleAsThread(task);
+    await flush();
+
+    expect(admit).toHaveBeenCalledTimes(2);
+    expect(order).toEqual([
+      "admit",
+      "ensureHomeProject",
+      "getAgentStatuses",
+      "admit",
+      "upsertThread",
+    ]);
+    expect(startThread).toHaveBeenCalledOnce();
+
+    coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
+    coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
+    await expect(settled).resolves.toBe("");
+  });
+
+  it("refuses a missing authoritative task before any effect", async () => {
+    const ensureHomeProject = vi.fn<() => Project>(() => HOME_PROJECT);
+    const getAgentStatuses = vi.fn<ScheduleRunCoordinatorDeps["getAgentStatuses"]>();
+    const { coordinator, threads, runs, sent, startThread } = makeHarness({
+      ensureHomeProject,
+      getAgentStatuses,
+      admitScheduleExecution: () => {
+        throw new ScheduleExecutionAdmissionError("missing", "changed or was removed");
+      },
+    });
+
+    await expect(coordinator.runScheduleAsThread(task)).rejects.toThrow("changed or was removed");
+    // Not even the Home project row is created before the first admission.
+    expect(ensureHomeProject).not.toHaveBeenCalled();
+    expect(getAgentStatuses).not.toHaveBeenCalled();
+    expect(threads.size).toBe(0);
+    expect(runs.size).toBe(0);
+    expect(sent).toEqual([]);
+    expect(startThread).not.toHaveBeenCalled();
+  });
+
+  it("refuses stale authoritative data after the permission lookup, before persisting", async () => {
+    const ensureHomeProject = vi.fn<() => Project>(() => HOME_PROJECT);
+    let admits = 0;
+    const { coordinator, threads, runs, sent, startThread } = makeHarness({
+      ensureHomeProject,
+      admitScheduleExecution: () => {
+        admits += 1;
+        if (admits === 2)
+          throw new ScheduleExecutionAdmissionError("stale", "changed or was removed");
+      },
+    });
+
+    await expect(coordinator.runScheduleAsThread(task)).rejects.toThrow("changed or was removed");
+    // The first admission passed (Home may have been created), but the
+    // awaited permission lookup happened before the second refusal — so the
+    // thread, run row, mirror, and launch never happen.
+    expect(ensureHomeProject).toHaveBeenCalledOnce();
+    expect(threads.size).toBe(0);
+    expect(runs.size).toBe(0);
+    expect(sent).toEqual([]);
+    expect(startThread).not.toHaveBeenCalled();
+  });
+
+  it("carries empty, false, and bound controls through the thread config exactly", async () => {
+    const { coordinator, threads, sent } = makeHarness();
+    const taskBinding = {
+      version: 1 as const,
+      kind: "family-member" as const,
+      owner: { agentKind: "glm:profile-alpha", presentationMode: "gui" as const },
+      model: task.config.model,
+      inertValues: { fast: false },
+    };
+
+    const settled = coordinator.runScheduleAsThread({
+      ...task,
+      config: {
+        model: task.config.model,
+        effort: "",
+        fast: false,
+        thinking: false,
+        contextSize: "128k",
+        selectionBinding: taskBinding,
+      },
+    });
+    await flush();
+
+    const expectedConfig = {
+      model: "claude-fable-5",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "128k",
+      selectionBinding: taskBinding,
+      approvalPolicy: "never",
+      sandboxMode: "danger-full-access",
+    };
+    // Exact equality: falsy carriers and the recognized binding survive the
+    // merge, and nothing else is added or dropped.
+    expect(threads.get("thread-1")?.config).toEqual(expectedConfig);
+    expect(sent).toEqual([expect.objectContaining({ kind: "start" })]);
+    expect((sent[0] as { config: ThreadConfig }).config).toEqual(expectedConfig);
+
+    coordinator.observeSupervisorEvent(threadState("thread-1", "working"));
+    coordinator.observeSupervisorEvent(threadState("thread-1", "idle"));
+    await expect(settled).resolves.toBe("");
   });
 });

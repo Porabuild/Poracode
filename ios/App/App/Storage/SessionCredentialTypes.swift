@@ -59,11 +59,11 @@ enum SessionCredentialLoadOutcome: Sendable, Equatable {
     case localStoreInconsistent
 }
 
-// MARK: - Preserved-pairing upgrade (v9 → current, verified only)
+// MARK: - Preserved-pairing upgrade (reviewed v9–v12 → current, verified only)
 
 /// Verified upgrade recovery for the immediately previous released protocol.
 ///
-/// Safely decodable protocol-9 bindings are NEVER rebound blindly. They are
+/// Safely decodable reviewed (9–12) bindings are NEVER rebound blindly. They are
 /// eligible ONLY for a fresh public `environment()` descriptor (live
 /// current-protocol server, matching `desktopId`, still advertising
 /// `session:read`) FOLLOWED BY an authenticated `snapshot()` read with the
@@ -76,14 +76,18 @@ enum SessionCredentialLoadOutcome: Sendable, Equatable {
 /// upgraded even when a stale generation abandons the install.
 enum PreservedPairingUpgrade: Sendable {
     /// The previously supported stored generation remains eligible alongside
-    /// the explicitly reviewed v10/v11 bindings. Older/future generations remain
-    /// incompatible. Do not generalize to
+    /// the explicitly reviewed v10/v11/v12 bindings. Older/future generations
+    /// remain incompatible. Do not generalize to
     /// `current - 1` — that would silently admit unreviewed generations.
+    /// Mirrored in Android `StoredProtocolUpgrade.isEligibleStoredProtocol`.
     static let previousReleasedProtocolVersion = 9
 
     static func isEligibleStoredProtocol(_ version: Int) -> Bool {
-        // v10/v11 changed wire content, not the stored host/token binding.
+        // v10/v11/v12 changed wire content, not the stored host/token binding.
+        // v13 adds per-request writer admission and strict selection configs on
+        // the wire; the stored binding shape is unchanged.
         version == previousReleasedProtocolVersion || version == 10 || version == 11
+            || version == 12
     }
 
     /// Pure gate for the bootstrap upgrade attempt. No I/O, no capability

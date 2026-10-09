@@ -122,6 +122,7 @@ actor GitHubOperationsHTTPTransport: GitHubOperationsRemoteAPI {
     request.httpBody = body
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+    request.declareCurrentRemoteWriterProtocol()
     try await authorization.authorize(&request)
     return request
   }

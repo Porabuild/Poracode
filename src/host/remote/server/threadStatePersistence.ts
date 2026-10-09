@@ -67,7 +67,9 @@ export function persistThreadStateEvent(event: ThreadStateEvent): void {
   const nowIso = new Date().toISOString();
   const turnTiming = deriveTurnTiming(thread, event.status, nowIso);
   const nextSessionRef =
-    event.sessionRef && thread.sessionRef?.providerSessionId !== event.sessionRef.providerSessionId
+    event.sessionRef &&
+    (thread.sessionRef?.providerSessionId !== event.sessionRef.providerSessionId ||
+      thread.sessionRef?.executionIdentity !== event.sessionRef.executionIdentity)
       ? event.sessionRef
       : thread.sessionRef;
 

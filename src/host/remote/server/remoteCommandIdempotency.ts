@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { REMOTE_COMMAND_OUTCOME_UNCERTAIN_CODE } from "@/shared/remote/clientErrors";
 import { isHostResourceAdmissionRefusal } from "@/shared/hostResourceAdmission";
+import { isThreadSessionAbsenceRefusal } from "@/shared/threadSessionRefusal";
 import {
   dbClaimRemoteCommand,
   dbCompleteRemoteCommand,
@@ -93,15 +94,17 @@ export interface RunRemoteCommandOptions<T> {
   /** Route-specific predicate for a retryable application result. */
   readonly isRetryableResult?: (response: T) => boolean;
   /**
-   * Route-specific proof that the WHOLE operation had no external effect
-   * before a host-resource-admission refusal. Consulted only for those
-   * refusals: a route that passes it vouches that the refusal happened before
-   * any row retarget, renderer dispatch, worktree preparation or queue
-   * mutation, so the command can be recorded as a definite failure. A route
-   * that cannot prove that (compound create/switch/send paths) must omit the
-   * predicate — the receipt (and the first response when no command id exists)
-   * then stays `uncertain`, and a retry is never mistaken for a first
-   * execution.
+   * Route-specific proof that the WHOLE operation had no external effect before
+   * a refusal of a safe class (host-resource admission, or the supervisor's
+   * typed missing-session refusal). Consulted only for those classes: a route
+   * that passes it vouches that such a refusal happened before any row
+   * retarget, renderer dispatch, worktree preparation or queue mutation, so
+   * the command can be recorded as a definite failure. A route that cannot
+   * prove that must omit the predicate or scope it to the class it can
+   * actually vouch for — the receipt (and the first response when no command
+   * id exists) then stays `uncertain`, and a retry is never mistaken for a
+   * first execution. The proof never widens to arbitrary errors: the class
+   * allowlist in {@link isProvenPreEffectRefusal} is closed.
    */
   readonly isPreEffectFailure?: (error: unknown) => boolean;
   /** Validates (and may adjust) a completed receipt before it is replayed. */
@@ -115,15 +118,24 @@ export interface RunRemoteCommandOptions<T> {
 }
 
 /**
- * Route proof for one admission refusal: only a refusal whose whole operation
- * is vouched pre-effect by the route may become a definite failure. Every
- * other error (including every non-admission error) is unaffected.
+ * Route proof for one safe refusal class: only a refusal whose whole operation
+ * the route vouches pre-effect may become a definite failure. The class
+ * allowlist is closed — a host-resource-admission refusal, or the supervisor's
+ * typed missing-session refusal (`sendThreadInput` throws it before the prompt
+ * is formatted or any turn starts, so nothing can have been delivered) — and
+ * is checked first, so the route predicate is consulted for those classes
+ * only. A predicate alone never widens the proof to arbitrary errors: a
+ * message that merely mentions an unknown session, a provider error, and every
+ * post-effect failure stay outside it.
  */
-function isProvenPreEffectAdmissionRefusal(
+function isProvenPreEffectRefusal(
   error: unknown,
   isPreEffectFailure: RunRemoteCommandOptions<unknown>["isPreEffectFailure"],
 ): boolean {
-  return isHostResourceAdmissionRefusal(error) && isPreEffectFailure?.(error) === true;
+  if (!isHostResourceAdmissionRefusal(error) && !isThreadSessionAbsenceRefusal(error)) {
+    return false;
+  }
+  return isPreEffectFailure?.(error) === true;
 }
 
 /**
@@ -176,7 +188,9 @@ export function commandOutcomeUncertainAfterEffect(error: unknown): RemoteHttpEr
  *   host-resource-admission refusal a route explicitly vouches as
  *   whole-operation pre-effect is recorded `failed` (and answered as a
  *   retryable 429) even after the dispatch mark, because no earlier effect of
- *   this operation can remain;
+ *   this operation can remain; the supervisor's typed missing-session refusal
+ *   a route vouches the same way is likewise recorded `failed` and answered
+ *   with its own definite error, because nothing was delivered;
  * - without a command id there is no durable receipt: only a
  *   host-resource-admission refusal the route did not prove whole-operation
  *   pre-effect is answered with the typed uncertain 409 (admission refusals
@@ -205,7 +219,7 @@ export async function runRemoteCommand<T>(options: RunRemoteCommandOptions<T>): 
     } catch (error) {
       if (
         isHostResourceAdmissionRefusal(error) &&
-        !isProvenPreEffectAdmissionRefusal(error, options.isPreEffectFailure)
+        !isProvenPreEffectRefusal(error, options.isPreEffectFailure)
       ) {
         throw commandOutcomeUncertainFromRefusal(error);
       }
@@ -288,7 +302,7 @@ export async function runRemoteCommand<T>(options: RunRemoteCommandOptions<T>): 
     return response;
   } catch (error) {
     const admissionRefusal = isHostResourceAdmissionRefusal(error);
-    const provenPreEffect = isProvenPreEffectAdmissionRefusal(error, options.isPreEffectFailure);
+    const provenPreEffect = isProvenPreEffectRefusal(error, options.isPreEffectFailure);
     // A resumed `uncertain` receipt is never downgraded: even a current
     // attempt proven pre-effect cannot erase the earlier ambiguity.
     const receiptUncertain = claim.state === "uncertain" || (dispatched && !provenPreEffect);

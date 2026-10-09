@@ -286,6 +286,27 @@ interface RichChatSessionGateway {
 
     suspend fun stageInput(lease: RichChatHostLease, threadId: String, payload: JsonObject)
 
+    /**
+     * Neutral session-action inventory for the selected thread. Callers render
+     * controls only for ids this live host listed; any failure (an older host
+     * without the verb included) leaves the inventory empty instead of
+     * advertising a capability the session does not have.
+     */
+    suspend fun listSessionActions(lease: RichChatHostLease, threadId: String): List<String>
+
+    /**
+     * Single-attempt neutral session-action mutation addressed by id only —
+     * never a raw provider tunnel. Resolves with the provider's validated JSON
+     * record; an ambiguous delivery surfaces as an unknown outcome and is
+     * never retried.
+     */
+    suspend fun invokeSessionAction(
+        lease: RichChatHostLease,
+        threadId: String,
+        actionId: String,
+        payload: JsonObject,
+    ): JsonObject
+
     suspend fun uploadAttachment(
         lease: RichChatHostLease,
         threadId: String,
@@ -364,10 +385,21 @@ internal fun Throwable.asRichChatFailure(
     val gateway = this as? RichChatGatewayException
     return when (gateway?.statusCode) {
         401 -> RichChatOperationFailure.AuthenticationRequired
-        403 -> RichChatOperationFailure.AuthorizationDenied(
-            requiredScope = capability.scope,
-            missingScope = gateway.code == "missing_scope",
-        )
+        403 -> if (gateway.code == RICH_CHAT_PROCEDURE_NOT_ALLOWED) {
+            // The host's procedure allowlist rejected the verb — not a scope
+            // denial. Carrying the code lets the session-action inventory hide
+            // quietly for an old host while everything else stays visible.
+            RichChatOperationFailure.Remote(
+                statusCode = 403,
+                code = gateway.code,
+                requestMayHaveCommitted = false,
+            )
+        } else {
+            RichChatOperationFailure.AuthorizationDenied(
+                requiredScope = capability.scope,
+                missingScope = gateway.code == "missing_scope",
+            )
+        }
         else -> when (gateway?.code) {
             "invalid_request" -> RichChatOperationFailure.InvalidRequest
             "invalid_response" -> if (defaultMayHaveCommitted) {

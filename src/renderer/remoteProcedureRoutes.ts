@@ -207,6 +207,7 @@ export const NON_ROUTER_PROJECT_PROCEDURES = {
   updateAcpRegistryAgent: "local-shell: updates a CLI agent install on this machine",
   removeAcpRegistryAgent: "local-shell: removes a CLI agent install from this machine",
   setAcpRegistryAgentAuth: "local-shell: stores agent auth on this machine",
+  confirmSupervisorSettingsEdits: "local-shell: this device's settings owner acknowledgement",
   authenticateAcpAgent: "local-shell: runs this machine's agent OAuth window and secret store",
   logoutAcpAgent: "local-shell: clears agent auth on this machine",
   resolveAgentAccount: "local-shell: resolves accounts against this machine's agent auth",

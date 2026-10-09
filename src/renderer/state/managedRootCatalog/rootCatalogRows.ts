@@ -9,6 +9,7 @@ import { removePaneFromView } from "@/renderer/state/slices/helpers";
 import { forgetTimelineMeasurements } from "@/renderer/state/timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "@/renderer/state/threadGalleryCache";
 import { dropPendingManagedRootLaunch } from "./rootCatalogStore";
+import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 
 /**
  * Root catalog rows are the desktop's OWN entities: unprojected ids, no
@@ -93,7 +94,10 @@ export function readRootCatalogProjects(): Project[] {
 /**
  * Merge one page/continuation into the app store. `preserveThreadIds` names
  * rows a live event newer than the page already updated: the existing row
- * object (with its newer status/attention) wins over the page copy.
+ * object (with its newer status/attention) wins over the page copy. A page
+ * row is host-durable state, so when it omits the volatile
+ * `sessionConfigOptions` inventory the resident one is re-attached instead of
+ * erased — same owner/session only, per `carryVolatileSessionConfigOptions`.
  */
 export function applyRootCatalogThreadRows(
   rows: readonly Thread[],
@@ -120,7 +124,7 @@ export function applyRootCatalogThreadRows(
       // documented startup policy closes the archived thread's visible pane.
       if (!existing.archived && incoming.archived) archivedNow.add(existing.id);
       changed = true;
-      return incoming;
+      return carryVolatileSessionConfigOptions(existing, incoming);
     });
     for (const row of rows) {
       const incoming = incomingById.get(row.id);

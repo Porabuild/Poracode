@@ -106,10 +106,10 @@ derives every published artifact from it: the language-neutral inventory at
 the HTTP router dispatches from the same registry through an exhaustively-typed
 per-route handler table, so a route that is not in the registry fails
 typecheck. The `v3` directory name is retained; the current wire protocol
-version is 12. The inventory describes:
+version is 13. The inventory describes:
 
 - 88 HTTP routes;
-- 128 supervisor procedures;
+- 130 supervisor procedures;
 - 9 client-to-server WebSocket messages; and
 - 11 server-to-client WebSocket messages (including the admission-gated `desktop-event` stream).
 
@@ -118,7 +118,7 @@ extra, or stale generated artifacts, including a hand-edited manifest.
 
 The generated inventory carries separate compatibility identities:
 
-- wire `protocolVersion` (currently 12);
+- wire `protocolVersion` (currently 13);
 - generator and binding-format versions (binding format currently 2); and
 - hashes of the source contract and manifest.
 
@@ -134,6 +134,12 @@ string. Both native reducer paths consume this flag. Live protocol 11 peers are
 rejected; saved pairing bindings from explicitly reviewed versions 9, 10, and 11
 can rebind only after verifying the current host and completing an authenticated
 read. The shared replacement fixture and native upgrade tests cover these gates.
+
+Protocol 13 adds strict agent selection/binding and session-action contracts.
+Current clients and generated native readers retain that version gate; older
+live peers are rejected according to the current compatibility policy. The two
+host-owned usage procedures are additive within protocol 13 and keep the same
+read/operate scopes as their authenticated host routes.
 
 ### Current binding status
 

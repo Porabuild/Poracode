@@ -101,6 +101,17 @@ export const settingsMutationSchema = z
   .strict();
 export type SettingsMutation = z.infer<typeof settingsMutationSchema>;
 
+/**
+ * A subject edit from a trusted runtime owner (e.g. the supervisor's registry
+ * records) that holds no authority revisions. The settings owner's adapter
+ * stamps fresh revisions and rebases bounded times, so concurrent edits to
+ * other subjects survive. An absent `value` deletes the subject.
+ */
+export const settingsOwnerEditSchema = z
+  .object({ subject: settingsSubjectSchema, value: z.json().optional() })
+  .strict();
+export type SettingsOwnerEdit = z.infer<typeof settingsOwnerEditSchema>;
+
 export const settingsSubjectStateSchema = z
   .object({
     subject: settingsSubjectSchema,

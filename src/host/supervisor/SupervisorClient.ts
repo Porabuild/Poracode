@@ -4,6 +4,9 @@ import { randomUUID } from "node:crypto";
 import { constants as osConstants, setPriority } from "node:os";
 import type { PoracodeDiagnosticTags } from "@/shared/diagnostics/sentryPrivacy";
 import { stopSupervisorChild } from "./stopSupervisorChild";
+import { WorkspaceLaunchBridge, type WorkspaceLaunchSelection } from "./WorkspaceLaunchBridge";
+import { THREAD_WORKSPACE_RUNTIME_REQUEST } from "@/shared/threadWorkspaceRuntimeProtocol";
+import { WorkspaceLaunchUnavailableError } from "@/shared/threadWorkspaceRefusal";
 import type { StartThreadPayload } from "@/shared/contracts";
 import {
   IpcProcedurePayload,
@@ -14,7 +17,6 @@ import {
   SupervisorFlowControlCapabilities,
   SupervisorProcedureName,
   SupervisorReply,
-  SupervisorRequest,
   isSupervisorFlowControlCapabilities,
   isSupervisorOutputShedSignal,
 } from "@/shared/ipc";
@@ -41,20 +43,28 @@ import {
   GitProcessAdmissionRefusalError,
   isGitProcessAdmissionRefusalCode,
 } from "@/shared/gitProcessAdmission";
+import {
+  ThreadSessionAbsenceRefusalError,
+  isThreadSessionAbsenceRefusalCode,
+} from "@/shared/threadSessionRefusal";
 
 function isSupervisorReply(message: unknown): message is SupervisorReply {
   return typeof message === "object" && message !== null && "replyTo" in message;
 }
 
 /**
- * Rehydrates the additive typed fields of a failed admission reply. An old
+ * Rehydrates the additive typed fields of a failed supervisor reply. An old
  * supervisor reply has no `errorCode` and keeps the historical message-only
- * Error.
+ * Error. Each known code rehydrates onto its own carrier — the missing-session
+ * refusal is a definite pre-effect refusal, never a resource-pressure class.
  */
 function createSupervisorFailureError(message: Extract<SupervisorReply, { ok: false }>): Error {
   const errorCode = message.errorCode;
   if (typeof errorCode !== "string" || errorCode.length === 0) {
     return new Error(message.error);
+  }
+  if (isThreadSessionAbsenceRefusalCode(errorCode)) {
+    return new ThreadSessionAbsenceRefusalError(message.error);
   }
   const retryAfterMs = admissionRetryAfterMsOf(message);
   if (isGitProcessAdmissionRefusalCode(errorCode)) {
@@ -154,6 +164,8 @@ export interface SupervisorClientOptions {
   resolveExtraEnv?: () => Record<string, string>;
   /** Apply main-process launch invariants before any start reaches the supervisor. */
   prepareStartThread?(payload: StartThreadPayload): StartThreadPayload;
+  /** Host SQL authority only; client launch fields never supply workspace scope. */
+  prepareWorkspaceLaunch?(payload: StartThreadPayload): WorkspaceLaunchSelection | undefined;
   assignPid?(pid: number): Promise<void>;
   reportError?(error: unknown, tags?: PoracodeDiagnosticTags): void;
   onEvent(event: SupervisorEvent, custody?: TrustedRuntimePayloadAdmission): void;
@@ -274,6 +286,7 @@ export class SupervisorClient {
   >();
   private readonly threadMutationTails = new Map<string, Promise<void>>();
   private readonly threadMutationEpochs = new Map<string, number>();
+  private readonly workspaceLaunchBridge = new WorkspaceLaunchBridge();
   /**
    * Flow-control vocabulary the current child advertised at boot. Empty for a
    * legacy supervisor, which must never receive `set-event-backpressure`: a
@@ -837,6 +850,11 @@ export class SupervisorClient {
     options: SupervisorCallOptions = {},
   ): Promise<IpcProcedureResult<Name>> {
     if (this.disposed) throw new Error("Supervisor client is disposed.");
+    const isLaunch = type === "startThread" || type === "ensureThreadRunning";
+    // Capture before any transition/start await. A control during that wait
+    // still owns cancellation of this accepted launch.
+    const launchThreadId = isLaunch ? (payload as StartThreadPayload).threadId : undefined;
+    const launchEpoch = launchThreadId ? (this.threadMutationEpochs.get(launchThreadId) ?? 0) : 0;
     const transition = this.restartPromise ?? this.stopPromise;
     if (transition) {
       // A diagnostics read must not park behind an unbounded stop/restart
@@ -857,23 +875,86 @@ export class SupervisorClient {
       return Promise.reject(new Error("Supervisor is not running."));
     }
 
-    const id = randomUUID();
     const requestPayload =
-      (type === "startThread" || type === "ensureThreadRunning") && this.options.prepareStartThread
+      isLaunch && this.options.prepareStartThread
         ? this.options.prepareStartThread(payload as StartThreadPayload)
         : payload;
-    const request: SupervisorRequest = {
-      id,
+    if (isLaunch && this.options.prepareWorkspaceLaunch) {
+      const launch = requestPayload as StartThreadPayload;
+      const selection = this.options.prepareWorkspaceLaunch(launch);
+      if (selection) {
+        if (!launchThreadId || launch.threadId !== launchThreadId) {
+          throw new WorkspaceLaunchUnavailableError(
+            "Scoped launch thread identity changed during preparation.",
+          );
+        }
+        const isCurrent = () =>
+          !this.disposed &&
+          this.child === child &&
+          child.connected &&
+          !this.stopPromise &&
+          !this.restartPromise &&
+          (this.threadMutationEpochs.get(launchThreadId) ?? 0) === launchEpoch;
+        if (!isCurrent()) {
+          throw new WorkspaceLaunchUnavailableError(
+            "Workspace launch was cancelled before support negotiation.",
+          );
+        }
+        const scopedPayload = await this.workspaceLaunchBridge.prepare({
+          child,
+          procedure: type,
+          launch,
+          selection,
+          readSelection: () => this.options.prepareWorkspaceLaunch!(launch),
+          isCurrent,
+          requestSupport: (body) =>
+            this.sendRequest(
+              child,
+              THREAD_WORKSPACE_RUNTIME_REQUEST,
+              body,
+              options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+            ),
+        });
+        // Recheck in the sending continuation too: a control or SQL mutation
+        // can run between the bridge's resolution and this await resuming.
+        const finalSelection = this.options.prepareWorkspaceLaunch(launch);
+        if (!isCurrent() || JSON.stringify(finalSelection) !== JSON.stringify(selection)) {
+          throw new WorkspaceLaunchUnavailableError(
+            "Workspace launch authority changed before dispatch.",
+          );
+        }
+        return this.sendRequest<IpcProcedureResult<Name>>(
+          child,
+          THREAD_WORKSPACE_RUNTIME_REQUEST,
+          scopedPayload,
+          options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+        );
+      }
+    }
+    return this.sendRequest<IpcProcedureResult<Name>>(
+      child,
       type,
-      payload: requestPayload,
-    } as SupervisorRequest;
+      requestPayload,
+      options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+    );
+  }
 
-    return new Promise<IpcProcedureResult<Name>>((resolve, reject) => {
+  /** Shared request custody for public procedures and the separately versioned host-only bridge. */
+  private sendRequest<Result>(
+    child: ChildProcess,
+    type: string,
+    payload: unknown,
+    timeoutMs: number,
+  ): Promise<Result> {
+    const id = randomUUID();
+    const request = { id, type, payload };
+
+    return new Promise<Result>((resolve, reject) => {
       const timeout = setTimeout(() => {
         if (this.pendingRequests.delete(id)) {
           reject(new Error(`Supervisor request "${type}" timed out.`));
         }
-      }, options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
       // Avoid keeping the event loop (and the app) alive solely for this timer.
       timeout.unref?.();
 
@@ -883,7 +964,7 @@ export class SupervisorClient {
       };
 
       this.pendingRequests.set(id, {
-        resolve: (value) => settle((v) => resolve(v as IpcProcedureResult<Name>), value),
+        resolve: (value) => settle((v) => resolve(v as Result), value),
         reject: (reason) => settle(reject as (value: unknown) => void, reason),
       });
 
