@@ -1,3 +1,4 @@
+import { withThreadConfigSubmission } from "./threadConfigSubmission";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import { getProjectAgentStatuses } from "@/shared/agentStatus";
@@ -221,8 +222,16 @@ export async function performInitialThreadLaunch(input: {
         replay: launchInput,
       });
       try {
-        useAppStore.getState().markThreadConfigSubmitted(thread.id, launchInput.config);
-        await startManagedRootThread(launchInput, { commandId: pendingRootLaunch.commandId });
+        const captured = launchInput;
+        await withThreadConfigSubmission(
+          thread.id,
+          captured.config,
+          () => startManagedRootThread(captured, { commandId: pendingRootLaunch.commandId }),
+          (error) =>
+            !isRemoteCommandOutcomeUncertainError(error) &&
+            (pendingRootLaunch.replay === undefined ||
+              isRemoteCommandOutcomeAuthoritativelyResolved(error)),
+        );
       } catch (error) {
         // The operation is retired ONLY when the host authoritatively resolved
         // it as a definite failure for this same command id (a recorded
@@ -252,39 +261,41 @@ export async function performInitialThreadLaunch(input: {
         dispatchManagedRootThreadWorkspace(thread.id, thread.workspaceId);
       }
     } else if (owner) {
-      useAppStore.getState().markThreadConfigSubmitted(thread.id, startInput.config);
       // No mcpLaunchSnapshot here: the host ignores client-supplied MCP servers
       // and resolves the launch snapshot from its own settings.
-      await useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
-        client.startThread({
-          threadId: owner.remoteId,
-          projectLocation: unprojectProjectLocation(projectLocation),
-          ...startInput,
-          ...(!prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId
-            ? { ensureRunning: true as const }
-            : {}),
-          ...(startInput.segments
-            ? {
-                segments: unprojectRemoteThreadMentionSegments(
-                  owner.desktopId,
-                  startInput.segments,
-                  useAppStore.getState().threads,
-                ),
-              }
-            : {}),
-        }),
+      await withThreadConfigSubmission(thread.id, startInput.config, () =>
+        useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
+          client.startThread({
+            threadId: owner.remoteId,
+            projectLocation: unprojectProjectLocation(projectLocation),
+            ...startInput,
+            ...(!prompt && !segments?.length && !providerSwitch && !optimisticUserMessageItemId
+              ? { ensureRunning: true as const }
+              : {}),
+            ...(startInput.segments
+              ? {
+                  segments: unprojectRemoteThreadMentionSegments(
+                    owner.desktopId,
+                    startInput.segments,
+                    useAppStore.getState().threads,
+                  ),
+                }
+              : {}),
+          }),
+        ),
       );
     } else {
-      useAppStore.getState().markThreadConfigSubmitted(thread.id, startInput.config);
-      await readBridge().startThread({
-        threadId: thread.id,
-        projectLocation,
-        ...startInput,
-        ...(startInput.segments
-          ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
-          : {}),
-        ...mcpLaunchSnapshot,
-      });
+      await withThreadConfigSubmission(thread.id, startInput.config, () =>
+        readBridge().startThread({
+          threadId: thread.id,
+          projectLocation,
+          ...startInput,
+          ...(startInput.segments
+            ? { segments: downgradeProjectedThreadMentionSegments(startInput.segments) }
+            : {}),
+          ...mcpLaunchSnapshot,
+        }),
+      );
     }
   } catch (error) {
     // The host may have started the session without being able to confirm it.

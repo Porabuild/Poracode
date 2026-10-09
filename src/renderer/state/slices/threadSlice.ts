@@ -39,16 +39,26 @@ import { i18n } from "@/renderer/i18n/i18n";
 
 import {
   recordPendingThreadConfig,
-  retireSubmittedThreadConfig,
+  beginThreadConfigSubmission,
+  finishThreadConfigSubmission,
   preservePendingThreadConfig,
   retainPendingThreadConfigs,
   type PendingThreadConfig,
+  type ThreadConfigSubmission,
 } from "../pendingThreadConfig";
 
 export interface ThreadSlice {
-  /** Volatile desired config fields not yet included in a submitted turn. */
+  /** Volatile GUI intent, retaining field revisions while dispatches are in flight. */
   pendingThreadConfigByThreadId: Record<string, PendingThreadConfig>;
-  markThreadConfigSubmitted: (threadId: string, config: ThreadConfig) => void;
+  markThreadConfigSubmitted: (
+    threadId: string,
+    config: ThreadConfig,
+  ) => ThreadConfigSubmission | undefined;
+  finishThreadConfigSubmission: (
+    threadId: string,
+    submission: ThreadConfigSubmission | undefined,
+    restore: boolean,
+  ) => void;
   threads: Thread[];
   /** Optimistic local and projected-remote rows whose host launches are not authoritative yet. */
   provisioningWorktreeThreadIds: Record<string, true>;
@@ -621,16 +631,42 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       });
       return changed ? { threads, pendingThreadConfigByThreadId } : {};
     }),
-  markThreadConfigSubmitted: (threadId, config) =>
+  markThreadConfigSubmitted: (threadId, config) => {
+    let submission: ThreadConfigSubmission | undefined;
     set((state) => {
       const pending = state.pendingThreadConfigByThreadId[threadId];
       if (!pending) return {};
-      const remaining = retireSubmittedThreadConfig(pending, config);
+      const started = beginThreadConfigSubmission(pending, config);
+      submission = started.submission;
+      return {
+        pendingThreadConfigByThreadId: {
+          ...state.pendingThreadConfigByThreadId,
+          [threadId]: started.pending,
+        },
+      };
+    });
+    return submission;
+  },
+  finishThreadConfigSubmission: (threadId, submission, restore) => {
+    if (!submission) return;
+    set((state) => {
+      const thread = state.threads.find((row) => row.id === threadId);
+      if (!thread) return {};
+      const pending = state.pendingThreadConfigByThreadId[threadId];
+      const remaining = finishThreadConfigSubmission(thread, pending, submission, restore);
+      if (remaining === pending) return {};
       const next = { ...state.pendingThreadConfigByThreadId };
       if (remaining) next[threadId] = remaining;
       else delete next[threadId];
-      return { pendingThreadConfigByThreadId: next };
-    }),
+      const restored = restore ? preservePendingThreadConfig(thread, remaining) : thread;
+      return {
+        pendingThreadConfigByThreadId: next,
+        ...(restored !== thread
+          ? { threads: state.threads.map((row) => (row.id === threadId ? restored : row)) }
+          : {}),
+      };
+    });
+  },
   updateThreadRuntime: (threadId, input) =>
     set((state) => {
       const currentThread = state.threads.find((thread) => thread.id === threadId);

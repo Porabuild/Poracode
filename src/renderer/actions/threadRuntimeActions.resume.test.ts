@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     projects: [] as Project[],
     applyRuntimeEvent: vi.fn<(threadId: string, event: unknown) => void>(),
     markThreadConfigSubmitted: vi.fn<(threadId: string, config: unknown) => void>(),
+    finishThreadConfigSubmission: vi.fn<(...args: unknown[]) => void>(),
     updateThreadRuntime: vi.fn<(threadId: string, input: { status: string }) => void>(),
     touchThread: vi.fn<(threadId: string) => void>(),
   },

@@ -74,7 +74,8 @@ it.each(["event", "snapshot"])(
     const thread = seed(),
       store = useAppStore.getState();
     store.updateThreadConfig(thread.id, { ...thread.config, effort: "high" });
-    store.markThreadConfigSubmitted(thread.id, current(thread.id).config);
+    const submission = store.markThreadConfigSubmitted(thread.id, current(thread.id).config);
+    store.finishThreadConfigSubmission(thread.id, submission, false);
     const update = {
       threadId: thread.id,
       status: "idle" as const,

@@ -3,6 +3,8 @@ import { isThreadConfigEqual } from "@/shared/contracts";
 import { canonicalizeEffortId } from "@/shared/effortOrder";
 import { threadConfigBaseSchema } from "@/shared/contracts/config";
 
+let nextRevision = 0;
+
 const configKeys = Object.keys(threadConfigBaseSchema.shape) as Array<keyof ThreadConfig>;
 const selectionKeys: Array<keyof ThreadConfig> = [
   "model",
@@ -21,6 +23,13 @@ export interface PendingThreadConfig {
   >;
   readonly config: ThreadConfig;
   readonly keys: readonly (keyof ThreadConfig)[];
+  readonly revisions: Partial<Record<keyof ThreadConfig, number>>;
+  readonly submissions: readonly number[];
+}
+
+/** Captured local edits retired by one in-flight dispatch, never serialized. */
+export interface ThreadConfigSubmission extends Omit<PendingThreadConfig, "submissions"> {
+  readonly id: number;
 }
 
 function fieldEquals(key: keyof ThreadConfig, left: ThreadConfig, right: ThreadConfig): boolean {
@@ -30,7 +39,18 @@ function fieldEquals(key: keyof ThreadConfig, left: ThreadConfig, right: ThreadC
   );
 }
 
-function sameOwner(pending: PendingThreadConfig, thread: Thread): boolean {
+function copyField(
+  config: ThreadConfig,
+  source: ThreadConfig,
+  key: keyof ThreadConfig,
+): ThreadConfig {
+  const next = { ...config };
+  if (Object.hasOwn(source, key)) Object.assign(next, { [key]: source[key] });
+  else delete next[key];
+  return next;
+}
+
+function sameOwner(pending: Pick<PendingThreadConfig, "owner">, thread: Thread): boolean {
   return (
     pending.owner.agentKind === thread.agentKind &&
     pending.owner.agentInstanceId === thread.agentInstanceId &&
@@ -45,16 +65,23 @@ export function recordPendingThreadConfig(
   previous?: PendingThreadConfig,
 ): PendingThreadConfig | undefined {
   if (thread.presentationMode !== "gui") return undefined;
-  const keys = new Set(previous && sameOwner(previous, thread) ? previous.keys : []);
+  const owned = previous && sameOwner(previous, thread) ? previous : undefined;
+  const keys = new Set(owned?.keys ?? []);
+  const revisions = { ...owned?.revisions };
+  const changed = new Set<keyof ThreadConfig>();
   for (const key of configKeys) {
-    if (!fieldEquals(key, thread.config, config)) keys.add(key);
+    if (!fieldEquals(key, thread.config, config)) changed.add(key);
   }
   // A model choice owns its dependent axes, even when an axis happened to have
   // the same value on the previous model. Older model echoes must not mix them.
   if (!fieldEquals("model", thread.config, config)) {
-    for (const key of selectionKeys) keys.add(key);
+    for (const key of selectionKeys) changed.add(key);
   }
-  return keys.size
+  for (const key of changed) {
+    keys.add(key);
+    revisions[key] = ++nextRevision;
+  }
+  return keys.size || owned?.submissions.length
     ? {
         owner: {
           agentKind: thread.agentKind,
@@ -64,21 +91,51 @@ export function recordPendingThreadConfig(
         },
         config,
         keys: [...keys],
+        revisions,
+        submissions: owned?.submissions ?? [],
       }
     : undefined;
 }
 
 /** Only the captured submission is retired; edits made after its capture survive. */
-export function retireSubmittedThreadConfig(
+export function beginThreadConfigSubmission(
   pending: PendingThreadConfig,
   submitted: ThreadConfig,
-): PendingThreadConfig | undefined {
+): { pending: PendingThreadConfig; submission: ThreadConfigSubmission } {
   const keys = pending.keys.filter(
     (key) =>
       (pending.config.model !== submitted.model && selectionKeys.includes(key)) ||
       !fieldEquals(key, pending.config, submitted),
   );
-  return keys.length ? { ...pending, keys } : undefined;
+  const id = ++nextRevision;
+  return {
+    pending: { ...pending, keys, submissions: [...pending.submissions, id] },
+    submission: { ...pending, id, keys: pending.keys.filter((key) => !keys.includes(key)) },
+  };
+}
+
+/** Restore a definite rejection only if this owner/field has not been edited since. */
+export function finishThreadConfigSubmission(
+  thread: Thread,
+  pending: PendingThreadConfig | undefined,
+  submission: ThreadConfigSubmission,
+  restore: boolean,
+): PendingThreadConfig | undefined {
+  if (!pending || !sameOwner(submission, thread) || !pending.submissions.includes(submission.id))
+    return pending;
+  const keys = new Set(pending.keys);
+  let config = pending.config;
+  if (restore) {
+    for (const key of submission.keys) {
+      if (pending.revisions[key] !== submission.revisions[key]) continue;
+      keys.add(key);
+      config = copyField(config, submission.config, key);
+    }
+  }
+  const submissions = pending.submissions.filter((id) => id !== submission.id);
+  return keys.size || submissions.length
+    ? supportedPendingConfig(thread, { ...pending, config, keys: [...keys], submissions })
+    : undefined;
 }
 
 function supportedPendingConfig(
@@ -106,7 +163,7 @@ function supportedPendingConfig(
     return pending;
   // With a confirmed current model, an absent selector is authoritative too.
   const keys = pending.keys.filter((key) => key !== "effort");
-  return keys.length ? { ...pending, keys } : undefined;
+  return keys.length || pending.submissions.length ? { ...pending, keys } : undefined;
 }
 
 /** Volatile intent cannot outlive its row/owner or an explicitly narrowed ladder. */
@@ -140,9 +197,7 @@ export function preservePendingThreadConfig(
   let config = incoming.config;
   for (const key of pending.keys) {
     if (fieldEquals(key, config, pending.config)) continue;
-    config = { ...config };
-    if (Object.hasOwn(pending.config, key)) Object.assign(config, { [key]: pending.config[key] });
-    else delete config[key];
+    config = copyField(config, pending.config, key);
   }
   return config === incoming.config ? incoming : { ...incoming, config };
 }

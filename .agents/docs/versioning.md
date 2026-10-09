@@ -15,8 +15,12 @@ Only the derived capability catalogs must be recomputed.
 GUI next-turn config intent is window-local, separate from confirmed runtime
 config. The pending field map is excluded by the app-store partializer and
 is pruned on row removal or provider/account/presentation ownership changes.
-Dispatch retires only fields matching its captured config; retained uncertain
-operations keep their original command ID and serialized body. Existing version-5
+Dispatch retires only fields matching its captured config. Field revision
+stamps restore retired edits on definite failure only when no newer field/owner
+edit superseded them; in-flight submission IDs expire on dispatch settlement.
+These stamps and submission IDs are transient and never enter a saved config or
+wire body. Retained uncertain operations keep their original command ID and
+serialized body. Existing version-5
 app state remains readable without this map. ThreadConfig, saved session refs,
 status caches 48/44, SQL57, settings2, remote13, hop17 and deployed helpers retain
 their existing shapes and versions. Stop during awaited ACP setup closes the
