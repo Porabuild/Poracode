@@ -131,6 +131,7 @@ export async function performThreadInputSubmit(input: {
     });
   };
   try {
+    store.markThreadConfigSubmitted(thread.id, thread.config);
     await transport.sendThreadInput({
       threadId: thread.id,
       prompt,

@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
     threads: [] as Thread[],
     projects: [] as Project[],
     applyRuntimeEvent: vi.fn<(threadId: string, event: unknown) => void>(),
+    markThreadConfigSubmitted: vi.fn<(threadId: string, config: unknown) => void>(),
     updateThreadRuntime: vi.fn<(threadId: string, input: unknown) => void>(),
     updateProjectDraftConfig: vi.fn<(projectId: string, config: unknown) => void>(),
     setThreadMcpLaunchCustomServerNames:

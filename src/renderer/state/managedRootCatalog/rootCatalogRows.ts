@@ -9,6 +9,7 @@ import { removePaneFromView } from "@/renderer/state/slices/helpers";
 import { forgetTimelineMeasurements } from "@/renderer/state/timelineMeasurementCache";
 import { forgetThreadGalleryCache } from "@/renderer/state/threadGalleryCache";
 import { dropPendingManagedRootLaunch } from "./rootCatalogStore";
+import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 
 /**
@@ -124,7 +125,10 @@ export function applyRootCatalogThreadRows(
       // documented startup policy closes the archived thread's visible pane.
       if (!existing.archived && incoming.archived) archivedNow.add(existing.id);
       changed = true;
-      return carryVolatileSessionConfigOptions(existing, incoming);
+      return preservePendingThreadConfig(
+        carryVolatileSessionConfigOptions(existing, incoming),
+        state.pendingThreadConfigByThreadId[existing.id],
+      );
     });
     for (const row of rows) {
       const incoming = incomingById.get(row.id);
@@ -134,9 +138,15 @@ export function applyRootCatalogThreadRows(
       next.push(incoming);
     }
     if (!changed) return state;
-    return { threads: next };
+    return {
+      threads: next,
+      pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+        state.pendingThreadConfigByThreadId,
+        next,
+      ),
+    };
   });
-  syncRootRuntimeConfigs();
+  syncRootRuntimeConfigs(rows, preserveThreadIds);
   if (archivedNow.size > 0) closePanesForArchivedRootRows(archivedNow);
 }
 
@@ -209,7 +219,13 @@ export function removeRootCatalogThreads(threadIds: readonly string[]): void {
     // Accepted repeat removal also retires an unread entry after its row is gone.
     for (const threadId of retiredGalleryIds) forgetThreadGalleryCache(threadId);
     if (threads.length === state.threads.length) return state;
-    return { threads };
+    return {
+      threads,
+      pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+        state.pendingThreadConfigByThreadId,
+        threads,
+      ),
+    };
   });
   const view = useAppStore.getState().view;
   for (const threadId of removed) {
@@ -241,14 +257,17 @@ export function removeRootCatalogProjects(projectIds: readonly string[]): void {
 
 /**
  * `lastRuntimeConfigByThreadId` derives from resident rows; a page install can
- * add rows, so the derived map is rebuilt only when a root row was added.
+ * replace rows. Record their confirmed config, never the carried local intent.
  */
-function syncRootRuntimeConfigs(): void {
+function syncRootRuntimeConfigs(
+  rows: readonly Thread[],
+  preserveThreadIds: ReadonlySet<string>,
+): void {
   useAppStore.setState((state) => {
     let changed = false;
     const next = { ...state.lastRuntimeConfigByThreadId };
-    for (const thread of state.threads) {
-      if (!isManagedRootRow(thread)) continue;
+    for (const thread of rows) {
+      if (preserveThreadIds.has(thread.id)) continue;
       if (next[thread.id] === thread.config) continue;
       next[thread.id] = thread.config;
       changed = true;

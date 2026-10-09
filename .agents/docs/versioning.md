@@ -12,6 +12,18 @@ deployed helpers keep their existing formats: the selected model and saved
 effort remain valid data, and ACP sync already refuses unadvertised effort values.
 Only the derived capability catalogs must be recomputed.
 
+GUI next-turn config intent is window-local, separate from confirmed runtime
+config. The pending field map is excluded by the app-store partializer and
+is pruned on row removal or provider/account/presentation ownership changes.
+Dispatch retires only fields matching its captured config; retained uncertain
+operations keep their original command ID and serialized body. Existing version-5
+app state remains readable without this map. ThreadConfig, saved session refs,
+status caches 48/44, SQL57, settings2, remote13, hop17 and deployed helpers retain
+their existing shapes and versions. Stop during awaited ACP setup closes the
+accepted turn before issuing a provider prompt; event shapes are unchanged.
+Regressions cover previous saved state, exact HTTP receipt replay, stale setup
+and row echoes, authoritative acknowledgements, unsupported effort and cancellation.
+
 ACP prompt consumption supports a provider-declared `per-call` mode alongside
 its existing `cumulative` mode. The wire enum, usage event shape, SQLite tables,
 remote protocol 12, and native readers already support both; no schema or

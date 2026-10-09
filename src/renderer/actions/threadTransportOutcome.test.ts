@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   appState: {
     threads: [] as Array<{ id: string }>,
     applyRuntimeEvent: vi.fn<(threadId: string, event: unknown) => void>(),
+    markThreadConfigSubmitted: vi.fn<(threadId: string, config: unknown) => void>(),
     updateThreadRuntime: vi.fn<(threadId: string, input: unknown) => void>(),
     touchThread: vi.fn<(threadId: string) => void>(),
     reconcileRuntimeSnapshots:

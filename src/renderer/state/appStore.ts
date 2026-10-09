@@ -1,3 +1,4 @@
+import { retainPendingThreadConfigs } from "./pendingThreadConfig";
 import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
 import type { Thread } from "@/shared/contracts";
@@ -141,6 +142,10 @@ export const useAppStore = create<AppStoreState>()(
             draftContentDiscardRequests: remapProjectRecord(
               state.draftContentDiscardRequests ?? currentState.draftContentDiscardRequests,
               deduped.duplicateIds,
+            ),
+            pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+              currentState.pendingThreadConfigByThreadId,
+              threads,
             ),
             lastRuntimeConfigByThreadId: Object.fromEntries(
               threads.map((thread) => [thread.id, thread.config]),

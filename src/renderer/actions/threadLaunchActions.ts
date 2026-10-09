@@ -221,6 +221,7 @@ export async function performInitialThreadLaunch(input: {
         replay: launchInput,
       });
       try {
+        useAppStore.getState().markThreadConfigSubmitted(thread.id, launchInput.config);
         await startManagedRootThread(launchInput, { commandId: pendingRootLaunch.commandId });
       } catch (error) {
         // The operation is retired ONLY when the host authoritatively resolved
@@ -251,6 +252,7 @@ export async function performInitialThreadLaunch(input: {
         dispatchManagedRootThreadWorkspace(thread.id, thread.workspaceId);
       }
     } else if (owner) {
+      useAppStore.getState().markThreadConfigSubmitted(thread.id, startInput.config);
       // No mcpLaunchSnapshot here: the host ignores client-supplied MCP servers
       // and resolves the launch snapshot from its own settings.
       await useRemoteServersStore.getState().withClient(owner.desktopId, (client) =>
@@ -273,6 +275,7 @@ export async function performInitialThreadLaunch(input: {
         }),
       );
     } else {
+      useAppStore.getState().markThreadConfigSubmitted(thread.id, startInput.config);
       await readBridge().startThread({
         threadId: thread.id,
         projectLocation,

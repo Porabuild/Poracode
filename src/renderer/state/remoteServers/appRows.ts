@@ -2,6 +2,11 @@ import { useThreadFollowUpQueueStore } from "../threadFollowUpQueueStore";
 import type { Project, Thread } from "@/shared/contracts";
 import { useAppStore } from "../appStore";
 import { useRemoteServersStore } from "../remoteServersStore";
+import {
+  preservePendingThreadConfig,
+  retainPendingThreadConfigs,
+  type PendingThreadConfig,
+} from "../pendingThreadConfig";
 import { carryVolatileSessionConfigOptions } from "../volatileSessionConfigOptions";
 import { projectRemoteProject, projectRemoteThread, remoteThreadId } from "../remoteProjection";
 import { refreshGitProject } from "../gitRefresh";
@@ -33,7 +38,11 @@ const projectedThreadCache = new Map<
   {
     source: Thread;
     projected: Thread;
-    carried?: { inventory: Thread["sessionConfigOptions"]; row: Thread };
+    carried?: {
+      inventory: Thread["sessionConfigOptions"];
+      pending: PendingThreadConfig | undefined;
+      row: Thread;
+    };
   }
 >();
 
@@ -54,15 +63,23 @@ function projectThreadIdentityPreserving(
     }
   }
   if (!resident) return cached.projected;
-  const carried = carryVolatileSessionConfigOptions(resident, cached.projected);
+  const pending = useAppStore.getState().pendingThreadConfigByThreadId[resident.id];
+  const carried = preservePendingThreadConfig(
+    carryVolatileSessionConfigOptions(resident, cached.projected),
+    pending,
+  );
   if (carried === cached.projected) {
     delete cached.carried;
     return cached.projected;
   }
-  if (cached.carried && cached.carried.inventory === resident.sessionConfigOptions) {
+  if (
+    cached.carried &&
+    cached.carried.inventory === resident.sessionConfigOptions &&
+    cached.carried.pending === pending
+  ) {
     return cached.carried.row;
   }
-  cached.carried = { inventory: resident.sessionConfigOptions, row: carried };
+  cached.carried = { inventory: resident.sessionConfigOptions, pending, row: carried };
   return carried;
 }
 
@@ -265,6 +282,18 @@ export function syncRemoteAppRows(
               state.projects.some((project) => project.id === thread.projectId),
           )
         : [];
+      const nextThreads = projectedThreads
+        ? partial
+          ? upsertRemoteMirrorRows(state.threads, desktopId, [
+              ...provisioningThreads,
+              ...projectedThreads,
+            ])
+          : [
+              ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
+              ...provisioningThreads,
+              ...projectedThreads,
+            ]
+        : state.threads;
       return {
         ...(projectedProjects
           ? {
@@ -278,16 +307,11 @@ export function syncRemoteAppRows(
           : {}),
         ...(projectedThreads
           ? {
-              threads: partial
-                ? upsertRemoteMirrorRows(state.threads, desktopId, [
-                    ...provisioningThreads,
-                    ...projectedThreads,
-                  ])
-                : [
-                    ...state.threads.filter((thread) => thread.remoteServerId !== desktopId),
-                    ...provisioningThreads,
-                    ...projectedThreads,
-                  ],
+              threads: nextThreads,
+              pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+                state.pendingThreadConfigByThreadId,
+                nextThreads,
+              ),
             }
           : {}),
       };

@@ -3306,34 +3306,6 @@ describe("ACP turn config sync", () => {
     });
   });
 
-  it("defers cancel via pendingPromptInterrupt when no prompt is in flight, then fires once startTurn enters prompt()", async () => {
-    const { connection, session } = makeConfigSyncSession();
-
-    // Race window: interrupt fires before prompt() has been entered. The
-    // cancel would land on an idle session and be silently dropped, so we
-    // expect it to be deferred until startTurn flips promptInFlight.
-    await session.interruptTurn();
-    expect(connection.cancel).not.toHaveBeenCalled();
-    expect((session as unknown as Record<string, unknown>)["pendingPromptInterrupt"]).toBe(true);
-
-    // Simulate startTurn's pre-prompt check: promptInFlight=true + flag set
-    // would fire cancel immediately. We exercise that branch by replicating
-    // the guard inline (the full startTurn requires more setup than this
-    // unit test does).
-    const internal = session as unknown as {
-      promptInFlight: boolean;
-      pendingPromptInterrupt: boolean;
-      sessionId: string;
-      connection: { cancel: (args: { sessionId: string }) => Promise<void> };
-    };
-    internal.promptInFlight = true;
-    if (internal.pendingPromptInterrupt && internal.sessionId) {
-      internal.pendingPromptInterrupt = false;
-      await internal.connection.cancel({ sessionId: internal.sessionId });
-    }
-    expect(connection.cancel).toHaveBeenCalledWith({ sessionId: "session-1" });
-  });
-
   it("keeps ordinary end_turn results completed when no interrupt was requested", async () => {
     const { listener, session } = makeConfigSyncSession();
 
@@ -3677,7 +3649,7 @@ describe("ACP turn config sync", () => {
       mode: "agent",
       approvalPolicy: "default",
     });
-    await Promise.resolve();
+    await vi.waitFor(() => expect(connection.prompt).toHaveBeenCalledOnce());
 
     await session.interruptTurn();
     rejectPrompt?.(new Error("Request was aborted."));

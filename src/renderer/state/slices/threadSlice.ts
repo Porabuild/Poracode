@@ -37,18 +37,25 @@ import { terminateStaleSubAgentItems } from "./staleSubAgents";
 import { msg } from "@lingui/core/macro";
 import { i18n } from "@/renderer/i18n/i18n";
 
+import {
+  recordPendingThreadConfig,
+  retireSubmittedThreadConfig,
+  preservePendingThreadConfig,
+  retainPendingThreadConfigs,
+  type PendingThreadConfig,
+} from "../pendingThreadConfig";
+
 export interface ThreadSlice {
+  /** Volatile desired config fields not yet included in a submitted turn. */
+  pendingThreadConfigByThreadId: Record<string, PendingThreadConfig>;
+  markThreadConfigSubmitted: (threadId: string, config: ThreadConfig) => void;
   threads: Thread[];
   /** Optimistic local and projected-remote rows whose host launches are not authoritative yet. */
   provisioningWorktreeThreadIds: Record<string, true>;
   /**
-   * Per-thread snapshot of the supervisor's last-reported `session.config`.
-   * Used to distinguish "supervisor truly changed the config" from "supervisor
-   * echoed the same stale config in a status update". The composer mutates
-   * `thread.config` locally for the next-turn draft; we must not let stale
-   * echoes (which arrive on every status/attention change) overwrite that
-   * draft. Only when this snapshot differs from `input.config` do we treat
-   * the runtime as authoritative.
+   * Last confirmed runtime config, separate from unsubmitted GUI intent.
+   * Terminal drafts retain the existing repeated-echo guard; GUI drafts use
+   * pendingThreadConfigByThreadId so genuine acknowledgements remain authoritative.
    */
   lastRuntimeConfigByThreadId: Record<string, ThreadConfig>;
   /** Supervisor-owned effective launch config for active runtime-only MCP state. */
@@ -192,6 +199,7 @@ export function normalizeRuntimeSnapshotLaunchConfig<T extends ThreadRuntimeSnap
 export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   threads: [],
   provisioningWorktreeThreadIds: {},
+  pendingThreadConfigByThreadId: {},
   lastRuntimeConfigByThreadId: {},
   runtimeLaunchConfigByThreadId: {},
   threadMentionToolsAvailableByThreadId: {},
@@ -385,6 +393,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       if (!changed) return {};
       // The old provider's authoritative launch snapshot describes a session
       // that no longer exists; drop it so the new provider's first launch owns it.
+      const { [threadId]: _droppedPendingConfig, ...pendingThreadConfigByThreadId } =
+        state.pendingThreadConfigByThreadId;
       const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
         state.runtimeLaunchConfigByThreadId;
       const { [threadId]: _droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
@@ -441,6 +451,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
               },
             }
           : {}),
+        pendingThreadConfigByThreadId,
         runtimeLaunchConfigByThreadId,
         threadMentionToolsAvailableByThreadId,
         ...(state.runtimeRequestsByThread[threadId] ? { runtimeRequestsByThread } : {}),
@@ -495,6 +506,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         state.runtimeCompletedTurnsByThread;
       const { [threadId]: _droppedRuntimeConfig, ...lastRuntimeConfigByThreadId } =
         state.lastRuntimeConfigByThreadId;
+      const { [threadId]: _droppedPendingConfig, ...pendingThreadConfigByThreadId } =
+        state.pendingThreadConfigByThreadId;
       const { [threadId]: _droppedLaunchConfig, ...runtimeLaunchConfigByThreadId } =
         state.runtimeLaunchConfigByThreadId;
       const { [threadId]: _droppedMentionTools, ...threadMentionToolsAvailableByThreadId } =
@@ -531,6 +544,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         runtimeStructuralVersionByThread,
         runtimeCompletedTurnsByThread,
         lastRuntimeConfigByThreadId,
+        pendingThreadConfigByThreadId,
         runtimeLaunchConfigByThreadId,
         threadMentionToolsAvailableByThreadId,
         lastViewedAtByThreadId,
@@ -583,11 +597,19 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   updateThreadConfig: (threadId, config) =>
     set((state) => {
       let changed = false;
+      const pendingThreadConfigByThreadId = { ...state.pendingThreadConfigByThreadId };
       const threads = state.threads.map((thread) => {
         if (thread.id !== threadId) return thread;
         const nextConfig = thread.presentationMode === "gui" ? config : stripPlanMode(config);
         if (isThreadConfigEqual(thread.config, nextConfig)) return thread;
         changed = true;
+        const pending = recordPendingThreadConfig(
+          thread,
+          nextConfig,
+          pendingThreadConfigByThreadId[threadId],
+        );
+        if (pending) pendingThreadConfigByThreadId[threadId] = pending;
+        else delete pendingThreadConfigByThreadId[threadId];
         // Deliberately no `updatedAt` bump: picking a model/effort/mode in the
         // composer is not thread activity, and bumping it would reshuffle the
         // sidebar (and the relative-time label) before anything was sent. The
@@ -597,7 +619,17 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           config: nextConfig,
         };
       });
-      return changed ? { threads } : {};
+      return changed ? { threads, pendingThreadConfigByThreadId } : {};
+    }),
+  markThreadConfigSubmitted: (threadId, config) =>
+    set((state) => {
+      const pending = state.pendingThreadConfigByThreadId[threadId];
+      if (!pending) return {};
+      const remaining = retireSubmittedThreadConfig(pending, config);
+      const next = { ...state.pendingThreadConfigByThreadId };
+      if (remaining) next[threadId] = remaining;
+      else delete next[threadId];
+      return { pendingThreadConfigByThreadId: next };
     }),
   updateThreadRuntime: (threadId, input) =>
     set((state) => {
@@ -616,10 +648,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       const isVisible = state.view.kind === "thread" && state.view.panes.includes(threadId);
       const nowIso = new Date().toISOString();
 
-      // Treat `input.config` as authoritative only when the supervisor truly
-      // changed it (compared to its last echoed value). Plain status/attention
-      // updates re-send the same `session.config` and would otherwise wipe
-      // the user's pending composer change while a turn is still working.
+      // Track confirmed config independently of the GUI's next-turn edits.
       const lastRuntimeConfig = state.lastRuntimeConfigByThreadId[threadId];
       const runtimeConfigChanged =
         input.config !== undefined &&
@@ -660,11 +689,22 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           input.threadStatusSource === undefined ||
           thread.threadStatusSource === input.threadStatusSource;
 
-        const configFromRuntime = runtimeConfigChanged ? input.config : undefined;
+        const configFromRuntime =
+          thread.presentationMode === "gui" || runtimeConfigChanged ? input.config : undefined;
+        const reportedConfig = configFromRuntime ?? thread.config;
         const nextConfig =
           thread.presentationMode === "gui"
-            ? (configFromRuntime ?? thread.config)
-            : stripPlanMode(configFromRuntime ?? thread.config);
+            ? preservePendingThreadConfig(
+                {
+                  ...thread,
+                  config: reportedConfig,
+                  ...(input.sessionConfigOptions !== undefined
+                    ? { sessionConfigOptions: input.sessionConfigOptions }
+                    : {}),
+                },
+                state.pendingThreadConfigByThreadId[threadId],
+              ).config
+            : stripPlanMode(reportedConfig);
         const nextTurnTiming = deriveTurnTiming(thread, effectiveStatus, {
           enteredLiveAt: nowIso,
           nowIso,
@@ -727,6 +767,12 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         };
       });
 
+      const pendingConfigMapPatch = {
+        pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+          state.pendingThreadConfigByThreadId,
+          threads,
+        ),
+      };
       const runtimeConfigMapPatch: Pick<ThreadSlice, "lastRuntimeConfigByThreadId"> | undefined =
         runtimeConfigChanged
           ? {
@@ -766,6 +812,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
       if (!changed) {
         return {
+          ...pendingConfigMapPatch,
           ...(runtimeConfigMapPatch ?? {}),
           ...(launchConfigMapPatch ?? {}),
           ...(mentionToolsPatch ?? {}),
@@ -776,6 +823,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       return {
         threads,
         ...(turnsChanged ? turnUpdate : {}),
+        ...pendingConfigMapPatch,
         ...(runtimeConfigMapPatch ?? {}),
         ...(launchConfigMapPatch ?? {}),
         ...(mentionToolsPatch ?? {}),
@@ -1090,11 +1138,22 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             (thread.sessionRef?.discoveredAt ?? "") !== (snapshot.sessionRef?.discoveredAt ?? "") ||
             thread.sessionRef?.executionIdentity !== snapshot.sessionRef?.executionIdentity;
 
-          const configFromRuntime = runtimeConfigChanged ? snapshot.config : undefined;
+          const configFromRuntime =
+            thread.presentationMode === "gui" || runtimeConfigChanged ? snapshot.config : undefined;
+          const reportedConfig = configFromRuntime ?? thread.config;
           const nextConfig =
             thread.presentationMode === "gui"
-              ? (configFromRuntime ?? thread.config)
-              : stripPlanMode(configFromRuntime ?? thread.config);
+              ? preservePendingThreadConfig(
+                  {
+                    ...thread,
+                    config: reportedConfig,
+                    ...(snapshot.sessionConfigOptions !== undefined
+                      ? { sessionConfigOptions: snapshot.sessionConfigOptions }
+                      : {}),
+                  },
+                  state.pendingThreadConfigByThreadId[thread.id],
+                ).config
+              : stripPlanMode(reportedConfig);
           const nextTurnTiming = deriveTurnTiming(thread, snapshot.status, {
             enteredLiveAt: thread.activeTurnStartedAt ?? thread.updatedAt ?? nowIso,
             nowIso,
@@ -1181,12 +1240,19 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
       const turnsChanged =
         turnUpdate.runtimeCompletedTurnsByThread !== state.runtimeCompletedTurnsByThread;
+      const pendingConfigMapPatch = {
+        pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+          state.pendingThreadConfigByThreadId,
+          threads,
+        ),
+      };
       const runtimeConfigPatch = runtimeConfigMapChanged
         ? { lastRuntimeConfigByThreadId }
         : undefined;
       if (!changed) {
         return {
           ...(turnsChanged ? turnUpdate : {}),
+          ...pendingConfigMapPatch,
           ...(runtimeConfigPatch ?? {}),
           runtimeLaunchConfigByThreadId,
           threadMentionToolsAvailableByThreadId,
@@ -1195,6 +1261,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
       return {
         threads,
         ...(turnsChanged ? turnUpdate : {}),
+        ...pendingConfigMapPatch,
         ...(runtimeConfigPatch ?? {}),
         runtimeLaunchConfigByThreadId,
         threadMentionToolsAvailableByThreadId,
