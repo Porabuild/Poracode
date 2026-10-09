@@ -1,3 +1,4 @@
+import { withThreadConfigSubmission } from "@/renderer/actions/threadConfigSubmission";
 import { toast } from "@heroui/react";
 import { msg } from "@lingui/core/macro";
 import type { MessageDescriptor } from "@lingui/core";
@@ -499,11 +500,13 @@ function chatCommand(command: AgentSlashCommand, thread: Thread): AppCommand {
     showInShortcuts: false,
     run: async () => {
       try {
-        await readBridge().sendThreadInput({
-          threadId: thread.id,
-          prompt: `/${command.id}`,
-          config: thread.config,
-        });
+        await withThreadConfigSubmission(thread.id, thread.config, () =>
+          readBridge().sendThreadInput({
+            threadId: thread.id,
+            prompt: `/${command.id}`,
+            config: thread.config,
+          }),
+        );
       } catch (error) {
         // The host may have applied the command without being able to confirm
         // it: explain the uncertainty and run one bounded authoritative read —
