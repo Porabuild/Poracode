@@ -16,6 +16,7 @@ import { reportSettingsError } from "../BackendSettingsNotifications";
 import { persistSettingsDocument } from "./persistSettingsDocument";
 import { assertSettingsCredentialPersistence } from "./settingsCredentials";
 import { SettingsAdmission } from "./SettingsAdmission";
+import { assertSettingsDocumentWriteAdmission } from "./settingsDocumentWriteAdmission";
 import {
   SETTINGS_DOCUMENT_VERSION,
   SETTINGS_DOCUMENT_VERSION_KEY,
@@ -51,6 +52,9 @@ export type SettingsMutationAuthorizer = (
 
 export interface SettingsAuthorityOptions {
   lease: SettingsAuthorityLease;
+  /** Synchronous owner capability: revalidate the prepared root, live SQLite identity
+   * and latest schema at every persistence checkpoint. Never caches admission. */
+  assertPreparedDatabaseForWrite(): void;
   /** Omit for session-only credentials. Captures the prepared owner's generation and key mode. */
   assertPersistentCredentials?(): void;
   admissionLimits?: Partial<SettingsAdmissionLimits>;
@@ -209,9 +213,10 @@ export class SettingsAuthority {
         this.options.assertPersistentCredentials,
       );
       const revisions = affectedSettingsRevisions(next.settings, subjects, this.document.settings);
+      this.assertWritable();
       next.raw[SETTINGS_DOCUMENT_VERSION_KEY] = SETTINGS_DOCUMENT_VERSION;
       await persistSettingsDocument(this.settingsPath, `${JSON.stringify(next.raw, null, 2)}\n`, {
-        assertActive: () => this.assertLease(),
+        assertActive: () => this.assertWritable(),
         committed: () => {
           this.document = next;
           this.sequence++;
@@ -244,11 +249,23 @@ export class SettingsAuthority {
     return result;
   }
 
+  /** The persistence checks a write runs, without writing: lets a trusted owner
+   * runtime refuse before side effects that a refused commit would strand. */
+  assertWriteAdmission(): void {
+    if (this.closing) throw new Error("Settings authority is closing.");
+    this.assertWritable();
+  }
+
   async close(): Promise<void> {
     this.closing = true;
     await this.pending;
   }
 
+  private assertWritable(): void {
+    this.assertLease();
+    this.options.assertPreparedDatabaseForWrite();
+    assertSettingsDocumentWriteAdmission(this.settingsPath, this.document.raw);
+  }
   private assertLease(): void {
     this.options.lease.assertActive(this.generation);
   }

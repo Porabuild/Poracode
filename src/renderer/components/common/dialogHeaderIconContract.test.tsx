@@ -149,11 +149,11 @@ describe("dialog Header producer admission", () => {
       issues.push(...audit.issues.map((issue) => `${path}:${issue}`));
     }
     expect(issues).toEqual([]);
-    expect(sites).toHaveLength(34);
-    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(29);
+    expect(sites).toHaveLength(35);
+    expect(sites.filter((site) => site.family === "Modal")).toHaveLength(30);
     expect(sites.filter((site) => site.family === "AlertDialog")).toHaveLength(5);
     expect(sites.filter((site) => site.marked)).toHaveLength(6);
-    expect(sites.filter((site) => !site.marked)).toHaveLength(28);
+    expect(sites.filter((site) => !site.marked)).toHaveLength(29);
   });
 
   it.each([

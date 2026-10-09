@@ -65,6 +65,7 @@ import { clearAgentBinaryPathCache } from "../agents/binaryResolver";
 import { acpAutoInstallKey, collectFirstClassAcpAutoInstalls } from "./firstClassAcpAutoInstall";
 import type { AgentStatusService } from "./agentStatusService";
 import type { SupervisorSharedSettingsCache } from "./supervisorSharedSettings";
+import type { SupervisorSettingsWriter } from "./supervisorSettingsWriter";
 
 /**
  * Auto-install attempts per supervisor process lifetime. Each attempt of a
@@ -89,6 +90,8 @@ function firstClassAutoInstallRetryDelayMs(failures: number): number {
 export interface AgentRegistryServiceDeps {
   adapters: Map<AgentKind, AgentAdapter>;
   settingsPath: string;
+  /** Commits registry records through the canonical settings owner. */
+  settingsWriter: SupervisorSettingsWriter;
   baseDir: string;
   acpIconsDir: string;
   sharedSettingsCache: SupervisorSharedSettingsCache;
@@ -252,6 +255,7 @@ export class AgentRegistryService {
           agentId: task.agentId,
           baseDir: this.deps.baseDir,
           settingsPath: this.deps.settingsPath,
+          settingsWriter: this.deps.settingsWriter,
           iconsDir: this.deps.acpIconsDir,
           target: task.target,
           adapterKind: task.agentKind,
@@ -309,6 +313,7 @@ export class AgentRegistryService {
     try {
       const changed = await cacheLocalAcpRegistryIcons({
         settingsPath: this.deps.settingsPath,
+        settingsWriter: this.deps.settingsWriter,
         iconsDir: this.deps.acpIconsDir,
       });
       if (changed) await this.propagateAcpRegistryChange();
@@ -343,13 +348,22 @@ export class AgentRegistryService {
 
   refreshAgentRegistryAdapters(): void {
     // The migration persist reads and parses the whole settings file; once it
-    // reports the file clean, skip it on every later status poll.
-    if (!this.aliasPersistCheckedPaths.has(this.deps.settingsPath)) {
-      if (persistAcpRegistrySettingsMigrations(this.deps.settingsPath)) {
-        this.deps.sharedSettingsCache.invalidate();
-      } else {
-        this.aliasPersistCheckedPaths.add(this.deps.settingsPath);
-      }
+    // reports the file clean, skip it on every later status poll. Reads
+    // normalize the alias in memory, so the build below never waits on it.
+    const settingsPath = this.deps.settingsPath;
+    if (!this.aliasPersistCheckedPaths.has(settingsPath)) {
+      this.aliasPersistCheckedPaths.add(settingsPath);
+      void persistAcpRegistrySettingsMigrations(this.deps).then(
+        (migrated) => {
+          if (!migrated) return;
+          // Recheck on the next poll so a clean file is confirmed, not assumed.
+          this.aliasPersistCheckedPaths.delete(settingsPath);
+          this.deps.sharedSettingsCache.invalidate();
+        },
+        // Retried next launch; reads keep normalizing the alias meanwhile.
+        (error: unknown) =>
+          console.warn("[supervisor] ACP alias settings migration was not saved", error),
+      );
     }
     const settings = readAcpRegistrySettings(this.deps.settingsPath);
     const entries = buildAgentRegistryEntries(Object.values(settings.agentInstances));
@@ -463,6 +477,7 @@ export class AgentRegistryService {
     try {
       const changed = await repairAcpRegistryInstallLayouts({
         settingsPath: this.deps.settingsPath,
+        settingsWriter: this.deps.settingsWriter,
       });
       if (changed) await this.propagateAcpRegistryChange();
     } catch (error) {
@@ -475,12 +490,14 @@ export class AgentRegistryService {
     let changed = await backfillAcpRegistryAgentIcons({
       registry,
       settingsPath: this.deps.settingsPath,
+      settingsWriter: this.deps.settingsWriter,
       iconsDir: this.deps.acpIconsDir,
     });
     const autoUpdate = await autoUpdateAcpRegistryAgents({
       registry,
       baseDir: this.deps.baseDir,
       settingsPath: this.deps.settingsPath,
+      settingsWriter: this.deps.settingsWriter,
       iconsDir: this.deps.acpIconsDir,
       firstClassAgents: this.firstClassRegistryAgents(),
     });
@@ -515,6 +532,7 @@ export class AgentRegistryService {
       agentId: payload.agentId,
       baseDir: this.deps.baseDir,
       settingsPath: this.deps.settingsPath,
+      settingsWriter: this.deps.settingsWriter,
       iconsDir: this.deps.acpIconsDir,
       ...this.registryInstallOverrides(payload),
     });
@@ -531,6 +549,7 @@ export class AgentRegistryService {
       agentId: payload.agentId,
       baseDir: this.deps.baseDir,
       settingsPath: this.deps.settingsPath,
+      settingsWriter: this.deps.settingsWriter,
       iconsDir: this.deps.acpIconsDir,
       ...this.registryInstallOverrides(payload),
     });
@@ -650,6 +669,10 @@ export class AgentRegistryService {
   async removeAcpRegistryAgent(
     payload: RemoveAcpRegistryAgentPayload,
   ): Promise<AcpRegistryMutationResult> {
+    // Stopping live threads is the removal's first effect, so a settings owner
+    // that would refuse the record must refuse before it. The registry admits
+    // again before deleting install dirs.
+    await this.deps.settingsWriter.admit();
     // A thread still hosting the agent keeps its process alive, and on Windows
     // the running binary locks its own install directory — the delete would
     // fail with EPERM after the agent was already dropped from settings.
@@ -658,6 +681,7 @@ export class AgentRegistryService {
       agentId: payload.agentId,
       baseDir: this.deps.baseDir,
       settingsPath: this.deps.settingsPath,
+      settingsWriter: this.deps.settingsWriter,
     });
     this.deps.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();
@@ -668,10 +692,11 @@ export class AgentRegistryService {
   async setAcpRegistryAgentAuth(
     payload: SetAcpRegistryAgentAuthPayload,
   ): Promise<AcpRegistryMutationResult> {
-    const installed = setAcpRegistryAgentAuthInRegistry({
+    const installed = await setAcpRegistryAgentAuthInRegistry({
       agentId: payload.agentId,
       environment: payload.environment,
       settingsPath: this.deps.settingsPath,
+      settingsWriter: this.deps.settingsWriter,
     });
     this.deps.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();
@@ -703,23 +728,13 @@ export class AgentRegistryService {
       const verified =
         instance !== undefined && (await verifyAcpGenericAuthentication(instance, executionCtx));
       if (!verified) {
-        setAcpGenericAgentAuthAcknowledged(
-          this.deps.settingsPath,
-          instanceId,
-          executionCtx ?? ctx,
-          false,
-        );
+        await setAcpGenericAgentAuthAcknowledged(this.deps, instanceId, executionCtx ?? ctx, false);
         this.deps.sharedSettingsCache.invalidate();
         this.refreshAgentRegistryAdapters();
         void this.refreshAffectedAgentStatus(payload.agentKind);
         throw new Error(msg("acp.authenticationUnverified", { agent: adapter.label }));
       }
-      setAcpGenericAgentAuthAcknowledged(
-        this.deps.settingsPath,
-        instanceId,
-        executionCtx ?? ctx,
-        true,
-      );
+      await setAcpGenericAgentAuthAcknowledged(this.deps, instanceId, executionCtx ?? ctx, true);
     } else {
       const status = await adapter.detectInstall(executionCtx);
       if (status.authState === "missing") {
@@ -751,16 +766,11 @@ export class AgentRegistryService {
         ...(payload.wslDistro ? { wslDistro: payload.wslDistro } : {}),
       });
       if (instanceId !== undefined) {
-        setAcpGenericAgentAuthAcknowledged(
-          this.deps.settingsPath,
-          instanceId,
-          executionCtx ?? ctx,
-          false,
-        );
+        await setAcpGenericAgentAuthAcknowledged(this.deps, instanceId, executionCtx ?? ctx, false);
       }
     } catch (error) {
       if (instanceId === undefined || !isUnsupportedAcpLogoutError(error)) throw error;
-      setAcpGenericAgentAuthAcknowledged(this.deps.settingsPath, instanceId, ctx, false);
+      await setAcpGenericAgentAuthAcknowledged(this.deps, instanceId, ctx, false);
     }
     this.deps.sharedSettingsCache.invalidate();
     this.refreshAgentRegistryAdapters();

@@ -141,6 +141,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-start-existing",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/start",
     auth: "bearer",
@@ -156,6 +157,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "terminal-start",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/terminal/start",
     auth: "bearer",
@@ -170,6 +172,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-runtime-truncate",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/runtime/truncate",
     auth: "bearer",
@@ -184,6 +187,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-checkpoint-revert",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/checkpoint-revert",
     auth: "bearer",
@@ -199,6 +203,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/command",
     auth: "bearer",
@@ -219,6 +224,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-send",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/send",
     auth: "bearer",
@@ -234,6 +240,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-interrupt",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/interrupt",
     auth: "bearer",
@@ -248,6 +255,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-goal",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/goal",
     auth: "bearer",
@@ -262,6 +270,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-close",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/close",
     auth: "bearer",
@@ -276,6 +285,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-steer-set",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/steer/set",
     auth: "bearer",
@@ -290,6 +300,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-steer-clear",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/steer/clear",
     auth: "bearer",
@@ -304,6 +315,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "terminal-write",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/terminal/write",
     auth: "bearer",
@@ -318,6 +330,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "terminal-resize",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/terminal/resize",
     auth: "bearer",
@@ -332,6 +345,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "terminal-close",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/terminal/close",
     auth: "bearer",
@@ -346,6 +360,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "request-resolve",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/requests/resolve",
     auth: "bearer",
@@ -379,6 +394,7 @@ export const threadRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "thread-runtime-gap-acknowledge",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/threads/{threadId}/runtime/gap/acknowledge",
     auth: "bearer",

@@ -72,7 +72,11 @@ export function parseWaitOptions(
   runId?: string,
 ): SubagentWaitOptions {
   const outputMode = parseOutputMode(args);
-  if (args.full_output === true) return { fullOutput: true };
+  if (args.include_trace !== undefined && typeof args.include_trace !== "boolean") {
+    throw new Error("include_trace must be a boolean");
+  }
+  const traceOptions = args.include_trace === true ? { includeTrace: true } : {};
+  if (args.full_output === true) return { fullOutput: true, ...traceOptions };
   const cursors = args.after_output_chars_by_run;
   const runCursor =
     runId && cursors && typeof cursors === "object" && !Array.isArray(cursors)
@@ -80,6 +84,7 @@ export function parseWaitOptions(
       : undefined;
   const afterOutputChars = runCursor ?? finiteNumber(args.after_output_chars);
   return {
+    ...traceOptions,
     outputMode,
     fullOutput: false,
     afterOutputChars:

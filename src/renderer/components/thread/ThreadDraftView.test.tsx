@@ -6,10 +6,12 @@ import {
   type ReactNode,
 } from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { toast } from "@heroui/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
-import type { AgentStatus, Project } from "@/shared/contracts";
+import type { AgentStatus, Project, ThreadConfig } from "@/shared/contracts";
 import { HOME_PROJECT_ID, HOME_PROJECT_NAME } from "@/shared/homeScope";
+import { selectionBindingMatches } from "@/shared/selectionBinding";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
 import { useAppStore } from "@/renderer/state/appStore";
 import { useGitStore } from "@/renderer/state/gitStore";
@@ -2702,5 +2704,1018 @@ describe("ThreadDraftView", () => {
     };
     expect(settledProps.controls.some((control) => control.label === "Plan")).toBe(true);
     expect(settledProps.controls.some((control) => control.label === "Work")).toBe(false);
+  });
+});
+
+describe("ThreadDraftView model family drafts", () => {
+  // A toy relation with the same shape the provider compiles from its native
+  // catalog: model-bound (encoded) coordinates on the Terminal surface, a
+  // config-bound pair relation on the GUI override, and two absent pairs that
+  // must stay unreachable.
+  const familyModels = [
+    { id: "solo", label: "Solo" },
+    { id: "f-alpha-x-low", label: "Fusion (Alpha Low + X)" },
+    { id: "f-alpha-x-high", label: "Fusion (Alpha High + X)" },
+    { id: "f-alpha-x-low-fast", label: "Fusion (Alpha Low + X Fast)" },
+    { id: "f-alpha-y-low", label: "Fusion (Alpha Low + Y)" },
+    { id: "f-beta-x-low", label: "Fusion (Beta Low + X)" },
+  ];
+  const terminalDescriptor = {
+    model: "f-alpha-x-low",
+    label: "Fusion",
+    selectors: [
+      {
+        id: "lead",
+        labelKey: "modelSelection.lead" as const,
+        options: [
+          { id: "alpha", label: "Alpha" },
+          { id: "beta", label: "Beta" },
+        ],
+      },
+      {
+        id: "sidekick",
+        labelKey: "modelSelection.sidekick" as const,
+        options: [
+          { id: "x", label: "X" },
+          { id: "y", label: "Y" },
+        ],
+      },
+    ],
+    bindings: { effort: "model" as const, fast: "model" as const },
+    members: [
+      {
+        model: "f-alpha-x-low",
+        selections: { lead: "alpha", sidekick: "x" },
+        effort: "low",
+        fast: false,
+      },
+      {
+        model: "f-alpha-x-high",
+        selections: { lead: "alpha", sidekick: "x" },
+        effort: "high",
+        fast: false,
+      },
+      {
+        model: "f-alpha-x-low-fast",
+        selections: { lead: "alpha", sidekick: "x" },
+        effort: "low",
+        fast: true,
+      },
+      {
+        model: "f-alpha-y-low",
+        selections: { lead: "alpha", sidekick: "y" },
+        effort: "low",
+        fast: false,
+      },
+      {
+        model: "f-beta-x-low",
+        selections: { lead: "beta", sidekick: "x" },
+        effort: "low",
+        fast: false,
+      },
+    ],
+  };
+  const guiDescriptor = {
+    model: "pair-alpha-x",
+    label: "Fusion",
+    selectors: terminalDescriptor.selectors,
+    bindings: { effort: "config" as const, fast: "config" as const },
+    members: [
+      { model: "pair-alpha-x", selections: { lead: "alpha", sidekick: "x" } },
+      { model: "pair-alpha-y", selections: { lead: "alpha", sidekick: "y" } },
+    ],
+  };
+  const familyAgentStatus: AgentStatus = {
+    kind: "devin",
+    label: "Devin",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      models: familyModels,
+      efforts: [],
+      modelEfforts: {},
+      modes: ["agent", "plan"],
+      approvalPolicies: [{ id: "normal", label: "Normal" }],
+      sandboxModes: [],
+      supportsResume: true,
+      supportsDirectInput: true,
+      liveInputMode: "terminal",
+      presentationMode: "terminal",
+      presentationModes: ["terminal", "gui"],
+      settingDefs: [],
+      modelFamilies: [terminalDescriptor],
+      presentationCapabilities: {
+        gui: {
+          models: [
+            { id: "solo", label: "Solo" },
+            { id: "pair-alpha-x", label: "Fusion (Alpha + X)" },
+            { id: "pair-alpha-y", label: "Fusion (Alpha + Y)" },
+          ],
+          efforts: ["low", "high"],
+          modelEfforts: {
+            "pair-alpha-x": ["low", "high"],
+            "pair-alpha-y": ["low", "high"],
+          },
+          modelFamilies: [guiDescriptor],
+        },
+      },
+    },
+  };
+
+  function renderFamilyDraft() {
+    return render(
+      <ThreadDraftView project={project} agentStatuses={[familyAgentStatus]} onStart={() => {}} />,
+    );
+  }
+
+  function composerControls() {
+    const props = composerSpy.mock.lastCall?.[0] as
+      | { controls: Array<Record<string, unknown>> }
+      | undefined;
+    return props?.controls ?? [];
+  }
+
+  function fastToggle() {
+    return composerControls().find(
+      (control) => control.kind === "toggle" && control.iconKind === "fast",
+    ) as
+      | { isSelected: boolean; disabledReason?: string; onChange: (selected: boolean) => void }
+      | undefined;
+  }
+
+  function pairedSelectorControl() {
+    return composerControls().find(
+      (control) => control.kind === "effort-context" && control.familySelection !== undefined,
+    ) as
+      | {
+          effortValue?: string;
+          onEffortChange: (value: string) => void;
+          familySelection: {
+            columns: Array<{
+              id: string;
+              models: {
+                options: ReadonlyArray<{ id: string }>;
+                value: string;
+                onChange: (value: string) => void;
+              };
+            }>;
+          };
+        }
+      | undefined;
+  }
+
+  function persistedDraft() {
+    return useSharedSettings.getState().providerConfigs.devin;
+  }
+
+  beforeEach(() => {
+    composerSpy.mockClear();
+    useSharedSettings.setState({
+      providerConfigs: {},
+      providerModelPreferences: {},
+      agentSettings: {},
+      hiddenModels: {},
+      disabledAgents: [],
+      lastPresentationModeByAgent: {},
+      sharedSettingsHydrated: true,
+    });
+  });
+
+  it("restores a raw Fast UID with inert seeds, displaying the UID's Fast state", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-low-fast",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "terminal" },
+    });
+    renderFamilyDraft();
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low-fast"));
+    const fast = fastToggle();
+    expect(fast?.isSelected).toBe(true);
+    expect(fast?.disabledReason).toBeUndefined();
+    // Nothing was rewritten on restore: the saved config keeps the exact UID
+    // and its inert carriers.
+    expect(persistedDraft()).toMatchObject({
+      model: "f-alpha-x-low-fast",
+      effort: "",
+      fast: false,
+    });
+  });
+
+  it("saves the exact plain sibling with inert seeds when the user turns Fast off", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-low-fast",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+      lastPresentationModeByAgent: { devin: "terminal" },
+    });
+    renderFamilyDraft();
+    await waitFor(() => expect(fastToggle()?.isSelected).toBe(true));
+    act(() => fastToggle()?.onChange(false));
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low"));
+    // The atomic edit replaces the whole encoded tuple; the displayed Fast
+    // state now follows the new plain UID.
+    expect(persistedDraft()).toMatchObject({
+      model: "f-alpha-x-low",
+      effort: "",
+      fast: false,
+    });
+    expect(fastToggle()?.isSelected).toBe(false);
+    // The model preference records the plain member's Fast choice.
+    expect(useSharedSettings.getState().providerModelPreferences.devin?.["f-alpha-x-low"]).toEqual({
+      fast: false,
+    });
+  });
+
+  describe("selection binding", () => {
+    const boundStatus: AgentStatus = {
+      ...familyAgentStatus,
+      capabilities: {
+        ...familyAgentStatus.capabilities,
+        modelFamilies: [
+          { ...terminalDescriptor, redundantValues: { effort: ["", "default"], fast: [false] } },
+        ],
+      },
+    };
+    const owner = { agentKind: "devin", presentationMode: "terminal" as const };
+    const savedTuple = {
+      model: "f-alpha-x-low-fast",
+      effort: "",
+      fast: false,
+      mode: "agent" as const,
+      approvalPolicy: "normal",
+      sandboxMode: "",
+    };
+
+    function renderBound(onStart: (input: unknown) => void = () => {}) {
+      useSharedSettings.setState({
+        providerConfigs: { devin: savedTuple },
+        lastPresentationModeByAgent: { devin: "terminal" },
+      });
+      useAppStore.setState({ projects: [project] });
+      return render(
+        <ThreadDraftView project={project} agentStatuses={[boundStatus]} onStart={onStart} />,
+      );
+    }
+
+    it("mints target intent from a deliberate family edit and launches the exact tuple", async () => {
+      const onStart = vi.fn<(input: unknown) => void>();
+      renderBound(onStart);
+      await waitFor(() => expect(fastToggle()?.isSelected).toBe(true));
+      act(() => fastToggle()?.onChange(false));
+      await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low"));
+      const binding = {
+        version: 1,
+        kind: "family-member",
+        owner,
+        model: "f-alpha-x-low",
+        inertValues: { effort: "", fast: false },
+      };
+      expect(persistedDraft()?.selectionBinding).toEqual(binding);
+      expect(
+        useAppStore.getState().projects.find((stored) => stored.id === project.id)?.lastDraftConfig
+          ?.selectionBinding,
+      ).toEqual(binding);
+
+      fireEvent.click(screen.getByText("set-prompt"));
+      fireEvent.click(screen.getByText("submit"));
+      const launched = (
+        onStart.mock.lastCall?.[0] as { config: Record<string, unknown> } | undefined
+      )?.config;
+      expect(launched).toMatchObject({ model: "f-alpha-x-low", effort: "", fast: false });
+      expect(launched?.selectionBinding).toEqual(binding);
+    });
+
+    it("restores without minting and drops intent on an exact re-pick", async () => {
+      renderBound();
+      await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low-fast"));
+      expect(persistedDraft()?.selectionBinding).toBeUndefined();
+      act(() => fastToggle()?.onChange(false));
+      await waitFor(() => expect(persistedDraft()?.selectionBinding).toBeDefined());
+      const picker = composerControls().find((control) => control.kind === "provider-model") as
+        | { onChange: (next: Record<string, unknown>) => void }
+        | undefined;
+      act(() =>
+        picker?.onChange({ agentKind: "devin", model: "f-alpha-x-low", selectionIntent: "exact" }),
+      );
+      await waitFor(() => expect(persistedDraft()?.selectionBinding).toBeUndefined());
+      expect(persistedDraft()).toMatchObject({ model: "f-alpha-x-low", effort: "", fast: false });
+    });
+
+    it("keeps a new project's own empty context through a family edit and launch", async () => {
+      // No initial project draft and no context edit: deferred context
+      // inheritance must not strip the member's own empty carrier after the
+      // edit records it in a fresh binding.
+      const status: AgentStatus = {
+        ...boundStatus,
+        capabilities: {
+          ...boundStatus.capabilities,
+          modelFamilies: [
+            {
+              ...terminalDescriptor,
+              redundantValues: {
+                effort: ["", "default"],
+                fast: [false],
+                thinking: [false],
+                contextSize: ["", "default"],
+              },
+            },
+          ],
+        },
+      };
+      useSharedSettings.setState({
+        providerConfigs: { devin: { ...savedTuple, thinking: false, contextSize: "" } },
+        lastPresentationModeByAgent: { devin: "terminal" },
+      });
+      useAppStore.setState({ projects: [project] });
+      const onStart = vi.fn<(input: unknown) => void>();
+      render(<ThreadDraftView project={project} agentStatuses={[status]} onStart={onStart} />);
+      await waitFor(() => expect(persistedDraft()?.contextSize).toBe(""));
+      act(() => fastToggle()?.onChange(false));
+      await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low"));
+
+      const tuple = {
+        model: "f-alpha-x-low",
+        effort: "",
+        contextSize: "",
+        fast: false,
+        thinking: false,
+      };
+      const binding = {
+        version: 1,
+        kind: "family-member",
+        owner,
+        model: "f-alpha-x-low",
+        inertValues: { effort: "", fast: false, thinking: false, contextSize: "" },
+      };
+      expect(persistedDraft()).toMatchObject({ ...tuple, selectionBinding: binding });
+      expect(
+        useAppStore.getState().projects.find((stored) => stored.id === project.id)?.lastDraftConfig,
+      ).toMatchObject({ agentKind: "devin", ...tuple, selectionBinding: binding });
+
+      fireEvent.click(screen.getByText("set-prompt"));
+      fireEvent.click(screen.getByText("submit"));
+      const [launch] = onStart.mock.lastCall ?? [];
+      const launched = (launch as { config: ThreadConfig }).config;
+      expect(launched).toMatchObject({ ...tuple, selectionBinding: binding });
+      expect(
+        selectionBindingMatches(launched.selectionBinding, { owner, selection: launched }),
+      ).toBe(true);
+    });
+  });
+
+  it("rejects a Fast hole visibly without changing the saved draft", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-high",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+      lastPresentationModeByAgent: { devin: "terminal" },
+    });
+    const dangerSpy = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    renderFamilyDraft();
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-high"));
+    // (alpha, x, high, Fast) is a hole: the toggle shows the disabled treatment.
+    const fast = fastToggle();
+    expect(fast?.isSelected).toBe(false);
+    expect(fast?.disabledReason).toBeTruthy();
+    act(() => fast?.onChange(true));
+    expect(dangerSpy).toHaveBeenCalled();
+    expect(persistedDraft()).toMatchObject({
+      model: "f-alpha-x-high",
+      effort: "",
+      fast: false,
+    });
+    dangerSpy.mockRestore();
+  });
+
+  it("keeps GUI independent carriers when a Lead edit picks a sibling pair", async () => {
+    const toastDanger = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    useSharedSettings.setState({
+      providerConfigs: {
+        devin: {
+          model: "pair-alpha-x",
+          effort: "high",
+          fast: true,
+          mode: "agent",
+          approvalPolicy: "",
+          sandboxMode: "",
+        },
+      },
+    });
+    renderFamilyDraft();
+    await waitFor(() => expect(persistedDraft()?.model).toBe("pair-alpha-x"));
+    // The draft picker renders the projected family row plus exactly one
+    // paired effort-context control carrying the two conditional selector
+    // columns from the GUI override; the ordinary effort carrier stays beside
+    // it as the shortcut/cycle target.
+    await waitFor(() => expect(pairedSelectorControl()).toBeDefined());
+    expect(
+      composerControls().filter(
+        (control) => control.kind === "effort-context" && control.familySelection !== undefined,
+      ),
+    ).toHaveLength(1);
+    const paired = pairedSelectorControl();
+    expect(paired?.effortValue).toBe("high");
+    const columns = paired?.familySelection.columns ?? [];
+    expect(columns).toHaveLength(2);
+    const [lead, sidekick] = columns;
+    expect(lead?.id).toBe("lead");
+    expect(sidekick?.id).toBe("sidekick");
+    // The columns carry the exact selected pair (alpha, x).
+    expect(lead?.models.value).toBe("alpha");
+    expect(sidekick?.models.value).toBe("x");
+    expect(sidekick?.models.options.map((option) => option.id)).toEqual(["x", "y"]);
+    // The reduced accepted inventory restricts the reachable coordinates: the
+    // beta pairs are the absent self-pair analog and never appear, so a Lead
+    // edit outside the offered ladder is a guarded no-op.
+    expect(lead?.models.options.map((option) => option.id)).toEqual(["alpha"]);
+    act(() => lead?.models.onChange("beta"));
+    expect(persistedDraft()).toMatchObject({
+      model: "pair-alpha-x",
+      effort: "high",
+      fast: true,
+    });
+
+    // A pick of a UID the accepted inventory does not advertise is a visible
+    // hole: the draft rejects it without changing the saved draft.
+    const providerModel = composerControls().find(
+      (control) => control.kind === "provider-model",
+    ) as { onChange: (next: { agentKind: string; model: string }) => void };
+    act(() => providerModel.onChange({ agentKind: "devin", model: "pair-beta-x" }));
+    expect(toastDanger).toHaveBeenCalled();
+    expect(persistedDraft()).toMatchObject({
+      model: "pair-alpha-x",
+      effort: "high",
+      fast: true,
+    });
+
+    // The explicit model pick of the sibling pair keeps the independent
+    // effort/Fast carriers untouched.
+    act(() => providerModel.onChange({ agentKind: "devin", model: "pair-alpha-y" }));
+    await waitFor(() => expect(persistedDraft()?.model).toBe("pair-alpha-y"));
+    expect(persistedDraft()).toMatchObject({ effort: "high", fast: true });
+
+    // The paired Sidekick column callback resolves the exact sibling-pair UID
+    // the same way, and the paired effort ladder edits only the effort
+    // carrier. This surface has no Fast toggle at all, yet the true carrier
+    // survives every edit untouched.
+    const sidekickAfter = pairedSelectorControl()?.familySelection.columns[1];
+    expect(sidekickAfter?.models.value).toBe("y");
+    act(() => sidekickAfter?.models.onChange("x"));
+    await waitFor(() => expect(persistedDraft()?.model).toBe("pair-alpha-x"));
+    act(() => pairedSelectorControl()?.onEffortChange("low"));
+    await waitFor(() => expect(persistedDraft()?.effort).toBe("low"));
+    expect(persistedDraft()).toMatchObject({
+      model: "pair-alpha-x",
+      effort: "low",
+      fast: true,
+    });
+    expect(fastToggle()).toBeUndefined();
+    toastDanger.mockRestore();
+  });
+
+  it("retains an explicit GUI Fast-off choice through edits, reload and capability refresh", async () => {
+    useSharedSettings.setState({
+      providerConfigs: {
+        devin: {
+          model: "pair-alpha-x",
+          effort: "low",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+      lastPresentationModeByAgent: { devin: "gui" },
+    });
+    const view = renderFamilyDraft();
+    await waitFor(() => {
+      const paired = pairedSelectorControl();
+      expect(paired?.familySelection.columns).toHaveLength(2);
+    });
+    // The paired control carries the exact current pair (alpha, x).
+    expect(
+      pairedSelectorControl()?.familySelection.columns.map((column) => column.models.value),
+    ).toEqual(["alpha", "x"]);
+    const plan = composerControls().find(
+      (control) =>
+        control.kind === "toggle" && (control.label === "Work" || control.label === "Plan"),
+    ) as {
+      onChange: (selected: boolean) => void;
+    };
+    act(() => plan.onChange(true));
+    await waitFor(() =>
+      expect(persistedDraft()).toMatchObject({
+        model: "pair-alpha-x",
+        effort: "low",
+        fast: false,
+        mode: "plan",
+      }),
+    );
+    view.unmount();
+    const refreshed: AgentStatus = {
+      ...familyAgentStatus,
+      capabilities: {
+        ...familyAgentStatus.capabilities,
+        presentationCapabilities: {
+          gui: {
+            ...familyAgentStatus.capabilities.presentationCapabilities!.gui!,
+            fastModels: ["pair-alpha-x", "pair-alpha-y"],
+          },
+        },
+      },
+    };
+    render(<ThreadDraftView project={project} agentStatuses={[refreshed]} onStart={() => {}} />);
+    await waitFor(() => expect(fastToggle()).toBeDefined());
+    // The capability refresh (Fast becomes available) neither flips the
+    // retained Fast-off carrier nor disturbs the exact pair.
+    expect(fastToggle()?.isSelected).toBe(false);
+    expect(
+      pairedSelectorControl()?.familySelection.columns.map((column) => column.models.value),
+    ).toEqual(["alpha", "x"]);
+    expect(persistedDraft()).toMatchObject({ model: "pair-alpha-x", effort: "low", fast: false });
+    // The ordinary composer Fast toggle is the only Fast carrier writer here:
+    // an explicit flip lands on the config for the same pair, and flipping
+    // back restores the retained off choice.
+    act(() => fastToggle()?.onChange(true));
+    await waitFor(() => expect(persistedDraft()?.fast).toBe(true));
+    expect(persistedDraft()).toMatchObject({ model: "pair-alpha-x", effort: "low", fast: true });
+    act(() => fastToggle()?.onChange(false));
+    await waitFor(() => expect(persistedDraft()?.fast).toBe(false));
+    expect(persistedDraft()).toMatchObject({ model: "pair-alpha-x", effort: "low", fast: false });
+    expect(fastToggle()?.isSelected).toBe(false);
+  });
+
+  it("maps an encoded selection exactly onto the Chat surface before committing the switch", async () => {
+    const toastDanger = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "terminal" },
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-low-fast",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    // The GUI pair can carry the mapped Fast coordinate on this surface.
+    const refreshed: AgentStatus = {
+      ...familyAgentStatus,
+      capabilities: {
+        ...familyAgentStatus.capabilities,
+        presentationCapabilities: {
+          gui: {
+            ...familyAgentStatus.capabilities.presentationCapabilities!.gui!,
+            fastModels: ["pair-alpha-x", "pair-alpha-y"],
+          },
+        },
+      },
+    };
+    render(<ThreadDraftView project={project} agentStatuses={[refreshed]} onStart={() => {}} />);
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low-fast"));
+
+    fireEvent.click(screen.getByRole("tab", { name: "Chat" }));
+
+    // The encoded (alpha, x, low, fast) tuple maps onto the accepted pair with
+    // preserved independent carriers, and the mode commits only with the patch.
+    await waitFor(() =>
+      expect(persistedDraft()).toMatchObject({
+        model: "pair-alpha-x",
+        effort: "low",
+        fast: true,
+      }),
+    );
+    expect(toastDanger).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "Chat" })).toHaveAttribute("aria-selected", "true");
+    const picker = composerControls().find((control) => control.kind === "provider-model") as
+      | { currentModel: string; presentationMode: string }
+      | undefined;
+    expect(picker?.currentModel).toBe("pair-alpha-x");
+    expect(picker?.presentationMode).toBe("gui");
+    toastDanger.mockRestore();
+  });
+
+  it("retains the surface and draft when the Chat mapping is unprovable", async () => {
+    const toastDanger = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "terminal" },
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-low-fast",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    renderFamilyDraft();
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low-fast"));
+
+    // The GUI override's pair cannot carry Fast, so the encoded Fast state has
+    // no declared carrier on the target surface.
+    fireEvent.click(screen.getByRole("tab", { name: "Chat" }));
+
+    expect(toastDanger).toHaveBeenCalledTimes(1);
+    // Mode and config are both retained.
+    expect(screen.getByRole("tab", { name: "CLI" })).toHaveAttribute("aria-selected", "true");
+    expect(persistedDraft()).toMatchObject({
+      model: "f-alpha-x-low-fast",
+      effort: "",
+      fast: false,
+    });
+    toastDanger.mockRestore();
+  });
+
+  it("maps independent GUI carriers onto the encoded CLI tuple on the way back", async () => {
+    const toastDanger = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "gui" },
+      providerConfigs: {
+        devin: {
+          model: "pair-alpha-x",
+          effort: "low",
+          fast: true,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    renderFamilyDraft();
+    await waitFor(() => expect(persistedDraft()?.model).toBe("pair-alpha-x"));
+
+    fireEvent.click(screen.getByRole("tab", { name: "CLI" }));
+
+    // (alpha, x) with independent low + Fast resolves the exact encoded member
+    // and stores the inert seeds.
+    await waitFor(() =>
+      expect(persistedDraft()).toMatchObject({
+        model: "f-alpha-x-low-fast",
+        effort: "",
+        fast: false,
+      }),
+    );
+    expect(toastDanger).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "CLI" })).toHaveAttribute("aria-selected", "true");
+    toastDanger.mockRestore();
+  });
+
+  it("resolves a picker row that carries a different surface through the transition", async () => {
+    const toastDanger = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "terminal" },
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-low",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    const refreshed: AgentStatus = {
+      ...familyAgentStatus,
+      capabilities: {
+        ...familyAgentStatus.capabilities,
+        presentationCapabilities: {
+          gui: {
+            ...familyAgentStatus.capabilities.presentationCapabilities!.gui!,
+            fastModels: ["pair-alpha-x", "pair-alpha-y"],
+          },
+        },
+      },
+    };
+    render(<ThreadDraftView project={project} agentStatuses={[refreshed]} onStart={() => {}} />);
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low"));
+
+    const picker = composerControls().find((control) => control.kind === "provider-model") as {
+      onChange: (next: Record<string, unknown>) => void;
+    };
+    act(() => {
+      picker.onChange({
+        agentKind: "devin",
+        model: "pair-alpha-x",
+        presentationMode: "gui",
+        selectionIntent: "family",
+      });
+    });
+
+    await waitFor(() =>
+      expect(persistedDraft()).toMatchObject({
+        model: "pair-alpha-x",
+        effort: "low",
+        fast: false,
+      }),
+    );
+    expect(toastDanger).not.toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "Chat" })).toHaveAttribute("aria-selected", "true");
+    toastDanger.mockRestore();
+  });
+
+  it("selects the exact encoded member for an exact favorite of the representative", async () => {
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "terminal" },
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-high",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    renderFamilyDraft();
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-high"));
+
+    const picker = composerControls().find((control) => control.kind === "provider-model") as {
+      onChange: (next: Record<string, unknown>) => void;
+    };
+    // The exact favorite of the representative (the low member) must restore
+    // that exact member — never collapse into the family-row no-op.
+    act(() => {
+      picker.onChange({
+        agentKind: "devin",
+        model: "f-alpha-x-low",
+        selectionIntent: "exact",
+      });
+    });
+
+    await waitFor(() =>
+      expect(persistedDraft()).toMatchObject({
+        model: "f-alpha-x-low",
+        effort: "",
+        fast: false,
+      }),
+    );
+  });
+
+  // A cross-provider target: GUI-only (its picker rows carry a different
+  // surface than the terminal draft), with its own encoded relation plus a
+  // plain model — the shapes the source-family mapping must never override.
+  const crossTargetDescriptor = {
+    model: "tf-default",
+    label: "Target Fusion",
+    selectors: terminalDescriptor.selectors,
+    bindings: { effort: "model" as const, fast: "model" as const },
+    members: [
+      {
+        model: "tf-default",
+        selections: { lead: "alpha", sidekick: "x" },
+        effort: "low",
+        fast: false,
+      },
+      {
+        model: "tf-alt",
+        selections: { lead: "beta", sidekick: "x" },
+        effort: "high",
+        fast: false,
+      },
+    ],
+  };
+  const crossTargetAgentStatus: AgentStatus = {
+    kind: "kimi",
+    label: "Kimi",
+    installed: true,
+    authState: "authenticated",
+    capabilities: {
+      models: [
+        { id: "plain-fast", label: "Plain Fast" },
+        { id: "tf-default", label: "Target Fusion" },
+        { id: "tf-alt", label: "Target Fusion (Beta)" },
+      ],
+      efforts: [],
+      modelEfforts: {},
+      modes: ["agent"],
+      approvalPolicies: [{ id: "default", label: "Default" }],
+      sandboxModes: [],
+      supportsResume: true,
+      supportsDirectInput: true,
+      liveInputMode: "server",
+      presentationMode: "gui",
+      presentationModes: ["gui"],
+      settingDefs: [],
+      modelFamilies: [crossTargetDescriptor],
+    },
+  };
+
+  function renderCrossTargetDraft() {
+    return render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[familyAgentStatus, crossTargetAgentStatus]}
+        onStart={() => {}}
+      />,
+    );
+  }
+
+  function crossPicker() {
+    return composerControls().find((control) => control.kind === "provider-model") as {
+      onChange: (next: Record<string, unknown>) => void;
+    };
+  }
+
+  it("selects the clicked plain row of another provider even when the surface differs", async () => {
+    const toastDanger = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "terminal" },
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-low",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    renderCrossTargetDraft();
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low"));
+
+    act(() => {
+      crossPicker().onChange({
+        agentKind: "kimi",
+        model: "plain-fast",
+        presentationMode: "gui",
+        selectionIntent: "exact",
+      });
+    });
+
+    // The clicked exact row wins at its own surface: the source family tuple
+    // must not be mapped over it, and the pick must not be blocked even though
+    // the target relation cannot carry the source coordinates.
+    await waitFor(() => {
+      const props = composerSpy.mock.lastCall?.[0] as {
+        controls: Array<{
+          kind?: string;
+          currentAgentKind?: string;
+          currentModel?: string;
+          presentationMode?: string;
+        }>;
+      };
+      const picker = props.controls.find((control) => control.kind === "provider-model");
+      expect(picker?.currentAgentKind).toBe("kimi");
+      expect(picker?.currentModel).toBe("plain-fast");
+      expect(picker?.presentationMode).toBe("gui");
+    });
+    expect(useSharedSettings.getState().providerConfigs.kimi).toMatchObject({
+      model: "plain-fast",
+    });
+    expect(toastDanger).not.toHaveBeenCalled();
+    // The source provider's draft survives the switch as its own snapshot.
+    expect(persistedDraft()).toMatchObject({ model: "f-alpha-x-low", effort: "", fast: false });
+    toastDanger.mockRestore();
+  });
+
+  it("adopts the target family's declared default for an explicit cross-provider family pick", async () => {
+    const toastDanger = vi
+      .spyOn(toast, "danger")
+      .mockImplementation(() => undefined as unknown as ReturnType<typeof toast.danger>);
+    // A meaningful stored effort on the encoded source member leaves the
+    // source-to-target mapping unprovable — the explicit clicked row must
+    // still resolve at the target surface on its own terms.
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "terminal" },
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-low",
+          effort: "high",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    renderCrossTargetDraft();
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-low"));
+
+    act(() => {
+      crossPicker().onChange({
+        agentKind: "kimi",
+        model: "tf-default",
+        presentationMode: "gui",
+        selectionIntent: "family",
+      });
+    });
+
+    // The declared default member is adopted atomically with inert seeds —
+    // never a no-op that keeps the source selection, and never the mapped
+    // source tuple.
+    await waitFor(() =>
+      expect(useSharedSettings.getState().providerConfigs.kimi).toMatchObject({
+        model: "tf-default",
+        effort: "",
+        fast: false,
+      }),
+    );
+    expect(screen.getByRole("tab", { name: "Chat" })).toHaveAttribute("aria-selected", "true");
+    expect(toastDanger).not.toHaveBeenCalled();
+    // The source provider's rejected-but-saved carrier snapshot is untouched.
+    expect(persistedDraft()).toMatchObject({ model: "f-alpha-x-low", effort: "high", fast: false });
+    toastDanger.mockRestore();
+  });
+
+  it("adopts a new profile's family default even when profiles share the source member UID", async () => {
+    useSharedSettings.setState({
+      lastPresentationModeByAgent: { devin: "terminal" },
+      providerConfigs: {
+        devin: {
+          model: "f-alpha-x-high",
+          effort: "",
+          fast: false,
+          mode: "agent",
+          approvalPolicy: "normal",
+          sandboxMode: "",
+        },
+      },
+    });
+    const overlappingTarget: AgentStatus = {
+      ...crossTargetAgentStatus,
+      capabilities: {
+        ...crossTargetAgentStatus.capabilities,
+        models: crossTargetAgentStatus.capabilities.models.map((entry) =>
+          entry.id === "tf-alt" ? { ...entry, id: "f-alpha-x-high" } : entry,
+        ),
+        modelFamilies: [
+          {
+            ...crossTargetDescriptor,
+            members: crossTargetDescriptor.members.map((entry) =>
+              entry.model === "tf-alt" ? { ...entry, model: "f-alpha-x-high" } : entry,
+            ),
+          },
+        ],
+      },
+    };
+    render(
+      <ThreadDraftView
+        project={project}
+        agentStatuses={[familyAgentStatus, overlappingTarget]}
+        onStart={() => {}}
+      />,
+    );
+    await waitFor(() => expect(persistedDraft()?.model).toBe("f-alpha-x-high"));
+    act(() =>
+      crossPicker().onChange({
+        agentKind: "kimi",
+        model: "tf-default",
+        presentationMode: "gui",
+        selectionIntent: "family",
+      }),
+    );
+    await waitFor(() =>
+      expect(useSharedSettings.getState().providerConfigs.kimi).toMatchObject({
+        model: "tf-default",
+        effort: "",
+        fast: false,
+      }),
+    );
+    expect(persistedDraft()?.model).toBe("f-alpha-x-high");
   });
 });

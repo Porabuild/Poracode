@@ -11,6 +11,7 @@ import {
   clearExecutablePathCache,
   primeWslLaunchEnvironment,
   setWslProcessBridgeClient,
+  UnsupportedOneShotControlError,
 } from "../base";
 import type { OscNotification, OscTitle } from "@/shared/osc";
 import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
@@ -526,4 +527,137 @@ it("preserves every configured profile model and label after SDK discovery", () 
   );
   expect(result.models.slice(-4)).toEqual(models);
   expect(result.models.some((model) => model.label === "Default")).toBe(false);
+});
+
+describe("claude one-shot selection consumption", () => {
+  const projectLocation: ProjectLocation = { kind: "posix", path: "/repo" };
+
+  it("validates the option selection against the positionals before any effect", async () => {
+    const adapter = createClaudeAdapter();
+    const tuple = { model: "haiku", effort: "high", fast: true };
+    await expect(
+      adapter.buildOneShotCommand?.("haiku", "low", "Summarize", projectLocation, true, {
+        selection: tuple,
+      }),
+    ).rejects.toThrow(/disagree \(effort\)/);
+  });
+
+  it("refuses a present unsupported carrier before reading the profile environment", async () => {
+    const adapter = createClaudeAdapter();
+    const generalRefusal = await Promise.resolve()
+      .then(() =>
+        adapter.buildOneShotCommand?.("haiku", undefined, "Summarize", projectLocation, undefined, {
+          selection: { model: "haiku", thinking: false },
+        }),
+      )
+      .catch((error: unknown) => error);
+    expect(generalRefusal).toBeInstanceOf(UnsupportedOneShotControlError);
+    expect((generalRefusal as UnsupportedOneShotControlError).axes).toEqual(["thinking"]);
+    const textOnlyRefusal = await Promise.resolve()
+      .then(() =>
+        adapter.buildTextOnlyOneShotCommand?.(
+          "haiku",
+          undefined,
+          "Summarize",
+          projectLocation,
+          undefined,
+          {
+            selection: { model: "haiku", contextSize: "" },
+          },
+        ),
+      )
+      .catch((error: unknown) => error);
+    expect(textOnlyRefusal).toBeInstanceOf(UnsupportedOneShotControlError);
+    expect((textOnlyRefusal as UnsupportedOneShotControlError).axes).toEqual(["contextSize"]);
+  });
+
+  it("maps meaningful effort and Fast through the shared control args on both builder lanes", async () => {
+    const adapter = createClaudeAdapter();
+    for (const build of [
+      adapter.buildOneShotCommand?.bind(adapter),
+      adapter.buildTextOnlyOneShotCommand?.bind(adapter),
+    ]) {
+      const command = await build?.("haiku", "high", "Summarize", projectLocation, true, {
+        selection: { model: "haiku", effort: "high", fast: true },
+      });
+      expect(command?.args).toContain("--effort");
+      expect(command?.args).toContain("high");
+      expect(command?.args).toContain("--settings");
+      expect(command?.args).toContain('{"fastMode":true}');
+    }
+  });
+
+  it("maps the full tuple on the resume extraction lane and keeps legacy calls unstamped", async () => {
+    const adapter = createClaudeAdapter();
+    const sessionRef = {
+      providerSessionId: "session-1",
+      discoveredAt: "2026-10-09T00:00:00.000Z",
+    };
+    // Full tuple: effort and Fast ride the same native control args.
+    const resumed = await adapter.buildContextExtractionCommand?.(
+      sessionRef,
+      projectLocation,
+      "haiku",
+      { selection: { model: "haiku", effort: "high", fast: true } },
+    );
+    expect(resumed?.args).toContain("--resume");
+    expect(resumed?.args).toContain("high");
+    expect(resumed?.args).toContain("--settings");
+    expect(resumed?.args).toContain('{"fastMode":true}');
+
+    // Present-but-unsupported carriers refuse before the command is built.
+    const refusal = await Promise.resolve()
+      .then(() =>
+        adapter.buildContextExtractionCommand?.(sessionRef, projectLocation, "haiku", {
+          selection: { model: "haiku", thinking: true },
+        }),
+      )
+      .catch((error: unknown) => error);
+    expect(refusal).toBeInstanceOf(UnsupportedOneShotControlError);
+
+    // A legacy direct call without options stays unstamped and unchanged.
+    const legacy = await adapter.buildContextExtractionCommand?.(
+      sessionRef,
+      projectLocation,
+      undefined,
+    );
+    expect(legacy?.args).not.toContain("--effort");
+    expect(legacy?.args).not.toContain("--settings");
+  });
+
+  it("keeps the read-only flag riding argument 6 on the general lane and argument 6 only on the text-only lane", async () => {
+    const adapter = createClaudeAdapter();
+    const general = await adapter.buildOneShotCommand?.(
+      "haiku",
+      undefined,
+      "Summarize",
+      projectLocation,
+      undefined,
+      { readOnlyWorkspace: true, selection: { model: "haiku" } },
+    );
+    expect(general?.args).toContain("--permission-mode");
+
+    const textOnly = await adapter.buildTextOnlyOneShotCommand?.(
+      "haiku",
+      undefined,
+      "Summarize",
+      projectLocation,
+      undefined,
+      { selection: { model: "haiku" } },
+    );
+    expect(textOnly?.args).toContain("--safe-mode");
+    // False Fast keeps its existing mapping: no fast flag for the OFF carrier.
+    const fastOff = await adapter.buildOneShotCommand?.(
+      "haiku",
+      "",
+      "Summarize",
+      projectLocation,
+      false,
+      {
+        selection: { model: "haiku", effort: "", fast: false },
+      },
+    );
+    expect(fastOff?.args).not.toContain("--settings");
+    expect(fastOff?.args).not.toContain("--effort");
+  });
 });

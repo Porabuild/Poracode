@@ -9,6 +9,7 @@ import {
 import type { SharedSettings } from "@/shared/settings";
 import { refreshRejectedClaudeToken, resolveClaudeToken } from "../../runtime/claudeCredentials";
 import { scanClaudeCost } from "../../runtime/usageCostScanner";
+import type { UsageProfileSource } from "../../runtime/usageProfileTypes";
 
 /**
  * Claude-specific usage collection: per-profile (CLAUDE_CONFIG_DIR-scoped)
@@ -20,6 +21,18 @@ import { scanClaudeCost } from "../../runtime/usageCostScanner";
 export interface ClaudeUsageProfile {
   providerId: string;
   configDir: string;
+}
+
+export function createClaudeUsageProfileSource(settings: SharedSettings): UsageProfileSource {
+  const profiles = readClaudeUsageProfiles(settings);
+  return {
+    collectors: [...profiles.values()].map((profile) => ({
+      providerId: profile.providerId,
+      collect: (host) => collectClaudeProfile(profile, host),
+    })),
+    enrichSnapshot: (snapshot, now) => withClaudeEstimatedCost(snapshot, profiles, now),
+    preserveAuthMiss: shouldPreserveClaudeAuthMiss,
+  };
 }
 
 export function isClaudeUsageProvider(id: string): boolean {

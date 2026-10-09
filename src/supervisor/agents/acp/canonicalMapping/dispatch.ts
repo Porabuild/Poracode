@@ -10,6 +10,7 @@ import {
   usageFromTokenCounts,
 } from "../../contextUsage";
 import { parseAcpAgentMessageApiError } from "../acpUserVisibleErrors";
+import { acpUsageBreakdownForUsedTokens } from "./usageMeta";
 import {
   classifyToolCallItemType,
   extractAcpTodoWriteSteps,
@@ -26,6 +27,7 @@ import {
   mergeToolPayload,
 } from "./toolCallPayloads";
 import { isAcpAskUserQuestionToolCall } from "../acpQuestionPermissions";
+import { mapAcpTextStreamSnapshot } from "./textStreamSnapshots";
 import {
   buildSubAgentProgress,
   buildSubAgentProgressEvents,
@@ -189,6 +191,18 @@ export function mapAcpSessionUpdate(
   switch (update.sessionUpdate) {
     case "agent_message_chunk": {
       const parentToolCallId = activeSubAgent?.toolCallId;
+      // A provider-annotated stream snapshot owns this chunk outright: it is
+      // plain assistant/reasoning text and never re-enters the ordinary path.
+      const snapshotEvents = mapAcpTextStreamSnapshot(
+        notification,
+        state,
+        parentToolCallId,
+        options?.suppressAgentOutput === true,
+      );
+      if (snapshotEvents) {
+        events.push(...snapshotEvents);
+        break;
+      }
       const contentState = getContentItemState(state, parentToolCallId);
       const messageMeta =
         update._meta && typeof update._meta === "object" && !Array.isArray(update._meta)
@@ -196,6 +210,8 @@ export function mapAcpSessionUpdate(
           : undefined;
       if (messageMeta?.[PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY] === true) {
         events.push(...closeAllOpenContentItems(state));
+      } else if (messageMeta?.[PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY] === "owner") {
+        events.push(...closeOpenContentItems(state, parentToolCallId));
       }
       const content = (update as { content?: ContentBlock }).content;
 
@@ -356,6 +372,17 @@ export function mapAcpSessionUpdate(
     }
 
     case "agent_thought_chunk": {
+      // Same snapshot seam as `agent_message_chunk` above, for reasoning text.
+      const snapshotEvents = mapAcpTextStreamSnapshot(
+        notification,
+        state,
+        activeSubAgent?.toolCallId,
+        options?.suppressAgentOutput === true,
+      );
+      if (snapshotEvents) {
+        events.push(...snapshotEvents);
+        break;
+      }
       if (options?.suppressAgentOutput) break;
       const parentToolCallId = activeSubAgent?.toolCallId;
       const contentState = getContentItemState(state, parentToolCallId);
@@ -365,6 +392,8 @@ export function mapAcpSessionUpdate(
           : undefined;
       if (thoughtMeta?.[PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY] === true) {
         events.push(...closeAllOpenContentItems(state));
+      } else if (thoughtMeta?.[PORACODE_ACP_NEW_ASSISTANT_ITEM_META_KEY] === "owner") {
+        events.push(...closeOpenContentItems(state, parentToolCallId));
       }
       if (!contentState.openReasoningItemId) {
         // Close any prior assistant — reasoning bracket starts.
@@ -816,12 +845,18 @@ export function mapAcpSessionUpdate(
     }
 
     case "usage_update": {
-      const usageUpdate = update as { used?: unknown; size?: unknown };
+      const usageUpdate = update as { used?: unknown; size?: unknown; _meta?: unknown };
+      const usedTokens = readNonNegativeInteger(usageUpdate.used);
+      // A provider-annotated breakdown only decorates the existing occupancy
+      // event; it never alters `usedTokens`/`maxTokens`.
+      const breakdown = acpUsageBreakdownForUsedTokens(usageUpdate._meta, usedTokens);
       const event = createContextUsageEvent(
         threadId,
         usageFromTokenCounts({
-          usedTokens: readNonNegativeInteger(usageUpdate.used),
+          usedTokens,
           maxTokens: readNonNegativeInteger(usageUpdate.size),
+          inputTokens: breakdown?.inputTokens,
+          outputTokens: breakdown?.outputTokens,
         }),
       );
       if (event) events.push(event);

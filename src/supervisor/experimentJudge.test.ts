@@ -120,9 +120,11 @@ describe("judgeExperiment", () => {
       adapter,
       "Implement fan-out safely",
       candidates,
-      "selected-model",
-      "high",
-      true,
+      {
+        model: "selected-model",
+        effort: "high",
+        fast: true,
+      },
     );
 
     expect(result).toEqual({
@@ -134,9 +136,7 @@ describe("judgeExperiment", () => {
       ],
     });
     expect(input).toMatchObject({
-      model: "selected-model",
-      effort: "high",
-      fast: true,
+      selection: { model: "selected-model", effort: "high", fast: true },
       readOnlyWorkspace: true,
     });
     expect(input?.location.kind).toBe("windows");
@@ -172,8 +172,6 @@ describe("judgeExperiment", () => {
       adapter,
       "Research the question",
       responseCandidates,
-      undefined,
-      undefined,
       undefined,
       { mode: "responses" },
     );

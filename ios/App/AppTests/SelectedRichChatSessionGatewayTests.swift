@@ -315,6 +315,22 @@ private actor RichChatRemoteAPIFake: RichChatRemoteAPI {
     transportFailure = failure
   }
   func sendCallCount() -> Int { calls }
+
+  // Neutral session actions: this fake only exercises send paths, so the
+  // requirements fail closed like a host without the verbs.
+  func richListSessionActions(threadID _: String) async throws -> [String] {
+    if let transportFailure { throw transportFailure }
+    throw RichChatTransportFailure.invalidRequest
+  }
+
+  func richInvokeSessionAction(
+    threadID _: String,
+    actionID _: String,
+    payload _: [String: RichJSON]
+  ) async throws -> [String: RichJSON] {
+    if let transportFailure { throw transportFailure }
+    throw RichChatTransportFailure.invalidRequest
+  }
 }
 
 extension RichChatRemoteAPI {

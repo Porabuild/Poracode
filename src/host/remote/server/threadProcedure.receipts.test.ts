@@ -2,6 +2,10 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { closeDatabase, dbUpsertProject, initDatabase } from "@/host/db";
 import { getSqlite } from "@/host/db/connection";
 import { nativeBindingEnv, sqliteAvailable } from "@/host/db/runtimeItems.testFixtures";
@@ -121,6 +125,7 @@ describe.skipIf(!sqliteAvailable)("startThread procedure receipt wiring", () => 
       headers: {
         authorization: `Bearer ${bearer}`,
         "content-type": "application/json",
+        [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
         ...(commandId !== undefined ? { "x-poracode-command-id": commandId } : {}),
       },
       body: JSON.stringify({ procedure, payload }),

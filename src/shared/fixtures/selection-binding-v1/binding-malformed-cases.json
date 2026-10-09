@@ -1,0 +1,186 @@
+{
+  "$comment": "Neutral fixture: malformed/unknown-key rejection matrix for the strict v1 binding schema. Each case must fail strict parse on wire mutations and in selectionBindingMatches, and must never be stripped into a recognized record. The recorded false/empty-string values in the valid cases are real present carriers, not falsy noise.",
+  "valid": [
+    {
+      "reason": "false-is-a-real-recorded-value",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "empty-string-is-a-real-recorded-value",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "effort": "" }
+      }
+    }
+  ],
+  "cases": [
+    {
+      "reason": "empty-inert-map",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": {}
+      }
+    },
+    { "reason": "null-binding", "binding": null },
+    {
+      "reason": "missing-binding-field",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b"
+      }
+    },
+    {
+      "reason": "unknown-top-level-key",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false },
+        "expectedValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "unknown-inert-key",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false, "temperature": 0 }
+      }
+    },
+    {
+      "reason": "null-axis-value",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "effort": null }
+      }
+    },
+    {
+      "reason": "future-version",
+      "binding": {
+        "version": 2,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "wrong-kind",
+      "binding": {
+        "version": 1,
+        "kind": "exact-model",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "empty-model",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "empty-agent-kind",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "empty-instance-id",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": {
+          "agentKind": "sample-agent",
+          "agentInstanceId": "",
+          "presentationMode": "terminal"
+        },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "unknown-owner-key",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": {
+          "agentKind": "sample-agent",
+          "presentationMode": "terminal",
+          "distro": "ubuntu"
+        },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "missing-presentation-mode",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "unknown-presentation-mode",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "popup" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": false }
+      }
+    },
+    {
+      "reason": "wrong-axis-type",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "fast": "false" }
+      }
+    },
+    {
+      "reason": "unknown-axis",
+      "binding": {
+        "version": 1,
+        "kind": "family-member",
+        "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+        "model": "lead-a+sidekick-b",
+        "inertValues": { "verbosity": "high" }
+      }
+    }
+  ]
+}

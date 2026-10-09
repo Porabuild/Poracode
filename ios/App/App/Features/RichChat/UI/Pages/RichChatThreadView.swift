@@ -93,6 +93,15 @@ struct RichChatThreadView: View {
     .task(id: activationID) { await pageState.activate() }
     .task(id: session.currentSettingsHostSelection?.lease) {
       await pageState.refreshProviderUsage()
+      await pageState.loadVisibilityOverrides()
+    }
+    // Session-action inventory: one live read per selected thread, status
+    // change, and owner-axis change (presentation, provider instance, live
+    // SessionRef). Only the typed old-host answer collapses the inventory
+    // quietly — every other failure stays visible with a retry.
+    .task(id: pageState.sessionActionRefreshKey) {
+      suite.sessionActions.updateOwner(pageState.sessionActionOwner)
+      await suite.sessionActions.refreshInventory()
     }
     .onChange(of: session.phase) { pageState.updateAccess() }
     .onChange(of: session.socketState) { pageState.updateAccess() }
@@ -100,6 +109,17 @@ struct RichChatThreadView: View {
       draftState.synchronizeConfiguration(previous: previous, current: current)
     }
     .onChange(of: session.richChatComposerDrafts.revision) { draftState.consumeQueuedSegments() }
+    // An ambiguous session-action invoke may have committed; the host
+    // reconciles through one authoritative refresh, then the flag clears and
+    // the inventory is read fresh — the session may have been replaced.
+    .onChange(of: suite.sessionActions.state.requiresAuthoritativeRefresh) { _, needs in
+      guard needs else { return }
+      Task {
+        await suite.refreshAuthoritativeHistory()
+        suite.sessionActions.acknowledgeAuthoritativeRefresh()
+        await suite.sessionActions.refreshInventory()
+      }
+    }
     .onAppear { draftState.consumeQueuedSegments() }
     .onChange(of: scenePhase) { _, phase in pageState.handleScenePhase(phase) }
     .onDisappear { pageState.detach() }
@@ -169,9 +189,13 @@ struct RichChatThreadView: View {
       agentKind: thread?.agentKind ?? "",
       agentStatus: agentStatus,
       threadSlashCommands: thread?.slashCommands,
+      sessionConfigOptions: thread?.sessionConfigOptions,
       canConfigure: canConfigureComposer,
+      hiddenModels: pageState.hiddenModels,
       fileMentionController: fileMentionController,
-      skillPickerContext: skillPickerContext
+      skillPickerContext: skillPickerContext,
+      sessionActions: suite.sessionActions,
+      onInsertIntoComposer: pageState.insertIntoComposerDraft
     )
   }
 

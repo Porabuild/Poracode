@@ -89,6 +89,8 @@
     <string name="home_start">Bắt đầu</string>
     <string name="home_quick_compose_agent">Tác nhân</string>
     <string name="home_quick_compose_presentation">Chế độ hiển thị</string>
+    <string name="model_selection_lead">Mô hình chính</string>
+    <string name="model_selection_sidekick">Mô hình phụ</string>
     <string name="home_quick_compose_chat">Trò chuyện</string>
     <string name="home_quick_compose_terminal">Thiết bị đầu cuối</string>
     <string name="home_quick_compose_controls">Cài đặt khởi chạy</string>

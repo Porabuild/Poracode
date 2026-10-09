@@ -9,6 +9,7 @@ import {
   type MainLocalIpcHandlerMap,
   type SupervisorProcedureName,
 } from "@/shared/ipc";
+import { parseClientProcedureInvocation } from "@/shared/ipc/invocation";
 
 interface RegisterIpcHandlersOptions {
   localHandlers: MainLocalIpcHandlerMap;
@@ -39,24 +40,18 @@ export function registerIpcHandlers(options: RegisterIpcHandlersOptions): void {
     }
     return options.callSupervisor(name as SupervisorProcedureName, payload as never);
   };
-  const procedureNames = Object.keys(ipcProcedureMap) as IpcProcedureName[];
-  for (const name of procedureNames) {
-    const procedure = ipcProcedureMap[name];
-    ipcMain.handle(procedure.channel, (event, ...args: unknown[]) =>
-      invoke(name, args, event.sender),
-    );
-  }
-  ipcMain.handle(
-    IPC_WINDOW_CHANNELS.clientProcedureInvoke,
-    (event, request: { name?: unknown; args?: unknown }) => {
-      if (
-        typeof request?.name !== "string" ||
-        !Object.hasOwn(ipcProcedureMap, request.name) ||
-        !Array.isArray(request.args)
-      ) {
-        throw new Error("Invalid client procedure request.");
-      }
-      return invoke(request.name as IpcProcedureName, request.args, event.sender);
-    },
-  );
+  // Hop 17: the only procedure ingress is the versioned envelope channel. The
+  // obsolete unversioned per-procedure channels (`procedure.channel`, dialed
+  // only by the unused `createInvokeBridge`) are no longer registered — the
+  // current renderer calls every procedure through this envelope, and a
+  // channel-dialed alias now fails loudly ("No handler registered") instead of
+  // mutating without the version fence.
+  ipcMain.handle(IPC_WINDOW_CHANNELS.clientProcedureInvoke, (event, request: unknown) => {
+    // Checked exchange: the renderer-supplied envelope declares the hop
+    // version, asserted BEFORE any payload parse or dispatch (see
+    // `shared/ipc/invocation.ts`). A legacy positional caller's bare payload
+    // rejects typed here, before any effect.
+    const { name, args } = parseClientProcedureInvocation(request);
+    return invoke(name, args, event.sender);
+  });
 }

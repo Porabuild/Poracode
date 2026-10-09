@@ -20,8 +20,12 @@ export const REMOTE_BINDING_FORMAT_VERSION = 2 as const;
  * v3 makes native root codecs enforce the complete generated schema and all
  * portable semantic validators during decode and encode.  The binding IR
  * shape is unchanged, but consumers compiled from v2 output must regenerate.
+ *
+ * v4 corrects native JSON Schema minLength/maxLength (including string union
+ * probes) to count Unicode code points. Terminal cursor/range accounting remains
+ * UTF-16. The IR layout and public protocol are unchanged; v3 bindings must regenerate.
  */
-export const REMOTE_GENERATOR_VERSION = 3 as const;
+export const REMOTE_GENERATOR_VERSION = 4 as const;
 
 export const REMOTE_CONTRACT_NAME = "poracode.remote" as const;
 

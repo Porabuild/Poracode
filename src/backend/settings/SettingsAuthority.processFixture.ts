@@ -8,6 +8,7 @@ const [root, mode] = process.argv.slice(2);
 if (!root || !mode) throw new Error("Missing settings process fixture arguments.");
 let resume: (() => void) | undefined;
 let active = true;
+let prepared = true;
 let authority: import("./SettingsAuthority").SettingsAuthority | undefined;
 process.on("message", (message) => {
   if (message === "continue") resume?.();
@@ -31,8 +32,14 @@ const originalRename = fs.rename.bind(fs);
 fs.open = async (...args: Parameters<typeof fs.open>) => {
   const file = await originalOpen(...args);
   const originalSync = file.sync.bind(file);
+  const originalWrite = file.writeFile.bind(file);
   const temporary = String(args[0]).endsWith(".tmp");
   const directory = String(args[0]) === root;
+  file.writeFile = async (...writeArgs: Parameters<typeof file.writeFile>) => {
+    await originalWrite(...writeArgs);
+    if (temporary && mode === "database-loss-after-write") prepared = false;
+  };
+  if (temporary && mode === "database-loss-after-open") prepared = false;
   file.sync = async () => {
     if (temporary && mode === "file-sync-failure") throw new Error("Fixture file sync failed");
     if (directory && mode === "directory-sync-failure")
@@ -40,11 +47,16 @@ fs.open = async (...args: Parameters<typeof fs.open>) => {
     await originalSync();
     if (temporary && mode === "after-file-sync") await pause("file-synced");
     if (temporary && mode === "lease-loss") active = false;
+    if (temporary && mode === "database-loss-after-sync") prepared = false;
     if (directory && mode === "during-directory-sync") await pause("directory-synced");
   };
   return file;
 };
 fs.rename = async (...args: Parameters<typeof fs.rename>) => {
+  if (mode === "database-loss-during-rename-retry") {
+    prepared = false;
+    throw Object.assign(new Error("Fixture busy rename"), { code: "EBUSY" });
+  }
   if (mode === "before-rename") await pause("before-rename");
   await originalRename(...args);
   if (mode === "after-rename") await pause("renamed");
@@ -56,6 +68,10 @@ const { settingsSubjectId } = await import("@/shared/settingsTransactions");
 const reported: string[] = [];
 const generation = randomUUID();
 authority = await SettingsAuthority.open({
+  // Synthetic callback fault injection; actual SQLite is covered by the Core integration suite.
+  assertPreparedDatabaseForWrite: () => {
+    if (!prepared) throw new Error("Fixture prepared database lost");
+  },
   lease: {
     paths: { dataRoot: root },
     generation,
@@ -95,6 +111,9 @@ try {
   process.send?.({
     type: "failure",
     message: String(error),
+    ...(active
+      ? { sequence: authority.snapshot().sequence, cachedTheme: authority.readSettings().themeMode }
+      : {}),
     contents: await fs.readFile(join(root, "settings.json"), "utf8"),
     reported,
   });

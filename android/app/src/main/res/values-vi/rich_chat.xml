@@ -165,4 +165,65 @@
     <string name="rich_chat_history_notice_reason_shutdown">tắt không sạch</string>
     <string name="rich_chat_history_notice_reason_unclean_epoch">phiên không sạch</string>
     <string name="rich_chat_history_notice_reason_unknown">giới hạn lưu trữ</string>
+    <string name="rich_chat_session_actions">Thao tác phiên</string>
+    <string name="rich_chat_session_action_rename">Đổi tên phiên</string>
+    <string name="rich_chat_session_action_revise">Sửa lại lệnh</string>
+    <string name="rich_chat_session_action_rules">Quy tắc</string>
+    <string name="rich_chat_session_action_hooks">Hook</string>
+    <string name="rich_chat_session_action_personas">Persona gốc</string>
+    <string name="rich_chat_session_rename_title">Đổi tên phiên</string>
+    <string name="rich_chat_session_rename_field">Tiêu đề phiên mới</string>
+    <string name="rich_chat_session_rename_hint">Agent áp dụng tiêu đề mới trước; danh sách hội thoại sẽ cập nhật sau khi nó xác nhận.</string>
+    <string name="rich_chat_session_rename_submit">Đổi tên</string>
+    <string name="rich_chat_session_revise_command_field">Lệnh cần sửa</string>
+    <string name="rich_chat_session_revise_note_field">Cần thay đổi gì? (không bắt buộc)</string>
+    <string name="rich_chat_session_revise_submit">Nhận gợi ý</string>
+    <string name="rich_chat_session_revise_hint">Agent đề xuất lệnh đã sửa; bạn xem lại trước khi có bất cứ gì chạy.</string>
+    <string name="rich_chat_session_revise_result_title">Lệnh được đề xuất — xem lại trước khi dùng</string>
+    <string name="rich_chat_session_revise_insert">Chèn vào trình soạn thảo</string>
+    <string name="rich_chat_session_revise_discard">Bỏ</string>
+    <string name="rich_chat_session_revise_insert_hint">Poracode không bao giờ chạy gợi ý — việc chèn chỉ điền vào trình soạn thảo để bạn chỉnh sửa và gửi.</string>
+    <string name="rich_chat_session_revise_empty">Agent không trả về lệnh đã sửa.</string>
+    <string name="rich_chat_session_rules_title">Quy tắc trong phiên này</string>
+    <string name="rich_chat_session_rules_empty">Không có quy tắc nào được liệt kê cho phiên này.</string>
+    <string name="rich_chat_session_hooks_title">Hook trong phiên này</string>
+    <string name="rich_chat_session_hooks_empty">Không có hook nào gắn vào phiên này.</string>
+    <string name="rich_chat_session_hooks_hint">Các mục hook được hiển thị đúng như báo cáo; cấu trúc của chúng không được diễn giải.</string>
+    <string name="rich_chat_session_listing_failed">Không thể đọc danh sách.</string>
+    <string name="rich_chat_session_actions_failed">Không thể tải các thao tác phiên.</string>
+    <string name="rich_chat_session_rename_unconfirmed">Agent chưa xác nhận việc đổi tên.</string>
+
+    <string name="rich_chat_session_archive">Lưu trữ phiên</string>
+
+    <string name="rich_chat_session_archive_title">Lưu trữ phiên này?</string>
+
+    <string name="rich_chat_session_archive_message">Agent lưu trữ phiên trước; cuộc trò chuyện này được lưu trữ sau khi agent xác nhận.</string>
+
+    <string name="rich_chat_session_archive_unconfirmed">Agent chưa xác nhận việc lưu trữ.</string>
+
+
+    <string name="rich_chat_session_personas_truncated">Quét dừng ở giới hạn mục — danh sách có thể chưa đầy đủ.</string>
+    <string name="rich_chat_session_personas_title">Persona gốc</string>
+    <string name="rich_chat_session_personas_empty">Không tìm thấy định nghĩa persona gốc nào.</string>
+    <string name="rich_chat_session_personas_hint">Các định nghĩa subagent mà agent tìm thấy trong tệp của chính nó. Danh sách này là kết quả quét các định nghĩa ứng viên, không xác nhận chúng đã được nạp.</string>
+    <string name="rich_chat_session_persona_read_only">chỉ đọc</string>
+    <string name="rich_chat_session_persona_model">mô hình: %1$s</string>
+    <string name="rich_chat_session_action_settings">Cài đặt phiên</string>
+    <string name="rich_chat_session_settings_empty">Phiên này không cung cấp cài đặt nào.</string>
+    <string name="rich_chat_session_settings_malformed">Devin trả về một danh sách cài đặt mà Poracode không thể diễn giải.</string>
+    <string name="rich_chat_session_settings_read_failed">Không thể đọc cài đặt phiên.</string>
+    <string name="rich_chat_session_settings_footer">Thay đổi áp dụng cho phiên Devin đang chạy này.</string>
+    <string name="rich_chat_session_settings_unconfirmed">Devin chưa xác nhận thay đổi cài đặt.</string>
+    <string name="rich_chat_session_settings_no_values">Không có giá trị nào được cung cấp cho tùy chọn này.</string>
+    <string name="rich_chat_session_settings_current_value">Giá trị hiện tại: %1$s</string>
+    <string name="rich_chat_session_settings_org_locked">Tổ chức được cố định trong khi phiên này chạy — hãy thay đổi trong cài đặt hồ sơ Devin, sau đó bắt đầu phiên mới.</string>
+    <string name="rich_chat_session_settings_org_name">Tổ chức</string>
+    <string name="rich_chat_session_settings_unavailable">Không khả dụng</string>
+    <string name="rich_chat_session_settings_unsupported_typed">Poracode chưa thể chỉnh sửa điều khiển %1$s này.</string>
+    <string name="rich_chat_session_settings_unsupported">Poracode chưa thể chỉnh sửa điều khiển này.</string>
+    <string name="rich_chat_session_settings_no_value">Không có giá trị</string>
+    <string name="rich_chat_session_settings_no_matches">Không có giá trị khớp.</string>
+    <string name="rich_chat_session_settings_search">Tìm kiếm giá trị</string>
+    <string name="rich_chat_session_settings_back">Quay lại</string>
+    <string name="rich_chat_session_settings_fallback_heading">Cài đặt</string>
 </resources>

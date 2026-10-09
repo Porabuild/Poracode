@@ -20,7 +20,7 @@ const repositoryRoot = join(contractDirectory, "../../..");
 describe("remote v3 binding-format artifacts", () => {
   it("keeps generated IR/schema/inventory current", () => {
     expect(REMOTE_BINDING_FORMAT_VERSION).toBe(2);
-    expect(REMOTE_GENERATOR_VERSION).toBe(3);
+    expect(REMOTE_GENERATOR_VERSION).toBe(4);
     expect(checkRemoteV3Generated(repositoryRoot)).toEqual([]);
     const inventory = JSON.parse(
       readFileSync(join(contractDirectory, "generated/inventory.json"), "utf8"),
@@ -33,7 +33,7 @@ describe("remote v3 binding-format artifacts", () => {
     };
     expect(inventory.inventory).toEqual(REMOTE_CONTRACT_INVENTORY);
     expect(inventory.bindingFormatVersion).toBe(2);
-    expect(inventory.generatorVersion).toBe(3);
+    expect(inventory.generatorVersion).toBe(4);
     expect(inventory.sourceHash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(inventory.manifestHash).toMatch(/^sha256:[a-f0-9]{64}$/);
   });

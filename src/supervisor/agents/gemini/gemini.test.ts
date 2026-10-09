@@ -6,6 +6,7 @@ import type { ProjectLocation, ThreadConfig } from "@/shared/contracts";
 import type { OscTitle } from "@/shared/osc";
 import { createGeminiAdapter } from ".";
 import { buildGeminiArgs } from "./argv";
+import { UnsupportedOneShotControlError } from "../base";
 import { geminiIntentFor } from "./plugin/intentMap";
 import { detectGeminiInvalidSessionRef } from "./session";
 import { detectGeminiOscTitleStatus } from "./terminal";
@@ -266,5 +267,69 @@ describe("createGeminiAdapter skill roots", () => {
 
     expect(support?.roots.map((root) => root.id)).toEqual(["gemini", "agents"]);
     expect(support?.projectionRoots).toBeUndefined();
+  });
+});
+
+describe("createGeminiAdapter one-shot control policy", () => {
+  it("refuses meaningful effort and Fast with zero effects on both lanes", async () => {
+    const adapter = createGeminiAdapter();
+    // The gemini CLI maps neither carrier in this lane: a meaningful control
+    // refuses before any command is built instead of being silently dropped.
+    // The builders throw synchronously, so capture through a deferred call.
+    for (const [model, effort, fast] of [
+      ["gemini-2.5-pro", "high", undefined],
+      ["gemini-2.5-pro", undefined, true],
+    ] as const) {
+      const outcome = await Promise.resolve()
+        .then(() =>
+          adapter.buildOneShotCommand?.(model, effort, "title", undefined, fast, {
+            selection: { model, ...(effort ? { effort } : {}), ...(fast ? { fast } : {}) },
+          }),
+        )
+        .then(
+          () => "built",
+          (error: unknown) => error,
+        );
+      expect(outcome).toBeInstanceOf(UnsupportedOneShotControlError);
+      expect((outcome as UnsupportedOneShotControlError).axes).toEqual([
+        effort ? "effort" : "fast",
+      ]);
+    }
+
+    // The resume lane enforces the same provider policy before its command.
+    const resumeOutcome = await Promise.resolve()
+      .then(() =>
+        adapter.buildContextExtractionCommand?.(
+          { providerSessionId: "s-1", discoveredAt: "2026-10-09T00:00:00.000Z" },
+          { kind: "posix", path: "/fixture/repo" },
+          "gemini-2.5-pro",
+          { selection: { model: "gemini-2.5-pro", effort: "high", fast: true } },
+        ),
+      )
+      .then(
+        () => "built",
+        (error: unknown) => error,
+      );
+    expect(resumeOutcome).toBeInstanceOf(UnsupportedOneShotControlError);
+    expect((resumeOutcome as UnsupportedOneShotControlError).axes).toEqual(["effort", "fast"]);
+
+    // The legacy default carriers stay present and accepted on both lanes.
+    const legacy = await adapter.buildOneShotCommand?.(
+      "gemini-2.5-pro",
+      "",
+      "title",
+      undefined,
+      false,
+      { selection: { model: "gemini-2.5-pro", effort: "", fast: false } },
+    );
+    expect(legacy?.args).toEqual(["-p", "title", "--model", "gemini-2.5-pro"]);
+    const legacyResume = await adapter.buildContextExtractionCommand?.(
+      { providerSessionId: "s-1", discoveredAt: "2026-10-09T00:00:00.000Z" },
+      { kind: "posix", path: "/fixture/repo" },
+      "gemini-2.5-pro",
+      { selection: { model: "gemini-2.5-pro", effort: "", fast: false } },
+    );
+    expect(legacyResume?.args).toContain("--resume");
+    expect(legacyResume?.args).toContain("gemini-2.5-pro");
   });
 });

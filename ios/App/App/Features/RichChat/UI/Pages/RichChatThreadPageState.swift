@@ -11,9 +11,14 @@ final class RichChatThreadPageState {
   let providerUsageController: SettingsHostInformationController
   let fileMentionController: RichChatFileMentionController
   let draft: RichChatThreadDraftState
+  /// User-saved per-agent visibility lists from the host settings document —
+  /// the model picker's show/hide override. Empty until loaded; a failed load
+  /// leaves the provider's advertised defaults in charge.
+  private(set) var hiddenModels: [String: [String]] = [:]
 
   private let session: AppSession
   private let threadID: String
+  private let visibilityDocument: SettingsDocumentController
   private var ownedGitInterest: GitStateInterest?
 
   init(session: AppSession, threadID: String) {
@@ -23,8 +28,22 @@ final class RichChatThreadPageState {
     providerUsageController = SettingsHostInformationController(
       gateway: session.makeSettingsSessionGateway()
     )
+    visibilityDocument = SettingsDocumentController(gateway: session.makeSettingsSessionGateway())
     fileMentionController = RichChatFileMentionController(session: session, threadID: threadID)
     draft = RichChatThreadDraftState(store: session.richChatComposerDrafts)
+  }
+
+  /// Reads the host settings document once so the saved visibility lists reach
+  /// the composer's model picker. An unavailable document (offline, no lease)
+  /// is not a failure — the provider's advertised defaults still apply.
+  func loadVisibilityOverrides() async {
+    visibilityDocument.activate(session.currentSettingsHostSelection?.lease)
+    guard visibilityDocument.document == nil else {
+      hiddenModels = visibilityDocument.document?.hiddenModels ?? [:]
+      return
+    }
+    await visibilityDocument.load()
+    hiddenModels = visibilityDocument.document?.hiddenModels ?? [:]
   }
 
   func activate() async {
@@ -148,4 +167,45 @@ final class RichChatThreadPageState {
       }
     }
   }
+
+  /// Explicit draft insertion after reviewing the suggested command.
+  func insertIntoComposerDraft(_ text: String) {
+    let current = draft.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    draft.text = current.isEmpty ? text : current + "\n" + text
+  }
+
+  private var activationID: String {
+    let lease = session.currentRichChatAccess?.lease
+    return "\(lease?.connectionID.rawValue ?? "none"):\(lease?.generation ?? 0):\(threadID)"
+  }
+
+  /// Live session-action owner identity: every axis that distinguishes "the
+  /// same live session this thread is showing". `status` is deliberately not
+  /// an owner axis (working→idle is the same session) but is part of the
+  /// refresh key so a structured session that arrives or replaces re-reads.
+  var sessionActionOwner: RichChatSessionActionOwner? {
+    guard let thread else { return nil }
+    return RichChatSessionActionOwner(
+      threadID: thread.id,
+      agentKind: thread.agentKind,
+      agentInstanceID: thread.agentInstanceId,
+      presentationMode: thread.presentationMode,
+      sessionRefID: thread.sessionRef?.providerSessionID,
+      executionIdentity: thread.sessionRef?.executionIdentity
+    )
+  }
+
+  var sessionActionRefreshKey: String {
+    let owner = sessionActionOwner
+    return [
+      activationID,
+      thread?.status ?? "",
+      owner?.agentKind ?? "",
+      owner?.agentInstanceID ?? "",
+      owner?.presentationMode ?? "",
+      owner?.sessionRefID ?? "",
+      owner?.executionIdentity ?? "",
+    ].joined(separator: "|")
+  }
+
 }

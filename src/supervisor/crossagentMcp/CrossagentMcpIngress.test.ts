@@ -440,6 +440,11 @@ describe("CrossagentMcpIngress", () => {
         effort: "high",
         fast: true,
         prompt: "search the code",
+        dispatchProvenance: expect.objectContaining({
+          fallbackSource: "none",
+          retryModeSource: "default",
+          selection: expect.objectContaining({ source: "explicit", rankSource: "built-in" }),
+        }),
       },
     ]);
   });

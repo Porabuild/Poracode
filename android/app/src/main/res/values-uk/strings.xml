@@ -89,6 +89,8 @@
     <string name="home_start">Запустити</string>
     <string name="home_quick_compose_agent">Агент</string>
     <string name="home_quick_compose_presentation">Режим</string>
+    <string name="model_selection_lead">Основна модель</string>
+    <string name="model_selection_sidekick">Допоміжна модель</string>
     <string name="home_quick_compose_chat">Чат</string>
     <string name="home_quick_compose_terminal">Термінал</string>
     <string name="home_quick_compose_controls">Налаштування запуску</string>

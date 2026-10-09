@@ -1,0 +1,24 @@
+{
+  "$comment": "Neutral fixture: future binding version. The strict v1 schema rejects it on wire mutations (visible refusal before any effect); a tolerant persisted read would decode it to an unproven projection while the rest of the config stays valid and the original serialized storage is preserved. Future semantics require their own writer fence.",
+  "config": {
+    "model": "lead-a+sidekick-b",
+    "effort": "default",
+    "fast": false,
+    "mode": "agent",
+    "selectionBinding": {
+      "version": 2,
+      "kind": "family-member",
+      "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+      "model": "lead-a+sidekick-b",
+      "inertValues": { "effort": "default", "fast": false }
+    }
+  },
+  "owner": { "agentKind": "sample-agent", "presentationMode": "terminal" },
+  "expect": {
+    "bindingRecognized": false,
+    "matches": false,
+    "invalidReason": "future-version",
+    "configOtherwiseValid": true,
+    "coldLaunch": "conservative-catalog-required"
+  }
+}

@@ -82,8 +82,8 @@ it.each([false, true])(
       });
       const delivered = (await inputs.next()).value!;
       expect(delivered.message.content).toBe("native follow-up");
-      expect(delivered.priority).toBe("next");
-      expect(interrupt).not.toHaveBeenCalled();
+      expect(delivered.priority).toBe("now");
+      expect(interrupt).toHaveBeenCalledWith();
       expect(start).toHaveBeenCalledTimes(1);
 
       if (!folded) {
@@ -95,7 +95,7 @@ it.each([false, true])(
       output.write({ ...delivered, session_id: providerId, isReplay: true } as SDKMessage);
       output.write(assistantMessage(providerId, "native response"));
       await flushSdkMessages();
-      expect(events.filter((event) => event.type === "turn.started")).toHaveLength(folded ? 1 : 2);
+      expect(events.filter((event) => event.type === "turn.started")).toHaveLength(1);
       expect(start).toHaveBeenCalledTimes(1);
 
       output.write(resultMessage(providerId));
@@ -103,7 +103,7 @@ it.each([false, true])(
       await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(2));
       expect(start.mock.calls[1]?.[0]).toBe("FIFO follow-up");
       expect((await inputs.next()).value?.message.content).toBe("FIFO follow-up");
-      expect(interrupt).not.toHaveBeenCalled();
+      expect(interrupt).toHaveBeenCalledWith();
       expect(errors).toEqual([]);
     } finally {
       finish();

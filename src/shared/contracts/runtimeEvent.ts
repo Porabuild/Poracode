@@ -601,7 +601,7 @@ export const runtimeEventSchema = z.discriminatedUnion("type", [
     itemId: z.string(),
     stream: runtimeContentStreamKindSchema,
     delta: z.string(),
-    /** Authoritative stream snapshot after transport loss; omitted means append. */
+    /** Authoritative stream snapshot; omitted means append. */
     replace: z.boolean().optional(),
   }),
   z.object({

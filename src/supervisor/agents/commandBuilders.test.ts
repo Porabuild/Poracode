@@ -450,6 +450,50 @@ describe("agent command builders", () => {
       ],
     });
 
+    // Fast rides the same native argv mapping the interactive launch lane uses
+    // (`service_tier="fast"`), never dropped from the utility selection.
+    expect(
+      await createCodexAdapter().buildOneShotCommand?.(
+        "gpt-5.4-mini",
+        "low",
+        undefined,
+        undefined,
+        true,
+        {
+          selection: { model: "gpt-5.4-mini", effort: "low", fast: true },
+        },
+      ),
+    ).toEqual({
+      command: "codex",
+      args: [
+        "exec",
+        "--skip-git-repo-check",
+        "-m",
+        "gpt-5.4-mini",
+        "-c",
+        'model_reasoning_effort="low"',
+        "-c",
+        'service_tier="fast"',
+        "-",
+      ],
+    });
+    // false Fast keeps its OFF carrier semantics: no service_tier override.
+    expect(
+      await createCodexAdapter().buildOneShotCommand?.(
+        "gpt-5.4-mini",
+        "",
+        undefined,
+        undefined,
+        false,
+        {
+          selection: { model: "gpt-5.4-mini", effort: "", fast: false },
+        },
+      ),
+    ).toEqual({
+      command: "codex",
+      args: ["exec", "--skip-git-repo-check", "-m", "gpt-5.4-mini", "-"],
+    });
+
     expect(
       await createClaudeAdapter().buildOneShotCommand?.("haiku", "low", "Summarize this diff"),
     ).toEqual({

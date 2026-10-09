@@ -38,9 +38,26 @@ extension RichChatControllerFailure {
       if statusCode == 403, code == "missing_scope" {
         return .authorizationMissingScope(missingScope)
       }
+      if statusCode == 403, code == "git_procedure_not_allowed" {
+        // The host's procedure allowlist rejected the verb — not a scope
+        // denial. Keeping the code lets the session-action inventory hide
+        // quietly for an old host while everything else stays visible.
+        return .rejected(statusCode: statusCode, code: code)
+      }
       if statusCode == 403 { return .authorizationDenied }
       return .rejected(statusCode: statusCode, code: code)
     }
+  }
+
+  /// The paired host's procedure allowlist predates the session-action seam
+  /// (HTTP 403 `git_procedure_not_allowed` from the `/api/git/call`
+  /// passthrough) — the only inventory failure that hides without an error.
+  /// Every other failure must surface instead of masquerading as "no actions".
+  var isSessionActionSeamUnsupported: Bool {
+    if case .rejected(let statusCode, let code) = self {
+      return statusCode == 403 && code == "git_procedure_not_allowed"
+    }
+    return false
   }
 }
 
@@ -83,16 +100,19 @@ final class RichChatControllerTaskSlot {
 
   var isRunning: Bool { task != nil }
 
+  @discardableResult
   func launch(
     _ operation: @escaping @MainActor @Sendable () async -> Void
-  ) {
+  ) -> Task<Void, Never> {
     cancel()
     generation &+= 1
     let owner = generation
-    task = Task { @MainActor [weak self] in
+    let launched = Task { @MainActor [weak self] in
       await operation()
       self?.clear(owner: owner)
     }
+    task = launched
+    return launched
   }
 
   func cancel() {

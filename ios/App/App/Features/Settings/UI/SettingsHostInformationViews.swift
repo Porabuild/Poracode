@@ -62,7 +62,9 @@ struct SettingsAgentsView: View {
                 Toggle(
                   model.label,
                   isOn: Binding(
-                    get: { !(hiddenModels[agent.kind] ?? []).contains(model.id) },
+                    get: {
+                      !agent.effectiveHiddenModelIDs(overrides: hiddenModels).contains(model.id)
+                    },
                     set: { visible in setModelVisible(visible, modelID: model.id, agent: agent) }
                   )
                 )
@@ -112,7 +114,7 @@ struct SettingsAgentsView: View {
   }
 
   private func visibleModelCount(_ agent: SettingsAgentStatus) -> String {
-    let hidden = Set(hiddenModels[agent.kind] ?? [])
+    let hidden = agent.effectiveHiddenModelIDs(overrides: hiddenModels)
     let visible = agent.models.filter { !hidden.contains($0.id) }.count
     return "\(visible) / \(agent.models.count)"
   }
@@ -123,7 +125,7 @@ struct SettingsAgentsView: View {
     agent: SettingsAgentStatus
   ) {
     guard !composition.isMutating else { return }
-    var hidden = Set(hiddenModels[agent.kind] ?? [])
+    var hidden = agent.effectiveHiddenModelIDs(overrides: hiddenModels)
     if visible { hidden.remove(modelID) } else { hidden.insert(modelID) }
     hiddenModels[agent.kind] = hidden.sorted()
     Task {

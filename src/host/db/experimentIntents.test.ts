@@ -287,10 +287,18 @@ describe.skipIf(!sqliteAvailable)("experimentIntents (real sqlite)", () => {
       const changed = Object.keys(after).filter(
         (column) => after[column] !== beforeColumns[column],
       );
-      // Only the allowlisted narrow columns may ever change on this path.
-      const allowlisted = new Set(["worktree_path", "worktree_branch", "updated_at"]);
+      // Schema56 advances the workspace fence when its worktree owner changes.
+      const allowlisted = new Set([
+        "worktree_path",
+        "worktree_branch",
+        "updated_at",
+        "workspace_grant_revision",
+      ]);
       expect(changed.filter((column) => !allowlisted.has(column))).toEqual([]);
       expect(changed).toContain("worktree_path");
+      expect(after.workspace_grant_revision).toBe(
+        Number(beforeColumns.workspace_grant_revision) + 1,
+      );
 
       // A missing candidate row is a truthful conflict, never a re-insert.
       getSqlite().prepare("DELETE FROM threads WHERE id = 'c1'").run();

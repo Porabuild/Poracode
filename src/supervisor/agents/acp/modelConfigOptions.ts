@@ -16,6 +16,19 @@ export type ModelConfigOptionLike = {
   options?: unknown;
 };
 
+/**
+ * Declared binding of the ThreadConfig `fast` toggle onto one exact native
+ * select the agent advertises under non-boolean value ids. `configId` is the
+ * select's wire id; `enabled`/`disabled` are its two exact advertised value
+ * ids. Everything stays native — the shared side only maps booleans onto the
+ * declared pair, never rewriting ids or values to `true`/`false`.
+ */
+export type AcpSelectBooleanConfigBinding = {
+  configId: string;
+  disabled: string;
+  enabled: string;
+};
+
 type SelectEntry = {
   value?: string;
   name?: string;
@@ -35,6 +48,26 @@ export function flattenSelectOptionValues(options: unknown): string[] {
       return [record.value];
     }
     return flattenSelectOptionValues(record.options);
+  });
+}
+
+/**
+ * Flatten flat-or-grouped select value ids, keeping legitimate empty strings —
+ * they are real wire value ids a declared binding may legitimately name.
+ */
+function flattenSelectValueIds(options: unknown): string[] {
+  if (!Array.isArray(options)) {
+    return [];
+  }
+  return options.flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null) {
+      return [];
+    }
+    const record = entry as SelectEntry;
+    if (typeof record.value === "string") {
+      return [record.value];
+    }
+    return flattenSelectValueIds(record.options);
   });
 }
 
@@ -63,8 +96,37 @@ function looksLikeBooleanValues(values: readonly string[]): boolean {
   return normalized.has("true") && normalized.has("false");
 }
 
-/** Fast / speed-quality trade-off advertised as a boolean model_config select. */
-export function findFastConfigOption(configOptions: unknown): ModelConfigOptionLike | undefined {
+/**
+ * Fast / speed-quality trade-off advertised as a boolean model_config select.
+ * With a declared {@link AcpSelectBooleanConfigBinding}, the exact bound
+ * select is claimed instead — only when it is genuinely drivable as a
+ * two-state boolean: a select (by exact id, category ignored) advertising
+ * precisely the two distinct bound value ids. A missing id, a non-select or
+ * native boolean-typed control, or a select with any other advertised value
+ * is never claimed, so an undrivable binding keeps fast unbound rather than
+ * guessing a control. Bound values stay native; nothing is rewritten to
+ * `true`/`false`.
+ */
+export function findFastConfigOption(
+  configOptions: unknown,
+  binding?: AcpSelectBooleanConfigBinding,
+): ModelConfigOptionLike | undefined {
+  if (binding) {
+    if (binding.disabled === binding.enabled || !Array.isArray(configOptions)) {
+      return undefined;
+    }
+    for (const candidate of configOptions) {
+      if (typeof candidate !== "object" || candidate === null) continue;
+      const option = candidate as ModelConfigOptionLike;
+      if (option.id !== binding.configId) continue;
+      if (option.type !== "select") return undefined;
+      const values = new Set(flattenSelectValueIds(option.options));
+      if (values.size !== 2) return undefined;
+      if (!values.has(binding.disabled) || !values.has(binding.enabled)) return undefined;
+      return option;
+    }
+    return undefined;
+  }
   return listModelConfigSelects(configOptions).find((option) =>
     looksLikeBooleanValues(flattenSelectOptionValues(option.options)),
   );

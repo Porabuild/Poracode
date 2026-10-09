@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ElectronHostBridge } from "@/shared/clientRuntime";
 import type { SupervisorEvent } from "@/shared/ipc";
+import { IPC_PROCEDURE_MAP_VERSION } from "@/shared/ipc/procedureMap";
 import { ElectronBackendTransport } from "./hostTransport";
 import {
   __resetRendererEventInterestsForTest,
@@ -20,6 +21,8 @@ function makeHost() {
   const supervisorListeners = new Set<SupervisorListener>();
   const resetListeners = new Set<() => void>();
   const invoked: Array<{ name: string; args: unknown[] }> = [];
+  // Hop 17: the host bridge receives one complete renderer-produced envelope.
+  const envelopes: unknown[] = [];
   const host = {
     onSupervisorEvent: (listener: SupervisorListener) => {
       supervisorListeners.add(listener);
@@ -29,7 +32,9 @@ function makeHost() {
       resetListeners.add(listener);
       return () => resetListeners.delete(listener);
     },
-    invokeProcedure: async (name: string, args: unknown[]) => {
+    invokeProcedure: async (invocation: unknown) => {
+      const { name, args } = invocation as { name: string; args: unknown[] };
+      envelopes.push(invocation);
       invoked.push({ name, args });
       return null;
     },
@@ -45,6 +50,7 @@ function makeHost() {
       for (const listener of [...resetListeners]) listener();
     },
     invoked,
+    envelopes,
   };
 }
 
@@ -221,5 +227,17 @@ describe("ElectronBackendTransport (loopback-only data plane)", () => {
     await expect(transport.request("readProjectFile", [{ path: "/x" }])).rejects.toThrow(
       /IPC data plane removed/,
     );
+  });
+
+  it("sends the renderer-produced invocation envelope to the host bridge", async () => {
+    // Hop 17: the managed preload transport is a RENDERER producer of the
+    // envelope — the declared version is minted here from this bundle's
+    // compiled constant and crosses preload unchanged.
+    const { host, envelopes } = makeHost();
+    const transport = new ElectronBackendTransport(host);
+    await transport.request("getUpdateStatus", []);
+    expect(envelopes).toEqual([
+      { ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION, name: "getUpdateStatus", args: [] },
+    ]);
   });
 });

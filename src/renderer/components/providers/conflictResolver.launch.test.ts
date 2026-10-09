@@ -49,6 +49,10 @@ describe("readConflictResolverSettingsForProject", () => {
       effort: "",
       fast: false,
       presentationMode: "terminal",
+      // No canonical tuple exists, so the scalar siblings convert to the
+      // unstamped exact tuple.
+      selectionSource: "legacy",
+      selection: { model: "composer-2.5", effort: "", fast: false },
     });
   });
 
@@ -59,6 +63,8 @@ describe("readConflictResolverSettingsForProject", () => {
       effort: "",
       fast: false,
       presentationMode: "terminal",
+      selectionSource: "legacy",
+      selection: { model: "composer-2.5", effort: "", fast: false },
     });
   });
 
@@ -76,7 +82,67 @@ describe("readConflictResolverSettingsForProject", () => {
       effort: "",
       fast: false,
       presentationMode: "terminal",
+      selectionSource: "legacy",
+      selection: { model: "composer-2.5-fast", effort: "", fast: false },
     });
+  });
+
+  it("a present canonical tuple is the sole complete preset, record and extras intact", () => {
+    const binding = {
+      version: 1 as const,
+      kind: "family-member" as const,
+      owner: { agentKind: "claude", presentationMode: "gui" as const },
+      model: "sonnet",
+      inertValues: { effort: "medium" },
+    };
+    const canonical = {
+      ...settings,
+      conflictResolverModel: "stale-scalar-model",
+      conflictResolverSelection: {
+        model: "sonnet",
+        effort: "medium",
+        fast: true,
+        thinking: false,
+        selectionBinding: binding,
+      },
+    };
+    expect(readConflictResolverSettingsForProject("windows", canonical)).toEqual({
+      provider: "cursor",
+      // The scalar view derives from the tuple, never from stale siblings.
+      model: "sonnet",
+      effort: "medium",
+      fast: true,
+      presentationMode: "terminal",
+      selectionSource: "canonical",
+      selection: {
+        model: "sonnet",
+        effort: "medium",
+        fast: true,
+        thinking: false,
+        selectionBinding: binding,
+      },
+    });
+  });
+
+  it("a present WSL tuple makes the WSL variant count as configured", () => {
+    const result = readConflictResolverSettingsForProject("wsl", {
+      ...settings,
+      wslConflictResolverProvider: "auto",
+      wslConflictResolverModel: "",
+      wslConflictResolverSelection: { model: "sonnet", effort: "low", fast: false },
+    });
+    expect(result.selectionSource).toBe("canonical");
+    expect(result.selection).toEqual({ model: "sonnet", effort: "low", fast: false });
+    expect(result.model).toBe("sonnet");
+  });
+
+  it("an invalid canonical tuple falls back to the scalar siblings", () => {
+    const result = readConflictResolverSettingsForProject("windows", {
+      ...settings,
+      conflictResolverSelection: { model: "sonnet", effort: "low", bogus: true } as never,
+    });
+    expect(result.selection).toEqual({ model: "composer-2.5", effort: "", fast: false });
+    expect(result.model).toBe("composer-2.5");
   });
 });
 
@@ -108,5 +174,53 @@ describe("resolveConflictResolverLaunchConfig", () => {
       model: "composer-2.5-fast",
       effort: "",
     });
+  });
+});
+
+describe("canonical conflict launch projection", () => {
+  it.each([
+    { model: "exact-not-in-catalog" },
+    {
+      model: "exact-not-in-catalog",
+      effort: "",
+      fast: false,
+      thinking: true,
+      contextSize: "large",
+    },
+    {
+      model: "exact-not-in-catalog",
+      effort: "unsupported",
+      fast: true,
+      thinking: false,
+      contextSize: "",
+    },
+  ])("preserves complete actual fields and drops utility intent: %j", (actual) => {
+    const selection = {
+      ...actual,
+      selectionBinding: {
+        version: 1 as const,
+        kind: "family-member" as const,
+        owner: { agentKind: "fixture:profile", presentationMode: "terminal" as const },
+        model: actual.model,
+        inertValues: { fast: false },
+      },
+    };
+    expect(resolveConflictResolverLaunchConfig("auto", cursorStatus, selection)).toStrictEqual(
+      actual,
+    );
+    expect(selection.selectionBinding).toBeDefined();
+  });
+  it("resolves only a genuine implicit model", () => {
+    const expectedModel = resolveConflictResolverConfig(cursorStatus, "", "").model;
+    expect(resolveConflictResolverLaunchConfig("auto", cursorStatus, { model: "" })).toStrictEqual({
+      model: expectedModel,
+    });
+    expect(
+      resolveConflictResolverLaunchConfig("auto", cursorStatus, {
+        model: "",
+        effort: "",
+        fast: false,
+      }),
+    ).toStrictEqual({ model: expectedModel, effort: "", fast: false });
   });
 });

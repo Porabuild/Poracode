@@ -113,6 +113,8 @@ export type ProjectLocation = z.infer<typeof projectLocationSchema>;
 export const sessionRefSchema = z.object({
   providerSessionId: z.string().min(1),
   discoveredAt: z.string().min(1),
+  /** Opaque provider-owned account/execution scope captured when the session was created. */
+  executionIdentity: z.string().min(1).max(256).optional(),
 });
 export type SessionRef = z.infer<typeof sessionRefSchema>;
 

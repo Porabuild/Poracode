@@ -140,6 +140,9 @@ rl.on("line", (line) => {
 
   switch (method) {
     case "initialize":
+      if (env.FAKE_INITIALIZE_MARKER) {
+        writeFileSync(env.FAKE_INITIALIZE_MARKER, JSON.stringify(params.clientCapabilities));
+      }
       respond(id, {
         protocolVersion: 1,
         agentCapabilities: {

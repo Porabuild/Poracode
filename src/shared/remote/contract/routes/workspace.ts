@@ -174,6 +174,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "attachment-upload",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/files/attachment",
     auth: "bearer",
@@ -203,6 +204,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "schedules-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/schedules/command",
     auth: "bearer",
@@ -247,6 +249,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "pr-watch-check",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/pr-watches/check",
     auth: "bearer",
@@ -261,6 +264,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "pr-watch-agent-sync",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/pr-watches/agent",
     auth: "bearer",
@@ -275,6 +279,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "pr-watch-upsert",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/pr-watches",
     auth: "bearer",
@@ -289,6 +294,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "pr-watch-delete",
+    requiresCurrentProtocol: true,
     method: "DELETE",
     path: "/api/pr-watches",
     auth: "bearer",
@@ -317,6 +323,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "browser-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/browser/command",
     auth: "bearer",
@@ -345,6 +352,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "port-forward",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/ports/forward",
     auth: "bearer",
@@ -359,6 +367,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "port-enter",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/ports/enter",
     auth: "bearer",
@@ -373,6 +382,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "port-unforward",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/ports/unforward",
     auth: "bearer",
@@ -401,6 +411,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "project-command",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/projects/command",
     auth: "bearer",
@@ -453,6 +464,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "push-register",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/push/register",
     auth: "bearer",
@@ -467,6 +479,7 @@ export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   }),
   defineRoute({
     id: "push-unregister",
+    requiresCurrentProtocol: true,
     method: "POST",
     path: "/api/push/unregister",
     auth: "bearer",

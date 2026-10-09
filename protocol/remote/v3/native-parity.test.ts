@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { ENVIRONMENT_MANAGEMENT_ROUTE_IDS } from "../../../src/shared/remote/contract/routes/environments";
+import { PORACODE_REMOTE_PROTOCOL_VERSION } from "../../../src/shared/remote/protocol";
 
 import { iosSourceIsCompiled, isNativeDeviceTest } from "./native-source-evidence";
 
@@ -58,7 +59,7 @@ const UI_DISPOSITIONS = [
 
 const EXPECTED_COUNTS = {
   httpRoutes: 95,
-  procedures: 126,
+  procedures: 128,
   webSocketClientMessages: 9,
   // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
   webSocketServerMessages: 11,
@@ -128,7 +129,7 @@ const ledgerSchema = z
   .object({
     formatVersion: z.literal(2),
     contract: z.literal("poracode.remote.native-parity"),
-    protocolVersion: z.literal(12),
+    protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
     /** Recorded migration provenance beside the version (versioning doc rule). */
     migrationNote: z.string().min(1).optional(),
     entries: z
@@ -163,6 +164,8 @@ const legacyLedgerSchema = z
   .object({
     formatVersion: z.literal(1),
     contract: z.literal("poracode.remote.native-parity"),
+    // The last released format-1 ledger was minted at protocol 12; a format
+    // migration re-affirms its claims at the current generation below.
     protocolVersion: z.literal(12),
     entries: z
       .object({
@@ -206,7 +209,9 @@ export function migrateLedgerV1ToV2(raw: unknown): unknown {
   return {
     formatVersion: 2,
     contract: legacy.contract,
-    protocolVersion: legacy.protocolVersion,
+    // A format migration re-affirms the migrated claims at the current
+    // generation; the format-1 artifact recorded the older one.
+    protocolVersion: PORACODE_REMOTE_PROTOCOL_VERSION,
     entries: Object.fromEntries(
       Object.entries(legacy.entries).map(([category, entries]) => [
         category,
@@ -233,7 +238,7 @@ function parseLedgerDocument(raw: unknown): z.infer<typeof ledgerSchema> {
 
 const manifestSchema = z.object({
   contract: z.literal("poracode.remote"),
-  protocolVersion: z.literal(12),
+  protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
   httpRoutes: z.array(z.object({ id: z.string().min(1), scopes: z.array(z.string().min(1)) })),
   procedures: z.array(z.object({ name: z.string().min(1) })),
   webSocket: z.object({
@@ -866,7 +871,7 @@ describe("remote v3 native parity planning ledger", () => {
   it("keeps generated cardinalities aligned without treating metadata as implementation", () => {
     const generated = z
       .object({
-        protocolVersion: z.literal(12),
+        protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
         inventory: z.object({
           routes: z.number().int(),
           procedures: z.number().int(),
@@ -890,7 +895,7 @@ describe("remote v3 native parity planning ledger", () => {
   it("cross-checks native E2E transport coverage for every route and procedure", () => {
     const operationMap = z
       .object({
-        protocolVersion: z.literal(12),
+        protocolVersion: z.literal(PORACODE_REMOTE_PROTOCOL_VERSION),
         counts: z.object({ route: z.number().int(), procedure: z.number().int() }).passthrough(),
         operations: z.record(z.string(), z.object({ kind: z.string(), id: z.string() })),
       })

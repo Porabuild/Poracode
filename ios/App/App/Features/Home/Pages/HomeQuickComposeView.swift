@@ -48,6 +48,9 @@ struct HomeQuickComposeView: View {
   @State var fileMentions: [String] = []
   @State var mentionedMCPs: [RichChatSelectedMCP] = []
   @State var selector: HomeComposerSelector?
+  /// User-saved per-agent visibility lists (see `loadVisibilityOverrides`).
+  @State var hiddenModels: [String: [String]] = [:]
+  @State var visibilityDocument: SettingsDocumentController
   @State var showingImporter = false
   @State var importing = false
   @State var preparingWorktree = false
@@ -69,6 +72,8 @@ struct HomeQuickComposeView: View {
     _lifecycle = State(initialValue: session.makeThreadLifecycleController())
     _mediaSuite = State(initialValue: session.makeRichChatControllerSuite())
     _fileMentionController = State(initialValue: RichChatFileMentionController(session: session))
+    _visibilityDocument = State(
+      initialValue: SettingsDocumentController(gateway: session.makeSettingsSessionGateway()))
     let latestProjectID = (session.state.snapshot?.threads ?? [])
       .filter { !$0.isArchived && ThreadPresentationFilter.isVisibleInNativeList($0) }
       .max(by: { $0.updatedAt < $1.updatedAt })?.projectId
@@ -142,6 +147,7 @@ struct HomeQuickComposeView: View {
         activateMedia()
         synchronizeFileMentions()
       }
+      .task { await loadVisibilityOverrides() }
       .onChange(of: session.currentRichChatAccess?.lease) { activateMedia() }
       .onChange(of: agentStatusRevision) {
         normalizePresentationMode()
@@ -239,7 +245,8 @@ struct HomeQuickComposeView: View {
         RichChatComposerControlsSheet(
           configuration: composerControlsBinding,
           agentStatus: selectedAgent,
-          presentationMode: presentationMode
+          presentationMode: presentationMode,
+          hiddenModels: hiddenModels
         )
       }
   }
@@ -285,15 +292,6 @@ struct HomeQuickComposeView: View {
       projectIdentity: project.identity(on: connectionID),
       agentKind: agentKind
     )
-  }
-
-  var modelLabel: String {
-    guard let agent = selectedAgent, let modelID = effectiveConfiguration?.model else {
-      return HomeStrings.model
-    }
-    return modelOptions(for: agent).first(where: { $0.modelID == modelID })?.label
-      ?? HomeComposerCatalog.normalizedLabel(
-        agentKind: agent.kind, modelID: modelID, advertisedLabel: modelID)
   }
 
 }

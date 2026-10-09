@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import {
   areAgentSlashCommandsEqual,
   isThreadConfigEqual,
@@ -65,6 +66,12 @@ export class SessionRuntimeLifecycle {
     // A replacement generation is not the stopped predecessor: per-generation
     // overflow-stop state must not suppress this session's own hard stop.
     context.onSessionAttached?.(session.threadId);
+    // A new incarnation starts with no negotiated inventory: publish an
+    // explicit retirement so the successor never inherits the predecessor's
+    // session controls, whether or not its own agent advertises any.
+    if (session.sessionConfigOptions === undefined) {
+      session.sessionConfigOptions = null;
+    }
     if (session.pty) {
       context.ptyLifecycle.track(session);
     }
@@ -139,7 +146,9 @@ export class SessionRuntimeLifecycle {
     let sessionRefChanged = false;
     if (update.sessionRef) {
       const prevId = session.sessionRef?.providerSessionId;
-      sessionRefChanged = prevId !== update.sessionRef.providerSessionId;
+      sessionRefChanged =
+        prevId !== update.sessionRef.providerSessionId ||
+        session.sessionRef?.executionIdentity !== update.sessionRef.executionIdentity;
       session.sessionRef = update.sessionRef;
       session.canResumeWithConfig = true;
       context.indexSessionRef(session, prevId);
@@ -150,6 +159,11 @@ export class SessionRuntimeLifecycle {
     const slashCommandsChanged =
       update.slashCommands !== undefined &&
       !areAgentSlashCommandsEqual(session.slashCommands, update.slashCommands);
+    // `undefined` = "not stated" (older session, no update); `null` is an
+    // explicit retirement and must store and emit like any inventory.
+    const sessionConfigOptionsChanged =
+      update.sessionConfigOptions !== undefined &&
+      !isDeepStrictEqual(session.sessionConfigOptions, update.sessionConfigOptions);
     const stateChanged =
       session.status !== update.status ||
       session.attention !== update.attention ||
@@ -160,6 +174,9 @@ export class SessionRuntimeLifecycle {
     if (update.slashCommands !== undefined) {
       session.slashCommands = update.slashCommands;
     }
+    if (update.sessionConfigOptions !== undefined) {
+      session.sessionConfigOptions = update.sessionConfigOptions;
+    }
 
     if (
       session.suppressInitialStructuredIdle === true &&
@@ -167,7 +184,12 @@ export class SessionRuntimeLifecycle {
       session.status === "working" &&
       session.structuredTurnInterruptRequested !== true
     ) {
-      if (update.sessionRef || configChanged || slashCommandsChanged) {
+      if (
+        update.sessionRef ||
+        configChanged ||
+        slashCommandsChanged ||
+        sessionConfigOptionsChanged
+      ) {
         context.outputPipeline.emitState(session);
       }
       return;
@@ -205,7 +227,7 @@ export class SessionRuntimeLifecycle {
     // evaluates the newly-settled status.
     context.followUpQueue?.onStructuredUpdate(session, update.status);
     if (
-      (sessionRefChanged || configChanged || slashCommandsChanged) &&
+      (sessionRefChanged || configChanged || slashCommandsChanged || sessionConfigOptionsChanged) &&
       !stateChanged &&
       update.errorMessage === undefined
     ) {
@@ -294,7 +316,14 @@ export class SessionRuntimeLifecycle {
     // when no live structured session is attached. Leaving the dead handle in
     // place routes every later submit into its closed transport.
     session.structuredSession = undefined;
-    if (session.status === "inactive") return;
+    // The negotiated inventory died with the transport: retire it explicitly
+    // so neither the settled state nor a pulled snapshot can resurrect it.
+    const inventoryRetired = session.sessionConfigOptions !== null;
+    session.sessionConfigOptions = null;
+    if (session.status === "inactive") {
+      if (inventoryRetired) this.context.outputPipeline.emitState(session);
+      return;
+    }
     this.context.followUpQueue?.onSessionClosing(session.threadId, session);
     // onError is the authoritative non-clean boundary. A derivative transport
     // close must tear down the backing PTY without overwriting the visible

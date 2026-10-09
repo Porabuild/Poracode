@@ -16,7 +16,25 @@ import { join } from "node:path";
 import type { ProjectLocation, ResolvedMcpServer } from "@/shared/contracts";
 import { quotePosixShellArg, readAgentCommandOutput } from "../base";
 
-/** ACP-injected servers connect, but 3000.10.21's discovery tools read this disk catalog. */
+/**
+ * Devin session MCP serialization for the disk-catalog overlay.
+ *
+ * Corrected live evidence (devin 3000.11.3, tmp/devin/probe/results/):
+ * native `session/new` injection works for stdio entries and spec-exact
+ * remote entries (`{type:"http"|"sse", name, url, headers:[{name,value}]}`),
+ * and the overlay disk catalog works for stdio — all with real
+ * tools/list + tools/call round trips inside a prompt turn. Direct native
+ * injection is therefore proven and is NOT the reason this overlay serializes
+ * everything as stdio.
+ *
+ * The relay is retained because Poracode's per-server `disabledTools`
+ * filtering is enforced by its stdio tool-filter proxy
+ * (`prepareMcpToolFilters(..., { remoteViaStdio: true })`); a natively
+ * injected remote server bypasses that proxy, and Devin's documented native
+ * filter (`disabled_tools` in config.json / `permissions` patterns) has
+ * different, coarser semantics. Switching a server to direct native
+ * injection requires the filter guarantee to be re-established first.
+ */
 export function mergeDevinMcpConfig(raw: string, servers: readonly ResolvedMcpServer[]) {
   const config: unknown = JSON5.parse(raw);
   if (!config || typeof config !== "object" || Array.isArray(config))
@@ -68,26 +86,57 @@ async function mirrorEntries(source: string, target: string, excluded: string) {
   }
 }
 
-/** Overlay only this process's config root; other config entries retain their original targets. */
+/**
+ * Explicit roots for the MCP config overlay, resolved from a profile's
+ * execution context instead of process-global state.
+ *
+ * `root` is the directory the agent's config resolution starts from and must
+ * contain `devin/` — for profiles this is the account/config root the context
+ * already resolved (never the user's default root unless the profile IS the
+ * native default). `overlayParent` is the private scratch parent for the
+ * ephemeral overlay directory; its cleanup removes only the overlay, so
+ * resources and account roots are preserved untouched.
+ */
+export interface DevinMcpConfigRoots {
+  readonly root: string;
+  readonly variable: "XDG_CONFIG_HOME" | "APPDATA";
+  readonly overlayParent: string;
+}
+
+/** Default roots for the base native adapter (process env / platform home). */
+export function devinMcpDefaultRoots(): DevinMcpConfigRoots {
+  const win32 = process.platform === "win32";
+  const variable = win32 ? "APPDATA" : "XDG_CONFIG_HOME";
+  const root =
+    process.env[variable] ||
+    (win32 ? join(homedir(), "AppData", "Roaming") : join(homedir(), ".config"));
+  // Windows stores durable sessions under APPDATA/devin/cli, so the overlay
+  // must live under the real root to keep the first-session junction durable;
+  // elsewhere the system temp dir keeps the user config tree pristine.
+  return { root, variable, overlayParent: win32 ? root : tmpdir() };
+}
+
+/**
+ * Overlay only this process's config root; other config entries retain their
+ * original targets.
+ */
 export async function prepareDevinMcpConfig(
   location: ProjectLocation,
   servers: readonly ResolvedMcpServer[],
 ) {
   if (location.kind === "wsl") return prepareWslConfig(location, servers);
-  const variable = process.platform === "win32" ? "APPDATA" : "XDG_CONFIG_HOME";
-  const original =
-    process.env[variable] ||
-    (process.platform === "win32"
-      ? join(homedir(), "AppData", "Roaming")
-      : join(homedir(), ".config"));
-  // Windows stores durable sessions under APPDATA/devin/cli. Ensure even
-  // the first session writes through a persistent directory junction.
+  return prepareDevinMcpConfigForRoots(location, devinMcpDefaultRoots(), servers);
+}
+
+/** Context-driven overlay for profile launches; see {@link DevinMcpConfigRoots}. */
+export async function prepareDevinMcpConfigForRoots(
+  _location: ProjectLocation,
+  roots: DevinMcpConfigRoots,
+  servers: readonly ResolvedMcpServer[],
+) {
+  const { root: original, variable, overlayParent } = roots;
   await mkdir(join(original, "devin", "cli"), { recursive: true });
-  const root = await mkdtemp(
-    process.platform === "win32"
-      ? join(original, ".poracode-devin-config-")
-      : join(tmpdir(), "poracode-devin-config-"),
-  );
+  const root = await mkdtemp(join(overlayParent, ".poracode-devin-config-"));
   const cleanup = () => rm(root, { recursive: true, force: true });
   try {
     await chmod(root, 0o700);

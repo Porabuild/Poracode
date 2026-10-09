@@ -108,6 +108,7 @@ actor RichChatRawHTTPClient: RichChatRawHTTPExecuting {
     var request = URLRequest(url: url, timeoutInterval: requestTimeout)
     request.httpMethod = method
     request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+    request.declareCurrentRemoteWriterProtocol()
     try await authorization.authorize(&request)
     return request
   }
