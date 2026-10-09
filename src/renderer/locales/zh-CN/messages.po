@@ -4438,6 +4438,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "默认"
@@ -5385,6 +5386,10 @@ msgstr "结束语音聊天"
 msgid "Enhanced (Hooks)"
 msgstr "增强型（挂钩）"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "请输入最多256个字符且不含控制字符的字体族名称。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "输入完整的来源 URL，例如 https://code.example.com，不含路径。"
@@ -6148,9 +6153,12 @@ msgid "Follow-up behavior"
 msgstr "后续消息行为"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
 msgstr "用于智能体终端和终端面板的字体。字体缺失时使用默认字体。"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "代理终端和终端面板使用的字体。输入字体族名称或选择已安装的字体。缺失字体将使用默认字体。"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -10727,6 +10735,10 @@ msgstr "正在准备远程环境…"
 msgid "Presets"
 msgstr "预设"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "按 Enter 应用。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "请按快捷键…"
@@ -13128,6 +13140,10 @@ msgstr "在右侧面板显示停靠面板"
 msgid "Show estimated cost"
 msgstr "显示预计费用"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "显示字体建议"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Show GitHub Actions in the sidebar footer."
@@ -14243,6 +14259,7 @@ msgid "Terminal access denied."
 msgstr "终端访问被拒绝。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Terminal font face"
 msgstr "终端字体"
@@ -16161,6 +16178,10 @@ msgstr "当任务需要已有的浏览器会话时安全地使用 Chrome。"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "使用配置"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "使用默认字体"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"

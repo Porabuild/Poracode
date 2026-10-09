@@ -4438,6 +4438,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Par défaut"
@@ -5385,6 +5386,10 @@ msgstr "Terminer le chat vocal"
 msgid "Enhanced (Hooks)"
 msgstr "Amélioré (hooks)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "Saisissez une famille de polices de 256 caractères maximum, sans caractères de contrôle."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Entrez une URL d'origine complète, comme https://code.example.com, sans chemin."
@@ -6148,9 +6153,12 @@ msgid "Follow-up behavior"
 msgstr "Comportement des suivis"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
 msgstr "Police des terminaux des agents et du panneau de terminal. Si une police manque, la police par défaut est utilisée."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "Police des terminaux des agents et du panneau de terminal. Saisissez une famille ou choisissez une police installée. Les polices manquantes sont remplacées par celle par défaut."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -10727,6 +10735,10 @@ msgstr "Préparation de l’environnement distant…"
 msgid "Presets"
 msgstr "Préréglages"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Appuyez sur Entrée pour appliquer."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Appuyez sur le raccourci…"
@@ -13128,6 +13140,10 @@ msgstr "Afficher les docks dans le panneau droit"
 msgid "Show estimated cost"
 msgstr "Afficher le coût estimé"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "Afficher les suggestions de polices"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Show GitHub Actions in the sidebar footer."
@@ -14243,6 +14259,7 @@ msgid "Terminal access denied."
 msgstr "Accès au terminal refusé."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Terminal font face"
 msgstr "Police du terminal"
@@ -16161,6 +16178,10 @@ msgstr "Utilisez Chrome en toute sécurité quand une tâche nécessite une sess
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "Utiliser la configuration"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "Utiliser la police par défaut"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"

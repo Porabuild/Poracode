@@ -4438,6 +4438,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "기본값"
@@ -5385,6 +5386,10 @@ msgstr "음성 채팅 종료"
 msgid "Enhanced (Hooks)"
 msgstr "고급(후크)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "제어 문자 없이 최대 256자의 글꼴 패밀리를 입력하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "https://code.example.com과(와) 같은 전체 출처(origin) URL을 경로 없이 입력하세요."
@@ -6148,9 +6153,12 @@ msgid "Follow-up behavior"
 msgstr "후속 동작 방식"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
 msgstr "에이전트 터미널과 터미널 패널에 사용할 글꼴입니다. 글꼴이 없으면 기본 글꼴을 사용합니다."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "에이전트 터미널과 터미널 패널의 글꼴입니다. 글꼴 패밀리를 입력하거나 설치된 글꼴을 선택하세요. 없는 글꼴은 기본 글꼴로 대체됩니다."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -10728,6 +10736,10 @@ msgstr "원격 환경 준비 중…"
 msgid "Presets"
 msgstr "프리셋"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Enter 키를 눌러 적용하세요."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "단축키를 누르세요…"
@@ -13129,6 +13141,10 @@ msgstr "도크를 오른쪽 패널에 표시"
 msgid "Show estimated cost"
 msgstr "예상 비용 표시"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "글꼴 제안 표시"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Show GitHub Actions in the sidebar footer."
@@ -14244,6 +14260,7 @@ msgid "Terminal access denied."
 msgstr "터미널 접근이 거부되었습니다."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Terminal font face"
 msgstr "터미널 글꼴"
@@ -16162,6 +16179,10 @@ msgstr "기존 브라우저 세션이 필요한 작업에서는 Chrome을 안전
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "구성 사용"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "기본 글꼴 사용"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"

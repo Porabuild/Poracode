@@ -4438,6 +4438,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "За замовчуванням"
@@ -5385,6 +5386,10 @@ msgstr "Завершити голосовий чат"
 msgid "Enhanced (Hooks)"
 msgstr "Розширений (Hooks)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "Введіть родину шрифтів завдовжки до 256 символів без керівних символів."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Введіть повний URL джерела, наприклад https://code.example.com, без шляху."
@@ -6148,9 +6153,12 @@ msgid "Follow-up behavior"
 msgstr "Поведінка наступних повідомлень"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
 msgstr "Шрифт терміналів агентів і панелі термінала. Якщо шрифту немає, використовується шрифт за замовчуванням."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "Шрифт терміналів агентів і панелі термінала. Введіть родину або виберіть установлений шрифт. Якщо шрифт відсутній, використовується типовий."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -10728,6 +10736,10 @@ msgstr "Підготовка віддаленого середовища…"
 msgid "Presets"
 msgstr "Пресети"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Натисніть Enter, щоб застосувати."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Натисніть комбінацію клавіш…"
@@ -13129,6 +13141,10 @@ msgstr "Показувати доки на правій панелі"
 msgid "Show estimated cost"
 msgstr "Показувати орієнтовну вартість"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "Показати варіанти шрифтів"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Show GitHub Actions in the sidebar footer."
@@ -14244,6 +14260,7 @@ msgid "Terminal access denied."
 msgstr "Доступ до термінала заборонено."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Terminal font face"
 msgstr "Шрифт термінала"
@@ -16162,6 +16179,10 @@ msgstr "Використовуйте Chrome безпечно, коли завд�
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "Використати конфігурацію"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "Використовувати типовий шрифт"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"

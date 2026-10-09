@@ -4437,6 +4437,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "デフォルト"
@@ -5384,6 +5385,10 @@ msgstr "音声チャットを終了"
 msgid "Enhanced (Hooks)"
 msgstr "強化（フック）"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "制御文字を含まない256文字以内のフォントファミリーを入力してください。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "https://code.example.com のような完全なオリジン URL を入力してください（パスは含めないでください）。"
@@ -6147,9 +6152,12 @@ msgid "Follow-up behavior"
 msgstr "フォローアップの動作"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
 msgstr "エージェントのターミナルとターミナルパネルのフォント。フォントがない場合はデフォルトを使用します。"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "エージェントのターミナルとターミナルパネルのフォントです。ファミリー名を入力するか、インストール済みのフォントを選択してください。見つからない場合は既定のフォントを使用します。"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -10726,6 +10734,10 @@ msgstr "リモート環境を準備中…"
 msgid "Presets"
 msgstr "プリセット"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Enterキーで適用します。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "ショートカットを押してください…"
@@ -13127,6 +13139,10 @@ msgstr "ドックを右パネルに表示"
 msgid "Show estimated cost"
 msgstr "推定コストを表示"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "フォントの候補を表示"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Show GitHub Actions in the sidebar footer."
@@ -14242,6 +14258,7 @@ msgid "Terminal access denied."
 msgstr "ターミナルへのアクセスが拒否されました。"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Terminal font face"
 msgstr "ターミナルのフォント"
@@ -16160,6 +16177,10 @@ msgstr "既存のブラウザーセッションが必要なタスクでは Chrom
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "構成を使用する"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "既定のフォントを使用"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"

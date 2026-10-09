@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { Button, Select } from "@/renderer/components/common";
+import { Button } from "@/renderer/components/common";
 import { hasClientCapability } from "@/renderer/clientRuntime";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import {
   listInstalledFontFamilies,
   supportsInstalledFonts,
 } from "@/renderer/components/terminal/terminalFonts";
+import { TerminalFontPicker } from "./TerminalFontPicker";
 import { SettingRow } from "./SettingsForm";
 
 export function TerminalFontSetting() {
@@ -69,18 +70,13 @@ export function TerminalFontSetting() {
       title={t`Terminal font face`}
       description={
         <Trans>
-          Font for agent terminals and the terminal panel. Missing fonts use the default.
+          Font for agent terminals and the terminal panel. Type a family or choose an installed
+          font. Missing fonts use the default.
         </Trans>
       }
     >
-      <div className="flex flex-col items-end gap-2">
-        <Select
-          aria-label={t`Terminal font face`}
-          className="w-[200px] shrink-0"
-          options={options}
-          value={family ? `font:${family}` : "default"}
-          onChange={(value) => setFamily(value === "default" ? "" : value.slice(5))}
-        />
+      <div className="flex max-w-full flex-col items-end gap-2">
+        <TerminalFontPicker value={family} options={options} onChange={setFamily} />
         {supported && status !== "ready" && (
           <Button
             size="sm"

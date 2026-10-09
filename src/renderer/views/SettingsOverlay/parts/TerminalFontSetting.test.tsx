@@ -33,7 +33,7 @@ describe("TerminalFontSetting", () => {
     render(<TerminalFontSetting />);
     await waitFor(() => expect(query).toHaveBeenCalledOnce());
     await waitFor(() => expect(screen.queryByText("Loading fonts…")).toBeNull());
-    fireEvent.click(screen.getByLabelText("Terminal font face"));
+    fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
     expect(await screen.findByRole("option", { name: "Menlo" })).toBeInTheDocument();
   });
 
@@ -43,13 +43,13 @@ describe("TerminalFontSetting", () => {
     expect(query).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Load installed fonts" }));
     await waitFor(() => expect(screen.queryByText("Loading fonts…")).toBeNull());
-    fireEvent.click(screen.getByLabelText("Terminal font face"));
+    fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
     fireEvent.click(await screen.findByRole("option", { name: "Menlo" }));
     expect(useSharedSettings.getState().terminalFontFamily).toBe("Menlo");
     expect(JSON.parse(localStorage.getItem("poracode-shared-settings")!)).toMatchObject({
       terminalFontFamily: "Menlo",
     });
-    fireEvent.click(screen.getByLabelText("Terminal font face"));
+    fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
     fireEvent.click(await screen.findByRole("option", { name: "Default" }));
     expect(useSharedSettings.getState().terminalFontFamily).toBe("");
   });
@@ -60,7 +60,7 @@ describe("TerminalFontSetting", () => {
     render(<TerminalFontSetting />);
     fireEvent.click(screen.getByRole("button", { name: "Load installed fonts" }));
     await waitFor(() => expect(screen.queryByText("Loading fonts…")).toBeNull());
-    fireEvent.click(screen.getByLabelText("Terminal font face"));
+    fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
     expect(await screen.findByRole("option", { name: /Removed Mono/ })).toHaveTextContent(
       "Unavailable — using default",
     );
@@ -76,7 +76,7 @@ describe("TerminalFontSetting", () => {
     fireEvent.click(screen.getByRole("button", { name: "Load installed fonts" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Could not access installed fonts");
     expect(screen.getByRole("button", { name: "Load installed fonts" })).toBeEnabled();
-    fireEvent.click(screen.getByLabelText("Terminal font face"));
+    fireEvent.click(screen.getByRole("button", { name: "Show font suggestions" }));
     fireEvent.click(await screen.findByRole("option", { name: "Default" }));
     expect(useSharedSettings.getState().terminalFontFamily).toBe("");
   });
@@ -87,7 +87,29 @@ describe("TerminalFontSetting", () => {
     expect(
       screen.getByText("Installed-font selection is unavailable in this client."),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Terminal font face")).toBeEnabled();
+    expect(screen.getByRole("combobox", { name: "Terminal font face" })).toBeEnabled();
     expect(screen.queryByRole("button", { name: "Load installed fonts" })).toBeNull();
   });
+  it.each([false, true])(
+    "accepts typed families when enumeration is unsupported or denied: %j",
+    async (denied) => {
+      if (denied) {
+        inventory(
+          vi.fn<() => Promise<Array<{ family: string }>>>().mockRejectedValue(new Error("denied")),
+        );
+      }
+      render(<TerminalFontSetting />);
+      if (denied) {
+        fireEvent.click(screen.getByRole("button", { name: "Load installed fonts" }));
+        await screen.findByRole("status");
+      }
+      const input = screen.getByRole("combobox", { name: "Terminal font face" });
+      fireEvent.change(input, { target: { value: "My Local Mono" } });
+      expect(useSharedSettings.getState().terminalFontFamily).toBe("");
+      fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+      expect(useSharedSettings.getState().terminalFontFamily).toBe("My Local Mono");
+      fireEvent.click(screen.getByRole("button", { name: "Use default font" }));
+      expect(useSharedSettings.getState().terminalFontFamily).toBe("");
+    },
+  );
 });

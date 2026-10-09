@@ -4438,6 +4438,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Varsayılan"
@@ -5385,6 +5386,10 @@ msgstr "Sesli sohbeti bitir"
 msgid "Enhanced (Hooks)"
 msgstr "Geliştirilmiş (Kancalar)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "Kontrol karakterleri içermeyen, en fazla 256 karakterlik bir yazı tipi ailesi girin."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "https://code.example.com gibi, yol içermeyen tam bir kaynak URL'si girin."
@@ -6148,9 +6153,12 @@ msgid "Follow-up behavior"
 msgstr "Takip davranışı"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
 msgstr "Ajan terminalleri ve terminal paneli için yazı tipi. Eksik yazı tipleri yerine varsayılan kullanılır."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "Ajan terminalleri ve terminal paneli için yazı tipi. Bir aile adı yazın veya yüklü bir yazı tipi seçin. Bulunamayan yazı tipleri yerine varsayılan kullanılır."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -10728,6 +10736,10 @@ msgstr "Uzak ortam hazırlanıyor…"
 msgid "Presets"
 msgstr "Hazır ayarlar"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Uygulamak için Enter tuşuna basın."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Kısayola basın…"
@@ -13129,6 +13141,10 @@ msgstr "Panoları sağ panelde göster"
 msgid "Show estimated cost"
 msgstr "Tahmini maliyeti göster"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "Yazı tipi önerilerini göster"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Show GitHub Actions in the sidebar footer."
@@ -14244,6 +14260,7 @@ msgid "Terminal access denied."
 msgstr "Terminale erişim reddedildi."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Terminal font face"
 msgstr "Terminal yazı tipi"
@@ -16162,6 +16179,10 @@ msgstr "Bir görev mevcut tarayıcı oturumu gerektirdiğinde Chrome'u güvenle 
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "Yapılandırmayı kullan"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "Varsayılan yazı tipini kullan"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"

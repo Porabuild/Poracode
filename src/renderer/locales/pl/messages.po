@@ -4438,6 +4438,7 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "Domyślne"
@@ -5385,6 +5386,10 @@ msgstr "Zakończ rozmowę głosową"
 msgid "Enhanced (Hooks)"
 msgstr "Ulepszone (haki)"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "Wpisz rodzinę czcionek o długości do 256 znaków, bez znaków sterujących."
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Wpisz pełny adres URL źródła, np. https://code.example.com, bez ścieżki."
@@ -6148,9 +6153,12 @@ msgid "Follow-up behavior"
 msgstr "Zachowanie kolejnych wiadomości"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
-#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
 msgstr "Czcionka terminali agentów i panelu terminala. Gdy czcionka jest niedostępna, używana jest domyślna."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "Czcionka terminali agentów i panelu terminala. Wpisz rodzinę lub wybierz zainstalowaną czcionkę. Brakujące czcionki są zastępowane domyślną."
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -10728,6 +10736,10 @@ msgstr "Przygotowywanie środowiska zdalnego…"
 msgid "Presets"
 msgstr "Ustawienia predefiniowane"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "Naciśnij Enter, aby zastosować."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "Naciśnij skrót…"
@@ -13129,6 +13141,10 @@ msgstr "Pokaż doki w prawym panelu"
 msgid "Show estimated cost"
 msgstr "Pokaż szacunkowy koszt"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "Pokaż propozycje czcionek"
+
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #~ msgid "Show GitHub Actions in the sidebar footer."
@@ -14244,6 +14260,7 @@ msgid "Terminal access denied."
 msgstr "Odmowa dostępu do terminala."
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
 #: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Terminal font face"
 msgstr "Czcionka terminala"
@@ -16162,6 +16179,10 @@ msgstr "Używaj Chrome bezpiecznie, gdy zadanie wymaga istniejącej sesji przegl
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "Użyj konfiguracji"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "Użyj domyślnej czcionki"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"
