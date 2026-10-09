@@ -10,6 +10,8 @@ import {
 } from "@/renderer/components/thread/ThreadComposer";
 import { buildControls } from "@/renderer/components/thread/buildModelPickerControls";
 import { formatEffortLabel } from "@/renderer/components/thread/threadDraftViewHelpers";
+import { modelFamilyMemberLabel } from "@/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay";
+import { modelFamilyDisplayConfig } from "@/shared/modelFamilySelection";
 
 type PresentedAgentStatus = NonNullable<ReturnType<typeof agentStatusForPresentation>>;
 
@@ -37,10 +39,18 @@ export function ComposerCompactSummary(props: {
     thread.config.model,
     presentationCapabilities?.models ?? [],
   );
+  // Inside a family relation the summary reads the UID-derived view: the
+  // compact family + selector label and the encoded Effort/Fast coordinates,
+  // not the giant native pair label or the saved (possibly inert) carriers.
+  const familyConfig = presentationCapabilities
+    ? modelFamilyDisplayConfig(presentationCapabilities, thread.config)
+    : undefined;
   const modelLabel =
+    modelFamilyMemberLabel(presentationCapabilities, modelId) ??
     presentationCapabilities?.models.find((model) => model.id === modelId)?.label ??
     thread.config.model;
-  const effortLabel = thread.config.effort ? formatEffortLabel(thread.config.effort) : undefined;
+  const displayEffort = familyConfig?.effort ?? thread.config.effort;
+  const effortLabel = displayEffort ? formatEffortLabel(displayEffort) : undefined;
   let controls: ComposerControl[] = [];
   if (effectiveAgentStatus) {
     if (presentationMode === "gui") {

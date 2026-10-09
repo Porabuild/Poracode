@@ -25,11 +25,21 @@ struct RichChatComposerView: View {
   @Binding var configuration: ThreadConfig
   let agentStatus: AgentStatusRecord?
   let threadSlashCommands: [RemoteSlashCommand]?
+  /// Live negotiated session controls for the open thread; nil keeps every
+  /// composer control on the static capability projection.
+  let sessionConfigOptions: JSONValue?
   let canConfigure: Bool
+  /// User-saved visibility lists for the model picker; empty keeps the
+  /// provider's advertised defaults in charge.
+  var hiddenModels: [String: [String]] = [:]
   let fileMentionController: RichChatFileMentionController
   let onSubmissionStarted: () -> Void
   let onSubmissionFinished: (_ succeeded: Bool) -> Void
   let skillPickerContext: RichChatSkillPickerContext?
+  /// Neutral live session actions; nil (or an empty inventory) adds no entry.
+  var sessionActions: RichChatSessionActionsController?
+  /// Explicit draft insertion only; a revise suggestion is never sent by the app.
+  var onInsertIntoComposer: (String) -> Void = { _ in }
 
   @State private var importing = false
   @State private var attachmentError: String?
@@ -69,7 +79,9 @@ struct RichChatComposerView: View {
       RichChatComposerControlsSheet(
         configuration: $configuration,
         agentStatus: agentStatus,
-        presentationMode: .gui
+        presentationMode: .gui,
+        sessionConfigOptions: sessionConfigOptions,
+        hiddenModels: hiddenModels
       )
     }
     .sheet(isPresented: $showsSkillPicker) {
@@ -101,18 +113,18 @@ struct RichChatComposerView: View {
         open: { controlsPresented = .controls }
       )
     } toolbar: {
-      RichChatComposerAttachmentButton(
-        attachments: $attachments,
-        importing: $importing,
-        errorMessage: $attachmentError,
-        mediaController: mediaController,
-        disabled: controller.state.isSending,
-        openSkills: skillPickerContext == nil ? nil : { showsSkillPicker = true },
-        openControls: canOpenControls ? { controlsPresented = .controls } : nil,
-        compactToolbar: true
-      )
-      .controlSize(.small)
-      .frame(width: 32, height: 32)
+      if let sessionActions {
+        RichChatSessionActionsControls(
+          controller: sessionActions,
+          agentKind: agentKind,
+          isDisabled: !canOperate || controller.state.isSending,
+          insertIntoComposer: onInsertIntoComposer
+        ) { entries, open in
+          attachmentButton(entries: entries, open: open)
+        }
+      } else {
+        attachmentButton()
+      }
       RichChatComposerInlineConfiguration(
         agentKind: agentKind,
         configuration: configuration,
@@ -146,12 +158,37 @@ struct RichChatComposerView: View {
     }
   }
 
+  private func attachmentButton(
+    entries: [RichChatSessionActionEntryTarget] = [],
+    open: @escaping (RichChatSessionActionPanelKind) -> Void = { _ in }
+  ) -> some View {
+    let canOpenControls = agentStatus != nil && canConfigure
+    return RichChatComposerAttachmentButton(
+      attachments: $attachments,
+      importing: $importing,
+      errorMessage: $attachmentError,
+      mediaController: mediaController,
+      disabled: controller.state.isSending,
+      openSkills: skillPickerContext == nil ? nil : { showsSkillPicker = true },
+      openControls: canOpenControls ? { controlsPresented = .controls } : nil,
+      compactToolbar: true,
+      sessionActionEntries: entries,
+      sessionActionsDisabled: sessionActions?.state.pendingActionID != nil,
+      sessionActionsFailure: sessionActions?.state.inventoryFailure.map(RichChatStrings.failure),
+      openSessionAction: open,
+      retrySessionActions: { Task { await sessionActions?.refreshInventory() } }
+    )
+    .controlSize(.small)
+    .frame(width: 32, height: 32)
+  }
+
   private var slashCommandCatalog: RichChatComposerControlCatalog {
     RichChatComposerControlCatalog(
       agentStatus: agentStatus,
       presentationMode: .gui,
       configuration: configuration,
-      threadSlashCommands: threadSlashCommands
+      threadSlashCommands: threadSlashCommands,
+      sessionConfigOptions: sessionConfigOptions
     )
   }
 
@@ -197,39 +234,6 @@ struct RichChatComposerView: View {
       }
     }
     .poracodeGlassBackground(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-  }
-
-  private var mcpSuggestions: [RichChatMCPMentionOption] {
-    RichChatMCPMentionCatalog.suggestions(for: draft)
-  }
-
-  private var mentionSuggestionsAreEmpty: Bool {
-    mcpSuggestions.isEmpty && fileMentionController.suggestions.isEmpty
-  }
-
-  private var mentionSuggestionsPanel: some View {
-    RichChatMentionSuggestionsView(
-      mcps: mcpSuggestions,
-      files: fileMentionController.suggestions,
-      selectMCP: selectMCPMention,
-      selectFile: selectFileMention
-    )
-  }
-
-  private func selectMCPMention(_ option: RichChatMCPMentionOption) {
-    var nextConfiguration = configuration
-    RichChatMCPMentionCatalog.enable(option.configKey, in: &nextConfiguration)
-    configuration = nextConfiguration
-    let selection = option.selection
-    if !mcps.contains(where: { $0.id == selection.id }) { mcps.append(selection) }
-    draft = fileMentionController.consumeTrigger(from: draft)
-    composerExpanded = true
-  }
-
-  private func selectFileMention(_ entry: ProjectWorkspaceEntry) {
-    queuedSegments.append(.file(path: entry.path))
-    draft = fileMentionController.consumeTrigger(from: draft)
-    composerExpanded = true
   }
 
   private func send(queueInsteadOfSteer: Bool = false) {

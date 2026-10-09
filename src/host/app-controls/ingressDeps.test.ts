@@ -79,6 +79,59 @@ describe("app-controls ingress host-local invalidation", () => {
     expect(publishThreadsChanged).toHaveBeenCalledExactlyOnceWith([result.threadId]);
   });
 
+  it("forwards the ephemeral launch admission options to the launcher", async () => {
+    db.projects = [alphaProject()];
+    db.threads = [];
+    const deps = buildDeps();
+    const gates: string[] = [];
+
+    await deps.createThread(
+      {
+        projectId: "p1",
+        prompt: "Do the thing",
+        agentKind: "codex",
+        model: "gpt-5.6",
+      },
+      {
+        admitLaunch: () => {
+          gates.push("admit");
+        },
+      },
+    );
+
+    // Entry and post-await seams, all before the row became durable.
+    expect(gates.length).toBeGreaterThanOrEqual(2);
+    expect(db.threads).toHaveLength(1);
+  });
+
+  it("rolls a refused launch back without publishing the transient row", async () => {
+    db.projects = [alphaProject()];
+    db.threads = [];
+    const publishThreadsChanged = vi.fn<(threadIds: readonly string[]) => void>();
+    const deps = buildDeps({ publishThreadsChanged });
+    let calls = 0;
+
+    await expect(
+      deps.createThread(
+        {
+          projectId: "p1",
+          prompt: "Do the thing",
+          agentKind: "codex",
+          model: "gpt-5.6",
+        },
+        {
+          admitLaunch: () => {
+            calls += 1;
+            if (calls > 2) throw new Error("refused before persistence");
+          },
+        },
+      ),
+    ).rejects.toThrow("refused before persistence");
+
+    expect(db.threads).toHaveLength(0);
+    expect(publishThreadsChanged).not.toHaveBeenCalled();
+  });
+
   it("publishes projects-changed only when ensureHomeProjectWithPublish creates the row", () => {
     db.projects = [];
     db.upsertedProjects = [];

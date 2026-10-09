@@ -1,3 +1,4 @@
+import type { SessionConfigOptions } from "../contracts/sessionConfigOptions";
 import type { OscShellEvent } from "../osc";
 import type { LiveVoiceEvent } from "../contracts/liveVoice";
 import type { LspSessionStatus } from "../lsp";
@@ -8,6 +9,7 @@ import type {
   PrData,
   PrDetails,
   RuntimeEvent,
+  SessionRef,
   ThreadAttention,
   ThreadConfig,
   ThreadFollowUpQueueState,
@@ -19,6 +21,7 @@ import type {
 } from "../contracts";
 import type { BrowserState, BrowserTabInfo } from "./procedures/browser";
 import type { BrowserLinkPresentationMode, CrossagentRoutingOverride } from "../settings";
+import type { SettingsOwnerEdit } from "../settingsTransactions";
 import type { IpcProcedurePayload, SupervisorProcedureName } from "./procedureMap";
 import type { MessageKey } from "../messages";
 import {
@@ -202,6 +205,18 @@ export type SupervisorReply =
 
 export type SupervisorEvent =
   | {
+      /**
+       * Supervisor-owned settings records (ACP registry installs, hook-support
+       * verdicts) committed through the canonical settings owner, which
+       * answers with `confirmSupervisorSettingsEdits`. The supervisor never
+       * writes settings.json itself. An empty `edits` list is an admission
+       * probe sent before side effects a refusal would strand.
+       */
+      type: "settings-edits-requested";
+      requestId: string;
+      edits: SettingsOwnerEdit[];
+    }
+  | {
       type: "crossagent-routing-override-changed";
       requestId: string;
       change:
@@ -297,10 +312,12 @@ export type SupervisorEvent =
        * predating the field, which leaves the client's cached value alone.
        */
       threadMentionToolsAvailable?: boolean;
-      sessionRef?: { providerSessionId: string; discoveredAt: string };
+      sessionRef?: SessionRef;
       canResumeWithConfig: boolean;
       errorMessage?: string;
       slashCommands?: AgentSlashCommand[];
+      /** Current session controls; null retires them, absence leaves older-host state alone. */
+      sessionConfigOptions?: SessionConfigOptions | null;
       forceCloseActiveTurn?: boolean;
       threadStatusSource?: ThreadStatusSource;
     }

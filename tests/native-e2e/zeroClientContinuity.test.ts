@@ -25,6 +25,7 @@ import { acquireHostDataFenceWithWait } from "@/backend/ownership/hostDataFence"
 import { HostOwnerLease } from "@/backend/ownership/hostOwnerLease";
 import { resolveHostRootPaths } from "@/backend/ownership/hostRootPaths";
 import { defaultSharedSettings } from "@/shared/settings";
+import { nativeBindingEnv } from "@/host/db/runtimeItems.testFixtures";
 import { REAL_HOST_FIXTURE_KEY } from "./harness/realHostRoot";
 
 const CHILD_ENTRY = fileURLToPath(new URL("./harness/zeroClientOwnerChild.ts", import.meta.url));
@@ -61,7 +62,11 @@ function forkOwner(): ChildFixture {
       "--import",
       TS_REGISTER,
     ],
-    env: { ...process.env, PORACODE_SECRET_STORAGE_KEY: REAL_HOST_FIXTURE_KEY },
+    env: {
+      ...process.env,
+      PORACODE_SECRET_STORAGE_KEY: REAL_HOST_FIXTURE_KEY,
+      ...(nativeBindingEnv ? { PORACODE_BETTER_SQLITE3_NATIVE_BINDING: nativeBindingEnv } : {}),
+    },
     stdio: ["ignore", "pipe", "pipe", "ipc"],
   });
   const stderrChunks: Buffer[] = [];
@@ -145,7 +150,7 @@ describe("zero-client continuity drill (Gate 2.2 freeze matrix, native seam)", (
         $poracodeSettingsVersion?: number;
         guiChatFontSize?: number;
       };
-      expect(committed.$poracodeSettingsVersion).toBe(1);
+      expect(committed.$poracodeSettingsVersion).toBe(2);
       expect(committed.guiChatFontSize).toBe(defaultSharedSettings.guiChatFontSize + 1);
 
       // Still ready, still the SAME generation: continuity held across the

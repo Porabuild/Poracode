@@ -80,6 +80,8 @@ export type {
   FindBestHintOptions,
   HintEntry,
   OneShotChildCommand,
+  OneShotGenerationCommand,
+  OneShotGenerationOptions,
   ResolveExecutablePath,
   RunOneShotInput,
   SubagentOneShotCommandInput,
@@ -87,6 +89,14 @@ export type {
   StatusProbe,
   StatusProbeResult,
   StructuredSessionHandle,
+  AcpSessionActionBuilder,
+  AcpSessionActionTransport,
+  AcpSessionActionContext,
+  AcpSessionActionDescriptor,
+  AcpSessionActionInfo,
+  AcpExtensionRequestContext,
+  AcpExtensionRequestHandler,
+  AcpExtensionRequestOutcome,
   StructuredSessionListener,
   StructuredSessionUpdate,
   StructuredTurnResult,
@@ -99,6 +109,7 @@ export { isCompletedWithoutTurn } from "./types";
 export * from "./terminalHints";
 export * from "./expectedRuntimeError";
 export * from "./oneShotModel";
+export * from "./oneShotSelection";
 export * from "./promptSession";
 export * from "./processRuntime";
 export * from "./powershellClixml";

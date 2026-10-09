@@ -30,7 +30,7 @@ final class BoundedRecoveryTapeTests: XCTestCase {
     // Deliberate generation pin: raise consciously with the next protocol bump
     // and the committed tape together. Pure client-local bookkeeping does not
     // bump the wire protocol by itself.
-    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 12)
+    XCTAssertEqual(ProtocolConstants.remoteProtocolVersion, 13)
     XCTAssertEqual(root["versionBoundary"]?.stringValue, "fixture-only-additive")
   }
 

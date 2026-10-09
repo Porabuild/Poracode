@@ -160,8 +160,8 @@ internal object CatalogStore {
      */
     fun applyThreadExit(state: AppSession.UiState, threadId: String, seq: Long): AppSession.UiState =
         applyLiveThread(state, threadId, seq) { row ->
-            if (row.status == "inactive" || row.status == "error") row
-            else row.copy(status = "inactive", attention = "none", activeTurnStartedAt = null)
+            if (row.status == "inactive" || row.status == "error") row.copy(sessionConfigOptions = null)
+            else row.copy(status = "inactive", attention = "none", activeTurnStartedAt = null, sessionConfigOptions = null)
         }
 
     /**
@@ -185,6 +185,17 @@ internal object CatalogStore {
                 )
             }.getOrNull()
         }
+        // Live session inventory: absence (older host / no update) preserves the
+        // row's cached value, an explicit null retires it, an array — including
+        // an empty one — is the session's authoritative inventory. A present
+        // value this client cannot decode also retires, so a stale inventory
+        // never outlives the session that published it.
+        val sessionConfigOptionsPresent = event.containsKey("sessionConfigOptions")
+        val sessionConfigOptions = if (sessionConfigOptionsPresent) {
+            decodeSessionConfigOptions(event["sessionConfigOptions"])
+        } else {
+            null
+        }
         return mutation@{ row ->
             if (agentKind != null && agentKind != row.agentKind) return@mutation null
             row.copy(
@@ -193,9 +204,29 @@ internal object CatalogStore {
                 errorMessage = if (errorMessagePresent) errorMessage else row.errorMessage,
                 canResumeWithConfig = canResume ?: row.canResumeWithConfig,
                 config = config ?: row.config,
+                sessionConfigOptions = if (sessionConfigOptionsPresent) {
+                    sessionConfigOptions
+                } else {
+                    row.sessionConfigOptions
+                },
                 updatedAt = if (status == "working" && row.status != "working") nowIso else row.updatedAt,
             )
         }
+    }
+
+    private fun decodeSessionConfigOptions(
+        element: kotlinx.serialization.json.JsonElement?,
+    ): List<com.poracode.app.model.RemoteSessionConfigOption>? {
+        if (element == null || element is kotlinx.serialization.json.JsonNull) return null
+        if (element !is kotlinx.serialization.json.JsonArray) return null
+        return runCatching {
+            com.poracode.app.model.RemoteJson.decodeFromJsonElement(
+                kotlinx.serialization.builtins.ListSerializer(
+                    com.poracode.app.model.RemoteSessionConfigOption.serializer(),
+                ),
+                element,
+            )
+        }.getOrNull()
     }
 
     private fun JsonObject.stringValue(name: String): String? =

@@ -221,7 +221,7 @@ describe.skipIf(!sqliteAvailable)("experiment authority lifecycle (real sqlite)"
       .prepare(
         `INSERT INTO threads (id, project_id, title, agent_kind, config, status, attention,
            can_resume_with_config, sort_order, created_at, updated_at)
-         VALUES ('c-held', 'p1', 'held', 'claude', '{}', 'inactive', 'none', 0, 0,
+         VALUES ('c-held', 'p1', 'held', 'claude', '{"model":"opus"}', 'inactive', 'none', 0, 0,
                  '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
       )
       .run();

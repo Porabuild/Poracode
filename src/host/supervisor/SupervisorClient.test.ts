@@ -6,6 +6,10 @@ import {
   GIT_ADMISSION_QUEUE_FULL_CODE,
   isGitProcessAdmissionRefusal,
 } from "@/shared/gitProcessAdmission";
+import {
+  THREAD_SESSION_ABSENCE_REFUSAL_CODE,
+  isThreadSessionAbsenceRefusal,
+} from "@/shared/threadSessionRefusal";
 
 const forkMock = vi.hoisted(() => vi.fn<(...args: unknown[]) => unknown>());
 const setPriorityMock = vi.hoisted(() => vi.fn<(pid: number, priority: number) => void>());
@@ -647,6 +651,48 @@ describe("SupervisorClient typed refusal rehydration", () => {
     expect(isGitProcessAdmissionRefusal(error)).toBe(true);
     expect(isHostResourceBusyError(error)).toBe(false);
     expect(error).toMatchObject({ code: GIT_ADMISSION_QUEUE_FULL_CODE, retryAfterMs: 500 });
+  });
+
+  it("rehydrates the typed missing-session refusal onto its own carrier, not a pressure class", async () => {
+    const { client, child } = makeClient();
+    const getId = captureSentId(child);
+    const promise = client.call("sendThreadInput", { threadId: "t1" } as never);
+    child.emit("message", {
+      replyTo: getId(),
+      ok: false,
+      error: "Unknown thread session: t1",
+      errorCode: THREAD_SESSION_ABSENCE_REFUSAL_CODE,
+    });
+
+    const error = await promise.then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+    expect(isThreadSessionAbsenceRefusal(error)).toBe(true);
+    expect(isHostResourceBusyError(error)).toBe(false);
+    expect(isGitProcessAdmissionRefusal(error)).toBe(false);
+    expect(error).toMatchObject({ code: THREAD_SESSION_ABSENCE_REFUSAL_CODE });
+    expect((error as Error).message).toBe("Unknown thread session: t1");
+    expect((error as { retryAfterMs?: number }).retryAfterMs).toBeUndefined();
+  });
+
+  it("keeps a predecessor message-only unknown-session reply untyped", async () => {
+    const { client, child } = makeClient();
+    const getId = captureSentId(child);
+    const promise = client.call("sendThreadInput", { threadId: "t1" } as never);
+    child.emit("message", { replyTo: getId(), ok: false, error: "Unknown thread session: t1" });
+
+    const error = await promise.then(
+      () => undefined,
+      (reason: unknown) => reason,
+    );
+    // The local IPC path degrades to the historical plain Error: the message
+    // survives for the existing matchers, and no code is ever invented.
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe("Unknown thread session: t1");
+    expect(isThreadSessionAbsenceRefusal(error)).toBe(false);
+    expect(isHostResourceBusyError(error)).toBe(false);
+    expect((error as { code?: unknown }).code).toBeUndefined();
   });
 
   it("keeps an old message-only failure reply graceful", async () => {

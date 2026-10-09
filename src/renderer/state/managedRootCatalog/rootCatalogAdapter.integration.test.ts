@@ -181,7 +181,8 @@ function electronHost(
     onSupervisorEvent: (_listener: (event: SupervisorEvent, sequence?: number) => void) => () => {},
     onBackendSupervisorReset: () => () => {},
     ipcProcedureMapVersion: IPC_PROCEDURE_MAP_VERSION,
-    invokeProcedure: (async (name: string) => {
+    invokeProcedure: (async (invocation: { name: string }) => {
+      const { name } = invocation;
       preloadCalls.push(name);
       if (name === "getManagedLoopbackBootstrap") return getBootstrap();
       if (name === "setRendererEventInterests") return null;

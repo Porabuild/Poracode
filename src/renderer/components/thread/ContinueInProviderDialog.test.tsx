@@ -1,3 +1,4 @@
+import { extractContextPayloadSchema } from "@/shared/contracts/git";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@/renderer/components/providers/bootstrap";
@@ -13,7 +14,7 @@ type DialogProps = Parameters<typeof ContinueInProviderDialog>[0];
 const { bridge } = vi.hoisted(() => ({
   bridge: {
     platform: "win32" as const,
-    extractContext: vi.fn<() => Promise<unknown>>(),
+    extractContext: vi.fn<(input: unknown) => Promise<unknown>>(),
     cancelExtractContext: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
     searchProjectFiles: vi
       .fn<() => Promise<{ entries: unknown[]; totalIndexed: number }>>()
@@ -293,6 +294,44 @@ describe("ContinueInProviderDialog handoff flow", () => {
       { strategy: "context-file", extracted: null },
     );
   });
+
+  it.each(["", "high"])(
+    "sends the extraction model and selected effort %j without thread intent",
+    async (effort) => {
+      renderDialog({
+        thread: {
+          agentKind: "fixture-source",
+          presentationMode: "terminal",
+          config: {
+            model: "exact-source",
+            effort,
+            fast: true,
+            thinking: true,
+            contextSize: "large",
+            selectionBinding: {
+              version: 1,
+              kind: "family-member",
+              owner: { agentKind: "fixture-source", presentationMode: "terminal" },
+              model: "exact-source",
+              inertValues: { fast: true },
+            },
+          },
+          sessionRef: { providerSessionId: "session-1", discoveredAt: "2026-09-01T00:00:00.000Z" },
+        },
+        installedAgents: [
+          agent("fixture-source", "Source", "terminal", {
+            models: [{ id: "exact-source", label: "Exact" }],
+            efforts: ["", "high"],
+          }),
+          agent("fixture-target", "Target", "terminal"),
+        ],
+      });
+      await pressSwitch();
+      const input = extractContextPayloadSchema.parse(bridge.extractContext.mock.calls[0]?.[0]);
+      expect(input.selection).toStrictEqual({ model: "exact-source", effort });
+      expect(bridge.extractContext.mock.calls[0]?.[0]).not.toHaveProperty("model");
+    },
+  );
 
   it("shows the error phase and continues without context when extraction fails", async () => {
     bridge.extractContext.mockRejectedValue(new Error("provider quota exhausted"));

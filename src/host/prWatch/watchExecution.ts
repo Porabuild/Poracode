@@ -8,7 +8,7 @@ import type {
 } from "@/shared/ipc";
 import type { SharedSettings } from "@/shared/settings";
 import { resolveWorktreePlacement } from "@/shared/worktree";
-import type { PrWatchAgent, PrWatchWorkContext } from "./PrWatchService";
+import type { PrWatchAgent, PrWatchAssertCurrent, PrWatchWorkContext } from "./PrWatchService";
 
 /**
  * Typed supervisor RPC entrypoint (`supervisorClient.call`), declared here so
@@ -39,7 +39,11 @@ export interface PrWatchExecutionParams {
  */
 export function buildPrWatchExecutionDeps(params: PrWatchExecutionParams): {
   resolveWatchAgent(watch: PrWatch, project: Project): Promise<PrWatchAgent | null>;
-  ensureWorkContext(watch: PrWatch, project: Project): Promise<PrWatchWorkContext | null>;
+  ensureWorkContext(
+    watch: PrWatch,
+    project: Project,
+    assertCurrent: PrWatchAssertCurrent,
+  ): Promise<PrWatchWorkContext | null>;
 } {
   return {
     resolveWatchAgent: async (watch, project) => {
@@ -51,9 +55,14 @@ export function buildPrWatchExecutionDeps(params: PrWatchExecutionParams): {
       return { agentKind, config };
     },
 
-    ensureWorkContext: async (watch, project) => {
+    ensureWorkContext: async (watch, project, assertCurrent) => {
+      // Admission runs outside every swallowed git-error catch below, before
+      // each awaited RPC, so a refused launch never performs git work and a
+      // git failure never masks a refusal.
+      assertCurrent();
       const existing = await findBranchCheckout(params.call, project.location, watch);
       if (existing) return existing;
+      assertCurrent();
       // The PR branch may only exist on the remote by now (its worktree and
       // local branch can both be gone), so refresh refs before forking. Best
       // effort: a stale-but-present remote ref still yields a usable checkout.
@@ -66,6 +75,7 @@ export function buildPrWatchExecutionDeps(params: PrWatchExecutionParams): {
       } catch {
         // Offline or no remote — fall through and try the local ref.
       }
+      assertCurrent();
       // Read outside the try: the catch below is for git refusing the branch, and
       // should not also swallow a bad settings read.
       const placement = worktreePlacementArgs(

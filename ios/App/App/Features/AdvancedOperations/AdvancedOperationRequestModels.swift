@@ -227,23 +227,52 @@ struct AdvancedDeleteProjectEntryRequest: Codable, Equatable, Sendable {
   let path: String
 }
 
+/// Canonical complete utility selection carried by the generate* requests.
+///
+/// Mirrors the shared `modelSelectionSchema`: `model` is required (`""` keeps
+/// the existing implicit/default-model resolution) and every carrier axis keeps
+/// exact presence, so an omitted axis, `""`, and `false` stay distinct on the
+/// wire. A selection binding is only ever forwarded as the producer's own
+/// recorded value; the generated strict codec validates it, and nothing here
+/// mints one.
+struct AdvancedModelSelection: Codable, Equatable, Sendable {
+  let model: String
+  let effort: String?
+  let fast: Bool?
+  let thinking: Bool?
+  let contextSize: String?
+  let selectionBinding: AdvancedJSONValue?
+
+  init(
+    model: String,
+    effort: String? = nil,
+    fast: Bool? = nil,
+    thinking: Bool? = nil,
+    contextSize: String? = nil,
+    selectionBinding: AdvancedJSONValue? = nil
+  ) {
+    self.model = model
+    self.effort = effort
+    self.fast = fast
+    self.thinking = thinking
+    self.contextSize = contextSize
+    self.selectionBinding = selectionBinding
+  }
+}
+
 struct AdvancedGenerateCommitMessageRequest: Codable, Equatable, Sendable {
   let projectLocation: ProjectLocation
   let agentKind: String
-  let effort: String?
-  let fast: Bool?
+  let selection: AdvancedModelSelection?
   let language: String?
-  let model: String?
 }
 
 struct AdvancedGenerateTitleRequest: Codable, Equatable, Sendable {
   let projectLocation: ProjectLocation
   let agentKind: String
   let prompt: String
-  let effort: String?
-  let fast: Bool?
+  let selection: AdvancedModelSelection?
   let language: String?
-  let model: String?
 }
 
 struct AdvancedGeneratePrSummaryRequest: Codable, Equatable, Sendable {
@@ -251,7 +280,6 @@ struct AdvancedGeneratePrSummaryRequest: Codable, Equatable, Sendable {
   let agentKind: String
   let branch: String
   let baseBranch: String
-  let effort: String?
+  let selection: AdvancedModelSelection?
   let language: String?
-  let model: String?
 }

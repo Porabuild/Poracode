@@ -3,6 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
+import {
   HOST_RESOURCE_BUSY_CODE,
   HOST_RESOURCE_POLICY_UNAVAILABLE_CODE,
   HostResourceAdmissionRefusalError,
@@ -133,7 +137,11 @@ describe.skipIf(!sqliteAvailable)("thread route host-resource-admission refusals
     delete process.env.PORACODE_BETTER_SQLITE3_NATIVE_BINDING;
   });
 
-  const headers = () => ({ authorization: `Bearer ${token}`, "content-type": "application/json" });
+  const headers = () => ({
+    authorization: `Bearer ${token}`,
+    "content-type": "application/json",
+    [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  });
   const post = (
     path: string,
     body: Record<string, unknown>,

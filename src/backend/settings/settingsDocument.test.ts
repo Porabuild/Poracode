@@ -3,6 +3,37 @@ import { defaultSharedSettings } from "@/shared/settings";
 import { SettingsDocumentError, decodeSettingsDocument } from "./settingsDocument";
 
 describe("settings document migration", () => {
+  it("keeps defaultless utility selections absent in legacy documents and preserves present tuples", () => {
+    const fields = [
+      "commitGenSelection",
+      "titleGenSelection",
+      "conflictResolverSelection",
+      "experimentJudgeSelection",
+      "wslCommitGenSelection",
+      "wslTitleGenSelection",
+      "wslConflictResolverSelection",
+    ] as const;
+    const absent = decodeSettingsDocument({ themeMode: "dark" });
+    for (const field of fields) {
+      expect(Object.hasOwn(absent.settings, field)).toBe(false);
+      expect(Object.hasOwn(absent.raw, field)).toBe(false);
+    }
+    const selection = {
+      model: "fixture-model",
+      effort: "",
+      fast: false,
+      thinking: false,
+      contextSize: "",
+    };
+    const present = decodeSettingsDocument(
+      Object.fromEntries(fields.map((field) => [field, selection])),
+    );
+    for (const field of fields) {
+      expect(present.settings[field]).toEqual(selection);
+      expect(present.raw[field]).toEqual(selection);
+    }
+  });
+
   it("migrates valid legacy fields before filling canonical defaults and retains unknown values", () => {
     const document = decodeSettingsDocument({
       prAutoMergeDefault: true,

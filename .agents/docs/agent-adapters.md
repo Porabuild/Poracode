@@ -58,6 +58,17 @@ Providers own this classification; ordinary messages keep the default behavior.
 If none of the three fits, the right move is to add a new hook with a
 capability-shaped name and document it here — not to add a branch.
 
+`AcpStructuredSessionOptions.configureOpenedSession` runs provider-owned setup
+after the native open response and options are adopted, before the shared
+launch configuration or first prompt. Its bounded detached response is opaque
+to shared code. Readers and echo-confirmed writes are fenced to one open
+generation and expire when the hook ends. Setup failure rejects the open while
+retaining its allocated session reference for failed-start custody. Absent
+hooks preserve the ordinary open path. `allowUnlistedSelectValue` is a separate
+provider declaration for qualified compound select values: only a detached
+current select and a string rejected by ordinary membership reach it. All
+writer locks, owner checks and echo confirmation still apply.
+
 Model descriptions can opt into compact inline hints through the renderer
 `registerModelDescriptionFormatter` hook. Providers parse their own catalog text
 and supply a numeric hint plus a localized explanation; the shared picker never
@@ -507,6 +518,45 @@ Edit `PORACODE_PINNED_NODE_VERSION` in `src/supervisor/runtime/pinnedNode.ts`, t
 ## Capability-Based UI
 
 The UI only shows controls that the agent's `capabilities` object declares. Do not show fake controls for features a CLI cannot support (e.g. no effort selector for Gemini, no sandbox modes for Claude).
+
+### ACP prompt usage and notification ownership
+
+Providers whose ACP text messages have stable identities and authoritative
+snapshots normalize them into `poracodeTextStream` metadata through
+`canonicalMapping/textStreamSnapshots.ts`. The declaration carries only an
+opaque message `id` and `mode: "append" | "replace"`; native event types and
+overwrite flags remain inside the provider. The shared mapper correlates by
+session, owner, and text stream, and uses the existing `content.delta.replace`
+contract to update the same canonical item even after a tool or another stream
+closed it. Annotated chunks are explicitly typed plain assistant or reasoning
+text. Do not infer snapshots from repeated prose, suppress equal deltas, or
+reuse one owner's identity for another owner. Unannotated ACP messages retain
+the ordinary mapping path.
+
+Known child correlations remain addressable after their parent finishes via
+the existing neutral parent-tool declaration. An unknown or evicted declared
+owner must never replace a root or sibling stream with the same native id.
+
+A late replacement of an existing canonical item is a history correction,
+not evidence of a new autonomous turn. Session ownership checks the mapped
+effects: a nonempty batch of only replacing text deltas must neither reopen
+work nor extend an orphan turn's idle window. New item allocations, appends,
+and other lifecycle events keep the ordinary activity rules.
+
+Declare prompt usage semantics through `AcpSessionBehavior`.
+`promptUsageCounterKind` defaults to `cumulative`; `per-call` counts each
+accepted prompt with its own stable `acp-prompt-v1` sample ID, including equal
+or decreasing totals. Set `promptUsageReportsContext: false` when that payload
+measures consumption rather than context-window occupancy. Standard
+`usage_update` notifications continue to report context independently. Do not
+count a vendor notification again when it echoes the standard prompt reply.
+Qualify the declared semantics against multiple turns and each runtime target.
+
+An extension notification handler receives the current native `sessionId` and
+canonical foreground `turnId`, when present. Providers validate their payload's
+owner before emitting events. Replayed, disposed, and closed transports do not
+deliver extension notifications. A vendor stop notification must not complete
+the foreground turn a second time; the standard prompt result owns completion.
 
 ### Terminal MCP launch integration
 

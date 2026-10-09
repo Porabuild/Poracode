@@ -160,4 +160,65 @@
     <string name="rich_chat_history_notice_reason_shutdown">異常終了</string>
     <string name="rich_chat_history_notice_reason_unclean_epoch">異常なセッション</string>
     <string name="rich_chat_history_notice_reason_unknown">ストレージ上限</string>
+    <string name="rich_chat_session_actions">セッションアクション</string>
+    <string name="rich_chat_session_action_rename">セッション名を変更</string>
+    <string name="rich_chat_session_action_revise">コマンドを修正</string>
+    <string name="rich_chat_session_action_rules">ルール</string>
+    <string name="rich_chat_session_action_hooks">フック</string>
+    <string name="rich_chat_session_action_personas">ネイティブペルソナ</string>
+    <string name="rich_chat_session_rename_title">セッション名を変更</string>
+    <string name="rich_chat_session_rename_field">新しいセッション名</string>
+    <string name="rich_chat_session_rename_hint">エージェントが先に新しいタイトルを適用し、確認後に会話リストが更新されます。</string>
+    <string name="rich_chat_session_rename_submit">変更</string>
+    <string name="rich_chat_session_revise_command_field">修正するコマンド</string>
+    <string name="rich_chat_session_revise_note_field">何を変更しますか？（任意）</string>
+    <string name="rich_chat_session_revise_submit">提案を取得</string>
+    <string name="rich_chat_session_revise_hint">エージェントが修正案を提案します。実行前に内容を確認してください。</string>
+    <string name="rich_chat_session_revise_result_title">提案されたコマンド — 使用前に確認</string>
+    <string name="rich_chat_session_revise_insert">コンポーザーに挿入</string>
+    <string name="rich_chat_session_revise_discard">破棄</string>
+    <string name="rich_chat_session_revise_insert_hint">Poracode が提案を実行することはありません。挿入はコンポーザーを埋めるだけで、編集と送信はユーザーが行います。</string>
+    <string name="rich_chat_session_revise_empty">エージェントから修正されたコマンドが返されませんでした。</string>
+    <string name="rich_chat_session_rules_title">このセッションのルール</string>
+    <string name="rich_chat_session_rules_empty">このセッションにルールは登録されていません。</string>
+    <string name="rich_chat_session_hooks_title">このセッションのフック</string>
+    <string name="rich_chat_session_hooks_empty">このセッションにはフックが接続されていません。</string>
+    <string name="rich_chat_session_hooks_hint">フックのエントリは報告されたとおりに表示され、スキーマは解釈されません。</string>
+    <string name="rich_chat_session_listing_failed">一覧を読み取れませんでした。</string>
+    <string name="rich_chat_session_actions_failed">セッションアクションを読み込めませんでした。</string>
+    <string name="rich_chat_session_rename_unconfirmed">エージェントが名前変更を確認しませんでした。</string>
+
+    <string name="rich_chat_session_archive">セッションをアーカイブ</string>
+
+    <string name="rich_chat_session_archive_title">このセッションをアーカイブしますか？</string>
+
+    <string name="rich_chat_session_archive_message">エージェントが先にセッションをアーカイブし、確認後にこの会話がアーカイブされます。</string>
+
+    <string name="rich_chat_session_archive_unconfirmed">エージェントがアーカイブを確認しませんでした。</string>
+
+
+    <string name="rich_chat_session_personas_truncated">スキャンはエントリ上限で停止しました。リストは不完全な場合があります。</string>
+    <string name="rich_chat_session_personas_title">ネイティブペルソナ</string>
+    <string name="rich_chat_session_personas_empty">ネイティブペルソナの定義は見つかりませんでした。</string>
+    <string name="rich_chat_session_personas_hint">エージェントが自身のファイルで見つけたサブエージェント定義です。この一覧は候補の走査結果であり、読み込まれたことの確認ではありません。</string>
+    <string name="rich_chat_session_persona_read_only">読み取り専用</string>
+    <string name="rich_chat_session_persona_model">モデル: %1$s</string>
+    <string name="rich_chat_session_action_settings">セッション設定</string>
+    <string name="rich_chat_session_settings_empty">このセッションは設定を何も公開していません。</string>
+    <string name="rich_chat_session_settings_malformed">Devin が Poracode が解釈できない設定リストを返しました。</string>
+    <string name="rich_chat_session_settings_read_failed">セッション設定を読み取れませんでした。</string>
+    <string name="rich_chat_session_settings_footer">変更は実行中のこの Devin セッションに適用されます。</string>
+    <string name="rich_chat_session_settings_unconfirmed">Devin が設定の変更を確認しませんでした。</string>
+    <string name="rich_chat_session_settings_no_values">このオプションに選択可能な値はありません。</string>
+    <string name="rich_chat_session_settings_current_value">現在の値: %1$s</string>
+    <string name="rich_chat_session_settings_org_locked">このセッションの実行中は組織を変更できません — Devin プロファイル設定で変更し、新しいセッションを開始してください。</string>
+    <string name="rich_chat_session_settings_org_name">組織</string>
+    <string name="rich_chat_session_settings_unavailable">利用不可</string>
+    <string name="rich_chat_session_settings_unsupported_typed">Poracode はこの %1$s コントロールをまだ編集できません。</string>
+    <string name="rich_chat_session_settings_unsupported">Poracode はこのコントロールをまだ編集できません。</string>
+    <string name="rich_chat_session_settings_no_value">値なし</string>
+    <string name="rich_chat_session_settings_no_matches">一致する値はありません。</string>
+    <string name="rich_chat_session_settings_search">値を検索</string>
+    <string name="rich_chat_session_settings_back">戻る</string>
+    <string name="rich_chat_session_settings_fallback_heading">設定項目</string>
 </resources>

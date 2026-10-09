@@ -196,31 +196,30 @@ enum AdvancedDraftFactory {
       draft.setValue(value.path, for: .path)
     case .generateCommitMessage(let value):
       draft.setValue(value.agentKind, for: .agentKind)
-      apply(&draft, effort: value.effort, language: value.language, model: value.model)
-      draft.setFlag(AdvancedOptionalFlag(value.fast), for: .fast)
+      apply(&draft, selection: value.selection, language: value.language)
+      draft.setFlag(AdvancedOptionalFlag(value.selection?.fast), for: .fast)
     case .generateTitle(let value):
       draft.setValue(value.agentKind, for: .agentKind)
       draft.setValue(value.prompt, for: .prompt)
-      apply(&draft, effort: value.effort, language: value.language, model: value.model)
-      draft.setFlag(AdvancedOptionalFlag(value.fast), for: .fast)
+      apply(&draft, selection: value.selection, language: value.language)
+      draft.setFlag(AdvancedOptionalFlag(value.selection?.fast), for: .fast)
     case .generatePrSummary(let value):
       draft.setValue(value.agentKind, for: .agentKind)
       draft.setValue(value.branch, for: .branch)
       draft.setValue(value.baseBranch, for: .baseBranch)
-      apply(&draft, effort: value.effort, language: value.language, model: value.model)
+      apply(&draft, selection: value.selection, language: value.language)
     }
     return draft
   }
 
   private static func apply(
     _ draft: inout AdvancedOperationDraft,
-    effort: String?,
-    language: String?,
-    model: String?
+    selection: AdvancedModelSelection?,
+    language: String?
   ) {
-    draft.setValue(effort ?? "", for: .effort)
+    draft.setValue(selection?.effort ?? "", for: .effort)
     draft.setValue(language ?? "", for: .language)
-    draft.setValue(model ?? "", for: .model)
+    draft.setValue(selection?.model ?? "", for: .model)
   }
 
   private static func segmentDraft(_ segment: AdvancedThreadInputSegment) -> AdvancedSegmentDraft {

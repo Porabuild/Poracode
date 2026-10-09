@@ -84,6 +84,22 @@ export interface RemoteHttpRouteContract {
   readonly pathParameters?: readonly string[];
   readonly legacy?: true;
   readonly idempotency?: RemoteIdempotency;
+  /**
+   * Host-only per-route writer-generation admission (protocol 13). Declared
+   * exactly on the direct host-mutating routes; `true` requires the dispatcher
+   * to refuse an authenticated request unless it carries
+   * `x-poracode-protocol-version` with the exact current
+   * `PORACODE_REMOTE_PROTOCOL_VERSION` string, before any effect. This is an
+   * unshipped REQUIREMENT pending host admission qualification: this flag is
+   * the declaration the future dispatcher reads; no host gate enforces it yet.
+   * Auth-free, ticket/read-class, and GET routes never declare it, and the
+   * generic `procedure-call` route does not either — its reads and writes are
+   * to be admitted per resolved procedure scope, not per route. Not part of
+   * the native wire IR: native clients declare the same generation through
+   * their own ProtocolConstants mirror, and an unknown host ignores the header
+   * harmlessly.
+   */
+  readonly requiresCurrentProtocol?: true;
   readonly request: RemoteHttpRequestContract;
   readonly response: RemoteHttpResponseContract;
   /** Host-side only; not part of the native wire IR. */

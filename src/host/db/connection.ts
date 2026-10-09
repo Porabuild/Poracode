@@ -6,6 +6,7 @@ import {
   repairSafeSchemaDrift,
   runDatabaseMigrations,
 } from "./migrations";
+import { assertThreadWorkspaceGrantsPreflight } from "./threadWorkspaceGrantsSchema56";
 
 let _sqlite: InstanceType<typeof Database> | undefined;
 
@@ -278,6 +279,11 @@ export function initDatabase(
 
   const storedVersion = readStoredSchemaVersion(sqlite);
 
+  // Admit workspace custody read-only before any pending migration commits a
+  // forward-only schema_version: a refused database must keep its stored
+  // version so an older build can still open it.
+  assertSupportedDatabaseSchemaVersion(storedVersion);
+  assertThreadWorkspaceGrantsPreflight(sqlite);
   runDatabaseMigrations(sqlite, storedVersion);
   repairSafeSchemaDrift(sqlite);
   assertRequiredDatabaseSchema(sqlite);

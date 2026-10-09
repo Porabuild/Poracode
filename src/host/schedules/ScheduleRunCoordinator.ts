@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type {
   AgentStatusesResponse,
   Project,
@@ -12,6 +13,7 @@ import type {
   ThreadStatus,
 } from "@/shared/contracts";
 import type { SharedSettings } from "@/shared/settings";
+import { msg } from "@/shared/messages";
 import { DEFAULT_TERMINAL_SIZE, resolveMcpLaunchSnapshot } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { ScheduleRunPatch } from "@/host/db/scheduleRuns";
@@ -36,6 +38,14 @@ export interface ScheduleRunCoordinatorDeps {
   startThread(payload: StartThreadPayload): Promise<unknown>;
   /** Cached agent detection for the given WSL distros (supervisor request). */
   getAgentStatuses(wslDistros: string[]): Promise<AgentStatusesResponse>;
+  /**
+   * Fresh, synchronous execution admission against the authoritative
+   * `scheduled_tasks` row (see `dbAdmitScheduleExecution`). Runs once before
+   * Home-project creation and again after the awaited permission lookup,
+   * immediately before thread/run persistence, publication, and launch.
+   * Required — isolated tests supply it explicitly.
+   */
+  admitScheduleExecution(task: ScheduledTask): void;
   /** Mirror a thread command to the renderer store; false when no window is up. */
   sendThreadCommand(command: RemoteThreadCommand): boolean;
   /** Resolve (creating if absent) the persisted home-scope project row. */
@@ -175,12 +185,26 @@ export class ScheduleRunCoordinator {
     completion: PromiseWithResolvers<string>,
   ): Promise<void> {
     this.assertOpen();
+    // First admission: before any side effect — including creating the
+    // Home project row for a Home-scope task.
+    this.deps.admitScheduleExecution(task);
     const project = this.resolveProject(task);
     const threadId = (this.deps.newId ?? randomUUID)();
     const nowIso = this.nowIso();
 
     const config = await this.buildThreadConfig(task, project.location);
     this.assertOpen();
+    // Second admission: the permission lookup above awaited, so the stored
+    // task may have changed since capture. Refuse immediately before the
+    // thread/run persistence, publication, and launch.
+    this.deps.admitScheduleExecution(task);
+    const currentProject = this.deps.getProject(project.id);
+    if (
+      !currentProject ||
+      !isDeepStrictEqual(currentProject.location, project.location) ||
+      currentProject.remoteServerId !== project.remoteServerId
+    )
+      throw new Error(msg("schedule.executionStale"));
     const thread: Thread = {
       id: threadId,
       projectId: project.id,
@@ -298,10 +322,19 @@ export class ScheduleRunCoordinator {
     task: ScheduledTask,
     location: ProjectLocation,
   ): Promise<ThreadConfig> {
+    // Preserve the schedule's actual controls exactly — an empty-string
+    // effort or a false fast/thinking is a real value, and a recognized
+    // selection binding rides along unchanged. The permission resolution is
+    // merged independently of the captured controls.
     return {
       model: task.config.model,
       ...(task.config.effort !== undefined ? { effort: task.config.effort } : {}),
       ...(task.config.fast !== undefined ? { fast: task.config.fast } : {}),
+      ...(task.config.thinking !== undefined ? { thinking: task.config.thinking } : {}),
+      ...(task.config.contextSize !== undefined ? { contextSize: task.config.contextSize } : {}),
+      ...(task.config.selectionBinding !== undefined
+        ? { selectionBinding: task.config.selectionBinding }
+        : {}),
       ...(await resolveUnrestrictedThreadPermissions(
         this.deps.getAgentStatuses,
         task.agentKind,

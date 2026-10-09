@@ -1,6 +1,7 @@
 import type { StandaloneAttachInfo } from "./standaloneAttach";
 import type { HostServiceCapabilities } from "./hostControlProtocol";
-import type { IpcProcedureName, PoracodeBridge, PoracodeInvokeBridge } from "./ipc";
+import type { PoracodeBridge, PoracodeInvokeBridge } from "./ipc";
+import type { ClientProcedureInvocation } from "./ipc/invocation";
 import type {
   RemoteHttpBridgeCancelRequest,
   RemoteHttpBridgeOpenRequest,
@@ -57,6 +58,8 @@ import { CLIENT_HOST_HOP_VERSION } from "./clientHostHop";
 // and its shed-gap recovery signal are gone, and the preload no longer serves
 // the `setRendererEventInterests` procedure. A version-14 preload still speaks
 // the removed vocabulary, so the gate rejects that pairing loudly.
+// Version 17: the renderer-produced invocation envelope carries the hop
+// version and main asserts it before dispatch (see `clientHostHop.ts`).
 export const PORACODE_CLIENT_RUNTIME_VERSION = CLIENT_HOST_HOP_VERSION;
 
 export type ClientHost = "electron" | "browser";
@@ -101,7 +104,14 @@ export type PoracodeNativeBridge = Omit<PoracodeBridge, keyof PoracodeInvokeBrid
 /** Minimal Electron preload surface. It owns native shell IPC, never agents or SQLite. */
 export type ElectronHostBridge = Omit<PoracodeNativeBridge, "onSupervisorEvent"> & {
   readonly clientRuntimeVersion: typeof PORACODE_CLIENT_RUNTIME_VERSION;
-  invokeProcedure(name: IpcProcedureName, args: unknown[]): Promise<unknown>;
+  /**
+   * Hop 17: takes ONE complete renderer-produced invocation envelope (see
+   * `shared/ipc/invocation.ts`) and forwards it unchanged. The legacy
+   * positional `(name, args)` signature is gone: a positional call forwards
+   * its bare first argument, which main's version gate rejects before any
+   * effect — a legacy caller can never acquire the current version.
+   */
+  invokeProcedure(invocation: ClientProcedureInvocation): Promise<unknown>;
   /**
    * Backend reset (required at facade version 14): a new backend child
    * restarts the loopback sequence spaces, so the renderer drops its dedupe

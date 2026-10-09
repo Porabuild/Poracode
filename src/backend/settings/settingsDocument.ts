@@ -8,9 +8,13 @@ import {
 import { SETTINGS_LIST_FIELDS } from "@/shared/settingsTransactions";
 import { parseMachineKey } from "@/shared/machines";
 import { isRecord, settingsListEntryId } from "./settingsSubjects";
+import {
+  projectSettingsSelectionData,
+  retainUnsupportedSettingsSelections,
+} from "./settingsSelectionData";
 
 /** Flat JSON remains readable; absence is the legacy generation, never a future-version bypass. */
-export const SETTINGS_DOCUMENT_VERSION = 1 as const;
+export const SETTINGS_DOCUMENT_VERSION = 2 as const;
 export const SETTINGS_DOCUMENT_VERSION_KEY = "$poracodeSettingsVersion";
 
 export class SettingsDocumentError extends Error {
@@ -61,14 +65,19 @@ export function decodeSettingsDocument(raw: unknown): SettingsDocument {
   if (!isRecord(raw))
     throw new SettingsDocumentError("corrupt", "Shared settings must be a JSON object.");
   const version = raw[SETTINGS_DOCUMENT_VERSION_KEY];
-  if (Object.hasOwn(raw, SETTINGS_DOCUMENT_VERSION_KEY) && version !== SETTINGS_DOCUMENT_VERSION) {
+  if (
+    Object.hasOwn(raw, SETTINGS_DOCUMENT_VERSION_KEY) &&
+    version !== 1 &&
+    version !== SETTINGS_DOCUMENT_VERSION
+  ) {
     throw new SettingsDocumentError(
       "unsupported",
       "Shared settings use an unsupported document version.",
     );
   }
   // This named legacy migration precedes the tightened URL schema. All other invalid values fail.
-  const source = sanitizeLegacyMcpServerUrls(raw) as Record<string, unknown>;
+  const original = sanitizeLegacyMcpServerUrls(raw) as Record<string, unknown>;
+  const source = projectSettingsSelectionData(original);
   const known: Record<string, unknown> = {};
   for (const [field, schema] of Object.entries(sharedSettingsSchema.shape)) {
     const result = schema.safeParse(fillFieldDefault(field as keyof SharedSettings, source[field]));
@@ -78,15 +87,24 @@ export function decodeSettingsDocument(raw: unknown): SettingsDocument {
         `Shared settings contain an invalid ${field} value.`,
         { cause: result.error },
       );
-    known[field] = result.data;
+    // Defaultless optional fields (the canonical AI-utility selections) have
+    // no default to fill, so an absent stored field parses to `undefined`.
+    // Zod keeps an own `undefined` property through parse, which would poison
+    // every key-iterating consumer of `document.settings` (canonical diffing,
+    // structuredClone round-trips). Absence stays absent: every field with a
+    // default parses to a defined value, so this skip is a no-op for them.
+    if (result.data !== undefined) known[field] = result.data;
   }
   for (const key of Object.keys(known.machineSettings as SharedSettings["machineSettings"]))
     if (!parseMachineKey(key))
       throw new SettingsDocumentError("corrupt", "Shared settings contain an invalid machine key.");
   const validated = known as SharedSettings;
   const withUnknown = preserveUnknownSettingsValues(source, validated, validated) as SharedSettings;
-  const migrated = migrateSharedSettingsValues(withUnknown, source).settings;
-  const settings = sharedSettingsSchema.parse(migrated);
+  const migrated = retainUnsupportedSettingsSelections(
+    original,
+    migrateSharedSettingsValues(withUnknown, source).settings as unknown as Record<string, unknown>,
+  );
+  const settings = sharedSettingsSchema.parse(projectSettingsSelectionData(migrated));
   for (const field of SETTINGS_LIST_FIELDS) {
     const ids = settings[field].map((entry) => settingsListEntryId(field, entry));
     if (new Set(ids).size !== ids.length)
@@ -95,7 +113,7 @@ export function decodeSettingsDocument(raw: unknown): SettingsDocument {
         `Shared settings contain duplicate ${field} identities.`,
       );
   }
-  return { raw: migrated as unknown as Record<string, unknown>, settings };
+  return { raw: migrated, settings };
 }
 
 export function parseSettingsDocument(contents: string): SettingsDocument {

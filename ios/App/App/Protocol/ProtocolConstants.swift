@@ -1,8 +1,12 @@
 import Foundation
 
 /// Mirrors `PORACODE_REMOTE_PROTOCOL_VERSION` in `src/shared/remote/protocol.ts`.
-/// Protocol v12 adds authoritative content-stream replacement. Older native
-/// bindings would append those snapshots, so wire generations must match.
+/// Protocol v13 adds per-route writer-generation admission: a writer request
+/// must carry the exact current version header, and the canonical strict
+/// selection-binding configs ride the wire. That host refusal is an unshipped
+/// requirement pending integrated qualification. Native HTTP producers declare
+/// their compiled version; host admission and old-writer retirement must be
+/// qualified together before shipping. Wire generations must still match.
 /// Guarded against drift by
 /// `protocol/remote/v3/native-protocol-version.test.ts`.
 enum ProtocolConstants {
@@ -11,8 +15,17 @@ enum ProtocolConstants {
   /// past this bound loses replay coverage, so every buffer pairs the cap
   /// with an overflow flag that forces an authoritative refresh/resync.
   static let maxBufferedEnvelopes = 512
-    static let remoteProtocolVersion = 12
+    static let remoteProtocolVersion = 13
     static let commandIdHeader = "x-poracode-command-id"
+    /// Per-request writer-generation admission, mirroring
+    /// `REMOTE_PROTOCOL_VERSION_HEADER` / `_VALUE` in
+    /// `src/shared/remote/protocol/core.ts`. Only the exact current protocol
+    /// version string counts; a declared writer request without it is required
+    /// to be refused before any effect once host admission lands (unshipped
+    /// requirement pending integrated qualification).
+    /// Opaque proxies carry the header verbatim and never
+    /// synthesize, strip, or upgrade it.
+    static let protocolVersionHeader = "x-poracode-protocol-version"
     /// Per-request bounded project-command result declaration
     /// (`capabilities.projectCommandResults` v1). Mirrors
     /// `REMOTE_PROJECT_COMMAND_RESULT_HEADER` / `..._DECLARATION` in

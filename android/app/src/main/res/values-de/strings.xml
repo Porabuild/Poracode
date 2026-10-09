@@ -89,6 +89,8 @@
     <string name="home_start">Starten</string>
     <string name="home_quick_compose_agent">KI-Agent</string>
     <string name="home_quick_compose_presentation">Darstellung</string>
+    <string name="model_selection_lead">Leitmodell</string>
+    <string name="model_selection_sidekick">Hilfsmodell</string>
     <string name="home_quick_compose_chat">Gespräch</string>
     <string name="home_quick_compose_terminal">Terminal</string>
     <string name="home_quick_compose_controls">Starteinstellungen</string>

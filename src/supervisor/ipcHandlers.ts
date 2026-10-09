@@ -1,5 +1,6 @@
 import type { ListPluginsPayload } from "@/shared/contracts";
 import {
+  invokeThreadSessionActionPayloadSchema,
   editQueuedThreadFollowUpPayloadSchema,
   sendThreadInputPayloadSchema,
   setPendingSteerPayloadSchema,
@@ -37,15 +38,28 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     ),
     userPluginsDir: pluginRegistry.ensureUserPluginsDir(),
   });
+  const withUsageReconciliation = async <T>(operation: Promise<T>): Promise<T> => {
+    try {
+      return await operation;
+    } finally {
+      try {
+        await usage.reconcileProfileSources();
+      } catch {
+        console.warn("[usage] account-source reconciliation failed");
+      }
+    }
+  };
   return defineSupervisorIpcHandlers({
     confirmCrossagentRoutingOverride: (payload) =>
       runtime.confirmCrossagentRoutingOverride(payload),
+    confirmSupervisorSettingsEdits: (payload) => runtime.confirmSupervisorSettingsEdits(payload),
     getCrossagentRouting: () => runtime.getCrossagentRoutingSnapshot(),
     manageAgentPlugins: (payload) => registry.manageAgentPlugins(payload),
     manageAgentCredentials: (payload) => registry.manageAgentCredentials(payload),
     listWslDistros: () => registry.listWslDistros(),
     getAgentStatuses: (payload) => registry.getAgentStatuses(payload),
-    refreshAgentStatuses: (payload) => registry.refreshAgentStatuses(payload),
+    refreshAgentStatuses: (payload) =>
+      withUsageReconciliation(registry.refreshAgentStatuses(payload)),
     getProviderUsage: (payload) => usage.getProviderUsage(payload),
     refreshProviderUsage: (payload) => usage.refreshProviderUsage(payload),
     getNativeMcpSetup: (payload) => runtime.nativeMcpSetupCoordinator.getStatus(payload),
@@ -61,8 +75,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
     resolveAgentAccount: (payload) => registry.resolveAgentAccount(payload),
     removeAcpRegistryAgent: (payload) => registry.removeAcpRegistryAgent(payload),
     setAcpRegistryAgentAuth: (payload) => registry.setAcpRegistryAgentAuth(payload),
-    authenticateAcpAgent: (payload) => registry.authenticateAcpAgent(payload),
-    logoutAcpAgent: (payload) => registry.logoutAcpAgent(payload),
+    authenticateAcpAgent: (payload) =>
+      withUsageReconciliation(registry.authenticateAcpAgent(payload)),
+    logoutAcpAgent: (payload) => withUsageReconciliation(registry.logoutAcpAgent(payload)),
     getThreadSnapshots: () => threads.getThreadSnapshots(),
     getResourceAdmissionStatus: () => runtime.getResourceAdmissionStatus(),
     getTerminalShellSnapshots: () => threads.getTerminalShellSnapshots(),
@@ -73,6 +88,9 @@ export function createSupervisorIpcHandlers(runtime: SupervisorRuntime): Supervi
       threads.sendThreadInput(sendThreadInputPayloadSchema.parse(payload)),
     interruptThread: (payload) => threads.interruptThread(payload),
     controlThreadGoal: (payload) => threads.controlThreadGoal(payload),
+    listThreadSessionActions: (payload) => threads.listThreadSessionActions(payload),
+    invokeThreadSessionAction: (payload) =>
+      threads.invokeThreadSessionAction(invokeThreadSessionActionPayloadSchema.parse(payload)),
     connectThreadVoice: (payload) => threads.connectThreadVoice(payload),
     disconnectThreadVoice: (payload) => threads.disconnectThreadVoice(payload),
     rollbackThreadConversation: (payload) => threads.rollbackThreadConversation(payload),

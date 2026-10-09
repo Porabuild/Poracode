@@ -1,6 +1,10 @@
 import { Readable } from "node:stream";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { describe, expect, it, vi } from "vitest";
+import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
 import { FILE_SAVE_CONFLICT_MESSAGE } from "@/shared/fileSaveErrors";
 import type { RemoteServerContext } from "./context";
 import { writeError } from "./httpResponses";
@@ -19,7 +23,14 @@ vi.mock("@/host/db", async (importOriginal) => ({
 const LOCATION = { kind: "posix", path: "/repo" } as const;
 
 function jsonBodyRequest(payload: unknown): IncomingMessage {
-  return Readable.from([Buffer.from(JSON.stringify(payload))]) as unknown as IncomingMessage;
+  // Current-client fixture: writeProjectFile/writeExternalFile resolve to a
+  // non-read scope, so the unit mock must present the exact writer
+  // generation a current producer would attach.
+  const req = Readable.from([Buffer.from(JSON.stringify(payload))]) as unknown as IncomingMessage;
+  req.headers = {
+    [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  };
+  return req;
 }
 
 /** A body that fails on first read, so any body parse before auth would surface. */

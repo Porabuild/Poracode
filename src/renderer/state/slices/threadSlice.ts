@@ -139,6 +139,7 @@ export interface ThreadSlice {
       threadMentionToolsAvailable?: boolean;
       sessionRef?: SessionRef;
       slashCommands?: Thread["slashCommands"];
+      sessionConfigOptions?: Thread["sessionConfigOptions"];
       canResumeWithConfig: boolean;
       threadStatusSource?: ThreadStatusSource;
       forceCloseActiveTurn?: boolean;
@@ -358,6 +359,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           sessionRef: _clearedSessionRef,
           agentInstanceId: _clearedInstanceId,
           slashCommands: _clearedSlashCommands,
+          sessionConfigOptions: _clearedSessionConfigOptions,
           errorMessage: _clearedError,
           doneAt: _clearedDoneAt,
           threadStatusSource: _clearedStatusSource,
@@ -649,7 +651,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
 
         const sessionRefChanged =
           input.sessionRef !== undefined &&
-          thread.sessionRef?.providerSessionId !== input.sessionRef.providerSessionId;
+          (thread.sessionRef?.providerSessionId !== input.sessionRef.providerSessionId ||
+            thread.sessionRef?.executionIdentity !== input.sessionRef.executionIdentity);
         const nextSessionRef =
           input.sessionRef && sessionRefChanged ? input.sessionRef : thread.sessionRef;
 
@@ -669,6 +672,10 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         const slashCommandsChanged =
           input.slashCommands !== undefined &&
           !areAgentSlashCommandsEqual(thread.slashCommands, input.slashCommands);
+        const sessionConfigOptionsChanged =
+          input.sessionConfigOptions !== undefined &&
+          JSON.stringify(thread.sessionConfigOptions) !==
+            JSON.stringify(input.sessionConfigOptions);
         // Implicit unmark only on a real turn start (same predicate as updatedAt),
         // not on working rebroadcasts after the user marks done mid-turn.
         const turnStarted = input.status === "working" && thread.status !== "working";
@@ -681,6 +688,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           thread.canResumeWithConfig === input.canResumeWithConfig &&
           statusSourceMatch &&
           !slashCommandsChanged &&
+          !sessionConfigOptionsChanged &&
           !sessionRefChanged &&
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
@@ -709,6 +717,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             : {}),
           ...(nextSessionRef ? { sessionRef: nextSessionRef } : {}),
           ...(input.slashCommands !== undefined ? { slashCommands: input.slashCommands } : {}),
+          ...(input.sessionConfigOptions !== undefined
+            ? { sessionConfigOptions: input.sessionConfigOptions }
+            : {}),
           ...(input.errorMessage !== undefined ? { errorMessage: input.errorMessage } : {}),
           ...(turnStarted ? { updatedAt: nowIso } : {}),
           ...(activityClearsDone ? { done: false, doneAt: undefined } : {}),
@@ -913,6 +924,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         if (
           thread.status === "inactive" &&
           thread.attention === "none" &&
+          thread.sessionConfigOptions == null &&
           thread.activeTurnStartedAt === nextTurnTiming.activeTurnStartedAt &&
           thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
           thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt
@@ -933,6 +945,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           status: "inactive",
           attention: "none",
           threadStatusSource: undefined,
+          sessionConfigOptions: null,
           ...nextTurnTiming,
         };
       });
@@ -1007,18 +1020,38 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
   reconcileRuntimeSnapshots: (snapshots, requestedThreadIds, options) =>
     set((state) => {
       const snapshotsById = new Map(snapshots.map((snapshot) => [snapshot.threadId, snapshot]));
-      const runtimeLaunchConfigByThreadId = Object.fromEntries(
-        snapshots.flatMap((snapshot) =>
+      const retiredOwnerIds = new Set(
+        snapshots
+          .filter((snapshot) => {
+            const thread = state.threads.find((candidate) => candidate.id === snapshot.threadId);
+            return (
+              thread && snapshot.agentKind !== undefined && snapshot.agentKind !== thread.agentKind
+            );
+          })
+          .map((snapshot) => snapshot.threadId),
+      );
+      const acceptedSnapshots = snapshots.filter(
+        (snapshot) => !retiredOwnerIds.has(snapshot.threadId),
+      );
+
+      const runtimeLaunchConfigByThreadId = Object.fromEntries([
+        ...Object.entries(state.runtimeLaunchConfigByThreadId).filter(([id]) =>
+          retiredOwnerIds.has(id),
+        ),
+        ...acceptedSnapshots.flatMap((snapshot) =>
           snapshot.launchConfig ? [[snapshot.threadId, snapshot.launchConfig]] : [],
         ),
-      );
-      const threadMentionToolsAvailableByThreadId = Object.fromEntries(
-        snapshots.flatMap((snapshot) =>
+      ]);
+      const threadMentionToolsAvailableByThreadId = Object.fromEntries([
+        ...Object.entries(state.threadMentionToolsAvailableByThreadId).filter(([id]) =>
+          retiredOwnerIds.has(id),
+        ),
+        ...acceptedSnapshots.flatMap((snapshot) =>
           snapshot.threadMentionToolsAvailable === undefined
             ? []
             : [[snapshot.threadId, snapshot.threadMentionToolsAvailable]],
         ),
-      );
+      ]);
       let changed = false;
       let turnUpdate: TurnCloseUpdate = {
         runtimeCompletedTurnsByThread: state.runtimeCompletedTurnsByThread,
@@ -1042,6 +1075,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
         const snapshot = snapshotsById.get(thread.id);
 
         if (snapshot) {
+          if (snapshot.agentKind !== undefined && snapshot.agentKind !== thread.agentKind)
+            return thread;
           const lastRuntimeConfig = lastRuntimeConfigByThreadId[thread.id] ?? thread.config;
           const runtimeConfigChanged =
             snapshot.config !== undefined &&
@@ -1052,7 +1087,8 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           const sessionRefChanged =
             (thread.sessionRef?.providerSessionId ?? "") !==
               (snapshot.sessionRef?.providerSessionId ?? "") ||
-            (thread.sessionRef?.discoveredAt ?? "") !== (snapshot.sessionRef?.discoveredAt ?? "");
+            (thread.sessionRef?.discoveredAt ?? "") !== (snapshot.sessionRef?.discoveredAt ?? "") ||
+            thread.sessionRef?.executionIdentity !== snapshot.sessionRef?.executionIdentity;
 
           const configFromRuntime = runtimeConfigChanged ? snapshot.config : undefined;
           const nextConfig =
@@ -1068,6 +1104,11 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             snapshot.slashCommands,
           );
 
+          const sessionConfigOptionsChanged =
+            snapshot.sessionConfigOptions !== undefined &&
+            JSON.stringify(thread.sessionConfigOptions) !==
+              JSON.stringify(snapshot.sessionConfigOptions);
+
           if (
             thread.status === snapshot.status &&
             thread.attention === snapshot.attention &&
@@ -1079,6 +1120,7 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             thread.lastTurnStartedAt === nextTurnTiming.lastTurnStartedAt &&
             thread.lastTurnEndedAt === nextTurnTiming.lastTurnEndedAt &&
             !slashCommandsChanged &&
+            !sessionConfigOptionsChanged &&
             !sessionRefChanged
           ) {
             return thread;
@@ -1106,6 +1148,9 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
             ...(snapshot.slashCommands !== undefined
               ? { slashCommands: snapshot.slashCommands }
               : {}),
+            ...(snapshot.sessionConfigOptions !== undefined
+              ? { sessionConfigOptions: snapshot.sessionConfigOptions }
+              : {}),
             ...nextTurnTiming,
           };
         }
@@ -1115,18 +1160,22 @@ export const createThreadSlice: SliceCreator<ThreadSlice> = (set) => ({
           thread.threadStatusSource === "server" ||
           (options?.preserveHostOwnedRootRows === true && thread.remoteServerId === undefined) ||
           (requestedThreadIds !== undefined && !requestedThreadIds.has(thread.id)) ||
-          thread.status === "inactive" ||
-          thread.status === "error" ||
-          thread.status === "launching"
+          thread.status === "launching" ||
+          ((thread.status === "inactive" || thread.status === "error") &&
+            thread.sessionConfigOptions == null)
         ) {
           return thread;
         }
 
         changed = true;
+        if (thread.status === "inactive" || thread.status === "error") {
+          return { ...thread, sessionConfigOptions: null };
+        }
         return {
           ...thread,
           status: "inactive" as ThreadStatus,
           attention: "none" as ThreadAttention,
+          sessionConfigOptions: null,
         };
       });
 

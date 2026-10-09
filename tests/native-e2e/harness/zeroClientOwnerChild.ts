@@ -21,6 +21,8 @@ import { HostControlServer } from "@/backend/ownership/HostControlServer";
 import { HostOwnerController } from "@/backend/ownership/HostOwnerController";
 import { SettingsAuthority } from "@/backend/settings/SettingsAuthority";
 import { SettingsCompatWriter } from "@/backend/settings/settingsCompatWrites";
+import { closeDatabase, initDatabase } from "@/host/db/connection";
+import { capturePreparedDatabaseWriteAdmission } from "@/host/db/preparedDatabaseWriteAdmission";
 import { ScheduleService, type ScheduleStore } from "@/host/schedules/ScheduleService";
 import { installShutdown } from "@/server/cliRuntime";
 import type { ScheduledTask } from "@/shared/contracts";
@@ -38,6 +40,10 @@ const rows: ScheduledTask[] = [];
 const store: ScheduleStore = {
   list: () => [...rows],
   get: (id) => rows.find((task) => task.id === id) ?? null,
+  patchRuntime: (id, patch) => {
+    const index = rows.findIndex((task) => task.id === id);
+    if (index !== -1) rows[index] = { ...rows[index]!, ...patch };
+  },
   upsert: (task) => {
     const index = rows.findIndex((candidate) => candidate.id === task.id);
     if (index === -1) rows.push(task);
@@ -56,6 +62,12 @@ async function serve(): Promise<void> {
     environmentKey: REAL_HOST_FIXTURE_KEY,
   });
   configureSecretStorageKey(runtime.secretStorageKey);
+  const database = initDatabase(runtime.paths.dbPath);
+  const assertPreparedDatabaseForWrite = capturePreparedDatabaseWriteAdmission(
+    database,
+    runtime.paths.baseDir,
+    runtime.paths.dbPath,
+  );
   owner.markReady();
 
   const control = new HostControlServer({
@@ -83,6 +95,7 @@ async function serve(): Promise<void> {
 
   const authority = await SettingsAuthority.open({
     lease: owner.lease,
+    assertPreparedDatabaseForWrite: () => assertPreparedDatabaseForWrite(runtime.paths.baseDir),
     assertPersistentCredentials: () => {},
   });
   const writes = new SettingsCompatWriter(authority);
@@ -128,6 +141,7 @@ async function serve(): Promise<void> {
     schedules.dispose();
     await authority.close();
     await control.dispose();
+    closeDatabase();
     await owner.close();
   });
 

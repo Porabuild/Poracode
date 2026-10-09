@@ -217,7 +217,7 @@ export function parseNativeBindingIr(raw: unknown, manifest: unknown): NativeBin
     throw new Error(`unsupported protocol version ${String(item.protocolVersion)}`);
   if (item.bindingFormatVersion !== 2)
     throw new Error(`unsupported binding format ${String(item.bindingFormatVersion)}`);
-  if (item.generatorVersion !== 3)
+  if (item.generatorVersion !== 4)
     throw new Error(`unsupported generator version ${String(item.generatorVersion)}`);
   if (item.manifestFormatVersion !== 1)
     throw new Error(`unsupported manifest format ${String(item.manifestFormatVersion)}`);
@@ -310,7 +310,7 @@ export function parseNativeBindingIr(raw: unknown, manifest: unknown): NativeBin
     contract: "poracode.remote",
     protocolVersion: REMOTE_PROTOCOL_VERSION,
     bindingFormatVersion: 2,
-    generatorVersion: 3,
+    generatorVersion: 4,
     manifestFormatVersion: 1,
     sourceHash,
     manifestHash,

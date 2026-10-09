@@ -11,6 +11,10 @@ import { rawRequestWithAuthority, type CleanupRegistry } from "../portForward/te
 import { RemotePortForwardGateway } from "../RemotePortForwardGateway";
 import { RemoteAccessServer, type RemoteAccessServerOptions } from "../RemoteAccessServer";
 import {
+  REMOTE_PROTOCOL_VERSION_HEADER,
+  REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+} from "@/shared/remote";
+import {
   FORWARD_DISPATCH_ROUTE_HEADER,
   FORWARD_DISPATCH_ID_HEADER,
   FORWARD_DISPATCH_KEY_HEADER,
@@ -145,7 +149,13 @@ async function startConfiguredHost(
   });
   expect(exchangeResponse.status).toBe(200);
   const { accessToken } = (await exchangeResponse.json()) as { accessToken: string };
-  const bearer = { authorization: `Bearer ${accessToken}`, "content-type": "application/json" };
+  const bearer = {
+    authorization: `Bearer ${accessToken}`,
+    "content-type": "application/json",
+    // Current-client declaration (remote 13): these fixtures exercise
+    // declared writer routes (port forward/enter/unforward).
+    [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+  };
 
   /** Opens a forward through the bearer-gated API and runs the full two-hop
    * entry (API-origin enter → child exchange), returning the session cookie
@@ -253,7 +263,11 @@ async function startUnconfiguredHost(forwardablePorts: readonly number[] = []) {
   return {
     server,
     info,
-    bearer: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+    bearer: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/json",
+      [REMOTE_PROTOCOL_VERSION_HEADER]: REMOTE_PROTOCOL_VERSION_HEADER_VALUE,
+    },
   };
 }
 

@@ -309,6 +309,11 @@ msgstr "{0} prompts - {when}"
 msgid "{0} queued for update to v{1}"
 msgstr "{0} queued for update to v{1}"
 
+#. placeholder {0}: column.label
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+msgid "{0} reasoning"
+msgstr "{0} reasoning"
+
 #. placeholder {0}: item.runCount.toLocaleString()
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} run"
@@ -320,6 +325,16 @@ msgstr "{0} run"
 #: src/renderer/views/ProfileOverlay/parts/PluginUsage.tsx
 msgid "{0} runs"
 msgstr "{0} runs"
+
+#. placeholder {0}: names.join(", ")
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
+msgstr "{0} share this profile's isolated login and will lose their sign-in until they pick another owner."
+
+#. placeholder {0}: loginDependents.map((dependent) => dependent.displayName ?? dependent.id).join(", ")
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
+msgstr "{0} share this profile's isolated login. Move them to another owner first — the host refuses changes that leave them without a login."
 
 #. placeholder {0}: threads.length
 #: src/mobile/views/ThreadsView.tsx
@@ -590,6 +605,10 @@ msgstr "{projectLocation} (disabled)"
 msgid "{projectName} Settings"
 msgstr "{projectName} Settings"
 
+#: src/renderer/components/providers/usageProviders.ts
+msgid "{provider} {profile}"
+msgstr "{provider} {profile}"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "{provider} does not support one-shot generation"
 msgstr "{provider} does not support one-shot generation"
@@ -717,6 +736,10 @@ msgstr "<0>{passed}</0> of {0} checks passed"
 msgid "~{money}{tokens} · {0} · est."
 msgstr "~{money}{tokens} · {0} · est."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "~/.config/devin/config.json"
+msgstr "~/.config/devin/config.json"
+
 #. placeholder {0}: Math.round(projection.projectedPercent)
 #: src/renderer/components/providers/usageFormat.ts
 msgid "≈{0}% by reset"
@@ -779,6 +802,10 @@ msgstr "A message deletion could not be confirmed. Refresh to resync this conver
 #: src/renderer/i18n/sharedMessages.ts
 msgid "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
 msgstr "A Poracode Helper owns this connection but is not responding. Stop the remote helper, then reconnect."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "A profile can carry at most 100 repositories."
+msgstr "A profile can carry at most 100 repositories."
 
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "A profile with this name already exists."
@@ -1162,6 +1189,7 @@ msgstr "Adopt legacy connection"
 msgid "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 msgstr "Advertise a custom base URL, e.g. a reverse proxy or tunnel. Leave empty for automatic."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/components/providers/opencode2/OpenCode2PluginCards.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
@@ -1224,6 +1252,10 @@ msgstr "Agent Resume: {subagent}"
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Agent terminal font size"
 msgstr "Agent terminal font size"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Agent type"
+msgstr "Agent type"
 
 #: src/renderer/components/thread/ThreadAgentUpdateDock.tsx
 msgid "Agent update available"
@@ -1427,6 +1459,10 @@ msgstr "Already used by {conflict}"
 msgid "Always"
 msgstr "Always"
 
+#: src/renderer/components/providers/devin/sessionListings.tsx
+msgid "Always applied"
+msgstr "Always applied"
+
 #: src/renderer/views/SettingsOverlay/parts/SearchExcludeBody.tsx
 msgid "Always excluded"
 msgstr "Always excluded"
@@ -1438,6 +1474,10 @@ msgstr "Amber"
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrWatchControls.tsx
 msgid "An agent is fixing this PR."
 msgstr "An agent is fixing this PR."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "An exact platform fails visibly when this Devin organization has no cloud machines of that kind."
+#~ msgstr "An exact platform fails visibly when this Devin organization has no cloud machines of that kind."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "An expected worktree owner requires a branch"
@@ -1531,6 +1571,18 @@ msgstr "Appearance"
 msgid "Appearance mode"
 msgstr "Appearance mode"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Applied to a new or pending cloud chat before its first message — a cloud chat that already has its workspace keeps it. Leaving a choice on \"Keep Devin's current choice\" leaves the decision to Devin; it does not restore an earlier setting."
+#~ msgstr "Applied to a new or pending cloud chat before its first message — a cloud chat that already has its workspace keeps it. Leaving a choice on \"Keep Devin's current choice\" leaves the decision to Devin; it does not restore an earlier setting."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+msgstr "Applied to this profile's config view (devin.org_id). Poracode cannot list the organizations a login belongs to; Devin validates the id at launch and an unauthorized org fails visibly."
+
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
+msgid "Applies to both models"
+msgstr "Applies to both models"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Apply provider preset"
 msgstr "Apply provider preset"
@@ -1582,9 +1634,19 @@ msgstr "Archive All"
 msgid "Archive done threads"
 msgstr "Archive done threads"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#: src/renderer/components/providers/devin/sessionArchiveControl.tsx
+#~ msgid "Archive session"
+#~ msgstr "Archive session"
+
 #: src/renderer/commands/registry.ts
 msgid "Archive the current thread"
 msgstr "Archive the current thread"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Archive this session?"
+#~ msgstr "Archive this session?"
 
 #: src/renderer/commands/registry.ts
 msgid "Archive thread"
@@ -1843,6 +1905,10 @@ msgstr "Autopilot"
 msgid "Availability"
 msgstr "Availability"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Availability depends on your Devin organization."
+msgstr "Availability depends on your Devin organization."
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "available"
 msgstr "available"
@@ -1867,6 +1933,7 @@ msgstr "Awaiting review"
 #: src/renderer/commands/shortcutCatalog.ts
 #: src/renderer/components/composer/ComposerAddMenu.tsx
 #: src/renderer/components/composer/ComposerMcpServersMenu.tsx
+#: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
 #: src/renderer/components/layout/MobilePageHeader.tsx
 #: src/renderer/views/FileEditorOverlay/FileEditorOverlay.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
@@ -2277,6 +2344,11 @@ msgstr "Can't load ports"
 msgid "Can't reach the remote server. Check that it is online, then reconnect it."
 msgstr "Can't reach the remote server. Check that it is online, then reconnect it."
 
+#: src/renderer/components/thread/ContinueInProviderDialog.tsx
+#: src/renderer/components/thread/ThreadDraftView.tsx
+msgid "Can't use this model selection on that surface"
+msgstr "Can't use this model selection on that surface"
+
 #: src/renderer/components/common/ConfirmationPopover.tsx
 #: src/renderer/components/common/ConfirmDialog.tsx
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
@@ -2431,6 +2503,10 @@ msgstr "Changes apply globally to this environment."
 msgid "Changes apply to new chats. Providers that support live skill reload may update sooner."
 msgstr "Changes apply to new chats. Providers that support live skill reload may update sooner."
 
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Changes apply to this running Devin session."
+#~ msgstr "Changes apply to this running Devin session."
+
 #: src/renderer/views/PrReviewOverlay/parts/PrReviewSidebar.tsx
 msgid "Changes in PR"
 msgstr "Changes in PR"
@@ -2453,6 +2529,7 @@ msgstr "Channel"
 #: src/renderer/components/thread/PresentationModeTabs.tsx
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 msgid "Chat"
 msgstr "Chat"
 
@@ -2635,6 +2712,10 @@ msgstr "Choose the display language for Poracode's interface."
 #: src/renderer/views/SettingsOverlay/parts/CursorProviderSettings.tsx
 #~ msgid "Choose the structured runtime for new Cursor GUI threads. Running threads keep their current runtime."
 #~ msgstr "Choose the structured runtime for new Cursor GUI threads. Running threads keep their current runtime."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Choose the workspace for new cloud chats. Existing cloud sessions keep their workspace."
+msgstr "Choose the workspace for new cloud chats. Existing cloud sessions keep their workspace."
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "Choose thread to attach to"
@@ -3034,6 +3115,38 @@ msgstr "Close workflows panel"
 msgid "Closed"
 msgstr "Closed"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Cloud"
+msgstr "Cloud"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud chat setup"
+msgstr "Cloud chat setup"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud persona"
+msgstr "Cloud persona"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud platform"
+msgstr "Cloud platform"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud repositories"
+msgstr "Cloud repositories"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Cloud repository list"
+msgstr "Cloud repository list"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+#~ msgid "Cloud sessions run on Devin's cloud VM: local workspace files, paths, and MCP servers configured on this machine are not reachable there."
+#~ msgstr "Cloud sessions run on Devin's cloud VM: local workspace files, paths, and MCP servers configured on this machine are not reachable there."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Cloud sessions use their own workspace. Local files and local MCP processes are unavailable."
+msgstr "Cloud sessions use their own workspace. Local files and local MCP processes are unavailable."
+
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Cmd+Enter"
 msgstr "Cmd+Enter"
@@ -3120,6 +3233,10 @@ msgstr "Collapse todo dock"
 msgid "Collapse warning"
 msgstr "Collapse warning"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
+#~ msgstr "Comma-separated owner/name entries, for example acme/website, acme/api. The list is sent to Devin exactly as entered."
+
 #. Accessible label for the command palette search input
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
@@ -3145,6 +3262,10 @@ msgstr "Command not found."
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Command Prompt"
 msgstr "Command Prompt"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Command to revise"
+msgstr "Command to revise"
 
 #: src/renderer/commands/CommandPalette.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
@@ -3355,6 +3476,18 @@ msgstr "Computer Use enabled — the agent drives desktop apps in the background
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Config directory"
 msgstr "Config directory"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Config file (optional)"
+msgstr "Config file (optional)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Config file path (optional)"
+msgstr "Config file path (optional)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Configuration from a newer Poracode"
+msgstr "Configuration from a newer Poracode"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Configure the server Poracode will add when supported agents start."
@@ -3753,6 +3886,10 @@ msgid "Could not complete the merge"
 msgstr "Could not complete the merge"
 
 #: src/renderer/i18n/sharedMessages.ts
+msgid "Could not confirm that the Auto Fix thread \"{id}\" was stopped. Poracode keeps it recorded and will retry stopping it."
+msgstr "Could not confirm that the Auto Fix thread \"{id}\" was stopped. Poracode keeps it recorded and will retry stopping it."
+
+#: src/renderer/i18n/sharedMessages.ts
 msgid "Could not create the project folder."
 msgstr "Could not create the project folder."
 
@@ -4134,6 +4271,11 @@ msgstr "current streak"
 msgid "Current streak"
 msgstr "Current streak"
 
+#. placeholder {0}: setting.currentValue
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Current value: {0}"
+#~ msgstr "Current value: {0}"
+
 #: src/renderer/components/providers/cursor/manifest.ts
 msgid "Cursor"
 msgstr "Cursor"
@@ -4308,6 +4450,10 @@ msgstr "Default"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Default auto-refresh (minutes)"
 msgstr "Default auto-refresh (minutes)"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Default coding agent"
+msgstr "Default coding agent"
 
 #: src/renderer/views/SettingsOverlay/parts/GitSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -4634,9 +4780,74 @@ msgstr "Devices can pair while this desktop is reachable."
 msgid "Devin"
 msgstr "Devin"
 
+#. placeholder {0}: trimmedName || displayLabel
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin {0} profile saved."
+msgstr "Devin {0} profile saved."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Devin applies the new title first; the conversation list updates after it confirms."
+#~ msgstr "Devin applies the new title first; the conversation list updates after it confirms."
+
 #: src/renderer/views/SettingsOverlay/parts/agentRegistryNative.ts
 msgid "Devin CLI with terminal and structured chat support."
 msgstr "Devin CLI with terminal and structured chat support."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin cloud"
+msgstr "Devin cloud"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+#~ msgid "Devin cloud chats don't take a root agent type. Saving this profile removes any agent type stored on it."
+#~ msgstr "Devin cloud chats don't take a root agent type. Saving this profile removes any agent type stored on it."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Devin did not confirm the rename."
+#~ msgstr "Devin did not confirm the rename."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Devin did not confirm the setting change."
+#~ msgstr "Devin did not confirm the setting change."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Devin did not return a revised command."
+msgstr "Devin did not return a revised command."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin organization id"
+msgstr "Devin organization id"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile"
+msgstr "Devin profile"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile changes were not confirmed by the host; the editor rolled back to the stored settings."
+msgstr "Devin profile changes were not confirmed by the host; the editor rolled back to the stored settings."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile config file"
+msgstr "Devin profile config file"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin profile name"
+msgstr "Devin profile name"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Devin proposes a revised command; you review it before anything runs."
+msgstr "Devin proposes a revised command; you review it before anything runs."
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "Devin returned a persona catalog Poracode could not interpret."
+#~ msgstr "Devin returned a persona catalog Poracode could not interpret."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Devin returned a settings listing Poracode could not interpret."
+#~ msgstr "Devin returned a settings listing Poracode could not interpret."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Devin's own login (default)"
+msgstr "Devin's own login (default)"
 
 #: src/mobile/views/PortsView.tsx
 #~ msgid "Direct connection required"
@@ -4720,6 +4931,7 @@ msgstr "Disabled server or unsupported native options"
 msgid "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 msgstr "Disabling a skill moves it out of active skill folders and removes Poracode-managed provider copies. Its files are preserved so you can enable it again."
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Discard"
 msgstr "Discard"
@@ -4964,6 +5176,10 @@ msgstr "e.g. Codex GPT-5.5 fast for quick lookups, OpenCode GLM for bulk refacto
 msgid "e.g. Work"
 msgstr "e.g. Work"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Each repository entry must be 1–512 characters without control characters."
+msgstr "Each repository entry must be 1–512 characters without control characters."
+
 #: src/renderer/components/thread/ChatPane/parts/items/WindowedPlainText.tsx
 msgid "Earlier text"
 msgstr "Earlier text"
@@ -5177,6 +5393,14 @@ msgstr "Enhanced (Hooks)"
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "Enter a full origin URL like https://code.example.com, with no path."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Enter a persona ID or keep the current choice."
+msgstr "Enter a persona ID or keep the current choice."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Enter a persona name, or keep Devin's current choice."
+#~ msgstr "Enter a persona name, or keep Devin's current choice."
+
 #: src/renderer/views/SettingsOverlay/parts/SshConnectionForm.tsx
 msgid "Enter a port from 1 to 65535."
 msgstr "Enter a port from 1 to 65535."
@@ -5228,6 +5452,10 @@ msgstr "Enter one MCP server configuration."
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Enter plan mode"
 msgstr "Enter plan mode"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Enter repository names separated by commas, such as acme/website, acme/api."
+msgstr "Enter repository names separated by commas, such as acme/website, acme/api."
 
 #: src/renderer/views/MainView/parts/BrowserConnectionPage/usePairing.ts
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
@@ -5529,7 +5757,7 @@ msgstr "External provider"
 #~ msgid "External provider skills"
 #~ msgstr "External provider skills"
 
-#: src/renderer/components/thread/threadDraftViewHelpers.ts
+#: src/renderer/components/common/effortLabel.ts
 msgid "Extra High"
 msgstr "Extra High"
 
@@ -5612,6 +5840,7 @@ msgstr "Failed to record owned branch metadata: {detail}. Rollback left branch {
 #~ msgid "Failed to update goal"
 #~ msgstr "Failed to update goal"
 
+#: src/renderer/components/common/ProviderModelMenu/parts/modelFamilyDisplay.ts
 #: src/renderer/components/experiment/ExperimentDraftTargets.tsx
 #: src/renderer/components/providers/modelDisplay.ts
 #: src/renderer/components/thread/buildModelPickerControls.tsx
@@ -5620,6 +5849,14 @@ msgstr "Failed to record owned branch metadata: {detail}. Rollback left branch {
 #: src/renderer/views/SettingsOverlay/parts/CrossagentRoutingSection.tsx
 msgid "Fast"
 msgstr "Fast"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+#~ msgid "Fast has no variant for this pairing"
+#~ msgstr "Fast has no variant for this pairing"
+
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "Fast is unavailable for this pairing"
+msgstr "Fast is unavailable for this pairing"
 
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/ProfileOverlay/parts/ActivityInsights.tsx
@@ -5990,6 +6227,10 @@ msgstr "Found {0, plural, one {# importable skill} other {# importable skills}}"
 msgid "Found a signed-in {0} session."
 msgstr "Found a signed-in {0} session."
 
+#: src/renderer/components/providers/modelDescription.ts
+msgid "Free"
+msgstr "Free"
+
 #: src/renderer/views/SchedulesView/ScheduleEditor.tsx
 msgid "Frequency"
 msgstr "Frequency"
@@ -6090,6 +6331,10 @@ msgstr "Generating…"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Get a quick check-in during the workday."
 msgstr "Get a quick check-in during the workday."
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Get suggestion"
+msgstr "Get suggestion"
 
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
 msgid "Get task"
@@ -6194,6 +6439,7 @@ msgstr "global"
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
 #: src/renderer/components/mcp/McpServerEditor.tsx
 #: src/renderer/components/mcp/McpServersManager.tsx
+#: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 msgid "Global"
@@ -6407,6 +6653,10 @@ msgstr "Hide skills from {0}"
 msgid "Hide terminal"
 msgstr "Hide terminal"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "High"
+msgstr "High"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 msgid "History"
 msgstr "History"
@@ -6431,6 +6681,19 @@ msgstr "Home scope"
 #: src/renderer/components/plugins/PluginDetail.tsx
 msgid "Homepage"
 msgstr "Homepage"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Hook entries are shown exactly as Devin reports them; their schema is not interpreted."
+#~ msgstr "Hook entries are shown exactly as Devin reports them; their schema is not interpreted."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Hooks"
+#~ msgstr "Hooks"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Hooks in this session"
+#~ msgstr "Hooks in this session"
 
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Host credential reference"
@@ -6617,6 +6880,10 @@ msgstr "Import to Global"
 #~ msgid "Import to Project"
 #~ msgstr "Import to Project"
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Imported (.claude)"
+#~ msgstr "Imported (.claude)"
+
 #. placeholder {0}: selectedSkills.length
 #. placeholder {1}: selectedSkills.length === 1 ? "skill" : "skills"
 #: src/renderer/components/skills/SkillImportModal.tsx
@@ -6684,6 +6951,10 @@ msgstr "Inheriting the global setting (currently {0})."
 msgid "Initialize Repository"
 msgstr "Initialize Repository"
 
+#: src/renderer/components/providers/modelDescription.ts
+msgid "Input / output prices per 1M tokens for each model. Ranges cover model variants."
+msgstr "Input / output prices per 1M tokens for each model. Ranges cover model variants."
+
 #: src/renderer/components/providers/devin/modelPricing.ts
 msgid "Input / output prices per 1M tokens. Ranges cover model variants."
 msgstr "Input / output prices per 1M tokens. Ranges cover model variants."
@@ -6703,6 +6974,10 @@ msgstr "Input level"
 #: src/renderer/views/GitHubActionsView/GitHubActionsView.tsx
 #~ msgid "Inputs must be a JSON object."
 #~ msgstr "Inputs must be a JSON object."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Insert into composer"
+msgstr "Insert into composer"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsOptions.ts
 msgid "Inside each project"
@@ -6987,6 +7262,10 @@ msgstr "Interrupted"
 msgid "Interrupted: agent session ended before completion."
 msgstr "Interrupted: agent session ended before completion."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Invalid configuration — kept, but disabled"
+msgstr "Invalid configuration — kept, but disabled"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/NotesEditor.tsx
 msgid "Italic"
 msgstr "Italic"
@@ -7022,6 +7301,14 @@ msgstr "Keep at least one workspace."
 #: src/renderer/views/MainView/parts/Sidebar/parts/ForceDeleteBranchDialog.tsx
 msgid "Keep Branch"
 msgstr "Keep Branch"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Keep current choice"
+msgstr "Keep current choice"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Keep Devin's current choice"
+#~ msgstr "Keep Devin's current choice"
 
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Keep me on track"
@@ -7127,6 +7414,15 @@ msgstr "Launch thread"
 msgid "Launching…"
 msgstr "Launching…"
 
+#: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Lead"
+msgstr "Lead"
+
+#: src/renderer/components/providers/devin/modelPricing.ts
+#~ msgid "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
+#~ msgstr "Lead and Sidekick prices are per 1M tokens for each model. Ranges cover model variants."
+
 #: src/renderer/views/SettingsOverlay/parts/crossagent/CrossagentMemorySection.tsx
 #~ msgid "Learned routing memory"
 #~ msgstr "Learned routing memory"
@@ -7194,6 +7490,10 @@ msgstr "Link to source"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Linked"
 msgstr "Linked"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Linux"
+msgstr "Linux"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -7408,6 +7708,7 @@ msgstr "Logging out"
 msgid "login"
 msgstr "login"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
@@ -7424,6 +7725,14 @@ msgstr "Login {0}"
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Login required"
 msgstr "Login required"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Login source"
+msgstr "Login source"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
+msgstr "Login source, config file, organization, and runtime for this configuration. Thread knobs like model and approvals stay on the composer."
 
 #: src/renderer/components/providers/settings/OpenCode2ProviderSettings.tsx
 #: src/renderer/components/providers/settings/ProviderAccountsSection.tsx
@@ -7456,9 +7765,21 @@ msgstr "Looking for dev servers…"
 msgid "Losing worktrees and branches will be removed. Their session history will remain."
 msgstr "Losing worktrees and branches will be removed. Their session history will remain."
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Low"
+msgstr "Low"
+
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "Machine"
 msgstr "Machine"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "macOS"
+msgstr "macOS"
+
+#: src/renderer/components/providers/devin/modelFamilyPresentation.ts
+msgid "Main"
+msgstr "Main"
 
 #: src/renderer/views/SettingsOverlay/parts/AppearanceSettings.tsx
 msgid "Make the sidebar translucent — the system blur material on Windows 11, a translucent tint elsewhere."
@@ -7630,6 +7951,10 @@ msgstr "Match case"
 msgid "Match your system, or force light or dark."
 msgstr "Match your system, or force light or dark."
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Max"
+msgstr "Max"
+
 #: src/renderer/views/SettingsOverlay/parts/ResourceAdmissionSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Max active agent sessions"
@@ -7783,6 +8108,10 @@ msgstr "mcp.json could not be read, so this plugin's servers were skipped."
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "mcp.json targets an Agent Plugins version this build does not support."
 msgstr "mcp.json targets an Agent Plugins version this build does not support."
+
+#: src/renderer/components/common/effortLabel.ts
+msgid "Medium"
+msgstr "Medium"
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 msgid "Merge {crownedLabel}'s changes into {mergeTarget}?"
@@ -7941,6 +8270,10 @@ msgstr "Microphone testing is not available in this environment."
 msgid "min"
 msgstr "min"
 
+#: src/renderer/components/common/effortLabel.ts
+msgid "Minimal"
+msgstr "Minimal"
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettingsModel.ts
 msgid "MiniMax"
 msgstr "MiniMax"
@@ -8020,6 +8353,10 @@ msgstr "Model label"
 #~ msgid "Model order"
 #~ msgstr "Model order"
 
+#: src/renderer/components/common/ProviderModelMenu/ModelFamilyMenu.tsx
+msgid "Model pairing"
+msgstr "Model pairing"
+
 #: src/renderer/commands/registry.ts
 msgid "Model removed from favorites"
 msgstr "Model removed from favorites"
@@ -8032,6 +8369,12 @@ msgstr "Model rerouted from {fromModel} to {toModel}."
 msgid "Model usage"
 msgstr "Model usage"
 
+#. placeholder {0}: entry.model
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "model: {0}"
+#~ msgstr "model: {0}"
+
+#: src/renderer/components/common/ProviderModelMenu/parts/primaryModelRows.ts
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
@@ -8206,6 +8549,10 @@ msgstr "Moved your changes into a new worktree on \"{newBranch}\". \"{currentBra
 msgid "Moving changes…"
 msgstr "Moving changes…"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+msgstr "Multiple Devin configurations under one login — different config files, organizations, or approval defaults — or an isolated second login. Native credentials are never copied."
+
 #: src/renderer/components/providers/muse/manifest.ts
 msgid "Muse Code"
 msgstr "Muse Code"
@@ -8219,6 +8566,7 @@ msgid "my-mcp-server"
 msgstr "my-mcp-server"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/CursorProfileIdentity.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -8249,6 +8597,14 @@ msgstr "Native MCP configuration updated. Start a new CLI session to use it."
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/NativeMcpSettings.tsx
 msgid "Native MCP setup"
 msgstr "Native MCP setup"
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
+#~ msgstr "Native persona files are listed read-only; Poracode never edits Devin's own definitions."
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Native personas"
+#~ msgstr "Native personas"
 
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Native Providers"
@@ -8340,6 +8696,10 @@ msgstr "New Cursor profile API key"
 #~ msgid "New Cursor profile name"
 #~ msgstr "New Cursor profile name"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "New Devin profile config file (optional)"
+msgstr "New Devin profile config file (optional)"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "New environment"
 msgstr "New environment"
@@ -8411,6 +8771,10 @@ msgstr "New schedule"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "New scheduled task"
 #~ msgstr "New scheduled task"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "New session title"
+#~ msgstr "New session title"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabStrip.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -8705,6 +9069,10 @@ msgstr "No GitHub CLI accounts found. Sign in with <0>gh auth login</0>, or <1>p
 msgid "No history yet"
 msgstr "No history yet"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "No hooks are attached to this session."
+#~ msgstr "No hooks are attached to this session."
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "No host-owned environments on this server yet."
 msgstr "No host-owned environments on this server yet."
@@ -8793,10 +9161,15 @@ msgstr "No messages yet"
 msgid "No microphone found."
 msgstr "No microphone found."
 
+#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "No models found"
 msgstr "No models found"
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "No native persona definitions found."
+#~ msgstr "No native persona definitions found."
 
 #: src/renderer/views/MainView/parts/Sidebar/parts/ThreadContextMenu.tsx
 msgid "No other agents installed"
@@ -8830,6 +9203,10 @@ msgstr "No plugins match your search."
 #: src/renderer/views/SettingsOverlay/parts/MobileRemoteServersSettings.tsx
 msgid "No Poracode pairing QR code found."
 msgstr "No Poracode pairing QR code found."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
+msgstr "No profile with its own isolated login exists yet. Set a profile to \"Own isolated login\" and sign in there first; it then appears here."
 
 #: src/mobile/views/ManageProjectsView.tsx
 #~ msgid "No projects"
@@ -8881,6 +9258,10 @@ msgstr "No remote configured. Add a remote to enable push and pull."
 msgid "No remote environments connected yet."
 msgstr "No remote environments connected yet."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "No repositories"
+msgstr "No repositories"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "No repositories found."
 msgstr "No repositories found."
@@ -8890,6 +9271,10 @@ msgstr "No repositories found."
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "No results"
 msgstr "No results"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "No rules were listed for this session."
+msgstr "No rules were listed for this session."
 
 #: src/renderer/views/SchedulesView/parts/PreviousRunsModal.tsx
 msgid "No runs yet."
@@ -8970,6 +9355,15 @@ msgstr "No threads"
 msgid "No threads yet."
 msgstr "No threads yet."
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#: src/renderer/components/providers/devin/sessionSettingsSearchPicker.tsx
+#~ msgid "No value"
+#~ msgstr "No value"
+
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "No values were advertised for this option."
+#~ msgstr "No values were advertised for this option."
+
 #: src/renderer/i18n/sharedMessages.ts
 #~ msgid "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
 #~ msgstr "no verdict arrived — the CLI may have blocked /goal (workspace trust or hooks settings) or the evaluator could not run"
@@ -8994,6 +9388,7 @@ msgstr "No wrap"
 msgid "none"
 msgstr "none"
 
+#: src/renderer/components/common/effortLabel.ts
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "None"
 msgstr "None"
@@ -9569,6 +9964,14 @@ msgstr "Or write a custom answer"
 msgid "Orange"
 msgstr "Orange"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Organization"
+#~ msgstr "Organization"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Organization (optional)"
+msgstr "Organization (optional)"
+
 #: src/renderer/components/thread/ThreadRuntimeRequestPanel/StructuredCustomValues.tsx
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Other"
@@ -9618,9 +10021,17 @@ msgstr "Overrides {conflict}"
 msgid "Overriding the global setting for this project."
 msgstr "Overriding the global setting for this project."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Own isolated login"
+msgstr "Own isolated login"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Owner unverified"
 msgstr "Owner unverified"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "owner/name, owner/name"
+msgstr "owner/name, owner/name"
 
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Package"
@@ -9764,6 +10175,10 @@ msgstr "Partially checked"
 #: src/renderer/utils/prStatus.ts
 msgid "Passed"
 msgstr "Passed"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Passed to Devin as its user config for this profile only. It does not isolate credentials, skills, MCP servers, or plugins — those stay shared with the login."
+msgstr "Passed to Devin as its user config for this profile only. It does not isolate credentials, skills, MCP servers, or plugins — those stay shared with the login."
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Passphrase (optional)"
@@ -9915,9 +10330,34 @@ msgstr "permission"
 msgid "Persistent goals, budgets, and automatic continuation with /goal."
 msgstr "Persistent goals, budgets, and automatic continuation with /goal."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona (optional)"
+msgstr "Persona (optional)"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona ID"
+msgstr "Persona ID"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Persona IDs are limited to 512 characters."
+msgstr "Persona IDs are limited to 512 characters."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Persona name"
+#~ msgstr "Persona name"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "Persona names are limited to 512 characters."
+#~ msgstr "Persona names are limited to 512 characters."
+
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
 msgid "Personal"
 msgstr "Personal"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Personas"
+#~ msgstr "Personas"
 
 #: src/renderer/components/providers/pi/manifest.ts
 msgid "Pi"
@@ -9935,6 +10375,10 @@ msgstr "Pick element"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ActionIconPicker.tsx
 msgid "Pick icon"
 msgstr "Pick icon"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Pick the profile whose login to share"
+msgstr "Pick the profile whose login to share"
 
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "Pick the runtime that backs new Cursor GUI chats. Each runtime installs and authenticates on its own; open chats keep the runtime they started with."
@@ -9988,6 +10432,10 @@ msgstr "Plan"
 #: src/renderer/views/MainView/parts/Sidebar/parts/MobileQuickCompose.tsx
 msgid "Plan, ask, build…"
 msgstr "Plan, ask, build…"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Platform (optional)"
+msgstr "Platform (optional)"
 
 #: src/renderer/views/SettingsOverlay/parts/NotificationSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -10078,6 +10526,15 @@ msgstr "Poracode"
 msgid "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 msgstr "Poracode and your agents run on the remote machine. SSH is used only to start the remote environment and secure its local tunnel."
 
+#. placeholder {0}: setting.controlType
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Poracode cannot edit this {0} control yet."
+#~ msgstr "Poracode cannot edit this {0} control yet."
+
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Poracode cannot edit this control yet."
+#~ msgstr "Poracode cannot edit this control yet."
+
 #: src/renderer/components/plugins/pluginCopy.ts
 msgid "Poracode could not create this plugin's data folder."
 msgstr "Poracode could not create this plugin's data folder."
@@ -10117,6 +10574,10 @@ msgstr "Poracode Helper returned an invalid response."
 #: src/renderer/components/startup/StartupRecoveryScreen.tsx
 msgid "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
 msgstr "Poracode may be waiting on saved data or a background service. You can keep waiting, restart, or install an available update."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Poracode never runs the suggestion — inserting only fills the composer for you to edit and send."
+#~ msgstr "Poracode never runs the suggestion — inserting only fills the composer for you to edit and send."
 
 #: src/renderer/components/skills/SkillImportModal.tsx
 #: src/renderer/components/skills/SkillMarketplaceModal.tsx
@@ -10354,6 +10815,10 @@ msgstr "Productivity"
 msgid "Profile"
 msgstr "Profile"
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Profile \"{profile}\" needs account owner \"{dependency}\". Reassign its account before changing or removing the owner."
+msgstr "Profile \"{profile}\" needs account owner \"{dependency}\". Reassign its account before changing or removing the owner."
+
 #: src/renderer/views/SettingsOverlay/parts/AgentProfileList.tsx
 msgid "Profile {displayName} added."
 msgstr "Profile {displayName} added."
@@ -10384,6 +10849,7 @@ msgstr "Profiles"
 #: src/renderer/components/mcp/McpExternalImportModal.tsx
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
+#: src/renderer/components/providers/devin/sessionListings.tsx
 #: src/renderer/components/thread/ThreadCommandPanel.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsMobileWorkflowList.tsx
 #: src/renderer/views/GitHubActionsView/GitHubActionsSidebar.tsx
@@ -10804,6 +11270,10 @@ msgstr "Read the Terminal panel attached to this worktree and report the evidenc
 msgid "Read the Terminal panel attached to this worktree and report what it is printing."
 msgstr "Read the Terminal panel attached to this worktree and report what it is printing."
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "read-only"
+#~ msgstr "read-only"
+
 #: src/renderer/views/ExperimentView/parts/ExperimentJudgeRunDialog.tsx
 msgid "Reading each candidate's changes…"
 msgstr "Reading each candidate's changes…"
@@ -10829,6 +11299,7 @@ msgid "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing c
 msgstr "Ready. Turn this on to advertise the Tailscale HTTPS URL in new pairing codes."
 
 #: src/renderer/components/common/EffortContextMenu/EffortContextMenu.tsx
+#: src/renderer/components/common/ProviderModelMenu/ModelConfigurationPanel.tsx
 msgid "Reasoning"
 msgstr "Reasoning"
 
@@ -11239,6 +11710,10 @@ msgstr "Removing {profileName} deletes its saved API key. Threads that use this 
 msgid "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 msgstr "Removing {profileName} drops its Poracode settings — env vars, models, and effort. Its config directory and the Claude credentials inside it stay on disk."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Removing {profileName} drops its Poracode settings only. Devin's own credentials, config files, and session history stay on disk, and other profiles are unaffected."
+msgstr "Removing {profileName} drops its Poracode settings only. Devin's own credentials, config files, and session history stay on disk, and other profiles are unaffected."
+
 #: src/renderer/components/thread/CompactThreadHeader.tsx
 #: src/renderer/views/FileEditorOverlay/parts/ProjectTreeView/parts/TreeEntryRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/NotesPanel/TodoRow.tsx
@@ -11264,6 +11739,11 @@ msgstr "Rename experiment"
 #: src/renderer/views/MainView/parts/Sidebar/parts/SidebarThreadGroup.tsx
 msgid "Rename Group"
 msgstr "Rename Group"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Rename session"
+#~ msgstr "Rename session"
 
 #: src/renderer/commands/registry.ts
 msgid "Rename the current chat"
@@ -11326,6 +11806,10 @@ msgstr "Repeat"
 msgid "Report an Issue"
 msgstr "Report an Issue"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Repositories (optional)"
+msgstr "Repositories (optional)"
+
 #: src/renderer/views/MainView/parts/CreateProject/CloneProjectModal.tsx
 msgid "repository"
 msgstr "repository"
@@ -11334,6 +11818,10 @@ msgstr "repository"
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Repository"
 msgstr "Repository"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Repository entries must be unique."
+msgstr "Repository entries must be unique."
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/PrSection.tsx
 msgid "Repository pre-receive hook is blocking the merge."
@@ -11528,6 +12016,14 @@ msgstr "Retry cleanup"
 #~ msgid "Retry now"
 #~ msgstr "Retry now"
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Retry session controls"
+msgstr "Retry session controls"
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "Retry session settings"
+#~ msgstr "Retry session settings"
+
 #: src/renderer/hooks/usePrWriteActions.ts
 msgid "Retry with admin"
 msgstr "Retry with admin"
@@ -11598,6 +12094,14 @@ msgstr "Revert to this checkpoint"
 msgid "Reverting…"
 msgstr "Reverting…"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Review"
+msgstr "Review"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
+msgstr "Review and Summarizer are the only root agent types Devin's CLI accepts. Custom native personas are subagent definitions configured in Devin's own files — they cannot be selected here."
+
 #: src/renderer/views/PullRequestsView/PullRequestsView.tsx
 msgid "Review and track work across your GitHub accounts."
 msgstr "Review and track work across your GitHub accounts."
@@ -11659,6 +12163,15 @@ msgstr "Reviewing"
 #~ msgid "Reviewing each candidate's changes to recommend a winner."
 #~ msgstr "Reviewing each candidate's changes to recommend a winner."
 
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Revise command"
+msgstr "Revise command"
+
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "Revision note (optional)"
+msgstr "Revision note (optional)"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Revoke {name}"
 msgstr "Revoke {name}"
@@ -11675,6 +12188,15 @@ msgstr "Right panel"
 #: src/renderer/components/providers/ProviderUsageRail.tsx
 msgid "Right-click to switch ring"
 msgstr "Right-click to switch ring"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Rules"
+msgstr "Rules"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Rules in this session"
+msgstr "Rules in this session"
 
 #: src/renderer/components/thread/ChatPane/parts/items/commandSummary.ts
 #: src/renderer/components/thread/ChatPane/parts/items/toolDisplay.ts
@@ -11805,6 +12327,10 @@ msgstr "Runs before a worktree is removed (e.g., <0>rm -rf node_modules</0>)."
 msgid "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 msgstr "Runs in a terminal after a new worktree is created (e.g., <0>pnpm install</0>)."
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Runs on"
+msgstr "Runs on"
+
 #: src/renderer/views/SettingsOverlay/parts/EnvironmentSettingsSection.tsx
 msgid "Runs on this server. Credentials stay on the server."
 msgstr "Runs on this server. Credentials stay on the server."
@@ -11836,6 +12362,14 @@ msgstr "Runtime debug"
 msgid "Runtime options"
 msgstr "Runtime options"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Runtime target"
+msgstr "Runtime target"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Same login as Devin"
+msgstr "Same login as Devin"
+
 #: src/renderer/views/SettingsOverlay/parts/ModelOrderSection.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 msgid "Same provider order on all machines"
@@ -11846,6 +12380,7 @@ msgid "Saturation and brightness"
 msgstr "Saturation and brightness"
 
 #: src/renderer/components/mcp/McpServerEditor.tsx
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 #: src/renderer/components/providers/settings/ProviderMcpServersSection.tsx
 #: src/renderer/components/thread/ThreadFollowUpEditor.tsx
@@ -11889,6 +12424,10 @@ msgstr "Save Cursor profile name"
 #: src/renderer/views/SettingsOverlay/parts/CursorSdkRuntimeSetup.tsx
 msgid "Save Cursor SDK API key"
 msgstr "Save Cursor SDK API key"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Save Devin profile"
+msgstr "Save Devin profile"
 
 #: src/renderer/commands/registry.ts
 msgid "Save File"
@@ -12111,6 +12650,7 @@ msgstr "Search MCP servers..."
 msgid "Search models"
 msgstr "Search models"
 
+#: src/renderer/components/common/ProviderModelMenu/ConfigurationDropdown.tsx
 #: src/renderer/components/common/ProviderModelMenu/ProviderModelMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/ModelVisibilityPopover.tsx
 msgid "Search models..."
@@ -12372,6 +12912,28 @@ msgstr "Server offline — this conversation may be out of date."
 msgid "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 msgstr "Servers this plugin declares in mcp.json. Poracode passes them to every supported agent."
 
+#: src/renderer/components/composer/ComposerAddMenu.tsx
+#: src/renderer/components/composer/ComposerSessionActionsMenu.tsx
+msgid "Session actions"
+msgstr "Session actions"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Session actions are unavailable for this thread."
+msgstr "Session actions are unavailable for this thread."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#~ msgid "Session renamed."
+#~ msgstr "Session renamed."
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Session settings"
+#~ msgstr "Session settings"
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "Session title"
+#~ msgstr "Session title"
+
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserTabGroupMenu.tsx
 msgid "Set group color"
 msgstr "Set group color"
@@ -12400,6 +12962,10 @@ msgstr "Set when this session started — start a new thread to change plugins"
 #~ msgid "Set when this session started — start a new thread to change servers"
 #~ msgstr "Set when this session started — start a new thread to change servers"
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "Setting"
+#~ msgstr "Setting"
+
 #: src/renderer/components/thread/ThreadAuthRequiredDock.tsx
 #: src/renderer/views/MainView/parts/MainPageLayout.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
@@ -12409,6 +12975,10 @@ msgstr "Set when this session started — start a new thread to change plugins"
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Settings"
 msgstr "Settings"
+
+#: src/renderer/state/sharedSettingsStore.ts
+msgid "Settings aren't available yet, so your changes couldn't be saved. Please try again."
+msgstr "Settings aren't available yet, so your changes couldn't be saved. Please try again."
 
 #: src/renderer/views/ProjectSettingsOverlay/parts/ScriptsSection.tsx
 msgid "Setup script"
@@ -12422,6 +12992,10 @@ msgstr "Shapes & symbols"
 msgid "Share"
 msgstr "Share"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Share another profile's isolated login"
+msgstr "Share another profile's isolated login"
+
 #: src/renderer/views/ProfileOverlay/parts/ShareDialog.tsx
 msgid "Share your activity"
 msgstr "Share your activity"
@@ -12429,6 +13003,29 @@ msgstr "Share your activity"
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "Shared"
 msgstr "Shared"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shared login owner"
+msgstr "Shared login owner"
+
+#. placeholder {0}: owner.displayName ?? owner.id
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares {0}"
+msgstr "Shares {0}"
+
+#. placeholder {0}: props.ownerName
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares {0}'s isolated login. Manage sign-in on that profile's page."
+msgstr "Shares {0}'s isolated login. Manage sign-in on that profile's page."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares another profile's isolated login. Manage sign-in on that profile's page."
+msgstr "Shares another profile's isolated login. Manage sign-in on that profile's page."
+
+#. placeholder {0}: auth.ownerId
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Shares missing owner {0}"
+msgstr "Shares missing owner {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
@@ -12656,6 +13253,12 @@ msgstr "Sidebar frosting"
 msgid "Sidebar shortcuts"
 msgstr "Sidebar shortcuts"
 
+#: src/renderer/components/providers/devin/modelPricing.ts
+#: src/renderer/i18n/sharedMessages.ts
+msgid "Sidekick"
+msgstr "Sidekick"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
 #: src/renderer/components/providers/settings/UsageProviderRow.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/UsagePanel/parts/UsageProviderCard.tsx
 msgid "Sign in"
@@ -12675,6 +13278,11 @@ msgstr "Sign in on the paired desktop, then refresh this status."
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 msgid "Sign in required"
 msgstr "Sign in required"
+
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Sign in to {0}"
+msgstr "Sign in to {0}"
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "Sign in with the agent CLI."
@@ -12908,6 +13516,14 @@ msgstr "Sources"
 #: src/renderer/components/mcp/McpServerEditor.tsx
 msgid "Space separated; use quotes around spaces"
 msgstr "Space separated; use quotes around spaces"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Specific persona"
+msgstr "Specific persona"
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Specific repositories"
+msgstr "Specific repositories"
 
 #: src/renderer/views/MainView/parts/RightPanel/parts/DevTerminalPanel/DevTerminalPanel.tsx
 msgid "Split Terminal"
@@ -13237,6 +13853,10 @@ msgstr "Store as plain text"
 msgid "Store as secret (encrypted at rest)"
 msgstr "Store as secret (encrypted at rest)"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Stored in a newer Poracode format — kept, but disabled"
+msgstr "Stored in a newer Poracode format — kept, but disabled"
+
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Stored on this device; the desktop keeps its own values."
 msgstr "Stored on this device; the desktop keeps its own values."
@@ -13253,6 +13873,10 @@ msgstr "Structured runtime"
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentOverlay.tsx
 msgid "Subagent"
 msgstr "Subagent"
+
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "Subagent definitions Devin discovers in its own files. This list is a scan of candidate definitions, not a confirmation that Devin loaded them."
+#~ msgstr "Subagent definitions Devin discovers in its own files. This list is a scan of candidate definitions, not a confirmation that Devin loaded them."
 
 #: src/renderer/components/plugins/pluginCopy.ts
 #~ msgid "Subagent Delegation"
@@ -13315,6 +13939,14 @@ msgstr "Submit review"
 msgid "Succeeded"
 msgstr "Succeeded"
 
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "Suggested command — review before use"
+msgstr "Suggested command — review before use"
+
+#: src/renderer/components/providers/devin/liveSessionControls.tsx
+msgid "Suggested command inserted into the composer."
+msgstr "Suggested command inserted into the composer."
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Suggestions"
 msgstr "Suggestions"
@@ -13322,6 +13954,10 @@ msgstr "Suggestions"
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "Summarize this week's progress, unfinished work, and the most important risks for next week."
 msgstr "Summarize this week's progress, unfinished work, and the most important risks for next week."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Summarizer"
+msgstr "Summarizer"
 
 #: src/renderer/views/GitReviewOverlay/parts/GitReviewSidebar/parts/ActionPhaseLabel.tsx
 msgid "Summarizing…"
@@ -13580,6 +14216,7 @@ msgstr "Tell the target provider what to do next..."
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/parts/BrowserToolbar.tsx
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 #: src/renderer/views/SettingsOverlay/parts/SettingsSidebar.tsx
+#: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/modelSurfaceLabel.ts
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 #: src/renderer/views/SettingsOverlay/SettingsOverlay.tsx
 msgid "Terminal"
@@ -13651,6 +14288,10 @@ msgstr "Terminal tabs"
 msgid "Test microphone"
 msgstr "Test microphone"
 
+#: src/renderer/components/thread/buildModelPickerControls.tsx
+msgid "That combination isn’t available"
+msgstr "That combination isn’t available"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 msgid "That conversation is no longer available."
 msgstr "That conversation is no longer available."
@@ -13695,6 +14336,10 @@ msgstr "The agent"
 #: src/renderer/components/providers/usageFormat.ts
 msgid "the app"
 msgstr "the app"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The app's data is not ready for these settings. Restart or update the app and try again."
+msgstr "The app's data is not ready for these settings. Restart or update the app and try again."
 
 #: src/renderer/views/ExperimentView/ExperimentView.tsx
 #~ msgid "the base branch"
@@ -13830,6 +14475,10 @@ msgstr "The incomplete-history notice changed on the server. Review the updated 
 msgid "the Linux user"
 msgstr "the Linux user"
 
+#: src/renderer/components/providers/devin/sessionListings.tsx
+msgid "The listing could not be read."
+msgstr "The listing could not be read."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "the macOS user"
 msgstr "the macOS user"
@@ -13850,11 +14499,31 @@ msgstr "The new context size applies from your next message. The agent session r
 msgid "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 msgstr "The normal app shell could not render. The diagnostics below are shown before reload so the failure can be investigated."
 
+#: src/renderer/components/providers/devin/sessionSettingsControls.tsx
+#~ msgid "The organization is fixed while this session runs — change it in the Devin profile settings, then start a new session."
+#~ msgstr "The organization is fixed while this session runs — change it in the Devin profile settings, then start a new session."
+
 #: src/renderer/state/remoteServers/environmentManagement.ts
 #: src/renderer/state/remoteServers/sessionReconnect.ts
 #: src/renderer/state/remoteServers/storeClient.ts
 msgid "The paired server that owns this environment is not connected."
 msgstr "The paired server that owns this environment is not connected."
+
+#: src/renderer/components/providers/devin/sessionPersonas.tsx
+#~ msgid "The persona catalog could not be read."
+#~ msgstr "The persona catalog could not be read."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "The persona must exist in Devin's own configuration; an unknown name fails visibly when the cloud chat starts."
+#~ msgstr "The persona must exist in Devin's own configuration; an unknown name fails visibly when the cloud chat starts."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "The profile this profile shared a login with ({ownerName}) no longer exists or is not usable. Pick another owner or switch the login source — nothing is lost until you save."
+msgstr "The profile this profile shared a login with ({ownerName}) no longer exists or is not usable. Pick another owner or switch the login source — nothing is lost until you save."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The project moved or was removed before the thread could launch. Review the project and try again."
+msgstr "The project moved or was removed before the thread could launch. Review the project and try again."
 
 #: src/renderer/state/remoteServers/snapshotProjection.ts
 msgid "The remote catalog read failed."
@@ -13924,6 +14593,26 @@ msgstr "The server returned an invalid MCP response."
 msgid "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
 msgstr "The server this plugin launches is maintained by a third party, not by the service it connects to. Review the source before enabling it."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The session action failed. Try again or reopen the session."
+msgstr "The session action failed. Try again or reopen the session."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "The session rejected the requested configuration. Review the selected settings and try again."
+msgstr "The session rejected the requested configuration. Review the selected settings and try again."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+#~ msgid "The session returned a hooks listing Poracode could not interpret."
+#~ msgstr "The session returned a hooks listing Poracode could not interpret."
+
+#: src/renderer/components/providers/devin/sessionActionDialog.tsx
+msgid "The session returned a rules listing Poracode could not interpret."
+msgstr "The session returned a rules listing Poracode could not interpret."
+
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "The session settings could not be read."
+#~ msgstr "The session settings could not be read."
+
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "The skill description is missing."
 msgstr "The skill description is missing."
@@ -13959,6 +14648,10 @@ msgstr "The skills marketplace couldn't be loaded."
 #: src/renderer/i18n/sharedMessages.ts
 msgid "The SSH tunnel reached an incompatible Poracode server."
 msgstr "The SSH tunnel reached an incompatible Poracode server."
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
+msgstr "The stored configuration is invalid. The stored values are kept; saving below replaces them with what this form holds."
 
 #: src/renderer/components/thread/ContinueInProviderDialog.tsx
 msgid "the target provider"
@@ -14025,6 +14718,18 @@ msgstr "These built-in MCP servers are shared by OpenCode 2 threads. Saving upda
 msgid "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 msgstr "These built-in MCP servers are shared by OpenCode threads. Saving updates running GUI projects; removing a server can interrupt an active turn. Terminal threads pick up changes on their next launch."
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "These choices apply to Chat. In CLI mode, configure the workspace from the terminal."
+msgstr "These choices apply to Chat. In CLI mode, configure the workspace from the terminal."
+
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+#~ msgid "These defaults apply to cloud chats started from Poracode. Terminal and one-shot Devin runs make their repository, persona, and platform choices in the native Devin CLI."
+#~ msgstr "These defaults apply to cloud chats started from Poracode. Terminal and one-shot Devin runs make their repository, persona, and platform choices in the native Devin CLI."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "These model settings contain unsupported selection data. Update the app before changing them."
+msgstr "These model settings contain unsupported selection data. Update the app before changing them."
+
 #: src/renderer/components/mcp/McpServersManager.tsx
 msgid "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
 msgstr "These servers come from plugins. Enable or disable them from Plugins; they cannot be edited here."
@@ -14035,6 +14740,10 @@ msgstr "These servers come from plugins. Enable or disable them from Plugins; th
 #: src/renderer/components/thread/ThreadComposer.tsx
 msgid "Thinking"
 msgstr "Thinking"
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This agent does not support the selected model options. Choose different options and try again."
+msgstr "This agent does not support the selected model options. Choose different options and try again."
 
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/SingleAgentSettings.tsx
 msgid "This agent is not installed."
@@ -14141,6 +14850,10 @@ msgstr "This folder is empty."
 #~ msgid "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 #~ msgstr "This link opens the app Poracode serves on your network. The hosted app is served over HTTPS, which browsers block from reaching a plain-HTTP desktop."
 
+#: src/renderer/components/providers/devin/personasPanel.tsx
+#~ msgid "This list is incomplete because the scan reached its limit."
+#~ msgstr "This list is incomplete because the scan reached its limit."
+
 #: src/renderer/views/SettingsOverlay/parts/machineScope/MachineScopeHeading.tsx
 msgid "this machine"
 msgstr "this machine"
@@ -14148,6 +14861,10 @@ msgstr "this machine"
 #: src/renderer/views/SettingsOverlay/parts/ArchivedThreadsSettings.tsx
 msgid "This machine"
 msgstr "This machine"
+
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This machine (local)"
+msgstr "This machine (local)"
 
 #: src/renderer/components/thread/ThreadFollowUpQueue.tsx
 msgid "This message is no longer queued. Your edit is still available to copy."
@@ -14192,9 +14909,23 @@ msgstr "This plugin's Poracode settings were ignored because they are not valid.
 msgid "This plugin's skills could not be read."
 msgstr "This plugin's skills could not be read."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
+msgstr "This profile cannot launch with its current login and configuration. Review the profile settings and try again."
+
 #: src/renderer/components/providers/settings/CursorProviderSettings.tsx
 msgid "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
 msgstr "This profile runs on the Cursor SDK. Cursor CLI and ACP share one machine login, so they stay on the main Cursor tile."
+
+#. placeholder {0}: status.label
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This profile's isolated login ({0})."
+msgstr "This profile's isolated login ({0})."
+
+#. placeholder {0}: String(props.view.formatVersion)
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "This profile's settings were written by a newer Poracode version (config format {0}). They are preserved exactly and the profile stays disabled until Poracode learns that format. Nothing is overwritten here."
+msgstr "This profile's settings were written by a newer Poracode version (config format {0}). They are preserved exactly and the profile stays disabled until Poracode learns that format. Nothing is overwritten here."
 
 #: src/renderer/components/skills/SkillsManager.tsx
 msgid "this project"
@@ -14251,6 +14982,10 @@ msgstr "This removes the worktree on \"{0}\" and closes {1, plural, one {# linke
 msgid "This removes the worktree on \"{0}\", then deletes the branch."
 msgstr "This removes the worktree on \"{0}\", then deletes the branch."
 
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This scheduled task changed or was removed before it could run. Review the schedule and try again."
+msgstr "This scheduled task changed or was removed before it could run. Review the schedule and try again."
+
 #: src/renderer/state/managedRootCatalog/rootCatalogAdapter.ts
 msgid "This server does not support the bounded catalog read."
 msgstr "This server does not support the bounded catalog read."
@@ -14267,9 +15002,17 @@ msgstr "This server requires authentication before Poracode can check it."
 msgid "This server runs on this computer and is unavailable for WSL projects."
 msgstr "This server runs on this computer and is unavailable for WSL projects."
 
+#: src/renderer/components/providers/devin/sessionSettingsPanel.tsx
+#~ msgid "This session did not advertise any settings."
+#~ msgstr "This session did not advertise any settings."
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "This system-wide shortcut is unavailable. Choose another key combination."
+
+#: src/renderer/i18n/sharedMessages.ts
+msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
+msgstr "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread does not support queued follow-ups."
@@ -15432,6 +16175,10 @@ msgstr "Use the {name} skill."
 #~ msgid "Use the default branch"
 #~ msgstr "Use the default branch"
 
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
+msgid "Use the ID of a persona available in your Devin cloud organization."
+msgstr "Use the ID of a persona available in your Devin cloud organization."
+
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use this account for usage tracking, or change users in the browser before continuing."
 msgstr "Use this account for usage tracking, or change users in the browser before continuing."
@@ -15484,6 +16231,10 @@ msgstr "Used for new interactive Terminal-panel sessions."
 msgid "user@host"
 msgstr "user@host"
 
+#: src/renderer/components/providers/devin/profileSettings.tsx
+msgid "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
+msgstr "Uses Devin's own login on this machine. Sign in or out from the base Devin page — it stays the single global login."
+
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "Using the built-in Claude model list."
 msgstr "Using the built-in Claude model list."
@@ -15496,6 +16247,10 @@ msgstr "v{0} available"
 #: src/renderer/components/providers/settings/ClaudeProfileSettings.tsx
 msgid "value"
 msgstr "value"
+
+#: src/renderer/components/providers/devin/sessionActionControls.tsx
+#~ msgid "Value"
+#~ msgstr "Value"
 
 #: src/mobile/views/DesktopsView.tsx
 #~ msgid "Verify host key"
@@ -15756,6 +16511,10 @@ msgstr "Weekly review"
 #~ msgid "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 #~ msgstr "What Crossagents learned from explicit selections. Edit the tags or remove entries to reshape routing."
 
+#: src/renderer/components/providers/devin/sessionReviseForm.tsx
+msgid "What should change? (optional)"
+msgstr "What should change? (optional)"
+
 #: src/renderer/views/SchedulesView/SchedulesView.tsx
 #~ msgid "What should the agent do?"
 #~ msgstr "What should the agent do?"
@@ -15843,6 +16602,7 @@ msgid "Will run in {0}:"
 msgstr "Will run in {0}:"
 
 #: src/renderer/components/mcp/McpProjectDestinationDropdown.tsx
+#: src/renderer/components/providers/devin/cloudProfileSettings.tsx
 #: src/renderer/views/MainView/parts/CreateProject/CreateProjectMenu.tsx
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/AISettings.tsx

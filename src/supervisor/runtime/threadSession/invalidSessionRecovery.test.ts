@@ -187,6 +187,21 @@ function createHarness() {
 }
 
 describe("InvalidSessionRecoveryCoordinator", () => {
+  it("refuses approved roots before retirement, argv building, or spawn", async () => {
+    const harness = createHarness();
+    const session: SessionRuntime = {
+      ...harness.session,
+      workspaceScope: {
+        primaryLocation: LOGICAL_PROJECT_LOCATION,
+        additionalDirectories: [{ kind: "windows", path: "C:\\extra" }],
+        revision: 1,
+      },
+    };
+    harness.setCurrentSession(session);
+    await expect(harness.coordinator.recover(session)).rejects.toThrow("workspace directories");
+    expect(harness.events).toEqual([]);
+    expect(harness.spawnThread).not.toHaveBeenCalled();
+  });
   it("disposes, settles, kills, and respawns without the stale session ref", async () => {
     const harness = createHarness();
 
