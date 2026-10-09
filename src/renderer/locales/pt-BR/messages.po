@@ -4988,6 +4988,10 @@ msgstr "Desconectar"
 msgid "Disconnected"
 msgstr "Desconectado"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "Desconectado — envie uma mensagem para reconectar"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Descobrir"
@@ -15073,6 +15077,10 @@ msgstr "Não é possível exibir este SVG."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Este atalho global não está disponível. Escolha outra combinação de teclas."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Este tópico não pode ser retomado. Inicie um novo tópico para continuar."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."

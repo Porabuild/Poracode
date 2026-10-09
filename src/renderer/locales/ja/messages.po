@@ -4987,6 +4987,10 @@ msgstr "切断"
 msgid "Disconnected"
 msgstr "切断済み"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "切断されています — メッセージを送信して再接続してください"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "見つける"
@@ -15071,6 +15075,10 @@ msgstr "この SVG は表示できません。"
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "このシステム全体のショートカットは使用できません。別のキーの組み合わせを選択してください。"
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "このスレッドは再開できません。続けるには新しいスレッドを開始してください。"
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."

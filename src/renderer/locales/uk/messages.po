@@ -4988,6 +4988,10 @@ msgstr "Відключити"
 msgid "Disconnected"
 msgstr "Відключено"
 
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "Disconnected — send a message to reconnect"
+msgstr "З’єднання розірвано — надішліть повідомлення, щоб підключитися знову"
+
 #: src/renderer/components/providers/opencode2/OpenCode2PluginManager.tsx
 msgid "Discover"
 msgstr "Огляд"
@@ -15073,6 +15077,10 @@ msgstr "Не вдалося відобразити цей SVG."
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "This system-wide shortcut is unavailable. Choose another key combination."
 msgstr "Це загальносистемне сполучення клавіш недоступне. Виберіть інше сполучення."
+
+#: src/renderer/components/thread/ThreadComposerSection.tsx
+msgid "This thread cannot be resumed. Start a new thread to continue."
+msgstr "Цей тред неможливо відновити. Створіть новий тред, щоб продовжити."
 
 #: src/renderer/i18n/sharedMessages.ts
 msgid "This thread cannot open with its approved folders. Update the host or review the folder permissions, then try again."
