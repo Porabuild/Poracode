@@ -1589,9 +1589,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
       throw new Error("ACP session not opened yet.");
     }
     this.currentTurnInterruptRequested = false;
-    // Whatever the interrupted turn was still streaming ends here: a staged
-    // `pendingPromptInterrupt` cancel fires against an idle session before
-    // this prompt goes out, so nothing suppressed can follow it either.
+    // A fresh turn ends the previous turn's output suppression. An idle
+    // interrupt must not cancel a subsequently submitted prompt.
     this.suppressAgentOutputUntilNextTurn = false;
     this.recentInterruptAckTextTail = "";
     this.agentSurfacedErrorMessage = undefined;
@@ -1660,15 +1659,16 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     );
 
     try {
-      this.promptInFlight = true;
-      // If `interruptTurn()` was called between `startTurn` entry and this
-      // point (rare, but possible: the supervisor stages a steer immediately
-      // after a previous turn ended), fire the cancel now so the agent
-      // doesn't process this prompt.
-      if (this.pendingPromptInterrupt && this.sessionId) {
-        this.pendingPromptInterrupt = false;
-        await this.connection.cancel({ sessionId: this.sessionId });
+      // Stop may arrive while configuration setters are awaited. The provider
+      // is still idle then: a cancel sent before prompt cannot cancel future
+      // work. Close this accepted turn without issuing a prompt instead.
+      this.pendingPromptInterrupt = false;
+      if (this.currentTurnInterruptRequested) {
+        this.emitTurnStatusAfterPrompt("cancelled");
+        this.completeTurn(this.ensureMapperState(), "cancelled");
+        return;
       }
+      this.promptInFlight = true;
       const result = await this.connection.prompt({
         sessionId: this.sessionId,
         prompt: contentBlocks,
@@ -1830,12 +1830,9 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     this._extensionRequests?.cancelPending();
     this._sessionActionRegistry?.abortPending();
     this.currentTurnInterruptRequested = true;
-    // Race guard: if interrupt fires before `connection.prompt()` has been
-    // entered (e.g. the supervisor stages a steer in the same microtask as
-    // a fresh startTurn), set a flag instead of issuing the cancel directly.
-    // The cancel would land on an idle session and be silently ignored;
-    // `startTurn` checks the flag right before awaiting `prompt()` and fires
-    // the cancel from there. Mirrors codex/acp.ts:584-599.
+    // Before prompt submission, stage Stop instead of sending a cancel to an
+    // idle provider. The current startTurn will close without issuing prompt;
+    // an interrupt while idle does not cancel a subsequent fresh turn.
     //
     // An orphan turn has no prompt promise to cancel into, but the agent is
     // genuinely mid-work — `session/cancel` is the only thing that stops it, so
@@ -1846,9 +1843,8 @@ export class AcpStructuredSession implements StructuredSessionHandle {
     }
     // A real cancel is going out against work that was streaming output, so
     // suppress the trailing message/thought chunks the agent still emits after
-    // it. The staged-idle path above must not suppress: its cancel lands on an
-    // idle session, and the next prompt is a fresh turn whose output the user
-    // asked for.
+    // it. The staged-idle path above has no provider work to suppress; the
+    // next fresh turn's output must remain visible.
     if (this.behavior.suppressOutputAfterInterrupt) {
       this.suppressAgentOutputUntilNextTurn = true;
     }

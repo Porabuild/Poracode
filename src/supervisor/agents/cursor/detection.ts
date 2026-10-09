@@ -553,6 +553,7 @@ async function probeCursorAcpCapabilities(
     timeoutMs: 30_000,
     modelThoughtLevelProbeTimeoutMs: 2_500,
     clientCapabilitiesMeta: CURSOR_ACP_CLIENT_CAPABILITIES_META,
+    preserveEmptyModelEfforts: true,
     // `ctx.probeEnv` carries the detection spec's `baseSpawnEnv` (the Cursor
     // profile's own API key), so identity probes must not run under ambient
     // credentials — the status has to describe the key that sessions will use.
