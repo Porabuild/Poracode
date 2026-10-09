@@ -125,7 +125,10 @@ const execFileAsync = promisify(execFile);
 // v46 refreshes presentation-scoped family relations and provider default visibility.
 // Older valid-shaped snapshots must not retain obsolete menus or control bindings.
 // v47 refreshes surface-scoped family intent declarations before deliberate edits.
-export const STATUS_CACHE_VERSION = 47;
+// v48 re-probes confirmed empty per-model effort ladders so models without
+// an effort selector cannot inherit unsupported global/CLI choices. This also
+// invalidates the integrated v47 inventory and the prior branch's v41 cache.
+export const STATUS_CACHE_VERSION = 48;
 const WSL_AGENT_DETECTION_TIMEOUT_MS = 60_000;
 const WSL_LXSS_REGISTRY_KEY = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Lxss";
 

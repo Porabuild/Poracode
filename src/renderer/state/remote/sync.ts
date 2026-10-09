@@ -15,6 +15,7 @@ import {
 } from "@/renderer/state/threadFollowUpQueueStore";
 import { normalizeRuntimeSnapshotLaunchConfig } from "@/renderer/state/slices/threadSlice";
 import { useAgentStatusesStore } from "@/renderer/state/agentStatusesStore";
+import { preservePendingThreadConfig, retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { carryVolatileSessionConfigOptions } from "@/renderer/state/volatileSessionConfigOptions";
 import { showUserNotification } from "@/renderer/notifications";
 import {
@@ -374,9 +375,20 @@ function syncThreadMetadataFromSnapshot(
       // value is authoritative; a host with no entry serves the key absent,
       // and that absence retains the live inventory the event stream already
       // applied — same owner/session only.
-      return carryVolatileSessionConfigOptions(thread, replacement);
+      return preservePendingThreadConfig(
+        carryVolatileSessionConfigOptions(thread, replacement),
+        current.pendingThreadConfigByThreadId[thread.id],
+      );
     });
-    return changed ? { threads } : {};
+    return changed
+      ? {
+          threads,
+          pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+            current.pendingThreadConfigByThreadId,
+            threads,
+          ),
+        }
+      : {};
   });
 }
 

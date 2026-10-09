@@ -1,3 +1,4 @@
+import { retainPendingThreadConfigs } from "../pendingThreadConfig";
 import { composerDraftStorage } from "../composerDraftStorage";
 import { areSelectionBindingsEqual } from "@/shared/contracts";
 import type {
@@ -241,6 +242,10 @@ export const createProjectSlice: SliceCreator<ProjectSlice> = (set, get) => ({
       return {
         projects: nextProjects,
         threads: nextThreads,
+        pendingThreadConfigByThreadId: retainPendingThreadConfigs(
+          state.pendingThreadConfigByThreadId,
+          nextThreads,
+        ),
         pendingThreadLaunches: nextPendingThreadLaunches,
         pendingLaunchSegments: nextPendingLaunchSegments,
         pendingLaunchUserMessageItemIds: nextPendingLaunchUserMessageItemIds,

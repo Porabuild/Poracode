@@ -1,5 +1,33 @@
 # Versioned State & Protocols
 
+Cursor ACP declares `preserveEmptyModelEfforts` so a verified model config with
+no effort choices becomes an authoritative empty ladder. Failed/unprobed model
+requests remain absent and can use the existing CLI fallback. Previous derived
+statuses omitted confirmed empties and could display unsupported global effort
+tiers. Supervisor status-cache format 48 and renderer status-store version 44
+invalidate both integration parents (target 47 / 43 and issue branch 41 / 37),
+as well as the original 40 / 36 catalogs. Regressions start from these versions.
+ThreadConfig, session references, database, IPC/remote protocols and
+deployed helpers keep their existing formats: the selected model and saved
+effort remain valid data, and ACP sync already refuses unadvertised effort values.
+Only the derived capability catalogs must be recomputed.
+
+GUI next-turn config intent is window-local, separate from confirmed runtime
+config. The pending field map is excluded by the app-store partializer and
+is pruned on row removal or provider/account/presentation ownership changes.
+Dispatch retires only fields matching its captured config. Field revision
+stamps restore retired edits on definite failure only when no newer field/owner
+edit superseded them; in-flight submission IDs expire on dispatch settlement.
+These stamps and submission IDs are transient and never enter a saved config or
+wire body. Retained uncertain operations keep their original command ID and
+serialized body. Existing version-5
+app state remains readable without this map. ThreadConfig, saved session refs,
+status caches 48/44, SQL57, settings2, remote13, hop17 and deployed helpers retain
+their existing shapes and versions. Stop during awaited ACP setup closes the
+accepted turn before issuing a provider prompt; event shapes are unchanged.
+Regressions cover previous saved state, exact HTTP receipt replay, stale setup
+and row echoes, authoritative acknowledgements, unsupported effort and cancellation.
+
 ACP prompt consumption supports a provider-declared `per-call` mode alongside
 its existing `cumulative` mode. The wire enum, usage event shape, SQLite tables,
 remote protocol 12, and native readers already support both; no schema or
@@ -2850,3 +2878,28 @@ natural expiry and bounded renewal rules keep their existing shapes. No version
 bump or generated artifact change is required; bundle content hashes identify
 the fix. Owned HTTP-socket regressions cover reconnect after the first renewal,
 continued ranges through 147/180/220 seconds and real ownership retirement.
+
+## Installed terminal font preference
+
+`terminalFontFamily` is an additive device-local shared-settings field. Its empty
+string default retains the existing bundled terminal stack for legacy flat JSON,
+settings-document version 1 and renderer localStorage. Existing font-size values
+keep their meaning. Settings document version 1 stays valid; no migration or
+cache invalidation is needed. Legacy normalization supplies the default, while
+the host document reader rejects malformed present values. Saved unavailable
+families remain intact and CSS falls back to the existing readable stack.
+
+The preference is absent from both remote settings projections (runtime and
+contract generator) and from `REMOTE_SETTINGS_KEYS`: browser clients persist it
+in their own localStorage without changing the paired host. Native iOS/Android
+settings bindings retain their existing independent typography and wire shape.
+Installed-font enumeration uses the client platform API, not a new IPC or host
+route. Only the registered main app renderer's main frame has Electron font
+permission; browser origins and subframes retain denial. Client/host hop 17,
+remote protocol 13, settings transaction version 1 and current native generated hashes
+remain unchanged by font selection. Terminal caches and prewarm state are disposable, process-local
+objects; remounted cached terminals apply the current preference. Tests cover
+legacy documents/defaults, local-only projection, permission scope, CSS escaping,
+prewarm and live terminal changes without replacing the PTY surface. The editable
+font picker uses the same single-family validator and escaped CSS stack for installed
+suggestions and typed names; it introduces no stored or wire shape changes.

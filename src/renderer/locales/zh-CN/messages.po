@@ -3876,6 +3876,10 @@ msgstr "将未提交的更改复制到此处（将它们保留在此分支上）
 msgid "Could not abort the merge: {detail}"
 msgstr "无法中止合并：{detail}"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Could not access installed fonts. You can keep the saved font or use Default."
+msgstr "无法访问已安装的字体。你可以保留已保存的字体，或选择“默认”。"
+
 #: src/renderer/i18n/sharedMessages.ts
 msgid "Could not complete the merge"
 msgstr "无法完成合并"
@@ -4438,6 +4442,8 @@ msgstr "DeepSeek"
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconPicker.tsx
 #: src/renderer/views/ProjectSettingsOverlay/parts/ProjectIconSources.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
 msgid "Default"
 msgstr "默认"
 
@@ -5384,6 +5390,10 @@ msgstr "结束语音聊天"
 msgid "Enhanced (Hooks)"
 msgstr "增强型（挂钩）"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Enter a font family of up to 256 characters without control characters."
+msgstr "请输入最多256个字符且不含控制字符的字体族名称。"
+
 #: src/renderer/views/SettingsOverlay/parts/RemoteAccessSettings.tsx
 msgid "Enter a full origin URL like https://code.example.com, with no path."
 msgstr "输入完整的来源 URL，例如 https://code.example.com，不含路径。"
@@ -6145,6 +6155,14 @@ msgstr "存放此项目工作树的文件夹。重置以使用全局设置。"
 #: src/renderer/views/SettingsOverlay/parts/ThreadSettings.tsx
 msgid "Follow-up behavior"
 msgstr "后续消息行为"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+msgid "Font for agent terminals and the terminal panel. Missing fonts use the default."
+msgstr "用于智能体终端和终端面板的字体。字体缺失时使用默认字体。"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Font for agent terminals and the terminal panel. Type a family or choose an installed font. Missing fonts use the default."
+msgstr "代理终端和终端面板使用的字体。输入字体族名称或选择已安装的字体。缺失字体将使用默认字体。"
 
 #: src/renderer/views/SettingsOverlay/parts/MobileSettingsIndex.tsx
 msgid "Fonts and scrolling"
@@ -7222,6 +7240,10 @@ msgstr "已安装"
 msgid "Installed {0}."
 msgstr "已安装 {0}。"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Installed-font selection is unavailable in this client."
+msgstr "此客户端不支持选择已安装的字体。"
+
 #: src/renderer/views/SettingsOverlay/parts/AcpRegistrySettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/SingleAgentSettings/parts/AgentEnvironmentRow.tsx
 msgid "Installing"
@@ -7532,6 +7554,10 @@ msgstr "此会话不支持实时语音。"
 msgid "Live voice requires a subscription sign-in for this provider."
 msgstr "实时语音需要登录此提供商的订阅账户。"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Load installed fonts"
+msgstr "加载已安装的字体"
+
 #: src/renderer/components/common/PixelLoader.tsx
 #: src/renderer/components/thread/ChatPane/parts/items/SubAgentMessageList.tsx
 #: src/renderer/views/MainView/parts/RightPanel/parts/BrowserPanel/RemoteBrowserMirror.tsx
@@ -7560,6 +7586,10 @@ msgstr "正在加载环境…"
 #: src/renderer/components/thread/ChatPane/parts/items/useReadAbsoluteFile.tsx
 msgid "Loading file…"
 msgstr "正在加载文件..."
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Loading fonts…"
+msgstr "正在加载字体…"
 
 #: src/renderer/views/SettingsOverlay/parts/RemoteHostSettingsSection.tsx
 msgid "Loading host settings…"
@@ -10715,6 +10745,10 @@ msgstr "正在准备远程环境…"
 msgid "Presets"
 msgstr "预设"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Press Enter to apply."
+msgstr "按 Enter 应用。"
+
 #: src/renderer/views/SettingsOverlay/parts/ShortcutsSettings.tsx
 msgid "Press shortcut…"
 msgstr "请按快捷键…"
@@ -12462,6 +12496,10 @@ msgstr "保存快捷键"
 msgid "Saved credentials are shared across all machines."
 msgstr "已保存的凭据在所有设备间共享。"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Saved font"
+msgstr "已保存的字体"
+
 #: src/renderer/views/SettingsOverlay/parts/TerminalSettings.tsx
 msgid "Saved shell"
 msgstr "已保存的 shell"
@@ -13116,6 +13154,10 @@ msgstr "在右侧面板显示停靠面板"
 #: src/renderer/views/SettingsOverlay/parts/UsageSettings.tsx
 msgid "Show estimated cost"
 msgstr "显示预计费用"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Show font suggestions"
+msgstr "显示字体建议"
 
 #: src/renderer/views/SettingsOverlay/parts/GeneralSettings.tsx
 #: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
@@ -14230,6 +14272,12 @@ msgstr "终端"
 #: src/renderer/components/terminal/TerminalFeedStatus.tsx
 msgid "Terminal access denied."
 msgstr "终端访问被拒绝。"
+
+#: src/renderer/views/SettingsOverlay/parts/settingsSearchIndex.ts
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Terminal font face"
+msgstr "终端字体"
 
 #. placeholder {0}: project.name
 #. placeholder {0}: props.projectName
@@ -15723,6 +15771,10 @@ msgstr "未分配"
 msgid "Unavailable"
 msgstr "不可用"
 
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontSetting.tsx
+msgid "Unavailable — using default"
+msgstr "不可用 — 使用默认字体"
+
 #: src/renderer/components/plugins/PluginDetail.tsx
 #: src/renderer/components/plugins/PluginMarketplace.tsx
 msgid "Unavailable on this device"
@@ -16151,6 +16203,10 @@ msgstr "当任务需要已有的浏览器会话时安全地使用 Chrome。"
 #: src/renderer/components/providers/codex/index.tsx
 msgid "Use config"
 msgstr "使用配置"
+
+#: src/renderer/views/SettingsOverlay/parts/TerminalFontPicker.tsx
+msgid "Use default font"
+msgstr "使用默认字体"
 
 #: src/renderer/views/MainView/parts/AppOverlays.tsx
 msgid "Use detected session?"

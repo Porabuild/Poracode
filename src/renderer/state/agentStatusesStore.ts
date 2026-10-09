@@ -272,9 +272,9 @@ export const useAgentStatusesStore = create<AgentStatusesStore>()(
     }),
     {
       name: "poracode-agent-statuses-v1",
-      version: 43,
-      // v43 mirrors supervisor STATUS_CACHE_VERSION=47. Refresh surface-scoped
-      // family intent declarations before showing model menus.
+      version: 44,
+      // v44 mirrors supervisor STATUS_CACHE_VERSION=48. Re-probe confirmed empty
+      // effort ladders, including inventories from either integration parent.
       migrate: (persisted) => {
         const prev = (persisted ?? {}) as Partial<AgentStatusesStore>;
         return {
