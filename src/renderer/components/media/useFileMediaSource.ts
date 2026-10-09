@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import type { ProjectLocation } from "@/shared/contracts";
 import { createEditorMediaSource, type EditorMediaSource } from "./fileMediaSource";
-import {
-  closeImageLightboxForSource,
-  updateImageLightboxSource,
-} from "@/renderer/components/composer/ImageLightbox";
+import { closeImageLightboxForSource } from "@/renderer/components/composer/ImageLightbox";
 
-/** Each mounted preview owns one grant; renewal retires the previous grant after commit. */
+const RENEW_MARGIN_MS = 30_000;
+const RETRY_DELAYS_MS = [5_000, 10_000, 20_000];
+
+/** One mount owns one stable grant/URL. Failed renewal never retires still-valid playback. */
 export function useFileMediaSource(
   location: ProjectLocation | null,
   path: string,
@@ -19,51 +19,98 @@ export function useFileMediaSource(
   useEffect(() => {
     const controller = new AbortController();
     let current: EditorMediaSource | null = null;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let expiry = 0;
+    let expiryTimer: ReturnType<typeof setTimeout> | undefined;
+    let renewTimer: ReturnType<typeof setTimeout> | undefined;
+    const retire = () => {
+      controller.abort();
+      clearTimeout(expiryTimer);
+      clearTimeout(renewTimer);
+      if (current) {
+        closeImageLightboxForSource(current.url);
+        void current.release().catch(() => undefined);
+        current = null;
+      }
+    };
+    const expire = () => {
+      retire();
+      setLoaded(null);
+      setFailedScope(scope);
+    };
+    const schedule = () => {
+      clearTimeout(expiryTimer);
+      clearTimeout(renewTimer);
+      expiryTimer = setTimeout(expire, Math.max(0, expiry - Date.now()));
+      // A short or session-limited lease can expire honestly without a tight retry loop.
+      if (expiry - Date.now() > RENEW_MARGIN_MS)
+        renewTimer = setTimeout(() => void renew(0), expiry - Date.now() - RENEW_MARGIN_MS);
+    };
+    async function renew(attempt: number) {
+      const source = current;
+      if (!source || controller.signal.aborted) return;
+      try {
+        const result = await source.renew(controller.signal);
+        if (controller.signal.aborted || current !== source) return;
+        const nextExpiry = Date.parse(result.expiresAt);
+        if (
+          result.ticket !== source.ticket ||
+          !Number.isFinite(nextExpiry) ||
+          nextExpiry <= Date.now()
+        )
+          throw new Error("Invalid media renewal.");
+        if (nextExpiry <= expiry) {
+          // Honor a shorter authoritative deadline without retrying at the session limit.
+          expiry = nextExpiry;
+          if (result.expiresAt !== source.expiresAt) {
+            current = { ...source, expiresAt: result.expiresAt };
+            setLoaded({ scope, source: current });
+          }
+          clearTimeout(expiryTimer);
+          expiryTimer = setTimeout(expire, Math.max(0, expiry - Date.now()));
+          return;
+        }
+        expiry = nextExpiry;
+        current = { ...source, expiresAt: result.expiresAt };
+        setLoaded({ scope, source: current });
+        schedule();
+      } catch {
+        if (controller.signal.aborted || current !== source) return;
+        const delay = RETRY_DELAYS_MS[attempt];
+        if (delay !== undefined && Date.now() + delay < expiry)
+          renewTimer = setTimeout(() => void renew(attempt + 1), delay);
+        // The independent expiry timer remains authoritative, including on an older host.
+      }
+    }
     async function load() {
       if (!location) {
         setFailedScope(scope);
         return;
       }
       try {
-        const next = await createEditorMediaSource(location, path, controller.signal);
+        const source = await createEditorMediaSource(location, path, controller.signal);
         if (controller.signal.aborted) {
-          void next.release().catch(() => undefined);
+          void source.release().catch(() => undefined);
           return;
         }
-        const previous = current;
-        current = next;
-        setLoaded({ scope, source: next });
-        // Release after React has switched the native element to the new source.
-        if (previous) {
-          updateImageLightboxSource(previous.url, next.url, next.readImageBytes);
-          setTimeout(() => void previous.release().catch(() => undefined), 1000);
+        current = source;
+        expiry = Date.parse(source.expiresAt);
+        if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+          expire();
+          return;
         }
-        timer = setTimeout(
-          () => void load(),
-          Math.max(1000, Date.parse(next.expiresAt) - Date.now() - 30_000),
-        );
+        setFailedScope(null);
+        setLoaded({ scope, source });
+        schedule();
       } catch {
         if (!controller.signal.aborted) {
-          if (current) {
-            closeImageLightboxForSource(current.url);
-            void current.release().catch(() => undefined);
-          }
-          current = null;
+          retire();
           setLoaded(null);
           setFailedScope(scope);
         }
       }
     }
     void load();
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-      if (current) {
-        closeImageLightboxForSource(current.url);
-        void current.release().catch(() => undefined);
-      }
-    };
+    return retire;
   }, [location, path, scope]);
   return { source: loaded?.scope === scope ? loaded.source : null, failed: failedScope === scope };
 }

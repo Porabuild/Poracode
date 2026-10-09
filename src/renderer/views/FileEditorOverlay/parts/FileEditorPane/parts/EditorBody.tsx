@@ -136,7 +136,11 @@ export function EditorBody(props: {
 
   const loading = (
     <div className="flex h-full items-center justify-center text-sm text-muted">
-      <Trans>Loading editor…</Trans>
+      {fileMediaType(activePath) ? (
+        <Trans>Loading media preview…</Trans>
+      ) : (
+        <Trans>Loading editor…</Trans>
+      )}
     </div>
   );
 
@@ -155,18 +159,11 @@ export function EditorBody(props: {
   return (
     <div className="min-h-0 flex-1 overflow-hidden">
       {bufferStatus === "loading" ? (
-        <div className="flex h-full items-center justify-center text-sm text-muted">
-          <Trans>Loading editor…</Trans>
-        </div>
+        loading
       ) : isPdf ? (
         <PdfBrowserPlaceholder path={activePath} projectLocation={projectLocation} />
       ) : fileMediaType(activePath) ? (
-        <EditorMediaViews
-          key={modelPath}
-          path={activePath}
-          projectLocation={projectLocation}
-          fallback={fallback}
-        />
+        <EditorMediaViews key={modelPath} path={activePath} projectLocation={projectLocation} />
       ) : bufferStatus === "ready" && showPreview && isMarkdown ? (
         isSvgFile(activePath) ? (
           <SvgFileView path={activePath} content={content ?? ""} />

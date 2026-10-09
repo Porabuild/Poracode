@@ -360,19 +360,7 @@ public struct RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133: Codable, Sen
   }
 }
 
-public struct RouteenvironmentU2DMediaU2DTicketRequest_aa35b4044d: Codable, Sendable, RemoteModelMetadata {
-  public var childTicket: String
-  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
-  public static let fields: [RemoteFieldDescriptor] = [
-    .init(wireName: "childTicket", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^pc_media_[A-Za-z0-9_-]{43}$", format: nil, semanticValidatorIds: []),
-  ]
-  public static let semanticValidatorIds: [String] = []
-  private enum CodingKeys: String, CodingKey {
-    case childTicket = "childTicket"
-  }
-}
-
-public struct RouteenvironmentU2DMediaU2DTicketResponse_eaa8e54151: Codable, Sendable, RemoteModelMetadata {
+public struct RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151: Codable, Sendable, RemoteModelMetadata {
   public var expiresAt: String
   public var ticket: String
   public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
@@ -384,6 +372,18 @@ public struct RouteenvironmentU2DMediaU2DTicketResponse_eaa8e54151: Codable, Sen
   private enum CodingKeys: String, CodingKey {
     case expiresAt = "expiresAt"
     case ticket = "ticket"
+  }
+}
+
+public struct RouteenvironmentU2DMediaU2DTicketRequest_aa35b4044d: Codable, Sendable, RemoteModelMetadata {
+  public var childTicket: String
+  public static let unknownFieldPolicy: RemoteUnknownFieldPolicy = .strip
+  public static let fields: [RemoteFieldDescriptor] = [
+    .init(wireName: "childTicket", typeName: "String", required: true, nullable: false, minimum: nil, maximum: nil, minLength: nil, maxLength: nil, minItems: nil, maxItems: nil, pattern: "^pc_media_[A-Za-z0-9_-]{43}$", format: nil, semanticValidatorIds: []),
+  ]
+  public static let semanticValidatorIds: [String] = []
+  private enum CodingKeys: String, CodingKey {
+    case childTicket = "childTicket"
   }
 }
 

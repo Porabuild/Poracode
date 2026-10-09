@@ -58,17 +58,17 @@ describe("remote v3 native binding generator", () => {
         generatorVersion: 3,
         // Additive file-scoped media grants change the generated authority
         // fingerprint while keeping older routes and procedures valid.
-        sourceHash: "sha256:9bbebc8385e860cbc8836f098764307013ce1abb62386857b8b77e2eb31f8546",
-        manifestHash: "sha256:ce9f5bed32ed3cf9f03fe88e986cbed0dca9598a94c6ccee401992e1ef524374",
+        sourceHash: "sha256:21fdc9be4cf123083f3be02ac41634f60d85dcad5b0db7cf6247a41d700d4f32",
+        manifestHash: "sha256:d4f83caff0dc26690929b83b86098fb2e2de8dd7647c2ff2b1b287f8c021397a",
         counts: {
-          routes: 93,
+          routes: 95,
           procedures: 126,
           voidProcedureResults: 50,
           jsonProcedureResults: 76,
           webSocketClientVariants: 9,
           // 10 shared + the desktop-internal `desktop-event` frame (V5 plan 2.5).
           webSocketServerVariants: 11,
-          schemaRoots: 416,
+          schemaRoots: 421,
           structuralTypes: 935,
           semanticValidators: 18,
           swiftFiles: 58,
@@ -311,7 +311,7 @@ describe("remote v3 native binding generator", () => {
       const output = buildNativeBindingOutput(ir, manifest).files;
       for (const language of ["swift", "kotlin"] as const) {
         const adapters = rootAdapters(graph, language);
-        expect(adapters).toHaveLength(416);
+        expect(adapters).toHaveLength(421);
         const source = Object.entries(output)
           .filter(([path]) => path.startsWith(`${language}/RootCodecs`))
           .map(([, contents]) => contents)

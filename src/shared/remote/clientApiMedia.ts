@@ -34,6 +34,43 @@ export abstract class RemoteClientMediaApi extends RemoteClientThreadsApi {
     }
     return new Uint8Array(await readBoundedResponseBody(response, this.maxResponseBodyBytes));
   }
+  async renewMediaSource(
+    ticket: string,
+    signal?: AbortSignal,
+  ): Promise<EnvironmentMediaTicketResult> {
+    const result = parseResponse(
+      environmentMediaTicketResultSchema,
+      await this.requestJson("/api/files/media-renew", {
+        method: "POST",
+        body: { ticket },
+        ...(signal ? { signal } : {}),
+      }),
+      "media renewal",
+    );
+    if (result.ticket !== ticket)
+      throw new RemoteClientError("Media renewal owner mismatch.", 502, "invalid_media_ticket");
+    return result;
+  }
+
+  async renewEnvironmentMediaTicket(
+    environmentId: string,
+    ticket: string,
+    signal?: AbortSignal,
+  ): Promise<EnvironmentMediaTicketResult> {
+    const result = parseResponse(
+      environmentMediaTicketResultSchema,
+      await this.requestJson(`/api/environments/${encodeURIComponent(environmentId)}/media-renew`, {
+        method: "POST",
+        body: { ticket },
+        ...(signal ? { signal } : {}),
+      }),
+      "environment media renewal",
+    );
+    if (result.ticket !== ticket)
+      throw new RemoteClientError("Media renewal owner mismatch.", 502, "invalid_media_ticket");
+    return result;
+  }
+
   async releaseEnvironmentMediaTicket(environmentId: string, ticket: string): Promise<void> {
     await this.requestJson(`/api/environments/${encodeURIComponent(environmentId)}/media-release`, {
       method: "POST",

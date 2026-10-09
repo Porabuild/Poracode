@@ -14,6 +14,7 @@ import { PlaybackGrants } from "./playbackGrants";
 interface FileMediaGrant {
   readonly request: MediaFileRequest;
   readonly hostPath: string;
+  readonly projectOwner: string | null;
   readonly dev: number;
   readonly ino: number;
   readonly sizeBytes: number;
@@ -36,7 +37,7 @@ async function resolveMediaPath(
   request: MediaFileRequest,
   canManage: boolean,
   ctx: RemoteServerContext,
-): Promise<string> {
+): Promise<{ hostPath: string; projectOwner: string | null }> {
   const payload = { projectLocation: { ...request.projectLocation } };
   if (request.access === "external" && !canManage) {
     throw new RemoteHttpError(
@@ -45,8 +46,11 @@ async function resolveMediaPath(
       403,
     );
   }
-  if (request.access === "project")
-    authorizeProjectProcedurePayload("readProjectFile", payload, () => canManage);
+  const owners =
+    request.access === "project"
+      ? authorizeProjectProcedurePayload("readProjectFile", payload, () => canManage)
+      : undefined;
+  const projectOwner = owners?.projectLocation ?? null;
   const location = payload.projectLocation;
   if (location.remoteServerId)
     throw new RemoteHttpError("invalid_media_owner", "Media must be read by its owning host.", 403);
@@ -86,7 +90,7 @@ async function resolveMediaPath(
       );
     }
   }
-  return realpath(target);
+  return { hostPath: await realpath(target), projectOwner };
 }
 
 export async function issueFileMediaTicket(
@@ -102,13 +106,18 @@ export async function issueFileMediaTicket(
       "Only editor media files can be served.",
       415,
     );
-  const hostPath = await resolveMediaPath(request, session.scopes.includes("projects:manage"), ctx);
+  const { hostPath, projectOwner } = await resolveMediaPath(
+    request,
+    session.scopes.includes("projects:manage"),
+    ctx,
+  );
   const info = await stat(hostPath);
   if (!info.isFile())
     throw new RemoteHttpError("media_not_found", "The media path is not a file.", 404);
   const value: FileMediaGrant = {
     request,
     hostPath,
+    projectOwner,
     dev: info.dev,
     ino: info.ino,
     sizeBytes: info.size,
@@ -127,12 +136,7 @@ export async function issueFileMediaTicket(
   };
 }
 
-export async function writeFileMedia(
-  ctx: RemoteServerContext,
-  req: IncomingMessage,
-  res: ServerResponse,
-  ticket: string,
-): Promise<void> {
+async function openValidatedMedia(ctx: RemoteServerContext, ticket: string) {
   const { auth } = ctx;
   const grant = fileMediaGrants(auth).read(ticket);
   const value = grant.value;
@@ -142,11 +146,17 @@ export async function writeFileMedia(
   );
   // Session revocation retires the grant. Registry removal/root changes and symlink changes
   // are independently rechecked before opening any bytes, even for an unexpired grant.
-  const hostPath = await resolveMediaPath(
+  const { hostPath, projectOwner } = await resolveMediaPath(
     value.request,
     session.scopes.includes("projects:manage"),
     ctx,
   );
+  if (projectOwner !== value.projectOwner)
+    throw new RemoteHttpError(
+      "media_owner_changed",
+      "The registered media owner changed; reopen its preview.",
+      403,
+    );
   if (hostPath !== value.hostPath)
     throw new RemoteHttpError(
       "media_file_changed",
@@ -156,6 +166,17 @@ export async function writeFileMedia(
   let file: FileHandle | undefined;
   try {
     file = await open(hostPath, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const checked = await resolveMediaPath(
+      value.request,
+      session.scopes.includes("projects:manage"),
+      ctx,
+    );
+    if (checked.projectOwner !== value.projectOwner)
+      throw new RemoteHttpError(
+        "media_owner_changed",
+        "The registered media owner changed; reopen its preview.",
+        403,
+      );
     const info = await file.stat();
     if (
       !info.isFile() ||
@@ -163,7 +184,7 @@ export async function writeFileMedia(
       info.ino !== value.ino ||
       info.size !== value.sizeBytes ||
       info.mtimeMs !== value.modifiedAtMs ||
-      (await realpath(hostPath)) !== hostPath
+      checked.hostPath !== hostPath
     ) {
       throw new RemoteHttpError(
         "media_file_changed",
@@ -171,13 +192,59 @@ export async function writeFileMedia(
         409,
       );
     }
+    auth.authenticateSession(
+      grant.sessionId,
+      value.request.access === "external" ? ["projects:manage"] : ["session:read"],
+    );
     if (grant.signal.aborted)
       throw new RemoteHttpError("invalid_media_ticket", "The media preview has expired.", 401);
+    return { file, info, grant };
+  } catch (error) {
+    await file?.close();
+    throw error;
+  }
+}
+
+/** Authenticated in-place renewal; the issuing session and every file boundary stay unchanged. */
+export async function renewFileMediaTicket(
+  ctx: RemoteServerContext,
+  session: AuthenticatedRemoteSession,
+  ticket: string,
+) {
+  const store = fileMediaGrants(ctx.auth);
+  if (store.read(ticket).sessionId !== session.sessionId)
+    throw new RemoteHttpError("invalid_media_ticket", "The media preview has expired.", 401);
+  const validated = await openValidatedMedia(ctx, ticket);
+  try {
+    const current = ctx.auth.authenticateSession(
+      session.sessionId,
+      validated.grant.value.request.access === "external" ? ["projects:manage"] : ["session:read"],
+    );
+    return store.renew(ticket, current.sessionId, current.expiresAtMs);
+  } finally {
+    await validated.file.close();
+  }
+}
+
+export async function writeFileMedia(
+  ctx: RemoteServerContext,
+  req: IncomingMessage,
+  res: ServerResponse,
+  ticket: string,
+): Promise<void> {
+  const validated = await openValidatedMedia(ctx, ticket);
+  let file: FileHandle | undefined = validated.file;
+  const { info, grant } = validated;
+  const value = grant.value;
+  try {
     const range = parseByteRange(req.headers.range, info.size);
     const headers = {
       "content-type": value.contentType,
       "cache-control": "private, no-store",
       "accept-ranges": "bytes",
+      "x-poracode-media-expires-at": new Date(
+        fileMediaGrants(ctx.auth).read(ticket).expiresAtMs,
+      ).toISOString(),
       "x-content-type-options": "nosniff",
       "content-security-policy": "sandbox; default-src 'none'",
       "referrer-policy": "no-referrer",

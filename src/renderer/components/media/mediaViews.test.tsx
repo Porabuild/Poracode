@@ -57,7 +57,61 @@ describe("editor media views", () => {
     expect(screen.getByText("This SVG can't be displayed.")).toBeInTheDocument();
   });
 
-  it("uses native controls without autoplay and preserves seek position/play intent across grant renewal", () => {
+  it("keeps image metadata, native buffer/seek/pause state and decode fallback unchanged when the stable URL renews", () => {
+    const props = {
+      kind: "video" as const,
+      src: "http://host/stable",
+      sizeBytes: 10,
+      fallback: <div>fallback</div>,
+    };
+    const screen = render(<NativeMediaView {...props} />);
+    const player = screen.container.querySelector("video")!;
+    player.currentTime = 92;
+    Object.defineProperties(player, {
+      duration: { value: 220 },
+      videoWidth: { value: 640 },
+      videoHeight: { value: 360 },
+      paused: { value: false },
+    });
+    fireEvent.loadedMetadata(player);
+    const details = screen.getByTestId("media-details").textContent;
+    screen.rerender(<NativeMediaView {...props} />);
+    expect(screen.container.querySelector("video")).toBe(player);
+    expect(player.load).toHaveBeenCalledOnce();
+    expect(player.currentTime).toBe(92);
+    expect(player.paused).toBe(false);
+    expect(screen.getByTestId("media-details").textContent).toBe(details);
+    fireEvent.error(player);
+    screen.rerender(<NativeMediaView {...props} />);
+    expect(screen.getByText("fallback")).toBeInTheDocument();
+    expect(screen.container.querySelector("video")).toBeNull();
+    expect(player.load).toHaveBeenCalledOnce();
+    screen.unmount();
+
+    const imageScreen = render(
+      <ImageFileView
+        src={props.src}
+        fileName="portrait.png"
+        sizeBytes={10}
+        fallback={<div>fallback</div>}
+      />,
+    );
+    const image = imageScreen.getByRole("img");
+    Object.defineProperties(image, { naturalWidth: { value: 100 }, naturalHeight: { value: 200 } });
+    fireEvent.load(image);
+    imageScreen.rerender(
+      <ImageFileView
+        src={props.src}
+        fileName="portrait.png"
+        sizeBytes={10}
+        fallback={<div>fallback</div>}
+      />,
+    );
+    expect(imageScreen.getByRole("img")).toBe(image);
+    expect(imageScreen.getByTestId("media-details")).toHaveTextContent("100 × 200");
+  });
+
+  it("uses native controls without autoplay and preserves seek position/play intent across a real source reload", () => {
     const props = {
       kind: "video" as const,
       src: "http://host/first",
@@ -91,7 +145,7 @@ describe("editor media views", () => {
     expect(screen.getByText("fallback")).toBeInTheDocument();
   });
 
-  it("retires the recovered player after a decode failure and subsequent source renewal", () => {
+  it("retires the recovered player after a decode failure and subsequent source reload", () => {
     const props = {
       kind: "video" as const,
       src: "http://host/broken",

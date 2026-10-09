@@ -92,29 +92,6 @@ export function updateImageLightboxFromThread(
   emitLightboxChange();
 }
 
-/** Renew only the exact editor-owned resource; preserve the open lightbox's zoom/pan. */
-export function updateImageLightboxSource(
-  previousSrc: string,
-  nextSrc: string,
-  readBytes?: LightboxImage["readBytes"],
-): void {
-  if (
-    !lightboxState ||
-    lightboxState.liveThreadId !== null ||
-    !lightboxState.images.some((image) => image.src === previousSrc)
-  )
-    return;
-  lightboxState = {
-    ...lightboxState,
-    images: lightboxState.images.map((image) =>
-      image.src === previousSrc
-        ? { ...image, src: nextSrc, ...(readBytes ? { readBytes } : {}) }
-        : image,
-    ),
-  };
-  emitLightboxChange();
-}
-
 /** A retired editor grant must not leave actions pointing at an expired resource. */
 export function closeImageLightboxForSource(src: string): void {
   if (

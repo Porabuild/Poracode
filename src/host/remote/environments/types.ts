@@ -98,7 +98,12 @@ export interface EnvironmentProxyGatewayLike {
     parentAccessToken: string;
     environmentId: string;
     childTicket: string;
-  }): EnvironmentMediaTicketResult;
+  }): EnvironmentMediaTicketResult | Promise<EnvironmentMediaTicketResult>;
+  renewMediaTicket?(input: {
+    parentAccessToken: string;
+    environmentId: string;
+    ticket: string;
+  }): Promise<EnvironmentMediaTicketResult>;
   releaseMediaTicket?(input: {
     parentAccessToken: string;
     environmentId: string;

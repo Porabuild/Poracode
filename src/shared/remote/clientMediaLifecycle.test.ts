@@ -65,4 +65,82 @@ describe("environment media retirement", () => {
       }),
     ).rejects.toMatchObject({ status: 499 });
   });
+  it("keeps both ticket URLs stable on renewal and ignores a parent renewal completed after disposal", async () => {
+    const childTicket = `pc_media_${"c".repeat(43)}`;
+    const parentTicket = `pc_media_${"p".repeat(43)}`;
+    const expiresAt = new Date(Date.now() + 120_000).toISOString();
+    const releaseMediaTicket = vi.fn<(ticket: string) => Promise<void>>(async () => {});
+    const renewMediaTicket = vi.fn<
+      (ticket: string, signal?: AbortSignal) => Promise<EnvironmentMediaTicketResult>
+    >(async () => ({ ticket: parentTicket, expiresAt }));
+    const fetchImpl = vi.fn<RemoteFetch>(async (url) => {
+      if (String(url).endsWith("/media-ticket"))
+        return Response.json({
+          ticket: childTicket,
+          expiresAt,
+          sizeBytes: 10,
+          modifiedAtMs: 1,
+          contentType: "video/mp4",
+        });
+      if (String(url).endsWith("/media-renew"))
+        return Response.json({ ticket: childTicket, expiresAt });
+      return Response.json({ ok: true });
+    });
+    const client = new RemoteEnvironmentClient(
+      "http://parent.test/api/environments/env/proxy/",
+      "child-bearer",
+      fetchImpl,
+      {
+        environmentId: "env",
+        parentAuthority: {
+          accessToken: () => "parent-bearer",
+          ensureLive: async () => {},
+          mintWebSocketTicket: async () => ({ ticket: "unused", expiresAt }),
+          mintMediaTicket: async () => ({ ticket: parentTicket, expiresAt }),
+          releaseMediaTicket,
+          renewMediaTicket,
+        },
+      },
+    );
+    const source = await client.createMediaSource({
+      access: "project",
+      projectLocation: { kind: "posix", path: "/project" },
+      path: "clip.mp4",
+    });
+    const url = source.url;
+    expect(await client.renewMediaSource(source.ticket)).toEqual({
+      ticket: childTicket,
+      expiresAt,
+    });
+    expect(source.url).toBe(url);
+    expect(renewMediaTicket).toHaveBeenCalledWith(parentTicket, undefined);
+    const dispatch = fetchImpl.mock.calls.find(([requestUrl]) =>
+      String(requestUrl).endsWith("/media-renew"),
+    )!;
+    expect(String(dispatch[0])).not.toContain("bearer");
+    expect(new Headers(dispatch[1]?.headers).get("authorization")).toBe("Bearer child-bearer");
+    expect(new Headers(dispatch[1]?.headers).get("x-poracode-environment-authorization")).toBe(
+      "Bearer parent-bearer",
+    );
+    let complete!: (result: EnvironmentMediaTicketResult) => void;
+    let started!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    renewMediaTicket.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+          started();
+        }),
+    );
+    const pending = client.renewMediaSource(source.ticket);
+    const refused = pending.catch((error: unknown) => error);
+    await waiting;
+    client.dispose();
+    complete({ ticket: parentTicket, expiresAt });
+    expect(await refused).toMatchObject({ status: 499, code: "cancelled" });
+    expect(releaseMediaTicket).toHaveBeenCalledOnce();
+    await expect(client.renewMediaSource(source.ticket)).rejects.toMatchObject({ status: 499 });
+  });
 });

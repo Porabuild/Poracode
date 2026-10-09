@@ -13,8 +13,8 @@ object RemoteContractMetadata {
     const val protocolVersion = 12
     const val bindingFormatVersion = 2
     const val generatorVersion = 3
-    const val sourceHash = "sha256:9bbebc8385e860cbc8836f098764307013ce1abb62386857b8b77e2eb31f8546"
-    const val manifestHash = "sha256:ce9f5bed32ed3cf9f03fe88e986cbed0dca9598a94c6ccee401992e1ef524374"
+    const val sourceHash = "sha256:21fdc9be4cf123083f3be02ac41634f60d85dcad5b0db7cf6247a41d700d4f32"
+    const val manifestHash = "sha256:d4f83caff0dc26690929b83b86098fb2e2de8dd7647c2ff2b1b287f8c021397a"
     val validationBoundary = RemoteValidationBoundary.ROOT_CODEC_ONLY
     val generatedModelSerializationSemantics = RemoteGeneratedSerializerSemantics.NON_VALIDATING_REPRESENTATION_ONLY
     val portableTransformIds = listOf("agent-settings.strip-sensitive", "push.routing.client-connection-id.lowercase", "string.trim")
@@ -35,7 +35,8 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("environment-legacy", "GET", "/.well-known/lightcode/environment", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DLegacyResponse_19e9e349fb", listOf()),
         RemoteRouteDescriptor("environment-list", "GET", "/api/environments", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DListResponse_700ee4302b", listOf()),
         RemoteRouteDescriptor("environment-media-release", "POST", "/api/environments/{environmentId}/media-release", "bearer", listOf("session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
-        RemoteRouteDescriptor("environment-media-ticket", "POST", "/api/environments/{environmentId}/media-ticket", "bearer", listOf("session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DMediaU2DTicketRequest_aa35b4044d", "RouteenvironmentU2DMediaU2DTicketResponse_eaa8e54151", listOf()),
+        RemoteRouteDescriptor("environment-media-renew", "POST", "/api/environments/{environmentId}/media-renew", "bearer", listOf("session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151", listOf()),
+        RemoteRouteDescriptor("environment-media-ticket", "POST", "/api/environments/{environmentId}/media-ticket", "bearer", listOf("session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DMediaU2DTicketRequest_aa35b4044d", "RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151", listOf()),
         RemoteRouteDescriptor("environment-pairing", "POST", "/api/environments/{environmentId}/pairing", "bearer", listOf("session:operate", "ports:forward"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DPairingResponse_4a927b60e4", listOf()),
         RemoteRouteDescriptor("environment-trust-accept", "POST", "/api/environments/{environmentId}/trust-accept", "bearer", listOf("projects:manage", "session:operate", "ports:forward"), "json", "json", 200, "RouteenvironmentU2DTrustU2DAcceptRequest_67373e1601", "RouteenvironmentU2DAdoptU2DLegacyResponse_8428abfcec", listOf()),
         RemoteRouteDescriptor("environment-trust-probe", "POST", "/api/environments/{environmentId}/trust-probe", "bearer", listOf("projects:manage", "session:operate", "ports:forward"), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DTrustU2DProbeResponse_45d8e163d2", listOf()),
@@ -46,6 +47,7 @@ object RemoteContractMetadata {
         RemoteRouteDescriptor("experiment-state", "GET", "/api/experiments", "bearer", listOf("session:read"), "empty", "json", 200, "RemoteUnit", "RouteexperimentU2DStateResponse_acccf296d8", listOf()),
         RemoteRouteDescriptor("file-media", "GET", "/api/files/media", "bearer-or-query", listOf("session:read"), "empty", "binary", 200, "RemoteUnit", "ByteArray", listOf(RemoteQueryParameterDescriptor("ticket", "string", false, false))),
         RemoteRouteDescriptor("file-media-release", "POST", "/api/files/media-release", "bearer", listOf("session:read"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),
+        RemoteRouteDescriptor("file-media-renew", "POST", "/api/files/media-renew", "bearer", listOf("session:read"), "json", "json", 200, "RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133", "RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151", listOf()),
         RemoteRouteDescriptor("file-media-ticket", "POST", "/api/files/media-ticket", "bearer", listOf("session:read"), "json", "json", 200, "RoutefileU2DMediaU2DTicketRequest_687b136989", "RoutefileU2DMediaU2DTicketResponse_b53074e6b6", listOf()),
         RemoteRouteDescriptor("forward-enter", "GET", "/forward/{forwardId}/enter", "forward-enter-token", listOf(), "empty", "redirect-html", 302, "RemoteUnit", "String", listOf(RemoteQueryParameterDescriptor("fwt", "string", false, false))),
         RemoteRouteDescriptor("healthz", "GET", "/healthz", "public", listOf(), "empty", "json", 200, "RemoteUnit", "RouteenvironmentU2DDeleteResponse_badd682f35", listOf()),

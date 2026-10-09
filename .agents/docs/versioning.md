@@ -2242,15 +2242,17 @@ host, and retain record-based clients across refresh rotation.
 
 ### File-editor media playback — additive HTTP routes, no version bump
 
-The desktop and adaptive web editor use five new HTTP routes: file media mint,
-stream and release, plus environment parent media mint and release. Existing file-read
+The desktop and adaptive web editor use seven new HTTP routes: file media mint,
+stream, release and authenticated renewal, plus environment parent media mint,
+release and authenticated renewal. Existing file-read
 procedure schemas are unchanged; media files now use stat-only binary buffers
 with followed regular-file containment in WSL. Size and mtime come from the
 new grant response. Remote protocol 12, client/host hop 16, binding format 2,
 generator 3 and native-binding manifest format 5 remain valid. Regenerated
 remote-v3 authority hashes, schemas and Swift/Kotlin codecs identify the new
-routes. Older hosts return an unavailable-route response and the editor retains
-its existing fallback. Native media transport/editor adoption is explicitly
+routes. Older hosts return an unavailable-route response and the editor shows a localized
+media-unavailable state. If only renewal is missing, a valid preview remains usable
+until its original deadline; bounded retries never remint or switch the player URL. Native media transport/editor adoption is explicitly
 planned in the parity ledger; native applications consume the generated codecs.
 
 Playback grants are process-local and never persisted: random 256-bit tickets
@@ -2266,3 +2268,22 @@ serves the existing static assets and the new media route. No database, cache,
 service-worker format or independently deployed WSL helper changes are required.
 Previous-route compatibility, old-host fallback, grant retirement, authorization,
 Range responses and disconnect descriptor cleanup have targeted regressions.
+
+Stable renewal revalidates the original issuing session/scopes and the same file
+registry, containment and descriptor identity, then extends the existing ticket
+only to min(now + two minutes, authenticated session lifetime). Contained grants
+also bind the matched project/thread registry identity, so replacing the owner
+at the same filesystem root cannot reuse a prior grant. The owned expiry
+timer is reset; its active-stream controller and revocation hook are retained.
+Natural expiry still aborts active transfers. A late result cannot revive a
+released/revoked/expired ticket. Environment mint/renew additionally verifies the
+child lease with a deadline-bounded one-byte Range read through the existing
+child file gate (empty files use its validated 416). The child expiry header is
+returned only after authorization and file identity checks. Parent work/socket
+admission and generation-owned pools are reused; parent expiry is additionally
+capped by that verified child lease. Child/parent renewals do not put long-lived
+credentials in URLs. Both new routes reuse existing ticket/result schema shapes;
+95 routes / 126 procedures, 421 schema roots and 935 structural types are mirrored
+in generated Swift/Kotlin artifacts. No persisted/cache/helper shape changes or
+version bumps are needed for these additive, unshipped routes. Native transport
+and editor adoption remain planned; generated codecs alone are not native UI proof.

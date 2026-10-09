@@ -9,13 +9,14 @@ import { RemoteHttpError } from "../auth";
 /** Session scopes address registered projects and their durable worktrees.
  * Use the stored location after matching, so caller-supplied WSL UNC paths
  * cannot redirect a supervisor operation to a different filesystem root.
+ * Returns the matched registry owner identities for volatile file-grant binding.
  * Project-management procedures deliberately permit broader host access.
  */
 export function authorizeProjectProcedurePayload(
   procedure: RemoteProcedureName,
   payload: unknown,
   canManageHostFiles: () => boolean = () => false,
-): void {
+): Readonly<Record<string, string>> | undefined {
   const spec = REMOTE_PROCEDURE_SPECS[procedure];
   if (spec.scope === "projects:manage") return;
   const fields =
@@ -29,7 +30,7 @@ export function authorizeProjectProcedurePayload(
   if (fields.length === 0) return;
   const record = payload as Record<string, unknown>;
   if (spec.owner === "optionalProjectLocation" && record.projectLocation === undefined) return;
-  let locations: ProjectLocation[];
+  let locations: { location: ProjectLocation; projectId: string; threadId: string | null }[];
   try {
     const projects = dbGetProjects().filter(
       (project) =>
@@ -39,11 +40,19 @@ export function authorizeProjectProcedurePayload(
         canManageHostFiles(),
     );
     const projectById = new Map(projects.map((project) => [project.id, project]));
-    locations = projects.map((project) => project.location);
+    locations = projects.map((project) => ({
+      location: project.location,
+      projectId: project.id,
+      threadId: null,
+    }));
     for (const thread of dbGetThreads()) {
       const project = projectById.get(thread.projectId);
       if (project && thread.worktreePath) {
-        locations.push(buildWorktreeLocation(project.location, thread.worktreePath));
+        locations.push({
+          location: buildWorktreeLocation(project.location, thread.worktreePath),
+          projectId: project.id,
+          threadId: thread.id,
+        });
       }
     }
   } catch {
@@ -53,9 +62,10 @@ export function authorizeProjectProcedurePayload(
       503,
     );
   }
+  const owners: Record<string, string> = {};
   for (const field of fields) {
     const requested = record[field] as ProjectLocation | undefined;
-    const stored = requested && locations.find((location) => sameLocation(location, requested));
+    const stored = requested && locations.find(({ location }) => sameLocation(location, requested));
     if (!stored) {
       throw new RemoteHttpError(
         "project_location_not_registered",
@@ -63,8 +73,10 @@ export function authorizeProjectProcedurePayload(
         403,
       );
     }
-    record[field] = { ...stored };
+    record[field] = { ...stored.location };
+    owners[field] = JSON.stringify([stored.projectId, stored.threadId]);
   }
+  return owners;
 }
 
 function sameLocation(left: ProjectLocation, right: ProjectLocation): boolean {

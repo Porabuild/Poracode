@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLingui } from "@lingui/react/macro";
 import { MediaDetails } from "./MediaDetails";
 
-/** Source renewal preserves the reader's position and play/pause intent. No autoplay on open. */
+/** Stable-URL renewals leave native playback untouched; file reloads preserve position/play intent. No autoplay on open. */
 export function NativeMediaView(props: {
   kind: "audio" | "video";
   src: string;

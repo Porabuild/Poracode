@@ -447,6 +447,15 @@
     },
     {
       "auth": "bearer",
+      "id": "file-media-renew",
+      "method": "POST",
+      "path": "/api/files/media-renew",
+      "scopes": [
+        "session:read"
+      ]
+    },
+    {
+      "auth": "bearer",
       "id": "environment-media-ticket",
       "method": "POST",
       "path": "/api/environments/{environmentId}/media-ticket",
@@ -460,6 +469,16 @@
       "id": "environment-media-release",
       "method": "POST",
       "path": "/api/environments/{environmentId}/media-release",
+      "scopes": [
+        "session:operate",
+        "ports:forward"
+      ]
+    },
+    {
+      "auth": "bearer",
+      "id": "environment-media-renew",
+      "method": "POST",
+      "path": "/api/environments/{environmentId}/media-renew",
       "scopes": [
         "session:operate",
         "ports:forward"

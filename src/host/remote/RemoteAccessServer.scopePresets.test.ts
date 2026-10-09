@@ -198,13 +198,13 @@ function splitBearerRoutes() {
  * viewer boundary) fails this suite until someone confirms the viewer preset
  * is supposed to deny it.
  */
-// The environment parent media mint/release routes add two operator-only entries.
-const EXPECTED_MUTATING_ROUTE_COUNT = 55;
+// The environment parent media mint/release/renew routes add three operator-only entries.
+const EXPECTED_MUTATING_ROUTE_COUNT = 56;
 // 21 pre-B4 + the three additive B4 read routes (project-list,
 // catalog-membership, thread-turns) + B1 thread-runtime-gap + the experiment
-// state read, plus file-media mint/release (owned read grants only), all
+// state read, plus file-media mint/release/renew (owned read grants only), all
 // session:read and non-mutating.
-const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 28;
+const EXPECTED_VIEWER_READABLE_ROUTE_COUNT = 29;
 
 /** The split must be an exact, disjoint partition of the bearer registry:
  * the partition itself is derived, so a route can only ever land in one

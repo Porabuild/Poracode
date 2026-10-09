@@ -371,6 +371,14 @@ function parentAuthorityFor(
         const parent = parentClientForConnection(ref.connectionId);
         if (parent) await parent.releaseEnvironmentMediaTicket(environmentId, ticket);
       },
+      renewMediaTicket: async (ticket, signal) => {
+        const parent = parentClientForConnection(ref.connectionId);
+        if (!parent)
+          throw new Error(
+            i18n._(msg`The paired server that owns this environment is not connected.`),
+          );
+        return parent.renewEnvironmentMediaTicket(environmentId, ticket, signal);
+      },
       mintMediaTicket: async (childTicket) => {
         const parent = parentClientForConnection(ref.connectionId);
         if (!parent)
@@ -403,6 +411,11 @@ function parentAuthorityFor(
     releaseMediaTicket: async (ticket) => {
       const current = managedParentFor(ref);
       if (current) await current.client.releaseEnvironmentMediaTicket(environmentId, ticket);
+    },
+    renewMediaTicket: async (ticket, signal) => {
+      const current = managedParentFor(ref);
+      if (!current) throw new Error(i18n._(msg`The desktop's own server is not connected.`));
+      return current.client.renewEnvironmentMediaTicket(environmentId, ticket, signal);
     },
     mintMediaTicket: async (childTicket) => {
       const current = managedParentFor(ref);

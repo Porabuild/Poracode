@@ -291,18 +291,7 @@ data class RouteenvironmentU2DMediaU2DReleaseRequest_0e0641a133(
 }
 
 @Serializable
-data class RouteenvironmentU2DMediaU2DTicketRequest_aa35b4044d(
-    @SerialName("childTicket") val childTicket: String,
-) {
-    companion object {
-        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
-            RemoteFieldDescriptor("childTicket", "String", true, false, null, null, null, null, null, null, "^pc_media_[A-Za-z0-9_-]{43}$", null, listOf()),
-        ), listOf())
-    }
-}
-
-@Serializable
-data class RouteenvironmentU2DMediaU2DTicketResponse_eaa8e54151(
+data class RouteenvironmentU2DMediaU2DRenewResponse_eaa8e54151(
     @SerialName("expiresAt") val expiresAt: String,
     @SerialName("ticket") val ticket: String,
 ) {
@@ -310,6 +299,17 @@ data class RouteenvironmentU2DMediaU2DTicketResponse_eaa8e54151(
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("expiresAt", "String", true, false, null, null, 1, null, null, null, null, null, listOf()),
             RemoteFieldDescriptor("ticket", "String", true, false, null, null, null, null, null, null, "^pc_media_[A-Za-z0-9_-]{43}$", null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class RouteenvironmentU2DMediaU2DTicketRequest_aa35b4044d(
+    @SerialName("childTicket") val childTicket: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("childTicket", "String", true, false, null, null, null, null, null, null, "^pc_media_[A-Za-z0-9_-]{43}$", null, listOf()),
         ), listOf())
     }
 }

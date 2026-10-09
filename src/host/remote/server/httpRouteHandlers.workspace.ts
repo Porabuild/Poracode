@@ -48,9 +48,16 @@ import {
   mediaTicketQuerySchema,
   environmentMediaTicketBodySchema,
 } from "@/shared/remote/media";
-import { fileMediaGrants, issueFileMediaTicket, writeFileMedia } from "./fileMedia";
+import {
+  fileMediaGrants,
+  issueFileMediaTicket,
+  renewFileMediaTicket,
+  writeFileMedia,
+} from "./fileMedia";
 
 type WorkspaceRouteId =
+  | "file-media-renew"
+  | "environment-media-renew"
   | "file-media-ticket"
   | "file-media"
   | "file-media-release"
@@ -83,6 +90,32 @@ type WorkspaceRouteId =
 
 /** Workspace-group HTTP route handlers (contract `workspaceRoutes`). */
 export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRouteId> = {
+  "file-media-renew": async ({ ctx, req, res, session }) => {
+    if (!session) throw new RemoteHttpError("missing_access_token", "Missing access session.", 401);
+    const { ticket } = mediaTicketQuerySchema.parse(await readJsonBody(req));
+    writeJson(res, 200, await renewFileMediaTicket(ctx, session, ticket));
+  },
+  "environment-media-renew": async ({ ctx, req, res, params, bearerToken }) => {
+    if (!bearerToken)
+      throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
+    const { ticket } = mediaTicketQuerySchema.parse(await readJsonBody(req));
+    const gateway = ctx.requireEnvironmentProxyGateway();
+    if (!gateway.renewMediaTicket)
+      throw new RemoteHttpError(
+        "media_unavailable",
+        "Media renewal is unavailable on this host.",
+        503,
+      );
+    writeJson(
+      res,
+      200,
+      await gateway.renewMediaTicket({
+        parentAccessToken: bearerToken,
+        environmentId: requirePathParam(params, "environmentId"),
+        ticket,
+      }),
+    );
+  },
   "environment-media-release": async ({ ctx, req, res, params, bearerToken }) => {
     if (!bearerToken)
       throw new RemoteHttpError("missing_access_token", "Missing access token.", 401);
@@ -144,7 +177,7 @@ export const WORKSPACE_ROUTE_HANDLERS: Pick<HttpRouteHandlerTable, WorkspaceRout
     writeJson(
       res,
       200,
-      gateway.mintMediaTicket({
+      await gateway.mintMediaTicket({
         parentAccessToken: bearerToken,
         environmentId: requirePathParam(params, "environmentId"),
         childTicket,

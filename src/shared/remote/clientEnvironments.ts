@@ -106,6 +106,7 @@ export interface RemoteEnvironmentParentAuthority {
   mintWebSocketTicket(): Promise<RemoteWebSocketTicketResult>;
   /** Optional until both parent and child support file-scoped playback. */
   mintMediaTicket?(childTicket: string): Promise<EnvironmentMediaTicketResult>;
+  renewMediaTicket?(ticket: string, signal?: AbortSignal): Promise<EnvironmentMediaTicketResult>;
   releaseMediaTicket?(ticket: string): Promise<void>;
 }
 
@@ -172,6 +173,40 @@ export class RemoteEnvironmentClient extends RemoteDesktopClient {
         ? [this.parentAuthority.releaseMediaTicket(parentTicket)]
         : []),
     ]);
+  }
+  override async renewMediaSource(
+    ticket: string,
+    signal?: AbortSignal,
+  ): Promise<EnvironmentMediaTicketResult> {
+    const parentTicket = this.mediaTickets.get(ticket);
+    const assertOwned = () => {
+      if (
+        this.disposed ||
+        signal?.aborted ||
+        !parentTicket ||
+        this.mediaTickets.get(ticket) !== parentTicket
+      )
+        throw new RemoteClientError("Media preview was cancelled.", 499, "cancelled");
+    };
+    assertOwned();
+    if (!this.parentAuthority.renewMediaTicket)
+      throw new RemoteClientError(
+        "Environment media renewal is unavailable.",
+        404,
+        "media_unavailable",
+      );
+    const child = await super.renewMediaSource(ticket, signal);
+    assertOwned();
+    const parent = await this.parentAuthority.renewMediaTicket(parentTicket!, signal);
+    assertOwned();
+    if (parent.ticket !== parentTicket)
+      throw new RemoteClientError("Media renewal owner mismatch.", 502, "invalid_media_ticket");
+    return {
+      ticket,
+      expiresAt: new Date(
+        Math.min(Date.parse(child.expiresAt), Date.parse(parent.expiresAt)),
+      ).toISOString(),
+    };
   }
   override async createMediaSource(
     file: MediaFileRequest,

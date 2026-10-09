@@ -797,6 +797,16 @@ export const useFileEditorStore = create<FileEditorStoreState>((set, get) => ({
         )
           continue;
 
+        // Binary media reads expose status and mtime, not text/size. Identical stat results
+        // must keep the buffer/map identity; actual disk changes still invalidate the preview.
+        if (
+          fileMediaType(path) &&
+          result.status !== "ready" &&
+          result.status === current.status &&
+          result.modifiedAtMs === current.modifiedAtMs
+        )
+          continue;
+
         // Fast path: on-disk content matches what the editor shows. Refresh
         // mtime/savedContent in-place so the next compare short-circuits,
         // but don't swap the buffer object out from under Monaco — a prop

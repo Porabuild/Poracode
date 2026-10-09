@@ -46,6 +46,26 @@ import {
 
 export const workspaceRoutes: readonly RemoteHttpRouteContract[] = [
   defineRoute({
+    id: "file-media-renew",
+    method: "POST",
+    path: "/api/files/media-renew",
+    auth: "bearer",
+    scopes: ["session:read"],
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: environmentMediaTicketResultSchema },
+  }),
+  defineRoute({
+    id: "environment-media-renew",
+    method: "POST",
+    path: "/api/environments/{environmentId}/media-renew",
+    auth: "bearer",
+    scopes: ENVIRONMENT_USE_SCOPES,
+    audit: auditEvent("file_read"),
+    request: { bodyKind: "json", jsonSchema: mediaTicketQuerySchema },
+    response: { wireKind: "json", status: 200, jsonSchema: environmentMediaTicketResultSchema },
+  }),
+  defineRoute({
     id: "environment-media-release",
     method: "POST",
     path: "/api/environments/{environmentId}/media-release",

@@ -17,8 +17,7 @@ import { writeError } from "../server/httpResponses";
 import { rejectUpgrade } from "../server/wsConnections";
 import { EnvironmentDescriptorTransform } from "./environmentDescriptorTransform";
 import { EnvironmentProxyLegs } from "./environmentProxyLegs";
-import { PlaybackGrants } from "../server/playbackGrants";
-import { mediaTicketSchema, type EnvironmentMediaTicketResult } from "@/shared/remote/media";
+import { EnvironmentMediaGrants } from "./environmentMediaGrants";
 import {
   ENVIRONMENT_DESCRIPTOR_MAX_BYTES,
   ENVIRONMENT_DESCRIPTOR_TIMEOUT_MS,
@@ -103,17 +102,17 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
   private readonly transform: EnvironmentDescriptorTransform;
   private readonly webSocketTicketTtlMs: number;
   private disposed = false;
-  private readonly mediaGrants = new PlaybackGrants<{
-    environmentId: string;
-    generation: number;
-    childDesktopId: string;
-    childTicket: string;
-  }>();
+  private readonly mediaGrants: EnvironmentMediaGrants;
 
   constructor(options: EnvironmentProxyGatewayOptions) {
     this.targets = options.targets;
     this.authority = options.authority;
     this.legs = new EnvironmentProxyLegs(options.principalAdmission);
+    this.mediaGrants = new EnvironmentMediaGrants(
+      this.authority,
+      (id) => this.resolveTarget(id),
+      this.legs,
+    );
     this.transform = new EnvironmentDescriptorTransform({
       legs: this.legs,
       baseUrls: options.baseUrls,
@@ -156,58 +155,14 @@ export class EnvironmentProxyGateway implements EnvironmentProxyGatewayLike {
     });
   }
 
-  /** Parent authorization covers only this child's already file-scoped grant. */
-  mintMediaTicket(input: {
-    parentAccessToken: string;
-    environmentId: string;
-    childTicket: string;
-  }): EnvironmentMediaTicketResult {
-    const session = this.authority.authenticateBearerToken(
-      input.parentAccessToken,
-      ENVIRONMENT_USE_SCOPES,
-    );
-    const target = this.resolveTarget(input.environmentId);
-    target.assertCurrent();
-    let ticket = "";
-    const onInvalidation = () => this.mediaGrants.release(ticket, session.sessionId);
-    const result = this.mediaGrants.issue(
-      {
-        environmentId: input.environmentId,
-        generation: target.generation,
-        childDesktopId: target.childDesktopId,
-        childTicket: mediaTicketSchema.parse(input.childTicket),
-      },
-      session.sessionId,
-      session.expiresAtMs,
-      () => target.invalidation.removeEventListener("abort", onInvalidation),
-    );
-    ticket = result.ticket;
-    target.invalidation.addEventListener("abort", onInvalidation, { once: true });
-    if (target.invalidation.aborted) onInvalidation();
-    return result;
+  mintMediaTicket(input: Parameters<EnvironmentMediaGrants["mintMediaTicket"]>[0]) {
+    return this.mediaGrants.mintMediaTicket(input);
   }
-
-  // -------------------------------------------------------------------------
-  // Revocation
-  // -------------------------------------------------------------------------
-
-  releaseMediaTicket(input: {
-    parentAccessToken: string;
-    environmentId: string;
-    ticket: string;
-  }): void {
-    const session = this.authority.authenticateBearerToken(
-      input.parentAccessToken,
-      ENVIRONMENT_USE_SCOPES,
-    );
-    // Release is idempotent, but cannot retire another session's/environment's grant.
-    try {
-      const grant = this.mediaGrants.read(input.ticket);
-      if (grant.value.environmentId === input.environmentId)
-        this.mediaGrants.release(input.ticket, session.sessionId);
-    } catch (error) {
-      if (!(error instanceof RemoteHttpError) || error.code !== "invalid_media_ticket") throw error;
-    }
+  renewMediaTicket(input: Parameters<EnvironmentMediaGrants["renewMediaTicket"]>[0]) {
+    return this.mediaGrants.renewMediaTicket(input);
+  }
+  releaseMediaTicket(input: Parameters<EnvironmentMediaGrants["releaseMediaTicket"]>[0]) {
+    this.mediaGrants.releaseMediaTicket(input);
   }
 
   /** Parent session revocation: aborts every leg this session owns; each

@@ -7,7 +7,6 @@ import {
   ImageLightboxView,
   openAttachmentLightbox,
   openImageLightbox,
-  updateImageLightboxSource,
   closeImageLightboxForSource,
   closeImageLightbox,
 } from "./ImageLightbox";
@@ -145,38 +144,23 @@ describe("image preview toolbar", () => {
   });
 });
 
-it("renews an editor lightbox's exact source without losing zoom, and its actions fetch the renewed URL", async () => {
-  const readOld = vi.fn<() => Promise<Uint8Array<ArrayBuffer>>>().mockResolvedValue(png);
-  const readRenewed = vi.fn<() => Promise<Uint8Array<ArrayBuffer>>>().mockResolvedValue(png);
+it("keeps stable editor lightbox zoom and pinned actions until the exact owning source retires", async () => {
+  const readBytes = vi.fn<() => Promise<Uint8Array<ArrayBuffer>>>().mockResolvedValue(png);
   render(<ImageLightboxHost />);
   act(() =>
     openImageLightbox(
-      [
-        {
-          src: "https://media.test/old",
-          alt: "image.png",
-          fileName: "image.png",
-          readBytes: readOld,
-        },
-      ],
+      [{ src: "https://media.test/stable", alt: "image.png", fileName: "image.png", readBytes }],
       0,
     ),
   );
   fireEvent.click(screen.getByRole("button", { name: "Zoom in" }));
   const before = screen.getByRole("img").style.transform;
-  act(() => updateImageLightboxSource("https://media.test/unrelated", "https://media.test/wrong"));
-  expect(screen.getByRole("img")).toHaveAttribute("src", "https://media.test/old");
-  act(() =>
-    updateImageLightboxSource("https://media.test/old", "https://media.test/new", readRenewed),
-  );
-  expect(screen.getByRole("img")).toHaveAttribute("src", "https://media.test/new");
+  act(() => closeImageLightboxForSource("https://media.test/unrelated"));
+  expect(screen.getByRole("img")).toHaveAttribute("src", "https://media.test/stable");
   expect(screen.getByRole("img").style.transform).toBe(before);
   fireEvent.click(screen.getByRole("button", { name: "Save image" }));
-  await waitFor(() => expect(readRenewed).toHaveBeenCalledOnce());
-  expect(readOld).not.toHaveBeenCalled();
-  act(() => closeImageLightboxForSource("https://media.test/old"));
-  expect(screen.getByRole("img")).toBeInTheDocument();
-  act(() => closeImageLightboxForSource("https://media.test/new"));
+  await waitFor(() => expect(readBytes).toHaveBeenCalledOnce());
+  act(() => closeImageLightboxForSource("https://media.test/stable"));
   expect(screen.queryByRole("img")).toBeNull();
   act(() => closeImageLightbox());
 });

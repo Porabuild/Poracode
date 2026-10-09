@@ -8,9 +8,9 @@ const MAX_SESSION_PLAYBACK_GRANTS = 32;
 interface PlaybackGrant<T> {
   readonly value: T;
   readonly sessionId: string;
-  readonly expiresAtMs: number;
+  expiresAtMs: number;
   readonly controller: AbortController;
-  readonly timer: ReturnType<typeof setTimeout>;
+  timer: ReturnType<typeof setTimeout>;
   readonly onRetire?: () => void;
 }
 
@@ -49,14 +49,39 @@ export class PlaybackGrants<T> {
     return { ticket, expiresAt: new Date(expiresAtMs).toISOString() };
   }
 
-  read(ticket: string): { value: T; sessionId: string; signal: AbortSignal } {
+  read(ticket: string): { value: T; sessionId: string; signal: AbortSignal; expiresAtMs: number } {
     const key = this.key(ticket);
     const entry = this.grants.get(key);
     if (!entry || entry.expiresAtMs <= Date.now()) {
       this.retire(key);
       throw this.invalid();
     }
-    return { value: entry.value, sessionId: entry.sessionId, signal: entry.controller.signal };
+    return {
+      value: entry.value,
+      sessionId: entry.sessionId,
+      signal: entry.controller.signal,
+      expiresAtMs: entry.expiresAtMs,
+    };
+  }
+
+  /** The caller must revalidate authority and value before renewing. Never resurrect a retired grant. */
+  renew(
+    ticket: string,
+    sessionId: string,
+    authorityExpiresAtMs: number,
+  ): { ticket: string; expiresAt: string } {
+    const grant = this.read(ticket);
+    if (grant.sessionId !== sessionId) throw this.invalid();
+    const expiresAtMs = Math.min(Date.now() + PLAYBACK_GRANT_TTL_MS, authorityExpiresAtMs);
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) throw this.invalid();
+    const key = this.key(ticket);
+    const entry = this.grants.get(key)!;
+    clearTimeout(entry.timer);
+    entry.expiresAtMs = expiresAtMs;
+    entry.timer = setTimeout(() => this.retire(key), expiresAtMs - Date.now());
+    entry.timer.unref();
+    // The controller, value, and retirement hook stay owned by the original ticket.
+    return { ticket, expiresAt: new Date(expiresAtMs).toISOString() };
   }
 
   release(ticket: string, sessionId: string): void {

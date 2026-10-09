@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Button } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { RefreshCw } from "lucide-react";
@@ -13,17 +13,18 @@ import { useCompactLayout } from "@/renderer/adaptiveLayout";
 import { MobilePageBottomAction } from "@/renderer/components/layout/MobilePageBottomActions";
 import { MobileCircleButton } from "@/renderer/components/mobileComposer/MobileCircleButton";
 
-export function EditorMediaViews(props: {
-  path: string;
-  projectLocation: ProjectLocation | null;
-  fallback: ReactNode;
-}) {
+export function EditorMediaViews(props: { path: string; projectLocation: ProjectLocation | null }) {
   const { t } = useLingui();
   const compact = useCompactLayout();
   const version = useFileEditorStore((state) => state.buffers[props.path]?.modifiedAtMs ?? 0);
   const [reload, setReload] = useState(0);
   const { source, failed } = useFileMediaSource(props.projectLocation, props.path, version, reload);
   const media = fileMediaType(props.path);
+  const fallback = (
+    <div className="flex h-full items-center justify-center text-sm text-muted">
+      <Trans>This media preview is unavailable.</Trans>
+    </div>
+  );
   return (
     <div className="flex h-full min-h-0 flex-col">
       {compact ? (
@@ -57,21 +58,21 @@ export function EditorMediaViews(props: {
               fileName={getBasename(props.path)}
               sizeBytes={source.sizeBytes}
               readBytes={source.readImageBytes}
-              fallback={props.fallback}
+              fallback={fallback}
             />
           ) : (
             <NativeMediaView
               kind={media.kind}
               src={source.url}
               sizeBytes={source.sizeBytes}
-              fallback={props.fallback}
+              fallback={fallback}
             />
           )
         ) : failed ? (
-          props.fallback
+          fallback
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted">
-            <Trans>Loading editor…</Trans>
+            <Trans>Loading media preview…</Trans>
           </div>
         )}
       </div>
