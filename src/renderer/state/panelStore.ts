@@ -65,7 +65,8 @@ export type RightPanelTab =
   | "notes"
   | "ports"
   | "docks"
-  | "subagent";
+  | "subagent"
+  | "sideChat";
 
 /** Compact-browser destinations that replace the home list as a full page. */
 export type MobileUtilityPage =
@@ -155,6 +156,7 @@ interface PanelState {
   usagePanelOpen: boolean;
   notesPanelOpen: boolean;
   portsPanelOpen: boolean;
+  sideChatPanelOpen: boolean;
   /**
    * Session-scoped: whether the focused thread's Docks tab (goal, plan, agents,
    * background tasks, or images in the right panel) is showing. Informational
@@ -346,6 +348,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
   usagePanelOpen: false,
   notesPanelOpen: false,
   portsPanelOpen: false,
+  sideChatPanelOpen: false,
   threadDocksPanelOpen: false,
   threadDocksReturnThreadId: null,
   threadDocksFocus: null,
@@ -462,10 +465,12 @@ export const usePanelStore = create<PanelState>()((set) => ({
     set((state) => {
       const reopenSubAgent =
         tab === "subagent" && state.subAgentPanelContext !== null && !state.subAgentPanelOpen;
-      if (state.rightPanelTab === tab && !reopenSubAgent) return {};
+      const reopenSideChat = tab === "sideChat" && !state.sideChatPanelOpen;
+      if (state.rightPanelTab === tab && !reopenSubAgent && !reopenSideChat) return {};
       return {
         rightPanelTab: tab,
         ...(reopenSubAgent ? { subAgentPanelOpen: true } : {}),
+        ...(reopenSideChat ? { sideChatPanelOpen: true } : {}),
       };
     }),
   setRightPanelSplit: (split) =>
@@ -716,6 +721,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         ...(isDocked("notes") ? {} : { notesPanelOpen: false }),
         portsPanelOpen: false,
         subAgentPanelOpen: false,
+        sideChatPanelOpen: false,
         threadDocksPanelOpen: false,
         threadDocksReturnThreadId: null,
         threadDocksFocus: null,
@@ -725,6 +731,7 @@ export const usePanelStore = create<PanelState>()((set) => ({
         (next.gitReviewContext === undefined || state.gitReviewContext === null) &&
         (next.filesPanelContext === undefined || state.filesPanelContext === null) &&
         !state.subAgentPanelOpen &&
+        !state.sideChatPanelOpen &&
         !state.threadDocksPanelOpen &&
         (next.browserPanelOpen === undefined || !state.browserPanelOpen) &&
         (next.usagePanelOpen === undefined || !state.usagePanelOpen) &&

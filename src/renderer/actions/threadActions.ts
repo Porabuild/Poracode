@@ -45,6 +45,7 @@ import { useContinueInProviderStore } from "@/renderer/state/continueInProviderS
 import { buildSidebarProjectRows } from "@/renderer/views/MainView/parts/Sidebar/parts/sidebarProjectRows";
 import { resolveWorktreeBranch } from "@/renderer/utils/gitHelpers";
 import { closeThreads } from "@/renderer/utils/shellUtils";
+import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { closePanelsForUnloadedThread } from "./panelActions";
 import { getCurrentProjectId } from "./currentProject";
 import { switchWorkspaceForProject } from "./workspaceActions";
@@ -424,6 +425,7 @@ export function sweepStaleThreads(): void {
 
   const store = useAppStore.getState();
   const visibleThreadIds = new Set(store.view.kind === "thread" ? store.view.panes : []);
+  for (const id of auxiliaryThreadIds()) visibleThreadIds.add(id);
   if (store.view.kind === "experiment") {
     const experiment = useExperimentStore.getState().experiments[store.view.experimentId];
     for (const candidate of experiment?.candidates ?? []) {

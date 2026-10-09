@@ -12,6 +12,7 @@ import { usePanelStore } from "@/renderer/state/panelStore";
 import { useRemoteServersStore } from "@/renderer/state/remoteServersStore";
 import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
 import { ThreadDocksPlacementToggle } from "@/renderer/components/thread/ThreadDocksPlacementToggle";
+import { applySideChatPanel } from "@/renderer/components/thread/SideChat/sideChatPanelStore";
 import { ProjectAuxiliaryPanel } from "./ProjectAuxiliaryPanel";
 import { usePanelVisibility } from "./AppShell/parts/usePanelVisibility";
 
@@ -29,6 +30,8 @@ vi.mock("@/renderer/state/gitRefresh", () => ({
 const unifiedRightPanelProps = vi.hoisted(() => ({
   current: null as {
     activeTab: string;
+    conversationModel?: ReactNode;
+    subagentTitle?: ReactNode;
     docksContent?: ReactElement;
     docksHeaderActions?: ReactElement;
     onBackSubagent?: () => void;
@@ -39,6 +42,8 @@ const unifiedRightPanelProps = vi.hoisted(() => ({
 vi.mock("@/renderer/components/layout/UnifiedRightPanel", () => ({
   UnifiedRightPanel: (props: {
     activeTab: string;
+    conversationModel?: ReactNode;
+    subagentTitle?: ReactNode;
     docksContent?: ReactElement;
     docksHeaderActions?: ReactElement;
     onBackSubagent?: () => void;
@@ -109,7 +114,28 @@ function seedImageOnlyThread(): void {
 }
 
 describe("ProjectAuxiliaryPanel", () => {
+  it("only puts side-chat metadata in the toolbar while its tab is active", () => {
+    applySideChatPanel({
+      id: "side",
+      source: { ...threadA, presentationMode: "gui" },
+      context: null,
+      prompt: "",
+      title: "Side chat",
+    });
+    render(
+      <I18nProvider i18n={i18n}>
+        <ProjectAuxiliaryPanel includeTerminal visible />
+      </I18nProvider>,
+    );
+    expect(unifiedRightPanelProps.current?.activeTab).toBe("sideChat");
+    expect(unifiedRightPanelProps.current?.conversationModel).toBeDefined();
+    act(() => usePanelStore.getState().setRightPanelTab("git"));
+    expect(unifiedRightPanelProps.current?.activeTab).toBe("git");
+    expect(unifiedRightPanelProps.current?.conversationModel).toBeUndefined();
+  });
+
   beforeEach(() => {
+    applySideChatPanel(null);
     localStorage.clear();
     unifiedRightPanelProps.current = null;
     focusThread(threadA.id);
@@ -144,6 +170,7 @@ describe("ProjectAuxiliaryPanel", () => {
   });
 
   afterEach(() => {
+    applySideChatPanel(null);
     resetClientRuntimeForTest();
     useRemoteServersStore.setState({ servers: [], runtime: {} });
   });
@@ -216,6 +243,8 @@ describe("ProjectAuxiliaryPanel", () => {
       );
 
       expect(unifiedRightPanelProps.current?.activeTab).toBe("subagent");
+      expect(unifiedRightPanelProps.current?.conversationModel).toBeDefined();
+      expect(unifiedRightPanelProps.current?.subagentTitle).toBeDefined();
       expect(unifiedRightPanelProps.current?.onBackSubagent).toBeTypeOf("function");
       act(() => unifiedRightPanelProps.current?.onBackSubagent?.());
       expect(usePanelStore.getState()).toMatchObject({
@@ -226,6 +255,7 @@ describe("ProjectAuxiliaryPanel", () => {
         subAgentPanelOpen: false,
       });
       expect(unifiedRightPanelProps.current?.activeTab).toBe("docks");
+      expect(unifiedRightPanelProps.current?.conversationModel).toBeUndefined();
       const visibility = renderHook(() => usePanelVisibility());
       expect(visibility.result.current.sidePanelOpen).toBe(true);
 
@@ -311,6 +341,7 @@ describe("ProjectAuxiliaryPanel", () => {
 
     await waitFor(() => {
       expect(unifiedRightPanelProps.current?.activeTab).toBe("docks");
+      expect(unifiedRightPanelProps.current?.conversationModel).toBeUndefined();
     });
     expect(unifiedRightPanelProps.current?.docksContent).toBeDefined();
     expect(unifiedRightPanelProps.current?.docksHeaderActions).toMatchObject({

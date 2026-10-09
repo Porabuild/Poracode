@@ -91,7 +91,10 @@ const bridge = vi.hoisted(() => ({
   cancelRemoteHttpBridge: vi.fn<() => Promise<void>>(async () => {}),
   appendUsageEvents: vi.fn<() => Promise<void>>(async () => {}),
 }));
-vi.mock("@/renderer/bridge", () => ({ readBridge: () => bridge }));
+vi.mock("@/renderer/bridge", () => ({
+  readBridge: () => bridge,
+  isQuickComposerWindow: () => false,
+}));
 
 const browserBridge = vi.hoisted(() => ({
   setClient: vi.fn<(client: RemoteDesktopClient | null) => void>(),
@@ -3799,6 +3802,50 @@ describe("useRemoteServersStore", () => {
       clientContext: { browserFocus: {} },
     });
     expect(useRemoteServersStore.getState().openThread?.threadId).toBe("rt-new");
+  });
+
+  it("starts a GUI instance in the background without moving the main view", async () => {
+    const startedThread = {
+      ...remoteThread,
+      id: "rt-side",
+      agentKind: "neutral-gui",
+      agentInstanceId: "custom-instance",
+      presentationMode: "gui",
+    } as Thread;
+    const startNewThread = vi.fn<RemoteDesktopClient["startNewThread"]>(async () => ({
+      threadId: "rt-side",
+    }));
+    const client = makeClient({
+      startNewThread,
+      snapshot: async () => ({
+        snapshotSeq: 2,
+        projects: [proj],
+        threads: [startedThread],
+        runtimeSummariesByThread: {},
+        updatedAt: "now",
+      }),
+      threadHistory: async () => ({ ...remoteThreadSnapshot("rt-side"), thread: startedThread }),
+    });
+    useRemoteServersStore.getState().setClientFactory(factoryFor(client));
+    await pairIsolated(() => makeSocket());
+    const viewBefore = useAppStore.getState().view;
+    await useRemoteServersStore.getState().launchRemoteThread(
+      {
+        threadId: "rt-side",
+        desktopId: "d1",
+        projectId: "p1",
+        agentKind: "neutral-gui",
+        agentInstanceId: "custom-instance",
+        config: { model: "default" },
+        prompt: "side question",
+        presentationMode: "gui",
+      },
+      { focus: false },
+    );
+    expect(startNewThread).toHaveBeenCalledWith(
+      expect.objectContaining({ agentKind: "neutral-gui", agentInstanceId: "custom-instance" }),
+    );
+    expect(useAppStore.getState().view).toEqual(viewBefore);
   });
 
   it("preserves an optimistic remote thread while its worktree is provisioning", async () => {

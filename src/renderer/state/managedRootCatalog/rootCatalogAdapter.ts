@@ -1,3 +1,4 @@
+import { auxiliaryThreadIds } from "@/renderer/state/auxiliaryThreadWindows";
 import { msg } from "@lingui/core/macro";
 import { toast } from "@heroui/react";
 import type { EventSequenceSpace } from "@/shared/eventSequenceSpace";
@@ -124,6 +125,7 @@ function noteRootDispatchSequence(
 function protectedRootThreadIds(): ReadonlySet<string> {
   const protectedIds = new Set<string>(pinnedManagedRootThreadIds());
   const state = useAppStore.getState();
+  for (const id of auxiliaryThreadIds()) protectedIds.add(id);
   if (state.view.kind === "thread") {
     for (const paneId of state.view.panes) {
       const row = state.threads.find((thread) => thread.id === paneId);

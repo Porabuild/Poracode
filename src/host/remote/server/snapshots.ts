@@ -7,6 +7,7 @@ import {
   REMOTE_RUNTIME_HISTORY_NOTICES_VERSION,
   REMOTE_SSH_ENVIRONMENTS_VERSION,
   REMOTE_THREAD_LAUNCH_METADATA_VERSION,
+  REMOTE_CONVERSATION_SNAPSHOTS_VERSION,
   REMOTE_PROJECT_COMMAND_RESULTS_VERSION,
   REMOTE_EXPERIMENTS_VERSION,
   REMOTE_STANDARD_SCOPES,
@@ -171,6 +172,7 @@ export function descriptor(ctx: RemoteServerContext): RemoteEnvironmentDescripto
       threadLaunchMetadata: {
         versions: [REMOTE_THREAD_LAUNCH_METADATA_VERSION],
       },
+      conversationSnapshots: { versions: [REMOTE_CONVERSATION_SNAPSHOTS_VERSION] },
       // Managed-root bounded project-command results: the existing project
       // command route honors the exact per-request bounded declaration.
       projectCommandResults: {

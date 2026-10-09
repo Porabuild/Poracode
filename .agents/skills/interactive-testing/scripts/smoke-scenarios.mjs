@@ -188,6 +188,13 @@ export const functionalAreas = [
     manual: ["quick-composer"],
   },
   {
+    id: "side-chat",
+    title: "Independent GUI side conversations and native window ownership",
+    patterns: [/sideChat/i, /SideChat/, /auxiliaryThreadWindows/],
+    automated: ["baseline"],
+    manual: ["side-chat"],
+  },
+  {
     id: "performance-diagnostics",
     title: "Optional local process performance recording and shutdown",
     patterns: [
@@ -235,6 +242,8 @@ export const manualGates = {
     "Create or select an isolated project/worktree and verify persistence after reload.",
   "quick-composer":
     "Invoke the global composer, drag and reopen it, exercise controls and dismissal motion, then submit and verify the new thread opens in the main window.",
+  "side-chat":
+    "Open the right panel from bare /btw and the separate + item, send /btw questions with hidden parent context, detach/attach the same session and draft, reload, follow up, and close without changing the parent.",
   "provider-live":
     "Launch a fresh isolated thread with each changed provider and observe first output.",
   "provider-skill-delivery":

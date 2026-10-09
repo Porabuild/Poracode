@@ -7,6 +7,7 @@ import {
   Monitor,
   Paperclip,
   Plus,
+  MessagesSquare,
   Server,
 } from "lucide-react";
 import type { Selection } from "@heroui/react";
@@ -64,6 +65,7 @@ export function ComposerAddMenu(props: {
   onManageMcpServers?: () => void;
   showFileOption?: boolean;
   onPickFiles: () => void;
+  onOpenSideChat?: () => void;
   /**
    * Computer Use is a launch-time capability handled separately from the MCP
    * registry (it gates on project location + agent kind, not the shared MCP
@@ -127,7 +129,14 @@ export function ComposerAddMenu(props: {
     (showComputerUse && computerUse.enabled ? 1 : 0);
   const enabledMcpServerCount = customMcpServers.filter((server) => server.enabled).length;
 
-  if (!showFileOption && !hasPluginsMenu && !hasMcpServersMenu && !experiment) return null;
+  if (
+    !showFileOption &&
+    !hasPluginsMenu &&
+    !hasMcpServersMenu &&
+    !experiment &&
+    !props.onOpenSideChat
+  )
+    return null;
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -143,6 +152,10 @@ export function ComposerAddMenu(props: {
   const handlePickFiles = () => {
     closeMenu();
     onPickFiles();
+  };
+  const handleSideChat = () => {
+    closeMenu();
+    props.onOpenSideChat?.();
   };
 
   // The Plugins submenu is a multiple-selection menu (Computer Use included as
@@ -204,6 +217,14 @@ export function ComposerAddMenu(props: {
           </span>
           <span className="shrink-0 text-xs text-muted">
             <Trans>Attach</Trans>
+          </span>
+        </button>
+      ) : null}
+      {props.onOpenSideChat ? (
+        <button type="button" className="m-sheet-action" onClick={handleSideChat}>
+          <MessagesSquare className="size-4 text-muted" />
+          <span className="flex-1 truncate">
+            <Trans>Side chat</Trans>
           </span>
         </button>
       ) : null}
@@ -368,6 +389,7 @@ export function ComposerAddMenu(props: {
           selectionMode="none"
           onAction={(key) => {
             if (key === "file") handlePickFiles();
+            if (key === "side-chat") handleSideChat();
             if (key === "experiment" && experiment) {
               experiment.onToggle(!experiment.enabled);
             }
@@ -383,6 +405,15 @@ export function ComposerAddMenu(props: {
               <span className="ms-auto truncate text-xs text-muted">
                 <Trans>Attach</Trans>
               </span>
+            </Dropdown.Item>
+          ) : null}
+          {props.onOpenSideChat ? (
+            <Dropdown.Item id="side-chat" textValue={t`Side chat`}>
+              <MessagesSquare className="size-4 text-muted" />
+              <Label className="flex-1 truncate">
+                <Trans>Side chat</Trans>
+              </Label>
+              <span className="ms-auto text-xs text-muted">/btw</span>
             </Dropdown.Item>
           ) : null}
           {experiment ? (

@@ -339,12 +339,25 @@ data class ProcedureensureThreadRunningRequestU2DClientContextU2DBrowserFocus_f9
 }
 
 @Serializable
-data class ProcedureensureThreadRunningRequestU2DClientContext_ee890c7da4(
+data class ProcedureensureThreadRunningRequestU2DClientContextU2DConversationSnapshot_8532cee498(
+    @SerialName("text") val text: String,
+) {
+    companion object {
+        val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
+            RemoteFieldDescriptor("text", "String", true, false, null, null, null, 50000, null, null, null, null, listOf()),
+        ), listOf())
+    }
+}
+
+@Serializable
+data class ProcedureensureThreadRunningRequestU2DClientContext_b23ca9582f(
     @SerialName("browserFocus") val browserFocus: RemoteField<ProcedureensureThreadRunningRequestU2DClientContextU2DBrowserFocus_f9c97c26b1> = RemoteField.Missing,
+    @SerialName("conversationSnapshot") val conversationSnapshot: RemoteField<ProcedureensureThreadRunningRequestU2DClientContextU2DConversationSnapshot_8532cee498> = RemoteField.Missing,
 ) {
     companion object {
         val descriptor = RemoteModelDescriptor(RemoteUnknownFieldPolicy.STRIP, listOf(
             RemoteFieldDescriptor("browserFocus", "ProcedureensureThreadRunningRequestU2DClientContextU2DBrowserFocus_f9c97c26b1", false, false, null, null, null, null, null, null, null, null, listOf()),
+            RemoteFieldDescriptor("conversationSnapshot", "ProcedureensureThreadRunningRequestU2DClientContextU2DConversationSnapshot_8532cee498", false, false, null, null, null, null, null, null, null, null, listOf()),
         ), listOf())
     }
 }

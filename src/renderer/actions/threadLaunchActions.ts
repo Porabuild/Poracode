@@ -702,7 +702,7 @@ function createThreadRow(launch: ThreadLaunchRequest): Thread {
 }
 
 /** Surface a failed launch on the thread row (error item + error status). */
-function markThreadLaunchFailed(threadId: string, error: unknown): void {
+export function markThreadLaunchFailed(threadId: string, error: unknown): void {
   const store = useAppStore.getState();
   // The pending create+launch intent survives every failure: a definite
   // pre-effect failure was already re-armed as a fresh attempt by the launch

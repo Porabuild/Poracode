@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { canOpenSideChat, openSideChat } from "./SideChat/sideChatActions";
 import { toast } from "@heroui/react";
 import type {
   AgentSlashCommand,
@@ -35,6 +36,8 @@ import { supportsUsableFastMode } from "./threadDraftViewHelpers";
 import {
   bindLeadingSkillUnlessLocalAction,
   resolveLocalActionUnlessSkill,
+  resolveLocalSlashCommandAction,
+  SIDE_CHAT_COMMAND_PREFIX,
 } from "./threadSlashCommands";
 
 /**
@@ -105,6 +108,7 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
     agentKind: thread.agentKind,
     presentationMode: ctx.presentationMode,
     runtimeLabel: agentStatus?.capabilities.runtimeLabel,
+    supportsSideChat: ctx.presentationMode === "gui" && canOpenSideChat(thread.id),
   };
   const boundSegments = bindLeadingSkillUnlessLocalAction(
     segments,
@@ -113,6 +117,58 @@ export function submitComposerPrompt(segments: PromptSegment[], ctx: ComposerSub
   );
   const allSegments = [...attachmentSegments, ...selectorSegments, ...boundSegments];
   const flat = flattenSegments(allSegments);
+  // Route side questions before approval denial, queueing or steering. The
+  // parent may be working (or still connecting) and must remain untouched.
+  const leadingSegment = boundSegments.find(
+    (segment) => segment.kind !== "text" || segment.content.trim().length > 0,
+  );
+  const sideAction =
+    leadingSegment?.kind === "text"
+      ? resolveLocalSlashCommandAction(flattenSegments(boundSegments), slashLookupContext)
+      : null;
+  if (sideAction?.kind === "open-side-chat") {
+    const draftAtSubmit = JSON.stringify(ctx.latestSegmentsRef.current);
+    const attachmentsAtSubmit = JSON.stringify(attachments.getAttachments());
+    const questionSegments = boundSegments.map((segment) =>
+      segment === leadingSegment && segment.kind === "text"
+        ? { ...segment, content: segment.content.replace(SIDE_CHAT_COMMAND_PREFIX, "") }
+        : segment,
+    );
+    ctx.setIsSubmitting(true);
+    const opening = sideAction.prompt
+      ? openSideChat(thread.id, sideAction.prompt, [
+          ...attachmentSegments,
+          ...selectorSegments,
+          ...questionSegments,
+        ])
+      : openSideChat(thread.id);
+    void opening
+      .then((opened) => {
+        if (
+          opened &&
+          ctx.isCurrentSession() &&
+          JSON.stringify(ctx.latestSegmentsRef.current) === draftAtSubmit &&
+          JSON.stringify(attachments.getAttachments()) === attachmentsAtSubmit
+        ) {
+          mentionRef.current?.clear();
+          if (sideAction.prompt) attachments.clearAll();
+          ctx.setPrompt("");
+          ctx.setHasContent(false);
+          ctx.latestSegmentsRef.current = [];
+          if (!sideAction.prompt && attachments.getAttachments().length > 0) {
+            useAppStore.getState().saveThreadDraftContent(thread.id, {
+              segments: [],
+              attachments: attachments.getAttachments().map(storableAttachment),
+            });
+          } else useAppStore.getState().clearThreadDraftContent(thread.id);
+        }
+      })
+      .catch((error: unknown) => toast.danger(friendlyError(error)))
+      .finally(() => {
+        if (ctx.isCurrentSession()) ctx.setIsSubmitting(false);
+      });
+    return;
+  }
   if (!hasSendablePromptContent(flat, allSegments) || !ctx.canSubmit) return;
   const clearComposerText = () => {
     ctx.setPrompt("");

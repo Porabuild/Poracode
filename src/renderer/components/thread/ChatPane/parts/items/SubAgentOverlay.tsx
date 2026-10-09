@@ -1,6 +1,10 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Bot, X } from "lucide-react";
+import {
+  agentPanelTitleTextClass,
+  agentPanelMetaTextClass,
+} from "@/renderer/components/layout/AgentPanelTitleRow";
 import type { ProjectLocation, ToolCallPayload } from "@/shared/contracts";
 import { readBridge } from "@/renderer/bridge";
 import { useAppStore } from "@/renderer/state/appStore";
@@ -212,18 +216,22 @@ export function SubAgentHeaderText({
   );
   const title = (
     <span
-      className={`block truncate font-medium leading-tight text-foreground ${
-        compact ? "text-[0.6875rem]" : "text-sm"
-      }`}
+      className={
+        compact
+          ? agentPanelTitleTextClass
+          : "block truncate font-medium leading-tight text-foreground text-sm"
+      }
     >
       {header.title}
     </span>
   );
   const description = header.description ? (
     <span
-      className={`block truncate leading-tight text-foreground-muted ${
-        compact ? "text-[0.5625rem]" : "text-[0.6875rem]"
-      }`}
+      className={
+        compact
+          ? agentPanelMetaTextClass
+          : "block truncate leading-tight text-foreground-muted text-[0.6875rem]"
+      }
     >
       {header.description}
     </span>

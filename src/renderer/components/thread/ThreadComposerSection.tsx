@@ -25,6 +25,7 @@ import { openMcpServersSettings } from "@/renderer/actions/panelActions";
 import { modelVisibilityKey } from "@/renderer/components/common/ProviderModelMenu/parts/providerIdentity";
 import { AttachmentBar } from "../composer/AttachmentBar";
 import { ComposerAddMenu } from "../composer/ComposerAddMenu";
+import { canOpenSideChat, openSideChat } from "./SideChat/sideChatActions";
 import { useImplicitMcpServers } from "../composer/implicitMcpServers";
 import { useTurnClientContextCapture } from "../composer/turnClientContext";
 import { ComposerVoiceInput } from "../composer/ComposerVoiceInput";
@@ -468,6 +469,7 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
     {
       agentKind: thread.agentKind,
       presentationMode,
+      supportsSideChat: presentationMode === "gui" && canOpenSideChat(thread.id),
       runtimeLabel: effectiveAgentStatus?.capabilities.runtimeLabel,
       hasEffort: hasSelectableReasoning(effectiveAgentStatus?.capabilities, composerModelId),
       supportsFast: effectiveAgentStatus
@@ -1245,6 +1247,15 @@ function ThreadComposerSectionInner(props: ThreadComposerSectionProps & { thread
                       ) : null;
                       const addMenu = (
                         <ComposerAddMenu
+                          {...(!usesTerminalPresentation && canOpenSideChat(thread.id)
+                            ? {
+                                onOpenSideChat: () => {
+                                  void openSideChat(thread.id).catch((error: unknown) =>
+                                    toast.danger(friendlyError(error)),
+                                  );
+                                },
+                              }
+                            : {})}
                           mcpServers={mcpServers}
                           customMcpServers={customMcpServers}
                           onManageMcpServers={openMcpServersSettings}

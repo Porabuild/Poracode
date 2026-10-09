@@ -41,6 +41,16 @@ it("defaults the right panel to follow the focused thread", () => {
   expect(initialPanelState.rightPanelFollowsThread).toBe(true);
 });
 
+it("hides a side chat when it is the only open right panel and reopens its tab", () => {
+  resetPanelStore();
+  usePanelStore.setState({ sideChatPanelOpen: true, rightPanelTab: "sideChat" });
+  usePanelStore.getState().closeAllPanels();
+  expect(usePanelStore.getState().sideChatPanelOpen).toBe(false);
+  usePanelStore.getState().setRightPanelTab("sideChat");
+  expect(usePanelStore.getState().sideChatPanelOpen).toBe(true);
+  resetPanelStore();
+});
+
 function stubMatchMedia(matches: (query: string) => boolean) {
   vi.stubGlobal(
     "matchMedia",

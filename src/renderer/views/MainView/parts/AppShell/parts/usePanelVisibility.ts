@@ -55,6 +55,7 @@ export function usePanelVisibility() {
   const usagePanelOpen = usePanelStore((s) => s.usagePanelOpen);
   const notesPanelOpen = usePanelStore((s) => s.notesPanelOpen);
   const portsPanelOpen = usePanelStore((s) => s.portsPanelOpen);
+  const sideChatPanelOpen = usePanelStore((s) => s.sideChatPanelOpen);
   const bottomDocks = useBottomDockedTabs();
   const terminalPosition = useSharedSettings((s) => s.terminalPosition);
   const threadDocksPlacement = useSharedSettings((s) => s.threadDocksPlacement);
@@ -96,6 +97,7 @@ export function usePanelVisibility() {
       filesPanelOpen ||
       docksPanelOpen ||
       scopedSubAgentPanelOpen ||
+      sideChatPanelOpen ||
       browserPanelOpen ||
       usagePanelOpen ||
       notesPanelOpen ||
@@ -110,6 +112,7 @@ export function usePanelVisibility() {
       (filesPanelOpen && !isDocked("files")) ||
       docksPanelOpen ||
       scopedSubAgentPanelOpen ||
+      sideChatPanelOpen ||
       (browserPanelOpen && !isDocked("browser")) ||
       (usagePanelOpen && !isDocked("usage")) ||
       (notesPanelOpen && !isDocked("notes")) ||
