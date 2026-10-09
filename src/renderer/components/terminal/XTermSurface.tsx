@@ -8,7 +8,7 @@ import { TerminalLinkProvider } from "./TerminalLinkProvider";
 import { resolveTerminalColor } from "./terminalColors";
 import { TerminalReplayGate } from "./terminalReplayGate";
 import { TerminalFeedStatus } from "./TerminalFeedStatus";
-import { TERMINAL_FONT_FAMILY } from "./terminalPrewarm";
+import { applyTerminalFont, loadTerminalFonts, resolveTerminalFontFamily } from "./terminalFonts";
 import { Terminal } from "@xterm/xterm";
 import { Button } from "@heroui/react";
 import { useLingui } from "@lingui/react/macro";
@@ -178,6 +178,7 @@ export const XTermSurface = forwardRef<
     resizeBackingTerminal,
   } = props;
   const { t } = useLingui();
+  const terminalFontFamily = useSharedSettings((state) => state.terminalFontFamily);
   const appearance = useResolvedAppearance();
   const themePreset = useSharedSettings((state) => state.themePreset);
   const mountRef = useRef<HTMLDivElement | null>(null);
@@ -504,7 +505,7 @@ export const XTermSurface = forwardRef<
         // renders the visible scrollbar outside the terminal content area.
         scrollbar: { width: TERMINAL_INTERNAL_SCROLLBAR_WIDTH },
         fontSize: baseFontSizeRef.current,
-        fontFamily: TERMINAL_FONT_FAMILY,
+        fontFamily: resolveTerminalFontFamily(useSharedSettings.getState().terminalFontFamily),
         fontWeight: "normal",
         fontWeightBold: "bold",
         letterSpacing: 0,
@@ -1091,6 +1092,19 @@ export const XTermSurface = forwardRef<
   useEffect(() => {
     requestRefitRef.current?.();
   }, [baseFontSize]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadTerminalFonts(terminalFontFamily, baseFontSize).then(() => {
+      const terminal = terminalRef.current;
+      if (cancelled || !terminal) return;
+      applyTerminalFont(terminal, terminalFontFamily);
+      requestRefitRef.current?.();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [terminalFontFamily, baseFontSize]);
 
   // Status flipping to active is the "PTY now exists" signal after a dropped launch fit.
   useEffect(() => {

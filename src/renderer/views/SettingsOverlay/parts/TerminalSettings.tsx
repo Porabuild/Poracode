@@ -18,6 +18,7 @@ import {
   Select,
   ToggleSwitch,
 } from "@/renderer/components/common";
+import { TerminalFontSetting } from "./TerminalFontSetting";
 import { SettingRow, SettingsPage } from "./SettingsForm";
 import {
   cliPickerTargetOptions,
@@ -282,6 +283,8 @@ export function TerminalSettings() {
           />
         </SettingRow>
       )}
+
+      <TerminalFontSetting />
 
       <SettingRow
         anchorId="terminal.agentTerminalFontSize"

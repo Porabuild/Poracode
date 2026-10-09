@@ -5,6 +5,8 @@ import { renderWithI18n as render } from "@/renderer/testUtils/i18n";
 import { resizeTerminalPayloadSchema } from "@/shared/contracts";
 import type { SupervisorEvent } from "@/shared/ipc";
 import type { TerminalFeedListener } from "@/shared/remote/terminalFeed";
+import { useSharedSettings } from "@/renderer/state/sharedSettingsStore";
+import { resolveTerminalFontFamily } from "./terminalFonts";
 import type { RemoteTerminalWatchResultReady } from "@/shared/remote/protocol";
 // ── Hoisted state shared between mock factories and test code ────
 const { state } = vi.hoisted(() => ({
@@ -291,6 +293,7 @@ function terminal(): MockTerminalShape {
 
 describe("XTermSurface", () => {
   beforeEach(() => {
+    useSharedSettings.setState({ terminalFontFamily: "" });
     state.terminal = null;
     state.terminalOptions = null;
     state.fitSize = null;
@@ -323,6 +326,7 @@ describe("XTermSurface", () => {
   });
 
   afterEach(() => {
+    Reflect.deleteProperty(document, "fonts");
     resetXtermInstanceCacheForTests();
     vi.restoreAllMocks();
     state.eventListeners = [];
@@ -334,6 +338,56 @@ describe("XTermSurface", () => {
     render(<XTermSurface terminalId="test-1" />);
     expect(state.terminal).not.toBeNull();
     expect(terminal().open).toHaveBeenCalled();
+  });
+
+  it("switches a mounted terminal font and refits without recreating the instance or replaying history", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(600);
+    render(<XTermSurface terminalId="font-live" />);
+    await flushFrame();
+    const instance = terminal();
+    state.bridge.resizeTerminal.mockClear();
+    state.bridge.readTerminalScrollback.mockClear();
+    state.fitSize = { cols: 100, rows: 30 };
+    act(() => useSharedSettings.getState().setTerminalFontFamily("Menlo"));
+    await flushFrame();
+    expect(state.terminalOptions?.fontFamily).toBe(resolveTerminalFontFamily("Menlo"));
+    expect(terminal()).toBe(instance);
+    expect(instance.reset).not.toHaveBeenCalled();
+    expect(instance.dispose).not.toHaveBeenCalled();
+    expect(instance.open).toHaveBeenCalledTimes(1);
+    expect(state.bridge.readTerminalScrollback).not.toHaveBeenCalled();
+    expect(state.bridge.resizeTerminal).toHaveBeenCalledWith({
+      threadId: "font-live",
+      cols: 100,
+      rows: 30,
+    });
+  });
+
+  it("discards stale font loading completions after switching again", async () => {
+    const pending = new Map<string, Array<() => void>>();
+    const load = vi.fn<(font: string) => Promise<FontFace[]>>(
+      (font) =>
+        new Promise<FontFace[]>((resolve) =>
+          pending.set(font, [...(pending.get(font) ?? []), () => resolve([])]),
+        ),
+    );
+    Object.defineProperty(document, "fonts", { configurable: true, value: { load } });
+    render(<XTermSurface terminalId="font-race" />);
+    act(() => useSharedSettings.getState().setTerminalFontFamily("Old Mono"));
+    await flushFrame();
+    act(() => useSharedSettings.getState().setTerminalFontFamily("New Mono"));
+    await flushFrame();
+    pending.get('12px "New Mono"')?.forEach((resolve) => resolve());
+    pending.get('700 12px "New Mono"')?.forEach((resolve) => resolve());
+    pending.get('12px "Geist Mono"')?.forEach((resolve) => resolve());
+    pending.get('700 12px "Geist Mono"')?.forEach((resolve) => resolve());
+    await flushFrame();
+    expect(state.terminalOptions?.fontFamily).toBe(resolveTerminalFontFamily("New Mono"));
+    pending.get('12px "Old Mono"')?.forEach((resolve) => resolve());
+    pending.get('700 12px "Old Mono"')?.forEach((resolve) => resolve());
+    await flushFrame();
+    expect(state.terminalOptions?.fontFamily).toBe(resolveTerminalFontFamily("New Mono"));
   });
 
   it("minimizes xterm's internal scrollbar gutter", () => {
