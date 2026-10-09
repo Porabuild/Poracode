@@ -93,7 +93,8 @@ export function createUtilityPresetSetter(input: {
       nextProvider: provider,
       next: candidate,
       owner: utilitySelectionOwner(provider, input.presentation ?? "terminal"),
-      // One-shot presentation declaration is still pending; never mint for it.
+      // Mint only from a declared presentation. Title and commit pass
+      // ONE_SHOT_UTILITY_PRESENTATION; an unset presentation still refuses.
       mintAllowed: input.presentation !== undefined,
       edit,
     });

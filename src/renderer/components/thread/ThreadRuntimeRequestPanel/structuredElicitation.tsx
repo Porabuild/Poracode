@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from "react";
 import { StructuredCustomValues } from "./StructuredCustomValues";
+import { Select } from "@/renderer/components/common/Select";
 import { Button, Input } from "@heroui/react";
 import { Trans, useLingui } from "@lingui/react/macro";
 import type { RequestOutcome } from "@/shared/contracts";
@@ -366,22 +367,17 @@ export function StructuredElicitationForm(props: {
                     ) : null}
                   </div>
                 ) : enumOpts.length > 0 && !property.allowCustom ? (
-                  <select
+                  <Select
                     aria-label={label}
-                    aria-invalid={invalid}
                     aria-describedby={errorId}
-                    disabled={isDisabled}
+                    isInvalid={invalid}
+                    isDisabled={isDisabled}
+                    placeholder="—"
+                    className="w-full"
                     value={String(formValues[key] ?? "")}
-                    onChange={(e) => setFormValues((cur) => ({ ...cur, [key]: e.target.value }))}
-                    className="w-full rounded border border-[color:var(--border)] bg-[var(--composer-surface)] px-2 py-1 text-[11px] text-foreground outline-none"
-                  >
-                    <option value="">—</option>
-                    {enumOpts.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(next) => setFormValues((cur) => ({ ...cur, [key]: next }))}
+                    options={[{ id: "", label: "—" }, ...enumOpts]}
+                  />
                 ) : (
                   <>
                     <datalist id={`${formId}-${key}`}>

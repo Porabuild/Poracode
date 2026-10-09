@@ -406,6 +406,22 @@ export interface CreateStructuredSessionInput {
   acpTerminalCapability?: boolean;
   acpFsTextCapability?: boolean;
   /**
+   * When `false`, do not read host files to inline agent-origin image
+   * references (a uri-only image block, or a completed read-kind tool call's
+   * locations, including a path outside the workspace). Image bytes already
+   * inline in the tool result stay. Approved outgoing prompt attachments are
+   * unaffected. Default `true`. Independent of {@link acpFsTextCapability}.
+   */
+  acpLocalResourceResolution?: boolean;
+  /**
+   * Optional presentation copy of an elicitation request. The shared session
+   * shows this copy and keeps the original request for reply normalization.
+   * The default is the request unchanged.
+   */
+  acpElicitationPresentation?: (
+    request: import("@agentclientprotocol/sdk").CreateElicitationRequest,
+  ) => import("@agentclientprotocol/sdk").CreateElicitationRequest;
+  /**
    * MCP transports relayed optimistically: included in the first
    * `session/new` / `session/load` attempt and dropped from the retry set if
    * opening fails with a protocol compatibility error. Use for agents that
